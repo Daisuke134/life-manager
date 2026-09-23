@@ -51,6 +51,18 @@ runtime/provider readback.
   permission is never a reason to request permission or to mark the artifact
   inaccessible. Record the CLI command/readback and any fallback failure in the
   item evidence.
+- Latest system checkpoint: the occurrence-ledger index fix is merged in main at
+  `35e66d242798e28403e98d06037484d5c2a28795` and cut as immutable release
+  `20260923T174546-35e66d24`. `hf-gig-paid-direct` was stopped only through the
+  canonical lifecycle CLI, target-reconciled, and restarted with this SHA; plist
+  and loaded argv readback both point to the new release. The new natural run
+  acquired the agent slot with `effect=0`. Its Coconala provider pass did not
+  create a seller message or formal delivery; the current evidence result is
+  `failed_step=remote_resume` with `effect=0`, and the run still has an
+  unrecorded terminal marker while a source-only census child is finishing. Do
+  not call the system gate complete until that child/run is reaped, the top-level
+  terminal is recorded, and the four-room official readback plus replay-zero are
+  verified against SHA `35e66d24`.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
@@ -252,15 +264,19 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Finish the Coconala natural-wake gate.** Release `51e7d9c0` is installed,
-   the exact old fence is resolved with an effect-zero official receipt, and
-   Paid is loaded-idle. The latest natural attempt was blocked before provider
-   work by shared agent FIFO (`resource_fifo_wait`), after an earlier transient
-   `resource_control_busy`. Wait for existing sibling owners to release
-   naturally, then verify one completed no-op wake, official four-room
-   readback, Ryu `reserved_for_owner`, the other rooms' honest state, and
-   replay-zero. Do not edit the admission database or stop sibling owners.
-2. **Retain the queued-wake safety fix as a production invariant.** The full
+1. **Finish the Coconala natural-wake gate on the repaired release.** The exact
+   old fence is resolved with an effect-zero official receipt. Release
+   `20260923T174546-35e66d24` is target-installed and its loaded argv is verified.
+   The first new natural run acquired admission with `effect=0` but currently
+   reports `failed_step=remote_resume`; its run directory still has
+   `.terminal-unrecorded` while a source-only census child is active. Let the
+   owner-scoped child finish or fail closed, record the top-level terminal, then
+   verify the four-room official Coconala readback, Ryu
+   `reserved_for_owner`, honest buyer-waiting states for the other rooms, and
+   replay-zero. Do not edit the admission database, bypass FIFO, or stop sibling
+   owners.
+2. **Retain the queued-wake and occurrence-index safety fixes as production
+   invariants.** The full
    acceptance set for `e012343e94` (occurrence-scoped marketplace admission plus
    Coconala Paid queued/reserved wake coalescing) is merged and included in the
    installed release. Its remaining proof is the natural wake in item 1; no

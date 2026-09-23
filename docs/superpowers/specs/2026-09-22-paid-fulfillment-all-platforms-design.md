@@ -90,14 +90,16 @@ zero eligible positive replies and one ineligible reply. The talkroom remains op
 with formal delivery OFF by design, so the correct terminal state is
 `awaiting_buyer`, not another send or the formal-delivery button.
 
-The latest natural wake read the four open Coconala rooms through
+The previous completed natural wake read the four open Coconala rooms through
 `2026-09-23T01:07:47+00:00` and completed with `effect=0`, `readback=3`,
 `failed=0`, and `pending=0`. It re-read Chii as `awaiting_buyer` and both NPO
-rooms as `awaiting_buyer`. This is the expected no-op: the loop has already
-answered the newest buyer event where it had a complete result, and it waits for
-a genuinely newer buyer message where missing buyer facts are required. Ryu is
-the only room that can be handled directly by a human; Chii is not a manual
-exception. That wake predates the 2026-09-23 09:13–10:29 Ryu events, so its
+rooms as `awaiting_buyer`. The first natural run after the repaired release
+acquired admission with `effect=0` but currently stops at
+`failed_step=remote_resume`; its owner-scoped child and top-level terminal
+marker must finish before this no-op/readback gate is considered proven. This
+is not a provider send or a client completion claim. Ryu is the only room that
+can be handled directly by a human; Chii is not a manual exception. The prior
+wake predates the 2026-09-23 09:13–10:29 Ryu events, so its
 `reserved_for_owner` result does not close the newly reopened Ryu cycle.
 
 The preceding NPO wake exposed a safe serialization bug: room `18223833`'s
@@ -247,12 +249,24 @@ canary.
 
 ### Coconala
 
+Latest production checkpoint: the occurrence-ledger lookup-index fix is merged in
+main at `35e66d242798e28403e98d06037484d5c2a28795` and cut as immutable release
+`20260923T174546-35e66d24`. The Paid owner was stopped only through the canonical
+lifecycle CLI, target-reconciled, and restarted; plist and loaded argv readback
+both point to that SHA. The first natural run on the repaired release acquired
+the agent slot with `effect=0`. Its provider result has no seller-message or
+formal-delivery effect and currently records `failed_step=remote_resume` with
+`effect=0`; the run directory still has `.terminal-unrecorded` while an
+owner-scoped source-only census child is finishing. This is not yet the natural
+wake completion gate: top-level terminal recording, four-room official readback,
+and replay-zero remain open.
+
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
 `18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
-is loaded-idle from immutable release `20260923T165749-51e7d9c0`, whose SHA is
-`51e7d9c0ba460e8f2486a02112528a81357dc5e1`. Its latest completed official queue
-readback is terminal with `effect=0`: Ryu was `reserved_for_owner` and the other
-three rooms were `awaiting_buyer`.
+is loaded-running from immutable release `20260923T174546-35e66d24`, whose SHA is
+`35e66d242798e28403e98d06037484d5c2a28795`. Its last completed top-level provider
+readback before this run is terminal with `effect=0`: Ryu was
+`reserved_for_owner` and the other three rooms were `awaiting_buyer`.
 The latest natural wake (targeted readback through
 `2026-09-23T01:07:47+00:00`) completed with `status=completed`, `effect=0`,
 `readback=3`, `failed=0`, and `pending=0`; it reconfirmed Ryu as
@@ -267,13 +281,13 @@ outcomes, not client completion claims. A subsequent one-shot wake
 events supersede the old Ryu no-op snapshot.
 
 The Coconala schedule repair passed the loop contract gate, the focused and
-full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main and
-the admission cleanup from PR `#5803` is now included in immutable release
-`20260923T165749-51e7d9c0`, whose SHA is
-`51e7d9c0ba460e8f2486a02112528a81357dc5e1`. Official lifecycle readback shows
-that SHA installed and `loaded-idle` for `hf-gig-paid-direct`. A completed
-natural provider readback and replay-zero proof for this installed SHA remain
-open.
+full runtime suites, and `lm-loop doctor`. PR `#5798` and the admission cleanup
+from PR `#5803` are merged in main; the occurrence-ledger index fix is included
+in immutable release `20260923T174546-35e66d24`. Official lifecycle readback
+shows that SHA installed for `hf-gig-paid-direct`. A completed natural provider
+readback and replay-zero proof for this installed SHA remain open; the current
+run's `remote_resume` failure must be recorded honestly rather than treated as a
+client completion or retried as a provider send.
 
 The exact former Coconala admission fence
 `hf-gig-paid-direct:18d74bfad80dc9d8-14624` is resolved by the official
@@ -723,15 +737,20 @@ formal delivery.
    `effect_unknown` occurrence by official provider readback before retrying it; do
    not clear a fence by owner-wide guess.
 4. Finish the Coconala fleet gates (natural wake, replay-zero, no-starvation and
-   self-heal) while preserving the Ryu fence and Chii wait state. The latest
-   schedule parser is already merged, released, and applied; this item is only
-   the still-missing natural-wake/provider-readback proof.
+   self-heal) while preserving the Ryu fence and Chii wait state. The repaired
+   occurrence-ledger release `20260923T174546-35e66d24` is installed and its
+   loaded argv is verified. Its first natural run acquired admission with
+   `effect=0` but stopped at `remote_resume`; record the top-level terminal and
+   complete the four-room official readback before calling this gate complete.
 5. Continue with CrowdWorks: the dedicated Browser owner is merged in current main
    and its read-only inventory shows five funded contracts. Reconcile the existing
-   Application/Paid/Reply/Report occurrences one by one, promote the occurrence
-   isolation change, then canary contract
-   `63712784` through full context, correct work, buyer-visible submission, formal
-   delivery, official readback, and replay-zero.
+   Application/Paid/Reply/Report occurrences one by one, preserving every
+   `effect_unknown` fence. The already completed manual contracts still need
+   acceptance/settlement/payout readback; funded contract `63568785` still needs
+   the buyer's LINE/Note source materials. Use authenticated `gog` CLI or a
+   connector/plugin first for any Google artifact, with browser only after a
+   recorded CLI failure, then prove the next natural canary through buyer-visible
+   submission, formal delivery, official readback, and replay-zero.
 6. Resolve Lancers occurrences, implement and prove the Paid mutation path, then
    close contracts one at a time without disturbing Browser or Work Sync.
 7. Inventory and register Upwork Paid ownership, then prove one funded live canary.
