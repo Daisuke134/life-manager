@@ -55,9 +55,10 @@ and is not proof that the automated Paid owner works.
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
 `18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
-is loaded from the immutable current-main release and its latest official queue
-readback is terminal with `effect=0`: Ryu is `reserved_for_owner` and the other
-three rooms are `awaiting_buyer`.
+is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, which
+contains the answered-feedback stop fix. Its latest official queue readback is
+terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
+`awaiting_buyer`.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
