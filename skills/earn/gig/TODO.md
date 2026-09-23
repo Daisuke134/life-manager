@@ -8,6 +8,11 @@ runtime/provider readback.
 - Ryu `18211957` is the only permanent manual exception. The latest correction was
   sent once with formal delivery OFF and officially read back; reopen only for a
   genuinely newer buyer event.
+- A fresh canonical talkroom read on 2026-09-23 found no buyer event newer than
+  `js-talkroomMessage-222185015`; the latest seller correction remains
+  `js-talkroomMessage-222192497`. Do not send Ryu again based only on a
+  conversation report. If a newer official buyer event appears, handle that one
+  cycle manually and read back the seller message before releasing the cursor.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
@@ -43,31 +48,42 @@ runtime/provider readback.
   `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
   safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
   promoted or applied. The follow-up identity-binding fix is `7244c3e856`.
-- The next production cursor is the CrowdWorks occurrence-by-occurrence
-  reconciliation and one funded-contract canary, followed by Lancers and Upwork.
+- A shared-host incident is also open: the Paid owner recorded `No space left on
+  device` while writing its result, followed by `control_busy`/database-lock
+  symptoms. Safe release GC evaluated 59 releases, protected all 59, and reclaimed
+  0 bytes. Run the existing disk-cleanup/rotation owner and verify durable writes
+  before promoting another release; do not delete protected releases, provider
+  state, or unknown-effect rows by hand.
+- After host-write recovery, the production cursor is the CrowdWorks
+  occurrence-by-occurrence reconciliation and one funded-contract canary, followed
+  by Lancers and Upwork. Ryu and Chii remain closed at the client layer and are not
+  the system-repair cursor.
 
 ## Remaining work — outcome order
 
-1. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
+1. **Recover host writes first.** Restore safe writable headroom using the existing
+   disk-cleanup/rotation path, then prove a small state write and a natural Coconala
+   no-op wake. Keep all protected releases and provider ledgers intact.
+2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
    `9df3731ccb` (occurrence-scoped marketplace admission plus Coconala Paid queued
    and reserved wake coalescing), build one immutable release, apply it, and verify a
    natural Coconala wake with official readback and replay-zero. Do not edit the
    admission database by hand or clear old unknown rows.
-2. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
+3. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
    against provider inventory and the durable child/effect receipts. Keep every
    uncertain effect fenced; only a proven pre-effect/no-effect case may be closed.
    Then run one funded contract through requirements → work → quality → delivery →
    official readback → replay-zero, without using the historical unknown batch as
    proof.
-3. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
+4. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
    for each funded item, including buyer revisions, acceptance and payout evidence.
-4. **Lancers.** Keep the current browser/work-sync owners running; implement the
+5. **Lancers.** Keep the current browser/work-sync owners running; implement the
    missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
    prove one canary, then complete the funded inventory and payout receipts.
-5. **Upwork.** Register a Paid owner, obtain a live authenticated contract
+6. **Upwork.** Register a Paid owner, obtain a live authenticated contract
    inventory, and close the same official delivery/payment/replay-zero gates. Do not
    count historical adapters as live revenue proof.
-6. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
+7. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
    lease, 24-hour cadence, revision, settlement and duplicate-zero checks. Only then
    promote the full release; Chii and Ryu are not blockers for this system work.
 

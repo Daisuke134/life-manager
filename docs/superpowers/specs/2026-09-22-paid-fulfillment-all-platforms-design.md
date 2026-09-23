@@ -30,6 +30,20 @@ completion criteria.
 - There is no Risa client. Earlier references to Risa were transcription errors for
   Ryu and create no work item.
 - All other eligible paid clients ultimately belong to their provider's Paid owner.
+- The execution cursor is sequential: (1) handle a genuinely newer Ryu event
+  directly, (2) prove the remaining Coconala fleet is loop-owned and safe, then
+  (3) repair and prove CrowdWorks, Lancers, and Upwork. “Ryu's client work is
+  finished” and “the Coconala Paid loop is production-proven” are separate gates.
+
+### Two completion layers
+
+1. **Client layer:** the requested work was performed, sent through the provider,
+   and read back officially. Ryu and Chii satisfy this layer for their current
+   buyer events; neither needs a duplicate send.
+2. **System layer:** the loop can safely do the same for the next eligible client,
+   including admission, effect fencing, official readback, crash recovery, and
+   replay-zero. Coconala's client layer is largely closed, but its system-layer
+   natural-wake and shared-host gates remain open.
 
 ### Ownership rule in plain language
 
@@ -93,6 +107,23 @@ formal-delivery checkbox; Coconala readback observed the exact seller message
 `js-talkroomMessage-222192497` at `2026-09-22T11:34:08.476934+00:00`. Ryu remains
 open for direct revision handling and is not proof that the automated Paid owner
 works.
+
+A fresh read of the canonical Ryu talkroom ledger on 2026-09-23 found no buyer
+message newer than `js-talkroomMessage-222185015`; the latest seller correction is
+still `js-talkroomMessage-222192497`. Until a newer official buyer event is read
+back, the correct action is **no send**. A conversation report that Ryu replied is
+not enough to cross the external-effect fence.
+
+### Shared-host blocker observed during loop repair
+
+The production Paid owner hit `OSError: [Errno 28] No space left on device` while
+writing its result file. Subsequent `control_busy`, `database is locked`, and old
+heartbeat failures are secondary control-plane symptoms of that host pressure, not
+evidence that Chii or Ryu needs another delivery. Safe release GC evaluated 59
+releases, protected all 59, and reclaimed zero bytes. The remaining recovery work
+is to use the existing disk-cleanup/rotation owner to reclaim only positively owned,
+regenerable artifacts before promoting new loop code; never delete provider state,
+unknown-effect rows, or a protected release by hand.
 
 ### Coconala
 
