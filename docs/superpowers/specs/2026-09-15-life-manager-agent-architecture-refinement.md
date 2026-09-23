@@ -2877,16 +2877,25 @@ The current focused ledger/X tests pass 13/13 and `git diff --check` passes. The
 committed, reviewed, merged, released or production-accepted. Therefore the official post evidence
 proves the external object, not completion of the internal reconciliation or replay-zero gate.
 
-The remaining order is fixed as follows:
+The remaining order is fixed as follows. The ordering change is deliberate: the old order kept the
+primary cursor on Affiliate through conversion/payment evidence before moving to Mobile Apps. The
+current evidence separates operational acceptance from commercial optimization. Waiting for Affiliate
+revenue before repairing another broken loop reduces portfolio learning and total expected revenue.
+The new order closes Affiliate's exact unsafe occurrence and operational self-heal first, then moves the
+primary cursor to Mobile Apps and Connector while Affiliate continues bounded funnel experiments on its
+normal schedule. The current cursor remains the exact Affiliate X effect/index repair; no Paid owner,
+state or provider session is part of this reorder.
 
 1. Finish Affiliate locally without manual restart or a second X delivery. Complete the target-index and
    bounded-readback candidate, rerun the full Affiliate and shared contract gates, obtain fresh read-only
    review, merge it through main, and load a complete immutable release naturally. Reconcile only job
    `f9624461...` and its exact host occurrence from the official X proof; never clear the owner or repost
    by inference. Require a natural same-SHA terminal that marks the existing post `LIVE`, followed by a
-   same-SHA replay-zero with the same public URL and no duplicate. Then continue owned-visit analytics,
-   transient Impact observation and attributable conversion/payment receipts. A public page, post,
-   impression, historical click or process `exit 0` is not revenue completion.
+   same-SHA replay-zero with the same public URL and no duplicate. That is the operational handoff point,
+   not a revenue claim: Affiliate then continues owned-visit analytics, experiment terminalization,
+   transient Impact observation and attributable conversion/payment receipts as a bounded scheduled
+   portfolio lane while the primary cursor moves to Mobile Apps. A public page, post, impression,
+   historical click or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
@@ -2916,6 +2925,98 @@ the same immutable implementation to tenant-isolated Cloud workers; expose phone
 then allocate effort by verified net revenue until the system pays for itself. Users provide one-shot
 facts, not recurring goals. Life Manager assigns and pursues goals proactively and interrupts a person
 only for a rare typed gate that the system cannot safely complete itself.
+
+### J5. Affiliate revenue diagnosis and external harness decisions
+
+Affiliate takes too long because four different gates are serialized as though they were one result:
+
+| Boundary | Current evidence | Consequence | Required correction |
+|---|---|---|---|
+| Effect safety | `affiliate-loop` is loaded on exact `35e66d...` but the current occurrence is `resource_effect_unknown`; the exact X post is public while the internal journal still lacks a verified terminal | A blind retry could duplicate a public post, so the business body is correctly fenced | Reconcile only the exact job/occurrence from official X evidence, then prove same-SHA replay-zero |
+| Local liveness | 1,813 job files include about 900 legacy target indexes; unresolved-target lookup scans them under the lock twice and adds about thirty minutes | Every recovery iteration is unnecessarily slow | Finish the durable O(1) target index and bounded exact-timeline readback; retain fail-closed duplicate handling |
+| Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
+| Money funnel | Exact monetization impressions are 1,232, owned entries are 0, CTA clicks are 0, transactions are 0, and every commission state is 0. Provider cumulative clicks are 23/22 unique but `post_distribution_state=BASELINE_UNAVAILABLE` | There is no attributable conversion or money evidence; more infrastructure success does not imply commercial progress | Optimize the first broken measurable transition, impression→owned entry/CTA, then click→transaction; keep unattributed historical clicks out of the winner decision |
+
+The process error is treating increasingly fine-grained infrastructure correctness as the product
+outcome. The safety work is necessary until a duplicate external effect is impossible and natural
+recovery is bounded. After that point, reliability work receives a finite error budget and commercial
+experiments receive a finite exposure/time/cost budget. A lane that reaches its budget with no verified
+improvement is terminalized and its next hypothesis is tried; it does not retain the portfolio cursor
+indefinitely. Money-producing loops target verified net USD 10,000 monthly revenue each. Job Hunter and
+Fundraiser use their own verified outcome units until they produce money; the portfolio allocator never
+fabricates MRR for a non-revenue outcome.
+
+The evidence ladder is machine-readable and cannot be collapsed:
+
+```text
+safe natural execution -> official distribution -> attributable funnel movement
+  -> transaction -> settled payment -> net revenue after measured cost
+```
+
+`Self-healing` owns the first boundary: detect, localize, create an owner-scoped repair candidate,
+verify it, promote an immutable release, recover naturally, and prevent recurrence. `Self-improvement`
+owns the later boundaries: turn real traces and receipts into an error taxonomy/eval, propose one
+change, compare it against frozen baseline and held-out data, canary it, then promote or roll back.
+`Self-funding` is achieved only when settled attributable revenue exceeds measured model, browser,
+hosting, payment and labor cost. These loops share evidence and promotion machinery, but they are not
+the same success claim.
+
+The six supplied external examples produce the following decisions:
+
+| Source | What it proves | Adopt | Do not adopt |
+|---|---|---|---|
+| [TypeSafe skills](https://github.com/typesafe-ai/skills) | MIT-licensed typed judgments and probability-shaped interfaces for narrow semantic decisions | Benchmark for routing, ranking and repetitive failure classification where uncertainty is explicit | Do not replace general reasoning or authorize provider/money effects from a typed response; promote only if a Life Manager held-out benchmark improves cost/latency without violating error bounds |
+| [Praxis](https://www.praxisnation.com/) and its [Uruguay announcement](https://x.com/praxisnation/status/2102412604488458299) | A long-horizon mission is credible only when expressed as staged physical milestones | Keep “manage all life” as mission while the current milestone is verified financial outcomes, then physical and mental health | Do not use the mission as a reason for unbounded architecture work without a user/outcome milestone |
+| [OpenBot](https://github.com/nightly-labs/openbot) | Persistent per-agent workspaces, crash-safe FIFO queues, pause/resume/cancel, compaction, agent messaging and mobile remote control form a useful operator experience | Reuse the design lessons for durable control, phone access and explicit ownership | Do not replace Life Manager with it: current OpenBot is local-first, development-preview, grants agents broad host access, and current code uses the PolyForm Noncommercial license, so it is neither the commercial cloud runtime nor the business/effect ledger |
+| [Unreal Agent](https://github.com/unreallabsai/unreal-agent) | An MIT async-first harness can separate a model turn from serializable durable operations, atomically record tool-call/operation state, and resume/fork sessions | Evaluate versioned operations and a swappable local/cloud operation manager against the existing runtime job store | Do not rewrite the 14-loop control plane around a newly released harness or accept vendor benchmark claims without reproducing them on Life Manager traces |
+| [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Error discovery precedes evaluator design; deterministic checks beat LLM judges for objective rules; judges require held-out TPR/TNR validation | Audit the existing eval pipeline, derive failure modes from real traces, validate any semantic judge, and preserve full tool/effect traces | Do not copy repository code until its license is explicit, require recurring user goal-setting, or let an unvalidated judge promote itself |
+| [DigitalOcean Managed Agents](https://www.digitalocean.com/blog/managed-agents-public-preview) | A managed runtime can provide isolated microVM sessions, pause/resume/fork, durable files/processes/context, centralized tools/credentials and usage events | Treat it as a cloud worker adapter candidate after Local/Eval gates; canary one non-effect owner with the same immutable SHA, receipt schema and tenant boundary | Do not move the business control plane or source of truth into a public-preview vendor, and do not confuse paused compute with an always-on scheduler |
+
+[Muse Connector Platform](https://muse.ai/platform) is a distribution/interaction surface, not the
+Life Manager runtime. Its value is that the connector supplies an API while Muse supplies the agent,
+browser and user context, plus review/directory/payment distribution. Life Manager should expose a
+narrow connector after its cloud API and effect contracts are stable; Muse must remain one replaceable
+channel beside the web/phone client, not the owner of goals, receipts, credentials or revenue policy.
+OpenBot similarly can inform the phone/operator interface without becoming the control plane.
+
+The ideal deployment keeps one product implementation and replaces only host adapters:
+
+```mermaid
+flowchart LR
+    P[Phone / web / Muse connector] --> C[Tenant control plane]
+    C --> G[Proactive goal + portfolio allocator]
+    G --> Q[Durable jobs / leases / immutable release]
+    Q --> W[Isolated local or cloud worker]
+    W --> E[Governed effect gateway + credential broker]
+    E --> R[Official provider readback + payment receipt]
+    R --> O[Observability and failure taxonomy]
+    O --> H[Bounded self-heal]
+    O --> V[Held-out eval and self-improvement]
+    V --> Q
+    R --> F[CFO: settled revenue - measured cost]
+    F --> G
+```
+
+The existing `x-search-cdp` skill already searches the logged-in X session without a paid X API, so a
+second personal search skill is unnecessary. It is a development-time discovery mechanism, not a
+production dependency. The repository-owned learning loop must use an approved browser/search adapter
+and persist source-labeled candidates. Its automatic contract is:
+
+1. Search X and primary GitHub/vendor sources for relevant technology, distribution and revenue ideas.
+2. Store the source URL, author, observed time, claim, license and affected Life Manager boundary.
+3. Treat X as discovery, not proof; confirm code/API/licensing claims in the primary repository or docs.
+4. Convert only a concrete gap into a candidate and eval. Never edit production prompts/code directly
+   from a post, install an unreviewed skill, or let the candidate grade itself.
+5. Run deterministic checks first, then held-out semantic evals, security/cost gates and one bounded
+   canary. Promote only an immutable candidate that beats baseline; otherwise roll back and retain the
+   negative result.
+6. Measure business adoption by attributable funnel, settled payment and net cost receipts. A trend,
+   star count, vendor benchmark or social endorsement is not a revenue receipt.
+
+This discovery loop may improve Life Manager autonomously, but it never asks the user to invent a goal.
+One-shot onboarding facts, verified state and policy generate proactive goals. Human interruption is
+reserved for a rare non-delegable legal/identity/safety gate; recurring interviews, manual submissions,
+goal-setting conversations and desktop commands are excluded from the target operating model.
 
 ### K. User Communication Contract
 
