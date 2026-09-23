@@ -287,6 +287,22 @@ class MacosLoopRegistryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid priority"):
             validate_registry({"schema_version": 2, "loops": {"example": invalid}})
 
+    def test_registry_accepts_explicit_admission_effect_scope(self):
+        value = entry()
+        value["admission_effect_scope"] = "occurrence"
+        self.assertEqual(
+            validate_registry({"schema_version": 2, "loops": {"example": value}})
+            ["loops"]["example"]["admission_effect_scope"],
+            "occurrence",
+        )
+        for invalid_value in ("client", 1, True):
+            invalid = entry()
+            invalid["admission_effect_scope"] = invalid_value
+            with self.subTest(value=invalid_value), self.assertRaisesRegex(
+                ValueError, "invalid admission_effect_scope",
+            ):
+                validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+
     def test_shared_marketing_and_connector_owners_declare_runtime_class_and_priority(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         mobile_ids = [
@@ -313,6 +329,25 @@ class MacosLoopRegistryTest(unittest.TestCase):
         daily = registry["loops"]["life-manager-daily"]
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")
+
+    def test_marketplace_item_lanes_declare_occurrence_scoped_admission(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in (
+            "crowdworks-revenue-application", "crowdworks-revenue-paid",
+            "crowdworks-revenue-reply", "lancers-revenue-application",
+            "lancers-revenue-negotiate", "lancers-revenue-paid",
+        ):
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(
+                    registry["loops"][loop_id].get("admission_effect_scope"),
+                    "occurrence",
+                )
+        for loop_id in (
+            "crowdworks-revenue-report", "lancers-revenue-storefront",
+            "lancers-revenue-telegram-report",
+        ):
+            with self.subTest(loop_id=loop_id):
+                self.assertIsNone(registry["loops"][loop_id].get("admission_effect_scope"))
 
     def test_affiliate_loop_opts_into_queued_release_reconcile(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -886,6 +921,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         ])
         self.assertEqual(schema["properties"]["effect_class"]["enum"], [
             "account_mutation", "application", "message", "money", "none", "publish", "trade",
+        ])
+        self.assertEqual(schema["properties"]["admission_effect_scope"]["enum"], [
+            "occurrence", "owner",
         ])
         self.assertEqual(schema["properties"]["adapter"]["enum"], ["exec", "python"])
         self.assertEqual(schema["properties"]["resource_class"]["enum"], [

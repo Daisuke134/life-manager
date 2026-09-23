@@ -332,6 +332,26 @@ class LmLoopApplyTest(unittest.TestCase):
             priority="revenue", effect_scope="occurrence",
         )
 
+    def test_admission_rebind_guard_uses_explicit_marketplace_occurrence_scope(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "critical_paid",
+            "effect_class": "money",
+            "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
+            "admission_effect_scope": "occurrence",
+        }
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"paid"}),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
+            lm_loop._admission_rebind_guard("paid", True, entry=entry) as decision,
+        ):
+            self.assertIsNone(decision)
+        rebind.assert_called_once_with(
+            "paid", resource_class="agent", admission_class="revenue",
+            priority="critical_paid", effect_scope="occurrence",
+        )
+
     def test_apply_all_is_explicit(self):
         with patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(self.root),

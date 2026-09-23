@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
-from runtime.loop.macos_loop_registry import validate_registry
+from runtime.loop.macos_loop_registry import admission_effect_scope, validate_registry
 from runtime.loop.lm_loop_apply import (
     _plist,
     _loaded_arguments,
@@ -53,10 +53,7 @@ def _pending_admission_owners() -> set[str]:
 
 
 def _entry_effect_scope(entry: dict) -> str:
-    if (entry.get("effect_class") == "publish"
-            and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
-        return "occurrence"
-    return "owner"
+    return admission_effect_scope(entry)
 
 
 def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
