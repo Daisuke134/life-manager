@@ -25,4 +25,19 @@ set +e
 RC=$?
 set -e
 
+# A successful Paid wake writes an occurrence-bound zero-effect marker.  Release
+# that exact host-admission claim when the marker proves no provider mutation
+# was armed; never broaden this to an owner-wide fence clear.
+OCCURRENCE="${LIFE_MANAGER_OCCURRENCE_ID:-}"
+if [[ -n "$OCCURRENCE" ]]; then
+  set +e
+  "$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/reconcile_paid_no_effect.py" \
+    --state-root "$STATE_ROOT" --occurrence "$OCCURRENCE" --resolve
+  RECONCILE_RC=$?
+  set -e
+  if (( RECONCILE_RC != 0 )); then
+    echo "paid-owner: zero-effect occurrence was not reconciled: $OCCURRENCE" >&2
+  fi
+fi
+
 exit "$RC"
