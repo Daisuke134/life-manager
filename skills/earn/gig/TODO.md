@@ -22,16 +22,23 @@ runtime/provider readback.
   `51e7d9c0ba460e8f2486a02112528a81357dc5e1`, and immutable release
   `20260923T165749-51e7d9c0` is installed for `hf-gig-paid-direct`. Official
   status readback is `installed_release_sha=51e7d9c0ba460e8f2486a02112528a81357dc5e1`,
-  `launchd_state=unloaded`, `pid=null`; `lm-loop doctor` is clean. The parser
-  still accepts only official change/registration events and preserves event
-  provenance. No natural wake/provider readback/replay-zero proof exists for
-  this installed SHA yet.
-- The remaining Coconala admission fence is exact and must stay closed until
-  reconciled: `hf-gig-paid-direct:18d74bfad80dc9d8-14624` is
-  `claimed/effect_unknown=1`. Its historical report says `pass/effect=none` but
-  points at a different older claim reference, so that report is not proof for
-  this occurrence. Do not clear the row, restart Paid, or retry a client effect
-  without an exact official provider receipt or a durable pre-effect proof.
+  `launchd_state=loaded-idle`, `pid=null`, `admission_effect_unknown=false`;
+  `lm-loop doctor` is clean. The parser still accepts only official
+  change/registration events and preserves event provenance. The former
+  occurrence fence `hf-gig-paid-direct:18d74bfad80dc9d8-14624` was released by
+  the official resolver against reconciliation receipt
+  `coconala-talkroom-set:bd90c5342a64077aebda4f1957c2279373878400a2e4226c38100c3cf4b2b3f0`;
+  effect was `0`, readback `4`, and the resolver readback confirms
+  `admission_effect_unknown=false`.
+- Two post-install natural wakes used release `51e7d9c0` and produced no
+  provider effect. Run `18d7e55a9d761380-69492` failed closed at
+  `host_admission_deferred:resource_control_busy`; run
+  `18d7e58c5d5531a0-71039` failed closed at
+  `host_admission_deferred:resource_fifo_wait`. The latest run is
+  `loaded-idle`, `last_exit=75`, with no active fence and no official provider
+  send. The next cursor is to let shared agent capacity drain, then obtain one
+  completed natural wake with official Coconala readback and replay-zero; do not
+  bypass FIFO or stop sibling owners.
 - Authenticated artifact access is now an invariant for every platform: use the
   installed `gog` CLI or equivalent authenticated connector/plugin first for
   Drive, Docs, Sheets, and related artifacts. Browser access is allowed only
@@ -240,18 +247,19 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Close the host/lifecycle gate.** The repaired release is installed but the
-   Paid owner remains intentionally unloaded. Host headroom is near the floor and
-   admission contention (`control_busy`) remains observable while another owner
-   is active. Prove a small production state write, owner-child reaping, and a
-   natural Coconala no-op wake. Keep all protected releases and provider ledgers
-   intact; do not clear unknown-effect fences or restart Paid before this gate.
-2. **Prove the promoted queued-wake safety fix.** The full loop/host acceptance
-   set for `e012343e94` (occurrence-scoped marketplace admission plus Coconala
-   Paid queued and reserved wake coalescing) is merged, released, and applied in
-   `20260923T155015-6b72c304`. After item 1, verify one natural Coconala wake
-   with official readback and replay-zero. Do not edit the admission database by
-   hand or clear old unknown rows.
+1. **Finish the Coconala natural-wake gate.** Release `51e7d9c0` is installed,
+   the exact old fence is resolved with an effect-zero official receipt, and
+   Paid is loaded-idle. The latest natural attempt was blocked before provider
+   work by shared agent FIFO (`resource_fifo_wait`), after an earlier transient
+   `resource_control_busy`. Wait for existing sibling owners to release
+   naturally, then verify one completed no-op wake, official four-room
+   readback, Ryu `reserved_for_owner`, the other rooms' honest state, and
+   replay-zero. Do not edit the admission database or stop sibling owners.
+2. **Retain the queued-wake safety fix as a production invariant.** The full
+   acceptance set for `e012343e94` (occurrence-scoped marketplace admission plus
+   Coconala Paid queued/reserved wake coalescing) is merged and included in the
+   installed release. Its remaining proof is the natural wake in item 1; no
+   manual kick, FIFO bypass, or old-fence deletion substitutes for that proof.
 3. **CrowdWorks occurrence fences and loop promotion.** The manually completed
    contracts `63712784`, `63659463`, and `63657015` are not proof for the unresolved
    Paid occurrence. Reconcile each existing `effect_unknown` occurrence against

@@ -212,15 +212,17 @@ expectation update follows the production coalescing behavior) is merged in main
 included in immutable release `20260923T155015-6b72c304`, and target-applied to
 `hf-gig-paid-direct`. Its focused runtime suite is `528 passed, 174 subtests
 passed`, `git diff --check`, Python compile, and `./bin/lm-loop-contract` all
-pass. The owner is still intentionally unloaded; the remaining proof is one
-safe natural wake with official provider readback and replay-zero.
+pass. The implementation is included in the installed `51e7d9c0` release. The
+owner is loaded-idle; two safe natural wakes have failed closed before provider
+work because of shared admission contention, so the remaining proof is one
+completed natural wake with official provider readback and replay-zero.
 
 The follow-up Paid lifecycle fix is included at `470c7b3160`: when a stop signal
 reaches `paid_direct.py`, it now terminates active child groups and re-raises the
 same signal with the default disposition so the Paid parent cannot remain as an
 orphan holding `.paid-direct.lock`. The regression test is included in the
-installed release; the production owner remains unloaded until the host gate is
-closed.
+installed release; the production owner is loaded-idle and retains the normal
+stop/readback safety boundary.
 
 The targeted loop-status read path is also fixed at `313915e0a5`: when a caller
 asks for one loop, `_last_event()` now returns at the newest valid report for
@@ -231,32 +233,35 @@ for every loop sharing a state root. Runtime tests now pass `517`, Paid tests
 `263`, adapter tests `15`, the loop
 contract gate passes, and `lm-loop doctor` reports no missing, unmanaged, or
 retired entries. These fixes are included in installed release
-`20260923T155015-6b72c304` and target-applied to the Paid owner. The owner is
-still unloaded and the new SHA has no natural-wake/readback proof.
+`20260923T165749-51e7d9c0` and target-applied to the Paid owner. The owner is
+loaded-idle after two effect-zero admission deferrals; the new SHA still lacks
+a completed natural provider readback and replay-zero proof.
 
-Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB available
-on the data volume, no running Paid parent/child, and a 0.18-second response
-from the repaired targeted status path. The durable admission fence still says
-`admission_effect_unknown=true`; these observations do not authorize clearing
-the fence or restarting the production owner.
+Read-only host verification found about 2.2 GB available on the data volume,
+no running Paid parent/child after the failed wake, and a healthy SQLite
+`quick_check`. The exact durable admission fence was later resolved by the
+official occurrence resolver; the current Paid status is
+`admission_effect_unknown=false`. The remaining blocker is shared agent FIFO,
+not an unknown provider effect, and it must drain naturally before the next
+canary.
 
 ### Coconala
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
 `18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
-is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, which
-contains the answered-feedback stop fix. Its latest official queue readback is
-terminal with `effect=0` at the time of that wake: Ryu was
-`reserved_for_owner` and the other three rooms were `awaiting_buyer`.
+is loaded-idle from immutable release `20260923T165749-51e7d9c0`, whose SHA is
+`51e7d9c0ba460e8f2486a02112528a81357dc5e1`. Its latest completed official queue
+readback is terminal with `effect=0`: Ryu was `reserved_for_owner` and the other
+three rooms were `awaiting_buyer`.
 The latest natural wake (targeted readback through
 `2026-09-23T01:07:47+00:00`) completed with `status=completed`, `effect=0`,
 `readback=3`, `failed=0`, and `pending=0`; it reconfirmed Ryu as
 `reserved_for_owner` and Chii plus both NPO rooms as `awaiting_buyer`. The
-owner was subsequently stopped after the host/control-plane stall described
-above (`launchd_state=unloaded`, `pid=null`). This is intentional containment,
-not a client completion claim: Chii and the NPO rooms remain in their last
-verified `awaiting_buyer` state, while no new Paid wake may run until host writes
-recover and the new release is applied. The later official Ryu events supersede
+owner is now `loaded-idle` with `pid=null` and no admission fence. Two
+post-install wakes failed closed before provider work: run
+`18d7e55a9d761380-69492` at `resource_control_busy`, then run
+`18d7e58c5d5531a0-71039` at `resource_fifo_wait`. These are effect-zero host
+outcomes, not client completion claims. The later official Ryu events supersede
 the old Ryu no-op snapshot.
 
 The Coconala schedule repair passed the loop contract gate, the focused and
@@ -264,16 +269,18 @@ full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main and
 the admission cleanup from PR `#5803` is now included in immutable release
 `20260923T165749-51e7d9c0`, whose SHA is
 `51e7d9c0ba460e8f2486a02112528a81357dc5e1`. Official lifecycle readback shows
-that SHA installed for `hf-gig-paid-direct`, while `launchd_state=unloaded` and
-`pid=null` remain intentional. No natural wake, provider readback, or
-replay-zero proof exists for this installed SHA yet.
+that SHA installed and `loaded-idle` for `hf-gig-paid-direct`. A completed
+natural provider readback and replay-zero proof for this installed SHA remain
+open.
 
-The exact remaining Coconala admission fence is
-`hf-gig-paid-direct:18d74bfad80dc9d8-14624` (`claimed/effect_unknown=1`). Its
-historical report references a different older claim, so it cannot clear this
-row. Keep Paid paused until an exact official provider receipt or durable
-pre-effect proof is bound to this occurrence; do not retry a client effect in
-the meantime.
+The exact former Coconala admission fence
+`hf-gig-paid-direct:18d74bfad80dc9d8-14624` is resolved by the official
+resolver. Its reconciliation receipt is
+`coconala-talkroom-set:bd90c5342a64077aebda4f1957c2279373878400a2e4226c38100c3cf4b2b3f0`,
+with `effect=0`, `readback=4`, and official status
+`admission_effect_unknown=false`. No provider effect was replayed. Future
+unknown rows still require the same exact occurrence-scoped proof; owner-wide
+clearing remains prohibited.
 
 The one-by-one manual check of NPO room `18223833` was run after the stop. The
 canonical decision regeneration still returns `await_buyer` with `effect=0` and
