@@ -5,6 +5,18 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
+### Runtime checkpoint — 2026-09-24 00:24 JST
+
+- [x] Coconala, CrowdWorks, and Lancers Paid owners are
+  `scheduled`/`loaded-idle` with `last_exit=0`; no restart or duplicate provider
+  effect was issued.
+- [ ] CrowdWorks host-capacity `admission_effect_unknown` fence remains open.
+  The durable snapshot is unchanged at `observed=5`, `effect=0`, `readback=4`,
+  `failed=0`, `pending=1`; `63568785` still waits for admissible buyer material.
+- [ ] Advance the working cursor to Lancers production promotion/readiness while
+  preserving the CrowdWorks wait/fence. Upwork remains blocked on approved
+  provider authorization, fresh authentication, and a funded contract.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

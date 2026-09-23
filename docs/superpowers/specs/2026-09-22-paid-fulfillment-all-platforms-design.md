@@ -60,6 +60,21 @@ historical plan. Provider-specific specs remain authoritative for exact live con
 inventories and page semantics unless this document explicitly changes ownership or
 completion criteria.
 
+### Runtime checkpoint — 2026-09-24 00:24 JST
+
+- The Coconala, CrowdWorks, and Lancers Paid owners are all `scheduled`/
+  `loaded-idle` with `last_exit=0`; no owner was restarted and no duplicate
+  provider effect was created.
+- CrowdWorks' latest wake returned to idle with the durable snapshot unchanged:
+  `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`. Contract
+  `63568785` remains the sole buyer-input wait, and its prior answer receipt is
+  replay-zero. The host-capacity `admission_effect_unknown` fence remains open;
+  it is not treated as a provider send or as completion.
+- The execution cursor advances to Lancers production promotion/readiness while
+  the CrowdWorks external-input wait and capacity fence remain preserved. Upwork
+  remains gated by provider authorization, fresh authentication, and a funded
+  contract; its retired browser owners stay disabled.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct
