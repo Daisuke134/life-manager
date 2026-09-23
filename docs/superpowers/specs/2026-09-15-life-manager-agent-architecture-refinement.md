@@ -3082,23 +3082,33 @@ or provider session is part of this reorder.
    port 9228 belongs to the CrowdWorks Paid browser owner and must not be borrowed, restarted or
    repurposed by this workstream.
 
-   The shared guard currently implements `alive()` as `curl -s .../json/version` without `--fail`, HTTP
-   status validation, JSON validation or port-owner validation, so the 404 exits zero and is reported as
-   `ALIVE`. The Connector target controller then hard-codes both its HTTP endpoint and WebSocket origin to
+   The previous shared guard implemented `alive()` as `curl -s .../json/version` without `--fail`, HTTP
+   status validation, JSON validation or port-owner validation, so the 404 exited zero and was reported as
+   `ALIVE`. The Connector target controller still hard-codes both its HTTP endpoint and WebSocket origin to
    `127.0.0.1:9222`; `connectOverCDP` therefore reaches the wrong IPv4 listener and produces the observed
    fast browser-open failure. This is a shared browser-foundation false-positive, not a Calendar,
    registration or Telegram defect.
 
-   While the Mobile owner waits for its natural calendar wake, the Connector source repair may proceed in
-   a separate fresh worktree because it does not mutate Mobile, Affiliate, Paid, browser-provider or runtime
-   state. Add the smallest local regression first: a 404 or a
-   well-formed CDP response from the wrong registered owner must fail health with a typed port-owner/CDP
-   mismatch instead of returning `ALIVE`. Make the guard and Connector consume the same validated endpoint
-   and authority, preserve the single canonical browser owner, and do not route Connector through any Paid
-   provider session. Merge only after focused guard/controller tests and the shared browser/runtime suites
-   pass. Do not apply or restart Connector in production before the Mobile canary/replay-zero and Affiliate
-   integration gates finish. Then let the natural release reconciler load the main-derived immutable SHA;
-   acceptance requires a
+   While the Mobile owner waits for its natural calendar wake, the Connector source repair proceeds in the
+   isolated branch `fix/connector-cdp-health-owner-validation-20260924` without mutating Mobile, Affiliate,
+   Paid, browser-provider or runtime state. The first two source atomics are pushed. Commit `bfdb31fc59`
+   adds a read-only registered-owner endpoint resolver: it securely reads the owner receipt, proves the
+   listener is descended from the receipt's browser root, requires HTTP 200 and valid `/json/version`, and
+   accepts only the exact matching WebSocket authority. Its 20 Python tests pass, and a live read-only probe
+   resolves the canonical daily-driver to `http://[::1]:9222`. Commit `10472b043b` makes both shared guards
+   reject HTTP 404, malformed CDP and a well-formed response from the wrong registered owner instead of
+   returning `ALIVE`; the focused regression tests and 65 shared browser tests plus six subtests pass.
+
+   This is **source repair in progress**, not a production fix. The remaining local Connector atomic is to
+   thread that exact resolved endpoint through `run.sh`, `native-pass.js`, the production browser rail and
+   target controller, replacing the fixed IPv4 authority while still allowing only concrete loopback port
+   9222. Tests must prove that IPv6 is preserved end to end and that `localhost`, public hosts, other ports
+   and mismatched page WebSocket origins fail closed. Then run the focused Connector suite, shared
+   browser/runtime suites, loop registry/contract and doctor checks before final read-only review. Preserve
+   the single canonical browser owner and never route Connector through port 9228 or any Paid provider
+   session. Do not apply or restart Connector in production before the Mobile canary/replay-zero and
+   Affiliate integration gates finish. Then let the natural release reconciler load the main-derived
+   immutable SHA; acceptance requires a
    natural Connector wake, a Calendar/provider registration or truthful no-op receipt, exact official
    readback, and a second same-SHA replay with zero duplicate effect. Do not clear the circuit or repeatedly
    kick the owner before that evidence exists.
@@ -3156,15 +3166,15 @@ the rest of the fourteen-loop program.
 The immediate ordered TODO is therefore: (1) observe the Mobile/Postiz natural canary on installed
 `a088a95a…` and perform exact provider readback; the latest business event is still from old `f86bacce…`,
 the historical effect fence remains intact, and the next calendar wake is 08:30 JST, (2) prove its second
-same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, and (3)
-integrate the already reviewed/pushed Affiliate
-bridge through a main-derived immutable release and require a natural terminal, official readback and
-replay-zero before returning Affiliate to commercial funnel experiments, (4) in parallel with the natural
-Mobile wait, prepare and verify Connector's local false-positive CDP health/owner repair, but hold its
-production mutation until the earlier gates finish; then prove a natural registration or truthful no-op plus
-replay-zero, (5) close the
-remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (6) pass the full Local gate, self-heal failure
-injection and bounded self-improvement promotion/rollback, and (7) promote the same immutable main-derived
+same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, (3) finish
+Connector's remaining local endpoint-threading atomic and full source acceptance on the already-pushed
+owner resolver/guard foundation; keep production untouched, (4) integrate the already reviewed/pushed
+Affiliate bridge through a main-derived immutable release and require a natural terminal, official readback
+and replay-zero before returning Affiliate to commercial funnel experiments, (5) after the Mobile and
+Affiliate gates, load Connector only from a main-derived immutable release and prove a natural registration
+or truthful no-op, official readback and same-SHA replay-zero, (6) close the
+remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (7) pass the full Local gate, self-heal failure
+injection and bounded self-improvement promotion/rollback, and (8) promote the same immutable main-derived
 implementation to tenant-isolated cloud workers with phone-only control. The Affiliate local
 source/review/commit/push atomic is complete; production acceptance is not. Paid fulfillment remains entirely
 owned by the separate Paid workstream throughout this sequence.
