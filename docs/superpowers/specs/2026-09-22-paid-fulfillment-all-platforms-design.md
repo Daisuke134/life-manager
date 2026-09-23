@@ -244,6 +244,21 @@ canonical decision regeneration still returns `await_buyer` with `effect=0` and
 acceptance, but the NPO package contract is not complete. Do not bypass the
 semantic decision or send the budget as if it completed the NPO contract.
 
+The newer official buyer events `js-talkroomMessage-222226516` and
+`js-talkroomMessage-222226563` supersede that earlier readback. The buyer accepted
+the ①ちむどんどん budget in its current form, supplied
+`MKT年度別役員・会員.xlsx`, and asked to extend the ②まくとぅー work to the end
+of September. The seller manually changed the provider schedule to 2026-09-30;
+the official system event is `js-talkroomMessage-222233402`, and the latest
+seller acknowledgement was sent once with SHA-256
+`25f79a480d4109fd731691e4e4d7a5afb98c35c4021e39a9f29b3946567a0ac7`.
+Formal delivery remains OFF and the room is still `取引中`/`revision` because
+the NPO package still lacks the business results, complete member addresses,
+meeting dates/resolutions, and audit date/opinion/signature facts. The collector's
+old first-match delivery-date field is not authoritative when a room contains
+multiple schedule events; the latest provider system event and visible schedule
+must be selected instead.
+
 The next one-by-one readback of NPO room `18250352` at
 `2026-09-23T03:09:04Z` confirms the existing v15 review package is visible,
 formal delivery is OFF, and there is no buyer reply after the artifact. Its
@@ -412,8 +427,11 @@ suite passed `122`. PR `#5796` is merged at
 applied to that release. Its provider readback is `loaded-idle`, `pid=null`, with
 the prior `host_admission_deferred:resource_effect_unknown` fence retained; no
 natural wake or replay was triggered. For every Google Doc, use the authenticated
-`gog` Drive CLI first; browser Docs is only a fallback when the CLI cannot read
-the artifact.
+`gog` Drive CLI (or the equivalent authenticated connector/plugin) first. It uses
+the already-authorized Drive scope without requesting a new browser Docs
+permission. Browser Docs is only a fallback when the CLI/connector cannot read
+the artifact; a missing browser Docs session is not evidence that access is
+missing.
 
 ### Lancers
 

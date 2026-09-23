@@ -164,6 +164,22 @@ runtime/provider readback.
   send a partial package as complete. Evidence:
   `paid-direct/items/item-18223833-decision-repair.json` and
   `official-readback-18223833-after-stop.json`.
+- New official buyer events `js-talkroomMessage-222226516` and
+  `js-talkroomMessage-222226563` changed room `18223833`: ① the current
+  ちむどんどん budget is accepted, ② the buyer supplied
+  `MKT年度別役員・会員.xlsx` and requested the まくとぅー deadline be extended
+  to the end of September. The seller changed the schedule to 2026-09-30;
+  provider system receipt `js-talkroomMessage-222233402` confirms it. A single
+  seller acknowledgement was sent and read back with message SHA
+  `25f79a480d4109fd731691e4e4d7a5afb98c35c4021e39a9f29b3946567a0ac7`.
+  Formal delivery remains OFF. Next action is to wait for the promised source
+  materials, then reconcile the four missing fact groups before building the
+  final NPO package. Do not mark the combined order complete from the accepted
+  ① budget alone.
+- Google Docs rule: use authenticated `gog drive get` plus
+  `gog drive download --format=txt` (or an authenticated connector/plugin) before
+  any browser Docs path. Do not request browser permission when the CLI already
+  has Drive scope; use browser only when CLI/connector readback fails.
 - One-by-one official readback of room `18250352` at `2026-09-23T03:09:04Z`
   confirms the v15 review package is already visible, formal delivery is OFF,
   and no buyer reply followed it. Its actionable file decision still awaits
