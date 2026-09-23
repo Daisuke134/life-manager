@@ -1415,3 +1415,17 @@ The objective is complete only when all of the following are proven:
 - CrowdWorks occurrence `18d62cf32eb0c678-48194` remains fenced because its
   event says `effect_status=started` and there is no occurrence-bound provider
   receipt or no-dispatch marker. It is not cleared by inference or replay.
+
+## Runtime Cursor — 2026-09-24 03:12 JST
+
+- Coconala's next natural wake completed after the transient database/capacity
+  wait: `loaded-idle`, `last_exit=0`, terminal `pass`, with official evidence
+  `observed=4`, `actionable=0`, `effect=0`, `readback=3`, `failed=0`,
+  `pending=0`. Ryu `18211957` remains manual-only and was not replayed.
+- Lancers remains `loaded-idle`/`pass`; its latest authoritative Paid snapshot is
+  `observed=0`, `actionable=0`, `effect=0`, `readback=0`, `failed=0`,
+  `pending=0`, and no effect-unknown row remains for that owner.
+- CrowdWorks is still scheduled and waiting for the finite agent slot after a
+  `resource_capacity_busy` wake; its provider snapshot remains
+  `observed=5`, `effect=0`, `readback=4`, `pending=1`. The historical
+  `18d62cf32eb0c678-48194` occurrence is the only retained unknown fence.

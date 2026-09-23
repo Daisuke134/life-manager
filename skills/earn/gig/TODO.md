@@ -1882,3 +1882,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   Continue the next admissible CrowdWorks buyer-material event, then Lancers'
   first funded contract; Upwork remains disabled pending authorization,
   authentication, and a funded contract.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:12 JST
+
+- [x] Coconala's natural wake recovered from the transient host wait and
+  passed with `observed=4`, `effect=0`, `readback=3`, `pending=0`; Ryu remains
+  manual-only and was not replayed.
+- [x] Lancers is `loaded-idle`/`pass` with a source-complete inventory and zero
+  funded contracts; its effect-unknown fence is clear.
+- [ ] CrowdWorks remains scheduled behind a finite-slot wait after
+  `resource_capacity_busy`; keep its single historical unknown occurrence
+  fenced and do not replay. The current provider snapshot is still four
+  official readbacks plus buyer-material wait `63568785`.
