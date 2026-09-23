@@ -96,9 +96,10 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   `contract:63568785:answer:cw-63568785-line-artifact-426855154-v1` at
   `2026-09-23T05:53:27Z`. No LINE add, daily form, correct-work, or formal
   delivery effect is claimed; wait for the buyer materials or an accessible LINE
-  session. Source commit `e289b618e1` prefers `gog`, waits for message hydration,
-  and normalizes HTML message breaks; focused CrowdWorks tests pass `121`. It is
-  pushed source-only and not yet merged, released, or applied to production.
+  session. Source commits `e289b618e1` and `7076c2138c` prefer `gog`, fence
+  unresolved sibling Docs, wait for message hydration, and normalize HTML message
+  breaks; focused CrowdWorks tests pass `122`. They are pushed source-only and
+  not yet merged, released, or applied to production.
   `63659463`, `63712784`, `63657015`, and `63570481` are delivered but still need
   acceptance/settlement/payout readback; `63583795` needs acceptance, settlement,
   and payout readback.

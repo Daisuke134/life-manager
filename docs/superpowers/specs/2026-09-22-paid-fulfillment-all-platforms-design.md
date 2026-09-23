@@ -402,10 +402,11 @@ as `contract:63568785:answer:cw-63568785-line-artifact-426855154-v1` at
 `e6a0430ee6c3a6c46c679e5d523a58ec354b60d2846fb3055daf7f04c3dd6820`). No LINE
 friend-add, daily form response, correct-work verification, or formal delivery is
 claimed; the item waits for the buyer's course materials or an accessible LINE
-session. Source commit `e289b618e1` now makes the adapter prefer `gog` before
-browser Docs surfaces, wait for CrowdWorks message hydration, and normalize HTML
-`<br>` bodies for readback; the focused CrowdWorks suite passed `121`. It is
-pushed source-only and is not yet merged, released, or applied to production.
+session. Source commits `e289b618e1` and `7076c2138c` now make the adapter prefer
+`gog` before browser Docs surfaces, fence unresolved sibling Docs, wait for
+CrowdWorks message hydration, and normalize HTML `<br>` bodies for readback; the
+focused CrowdWorks suite passed `122`. They are pushed source-only and are not
+yet merged, released, or applied to production.
 
 ### Lancers
 
