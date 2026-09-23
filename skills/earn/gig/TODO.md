@@ -93,6 +93,16 @@ runtime/provider readback.
   no Paid parent/child process, and a 0.18-second targeted status response.
   `admission_effect_unknown=true` remains fenced; do not clear it or restart
   production from this observation alone.
+- A later read-only CrowdWorks check at `2026-09-23T07:24:24Z` found
+  `crowdworks-revenue-paid` running PID `10759` on the older `f01c612d` release.
+  Its current occurrence `18d7e1fd55967df8-10759` has host admission
+  `resource_slot_acquired`, entrypoint `pre_effect_failure`, and `effect=0`;
+  `paid-latest.json` still reports four completed contracts and
+  `63568785=pending`. The owner logs repeat `No space left on device`,
+  `database is locked`, and `control_busy`. No official provider effect or
+  receipt was claimed, but the owner-wide unknown fence remains. Do not kill,
+  clear, or replay this occurrence without an exact official readback and the
+  required high-risk stop approval.
 - CrowdWorks provider-lock detail readback at `2026-09-23T04:00:55.856173Z`
   confirmed five funded contracts. Source preflight decisions were
   `63712784=submit`, `63659463=formal_delivery_after_forms`,
