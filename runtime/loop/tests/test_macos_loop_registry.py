@@ -605,6 +605,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("coalesce_reserved_wakes"))
 
+    def test_mercor_paid_coalesces_queued_and_reserved_wakes(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["mercor-revenue-paid"]
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+
     def test_lancers_storefront_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["lancers-revenue-storefront"]
