@@ -92,3 +92,43 @@ def test_daily_driver_probe_rejects_well_formed_cdp_from_the_wrong_owner(tmp_pat
             check=False,
         )
     assert result.returncode != 0
+
+
+def test_ensure_browser_owner_mismatch_never_enters_legacy_recovery(tmp_path):
+    guard_log = tmp_path / "guard.log"
+    with _server(200, b"{}") as port:
+        result = subprocess.run(
+            ["/bin/bash", str(ENSURE)],
+            env={
+                **_environment(tmp_path, port),
+                "CDP_GUARD_LOG": str(guard_log),
+                "CDP_GUARD_LOCK": str(tmp_path / "guard.lock"),
+                "CDP_DAILY_DRIVER_PROFILE": str(tmp_path / "profile"),
+            },
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    assert result.returncode != 0
+    assert result.stdout.strip() == "FAILED"
+    assert not guard_log.exists()
+
+
+def test_daily_driver_registered_owner_mismatch_never_kills_or_relaunches(tmp_path):
+    guard_log = tmp_path / "guard.log"
+    result = subprocess.run(
+        ["/bin/bash", "-c", f"source {GUARD!s}; cdp_guard_ensure_healthy 1 1"],
+        env={
+            **_environment(tmp_path, 9222),
+            "CDP_GUARD_LOG": str(guard_log),
+            "CDP_GUARD_LOCK": str(tmp_path / "guard.lock"),
+            "CDP_DAILY_DRIVER_PROFILE": str(tmp_path / "profile"),
+        },
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert not guard_log.exists()

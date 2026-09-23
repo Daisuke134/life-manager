@@ -131,6 +131,12 @@ cdp_guard_ensure_healthy() {
   if _cdp_guard_probe "$probe_timeout"; then
     return 0   # healthy — cheap no-op path, the common case
   fi
+
+  # A registered owner owns recovery. Never kill or relaunch its browser when
+  # identity/health proof fails; the caller must defer to that owner instead.
+  if [ -n "${CLOAK_BROWSER_RUNTIME_OWNER:-}" ]; then
+    return 1
+  fi
   _cdp_guard_log "UNHEALTHY: :$CDP_PORT did not answer /json/version within ${probe_timeout}s"
 
   # advisory lock so concurrent callers (gig verifier + core + other loops sharing :9222) don't

@@ -887,6 +887,7 @@ function createProductionBrowserRail(options = {}) {
     || ((input) => createConnectorBrowserTargetController(input));
   const createTargetOwnership = options.createTargetOwnership || ((input) => {
     const targetLease = createConnectorTargetLease({
+      endpoint: input.endpoint,
       ledgerPath: path.join(stateDir, "evidence", "target-leases.json"),
       ownerToken: () => input.ownerToken,
       probeTarget: (pageWebsocket) => input.controller.probe(pageWebsocket),

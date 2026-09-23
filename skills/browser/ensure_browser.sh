@@ -63,6 +63,14 @@ if alive; then
   exit 0
 fi
 
+# A registered runtime owner is the sole authority allowed to recover this browser.
+# If its identity proof fails, downstream callers must defer instead of falling back
+# to the legacy guard, which kills and relaunches Chromium outside that owner.
+if [ -n "$RUNTIME_OWNER" ]; then
+  echo "FAILED"
+  exit 1
+fi
+
 mkdir -p "$(dirname "$LOG")"
 echo "$(date '+%F %T') ensure_browser: :$CDP_PORT dead -> managed recovery" >> "$LOG"
 if [ -n "${CLOAK_BROWSER_LAUNCHD_LABEL:-}" ]; then

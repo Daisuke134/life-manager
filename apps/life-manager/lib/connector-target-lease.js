@@ -1,16 +1,19 @@
 "use strict";
 
 const { createBrowserTargetLease } = require("../../../runtime/browser/target-lease.cjs");
-const { connectorPageWebsocketTargetId } = require("./connector-browser-target-controller.js");
+const {
+  connectorPageWebsocketTargetId,
+  exactConnectorCdpEndpoint,
+} = require("./connector-browser-target-controller.js");
 
 function unavailable(message) {
   throw new Error(message || "Connector target lease unavailable");
 }
 
-function pageWebsocket(value, expectedTargetId) {
+function pageWebsocket(value, expectedTargetId, endpoint) {
   const text = String(value || "");
   let actualTargetId;
-  try { actualTargetId = connectorPageWebsocketTargetId(text); } catch {
+  try { actualTargetId = connectorPageWebsocketTargetId(text, endpoint); } catch {
     unavailable("Connector page websocket invalid");
   }
   if (actualTargetId !== expectedTargetId) unavailable("Connector page websocket invalid");
@@ -32,9 +35,10 @@ function canonicalUrl(value) {
 }
 
 function createConnectorTargetLease(options = {}) {
+  const endpoint = exactConnectorCdpEndpoint(options.endpoint);
   return createBrowserTargetLease({
     ...options,
-    validatePageWebsocket: pageWebsocket,
+    validatePageWebsocket: (value, expectedTargetId) => pageWebsocket(value, expectedTargetId, endpoint),
     validateCanonicalUrl: canonicalUrl,
   });
 }

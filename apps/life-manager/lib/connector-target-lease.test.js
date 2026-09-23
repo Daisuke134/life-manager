@@ -13,6 +13,7 @@ function fixture(t, overrides = {}) {
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const calls = [];
   const lease = createConnectorTargetLease({
+    endpoint: "http://127.0.0.1:9222",
     ledgerPath: path.join(directory, "target-leases.json"),
     now: () => new Date("2026-08-06T12:00:00.000Z"),
     ownerToken: () => "connector-owner-token-0001",
@@ -127,12 +128,18 @@ test("keeps the ownership fence when exact target close fails", async (t) => {
 });
 
 test("accepts the registered IPv6 Connector websocket endpoint", async (t) => {
-  const fx = fixture(t);
+  const fx = fixture(t, { endpoint: "http://[::1]:9222" });
   const fence = await fx.lease.claim({
     ...claimInput(),
     pageWebsocket: "ws://[::1]:9222/devtools/page/TARGET_A",
   });
   assert.equal(fence.page_websocket, "ws://[::1]:9222/devtools/page/TARGET_A");
+});
+
+test("pins every target lease to the exact resolved address family", async (t) => {
+  const fx = fixture(t, { endpoint: "http://[::1]:9222" });
+  await assert.rejects(fx.lease.claim(claimInput()), /page websocket/i);
+  assert.equal(fs.existsSync(fx.ledgerPath), false);
 });
 
 test("refuses non-Connector websocket endpoints and credential-bearing event URLs", async (t) => {
