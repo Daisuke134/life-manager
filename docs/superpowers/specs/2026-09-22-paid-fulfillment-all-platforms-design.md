@@ -261,8 +261,10 @@ owner is now `loaded-idle` with `pid=null` and no admission fence. Two
 post-install wakes failed closed before provider work: run
 `18d7e55a9d761380-69492` at `resource_control_busy`, then run
 `18d7e58c5d5531a0-71039` at `resource_fifo_wait`. These are effect-zero host
-outcomes, not client completion claims. The later official Ryu events supersede
-the old Ryu no-op snapshot.
+outcomes, not client completion claims. A subsequent one-shot wake
+`18d7e60a79f8d2e8-75459` again failed closed at `resource_control_busy`, with
+`admission_effect_unknown=false` and no provider effect. The later official Ryu
+events supersede the old Ryu no-op snapshot.
 
 The Coconala schedule repair passed the loop contract gate, the focused and
 full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main and

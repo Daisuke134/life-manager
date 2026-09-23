@@ -39,6 +39,11 @@ runtime/provider readback.
   send. The next cursor is to let shared agent capacity drain, then obtain one
   completed natural wake with official Coconala readback and replay-zero; do not
   bypass FIFO or stop sibling owners.
+- The subsequent one-shot wake `18d7e60a79f8d2e8-75459` also failed closed at
+  `host_admission_deferred:resource_control_busy` after journal holders rotated
+  through other live owners. It produced no provider effect and left
+  `admission_effect_unknown=false`; the loop remains scheduled for its normal
+  cadence rather than being kicked repeatedly.
 - Authenticated artifact access is now an invariant for every platform: use the
   installed `gog` CLI or equivalent authenticated connector/plugin first for
   Drive, Docs, Sheets, and related artifacts. Browser access is allowed only
