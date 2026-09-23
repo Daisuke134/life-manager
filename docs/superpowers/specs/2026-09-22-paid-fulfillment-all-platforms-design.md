@@ -32,17 +32,23 @@ Coconala completion gate. The fix still requires an immutable production release
 installed-SHA/argv readback, one stable-headroom natural wake, official
 four-room readback, and replay-zero before the Coconala system layer is closed.
 
-### Latest Coconala provider readback — 2026-09-23 19:10 JST
+### Latest Coconala provider readback — 2026-09-23 20:35 JST
 
-The latest official four-room readback is readback-only and performed no
-mutation or formal delivery. Ryu `18211957` has the manual seller message
-`js-talkroomMessage-222245383` (18:38 JST), which includes the WEB予約 heading/
-guidance editability, management preview, and management URL. Chii
-`18180857` and NPO rooms `18223833`/`18250352` have no newer complete buyer
-request requiring a send: their states are respectively buyer-waiting,
-buyer-artifact-waiting, and buyer-waiting. The Paid producer's latest result is
-`observed=4/actionable=0/effect=0/readback=2/pending=1`; do not resend any of
-the three rooms or copy Ryu's site-specific wording to them.
+The latest official readback is split by client. Ryu `18211957` has the manual
+seller message `js-talkroomMessage-222245383` (18:38 JST), which includes the
+WEB予約 heading/guidance editability, management preview, and management URL.
+Chii `18180857` remains buyer-waiting with no newer request. NPO `18223833`
+received one manual progress send after buyer events `222226516`/`222226563`:
+seller message `js-talkroomMessage-222253171` at 20:34 JST with
+`特定非営利活動法人まくとぅー_沖縄県NPOプラザ提出書類_レビュー版_v16b.zip`
+(978,061 bytes, SHA-256
+`588f05d96b28028b2472ee7dbe7933505741e0fccf8d8cbe5dbb410d77a8f615`). The
+official selected-talkroom DOM readback bound the exact URL and attachment, and
+formal delivery remained OFF. NPO `18250352` remains buyer-waiting and was not
+resent. The Paid producer result captured before this manual recovery was
+`observed=4/actionable=0/effect=0/readback=2/pending=1`; it does not contain the
+manual 18223833 effect. No client is replayed, and Ryu's site-specific wording
+is not copied to other rooms.
 
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
@@ -73,9 +79,11 @@ completion criteria.
 1. **Client layer:** the requested work was performed, sent through the provider,
    and read back officially. Chii satisfies this layer for its current buyer
    event. Ryu's latest direct revision was sent through seller message
-   `js-talkroomMessage-222220999` with formal delivery OFF and read back in the
-   official talkroom; Ryu is now waiting for a genuinely newer buyer event. No
-   duplicate send is allowed for the completed cycle.
+   `js-talkroomMessage-222245383` with formal delivery OFF and read back in the
+   official talkroom; Ryu is now waiting for a genuinely newer buyer event. NPO
+   `18223833` has one buyer-visible v16b progress revision with official
+   readback, while its formal delivery and source-fact completion remain open.
+   No duplicate send is allowed for either completed cycle.
 2. **System layer:** the loop can safely do the same for the next eligible client,
    including admission, effect fencing, official readback, crash recovery, and
    replay-zero. Coconala's client layer is largely closed, but its system-layer
