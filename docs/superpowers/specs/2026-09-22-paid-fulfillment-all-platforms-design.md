@@ -210,6 +210,15 @@ verified `awaiting_buyer` state, while no new Paid wake may run until host write
 recover and the new release is applied. The later official Ryu events supersede
 the old Ryu no-op snapshot.
 
+The source-level Coconala repair now passes the loop contract gate, 515 runtime
+tests, 263 Paid tests, 15 adapter tests, and `lm-loop doctor` (no missing,
+unmanaged, or retired entries). This is a development-plane result only: the
+fix is pushed on its branch, while the installed release remains stopped and no
+natural-wake, official provider readback, or replay-zero proof exists for the
+new SHA. The execution cursor therefore remains at Coconala promotion gates;
+do not submit another client package or restart Paid until those gates are
+completed under the lifecycle contract.
+
 The one-by-one manual check of NPO room `18223833` was run after the stop. The
 canonical decision regeneration still returns `await_buyer` with `effect=0` and
 `readback=1`; four buyer facts remain unresolved (第3期の事業実績、社員名簿の不足分、
