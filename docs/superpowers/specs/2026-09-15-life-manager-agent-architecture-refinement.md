@@ -2702,14 +2702,30 @@ regression test, without reviving a stale ad-hoc worktree or weakening the singl
 fence. Owned-visit analytics remains unavailable and Impact observation remains a typed provider
 transient; neither is treated as zero revenue.
 
+Candidate `0fe8771dec` now implements that local repair on branch
+`fix/affiliate-managed-publisher-20260923`. When the configured landing root is an immutable release,
+the publisher derives the signed repository and release SHA from `RELEASE.json`, provisions a
+state-scoped sparse checkout, verifies exact fetch and push origin, branch, release ancestry and clean
+fast-forward state, then reuses the existing single-target commit/push effect fence. It rejects
+symlinked checkouts, unrelated push remotes, local-ahead/diverged state and dirty fast-forward instead
+of mutating the release or reviving an external ad-hoc worktree. Explicit Git worktree behavior is
+unchanged. The regression test passed red before implementation; focused tests pass 3/3, the full
+Affiliate suite passes 212/212, `py_compile` and `diff --check` pass, and fresh read-only review reports
+SHIP. The candidate is pushed but is not yet merged or production-accepted. The current cursor is PR
+integration, main-derived immutable release selection, one natural publication attempt with official
+public readback, then same-SHA replay-zero. Affiliate revenue remains zero until attributable
+conversion and payment receipts prove otherwise.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
    reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
    drain and the first admitted same-SHA natural terminal are complete. The isolated
    `revenue_cli links` provider-contract fix, natural same-SHA terminal and replay-zero are complete on
-   immutable release `20260923T095630-3e5ae276`. Repair the missing managed clean publisher root, then
-   continue unavailable owned-visit analytics, transient Impact observation, publication
+   immutable release `20260923T095630-3e5ae276`. The managed clean publisher candidate is implemented,
+   tested, reviewed and pushed as `0fe8771dec`; merge it, load the resulting immutable release and prove
+   natural official publication readback plus replay-zero. Then continue unavailable owned-visit
+   analytics, transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
