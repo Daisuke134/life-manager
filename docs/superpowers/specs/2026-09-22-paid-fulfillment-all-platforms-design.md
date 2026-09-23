@@ -809,6 +809,11 @@ formal delivery.
   `pending_external`. The next cursor is an authenticated, read-only Upwork
   inventory and owner-registration decision; no Upwork send or contract claim
   is made from the historical snapshot.
+- A subsequent read-only `lm-loop status hf-gig-paid-direct` still reports
+  `loaded-idle`, `desired_mode=scheduled`, and `next_eligible_run=interval:300s`;
+  its latest admission was deferred as `host_admission_deferred:resource_control_busy`.
+  This is a host-resource scheduling wait, not a stop command or a provider
+  effect; the durable Coconala evidence remains `effect=0`.
 
 ## Production Promotion Contract
 
