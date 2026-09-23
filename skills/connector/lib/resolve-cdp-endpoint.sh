@@ -16,5 +16,5 @@ BROWSER_ENDPOINT_JSON="$($BROWSER_PORT_OWNER_PYTHON -I "$BROWSER_PORT_OWNER" res
 "$NODE_BIN" -e '
 const input = JSON.parse(process.argv[1]);
 const { exactConnectorCdpEndpoint } = require(process.argv[2]);
-process.stdout.write(`${exactConnectorCdpEndpoint(input.endpoint)}\n`);
+process.stdout.write(exactConnectorCdpEndpoint(input.endpoint) + "\n");
 ' "$BROWSER_ENDPOINT_JSON" "$REPO_ROOT/apps/life-manager/lib/connector-browser-target-controller.js"

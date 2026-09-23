@@ -49,14 +49,14 @@ fi
 if [ -n "${CONNECTOR_NATIVE_HEALTH_PROBE_BIN:-}" ]; then
   "$CONNECTOR_NATIVE_HEALTH_PROBE_BIN"
 else
-  ENDPOINT="$($HERE/lib/resolve-cdp-endpoint.sh)" || {
+  ENDPOINT="$("$HERE/lib/resolve-cdp-endpoint.sh")" || {
     printf 'Connector native browser owner unavailable\n' >&2
     exit 1
   }
   "$NODE_BIN" -e '
 const http = require("node:http");
 const endpoint = process.argv[1];
-const request = http.get(`${endpoint}/json/version`, { timeout: 5_000 }, (response) => {
+const request = http.get(endpoint + "/json/version", { timeout: 5_000 }, (response) => {
   response.resume();
   process.exitCode = response.statusCode === 200 ? 0 : 1;
 });

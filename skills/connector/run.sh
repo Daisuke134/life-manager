@@ -36,6 +36,7 @@ OWNER_TOKEN="$($NODE_BIN "$HERE/lib/native-state.js" token)" || {
   exit 2
 }
 
+# shellcheck disable=SC2329 # invoked indirectly by the EXIT trap below
 release_lock() {
   "$NODE_BIN" "$HERE/lib/native-state.js" release "$STATE_DIR" "$OWNER_TOKEN" >/dev/null 2>&1 || true
 }
@@ -66,12 +67,12 @@ BROWSER_PORT_OWNER_PYTHON="${BROWSER_PORT_OWNER_PYTHON:-python3}"
   "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_missing >/dev/null 2>&1 || true
   exit 2
 }
-[ -f "$BROWSER_PORT_OWNER" ] && [ -x "$BROWSER_ENDPOINT_RESOLVER" ] \
-  && command -v "$BROWSER_PORT_OWNER_PYTHON" >/dev/null 2>&1 || {
+if [ ! -f "$BROWSER_PORT_OWNER" ] || [ ! -x "$BROWSER_ENDPOINT_RESOLVER" ] \
+  || ! command -v "$BROWSER_PORT_OWNER_PYTHON" >/dev/null 2>&1; then
   printf 'Connector browser owner resolver unavailable\n' >&2
   "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_owner_resolver_missing >/dev/null 2>&1 || true
   exit 2
-}
+fi
 BROWSER_STATUS="$(
   CDP_DAILY_DRIVER_PORT="$CDP_DAILY_DRIVER_PORT" \
   CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" \
