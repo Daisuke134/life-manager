@@ -21,7 +21,7 @@ even though its launchd state was `unloaded` and `pid=null`. The correction is
 test-first and minimal: stop releases the reservation and marks the queued
 owner suspended without deleting its occurrence ledger; start/restart clears the
 suspension only after launchd readback succeeds. The Ryu owner remains paused
-and manual-only. Focused admission/lifecycle/runtime suites pass (`123`, `6`,
+and manual-only. Focused admission/lifecycle/runtime suites pass (`124`, `6`,
 and `75` tests respectively), `git diff --check` is clean, and
 `./bin/lm-loop-contract` passes.
 

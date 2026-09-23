@@ -10,7 +10,7 @@ runtime/provider readback.
 - [x] Reproduce and fix the stop/reservation starvation bug: `lm-loop stop` now
   suspends the queued owner after successful bootout, releasing its reservation
   without deleting occurrence history; start/restart resumes it only after
-  launchd readback. Focused suites pass (123 admission, 6 lifecycle, 75 loop
+  launchd readback. Focused suites pass (124 admission, 6 lifecycle, 75 loop
   boundary tests), `git diff --check` is clean, and `./bin/lm-loop-contract`
   passes.
 - [x] Apply the suspension state to the live `hf-gig-paid-direct` owner and
