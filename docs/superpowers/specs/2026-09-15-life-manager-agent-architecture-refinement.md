@@ -3091,7 +3091,7 @@ or provider session is part of this reorder.
 
    While the Mobile owner waits for its natural calendar wake, the Connector source repair proceeds in the
    isolated branch `fix/connector-cdp-health-owner-validation-20260924` without mutating Mobile, Affiliate,
-   Paid, browser-provider or runtime state. The first two source atomics are pushed. Commit `bfdb31fc59`
+   Paid, browser-provider or runtime state. Commit `bfdb31fc59`
    adds a read-only registered-owner endpoint resolver: it securely reads the owner receipt, proves the
    listener is descended from the receipt's browser root, requires HTTP 200 and valid `/json/version`, and
    accepts only the exact matching WebSocket authority. Its 20 Python tests pass, and a live read-only probe
@@ -3099,22 +3099,50 @@ or provider session is part of this reorder.
    reject HTTP 404, malformed CDP and a well-formed response from the wrong registered owner instead of
    returning `ALIVE`; the focused regression tests and 65 shared browser tests plus six subtests pass.
 
-   This is **source repair in progress**, not a production fix. The remaining local Connector atomic is to
-   thread that exact resolved endpoint through `run.sh`, `native-pass.js`, the production browser rail and
-   target controller, replacing the fixed IPv4 authority while still allowing only concrete loopback port
-   9222. Tests must prove that IPv6 is preserved end to end and that `localhost`, public hosts, other ports
-   and mismatched page WebSocket origins fail closed. Then run the focused Connector suite, shared
-   browser/runtime suites, loop registry/contract and doctor checks before final read-only review. Preserve
-   the single canonical browser owner and never route Connector through port 9228 or any Paid provider
-   session. Do not apply or restart Connector in production before the Mobile canary/replay-zero and
-   Affiliate integration gates finish. Then let the natural release reconciler load the main-derived
-   immutable SHA; acceptance requires a
+   The remaining local atomics are now complete and pushed through branch head `e96e8c422d`. Commit
+   `e955fafbb9` threads the exact resolved endpoint through the native pass, production browser rail,
+   target controller and tab owner; `3570479adc` centralizes and hardens the shell resolver; and
+   `e96e8c422d` closes the final ownership gaps. A failed registered-owner proof now defers without entering
+   the legacy Chromium kill/relaunch path, and every target lease is pinned to the exact resolved IPv4 or
+   IPv6 address family. The post-fix owner regressions pass 4/4 and the focused Connector controller,
+   production, runner, tab-owner and lease suite passes 170/170. The preceding full gates also pass:
+   Connector skill 60/60, outbound pre-suite 69/69 plus 1,024/1,024, shared runtime 520/520, registry
+   15/15, fourteen-loop contract with zero errors, doctor with no missing/unmanaged owner, syntax/diff
+   checks and ShellCheck with only the two unchanged baseline notices. Fresh read-only final review returns
+   `ASTRA REVIEW — ship`.
+
+   This means **Connector source repair is complete; production repair is not**. The 2026-09-24 05:42 JST
+   status still has `life-manager-connector-native` loaded from old main-derived `1ac87e32…`, terminal
+   `fail`, exit 1 and `entrypoint_exit_1`. The repair branch is not merged, cut as an immutable release or
+   naturally exercised. Preserve the single canonical browser owner and never route Connector through port
+   9228 or any Paid provider session. Do not clear the circuit, manually kick the owner or claim completion.
+   After the Mobile canary/replay-zero and Affiliate integration gates, merge the accepted source, let the
+   natural release reconciler load the main-derived immutable SHA, and require a
    natural Connector wake, a Calendar/provider registration or truthful no-op receipt, exact official
    readback, and a second same-SHA replay with zero duplicate effect. Do not clear the circuit or repeatedly
    kick the owner before that evidence exists.
 4. Continue the remaining non-Paid rows in the Fourteen-Loop Remediation Matrix one owner at a time.
    The separate Paid owner retains exclusive control of Coconala, CrowdWorks, Lancers and Upwork Paid
    fulfillment; this workstream never edits or restarts that state.
+
+   The 2026-09-24 05:42 JST read-only Apply audit proves that none of the four marketplace Application
+   owners is currently safe to call continuously working:
+
+   | Apply owner | Current measured state | Why no new verified application is produced |
+   |---|---|---|
+   | Coconala `hf-gig-apply-direct` | old SHA `aa63982c…`; blocked/75; `resource_effect_unknown`; one claimed unknown occurrence | The old owner-wide fence stops the entrypoint before provider work. Reply passing does not prove Apply. |
+   | Lancers `lancers-revenue-application` | old SHA `65a1d563…`; blocked/75; alternates `resource_effect_unknown` and transient `resource_admission_unavailable`; one claimed unknown occurrence | Its loaded release predates the current occurrence-scoped registry contract, so one unresolved historical effect blocks the whole owner before proposal discovery. The earlier 20 verified proposals remain valid history, not current liveness. |
+   | CrowdWorks `crowdworks-revenue-application` | SHA `b939af53…`; latest blocked/75 with `resource_admission_unavailable`; seven claimed unknown occurrences and 115 clean queued occurrences | Occurrence scope exists, but SQLite/control contention and a large unreconciled occurrence backlog prevent reliable admission. Earlier outer/agent passes still report effect unknown and are not official application receipts. |
+   | Mercor `mercor-revenue-application` | old SHA `f3e51868…`; blocked/75; alternates `resource_effect_unknown` and `resource_admission_unavailable`; one claimed unknown occurrence | Its loaded release is owner-scoped, so the retained unknown stops the entrypoint before search/application; interview/media human gates remain separate and must not be treated as successful submission. |
+
+   The fix order is shared-foundation first, not four manual browser sessions: retain every unknown row;
+   obtain exact official readback for each unresolved occurrence; add a bounded owner/queue consistency
+   repair that can recreate missing queue/priority identity and compact only clean redundant wake rows under
+   the admission control lock; load the current occurrence-scoped contract where it is already accepted;
+   add that scope only where candidate-level dedupe/readback proves it cannot duplicate an application; then
+   require one natural canary, official application receipt or truthful no-op, and same-SHA replay-zero for
+   Coconala, Lancers, CrowdWorks and Mercor in that order. This Application work never edits Paid code,
+   Paid state, port 9228 or a Paid provider session.
 5. Re-run the 14-loop Local completion gate until no enabled owner is `unknown`, stale, silently
    failing or dependent on a visible desktop. Every row must have current official evidence or a
    truthful typed `setup_required`/`not_applicable` state.
@@ -3166,18 +3194,19 @@ the rest of the fourteen-loop program.
 The immediate ordered TODO is therefore: (1) observe the Mobile/Postiz natural canary on installed
 `a088a95a…` and perform exact provider readback; the latest business event is still from old `f86bacce…`,
 the historical effect fence remains intact, and the next calendar wake is 08:30 JST, (2) prove its second
-same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, (3) finish
-Connector's remaining local endpoint-threading atomic and full source acceptance on the already-pushed
-owner resolver/guard foundation; keep production untouched, (4) integrate the already reviewed/pushed
-Affiliate bridge through a main-derived immutable release and require a natural terminal, official readback
-and replay-zero before returning Affiliate to commercial funnel experiments, (5) after the Mobile and
-Affiliate gates, load Connector only from a main-derived immutable release and prove a natural registration
-or truthful no-op, official readback and same-SHA replay-zero, (6) close the
-remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (7) pass the full Local gate, self-heal failure
-injection and bounded self-improvement promotion/rollback, and (8) promote the same immutable main-derived
-implementation to tenant-isolated cloud workers with phone-only control. The Affiliate local
-source/review/commit/push atomic is complete; production acceptance is not. Paid fulfillment remains entirely
-owned by the separate Paid workstream throughout this sequence.
+same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, (3) integrate
+the already reviewed/pushed Affiliate bridge through a main-derived immutable release and require a natural
+terminal, official readback and replay-zero before returning Affiliate to commercial funnel experiments,
+(4) merge the now accepted Connector source head `e96e8c422d` only after those gates, load it from a
+main-derived immutable release and prove a natural registration or truthful no-op, official readback and
+same-SHA replay-zero, (5) repair the shared non-Paid Application admission/fence boundary and prove natural
+Coconala, Lancers, CrowdWorks and Mercor canaries without touching Paid ownership, (6) close the remaining
+non-Paid rows in the Fourteen-Loop Remediation Matrix, (7) pass the full Local gate, self-heal failure injection
+and bounded self-improvement promotion/rollback, and (8) promote the same immutable main-derived implementation
+to tenant-isolated cloud workers with phone-only control. Connector local source/review/commit/push is complete;
+Connector production acceptance is not. Affiliate local source/review/commit/push is complete; Affiliate
+production acceptance is not. Paid fulfillment remains entirely owned by the separate Paid workstream
+throughout this sequence.
 
 The evidence ladder is machine-readable and cannot be collapsed:
 
