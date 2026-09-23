@@ -2143,6 +2143,38 @@ def test_verified_permission_request_does_not_advance_to_formal_delivery():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_verified_permission_request_restarts_quality_answer_after_artifact_becomes_readable():
+    module = load()
+    contract = {**funded(), "form_url": None, "form_urls": [],
+                "buyer_context": "Google Docs assignment", "buyer_event_id": "427573234",
+                "artifact_required": True, "artifact_access": "readable",
+                "artifact_content": "verified assignment contents"}
+    previous = {"action": "answer", "effect_key": "permission-effect",
+                "payload": {"body": module.PERMISSION_REQUEST_BODY,
+                            "buyer_event_id": "427573234"}}
+
+    action = module.decide(
+        {"context": {
+            "contract": contract, "previous_intent": previous,
+            "previous_effect_verified": True,
+        }},
+        answer_selector=lambda _item: "依頼内容に沿ったフィードバックです。",
+        quality_selector=lambda _item, _body: "quality_ok",
+    )
+
+    assert action == {"action": "answer", "payload": {
+        "body": "依頼内容に沿ったフィードバックです。",
+        "buyer_event_id": "427573234",
+        "correct_work_verified": True,
+        "quality_verdict": "quality_ok",
+        "quality_sha256": module._digest({
+            "buyer_context": contract["buyer_context"],
+            "artifact_content": contract["artifact_content"],
+            "body": "依頼内容に沿ったフィードバックです。",
+        }),
+    }}
+
+
 def test_answer_quality_gate_keeps_wrong_work_open():
     module = load()
     contract = {**funded(), "form_url": None, "form_urls": [],

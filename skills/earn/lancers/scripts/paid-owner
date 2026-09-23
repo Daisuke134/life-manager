@@ -11,6 +11,7 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
+set +e
 "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/paid_kernel.py" \
   --provider-adapter "$ROOT/skills/earn/lancers/scripts/paid_adapter.py" \
   --state-root "$STATE_ROOT/paid" \
@@ -18,8 +19,32 @@ fi
   -- \
   --account-id keiodaisuke \
   --state-path "$STATE_ROOT/application.json"
+KERNEL_RC=$?
+set -e
 
-exec "$PYTHON" "$ROOT/skills/earn/lancers/scripts/lane_report.py" \
+if (( KERNEL_RC != 0 )); then
+  exit "$KERNEL_RC"
+fi
+
+set +e
+"$PYTHON" "$ROOT/skills/earn/lancers/scripts/lane_report.py" \
   --lane paid \
   --state-path "$STATE_ROOT/contracts.json" \
   "$@"
+REPORT_RC=$?
+set -e
+
+OCCURRENCE="${LIFE_MANAGER_OCCURRENCE_ID:-}"
+if [[ -n "$OCCURRENCE" ]]; then
+  set +e
+  "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py" \
+    --state-root "$STATE_ROOT" --owner lancers-revenue-paid \
+    --occurrence "$OCCURRENCE" --resolve
+  RECONCILE_RC=$?
+  set -e
+  if (( RECONCILE_RC != 0 )); then
+    echo "paid-owner: zero-effect occurrence was not reconciled: $OCCURRENCE" >&2
+  fi
+fi
+
+exit "$REPORT_RC"
