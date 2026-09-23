@@ -82,7 +82,24 @@ runtime/provider readback.
   confirmed five funded contracts. Source preflight decisions were
   `63712784=submit`, `63659463=formal_delivery_after_forms`,
   `63657015=submit`, `63570481=revision_submit`, and
-  `63568785=wait_for_buyer_artifact`; no provider effect or receipt occurred.
+  `63568785=wait_for_buyer_artifact`; at that observation point no provider
+  effect or receipt had occurred yet.
+- One-by-one manual canary `63712784` was then completed on 2026-09-23 under the
+  CrowdWorks provider lock: the common test and Web Ads forms returned official
+  `回答を記録しました` confirmations at `04:39:36Z` and `04:39:41Z`, followed by
+  one formal delivery for milestone `13833587`. Official readback at
+  `04:45:32Z` verified the exact seller message, `納品=done`, `検収=current`, and
+  `provider_state=delivered`; no duplicate form POST or delivery occurred.
+  This manual contract effect is separate from the unresolved Paid occurrence
+  `18d62cf32eb0c678-48194`, which remains `claimed/effect_unknown=1` and fenced.
+  Source commit `5876390fe6` fixes the hydration/hidden-disabled-form readback
+  race; 611 focused tests pass, but production Paid remains unloaded.
+- Cursor reorder at `2026-09-23T04:45:32Z`: old order was host/lifecycle gate →
+  Paid-loop promotion → CrowdWorks canary; new order is the same system gates,
+  with the contract-bound `63712784` canary completed manually before them because
+  its official deadline was the current day. The unresolved Paid occurrence was
+  not cleared or replayed. Current cursor remains host/lifecycle gate, then
+  occurrence reconciliation and immutable loop promotion.
 - Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
   authenticated/source-complete with 14 boards, one unread, zero working or
   monthly contracts, zero incoming offers, zero storefront contract candidates,
@@ -140,12 +157,13 @@ runtime/provider readback.
    and reserved wake coalescing), build one immutable release, apply it, and verify a
    natural Coconala wake with official readback and replay-zero. Do not edit the
    admission database by hand or clear old unknown rows.
-3. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
-   against provider inventory and the durable child/effect receipts. Keep every
-   uncertain effect fenced; only a proven pre-effect/no-effect case may be closed.
-   Then run one funded contract through requirements → work → quality → delivery →
-   official readback → replay-zero, without using the historical unknown batch as
-   proof.
+3. **CrowdWorks occurrence fences and loop promotion.** The first funded canary
+   `63712784` is already manually complete with official form and milestone
+   readback; it is not proof for the unresolved Paid occurrence. Reconcile each
+   existing `effect_unknown` occurrence against provider inventory and durable
+   child/effect receipts, keep every uncertain effect fenced, then promote the
+   immutable Paid fix and prove a natural canary/replay-zero without replaying
+   `63712784`.
 4. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
    for each funded item, including buyer revisions, acceptance and payout evidence.
 5. **Lancers.** Keep the current browser/work-sync owners running; implement the
@@ -1214,11 +1232,12 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 - Read-only provider context is captured for all five funded IDs. Historical confirmed form receipts
   are preserved for 63659463, 63570481, and 63583795; they are replay-fenced and do not prove
   current formal delivery, acceptance, settlement, or payout.
-- A fresh owner-locked read-only detail of canary 63712784 confirms `provider_state=funded`,
-  milestone 13833587, latest buyer event 428014314, and two required Google Forms with
-  `completed_form_urls=[]`. Both form bodies were observed and pinned by SHA-256; no POST,
-  buyer message, or formal delivery was executed. The sequence is form selection, one confirmed
-  submission at a time, formal delivery, then official milestone readback.
+- A fresh owner-locked detail of canary 63712784 originally confirmed
+  `provider_state=funded`, milestone 13833587, latest buyer event 428014314, and two required
+  Google Forms. The one-by-one manual execution then returned a contract/event-bound official
+  confirmation for each form, sent the exact CrowdWorks milestone delivery once, and read back
+  `納品=done`, `検収=current`, the seller message, and `provider_state=delivered` at
+  `2026-09-23T04:45:32Z`. It is not a Paid-loop receipt and must not be replayed.
 - A fresh official readback of 63657015 (2026-09-23T03:20:52Z) confirms `provider_state=funded`,
   contract `63657015`, milestone `13820268`, proposal `305533319`, and message thread `304733788`.
   The buyer's latest instruction (event `427403807`) requires the non-designer hearing sheet and
@@ -1238,8 +1257,8 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   Application occurrence 18d6535f7dfb8910-33974 and Reply occurrence
   18d64a10f2f1f838-83166 also cannot be released from the available evidence. The Reply wake
   contains authoritative-absent, verified-contract, inconclusive, and confirmation-requested siblings.
-- No current CrowdWorks client has a verified chain of correct work -> formal delivery -> buyer
-  acceptance -> settlement -> payout. Verified USD 10,000 MRR is zero.
+- Canary 63712784 now has a verified chain through correct work/form completion and formal delivery,
+  but buyer acceptance, settlement, and payout are still unverified. Verified USD 10,000 MRR is zero.
 - 63657015 has two current forms and no confirmed receipt; its earlier timed-out intent must be
   reconciled before any retry. The prepared work is the hearing-sheet copy plus common test,
   followed by formal delivery; do not submit the buyer's anonymous survey or claim completion
@@ -1268,9 +1287,10 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   uncertain siblings.
 - [ ] **CW-F5 — Report fence:** resolve the released Report row's effect_unknown=1 with the
   resolver/readback path before treating reporting as clean.
-- [ ] **CW-F6 — 63712784 fulfillment:** after the fences resolve, submit the common test form,
-  read its confirmation, submit the Web Ads results form, read its confirmation, press CrowdWorks
-  納品する, and read the official milestone state. Verify the requested work and quality first.
+- [x] **CW-F6 — 63712784 fulfillment:** manually submitted the common test and Web Ads results
+  forms once each, read their official confirmations, pressed CrowdWorks 納品する once, and
+  verified the exact milestone state (`納品=done`, `検収=current`, provider `delivered`) at
+  `2026-09-23T04:45:32Z`. No replay; Paid-loop occurrence fences remain unchanged.
 - [ ] **CW-F7 — remaining funded contracts:** reconcile 63657015, correct and deliver 63570481,
   obtain permitted content and deliver 63568785, audit and deliver 63659463, and monitor
   63583795 through acceptance/settlement/payout. Require correct_work_verified and replay-zero.

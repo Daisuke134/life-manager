@@ -334,6 +334,21 @@ formal delivery was executed. The correct sequence remains form selection →
 one confirmed form submission at a time → formal delivery → milestone
 readback.
 
+One-by-one manual canary execution then completed contract `63712784` on
+`2026-09-23`: the common test and Web Ads results forms each returned the
+official Google confirmation marker with contract/event-bound receipts at
+`04:39:36Z` and `04:39:41Z`; CrowdWorks formal delivery for milestone `13833587`
+was sent once at `04:40 JST`. A fresh provider readback at `04:45:32Z` verified
+the seller message, the `納品` progress step as `done`, the exact milestone form
+hidden/disabled during client inspection, and
+`provider_receipt_id=contract:63712784:milestone:13833587`; a subsequent contract
+context read returned `provider_state=delivered`. This is an isolated manual
+contract effect, not a Paid-loop wake or a release of the unresolved Paid
+occurrence `18d62cf32eb0c678-48194`; no unknown row was cleared and no replay
+was performed. Commit `5876390fe6` adds the hydration/hidden-form readback fix
+with 611 focused tests passing, but it remains source-only until the lifecycle
+and immutable-release gates are complete.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by
