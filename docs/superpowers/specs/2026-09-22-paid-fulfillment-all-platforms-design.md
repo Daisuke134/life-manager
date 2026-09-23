@@ -162,15 +162,20 @@ is to use the existing disk-cleanup/rotation owner to reclaim only positively ow
 regenerable artifacts before promoting new loop code; never delete provider state,
 unknown-effect rows, or a protected release by hand.
 
-The latest host readback is still below the Paid write/admission floor: about
-298 MiB available versus the 512 MiB minimum. The cleanup owner ran again and
-reclaimed `0` bytes because its four discovered cache candidates are all open;
-protected deletions remain `0`. The Paid process then remained on one PID for
-more than thirteen minutes while repeating `control_busy`/`production apply is
-already owned`, so it was stopped through the canonical `lm-loop stop
-hf-gig-paid-direct` path. `launchd_state=unloaded` and `pid=null` are verified;
-no provider effect occurred during that stop. It must remain paused until a
-small durable write succeeds and the repaired immutable release is applied.
+Host headroom later recovered to about 1.27 GiB (1,326,948 KiB available), above
+the 512 MiB Paid write/admission floor. The cleanup owner still reclaimed `0`
+bytes because its four discovered cache candidates were open; protected
+deletions remain `0`. The Paid process had remained on one PID for more than
+thirteen minutes while repeating `control_busy`/`production apply is already
+owned`, so it was stopped through the canonical `lm-loop stop
+hf-gig-paid-direct` path. `launchd_state=unloaded` and `pid=null` are verified.
+The bootout left owner-scoped child processes from the interrupted 18223833 run;
+they were terminated only within the Paid owner process groups, the lock was
+released, and the owned browser leases were checked. The official
+`official-readback-18223833-after-stop.json` readback shows no new seller
+message, no formal delivery, and no buyer reply after the prior artifact.
+The owner must remain paused until child-reap behavior is fixed, a durable write
+and natural no-op wake succeed, and the repaired immutable release is applied.
 
 The queued-wake/occurrence-scope branch is now pushed at `e012343e94` (the
 test expectation update follows the production coalescing behavior). Its focused
@@ -197,6 +202,14 @@ not a client completion claim: Chii and the NPO rooms remain in their last
 verified `awaiting_buyer` state, while no new Paid wake may run until host writes
 recover and the new release is applied. The later official Ryu events supersede
 the old Ryu no-op snapshot.
+
+The one-by-one manual check of NPO room `18223833` was run after the stop. The
+canonical decision regeneration still returns `await_buyer` with `effect=0` and
+`readback=1`; four buyer facts remain unresolved (第3期の事業実績、社員名簿の不足分、
+総会・理事会の開催日・決議、監査情報). The correct 2026–2028
+一般社団法人ちむどんどん budget artifact exists locally and passes its file
+acceptance, but the NPO package contract is not complete. Do not bypass the
+semantic decision or send the budget as if it completed the NPO contract.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal

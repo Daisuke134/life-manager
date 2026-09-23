@@ -58,11 +58,23 @@ runtime/provider readback.
   contract gate passes, and the branch remains unmerged/unreleased/unapplied.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
-  symptoms. Available disk is about 298 MiB against a 512 MiB floor; the
-  disk-cleanup owner re-ran and reclaimed `0` bytes because all four candidates
-  are open. The Paid owner is intentionally unloaded until durable writes and a
-  new immutable release are proven. Do not delete protected releases, provider
-  state, or unknown-effect rows by hand.
+  symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),
+  while the disk-cleanup owner still reclaimed `0` bytes because all four
+  candidates were open. The canonical stop unloaded Paid (`pid=null`), but its
+  bootout left owner-scoped children from interrupted room `18223833`; those
+  children and their lock were terminated only within the Paid owner scope.
+  Official readback then showed no new seller message or formal delivery. The
+  owner remains intentionally unloaded until child reaping, durable-write, and
+  natural-wake gates pass. Do not delete protected releases, provider state, or
+  unknown-effect rows by hand.
+- One-by-one direct check of room `18223833` regenerated the canonical semantic
+  decision and remains `await_buyer` with `effect=0`, `readback=1`. Four buyer
+  facts are still missing (第3期実績、社員名簿不足分、総会・理事会、監査情報).
+  The 2026–2028 ちむどんどん budget artifact is locally accepted, but it does
+  not satisfy the separate NPO package contract; never bypass this decision or
+  send a partial package as complete. Evidence:
+  `paid-direct/items/item-18223833-decision-repair.json` and
+  `official-readback-18223833-after-stop.json`.
 - Cursor reorder: the old order began with host recovery → Coconala loop promotion
   → CrowdWorks. The new order began with the newly observed Ryu manual revision
   (now complete), then host recovery → Coconala loop promotion → CrowdWorks →
@@ -73,10 +85,11 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Recover host writes.** Restore safe writable headroom using the existing
-   disk-cleanup/rotation path, then prove a small state write and a natural Coconala
-   no-op wake. Keep all protected releases and provider ledgers intact. The Paid
-   owner is intentionally paused until this gate passes.
+1. **Close the host/lifecycle gate.** Headroom is now above the floor and a
+   canonical decision write succeeded, but still prove a small production state
+   write, owner-child reaping, and a natural Coconala no-op wake. Keep all
+   protected releases and provider ledgers intact. The Paid owner is intentionally
+   paused until this gate passes.
 2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
    `e012343e94` (occurrence-scoped marketplace admission plus Coconala Paid queued
    and reserved wake coalescing), build one immutable release, apply it, and verify a
