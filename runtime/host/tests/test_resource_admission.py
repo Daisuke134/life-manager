@@ -753,6 +753,87 @@ def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
     assert durable_rows(tmp_path, "queue")[0]["sequence"] == 1
 
 
+def test_failed_durable_claim_removes_uncommitted_claim_file(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "locked-claim")
+    assert ticket is not None and reason == "ready"
+
+    real_database = admission._database
+
+    class CommitBusyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self.connection.__enter__()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is None:
+                self.connection.rollback()
+                self.connection.close()
+                raise sqlite3.OperationalError("database is locked")
+            return self.connection.__exit__(exc_type, exc_value, traceback)
+
+    def busy_database(path):
+        return CommitBusyConnection(real_database(path))
+
+    with patch.object(admission, "_database", busy_database):
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            admission.claim_durable("deterministic", "locked-claim")
+
+    assert list((tmp_path / "owners").glob("*.json")) == []
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "locked-claim", "resource_class": "deterministic",
+    }]
+
+    claim, reason = admission.claim_durable("deterministic", "locked-claim")
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+
+
+def test_failed_claim_cleanup_io_error_is_not_hidden(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "cleanup-io")
+    assert ticket is not None and reason == "ready"
+
+    real_database = admission._database
+
+    class CommitBusyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self.connection.__enter__()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is None:
+                self.connection.rollback()
+                self.connection.close()
+                raise sqlite3.OperationalError("database is locked")
+            return self.connection.__exit__(exc_type, exc_value, traceback)
+
+    def busy_database(path):
+        return CommitBusyConnection(real_database(path))
+
+    original_unlink = Path.unlink
+
+    def fail_claim_unlink(path, *args, **kwargs):
+        if path.parent == tmp_path / "owners" and not path.name.startswith("."):
+            raise OSError("claim cleanup I/O failed")
+        return original_unlink(path, *args, **kwargs)
+
+    with (patch.object(admission, "_database", busy_database),
+          patch.object(Path, "unlink", fail_claim_unlink)):
+        with pytest.raises(OSError, match="claim cleanup I/O failed"):
+            admission.claim_durable("deterministic", "cleanup-io")
+
+    claim_files = list((tmp_path / "owners").glob("*.json"))
+    assert len(claim_files) == 1
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "cleanup-io", "resource_class": "deterministic",
+    }]
+
+
 def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("deterministic", "first")
@@ -2195,6 +2276,19 @@ def test_existing_priorities_schema_migrates_policy_column(tmp_path, monkeypatch
     finally:
         connection.close()
     assert "admission_policy" in columns
+
+
+def test_admission_schema_has_occurrence_lookup_indexes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        indexes = {
+            row[1] for row in connection.execute("PRAGMA index_list(occurrences)")
+        }
+
+    assert "idx_occurrences_owner_state_effect" in indexes
+    assert "idx_occurrences_state_effect" in indexes
 
 
 def test_reserved_revenue_rechecks_legacy_owner_before_claim(
