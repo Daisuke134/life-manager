@@ -5,14 +5,17 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
-- Ryu `18211957` is the only permanent manual exception. The latest correction was
-  sent once with formal delivery OFF and officially read back; reopen only for a
-  genuinely newer buyer event.
-- A fresh canonical talkroom read on 2026-09-23 found no buyer event newer than
-  `js-talkroomMessage-222185015`; the latest seller correction remains
-  `js-talkroomMessage-222192497`. Do not send Ryu again based only on a
-  conversation report. If a newer official buyer event appears, handle that one
-  cycle manually and read back the seller message before releasing the cursor.
+- Ryu `18211957` is the only permanent manual exception. The prior correction was
+  sent once with formal delivery OFF and officially read back as
+  `js-talkroomMessage-222192497`. A fresh authenticated browser reload at
+  2026-09-23 10:50 JST found five newer official buyer events:
+  `222215345` (image/spec mismatch), `222215354` (attendance/roster limit),
+  `222218450` (new paid-option taxonomy), `222218603` (paid-option additions
+  erase all options), and `222218678` (unexpected WEB予約 content, two
+  attachments). Ryu is therefore reopened as `WORK_REQUIRED`; inspect the
+  attachments, fix and verify the complete set, send one ordinary seller reply
+  with formal delivery OFF, and read back its exact official message ID. The
+  loop remains prohibited from creating or sending this cycle.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
@@ -54,36 +57,47 @@ runtime/provider readback.
   0 bytes. Run the existing disk-cleanup/rotation owner and verify durable writes
   before promoting another release; do not delete protected releases, provider
   state, or unknown-effect rows by hand.
-- After host-write recovery, the production cursor is the CrowdWorks
-  occurrence-by-occurrence reconciliation and one funded-contract canary, followed
-  by Lancers and Upwork. Ryu and Chii remain closed at the client layer and are not
-  the system-repair cursor.
+- Cursor reorder: the old order began with host recovery → Coconala loop promotion
+  → CrowdWorks. The new order begins with the newly observed Ryu manual revision,
+  then host recovery → Coconala loop promotion → CrowdWorks → Lancers → Upwork.
+  Reason: the official provider readback created a genuinely newer Ryu event;
+  client safety takes precedence over system-only work. Chii remains closed and
+  is not reopened by this change.
 
 ## Remaining work — outcome order
 
-1. **Recover host writes first.** Restore safe writable headroom using the existing
+1. **Ryu manual revision first.** Read `IMG_6432.png`, `IMG_6434.png`, and
+   `IMG_6435.png` from the authenticated talkroom; inspect the current public and
+   management surfaces; fix the image/spec mismatch, determine and communicate the
+   real attendance/roster capacity, implement the requested paid-option ordering
+   and five entries/prices, fix the disappearing-options persistence defect, and
+   explain/fix the WEB予約 content shown in the attachments. Verify each outcome on
+   both surfaces, send one ordinary seller message with all current outcomes and
+   formal delivery OFF, then read back the exact official seller message. Do not
+   use the Paid loop or the formal-delivery button.
+2. **Recover host writes.** Restore safe writable headroom using the existing
    disk-cleanup/rotation path, then prove a small state write and a natural Coconala
    no-op wake. Keep all protected releases and provider ledgers intact.
-2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
+3. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
    `9df3731ccb` (occurrence-scoped marketplace admission plus Coconala Paid queued
    and reserved wake coalescing), build one immutable release, apply it, and verify a
    natural Coconala wake with official readback and replay-zero. Do not edit the
    admission database by hand or clear old unknown rows.
-3. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
+4. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
    against provider inventory and the durable child/effect receipts. Keep every
    uncertain effect fenced; only a proven pre-effect/no-effect case may be closed.
    Then run one funded contract through requirements → work → quality → delivery →
    official readback → replay-zero, without using the historical unknown batch as
    proof.
-4. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
+5. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
    for each funded item, including buyer revisions, acceptance and payout evidence.
-5. **Lancers.** Keep the current browser/work-sync owners running; implement the
+6. **Lancers.** Keep the current browser/work-sync owners running; implement the
    missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
    prove one canary, then complete the funded inventory and payout receipts.
-6. **Upwork.** Register a Paid owner, obtain a live authenticated contract
+7. **Upwork.** Register a Paid owner, obtain a live authenticated contract
    inventory, and close the same official delivery/payment/replay-zero gates. Do not
    count historical adapters as live revenue proof.
-7. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
+8. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
    lease, 24-hour cadence, revision, settlement and duplicate-zero checks. Only then
    promote the full release; Chii and Ryu are not blockers for this system work.
 

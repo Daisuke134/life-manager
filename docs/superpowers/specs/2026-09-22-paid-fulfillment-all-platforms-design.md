@@ -38,8 +38,11 @@ completion criteria.
 ### Two completion layers
 
 1. **Client layer:** the requested work was performed, sent through the provider,
-   and read back officially. Ryu and Chii satisfy this layer for their current
-   buyer events; neither needs a duplicate send.
+   and read back officially. Chii satisfies this layer for its current buyer
+   event. Ryu satisfied the prior cycle through seller message
+   `js-talkroomMessage-222192497`, but a fresh official readback exposed five
+   newer buyer events on 2026-09-23, so Ryu's client layer is reopened for one
+   manual revision cycle; no duplicate send is allowed for the prior cycle.
 2. **System layer:** the loop can safely do the same for the next eligible client,
    including admission, effect fencing, official readback, crash recovery, and
    replay-zero. Coconala's client layer is largely closed, but its system-layer
@@ -77,7 +80,8 @@ rooms as `awaiting_buyer`. This is the expected no-op: the loop has already
 answered the newest buyer event where it had a complete result, and it waits for
 a genuinely newer buyer message where missing buyer facts are required. Ryu is
 the only room that can be handled directly by a human; Chii is not a manual
-exception.
+exception. That wake predates the 2026-09-23 09:13–10:29 Ryu events, so its
+`reserved_for_owner` result does not close the newly reopened Ryu cycle.
 
 The preceding NPO wake exposed a safe serialization bug: room `18223833`'s
 model decision was semantically `await_buyer`, but its outcome copied a buyer
@@ -91,9 +95,9 @@ still fail closed. The next natural wake accepted the same decision as
 
 ### Ryu manual exception
 
-Ryu's latest buyer events are `js-talkroomMessage-222184673` and
+The prior Ryu buyer events were `js-talkroomMessage-222184673` and
 `js-talkroomMessage-222185015`. The seller manually completed and verified the
-requested production changes:
+requested production changes for that prior cycle:
 
 - the supplied recruitment banner is the first content on the recruitment page;
 - the management pricing page again shows all five live courses, twenty-three area
@@ -108,11 +112,30 @@ formal-delivery checkbox; Coconala readback observed the exact seller message
 open for direct revision handling and is not proof that the automated Paid owner
 works.
 
-A fresh read of the canonical Ryu talkroom ledger on 2026-09-23 found no buyer
-message newer than `js-talkroomMessage-222185015`; the latest seller correction is
-still `js-talkroomMessage-222192497`. Until a newer official buyer event is read
-back, the correct action is **no send**. A conversation report that Ryu replied is
-not enough to cross the external-effect fence.
+A fresh authenticated Coconala browser reload of talkroom `18211957` at
+2026-09-23 10:50 JST found five buyer events newer than seller message
+`js-talkroomMessage-222192497`:
+
+- `js-talkroomMessage-222215345` (09:13): the supplied image is not being used
+  in the requested specification; attachment `IMG_6432.png`.
+- `js-talkroomMessage-222215354` (09:13): asks the maximum number of people
+  allowed in attendance and roster registration.
+- `js-talkroomMessage-222218450` (10:24): changes the option model so the first
+  item is `写真撮影1枚〜`, puts a paid-options section below normal options, and
+  names five paid options with starting prices.
+- `js-talkroomMessage-222218603` (10:27): adding two paid options makes all
+  options disappear; this is a persistence/merge defect to fix and verify.
+- `js-talkroomMessage-222218678` (10:29): asks why the shown content is present
+  in WEB予約; attachments `IMG_6434.png` and `IMG_6435.png`.
+
+The local `source/talkroom/messages.jsonl` snapshot is older (mtime
+2026-09-22 20:34 JST) and does not contain these provider events, so it cannot
+close or skip this cycle. Ryu is now `WORK_REQUIRED`/manual-owner. The next
+action is to inspect the three attachments, compare the live public site and
+management screen, implement all five outcomes, verify both surfaces, send one
+ordinary seller message covering the complete current result with formal
+delivery OFF, and read back its exact official message ID. The loop must not
+create work, reply, attach, or invoke formal delivery for this cycle.
 
 ### Shared-host blocker observed during loop repair
 
@@ -131,21 +154,21 @@ The current official inventory contains four open talkrooms: Ryu `18211957`, Chi
 `18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
 is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, which
 contains the answered-feedback stop fix. Its latest official queue readback is
-terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
-`awaiting_buyer`.
+terminal with `effect=0` at the time of that wake: Ryu was
+`reserved_for_owner` and the other three rooms were `awaiting_buyer`.
 The latest natural wake (targeted readback through
 `2026-09-23T01:07:47+00:00`) completed with `status=completed`, `effect=0`,
 `readback=3`, `failed=0`, and `pending=0`; it reconfirmed Ryu as
 `reserved_for_owner` and Chii plus both NPO rooms as `awaiting_buyer`. The
 installed owner is `loaded-idle`, `last_exit=0`, and
-`next_eligible_run=interval:300s`. This is a safe idle state, not a request to
-send anything.
+`next_eligible_run=interval:300s`. This is a safe idle state for Chii and the NPO
+rooms; the later official Ryu events supersede the old Ryu no-op snapshot.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
-delivery. The latest manual correction was sent once with formal delivery OFF and
-read back in the official talkroom; a newer buyer event is required before any
-further action.
+delivery. The prior manual correction was sent once with formal delivery OFF and
+read back in the official talkroom; the five newer buyer events now require one
+new direct manual revision cycle before the loop can return to observation.
 
 Chii is **not** an open work item. The required TikTok campaign was satisfied by
 12 previously verified sends plus 288 exact-readback sends on 2026-09-15. The
