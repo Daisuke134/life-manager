@@ -79,6 +79,9 @@ owner is still `unloaded` on the same SHA. Free space is `444128 KiB` (below
 the `524288 KiB` guard); the canonical cleanup receipt reports no safe reclaim.
 The next action remains one guarded natural wake only after durable headroom,
 not a duplicate send or a manual bypass.
+A short read-only capacity poll then fell to `177660 KiB`; the poll was stopped
+without starting Paid. Keep the Coconala gate open until free space is stable
+above the guard for the complete wake.
 
 ### Task 3: CrowdWorks completion and Paid canary
 

@@ -302,6 +302,9 @@ remains canonically unloaded on the same installed SHA; host free space is
 `444128 KiB`, below the `524288 KiB` guard, and the disk-cleanup receipt has no
 safe reclaimable artifact. No Paid start or duplicate provider send is safe
 until the guard is true for the full wake.
+A short read-only capacity poll then fell to `177660 KiB`; the poll was stopped
+and no loop was started. This is active host-capacity pressure, not a provider
+completion signal or permission to bypass the effect gate.
 
 #### Live override — 2026-09-23T09:49:26Z
 

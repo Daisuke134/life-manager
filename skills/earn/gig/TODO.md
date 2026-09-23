@@ -54,6 +54,10 @@ runtime/provider readback.
   space is now `444128 KiB`, below the `524288 KiB` guard; the canonical
   disk-cleanup receipt has no safe reclaimable artifact. Do not start Paid or
   send a duplicate while this gate is false.
+- A short read-only capacity poll then fell to `177660 KiB` and remained below
+  the guard; the poll was stopped and no loop was started. Treat this as active
+  host-capacity pressure, not a provider completion or a reason to bypass the
+  effect gate.
 
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign
