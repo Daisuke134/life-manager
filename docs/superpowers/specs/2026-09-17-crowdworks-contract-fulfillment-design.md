@@ -67,8 +67,10 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
 
 - Application occurrence 18d6535f7dfb8910-33974, Paid occurrence 18d62cf32eb0c678-48194, and Reply
   occurrence 18d64a10f2f1f838-83166 remain claimed/effect_unknown=1. Report occurrence
-  18d606cf95bd0ab0-85387 is released/effect_unknown=1. Available evidence cannot prove a no-dispatch
-  result or bind an exact provider receipt for these rows.
+  18d606cf95bd0ab0-85387 is released/effect_unknown=1. The official Paid event pair records
+  `execute/effect_status=started` at 2026-09-17T17:48:44Z and `report/effect_status=unknown` at
+  2026-09-17T17:50:14Z; there is no occurrence-bound provider receipt or no-dispatch marker, so
+  available evidence cannot prove a no-dispatch result for this row.
 - No current contract has the complete chain correct_work_verified -> formal delivery -> buyer acceptance
   -> settlement -> payout. Verified USD 10,000 MRR is zero.
 - 63657015 has two current forms and no confirmed receipt; its timed-out intent requires official

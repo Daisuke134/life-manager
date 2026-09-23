@@ -1186,7 +1186,10 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 **Not done / blockers:**
 
 - The three claimed rows and the released Report row still have effect_unknown=1. Paid occurrence
-  18d62cf32eb0c678-48194 has no occurrence-bound no-dispatch marker or exact provider receipt;
+  18d62cf32eb0c678-48194 has an official event pair showing `execute/effect_status=started`
+  (2026-09-17T17:48:44Z) followed by `report/effect_status=unknown` (2026-09-17T17:50:14Z),
+  with no occurrence-bound provider receipt or no-dispatch marker. It must not be released as
+  pre-effect merely because the provider-inventory result was later reported with `effect=0`;
   Application occurrence 18d6535f7dfb8910-33974 and Reply occurrence
   18d64a10f2f1f838-83166 also cannot be released from the available evidence. The Reply wake
   contains authoritative-absent, verified-contract, inconclusive, and confirmation-requested siblings.
