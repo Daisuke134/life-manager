@@ -1519,3 +1519,23 @@ The objective is complete only when all of the following are proven:
   no owner-wide clear, manual DB edit, replay, or guessed provider readback is
   allowed. The next safe mutation is an admissible provider receipt or a
   formally proven pre-effect marker for that exact occurrence.
+
+## Runtime Cursor — 2026-09-24 03:45 JST
+
+- Lancers occurrence `18d7fb95eaeaa698-4710` was released through the official
+  pre-effect resolver after its exact completed `effect=0` marker was verified.
+  The authoritative admission row is now `released/effect_unknown=0`; no
+  provider mutation or replay occurred.
+- Coconala Paid returned to `loaded-idle`/`last_exit=0`/`pass` after the
+  requested kickstart. Its official snapshot is unchanged at
+  `observed=4`, `actionable=0`, `effect=0`, `readback=3`, `pending=0`; Ryu
+  remains manual-only and was not replayed.
+- CrowdWorks Paid remains enabled, but its installed release is still waiting
+  on the host resource-control boundary and retains the single historical
+  unknown `18d62cf32eb0c678-48194`. Its provider snapshot remains
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1` for
+  buyer-material wait. Do not retry, clear, or formally deliver that item.
+- The next platform cursor is therefore CrowdWorks' permitted buyer-material
+  event; after that, Lancers' first funded contract. Upwork remains disabled by
+  its explicit authorization ledger. Production promotion still requires the
+  funded-provider official-receipt and replay-zero gates.

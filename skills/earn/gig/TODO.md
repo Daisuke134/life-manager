@@ -1960,3 +1960,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the exact CrowdWorks unknown occurrence fenced until its own
   provider receipt or pre-effect proof exists. Do not clear the DB or replay it;
   finish the funded-provider canary/replay-zero gate before promotion.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:45 JST
+
+- [x] Resolved the exact Lancers occurrence `18d7fb95eaeaa698-4710` through the
+  official pre-effect resolver; its matched completed marker proves
+  `effect=0`, and the admission row is `released/effect_unknown=0`.
+- [x] Kickstarted Coconala Paid through managed `lm-loop` and verified its
+  natural `loaded-idle`/`pass` readback with no actionable non-Ryu room and no
+  provider effect.
+- [ ] CrowdWorks remains the active next cursor: keep the historical unknown
+  `18d62cf32eb0c678-48194` fenced and wait for permitted buyer material for
+  `63568785`; no duplicate message or formal delivery is allowed.
+- [ ] After the CrowdWorks material event, observe a funded Lancers contract;
+  keep Upwork disabled until authorization/authentication/funded-canary gates
+  exist, then promote only after official receipt and replay-zero.
