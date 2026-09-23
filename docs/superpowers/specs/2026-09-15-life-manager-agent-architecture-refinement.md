@@ -2987,9 +2987,10 @@ or provider session is part of this reorder.
    same-SHA wake proving replay-zero. Fleet rollout and the Obou atomic remain prohibited until those two
    receipts pass.
 
-   The capacity readback now supersedes the earlier low-headroom observation. The latest Data-volume
-   readback has `2,786,095,104` bytes available, above both the generic 512 MiB producer floor and the separate
-   `1,155,780,608`-byte Writer high-water floor. The measured root cause is two sleeping, same-user,
+   The capacity readback now supersedes the earlier low-headroom observation. The latest accepted natural
+   cleanup receipt has `1,778,094,080` bytes available after its sweep, above both the generic 512 MiB
+   producer floor and the separate `1,155,780,608`-byte Writer high-water floor. The measured root cause is
+   two sleeping, same-user,
    parentless Sparkle updater helpers older than three days under the exact Codex and CodexBar cache
    `Launcher/.../Updater.app/Contents/MacOS/Updater` paths. The corresponding `Installation` and
    `PersistentDownloads` staging trees have no open handles. After a same-operation identity readback,
@@ -2998,8 +2999,8 @@ or provider session is part of this reorder.
    `18d8035376e00d40-10746` and `18d803a3f2fce240-14051` subsequently reach terminal `pass` on
    `109f2b3966da3940a901014b4d6ce15d71d37560` while free space remains above both floors.
 
-   The operational recovery is now converted into an accepted source candidate, but it is not yet a
-   production self-heal receipt. Branch `fix/disk-cleanup-stale-sparkle-updater-20260924` at
+   The operational recovery is now converted into an accepted production self-heal. Branch
+   `fix/disk-cleanup-stale-sparkle-updater-20260924` at
    `f85ac1f27f5589de080dae75a2ad61559e34ac9c` owns only the exact Codex/CodexBar Sparkle roots. It requires
    exact same-UID, PPID 1, age, start-time and command identity; rechecks real-directory fingerprints,
    closed handles and the process fingerprint immediately before a single `SIGTERM`; treats partial or
@@ -3009,10 +3010,16 @@ or provider session is part of this reorder.
    related cleanup/runtime tests 162/162, shared runtime 520/520, Node registry 15/15, the fourteen-loop
    contract reports 14 loops / 167 jobs / zero errors, doctor reports no missing or unmanaged owner, and
    `py_compile` plus `git diff --check` pass. Fresh read-only final review returns `ship` with no Critical,
-   Important or Minor finding. The next gate is integration to main, a main-derived immutable release through
-   the normal reconciler, and one natural cleanup terminal from that exact SHA before starting the Mobile
-   canary. Never guess-delete unattributed data or use recovered headroom as proof that production acceptance
-   is complete.
+   Important or Minor finding. PR #5816 passes every server check and merges to main as
+   `1ac87e32ac26cc60b2e2b52cc2ee72ab57adb48f`. The natural release reconciler cuts complete immutable release
+   `20260924T040401-1ac87e32`; targeted loaded-idle reconciliation changes only
+   `life-manager-disk-cleanup`, with install event `f09820a45ea80aba9e163986` and exact loaded arguments rooted
+   in that release. Its launch-on-load run passes, then the next unforced 300-second wake reaches a second
+   terminal `pass` at `2026-09-23T19:12:38.530592Z` on the same SHA. The corresponding receipt has
+   `errors=0`, `protected_deletions=0`, Sparkle recovery errors 0 and `free_after=1,778,094,080`; five open
+   candidates are preserved and no updater is signaled because none is stale. The permanent cleanup source
+   and natural production gate are therefore closed. Mobile/Postiz is the primary cursor; recovered headroom
+   is capacity evidence, not revenue or provider-effect evidence.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. The installed owner is now on main-derived SHA `a088a95a…`, but
    host admission still stops every wake on the exact historical occurrence
@@ -3122,7 +3129,7 @@ Affiliate takes too long because five different gates are serialized as though t
 |---|---|---|---|
 | Effect safety | `affiliate-loop` is installed on main-derived SHA `a088a95a…`, but exact host occurrence `affiliate-loop:18d7bd776d9c8a78-1576` remains `claimed/effect_unknown=1`. The retained terminal-unrecorded run `18d7ef3c86d34350-17314` has an exact execute event, private `effect=0/pre_effect_failure` markers, no report, an immediate `resource_effect_unknown` deferral and zero new Affiliate external job events. X job `f9624461...` reaches `EFFECT_STARTED/NOT_FOUND` about eleven hours later and is a separate unresolved business job. | Owner-scoped host admission runs before the Affiliate entrypoint, so the retained fence blocks the entrypoint reconciliation that could heal it. Queue/priorities are also absent while old clean wake occurrences remain, so a naïve occurrence-scope switch would stop at `occurrence_inflight`. Affiliate is not production-fixed, and neither a later public post nor owner-wide evidence may clear the exact occurrence. | Pushed source `ef4cb1a8cd` / synced branch head `bfa06f4f80` validates the unique exact/legacy proof, requires a private validated runtime journal, emits a secret-free receipt, resolves only the exact row, safely adopts the explicit current wake over same-identity clean orphan wakes, and fails closed on cross-scope/cross-identity/unknown state. Production dry-run remains exact `PROOF_READY`; final review is `ship`. Integrate only after Mobile acceptance, then require natural same-SHA terminal, official readback and replay-zero before resuming funnel experiments. |
 | Local liveness | 1,814 job files include 892 legacy target indexes; the old unresolved-target lookup scanned them under the lock twice and added about thirty minutes. The O(1) index/bounded-readback fix is merged and loaded in `80749f841f...`, with 239 tests + 131 subtests and the 14-loop contract passing. The next admitted natural run `18d7ef3c86d34350-17314` acquires its deterministic slot but fails before any provider effect. Its pre-effect receipt remains intact while `rotate_tool_attempt_receipts` tries to materialize a compressed archive from a 36,631,936-byte journal under low disk headroom. | Business lookup is bounded, but the observability path can still crash before the loop body and leave `.terminal-unrecorded`; an owner classified as `publish` can then re-enter a conservative effect fence even though that exact wake proves `effect=0`. | Make journal retention bounded and failure-atomic under low headroom, preserve the active file on archive/write failure, emit a structured pre-effect failure, and let normal scheduling retry. Accept only after a natural terminal and same-SHA replay-zero on the existing URL. |
-| Shared host capacity | Earlier wakes defer as `resource_capacity_busy` and `resource_database_busy`; slot admission, the SQLite lock and disk floors remain separate boundaries. Generic producers use a 512 MiB floor and Writer uses `1,155,780,608` bytes. The latest Data-volume readback is `2,786,095,104` bytes after two exact stale Sparkle updater helpers are terminated gracefully and their closed staging generations self-clear. Three subsequent natural cleanup runs pass on `109f2b3966…`. | The immediate capacity outage is recovered and no longer blocks movement toward Mobile. Candidate `f85ac1f27f…` closes the permanent source coverage gap with exact PID/path identity, fail-closed probes, pinned no-follow deletion and truthful receipt accounting; focused and shared suites pass and fresh final review is `ship`. Production still runs the older immutable cleanup release, so source acceptance is not yet a natural production self-heal receipt. | Merge the reviewed candidate, cut/load only a main-derived immutable release through the normal reconciler and prove one natural cleanup terminal from its exact SHA. Do not delete unattributed data, stop applications/browsers/Paid sessions, or reopen Affiliate while this atomic completes. |
+| Shared host capacity | Earlier wakes defer as `resource_capacity_busy` and `resource_database_busy`; slot admission, the SQLite lock and disk floors remain separate boundaries. Generic producers use a 512 MiB floor and Writer uses `1,155,780,608` bytes. The latest accepted natural cleanup receipt has `1,778,094,080` bytes free after its sweep. | The immediate outage and permanent source gap are closed. PR #5816 / main `1ac87e32ac…` provides exact PID/path identity, fail-closed probes, pinned no-follow deletion and truthful receipt accounting. Complete release `20260924T040401-1ac87e32` is loaded only for the cleanup owner; its launch-on-load run and following unforced interval both pass, with errors and protected deletions zero. | Keep capacity observation on the normal schedule and advance to Mobile/Postiz. If the same class recurs, the cleanup owner now observes, bounds and heals it; do not replace this with manual deletion, app/browser/Paid-session stops or a second scheduler. |
 | Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
 | Money funnel | Exact monetization impressions are 1,232, owned entries are 0, CTA clicks are 0, transactions are 0, and every commission state is 0. Provider cumulative clicks are 23/22 unique but `post_distribution_state=BASELINE_UNAVAILABLE` | There is no attributable conversion or money evidence; more infrastructure success does not imply commercial progress | Optimize the first broken measurable transition, impression→owned entry/CTA, then click→transaction; keep unattributed historical clicks out of the winner decision |
 
@@ -3135,16 +3142,16 @@ indefinitely. Money-producing loops target verified net USD 10,000 monthly reven
 Fundraiser use their own verified outcome units until they produce money; the portfolio allocator never
 fabricates MRR for a non-revenue outcome.
 
-The immediate ordered TODO is therefore: (1) integrate the reviewed cleanup source `f85ac1f27f…`, cut/load
-only its main-derived immutable release through the normal reconciler and prove one natural exact-SHA cleanup
-terminal; current headroom already exceeds both floors, (2) observe the Mobile/Postiz natural canary
-and exact provider readback, (3) prove its second same-SHA replay-zero and only then roll the
-shared contract across the remaining Mobile owners, (4) integrate the already reviewed/pushed Affiliate
+The immediate ordered TODO is therefore: (1) observe the Mobile/Postiz natural canary on installed
+`a088a95a…` and perform exact provider readback; the latest business event is still from old `f86bacce…`,
+the historical effect fence remains intact, and the next calendar wake is 08:30 JST, (2) prove its second
+same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, and (3)
+integrate the already reviewed/pushed Affiliate
 bridge through a main-derived immutable release and require a natural terminal, official readback and
-replay-zero before returning Affiliate to commercial funnel experiments, (5) repair Connector's false-positive
-CDP health/owner validation and prove a natural registration or truthful no-op plus replay-zero, (6) close the
-remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (7) pass the full Local gate, self-heal failure
-injection and bounded self-improvement promotion/rollback, and (8) promote the same immutable main-derived
+replay-zero before returning Affiliate to commercial funnel experiments, (4) repair Connector's false-positive
+CDP health/owner validation and prove a natural registration or truthful no-op plus replay-zero, (5) close the
+remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (6) pass the full Local gate, self-heal failure
+injection and bounded self-improvement promotion/rollback, and (7) promote the same immutable main-derived
 implementation to tenant-isolated cloud workers with phone-only control. The Affiliate local
 source/review/commit/push atomic is complete; production acceptance is not. Paid fulfillment remains entirely
 owned by the separate Paid workstream throughout this sequence.
