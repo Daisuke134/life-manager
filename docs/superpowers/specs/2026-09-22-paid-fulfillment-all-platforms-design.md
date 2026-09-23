@@ -994,6 +994,18 @@ the authenticated inventory is empty.
   subtests`). This is source-branch evidence only; production promotion and a
   real funded Lancers canary remain open until an official contract appears.
 
+## Runtime Checkpoint — 2026-09-23 23:25 JST
+
+- Fresh lifecycle readback confirms `hf-gig-paid-direct` (Coconala) remains
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:23:40Z`, exit `0`,
+  with no blocker and no provider effect. It was not restarted, so no duplicate
+  effect was introduced.
+- The cursor advances to the next platform lanes: CrowdWorks Paid is
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:24:13Z`, but its
+  historical occurrence fence remains held; Lancers Paid is
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:23:23Z`, with no
+  funded contract to mutate. No external send is admitted by this checkpoint.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
