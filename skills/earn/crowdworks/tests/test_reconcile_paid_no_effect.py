@@ -60,6 +60,8 @@ def test_exact_paid_zero_effect_run_proves_pre_effect(tmp_path):
     assert proof["verified"] is True
     assert proof["proof_type"] == "pre_effect"
     assert proof["occurrence_id"] == occurrence
+    assert proof["evidence_ref"].startswith("lm-paid-run://")
+    assert proof["evidence_ref"] in proof["evidence_refs"]
 
 
 def test_paid_no_effect_proof_rejects_mismatches_and_effectful_items(tmp_path):
