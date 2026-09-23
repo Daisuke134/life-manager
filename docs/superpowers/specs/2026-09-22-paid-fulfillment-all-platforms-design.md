@@ -1041,6 +1041,22 @@ the authenticated inventory is empty.
   advances to the Lancers/Upwork provider-owner work, while this CrowdWorks
   item stays nonterminal and replay-safe.
 
+## Runtime Checkpoint — 2026-09-23 23:38 JST
+
+- A fresh lifecycle readback confirms the Coconala Paid loop is already enabled:
+  `scheduled`/`loaded-idle`, exit `0`, latest pass
+  `2026-09-23T14:35:02Z`, with `admission_effect_unknown=false` and no provider
+  effect. It was not restarted, so no duplicate wake or send was introduced.
+- Lancers is also enabled and passing (`scheduled`/`loaded-idle`, exit `0`,
+  latest pass `2026-09-23T14:33:41Z`). Its authenticated Paid inventory readback
+  is complete: 14 boards, zero working/monthly/incoming offers, zero contract
+  candidates, and finance balance/received totals of 0 JPY. No Lancers send is
+  admissible because there is no funded contract.
+- The cursor therefore advances to Upwork Paid owner readiness. The installed
+  registry contains no Upwork Paid lifecycle owner or active CDP owner; no
+  Upwork effect is claimed. CrowdWorks remains scheduled with its historical
+  unknown-effect fence held.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
