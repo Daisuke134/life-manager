@@ -728,7 +728,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 3 | **A15 shared foundation — PASS, keep monitored.** Main-only immutable releases, bounded durable admission, owner-scoped effect fences, release reconciliation and disk/headroom guards exist. Foundation completion never implies a provider loop is complete. | Existing A15 receipts remain valid; any new regression is repaired through the same exact-owner path and re-proved by a natural wake. |
 | 4 | **Connector effect chain — previously PASS; continuity recheck remains.** Connpass event `407445` has official `registered`, Calendar exact-one and two replay-zero wakes. The later `wake_boundary_failed` circuit-open report is a new runtime-health cursor, not permission to erase the earlier receipt. | Diagnose the new exact occurrence and restore a natural terminal without repeating the registration; official state stays exact-one and replay-zero. |
 | 5 | **Affiliate source repair — merged; background production acceptance remains.** The authenticated source/readback/publication chain is repaired through PR #5805 (`80749f841f…`). The next natural run exposes a separate local receipt-journal failure: rotating a 36,631,936-byte journal can fail with ENOSPC while creating the optional gzip archive, after admission but before provider effect. PR #5807 changes the rotation order so the protected active ledger is atomically retained first and optional archive ENOSPC becomes `skipped_enospc`; it merges to main as `799045e7ba66ee66fe22b35153a3217054ac7ac3`. Affiliate 240/240 and the 14-loop/167-job contract pass. Verified Affiliate revenue remains zero. | Do not hold the portfolio cursor here. Let the owner-scoped immutable-release path load `799045e7…` naturally, reconcile only the exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, then require a same-SHA natural terminal and replay-zero. Never infer that proof from the different public X occurrence or repost. Continue CTA/conversion/payment experiments on the bounded schedule; source repair is not revenue completion. |
-| 6 | **Current cursor — Mobile Apps/Postiz common contract.** The fresh 22-job inventory has 20 jobs in the normal loaded state, one unloaded job (`life-manager-anicca-obou-instagram`) and one running job without a terminal (`life-manager-daily-driver`). All 22 still project `effect_status=unknown`, but official/local Postiz receipts prove current successful Instagram, TikTok and YouTube publications, including multiple posts on 2026-09-23. The fleet is therefore not globally stopped; the dominant defect is that exact provider receipts are not closing the matching host admission occurrences, while old `.terminal-unrecorded` claims remain. | Join every `job_id`/`effect_key`/provider receipt to one exact occurrence, use the existing provider/effect reconcilers, emit terminal effect hints for successful and deduplicated publication, and never clear an owner-wide fence. Prove one natural main-SHA canary plus replay-zero, roll the shared contract across all 22 owners, repair the unloaded/no-terminal jobs, and verify each enabled lane's intended three-per-day cadence from official receipts. |
+| 6 | **Current cursor — Mobile Apps/Postiz production acceptance.** The shared exact receipt-to-occurrence contract is merged through PR #5813 (`57a19002687779ed822926fba0d6ec7cf1d152a4`) and the complete main-derived immutable release `20260923T223337-57a19002` is current. The source boundary is fixed, but Mobile is not yet production-accepted: `life-manager-honne-ja` still has installed/event SHA `f86bacce…`, `effect_status=unknown` and `admission_effect_unknown=true`; the natural release reconciler truthfully reports the Mobile owners as `skipped_pending`. This is now a repair-deployment/fence handoff problem, not a reason to repost or reopen Affiliate. | Preserve the exact pending occurrence and official Postiz receipts; load the repair SHA into one loaded-idle Mobile owner without clearing or replaying its effect, then let the wrapper reconcile only an exact matching receipt. Require one natural `57a190…` canary plus same-SHA replay-zero. Roll the shared contract across all 22 owners only after that proof, then repair the separately failing Obou lane and verify each enabled lane's intended three-per-day cadence from official receipts. |
 | 7 | **Paid fulfillment remains delegated.** The separate Paid owner completes Coconala → CrowdWorks → Lancers → Upwork client work under its own spec and lease. This workstream neither restarts Paid nor reconciles its effect state. | Import only its official delivery/revision/payment receipts after owner completion; no duplicate sender, browser session or state writer. |
 | 8 | **Repair every remaining non-Paid job in all 14 Product Loops, one exact owner at a time.** This includes CrowdWorks Application/Reply/Report where they do not overlap Paid, Affiliate revenue conversion, Connector continuity, Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Self-Build, Mobile Apps, Capafy and CFO. | Each enabled job has the current installed SHA, bounded natural terminal, official effect/readback or explicit setup/not-applicable state, and replay-zero where an effect exists. A process exit or Telegram message alone is not success. |
 | 9 | **Run the complete Local gate and Eval on the actual main-derived candidate.** Bind all fourteen Product Loops, including receipts returned by the Paid owner, to one completion manifest; run baseline, held-out, safety, latency/cost, live-evidence and rollback checks. | Unknown enabled owners = 0; Local and Eval both PASS without mocks standing in for provider effects. |
@@ -2899,12 +2899,14 @@ or provider session is part of this reorder.
 1. Repair Mobile Apps/Postiz once at the shared boundary, not account by account. Fresh readback proves
    that distribution is partially active: provider-reconciled posts exist today, while the effectful
    publication owners still project terminal `effect_status=unknown` and historical owner aggregates
-   retain occurrence-scoped uncertainty. Candidate `b578c53b04` now lets an exact Postiz receipt reconcile
-   either `released` or stale `claimed` state, distinguishes a different live occurrence from the fenced
-   occurrence, and makes every shared Mobile wake inspect a bounded owner-scoped identity set before its
-   normal work. It resolves at most one occurrence after exact local-receipt and official Postiz proof;
-   rows without an exact receipt remain fenced. Host admission passes 125/125, Postiz reconciliation
-   passes 21/21, and the shared Mobile wrapper passes 6/6. Production read-only replay of the retained
+   retain occurrence-scoped uncertainty. The merged implementation through `21514d37f6` lets an exact
+   Postiz receipt reconcile either `released` or stale `claimed` state, distinguishes a different live
+   occurrence from the fenced occurrence, and makes every shared Mobile wake inspect the complete bounded
+   owner-valid unresolved identity set before its normal work. Unrelated or already-resolved history does
+   not consume that bound, and an inconclusive first candidate does not starve a later exact candidate. It
+   resolves at most one occurrence after exact local-receipt and official Postiz proof; rows without an
+   exact receipt remain fenced. Host/Postiz checks pass 148/148, the principal Mobile runner/wrapper checks
+   pass 34/34, and runtime/loop passes 599 tests plus 518 subtests. Production read-only replay of the retained
    Larry identity returns truthful `no_match`: repeated content receipts exist, but none has that exact
    effect/job identity, so it is not safe to infer success or absence.
 
@@ -2917,20 +2919,30 @@ or provider session is part of this reorder.
    `effect_class=none` shared browser owner; absence of a finite terminal is expected and is not a Mobile
    publication defect.
 
-   Candidate `d4e004b089` on `fix/mobile-postiz-terminal-occurrence-20260923` implements that common
-   boundary. The shared Mobile wrapper preserves runner stdout and exit status, writes a private exact
+   PR #5813 merges the final source as
+   `57a19002687779ed822926fba0d6ec7cf1d152a4`; its source head is `21514d37f6`. The shared Mobile wrapper
+   preserves runner stdout and exit status, keeps reconciliation diagnostics off the runner's machine-readable
+   stdout, writes a private exact
    owner/occurrence/Postiz receipt hint only after a verified or deduplicated runner result, and the host
    runtime upgrades a successful terminal to `verified` or `reconciled` only after validating the exact
    hint. A missing, malformed, cross-owner, cross-occurrence, symlinked or permissively readable hint
    leaves the terminal `unknown`; effectful failures still use the existing `effect_unknown` fence.
    TDD proves both missing wiring and wrong `verified`/`reconciled` classification fail before the fix.
-   The final local tree passes runtime/loop 599 tests plus 518 subtests, shared host/Postiz 146 tests,
+   The final local tree passes runtime/loop 599 tests plus 518 subtests, shared host/Postiz 148 tests,
    principal Mobile runner/wrapper 34 tests, `py_compile`, Node and Bash syntax checks, ShellCheck and
    `git diff --check`. Two Obou-specific canary tests independently fail at the pre-existing
    `MARKETING_PUBLICATION_LANE_FORBIDDEN` boundary in unchanged ledger/canary files; that is the next
    separate Obou owner atomic and is not evidence against this shared result contract. This candidate is
-   pushed but not yet merged or production-accepted. The next cursor is fresh read-only review, PR/main
-   integration, main-derived immutable release, one natural canary and same-SHA replay-zero.
+   accepted by a fresh read-only Astra review (`VERDICT: ship`), all PR checks are green, and the complete
+   main-derived immutable release `20260923T223337-57a19002` with `release_paths=ALL` is current. The
+   2026-09-23T13:38Z host readback shows 1,879,195,648 bytes available, above the recorded 1,155,780,608-byte
+   floor, so capacity is not the current cursor. Production acceptance is still open: `life-manager-honne-ja`
+   remains loaded from `f86bacce…`, retains `effect_status=unknown` / `admission_effect_unknown=true`, and
+   the natural release reconciler lists Mobile owners under `skipped_pending`. The next atomic result is to
+   deploy `57a190…` to one loaded-idle Mobile owner without clearing its occurrence fence or causing a
+   provider retry. If the existing apply policy cannot separate code upgrade from execution, repair that
+   narrow handoff rather than deleting state. Then require the wrapper's exact reconciliation, one natural
+   canary and same-SHA replay-zero before fleet rollout.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
    exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
