@@ -41,6 +41,21 @@ def find_paid_no_effect_proof(state_root: Path, owner: str,
             or marker.get("occurrence_id") != occurrence
             or marker.get("status") not in {"pre_effect", "completed"}
             or marker.get("effect") != 0):
+        # Mercor keeps the shared Paid kernel under ``shared-paid`` while the
+        # other marketplace owners use ``paid``.  Probe that provider-owned
+        # layout only after the canonical path has no valid exact marker.
+        shared_marker_path = state_root / "shared-paid" / "runs" / marker_path.name
+        if shared_marker_path != marker_path:
+            marker = _read(shared_marker_path)
+            if (marker is not None and marker.get("version") == 1
+                    and marker.get("occurrence_id") == occurrence
+                    and marker.get("status") in {"pre_effect", "completed"}
+                    and marker.get("effect") == 0):
+                marker_path = shared_marker_path
+    if (marker is None or marker.get("version") != 1
+            or marker.get("occurrence_id") != occurrence
+            or marker.get("status") not in {"pre_effect", "completed"}
+            or marker.get("effect") != 0):
         return None
     evidence_ref = f"lm-paid-run://{owner}/{marker_path.name}"
     return {
