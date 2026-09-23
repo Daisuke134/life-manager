@@ -1975,3 +1975,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] After the CrowdWorks material event, observe a funded Lancers contract;
   keep Upwork disabled until authorization/authentication/funded-canary gates
   exist, then promote only after official receipt and replay-zero.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:55 JST
+
+- [x] Re-ran the source gates after fixing the existing Coconala writer fixture:
+  Coconala Paid `297 passed`, CrowdWorks Paid/reconciliation `123 passed`,
+  Lancers adapter `13 passed`, Lancers reconciliation `1 passed`, lifecycle
+  `162 passed / 143 subtests`, and `lm-loop-contract` all pass.
+- [x] Performed a fresh authenticated read-only Lancers inventory: 14 boards,
+  zero working/monthly/storefront contracts, zero incoming offers, and zero
+  balance. Ended-job pages have no admissible funded delivery surface, so no
+  endpoint was guessed.
+- [ ] No queued CrowdWorks/Lancers wake has an exact pre-effect marker; do not
+  clear the backlog by DB edit or replay. Promote the pushed coalescing source
+  only through the main/release lifecycle after the funded-provider gates.
+- [ ] Continue at CrowdWorks buyer-material event, then Lancers' first funded
+  contract and Upwork's explicit authorization/authentication prerequisite.

@@ -1539,3 +1539,24 @@ The objective is complete only when all of the following are proven:
   event; after that, Lancers' first funded contract. Upwork remains disabled by
   its explicit authorization ledger. Production promotion still requires the
   funded-provider official-receipt and replay-zero gates.
+
+## Verification Cursor — 2026-09-24 03:55 JST
+
+- Source gates remain green after aligning the existing Coconala writer-gate
+  fixture with the owner-policy contract: Coconala Paid coverage is `297
+  passed`, CrowdWorks Paid/reconciliation coverage is `123 passed`, Lancers
+  Paid adapter coverage is `13 passed`, Lancers owner reconciliation is `1
+  passed`, and loop lifecycle coverage is `162 passed / 143 subtests`; the
+  loop-contract gate reports `catalog_loops=14`, `registry_jobs=167`,
+  `mapped_jobs=97`, with no shared IDs or errors.
+- A fresh authenticated, read-only Lancers Paid inventory is source-complete:
+  14 boards, zero working projects, zero monthly contracts, zero incoming
+  offers, zero storefront candidates, and zero balance. Read-only ended-job
+  pages expose proposal/question surfaces only; no funded completion surface
+  or delivery receipt was inferred. The adapter therefore remains fail-closed
+  until a real funded contract exposes its official delivery surface.
+- Admission backlog inspection found no exact pre-effect marker for any queued
+  CrowdWorks or Lancers wake; none was released by inference or manual DB edit.
+  The installed CrowdWorks/Lancers releases still predate the pushed wake-
+  coalescing fields, so queued zero-effect history may continue until the
+  source branch is promoted through the main/release lifecycle.
