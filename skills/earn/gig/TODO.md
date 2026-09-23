@@ -77,6 +77,16 @@ runtime/provider readback.
   no Paid parent/child process, and a 0.18-second targeted status response.
   `admission_effect_unknown=true` remains fenced; do not clear it or restart
   production from this observation alone.
+- CrowdWorks provider-lock detail readback at `2026-09-23T04:00:55.856173Z`
+  confirmed five funded contracts. Source preflight decisions were
+  `63712784=submit`, `63659463=formal_delivery_after_forms`,
+  `63657015=submit`, `63570481=revision_submit`, and
+  `63568785=wait_for_buyer_artifact`; no provider effect or receipt occurred.
+- Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
+  authenticated/source-complete with 14 boards, one unread, zero working or
+  monthly contracts, zero incoming offers, zero storefront contract candidates,
+  and 0 JPY balance. No Lancers Paid client is currently eligible; the Paid
+  mutation path remains unimplemented for future funded work.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
   symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),

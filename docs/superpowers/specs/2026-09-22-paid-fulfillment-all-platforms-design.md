@@ -315,6 +315,15 @@ official execute event with `effect_status=started` followed by a report with
 must remain fenced. Contract `63657015` is read back as funded, but its hearing
 sheet/common-test submission data is not complete and no submission receipt exists.
 
+Fresh provider-lock read-only detail at `2026-09-23T04:00:55.856173Z` confirmed
+all five funded contracts and produced these source-level preflight decisions:
+`63712784=submit`, `63659463=form-complete-then-formal-delivery`,
+`63657015=submit`, `63570481=revision-submit`, and
+`63568785=wait_for_buyer_artifact`. These are planner outputs only: no Google
+Form POST, buyer message, or formal delivery was executed, and no provider
+receipt is claimed. The first canary remains `63712784` after the occurrence
+fence and immutable-release gates are satisfied.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by
@@ -328,6 +337,13 @@ The latest Paid status is `loaded-idle` with `pid=null` and blocker
 `lancers-revenue-paid:18d67a28e56c4b58-6829` remains `claimed/effect_unknown=1`.
 The latest paid result reports observed/effect zero, but that is not a no-dispatch
 proof and cannot release the fence.
+
+Fresh official read-only inventory at `2026-09-23T04:05:08Z` was authenticated
+and source-complete: 14 message boards, 1 unread board, zero working projects,
+zero monthly contracts, zero incoming monthly offers, zero storefront contract
+candidates, and finance balance `0` JPY. Therefore there is no current Lancers
+Paid client to submit; the Paid mutation path remains explicitly unimplemented
+and must be completed before a future funded contract can become a canary.
 
 ### Upwork
 
