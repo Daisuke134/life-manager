@@ -780,6 +780,11 @@ formal delivery.
   admission; the focused Paid suite passes `264` tests and `lm-loop-contract`
   passes. This change is on the pushed source branch and is not production
   promoted yet.
+- The subsequent installed-release natural wake completed `pass`/exit `0` at
+  `2026-09-23T13:12:46Z`: `observed=4`, `actionable=0`, `effect=0`,
+  `readback=3`, `failed=0`, `pending=0`. Ryu was `reserved_for_owner`; Chii
+  (`18180857`) and both NPO rooms (`18223833`, `18250352`) were each read back
+  as `awaiting_buyer`, with no provider send.
 
 ## Production Promotion Contract
 
