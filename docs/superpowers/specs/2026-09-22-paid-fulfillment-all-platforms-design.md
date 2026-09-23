@@ -154,6 +154,10 @@ Lancers Paid is scheduled and `loaded-idle` on installed/event SHA
 `799045e7ba66ee66fe22b35153a3217054ac7ac3`, with `last_exit=0` and terminal
 `pass`; the current source-complete official inventory remains zero funded
 contracts/offers and the Paid summary remains zero observed/actionable/effect.
+The fresh authenticated Paid-only read at `2026-09-23 21:56 JST` saw 14
+message boards (one unread), zero working projects, zero monthly contracts,
+zero incoming offers, zero storefront contract candidates, and complete finance
+readback with a 0 JPY balance. No Lancers mutation was attempted.
 The provider-specific mutation path stays fail-closed until a real funded
 detail exposes its native delivery/readback controls.
 
