@@ -2,6 +2,10 @@
 
 const CONNECTOR_CDP_ENDPOINT = "http://127.0.0.1:9222";
 const CONNECTOR_CDP_WEBSOCKET_ORIGIN = "ws://127.0.0.1:9222";
+const CONNECTOR_CDP_ENDPOINTS = new Set([
+  CONNECTOR_CDP_ENDPOINT,
+  "http://[::1]:9222",
+]);
 
 function unavailable(message) {
   throw new Error(message || "Connector browser target controller unavailable");
@@ -13,28 +17,43 @@ function exactTargetId(value) {
   return targetId;
 }
 
-function connectorPageWebsocketTargetId(value) {
+function exactConnectorCdpEndpoint(value) {
+  const endpoint = String(value || "");
+  if (!CONNECTOR_CDP_ENDPOINTS.has(endpoint)) unavailable("Connector browser endpoint invalid");
+  return endpoint;
+}
+
+function connectorCdpWebsocketOrigin(endpoint) {
+  return exactConnectorCdpEndpoint(endpoint).replace(/^http:/, "ws:");
+}
+
+function connectorPageWebsocketTargetId(value, endpoint) {
   let parsed;
   try { parsed = new URL(String(value || "")); } catch { unavailable("Connector page websocket invalid"); }
+  const allowedOrigins = endpoint == null
+    ? new Set([...CONNECTOR_CDP_ENDPOINTS].map(connectorCdpWebsocketOrigin))
+    : new Set([connectorCdpWebsocketOrigin(endpoint)]);
   const match = /^\/devtools\/page\/([A-Za-z0-9._-]{3,128})$/.exec(parsed.pathname);
   if (
     parsed.protocol !== "ws:"
-    || parsed.origin !== CONNECTOR_CDP_WEBSOCKET_ORIGIN
+    || !allowedOrigins.has(parsed.origin)
     || !match || parsed.username || parsed.password || parsed.search || parsed.hash
   ) unavailable("Connector page websocket invalid");
   return match[1];
 }
 
-function targetIdFromWebsocket(value) {
-  return exactTargetId(connectorPageWebsocketTargetId(value));
+function targetIdFromWebsocket(value, endpoint) {
+  return exactTargetId(connectorPageWebsocketTargetId(value, endpoint));
 }
 
 function createConnectorBrowserTargetController(options = {}) {
   const browser = options.browser;
-  const endpoint = String(options.endpoint || CONNECTOR_CDP_ENDPOINT);
+  const endpoint = exactConnectorCdpEndpoint(
+    options.endpoint == null ? CONNECTOR_CDP_ENDPOINT : options.endpoint,
+  );
+  const websocketOrigin = connectorCdpWebsocketOrigin(endpoint);
   const wait = options.wait || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const bindTimeoutMs = options.bindTimeoutMs == null ? 5_000 : options.bindTimeoutMs;
-  if (endpoint !== CONNECTOR_CDP_ENDPOINT) unavailable("Connector browser endpoint invalid");
   if (!browser || typeof browser.contexts !== "function" || typeof browser.newBrowserCDPSession !== "function") {
     unavailable();
   }
@@ -98,7 +117,7 @@ function createConnectorBrowserTargetController(options = {}) {
         const page = await findPage(targetId, baselinePages);
         return Object.freeze({
           target_id: targetId,
-          page_websocket: `${CONNECTOR_CDP_WEBSOCKET_ORIGIN}/devtools/page/${targetId}`,
+          page_websocket: `${websocketOrigin}/devtools/page/${targetId}`,
           page,
         });
       } catch (error) {
@@ -108,7 +127,7 @@ function createConnectorBrowserTargetController(options = {}) {
     },
 
     async probe(pageWebsocket) {
-      const page = await findPage(targetIdFromWebsocket(pageWebsocket));
+      const page = await findPage(targetIdFromWebsocket(pageWebsocket, endpoint));
       try {
         return await page.evaluate(() => 1) === 1;
       } catch {
@@ -133,6 +152,8 @@ function createConnectorBrowserTargetController(options = {}) {
 module.exports = {
   CONNECTOR_CDP_ENDPOINT,
   CONNECTOR_CDP_WEBSOCKET_ORIGIN,
+  connectorCdpWebsocketOrigin,
   connectorPageWebsocketTargetId,
   createConnectorBrowserTargetController,
+  exactConnectorCdpEndpoint,
 };

@@ -12,12 +12,10 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd -P)"
 }
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
-SHARED_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
 # shellcheck source=/dev/null
 source "$REPO_ROOT/apps/life-manager/scripts/lib/load-env-file.sh"
 LM_CONNECTOR_ENV_FILE="${LM_CONNECTOR_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
 lm_load_env_file "$LM_CONNECTOR_ENV_FILE" || exit 2
-export CLOAK_CDP_BASE_URL="$SHARED_CDP_BASE_URL"
 
 STATE_DIR="${LM_CONNECTOR_STATE_DIR:-$HOME/.local/state/life-manager/connector-native}"
 case "$STATE_DIR" in
@@ -51,15 +49,19 @@ fi
 if [ -n "${CONNECTOR_NATIVE_HEALTH_PROBE_BIN:-}" ]; then
   "$CONNECTOR_NATIVE_HEALTH_PROBE_BIN"
 else
+  ENDPOINT="$($HERE/lib/resolve-cdp-endpoint.sh)" || {
+    printf 'Connector native browser owner unavailable\n' >&2
+    exit 1
+  }
   "$NODE_BIN" -e '
 const http = require("node:http");
-const { CONNECTOR_CDP_ENDPOINT: endpoint } = require(process.argv[1]);
+const endpoint = process.argv[1];
 const request = http.get(`${endpoint}/json/version`, { timeout: 5_000 }, (response) => {
   response.resume();
   process.exitCode = response.statusCode === 200 ? 0 : 1;
 });
 request.on("timeout", () => request.destroy(new Error("timeout")));
 request.on("error", () => { process.exitCode = 1; });
-' "$REPO_ROOT/apps/life-manager/lib/connector-browser-target-controller.js"
+' "$ENDPOINT"
 fi
 printf '{"status":"healthy"}\n'

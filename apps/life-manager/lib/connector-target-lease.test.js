@@ -126,12 +126,17 @@ test("keeps the ownership fence when exact target close fails", async (t) => {
   assert.deepEqual(ledger.targets.TARGET_A, fence);
 });
 
-test("refuses non-Connector websocket endpoints and credential-bearing event URLs", async (t) => {
+test("accepts the registered IPv6 Connector websocket endpoint", async (t) => {
   const fx = fixture(t);
-  await assert.rejects(fx.lease.claim({
+  const fence = await fx.lease.claim({
     ...claimInput(),
     pageWebsocket: "ws://[::1]:9222/devtools/page/TARGET_A",
-  }), /page websocket/i);
+  });
+  assert.equal(fence.page_websocket, "ws://[::1]:9222/devtools/page/TARGET_A");
+});
+
+test("refuses non-Connector websocket endpoints and credential-bearing event URLs", async (t) => {
+  const fx = fixture(t);
   await assert.rejects(fx.lease.claim({
     ...claimInput(),
     pageWebsocket: "ws://127.0.0.1:9223/devtools/page/TARGET_A",

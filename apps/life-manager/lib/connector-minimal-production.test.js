@@ -1751,7 +1751,7 @@ test("production browser rail owns exactly one :9222 target without closing the 
       calls.push(["target-create"]);
       return Object.freeze({
         target_id: "OWNEDTARGET1",
-        page_websocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+        page_websocket: "ws://[::1]:9222/devtools/page/OWNEDTARGET1",
         page,
       });
     },
@@ -1780,17 +1780,20 @@ test("production browser rail owns exactly one :9222 target without closing the 
   try {
     const rail = createProductionBrowserRail({
       stateDir,
+      endpoint: "http://[::1]:9222",
       connectOverCDP: async (endpoint, options) => {
-        assert.equal(endpoint, "http://127.0.0.1:9222");
+        assert.equal(endpoint, "http://[::1]:9222");
         assert.deepEqual(options, { timeout: 120_000 });
         calls.push(["connect", endpoint]);
         return browser;
       },
       createTargetController: (input) => {
         assert.equal(input.browser, browser);
+        assert.equal(input.endpoint, "http://[::1]:9222");
         return controller;
       },
-      createTargetOwnership: ({ ownerToken }) => {
+      createTargetOwnership: ({ endpoint, ownerToken }) => {
+        assert.equal(endpoint, "http://[::1]:9222");
         assert.equal(ownerToken, "owner-token-production-rail");
         calls.push(["ownership"]);
         return owner;

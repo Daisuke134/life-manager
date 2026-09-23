@@ -147,6 +147,7 @@ function productionConfig(options, stateDir, ownerToken) {
   });
   return Object.freeze({
     ...report,
+    cdpEndpoint: requiredText(env.CLOAK_CDP_BASE_URL),
     telegramToken: requiredText(env.TELEGRAM_BOT_TOKEN),
     calendarAccount,
     peatixAttendeeProfile,

@@ -1,7 +1,7 @@
 "use strict";
 
 const { createBrowserTargetLease } = require("../../../runtime/browser/target-lease.cjs");
-const { CONNECTOR_CDP_WEBSOCKET_ORIGIN } = require("./connector-browser-target-controller.js");
+const { connectorPageWebsocketTargetId } = require("./connector-browser-target-controller.js");
 
 function unavailable(message) {
   throw new Error(message || "Connector target lease unavailable");
@@ -9,14 +9,11 @@ function unavailable(message) {
 
 function pageWebsocket(value, expectedTargetId) {
   const text = String(value || "");
-  let parsed;
-  try { parsed = new URL(text); } catch { unavailable("Connector page websocket invalid"); }
-  if (
-    parsed.protocol !== "ws:"
-    || parsed.origin !== CONNECTOR_CDP_WEBSOCKET_ORIGIN
-    || parsed.pathname !== `/devtools/page/${expectedTargetId}`
-    || parsed.username || parsed.password || parsed.search || parsed.hash
-  ) unavailable("Connector page websocket invalid");
+  let actualTargetId;
+  try { actualTargetId = connectorPageWebsocketTargetId(text); } catch {
+    unavailable("Connector page websocket invalid");
+  }
+  if (actualTargetId !== expectedTargetId) unavailable("Connector page websocket invalid");
   return text;
 }
 

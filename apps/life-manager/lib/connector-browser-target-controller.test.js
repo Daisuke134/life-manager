@@ -6,21 +6,36 @@ const test = require("node:test");
 const {
   CONNECTOR_CDP_ENDPOINT,
   CONNECTOR_CDP_WEBSOCKET_ORIGIN,
+  connectorCdpWebsocketOrigin,
   connectorPageWebsocketTargetId,
   createConnectorBrowserTargetController,
+  exactConnectorCdpEndpoint,
 } = require("./connector-browser-target-controller.js");
 
-test("uses only the reachable IPv4 daily-driver endpoint and exact page websocket origin", () => {
+test("accepts only concrete loopback :9222 endpoints and their exact websocket origins", () => {
   assert.equal(CONNECTOR_CDP_ENDPOINT, "http://127.0.0.1:9222");
   assert.equal(CONNECTOR_CDP_WEBSOCKET_ORIGIN, "ws://127.0.0.1:9222");
+  assert.equal(exactConnectorCdpEndpoint("http://[::1]:9222"), "http://[::1]:9222");
+  assert.equal(connectorCdpWebsocketOrigin("http://[::1]:9222"), "ws://[::1]:9222");
   assert.equal(
     connectorPageWebsocketTargetId("ws://127.0.0.1:9222/devtools/page/TARGET123"),
     "TARGET123",
   );
-  assert.throws(
-    () => connectorPageWebsocketTargetId("ws://[::1]:9222/devtools/page/TARGET123"),
-    /websocket invalid/i,
+  assert.equal(
+    connectorPageWebsocketTargetId(
+      "ws://[::1]:9222/devtools/page/TARGET123",
+      "http://[::1]:9222",
+    ),
+    "TARGET123",
   );
+  assert.throws(() => connectorPageWebsocketTargetId(
+    "ws://127.0.0.1:9222/devtools/page/TARGET123",
+    "http://[::1]:9222",
+  ), /websocket invalid/i);
+  for (const endpoint of [
+    "http://localhost:9222", "http://127.0.0.1:9223", "http://[::1]:9228",
+    "https://127.0.0.1:9222", "http://user@127.0.0.1:9222", "http://127.0.0.1:9222/json",
+  ]) assert.throws(() => exactConnectorCdpEndpoint(endpoint), /endpoint invalid/i);
 });
 
 function fixture({ baselineCount = 1, delayedOwnedInsertion = false } = {}) {
@@ -101,12 +116,15 @@ function fixture({ baselineCount = 1, delayedOwnedInsertion = false } = {}) {
 
 test("creates exactly one default-context target and binds only its exact Playwright page", async () => {
   const fx = fixture();
-  const controller = createConnectorBrowserTargetController({ browser: fx.browser });
+  const controller = createConnectorBrowserTargetController({
+    browser: fx.browser,
+    endpoint: "http://[::1]:9222",
+  });
 
   const result = await controller.create();
 
   assert.equal(result.target_id, "OWNED123");
-  assert.equal(result.page_websocket, "ws://127.0.0.1:9222/devtools/page/OWNED123");
+  assert.equal(result.page_websocket, "ws://[::1]:9222/devtools/page/OWNED123");
   assert.equal(result.page, fx.owned);
   assert.equal(fx.calls.filter(([name, method]) => name === "browser-send" && method === "Target.createTarget").length, 1);
   assert.deepEqual(
@@ -172,10 +190,6 @@ test("closing with a malformed target inventory rejects before Target.closeTarge
 
 test("refuses another port, malformed target IDs, and ambiguous browser contexts", async () => {
   const fx = fixture();
-  assert.throws(
-    () => createConnectorBrowserTargetController({ browser: fx.browser, endpoint: "http://[::1]:9222" }),
-    /endpoint/i,
-  );
   assert.throws(
     () => createConnectorBrowserTargetController({ browser: fx.browser, endpoint: "http://127.0.0.1:9223" }),
     /endpoint/i,

@@ -11,7 +11,7 @@ const { nativeExitCode, runNativePass } = require("../native-pass.js");
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const VALID_KANA = Object.freeze({ family: "サクラ", given: "テスト" });
 const VALID_NAME_JA = "桜 太郎";
-const BASE_ENV = Object.freeze({ CONNPASS_API_KEY: "fixture-connpass-api-key-0000", GOG_ACCOUNT: "private@example.com", DAIS_LEGAL_NAME_ROMAJI: "Dais Example", GEMINI_API_KEY: "fixture-ranking-key", GOG_KEYRING_PASSWORD: "private-keyring", LM_CONNECTOR_TELEGRAM_TARGET: "private-target", TELEGRAM_BOT_TOKEN: "fixture-telegram-token" });
+const BASE_ENV = Object.freeze({ CLOAK_CDP_BASE_URL: "http://[::1]:9222", CONNPASS_API_KEY: "fixture-connpass-api-key-0000", GOG_ACCOUNT: "private@example.com", DAIS_LEGAL_NAME_ROMAJI: "Dais Example", GEMINI_API_KEY: "fixture-ranking-key", GOG_KEYRING_PASSWORD: "private-keyring", LM_CONNECTOR_TELEGRAM_TARGET: "private-target", TELEGRAM_BOT_TOKEN: "fixture-telegram-token" });
 
 function writeKanaProfile(home, value = VALID_KANA, mode = 0o600, nameJa, identity = { name: BASE_ENV.DAIS_LEGAL_NAME_ROMAJI, preferred_name: "Dais" }) {
   const file = path.join(home, ".config", "anicca", "job-search", "profile.json");
@@ -42,6 +42,11 @@ test("foreground entrypoint invokes the shared browser foundation before provide
   assert.ok(tabGc >= 0, "Connector must run owner-scoped tab GC");
   assert.ok(source.includes('CLOAK_BROWSER_OWNER="life-manager-connector-native"'),
     "Connector must identify its browser owner");
+  const endpointResolver = source.indexOf("browser_port_owner.py");
+  assert.ok(source.includes('CLOAK_BROWSER_RUNTIME_OWNER="life-manager-daily-driver"'),
+    "Connector must validate the registered daily-driver owner");
+  assert.ok(endpointResolver >= 0 && endpointResolver < nativePass,
+    "Connector must resolve the registered CDP endpoint before provider work");
   assert.ok(browserGuard < nativePass, "browser guard must run before provider work");
   assert.ok(tabGc < nativePass, "tab GC must run before provider work");
 });
@@ -139,6 +144,7 @@ test("official native pass builds the production dependency boundary from allowl
       now: () => 0,
       env: {
         HOME: directory,
+        CLOAK_CDP_BASE_URL: "http://[::1]:9222",
         CONNPASS_API_KEY: BASE_ENV.CONNPASS_API_KEY,
         GOG_ACCOUNT: "private@example.com",
         DAIS_LEGAL_NAME_ROMAJI: "Dais Example",
@@ -162,6 +168,7 @@ test("official native pass builds the production dependency boundary from allowl
     assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted" });
     assert.equal(observed[0][0], "factory");
     assert.equal(observed[0][1].calendarAccount, "private@example.com");
+    assert.equal(observed[0][1].cdpEndpoint, "http://[::1]:9222");
     assert.equal(observed[0][1].gogKeyring, "private-keyring");
     assert.equal(observed[0][1].telegramTarget, "private-target");
     assert.equal(observed[0][1].telegramToken, "fixture-telegram-token");
@@ -305,6 +312,7 @@ test("native config requires the shared Telegram target instead of an OpenClaw o
       ownerToken: "native-pass-minimal-owner-123456",
       env: {
         HOME: directory,
+        CLOAK_CDP_BASE_URL: "http://[::1]:9222",
         GOG_ACCOUNT: "private@example.com",
         DAIS_LEGAL_NAME_ROMAJI: "Dais Example",
         GEMINI_API_KEY: "fixture-ranking-key",

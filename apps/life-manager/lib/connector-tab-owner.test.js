@@ -58,20 +58,45 @@ test("claims exactly the matching :9222 Luma page and writes a private ownership
   assert.equal(fs.statSync(receiptPath).mode & 0o777, 0o600);
 });
 
-test("refuses another browser owner and ambiguous matching tabs", async () => {
-  assert.throws(
-    () => createConnectorTabOwner({
-      endpoint: "http://[::1]:9222",
-      listTargets: async () => [],
-    }),
-    /:9222/,
+test("preserves the registered IPv6 endpoint and rejects a mismatched websocket origin", async () => {
+  const owner = createConnectorTabOwner({
+    endpoint: "http://[::1]:9222",
+    listTargets: async () => [{
+      id: "IPV6TARGET",
+      type: "page",
+      url: "https://luma.com/tokyo-ipv6",
+      webSocketDebuggerUrl: "ws://[::1]:9222/devtools/page/IPV6TARGET",
+    }],
+    ownerToken: () => "connector-ipv6-owner-token",
+    now: () => new Date("2026-08-06T01:02:03.000Z"),
+  });
+
+  const receipt = await owner.claim({ canonicalUrl: "https://luma.com/tokyo-ipv6" });
+  assert.equal(receipt.endpoint, "http://[::1]:9222");
+  assert.equal(receipt.page_websocket, "ws://[::1]:9222/devtools/page/IPV6TARGET");
+
+  const mismatched = createConnectorTabOwner({
+    endpoint: "http://[::1]:9222",
+    listTargets: async () => [{
+      id: "IPV6TARGET",
+      type: "page",
+      url: "https://luma.com/tokyo-ipv6",
+      webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/page/IPV6TARGET",
+    }],
+  });
+  await assert.rejects(
+    mismatched.claim({ canonicalUrl: "https://luma.com/tokyo-ipv6" }),
+    /exactly one owned event page/i,
   );
+});
+
+test("refuses another browser owner and ambiguous matching tabs", async () => {
   assert.throws(
     () => createConnectorTabOwner({
       endpoint: "http://127.0.0.1:9223",
       listTargets: async () => [],
     }),
-    /:9222/,
+    /endpoint invalid/i,
   );
 
   const owner = createConnectorTabOwner({

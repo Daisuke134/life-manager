@@ -2,7 +2,7 @@
 
 Life Manager local owns the rolling 28-day goal, local state, receipts, report, and 30-minute schedule. You are one bounded worker pass, not the owner of those concerns.
 
-Start by reading the current all-calendar busy inventory through installed `gog`; no static availability input is valid. Use the shared daily-driver selected by `CLOAK_CDP_BASE_URL` (default `http://127.0.0.1:9222`) only through the existing Connector browser rail. Never fall back to a different endpoint or profile. The rail opens and closes only its own page. Do not navigate, close, or clean any page that predates your Connector-owned page.
+Start by reading the current all-calendar busy inventory through installed `gog`; no static availability input is valid. Use only the shared daily-driver endpoint proven by the registered `life-manager-daily-driver` owner receipt and passed through `CLOAK_CDP_BASE_URL`, through the existing Connector browser rail. Never fall back to a different endpoint, address family, port, owner or profile. The rail opens and closes only its own page. Do not navigate, close, or clean any page that predates your Connector-owned page.
 
 Use the existing local modules rather than recreating their behavior:
 

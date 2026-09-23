@@ -12,8 +12,9 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd -P)"
 }
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
-export CLOAK_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
 export CLOAK_BROWSER_OWNER="life-manager-connector-native"
+export CLOAK_BROWSER_RUNTIME_OWNER="life-manager-daily-driver"
+export CDP_DAILY_DRIVER_PORT="9222"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}"
 LM_CONNECTOR_SHARED_ENV_FILE="${LM_CONNECTOR_SHARED_ENV_FILE:-$LIFE_MANAGER_STATE_HOME/.env}"
 export LM_CONNECTOR_SHARED_ENV_FILE
@@ -57,15 +58,26 @@ trap release_lock EXIT
 # and only the Connector-owned targets are eligible for this pass's tab cleanup.
 BROWSER_GUARD="$REPO_ROOT/skills/browser/ensure_browser.sh"
 BROWSER_TAB_GC="$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py"
+BROWSER_PORT_OWNER="$REPO_ROOT/runtime/host/browser_port_owner.py"
+BROWSER_ENDPOINT_RESOLVER="$HERE/lib/resolve-cdp-endpoint.sh"
+BROWSER_PORT_OWNER_PYTHON="${BROWSER_PORT_OWNER_PYTHON:-python3}"
 [ -x "$BROWSER_GUARD" ] || {
   printf 'Connector browser foundation unavailable: %s\n' "$BROWSER_GUARD" >&2
   "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_missing >/dev/null 2>&1 || true
   exit 2
 }
+[ -f "$BROWSER_PORT_OWNER" ] && [ -x "$BROWSER_ENDPOINT_RESOLVER" ] \
+  && command -v "$BROWSER_PORT_OWNER_PYTHON" >/dev/null 2>&1 || {
+  printf 'Connector browser owner resolver unavailable\n' >&2
+  "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_owner_resolver_missing >/dev/null 2>&1 || true
+  exit 2
+}
 BROWSER_STATUS="$(
-  CLOAK_CDP_BASE_URL="$CLOAK_CDP_BASE_URL" \
-  CDP_DAILY_DRIVER_PORT="${CDP_DAILY_DRIVER_PORT:-9222}" \
+  CDP_DAILY_DRIVER_PORT="$CDP_DAILY_DRIVER_PORT" \
   CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" \
+  CLOAK_BROWSER_RUNTIME_OWNER="$CLOAK_BROWSER_RUNTIME_OWNER" \
+  BROWSER_PORT_OWNER_BIN="$BROWSER_PORT_OWNER" \
+  BROWSER_PORT_OWNER_PYTHON="$BROWSER_PORT_OWNER_PYTHON" \
   bash "$BROWSER_GUARD" 2>&1 | tail -n 1
 )" || BROWSER_STATUS="FAILED"
 case "$BROWSER_STATUS" in
@@ -76,6 +88,13 @@ case "$BROWSER_STATUS" in
     exit 75
     ;;
 esac
+CLOAK_CDP_BASE_URL="$(BROWSER_PORT_OWNER_BIN="$BROWSER_PORT_OWNER" \
+  BROWSER_PORT_OWNER_PYTHON="$BROWSER_PORT_OWNER_PYTHON" "$BROWSER_ENDPOINT_RESOLVER")" || {
+  printf 'Connector browser owner endpoint unavailable\n' >&2
+  "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_owner_endpoint_failed >/dev/null 2>&1 || true
+  exit 75
+}
+export CLOAK_CDP_BASE_URL
 if ! python3 "$BROWSER_TAB_GC" --owner "$CLOAK_BROWSER_OWNER" >/dev/null 2>&1; then
   printf 'Connector browser tab GC failed; continuing with provider readback fence\n' >&2
 fi

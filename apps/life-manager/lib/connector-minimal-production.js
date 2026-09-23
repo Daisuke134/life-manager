@@ -6,6 +6,7 @@ const path = require("node:path");
 const {
   CONNECTOR_CDP_ENDPOINT,
   createConnectorBrowserTargetController,
+  exactConnectorCdpEndpoint,
 } = require("./connector-browser-target-controller.js");
 const { createConnectorTabOwner } = require("./connector-tab-owner.js");
 const { createConnectorTargetLease } = require("./connector-target-lease.js");
@@ -665,7 +666,10 @@ function createMinimalProductionDependencies(options = {}) {
     now,
     makeCalendar: () => calendar,
   });
-  const browserRail = options.browserRail || createProductionBrowserRail({ stateDir });
+  const browserRail = options.browserRail || createProductionBrowserRail({
+    stateDir,
+    endpoint: options.cdpEndpoint,
+  });
   const operations = options.operations || createMinimalProductionOperations({
     stateDir,
     wakeId,
@@ -872,6 +876,9 @@ function createMinimalProductionDependencies(options = {}) {
 
 function createProductionBrowserRail(options = {}) {
   const stateDir = absoluteDirectory(options.stateDir);
+  const endpoint = exactConnectorCdpEndpoint(
+    options.endpoint == null ? CONNECTOR_CDP_ENDPOINT : options.endpoint,
+  );
   const connectOverCDP = options.connectOverCDP || ((endpoint) => {
     const { chromium } = require("playwright-core");
     return chromium.connectOverCDP(endpoint, { timeout: CONNECTOR_CDP_CONNECT_TIMEOUT_MS });
@@ -886,7 +893,7 @@ function createProductionBrowserRail(options = {}) {
       closeTarget: (targetId) => input.controller.close(targetId),
     });
     return createConnectorTabOwner({
-      endpoint: CONNECTOR_CDP_ENDPOINT,
+      endpoint: input.endpoint,
       targetLease,
     });
   });
@@ -902,10 +909,10 @@ function createProductionBrowserRail(options = {}) {
     async open(input = {}) {
       const exactOwnerToken = ownerToken(input.ownerToken);
       const browser = await connectOverCDP(
-        CONNECTOR_CDP_ENDPOINT,
+        endpoint,
         { timeout: CONNECTOR_CDP_CONNECT_TIMEOUT_MS },
       );
-      const controller = createTargetController({ browser, endpoint: CONNECTOR_CDP_ENDPOINT });
+      const controller = createTargetController({ browser, endpoint });
       if (!controller || typeof controller.create !== "function" || typeof controller.close !== "function") invalid();
       let ownership = null;
       let receipt = null;
@@ -913,6 +920,7 @@ function createProductionBrowserRail(options = {}) {
       try {
         ownership = createTargetOwnership({
           controller,
+          endpoint,
           ownerToken: exactOwnerToken,
           stateDir,
         });

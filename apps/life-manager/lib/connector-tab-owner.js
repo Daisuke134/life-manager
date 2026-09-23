@@ -6,7 +6,8 @@ const path = require("node:path");
 const { connectorEventUrl } = require("./cloakbrowser-daily-driver.js");
 const {
   CONNECTOR_CDP_ENDPOINT,
-  CONNECTOR_CDP_WEBSOCKET_ORIGIN,
+  connectorPageWebsocketTargetId,
+  exactConnectorCdpEndpoint,
 } = require("./connector-browser-target-controller.js");
 
 function normalizedEventUrl(value) {
@@ -19,16 +20,8 @@ function normalizedEventUrl(value) {
   return `${parsed.origin}${parsed.pathname.replace(/\/$/, "") || "/"}`;
 }
 
-function validPageWebsocket(value, targetId) {
-  if (typeof value !== "string") return false;
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "ws:"
-      && parsed.origin === CONNECTOR_CDP_WEBSOCKET_ORIGIN
-      && parsed.pathname === `/devtools/page/${targetId}`;
-  } catch {
-    return false;
-  }
+function validPageWebsocket(value, targetId, endpoint) {
+  try { return connectorPageWebsocketTargetId(value, endpoint) === targetId; } catch { return false; }
 }
 
 function isMatchingEventUrl(value, canonicalUrl) {
@@ -60,16 +53,15 @@ function writePrivateJson(filePath, value) {
   }
 }
 
-function createConnectorTabOwner({
-  endpoint = CONNECTOR_CDP_ENDPOINT,
-  listTargets = () => defaultListTargets(endpoint),
-  targetLease = null,
-  ownerToken = () => crypto.randomUUID(),
-  now = () => new Date(),
-} = {}) {
-  if (endpoint !== CONNECTOR_CDP_ENDPOINT) {
-    throw new Error("Connector tab owner is restricted to CloakBrowser :9222");
-  }
+function createConnectorTabOwner(options = {}) {
+  const endpoint = exactConnectorCdpEndpoint(
+    options.endpoint == null ? CONNECTOR_CDP_ENDPOINT : options.endpoint,
+  );
+  const listTargets = options.listTargets == null
+    ? () => defaultListTargets(endpoint) : options.listTargets;
+  const targetLease = options.targetLease == null ? null : options.targetLease;
+  const ownerToken = options.ownerToken == null ? () => crypto.randomUUID() : options.ownerToken;
+  const now = options.now == null ? () => new Date() : options.now;
   if (typeof listTargets !== "function") throw new Error("listTargets is required");
   if (targetLease && typeof targetLease.claim !== "function") {
     throw new Error("Connector target lease unavailable");
@@ -94,7 +86,7 @@ function createConnectorTabOwner({
         && typeof target.id === "string"
         && !baseline.has(target.id)
         && isMatchingEventUrl(target.url, normalizedCanonicalUrl)
-        && validPageWebsocket(target.webSocketDebuggerUrl, target.id)
+        && validPageWebsocket(target.webSocketDebuggerUrl, target.id, endpoint)
       ));
       if (matches.length !== 1) {
         throw new Error(`Expected exactly one owned event page; observed ${matches.length}`);
@@ -149,7 +141,7 @@ function createConnectorTabOwner({
       const normalizedCanonicalUrl = normalizedEventUrl(canonicalUrl);
       const exactTargetId = String(targetId || "");
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(exactTargetId)
-        || !validPageWebsocket(pageWebsocket, exactTargetId)) {
+        || !validPageWebsocket(pageWebsocket, exactTargetId, endpoint)) {
         throw new Error("Connector exact target unavailable");
       }
       const fence = await targetLease.claim({

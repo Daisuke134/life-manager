@@ -21,8 +21,8 @@ for command in git node npm python3 gog; do
 done
 [ -f "$ENV_FILE" ] || { printf 'Connector configuration unavailable: %s\n' "$ENV_FILE" >&2; exit 2; }
 [ "$(stat -f '%Lp' "$ENV_FILE")" = 600 ] || { printf 'Connector configuration must use mode 600\n' >&2; exit 2; }
-curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null || {
-  printf 'Connector daily-driver unavailable on 127.0.0.1:9222\n' >&2
+"$ROOT/skills/connector/lib/resolve-cdp-endpoint.sh" >/dev/null || {
+  printf 'Connector registered daily-driver unavailable\n' >&2
   exit 2
 }
 
