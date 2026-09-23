@@ -33,7 +33,10 @@ runtime/provider readback.
   occurrence isolation only for item-kernel lanes (CrowdWorks Application/Paid/Reply;
   Lancers Application/Negotiate/Paid). It preserves the old unknown rows and keeps
   Report/Storefront/Telegram owner-scoped. The branch is pushed but not yet merged,
-  released, or applied; no production state changed.
+  released, or applied; no production state changed. Follow-up commit
+  `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
+  safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
+  promoted or applied.
 - The next production cursor is the CrowdWorks occurrence-by-occurrence
   reconciliation and one funded-contract canary, followed by Lancers and Upwork.
 

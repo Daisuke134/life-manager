@@ -245,7 +245,9 @@ contract occurrence can progress while an older occurrence stays `effect_unknown
 the same occurrence remains fenced and must be reconciled officially. The old row is
 never deleted or mass-cleared. Report, Storefront, Telegram reporting, and all
 unproven providers remain owner-scoped until their item-level idempotency and
-readback are proven. This code is pushed but not yet promoted into `main`, an
+readback are proven. Follow-up commit `9df3731ccb` also enables queued/reserved wake
+coalescing for Coconala Paid, preventing repeated safe no-op wakes from accumulating
+an unbounded owner queue. This code is pushed but not yet promoted into `main`, an
 immutable release, or live launchd state; natural-wake and provider acceptance gates
 remain open.
 
