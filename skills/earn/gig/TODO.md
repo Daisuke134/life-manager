@@ -25,7 +25,7 @@ runtime/provider readback.
   is needed for this checkpoint.
 - Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
   on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
-  `9ab1181de8` adds an explicit `admission_effect_scope` registry field and enables
+  `11dcf8c6f3` adds an explicit `admission_effect_scope` registry field and enables
   occurrence isolation only for item-kernel lanes (CrowdWorks Application/Paid/Reply;
   Lancers Application/Negotiate/Paid). It preserves the old unknown rows and keeps
   Report/Storefront/Telegram owner-scoped. The branch is pushed but not yet merged,

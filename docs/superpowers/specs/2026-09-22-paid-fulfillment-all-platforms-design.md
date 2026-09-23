@@ -203,7 +203,7 @@ official reconciliation before any retry.
 The durable admission default remains owner-scoped and fail-closed. The registry now
 has an explicit `admission_effect_scope` contract; the occurrence value is granted
 only to lanes whose provider kernel persists an immutable item identity, intent,
-per-item lock, and official readback. The pushed implementation (`9ab1181de8`,
+per-item lock, and official readback. The pushed implementation (`11dcf8c6f3`,
 branch `fix/marketplace-occurrence-scope-20260923`) enables that contract for
 CrowdWorks Application/Paid/Reply and Lancers Application/Negotiate/Paid. A different
 contract occurrence can progress while an older occurrence stays `effect_unknown`;
