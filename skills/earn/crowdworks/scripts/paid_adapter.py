@@ -893,7 +893,19 @@ class CrowdWorksPaidAdapter:
             if len(matches) != 1:
                 raise RuntimeError("crowdworks_paid_work_unavailable")
             basic = matches[0]
-        return self._cache_update(self._detail(basic))
+        detail = self._detail(basic)
+        # CrowdWorks removes a submitted form link from the live contract page.
+        # Keep the exact durable URL so a later formal-delivery readback can
+        # prove the form receipt instead of treating the task as form-less.
+        if not detail.get("form_urls") and not detail.get("form_url"):
+            legacy_urls = self._legacy_form_urls(detail)
+            if legacy_urls:
+                detail = {
+                    **detail,
+                    "form_urls": sorted(set(legacy_urls)),
+                    "form_url": legacy_urls[0] if len(set(legacy_urls)) == 1 else None,
+                }
+        return self._cache_update(detail)
 
     def observe_active(self) -> list[dict[str, Any]]:
         try:

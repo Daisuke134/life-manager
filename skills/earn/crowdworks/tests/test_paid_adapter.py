@@ -1090,6 +1090,23 @@ def test_cached_inventory_detail_is_reused_until_explicit_refresh():
     assert calls == [row["work_id"], row["work_id"]]
 
 
+def test_targeted_detail_restores_durable_form_url_after_provider_hides_submitted_form(tmp_path):
+    module = load()
+    url = "https://forms.gle/vZeQpKMg2ma72Eeu6"
+    row = {**funded(), "form_url": None, "form_urls": []}
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+    )
+    adapter._list_contracts = lambda: [row]
+    adapter._detail = lambda value: dict(value)
+    adapter._legacy_form_urls = lambda _item: [url]
+
+    detail = adapter._targeted_detail(row["work_id"])
+
+    assert detail["form_urls"] == [url]
+    assert detail["form_url"] == url
+
+
 def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
     module = load()
     title, client = "buyer task", "buyer"
