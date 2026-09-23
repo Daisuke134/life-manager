@@ -614,32 +614,39 @@ class CrowdWorksPaidAdapter:
             try:
                 page.goto(url, wait_until="commit", timeout=20_000)
                 wait_for_timeout = getattr(page, "wait_for_timeout", None)
-                if callable(wait_for_timeout):
-                    wait_for_timeout(1_000)
-                body = str(page.locator("body").inner_text() or "")
-                if "編集権限をリクエスト" in body:
-                    permission_seen = True
+                content_found = False
+                for attempt in range(5):
+                    body = str(page.locator("body").inner_text() or "")
+                    if "編集権限をリクエスト" in body:
+                        permission_seen = True
+                        break
+                    # A Google Docs shell, login page, or error page can have
+                    # body text without exposing the document. Require a
+                    # visible Docs editor/page surface before accepting it.
+                    for selector in (".kix-appview-editor", ".kix-page",
+                                     '[role="textbox"][aria-label*="Document content"]'):
+                        try:
+                            surface = page.locator(selector)
+                            if surface.count() < 1:
+                                continue
+                            visible = [surface.nth(index) for index in range(surface.count())
+                                       if surface.nth(index).is_visible()]
+                            if not visible:
+                                continue
+                            content = "\n".join(str(item.inner_text() or "") for item in visible).strip()
+                            if content:
+                                readable.append(f"[{url}]\n{content}")
+                                content_found = True
+                                break
+                        except Exception:
+                            continue
+                    if content_found or permission_seen or attempt == 4:
+                        break
+                    if callable(wait_for_timeout):
+                        wait_for_timeout(1_000)
+                if permission_seen:
                     continue
-                # A Google Docs shell, login page, or error page can have body
-                # text without exposing the document.  Require a visible Docs
-                # editor/page surface before treating the artifact as readable.
-                for selector in (".kix-appview-editor", ".kix-page",
-                                 '[role="textbox"][aria-label*="Document content"]'):
-                    try:
-                        surface = page.locator(selector)
-                        if surface.count() < 1:
-                            continue
-                        visible = [surface.nth(index) for index in range(surface.count())
-                                   if surface.nth(index).is_visible()]
-                        if not visible:
-                            continue
-                        content = "\n".join(str(item.inner_text() or "") for item in visible).strip()
-                        if content:
-                            readable.append(f"[{url}]\n{content}")
-                            break
-                    except Exception:
-                        continue
-                else:
+                if not content_found:
                     unknown_seen = True
             except Exception:
                 unknown_seen = True
