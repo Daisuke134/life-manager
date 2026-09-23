@@ -378,6 +378,42 @@ def _queue_priority(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def _sqlite_database_busy(error: sqlite3.OperationalError) -> bool:
+    code = getattr(error, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return (code & 0xFF) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+    return str(error).lower() in {
+        "database is locked",
+        "database schema is locked: main",
+        "database table is locked",
+        "database table is locked: sqlite_master",
+    }
+
+
+def _admission_with_retry(
+    operation: Callable[[], tuple[Path | None, str]],
+    *,
+    cancelled: Callable[[], bool] = lambda: False,
+) -> tuple[Path | None, str]:
+    result: tuple[Path | None, str] = (None, "control_busy")
+    for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+        if cancelled():
+            return None, "admission_interrupted"
+        try:
+            result = operation()
+        except sqlite3.OperationalError as error:
+            if not _sqlite_database_busy(error):
+                raise
+            result = (None, "database_busy")
+        if result[0] is not None or result[1] not in {"control_busy", "database_busy"}:
+            return result
+        if cancelled():
+            return None, "admission_interrupted"
+        if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+            time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
+    return result
+
+
 def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         if not heartbeat_durable_resource(claim):
@@ -676,17 +712,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["allow_no_effect_recovery"] = True
             if admission_effect_scope(entry) == "occurrence":
                 enqueue_kwargs["effect_scope"] = "occurrence"
-            ticket, admission_reason = (None, "legacy")
-            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
-                ticket, admission_reason = (
-                    enqueue_durable_resource(
+            ticket, admission_reason = (
+                _admission_with_retry(lambda: enqueue_durable_resource(
                         resource_class, loop_id, **enqueue_kwargs)
-                    if durable else (None, "legacy")
-                )
-                if ticket is not None or admission_reason != "control_busy":
-                    break
-                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
-                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
+                ) if durable else (None, "legacy")
+            )
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
@@ -723,20 +753,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 claim_kwargs["effect_scope"] = "occurrence"
             if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
                 claim_kwargs["coalesced_occurrence_id"] = occurrence_id
-            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
-                if interrupted:
-                    break
-                claim, admission_reason = (
-                    claim_durable_resource(
-                        resource_class, loop_id, **claim_kwargs)
-                    if durable else try_acquire_resource(
+            claim, admission_reason = (
+                _admission_with_retry(
+                    lambda: claim_durable_resource(
+                        resource_class, loop_id, **claim_kwargs),
+                    cancelled=lambda: interrupted,
+                ) if durable else try_acquire_resource(
                         resource_class, loop_id, admission_class=admission_class,
                         retain_ticket=False, required_protocol=1)
-                )
-                if claim is not None or admission_reason != "control_busy":
-                    break
-                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
-                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
+            )
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
