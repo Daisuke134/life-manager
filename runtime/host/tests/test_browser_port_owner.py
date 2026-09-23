@@ -1,10 +1,12 @@
 import json
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -320,3 +322,109 @@ def test_both_lock_branches_try_to_reclaim_before_giving_up():
     from pathlib import Path
     source = (Path(__file__).resolve().parents[1] / "browser_port_owner.py").read_text(encoding="utf-8")
     assert source.count("_reclaim_wedged_owner(") == 3  # definition + profile branch + port branch
+
+
+class _VersionResponse:
+    status = 200
+
+    def __init__(self, payload):
+        self.payload = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self):
+        return self.payload
+
+
+def test_resolve_owned_cdp_selects_only_the_receipt_process_tree(tmp_path, monkeypatch):
+    from runtime.host import browser_port_owner as owner
+
+    state = tmp_path / "browser-ports"
+    state.mkdir(mode=0o700)
+    receipt = state / "9222.json"
+    receipt.write_text(json.dumps({
+        "owner": "life-manager-daily-driver",
+        "port": 9222,
+        "browser_root_pid": 100,
+        "supervisor_pid": 90,
+    }), encoding="utf-8")
+    receipt.chmod(0o600)
+
+    def completed(argv, **_kwargs):
+        if argv[0].endswith("lsof"):
+            return subprocess.CompletedProcess(argv, 0, "p200\ncGoogle Chrome\nn127.0.0.1:9222\np300\ncChromium\nn[::1]:9222\n", "")
+        if argv[0].endswith("ps"):
+            return subprocess.CompletedProcess(argv, 0, "90 1\n100 90\n250 100\n300 250\n200 1\n", "")
+        raise AssertionError(argv)
+
+    requested = []
+    def urlopen(request, timeout):
+        requested.append((request.full_url, timeout))
+        return _VersionResponse({
+            "Browser": "Chrome/145.0.0.0",
+            "webSocketDebuggerUrl": "ws://[::1]:9222/devtools/browser/owned-uuid",
+        })
+
+    monkeypatch.setattr(owner.subprocess, "run", completed)
+    monkeypatch.setattr(owner.urllib.request, "urlopen", urlopen)
+
+    assert owner.resolve_owned_cdp_endpoint(
+        state_dir=state,
+        owner="life-manager-daily-driver",
+        port=9222,
+    ) == {
+        "endpoint": "http://[::1]:9222",
+        "owner": "life-manager-daily-driver",
+        "port": 9222,
+        "websocket_origin": "ws://[::1]:9222",
+    }
+    assert requested == [("http://[::1]:9222/json/version", 3.0)]
+
+
+def test_resolve_owned_cdp_rejects_a_listener_outside_the_receipt_process_tree(tmp_path, monkeypatch):
+    from runtime.host import browser_port_owner as owner
+
+    state = tmp_path / "browser-ports"
+    state.mkdir(mode=0o700)
+    receipt = state / "9222.json"
+    receipt.write_text(json.dumps({
+        "owner": "life-manager-daily-driver",
+        "port": 9222,
+        "browser_root_pid": 100,
+        "supervisor_pid": 90,
+    }), encoding="utf-8")
+    receipt.chmod(0o600)
+
+    def completed(argv, **_kwargs):
+        output = "p200\ncGoogle Chrome\nn127.0.0.1:9222\n" if argv[0].endswith("lsof") else "90 1\n100 90\n200 1\n"
+        return subprocess.CompletedProcess(argv, 0, output, "")
+
+    monkeypatch.setattr(owner.subprocess, "run", completed)
+    with pytest.raises(RuntimeError, match="cdp_port_owner_mismatch"):
+        owner.resolve_owned_cdp_endpoint(
+            state_dir=state,
+            owner="life-manager-daily-driver",
+            port=9222,
+        )
+
+
+def test_probe_owned_cdp_rejects_http_404_and_wrong_websocket_authority(monkeypatch):
+    from runtime.host import browser_port_owner as owner
+
+    def not_found(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, io.BytesIO(b""))
+
+    monkeypatch.setattr(owner.urllib.request, "urlopen", not_found)
+    with pytest.raises(RuntimeError, match="cdp_response_invalid"):
+        owner.probe_cdp_endpoint("http://127.0.0.1:9222", timeout=3.0)
+
+    monkeypatch.setattr(owner.urllib.request, "urlopen", lambda _request, timeout: _VersionResponse({
+        "Browser": "Chrome/145.0.0.0",
+        "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/browser/wrong-owner",
+    }))
+    with pytest.raises(RuntimeError, match="cdp_response_invalid"):
+        owner.probe_cdp_endpoint("http://[::1]:9222", timeout=3.0)

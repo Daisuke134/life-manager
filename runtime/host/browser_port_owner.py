@@ -10,16 +10,136 @@ import json
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
 
 _OWNER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+_CDP_BROWSER_PATH = re.compile(r"/devtools/browser/[A-Za-z0-9._-]{1,200}")
+
+
+def probe_cdp_endpoint(endpoint: str, timeout: float = 3.0) -> dict[str, object]:
+    """Return a bounded CDP identity only when HTTP, JSON and authority agree."""
+    try:
+        parsed = urllib.parse.urlsplit(endpoint)
+        if (parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"}
+                or parsed.port is None or parsed.username or parsed.password
+                or parsed.path or parsed.query or parsed.fragment):
+            raise ValueError("endpoint")
+        request = urllib.request.Request(f"{endpoint}/json/version", headers={"Accept": "application/json"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            if getattr(response, "status", None) != 200:
+                raise ValueError("status")
+            body = response.read()
+        if len(body) > 65_536:
+            raise ValueError("body")
+        payload = json.loads(body)
+        websocket = urllib.parse.urlsplit(str(payload.get("webSocketDebuggerUrl") or ""))
+        if (not isinstance(payload, dict) or not str(payload.get("Browser") or "").strip()
+                or websocket.scheme != "ws" or websocket.hostname != parsed.hostname
+                or websocket.port != parsed.port or websocket.username or websocket.password
+                or not _CDP_BROWSER_PATH.fullmatch(websocket.path)
+                or websocket.query or websocket.fragment):
+            raise ValueError("payload")
+    except Exception as exc:
+        raise RuntimeError("cdp_response_invalid") from exc
+    return {
+        "endpoint": endpoint,
+        "port": parsed.port,
+        "websocket_origin": f"ws://{websocket.netloc}",
+    }
+
+
+def _owner_receipt(state_dir: Path, owner: str, port: int) -> dict[str, object]:
+    path = state_dir / f"{port}.json"
+    fd = None
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) & 0o077):
+            raise ValueError("unsafe receipt")
+        with os.fdopen(fd, "r", encoding="utf-8") as handle:
+            fd = None
+            payload = json.load(handle)
+    except Exception as exc:
+        if fd is not None:
+            os.close(fd)
+        raise RuntimeError("cdp_owner_receipt_invalid") from exc
+    root_pid = payload.get("browser_root_pid") if isinstance(payload, dict) else None
+    if (payload.get("owner") != owner or payload.get("port") != port
+            or not isinstance(root_pid, int) or isinstance(root_pid, bool) or root_pid <= 1):
+        raise RuntimeError("cdp_port_owner_mismatch")
+    return payload
+
+
+def _loopback_listeners(port: int) -> list[tuple[int, str]]:
+    result = subprocess.run(
+        ["/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-Fpcn"],
+        capture_output=True, text=True, timeout=5, check=False,
+    )
+    listeners: list[tuple[int, str]] = []
+    pid = None
+    for line in result.stdout.splitlines():
+        if line.startswith("p") and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith("n") and pid is not None:
+            name = line[1:]
+            if name == f"127.0.0.1:{port}":
+                listeners.append((pid, "127.0.0.1"))
+            elif name == f"[::1]:{port}":
+                listeners.append((pid, "::1"))
+    return listeners
+
+
+def _process_parents() -> dict[int, int]:
+    result = subprocess.run(
+        ["/bin/ps", "-ax", "-o", "pid=,ppid="],
+        capture_output=True, text=True, timeout=5, check=False,
+    )
+    parents: dict[int, int] = {}
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) == 2 and all(field.isdigit() for field in fields):
+            parents[int(fields[0])] = int(fields[1])
+    return parents
+
+
+def _descends_from(pid: int, ancestor: int, parents: dict[int, int]) -> bool:
+    seen = set()
+    while pid > 1 and pid not in seen and len(seen) < 64:
+        if pid == ancestor:
+            return True
+        seen.add(pid)
+        pid = parents.get(pid, 0)
+    return False
+
+
+def resolve_owned_cdp_endpoint(*, state_dir: Path, owner: str, port: int) -> dict[str, object]:
+    if not state_dir.is_absolute() or not _OWNER.fullmatch(owner) or not 1 <= port <= 65_535:
+        raise RuntimeError("cdp_owner_request_invalid")
+    receipt = _owner_receipt(state_dir, owner, port)
+    root_pid = int(receipt["browser_root_pid"])
+    parents = _process_parents()
+    owned = [(pid, host) for pid, host in _loopback_listeners(port)
+             if _descends_from(pid, root_pid, parents)]
+    if not owned:
+        raise RuntimeError("cdp_port_owner_mismatch")
+    for _pid, host in owned:
+        endpoint = f"http://[{host}]:{port}" if ":" in host else f"http://{host}:{port}"
+        try:
+            result = probe_cdp_endpoint(endpoint)
+            return {**result, "owner": owner}
+        except RuntimeError:
+            continue
+    raise RuntimeError("cdp_response_invalid")
 
 
 def _process_group_exists(pgid: int) -> bool:
@@ -273,8 +393,24 @@ def main(argv: list[str] | None = None) -> int:
     command.add_argument("--profile", required=True)
     command.add_argument("--owner", required=True)
     command.add_argument("command", nargs=argparse.REMAINDER)
+    resolver = subparsers.add_parser("resolve")
+    resolver.add_argument("--state-dir", type=Path)
+    resolver.add_argument("--port", type=int, required=True)
+    resolver.add_argument("--owner", required=True)
     args = parser.parse_args(argv)
-    return run(args)
+    if args.action == "run":
+        return run(args)
+    try:
+        result = resolve_owned_cdp_endpoint(
+            state_dir=args.state_dir or _default_state_dir(),
+            owner=args.owner,
+            port=args.port,
+        )
+    except RuntimeError as exc:
+        print(json.dumps({"ok": False, "reason": str(exc)}, sort_keys=True), file=sys.stderr)
+        return 75
+    print(json.dumps({"ok": True, **result}, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":
