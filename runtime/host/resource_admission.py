@@ -1128,7 +1128,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
             occurrence = connection.execute(
                 """SELECT occurrence_id,base_priority,queued_at
                      FROM occurrences
-                    WHERE owner_id=? AND state='queued'
+                    WHERE owner_id=? AND state='queued' AND effect_unknown=0
                     ORDER BY queued_at,occurrence_id
                     LIMIT 1""",
                 (owner_id,),
@@ -1167,19 +1167,45 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if not reserved and (head is None or head["owner_id"] != owner_id):
                 return None, "fifo_wait"
             if coalesced_name is not None and (occurrence is None or occurrence[0] != coalesced_name):
-                if connection.execute(
-                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
-                        (coalesced_name,)).fetchone():
-                    return None, "occurrence_inflight"
-                if occurrence is not None:
-                    connection.execute(
-                        "UPDATE occurrences SET state='cancelled' WHERE occurrence_id=?",
-                        (occurrence[0],))
                 first_queued_at = occurrence[2] if occurrence else row[4] or instant
                 priority_name = row[3] or _default_priority(admission_class)
-                _record_occurrence(
-                    connection, coalesced_name, owner_id, resource_class,
-                    admission_class, priority_name, first_queued_at, int(row[0]))
+                existing_coalesced = connection.execute(
+                    """SELECT owner_id,resource_class,admission_class,base_priority,
+                              queued_at,state,effect_unknown
+                         FROM occurrences WHERE occurrence_id=?""",
+                    (coalesced_name,),
+                ).fetchone()
+                if existing_coalesced is not None:
+                    adoptable = (
+                        effect_scope == "occurrence"
+                        and existing_coalesced[:4] == (
+                            owner_id, resource_class, admission_class, priority_name,
+                        )
+                        and existing_coalesced[5:] == ("queued", 0)
+                    )
+                    if not adoptable:
+                        return None, "occurrence_inflight"
+                    first_queued_at = min(first_queued_at, existing_coalesced[4])
+                    connection.execute(
+                        """UPDATE occurrences SET state='cancelled'
+                             WHERE owner_id=? AND resource_class=?
+                               AND admission_class=? AND state='queued'
+                               AND effect_unknown=0 AND occurrence_id<>?""",
+                        (owner_id, resource_class, admission_class, coalesced_name),
+                    )
+                    connection.execute(
+                        """UPDATE occurrences SET queued_at=?,sequence=?
+                             WHERE occurrence_id=?""",
+                        (first_queued_at, int(row[0]), coalesced_name),
+                    )
+                else:
+                    if occurrence is not None:
+                        connection.execute(
+                            "UPDATE occurrences SET state='cancelled' WHERE occurrence_id=?",
+                            (occurrence[0],))
+                    _record_occurrence(
+                        connection, coalesced_name, owner_id, resource_class,
+                        admission_class, priority_name, first_queued_at, int(row[0]))
                 occurrence = (coalesced_name, priority_name, first_queued_at)
             claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
             claim_was_absent = not claim.exists()
@@ -1621,6 +1647,85 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                 and bool(proof["evidence_ref"].strip()))
     return _close_unknown_occurrence(owner_id, occurrence_id, expected_state,
                                      proof_check=proof_check)
+
+
+def cancel_coalesced_occurrences(owner_id: str, occurrence_id: str) -> int | None:
+    """Cancel stale queued wake intents behind one verified live occurrence.
+
+    Business jobs are not stored in the admission queue.  This operation only
+    applies to an owner whose registry explicitly coalesces scheduled wakes; the
+    caller supplies the exact occurrence held by its live process.  Any identity
+    mismatch or remaining effect fence fails closed.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or not occurrence_id.startswith(f"{owner_id}:")):
+        raise RuntimeError("invalid occurrence identity")
+    root, owners, _, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return None
+        live = []
+        for path in owners.glob("*.json"):
+            row = _row(path) or {}
+            if row.get("owner_id") == owner_id and _live(
+                    path, starts, snapshot_started_ns):
+                live.append(row)
+        if (len(live) != 1 or live[0].get("occurrence_id") != occurrence_id
+                or live[0].get("effect_scope") != "occurrence"):
+            return None
+        with _database(database) as connection:
+            current = connection.execute(
+                """SELECT resource_class,admission_class,state,effect_unknown FROM occurrences
+                     WHERE owner_id=? AND occurrence_id=?""",
+                (owner_id, occurrence_id),
+            ).fetchone()
+            if current != (
+                live[0].get("resource_class"), live[0].get("admission_class"),
+                "claimed", 0,
+            ):
+                return None
+            resource_class, admission_class = current[:2]
+            queued = connection.execute(
+                """SELECT COUNT(*) FROM occurrences
+                     WHERE owner_id=? AND occurrence_id<>?
+                       AND resource_class=? AND admission_class=?
+                       AND state='queued' AND effect_unknown=0""",
+                (owner_id, occurrence_id, resource_class, admission_class),
+            ).fetchone()[0]
+            cross_identity = connection.execute(
+                """SELECT 1 FROM occurrences
+                     WHERE owner_id=? AND occurrence_id<>?
+                       AND state='queued' AND effect_unknown=0
+                       AND (resource_class<>? OR admission_class<>?)
+                     LIMIT 1""",
+                (owner_id, occurrence_id, resource_class, admission_class),
+            ).fetchone()
+            queued_scope = connection.execute(
+                "SELECT effect_scope FROM priorities WHERE owner_id=?",
+                (owner_id,),
+            ).fetchone()
+            if cross_identity or connection.execute(
+                "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                (owner_id,),
+            ).fetchone() or (queued and (
+                queued_scope is None or queued_scope[0] != "occurrence"
+            )):
+                return None
+            changed = connection.execute(
+                """UPDATE occurrences SET state='cancelled'
+                     WHERE owner_id=? AND occurrence_id<>?
+                       AND resource_class=? AND admission_class=?
+                       AND state='queued' AND effect_unknown=0""",
+                (owner_id, occurrence_id, resource_class, admission_class),
+            ).rowcount
+            connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
+            return changed
+    finally:
+        os.close(descriptor)
 
 
 def clear_no_effect_unknown(owner_id: str) -> int:

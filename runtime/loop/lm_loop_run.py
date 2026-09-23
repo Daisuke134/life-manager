@@ -54,8 +54,7 @@ SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
-PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
-    "skills/affiliate/affiliate",
+LEGACY_PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/crowdworks/scripts/paid-owner",
     "skills/earn/lancers/scripts/application-owner",
     "skills/earn/lancers/scripts/negotiate-owner",
@@ -66,6 +65,9 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/mercor/scripts/reply-owner",
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
+PRE_EFFECT_HINT_ENTRYPOINTS = LEGACY_PRE_EFFECT_HINT_ENTRYPOINTS | {
+    "skills/affiliate/affiliate",
+}
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/mobile-app",
 })
@@ -443,14 +445,37 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
             and len(prefix) + len(reason) <= 128 else "unknown")
 
 
-def _proven_pre_effect_failure(path: Path) -> bool:
+def _proven_pre_effect_failure(
+    path: Path,
+    owner_id: str | None = None,
+    occurrence_id: str | None = None,
+    runtime_run_id: str | None = None,
+    *,
+    allow_legacy: bool = False,
+) -> bool:
     try:
         info = path.lstat()
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                 or info.st_mode & 0o777 != 0o600):
             return False
-        return json.loads(path.read_text(encoding="utf-8")) == {
-            "status": "pre_effect_failure", "effect": 0}
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value == {"status": "pre_effect_failure", "effect": 0}:
+            return allow_legacy
+        expected = {
+            "schema_version", "kind", "status", "effect", "owner_id",
+            "occurrence_id", "runtime_run_id",
+        }
+        return (isinstance(value, dict) and set(value) == expected
+                and value.get("schema_version") == 1
+                and value.get("kind") == "life_manager_pre_effect_result"
+                and value.get("status") == "pre_effect_failure"
+                and value.get("effect") == 0
+                and isinstance(owner_id, str) and value.get("owner_id") == owner_id
+                and isinstance(occurrence_id, str)
+                and value.get("occurrence_id") == occurrence_id
+                and isinstance(runtime_run_id, str)
+                and bool(SAFE_RUN_ID.fullmatch(runtime_run_id))
+                and value.get("runtime_run_id") == runtime_run_id)
     except (OSError, ValueError):
         return False
 
@@ -915,7 +940,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     if (claim_started_child and return_code != 0
                             and entry.get("effect_class") != "none"
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
-                                receipt.parent / "entrypoint-result.json"))):
+                                receipt.parent / "entrypoint-result.json",
+                                loop_id, claimed_occurrence_id,
+                                env.get("LIFE_MANAGER_RUN_ID"),
+                                allow_legacy=(entry.get("entrypoint")
+                                              in LEGACY_PRE_EFFECT_HINT_ENTRYPOINTS),
+                            ))):
                         release_options["effect_unknown"] = True
                     dispatch_after_release = release_and_reserve_resource(claim, **release_options)
                 else:

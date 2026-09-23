@@ -1389,6 +1389,60 @@ def test_opted_in_connector_claim_uses_executing_wake_identity(tmp_path, monkeyp
     admission.release_and_reserve(claim, reserve=False, now=104)
 
 
+def test_occurrence_scoped_coalesced_claim_adopts_current_wake_over_orphan_backlog(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "affiliate-loop"
+
+    admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:unknown", effect_scope="occurrence", now=90,
+    )
+    unknown, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=91,
+    )
+    assert unknown is not None and reason == "acquired"
+    admission.release_and_reserve(unknown, effect_unknown=True, reserve=False, now=92)
+
+    # Older loaded releases could leave clean wake occurrences after their
+    # shared queue/priorities row disappeared.  Recreate that exact boundary.
+    for index, queued_at in enumerate((100, 101), start=1):
+        occurrence_id = f"{owner}:orphan-{index}"
+        ticket, reason = admission.enqueue_durable(
+            "agent", owner, admission_class="revenue",
+            occurrence_id=occurrence_id, effect_scope="occurrence", now=queued_at,
+        )
+        assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+        with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+            connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner,))
+            connection.execute("DELETE FROM queue WHERE owner_id=?", (owner,))
+            connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner,))
+
+    current = f"{owner}:current"
+    ticket, reason = admission.enqueue_durable(
+        "agent", owner, admission_class="revenue", occurrence_id=current,
+        coalesce_reserved=True, effect_scope="occurrence", now=102,
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+
+    claim, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue",
+        coalesced_occurrence_id=current, effect_scope="occurrence", now=103,
+    )
+
+    assert claim is not None and reason == "acquired"
+    assert json.loads(claim.read_text())["occurrence_id"] == current
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert (rows[f"{owner}:unknown"]["state"],
+            rows[f"{owner}:unknown"]["effect_unknown"]) == ("claimed", 1)
+    assert rows[f"{owner}:orphan-1"]["state"] == "cancelled"
+    assert rows[f"{owner}:orphan-2"]["state"] == "cancelled"
+    assert rows[current]["state"] == "claimed"
+    assert rows[current]["queued_at"] == 100
+    admission.release_and_reserve(claim, reserve=False, now=104)
+
+
 def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
@@ -1552,6 +1606,136 @@ def test_pre_effect_reconcile_rejects_provider_receipt_shaped_proof(
             "verified": True, "provider_receipt_id": "wrong-proof",
         },
     ) is False
+
+
+def test_live_occurrence_can_cancel_only_its_queued_coalesced_wakes(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    owner = "affiliate-loop"
+    current = f"{owner}:current"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=current, effect_scope="occurrence", now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue",
+        effect_scope="occurrence", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    queued = f"{owner}:queued"
+    _, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=queued, effect_scope="occurrence", now=102,
+    )
+    assert reason == "owner_busy"
+
+    assert admission.cancel_coalesced_occurrences(owner, current) == 1
+
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert rows[current]["state"] == "claimed"
+    assert rows[queued]["state"] == "cancelled"
+    assert not durable_rows(tmp_path, "queue")
+    assert not durable_rows(tmp_path, "priorities")
+    admission.release_and_reserve(claim, reserve=False, now=103)
+
+
+def test_coalesced_wake_cancel_rejects_wrong_or_fenced_live_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    owner = "affiliate-loop"
+    current = f"{owner}:current"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=current, effect_scope="occurrence", now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue",
+        effect_scope="occurrence", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    assert admission.cancel_coalesced_occurrences(owner, f"{owner}:other") is None
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?", (current,),
+        )
+        connection.commit()
+    assert admission.cancel_coalesced_occurrences(owner, current) is None
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=103)
+
+
+def test_coalesced_wake_cancel_rejects_cross_scope_queued_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    owner = "affiliate-loop"
+    current = f"{owner}:current"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=current, effect_scope="occurrence", now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue",
+        effect_scope="occurrence", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    queued = f"{owner}:old-scope"
+    _, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=queued, effect_scope="owner", now=102,
+    )
+    assert reason == "owner_busy"
+
+    assert admission.cancel_coalesced_occurrences(owner, current) is None
+
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert rows[current]["state"] == "claimed"
+    assert rows[queued]["state"] == "queued"
+    admission.release_and_reserve(claim, reserve=False, now=103)
+
+
+@pytest.mark.parametrize(
+    ("resource_class", "admission_class"),
+    (("browser", "revenue"), ("deterministic", "borrow")),
+)
+def test_coalesced_wake_cancel_rejects_cross_identity_queued_occurrence(
+        tmp_path, monkeypatch, resource_class, admission_class):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    owner = "affiliate-loop"
+    current = f"{owner}:current"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=current, effect_scope="occurrence", now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue",
+        effect_scope="occurrence", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    queued = f"{owner}:cross-identity"
+    _, reason = admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=queued, effect_scope="occurrence", now=102,
+    )
+    assert reason == "owner_busy"
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            """UPDATE occurrences SET resource_class=?,admission_class=?
+                 WHERE occurrence_id=?""",
+            (resource_class, admission_class, queued),
+        )
+        connection.commit()
+
+    assert admission.cancel_coalesced_occurrences(owner, current) is None
+
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert rows[current]["state"] == "claimed"
+    assert rows[queued]["state"] == "queued"
+    assert durable_rows(tmp_path, "queue")
+    assert durable_rows(tmp_path, "priorities")
+    admission.release_and_reserve(claim, reserve=False, now=103)
 
 
 def test_resolve_unknown_occurrence_can_require_released_state_atomically(

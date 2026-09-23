@@ -200,6 +200,7 @@
     "affiliate-loop": {
       "adapter": "exec",
       "admission_class": "revenue",
+      "admission_effect_scope": "occurrence",
       "cadence": {
         "start_interval_seconds": 600
       },
@@ -207,6 +208,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [
         "loop",
         "wake"

@@ -18,7 +18,7 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
-    _persist_effect_identity, _resource_class,
+    _persist_effect_identity, _proven_pre_effect_failure, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
     _terminal_outcome, _verified_effect_result, main as lm_loop_run_main,
 )
@@ -811,6 +811,37 @@ def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
             "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
         }, "paid", {}, tmp_path / "receipt") == 1
     release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_exact_pre_effect_failure_marker_is_accepted_for_claimed_occurrence(tmp_path):
+    hint = tmp_path / "entrypoint-result.json"
+    hint.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "life_manager_pre_effect_result",
+        "status": "pre_effect_failure",
+        "effect": 0,
+        "owner_id": "affiliate-loop",
+        "occurrence_id": "affiliate-loop:occurrence-1",
+        "runtime_run_id": "runtime-run-1",
+    }) + "\n")
+    hint.chmod(0o600)
+
+    assert _proven_pre_effect_failure(
+        hint, "affiliate-loop", "affiliate-loop:occurrence-1", "runtime-run-1",
+    ) is True
+    assert _proven_pre_effect_failure(
+        hint, "affiliate-loop", "affiliate-loop:other", "runtime-run-1",
+    ) is False
+    assert _proven_pre_effect_failure(
+        hint, "affiliate-loop", "affiliate-loop:occurrence-1", "runtime-run-2",
+    ) is False
+
+    legacy = tmp_path / "legacy-entrypoint-result.json"
+    legacy.write_text('{"status":"pre_effect_failure","effect":0}\n')
+    legacy.chmod(0o600)
+    assert _proven_pre_effect_failure(
+        legacy, "affiliate-loop", "affiliate-loop:occurrence-1", "runtime-run-1",
+    ) is False
 
 
 def test_writer_article_resume_pre_effect_failure_releases_without_unknown_fence(tmp_path):

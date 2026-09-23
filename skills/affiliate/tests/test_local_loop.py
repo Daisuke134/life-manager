@@ -98,11 +98,19 @@ class LocalLoopTest(unittest.TestCase):
             hint = Path(root) / "entrypoint-result.json"
             with patch.dict(MODULE.os.environ, {
                 "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+                "LIFE_MANAGER_OCCURRENCE_ID": "affiliate-loop:occurrence-1",
+                "LIFE_MANAGER_RUN_ID": "runtime-run-1",
             }):
                 prepared = MODULE.prepare_pre_effect_hint()
             self.assertEqual(prepared, hint.resolve())
             self.assertEqual(json.loads(hint.read_text()), {
-                "status": "pre_effect_failure", "effect": 0,
+                "schema_version": 1,
+                "kind": "life_manager_pre_effect_result",
+                "status": "pre_effect_failure",
+                "effect": 0,
+                "owner_id": "affiliate-loop",
+                "occurrence_id": "affiliate-loop:occurrence-1",
+                "runtime_run_id": "runtime-run-1",
             })
             self.assertEqual(hint.stat().st_mode & 0o777, 0o600)
 
@@ -119,6 +127,36 @@ class LocalLoopTest(unittest.TestCase):
                 {"state": "LIVE"},
             )
             self.assertFalse(hint.exists())
+
+    def test_unknown_occurrence_holds_wake_before_runtime_or_provider_work(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            hint = root / "entrypoint-result.json"
+            args = Namespace(state=root / "affiliate")
+            with (
+                patch.dict(MODULE.os.environ, {
+                    "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+                    "LIFE_MANAGER_OCCURRENCE_ID": "affiliate-loop:current",
+                    "LIFE_MANAGER_RUN_ID": "runtime-current",
+                    "LIFE_MANAGER_LOOP_STATE_ROOT": str(root / "loop"),
+                }),
+                patch.object(MODULE, "reconcile_before_effect", return_value={
+                    "state": "HELD", "reason": "pre_effect_evidence_not_unique",
+                }),
+                patch.object(MODULE, "append_run_receipt") as append_receipt,
+                patch.object(
+                    MODULE, "runtime_guard",
+                    side_effect=AssertionError("runtime work must remain unreachable"),
+                ),
+            ):
+                result = MODULE._wake_once(args, 100.0, "scheduler-run")
+
+            self.assertEqual(result, 75)
+            append_receipt.assert_called_once()
+            self.assertEqual(
+                append_receipt.call_args.kwargs["terminal_state"],
+                "PRE_EFFECT_FENCE_HELD",
+            )
 
     def test_distribution_plan_queues_one_content_preserving_child_job(self):
         with tempfile.TemporaryDirectory() as root:

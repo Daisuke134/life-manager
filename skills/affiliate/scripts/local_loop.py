@@ -40,6 +40,7 @@ from cta_instrumentation import (
     observe_entries,
 )
 from runtime_guard import runtime_guard
+from pre_effect_reconcile import reconcile_before_effect
 import x_profile_cli
 
 SHARED_MARKETPLACE_SCRIPTS = (
@@ -53,6 +54,7 @@ from telegram_delivery import send_via_shared_client  # noqa: E402
 SYSTEME_LOGIN = "https://systeme.io/en/login"
 ELEVENLABS_HOME = "https://elevenlabs.io/app/home"
 RUN_OWNER_LABEL = "ai.anicca.affiliate-loop"
+RUN_OWNER_ID = "affiliate-loop"
 RELEASE_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 AFFILIATE_OWNER_LABELS = (
     "ai.anicca.affiliate-browser",
@@ -92,7 +94,22 @@ def prepare_pre_effect_hint():
     if not value:
         return None
     path = Path(value).expanduser().resolve()
-    atomic_json(path, {"status": "pre_effect_failure", "effect": 0})
+    marker = {"status": "pre_effect_failure", "effect": 0}
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip()
+    runtime_run_id = os.environ.get("LIFE_MANAGER_RUN_ID", "").strip()
+    if (occurrence_id.startswith(f"{RUN_OWNER_ID}:")
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", occurrence_id)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", runtime_run_id)):
+        marker = {
+            "schema_version": 1,
+            "kind": "life_manager_pre_effect_result",
+            "status": "pre_effect_failure",
+            "effect": 0,
+            "owner_id": RUN_OWNER_ID,
+            "occurrence_id": occurrence_id,
+            "runtime_run_id": runtime_run_id,
+        }
+    atomic_json(path, marker)
     return path
 
 
@@ -4650,6 +4667,27 @@ def _wake_once(args, started_at, run_id):
     pre_effect_hint = prepare_pre_effect_hint()
     state = args.state.expanduser()
     state.mkdir(mode=0o700, parents=True, exist_ok=True)
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip()
+    if occurrence_id.startswith(f"{RUN_OWNER_ID}:"):
+        loop_state = Path(os.environ.get(
+            "LIFE_MANAGER_LOOP_STATE_ROOT",
+            "~/.local/state/life-manager/affiliate-loop",
+        )).expanduser()
+        pre_effect_reconciliation = reconcile_before_effect(
+            state, loop_state, current_occurrence_id=occurrence_id,
+        )
+        if pre_effect_reconciliation.get("state") == "HELD":
+            event = {
+                "status": "PRE_EFFECT_FENCE_HELD",
+                "pre_effect_reconciliation_state": "HELD",
+                "pre_effect_reconciliation_reason": pre_effect_reconciliation.get("reason"),
+            }
+            append_run_receipt(
+                state, event, started_at, run_id=run_id,
+                terminal_state="PRE_EFFECT_FENCE_HELD", scheduler_run_id=run_id,
+            )
+            print(json.dumps(event, sort_keys=True, separators=(",", ":")))
+            return 75
     guard = runtime_guard(state)
     health = owner_health(
         state,

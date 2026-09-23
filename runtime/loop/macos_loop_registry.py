@@ -25,6 +25,7 @@ QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
     "apps/life-manager/scripts/mobile-app",
+    "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
     "skills/earn/crowdworks/scripts/paid-owner",
     "skills/earn/crowdworks/scripts/reply-owner",

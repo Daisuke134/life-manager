@@ -356,10 +356,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
 
     def test_affiliate_loop_opts_into_queued_release_reconcile(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        self.assertIs(
-            registry["loops"]["affiliate-loop"].get("reconcile_queued_release"),
-            True,
-        )
+        row = registry["loops"]["affiliate-loop"]
+        self.assertIs(row.get("reconcile_queued_release"), True)
+        self.assertEqual(row.get("admission_effect_scope"), "occurrence")
+        self.assertIs(row.get("coalesce_queued_wakes"), True)
+        self.assertIs(row.get("coalesce_reserved_wakes"), True)
 
     def test_honne_ja_is_the_only_mobile_queued_release_canary(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
