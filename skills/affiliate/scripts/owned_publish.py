@@ -21,6 +21,7 @@ from job_journal import (
     reconcile_effect,
     resume_effect,
     start_effect,
+    unresolved_effect,
     verify_effect,
 )
 from provider_cli import atomic_write
@@ -82,6 +83,53 @@ def _github_repository(remote_url):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", path):
         return None
     return path
+
+
+def _publication_repository(remote_url):
+    repository = _github_repository(remote_url)
+    if repository:
+        return repository
+    parsed = urlsplit(remote_url)
+    local_file_url = (
+        parsed.scheme == "file"
+        and parsed.hostname in {None, ""}
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.query
+        and not parsed.fragment
+        and parsed.path.startswith("/")
+    )
+    local_path = not parsed.scheme and Path(remote_url).is_absolute()
+    if local_file_url or local_path:
+        return None
+    raise PublishError("unsupported publisher remote")
+
+
+def _action_fingerprint(action):
+    encoded = json.dumps(action, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def _publication_effect(state, slug, action, legacy_action, last_verified):
+    pending = unresolved_effect(state, "OWNED_GIT_PUSH", slug)
+    if pending is None:
+        return start_effect(
+            state, "OWNED_GIT_PUSH", slug, action, last_verified, 300,
+        )
+    allowed = {_action_fingerprint(action), _action_fingerprint(legacy_action)}
+    observed = pending.get("action_fingerprint")
+    prior = pending.get("last_verified_external_object")
+    if (
+        observed not in allowed
+        or not isinstance(prior, dict)
+        or prior.get("remote") != last_verified.get("remote")
+        or prior.get("branch") != last_verified.get("branch")
+    ):
+        raise PublishError("unresolved publication effect does not match current action")
+    resumed = resume_effect(state, "OWNED_GIT_PUSH", slug)
+    if resumed is None or resumed.get("job_id") != pending.get("job_id"):
+        raise PublishError("unresolved publication effect changed during resume")
+    return resumed
 
 
 def _pull_request_view(root, repository, pull_request):
@@ -147,11 +195,12 @@ def _github_pull_request(
         }
     if row.get("state") != "MERGED" or not isinstance(row.get("mergeCommit"), dict):
         raise PublishError("GitHub pull request closed without merge")
-    git(root, "fetch", "--no-tags", remote, target_branch)
-    git(root, "merge-base", "--is-ancestor", commit, "FETCH_HEAD")
     merge_commit = row["mergeCommit"].get("oid")
     if not isinstance(merge_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", merge_commit):
         raise PublishError("GitHub merge commit readback is invalid")
+    git(root, "fetch", "--no-tags", remote, target_branch)
+    git(root, "merge-base", "--is-ancestor", commit, merge_commit)
+    git(root, "merge-base", "--is-ancestor", merge_commit, "FETCH_HEAD")
     return {
         "state": "DELIVERED", "head_branch": head_branch,
         "pull_request_url": pull_request,
@@ -478,22 +527,21 @@ def publish(args):
     remote_row = git(root, "ls-remote", args.remote, ref)
     remote_head = remote_row.split()[0] if remote_row else None
     remote_url = git(root, "remote", "get-url", args.remote)
-    repository = _github_repository(remote_url)
+    repository = _publication_repository(remote_url)
     head_branch = None
     if repository:
         head_branch = f"affiliate/publish-{args.slug}-{artifact['content_sha256'][:12]}"
-    action = {
+    legacy_action = {
         "content_sha256": artifact["content_sha256"], "commit": commit,
         "remote": args.remote, "branch": args.branch,
     }
+    action = dict(legacy_action)
     if head_branch:
         action.update(delivery="pull_request", head_branch=head_branch)
-    job = resume_effect(state, "OWNED_GIT_PUSH", args.slug)
-    if job is None:
-        job = start_effect(
-            state, "OWNED_GIT_PUSH", args.slug, action,
-            {"remote": args.remote, "branch": args.branch, "head": remote_head}, 300,
-        )
+    job = _publication_effect(
+        state, args.slug, action, legacy_action,
+        {"remote": args.remote, "branch": args.branch, "head": remote_head},
+    )
     if repository:
         delivery = _github_pull_request(
             root=root, repository=repository, remote=args.remote,
