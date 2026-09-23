@@ -88,6 +88,9 @@ runtime/provider readback.
   monthly contracts, zero incoming offers, zero storefront contract candidates,
   and 0 JPY balance. No Lancers Paid client is currently eligible; the Paid
   mutation path remains unimplemented for future funded work.
+- Final status readback kept CrowdWorks and Lancers `loaded-idle` with
+  `pid=null`, terminal `blocked`, and `host_admission_deferred:resource_effect_unknown`;
+  no unknown effect was cleared and no provider receipt was created.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
   symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),

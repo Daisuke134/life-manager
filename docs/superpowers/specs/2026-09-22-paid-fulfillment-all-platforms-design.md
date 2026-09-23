@@ -347,6 +347,13 @@ candidates, and finance balance `0` JPY. Therefore there is no current Lancers
 Paid client to submit; the Paid mutation path remains explicitly unimplemented
 and must be completed before a future funded contract can become a canary.
 
+Final status readback at `2026-09-23T04:07:52Z` kept both non-Coconala Paid
+owners fenced: CrowdWorks release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
+and Lancers release `135fa822be58bb40c038c8ee6bbdbfecceca80bf` were
+`loaded-idle`, `pid=null`, `last_terminal_result=blocked`, and
+`host_admission_deferred:resource_effect_unknown`. No read-only probe cleared an
+unknown effect or created a provider receipt.
+
 ### Upwork
 
 The repository contains Upwork discovery, inbox, proposal, negotiation, offer,
