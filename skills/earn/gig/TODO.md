@@ -192,11 +192,13 @@ runtime/provider readback.
    admission database by hand or clear old unknown rows.
 3. **CrowdWorks occurrence fences and loop promotion.** The manually completed
    contracts `63712784`, `63659463`, and `63657015` are not proof for the unresolved
-   Paid occurrence. Reconcile each
-   existing `effect_unknown` occurrence against provider inventory and durable
-   child/effect receipts, keep every uncertain effect fenced, then promote the
-   immutable Paid fix and prove a natural canary/replay-zero without replaying
-   `63712784`.
+   Paid occurrence. Reconcile each existing `effect_unknown` occurrence against
+   provider inventory and durable child/effect receipts, keep every uncertain effect
+   fenced, then prove a natural canary/replay-zero without replaying `63712784`.
+   The gog-first adapter fix is already merged in PR `#5796`, cut as immutable
+   release `20260923T150246-b939af53`, and target-applied to
+   `crowdworks-revenue-paid`; the old unknown-effect fence remains and no natural
+   wake has been triggered.
 4. **CrowdWorks remaining funded contract.** `63568785` is now readable through
    `gog drive get`/`gog drive download --format=txt`; the prior permission request
    remains verified and was not replayed. A single buyer clarification requesting
