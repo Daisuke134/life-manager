@@ -745,10 +745,11 @@ formal delivery.
 3. Keep the two NPO Coconala rooms independently represented. Reconcile any exact
    `effect_unknown` occurrence by official provider readback before retrying it; do
    not clear a fence by owner-wide guess.
-4. Finish the Coconala fleet gates (natural wake, replay-zero, no-starvation and
-   self-heal) while preserving the Ryu fence and Chii wait state. The latest
-   schedule parser is already merged, released, and applied; this item is only
-   the still-missing natural-wake/provider-readback proof.
+4. Keep the Coconala fleet gates under observation (replay-zero, no-starvation,
+   and self-heal) while preserving the Ryu fence and Chii wait state. The
+   natural installed-release wake and provider readback are now proven for the
+   current four-room inventory; the remaining system-layer gate is promotion of
+   the hard Ryu source fence after the all-platform acceptance evidence.
 5. Continue with CrowdWorks: the dedicated Browser owner is merged in current main
    and its read-only inventory shows five funded contracts. Reconcile the existing
    Application/Paid/Reply/Report occurrences one by one, promote the occurrence
@@ -850,6 +851,14 @@ formal delivery.
   remaining work is to obtain and verify the buyer artifact before formal
   delivery. The existing access request remains the latest buyer-visible
   event, so no duplicate request or delivery was sent.
+
+### Execution Cursor
+
+The sequential cursor is now: Coconala current inventory verified → CrowdWorks
+current inventory verified with one exact external wait → Lancers current
+inventory verified with zero contracts → Upwork admission precondition. The
+next mutation-capable cursor is only an authenticated Upwork funded-contract
+inventory; until then no Upwork owner or send is created.
 
 ## Production Promotion Contract
 
