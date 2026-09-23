@@ -991,6 +991,86 @@ the authenticated inventory is empty.
   subtests`). This is source-branch evidence only; production promotion and a
   real funded Lancers canary remain open until an official contract appears.
 
+## Runtime Checkpoint — 2026-09-23 23:25 JST
+
+- Fresh lifecycle readback confirms `hf-gig-paid-direct` (Coconala) remains
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:23:40Z`, exit `0`,
+  with no blocker and no provider effect. It was not restarted, so no duplicate
+  effect was introduced.
+- The cursor advances to the next platform lanes: CrowdWorks Paid is
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:24:13Z`, but its
+  historical occurrence fence remains held; Lancers Paid is
+  `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:23:23Z`, with no
+  funded contract to mutate. No external send is admitted by this checkpoint.
+
+## Runtime Checkpoint — 2026-09-23 23:31 JST
+
+- A fresh lifecycle readback confirms `hf-gig-paid-direct` (Coconala) is already
+  `scheduled`/`loaded-running`, exit `0`, with its latest pass at
+  `2026-09-23T14:29:13Z`; it was not restarted and no provider effect was
+  created.
+- The active cursor is now CrowdWorks: its Paid owner remains
+  `scheduled`/`loaded-idle`, exit `0`, with one honest pending item waiting for
+  buyer-provided task detail. Four other observed items remain read back with
+  no effect. The historical unknown-effect occurrence fence remains held, so
+  no retry or duplicate send is admitted.
+- Lancers remains scheduled and healthy with no funded contract to mutate. The
+  next action is therefore the CrowdWorks pending-item/provider boundary, not
+  another Coconala restart.
+
+## Runtime Checkpoint — 2026-09-23 23:35 JST
+
+- Ryu's latest direct seller receipt remains `js-talkroomMessage-222245383`
+  (18:38 JST), with formal delivery untouched and no newer buyer event. No
+  manual resend is permitted.
+- The CrowdWorks buyer artifact for work `63568785` is now independently
+  readable through the authenticated `gog` Drive CLI: document
+  `1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA`, exported text SHA-256
+  `fa7d5d189306dbbb13cd2010cb3b661acdb962df7844216d5d5e4d7a95abd12d`.
+  It requires adding an external LINE account, answering external forms for
+  five daily lessons, and only then reporting completion on CrowdWorks. The
+  existing in-platform answer already requests buyer-provided material; no
+  duplicate answer or formal delivery is sent. The honest blocker is now
+  `external_line_and_form_work_required`, not an unread document.
+- Coconala remains scheduled and passing with no provider effect; CrowdWorks
+  remains scheduled with its historical unknown-effect fence held; Lancers
+  remains scheduled with zero funded contracts. The implementation cursor
+  advances to the Lancers/Upwork provider-owner work, while this CrowdWorks
+  item stays nonterminal and replay-safe.
+
+## Runtime Checkpoint — 2026-09-23 23:38 JST
+
+- A fresh lifecycle readback confirms the Coconala Paid loop is already enabled:
+  `scheduled`/`loaded-idle`, exit `0`, latest pass
+  `2026-09-23T14:35:02Z`, with `admission_effect_unknown=false` and no provider
+  effect. It was not restarted, so no duplicate wake or send was introduced.
+- Lancers is also enabled and passing (`scheduled`/`loaded-idle`, exit `0`,
+  latest pass `2026-09-23T14:33:41Z`). Its authenticated Paid inventory readback
+  is complete: 14 boards, zero working/monthly/incoming offers, zero contract
+  candidates, and finance balance/received totals of 0 JPY. No Lancers send is
+  admissible because there is no funded contract.
+- The cursor therefore advances to Upwork Paid owner readiness. The installed
+  registry contains no Upwork Paid lifecycle owner or active CDP owner; no
+  Upwork effect is claimed. CrowdWorks remains scheduled with its historical
+  unknown-effect fence held.
+
+## Implementation Checkpoint — 2026-09-23 23:46 JST
+
+- The Lancers Paid source adapter now owns the missing quality boundary: for a
+  funded contract with a current buyer event it can compose the contract-specific
+  answer, run an independent quality verdict, bind the answer and buyer context to
+  a SHA-256 quality record, and admit at most one buyer-visible answer. A verified
+  answer is not recomposed or resent on replay; until the official Lancers
+  completion/delivery surface is observed, the next wake returns the explicit
+  `formal_delivery_surface_unverified` wait.
+- This is source-only until the installed release is promoted. No live Lancers
+  contract exists, so no provider effect was created. The authenticated inventory
+  remains the evidence for zero current Lancers sends.
+- Focused Paid adapter/owner/kernel tests pass (`293 passed`); the full Lancers
+  application/Paid suite passes (`425 passed, 17 subtests`). The stale timeout
+  assertion was aligned with the existing bounded-wake implementation (`60s`),
+  and `./bin/lm-loop-contract` remains PASS with no shared job IDs or errors.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:

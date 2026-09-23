@@ -33,6 +33,28 @@ def _load_work_sync():
     return module
 
 
+def _load_shared(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"{name}_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_REPLY_COMPOSER = _load_shared(
+    "lancers_paid_reply_composer",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/reply_composer.py",
+)
+_REPLY_GROUNDING = _load_shared(
+    "lancers_paid_reply_grounding",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/reply_grounding.py",
+)
+
+DEFAULT_CANDIDATE_PROFILE = Path.home() / ".config/anicca/job-search/profile.json"
+DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/crowdworks/public-profile.json"
+
+
 class _LiveLancersProvider:
     """Provider-grounded detail/message boundary for funded Lancers work."""
 
@@ -192,14 +214,87 @@ class _LiveLancersProvider:
 class LancersPaidAdapter:
     def __init__(self, *, account_id: str, inventory_reader: Callable[[], Mapping[str, Any]],
                  clock: Callable[[], str] | None = None,
-                 provider: Any | None = None):
+                 provider: Any | None = None,
+                 state_path: Path = DEFAULT_STATE,
+                 candidate_profile: Path = DEFAULT_CANDIDATE_PROFILE,
+                 provider_profile: Path = DEFAULT_PROVIDER_PROFILE):
         if not isinstance(account_id, str) or not account_id.strip():
             raise ValueError("lancers_account_id_invalid")
         self.account_id = account_id.strip()
         self.inventory_reader = inventory_reader
         self.clock = clock or (lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
         self.provider = provider
+        self.state_path = Path(state_path).expanduser().resolve()
+        self.candidate_profile = Path(candidate_profile).expanduser().resolve()
+        self.provider_profile = Path(provider_profile).expanduser().resolve()
         self._contexts: dict[str, dict[str, Any]] = {}
+
+    def _compose_answer(self, contract: Mapping[str, Any]) -> str | None:
+        buyer_context = contract.get("buyer_context")
+        if not isinstance(buyer_context, str) or not buyer_context.strip():
+            return None
+        try:
+            grounding = _REPLY_GROUNDING.build_reply_grounding(
+                candidate_profile_path=self.candidate_profile,
+                provider_profile_path=self.provider_profile,
+            )
+            body = _REPLY_COMPOSER.compose(
+                {
+                    "board": {"title": contract.get("title", "")},
+                    "grounding": grounding,
+                    "conversation": [{"role": "buyer", "body": buyer_context}],
+                    "action_contract": {
+                        "kind": "contract_answer",
+                        "question": (
+                            "契約済みのLancers依頼について、買い手の依頼内容を実際に満たす"
+                            "回答・成果を作成してください。未実施の作業を完了と主張せず、"
+                            "外部連絡先へ誘導せず、依頼本文に必要な内容だけを返してください。"
+                        ),
+                        "allowed_choices": [],
+                    },
+                    "provider_rules": {"outside_contact_before_approval": "forbidden"},
+                },
+                state_root=self.state_path.parent / "paid-compose",
+                task_label="lancers-paid-answer",
+            )
+        except Exception:
+            return None
+        return body.strip() if isinstance(body, str) and body.strip() else None
+
+    def _quality_check(self, contract: Mapping[str, Any], body: str) -> str | None:
+        buyer_context = contract.get("buyer_context")
+        if (not isinstance(buyer_context, str) or not buyer_context.strip()
+                or not isinstance(body, str) or not body.strip()):
+            return None
+        source = "買い手の依頼:\n" + buyer_context + "\n\n送信予定の回答:\n" + body
+        try:
+            grounding = _REPLY_GROUNDING.build_reply_grounding(
+                candidate_profile_path=self.candidate_profile,
+                provider_profile_path=self.provider_profile,
+            )
+            value = _REPLY_COMPOSER.compose(
+                {
+                    "board": {"title": contract.get("title", "")},
+                    "grounding": grounding,
+                    "conversation": [{"role": "buyer", "body": source}],
+                    "action_contract": {
+                        "kind": "required_form_field",
+                        "question": (
+                            "この回答が依頼の全必須要件を満たし、未実施の作業を"
+                            "完了と偽っていないか判定してください。"
+                        ),
+                        "allowed_choices": [
+                            "quality_ok", "quality_needs_rework", "buyer_input_required",
+                        ],
+                    },
+                    "provider_rules": {"outside_contact_before_approval": "forbidden"},
+                },
+                state_root=self.state_path.parent / "paid-compose",
+                task_label="lancers-paid-quality",
+            )
+        except Exception:
+            return None
+        return value.strip() if isinstance(value, str) else None
 
     def _inventory(self) -> list[dict[str, Any]]:
         snapshot = self.inventory_reader()
@@ -324,7 +419,9 @@ class LancersPaidAdapter:
         return dict(value)
 
 
-def decide(row: Mapping[str, Any]) -> dict[str, Any]:
+def decide(row: Mapping[str, Any], *,
+           answer_selector: Callable[[Mapping[str, Any]], str | None] | None = None,
+           quality_selector: Callable[[Mapping[str, Any], str], str | None] | None = None) -> dict[str, Any]:
     context = row.get("context")
     contract = context.get("contract") if isinstance(context, Mapping) else None
     if not isinstance(contract, Mapping):
@@ -348,7 +445,36 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(buyer_event_id, str) or not buyer_event_id.strip():
         return {"action": "wait", "reason": "buyer_event_required",
                 "remaining_work": ["read and persist the latest buyer message"]}
+    context = row.get("context")
+    previous_intent = context.get("previous_intent") if isinstance(context, Mapping) else None
+    if (isinstance(previous_intent, Mapping)
+            and context.get("previous_effect_verified") is True
+            and previous_intent.get("action") == "answer"):
+        return {
+            "action": "wait",
+            "reason": "formal_delivery_surface_unverified",
+            "remaining_work": [
+                "verify the official Lancers completion/delivery surface before any second effect",
+            ],
+        }
     body = contract.get("prepared_answer")
+    if (not isinstance(body, str) or not body.strip()) and callable(answer_selector):
+        body = answer_selector(contract)
+    if isinstance(body, str) and body.strip() and not isinstance(contract.get("prepared_answer"), str):
+        quality = quality_selector(contract, body.strip()) if callable(quality_selector) else None
+        if quality != "quality_ok":
+            return {
+                "action": "wait", "reason": "work_quality_required",
+                "remaining_work": ["produce and independently verify the contract-specific work"],
+            }
+        quality_input = {"buyer_context": contract.get("buyer_context"), "body": body.strip()}
+        if "artifact_content" in contract:
+            quality_input["artifact_content"] = contract.get("artifact_content")
+        return {"action": "answer", "payload": {
+            "body": body.strip(), "buyer_event_id": buyer_event_id.strip(),
+            "correct_work_verified": True, "quality_verdict": quality,
+            "quality_sha256": _digest(quality_input),
+        }}
     if (not isinstance(body, str) or not body.strip()
             or contract.get("correct_work_verified") is not True
             or contract.get("quality_verdict") != "quality_ok"
@@ -367,16 +493,25 @@ def build(argv: list[str]):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--account-id", required=True)
     parser.add_argument("--state-path", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--candidate-profile", type=Path, default=DEFAULT_CANDIDATE_PROFILE)
+    parser.add_argument("--provider-profile", type=Path, default=DEFAULT_PROVIDER_PROFILE)
     args = parser.parse_args(argv)
     work_sync = _load_work_sync()
     reader = lambda: work_sync.read_paid_inventory(
         state_path=args.state_path.expanduser().resolve()
     )
-    return LancersPaidAdapter(
+    adapter = LancersPaidAdapter(
         account_id=args.account_id,
         inventory_reader=reader,
         provider=_LiveLancersProvider(state_path=args.state_path.expanduser().resolve()),
-    ), decide
+        state_path=args.state_path.expanduser().resolve(),
+        candidate_profile=args.candidate_profile.expanduser().resolve(),
+        provider_profile=args.provider_profile.expanduser().resolve(),
+    )
+    return adapter, lambda row: decide(
+        row, answer_selector=adapter._compose_answer,
+        quality_selector=adapter._quality_check,
+    )
 
 
 __all__ = ["LancersPaidAdapter", "build", "decide"]
