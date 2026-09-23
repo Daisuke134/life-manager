@@ -173,6 +173,16 @@ runtime/provider readback.
   formal-delivery effect with official readback and replay-zero. Do not guess an
   endpoint or manufacture a contract.
 
+### Runtime checkpoint — 2026-09-24 01:26
+
+- [x] Shared admission/release-reconciler recovery completed naturally; CrowdWorks
+  and Lancers returned to `scheduled`/`loaded-idle`/`pass` without restart.
+- [x] CrowdWorks readback remains `observed=5/effect=0/readback=4/failed=0/pending=1`;
+  `63568785` is still buyer-material-gated and no replay was issued.
+- [x] Lancers readback remains `observed=0/effect=0/readback=0/failed=0/pending=0`;
+  official inventory is complete but has zero funded contracts, so the next
+  mutation cursor remains the first real funded contract.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

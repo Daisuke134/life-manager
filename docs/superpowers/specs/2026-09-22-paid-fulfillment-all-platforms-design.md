@@ -1439,3 +1439,17 @@ The objective is complete only when all of the following are proven:
   `63568785`; its historical effect-unknown occurrence remains fenced. Upwork
   remains disabled pending approved authorization, fresh authentication, and a
   funded contract.
+
+## Runtime Cursor — 2026-09-24 01:26 JST
+
+- After the shared admission/release-reconciler wake completed, CrowdWorks and
+  Lancers returned to `scheduled`/`loaded-idle`/`pass` without a restart. The
+  earlier `resource_admission_unavailable`/`resource_database_busy` states
+  were retryable host-capacity observations, not provider effects.
+- CrowdWorks' fresh paid snapshot is `observed=5`, `effect=0`, `readback=4`,
+  `failed=0`, `pending=1`; work `63568785` still waits for admissible buyer
+  material and no duplicate delivery was attempted.
+- Lancers' fresh paid snapshot is `observed=0`, `effect=0`, `readback=0`,
+  `failed=0`, `pending=0`; its authenticated inventory remains complete with
+  zero funded contracts, so no provider send is legitimate yet. Coconala also
+  remains passing and Ryu stays manual-only.
