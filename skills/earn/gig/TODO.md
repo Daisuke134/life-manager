@@ -1793,3 +1793,15 @@ This program is complete only when every applicable platform has a continuously 
 lifecycle, unsupported lanes are explicitly proved `not_applicable`, the meta/self-heal/self-improve loops
 operate without babysitting, the hosted phone-only product works, and attributable receipts prove USD 10K
 MRR. Larger revenue ambitions remain direction, never a substitute for this measured gate.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:04 JST
+
+- [x] Ryu0820119 manual exception: verified the current public site and management UI,
+  then sent exactly one official formal delivery in talkroom `18211957`. Official
+  readback shows the delivery at `2026-09-24 02:04 JST`, `評価未入力`, and no
+  returned-delivery banner. Do not resend or place Ryu in the loop.
+- [ ] Resume the next non-Ryu Coconala room only when its exact buyer-material
+  requirement is actionable; otherwise preserve buyer-waiting state.
+- [ ] Restore the shared host-admission capacity fence before treating CrowdWorks,
+  Lancers, or Mercor loop wakes as provider effects. A loop `start`/`loaded-*` state
+  alone is not a submission receipt.

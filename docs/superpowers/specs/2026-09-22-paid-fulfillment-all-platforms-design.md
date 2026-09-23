@@ -1493,3 +1493,17 @@ The objective is complete only when all of the following are proven:
 - Commit `0e98de4356` is pushed on the dedicated branch. This remains source
   evidence only: production still requires the main-derived immutable release
   gate, and no provider mutation was issued.
+
+## Runtime Cursor — 2026-09-24 02:04 JST
+
+- Ryu0820119 was handled manually as the permanent Coconala exception. After
+  reloading the current Colors management UI, the official readback showed
+  per-girl controls for all five requested paid options and an editable WEB予約
+  heading/body plus live-form preview. The public form readback showed the five
+  paid options separately from normal options.
+- The Coconala talkroom `18211957` then accepted exactly one formal delivery at
+  `2026-09-24 02:04 JST`; the official room now shows `評価未入力` and no
+  returned-delivery banner. No second formal delivery was sent.
+- Ryu remains excluded from the Paid loop. The next cursor is the first
+  non-Ryu Coconala/CrowdWorks/Lancers funded item with a provider receipt;
+  existing effect-unknown fences remain exact-occurrence-only.
