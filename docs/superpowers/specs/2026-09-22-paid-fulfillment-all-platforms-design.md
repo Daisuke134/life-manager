@@ -1468,3 +1468,15 @@ The objective is complete only when all of the following are proven:
 - CrowdWorks and Lancers remain enabled and passing; the next mutation cursor
   is still the first admissible buyer-material/funded-contract event rather
   than a replay of any existing item.
+
+## Source Cursor — 2026-09-24 01:32 JST
+
+- CrowdWorks Paid was found to lack both wake-coalescing flags while its live
+  admission queue accumulated repeated zero-effect occurrences. A failing
+  registry test was added first, then `coalesce_queued_wakes=true` and
+  `coalesce_reserved_wakes=true` were added for `crowdworks-revenue-paid` and
+  the launchd fixture was regenerated.
+- Source verification passes `155 passed, 143 subtests`; `lm-loop-contract`
+  passes with no shared IDs or registry errors. The fix is pushed on this
+  dedicated branch and is not yet a production result; promotion still uses
+  the main-derived immutable release gate.

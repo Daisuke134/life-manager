@@ -196,6 +196,14 @@ runtime/provider readback.
 - [ ] Keep the next cursor on the first new admissible buyer event or funded
   contract; do not replay existing Coconala/CrowdWorks/Lancers work.
 
+### Source checkpoint — 2026-09-24 01:32
+
+- [x] Fixed CrowdWorks Paid wake accumulation in source: registry now coalesces
+  queued and reserved wakes, with a regression test and regenerated launchd
+  fixture. Verification: `155 passed, 143 subtests`, `lm-loop-contract PASS`.
+- [ ] Promote this source fix only through the main-derived immutable release
+  gate; the branch test result must not be reported as a live provider canary.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
