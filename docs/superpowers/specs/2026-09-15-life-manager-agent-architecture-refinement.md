@@ -2756,6 +2756,24 @@ next cursor is the natural 600-second cadence. Production acceptance still requi
 to reuse the exact legacy job, create/merge one PR, obtain official public readback, then prove
 same-SHA replay-zero.
 
+The later natural cadence narrows that cursor further. Run
+`18d7d762a54dca18-30766` reaches an outer `pass` on exact release
+`4dde25bde89d35f6dd6bf380e96ba59e0f8c7c64`, but the PartnerStack placement
+readback remains `AUTH_REQUIRED`: the team-token refresh reports HTTP 200 while
+the immediate official reread reports HTTP 401. Run
+`18d7d81b03b38dc8-39577` then defers at the shared FIFO without an external
+effect. The next admitted natural run `18d7d8acd4c4c7b0-44018` also reaches
+outer `pass` on the exact release, but reproduces the same refresh-200 / reread-401
+boundary. The unresolved publication job therefore remains the same job ID
+`27e8aa5436e1cd4de89acf8050604c9b598b5d02416a7973d3d13a4fabfb42a8`,
+sequence 1, attempt 1 and `EFFECT_STARTED`; the publication receipt remains
+`INTENT`, no PR exists, and `provider_effect_started=false`. This is not a
+successful self-heal or publication. The immediate cursor is now a
+regression-backed diagnosis and repair of PartnerStack refresh propagation/session use,
+followed by immutable-release and natural-wake acceptance. Manual login, manual
+restart, blind retry, a new job ID or a second publication sequence cannot close
+this cursor.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
@@ -2767,8 +2785,11 @@ The remaining order is fixed as follows:
    protected-branch direct-push defect without a confirmed remote effect. The idempotent PR/auto-merge
    repair is merged and loaded on immutable release `20260923T124904-4dde25bd`; its first exact-SHA
    wake defers at shared resource FIFO before touching the legacy effect, with
-   `admission_effect_unknown=false`. Let the next natural cadence resume the exact unresolved
-   publication and prove official public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
+   `admission_effect_unknown=false`. Later natural admitted wakes prove that refresh returns HTTP 200
+   but the immediate official PartnerStack reread remains HTTP 401, so the publication safely stays
+   `INTENT` and the legacy job stays at attempt 1 without a PR. Repair that durable auth/session
+   boundary, then let a natural cadence resume the exact unresolved publication and prove official
+   public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
    transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
