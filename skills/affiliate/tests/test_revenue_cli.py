@@ -16,6 +16,86 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RevenueCliTest(unittest.TestCase):
+    def test_month_bucket_rows_for_one_link_are_aggregated(self):
+        link = "https://try.elevenlabs.io/campaign-one"
+        candidate = {
+            "placement_id": "campaign-one",
+            "link_fingerprints": sorted(MODULE.link_fingerprints(link)),
+        }
+        rows = [
+            {
+                "link_path": link,
+                "click_created_at_month": "2026-08-01",
+                "click_count": 3,
+                "unique_click_count": 2,
+            },
+            {
+                "link_path": link,
+                "click_created_at_month": "2026-09-01",
+                "click_count": 4,
+                "unique_click_count": 3,
+            },
+        ]
+
+        result = MODULE.aggregate_link_rows(
+            rows, candidate, secondary_grouping="click_created_at_month",
+        )
+
+        self.assertEqual(result["click_count"], 7)
+        self.assertEqual(result["unique_click_count"], 5)
+        self.assertEqual(result["row_count"], 2)
+        self.assertEqual(result["aggregation_state"], "MONTH_BUCKETS_AGGREGATED")
+        self.assertEqual(
+            result["unique_click_count_state"], "OBSERVED_MONTH_BUCKET_SUM",
+        )
+
+    def test_multiple_distinct_links_remain_ambiguous(self):
+        first = "https://try.elevenlabs.io/campaign-one"
+        second = "https://try.elevenlabs.io/campaign-two"
+        candidate = {
+            "placement_id": "ambiguous",
+            "link_fingerprints": sorted(
+                MODULE.link_fingerprints(first) | MODULE.link_fingerprints(second)
+            ),
+        }
+        rows = [
+            {
+                "link_path": first, "click_created_at_month": "2026-09-01",
+                "click_count": 1, "unique_click_count": 1,
+            },
+            {
+                "link_path": second, "click_created_at_month": "2026-08-01",
+                "click_count": 1, "unique_click_count": 1,
+            },
+        ]
+
+        with self.assertRaisesRegex(MODULE.RevenueError, "attribution is ambiguous"):
+            MODULE.aggregate_link_rows(
+                rows, candidate, secondary_grouping="click_created_at_month",
+            )
+
+    def test_rolling_window_change_keeps_delta_unknown(self):
+        result = MODULE.link_count_delta(
+            current=2,
+            previous=5,
+            current_window={"start_date": "new-start", "end_date": "new-end"},
+            previous_window={"start_date": "old-start", "end_date": "old-end"},
+        )
+
+        self.assertEqual(result, {
+            "baseline": None,
+            "delta": None,
+            "state": "WINDOW_CHANGED",
+        })
+
+    def test_same_window_count_regression_still_fails_closed(self):
+        window = {"start_date": "same-start", "end_date": "same-end"}
+        with self.assertRaisesRegex(MODULE.RevenueError, "count regressed"):
+            MODULE.link_count_delta(
+                current=2, previous=5,
+                current_window=window, previous_window=window,
+            )
+
     def test_failure_type_is_redacted_and_actionable(self):
         self.assertEqual(
             MODULE.failure_type(MODULE.RevenueError("PartnerStack authentication is required")),
