@@ -30,4 +30,22 @@ IFS=$'\t' read -r RUNNER ACTION PRODUCT_ID PRODUCT_ORIGIN PRODUCT_WORKSPACE_REL 
 export LIFE_MANAGER_MOBILE_PRODUCT_ID="$PRODUCT_ID"
 export LIFE_MANAGER_MOBILE_PRODUCT_ORIGIN="$PRODUCT_ORIGIN"
 export LIFE_MANAGER_MOBILE_PRODUCT_WORKSPACE_REL="$PRODUCT_WORKSPACE_REL"
-exec "$PYTHON_BIN" "$REPO_ROOT/runtime/run-with-timeout.py" --grace-seconds 10 1200 "$NODE_BIN" "$RUNNER" "$ACTION"
+
+RESULT_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/lm-mobile-result.XXXXXX")"
+trap 'rm -f -- "$RESULT_CAPTURE"' EXIT
+set +e
+"$PYTHON_BIN" "$REPO_ROOT/runtime/run-with-timeout.py" --grace-seconds 10 1200 \
+  "$NODE_BIN" "$RUNNER" "$ACTION" | tee "$RESULT_CAPTURE"
+PIPE_STATUSES=("${PIPESTATUS[@]}")
+set -e
+RUNNER_STATUS="${PIPE_STATUSES[0]}"
+TEE_STATUS="${PIPE_STATUSES[1]}"
+if [ "$TEE_STATUS" -ne 0 ]; then
+  exit "$TEE_STATUS"
+fi
+if [ "$RUNNER_STATUS" -eq 0 ] && [ -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]; then
+  if ! "$NODE_BIN" "$SCRIPT_DIR/mobile-effect-result.js" "$RESULT_CAPTURE"; then
+    printf 'mobile app exact result hint unavailable: %s\n' "$LOOP_ID" >&2
+  fi
+fi
+exit "$RUNNER_STATUS"

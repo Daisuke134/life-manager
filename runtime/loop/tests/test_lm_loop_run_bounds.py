@@ -8,17 +8,21 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
+    EFFECT_RESULT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_ENTRYPOINTS,
+    _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _persist_effect_identity, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
-    _terminal_outcome,
+    _terminal_outcome, _verified_effect_result, main as lm_loop_run_main,
 )
+from runtime.loop.runtime_event import build_runtime_event
 
 
 _PROTOCOL_PATCHER = None
@@ -885,6 +889,161 @@ def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
         }, "connector", {}, tmp_path / "receipt") == 1
     release.assert_called_once_with(
         claim, requeue=False, reserve=True, effect_unknown=True)
+
+
+def test_mobile_child_receives_effect_result_hint_path(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({
+        "occurrence_id": "life-manager-honne-ja:run-1",
+    }))
+    observed = {}
+
+    def run_child(*_args, **kwargs):
+        observed.update(kwargs["env"])
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "postiz", "resource_class": "agent",
+            "admission_class": "revenue", "effect_class": "publish",
+            "entrypoint": "apps/life-manager/scripts/mobile-app",
+        }, "life-manager-honne-ja", {}, tmp_path / "host-admission.json",
+            occurrence_id="life-manager-honne-ja:run-1") == 0
+
+    assert EFFECT_RESULT_HINT_ENTRYPOINTS == frozenset({
+        "apps/life-manager/scripts/mobile-app",
+    })
+    assert observed["LIFE_MANAGER_RESULT_HINT_PATH"] == str(
+        tmp_path / "entrypoint-result.json")
+
+
+def _write_effect_result(path, **overrides):
+    value = {
+        "schema_version": 1,
+        "kind": "life_manager_effect_result",
+        "status": "verified_effect",
+        "effect": 1,
+        "owner_id": "life-manager-honne-ja",
+        "occurrence_id": "life-manager-honne-ja:run-1",
+        "provider": "postiz",
+        "provider_receipt_id": "postiz-post-1",
+        "effect_status": "reconciled",
+    }
+    value.update(overrides)
+    path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+    return value
+
+
+def test_verified_mobile_effect_result_requires_exact_private_identity(tmp_path):
+    hint = tmp_path / "entrypoint-result.json"
+    _write_effect_result(hint)
+
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) == ("reconciled", "postiz://posts/postiz-post-1")
+
+    _write_effect_result(hint, occurrence_id="life-manager-honne-ja:other")
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+    _write_effect_result(hint)
+    hint.chmod(0o644)
+    assert _verified_effect_result(
+        hint, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+
+
+def test_verified_mobile_effect_result_rejects_symlink_and_unknown_fields(tmp_path):
+    outside = tmp_path / "outside.json"
+    _write_effect_result(outside)
+    symlink = tmp_path / "entrypoint-result.json"
+    symlink.symlink_to(outside)
+    assert _verified_effect_result(
+        symlink, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+
+    malformed = tmp_path / "malformed.json"
+    _write_effect_result(malformed, unexpected=True)
+    assert _verified_effect_result(
+        malformed, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+    ) is None
+
+
+def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
+    event = build_runtime_event(
+        loop_id="life-manager-honne-ja", domain="growth", run_id="run-1",
+        release_sha="a" * 40, provider="postiz", profile_alias=None,
+        effect_class="publish", succeeded=True, blocker=None,
+        claimed_occurrence_id="life-manager-honne-ja:run-1",
+    )
+    upgraded = _apply_verified_effect_result(
+        event, ("verified", "postiz://posts/postiz-post-1"),
+    )
+    assert upgraded["effect_status"] == "verified"
+    assert upgraded["evidence_refs"][-1] == "postiz://posts/postiz-post-1"
+
+    failed = {**event, "status": "fail", "blocker": "entrypoint_exit_1"}
+    assert _apply_verified_effect_result(
+        failed, ("verified", "postiz://posts/postiz-post-1"),
+    )["effect_status"] == "unknown"
+
+
+def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "config/loop-registry.json").write_text(json.dumps({
+        "loops": {"life-manager-honne-ja": {
+            "label": "ai.anicca.life-manager-honne-ja",
+            "domain": "growth",
+            "entrypoint": "apps/life-manager/scripts/mobile-app",
+            "provider_route": "postiz",
+            "effect_class": "publish",
+            "state_root": str(tmp_path / "unused-state"),
+        }},
+    }), encoding="utf-8")
+    (release / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40,
+    }), encoding="utf-8")
+    events = []
+
+    def run_admitted(_command, _entry, loop_id, _env, receipt, *,
+                     occurrence_id, on_claimed):
+        on_claimed(occurrence_id)
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        _write_effect_result(
+            receipt.parent / "entrypoint-result.json",
+            owner_id=loop_id,
+            occurrence_id=occurrence_id,
+            effect_status="verified",
+        )
+        return 0
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event))):
+        assert lm_loop_run_main(["life-manager-honne-ja", str(release)]) == 0
+
+    assert events[-1]["status"] == "pass"
+    assert events[-1]["effect_status"] == "verified"
+    assert events[-1]["evidence_refs"][-1] == "postiz://posts/postiz-post-1"
 
 
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
