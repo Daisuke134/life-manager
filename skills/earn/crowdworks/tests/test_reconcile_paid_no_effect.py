@@ -5,7 +5,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[4]
-PATH = ROOT / "skills/earn/crowdworks/scripts/reconcile_paid_no_effect.py"
+PATH = ROOT / "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py"
 
 
 def load():
@@ -24,7 +24,8 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def seed(tmp_path: Path, *, occurrence: str = "crowdworks-revenue-paid:run-1",
+def seed(tmp_path: Path, *, owner: str = "crowdworks-revenue-paid",
+         occurrence: str = "crowdworks-revenue-paid:run-1",
          marker_status: str = "completed", marker_effect: int = 0,
          summary_occurrence: str | None = None, summary_effect: int = 0,
          item_effects: list[int] | None = None) -> Path:
@@ -54,7 +55,7 @@ def test_exact_paid_zero_effect_run_proves_pre_effect(tmp_path):
     occurrence = "crowdworks-revenue-paid:run-1"
     state_root = seed(tmp_path, occurrence=occurrence)
 
-    proof = module.find_paid_no_effect_proof(state_root, occurrence)
+    proof = module.find_paid_no_effect_proof(state_root, "crowdworks-revenue-paid", occurrence)
 
     assert proof["verified"] is True
     assert proof["proof_type"] == "pre_effect"
@@ -69,13 +70,16 @@ def test_paid_no_effect_proof_rejects_mismatches_and_effectful_items(tmp_path):
                       summary_occurrence="crowdworks-revenue-paid:other")
     # The exact kernel marker is the authoritative no-dispatch proof; the
     # latest summary may already belong to a later wake.
-    assert module.find_paid_no_effect_proof(state_root, occurrence)["verified"] is True
+    assert module.find_paid_no_effect_proof(
+        state_root, "crowdworks-revenue-paid", occurrence)["verified"] is True
 
     state_root = seed(tmp_path, occurrence=occurrence, marker_effect=1)
-    assert module.find_paid_no_effect_proof(state_root, occurrence) is None
+    assert module.find_paid_no_effect_proof(
+        state_root, "crowdworks-revenue-paid", occurrence) is None
 
     state_root = seed(tmp_path, occurrence=occurrence, marker_status="effect_started")
-    assert module.find_paid_no_effect_proof(state_root, occurrence) is None
+    assert module.find_paid_no_effect_proof(
+        state_root, "crowdworks-revenue-paid", occurrence) is None
 
 
 def test_reconcile_is_read_only_without_resolve(tmp_path, monkeypatch):
@@ -90,7 +94,9 @@ def test_reconcile_is_read_only_without_resolve(tmp_path, monkeypatch):
         ),
     )
 
-    result = module.reconcile(state_root=state_root, occurrence=occurrence)
+    result = module.reconcile(state_root=state_root,
+                              owner="crowdworks-revenue-paid",
+                              occurrence=occurrence)
 
     assert result["resolved"] is False
     assert result["proof_type"] == "pre_effect"

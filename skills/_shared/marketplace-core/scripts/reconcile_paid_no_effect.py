@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release one CrowdWorks Paid fence from an exact zero-effect run marker."""
+"""Release one paid-loop fence from an exact zero-effect run marker."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from runtime.host.resource_admission import resolve_pre_effect_occurrence
 
 
-OWNER = "crowdworks-revenue-paid"
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 
 
@@ -31,10 +30,10 @@ def run_marker_path(state_root: Path, occurrence: str) -> Path:
     return state_root / "paid" / "runs" / f"{digest}.json"
 
 
-def find_paid_no_effect_proof(state_root: Path,
+def find_paid_no_effect_proof(state_root: Path, owner: str,
                               occurrence: str) -> dict[str, Any] | None:
-    if (not SAFE_ID.fullmatch(occurrence)
-            or not occurrence.startswith(f"{OWNER}:")):
+    if (not SAFE_ID.fullmatch(owner) or not SAFE_ID.fullmatch(occurrence)
+            or not occurrence.startswith(f"{owner}:")):
         return None
     marker_path = run_marker_path(state_root, occurrence)
     marker = _read(marker_path)
@@ -44,25 +43,23 @@ def find_paid_no_effect_proof(state_root: Path,
             or marker.get("effect") != 0):
         return None
     return {
-        "owner_id": OWNER,
+        "owner_id": owner,
         "occurrence_id": occurrence,
         "verified": True,
         "proof_type": "pre_effect",
-        "evidence_refs": [
-            f"lm-paid-run://{OWNER}/{marker_path.name}",
-        ],
+        "evidence_refs": [f"lm-paid-run://{owner}/{marker_path.name}"],
     }
 
 
-def reconcile(*, state_root: Path, occurrence: str,
+def reconcile(*, state_root: Path, owner: str, occurrence: str,
               resolve: bool = False) -> dict[str, Any]:
-    proof = find_paid_no_effect_proof(state_root, occurrence)
+    proof = find_paid_no_effect_proof(state_root, owner, occurrence)
     if proof is None:
         raise RuntimeError("exact_paid_zero_effect_proof_unavailable")
     resolved = False
     if resolve:
         resolved = resolve_pre_effect_occurrence(
-            OWNER, occurrence, pre_effect_readback=lambda: proof,
+            owner, occurrence, pre_effect_readback=lambda: proof,
             expected_state="claimed",
         )
     return {**proof, "resolved": resolved}
@@ -71,13 +68,15 @@ def reconcile(*, state_root: Path, occurrence: str,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-root", required=True, type=Path,
-                        help="CrowdWorks state root containing paid/")
+                        help="provider state root containing paid/")
+    parser.add_argument("--owner", required=True)
     parser.add_argument("--occurrence", required=True)
     parser.add_argument("--resolve", action="store_true",
                         help="release the exact claimed occurrence after proof")
     args = parser.parse_args(argv)
     result = reconcile(state_root=args.state_root.expanduser().resolve(),
-                       occurrence=args.occurrence, resolve=args.resolve)
+                       owner=args.owner, occurrence=args.occurrence,
+                       resolve=args.resolve)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if not args.resolve or result["resolved"] else 1
 
