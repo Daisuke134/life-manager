@@ -67,14 +67,48 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
 
 - Application occurrence 18d6535f7dfb8910-33974, Paid occurrence 18d62cf32eb0c678-48194, and Reply
   occurrence 18d64a10f2f1f838-83166 remain claimed/effect_unknown=1. Report occurrence
-  18d606cf95bd0ab0-85387 is released/effect_unknown=1. Available evidence cannot prove a no-dispatch
-  result or bind an exact provider receipt for these rows.
+  18d606cf95bd0ab0-85387 is released/effect_unknown=1. The official Paid event pair records
+  `execute/effect_status=started` at 2026-09-17T17:48:44Z and `report/effect_status=unknown` at
+  2026-09-17T17:50:14Z; there is no occurrence-bound provider receipt or no-dispatch marker, so
+  available evidence cannot prove a no-dispatch result for this row.
 - No current contract has the complete chain correct_work_verified -> formal delivery -> buyer acceptance
   -> settlement -> payout. Verified USD 10,000 MRR is zero.
-- 63657015 has two current forms and no confirmed receipt; its timed-out intent requires official
-  reconciliation before any retry. 63570481 still needs its missing customer-address correction and
-  formal delivery. 63568785 lacks permitted document content. 63659463 needs a full quality audit and
-  delivery. 63583795 needs acceptance, settlement, and payout readback.
+- The earlier snapshot's `63657015` no-receipt statement is superseded: on
+  `2026-09-23` the non-designer hearing sheet was attached once, the common test
+  was confirmed by Google, and milestone `13820268` was formally delivered with
+  official readback (`contract:63657015:milestone:13820268`; seller message
+  `428632173`). Its anonymous survey and designer-only test were not submitted.
+- `63570481` was corrected and formally delivered on `2026-09-23`: the latest buyer
+  correction event `427573234` was bound to one revised Google Form receipt
+  (`confirmation_sha256=168b142a4781d25be8f7807a780239d1e4eb269c03ded584c199a0cd3f163a57`),
+  then milestone `13798056` was delivered once. Formal-delivery readback returned
+  `provider_receipt_id=contract:63570481:milestone:13798056`; a fresh context read
+  returned `provider_state=delivered` and seller message `428633469`. The correction
+  answered the missing customer email using the exact task facts, and the original
+  form receipt was not replayed. The unresolved Paid occurrence remains fenced.
+- `63568785` remains funded at milestone `13797948` with buyer event `426855154`.
+  Its linked Google Doc is readable through the authenticated `gog` Drive CLI
+  (`drive get` plus `drive download --format=txt`), even though the separate Docs
+  API is disabled. The earlier permission request remains seller message
+  `428634040` and was not replayed. The Doc requires a five-day LINE/Note course;
+  one clarification requesting the five Note/form URLs or their text was sent and
+  verified as seller message `428636540` /
+  `contract:63568785:answer:cw-63568785-line-artifact-426855154-v1` at
+  `2026-09-23T05:53:27Z`. No LINE add, daily form, correct-work, or formal
+  delivery effect is claimed; wait for the buyer materials or an accessible LINE
+  session. Source commits `e289b618e1` and `7076c2138c` prefer authenticated
+  `gog drive get`/`gog drive download --format=txt`, fence unresolved sibling Docs,
+  wait for message hydration, and normalize HTML message breaks; focused CrowdWorks
+  tests pass `122`. PR `#5796` is merged at
+  `b939af53d635d3c0ae3f5b4d452bd798e6544cd6`, immutable release
+  `20260923T150246-b939af53` is current, and the exact target
+  `crowdworks-revenue-paid` is applied and read back as `loaded-idle` with the old
+  unknown-effect fence retained. No natural wake, retry, or replay was triggered.
+  Authenticated `gog` Drive CLI is the first path for all Google Docs; browser Docs
+  is fallback only.
+  `63659463`, `63712784`, `63657015`, and `63570481` are delivered but still need
+  acceptance/settlement/payout readback; `63583795` needs acceptance, settlement,
+  and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
   cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the
@@ -92,13 +126,14 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
 4. Reconcile Reply occurrence 18d64a10f2f1f838-83166 item by item. Preserve the verified contract effect
    and confirmation-requested form effects; never resend an uncertain sibling.
 5. Resolve the released Report row through resolver/readback. released plus effect_unknown is not clean.
-6. After all four evidence fences resolve, kickstart one owner at a time. Start with 63712784: read the
-   full buyer request, do the requested work, submit the common test form and Web Ads results form only
-   when each mapping is unambiguous, read each confirmation, then press CrowdWorks 納品する and read
-   the official milestone state.
-7. Continue 63657015, 63570481, 63568785, 63659463, and 63583795 with the same full-context,
-   correct-work, buyer-visible-readback, formal-delivery, acceptance, settlement, payout, and replay-zero
-   gates. Count USD 10,000 MRR only from collected/settled recurring value with a continuation basis.
+6. After all four evidence fences resolve, continue the one-owner-at-a-time flow with
+   `63568785` after the buyer grants access or pastes the document content; obtain
+   and verify the permitted content before doing work or delivery.
+7. Reconcile acceptance/settlement/payout for the delivered contracts `63712784`,
+   `63659463`, `63657015`, and `63570481` (and historical `63583795`) with the same
+   full-context, correct-work, buyer-visible-readback,
+   formal-delivery, and replay-zero gates. Count USD 10,000 MRR only from
+   collected/settled recurring value with a continuation basis.
 8. Share the contract-ID handoff, quality gate, and receipt rules through the existing shared kernel only
    after the same boundary is verified on another provider.
 
@@ -143,7 +178,7 @@ Before sending, the owner checks the proposed reply or artifact against that map
 
 If the submitted result is wrong, incomplete, inaccessible, or contradicted by buyer feedback, record the mismatch and its cause on that contract, retain the original effect receipt, and keep the work item open. Correct the artifact or reply, run the relevant focused regression, publish the corrected owner release through the normal pipeline, and observe its natural wake and new buyer-visible result. Repeat this repair-and-readback cycle until the work matches the request and is accepted, or an exact external blocker or buyer clarification prevents progress. Do not resend an uncertain effect, claim success from a green test, or close the loop because a message was posted. A buyer complaint is a new task version and a regression case, not a terminal failure that can be ignored.
 
-For `63657015`, open the linked Google Doc in the authenticated, account-owned workflow, establish its concrete deliverable and permissions, do the work, verify the result from the buyer's perspective, send only necessary progress messages, then use the contract's formal delivery control and exact readback. For `63659463`, first read the full contract and buyer message, verify the needed email/communication action and provider rules, respond or act accordingly, and do not invent a deliverable from the screenshot. If the buyer's task or external submission cannot be confirmed, persist `waiting_for_buyer` with the exact missing fact and a buyer-visible question; keep the item live.
+For `63657015`, open the linked Google Doc through the authenticated `gog` Drive CLI (or equivalent authenticated connector/plugin) first; use browser Docs only if that path cannot read it. Establish its concrete deliverable and permissions, do the work, verify the result from the buyer's perspective, send only necessary progress messages, then use the contract's formal delivery control and exact readback. For `63659463`, first read the full contract and buyer message, verify the needed email/communication action and provider rules, respond or act accordingly, and do not invent a deliverable from the screenshot. If the buyer's task or external submission cannot be confirmed, persist `waiting_for_buyer` with the exact missing fact and a buyer-visible question; keep the item live.
 
 An external form and formal CrowdWorks delivery are separate fenced effects. After an uncertain external submit, inspect the form's confirmation or exact receipt before retry. After an uncertain delivery click, inspect the exact contract/milestone status before retry. `awaiting_escrow` permits negotiation and clarification, not production work or formal delivery. Revised instructions reopen the same contract item with a new buyer-event version and preserve earlier verified effects.
 

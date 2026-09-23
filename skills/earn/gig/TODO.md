@@ -1,5 +1,259 @@
 # Gig revenue program — current execution SSOT
 
+## Current checkpoint — 2026-09-23
+
+This checkpoint supersedes older prose below when it conflicts with the latest
+runtime/provider readback.
+
+- Ryu `18211957` is the only permanent manual exception. The five newer official
+  buyer events (`222215345`, `222215354`, `222218450`, `222218603`, `222218678`)
+  were handled directly. The live site and management screen now show current
+  campaign images, 12 registered profiles with no fixed people limit, normal
+  option `写真撮影1枚〜`, the five requested paid options in order/prices, a
+  preserving paid-option save/readback, and a versioned WEB予約 management
+  preview without the public age gate. Public age verification remains enabled.
+  The ordinary seller reply was sent once with formal delivery OFF and read back
+  officially as `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST;
+  evidence is `projects/18211957/delivery/ryu-v697-manual-send-readback.json`.
+  Ryu is now buyer-waiting; the loop remains prohibited from creating, replying,
+  attaching, or formally delivering for Ryu.
+- Coconala schedule extraction is repaired and promoted. PR `#5798` merged at
+  `6b72c3044b2b590b950c1df18fc876285e2e9f7c`; immutable release
+  `20260923T155015-6b72c304` is current and target-applied to
+  `hf-gig-paid-direct`. Official status readback is
+  `installed_release_sha=6b72c3044b2b590b950c1df18fc876285e2e9f7c`,
+  `launchd_state=unloaded`, `pid=null`. The parser now accepts only official
+  change/registration events, orders them by provider chronology, and carries
+  event provenance into the final queue. No natural wake/provider readback or
+  replay-zero proof exists for this SHA yet; do not restart Paid or send any
+  additional client package.
+- Chii `18180857` is complete for the required campaign and is buyer-waiting. The
+  required 300 consists of 12 previously verified sends plus 288 exact-readback
+  sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
+  was sent/read back in Coconala with formal delivery OFF. A stale intermediate
+  `delivery/paid-remote-result.json` reported 20/300 and must not reopen the item.
+- Before the answered-feedback stop fix reached production, the direct ledger also
+  recorded 24 extra sends on 2026-09-22. Preserve those immutable effects as an
+  incident; do not resend, undo, or count them as remaining work. The latest queue
+  readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
+  the fix. The latest official inbox readback supports 0 eligible positive replies
+  and 1 ineligible reply.
+- One-by-one Coconala readback at `2026-09-23T03:10:08Z` shows the final
+  300-row audit report as the latest seller message and
+  `buyer_feedback_answered_by_seller=true`; formal delivery remains OFF. The
+  standalone semantic-decision command still sees an older 20/300 remote
+  contract because it skips fresh queue readback. The real Paid queue has the
+  answered-feedback guard and must return `awaiting_buyer`, `effect=0`,
+  `deduplicated=true`; do not resend Chii from the standalone result.
+- The latest natural `hf-gig-paid-direct` wake (targeted readback through
+  `2026-09-23T01:07:47+00:00`) completed with
+  `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
+  It independently reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO
+  rooms as `awaiting_buyer`; no client DM was sent. A later readback found the
+  owner stuck on one PID while repeating `control_busy` and disk-write failures;
+  the canonical `lm-loop stop hf-gig-paid-direct` path now reports
+  `launchd_state=unloaded`, `pid=null`. Chii is not the current work cursor and
+  no manual Chii action is needed.
+- A prior NPO wake failed closed on a one-character model hash typo even though
+  the semantic decision was `await_buyer`; `effect=0` proves no external send.
+  Code commit `7244c3e856` now binds each outcome to the exact official message
+  ID and canonical provider hash. The next wake accepted the decision as
+  `awaiting_buyer`, so this fix is verified locally and by natural readback but
+  is not yet promoted.
+- Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
+  on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
+  `11dcf8c6f3` adds an explicit `admission_effect_scope` registry field and enables
+  occurrence isolation only for item-kernel lanes (CrowdWorks Application/Paid/Reply;
+  Lancers Application/Negotiate/Paid). It preserves the old unknown rows and keeps
+  Report/Storefront/Telegram owner-scoped. The branch is pushed but not yet merged,
+  released, or applied; no production state changed. Follow-up commit
+  `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
+  safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
+  promoted or applied. The follow-up identity-binding fix is `7244c3e856`.
+- The coalescing branch now includes the matching admission expectation test at
+  `e012343e94`. Focused runtime tests pass `528` with `174` subtests, the loop
+  contract gate passes, and the branch remains unmerged/unreleased/unapplied.
+- The follow-up lifecycle fix `470c7b3160` makes `paid_direct.py` re-raise a
+  received stop signal after terminating active child groups, so a Paid parent
+  cannot survive bootout and retain `.paid-direct.lock`. Its regression and
+  related loop tests pass (`263` paid-remote-wait, `70` loop-boundary); it is
+  pushed but not merged/released/applied.
+- The targeted status-read fix `313915e0a5` makes `_last_event()` stop at the
+  newest requested loop report instead of scanning all older shared-state rows.
+  Follow-up `2d2417bd5b` covers targeted cache results across shared state roots;
+  runtime tests pass `517`, the loop contract and adapter tests pass, and
+  `lm-loop doctor` is clean. This is still source-only:
+  the Paid owner remains unloaded and no new natural wake/readback has run.
+- Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB free,
+  no Paid parent/child process, and a 0.18-second targeted status response.
+  `admission_effect_unknown=true` remains fenced; do not clear it or restart
+  production from this observation alone.
+- CrowdWorks provider-lock detail readback at `2026-09-23T04:00:55.856173Z`
+  confirmed five funded contracts. Source preflight decisions were
+  `63712784=submit`, `63659463=formal_delivery_after_forms`,
+  `63657015=submit`, `63570481=revision_submit`, and
+  `63568785=wait_for_buyer_artifact`; at that observation point no provider
+  effect or receipt had occurred yet.
+- One-by-one manual canary `63712784` was then completed on 2026-09-23 under the
+  CrowdWorks provider lock: the common test and Web Ads forms returned official
+  `回答を記録しました` confirmations at `04:39:36Z` and `04:39:41Z`, followed by
+  one formal delivery for milestone `13833587`. Official readback at
+  `04:45:32Z` verified the exact seller message, `納品=done`, `検収=current`, and
+  `provider_state=delivered`; no duplicate form POST or delivery occurred.
+  This manual contract effect is separate from the unresolved Paid occurrence
+  `18d62cf32eb0c678-48194`, which remains `claimed/effect_unknown=1` and fenced.
+  Source commit `5876390fe6` fixes the hydration/hidden-disabled-form readback
+  race; 611 focused tests pass, but production Paid remains unloaded.
+- Cursor reorder at `2026-09-23T04:45:32Z`: old order was host/lifecycle gate →
+  Paid-loop promotion → CrowdWorks canary; new order is the same system gates,
+  with the contract-bound `63712784` canary completed manually before them because
+  its official deadline was the current day. The unresolved Paid occurrence was
+  not cleared or replayed. Current cursor remains host/lifecycle gate, then
+  occurrence reconciliation and immutable loop promotion.
+- The next one-by-one contract `63659463` was completed at `2026-09-23T04:50:38Z`:
+  its existing official receipts for the common test and Web Ads forms were
+  re-read, the video form was explicitly excluded per the buyer instruction,
+  and milestone `13820867` was delivered once. Official readback returned
+  `provider_receipt_id=contract:63659463:milestone:13820867` and the contract
+  context is now `provider_state=delivered`/client inspection. No form was
+  reposted and the Paid unknown occurrence remains fenced.
+- The next one-by-one contract `63657015` was completed at `2026-09-23T05:13:08Z`:
+  the non-designer hearing sheet was attached once (official message `428631900`,
+  attachment `59259436`), the common test returned an official Google confirmation
+  bound to buyer event `427403807`, and milestone `13820268` was delivered once.
+  Formal-delivery readback returned
+  `provider_receipt_id=contract:63657015:milestone:13820268`; a fresh context read
+  returned `provider_state=delivered` with seller message `428632173`. The anonymous
+  survey and designer-only test were explicitly excluded. No form, attachment, or
+  delivery was replayed; the unresolved Paid occurrence remains fenced.
+- The next one-by-one contract `63570481` was corrected and completed at
+  `2026-09-23T05:24:53Z`: buyer correction event `427573234` was bound to one
+  revised Google Form receipt (`confirmation_sha256=168b142a4781d25be8f7807a780239d1e4eb269c03ded584c199a0cd3f163a57`),
+  and milestone `13798056` was formally delivered once. Readback returned
+  `provider_receipt_id=contract:63570481:milestone:13798056`; a fresh context read
+  returned `provider_state=delivered` with seller message `428633469`. The original
+  form receipt was retained and not replayed; the unresolved Paid occurrence remains
+  fenced. Source fix `471f3c6a97` retains durable form history when CrowdWorks hides
+  a submitted form link; CrowdWorks tests passed `116`.
+- `63568785` remains `funded` at milestone `13797948` with buyer event
+  `426855154`. Its linked Google Doc exposes an official permission-request
+  surface, so one permission request was sent and verified as seller message
+  `428634040` / `contract:63568785:answer:cw-63568785-permission-426855154`.
+  No artifact or formal delivery was claimed; wait for access or pasted content
+  before doing work. Source fix `f8a57184c5` polls delayed document-access surfaces
+  and uses the official message API when seller threads are folded; CrowdWorks
+  tests passed `118`.
+- Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
+  authenticated/source-complete with 14 boards, one unread, zero working or
+  monthly contracts, zero incoming offers, zero storefront contract candidates,
+  and 0 JPY balance. No Lancers Paid client is currently eligible; the Paid
+  mutation path remains unimplemented for future funded work.
+- Final status readback at `2026-09-23T04:28:10Z` kept CrowdWorks and Lancers
+  `loaded-idle` with `pid=null`, terminal `blocked`, and
+  `host_admission_deferred:resource_effect_unknown`; the exact unresolved rows
+  remain `crowdworks-revenue-paid:18d62cf32eb0c678-48194` and
+  `lancers-revenue-paid:18d67a28e56c4b58-6829`. Coconala
+  `hf-gig-paid-direct` remains `unloaded` with `pid=null`. No unknown effect
+  was cleared and no provider receipt was created.
+- A shared-host incident is also open: the Paid owner recorded `No space left on
+  device` while writing its result, followed by `control_busy`/database-lock
+  symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),
+  while the disk-cleanup owner still reclaimed `0` bytes because all four
+  candidates were open. The canonical stop unloaded Paid (`pid=null`), but its
+  bootout left owner-scoped children from interrupted room `18223833`; those
+  children and their lock were terminated only within the Paid owner scope.
+  Official readback then showed no new seller message or formal delivery. The
+  owner remains intentionally unloaded until child reaping, durable-write, and
+  natural-wake gates pass. Do not delete protected releases, provider state, or
+  unknown-effect rows by hand.
+- One-by-one direct check of room `18223833` regenerated the canonical semantic
+  decision and remains `await_buyer` with `effect=0`, `readback=1`. Four buyer
+  facts are still missing (第3期実績、社員名簿不足分、総会・理事会、監査情報).
+  The 2026–2028 ちむどんどん budget artifact is locally accepted, but it does
+  not satisfy the separate NPO package contract; never bypass this decision or
+  send a partial package as complete. Evidence:
+  `paid-direct/items/item-18223833-decision-repair.json` and
+  `official-readback-18223833-after-stop.json`.
+- New official buyer events `js-talkroomMessage-222226516` and
+  `js-talkroomMessage-222226563` changed room `18223833`: ① the current
+  ちむどんどん budget is accepted, ② the buyer supplied
+  `MKT年度別役員・会員.xlsx` and requested the まくとぅー deadline be extended
+  to the end of September. The seller changed the schedule to 2026-09-30;
+  provider system receipt `js-talkroomMessage-222233402` confirms it. A single
+  seller acknowledgement was sent and read back with message SHA
+  `25f79a480d4109fd731691e4e4d7a5afb98c35c4021e39a9f29b3946567a0ac7`.
+  Formal delivery remains OFF. Next action is to wait for the promised source
+  materials, then reconcile the four missing fact groups before building the
+  final NPO package. Do not mark the combined order complete from the accepted
+  ① budget alone.
+- Google Docs rule: use authenticated `gog drive get` plus
+  `gog drive download --format=txt` (or an authenticated connector/plugin) before
+  any browser Docs path. Do not request browser permission when the CLI already
+  has Drive scope; use browser only when CLI/connector readback fails.
+- The 18223833 stale first-match schedule gap is closed. The parser selects the
+  latest official change/registration event by provider message chronology,
+  ignores non-event body labels, and updates an existing order only when the
+  date came from an official event. Regression coverage includes the observed
+  2026-09-18 and 2026-09-30 events plus the quoted registration form. The fix is
+  merged/released/applied as recorded in the current checkpoint above; only the
+  natural-wake/provider-readback gate remains.
+- One-by-one official readback of room `18250352` at `2026-09-23T03:09:04Z`
+  confirms the v15 review package is already visible, formal delivery is OFF,
+  and no buyer reply followed it. Its actionable file decision still awaits
+  three facts (河原氏の正式氏名、追加/退任役員の発効日・本人情報、R6/R7事業報告).
+  The latest seller message already asks for these facts; do not replay the same
+  package. Evidence: `official-readback-18250352-one-by-one.json`.
+- Cursor reorder: the old order began with host recovery → Coconala loop promotion
+  → CrowdWorks. The new order began with the newly observed Ryu manual revision
+  (now complete), then host recovery → Coconala loop promotion → CrowdWorks →
+  Lancers → Upwork.
+  Reason: the official provider readback created a genuinely newer Ryu event;
+  client safety takes precedence over system-only work. Chii remains closed and
+  is not reopened by this change.
+
+## Remaining work — outcome order
+
+1. **Close the host/lifecycle gate.** The repaired release is installed but the
+   Paid owner remains intentionally unloaded. Host headroom is near the floor and
+   admission contention (`control_busy`) remains observable while another owner
+   is active. Prove a small production state write, owner-child reaping, and a
+   natural Coconala no-op wake. Keep all protected releases and provider ledgers
+   intact; do not clear unknown-effect fences or restart Paid before this gate.
+2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
+   `e012343e94` (occurrence-scoped marketplace admission plus Coconala Paid queued
+   and reserved wake coalescing), build one immutable release, apply it, and verify a
+   natural Coconala wake with official readback and replay-zero. Do not edit the
+   admission database by hand or clear old unknown rows.
+3. **CrowdWorks occurrence fences and loop promotion.** The manually completed
+   contracts `63712784`, `63659463`, and `63657015` are not proof for the unresolved
+   Paid occurrence. Reconcile each existing `effect_unknown` occurrence against
+   provider inventory and durable child/effect receipts, keep every uncertain effect
+   fenced, then prove a natural canary/replay-zero without replaying `63712784`.
+   The gog-first adapter fix is already merged in PR `#5796`, cut as immutable
+   release `20260923T150246-b939af53`, and target-applied to
+   `crowdworks-revenue-paid`; the old unknown-effect fence remains and no natural
+   wake has been triggered.
+4. **CrowdWorks remaining funded contract.** `63568785` is now readable through
+   `gog drive get`/`gog drive download --format=txt`; the prior permission request
+   remains verified and was not replayed. A single buyer clarification requesting
+   the five LINE/Note materials or their text is verified as seller message
+   `428636540` (`contract:63568785:answer:cw-63568785-line-artifact-426855154-v1`).
+   Continue only after those materials or an accessible LINE session arrive; then
+   complete all five forms, verify correct work, submit formal delivery, and read
+   back inspection/acceptance/settlement/payout with replay-zero. Do not claim the
+   contract complete from the Google Doc read alone. The delivered rows `63712784`,
+   `63659463`, `63657015`, and `63570481` still need acceptance/settlement/payout
+   readback.
+5. **Lancers.** Keep the current browser/work-sync owners running; implement the
+   missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
+   prove one canary, then complete the funded inventory and payout receipts.
+6. **Upwork.** Register a Paid owner, obtain a live authenticated contract
+   inventory, and close the same official delivery/payment/replay-zero gates. Do not
+   count historical adapters as live revenue proof.
+7. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
+   lease, 24-hour cadence, revision, settlement and duplicate-zero checks. Only then
+   promote the full release; Chii and Ryu are not blockers for this system work.
+
 This file contains only current truth and remaining work. Completed incident detail is preserved in Git
 history through commit `e2b30b8e10`; it must not be copied back into the active TODO. Evidence lives in
 durable runtime ledgers and receipts, not in duplicated historical checklists.
@@ -930,6 +1184,19 @@ work item and leave a sibling trace unchanged.
 
 ### 2. Coconala vertical revenue proof
 
+**Current cursor (2026-09-23):** The cross-provider SSOT is
+`docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md`.
+Ryu `18211957` is a permanent manual exception and the latest direct revision
+was sent once as seller message `js-talkroomMessage-222220999` with formal
+delivery OFF; official readback is complete and Ryu is buyer-waiting. Do not
+reopen or resend Ryu from the historical entries below. Chii `18180857` and NPO
+rooms `18223833`/`18250352` are also buyer-waiting according to their latest
+official readbacks; the two NPO packages have unresolved buyer facts, so no
+additional package may be sent. `hf-gig-paid-direct` is intentionally stopped
+(`launchd_state=unloaded`, `pid=null`) while its repaired source remains in the
+promotion gate. The older Ryu/Kokoro paragraphs in this section are retained as
+evidence history only, not as current work instructions.
+
 - [ ] During the corrected shared-runtime canary, let the current Paid, Apply and Storefront wakes finish and
   persist terminal receipts while unrelated revenue/maintenance owners run; Reply already has one natural
   `pass`. Process start alone is not a client effect.
@@ -1043,6 +1310,22 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 - Read-only provider context is captured for all five funded IDs. Historical confirmed form receipts
   are preserved for 63659463, 63570481, and 63583795; they are replay-fenced and do not prove
   current formal delivery, acceptance, settlement, or payout.
+- A fresh owner-locked detail of canary 63712784 originally confirmed
+  `provider_state=funded`, milestone 13833587, latest buyer event 428014314, and two required
+  Google Forms. The one-by-one manual execution then returned a contract/event-bound official
+  confirmation for each form, sent the exact CrowdWorks milestone delivery once, and read back
+  `納品=done`, `検収=current`, the seller message, and `provider_state=delivered` at
+  `2026-09-23T04:45:32Z`. It is not a Paid-loop receipt and must not be replayed.
+- Contract `63659463` was then completed one-by-one without reposting its already
+  confirmed common-test and Web Ads receipts. The buyer's video form was excluded
+  because the instruction targets Web広告運用者; milestone `13820867` was delivered
+  once and read back at `2026-09-23T04:50:38Z` as `納品=done`, `検収=current`,
+  `provider_state=delivered`.
+- A fresh official readback of 63657015 (2026-09-23T03:20:52Z) confirms `provider_state=funded`,
+  contract `63657015`, milestone `13820268`, proposal `305533319`, and message thread `304733788`.
+  The buyer's latest instruction (event `427403807`) requires the non-designer hearing sheet and
+  common test; the survey link is not part of that instruction. Both current forms are still
+  unconfirmed (`completed_form_urls=[]`), so no form or delivery effect was sent in this check.
 - Application's latest aggregate has 190 receipts. Reply's latest aggregate is
   observed=61, readback=54, pending=6, failed=1; unresolved items remain fenced. Paid has no
   current provider effect from the latest target wake.
@@ -1050,16 +1333,22 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 **Not done / blockers:**
 
 - The three claimed rows and the released Report row still have effect_unknown=1. Paid occurrence
-  18d62cf32eb0c678-48194 has no occurrence-bound no-dispatch marker or exact provider receipt;
+  18d62cf32eb0c678-48194 has an official event pair showing `execute/effect_status=started`
+  (2026-09-17T17:48:44Z) followed by `report/effect_status=unknown` (2026-09-17T17:50:14Z),
+  with no occurrence-bound provider receipt or no-dispatch marker. It must not be released as
+  pre-effect merely because the provider-inventory result was later reported with `effect=0`;
   Application occurrence 18d6535f7dfb8910-33974 and Reply occurrence
   18d64a10f2f1f838-83166 also cannot be released from the available evidence. The Reply wake
   contains authoritative-absent, verified-contract, inconclusive, and confirmation-requested siblings.
-- No current CrowdWorks client has a verified chain of correct work -> formal delivery -> buyer
-  acceptance -> settlement -> payout. Verified USD 10,000 MRR is zero.
+- Canary 63712784 now has a verified chain through correct work/form completion and formal delivery,
+  but buyer acceptance, settlement, and payout are still unverified. Verified USD 10,000 MRR is zero.
 - 63657015 has two current forms and no confirmed receipt; its earlier timed-out intent must be
-  reconciled before any retry. 63570481 still lacks the corrected customer-address answer and
-  formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
-  quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
+  reconciled before any retry. The prepared work is the hearing-sheet copy plus common test,
+  followed by formal delivery; do not submit the buyer's anonymous survey or claim completion
+  until the two official confirmations are read back. 63570481 still lacks the corrected customer-address answer and
+  formal delivery. 63568785 still lacks permitted document content. 63659463's formal delivery
+  is verified, but acceptance, settlement, and payout remain. 63583795 needs acceptance,
+  settlement, and payout readback.
 - The latest target cleanup pass is green, but headroom remains PRESSURE at about 1.8 GiB free and one
   ownerless legacy scratch remains protected. The shared cleanup fix is merged and loaded; it requires
   current registry `none`, unique run-bound `none` event, and stale PID/start identity before deleting
@@ -1082,17 +1371,36 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   uncertain siblings.
 - [ ] **CW-F5 — Report fence:** resolve the released Report row's effect_unknown=1 with the
   resolver/readback path before treating reporting as clean.
-- [ ] **CW-F6 — 63712784 fulfillment:** after the fences resolve, submit the common test form,
-  read its confirmation, submit the Web Ads results form, read its confirmation, press CrowdWorks
-  納品する, and read the official milestone state. Verify the requested work and quality first.
+- [x] **CW-F6 — 63712784 fulfillment:** manually submitted the common test and Web Ads results
+  forms once each, read their official confirmations, pressed CrowdWorks 納品する once, and
+  verified the exact milestone state (`納品=done`, `検収=current`, provider `delivered`) at
+  `2026-09-23T04:45:32Z`. No replay; Paid-loop occurrence fences remain unchanged.
+- [x] **CW-F6b — 63659463 fulfillment:** reused the two existing contract-bound form receipts,
+  explicitly excluded the video form per the buyer instruction, pressed CrowdWorks 納品する once,
+  and verified `納品=done`, `検収=current`, and `provider_state=delivered` at
+  `2026-09-23T04:50:38Z`; no form repost or replay.
 - [ ] **CW-F7 — remaining funded contracts:** reconcile 63657015, correct and deliver 63570481,
-  obtain permitted content and deliver 63568785, audit and deliver 63659463, and monitor
-  63583795 through acceptance/settlement/payout. Require correct_work_verified and replay-zero.
+  obtain permitted content and deliver 63568785, and monitor 63659463 plus 63583795 through
+  acceptance/settlement/payout. Require correct_work_verified and replay-zero.
 - [ ] **CW-F8 — revenue accounting:** count USD 10,000 MRR only from collected/settled recurring
   value with a documented continuation basis; share contract-ID, quality-gate, and receipt lessons
   through the existing shared kernel only after the same boundary is verified on another provider.
 
 ### 4. Lancers vertical proof
+
+Current readback (2026-09-23): `lancers-revenue-paid` is `loaded-idle` with no PID and its latest
+run is blocked by `host_admission_deferred:resource_effect_unknown`. The admission ledger still has
+`lancers-revenue-paid:18d67a28e56c4b58-6829` as `claimed/effect_unknown=1`; the latest `paid-latest.json`
+is `observed=0/effect=0` and is not proof that the occurrence had no effect. No Lancers Paid submission
+or provider receipt is counted until this fence and the provider mutation/readback path are resolved.
+
+Fresh official read-only inventory is authenticated and source-complete: 14 message boards, unread 1,
+working projects 0, monthly contracts 0, incoming monthly offers 0, storefront contract candidates 0,
+contract candidates 0, and Lancers balance 0 JPY. Read-only inspection of historical project details
+5601892, 5601332, and one ended proposal found only proposal/question forms; no funded-contract
+納品・検収 form or provider receipt is available. Do not implement a guessed mutation from those pages.
+The next safe cursor is to observe the first real funded contract detail when the official inventory
+produces one, then add a red test and the smallest provider-specific mutation/readback path.
 
 - [x] Phone verification.
 - [ ] Restore durable browser availability and persistent authentication.
@@ -1107,6 +1415,10 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 ### 6. Freelancer.com and Upwork
 
 - [ ] Recover official account/policy state and prove Apply -> Reply -> Paid -> payout on each.
+  Current local read-only evidence is insufficient: Upwork's stored snapshot is dated 2026-08-26
+  with active contracts 0 and proposal/Connects/payment effects 0, its 9233 CDP endpoint is not
+  responding, and Freelancer work-sync has no fingerprints or contract candidates. Treat these as
+  unverified, not as a current provider logout; do not register a Paid owner or submit anything.
 - [ ] Implement Storefront only where an official provider surface supports it.
 
 ### 7. New-platform meta loop
