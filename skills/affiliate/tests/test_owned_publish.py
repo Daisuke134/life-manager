@@ -117,8 +117,29 @@ class OwnedPublishRevisionTest(unittest.TestCase):
                 "commit", "-m", "unpushed", cwd=resolved,
             )
 
-            with self.assertRaisesRegex(module.PublishError, "ahead of origin"):
-                module._managed_publisher_root(state, release, "main")
+            self.assertEqual(
+                module._managed_publisher_root(
+                    state, release, "main",
+                    "apps/landing/data/research/unpushed.json",
+                ),
+                resolved,
+            )
+            (source / "README.md").write_text("publisher fixture advanced again\n")
+            self.git("git", "add", "README.md", cwd=source)
+            self.git("git", "commit", "-m", "advance again", cwd=source)
+            self.git("git", "push", "origin", "main", cwd=source)
+            self.assertEqual(
+                module._managed_publisher_root(
+                    state, release, "main",
+                    "apps/landing/data/research/unpushed.json",
+                ),
+                resolved,
+            )
+            with self.assertRaisesRegex(module.PublishError, "managed publisher checkout"):
+                module._managed_publisher_root(
+                    state, release, "main",
+                    "apps/landing/data/research/different.json",
+                )
 
             symlink_state = base / "symlink-state"
             symlink_state.mkdir()
@@ -196,6 +217,70 @@ class OwnedPublishRevisionTest(unittest.TestCase):
                 ))
             self.assertEqual(result["state"], "LIVE")
             self.assertEqual(json.loads(target.read_text())["markdown"], new)
+
+    def test_github_delivery_uses_deterministic_pull_request_and_auto_merge(self):
+        root = Path("/tmp/publisher-checkout")
+        commit = "a" * 40
+        branch = "affiliate/publish-protected-main-" + "b" * 12
+        pull_request = "https://github.com/Daisuke134/life-manager/pull/9999"
+        views = [
+            json.dumps({
+                "autoMergeRequest": None,
+                "baseRefName": "main",
+                "headRefOid": commit,
+                "mergeCommit": None,
+                "state": "OPEN",
+                "url": pull_request,
+            }),
+            json.dumps({
+                "autoMergeRequest": {"enabledAt": "2026-09-23T00:00:00Z"},
+                "baseRefName": "main",
+                "headRefOid": commit,
+                "mergeCommit": {"oid": "c" * 40},
+                "state": "MERGED",
+                "url": pull_request,
+            }),
+        ]
+
+        def gh_side_effect(_root, *args):
+            if args[:2] == ("pr", "list"):
+                return "[]"
+            if args[:2] == ("pr", "create"):
+                return pull_request
+            if args[:2] == ("pr", "view"):
+                return views.pop(0)
+            if args[:2] == ("pr", "merge"):
+                return ""
+            raise AssertionError(args)
+
+        with patch.object(module, "git", return_value="") as git_mock, patch.object(
+            module, "_gh", side_effect=gh_side_effect,
+        ):
+            result = module._github_pull_request(
+                root=root,
+                repository="Daisuke134/life-manager",
+                remote="origin",
+                target_branch="main",
+                head_branch=branch,
+                commit=commit,
+                slug="protected-main",
+            )
+
+        self.assertEqual(result["state"], "DELIVERED")
+        self.assertEqual(result["pull_request_url"], pull_request)
+        pushes = [call.args for call in git_mock.call_args_list if call.args[1] == "push"]
+        self.assertEqual(pushes, [(root, "push", "origin", f"{commit}:refs/heads/{branch}")])
+        self.assertNotIn("HEAD:refs/heads/main", repr(git_mock.call_args_list))
+
+    def test_github_repository_accepts_only_plain_github_https_remote(self):
+        self.assertEqual(
+            module._github_repository("https://github.com/Daisuke134/life-manager.git"),
+            "Daisuke134/life-manager",
+        )
+        self.assertIsNone(module._github_repository("file:///tmp/life-manager.git"))
+        self.assertIsNone(
+            module._github_repository("https://token@github.com/Daisuke134/life-manager.git")
+        )
 
     @staticmethod
     def git(*command, cwd=None):
