@@ -80,6 +80,12 @@ runtime/provider readback.
   send a partial package as complete. Evidence:
   `paid-direct/items/item-18223833-decision-repair.json` and
   `official-readback-18223833-after-stop.json`.
+- One-by-one official readback of room `18250352` at `2026-09-23T03:09:04Z`
+  confirms the v15 review package is already visible, formal delivery is OFF,
+  and no buyer reply followed it. Its actionable file decision still awaits
+  three facts (河原氏の正式氏名、追加/退任役員の発効日・本人情報、R6/R7事業報告).
+  The latest seller message already asks for these facts; do not replay the same
+  package. Evidence: `official-readback-18250352-one-by-one.json`.
 - Cursor reorder: the old order began with host recovery → Coconala loop promotion
   → CrowdWorks. The new order began with the newly observed Ryu manual revision
   (now complete), then host recovery → Coconala loop promotion → CrowdWorks →

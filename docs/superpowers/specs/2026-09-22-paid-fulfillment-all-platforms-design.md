@@ -217,6 +217,14 @@ canonical decision regeneration still returns `await_buyer` with `effect=0` and
 acceptance, but the NPO package contract is not complete. Do not bypass the
 semantic decision or send the budget as if it completed the NPO contract.
 
+The next one-by-one readback of NPO room `18250352` at
+`2026-09-23T03:09:04Z` confirms the existing v15 review package is visible,
+formal delivery is OFF, and there is no buyer reply after the artifact. Its
+current actionable file decision still has three unresolved facts (河原氏の正式氏名、
+追加・退任役員の発効日/本人情報、R6/R7事業報告). Since the latest seller message
+already asks for confirmation, replaying the same package would be a duplicate;
+wait for a genuinely newer buyer event.
+
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
 delivery. The prior manual correction was sent once with formal delivery OFF and
