@@ -23,6 +23,15 @@ OPTIONAL_FIELDS = {
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
+OCCURRENCE_SCOPED_ENTRYPOINTS = {
+    "apps/life-manager/scripts/mobile-app",
+    "skills/earn/crowdworks/scripts/application-owner",
+    "skills/earn/crowdworks/scripts/paid-owner",
+    "skills/earn/crowdworks/scripts/reply-owner",
+    "skills/earn/lancers/scripts/application-owner",
+    "skills/earn/lancers/scripts/negotiate-owner",
+    "skills/earn/lancers/scripts/paid-owner",
+}
 SECRET_FIELD = re.compile(r"token|secret|password|credential|auth|api.?key", re.I)
 LAUNCHD_LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -84,6 +93,9 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid provider_route")
         if row.get("admission_effect_scope") not in {None, *ADMISSION_EFFECT_SCOPES}:
             _fail(f"{loop_id}: invalid admission_effect_scope")
+        if (row.get("admission_effect_scope") == "occurrence"
+                and row["entrypoint"] not in OCCURRENCE_SCOPED_ENTRYPOINTS):
+            _fail(f"{loop_id}: occurrence admission scope is not proven for entrypoint")
         if row.get("resource_class") not in {None, "agent", "browser", "deterministic"}:
             _fail(f"{loop_id}: invalid resource_class")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:

@@ -289,6 +289,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
 
     def test_registry_accepts_explicit_admission_effect_scope(self):
         value = entry()
+        value["entrypoint"] = "skills/earn/crowdworks/scripts/paid-owner"
         value["admission_effect_scope"] = "occurrence"
         self.assertEqual(
             validate_registry({"schema_version": 2, "loops": {"example": value}})
@@ -302,6 +303,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 ValueError, "invalid admission_effect_scope",
             ):
                 validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+        unproven = entry()
+        unproven["admission_effect_scope"] = "occurrence"
+        with self.assertRaisesRegex(ValueError, "not proven for entrypoint"):
+            validate_registry({"schema_version": 2, "loops": {"example": unproven}})
 
     def test_shared_marketing_and_connector_owners_declare_runtime_class_and_priority(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
