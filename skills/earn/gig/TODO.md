@@ -161,6 +161,18 @@ runtime/provider readback.
   remains on its immutable main-derived release until the cross-platform gate,
   so do not report the source fix as a live provider canary yet.
 
+### Runtime checkpoint — 2026-09-24 01:16
+
+- [x] Re-read the live fleet: Coconala, CrowdWorks, and Lancers Paid owners are
+  `scheduled`/`loaded-idle`/`pass`; no restart or provider mutation was needed.
+- [x] Advanced the active cursor to Lancers' first real funded contract. The
+  authenticated inventory is source-complete but currently has zero funded
+  candidates, so no Lancers submission is admissible.
+- [ ] When a funded Lancers `ContractReceipt` appears, read the official detail
+  and completion surface, then implement/verify one quality-bound answer and
+  formal-delivery effect with official readback and replay-zero. Do not guess an
+  endpoint or manufacture a contract.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

@@ -1422,3 +1422,20 @@ The objective is complete only when all of the following are proven:
 - This source fix is pushed as `5193ff0171` on the dedicated branch. It is not
   yet a production result: promotion must still use the main-derived immutable
   release gate, followed by a natural Lancers wake and replay-zero.
+
+## Runtime Cursor — 2026-09-24 01:16 JST
+
+- A fresh lifecycle readback confirms Coconala, CrowdWorks, and Lancers Paid
+  owners are all `scheduled`/`loaded-idle`/`pass`; no restart or provider
+  mutation was needed. Ryu remains the permanent manual exception.
+- Lancers' authenticated inventory remains `source_complete=true` with zero
+  funded contract candidates. Therefore there is no legitimate Lancers send
+  to perform at this cursor; the loop stays enabled and fail-closed.
+- The next Lancers action is the first real funded contract: read its official
+  detail and completion surface, then perform exactly one quality-digested
+  answer/formal-delivery effect with official readback and replay-zero. No
+  endpoint is guessed and no synthetic client is created.
+- CrowdWorks still has four official readbacks plus the buyer-material wait on
+  `63568785`; its historical effect-unknown occurrence remains fenced. Upwork
+  remains disabled pending approved authorization, fresh authentication, and a
+  funded contract.
