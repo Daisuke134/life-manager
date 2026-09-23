@@ -5,6 +5,43 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
+### Runtime gate correction — 2026-09-23
+
+- [x] Reproduce and fix the stop/reservation starvation bug: `lm-loop stop` now
+  suspends the queued owner after successful bootout, releasing its reservation
+  without deleting occurrence history; start/restart resumes it only after
+  launchd readback. Focused suites pass (124 admission, 6 lifecycle, 75 loop
+  boundary tests), `git diff --check` is clean, and `./bin/lm-loop-contract`
+  passes.
+- [x] Apply the suspension state to the live `hf-gig-paid-direct` owner and
+  verify no reservation for more than 80 seconds (`next_eligible_at=inf`).
+- [ ] Promote this code through an immutable release and target-apply it; read
+  back installed SHA and loaded argv before any Coconala wake.
+- [ ] Keep Ryu `18211957` manual-only; run one stable-headroom Coconala natural
+  wake, official four-room readback, and replay-zero. Do not resend Chii or the
+  NPO `18250352` room while its evidence says buyer-waiting. `18223833` had a
+  newer actionable buyer reply and was handled once manually below; do not replay
+  that send.
+- [ ] After Coconala closes, repair and prove CrowdWorks, Lancers, then Upwork;
+  unknown-effect occurrences remain fenced and no platform is declared done
+  from local artifacts alone.
+
+- Latest official Coconala readback (2026-09-23 20:35 JST) is split by client:
+  Ryu `18211957` has the manual seller message
+  `js-talkroomMessage-222245383` (18:38 JST), including editable WEB予約
+  wording, management preview, and management URL. Chii `18180857` remains
+  buyer-waiting with no newer request. NPO `18223833` had a newer actionable
+  buyer reply and now has exactly one manual progress send,
+  `js-talkroomMessage-222253171`, with
+  `特定非営利活動法人まくとぅー_沖縄県NPOプラザ提出書類_レビュー版_v16b.zip`
+  (978,061 bytes, SHA-256
+  `588f05d96b28028b2472ee7dbe7933505741e0fccf8d8cbe5dbb410d77a8f615`) and
+  formal delivery OFF. NPO `18250352` remains buyer-waiting and was not resent.
+  The latest Paid producer result before this manual recovery was
+  `observed=4/actionable=0/effect=0/readback=2/pending=1`; it does not include
+  this manually recorded effect. Do not replay `18223833` or copy Ryu's
+  site-specific wording to the other rooms.
+
 - Ryu `18211957` is the only permanent manual exception. The five newer official
   buyer events (`222215345`, `222215354`, `222218450`, `222218603`, `222218678`)
   were handled directly. The live site and management screen now show current
@@ -13,10 +50,26 @@ runtime/provider readback.
   preserving paid-option save/readback, and a versioned WEB予約 management
   preview without the public age gate. Public age verification remains enabled.
   The ordinary seller reply was sent once with formal delivery OFF and read back
-  officially as `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST;
+  officially as `js-talkroomMessage-222245383` at 2026-09-23 18:38 JST;
   evidence is `projects/18211957/delivery/ryu-v697-manual-send-readback.json`.
   Ryu is now buyer-waiting; the loop remains prohibited from creating, replying,
   attaching, or formally delivering for Ryu.
+- NPO `18223833` revision send: after buyer events
+  `222226516`/`222226563` introduced the annual officer/member roster, the
+  prepared review package v16b passed acceptance and archive checks (29 regular
+  files, ASCII member names, supplied roster hash preserved). It was sent once
+  through the paid-progress browser path at 2026-09-23 20:34 JST with formal
+  delivery OFF. The official selected-talkroom readback at 20:35 JST observed
+  seller message `js-talkroomMessage-222253171`, attachment size 978,061 bytes,
+  and exact URL binding. Evidence is
+  `projects/18223833/evidence/manual-npo-revision-20260923/browser-send/paid-queue-evidence.json`
+  plus `official-readback-18223833-v16b.json`; the post-send contract gate is
+  PASS. The same feedback/package pair is reconciled into the project ledger as
+  `paid_work_browser_sent_reconciled` (`next_action=await_buyer_feedback`,
+  `resend=false`); the durable receipt is
+  `projects/18223833/delivery/coconala-v16b-progress-receipt.json`. This is a
+  buyer-visible review/progress artifact, not formal delivery; unresolved
+  business-report, audit, and officer-identity facts remain explicit.
 - Coconala schedule extraction is repaired and promoted. PR `#5798` merged at
   `6b72c3044b2b590b950c1df18fc876285e2e9f7c`; immutable release
   `20260923T155015-6b72c304` is current and target-applied to

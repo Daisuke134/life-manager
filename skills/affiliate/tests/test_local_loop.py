@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import hashlib
 import importlib.util
 import io
@@ -2149,6 +2150,42 @@ class LocalLoopTest(unittest.TestCase):
                     )
 
             self.assertEqual(ledger.read_bytes(), original)
+
+    def test_tool_attempt_rotation_archive_enospc_keeps_effect_evidence(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root)
+            ledger = state / "tool-attempt-receipts.jsonl"
+            for number in range(20):
+                MODULE.append(ledger, {
+                    "scheduler_run_id": str(number),
+                    "effect_certainty": "NO_EFFECT", "padding": "x" * 80,
+                })
+            MODULE.append(ledger, {
+                "scheduler_run_id": "unknown",
+                "effect_certainty": "UNKNOWN",
+            })
+            original_size = ledger.stat().st_size
+            real_open = MODULE.Path.open
+
+            def fail_archive_open(path, *args, **kwargs):
+                if "tool-attempt-receipts.archive-" in path.name:
+                    raise OSError(errno.ENOSPC, "injected archive ENOSPC")
+                return real_open(path, *args, **kwargs)
+
+            with patch.object(MODULE.Path, "open", fail_archive_open):
+                result = MODULE.rotate_tool_attempt_receipts(
+                    ledger, max_bytes=512, recent_no_effect_bytes=128,
+                )
+
+            active = ledger.read_text(encoding="utf-8")
+            self.assertIn("UNKNOWN", active)
+            self.assertLess(ledger.stat().st_size, original_size)
+            self.assertEqual(result["archive_status"], "skipped_enospc")
+            self.assertEqual(result["archived_rows"], 0)
+            self.assertGreater(result["compacted_rows"], 0)
+            self.assertEqual(list(state.glob(
+                "tool-attempt-receipts.archive-*.jsonl.gz"
+            )), [])
 
     def test_tool_attempt_failure_records_unknown_external_effect(self):
         with tempfile.TemporaryDirectory() as root:

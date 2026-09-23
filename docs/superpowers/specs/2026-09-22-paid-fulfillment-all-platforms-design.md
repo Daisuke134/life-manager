@@ -12,6 +12,47 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
+### Runtime admission lifecycle correction — 2026-09-23
+
+The live investigation reproduced a shared-host starvation defect: `lm-loop stop`
+booted a service out of launchd but left its durable queue row and reservation
+eligible. The next control-plane wake could reserve the stopped owner again,
+even though its launchd state was `unloaded` and `pid=null`. The correction is
+test-first and minimal: stop releases the reservation and marks the queued
+owner suspended without deleting its occurrence ledger; start/restart clears the
+suspension only after launchd readback succeeds. The Ryu owner remains paused
+and manual-only. Focused admission/lifecycle/runtime suites pass (`124`, `6`,
+and `75` tests respectively), `git diff --check` is clean, and
+`./bin/lm-loop-contract` passes.
+
+Live verification after applying the suspension state to `hf-gig-paid-direct`
+showed no reservation for more than 80 seconds and `next_eligible_at=inf`.
+This is an internal admission proof only; it is not a provider send or a
+Coconala completion gate. The fix still requires an immutable production release,
+installed-SHA/argv readback, one stable-headroom natural wake, official
+four-room readback, and replay-zero before the Coconala system layer is closed.
+
+### Latest Coconala provider readback — 2026-09-23 20:35 JST
+
+The latest official readback is split by client. Ryu `18211957` has the manual
+seller message `js-talkroomMessage-222245383` (18:38 JST), which includes the
+WEB予約 heading/guidance editability, management preview, and management URL.
+Chii `18180857` remains buyer-waiting with no newer request. NPO `18223833`
+received one manual progress send after buyer events `222226516`/`222226563`:
+seller message `js-talkroomMessage-222253171` at 20:34 JST with
+`特定非営利活動法人まくとぅー_沖縄県NPOプラザ提出書類_レビュー版_v16b.zip`
+(978,061 bytes, SHA-256
+`588f05d96b28028b2472ee7dbe7933505741e0fccf8d8cbe5dbb410d77a8f615`). The
+official selected-talkroom DOM readback bound the exact URL and attachment, and
+formal delivery remained OFF. The project ledger is reconciled with
+`paid_work_browser_sent_reconciled` for this exact feedback/package pair
+(`next_action=await_buyer_feedback`, `resend=false`); the durable receipt is
+`projects/18223833/delivery/coconala-v16b-progress-receipt.json`. NPO
+`18250352` remains buyer-waiting and was not resent. The Paid producer result captured before this manual recovery was
+`observed=4/actionable=0/effect=0/readback=2/pending=1`; it does not contain the
+manual 18223833 effect. No client is replayed, and Ryu's site-specific wording
+is not copied to other rooms.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
@@ -41,9 +82,11 @@ completion criteria.
 1. **Client layer:** the requested work was performed, sent through the provider,
    and read back officially. Chii satisfies this layer for its current buyer
    event. Ryu's latest direct revision was sent through seller message
-   `js-talkroomMessage-222220999` with formal delivery OFF and read back in the
-   official talkroom; Ryu is now waiting for a genuinely newer buyer event. No
-   duplicate send is allowed for the completed cycle.
+   `js-talkroomMessage-222245383` with formal delivery OFF and read back in the
+   official talkroom; Ryu is now waiting for a genuinely newer buyer event. NPO
+   `18223833` has one buyer-visible v16b progress revision with official
+   readback, while its formal delivery and source-fact completion remain open.
+   No duplicate send is allowed for either completed cycle.
 2. **System layer:** the loop can safely do the same for the next eligible client,
    including admission, effect fencing, official readback, crash recovery, and
    replay-zero. Coconala's client layer is largely closed, but its system-layer
