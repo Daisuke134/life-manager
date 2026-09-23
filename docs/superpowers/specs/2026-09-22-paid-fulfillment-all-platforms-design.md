@@ -279,6 +279,10 @@ space is `513808 KiB`, below the `524288 KiB` producer guard. The remaining
 Coconala system gate is: recover safe headroom, run one natural wake on the
 same installed SHA with `pending=0`, then run a second no-effect replay-zero
 readback across all four rooms. No Ryu replay or formal delivery is allowed.
+Subsequent read-only host inspection recovered free space to `1555612 KiB`,
+above the guard. The loop is intentionally left paused for this reporting turn;
+the next action is one canonical start plus installed-SHA readback, followed by
+the single natural wake and replay-zero gate, with no blind retries.
 
 #### Live override — 2026-09-23T09:49:26Z
 

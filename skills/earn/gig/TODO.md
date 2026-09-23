@@ -31,6 +31,10 @@ runtime/provider readback.
   producer guard `524288 KiB`; disk cleanup passed without finding a safe closed
   allowlisted artifact. Do not lower the guard, delete unknown/protected paths,
   or restart until headroom is genuinely above the guard.
+- A later read-only `df` recovered host free space to `1555612 KiB`, above the
+  `524288 KiB` guard. The loop remains intentionally paused for this reporting
+  turn; the next execution cursor is one canonical start, installed-SHA
+  readback, natural wake, and then replay-zero—not a blind multi-retry.
 
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign
