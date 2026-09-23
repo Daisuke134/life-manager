@@ -35,6 +35,17 @@ runtime/provider readback.
   `524288 KiB` guard. The loop remains intentionally paused for this reporting
   turn; the next execution cursor is one canonical start, installed-SHA
   readback, natural wake, and then replay-zero—not a blind multi-retry.
+- The next natural wake `18d7eb621cefe660-54972` reached terminal `pass` but
+  again recorded `observed=4`, `actionable=0`, `effect=0`, `readback=2`,
+  `pending=1`; Coconala `18223833` is genuinely `WORK_REQUIRED` and was fenced
+  at `before_project_queue_mutation` with `disk_pressure`, so no artifact or
+  provider effect was attempted. Host free space fell from `1558452 KiB` at
+  admission to `506880 KiB` during the wake. The Paid evidence tree is only
+  about 54MiB; the dominant open files are the current Codex history/log DBs
+  (about 1.83GiB/578MiB), which are user/session state and must not be deleted
+  by this task. Paid is stopped again via canonical CLI. This is a host-capacity
+  blocker, not a Coconala receipt or quality pass; do not retry until durable
+  headroom remains above the guard throughout a full wake.
 
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign

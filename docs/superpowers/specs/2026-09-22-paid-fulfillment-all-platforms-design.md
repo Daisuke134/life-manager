@@ -284,6 +284,17 @@ above the guard. The loop is intentionally left paused for this reporting turn;
 the next action is one canonical start plus installed-SHA readback, followed by
 the single natural wake and replay-zero gate, with no blind retries.
 
+The following natural wake (`18d7eb621cefe660-54972`) proved the guard race:
+free space was `1558452 KiB` at start but `506880 KiB` at the item boundary.
+The run ended `pass` with `effect=0`, `readback=2`, `pending=1`; NPO
+`18223833` is `WORK_REQUIRED` and was fenced at
+`before_project_queue_mutation` before any artifact or provider effect. The
+Paid evidence tree is about 54MiB; the large open files are the current Codex
+history/log databases (about 1.83GiB/578MiB), which are not safe cleanup targets
+for this task. The loop is stopped again. This is a host-capacity blocker, not
+a provider receipt or quality result; resume only after headroom remains above
+the guard for the complete wake.
+
 #### Live override — 2026-09-23T09:49:26Z
 
 The fresh owner-scoped official Coconala readback of Ryu room `18211957` found

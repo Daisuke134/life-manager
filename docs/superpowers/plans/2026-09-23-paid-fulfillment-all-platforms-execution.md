@@ -65,6 +65,14 @@ producer result remains `pending=1` for NPO `18223833` because host free space
 was below the `524288 KiB` guard. The loop is paused until safe headroom is
 recovered; the natural `pending=0` and replay-zero bullets remain open.
 
+**Recheck (2026-09-23T10:10Z):** run `18d7eb621cefe660-54972` also ended
+terminal `pass` with `effect=0`, but free space dropped from `1558452 KiB` at
+admission to `506880 KiB` before project queue mutation. NPO `18223833` stayed
+`pending` with no artifact/provider effect. The Paid loop is stopped again;
+this wake does not satisfy the gate. The next safe action is one start only
+after headroom remains stable for the whole wake, then official readback and
+replay-zero.
+
 ### Task 3: CrowdWorks completion and Paid canary
 
 **Files:**
