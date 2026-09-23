@@ -159,6 +159,13 @@ completed rows are replay-zero; `63568785` remains the sole pending row with
 Lancers Paid-only official read returned `logged_in=true`,
 `source_complete=true`, zero project/monthly/storefront contract candidates,
 zero incoming offers, and complete finance readback with a 0 JPY balance.
+An owner-scoped read-only DOM probe of historical Lancers project details
+`5601892`, `5601332`, and `5586218` found only the public question form POST;
+no funded-contract delivery or inspection control was present on those ended
+pages. This is evidence against copying a CrowdWorks mutation path, not proof
+that a future funded Lancers contract has the same surface. The Lancers Paid
+mutation remains deliberately fail-closed until a real funded contract detail
+provides its exact provider-native delivery route and readback fields.
 
 For completeness, the current four-room Coconala matrix is also closed against
 new work: Ryu `18211957` is the permanent manual exception with the verified
