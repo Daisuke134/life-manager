@@ -925,6 +925,29 @@ the authenticated inventory is empty.
   The next mutation cursor is the exact CrowdWorks occurrence resolver, not a
   blind retry or a platform switch that loses the pending contract state.
 
+## Runtime Checkpoint — 2026-09-23 23:00 JST
+
+- A fresh authenticated Coconala DOM readback confirms Ryu's latest buyer
+  burst (`222218678`, 11:53) is answered by seller message
+  `js-talkroomMessage-222245383` (18:38), read by the buyer at 20:46, with
+  the formal-delivery control still untouched. The direct Ryu cycle is
+  therefore complete for the current burst; no resend or formal delivery is
+  permitted without a newer buyer event.
+- The installed Coconala release `cbc9cf42309f023b20db247d60c6892e672b106b`
+  still contains `MANUAL_ONLY_TALKROOM_IDS = frozenset()`; the permanent Ryu
+  fence exists only on the pushed source branch (`d781967648` and later). The
+  current natural wake is effect-free, but this is not yet production proof of
+  the permanent exclusion. The release must not be treated as complete until
+  the fence is promoted through the normal main → immutable-release → targeted
+  apply path.
+- Current loop status is otherwise honest: Coconala and Lancers Paid wakes
+  pass with zero provider effect; CrowdWorks passes with one pending item
+  (`63568785`) whose quality gate remains `buyer_input_required`. CrowdWorks'
+  historical exact `admission_effect_unknown` row is still held; Lancers has
+  zero funded candidates; Upwork still has no registered Paid owner or
+  authenticated funded-contract inventory. No external send was added by this
+  checkpoint.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
