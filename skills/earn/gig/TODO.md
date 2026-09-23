@@ -5,6 +5,251 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
+### Runtime checkpoint — 2026-09-24 00:24 JST
+
+- [x] Coconala, CrowdWorks, and Lancers Paid owners are
+  `scheduled`/`loaded-idle` with `last_exit=0`; no restart or duplicate provider
+  effect was issued.
+- [ ] CrowdWorks host-capacity `admission_effect_unknown` fence remains open.
+  The durable snapshot is unchanged at `observed=5`, `effect=0`, `readback=4`,
+  `failed=0`, `pending=1`; `63568785` still waits for admissible buyer material.
+- [ ] Advance the working cursor to Lancers production promotion/readiness while
+  preserving the CrowdWorks wait/fence. Upwork remains blocked on approved
+  provider authorization, fresh authentication, and a funded contract.
+
+### Lancers checkpoint — 2026-09-24 00:31 JST
+
+- [x] Lancers Paid natural wake returned `observed=0`, `effect=0`,
+  `readback=0`, `failed=0`, `pending=0`, `last_exit=0`; no funded contract
+  exists and no external effect was attempted.
+- [x] Focused Lancers Paid adapter/owner tests: `14 passed`; contract and doctor
+  gates remain PASS.
+- [ ] Keep production on the current immutable release until the all-platform
+  main-release gate is met; then run one Lancers canary when a funded contract
+  exists.
+- [ ] For the first funded Lancers ContractReceipt, derive the official formal
+  delivery surface from the live contract DOM/API, add a failing test first,
+  implement one idempotent delivery/readback path, and verify replay-zero.
+
+### Runtime checkpoint — 2026-09-24 00:37
+
+- [x] Coconala and Lancers Paid loops are still `scheduled`/`loaded-idle` with
+  `last_exit=0`; no restart or duplicate send was issued. Lancers has no funded
+  contract, so zero effect is expected.
+- [ ] CrowdWorks remains scheduled but the latest wake is blocked before child
+  execution by `resource_capacity_busy` (`last_exit=75`). Its provider snapshot
+  remains `observed=5/effect=0/readback=4/failed=0/pending=1`, with `63568785`
+  waiting for admissible buyer material. Keep the historical unknown-effect
+  fence; the exact old zero-effect marker is not enough to resolve a non-claimed
+  current admission state.
+- [ ] Continue with Lancers readiness and the first funded ContractReceipt;
+  do not claim cross-platform completion or replay any client from this state.
+
+### Runtime checkpoint — 2026-09-24 00:38
+
+- [x] Coconala remains `scheduled`/`loaded-idle`/`pass` with `last_exit=0`.
+- [ ] Lancers remains enabled and scheduled, but its newest wake is waiting at
+  `resource_fifo_wait` (`last_exit=75`); this is a retryable shared-capacity
+  wait with no provider effect, not a client failure.
+- [ ] CrowdWorks returned to `scheduled`/`loaded-idle`/`pass`; retain its
+  historical unknown-effect fence until a canonical resolver state is present.
+
+### Runtime checkpoint — 2026-09-24 00:43
+
+- [x] Ryu `18211957` remains seller-last under the durable manual-owner record;
+  latest known official seller receipt is `js-talkroomMessage-222245383` and
+  formal delivery is off. Live read-only probes did not mutate anything but
+  returned `dm_thread_unavailable` and then `no close frame received or sent`;
+  keep the existing receipt and do not resend.
+- [x] Branch source gates are green: Paid boundary `265 passed`, Coconala
+  adapter/readback/release/disk/cadence `62 passed`, `lm-loop-contract`, and
+  `lm-loop doctor`.
+- [ ] Production promotion and all-platform canary remain open; source tests
+  do not count as provider completion. Continue to the next platform cursor
+  without replaying any seller-last Coconala room.
+
+### Runtime checkpoint — 2026-09-24 00:47
+
+- [x] Reconciled CrowdWorks occurrence
+  `18d7f38ac37d59b0-85238` with the exact `completed/effect=0` marker;
+  canonical pre-effect resolution returned `resolved=true`, with no provider
+  mutation or replay.
+- [ ] Keep historical occurrence `18d62cf32eb0c678-48194` fenced: no exact
+  no-effect marker or current official receipt exists. The loop remains
+  scheduled; its latest wake is retryable `resource_fifo_wait` and the durable
+  snapshot is `observed=5/effect=0/readback=4/failed=0/pending=1`.
+- [ ] Work `63568785` still needs buyer-provided material before formal
+  delivery. Do not clear the owner-wide fence or resend any completed item.
+
+### Runtime checkpoint — 2026-09-24 00:48
+
+- [x] CrowdWorks Paid adapter/owner/reconciliation suites: `131 passed`; no
+  external mutation was performed. Four contracts retain official readback;
+  `63568785` remains buyer-material wait.
+- [x] Lancers Paid adapter/owner suites: `14 passed`; current natural snapshot
+  is zero funded contracts and zero effect/readback. Formal delivery remains
+  gated on the first real ContractReceipt.
+- [ ] Production promotion and funded live canaries remain open. Tests are
+  source evidence only and must not be reported as provider sends.
+
+### Runtime checkpoint — 2026-09-24 00:50
+
+- [x] Upwork authorization/delivery/transport/offer-gate suite: `27 passed`.
+  Current live gate remains `API_INELIGIBLE` with browser/API automation
+  disabled, CDP `9233` disabled, and zero funded contracts; no owner or send
+  was created.
+- [ ] Remaining end-state gates are explicit: Coconala production promotion;
+  the one historical CrowdWorks official reconciliation; first funded Lancers
+  formal-delivery canary; and approved Upwork authorization plus a funded
+  contract. Keep all loops fail-closed until their provider evidence exists.
+
+### Runtime checkpoint — 2026-09-24 00:52
+
+- [x] Rechecked the live Paid owners without restarting them: Coconala and
+  Lancers are `loaded-running`/`pass`; Lancers' authoritative inventory is
+  `source_complete=true` with `contract_candidate_count=0`, so no provider
+  send is admissible and no effect was fabricated.
+- [x] Advanced the working cursor to Lancers. The next funded
+  `ContractReceipt` must be read from its official detail surface before any
+  formal-delivery mutation; the current adapter remains fail-closed until that
+  surface is observed.
+- [ ] CrowdWorks remains in its existing FIFO/effect-unknown fence; preserve
+  the pending `63568785` buyer-material wait and do not force a wake or replay.
+
+### Runtime checkpoint — 2026-09-24 01:02
+
+- [x] Coconala Paid had been failing closed on `disk_headroom_low` while
+  writing its evidence receipt. Five validated, non-Git temporary directories
+  (no open handles) were removed without touching worktrees, provider state, or
+  immutable JSONL. Available Data-volume space returned to about `980MiB`.
+- [x] A targeted lifecycle restart then produced a natural Coconala result of
+  `observed=4`, `effect=0`, `readback=3`, `failed=0`; Ryu remains
+  `reserved_for_owner` and the other three rooms remain `awaiting_buyer`.
+- [x] Lancers occurrence `18d7f457f1b9b080-94365` had an exact
+  `completed/effect=0` marker. The canonical resolver released it and the
+  admission readback now shows `effect_unknown=0`; no provider mutation was
+  performed.
+- [ ] CrowdWorks still has only the historical occurrence
+  `18d62cf32eb0c678-48194` without an exact proof. Keep it fenced and do not
+  clear it broadly.
+
+### Runtime checkpoint — 2026-09-24 01:07
+
+- [x] The shared finite-run cap temporarily blocked Paid wakes after the
+  headroom fix. One `effect_class=none` maintenance owner,
+  `verify-loops-audit`, was suspended only long enough to release its reserved
+  slot; the Coconala Paid owner then completed a natural wake and the audit
+  owner was restarted immediately afterward.
+- [x] Post-retry Coconala status is `loaded-idle`/`pass`, with the authoritative
+  result still `observed=4`, `effect=0`, `readback=3`, `failed=0`, and no Ryu
+  or other client mutation.
+- [x] CrowdWorks also completed a natural wake with
+  `observed=5`, `effect=0`, `readback=4`, `pending=1`; only `63568785` remains
+  buyer-material-gated. Its historical unknown occurrence remains the sole
+  unresolved admission fence.
+- [ ] Do not repeat the maintenance suspension unless a fresh capacity probe
+  shows the same full-reservation condition; allow the scheduled Paid owners
+  to wake naturally now.
+
+### Source checkpoint — 2026-09-24 01:15
+
+- [x] Fixed the Lancers Paid queue-starvation source: the registry now sets
+  `coalesce_queued_wakes=true` and `coalesce_reserved_wakes=true`, matching the
+  Coconala/CrowdWorks Paid lanes. Added a regression test and regenerated the
+  launchd fixture; `154 passed, 143 subtests`, `lm-loop-contract` PASS.
+- [ ] The fix is pushed on the dedicated branch at `5193ff0171`; production
+  remains on its immutable main-derived release until the cross-platform gate,
+  so do not report the source fix as a live provider canary yet.
+
+### Runtime checkpoint — 2026-09-24 01:16
+
+- [x] Re-read the live fleet: Coconala, CrowdWorks, and Lancers Paid owners are
+  `scheduled`/`loaded-idle`/`pass`; no restart or provider mutation was needed.
+- [x] Advanced the active cursor to Lancers' first real funded contract. The
+  authenticated inventory is source-complete but currently has zero funded
+  candidates, so no Lancers submission is admissible.
+- [ ] When a funded Lancers `ContractReceipt` appears, read the official detail
+  and completion surface, then implement/verify one quality-bound answer and
+  formal-delivery effect with official readback and replay-zero. Do not guess an
+  endpoint or manufacture a contract.
+
+### Runtime checkpoint — 2026-09-24 01:26
+
+- [x] Shared admission/release-reconciler recovery completed naturally; CrowdWorks
+  and Lancers returned to `scheduled`/`loaded-idle`/`pass` without restart.
+- [x] CrowdWorks readback remains `observed=5/effect=0/readback=4/failed=0/pending=1`;
+  `63568785` is still buyer-material-gated and no replay was issued.
+- [x] Lancers readback remains `observed=0/effect=0/readback=0/failed=0/pending=0`;
+  official inventory is complete but has zero funded contracts, so the next
+  mutation cursor remains the first real funded contract.
+
+### Runtime checkpoint — 2026-09-24 01:29
+
+- [x] Coconala owner-scoped wake completed after disk recovery with
+  `observed=4/actionable=0/effect=0/readback=3/failed=0/pending=0`; no provider
+  effect or duplicate send occurred. Ryu remains manual-only and the other
+  three rooms are buyer-waiting.
+- [x] Removed two exact temporary Git clones only after proving clean state,
+  origin/main ancestry, and no open handles. Data-volume free space is about
+  `1.3GiB`, and the follow-up Coconala evidence write succeeded without
+  `disk_headroom_low`.
+- [ ] Keep the next cursor on the first new admissible buyer event or funded
+  contract; do not replay existing Coconala/CrowdWorks/Lancers work.
+
+### Source checkpoint — 2026-09-24 01:32
+
+- [x] Fixed CrowdWorks Paid wake accumulation in source: registry now coalesces
+  queued and reserved wakes, with a regression test and regenerated launchd
+  fixture. Verification: `155 passed, 143 subtests`, `lm-loop-contract PASS`.
+- [ ] Promote this source fix only through the main-derived immutable release
+  gate; the branch test result must not be reported as a live provider canary.
+
+### Superseding cross-platform readback — 2026-09-24
+
+- [x] **Ryu manual exception:** direct seller message
+  `js-talkroomMessage-222245383` is officially read back; the durable owner
+  record remains `mode=manual`, `owner_id=dais`, `permanent_manual_exception`.
+  The latest Coconala Paid result is `observed=4`, `effect=0`,
+  `readback=3`, `pending=0`; Ryu is `reserved_for_owner`,
+  `send_performed=false`, and `formal_delivery_checkbox=false`.
+- [x] **Coconala runtime:** `hf-gig-paid-direct` is
+  `scheduled`/`loaded-idle`/`pass`; no provider effect was created by the
+  natural wake. The source branch still carries the immutable Ryu fence and
+  must be promoted only through the all-platform release gate.
+- [x] **CrowdWorks runtime:** `crowdworks-revenue-paid` is
+  `scheduled`/`loaded-idle`/`pass`; latest result is
+  `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`.
+  Contract `63568785` is the sole pending item and remains
+  `buyer_task_detail_required`; its prior answer receipt is durable and
+  replay-zero. The historical unknown-effect fence remains held.
+- [x] **Lancers runtime/source:** `lancers-revenue-paid` is
+  `scheduled`/`loaded-idle`/`pass` with zero funded contracts. The branch
+  implementation composes quality-checked answers, binds a SHA-256 quality
+  digest at the provider boundary, and prevents replay; fresh verification is
+  `427 passed, 17 subtests`, but production promotion and a funded canary are
+  still open.
+- [ ] **Upwork:** no Paid owner or live CDP, OAuth2 credential is absent,
+  browser special approval expired on `2026-09-22`, all current auth receipts
+  are denied, and no funded contract is present. Do not register an automated
+  owner or fabricate a send until written/approved provider authorization,
+  fresh authentication, and a funded contract exist.
+
+### Fresh natural wake and source verification — 2026-09-24 00:12 JST
+
+- [x] Ryu `18211957` remains manual-only with official seller readback
+  `js-talkroomMessage-222245383`; no duplicate or formal-delivery action.
+- [x] CrowdWorks natural wake passed (`observed=5`, `effect=0`, `readback=4`,
+  `pending=1`). The sole pending work `63568785` is waiting for admissible
+  buyer-provided material; its existing answer receipt is replay-zero.
+- [x] Lancers natural wake passed with zero funded contracts. Source verification
+  passed `427 tests, 17 subtests`, `lm-loop-contract`, and `lm-loop doctor`.
+- [ ] Lancers production promotion and funded canary remain open; production still
+  runs the prior immutable release.
+- [ ] Upwork owner readiness remains gated on an approved design, provider
+  authorization, fresh authentication, and a funded contract. The current official
+  help center also confirms that unapproved browser automation has no exception and
+  can trigger restrictions; do not re-enable the retired UI/browser owners.
+
 ### Runtime gate correction — 2026-09-23
 
 - [x] Reproduce and fix the stop/reservation starvation bug: `lm-loop stop` now
