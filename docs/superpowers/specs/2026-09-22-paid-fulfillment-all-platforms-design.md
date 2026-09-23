@@ -116,6 +116,24 @@ completion criteria.
 - CrowdWorks returned to `scheduled`/`loaded-idle`/`pass`, while its historical
   unknown-effect fence remains held as recorded above.
 
+### Runtime checkpoint — 2026-09-24 00:43 JST
+
+- Ryu `18211957` remains protected by the durable manual-owner record. The
+  latest known official seller receipt is still
+  `js-talkroomMessage-222245383` (seller-last, no formal delivery). Two
+  read-only live probes were attempted without any send: the direct-message
+  route returned `dm_thread_unavailable`, and the official talkroom route
+  ended with `no close frame received or sent`. These probe failures do not
+  supersede the existing official readback or authorize a resend.
+- The branch's permanent-Ryu fence and non-Ryu admission boundary are green:
+  `test_paid_remote_wait.py` is `265 passed`; Coconala adapter/readback,
+  release, disk-guard, and cadence tests are `62 passed`; `lm-loop-contract`
+  and `lm-loop doctor` pass. Production remains on the main-derived `cbc9...`
+  release until the all-platform release gate; no claim of Coconala system
+  completion is made from source tests alone.
+- The next executable cursor remains the cross-platform release/canary gate;
+  no Coconala client is replayed while the official room is seller-last.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct

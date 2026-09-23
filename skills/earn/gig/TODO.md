@@ -54,6 +54,20 @@ runtime/provider readback.
 - [ ] CrowdWorks returned to `scheduled`/`loaded-idle`/`pass`; retain its
   historical unknown-effect fence until a canonical resolver state is present.
 
+### Runtime checkpoint — 2026-09-24 00:43
+
+- [x] Ryu `18211957` remains seller-last under the durable manual-owner record;
+  latest known official seller receipt is `js-talkroomMessage-222245383` and
+  formal delivery is off. Live read-only probes did not mutate anything but
+  returned `dm_thread_unavailable` and then `no close frame received or sent`;
+  keep the existing receipt and do not resend.
+- [x] Branch source gates are green: Paid boundary `265 passed`, Coconala
+  adapter/readback/release/disk/cadence `62 passed`, `lm-loop-contract`, and
+  `lm-loop doctor`.
+- [ ] Production promotion and all-platform canary remain open; source tests
+  do not count as provider completion. Continue to the next platform cursor
+  without replaying any seller-last Coconala room.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
