@@ -1061,6 +1061,19 @@ work item and leave a sibling trace unchanged.
 
 ### 2. Coconala vertical revenue proof
 
+**Current cursor (2026-09-23):** The cross-provider SSOT is
+`docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md`.
+Ryu `18211957` is a permanent manual exception and the latest direct revision
+was sent once as seller message `js-talkroomMessage-222220999` with formal
+delivery OFF; official readback is complete and Ryu is buyer-waiting. Do not
+reopen or resend Ryu from the historical entries below. Chii `18180857` and NPO
+rooms `18223833`/`18250352` are also buyer-waiting according to their latest
+official readbacks; the two NPO packages have unresolved buyer facts, so no
+additional package may be sent. `hf-gig-paid-direct` is intentionally stopped
+(`launchd_state=unloaded`, `pid=null`) while its repaired source remains in the
+promotion gate. The older Ryu/Kokoro paragraphs in this section are retained as
+evidence history only, not as current work instructions.
+
 - [ ] During the corrected shared-runtime canary, let the current Paid, Apply and Storefront wakes finish and
   persist terminal receipts while unrelated revenue/maintenance owners run; Reply already has one natural
   `pass`. Process start alone is not a client effect.
