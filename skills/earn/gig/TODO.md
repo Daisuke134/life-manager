@@ -2076,7 +2076,8 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [x] Manually deployed `manual-complete-v700`: `rankingByCategory` for all
   six concepts, admin selectors for 総合＋各コンセプト, and public filtering
   for each configured concept ranking. Exact FTPS evidence:
-  `/Users/anicca/gig/projects/18211957/delivery/current-cycle-v700-concept-ranking-deploy-readback.json`.
+  The exact FTPS readback is recorded in the external delivery evidence for
+  `manual-complete-v700`.
 - [x] Manually deployed `manual-complete-v701`: paid options now render as
   one aligned row per option with a fixed name/status grid. Public readback
   loaded `styles.css?v=manual-complete-v701` and verified 5 rows.
