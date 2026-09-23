@@ -203,10 +203,10 @@ def test_active_clients_finish_before_absent_room_maintenance(tmp_path, monkeypa
 def test_write_item_gate_returns_no_effect_pending_checkpoint(tmp_path, monkeypatch):
     paid = _load_paid()
     item_path = tmp_path / "item-room.json"
-    item_path.write_text(json.dumps({"talkroom_id": "room", "_paid_mode": "remote"}), encoding="utf-8")
+    item_path.write_text(json.dumps({"talkroom_id": "123", "_paid_mode": "remote"}), encoding="utf-8")
     output = tmp_path / "effect.json"
-    args = SimpleNamespace()
-    monkeypatch.setenv("CLOAK_BROWSER_OWNER", "paid-direct-room")
+    args = SimpleNamespace(projects_root=tmp_path / "projects")
+    monkeypatch.setenv("CLOAK_BROWSER_OWNER", "paid-direct-123")
     monkeypatch.setattr(paid, "disk_headroom_ok", lambda: False)
 
     assert paid._write_one(args, item_path, output) == 0
