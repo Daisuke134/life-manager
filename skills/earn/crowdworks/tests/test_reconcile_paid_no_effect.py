@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -102,3 +103,24 @@ def test_reconcile_is_read_only_without_resolve(tmp_path, monkeypatch):
 
     assert result["resolved"] is False
     assert result["proof_type"] == "pre_effect"
+
+
+def test_exact_paid_zero_effect_run_supports_shared_paid_state_layout(tmp_path):
+    module = load()
+    owner = "mercor-revenue-paid"
+    occurrence = f"{owner}:shared-run"
+    state_root = tmp_path / "mercor"
+    marker = state_root / "shared-paid" / "runs" / (
+        hashlib.sha256(occurrence.encode()).hexdigest() + ".json"
+    )
+    write_json(marker, {
+        "version": 1,
+        "occurrence_id": occurrence,
+        "status": "completed",
+        "effect": 0,
+    })
+
+    proof = module.find_paid_no_effect_proof(state_root, owner, occurrence)
+
+    assert proof["verified"] is True
+    assert proof["occurrence_id"] == occurrence
