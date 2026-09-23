@@ -2628,8 +2628,8 @@ and the wake receipt exposes `provider_renderer_recovered`. Affiliate passes 206
 current immutable release `20260923T080252-4c6b1dc8`, which contains this merge. Its automatic
 deterministic-owner reconcile moves `affiliate-loop` from `37e1d582...` to exact `4c6b1dc8...` and
 returns it to `loaded-idle` with `admission_effect_unknown=false`; no manual restart is used.
-Production acceptance now waits for a natural Affiliate terminal and replay-zero. Verified Affiliate
-revenue remains zero.
+At that point production acceptance still required a natural Affiliate terminal and replay-zero.
+Verified Affiliate revenue remained zero.
 
 The first three natural wakes after that load prove the scheduler and fences but have not yet entered
 the business body: the first returns `resource_capacity_busy`, the second overlaps an active automatic
@@ -2640,20 +2640,39 @@ All of these occurrences have `effect_unknown=0`, no provider write starts, and 
 is a live bounded reconciler rather than a stale lock. The next acceptance cursor is therefore natural
 FIFO drain and an admitted Affiliate business terminal, not a manual kick or inferred queue clear.
 
+That FIFO cursor has now drained naturally. Capafy sequence 128244 completed first, then Affiliate
+received its official reservation and outer run `18d7c98af8b83c78-37894` executed the business child
+from exact immutable release `4c6b1dc8...`. The outer run reached terminal `pass`/exit 0, exact
+occurrence `affiliate-loop:18d60900a9c8a9c8-39437` was released at sequence 21881 with
+`effect_unknown=0`, and the owner returned to `loaded-idle` without a manual restart. The resulting
+business receipt reports `READY_FOR_PUBLICATION`, authenticated provider and service state, verified
+PartnerStack network state, verified and deduplicated placement links, `ALREADY_DECIDED` acquisition,
+`READY` funnel decision, clear quarantine and `provider_renderer_recovered=false`. The false recovery
+flag is correct for this healthy-path acceptance: the new renderer recovery remained available but was
+not needed. This closes the natural-terminal gate for the renderer repair.
+
+The same run exposes the next concrete Affiliate failure instead of hiding it behind exit 0. The
+revenue cycle fails reproducibly at stage `links` with `PROVIDER_SCHEMA_ERROR`, failure class
+`CONTRACT`, `retry_state=NOT_RETRYABLE`, and source artifact SHA-256
+`91243bc9108d158072ecfb185d737e1b1ad72138249cb167dce0069b03d2a37c`. Provider authentication and
+link verification already pass, so another blind retry cannot repair this boundary. The immediate
+cursor is to identify the exact report-schema mismatch, add a regression test, make the smallest
+adapter correction, ship it through a new main-derived immutable release, and require a natural
+same-SHA replay-zero. The money receipt remains truthful: 1,155 exact impressions, zero owned entries,
+zero CTA clicks, eight historical cumulative provider clicks, zero transactions and zero verified
+commission. Affiliate is requeued for its next natural wake; queueing is not revenue completion.
+
 The remaining order is fixed as follows:
 
-1. Finish Affiliate without manual restart: PartnerStack authentication/link readback, exact occurrence
-   reconciliation, runner-pin recovery and acquisition/funnel decision execution are complete. The
-   next blocker is the page-renderer liveness boundary; its bounded exact-target self-heal is merged as
-   `296f07a4...`; immutable current `20260923T080252-4c6b1dc8` contains it and Affiliate is automatically
-   loaded-idle on that exact SHA. New-SHA natural wakes have progressed from capacity/control deferral
-   to exact FIFO sequence 128304 behind Capafy 128244, with `effect_unknown=0`. Let that queue drain
-   naturally; require the first admitted wake to report authenticated provider/service/network state,
-   exact-link dedupe, no
-   `RUNNER_PIN_REJECTED`, `effect_unknown=0` and a truthful renderer-recovery field. Require the next
-   natural replay-zero. Then continue with unavailable owned-visit analytics, transient Impact
-   observation, publication timeout/quarantine and attributable conversion/payment receipts. An
-   existing public page, impressions or process `exit 0` is not revenue completion.
+1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
+   reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
+   drain and the first admitted same-SHA natural terminal are complete. Fix the now-isolated
+   `revenue_cli links` provider-schema contract failure with a failing regression test and the smallest
+   compatible adapter change; do not retry a `NOT_RETRYABLE` contract failure unchanged. Ship the fix
+   from main as an immutable release and require a natural terminal plus exact-link/no-new-effect
+   replay-zero. Then continue unavailable owned-visit analytics, transient Impact observation,
+   publication timeout/quarantine and attributable conversion/payment receipts. An existing public
+   page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
