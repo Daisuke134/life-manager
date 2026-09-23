@@ -2993,6 +2993,34 @@ or provider session is part of this reorder.
    owned-visit, CTA, attributable conversion and payment experiments without blocking another loop.
 3. Repair Connector from the latest typed `wake_boundary_failed` evidence, then prove one natural
    registration/readback and replay-zero without a manual restart.
+
+   The failure boundary is now narrowed below the aggregate circuit status. The latest admitted owner
+   event is still `entrypoint_exit_1`; `connector-native/heartbeat.json` ends at `worker_failed`, and the
+   action history repeatedly records `provider=browser / method=browser_open / result=failed /
+   safe_reason=browser_open_failed`. Telegram wake reporting succeeds, so notification delivery is not
+   the failed component. A 2026-09-23 23:26 JST read-only socket and HTTP probe finds two different
+   listeners on port 9222: the managed Cloak daily-driver Chromium is bound on `[::1]:9222`, while a
+   separate ordinary Google Chrome process owns `127.0.0.1:9222`. Consequently
+   `http://127.0.0.1:9222/json/version` returns HTTP 404 with an empty body. The valid CDP response on
+   port 9228 belongs to the CrowdWorks Paid browser owner and must not be borrowed, restarted or
+   repurposed by this workstream.
+
+   The shared guard currently implements `alive()` as `curl -s .../json/version` without `--fail`, HTTP
+   status validation, JSON validation or port-owner validation, so the 404 exits zero and is reported as
+   `ALIVE`. The Connector target controller then hard-codes both its HTTP endpoint and WebSocket origin to
+   `127.0.0.1:9222`; `connectOverCDP` therefore reaches the wrong IPv4 listener and produces the observed
+   fast browser-open failure. This is a shared browser-foundation false-positive, not a Calendar,
+   registration or Telegram defect.
+
+   After the Mobile canary and replay-zero gate, add the smallest local regression first: a 404 or a
+   well-formed CDP response from the wrong registered owner must fail health with a typed port-owner/CDP
+   mismatch instead of returning `ALIVE`. Make the guard and Connector consume the same validated endpoint
+   and authority, preserve the single canonical browser owner, and do not route Connector through any Paid
+   provider session. Merge only after focused guard/controller tests and the shared browser/runtime suites
+   pass. Let the natural release reconciler load the main-derived immutable SHA; acceptance then requires a
+   natural Connector wake, a Calendar/provider registration or truthful no-op receipt, exact official
+   readback, and a second same-SHA replay with zero duplicate effect. Do not clear the circuit or repeatedly
+   kick the owner before that evidence exists.
 4. Continue the remaining non-Paid rows in the Fourteen-Loop Remediation Matrix one owner at a time.
    The separate Paid owner retains exclusive control of Coconala, CrowdWorks, Lancers and Upwork Paid
    fulfillment; this workstream never edits or restarts that state.
