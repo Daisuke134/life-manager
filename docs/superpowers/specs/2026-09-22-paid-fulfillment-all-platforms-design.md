@@ -53,7 +53,10 @@ LINE delivery or the five lesson/form inputs; the seller has already asked the
 buyer once to provide those exact materials in CrowdWorks. Therefore the next
 effect is not authorized: do not repeat the message, answer a guessed form, or
 press formal delivery. The remaining CrowdWorks system gate is to reconcile
-the occurrence-bound `effect_unknown` fences before any Paid restart.
+the occurrence-bound `effect_unknown` fences before any Paid restart. A current
+Paid attempt ended at `2026-09-23T12:05Z` with `ENOSPC`/admission-DB-lock
+errors, provider effect `0`, and no client send; the fence therefore remains
+unchanged after allowlisted cleanup restored about `1.2GiB` free space.
 
 ### Latest Coconala provider readback — 2026-09-23 20:35 JST
 

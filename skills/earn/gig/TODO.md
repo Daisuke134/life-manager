@@ -49,6 +49,11 @@ runtime/provider readback.
   readback before any restart or retry. `crowdworks-revenue-browser` and
   `crowdworks-revenue-reply` are separate owners and are not proof that Paid is
   clear.
+- A CrowdWorks Paid run observed at `2026-09-23T12:05Z` ended with exit 1 after
+  `ENOSPC`/admission-DB-lock noise; its provider effect remained `0` and no
+  client send was read back. Cleanup restored about `1.2GiB` free space, but the
+  unresolved effect fence is intentionally unchanged, so no retry or restart is
+  allowed until an occurrence-bound no-dispatch proof is obtained.
 - A fresh official CrowdWorks inventory at `2026-09-23T11:52:18Z` returned five
   funded/active IDs: `63712784`, `63659463`, `63657015`, and `63570481` are
   `delivered`; `63568785` is `funded`. The `63568785` detail readback at
