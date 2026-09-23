@@ -3,7 +3,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const { resolveMobileAppLoop } = require("./mobile-app-command.js");
 
 const root = path.resolve(__dirname, "../../..");
@@ -61,6 +63,45 @@ test("the shared mobile wrapper is host portable and uses the repository timeout
   assert.match(wrapper, /LIFE_MANAGER_MOBILE_PRODUCT_ORIGIN/);
   assert.match(wrapper, /LIFE_MANAGER_MOBILE_PRODUCT_WORKSPACE_REL/);
   assert.doesNotMatch(wrapper, /\/opt\/homebrew|\/Users\/|openclaw|hermes|profitable-claude/iu);
+});
+
+test("the shared mobile wrapper reconciles one exact prior occurrence before the runner", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lm-mobile-wrapper-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const calls = path.join(directory, "python-calls.txt");
+  const python = path.join(directory, "python");
+  const envFile = path.join(directory, "marketing.env");
+  fs.writeFileSync(
+    python,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexit 0\n`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(
+    envFile,
+    `LM_POSTIZ_API_KEY=test-token\nLM_DATA_DIR=${directory}/data\nLM_RUNTIME_TENANT_ID=dais-local\n`,
+    { mode: 0o600 },
+  );
+
+  const result = spawnSync(
+    path.join(root, "apps/life-manager/scripts/mobile-app"),
+    ["life-manager-honne-ja"],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+        LIFE_MANAGER_PYTHON: python,
+      },
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const invoked = fs.readFileSync(calls, "utf8").trim().split("\n");
+  assert.equal(invoked.length, 2);
+  assert.match(invoked[0], /mobile-postiz-provider-reconcile\.py --auto-owner life-manager-honne-ja/);
+  assert.match(invoked[0], /--resolve/);
+  assert.match(invoked[1], /runtime\/run-with-timeout\.py/);
 });
 
 test("unknown loop ids fail closed", () => {

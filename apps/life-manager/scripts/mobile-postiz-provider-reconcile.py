@@ -377,18 +377,104 @@ def reconcile_provider_effect(
     return {"status": "resolved", **latest}
 
 
+def _ledger_for_identity(identity: dict[str, Any], data_dir: Path, tenant_id: str) -> Path | None:
+    product_id = str(identity.get("product_id", ""))
+    if (not ID.fullmatch(tenant_id) or not ID.fullmatch(product_id)
+            or tenant_id in {".", ".."} or product_id in {".", ".."}):
+        return None
+    publication = (
+        "video-publication"
+        if identity.get("video_sha256") is not None
+        else "native-carousel-publication"
+    )
+    return (
+        data_dir / "tenants" / urllib.parse.quote(tenant_id, safe="")
+        / "marketing" / publication / urllib.parse.quote(product_id, safe="")
+        / "distribution.jsonl"
+    )
+
+
+def reconcile_pending_owner(
+    *, owner_id: str, identity_dir: Path, data_dir: Path, tenant_id: str,
+    admission_db: Path, api_key: str, apply: bool,
+) -> dict[str, Any]:
+    """Resolve at most one exact historical Postiz occurrence for this owner."""
+    if not ID.fullmatch(owner_id):
+        return _inconclusive(owner_id, "", "owner_id_invalid")
+    try:
+        candidates = sorted(identity_dir.iterdir(), key=lambda item: item.name)[:256]
+    except OSError:
+        candidates = []
+    seen: set[str] = set()
+    inspected = 0
+    for sidecar in candidates:
+        rows = _safe_jsonl(sidecar)
+        if rows is None:
+            continue
+        for identity in rows:
+            occurrence_id = str(identity.get("occurrence_id", ""))
+            if occurrence_id in seen or not _valid_identity(identity, owner_id, occurrence_id):
+                continue
+            seen.add(occurrence_id)
+            state, effect_unknown = _admission_state(admission_db, owner_id, occurrence_id)
+            if state not in {"claimed", "released"} or effect_unknown != 1:
+                continue
+            inspected += 1
+            ledger = _ledger_for_identity(identity, data_dir, tenant_id)
+            if ledger is None or _local_receipt(identity, ledger) is None:
+                continue
+            result = reconcile_provider_effect(
+                identity, ledger, owner_id, occurrence_id,
+                state=state, effect_unknown=effect_unknown, api_key=api_key,
+                apply=apply, admission_db=admission_db,
+            )
+            return {**result, "inspected": inspected}
+    return {
+        "status": "no_match",
+        "owner_id": owner_id,
+        "reason": "exact_pending_receipt_unavailable",
+        "inspected": inspected,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--identity", type=Path, required=True)
-    parser.add_argument("--ledger", type=Path, required=True)
-    parser.add_argument("--owner-id", required=True)
-    parser.add_argument("--occurrence-id", required=True)
+    parser.add_argument("--identity", type=Path)
+    parser.add_argument("--ledger", type=Path)
+    parser.add_argument("--owner-id")
+    parser.add_argument("--occurrence-id")
+    parser.add_argument("--auto-owner")
+    parser.add_argument(
+        "--identity-dir", type=Path,
+        default=Path.home() / ".local/state/life-manager/effect-identities",
+    )
+    parser.add_argument(
+        "--data-dir", type=Path,
+        default=Path(os.environ.get("LM_DATA_DIR", Path.home() / ".local/state/life-manager")),
+    )
+    parser.add_argument("--tenant-id", default=os.environ.get("LM_RUNTIME_TENANT_ID", ""))
     parser.add_argument(
         "--admission-db", type=Path,
         default=Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3",
     )
     parser.add_argument("--resolve", action="store_true", help="clear only after the fresh official proof")
     args = parser.parse_args(argv)
+    if args.auto_owner:
+        if any((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
+            parser.error("--auto-owner cannot be combined with exact reconciliation arguments")
+        result = reconcile_pending_owner(
+            owner_id=args.auto_owner,
+            identity_dir=args.identity_dir,
+            data_dir=args.data_dir,
+            tenant_id=args.tenant_id,
+            admission_db=args.admission_db,
+            api_key=os.environ.get("POSTIZ_API_KEY", ""),
+            apply=args.resolve,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return 0
+    if not all((args.identity, args.ledger, args.owner_id, args.occurrence_id)):
+        parser.error("exact reconciliation requires --identity, --ledger, --owner-id and --occurrence-id")
     identity = read_identity(args.identity, args.owner_id, args.occurrence_id)
     if identity is None:
         result = _inconclusive(args.owner_id, args.occurrence_id, "identity_missing_or_invalid")
