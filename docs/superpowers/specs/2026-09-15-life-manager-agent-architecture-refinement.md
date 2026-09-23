@@ -2672,24 +2672,26 @@ the rolling report spans two month buckets. The old adapter incorrectly required
 therefore classified the valid report as `ATTRIBUTION_AMBIGUOUS`. A changed rolling window also makes
 a previous total non-comparable; it must never be converted into a negative or zero business delta.
 
-Candidate `1e955b9d41` on branch `fix/affiliate-durable-auth-revenue-20260923` implements the smallest
-durable correction. It refreshes the team-scoped token once, never returns or persists the private
-membership target, aggregates only distinct month buckets for one exact link, rejects different links,
-duplicate months and unexpected grouping, and records an unknown delta when the report window changes.
-Affiliate tests pass 211/211, shared runtime tests pass 511/511, adapter-registry tests pass 15/15,
-the 14-loop contract and installed doctor pass, `py_compile`/`diff --check` pass, and a fresh read-only
-review reports no blocking findings. This is candidate evidence only. Affiliate remains incomplete
-until the candidate is merged, cut as a main-derived immutable release, loaded automatically, and a
-natural same-SHA terminal plus replay-zero prove the official report path without a new effect fence.
+Candidate `1e955b9d41` implements the smallest durable correction. It refreshes the team-scoped token
+once, never returns or persists the private membership target, aggregates only distinct month buckets
+for one exact link, rejects different links, duplicate months and unexpected grouping, and records an
+unknown delta when the report window changes. Affiliate tests pass 211/211, shared runtime tests pass
+511/511, adapter-registry tests pass 15/15, the 14-loop contract and installed doctor pass,
+`py_compile`/`diff --check` pass, and a fresh read-only review reports no blocking findings. PR #5791
+passes every check and merges as `3e5ae276c27ce0f115f9683c3a5b12ab42d0b22d`. The existing release
+reconciler naturally cuts and selects immutable release `20260923T095630-3e5ae276`, then loads the
+Affiliate owner at exact installed SHA with a new install event and no effect fence. No manual apply or
+restart is used. Affiliate remains incomplete until a natural same-SHA terminal plus replay-zero prove
+the official report path without a new effect fence.
 
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
    reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
    drain and the first admitted same-SHA natural terminal are complete. The isolated
-   `revenue_cli links` provider-contract candidate and local/review gates are complete at
-   `1e955b9d41`; merge it, ship it from main as an immutable release and require a natural terminal plus
-   exact-link/no-new-effect replay-zero. Then continue unavailable owned-visit analytics, transient
+   `revenue_cli links` provider-contract fix is merged and automatically loaded from immutable release
+   `20260923T095630-3e5ae276`. Require a natural terminal plus exact-link/no-new-effect replay-zero.
+   Then continue unavailable owned-visit analytics, transient
    Impact observation, publication timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
