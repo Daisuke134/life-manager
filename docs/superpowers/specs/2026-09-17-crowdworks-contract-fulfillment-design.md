@@ -87,13 +87,21 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   answered the missing customer email using the exact task facts, and the original
   form receipt was not replayed. The unresolved Paid occurrence remains fenced.
 - `63568785` remains funded at milestone `13797948` with buyer event `426855154`.
-  The linked Google Doc is an official permission-request surface, so a permission
-  request was sent once (seller message `428634040`) and verified through the
-  message API as `contract:63568785:answer:cw-63568785-permission-426855154`.
-  No artifact or formal delivery is claimed; the item waits for access or pasted
-  content. `63659463`, `63712784`, `63657015`, and `63570481` are delivered but
-  still need acceptance/settlement/payout readback; `63583795` needs acceptance,
-  settlement, and payout readback.
+  Its linked Google Doc is readable through the authenticated `gog` Drive CLI
+  (`drive get` plus `drive download --format=txt`), even though the separate Docs
+  API is disabled. The earlier permission request remains seller message
+  `428634040` and was not replayed. The Doc requires a five-day LINE/Note course;
+  one clarification requesting the five Note/form URLs or their text was sent and
+  verified as seller message `428636540` /
+  `contract:63568785:answer:cw-63568785-line-artifact-426855154-v1` at
+  `2026-09-23T05:53:27Z`. No LINE add, daily form, correct-work, or formal
+  delivery effect is claimed; wait for the buyer materials or an accessible LINE
+  session. Source commit `e289b618e1` prefers `gog`, waits for message hydration,
+  and normalizes HTML message breaks; focused CrowdWorks tests pass `121`. It is
+  pushed source-only and not yet merged, released, or applied to production.
+  `63659463`, `63712784`, `63657015`, and `63570481` are delivered but still need
+  acceptance/settlement/payout readback; `63583795` needs acceptance, settlement,
+  and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
   cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the

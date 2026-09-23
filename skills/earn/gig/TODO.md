@@ -197,12 +197,17 @@ runtime/provider readback.
    child/effect receipts, keep every uncertain effect fenced, then promote the
    immutable Paid fix and prove a natural canary/replay-zero without replaying
    `63712784`.
-4. **CrowdWorks remaining funded contracts.** Complete `63568785` through the same
-   contract-keyed flow after the buyer grants access or provides permitted document
-   content, including acceptance and payout evidence; then reconcile any newly
-   funded inventory. The
-   delivered rows `63712784`, `63659463`, `63657015`, and `63570481` still need
-   acceptance/settlement/payout readback.
+4. **CrowdWorks remaining funded contract.** `63568785` is now readable through
+   `gog drive get`/`gog drive download --format=txt`; the prior permission request
+   remains verified and was not replayed. A single buyer clarification requesting
+   the five LINE/Note materials or their text is verified as seller message
+   `428636540` (`contract:63568785:answer:cw-63568785-line-artifact-426855154-v1`).
+   Continue only after those materials or an accessible LINE session arrive; then
+   complete all five forms, verify correct work, submit formal delivery, and read
+   back inspection/acceptance/settlement/payout with replay-zero. Do not claim the
+   contract complete from the Google Doc read alone. The delivered rows `63712784`,
+   `63659463`, `63657015`, and `63570481` still need acceptance/settlement/payout
+   readback.
 5. **Lancers.** Keep the current browser/work-sync owners running; implement the
    missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
    prove one canary, then complete the funded inventory and payout receipts.

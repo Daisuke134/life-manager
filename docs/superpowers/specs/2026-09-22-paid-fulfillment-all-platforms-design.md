@@ -322,10 +322,10 @@ Fresh provider-lock read-only detail at `2026-09-23T04:00:55.856173Z` confirmed
 all five funded contracts and produced these source-level preflight decisions:
 `63712784=submit`, `63659463=form-complete-then-formal-delivery`,
 `63657015=submit`, `63570481=revision-submit`, and
-`63568785=wait_for_buyer_artifact`. These are planner outputs only: no Google
-Form POST, buyer message, or formal delivery was executed, and no provider
-receipt is claimed. The first canary remains `63712784` after the occurrence
-fence and immutable-release gates are satisfied.
+`63568785=wait_for_buyer_artifact`. These are historical planner outputs only;
+the current one-by-one effects and receipts are recorded in the live execution
+section below. The first canary remains `63712784` after the occurrence fence and
+immutable-release gates are satisfied.
 
 A fresh owner-locked detail read of canary `63712784` confirms
 `provider_state=funded`, milestone `13833587`, latest buyer event `428014314`,
@@ -388,13 +388,24 @@ history when CrowdWorks removes a submitted form URL from the live contract page
 the focused CrowdWorks suite passed `116`.
 
 Contract `63568785` remains funded at milestone `13797948` with buyer event
-`426855154`. Its linked Google Doc was read in the authenticated owner context and
-exposes an official permission-request surface, so the owner sent one access/content
-request (seller message `428634040`) and verified it via the official message API as
-`contract:63568785:answer:cw-63568785-permission-426855154`. No artifact or formal
-delivery was claimed; the next step is to wait for access or pasted content. Source
-commit `f8a57184c5` polls delayed Docs surfaces and accepts folded-thread API
-readback; the focused CrowdWorks suite passed `118`.
+`426855154`. Its linked Google Doc is readable through the authenticated Drive
+CLI (`gog drive get` + `gog drive download --format=txt`); the separate Docs API is
+not enabled, but the Drive scope is sufficient. The exported artifact was verified
+at 703 bytes (content SHA-256
+`bf162e983be991c0c7bbf19320de36c78c389e358c20fc652f6130c6b5b4138b`). The earlier
+permission request remains an immutable seller message `428634040`; it was not
+resent. Because the Doc instructs a five-day LINE/Note course with one form per day,
+the seller sent one platform clarification asking for the five Note/form URLs or
+their text: seller message `428636540`, observed through the official message API
+as `contract:63568785:answer:cw-63568785-line-artifact-426855154-v1` at
+`2026-09-23T05:53:27Z` (API body SHA-256
+`e6a0430ee6c3a6c46c679e5d523a58ec354b60d2846fb3055daf7f04c3dd6820`). No LINE
+friend-add, daily form response, correct-work verification, or formal delivery is
+claimed; the item waits for the buyer's course materials or an accessible LINE
+session. Source commit `e289b618e1` now makes the adapter prefer `gog` before
+browser Docs surfaces, wait for CrowdWorks message hydration, and normalize HTML
+`<br>` bodies for readback; the focused CrowdWorks suite passed `121`. It is
+pushed source-only and is not yet merged, released, or applied to production.
 
 ### Lancers
 
