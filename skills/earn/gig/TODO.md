@@ -1856,3 +1856,14 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   attempted.
 - [ ] Continue at the first admissible buyer-material/funded-contract event;
   the source branch still needs a funded-provider canary before promotion.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:02 JST
+
+- [x] Coconala Paid completed the deferred wake through `lm-loop` with
+  `loaded-idle`, `last_exit=0`, terminal `pass`, and no provider effect or Ryu
+  replay (`observed=4`, `readback=3`, `pending=0`).
+- [x] CrowdWorks and Lancers Paid remain enabled on their five-minute schedules;
+  CrowdWorks has one buyer-material wait (`63568785`), while Lancers has no
+  funded contract. No duplicate or formal delivery was issued.
+- [ ] Continue at the first admissible buyer-material/funded-contract event and
+  obtain an official funded-provider canary before production promotion.

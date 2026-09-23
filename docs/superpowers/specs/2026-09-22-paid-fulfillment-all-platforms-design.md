@@ -1387,3 +1387,15 @@ The objective is complete only when all of the following are proven:
   deliverable. CrowdWorks tests pass `222`, and `lm-loop-contract` has no shared
   IDs or registry errors. Production promotion and an official canary remain
   open.
+
+## Runtime Cursor — 2026-09-24 03:02 JST
+
+- Coconala `hf-gig-paid-direct` completed the deferred wake through the managed
+  `lm-loop` path: `loaded-idle`, `last_exit=0`, terminal `pass`, five-minute
+  schedule. Official evidence remains `observed=4`, `actionable=0`, `effect=0`,
+  `readback=3`, `failed=0`, `pending=0`; Ryu `18211957` was not replayed.
+- CrowdWorks `crowdworks-revenue-paid` and Lancers `lancers-revenue-paid` remain
+  enabled on their existing schedules. CrowdWorks is `observed=5`, `effect=0`,
+  `readback=4`, `pending=1` for buyer-material wait; Lancers is `observed=0`,
+  `effect=0`, `readback=0`, `pending=0` with no funded contract. No new
+  provider effect or formal delivery was created.
