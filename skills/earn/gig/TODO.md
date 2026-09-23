@@ -151,6 +151,16 @@ runtime/provider readback.
   shows the same full-reservation condition; allow the scheduled Paid owners
   to wake naturally now.
 
+### Source checkpoint — 2026-09-24 01:15
+
+- [x] Fixed the Lancers Paid queue-starvation source: the registry now sets
+  `coalesce_queued_wakes=true` and `coalesce_reserved_wakes=true`, matching the
+  Coconala/CrowdWorks Paid lanes. Added a regression test and regenerated the
+  launchd fixture; `154 passed, 143 subtests`, `lm-loop-contract` PASS.
+- [ ] The fix is pushed on the dedicated branch at `5193ff0171`; production
+  remains on its immutable main-derived release until the cross-platform gate,
+  so do not report the source fix as a live provider canary yet.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

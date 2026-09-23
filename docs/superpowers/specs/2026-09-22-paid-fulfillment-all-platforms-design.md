@@ -1411,3 +1411,14 @@ The objective is complete only when all of the following are proven:
 - The only remaining Paid admission unknown is the historical CrowdWorks
   occurrence `18d62cf32eb0c678-48194`, for which no exact zero-effect marker
   exists. It remains fenced and must not be cleared broadly.
+
+## Source Cursor — 2026-09-24 01:15 JST
+
+- Lancers Paid was accumulating one queued occurrence every cadence and
+  eventually returning `resource_fifo_wait`. The registry now coalesces both
+  queued and reserved wakes for `lancers-revenue-paid`; a focused regression
+  plus the full registry/run-bound suites pass (`154 passed, 143 subtests`),
+  and `lm-loop-contract` passes.
+- This source fix is pushed as `5193ff0171` on the dedicated branch. It is not
+  yet a production result: promotion must still use the main-derived immutable
+  release gate, followed by a natural Lancers wake and replay-zero.
