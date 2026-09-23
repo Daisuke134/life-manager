@@ -42,12 +42,16 @@ def find_paid_no_effect_proof(state_root: Path, owner: str,
             or marker.get("status") not in {"pre_effect", "completed"}
             or marker.get("effect") != 0):
         return None
+    evidence_ref = f"lm-paid-run://{owner}/{marker_path.name}"
     return {
         "owner_id": owner,
         "occurrence_id": occurrence,
         "verified": True,
         "proof_type": "pre_effect",
-        "evidence_refs": [f"lm-paid-run://{owner}/{marker_path.name}"],
+        # The host resolver consumes one canonical evidence_ref. Keep the
+        # plural alias for report consumers that already expect a list.
+        "evidence_ref": evidence_ref,
+        "evidence_refs": [evidence_ref],
     }
 
 
