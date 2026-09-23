@@ -42,6 +42,10 @@
 - [ ] Read back the seller message ID, timestamp, and formal-delivery state; write an atomic receipt with event IDs and SHA-256.
 - [ ] Update the current spec/TODO and commit/push the evidence-backed cursor.
 
+**Measured outcome (2026-09-23T10:06Z):** all Task 1 bullets are complete. The
+current manual seller receipt is `js-talkroomMessage-222245383`; the loop did
+not send or formally deliver for Ryu.
+
 ### Task 2: Coconala loop production proof
 
 **Files:**
@@ -54,6 +58,12 @@
 - [ ] Run the focused suite, full relevant suite, `git diff --check`, and `./bin/lm-loop-contract`.
 - [ ] Cut/apply an immutable release, read back installed SHA/argv, allow one natural wake, and verify all four rooms officially.
 - [ ] Run a second replay-zero/readback pass; record no duplicate provider effect and honest states for Chii and both NPO rooms.
+
+**Measured outcome (2026-09-23T10:02Z):** installed release `35e66d24` natural
+run `18d7eadd914a5020-49082` reached terminal `pass` with `effect=0`, but its
+producer result remains `pending=1` for NPO `18223833` because host free space
+was below the `524288 KiB` guard. The loop is paused until safe headroom is
+recovered; the natural `pending=0` and replay-zero bullets remain open.
 
 ### Task 3: CrowdWorks completion and Paid canary
 

@@ -5,6 +5,33 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
+### Latest measured cursor — 2026-09-23T10:06Z
+
+- Task 1 (Ryu manual current cycle) is closed. Fresh official DOM readback shows
+  `js-talkroomMessage-222245383` remains the latest seller message after buyer
+  events `222222979`/`222223030`; no new buyer event, send, attachment, or formal
+  delivery is required. Evidence: `projects/18211957/delivery/ryu-v699-manual-send-readback.json`.
+- A fresh owner-scoped four-room readback performed no mutation and recorded:
+  Ryu seller-last `222245383`, Chii seller-last `222152477`, NPO room
+  `18223833` seller-last `222233461` (buyer materials/extension already
+  acknowledged), and NPO room `18250352` seller-last `222157659` (buyer-waiting).
+  Evidence: `projects/18211957/delivery/coconala-four-room-official-readback-20260923T1006Z.json`.
+- The installed release `35e66d242798e28403e98d06037484d5c2a28795`
+  (`20260923T174546-35e66d24`) completed natural run
+  `18d7eadd914a5020-49082` with terminal `pass`, `effect=0`, and no seller
+  message or formal-delivery effect. Its fresh producer result is
+  `observed=4`, `actionable=1`, `readback=2`, `pending=1`; room `18223833`
+  is `pending` at `before_paid_effect` because of `disk_pressure`, while Ryu is
+  `reserved_for_owner` and Chii/`18250352` are buyer-waiting. This is not the
+  Coconala production gate: four-room readback is complete, but installed-SHA
+  replay-zero with `pending=0` is still open.
+- The Paid loop is intentionally paused through the canonical CLI after that
+  effect-zero terminal: `launchd_state=unloaded`, `pid=null`,
+  `admission_effect_unknown=false`. Host free space is `513808 KiB`, below the
+  producer guard `524288 KiB`; disk cleanup passed without finding a safe closed
+  allowlisted artifact. Do not lower the guard, delete unknown/protected paths,
+  or restart until headroom is genuinely above the guard.
+
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign
   image visibility, 12 registered profiles with no fixed people limit, normal

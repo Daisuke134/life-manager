@@ -259,6 +259,27 @@ canary.
 
 ### Coconala
 
+#### Latest measured cursor — 2026-09-23T10:06Z
+
+Task 1 is complete: the current Ryu cycle was handled manually once and read
+back as seller message `js-talkroomMessage-222245383`; no newer buyer event is
+present and formal delivery remains untouched. A fresh read-only official DOM
+pass found Chii `222152477`, NPO `18223833` `222233461`, and NPO `18250352`
+`222157659` as the latest seller messages. The pass performed no send,
+attachment, or formal delivery and is recorded at
+`projects/18211957/delivery/coconala-four-room-official-readback-20260923T1006Z.json`.
+
+The repaired immutable release `35e66d24` produced natural run
+`18d7eadd914a5020-49082` with terminal `pass`, `effect=0`, and no provider
+mutation. Its producer snapshot is honest but incomplete under host pressure:
+`observed=4`, `actionable=1`, `readback=2`, `pending=1`; NPO `18223833` stopped
+before the paid effect at `disk_pressure`. The loop is now paused by canonical
+CLI (`unloaded`, `pid=null`, `admission_effect_unknown=false`) because host free
+space is `513808 KiB`, below the `524288 KiB` producer guard. The remaining
+Coconala system gate is: recover safe headroom, run one natural wake on the
+same installed SHA with `pending=0`, then run a second no-effect replay-zero
+readback across all four rooms. No Ryu replay or formal delivery is allowed.
+
 #### Live override — 2026-09-23T09:49:26Z
 
 The fresh owner-scoped official Coconala readback of Ryu room `18211957` found
