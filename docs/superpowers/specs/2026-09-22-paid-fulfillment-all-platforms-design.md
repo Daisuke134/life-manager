@@ -288,6 +288,12 @@ This specification adds the cross-provider completion contract; it does not eras
 that contract inventory or its occurrence-specific reconciliation obligations.
 The new registry contract isolates future Application/Paid/Reply occurrences from an
 older unknown row after promotion; it does not release the four existing fences.
+Fresh official read-only inventory at `2026-09-23T03:49:14.950474Z` returned five
+funded contracts: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`.
+This confirms current provider visibility only; it is not a work, delivery, or
+payment receipt. The exact Paid occurrence remains `claimed/effect_unknown=1`,
+with no occurrence-bound no-dispatch marker or provider receipt, so no retry or
+manual bypass is permitted.
 The exact Paid occurrence `crowdworks-revenue-paid:18d62cf32eb0c678-48194` has an
 official execute event with `effect_status=started` followed by a report with
 `effect_status=unknown`; no provider receipt or no-dispatch proof exists, so it
