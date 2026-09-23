@@ -61,6 +61,15 @@ and records an honest terminal state such as `awaiting_buyer`. A human intervene
 only for the named Ryu exception or when a provider-specific incident is explicitly
 reconciled; Chii is not such an incident.
 
+### Authenticated artifact access rule
+
+For Google Docs, Sheets, and other connected artifacts, use the authenticated
+`gog` CLI or an equivalent authenticated connector/plugin first. This path uses
+the already-authorized scope and does not require granting a browser Docs
+permission. Use a browser surface only when the CLI/connector cannot read the
+artifact, and record that specific readback failure; a missing browser session
+is not evidence that the artifact is inaccessible.
+
 ### Why Chii is not being sent again
 
 Chii's paid deliverable is the 300-recipient TikTok campaign and its Coconala
@@ -227,14 +236,16 @@ verified `awaiting_buyer` state, while no new Paid wake may run until host write
 recover and the new release is applied. The later official Ryu events supersede
 the old Ryu no-op snapshot.
 
-The source-level Coconala repair now passes the loop contract gate, 517 runtime
-tests, 263 Paid tests, 15 adapter tests, and `lm-loop doctor` (no missing,
-unmanaged, or retired entries). This is a development-plane result only: the
-fix is pushed on its branch, while the installed release remains stopped and no
-natural-wake, official provider readback, or replay-zero proof exists for the
-new SHA. The execution cursor therefore remains at Coconala promotion gates;
-do not submit another client package or restart Paid until those gates are
-completed under the lifecycle contract.
+The Coconala schedule repair passed the loop contract gate, the focused and
+full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main at
+`6b72c3044b2b590b950c1df18fc876285e2e9f7c`; the immutable release
+`20260923T155015-6b72c304` is current and was target-applied to
+`hf-gig-paid-direct`. Official lifecycle readback shows the installed SHA is
+`6b72c3044b2b590b950c1df18fc876285e2e9f7c`, while
+`launchd_state=unloaded` and `pid=null` remain intentional. No natural wake,
+provider readback, or replay-zero proof exists for this new SHA yet, so do not
+restart Paid or submit another client package until the remaining host/admission
+and natural-wake gates pass.
 
 The one-by-one manual check of NPO room `18223833` was run after the stop. The
 canonical decision regeneration still returns `await_buyer` with `effect=0` and
@@ -258,6 +269,12 @@ meeting dates/resolutions, and audit date/opinion/signature facts. The collector
 old first-match delivery-date field is not authoritative when a room contains
 multiple schedule events; the latest provider system event and visible schedule
 must be selected instead.
+
+The schedule parser fix is now promoted: it accepts only official change or
+registration events, orders events by provider message chronology (so a late
+append of an older registration cannot roll a change back), and carries a
+provenance flag into the final order queue. The focused regression suite covers
+the 2026-09-18 → 2026-09-30 history and the quoted registration form.
 
 The next one-by-one readback of NPO room `18250352` at
 `2026-09-23T03:09:04Z` confirms the existing v15 review package is visible,
@@ -669,7 +686,9 @@ formal delivery.
    `effect_unknown` occurrence by official provider readback before retrying it; do
    not clear a fence by owner-wide guess.
 4. Finish the Coconala fleet gates (natural wake, replay-zero, no-starvation and
-   self-heal) while preserving the Ryu fence and Chii wait state.
+   self-heal) while preserving the Ryu fence and Chii wait state. The latest
+   schedule parser is already merged, released, and applied; this item is only
+   the still-missing natural-wake/provider-readback proof.
 5. Continue with CrowdWorks: the dedicated Browser owner is merged in current main
    and its read-only inventory shows five funded contracts. Reconcile the existing
    Application/Paid/Reply/Report occurrences one by one, promote the occurrence

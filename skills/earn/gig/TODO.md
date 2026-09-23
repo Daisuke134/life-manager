@@ -17,6 +17,16 @@ runtime/provider readback.
   evidence is `projects/18211957/delivery/ryu-v697-manual-send-readback.json`.
   Ryu is now buyer-waiting; the loop remains prohibited from creating, replying,
   attaching, or formally delivering for Ryu.
+- Coconala schedule extraction is repaired and promoted. PR `#5798` merged at
+  `6b72c3044b2b590b950c1df18fc876285e2e9f7c`; immutable release
+  `20260923T155015-6b72c304` is current and target-applied to
+  `hf-gig-paid-direct`. Official status readback is
+  `installed_release_sha=6b72c3044b2b590b950c1df18fc876285e2e9f7c`,
+  `launchd_state=unloaded`, `pid=null`. The parser now accepts only official
+  change/registration events, orders them by provider chronology, and carries
+  event provenance into the final queue. No natural wake/provider readback or
+  replay-zero proof exists for this SHA yet; do not restart Paid or send any
+  additional client package.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
@@ -180,14 +190,13 @@ runtime/provider readback.
   `gog drive download --format=txt` (or an authenticated connector/plugin) before
   any browser Docs path. Do not request browser permission when the CLI already
   has Drive scope; use browser only when CLI/connector readback fails.
-- Before the Coconala Paid owner is promoted or restarted, fix its talkroom
-  delivery-date extraction to select the newest provider schedule system event
-  instead of the first historical match, and add a regression fixture containing
-  multiple schedule changes. The live 18223833 readback exposed this gap: the
-  visible/latest schedule is 2026-09-30 while the old collector field returned a
-  stale earlier date. Until that fix is released, trust the latest provider event
-  in `evidence/manual-npo-answer-20260923/paid-queue-live-dom.json` and do not
-  infer a deadline from the stale field.
+- The 18223833 stale first-match schedule gap is closed. The parser selects the
+  latest official change/registration event by provider message chronology,
+  ignores non-event body labels, and updates an existing order only when the
+  date came from an official event. Regression coverage includes the observed
+  2026-09-18 and 2026-09-30 events plus the quoted registration form. The fix is
+  merged/released/applied as recorded in the current checkpoint above; only the
+  natural-wake/provider-readback gate remains.
 - One-by-one official readback of room `18250352` at `2026-09-23T03:09:04Z`
   confirms the v15 review package is already visible, formal delivery is OFF,
   and no buyer reply followed it. Its actionable file decision still awaits
@@ -204,11 +213,12 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Close the host/lifecycle gate.** Headroom is now above the floor and a
-   canonical decision write succeeded, but still prove a small production state
-   write, owner-child reaping, and a natural Coconala no-op wake. Keep all
-   protected releases and provider ledgers intact. The Paid owner is intentionally
-   paused until this gate passes.
+1. **Close the host/lifecycle gate.** The repaired release is installed but the
+   Paid owner remains intentionally unloaded. Host headroom is near the floor and
+   admission contention (`control_busy`) remains observable while another owner
+   is active. Prove a small production state write, owner-child reaping, and a
+   natural Coconala no-op wake. Keep all protected releases and provider ledgers
+   intact; do not clear unknown-effect fences or restart Paid before this gate.
 2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
    `e012343e94` (occurrence-scoped marketplace admission plus Coconala Paid queued
    and reserved wake coalescing), build one immutable release, apply it, and verify a
