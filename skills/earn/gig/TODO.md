@@ -19,9 +19,10 @@ runtime/provider readback.
   readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
-- The latest `hf-gig-paid-direct` status is `loaded-idle` with terminal result
-  `pass`; this is a safe idle state. Chii is not the current work cursor and no
-  client DM is needed for this checkpoint.
+- The last completed `hf-gig-paid-direct` terminal is `pass`; the current
+  read-only snapshot is `loaded-idle` with a transient host FIFO/capacity wait
+  and no provider effect. Chii is not the current work cursor and no client DM
+  is needed for this checkpoint.
 - Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
   on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
   `9ab1181de8` adds an explicit `admission_effect_scope` registry field and enables

@@ -59,8 +59,9 @@ is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, whi
 contains the answered-feedback stop fix. Its latest official queue readback is
 terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
 `awaiting_buyer`.
-The latest loop status is `loaded-idle` with terminal result `pass`; this is a
-safe idle state, not a request to send anything.
+The last completed loop terminal is `pass`; the current read-only status snapshot is
+`loaded-idle` with a transient host FIFO/capacity wait and no provider effect. This is
+a safe idle/deferred state, not a request to send anything.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
