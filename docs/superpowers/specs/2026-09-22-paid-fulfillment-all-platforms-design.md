@@ -151,6 +151,15 @@ authenticated live contract inventory is present, and the read-only CDP endpoint
 `9233` is unavailable. Therefore no Upwork loop or mutation is enabled until an
 authenticated inventory and funded contract receipt exist.
 
+The next natural CrowdWorks Paid occurrence is
+`crowdworks-revenue-paid:18d7ea165d9e0a40-37210`; its persisted result is
+`status=ok`, `observed=5`, `effect=0`, `readback=4`, `pending=1`. The four
+completed rows are replay-zero; `63568785` remains the sole pending row with
+`buyer_task_detail_required`, so no work or delivery is fabricated. A fresh
+Lancers Paid-only official read returned `logged_in=true`,
+`source_complete=true`, zero project/monthly/storefront contract candidates,
+zero incoming offers, and complete finance readback with a 0 JPY balance.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
