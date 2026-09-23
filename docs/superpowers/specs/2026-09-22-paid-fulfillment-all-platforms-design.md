@@ -1302,3 +1302,21 @@ The objective is complete only when all of the following are proven:
   funded contracts, and Upwork has no authorized authenticated Paid owner.
   No synthetic client, guessed endpoint, duplicate delivery, or formal delivery
   is created while those preconditions are absent.
+
+## Runtime Cursor — 2026-09-24 02:25 JST
+
+- After host recovery to about `1.3GiB` free, Coconala was kickstarted once and
+  completed a natural wake with `observed=4`, `actionable=0`, `effect=0`,
+  `readback=3`, `failed=0`, `pending=0`. Ryu `18211957` remains reserved for
+  manual ownership and the other three rooms remain buyer-waiting.
+- CrowdWorks was kickstarted once and completed `pass`: its official snapshot is
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `failed=0`,
+  `pending=1`; only `63568785` remains waiting for permitted buyer material.
+  No duplicate request, answer, or delivery was sent.
+- Lancers was kickstarted once and completed `pass`: its official Paid snapshot
+  is `observed=0`, `actionable=0`, `effect=0`, `readback=0`, `failed=0`,
+  `pending=0`; no funded contract exists, so no provider mutation is legitimate.
+- Upwork remains without an authorized authenticated Paid owner or funded
+  contract. The source candidate is pushed but not production-promoted; the
+  remaining gate is a funded provider canary with official receipt and
+  replay-zero readback.

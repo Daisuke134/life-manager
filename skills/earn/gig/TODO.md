@@ -1792,3 +1792,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Do not promote to production until a funded provider canary has an official receipt and replay-zero readback.
 - [ ] Next provider cursor is CrowdWorks `63568785` buyer-material completion; otherwise observe Lancers' first
   funded contract and keep Upwork disabled until authorization, fresh authentication, and a funded contract exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:25 JST
+
+- [x] Coconala natural wake passed after headroom recovery (`observed=4`, `effect=0`, `readback=3`); Ryu remains manual-only.
+- [x] CrowdWorks natural wake passed (`observed=5`, `effect=0`, `readback=4`, `pending=1`); 63568785 remains buyer-material wait.
+- [x] Lancers natural wake passed (`observed=0`, `effect=0`); inventory has no funded contract.
+- [ ] Obtain the first admissible funded-provider canary before production promotion; Upwork remains disabled pending authorization and fresh authentication.
