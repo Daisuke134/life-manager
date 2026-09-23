@@ -1799,3 +1799,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [x] CrowdWorks natural wake passed (`observed=5`, `effect=0`, `readback=4`, `pending=1`); 63568785 remains buyer-material wait.
 - [x] Lancers natural wake passed (`observed=0`, `effect=0`); inventory has no funded contract.
 - [ ] Obtain the first admissible funded-provider canary before production promotion; Upwork remains disabled pending authorization and fresh authentication.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:28 JST
+
+- [x] CrowdWorks 63568785's Google document is now readable through `gog drive get`.
+- [ ] Keep the item waiting: its required LINE/external-form actions are not an admissible provider effect;
+  send only after the buyer supplies permitted material or changes the scope inside CrowdWorks.
+- [ ] Do not formal-deliver this item from the readable document alone; retain the quality gate and replay fence.

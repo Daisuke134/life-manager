@@ -1320,3 +1320,16 @@ The objective is complete only when all of the following are proven:
   contract. The source candidate is pushed but not production-promoted; the
   remaining gate is a funded provider canary with official receipt and
   replay-zero readback.
+
+## Runtime Cursor — 2026-09-24 02:28 JST
+
+- CrowdWorks contract `63568785` changed from inaccessible to readable: the
+  official `gog drive get` for document
+  `1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA` now succeeds. The document
+  requests LINE friend-add and external Google-form work. The quality gate
+  correctly remains `buyer_input_required` because those external actions are
+  not an admissible CrowdWorks completion effect; the prepared on-platform
+  response is not a formal delivery and has `external_effect=0`.
+- No duplicate question or formal delivery was sent. The Paid snapshot remains
+  `observed=5`, `effect=0`, `readback=4`, `pending=1`, with `63568785` waiting
+  for permitted buyer-provided material or an admissible on-platform scope.
