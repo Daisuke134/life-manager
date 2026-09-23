@@ -31,6 +31,20 @@ runtime/provider readback.
   delivery surface from the live contract DOM/API, add a failing test first,
   implement one idempotent delivery/readback path, and verify replay-zero.
 
+### Runtime checkpoint — 2026-09-24 00:37
+
+- [x] Coconala and Lancers Paid loops are still `scheduled`/`loaded-idle` with
+  `last_exit=0`; no restart or duplicate send was issued. Lancers has no funded
+  contract, so zero effect is expected.
+- [ ] CrowdWorks remains scheduled but the latest wake is blocked before child
+  execution by `resource_capacity_busy` (`last_exit=75`). Its provider snapshot
+  remains `observed=5/effect=0/readback=4/failed=0/pending=1`, with `63568785`
+  waiting for admissible buyer material. Keep the historical unknown-effect
+  fence; the exact old zero-effect marker is not enough to resolve a non-claimed
+  current admission state.
+- [ ] Continue with Lancers readiness and the first funded ContractReceipt;
+  do not claim cross-platform completion or replay any client from this state.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

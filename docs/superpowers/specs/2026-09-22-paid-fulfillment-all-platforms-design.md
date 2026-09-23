@@ -89,6 +89,23 @@ completion criteria.
   inspect its official delivery surface, then add the smallest tested formal
   delivery/readback path. No guessed endpoint or blind delivery is permitted.
 
+### Runtime checkpoint — 2026-09-24 00:37 JST
+
+- Coconala `hf-gig-paid-direct` and Lancers `lancers-revenue-paid` remain
+  `scheduled`/`loaded-idle` with `last_exit=0`; neither was restarted and no
+  duplicate provider effect was created. Lancers still has zero funded
+  contracts, so its natural Paid result remains an honest no-op.
+- CrowdWorks `crowdworks-revenue-paid` remains scheduled but its latest wake
+  was blocked before child execution by `host_admission_deferred:resource_capacity_busy`
+  (`last_exit=75`). The durable provider snapshot is unchanged at
+  `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`; contract
+  `63568785` remains the buyer-input wait. The exact old paid-run marker proves
+  `effect=0`, but the current admission state is not `claimed`, so the resolver
+  correctly left the historical fence in place. No send or replay is permitted.
+- The execution cursor therefore stays on the Lancers readiness path while
+  CrowdWorks retries its scheduled admission naturally; no platform is called
+  revenue-complete from this checkpoint alone.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct
