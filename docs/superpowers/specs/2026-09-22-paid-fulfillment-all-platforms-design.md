@@ -363,12 +363,15 @@ not acceptable. The next safe implementation cursor is the first real funded
 contract detail, followed by a red test and the smallest provider-specific
 mutation/readback path derived from that official DOM/API contract.
 
-Final status readback at `2026-09-23T04:07:52Z` kept both non-Coconala Paid
+Final status readback at `2026-09-23T04:28:10Z` kept both non-Coconala Paid
 owners fenced: CrowdWorks release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
 and Lancers release `135fa822be58bb40c038c8ee6bbdbfecceca80bf` were
 `loaded-idle`, `pid=null`, `last_terminal_result=blocked`, and
-`host_admission_deferred:resource_effect_unknown`. No read-only probe cleared an
-unknown effect or created a provider receipt.
+`host_admission_deferred:resource_effect_unknown`. The exact unresolved rows
+remain CrowdWorks `18d62cf32eb0c678-48194` and Lancers
+`18d67a28e56c4b58-6829`; no read-only probe cleared an unknown effect or created a
+provider receipt. Coconala `hf-gig-paid-direct` remains intentionally
+`unloaded` with `pid=null`.
 
 ### Upwork
 
