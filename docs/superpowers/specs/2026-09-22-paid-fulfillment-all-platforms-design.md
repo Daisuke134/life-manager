@@ -160,6 +160,15 @@ Lancers Paid-only official read returned `logged_in=true`,
 `source_complete=true`, zero project/monthly/storefront contract candidates,
 zero incoming offers, and complete finance readback with a 0 JPY balance.
 
+For completeness, the current four-room Coconala matrix is also closed against
+new work: Ryu `18211957` is the permanent manual exception with the verified
+seller message `js-talkroomMessage-222245383`; Chii `18180857` has the exact
+300-row workbook/report read back and is buyer-waiting; NPO `18223833` has one
+manual v16b progress artifact (`js-talkroomMessage-222253171`) read back with
+formal delivery OFF and is awaiting buyer feedback; NPO `18250352` has its v15
+review package read back with no newer buyer reply and is also waiting. None of
+these rooms may be replayed from the no-op Paid wake.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
