@@ -398,12 +398,27 @@ class OwnedPublishRevisionTest(unittest.TestCase):
                 state=state, landing_root=release, slug=slug,
                 base_url="https://example.test", remote="origin", branch="main",
             )
+            original_atomic_write = module.atomic_write
+            crash = {"pending": True}
+
+            def crash_after_verify(path, value):
+                if (
+                    path == receipt_path
+                    and value.get("state") == "DELIVERED"
+                    and crash["pending"]
+                ):
+                    crash["pending"] = False
+                    raise OSError("simulated crash after journal verification")
+                return original_atomic_write(path, value)
+
             with patch.object(module, "fetch_readback", return_value=None), patch.object(
                 module, "_github_repository", return_value="Daisuke134/life-manager",
             ), patch.object(
-                module, "_github_pull_request", side_effect=[pending, delivered],
-            ):
+                module, "_github_pull_request", side_effect=[pending, delivered, delivered],
+            ), patch.object(module, "atomic_write", side_effect=crash_after_verify):
                 first = module.publish(args)
+                with self.assertRaisesRegex(OSError, "simulated crash"):
+                    module.publish(args)
                 second = module.publish(args)
             self.assertEqual(first["state"], "PULL_REQUEST_OPEN")
             self.assertEqual(second["state"], "DELIVERED")

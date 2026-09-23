@@ -112,24 +112,54 @@ def _action_fingerprint(action):
 
 def _publication_effect(state, slug, action, legacy_action, last_verified):
     pending = unresolved_effect(state, "OWNED_GIT_PUSH", slug)
-    if pending is None:
-        return start_effect(
-            state, "OWNED_GIT_PUSH", slug, action, last_verified, 300,
-        )
     allowed = {_action_fingerprint(action), _action_fingerprint(legacy_action)}
-    observed = pending.get("action_fingerprint")
-    prior = pending.get("last_verified_external_object")
-    if (
-        observed not in allowed
-        or not isinstance(prior, dict)
-        or prior.get("remote") != last_verified.get("remote")
-        or prior.get("branch") != last_verified.get("branch")
-    ):
-        raise PublishError("unresolved publication effect does not match current action")
-    resumed = resume_effect(state, "OWNED_GIT_PUSH", slug)
-    if resumed is None or resumed.get("job_id") != pending.get("job_id"):
-        raise PublishError("unresolved publication effect changed during resume")
-    return resumed
+    if pending is not None:
+        observed = pending.get("action_fingerprint")
+        prior = pending.get("last_verified_external_object")
+        if (
+            observed not in allowed
+            or not isinstance(prior, dict)
+            or prior.get("remote") != last_verified.get("remote")
+            or prior.get("branch") != last_verified.get("branch")
+        ):
+            raise PublishError("unresolved publication effect does not match current action")
+        resumed = resume_effect(state, "OWNED_GIT_PUSH", slug)
+        if resumed is None or resumed.get("job_id") != pending.get("job_id"):
+            raise PublishError("unresolved publication effect changed during resume")
+        return resumed
+    actions = {_action_fingerprint(item): item for item in (action, legacy_action)}
+    verified = []
+    jobs = state.expanduser() / "jobs"
+    for fingerprint, expected in actions.items():
+        job_key = hashlib.sha256(
+            f"OWNED_GIT_PUSH\0{slug}\0{fingerprint}".encode()
+        ).hexdigest()
+        path = jobs / f"key-{job_key}.json"
+        if not path.is_file():
+            continue
+        row = json.loads(path.read_text(encoding="utf-8"))
+        external = row.get("last_verified_external_object")
+        if (
+            row.get("state") != "VERIFIED"
+            or row.get("kind") != "OWNED_GIT_PUSH"
+            or row.get("target") != slug
+            or row.get("job_key") != job_key
+            or row.get("action_fingerprint") != fingerprint
+            or not isinstance(external, dict)
+            or external.get("state") != "DELIVERED"
+            or external.get("remote") != expected.get("remote")
+            or external.get("branch") != expected.get("branch")
+            or external.get("head") != expected.get("commit")
+        ):
+            raise PublishError("verified publication effect does not match current action")
+        verified.append(row)
+    if len(verified) > 1:
+        raise PublishError("multiple verified publication effects match current action")
+    if verified:
+        return verified[0]
+    return start_effect(
+        state, "OWNED_GIT_PUSH", slug, action, last_verified, 300,
+    )
 
 
 def _pull_request_view(root, repository, pull_request):
@@ -559,15 +589,20 @@ def publish(args):
         if delivery.get(key):
             receipt[key] = delivery[key]
     if delivery["state"] != "DELIVERED":
+        if job.get("state") == "VERIFIED":
+            raise PublishError("verified publication effect is not confirmed by provider")
         atomic_write(receipt_path, receipt)
         return receipt
-    verify_effect(state, job["job_id"], {
-        "state": "DELIVERED", "remote": args.remote, "branch": args.branch,
-        "head": commit, **{
-            key: delivery[key] for key in ("head_branch", "pull_request_url", "merge_commit")
-            if delivery.get(key)
-        },
-    })
+    if job.get("state") == "EFFECT_STARTED":
+        verify_effect(state, job["job_id"], {
+            "state": "DELIVERED", "remote": args.remote, "branch": args.branch,
+            "head": commit, **{
+                key: delivery[key] for key in ("head_branch", "pull_request_url", "merge_commit")
+                if delivery.get(key)
+            },
+        })
+    elif job.get("state") != "VERIFIED":
+        raise PublishError("publication effect has invalid terminal state")
     atomic_write(receipt_path, receipt)
     live = fetch_readback(artifact, args.base_url)
     if live:
