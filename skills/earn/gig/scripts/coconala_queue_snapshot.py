@@ -1425,6 +1425,9 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
     buyer_reply_after_artifact_observed = latest_seller_attachment >= 0 and any(
         index > latest_seller_attachment for index in buyer_message_indexes
     )
+    delivery_date = latest_delivery_date_from_messages(
+        messages, str(talkroom.get("delivery_date") or "") or None,
+    )
     # A buyer reply after an earlier artifact is not automatically new work.
     # The seller may already have answered that exact current feedback in plain
     # text (without sending another artifact).  Keep this separate from the
@@ -1472,7 +1475,7 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
         # this separates "no step bar" from "a label nothing maps yet" without reading the code -
         # a distinction that cost two deploys to make from the outside.
         "talkroom_step_label": safe_text(talkroom.get("talkroom_step_label"), 40),
-        "delivery_date": iso_date(talkroom.get("delivery_date")),
+        "delivery_date": iso_date(delivery_date),
         "formal_delivery_control_checked": talkroom.get("formal_delivery_control_checked") is True,
         "formal_delivery_control_disabled": talkroom.get("formal_delivery_control_disabled") is True,
         "room_contract_kind": room_contract_kind,
@@ -3143,6 +3146,28 @@ def safe_name(value: str) -> str:
 def first_match(pattern: str, text: str) -> str | None:
     match = re.search(pattern, text)
     return match.group(1) if match else None
+
+
+_DELIVERY_DATE_FROM_EVENT = re.compile(
+    r"納品予定日(?:が変更されました。)?[：:\"「]*\s*(20\d{2}/\d{2}/\d{2})"
+)
+
+
+def latest_delivery_date_from_messages(
+    messages: Any, fallback: str | None = None,
+) -> str | None:
+    """Prefer the newest official schedule event over a historical body match."""
+    latest = fallback
+    if not isinstance(messages, list):
+        return latest
+    for message in messages:
+        if not isinstance(message, dict) or message.get("side") != "system":
+            continue
+        text = str(message.get("text") or "")
+        matches = list(_DELIVERY_DATE_FROM_EVENT.finditer(text))
+        if matches:
+            latest = matches[-1].group(1)
+    return latest
 
 
 def parse_price(text: str) -> int:
