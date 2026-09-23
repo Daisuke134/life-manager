@@ -1293,6 +1293,61 @@ def defer_durable(owner_id: str, *, cooldown_seconds: int = 0) -> bool:
         os.close(descriptor)
 
 
+def suspend_durable(owner_id: str) -> bool:
+    """Pause one queued owner without discarding its occurrence ledger.
+
+    Lifecycle stop unloads launchd, but a durable queue row may otherwise be
+    selected again by the next control-plane wake.  Keep the queue and its
+    occurrences so a later start can resume them, release any dispatch lease,
+    and use an unbounded eligibility time while the owner is stopped.
+    """
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        with _database(database) as connection:
+            changed = connection.execute(
+                "DELETE FROM reservations WHERE owner_id=?", (owner_id,)
+            ).rowcount
+            changed += connection.execute(
+                """UPDATE priorities SET next_eligible_at=?
+                     WHERE owner_id=? AND EXISTS (
+                         SELECT 1 FROM queue WHERE owner_id=?)""",
+                (float("inf"), owner_id, owner_id),
+            ).rowcount
+        return bool(changed)
+    finally:
+        os.close(descriptor)
+
+
+def resume_durable(owner_id: str) -> bool:
+    """Make a previously suspended queued owner eligible again."""
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        with _database(database) as connection:
+            changed = connection.execute(
+                """UPDATE priorities SET next_eligible_at=0
+                     WHERE owner_id=? AND EXISTS (
+                         SELECT 1 FROM queue WHERE owner_id=?)""",
+                (owner_id, owner_id),
+            ).rowcount
+        return bool(changed)
+    finally:
+        os.close(descriptor)
+
+
 def cancel_durable(owner_id: str) -> bool:
     """Remove a queue entry only after the current registry proves it retired."""
     if not owner_id:

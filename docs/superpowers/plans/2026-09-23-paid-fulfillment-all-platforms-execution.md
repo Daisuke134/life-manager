@@ -65,6 +65,16 @@ producer result remains `pending=1` for NPO `18223833` because host free space
 was below the `524288 KiB` guard. The loop is paused until safe headroom is
 recovered; the natural `pending=0` and replay-zero bullets remain open.
 
+**Admission lifecycle correction (2026-09-23):** a failing regression reproduced
+that stopping a scheduled owner left its durable reservation eligible after
+launchd bootout. The minimal fix adds suspend/resume admission transitions to
+stop/start/restart while preserving queued occurrences. Focused tests pass:
+`test_resource_admission.py` 123, `test_lm_loop_lifecycle.py` 6,
+`test_lm_loop_run_bounds.py` 75; `./bin/lm-loop-contract` passes. Live
+`hf-gig-paid-direct` suspension readback shows no reservation for >80 seconds
+and `next_eligible_at=inf`. Production promotion and the natural Coconala
+four-room/replay-zero gate remain open.
+
 **Recheck (2026-09-23T10:10Z):** run `18d7eb621cefe660-54972` also ended
 terminal `pass` with `effect=0`, but free space dropped from `1558452 KiB` at
 admission to `506880 KiB` before project queue mutation. NPO `18223833` stayed

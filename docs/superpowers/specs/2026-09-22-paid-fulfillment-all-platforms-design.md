@@ -12,6 +12,26 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
+### Runtime admission lifecycle correction — 2026-09-23
+
+The live investigation reproduced a shared-host starvation defect: `lm-loop stop`
+booted a service out of launchd but left its durable queue row and reservation
+eligible. The next control-plane wake could reserve the stopped owner again,
+even though its launchd state was `unloaded` and `pid=null`. The correction is
+test-first and minimal: stop releases the reservation and marks the queued
+owner suspended without deleting its occurrence ledger; start/restart clears the
+suspension only after launchd readback succeeds. The Ryu owner remains paused
+and manual-only. Focused admission/lifecycle/runtime suites pass (`123`, `6`,
+and `75` tests respectively), `git diff --check` is clean, and
+`./bin/lm-loop-contract` passes.
+
+Live verification after applying the suspension state to `hf-gig-paid-direct`
+showed no reservation for more than 80 seconds and `next_eligible_at=inf`.
+This is an internal admission proof only; it is not a provider send or a
+Coconala completion gate. The fix still requires an immutable production release,
+installed-SHA/argv readback, one stable-headroom natural wake, official
+four-room readback, and replay-zero before the Coconala system layer is closed.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a

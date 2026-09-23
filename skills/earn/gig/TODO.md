@@ -5,6 +5,25 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
+### Runtime gate correction — 2026-09-23
+
+- [x] Reproduce and fix the stop/reservation starvation bug: `lm-loop stop` now
+  suspends the queued owner after successful bootout, releasing its reservation
+  without deleting occurrence history; start/restart resumes it only after
+  launchd readback. Focused suites pass (123 admission, 6 lifecycle, 75 loop
+  boundary tests), `git diff --check` is clean, and `./bin/lm-loop-contract`
+  passes.
+- [x] Apply the suspension state to the live `hf-gig-paid-direct` owner and
+  verify no reservation for more than 80 seconds (`next_eligible_at=inf`).
+- [ ] Promote this code through an immutable release and target-apply it; read
+  back installed SHA and loaded argv before any Coconala wake.
+- [ ] Keep Ryu `18211957` manual-only; run one stable-headroom Coconala natural
+  wake, official four-room readback, and replay-zero. Do not resend Chii or the
+  NPO rooms while their evidence says buyer-waiting or WORK_REQUIRED.
+- [ ] After Coconala closes, repair and prove CrowdWorks, Lancers, then Upwork;
+  unknown-effect occurrences remain fenced and no platform is declared done
+  from local artifacts alone.
+
 ### Latest measured cursor — 2026-09-23T10:06Z
 
 - Task 1 (Ryu manual current cycle) is closed. Fresh official DOM readback shows

@@ -148,6 +148,24 @@ def test_rebind_queued_owner_discards_expired_reservation(tmp_path, monkeypatch)
     assert occurrence["base_priority"] == "revenue"
 
 
+def test_suspended_owner_releases_reservation_until_resumed(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    ticket, reason = admission.enqueue_durable(
+        "agent", "paused-owner", admission_class="revenue",
+        priority="critical_paid", occurrence_id="paused-owner:wake",
+        now=100,
+    )
+    assert ticket is not None and reason == "ready"
+    assert admission.reserve_available(now=101, lease_seconds=60) == ["paused-owner"]
+
+    assert admission.suspend_durable("paused-owner") is True
+    assert durable_rows(tmp_path, "reservations") == []
+    assert admission.reserve_available(now=102, lease_seconds=60) == []
+
+    assert admission.resume_durable("paused-owner") is True
+    assert admission.reserve_available(now=103, lease_seconds=60) == ["paused-owner"]
+
+
 def test_rebind_queued_owner_releases_unclaimed_reservation_only_for_policy_drift(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="4")
