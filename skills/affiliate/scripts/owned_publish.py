@@ -31,6 +31,91 @@ def git(root, *args):
     return result.stdout.strip()
 
 
+def _managed_publisher_root(state, release_root, branch):
+    try:
+        metadata = json.loads((release_root / "RELEASE.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise PublishError("managed publisher release metadata is unavailable") from error
+    repo = metadata.get("repo")
+    release_sha = metadata.get("sha")
+    parsed = urlsplit(repo) if isinstance(repo, str) else None
+    if (
+        not isinstance(release_sha, str)
+        or not re.fullmatch(r"[0-9a-f]{40}", release_sha)
+        or parsed is None
+        or parsed.scheme not in {"https", "file"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (parsed.scheme == "https" and not parsed.hostname)
+        or (parsed.scheme == "file" and not parsed.path.startswith("/"))
+    ):
+        raise PublishError("managed publisher release metadata is invalid")
+    state.mkdir(mode=0o700, parents=True, exist_ok=True)
+    configured_root = state / "publisher-checkout"
+    if configured_root.is_symlink():
+        raise PublishError("managed publisher checkout must not be a symlink")
+    root = configured_root.resolve()
+    if not root.exists():
+        temporary = state / f".publisher-checkout.{os.getpid()}.tmp"
+        if temporary.exists():
+            raise PublishError("managed publisher checkout staging path exists")
+        try:
+            result = subprocess.run(
+                [
+                    "git", "clone", "--filter=blob:none", "--no-tags",
+                    "--single-branch", "--branch", branch, "--sparse", repo,
+                    str(temporary),
+                ],
+                text=True, capture_output=True, check=False, timeout=180,
+            )
+            if result.returncode:
+                raise PublishError(result.stderr.strip() or "managed publisher clone failed")
+            git(temporary, "sparse-checkout", "set", "apps/landing/data/research")
+            os.replace(temporary, root)
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+    if git(root, "rev-parse", "--show-toplevel") != str(root):
+        raise PublishError("managed publisher checkout is not the exact git worktree")
+    if git(root, "remote", "get-url", "origin") != repo:
+        raise PublishError("managed publisher remote does not match the release")
+    push_urls = git(root, "remote", "get-url", "--push", "--all", "origin").splitlines()
+    if push_urls != [repo]:
+        raise PublishError("managed publisher push remote does not match the release")
+    if git(root, "branch", "--show-current") != branch:
+        raise PublishError("managed publisher branch does not match")
+    dirty = git(root, "status", "--porcelain", "--untracked-files=all")
+    git(root, "fetch", "--no-tags", "origin", branch)
+    local_head = git(root, "rev-parse", "HEAD")
+    remote_head = git(root, "rev-parse", "FETCH_HEAD")
+    release_ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", release_sha, remote_head],
+        cwd=root, capture_output=True, check=False, timeout=15,
+    )
+    if release_ancestor.returncode != 0:
+        raise PublishError("managed publisher origin does not contain the release")
+    if local_head != remote_head:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", local_head, remote_head],
+            cwd=root, capture_output=True, check=False, timeout=15,
+        )
+        if ancestor.returncode == 0:
+            if dirty:
+                raise PublishError("managed publisher checkout is dirty while origin advanced")
+            git(root, "merge", "--ff-only", remote_head)
+        else:
+            remote_ancestor = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", remote_head, local_head],
+                cwd=root, capture_output=True, check=False, timeout=15,
+            )
+            if remote_ancestor.returncode == 0:
+                raise PublishError("managed publisher checkout is ahead of origin")
+            raise PublishError("managed publisher checkout diverged from origin")
+    return root
+
+
 def load_artifact(state, slug):
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,100}", slug):
         raise PublishError("invalid article slug")
@@ -176,6 +261,10 @@ def publish(args):
                 receipt.update(state="LIVE", **live)
                 atomic_write(receipt_path, receipt)
                 return receipt
+    if not (root / ".git").exists() and (root / "RELEASE.json").is_file():
+        if args.remote != "origin":
+            raise PublishError("managed publisher remote must be origin")
+        root = _managed_publisher_root(state, root, args.branch)
     if git(root, "rev-parse", "--show-toplevel") != str(root):
         raise PublishError("landing root is not the exact git worktree")
     target_relative = f"apps/landing/data/research/{args.slug}.json"
