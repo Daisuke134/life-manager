@@ -15,6 +15,110 @@ import owned_publish as module
 
 
 class OwnedPublishRevisionTest(unittest.TestCase):
+    def test_immutable_release_delivers_to_configured_live_site_repository(self):
+        """A runtime release repo is not necessarily the public site's deploy repo."""
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            canonical = base / "canonical"
+            canonical_remote = base / "canonical.git"
+            site = base / "site"
+            site_remote = base / "site.git"
+            release = base / "release"
+            state = base / "state"
+            for source, remote, label in (
+                (canonical, canonical_remote, "canonical"),
+                (site, site_remote, "site"),
+            ):
+                source.mkdir()
+                self.git("git", "init", "-b", "main", cwd=source)
+                self.git("git", "init", "--bare", str(remote))
+                self.git("git", "remote", "add", "origin", str(remote), cwd=source)
+                (source / "README.md").write_text(f"{label}\n")
+                self.git("git", "add", ".", cwd=source)
+                self.git("git", "commit", "-m", f"initial {label}", cwd=source)
+                self.git("git", "push", "-u", "origin", "main", cwd=source)
+            release.mkdir()
+            release_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=canonical, text=True,
+            ).strip()
+            (release / "RELEASE.json").write_text(json.dumps({
+                "sha": release_sha, "repo": canonical_remote.as_uri(),
+            }))
+            slug = "configured-live-site"
+            markdown = "# Configured live site\n"
+            content_hash = hashlib.sha256(markdown.encode()).hexdigest()
+            for name in ("content", "policy", "owned-publications"):
+                (state / name).mkdir(parents=True, exist_ok=True)
+            artifact = {
+                "slug": slug, "state": "READY_FOR_PUBLICATION",
+                "markdown": markdown, "content_sha256": content_hash,
+                "disclosure": "affiliate_link", "title": "Configured live site",
+                "built_at": "2026-09-23T00:00:00+00:00", "project": "P",
+                "source_hashes": [], "readback_markers": [], "readback_links": [],
+            }
+            (state / "content" / f"{slug}.json").write_text(json.dumps(artifact))
+            (state / "policy" / f"{slug}.json").write_text(json.dumps({
+                "decision": "PASS", "content_sha256": content_hash,
+            }))
+
+            # Reproduce production: the old publisher delivered to the runtime
+            # repository and marked the effect verified, but the live site repo
+            # never received the article.
+            canonical_target = (
+                canonical / "apps/landing/data/research" / f"{slug}.json"
+            )
+            canonical_target.parent.mkdir(parents=True)
+            canonical_target.write_text(
+                json.dumps(module.public_row(artifact), ensure_ascii=False, indent=2) + "\n"
+            )
+            self.git("git", "add", ".", cwd=canonical)
+            self.git("git", "commit", "-m", f"feat(blog): publish {slug}", cwd=canonical)
+            self.git("git", "push", "origin", "main", cwd=canonical)
+            wrong_commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=canonical, text=True,
+            ).strip()
+            receipt_path = state / "owned-publications" / f"{slug}.json"
+            receipt_path.write_text(json.dumps({
+                "schema_version": 1, "receipt_type": "OWNED_PUBLICATION",
+                "slug": slug, "content_sha256": content_hash,
+                "state": "DELIVERED", "target": canonical_target.relative_to(canonical).as_posix(),
+                "commit": wrong_commit, "remote": "origin", "branch": "main",
+            }))
+            wrong_action = {
+                "content_sha256": content_hash, "commit": wrong_commit,
+                "remote": "origin", "branch": "main",
+            }
+            wrong_job = module.start_effect(
+                state, "OWNED_GIT_PUSH", slug, wrong_action,
+                {"remote": "origin", "branch": "main", "head": release_sha}, 300,
+            )
+            module.verify_effect(state, wrong_job["job_id"], {
+                "state": "DELIVERED", "remote": "origin",
+                "branch": "main", "head": wrong_commit,
+            })
+
+            with patch.object(module, "fetch_readback", return_value=None):
+                result = module.publish(Namespace(
+                    state=state, landing_root=release, slug=slug,
+                    base_url="https://example.test", remote="origin", branch="main",
+                    repository=site_remote.as_uri(),
+                ))
+
+            self.assertEqual(result["state"], "DELIVERED")
+            self.assertEqual(result["repository"], site_remote.as_uri())
+            self.assertEqual(result["legacy_deliveries"][0]["commit"], wrong_commit)
+            published = subprocess.check_output([
+                "git", f"--git-dir={site_remote}", "show",
+                f"main:apps/landing/data/research/{slug}.json",
+            ], text=True)
+            self.assertEqual(json.loads(published)["slug"], slug)
+            events = [
+                json.loads(line)
+                for line in (state / "job-events.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(len({row["job_id"] for row in events}), 2)
+            self.assertEqual(events[-1]["state"], "VERIFIED")
+
     def test_immutable_release_provisions_managed_publisher_checkout(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
@@ -63,6 +167,7 @@ class OwnedPublishRevisionTest(unittest.TestCase):
                 result = module.publish(Namespace(
                     state=state, landing_root=release, slug=slug,
                     base_url="https://example.test", remote="origin", branch="main",
+                    repository=remote.as_uri(),
                 ))
 
             managed = state / "publisher-checkout"
@@ -280,6 +385,51 @@ class OwnedPublishRevisionTest(unittest.TestCase):
             [call.args for call in git_mock.call_args_list],
         )
 
+    def test_github_delivery_merges_unprotected_site_pull_request_immediately(self):
+        root = Path("/tmp/site-publisher-checkout")
+        commit = "d" * 40
+        branch = "affiliate/publish-site-" + "e" * 12
+        pull_request = "https://github.com/Daisuke134/anicca-products/pull/9999"
+        views = [
+            json.dumps({
+                "autoMergeRequest": None, "baseRefName": "main",
+                "headRefOid": commit, "mergeCommit": None,
+                "state": "OPEN", "url": pull_request,
+            }),
+            json.dumps({
+                "autoMergeRequest": None, "baseRefName": "main",
+                "headRefOid": commit, "mergeCommit": {"oid": "f" * 40},
+                "state": "MERGED", "url": pull_request,
+            }),
+        ]
+        calls = []
+
+        def gh_side_effect(_root, *args):
+            calls.append(args)
+            if args[:2] == ("pr", "list"):
+                return "[]"
+            if args[:2] == ("pr", "create"):
+                return pull_request
+            if args[:2] == ("pr", "view"):
+                return views.pop(0)
+            if args[:2] == ("pr", "merge"):
+                return ""
+            raise AssertionError(args)
+
+        with patch.object(module, "git", return_value=""), patch.object(
+            module, "_gh", side_effect=gh_side_effect,
+        ):
+            result = module._github_pull_request(
+                root=root, repository="Daisuke134/anicca-products",
+                remote="origin", target_branch="main", head_branch=branch,
+                commit=commit, slug="site", merge_mode="immediate",
+            )
+
+        self.assertEqual(result["state"], "DELIVERED")
+        merge_call = next(args for args in calls if args[:2] == ("pr", "merge"))
+        self.assertIn("--merge", merge_call)
+        self.assertNotIn("--auto", merge_call)
+
     def test_publication_repository_accepts_github_or_local_only(self):
         self.assertEqual(
             module._publication_repository("https://github.com/Daisuke134/life-manager.git"),
@@ -378,6 +528,10 @@ class OwnedPublishRevisionTest(unittest.TestCase):
             legacy_action = {
                 "content_sha256": content_sha, "commit": commit,
                 "remote": "origin", "branch": "main",
+                "delivery": "pull_request",
+                "head_branch": (
+                    f"affiliate/publish-{slug}-{content_sha[:12]}"
+                ),
             }
             initial_job = module.start_effect(
                 state, "OWNED_GIT_PUSH", slug, legacy_action,
@@ -397,6 +551,7 @@ class OwnedPublishRevisionTest(unittest.TestCase):
             args = Namespace(
                 state=state, landing_root=release, slug=slug,
                 base_url="https://example.test", remote="origin", branch="main",
+                repository=remote.as_uri(),
             )
             original_atomic_write = module.atomic_write
             crash = {"pending": True}
