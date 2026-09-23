@@ -32,6 +32,18 @@ Coconala completion gate. The fix still requires an immutable production release
 installed-SHA/argv readback, one stable-headroom natural wake, official
 four-room readback, and replay-zero before the Coconala system layer is closed.
 
+### Latest Coconala provider readback — 2026-09-23 19:10 JST
+
+The latest official four-room readback is readback-only and performed no
+mutation or formal delivery. Ryu `18211957` has the manual seller message
+`js-talkroomMessage-222245383` (18:38 JST), which includes the WEB予約 heading/
+guidance editability, management preview, and management URL. Chii
+`18180857` and NPO rooms `18223833`/`18250352` have no newer complete buyer
+request requiring a send: their states are respectively buyer-waiting,
+buyer-artifact-waiting, and buyer-waiting. The Paid producer's latest result is
+`observed=4/actionable=0/effect=0/readback=2/pending=1`; do not resend any of
+the three rooms or copy Ryu's site-specific wording to them.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a

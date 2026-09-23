@@ -24,6 +24,14 @@ runtime/provider readback.
   unknown-effect occurrences remain fenced and no platform is declared done
   from local artifacts alone.
 
+- Latest official four-room readback is readback-only: Ryu `18211957` has the
+  manual seller message `js-talkroomMessage-222245383` (18:38 JST), including
+  editable WEB予約 wording, management preview, and management URL. Chii
+  `18180857` and NPO rooms `18223833`/`18250352` have no newer complete send
+  target. The latest Paid producer result is
+  `observed=4/actionable=0/effect=0/readback=2/pending=1`; do not resend or
+  copy Ryu's site-specific wording to the other rooms.
+
 - Ryu `18211957` is the only permanent manual exception. The five newer official
   buyer events (`222215345`, `222215354`, `222218450`, `222218603`, `222218678`)
   were handled directly. The live site and management screen now show current
