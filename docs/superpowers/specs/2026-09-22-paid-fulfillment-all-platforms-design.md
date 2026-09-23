@@ -122,6 +122,35 @@ is not sufficient no-dispatch proof. CrowdWorks therefore remains loaded-idle
 and fenced, while Lancers' Paid effect fence is clear. The source fix is still
 not an installed production release; no natural Paid canary is claimed.
 
+### Operator checkpoint — 2026-09-23 21:39 JST
+
+The current live readback supersedes the earlier lifecycle snapshot. Ryu remains
+the permanent manual exception: the exact seller message
+`js-talkroomMessage-222245383` is the closed direct revision, with no newer buyer
+event or resend. `hf-gig-paid-direct` is scheduled and `loaded-idle` with
+`last_exit=0`, `admission_effect_unknown=false`, and installed/event SHA
+`cbc9cf42309f023b20db247d60c6892e672b106b`.
+
+CrowdWorks Paid is scheduled with installed/event SHA
+`f01c612d6448bc2850f3ed951f8dd3485e0cb121`; its latest natural wake completed
+with `last_exit=0`, while a subsequent scheduled wake was `loaded-running` at
+readback. The authoritative paid summary still reports five observed contracts,
+one actionable item, `effect=0`, four official readbacks, and one pending buyer
+artifact; no provider send was made. The unresolved old occurrence
+`crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains fenced and is not
+cleared by the new occurrence-scoped pass.
+
+Lancers Paid is scheduled and `loaded-idle` with `last_exit=0`,
+`admission_effect_unknown=false`; its current authoritative summary is zero
+observed/actionable contracts with `effect=0` and no send. A short host-resource
+queue wait occurred during the CrowdWorks wake and resolved naturally; no loop
+was force-stopped and no provider effect was replayed.
+
+Upwork remains outside production ownership: no Paid owner is registered, no
+authenticated live contract inventory is present, and the read-only CDP endpoint
+`9233` is unavailable. Therefore no Upwork loop or mutation is enabled until an
+authenticated inventory and funded contract receipt exist.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
