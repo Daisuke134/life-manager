@@ -270,9 +270,11 @@ wake completion gate: top-level terminal recording, four-room official readback,
 and replay-zero remain open.
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
-`18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
-is loaded-running from immutable release `20260923T174546-35e66d24`, whose SHA is
-`35e66d242798e28403e98d06037484d5c2a28795`. Its last completed top-level provider
+`18180857`, and the two NPO rooms `18223833` and `18250352`. The fresh canonical
+status readback for `hf-gig-paid-direct` is `loaded-idle` with `pid=null` and
+`desired_mode=scheduled` from immutable release `20260923T174546-35e66d24`, whose
+SHA is `35e66d242798e28403e98d06037484d5c2a28795`; it is not a stopped loop.
+Its last completed top-level provider
 readback before this run is terminal with `effect=0`: Ryu was
 `reserved_for_owner` and the other three rooms were `awaiting_buyer`.
 The latest natural wake (targeted readback through

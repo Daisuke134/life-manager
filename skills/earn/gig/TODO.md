@@ -65,6 +65,13 @@ runtime/provider readback.
   not call the system gate complete until that child/run is reaped, the top-level
   terminal is recorded, and the four-room official readback plus replay-zero are
   verified against SHA `35e66d24`.
+- Fresh canonical status readback for `hf-gig-paid-direct` is
+  `loaded-idle`, `pid=null`, `desired_mode=scheduled`,
+  `installed_release_sha=35e66d242798e28403e98d06037484d5c2a28795`, with no
+  active provider effect. This is **not** a stopped loop. Before the pending Ryu
+  manual reply, stop it through the canonical lifecycle command and verify
+  `launchd_state=unloaded`, `pid=null`; never use a raw kill or bypass the
+  admission/FIFO controls.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
