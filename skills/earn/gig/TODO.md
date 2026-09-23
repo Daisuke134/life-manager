@@ -11,13 +11,14 @@ runtime/provider readback.
   options limited to `即尺`/`パンティ持ち帰り`, the five requested paid options
   in order/prices, per-cast paid-option persistence, and editable WEB予約 copy
   with a direct management preview. Public age verification remains enabled.
-  The previous seller reply `js-talkroomMessage-222220999` was read back with
-  formal delivery OFF, but the official room now has two newer buyer events:
-  `222222979` (paid-option requirements/persistence) and `222223030` (WEB予約
-  wording). The current cycle is therefore reopened and **not yet replied to**;
-  the next action is one manual seller reply after a fresh pre-send readback.
-  The loop remains prohibited from creating work, replying, attaching, or
-  formally delivering for Ryu. Deployment evidence is
+  The previous seller reply `js-talkroomMessage-222220999` was followed by buyer
+  events `222222979` (paid-option requirements/persistence) and `222223030`
+  (WEB予約 wording). One manual reply was sent after a fresh pre-send readback
+  as `js-talkroomMessage-222245383` at 18:38 JST, with formal delivery OFF; the
+  official post-send readback is recorded in
+  `projects/18211957/delivery/ryu-v699-manual-send-readback.json`. The loop
+  remains prohibited from creating work, replying, attaching, or formally
+  delivering for Ryu. Deployment evidence is
   `projects/18211957/delivery/current-cycle-v699-deploy-readback.json`.
 - Coconala schedule extraction is repaired and promoted. PR `#5798` remains the
   parser fix; the subsequent admission-cleanup PR `#5803` is merged at
@@ -65,13 +66,12 @@ runtime/provider readback.
   not call the system gate complete until that child/run is reaped, the top-level
   terminal is recorded, and the four-room official readback plus replay-zero are
   verified against SHA `35e66d24`.
-- Fresh canonical status readback for `hf-gig-paid-direct` is
-  `loaded-idle`, `pid=null`, `desired_mode=scheduled`,
+- Fresh canonical status readback for `hf-gig-paid-direct` after the Ryu send is
+  `launchd_state=unloaded`, `pid=null`, `desired_mode=scheduled`,
   `installed_release_sha=35e66d242798e28403e98d06037484d5c2a28795`, with no
-  active provider effect. This is **not** a stopped loop. Before the pending Ryu
-  manual reply, stop it through the canonical lifecycle command and verify
-  `launchd_state=unloaded`, `pid=null`; never use a raw kill or bypass the
-  admission/FIFO controls.
+  active provider effect. Keep it stopped until the Coconala natural-wake
+  repair gate is ready; restart only through the canonical lifecycle CLI and
+  verify the installed SHA/argv before allowing a wake.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
@@ -273,12 +273,12 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Manually finish the reopened Ryu cycle, then finish the Coconala natural-wake gate.**
-   Re-read the room immediately before sending, map events `222222979` and
-   `222223030` to the already deployed v699 result, send one ordinary seller
-   message with formal delivery OFF, and read back its exact official message
-   ID. Do not press formal delivery and do not let the Paid loop touch Ryu.
-   After that manual client gate, finish the Coconala natural-wake gate on the repaired release. The exact
+1. **Finish the Coconala natural-wake gate after the completed manual Ryu cycle.**
+   Ryu events `222222979` and `222223030` were answered once as seller message
+   `222245383` with formal delivery OFF and official readback. Keep Ryu fenced.
+   Restart only the repaired release through the canonical lifecycle CLI, then
+   let the owner-scoped child finish or fail closed, record the top-level terminal,
+   and verify the four-room official readback plus replay-zero. The exact
    old fence is resolved with an effect-zero official receipt. Release
    `20260923T174546-35e66d24` is target-installed and its loaded argv is verified.
    The first new natural run acquired admission with `effect=0` but currently
