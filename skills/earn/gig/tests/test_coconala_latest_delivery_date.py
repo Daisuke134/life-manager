@@ -42,6 +42,15 @@ def test_non_event_schedule_label_does_not_replace_fallback() -> None:
     assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/10"
 
 
+def test_registered_schedule_event_with_quoted_label_is_observed() -> None:
+    messages = [{
+        "side": "system",
+        "text": "納品予定日が登録されました。「納品予定日：2026/09/30」",
+    }]
+
+    assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/30"
+
+
 def test_latest_event_schedule_reaches_existing_order() -> None:
     order = {"delivery_date": "2026-09-18"}
     talkroom = {

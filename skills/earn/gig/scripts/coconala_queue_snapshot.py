@@ -3154,7 +3154,8 @@ def first_match(pattern: str, text: str) -> str | None:
 
 
 _DELIVERY_DATE_FROM_EVENT = re.compile(
-    r"納品予定日(?:が変更されました。\s*(?:修正後)?納品予定日|が登録されました。)"
+    r"納品予定日(?:が変更されました。\s*(?:修正後)?納品予定日|"
+    r"が登録されました。\s*[「\"]?(?:納品予定日)?)"
     r"[：:\"「]*\s*(20\d{2}/\d{2}/\d{2})"
 )
 
