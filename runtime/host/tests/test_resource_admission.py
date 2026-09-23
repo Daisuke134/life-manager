@@ -1580,6 +1580,45 @@ def test_resolve_unknown_occurrence_can_require_released_state_atomically(
     assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
 
 
+def test_claimed_unknown_can_close_while_a_different_occurrence_is_live(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-owner"
+    old_occurrence = f"{owner}:old"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="revenue",
+        occurrence_id=old_occurrence, now=100,
+    )
+    old_claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101,
+    )
+    assert old_claim is not None and reason == "acquired"
+    admission.release_and_reserve(
+        old_claim, effect_unknown=True, reserve=False, now=102,
+    )
+    admission.atomic_json(tmp_path / "owners" / "current.json", {
+        "version": 2,
+        "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": owner,
+        "occurrence_id": f"{owner}:current",
+    })
+
+    assert admission.resolve_unknown_occurrence(
+        owner, old_occurrence, expected_state="claimed",
+        official_readback=lambda: {
+            "owner_id": owner,
+            "occurrence_id": old_occurrence,
+            "verified": True,
+            "provider_receipt_id": "post-old",
+        },
+    ) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == old_occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_released_unknown_occurrence_can_be_closed_by_exact_official_readback(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
