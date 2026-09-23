@@ -31,7 +31,7 @@ completion criteria.
   Ryu and create no work item.
 - All other eligible paid clients ultimately belong to their provider's Paid owner.
 - The execution cursor is sequential: (1) handle a genuinely newer Ryu event
-  directly, (2) prove the remaining Coconala fleet is loop-owned and safe, then
+  directly (the 2026-09-23 revision is now complete), (2) prove the remaining Coconala fleet is loop-owned and safe, then
   (3) repair and prove CrowdWorks, Lancers, and Upwork. “Ryu's client work is
   finished” and “the Coconala Paid loop is production-proven” are separate gates.
 
@@ -129,14 +129,27 @@ A fresh authenticated Coconala browser reload of talkroom `18211957` at
 - `js-talkroomMessage-222218678` (10:29): asks why the shown content is present
   in WEB予約; attachments `IMG_6434.png` and `IMG_6435.png`.
 
-The local `source/talkroom/messages.jsonl` snapshot is older (mtime
-2026-09-22 20:34 JST) and does not contain these provider events, so it cannot
-close or skip this cycle. Ryu is now `WORK_REQUIRED`/manual-owner. The next
-action is to inspect the three attachments, compare the live public site and
-management screen, implement all five outcomes, verify both surfaces, send one
-ordinary seller message covering the complete current result with formal
-delivery OFF, and read back its exact official message ID. The loop must not
-create work, reply, attach, or invoke formal delivery for this cycle.
+The local `source/talkroom/messages.jsonl` snapshot was older (mtime
+2026-09-22 20:34 JST), so the authenticated provider DOM was the authority for
+this cycle. The three attachments were downloaded and compared with the live
+public site and management screen. The direct fix deployed the current-image
+previews and normalized campaign image fields, made the first normal option
+`写真撮影1枚〜`, added the requested five paid options in order and price, made
+the paid-option save/readback preserve `optionCatalog` and `per_cast_options`,
+and made the management reservation iframe use a versioned preview URL that
+opens the reservation form without the public age gate. The public age gate
+remains enabled. The live management screen reports 12 registered profiles and
+no fixed people limit in the current data model; attendance rows are added from
+the roster.
+
+Deployment and browser readback are recorded under project `18211957` in
+`delivery/manual-emergency-v698-readback.json` and
+`delivery/ryu-v697-manual-send-readback.json`. The direct seller message was
+sent once with formal delivery OFF and no Paid-loop effect; official Coconala
+readback is `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST. Ryu is now
+buyer-waiting for a genuinely newer event and remains a permanent manual
+exception; the loop must not create work, reply, attach, or invoke formal
+delivery for Ryu.
 
 ### Shared-host blocker observed during loop repair
 
