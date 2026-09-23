@@ -1125,6 +1125,19 @@ def test_gog_document_text_uses_drive_get_and_txt_export(monkeypatch):
     assert calls[1][2:5] == ["drive", "download", document_id]
 
 
+def test_document_access_does_not_ignore_unresolved_doc_when_cli_reads_only_one(monkeypatch):
+    module = load()
+    readable = "https://docs.google.com/document/d/1111111111111111/edit"
+    unresolved = "https://docs.google.com/document/d/2222222222222222/edit"
+    monkeypatch.setattr(module, "_gog_document_text", lambda url: "one doc" if url == readable else None)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+
+    assert adapter._document_access([readable, unresolved]) == {
+        "artifact_required": True, "artifact_access": "unknown", "artifact_verified": False,
+    }
+
+
 def test_document_access_waits_for_permission_surface_after_commit():
     module = load()
 

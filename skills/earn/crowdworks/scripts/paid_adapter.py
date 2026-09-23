@@ -715,6 +715,8 @@ class CrowdWorksPaidAdapter:
                 continue
             browser_urls.append(url)
         if self.owned_context is None:
+            if browser_urls:
+                unknown_seen = True
             if permission_seen:
                 return {"artifact_required": True, "artifact_access": "permission_required",
                         "artifact_verified": False}
