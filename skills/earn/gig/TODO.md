@@ -73,6 +73,10 @@ runtime/provider readback.
   Its regression is covered; runtime tests pass `516`, the loop contract and
   adapter tests pass, and `lm-loop doctor` is clean. This is still source-only:
   the Paid owner remains unloaded and no new natural wake/readback has run.
+- Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB free,
+  no Paid parent/child process, and a 0.18-second targeted status response.
+  `admission_effect_unknown=true` remains fenced; do not clear it or restart
+  production from this observation alone.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
   symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),

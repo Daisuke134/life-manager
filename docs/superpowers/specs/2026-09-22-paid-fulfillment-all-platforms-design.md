@@ -200,6 +200,12 @@ contract gate passes, and `lm-loop doctor` reports no missing, unmanaged, or
 retired entries. This remains source-level evidence only; the production Paid
 owner is still unloaded and the new SHA has no natural-wake/readback proof.
 
+Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB available
+on the data volume, no running Paid parent/child, and a 0.18-second response
+from the repaired targeted status path. The durable admission fence still says
+`admission_effect_unknown=true`; these observations do not authorize clearing
+the fence or restarting the production owner.
+
 ### Coconala
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
