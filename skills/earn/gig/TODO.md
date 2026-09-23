@@ -1781,3 +1781,14 @@ This program is complete only when every applicable platform has a continuously 
 lifecycle, unsupported lanes are explicitly proved `not_applicable`, the meta/self-heal/self-improve loops
 operate without babysitting, the hosted phone-only product works, and attributable receipts prove USD 10K
 MRR. Larger revenue ambitions remain direction, never a substitute for this measured gate.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:18 JST
+
+- [x] Ryu0820119 was delivered manually once and read back officially at 02:04 JST; keep it out of the loop.
+- [ ] Recover at least the loop's 512MiB preflight floor through the allow-listed cleanup owner; current Coconala
+  Paid state is scheduled but its latest run is `disk_headroom_low`.
+- [x] Push the main-derived source candidate with CrowdWorks/Lancers/Mercor wake coalescing and shared no-effect
+  reconciliation; focused loop, Lancers, CrowdWorks, and contract gates pass.
+- [ ] Do not promote to production until a funded provider canary has an official receipt and replay-zero readback.
+- [ ] Next provider cursor is CrowdWorks `63568785` buyer-material completion; otherwise observe Lancers' first
+  funded contract and keep Upwork disabled until authorization, fresh authentication, and a funded contract exist.

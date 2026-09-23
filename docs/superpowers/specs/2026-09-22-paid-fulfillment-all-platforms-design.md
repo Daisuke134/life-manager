@@ -1279,3 +1279,26 @@ The objective is complete only when all of the following are proven:
   passes with no shared IDs or registry errors. The fix is pushed on this
   dedicated branch and is not yet a production result; promotion still uses
   the main-derived immutable release gate.
+
+## Runtime Cursor — 2026-09-24 02:18 JST
+
+- Ryu0820119 remains the permanent manual Coconala exception. The official formal
+  delivery was already accepted by the talkroom at 02:04 JST; no resend or loop
+  admission is allowed.
+- Current lifecycle readback: Coconala is scheduled (`interval:300s`) but its
+  latest run failed the local `disk_headroom_low` preflight (317MiB available,
+  512MiB required); CrowdWorks is `loaded-running/pass`; Lancers is
+  `loaded-running` but waiting on host capacity; Mercor is `loaded-idle/pass`.
+  A loaded/scheduled state is not a provider submission receipt.
+- A main-derived source branch `fix/paid-main-promotion-20260924` is pushed with
+  paid wake coalescing for CrowdWorks/Lancers/Mercor, occurrence-bound no-effect
+  reconciliation, and the Lancers quality-digest/provider boundary. Focused
+  tests pass (`180` plus `143` subtests), all Lancers tests pass (`427` plus
+  `17` subtests), all CrowdWorks tests pass (`221`), and `lm-loop-contract`
+  reports no shared IDs or errors. Production has not been promoted because a
+  provider-effect canary is still required.
+- The next mutation cursor is an admissible provider receipt: CrowdWorks
+  contract `63568785` still lacks permitted buyer material, Lancers has zero
+  funded contracts, and Upwork has no authorized authenticated Paid owner.
+  No synthetic client, guessed endpoint, duplicate delivery, or formal delivery
+  is created while those preconditions are absent.
