@@ -44,8 +44,11 @@ seller message `js-talkroomMessage-222253171` at 20:34 JST with
 (978,061 bytes, SHA-256
 `588f05d96b28028b2472ee7dbe7933505741e0fccf8d8cbe5dbb410d77a8f615`). The
 official selected-talkroom DOM readback bound the exact URL and attachment, and
-formal delivery remained OFF. NPO `18250352` remains buyer-waiting and was not
-resent. The Paid producer result captured before this manual recovery was
+formal delivery remained OFF. The project ledger is reconciled with
+`paid_work_browser_sent_reconciled` for this exact feedback/package pair
+(`next_action=await_buyer_feedback`, `resend=false`); the durable receipt is
+`projects/18223833/delivery/coconala-v16b-progress-receipt.json`. NPO
+`18250352` remains buyer-waiting and was not resent. The Paid producer result captured before this manual recovery was
 `observed=4/actionable=0/effect=0/readback=2/pending=1`; it does not contain the
 manual 18223833 effect. No client is replayed, and Ryu's site-specific wording
 is not copied to other rooms.

@@ -64,8 +64,12 @@ runtime/provider readback.
   and exact URL binding. Evidence is
   `projects/18223833/evidence/manual-npo-revision-20260923/browser-send/paid-queue-evidence.json`
   plus `official-readback-18223833-v16b.json`; the post-send contract gate is
-  PASS. This is a buyer-visible review/progress artifact, not formal delivery;
-  unresolved business-report, audit, and officer-identity facts remain explicit.
+  PASS. The same feedback/package pair is reconciled into the project ledger as
+  `paid_work_browser_sent_reconciled` (`next_action=await_buyer_feedback`,
+  `resend=false`); the durable receipt is
+  `projects/18223833/delivery/coconala-v16b-progress-receipt.json`. This is a
+  buyer-visible review/progress artifact, not formal delivery; unresolved
+  business-report, audit, and officer-identity facts remain explicit.
 - Coconala schedule extraction is repaired and promoted. PR `#5798` merged at
   `6b72c3044b2b590b950c1df18fc876285e2e9f7c`; immutable release
   `20260923T155015-6b72c304` is current and target-applied to
