@@ -1603,3 +1603,67 @@ The objective is complete only when all of the following are proven:
 - Coconala remains `observed=4/actionable=0/effect=0/readback=3/pending=0` with
   Ryu reserved for manual ownership. The next permitted mutation remains the
   CrowdWorks artifact event; otherwise all later-platform lanes stay fail-closed.
+
+## Runtime Cursor — 2026-09-24 05:35 JST
+
+This is the current read-only provider/loop audit and supersedes earlier
+cursors only where the evidence below is newer.
+
+- **Coconala:** the Paid loop is enabled and its installed release
+  `1ac87e32ac26cc60b2e2b52cc2ee72ab57adb48f` is `loaded-idle`, `last_exit=0`,
+  terminal `pass`. The latest official inventory remains
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`. Ryu's latest official
+  seller receipt `js-talkroomMessage-222245383` is seller-last and is protected
+  by the permanent manual fence; no resend or formal-delivery click is allowed.
+  The three non-Ryu rooms are waiting for buyer action, so there is no Coconala
+  mutation to perform now.
+- **CrowdWorks:** the Paid loop is enabled and `loaded-idle`/`last_exit=0`/
+  `pass` at installed release `f01c612d6448bc2850f3ed951f8dd3485e0cb121`.
+  The official snapshot is `observed=5/actionable=1/effect=0/readback=4/
+  pending=1`; `63568785` remains `buyer_task_detail_required`. Its latest
+  permitted buyer event is `426855154` and the existing permission-answer
+  receipt remains the only effect. The historical admission
+  `effect_unknown` fence is still closed; do not retry, duplicate, or formally
+  deliver without the permitted buyer artifact and an official provider
+  receipt.
+- **Lancers:** the Paid loop is enabled and `loaded-idle`/`last_exit=0`/
+  `pass` at installed release `109f2b3966da3940a901014b4d6ce15d71d37560`.
+  The authenticated source-complete inventory observed at
+  `2026-09-23T20:31:27.295826Z` has 14 boards, 0 contract candidates, 0
+  working contracts, 0 incoming offers, and 0 balance. Formal delivery stays
+  fail-closed until a real funded ContractReceipt exposes the official
+  `完了報告` DOM/API and readback.
+- **Upwork:** remains disabled by the explicit authorization/authentication/
+  funded-contract gate; no action is admissible.
+- **Release state:** the source branch contains the wake-coalescing and
+  reconciliation work, but the installed CrowdWorks/Lancers releases above
+  are not the source-branch promotion. Do not claim the fix is in production
+  until the main-derived immutable release, targeted apply, natural canary,
+  official receipt, and replay-zero checks all pass.
+
+### Remaining TODO (ordered by the next admissible effect)
+
+1. **Ryu/Coconala:** no action now. Reopen only on a genuinely newer buyer
+   event; then the owner sends manually, obtains the official readback, and
+   keeps the loop out of that room.
+2. **Coconala other rooms:** leave the loop enabled and waiting. On a new
+   buyer reply, let the loop perform the idempotent reply and verify the
+   provider readback; never resend an already-readback message.
+3. **CrowdWorks `63568785`:** wait for the permitted buyer task artifact;
+   read and verify it, produce the correct work, perform the required quality
+   check, submit through the provider-approved effect, then record the
+   official receipt and replay-zero. Keep the historical unknown occurrence
+   fenced throughout.
+4. **Lancers:** when the first funded contract appears, capture the exact
+   contract detail and `完了報告` control/readback, then implement and test
+   the idempotent formal-delivery path. Until then, do not guess selectors,
+   endpoints, or submissions.
+5. **Upwork:** obtain explicit authorization, fresh authenticated access,
+   and a funded contract before enabling any Paid owner or mutation.
+6. **Production promotion:** run the source gates, create the immutable
+   main-derived release, apply only the targeted Paid loops, and verify
+   natural canary plus replay-zero/readback. Do not merge or report production
+   completion before those gates.
+7. **Close-out:** after a real provider completion, verify acceptance,
+   settlement/payout, and revision handling. A loop pass or a message receipt
+   alone is not revenue/contract completion.

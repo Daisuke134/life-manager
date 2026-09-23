@@ -2031,3 +2031,39 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the next mutation cursor at CrowdWorks buyer-material arrival;
   when a funded Lancers ContractReceipt appears, capture and verify the
   official `完了報告` surface before implementing formal delivery.
+
+### Paid fulfillment checkpoint — 2026-09-24 05:35 JST
+
+- [x] Re-audited the enabled Paid loops: Coconala
+  `loaded-idle`/`last_exit=0`/`pass` at `1ac87e32ac26cc60b2e2b52cc2ee72ab57adb48f`,
+  CrowdWorks `loaded-idle`/`last_exit=0`/`pass` at
+  `f01c612d6448bc2850f3ed951f8dd3485e0cb121`, and Lancers
+  `loaded-idle`/`last_exit=0`/`pass` at
+  `109f2b3966da3940a901014b4d6ce15d71d37560`.
+- [x] Confirmed Coconala's official inventory is
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`; Ryu remains
+  seller-last under the permanent manual fence and the other three rooms are
+  buyer-waiting. No duplicate or formal-delivery mutation is allowed.
+- [x] Confirmed CrowdWorks' official inventory is
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; `63568785` is still
+  `buyer_task_detail_required`, with buyer event `426855154` and one existing
+  permission-answer receipt. The historical `effect_unknown` admission stays
+  fenced.
+- [x] Confirmed the authenticated Lancers inventory at
+  `2026-09-23T20:31:27.295826Z`: 14 boards, zero contract candidates, zero
+  working contracts, zero incoming offers, and zero balance. No delivery
+  surface exists to bind yet.
+- [ ] Wait for the next admissible effect in order: CrowdWorks buyer artifact,
+  then Lancers' first funded ContractReceipt; keep Upwork disabled until its
+  explicit authorization/authentication/funded-contract gate exists.
+- [ ] On the CrowdWorks artifact, verify the task, complete the work, submit
+  once through the approved provider effect, and capture official receipt plus
+  replay-zero. On the first Lancers ContractReceipt, capture the exact
+  `完了報告` DOM/API and readback before implementing formal delivery.
+- [ ] Promote the source-branch coalescing/reconciliation work only through
+  the main-derived immutable release, targeted apply, natural canary,
+  official receipt, and replay-zero gates; installed provider releases above
+  must not be treated as containing that source fix yet.
+- [ ] After a real completion, verify acceptance, settlement/payout, and
+  revision handling; do not equate loop `pass` or a message receipt with
+  revenue completion.
