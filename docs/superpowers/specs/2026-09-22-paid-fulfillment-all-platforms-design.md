@@ -950,6 +950,17 @@ the authenticated inventory is empty.
   authenticated funded-contract inventory. No external send was added by this
   checkpoint.
 
+## Runtime Checkpoint — 2026-09-23 23:07 JST
+
+- The Coconala Paid loop is already enabled (`scheduled`, `loaded-idle`, latest
+  terminal result `pass`); it was left running without a restart or duplicate
+  effect. Lancers is also `scheduled`/`loaded-idle`/`pass` with zero funded
+  contracts, so the cursor advances there without a provider send.
+- CrowdWorks remains scheduled but its latest wake is temporarily deferred by
+  the host-capacity fence (`resource_capacity_busy`); the pending contract and
+  the historical effect-unknown occurrence remain held. No unsafe retry or
+  manual fence clearing is allowed.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
