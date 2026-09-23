@@ -23,6 +23,16 @@ def _digest(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _quality_digest(contract: Mapping[str, Any], body: str) -> str:
+    value: dict[str, Any] = {
+        "buyer_context": contract.get("buyer_context"),
+        "body": body.strip(),
+    }
+    if "artifact_content" in contract:
+        value["artifact_content"] = contract.get("artifact_content")
+    return _digest(value)
+
+
 def _load_work_sync():
     path = HERE / "work_sync.py"
     spec = importlib.util.spec_from_file_location("lancers_paid_work_sync", path)
@@ -381,15 +391,15 @@ class LancersPaidAdapter:
         event_id = payload.get("buyer_event_id")
         if not isinstance(event_id, str) or event_id != detail.get("buyer_event_id"):
             raise RuntimeError("lancers_paid_context_changed")
+        body = payload.get("body") if action == "answer" else payload.get("answer_body")
         if (payload.get("correct_work_verified") is not True
                 or payload.get("quality_verdict") != "quality_ok"
+                or not isinstance(body, str) or not body.strip()
                 or not isinstance(payload.get("quality_sha256"), str)
-                or not re.fullmatch(r"[0-9a-f]{64}", payload["quality_sha256"])):
+                or not re.fullmatch(r"[0-9a-f]{64}", payload["quality_sha256"])
+                or payload["quality_sha256"] != _quality_digest(detail, body)):
             raise RuntimeError("lancers_paid_answer_quality_unverified")
         if action == "answer":
-            body = payload.get("body")
-            if not isinstance(body, str) or not body.strip():
-                raise RuntimeError("lancers_paid_answer_invalid")
             sender = getattr(self.provider, "send_message", None)
             if not callable(sender):
                 raise RuntimeError("lancers_paid_message_effect_unavailable")
@@ -467,13 +477,10 @@ def decide(row: Mapping[str, Any], *,
                 "action": "wait", "reason": "work_quality_required",
                 "remaining_work": ["produce and independently verify the contract-specific work"],
             }
-        quality_input = {"buyer_context": contract.get("buyer_context"), "body": body.strip()}
-        if "artifact_content" in contract:
-            quality_input["artifact_content"] = contract.get("artifact_content")
         return {"action": "answer", "payload": {
             "body": body.strip(), "buyer_event_id": buyer_event_id.strip(),
             "correct_work_verified": True, "quality_verdict": quality,
-            "quality_sha256": _digest(quality_input),
+            "quality_sha256": _quality_digest(contract, body),
         }}
     if (not isinstance(body, str) or not body.strip()
             or contract.get("correct_work_verified") is not True

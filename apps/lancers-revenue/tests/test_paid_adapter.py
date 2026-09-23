@@ -234,7 +234,10 @@ class LancersPaidAdapterTests(unittest.TestCase):
                     "provider_state": "funded", "board_id": "board-7",
                     "buyer_event_id": "buyer-7", "buyer_context": "依頼本文",
                     "correct_work_verified": True,
-                    "quality_verdict": "quality_ok", "quality_sha256": "a" * 64,
+                    "quality_verdict": "quality_ok",
+                    "quality_sha256": module._quality_digest(
+                        {"buyer_context": "依頼本文"}, "確認しました。"
+                    ),
                 }
 
             def send_message(self, intent, detail):
@@ -254,13 +257,46 @@ class LancersPaidAdapterTests(unittest.TestCase):
             "action": "answer", "work_id": "project:7", "effect_key": "effect-7",
             "payload": {"body": "確認しました。", "buyer_event_id": "buyer-7",
                         "correct_work_verified": True, "quality_verdict": "quality_ok",
-                        "quality_sha256": "a" * 64},
+                        "quality_sha256": module._quality_digest(
+                            {"buyer_context": "依頼本文"}, "確認しました。"
+                        )},
         }
         adapter.mutate(intent)
         readback = adapter.readback(intent)
         self.assertEqual(len(provider.sent), 1)
         self.assertTrue(readback["verified"])
         self.assertEqual(readback["provider_receipt_id"], "message-7")
+
+    def test_answer_mutation_rejects_a_forged_quality_digest(self):
+        module = load()
+        snapshot = {
+            "ok": True, "source_complete": True,
+            "contract_candidates": [{
+                "source_kind": "project", "provider_id": "7", "board_id": None,
+                "detail_path": "/work/detail/7", "funding_status": "requires_detail_readback",
+            }],
+            "boards": [], "finance": {"source_complete": True},
+        }
+
+        class Provider:
+            def read_detail(self, candidate):
+                return {"provider_state": "funded", "board_id": "board-7",
+                        "buyer_event_id": "buyer-7", "buyer_context": "依頼本文"}
+
+            def send_message(self, intent, detail):
+                raise AssertionError("forged quality must not send")
+
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1", inventory_reader=lambda: snapshot,
+            provider=Provider(),
+        )
+        with self.assertRaisesRegex(RuntimeError, "lancers_paid_answer_quality_unverified"):
+            adapter.mutate({
+                "action": "answer", "work_id": "project:7", "effect_key": "effect-7",
+                "payload": {"body": "確認しました。", "buyer_event_id": "buyer-7",
+                            "correct_work_verified": True, "quality_verdict": "quality_ok",
+                            "quality_sha256": "a" * 64},
+            })
 
 
 if __name__ == "__main__":
