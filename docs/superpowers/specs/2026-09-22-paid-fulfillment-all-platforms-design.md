@@ -63,12 +63,13 @@ reconciled; Chii is not such an incident.
 
 ### Authenticated artifact access rule
 
-For Google Docs, Sheets, and other connected artifacts, use the authenticated
-`gog` CLI or an equivalent authenticated connector/plugin first. This path uses
-the already-authorized scope and does not require granting a browser Docs
-permission. Use a browser surface only when the CLI/connector cannot read the
-artifact, and record that specific readback failure; a missing browser session
-is not evidence that the artifact is inaccessible.
+For Google Docs, Sheets, and other connected artifacts, the default and required
+first path is the authenticated `gog` CLI or an equivalent authenticated
+connector/plugin. This path uses the already-authorized scope and does not
+require granting a browser Docs permission. Use a browser surface only after the
+CLI/connector records a concrete read failure, and record that failure beside
+the fallback readback; a missing browser session is never evidence that the
+artifact is inaccessible.
 
 ### Why Chii is not being sent again
 
@@ -187,18 +188,20 @@ message, no formal delivery, and no buyer reply after the prior artifact.
 The owner must remain paused until child-reap behavior is fixed, a durable write
 and natural no-op wake succeed, and the repaired immutable release is applied.
 
-The queued-wake/occurrence-scope branch is now pushed at `e012343e94` (the
-test expectation update follows the production coalescing behavior). Its focused
-runtime suite is `528 passed, 174 subtests passed`, `git diff --check`, Python
-compile, and `./bin/lm-loop-contract` all pass. The branch is not merged,
-released, or applied; production still runs the older release when the owner is
-next started.
+The queued-wake/occurrence-scope implementation at `e012343e94` (the test
+expectation update follows the production coalescing behavior) is merged in main,
+included in immutable release `20260923T155015-6b72c304`, and target-applied to
+`hf-gig-paid-direct`. Its focused runtime suite is `528 passed, 174 subtests
+passed`, `git diff --check`, Python compile, and `./bin/lm-loop-contract` all
+pass. The owner is still intentionally unloaded; the remaining proof is one
+safe natural wake with official provider readback and replay-zero.
 
-The follow-up Paid lifecycle fix is pushed at `470c7b3160`: when a stop signal
+The follow-up Paid lifecycle fix is included at `470c7b3160`: when a stop signal
 reaches `paid_direct.py`, it now terminates active child groups and re-raises the
 same signal with the default disposition so the Paid parent cannot remain as an
-orphan holding `.paid-direct.lock`. The regression test is included; the fix is
-not yet merged, released, or applied.
+orphan holding `.paid-direct.lock`. The regression test is included in the
+installed release; the production owner remains unloaded until the host gate is
+closed.
 
 The targeted loop-status read path is also fixed at `313915e0a5`: when a caller
 asks for one loop, `_last_event()` now returns at the newest valid report for
@@ -208,8 +211,9 @@ Follow-up test commit `2d2417bd5b` proves targeted cache entries remain availabl
 for every loop sharing a state root. Runtime tests now pass `517`, Paid tests
 `263`, adapter tests `15`, the loop
 contract gate passes, and `lm-loop doctor` reports no missing, unmanaged, or
-retired entries. This remains source-level evidence only; the production Paid
-owner is still unloaded and the new SHA has no natural-wake/readback proof.
+retired entries. These fixes are included in installed release
+`20260923T155015-6b72c304` and target-applied to the Paid owner. The owner is
+still unloaded and the new SHA has no natural-wake/readback proof.
 
 Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB available
 on the data volume, no running Paid parent/child, and a 0.18-second response
@@ -596,10 +600,10 @@ unproven providers remain owner-scoped until their item-level idempotency and
 readback are proven. Follow-up commit `9df3731ccb` also enables queued/reserved wake
 coalescing for Coconala Paid, preventing repeated safe no-op wakes from accumulating
 an unbounded owner queue. Commit `7244c3e856` additionally binds model outcome
-identities to official provider IDs/hashes. These changes are pushed but not yet
-promoted into `main`, an
-immutable release, or live launchd state; natural-wake and provider acceptance gates
-remain open.
+identities to official provider IDs/hashes. These changes are merged in main,
+included in immutable release `20260923T155015-6b72c304`, and target-applied to
+the Paid owner. Natural-wake and provider acceptance gates remain open; the
+owner stays unloaded until the host/lifecycle gate is safe.
 
 ## Ownership and the Ryu Fence
 
