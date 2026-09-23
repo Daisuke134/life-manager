@@ -2100,3 +2100,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   a funded contract exist.
 - [ ] Promote the source-branch loop fixes only through immutable main-derived
   release, targeted apply, natural canary, official receipt, and replay-zero.
+
+### Paid fulfillment checkpoint — 2026-09-24 08:18 JST
+
+- [x] Re-ran focused source acceptance on the pushed branch: Coconala `326
+  passed`, CrowdWorks/reconciliation `134 passed`, Lancers paid adapter/owner
+  `15 passed`, loop lifecycle `286 passed / 174 subtests`, and
+  `./bin/lm-loop-contract` PASS (`14/167/97`, no shared IDs/errors).
+- [x] Confirmed no new admissible provider artifact appeared while testing:
+  Ryu remains a manual-only seller-last room, the other Coconala rooms are
+  buyer-waiting, CrowdWorks `63568785` remains buyer-material-gated, Lancers
+  has no funded contract, and Upwork remains explicitly disabled.
+- [ ] Promote this tested branch through `main` and one immutable release;
+  targeted-apply the Paid owners, then verify loaded SHA/argv, natural terminal
+  readback, official provider state, and replay-zero.
+- [ ] After promotion, process the next real buyer/contract artifact one at a
+  time with quality evidence and one idempotent provider submission. Never
+  treat a local test or loop `pass` as a client delivery receipt.

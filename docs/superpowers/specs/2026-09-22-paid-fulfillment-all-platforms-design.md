@@ -1735,3 +1735,37 @@ clicked again.
 8. **Close-out:** after a real provider completion, verify buyer acceptance,
    settlement/payout, and revision handling. A loop `pass` or a chat receipt
    alone is not contract completion.
+
+## Verification Cursor — 2026-09-24 08:18 JST
+
+- **Source acceptance:** the focused paid suites pass on the current pushed
+  branch: Coconala `326 passed`, CrowdWorks/reconciliation `134 passed`,
+  Lancers paid adapter/owner `15 passed`, and loop lifecycle `286 passed / 174
+  subtests`. `./bin/lm-loop-contract` also passes with `catalog_loops=14`,
+  `registry_jobs=167`, `mapped_jobs=97`, and no shared IDs or errors.
+- **Production boundary:** the installed CrowdWorks and Lancers owners still
+  point to pre-fix immutable releases. The coalescing/reconciliation source is
+  therefore not production-complete until it is merged to `main`, cut into one
+  immutable release, targeted-applied, and verified by natural terminal
+  readback plus replay-zero.
+- **Provider cursor:** Coconala has no new non-Ryu buyer artifact;
+  CrowdWorks `63568785` still lacks permitted buyer material; Lancers still
+  has no funded contract; Upwork remains authorization-gated. No provider
+  effect was guessed or replayed.
+
+### Remaining TODO (updated order)
+
+1. Merge the tested paid source branch into `main`, cut one immutable
+   main-derived release, and targeted-apply only Coconala/CrowdWorks/Lancers
+   Paid owners while preserving Ryu's manual fence.
+2. Read back the loaded release SHA/argv and wait for each owner's natural
+   terminal result; verify the official provider snapshot and replay-zero.
+3. Keep Coconala's three buyer-waiting rooms and CrowdWorks `63568785` idle
+   until a permitted buyer artifact arrives; on arrival, perform one
+   quality-checked, idempotent provider submission with official receipt.
+4. When Lancers exposes its first funded ContractReceipt, capture the exact
+   `完了報告` surface and implement the provider-grounded delivery/readback
+   path before sending.
+5. Keep Upwork disabled until explicit authorization, fresh authentication,
+   and a funded contract exist; then apply the same quality/effect/readback
+   contract.
