@@ -58,32 +58,37 @@ runtime/provider readback.
   the semantic decision was `await_buyer`; `effect=0` proves no external send.
   Code commit `7244c3e856` now binds each outcome to the exact official message
   ID and canonical provider hash. The next wake accepted the decision as
-  `awaiting_buyer`, so this fix is verified locally and by natural readback but
-  is not yet promoted.
+  `awaiting_buyer`, so this fix is verified locally and by natural readback.
+  It is included in main and in the installed `6b72c304` release; only the
+  post-apply natural-wake/provider-readback gate remains.
 - Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
   on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
   `11dcf8c6f3` adds an explicit `admission_effect_scope` registry field and enables
   occurrence isolation only for item-kernel lanes (CrowdWorks Application/Paid/Reply;
   Lancers Application/Negotiate/Paid). It preserves the old unknown rows and keeps
-  Report/Storefront/Telegram owner-scoped. The branch is pushed but not yet merged,
-  released, or applied; no production state changed. Follow-up commit
-  `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
-  safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
-  promoted or applied. The follow-up identity-binding fix is `7244c3e856`.
+  Report/Storefront/Telegram owner-scoped. The implementation is merged in main
+  and included in the installed `6b72c304` release; the old unknown rows remain
+  fenced and no production state was cleared. Follow-up commit `9df3731ccb`
+  adds queue/reservation wake coalescing for Coconala Paid so repeated safe no-op
+  wakes do not build an unbounded owner queue. The follow-up identity-binding
+  fix is `7244c3e856`; both are in the same installed release.
 - The coalescing branch now includes the matching admission expectation test at
   `e012343e94`. Focused runtime tests pass `528` with `174` subtests, the loop
-  contract gate passes, and the branch remains unmerged/unreleased/unapplied.
+  contract gate passes, and the resulting code is merged in main and included in
+  installed release `20260923T155015-6b72c304`. No natural wake, provider
+  readback, or replay-zero proof exists for this installed SHA yet.
 - The follow-up lifecycle fix `470c7b3160` makes `paid_direct.py` re-raise a
   received stop signal after terminating active child groups, so a Paid parent
   cannot survive bootout and retain `.paid-direct.lock`. Its regression and
   related loop tests pass (`263` paid-remote-wait, `70` loop-boundary); it is
-  pushed but not merged/released/applied.
+  merged in main and included in installed release `20260923T155015-6b72c304`.
 - The targeted status-read fix `313915e0a5` makes `_last_event()` stop at the
   newest requested loop report instead of scanning all older shared-state rows.
   Follow-up `2d2417bd5b` covers targeted cache results across shared state roots;
   runtime tests pass `517`, the loop contract and adapter tests pass, and
-  `lm-loop doctor` is clean. This is still source-only:
-  the Paid owner remains unloaded and no new natural wake/readback has run.
+  `lm-loop doctor` is clean. These fixes are included in installed release
+  `20260923T155015-6b72c304` and target-applied to the Paid owner. The owner
+  remains unloaded and no new natural wake/readback has run.
 - Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB free,
   no Paid parent/child process, and a 0.18-second targeted status response.
   `admission_effect_unknown=true` remains fenced; do not clear it or restart
@@ -219,11 +224,12 @@ runtime/provider readback.
    is active. Prove a small production state write, owner-child reaping, and a
    natural Coconala no-op wake. Keep all protected releases and provider ledgers
    intact; do not clear unknown-effect fences or restart Paid before this gate.
-2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
-   `e012343e94` (occurrence-scoped marketplace admission plus Coconala Paid queued
-   and reserved wake coalescing), build one immutable release, apply it, and verify a
-   natural Coconala wake with official readback and replay-zero. Do not edit the
-   admission database by hand or clear old unknown rows.
+2. **Prove the promoted queued-wake safety fix.** The full loop/host acceptance
+   set for `e012343e94` (occurrence-scoped marketplace admission plus Coconala
+   Paid queued and reserved wake coalescing) is merged, released, and applied in
+   `20260923T155015-6b72c304`. After item 1, verify one natural Coconala wake
+   with official readback and replay-zero. Do not edit the admission database by
+   hand or clear old unknown rows.
 3. **CrowdWorks occurrence fences and loop promotion.** The manually completed
    contracts `63712784`, `63659463`, and `63657015` are not proof for the unresolved
    Paid occurrence. Reconcile each existing `effect_unknown` occurrence against
