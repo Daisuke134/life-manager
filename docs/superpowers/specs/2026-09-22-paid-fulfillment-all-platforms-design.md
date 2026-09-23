@@ -1667,3 +1667,71 @@ cursors only where the evidence below is newer.
 7. **Close-out:** after a real provider completion, verify acceptance,
    settlement/payout, and revision handling. A loop pass or a message receipt
    alone is not revenue/contract completion.
+
+## Runtime Cursor — 2026-09-24 08:09 JST (Ryu manual-owner follow-up)
+
+This cursor supersedes the 05:35 Ryu seller-last statement. The live Coconala
+talkroom now contains three newer buyer requests and two ordinary seller
+replies; the formal-delivery control was already used at 02:04 and was not
+clicked again.
+
+- **Ryu buyer requests:** at 02:22 the buyer asked for the external-integration
+  status; at 02:25 the buyer asked how to configure concept-specific rankings;
+  at 03:15 the buyer asked for the paid-option rows to be aligned for
+  readability and attached `IMG_6449.png`.
+- **Manual implementation/readback:** release `manual-complete-v700` added
+  `rankingByCategory` for all six concepts, a separate admin editor for
+  総合＋各コンセプト, and public filtering that reads each configured order.
+  The live admin page shows all seven ranking groups and 17 selectors; the
+  public page shows the configured two-person lists when `学生` and
+  `業界未経験` are selected. The exact FTPS receipt is
+  `/Users/anicca/gig/projects/18211957/delivery/current-cycle-v700-concept-ranking-deploy-readback.json`.
+- **Paid-option readability:** release `manual-complete-v701` changed the
+  paid-option profile block to one row per option with a fixed name/status
+  grid. The authenticated public readback loaded
+  `styles.css?v=manual-complete-v701`, found five paid-option rows, and
+  measured each row as `grid(name,status)`. The v701 exact FTPS readback is
+  recorded in the same deployment evidence path after the v701 write.
+- **Seller receipts:** the ordinary ranking/integration reply is
+  `js-talkroomMessage-222277933` (08:07 JST); the paid-option readability
+  reply is `js-talkroomMessage-222278017` (08:09 JST). Neither action used the
+  formal-delivery checkbox. Do not send either reply again.
+- **Integration boundary:** the site-side reservation/attendance/roster
+  management surface is live, but actual LINE/Instagram/X and external-media
+  publication/automatic sync remains conditional on each provider's filing,
+  review, account URL, management permission, and supported connector/API.
+  It is not an accepted completion condition until a provider-specific
+  connection and official readback exist.
+- **Coconala Paid loop:** it remains enabled and healthy (`loaded-idle`,
+  `last_exit=0`, terminal `pass`) with official inventory
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`. Ryu is still
+  owner-manual fenced; the other three rooms are buyer-waiting. No loop
+  replay or formal delivery is permitted for any of these four rooms.
+
+### Remaining TODO (ordered)
+
+1. **Ryu:** wait for the buyer's response to the two ordinary replies. If a
+   genuinely newer request arrives, re-read the entire live room, fix the
+   site, verify public/admin readback, and send one ordinary manual reply. Do
+   not click formal delivery again and do not let the Paid loop touch this
+   room.
+2. **Coconala other rooms:** leave the loop enabled. On a new buyer artifact,
+   let the idempotent loop process it and verify the provider receipt; never
+   invent a task or resend a seller-last message.
+3. **External integrations:** obtain the concrete provider URLs, account
+   permissions, filing/review status, and supported connector requirements;
+   connect one provider at a time and capture an official provider readback.
+4. **CrowdWorks `63568785`:** wait for the permitted buyer task artifact,
+   then complete the work, quality-check it, submit once, and capture the
+   official receipt/replay-zero. Keep `18d62cf32eb0c678-48194` fenced.
+5. **Lancers:** wait for the first funded ContractReceipt, capture the exact
+   `完了報告` control/API and readback, then implement the idempotent delivery
+   path. The current account has no funded contract.
+6. **Upwork:** remain disabled until explicit authorization, authenticated
+   access, and a funded contract exist.
+7. **Production loop promotion:** promote the source-branch coalescing and
+   reconciliation fixes only through the main-derived immutable release,
+   targeted apply, natural canary, official receipt, and replay-zero gates.
+8. **Close-out:** after a real provider completion, verify buyer acceptance,
+   settlement/payout, and revision handling. A loop `pass` or a chat receipt
+   alone is not contract completion.

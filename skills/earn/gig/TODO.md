@@ -2067,3 +2067,36 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] After a real completion, verify acceptance, settlement/payout, and
   revision handling; do not equate loop `pass` or a message receipt with
   revenue completion.
+
+### Paid fulfillment checkpoint — 2026-09-24 08:09 JST
+
+- [x] Re-read Ryu's live Coconala room and found the three newer requests:
+  external-integration status (02:22), concept-specific ranking setup
+  (02:25), and aligned paid-option rows with `IMG_6449.png` (03:15).
+- [x] Manually deployed `manual-complete-v700`: `rankingByCategory` for all
+  six concepts, admin selectors for 総合＋各コンセプト, and public filtering
+  for each configured concept ranking. Exact FTPS evidence:
+  `/Users/anicca/gig/projects/18211957/delivery/current-cycle-v700-concept-ranking-deploy-readback.json`.
+- [x] Manually deployed `manual-complete-v701`: paid options now render as
+  one aligned row per option with a fixed name/status grid. Public readback
+  loaded `styles.css?v=manual-complete-v701` and verified 5 rows.
+- [x] Sent two ordinary manual replies and verified official receipts:
+  `js-talkroomMessage-222277933` (ranking/integration, 08:07) and
+  `js-talkroomMessage-222278017` (paid-option layout, 08:09). Formal delivery
+  was not clicked again.
+- [ ] Wait for Ryu's next buyer response; do not resend either reply and keep
+  the permanent manual fence in place.
+- [ ] Obtain provider URLs, management permissions, filing/review state, and
+  connector/API requirements for each external integration; connect and
+  read back one provider at a time.
+- [ ] Keep the Coconala Paid loop enabled for the three buyer-waiting rooms;
+  on a new artifact, process idempotently and verify official readback.
+- [ ] CrowdWorks `63568785`: wait for permitted buyer material, then perform
+  the correct work/quality check/submission with official receipt and replay-
+  zero; keep `18d62cf32eb0c678-48194` fenced.
+- [ ] Lancers: wait for a funded ContractReceipt and capture the exact
+  `完了報告` control/readback before implementing delivery.
+- [ ] Keep Upwork disabled until explicit authorization, authentication, and
+  a funded contract exist.
+- [ ] Promote the source-branch loop fixes only through immutable main-derived
+  release, targeted apply, natural canary, official receipt, and replay-zero.
