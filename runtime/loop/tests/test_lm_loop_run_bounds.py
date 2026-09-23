@@ -1084,6 +1084,8 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
         }
         if registry[loop_id].get("effect_class") == "none":
             kwargs["allow_no_effect_recovery"] = True
+        if registry[loop_id].get("coalesce_queued_wakes") is True:
+            kwargs["coalesce_reserved"] = True
         expected_enqueue.append(call("agent", loop_id, **kwargs))
     assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
