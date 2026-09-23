@@ -2820,6 +2820,30 @@ the 14-loop contract/doctor, all CI and fresh review pass. The first release exp
 `20260923T152920-f01c612d`. The cursor is its natural terminal plus following same-SHA replay-zero;
 until both receipts exist, Affiliate remains open and verified revenue remains zero.
 
+The first post-load wakes show that the remaining Affiliate blocker is now in the shared Foundation
+rather than the PartnerStack adapter. Two natural wakes on `f01c612d...` stop safely at
+`resource_control_busy`; after the automatic reconciler selects `6b72c304...`, natural run
+`18d7e15cfb758b98-1233` overlaps the reconciler's durable-admission transaction and reports the less
+specific `resource_admission_unavailable`. The admission database contains 73,181 occurrence rows and
+the owner/state rebind path has no supporting index, so it scans the occurrence table while release
+reconciliation and ordinary wakes contend for the same SQLite writer. An older queued occurrence later
+runs to outer `pass`, but its inner receipt still reports `PUBLICATION_FAILED` and
+`NO_TRANSACTIONS`; outer success is not business completion.
+
+PR #5802 repairs the shared failure boundary and merges as
+`b7479c3161db409fe48828b6c1a3676e9835c650`. Transient SQLite BUSY/LOCKED results now use the existing
+bounded eight-attempt incremental retry within the same wake, exhausted contention becomes typed
+`resource_database_busy`, non-busy database errors remain fail-closed, extended SQLite result codes
+are classified by primary code, and SIGTERM/SIGINT stops further claims or effect children. Focused
+tests pass 10/10, the full runner file passes 74/74, the combined runtime/host suite passes 743 tests
+plus 518 subtests, all PR checks are green and fresh read-only re-review reports SHIP. The natural
+reconciler cuts immutable release `20260923T163844-b7479c31` and installs Affiliate on that exact SHA
+without a manual apply or restart. Its first exact-SHA natural wake is running. Acceptance requires
+that run to recover and reach a truthful terminal, or to stop at typed `resource_database_busy`
+without an external effect. A later same-SHA wake must then prove replay-zero. If contention still
+prevents liveness, the next Foundation cursor is the measured owner/state index or bounded retention
+repair, not a faster cadence or an unbounded retry.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
@@ -2836,8 +2860,12 @@ The remaining order is fixed as follows:
    stays 404. PR #5795 repairs the target-repository contract, and the natural cadence delivers the
    corrective article through `anicca-products` PR #412; GitHub and the official URL now prove
    `LIVE`. PR #5797 repairs the observed PartnerStack refresh/cookie propagation race and loads exact
-   release `20260923T152920-f01c612d` after safe capacity recovery. Require its natural terminal and
-   following same-SHA replay-zero with no second delivery. Then continue unavailable owned-visit analytics,
+   release `20260923T152920-f01c612d` after safe capacity recovery. Shared admission contention then
+   prevents stable acceptance, so PR #5802 adds bounded SQLite lock recovery and the natural reconciler
+   loads exact release `20260923T163844-b7479c31`. Require its current natural terminal and following
+   same-SHA replay-zero with no second delivery. If typed `resource_database_busy` still repeats,
+   repair the measured full-scan occurrence lookup/retention boundary before touching provider logic.
+   Then continue unavailable owned-visit analytics,
    transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
