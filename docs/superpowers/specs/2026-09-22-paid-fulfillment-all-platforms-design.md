@@ -1021,6 +1021,26 @@ the authenticated inventory is empty.
   next action is therefore the CrowdWorks pending-item/provider boundary, not
   another Coconala restart.
 
+## Runtime Checkpoint — 2026-09-23 23:35 JST
+
+- Ryu's latest direct seller receipt remains `js-talkroomMessage-222245383`
+  (18:38 JST), with formal delivery untouched and no newer buyer event. No
+  manual resend is permitted.
+- The CrowdWorks buyer artifact for work `63568785` is now independently
+  readable through the authenticated `gog` Drive CLI: document
+  `1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA`, exported text SHA-256
+  `fa7d5d189306dbbb13cd2010cb3b661acdb962df7844216d5d5e4d7a95abd12d`.
+  It requires adding an external LINE account, answering external forms for
+  five daily lessons, and only then reporting completion on CrowdWorks. The
+  existing in-platform answer already requests buyer-provided material; no
+  duplicate answer or formal delivery is sent. The honest blocker is now
+  `external_line_and_form_work_required`, not an unread document.
+- Coconala remains scheduled and passing with no provider effect; CrowdWorks
+  remains scheduled with its historical unknown-effect fence held; Lancers
+  remains scheduled with zero funded contracts. The implementation cursor
+  advances to the Lancers/Upwork provider-owner work, while this CrowdWorks
+  item stays nonterminal and replay-safe.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
