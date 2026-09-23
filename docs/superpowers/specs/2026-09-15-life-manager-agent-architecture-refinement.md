@@ -2729,7 +2729,7 @@ The official remote remains at `89323b5f...`, the external job remains `EFFECT_S
 is not `DELIVERED` or `LIVE`, and revenue remains `NO_TRANSACTIONS`. An outer owner `pass` therefore
 does not close the inner publication boundary.
 
-Candidate `9c63857c18` on branch `fix/affiliate-protected-publisher-pr-20260923` implements the next
+Candidate `86f9f65fd0` on branch `fix/affiliate-protected-publisher-pr-20260923` implements the next
 smallest repair. For a plain GitHub HTTPS origin it never pushes the target branch directly. It uses a
 content-hash-derived publication branch, creates or reuses one exact PR, enables GitHub auto-merge
 with exact head-SHA matching, verifies the merge commit and target-branch ancestry, then preserves the
@@ -2737,11 +2737,24 @@ existing provider readback gate. A crash before branch push, PR creation, auto-m
 or public readback resumes the same unresolved target instead of creating a blind duplicate. The
 managed checkout accepts only one clean target-only publication commit when `main` has advanced or
 diverged, which lets the already-created production commit recover after the repair itself merges;
-unrelated, dirty or multi-commit divergence remains fail-closed. Focused tests pass 5/5, the full
-Affiliate suite passes 214/214, `py_compile` and `diff --check` pass. Fresh read-only review is in
-progress, so this candidate is pushed but not yet integration- or production-accepted. The current
-cursor is review, PR/CI/main integration, automatic immutable release selection, recovery of the exact
-unresolved publication through the PR, official public readback, then same-SHA replay-zero.
+unrelated, dirty or multi-commit divergence remains fail-closed. Unsupported network remotes are
+rejected before effect start; only GitHub PR delivery and local file fixtures are accepted. Resume
+accepts only the exact current or legacy action fingerprint and matching remote/branch identity. If a
+process stops after journal verification but before receipt persistence, the next wake reuses the same
+verified job instead of allocating a new sequence. Focused tests pass 7/7, the full Affiliate suite
+passes 216/216, Python 3.9 and runtime Python 3.14 `py_compile` pass, `diff --check` passes, and fresh
+read-only re-review reports SHIP.
+
+PR #5793 passes every repository check at exact head `86f9f65f...` and merges as
+`4dde25bde89d35f6dd6bf380e96ba59e0f8c7c64`. The automatic reconciler cuts, seals and selects
+immutable release `20260923T124904-4dde25bd`, then installs the Affiliate owner at the exact same SHA
+without a manual apply or restart. The first new-SHA run `18d7d6d3bb521dd0-22659` stops before the
+publication effect at typed blocker `host_admission_deferred:resource_fifo_wait`; the legacy job stays
+at attempt 1, the receipt stays `INTENT`, no publication PR is created, and
+`admission_effect_unknown=false`. The owner is loaded-idle, disk headroom is about 2.75 GiB, and the
+next cursor is the natural 600-second cadence. Production acceptance still requires that natural wake
+to reuse the exact legacy job, create/merge one PR, obtain official public readback, then prove
+same-SHA replay-zero.
 
 The remaining order is fixed as follows:
 
@@ -2751,10 +2764,11 @@ The remaining order is fixed as follows:
    `revenue_cli links` provider-contract fix, natural same-SHA terminal and replay-zero are complete on
    immutable release `20260923T095630-3e5ae276`. The managed clean publisher repair is merged and
    loaded on `20260923T113915-89323b5f`; its natural run proves checkout provisioning and exposes the
-   protected-branch direct-push defect without a confirmed remote effect. Candidate `9c63857c18`
-   replaces that direct push with an idempotent PR/auto-merge lifecycle and is under fresh review.
-   Integrate it, let the natural owner resume the exact unresolved publication, and prove official
-   public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
+   protected-branch direct-push defect without a confirmed remote effect. The idempotent PR/auto-merge
+   repair is merged and loaded on immutable release `20260923T124904-4dde25bd`; its first exact-SHA
+   wake defers at shared resource FIFO before touching the legacy effect, with
+   `admission_effect_unknown=false`. Let the next natural cadence resume the exact unresolved
+   publication and prove official public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
    transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
