@@ -16,7 +16,8 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _persist_effect_identity, _resource_class,
-    _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
+    _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
+    _terminal_outcome,
 )
 
 
@@ -224,7 +225,52 @@ def test_transient_admission_lock_contention_is_retried_before_deferring(tmp_pat
     assert sleep.call_count == 2
 
 
-def test_sqlite_lock_before_claim_records_deferred_admission(tmp_path):
+def test_transient_sqlite_lock_before_claim_recovers_in_same_wake(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({
+        "occurrence_id": "browser-probe:wake-recover",
+    }))
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource", side_effect=[
+              sqlite3.OperationalError("database is locked"),
+              sqlite3.OperationalError("database is locked"),
+              (tmp_path / "ticket", "ready"),
+          ]) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
+        assert _run_admitted(
+            ["/bin/true"], entry, "browser-probe", {}, tmp_path / "receipt",
+            occurrence_id="browser-probe:wake-recover",
+        ) == 0
+
+    assert enqueue.call_count == 3
+    assert sleep.call_count == 2
+    run.assert_called_once()
+
+
+def test_sqlite_busy_classification_prefers_primary_error_code():
+    for primary in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+        error = sqlite3.OperationalError("not a lock message")
+        error.sqlite_errorcode = primary | (7 << 8)
+        assert _sqlite_database_busy(error)
+
+    non_busy = sqlite3.OperationalError("database is locked")
+    non_busy.sqlite_errorcode = sqlite3.SQLITE_IOERR
+    assert not _sqlite_database_busy(non_busy)
+
+
+def test_persistent_sqlite_lock_before_claim_records_typed_deferred_admission(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 300},
         "provider_route": "deterministic",
@@ -234,22 +280,25 @@ def test_sqlite_lock_before_claim_records_deferred_admission(tmp_path):
     receipt = tmp_path / "host-admission.json"
     started_ns = time.time_ns()
     with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
-                side_effect=sqlite3.OperationalError("database is locked")),
+                side_effect=sqlite3.OperationalError("database is locked")) as enqueue,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         assert _run_admitted(["/bin/true"], entry, "browser-probe", {}, receipt,
                              occurrence_id="browser-probe:wake-1") == 75
 
     assert json.loads(receipt.read_text()) == {
         "status": "deferred", "effect": 0,
-        "reason": "resource_admission_unavailable",
+        "reason": "resource_database_busy",
     }
     assert _terminal_outcome(
         75, host_deferred=_host_admission_deferred(receipt, started_ns),
-    ) == (False, True, "host_admission_deferred:resource_admission_unavailable")
+    ) == (False, True, "host_admission_deferred:resource_database_busy")
+    assert enqueue.call_count == 8
+    assert sleep.call_count == 7
     run.assert_not_called()
 
 
-def test_sqlite_lock_during_claim_records_deferred_admission(tmp_path):
+def test_persistent_sqlite_lock_during_claim_records_typed_deferred_admission(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 300},
         "provider_route": "deterministic",
@@ -260,15 +309,41 @@ def test_sqlite_lock_during_claim_records_deferred_admission(tmp_path):
     with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                side_effect=sqlite3.OperationalError("database is locked")),
+                side_effect=sqlite3.OperationalError("database is locked")) as claim,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         assert _run_admitted(["/bin/true"], entry, "browser-probe", {}, receipt,
                              occurrence_id="browser-probe:wake-2") == 75
 
     assert json.loads(receipt.read_text()) == {
         "status": "deferred", "effect": 0,
-        "reason": "resource_admission_unavailable",
+        "reason": "resource_database_busy",
     }
+    assert claim.call_count == 8
+    assert sleep.call_count == 7
+    run.assert_not_called()
+
+
+def test_non_busy_sqlite_failure_is_not_retried_or_misclassified(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                side_effect=sqlite3.OperationalError("disk I/O error")) as enqueue,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "browser-probe", {}, receipt,
+            occurrence_id="browser-probe:wake-io-error",
+        ) == 75
+
+    assert json.loads(receipt.read_text())["reason"] == "resource_admission_unavailable"
+    enqueue.assert_called_once()
+    sleep.assert_not_called()
     run.assert_not_called()
 
 
@@ -1174,6 +1249,33 @@ def test_cancelled_before_atomic_handoff_never_starts_child():
     with patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch:
         assert _run_entrypoint(["/bin/true"], cancelled=lambda: True) == 75
     launch.assert_not_called()
+
+
+def test_signal_during_claim_retry_stops_before_effect_child(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+    }
+
+    def interrupt_claim(*_args, **_kwargs):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return None, "control_busy"
+
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                side_effect=interrupt_claim) as claim,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    assert json.loads(receipt.read_text())["reason"] == "resource_admission_interrupted"
+    claim.assert_called_once()
+    sleep.assert_not_called()
+    run.assert_not_called()
 
 
 def test_signal_after_pass_receipt_cannot_start_effect_child(tmp_path):
