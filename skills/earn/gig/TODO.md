@@ -1174,6 +1174,11 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 - Read-only provider context is captured for all five funded IDs. Historical confirmed form receipts
   are preserved for 63659463, 63570481, and 63583795; they are replay-fenced and do not prove
   current formal delivery, acceptance, settlement, or payout.
+- A fresh official readback of 63657015 (2026-09-23T03:20:52Z) confirms `provider_state=funded`,
+  contract `63657015`, milestone `13820268`, proposal `305533319`, and message thread `304733788`.
+  The buyer's latest instruction (event `427403807`) requires the non-designer hearing sheet and
+  common test; the survey link is not part of that instruction. Both current forms are still
+  unconfirmed (`completed_form_urls=[]`), so no form or delivery effect was sent in this check.
 - Application's latest aggregate has 190 receipts. Reply's latest aggregate is
   observed=61, readback=54, pending=6, failed=1; unresolved items remain fenced. Paid has no
   current provider effect from the latest target wake.
@@ -1188,7 +1193,9 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 - No current CrowdWorks client has a verified chain of correct work -> formal delivery -> buyer
   acceptance -> settlement -> payout. Verified USD 10,000 MRR is zero.
 - 63657015 has two current forms and no confirmed receipt; its earlier timed-out intent must be
-  reconciled before any retry. 63570481 still lacks the corrected customer-address answer and
+  reconciled before any retry. The prepared work is the hearing-sheet copy plus common test,
+  followed by formal delivery; do not submit the buyer's anonymous survey or claim completion
+  until the two official confirmations are read back. 63570481 still lacks the corrected customer-address answer and
   formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
   quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
 - The latest target cleanup pass is green, but headroom remains PRESSURE at about 1.8 GiB free and one
