@@ -17,6 +17,7 @@ import math
 import os
 import pwd
 import re
+import signal
 import shutil
 import stat
 import subprocess
@@ -34,6 +35,9 @@ GOVERNOR_BUDGET_SECONDS = 90
 LSOF_TIMEOUT_SECONDS = 15
 POST_SWEEP_RESERVE_SECONDS = 30
 HEALTH_CHECK_TIMEOUT_SECONDS = 5
+STALE_SPARKLE_UPDATER_SECONDS = 24 * 60 * 60
+SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
+SPARKLE_UPDATER_POLL_SECONDS = 0.1
 CANONICAL_LABEL = "ai.anicca.life-manager-disk-cleanup"
 THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSURE"), (3 * GiB, "CRITICAL"))
 RECEIPT_RESERVE_BYTES = 1024 * 1024
@@ -43,6 +47,7 @@ RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # unreferenced, closed generations must not consume another 1.2 GiB each.
 RELEASE_RETENTION = 1
 RELEASE_NAME_PATTERN = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8}")
+SPARKLE_CACHE_BUNDLE_IDS = ("com.openai.codex", "com.steipete.codexbar")
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".java", ".js", ".jsx",
     ".kt", ".kts", ".m", ".md", ".mm", ".py", ".rb", ".rs", ".sh", ".swift",
@@ -89,25 +94,122 @@ def _session_recovery_receipt() -> dict[str, object]:
     }
 
 
-def _sparkle_updater_active(sparkle_root: Path) -> bool:
-    """Fail closed while Sparkle may still consume a staged generation."""
+def _elapsed_seconds(value: str) -> int | None:
+    match = re.fullmatch(r"(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)", value)
+    if match is None:
+        return None
+    days, hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    if hours >= 24 or minutes >= 60 or seconds >= 60:
+        return None
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def _sparkle_updater_processes(sparkle_root: Path) -> list[dict[str, int | str]] | None:
+    """Return exact Sparkle launcher processes, or None on relevant probe ambiguity."""
     try:
         completed = subprocess.run(
-            ["ps", "axww", "-o", "command="],
+            ["ps", "axww", "-o", "uid=,pid=,ppid=,etime=,lstart=,command="],
             capture_output=True,
             text=True,
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return True
-    if completed.returncode != 0:
-        return True
-    launcher = str((sparkle_root / "Launcher").resolve()) + "/"
-    return any(
-        launcher in command and "/Updater.app/Contents/MacOS/Updater" in command
-        for command in completed.stdout.splitlines()
-    )
+        return None
+    if completed.returncode != 0 or completed.stderr.strip():
+        return None
+    launcher = str(Path(os.path.abspath(sparkle_root / "Launcher"))) + "/"
+    processes: list[dict[str, int | str]] = []
+    for line in completed.stdout.splitlines():
+        relevant = (
+            launcher in line
+            and "/Updater.app/Contents/MacOS/Updater" in line
+        )
+        parts = line.split(None, 9)
+        if len(parts) != 10:
+            if relevant:
+                return None
+            continue
+        uid_text, pid_text, ppid_text, elapsed_text = parts[:4]
+        started_at = " ".join(parts[4:9])
+        command = parts[9]
+        try:
+            uid, pid, ppid = int(uid_text), int(pid_text), int(ppid_text)
+        except ValueError:
+            if relevant:
+                return None
+            continue
+        elapsed = _elapsed_seconds(elapsed_text)
+        binary = command.split(None, 1)[0]
+        relative_binary = binary.removeprefix(launcher)
+        exact_binary = (
+            binary != relative_binary
+            and re.fullmatch(
+                r"[A-Za-z0-9]{6,64}/Updater\.app/Contents/MacOS/Updater",
+                relative_binary,
+            ) is not None
+        )
+        try:
+            time.strptime(started_at, "%a %b %d %H:%M:%S %Y")
+        except ValueError:
+            if relevant:
+                return None
+            continue
+        if pid <= 0 or elapsed is None or not exact_binary:
+            if relevant:
+                return None
+            continue
+        processes.append({
+            "uid": uid,
+            "pid": pid,
+            "ppid": ppid,
+            "elapsed_seconds": elapsed,
+            "started_at": started_at,
+            "command": command,
+        })
+    return processes
+
+
+def _sparkle_updater_active(sparkle_root: Path) -> bool:
+    """Fail closed while Sparkle may still consume a staged generation."""
+    processes = _sparkle_updater_processes(sparkle_root)
+    return processes is None or bool(processes)
+
+
+def _real_directory_state(
+    root: Path, path: Path
+) -> tuple[str, tuple[int, int, int] | None]:
+    """Classify a lexical path without following any symlink component."""
+    root = Path(os.path.abspath(root))
+    path = Path(os.path.abspath(path))
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return ("ambiguous", None)
+    current = root
+    try:
+        final = current.lstat()
+        if stat.S_ISLNK(final.st_mode) or not stat.S_ISDIR(final.st_mode):
+            return ("ambiguous", None)
+        for part in relative.parts:
+            current = current / part
+            info = current.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                return ("ambiguous", None)
+            final = info
+    except FileNotFoundError:
+        return ("missing", None)
+    except OSError:
+        return ("ambiguous", None)
+    if final is None:
+        return ("ambiguous", None)
+    return ("real", (final.st_dev, final.st_ino, final.st_mode))
+
+
+def _real_directory_fingerprint(root: Path, path: Path) -> tuple[int, int, int] | None:
+    """Return identity only when every component from root is a real directory."""
+    state, fingerprint = _real_directory_state(root, path)
+    return fingerprint if state == "real" else None
 
 
 def _bytes(
@@ -348,6 +450,120 @@ class HostDiskGovernor:
         usage = shutil.disk_usage("/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/")
         return usage.free, usage.total
 
+    def _reconcile_stale_sparkle_updaters(self, sparkle_root: Path) -> dict[str, int]:
+        result = {
+            "observed": 0,
+            "signaled": 0,
+            "terminated": 0,
+            "already_exited": 0,
+            "preserved": 0,
+            "errors": 0,
+        }
+        root_state, _root_fingerprint = _real_directory_state(self.home, sparkle_root)
+        if root_state == "missing":
+            return result
+        if root_state != "real":
+            result["preserved"] = 1
+            result["errors"] = 1
+            return result
+        processes = _sparkle_updater_processes(sparkle_root)
+        if processes is None:
+            result["errors"] = 1
+            return result
+        staged_paths = (
+            sparkle_root / "Installation",
+            sparkle_root / "PersistentDownloads",
+        )
+        identity_paths = (
+            sparkle_root,
+            sparkle_root / "Launcher",
+            *staged_paths,
+        )
+        for process in processes:
+            result["observed"] += 1
+            if (
+                process["uid"] != os.getuid()
+                or process["ppid"] != 1
+                or process["elapsed_seconds"] < STALE_SPARKLE_UPDATER_SECONDS
+            ):
+                result["preserved"] += 1
+                continue
+            staged_fingerprints = tuple(
+                _real_directory_fingerprint(self.home, path)
+                for path in identity_paths
+            )
+            if any(fingerprint is None for fingerprint in staged_fingerprints):
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            staged_states = [
+                self.lsof(path)
+                for path in staged_paths
+            ]
+            if any(state != "confirmed-closed" for state in staged_states):
+                result["errors"] += sum(state == "probe-error" for state in staged_states)
+                result["preserved"] += 1
+                continue
+            current_fingerprints = tuple(
+                _real_directory_fingerprint(self.home, path)
+                for path in identity_paths
+            )
+            if current_fingerprints != staged_fingerprints:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            pid = int(process["pid"])
+            current_processes = _sparkle_updater_processes(sparkle_root)
+            if current_processes is None:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            identity_keys = ("uid", "pid", "ppid", "started_at", "command")
+            current_pid_processes = [
+                item for item in current_processes if int(item["pid"]) == pid
+            ]
+            if len(current_pid_processes) != 1 or any(
+                current_pid_processes[0][key] != process[key]
+                for key in identity_keys
+            ):
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                remaining = _sparkle_updater_processes(sparkle_root)
+                still_exact = remaining is not None and any(
+                    all(item[key] == process[key] for key in identity_keys)
+                    for item in remaining
+                )
+                if remaining is None or still_exact:
+                    result["errors"] += 1
+                    result["preserved"] += 1
+                else:
+                    result["already_exited"] += 1
+                continue
+            except OSError:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            result["signaled"] += 1
+            deadline = self.clock() + SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS
+            while self.clock() < deadline:
+                remaining = _sparkle_updater_processes(sparkle_root)
+                if remaining is None:
+                    result["errors"] += 1
+                    result["preserved"] += 1
+                    break
+                if not any(int(item["pid"]) == pid for item in remaining):
+                    result["terminated"] += 1
+                    break
+                time.sleep(SPARKLE_UPDATER_POLL_SECONDS)
+            else:
+                result["errors"] += 1
+                result["preserved"] += 1
+        return result
+
     @staticmethod
     def _active_lease(item: dict) -> bool:
         lease = item.get("lease")
@@ -499,6 +715,29 @@ class HostDiskGovernor:
         """Require discovery proof and an exact regenerable path family."""
         if item.get("discovery") != "allowlisted":
             return False
+        if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
+            lexical = Path(os.path.abspath(path))
+            expected_parents = {
+                Path(os.path.abspath(
+                    self.home
+                    / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle/Installation"
+                ))
+                for bundle_id in SPARKLE_CACHE_BUNDLE_IDS
+            }
+            proof = item.get("sparkle_identity")
+            if (
+                lexical.parent not in expected_parents
+                or re.fullmatch(r"[A-Za-z0-9]{6,64}", lexical.name) is None
+                or not isinstance(proof, tuple)
+                or len(proof) != 3
+            ):
+                return False
+            current = (
+                _real_directory_fingerprint(self.home, lexical.parent.parent),
+                _real_directory_fingerprint(self.home, lexical.parent),
+                _real_directory_fingerprint(self.home, lexical),
+            )
+            return current == proof
         try:
             resolved = path.resolve()
             temporary = Path(tempfile.gettempdir()).resolve()
@@ -520,15 +759,6 @@ class HostDiskGovernor:
                 and resolved.parent.name
                 in {"com.google.Chrome.code_sign_clone", "org.chromium.Chromium.code_sign_clone"}
                 and resolved.name.startswith("code_sign_clone.")
-            )
-        if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
-            installation = (
-                self.home
-                / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
-            ).resolve()
-            return (
-                resolved.parent == installation
-                and re.fullmatch(r"[A-Za-z0-9]{6,64}", resolved.name) is not None
             )
         if item.get("class") == "regenerable_output":
             exact_caches = {
@@ -605,6 +835,62 @@ class HostDiskGovernor:
             except OSError:
                 pass
         shutil.rmtree(path)
+
+    def _open_real_directory(self, path: Path) -> int:
+        """Open a directory from home one no-follow component at a time."""
+        root = Path(os.path.abspath(self.home))
+        target = Path(os.path.abspath(path))
+        relative = target.relative_to(root)
+        if not hasattr(os, "O_NOFOLLOW"):
+            raise OSError(errno.ENOTSUP, "O_NOFOLLOW is required")
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
+        descriptor = os.open(root, flags)
+        try:
+            for part in relative.parts:
+                next_descriptor = os.open(part, flags, dir_fd=descriptor)
+                os.close(descriptor)
+                descriptor = next_descriptor
+            return descriptor
+        except BaseException:
+            os.close(descriptor)
+            raise
+
+    def _remove_sparkle_tree(self, path: Path, item: dict) -> None:
+        """Remove one proven generation relative to its pinned Installation dir."""
+        proof = item.get("sparkle_identity")
+        if (
+            not isinstance(proof, tuple)
+            or len(proof) != 3
+            or not getattr(shutil.rmtree, "avoids_symlink_attacks", False)
+        ):
+            raise OSError(errno.ENOTSUP, "safe Sparkle removal is unavailable")
+        parent_descriptor = self._open_real_directory(path.parent)
+        try:
+            parent_info = os.fstat(parent_descriptor)
+            parent_fingerprint = (
+                parent_info.st_dev,
+                parent_info.st_ino,
+                parent_info.st_mode,
+            )
+            child_info = os.stat(
+                path.name,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+            child_fingerprint = (
+                child_info.st_dev,
+                child_info.st_ino,
+                child_info.st_mode,
+            )
+            if (
+                parent_fingerprint != proof[1]
+                or child_fingerprint != proof[2]
+                or not stat.S_ISDIR(child_info.st_mode)
+            ):
+                raise OSError(errno.ESTALE, "Sparkle candidate identity changed")
+            shutil.rmtree(path.name, dir_fd=parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
 
     @staticmethod
     def _receipt_reserve_valid(path: Path) -> bool:
@@ -789,6 +1075,13 @@ class HostDiskGovernor:
                 result["errors"] += state == "probe-error"
                 preserve(state)
                 continue
+            if (
+                item.get("owner") == "codex-app-updater"
+                and not self._allowlisted_candidate(path, item)
+            ):
+                result["errors"] += 1
+                preserve("path_identity_changed")
+                continue
             # Classes where the whole tree is the unit of proof. A release is an
             # export of the repository, so it always contains source and scanning
             # inside would preserve every generation forever; what makes an old one
@@ -819,6 +1112,13 @@ class HostDiskGovernor:
                 if before is None:
                     preserve("probe-budget-exhausted")
                     continue
+                if (
+                    item.get("owner") == "codex-app-updater"
+                    and not self._allowlisted_candidate(path, item)
+                ):
+                    result["errors"] += 1
+                    preserve("path_identity_changed")
+                    continue
                 if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
                     preserve("probe-budget-exhausted")
                     continue
@@ -841,8 +1141,17 @@ class HostDiskGovernor:
             if self._active_lease(item):
                 preserve("active_lease")
                 continue
+            if (
+                item.get("owner") == "codex-app-updater"
+                and not self._allowlisted_candidate(path, item)
+            ):
+                result["errors"] += 1
+                preserve("path_identity_changed")
+                continue
             try:
-                if path.is_dir():
+                if item.get("owner") == "codex-app-updater":
+                    self._remove_sparkle_tree(path, item)
+                elif path.is_dir():
                     self._remove_tree(path)
                 else:
                     path.unlink()
@@ -911,27 +1220,50 @@ class HostDiskGovernor:
                         "discovery": "allowlisted",
                     }
                 )
-        sparkle_root = self.home / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
-        sparkle_installation = sparkle_root / "Installation"
-        if (
-            sparkle_installation.is_dir()
-            and not sparkle_installation.is_symlink()
-            and not _sparkle_updater_active(sparkle_root)
-        ):
-            for child in sorted(sparkle_installation.iterdir()):
+        for bundle_id in SPARKLE_CACHE_BUNDLE_IDS:
+            sparkle_root = (
+                self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
+            )
+            sparkle_installation = sparkle_root / "Installation"
+            root_fingerprint = _real_directory_fingerprint(self.home, sparkle_root)
+            installation_fingerprint = _real_directory_fingerprint(
+                self.home, sparkle_installation
+            )
+            if root_fingerprint is not None and installation_fingerprint is not None:
+                if _sparkle_updater_active(sparkle_root):
+                    continue
+                current_root = _real_directory_fingerprint(self.home, sparkle_root)
+                current_installation = _real_directory_fingerprint(
+                    self.home, sparkle_installation
+                )
                 if (
-                    child.is_dir()
-                    and not child.is_symlink()
-                    and re.fullmatch(r"[A-Za-z0-9]{6,64}", child.name) is not None
+                    current_root != root_fingerprint
+                    or current_installation != installation_fingerprint
                 ):
-                    candidates.append(
-                        {
-                            "path": child,
-                            "class": "regenerable_output",
-                            "owner": "codex-app-updater",
-                            "discovery": "allowlisted",
-                        }
-                    )
+                    continue
+                try:
+                    children = sorted(sparkle_installation.iterdir())
+                except OSError:
+                    continue
+                for child in children:
+                    child_fingerprint = _real_directory_fingerprint(self.home, child)
+                    if (
+                        child_fingerprint is not None
+                        and re.fullmatch(r"[A-Za-z0-9]{6,64}", child.name) is not None
+                    ):
+                        candidates.append(
+                            {
+                                "path": child,
+                                "class": "regenerable_output",
+                                "owner": "codex-app-updater",
+                                "discovery": "allowlisted",
+                                "sparkle_identity": (
+                                    current_root,
+                                    current_installation,
+                                    child_fingerprint,
+                                ),
+                            }
+                        )
         temporary = Path(tempfile.gettempdir())
         temp_parent = temporary.parent
         clone_root = temp_parent / "X"
@@ -997,11 +1329,28 @@ class HostDiskGovernor:
             }
             self._receipt(result)
             return result
+        updater_recovery = {
+            "observed": 0,
+            "signaled": 0,
+            "terminated": 0,
+            "already_exited": 0,
+            "preserved": 0,
+            "errors": 0,
+        }
+        for bundle_id in SPARKLE_CACHE_BUNDLE_IDS:
+            sparkle_root = (
+                self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
+            )
+            recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
+            for key in updater_recovery:
+                updater_recovery[key] += recovery[key]
         result = self.sweep(
             self.discover_candidates(),
             write_receipt=False,
             deadline=deadline,
         )
+        result["updater_recovery"] = updater_recovery
+        result["errors"] += updater_recovery["errors"]
         # Cleanup must never pause revenue loops. Remove the retired shared
         # pressure marker; producers own bounded retention for their outputs.
         pressure_file = self.state_dir / "disk-pressure.block"

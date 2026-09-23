@@ -1,6 +1,7 @@
 import errno
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
@@ -387,6 +388,906 @@ def test_active_codex_sparkle_updater_keeps_installation_generation(
 
     assert candidates == []
     assert generation.exists()
+
+
+@pytest.mark.parametrize(
+    ("bundle_id", "application"),
+    (
+        ("com.openai.codex", "ChatGPT"),
+        ("com.steipete.codexbar", "CodexBar"),
+    ),
+)
+def test_stale_orphan_sparkle_updater_is_terminated_before_closed_generation_cleanup(
+    tmp_path: Path, monkeypatch, bundle_id: str, application: str
+) -> None:
+    sparkle_root = (
+        tmp_path / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
+    )
+    generation = sparkle_root / "Installation/fBQSwumuD"
+    generation.mkdir(parents=True)
+    (generation / "ChatGPT.zip").write_bytes(b"x" * 32)
+    (sparkle_root / "PersistentDownloads").mkdir()
+    launcher = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        assert argv[0] == "ps"
+        command = f"{launcher} /Applications/{application}.app 0"
+        if not updater_alive:
+            stdout = ""
+        else:
+            stdout = (
+                f"{os.getuid()} 4242 1 2-00:00:00 "
+                f"Mon Sep 21 00:00:00 2026 {command}\n"
+            )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {
+            "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+        },
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.run_once()
+
+    assert not generation.exists()
+    assert signals == [(4242, signal.SIGTERM)]
+    assert result["updater_recovery"] == {
+        "already_exited": 0,
+        "errors": 0,
+        "observed": 1,
+        "preserved": 0,
+        "signaled": 1,
+        "terminated": 1,
+    }
+
+
+def test_sparkle_recovery_does_not_signal_a_different_launcher_binary(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    generation = sparkle_root / "Installation/fBQSwumuD"
+    generation.mkdir(parents=True)
+    (generation / "ChatGPT.zip").write_bytes(b"x" * 32)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    helper = sparkle_root / "Launcher/QSYUe7BMl/helper"
+    helper.parent.mkdir(parents=True)
+    helper.write_bytes(b"helper")
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{helper} --inspect {updater}"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 "
+            f"Mon Sep 21 00:00:00 2026 {command}\n"
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {
+            "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+        },
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.run_once()
+
+    assert generation.exists()
+    assert signals == []
+    assert result["updater_recovery"]["observed"] == 0
+    assert result["updater_recovery"]["errors"] == 1
+    assert result["errors"] == 1
+
+
+def test_stale_sparkle_updater_is_preserved_when_staged_path_is_a_symlink(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    external = tmp_path / "external-installation"
+    external.mkdir()
+    (sparkle_root / "Installation").parent.mkdir(parents=True)
+    (sparkle_root / "Installation").symlink_to(external, target_is_directory=True)
+    (sparkle_root / "PersistentDownloads").mkdir()
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result == {
+        "already_exited": 0,
+        "errors": 1,
+        "observed": 1,
+        "preserved": 1,
+        "signaled": 0,
+        "terminated": 0,
+    }
+
+
+def test_stale_sparkle_updater_pid_reuse_is_preserved_before_signal(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    ps_calls = 0
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        nonlocal ps_calls
+        ps_calls += 1
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        if "lstart=" in " ".join(argv):
+            started = (
+                "Mon Sep 21 00:00:00 2026"
+                if ps_calls == 1
+                else "Tue Sep 22 00:00:00 2026"
+            )
+            stdout = f"{os.getuid()} 4242 1 2-00:00:00 {started} {command}\n"
+        else:
+            stdout = f"{os.getuid()} 4242 1 2-00:00:00 {command}\n"
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["terminated"] == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+@pytest.mark.parametrize(
+    "process_line",
+    (
+        "malformed {updater}",
+        "{uid} nope 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {updater}",
+        "{uid} 4242 1 unknown Mon Sep 21 00:00:00 2026 {updater}",
+        "{uid} 4242 1 2-00:00:00 Nope Sep 21 00:00:00 2026 {updater}",
+    ),
+)
+def test_malformed_relevant_sparkle_process_fails_closed_and_surfaces_error(
+    tmp_path: Path, monkeypatch, process_line: str
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    generation = sparkle_root / "Installation/fBQSwumuD"
+    generation.mkdir(parents=True)
+    (generation / "ChatGPT.zip").write_bytes(b"x" * 32)
+    (sparkle_root / "PersistentDownloads").mkdir()
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        stdout = process_line.format(uid=os.getuid(), updater=updater) + "\n"
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {
+            "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+        },
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.run_once()
+
+    assert signals == []
+    assert generation.exists()
+    assert result["updater_recovery"]["errors"] == 1
+    assert result["errors"] == 1
+
+
+def test_sparkle_process_probe_stderr_fails_closed_and_surfaces_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    generation = sparkle_root / "Installation/fBQSwumuD"
+    generation.mkdir(parents=True)
+    (generation / "ChatGPT.zip").write_bytes(b"x" * 32)
+    (sparkle_root / "PersistentDownloads").mkdir()
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "partial ps failure\n")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {
+            "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+        },
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.run_once()
+
+    assert signals == []
+    assert generation.exists()
+    assert result["updater_recovery"]["errors"] == 1
+    assert result["errors"] == 1
+
+
+@pytest.mark.parametrize(
+    ("uid", "ppid", "elapsed"),
+    (
+        (os.getuid() + 1, 1, "2-00:00:00"),
+        (os.getuid(), 4241, "2-00:00:00"),
+        (os.getuid(), 1, "00:05:00"),
+    ),
+)
+def test_sparkle_recovery_preserves_process_outside_signal_authority(
+    tmp_path: Path,
+    monkeypatch,
+    uid: int,
+    ppid: int,
+    elapsed: str,
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{uid} 4242 {ppid} {elapsed} Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["observed"] == 1
+    assert result["preserved"] == 1
+    assert result["errors"] == 0
+
+
+def test_stale_sparkle_updater_is_preserved_when_a_staged_directory_is_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    (sparkle_root / "Installation").mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_stale_sparkle_updater_is_preserved_when_bundle_ancestor_is_a_symlink(
+    tmp_path: Path, monkeypatch
+) -> None:
+    real_bundle = tmp_path / "real-codex-cache"
+    real_bundle.mkdir()
+    bundle = tmp_path / "Library/Caches/com.openai.codex"
+    bundle.parent.mkdir(parents=True)
+    bundle.symlink_to(real_bundle, target_is_directory=True)
+    sparkle_root = bundle / "org.sparkle-project.Sparkle"
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater.resolve()} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_stale_sparkle_updater_is_preserved_when_staged_inode_changes_after_probe(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    installation = sparkle_root / "Installation"
+    for path in (installation, sparkle_root / "PersistentDownloads"):
+        path.mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    updater_alive = True
+    lsof_calls = 0
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if updater_alive
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def fake_lsof(_path: Path) -> str:
+        nonlocal lsof_calls
+        lsof_calls += 1
+        if lsof_calls == 2:
+            installation.rmdir()
+            installation.mkdir()
+        return "confirmed-closed"
+
+    def fake_kill(pid: int, action: int) -> None:
+        nonlocal updater_alive
+        signals.append((pid, action))
+        updater_alive = False
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", fake_kill)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=fake_lsof,
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_sparkle_generation_under_symlinked_bundle_is_not_discovered(
+    tmp_path: Path, monkeypatch
+) -> None:
+    real_bundle = tmp_path / "real-codex-cache"
+    generation = (
+        real_bundle / "org.sparkle-project.Sparkle/Installation/fBQSwumuD"
+    )
+    generation.mkdir(parents=True)
+    bundle = tmp_path / "Library/Caches/com.openai.codex"
+    bundle.parent.mkdir(parents=True)
+    bundle.symlink_to(real_bundle, target_is_directory=True)
+    monkeypatch.setattr(disk_cleanup, "_sparkle_updater_active", lambda _root: False)
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    candidates = [
+        item
+        for item in governor.discover_candidates()
+        if item["owner"] == "codex-app-updater"
+    ]
+
+    assert candidates == []
+    assert generation.exists()
+
+
+def test_sparkle_candidate_parent_replacement_after_probe_is_preserved(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    installation = sparkle_root / "Installation"
+    generation = installation / "fBQSwumuD"
+    generation.mkdir(parents=True)
+    (generation / "internal.zip").write_bytes(b"x" * 32)
+    external_installation = tmp_path / "external-installation"
+    external_generation = external_installation / generation.name
+    external_generation.mkdir(parents=True)
+    (external_generation / "external.zip").write_bytes(b"x" * 64)
+    original_installation = sparkle_root / "Installation-original"
+    lsof_calls = 0
+
+    def replace_parent_on_first_probe(_path: Path) -> str:
+        nonlocal lsof_calls
+        lsof_calls += 1
+        if lsof_calls == 1:
+            installation.rename(original_installation)
+            installation.symlink_to(external_installation, target_is_directory=True)
+        return "confirmed-closed"
+
+    monkeypatch.setattr(disk_cleanup, "_sparkle_updater_active", lambda _root: False)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=replace_parent_on_first_probe,
+        usage=lambda: (0, 1),
+    )
+    candidates = [
+        item
+        for item in governor.discover_candidates()
+        if item["owner"] == "codex-app-updater"
+    ]
+
+    result = governor.sweep(candidates)
+
+    assert (original_installation / generation.name).exists()
+    assert external_generation.exists()
+    assert result["reclaimed"] == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_sparkle_updater_sigterm_timeout_is_preserved_as_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    ticks = iter((0.0, 6.0))
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+        clock=lambda: next(ticks),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == [(4242, signal.SIGTERM)]
+    assert result["signaled"] == 1
+    assert result["terminated"] == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_sparkle_updater_process_lookup_error_is_read_back_as_already_exited(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    ps_calls = 0
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        nonlocal ps_calls
+        ps_calls += 1
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+            if ps_calls <= 2
+            else ""
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def process_gone(_pid: int, _action: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", process_gone)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert result["signaled"] == 0
+    assert result["terminated"] == 0
+    assert result["already_exited"] == 1
+    assert result["preserved"] == 0
+    assert result["errors"] == 0
+
+
+def test_sparkle_updater_process_lookup_error_with_same_process_is_preserved(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    def lookup_failed(_pid: int, _action: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lookup_failed)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert result["signaled"] == 0
+    assert result["terminated"] == 0
+    assert result["already_exited"] == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_missing_sparkle_root_is_no_work_without_process_probe(
+    tmp_path: Path, monkeypatch
+) -> None:
+    process_probes = 0
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        nonlocal process_probes
+        process_probes += 1
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+
+    assert process_probes == 0
+    assert result == {
+        "already_exited": 0,
+        "errors": 0,
+        "observed": 0,
+        "preserved": 0,
+        "signaled": 0,
+        "terminated": 0,
+    }
+
+
+@pytest.mark.parametrize("target", ("missing-cache", "com.openai.codex"))
+def test_dangling_or_looped_sparkle_ancestor_is_preserved_as_error(
+    tmp_path: Path, monkeypatch, target: str
+) -> None:
+    bundle = tmp_path / "Library/Caches/com.openai.codex"
+    bundle.parent.mkdir(parents=True)
+    bundle.symlink_to(target, target_is_directory=True)
+    process_probes = 0
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        nonlocal process_probes
+        process_probes += 1
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(
+        bundle / "org.sparkle-project.Sparkle"
+    )
+
+    assert process_probes == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_looped_sparkle_launcher_with_exact_process_is_preserved_without_crash(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    for name in ("Installation", "PersistentDownloads"):
+        (sparkle_root / name).mkdir(parents=True)
+    launcher = sparkle_root / "Launcher"
+    launcher.symlink_to("Launcher", target_is_directory=True)
+    updater = launcher / "QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert signals == []
+    assert result["observed"] == 1
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+def test_symlinked_sparkle_root_is_preserved_as_error_without_process(
+    tmp_path: Path, monkeypatch
+) -> None:
+    real_root = tmp_path / "real-sparkle"
+    real_root.mkdir()
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    sparkle_root.parent.mkdir(parents=True)
+    sparkle_root.symlink_to(real_root, target_is_directory=True)
+    monkeypatch.setattr(
+        disk_cleanup.subprocess,
+        "run",
+        lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 0, "", ""),
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor._reconcile_stale_sparkle_updaters(sparkle_root)
+
+    assert result["observed"] == 0
+    assert result["preserved"] == 1
+    assert result["errors"] == 1
+
+
+@pytest.mark.parametrize(
+    ("probe_state", "expected_errors"),
+    (("open", 0), ("probe-error", 2)),
+)
+def test_sparkle_staging_probe_blocks_signal_and_propagates_errors(
+    tmp_path: Path,
+    monkeypatch,
+    probe_state: str,
+    expected_errors: int,
+) -> None:
+    sparkle_root = (
+        tmp_path / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
+    )
+    generation = sparkle_root / "Installation/fBQSwumuD"
+    generation.mkdir(parents=True)
+    (sparkle_root / "PersistentDownloads").mkdir()
+    updater = sparkle_root / "Launcher/QSYUe7BMl/Updater.app/Contents/MacOS/Updater"
+    updater.parent.mkdir(parents=True)
+    updater.write_bytes(b"updater")
+    signals: list[tuple[int, int]] = []
+
+    def fake_run(argv: list[str], **_kwargs) -> subprocess.CompletedProcess[str]:
+        command = f"{updater} /Applications/ChatGPT.app 0"
+        stdout = (
+            f"{os.getuid()} 4242 1 2-00:00:00 Mon Sep 21 00:00:00 2026 {command}\n"
+        )
+        return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", fake_run)
+    monkeypatch.setattr(disk_cleanup.os, "kill", lambda pid, action: signals.append((pid, action)))
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {
+            "coverage": {"mount_count": 1, "root_count": 1, "gaps": []},
+        },
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: probe_state,
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.run_once()
+
+    assert signals == []
+    assert generation.exists()
+    assert result["updater_recovery"]["preserved"] == 1
+    assert result["updater_recovery"]["errors"] == expected_errors
+    assert result["errors"] == expected_errors
 
 
 def test_open_codex_sparkle_installation_generation_is_preserved(tmp_path: Path) -> None:
