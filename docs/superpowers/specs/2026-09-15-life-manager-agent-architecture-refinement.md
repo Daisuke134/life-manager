@@ -727,7 +727,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **A15 shared foundation — PASS, keep monitored.** Main-only immutable releases, bounded durable admission, owner-scoped effect fences, release reconciliation and disk/headroom guards exist. Foundation completion never implies a provider loop is complete. | Existing A15 receipts remain valid; any new regression is repaired through the same exact-owner path and re-proved by a natural wake. |
 | 4 | **Connector effect chain — previously PASS; continuity recheck remains.** Connpass event `407445` has official `registered`, Calendar exact-one and two replay-zero wakes. The later `wake_boundary_failed` circuit-open report is a new runtime-health cursor, not permission to erase the earlier receipt. | Diagnose the new exact occurrence and restore a natural terminal without repeating the registration; official state stays exact-one and replay-zero. |
-| 5 | **Current cursor — Affiliate local business repair.** The false-green PartnerStack boundary and exact old effect fence are repaired by PR #5786, merge `592afe9c82210d01037e90ba10975b3e6e0a6fd4`. The first admitted natural wake on that SHA auto-refreshes the verified runner pin, reaches both acquisition and funnel decisions, and releases occurrence `affiliate-loop:18d607947836ded8-7444` with `effect_unknown=0`. It also exposes the next truthful boundary: CDP HTTP remains healthy while the exact ElevenLabs page renderer is wedged, so provider observation ends as typed `BROWSER_TRANSIENT` before any external write. A one-time exact-tab reload proves the renderer recovers without a browser/process restart. PR #5789, merge `296f07a446328b74035d164a8b12099508b67321`, adds bounded exact-target self-heal: one reload, one evaluation retry, strict browser-endpoint/reply validation, no 15-attempt reload storm and a `provider_renderer_recovered` wake field. Affiliate is 206/206, shared runtime 511/511, host admission 154/154, the 14-loop contract has errors 0, all PR checks are green and fresh review is Ready. The existing reconciler cuts immutable release `20260923T080252-4c6b1dc8`, which contains the Affiliate merge, and automatically moves `affiliate-loop` to exact `4c6b1dc8…` with `loaded-idle` and `admission_effect_unknown=false`; no manual restart is used. Three new-SHA natural wakes stop safely at capacity, active control and then FIFO boundaries. Latest occurrence `affiliate-loop:18d7c8f21074c370-16103` joins existing Affiliate sequence 128304 behind active earlier revenue owner Capafy sequence 128244; every occurrence remains `effect_unknown=0` and provider-unreached. Official business evidence remains cumulative provider clicks 8, current CTA clicks 0, transactions 0 and approved/paid 0. | Do not manually kick or clear the queue. Require natural FIFO drain and one admitted wake on exact `4c6b1dc8…` to report authenticated provider/service/network state, exact-link dedupe, no runner-pin rejection, occurrence release with `effect_unknown=0`, and the bounded renderer-recovery receipt if the fault recurs. Require the following natural replay-zero. Continue with owned-visit analytics, transient Impact observation, publication quarantine and an attributable conversion/payment receipt. Source/CI/release/fence PASS is not Affiliate revenue completion. |
+| 5 | **Current cursor — Affiliate local business repair.** PartnerStack auth, runner-pin recovery, bounded renderer recovery and monthly link-report aggregation have natural-terminal/replay evidence. Publication then exposed two distinct defects: protected `main` required PR delivery, and the public site deploys from `Daisuke134/anicca-products`, not the Life Manager runtime repository. PR #5794 merged article commit `772b8a8e…` into the wrong repository and therefore produced a truthful public 404. PR #5795 merges the repository-bound publisher repair as `5954146182131158893cfc4cd9b3f687d27f866a`; Affiliate 218/218, shared runtime 511/511, registry 15/15, 14-loop contract/doctor, all CI and fresh review pass. Automatic release `20260923T142134-59541461` loads that exact SHA without manual restart. Historical occurrence `affiliate-loop:18d7bbffe119e230-50286` is reconciled by a 0600 aggregate receipt tying two current PartnerStack official readbacks, owned-push start time after the occurrence, and the pre-existing quarantined Telegram event to the exact run; only that row moves from `claimed/effect_unknown=1` to `released/0`. The first post-reconciliation natural wake runs exact `595414…`, stops before provider work at typed `resource_capacity_busy`, and leaves occurrence `affiliate-loop:18d7dd0a0cbc9330-8662` queued with `effect_unknown=0`. Verified Affiliate revenue remains zero. | Do not manually start the owner or retry the quarantined Telegram event. Wait for the next admitted natural wake on exact `595414…`; require one corrective delivery to `anicca-products`, official public `LIVE` readback, exact repository/commit receipt, and the following same-SHA replay-zero. Then continue owned-visit analytics, transient Impact observation and attributable conversion/payment receipts. Source/CI/release/fence PASS is not Affiliate revenue completion. |
 | 6 | **Mobile Apps/Postiz local canary.** Recipient counting, occurrence isolation and deterministic-ledger reconciliation are merged and loaded for `life-manager-anicca-jp1-tiktok`; its first scheduled wake is 06:30 JST. | Natural scheduled terminal, official Postiz/provider readback and replay-zero. Then roll the same proven contract through the remaining app/account jobs and restore the required three daily publication slots. |
 | 7 | **Paid fulfillment remains delegated.** The separate Paid owner completes Coconala → CrowdWorks → Lancers → Upwork client work under its own spec and lease. This workstream neither restarts Paid nor reconciles its effect state. | Import only its official delivery/revision/payment receipts after owner completion; no duplicate sender, browser session or state writer. |
 | 8 | **Repair every remaining non-Paid job in all 14 Product Loops, one exact owner at a time.** This includes CrowdWorks Application/Reply/Report where they do not overlap Paid, Affiliate revenue conversion, Connector continuity, Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Self-Build, Mobile Apps, Capafy and CFO. | Each enabled job has the current installed SHA, bounded natural terminal, official effect/readback or explicit setup/not-applicable state, and replay-zero where an effect exists. A process exit or Telegram message alone is not success. |
@@ -2774,6 +2774,44 @@ followed by immutable-release and natural-wake acceptance. Manual login, manual
 restart, blind retry, a new job ID or a second publication sequence cannot close
 this cursor.
 
+That auth cursor later reaches an authenticated, deduplicated official link readback and resumes the
+same publication job. PR #5794 merges article head
+`509a2da20a9036f06c285e08d9ec562111bcc6b5` as Life Manager merge
+`772b8a8ee21b59f8aae558590029a72358693e5d`. This is a real GitHub delivery but a false product
+delivery: `aniccaai.com` deploys from `Daisuke134/anicca-products`, while the publisher derived the
+runtime repository from `RELEASE.json`. The official public URL and the corresponding
+`anicca-products` content path both return 404. A `DELIVERED` receipt in the runtime repository is
+therefore not an official public readback.
+
+PR #5795 fixes that repository boundary and merges as
+`5954146182131158893cfc4cd9b3f687d27f866a`. The immutable Life Manager release remains the runtime
+code source, but the managed publisher provisions a separate deterministic sparse checkout for the
+explicit live-site repository. Receipt, action and verification identities now include the target
+repository. A legacy wrong-repository `DELIVERED` receipt is preserved under `legacy_deliveries` and
+creates one distinct corrective job; protected repositories use the existing exact PR/merge path,
+while the unprotected live-site repository uses an exact normal merge. Legacy bare and PR-shaped
+actions resume the same prior job instead of duplicating it. Focused publisher tests pass 9/9, the
+full Affiliate suite 218/218, shared runtime 511/511, registry 15/15, the 14-loop contract and installed
+doctor pass, all ten PR checks pass, and fresh read-only review reports SHIP. The automatic reconciler
+cuts complete release `20260923T142134-59541461` and loads Affiliate on exact `595414...` without a
+manual apply or restart.
+
+The new code initially remains behind one exact historical host-admission fence:
+`affiliate-loop:18d7bbffe119e230-50286`, sequence 126998, from release `fa4a81285d...`. A fresh 0600
+aggregate reconciliation receipt proves the Sep 22 occurrence starts no new provider effect. Two
+post-occurrence PartnerStack official readbacks are `VERIFIED` and deduplicated; the first
+`OWNED_GIT_PUSH` effect for the target article begins more than seven hours after the occurrence; and
+the Telegram path excludes an older `SEND_TIMEOUT_UNKNOWN` event before provider dispatch and returns
+`AMBIGUOUS_NO_RETRY`. Telegram history absence is auxiliary and is not used as decisive proof. A
+fresh high-risk read-only review returns `CLEAR_SAFE`. The exact shared resolver, after a bounded
+`control.lock` retry and without any owner-wide clear, moves only that row from
+`claimed/effect_unknown=1` to `released/0`. The first post-reconciliation natural wake
+`18d7dd0a0cbc9330-8662` runs exact `595414...` and stops before provider work at typed
+`resource_capacity_busy`; its occurrence remains queued with `effect_unknown=0`. The production
+cursor is now the next admitted natural wake: it must deliver the corrective article to `anicca-products`, obtain official public `LIVE`
+readback, and then prove same-SHA replay-zero. Until those receipts exist, Affiliate remains open and
+verified revenue remains zero.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
@@ -2785,11 +2823,12 @@ The remaining order is fixed as follows:
    protected-branch direct-push defect without a confirmed remote effect. The idempotent PR/auto-merge
    repair is merged and loaded on immutable release `20260923T124904-4dde25bd`; its first exact-SHA
    wake defers at shared resource FIFO before touching the legacy effect, with
-   `admission_effect_unknown=false`. Later natural admitted wakes prove that refresh returns HTTP 200
-   but the immediate official PartnerStack reread remains HTTP 401, so the publication safely stays
-   `INTENT` and the legacy job stays at attempt 1 without a PR. Repair that durable auth/session
-   boundary, then let a natural cadence resume the exact unresolved publication and prove official
-   public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
+   `admission_effect_unknown=false`. Later authentication recovery and PR delivery expose the wrong
+   deploy-repository boundary: article PR #5794 lands in Life Manager while the official public URL
+   stays 404. PR #5795 repairs the target-repository contract and is loaded on exact immutable release
+   `20260923T142134-59541461`. The exact historical admission fence is reconciled by fresh aggregate
+   proof and only its row is released. Let the natural cadence deliver one corrective article to
+   `anicca-products`, prove official public `LIVE`, and then prove same-SHA replay-zero. Then continue unavailable owned-visit analytics,
    transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
