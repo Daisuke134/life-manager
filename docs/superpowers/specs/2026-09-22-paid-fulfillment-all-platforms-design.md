@@ -30,19 +30,20 @@ completion criteria.
 - There is no Risa client. Earlier references to Risa were transcription errors for
   Ryu and create no work item.
 - All other eligible paid clients ultimately belong to their provider's Paid owner.
-- The execution cursor is sequential: (1) handle a genuinely newer Ryu event
-  directly (the 2026-09-23 revision is now complete), (2) prove the remaining Coconala fleet is loop-owned and safe, then
-  (3) repair and prove CrowdWorks, Lancers, and Upwork. “Ryu's client work is
-  finished” and “the Coconala Paid loop is production-proven” are separate gates.
+- The execution cursor is sequential: (1) keep the latest Ryu revision closed
+  under the permanent manual fence, (2) prove the remaining Coconala fleet is
+  loop-owned and safe, then (3) repair and prove CrowdWorks, Lancers, and
+  Upwork. “Ryu's client work is finished” and “the Coconala Paid loop is
+  production-proven” are separate gates.
 
 ### Two completion layers
 
 1. **Client layer:** the requested work was performed, sent through the provider,
    and read back officially. Chii satisfies this layer for its current buyer
-   event. Ryu satisfied the prior cycle through seller message
-   `js-talkroomMessage-222192497`, but a fresh official readback exposed five
-   newer buyer events on 2026-09-23, so Ryu's client layer is reopened for one
-   manual revision cycle; no duplicate send is allowed for the prior cycle.
+   event. Ryu's latest direct revision was sent through seller message
+   `js-talkroomMessage-222220999` with formal delivery OFF and read back in the
+   official talkroom; Ryu is now waiting for a genuinely newer buyer event. No
+   duplicate send is allowed for the completed cycle.
 2. **System layer:** the loop can safely do the same for the next eligible client,
    including admission, effect fencing, official readback, crash recovery, and
    replay-zero. Coconala's client layer is largely closed, but its system-layer
@@ -228,8 +229,9 @@ wait for a genuinely newer buyer event.
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
 delivery. The prior manual correction was sent once with formal delivery OFF and
-read back in the official talkroom; the five newer buyer events now require one
-new direct manual revision cycle before the loop can return to observation.
+read back in the official talkroom as seller message `js-talkroomMessage-222220999`.
+That latest revision is complete; the room is now waiting for a genuinely newer
+buyer event. The Paid loop remains permanently fenced from Ryu.
 
 Chii is **not** an open work item. The required TikTok campaign was satisfied by
 12 previously verified sends plus 288 exact-readback sends on 2026-09-15. The
@@ -277,6 +279,11 @@ This specification adds the cross-provider completion contract; it does not eras
 that contract inventory or its occurrence-specific reconciliation obligations.
 The new registry contract isolates future Application/Paid/Reply occurrences from an
 older unknown row after promotion; it does not release the four existing fences.
+The exact Paid occurrence `crowdworks-revenue-paid:18d62cf32eb0c678-48194` has an
+official execute event with `effect_status=started` followed by a report with
+`effect_status=unknown`; no provider receipt or no-dispatch proof exists, so it
+must remain fenced. Contract `63657015` is read back as funded, but its hearing
+sheet/common-test submission data is not complete and no submission receipt exists.
 
 ### Lancers
 
@@ -286,6 +293,11 @@ or repurposed during repair. The paid adapter exists, but a running support owne
 not evidence that client work is being completed or delivered. The new registry
 contract isolates future Application/Negotiate/Paid occurrences after promotion;
 Storefront and Telegram Report remain owner-scoped pending their own proof.
+The latest Paid status is `loaded-idle` with `pid=null` and blocker
+`resource_control_busy`. Admission occurrence
+`lancers-revenue-paid:18d67a28e56c4b58-6829` remains `claimed/effect_unknown=1`.
+The latest paid result reports observed/effect zero, but that is not a no-dispatch
+proof and cannot release the fence.
 
 ### Upwork
 
@@ -294,6 +306,9 @@ message, revision, delivery, sealed-effect, and finance adapters with focused te
 There is no registered Upwork Paid product-loop owner in `config/loop-registry.json`.
 Upwork therefore requires lifecycle registration and a live contract inventory
 before it can claim end-to-end paid fulfillment.
+Freelancer has no Paid state directory or registered Paid owner in the current
+inventory. Neither platform is a submission target until account/policy state,
+contract inventory, and the official Apply-to-payout proof path are registered.
 
 ## Architecture
 
