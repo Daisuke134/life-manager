@@ -191,6 +191,15 @@ same signal with the default disposition so the Paid parent cannot remain as an
 orphan holding `.paid-direct.lock`. The regression test is included; the fix is
 not yet merged, released, or applied.
 
+The targeted loop-status read path is also fixed at `313915e0a5`: when a caller
+asks for one loop, `_last_event()` now returns at the newest valid report for
+that loop instead of validating the entire shared `events.jsonl`. The regression
+test proves old reports are not scanned after the requested report is found.
+Runtime tests now pass `516`, Paid tests `263`, adapter tests `15`, the loop
+contract gate passes, and `lm-loop doctor` reports no missing, unmanaged, or
+retired entries. This remains source-level evidence only; the production Paid
+owner is still unloaded and the new SHA has no natural-wake/readback proof.
+
 ### Coconala
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
@@ -210,7 +219,7 @@ verified `awaiting_buyer` state, while no new Paid wake may run until host write
 recover and the new release is applied. The later official Ryu events supersede
 the old Ryu no-op snapshot.
 
-The source-level Coconala repair now passes the loop contract gate, 515 runtime
+The source-level Coconala repair now passes the loop contract gate, 516 runtime
 tests, 263 Paid tests, 15 adapter tests, and `lm-loop doctor` (no missing,
 unmanaged, or retired entries). This is a development-plane result only: the
 fix is pushed on its branch, while the installed release remains stopped and no

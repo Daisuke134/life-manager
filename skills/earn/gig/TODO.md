@@ -68,6 +68,11 @@ runtime/provider readback.
   cannot survive bootout and retain `.paid-direct.lock`. Its regression and
   related loop tests pass (`263` paid-remote-wait, `70` loop-boundary); it is
   pushed but not merged/released/applied.
+- The targeted status-read fix `313915e0a5` makes `_last_event()` stop at the
+  newest requested loop report instead of scanning all older shared-state rows.
+  Its regression is covered; runtime tests pass `516`, the loop contract and
+  adapter tests pass, and `lm-loop doctor` is clean. This is still source-only:
+  the Paid owner remains unloaded and no new natural wake/readback has run.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
   symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),
