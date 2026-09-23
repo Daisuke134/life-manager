@@ -126,8 +126,9 @@ def _github_pull_request(
             "--head", head_branch, "--title", f"feat(blog): publish {slug}",
             "--body", "Automated Affiliate publication after policy and quality gates passed.",
         ).strip()
-    if not isinstance(pull_request, str) or not pull_request.startswith(
-        f"https://github.com/{repository}/pull/"
+    if not isinstance(pull_request, str) or not re.fullmatch(
+        rf"{re.escape(f'https://github.com/{repository}/pull/')}[1-9][0-9]*",
+        pull_request,
     ):
         raise PublishError("GitHub pull request URL is invalid")
     row = _pull_request_view(root, repository, pull_request)
@@ -136,7 +137,7 @@ def _github_pull_request(
     if row.get("state") == "OPEN" and row.get("autoMergeRequest") is None:
         _gh(
             root, "pr", "merge", pull_request, "--repo", repository,
-            "--auto", "--merge", "--delete-branch",
+            "--auto", "--merge", "--delete-branch", "--match-head-commit", commit,
         )
         row = _pull_request_view(root, repository, pull_request)
     if row.get("state") == "OPEN":
@@ -148,10 +149,13 @@ def _github_pull_request(
         raise PublishError("GitHub pull request closed without merge")
     git(root, "fetch", "--no-tags", remote, target_branch)
     git(root, "merge-base", "--is-ancestor", commit, "FETCH_HEAD")
+    merge_commit = row["mergeCommit"].get("oid")
+    if not isinstance(merge_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", merge_commit):
+        raise PublishError("GitHub merge commit readback is invalid")
     return {
         "state": "DELIVERED", "head_branch": head_branch,
         "pull_request_url": pull_request,
-        "merge_commit": row["mergeCommit"].get("oid"),
+        "merge_commit": merge_commit,
     }
 
 
