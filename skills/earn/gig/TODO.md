@@ -35,6 +35,12 @@ runtime/provider readback.
 - [ ] After Coconala closes, repair and prove CrowdWorks, Lancers, then Upwork;
   unknown-effect occurrences remain fenced and no platform is declared done
   from local artifacts alone.
+- [x] Source fix pushed on `fix/crowdworks-paid-reconcile-20260923` (`522218a9a9`):
+  the shared Paid kernel now reconciles only the exact occurrence whose run
+  marker is `pre_effect`/`completed` with `effect=0`; CrowdWorks and Lancers
+  owners invoke it after their own wake. Focused 165-test suite and
+  `lm-loop-contract` pass. This is not production evidence until main is
+  promoted and the two owners are naturally read back.
 
 ### Current production cursor — 2026-09-23 21:03 JST
 
@@ -54,6 +60,10 @@ runtime/provider readback.
   client send was read back. Cleanup restored about `1.2GiB` free space, but the
   unresolved effect fence is intentionally unchanged, so no retry or restart is
   allowed until an occurrence-bound no-dispatch proof is obtained.
+- The source reconciler proves six later CrowdWorks Paid occurrences and one
+  Lancers Paid occurrence from their exact completed/effect-zero markers; the
+  oldest CrowdWorks row `18d62cf32eb0c678-48194` still has no marker and remains
+  fenced. No production resolve was run from the unpromoted worktree.
 - A fresh official CrowdWorks inventory at `2026-09-23T11:52:18Z` returned five
   funded/active IDs: `63712784`, `63659463`, `63657015`, and `63570481` are
   `delivered`; `63568785` is `funded`. The `63568785` detail readback at

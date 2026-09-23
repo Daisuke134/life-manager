@@ -58,6 +58,17 @@ Paid attempt ended at `2026-09-23T12:05Z` with `ENOSPC`/admission-DB-lock
 errors, provider effect `0`, and no client send; the fence therefore remains
 unchanged after allowlisted cleanup restored about `1.2GiB` free space.
 
+### Shared zero-effect Paid reconciliation source fix — 2026-09-23
+
+Branch `fix/crowdworks-paid-reconcile-20260923` commit `522218a9a9` adds a
+shared marketplace reconciler. It releases only the exact claimed occurrence
+whose Paid kernel run marker has the same occurrence ID, status `pre_effect` or
+`completed`, and `effect=0`; `effect_started`, mismatched IDs, and missing
+markers remain fenced. CrowdWorks and Lancers Paid owners call it after their
+own kernel/report wake. The focused 165-test suite and `lm-loop-contract` pass.
+This source fix is not yet production evidence: main promotion, immutable
+release apply, and natural readback are still required.
+
 ### Latest Coconala provider readback — 2026-09-23 20:35 JST
 
 The latest official readback is split by client. Ryu `18211957` has the manual
