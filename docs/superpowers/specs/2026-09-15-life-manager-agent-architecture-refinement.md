@@ -2963,6 +2963,29 @@ or provider session is part of this reorder.
    business terminal, and a same-SHA replay-zero. Only after those receipts pass may the identical registry
    setting roll through the remaining shared Mobile owners. Obou remains a separate atomic because its
    pre-existing `MARKETING_PUBLICATION_LANE_FORBIDDEN` boundary is not this deployment defect.
+
+   This one-owner handoff is now implemented as PR #5814 and merged to main as
+   `a088a95a670240f4da8bae7c2d6b200ef6c4d18c`. Only `life-manager-honne-ja` opts in; the other seventeen
+   Mobile owners remain unchanged. Runtime/loop passes 520/520, registry 79/79, apply 118/118, Node
+   registry/contract 25/25, the fourteen-loop contract reports 14 loops / 167 jobs / zero errors, doctor
+   reports no missing or unmanaged owner, and every PR check is green. The natural reconciler cuts and
+   activates complete release `20260923T230605-a088a95a`. Its first pass cannot apply Honne JA because a
+   queued occurrence becomes running on the old `f86bacce…` plist during reconciliation; that run returns
+   to a clean queued occurrence with no new Postiz receipt evidence, while the historical claimed/unknown
+   occurrences remain fenced. The following natural reconciler pass applies only Honne JA. Fresh
+   `launchctl-safe print` readback shows loaded-idle, no PID, release arguments rooted at
+   `20260923T230605-a088a95a`, and `LIFE_MANAGER_RELEASE_SHA=a088a95a…`. Admission readback still contains
+   the historical claimed/unknown rows and the latest clean queued occurrence
+   `life-manager-honne-ja:18d7f875a25a2f98-66692`; no state is guessed away.
+
+   A fresh read-only official Postiz reconciliation returns
+   `no_match / exact_pending_receipt_unavailable / inspected=0`. This is a safe result, not acceptance:
+   there is no exact provider receipt that authorizes clearing an older unknown occurrence. Available
+   host space is about 794,412 KiB, above the generic 512 MiB producer floor but below the separate Writer
+   high-water floor; those thresholds remain distinct. The Mobile cursor is now the first natural
+   `a088a95a…` business wake, scheduled for 08:30 JST, followed by official exact readback and a second
+   same-SHA wake proving replay-zero. Fleet rollout and the Obou atomic remain prohibited until those two
+   receipts pass.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
    exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
