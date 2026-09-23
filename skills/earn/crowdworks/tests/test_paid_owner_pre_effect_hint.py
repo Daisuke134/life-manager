@@ -72,7 +72,7 @@ def test_paid_owner_reconciles_exact_zero_effect_occurrence_after_kernel(tmp_pat
         "output.write_text(json.dumps({'status':'ok','effect':0,'failed':0,'items':[]}))\n",
         encoding="utf-8",
     )
-    reconciler = fake_root / "skills/earn/crowdworks/scripts/reconcile_paid_no_effect.py"
+    reconciler = fake_root / "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py"
     reconciler.write_text(
         "import os, pathlib, sys\n"
         "pathlib.Path(os.environ['RECONCILE_ARGS']).write_text(' '.join(sys.argv[1:]))\n",

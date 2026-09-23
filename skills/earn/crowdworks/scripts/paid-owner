@@ -31,8 +31,9 @@ set -e
 OCCURRENCE="${LIFE_MANAGER_OCCURRENCE_ID:-}"
 if [[ -n "$OCCURRENCE" ]]; then
   set +e
-  "$PYTHON" "$ROOT/skills/earn/crowdworks/scripts/reconcile_paid_no_effect.py" \
-    --state-root "$STATE_ROOT" --occurrence "$OCCURRENCE" --resolve
+  "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py" \
+    --state-root "$STATE_ROOT" --owner crowdworks-revenue-paid \
+    --occurrence "$OCCURRENCE" --resolve
   RECONCILE_RC=$?
   set -e
   if (( RECONCILE_RC != 0 )); then
