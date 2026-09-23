@@ -17,16 +17,28 @@ runtime/provider readback.
   evidence is `projects/18211957/delivery/ryu-v697-manual-send-readback.json`.
   Ryu is now buyer-waiting; the loop remains prohibited from creating, replying,
   attaching, or formally delivering for Ryu.
-- Coconala schedule extraction is repaired and promoted. PR `#5798` merged at
-  `6b72c3044b2b590b950c1df18fc876285e2e9f7c`; immutable release
-  `20260923T155015-6b72c304` is current and target-applied to
-  `hf-gig-paid-direct`. Official status readback is
-  `installed_release_sha=6b72c3044b2b590b950c1df18fc876285e2e9f7c`,
-  `launchd_state=unloaded`, `pid=null`. The parser now accepts only official
-  change/registration events, orders them by provider chronology, and carries
-  event provenance into the final queue. No natural wake/provider readback or
-  replay-zero proof exists for this SHA yet; do not restart Paid or send any
-  additional client package.
+- Coconala schedule extraction is repaired and promoted. PR `#5798` remains the
+  parser fix; the subsequent admission-cleanup PR `#5803` is merged at
+  `51e7d9c0ba460e8f2486a02112528a81357dc5e1`, and immutable release
+  `20260923T165749-51e7d9c0` is installed for `hf-gig-paid-direct`. Official
+  status readback is `installed_release_sha=51e7d9c0ba460e8f2486a02112528a81357dc5e1`,
+  `launchd_state=unloaded`, `pid=null`; `lm-loop doctor` is clean. The parser
+  still accepts only official change/registration events and preserves event
+  provenance. No natural wake/provider readback/replay-zero proof exists for
+  this installed SHA yet.
+- The remaining Coconala admission fence is exact and must stay closed until
+  reconciled: `hf-gig-paid-direct:18d74bfad80dc9d8-14624` is
+  `claimed/effect_unknown=1`. Its historical report says `pass/effect=none` but
+  points at a different older claim reference, so that report is not proof for
+  this occurrence. Do not clear the row, restart Paid, or retry a client effect
+  without an exact official provider receipt or a durable pre-effect proof.
+- Authenticated artifact access is now an invariant for every platform: use the
+  installed `gog` CLI or equivalent authenticated connector/plugin first for
+  Drive, Docs, Sheets, and related artifacts. Browser access is allowed only
+  after the CLI/connector records a concrete read failure; missing browser Docs
+  permission is never a reason to request permission or to mark the artifact
+  inaccessible. Record the CLI command/readback and any fallback failure in the
+  item evidence.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook

@@ -71,6 +71,12 @@ CLI/connector records a concrete read failure, and record that failure beside
 the fallback readback; a missing browser session is never evidence that the
 artifact is inaccessible.
 
+This is an execution invariant, not a convenience preference: every provider
+adapter must attempt the authenticated CLI/connector before opening a browser,
+and its evidence must retain the command, target identity, and exact readback.
+The adapter must never ask the buyer to grant browser Docs permission when the
+authenticated CLI/connector already has access.
+
 ### Why Chii is not being sent again
 
 Chii's paid deliverable is the 300-recipient TikTok campaign and its Coconala
@@ -254,15 +260,20 @@ recover and the new release is applied. The later official Ryu events supersede
 the old Ryu no-op snapshot.
 
 The Coconala schedule repair passed the loop contract gate, the focused and
-full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main at
-`6b72c3044b2b590b950c1df18fc876285e2e9f7c`; the immutable release
-`20260923T155015-6b72c304` is current and was target-applied to
-`hf-gig-paid-direct`. Official lifecycle readback shows the installed SHA is
-`6b72c3044b2b590b950c1df18fc876285e2e9f7c`, while
-`launchd_state=unloaded` and `pid=null` remain intentional. No natural wake,
-provider readback, or replay-zero proof exists for this new SHA yet, so do not
-restart Paid or submit another client package until the remaining host/admission
-and natural-wake gates pass.
+full runtime suites, and `lm-loop doctor`. PR `#5798` is merged in main and
+the admission cleanup from PR `#5803` is now included in immutable release
+`20260923T165749-51e7d9c0`, whose SHA is
+`51e7d9c0ba460e8f2486a02112528a81357dc5e1`. Official lifecycle readback shows
+that SHA installed for `hf-gig-paid-direct`, while `launchd_state=unloaded` and
+`pid=null` remain intentional. No natural wake, provider readback, or
+replay-zero proof exists for this installed SHA yet.
+
+The exact remaining Coconala admission fence is
+`hf-gig-paid-direct:18d74bfad80dc9d8-14624` (`claimed/effect_unknown=1`). Its
+historical report references a different older claim, so it cannot clear this
+row. Keep Paid paused until an exact official provider receipt or durable
+pre-effect proof is bound to this occurrence; do not retry a client effect in
+the meantime.
 
 The one-by-one manual check of NPO room `18223833` was run after the stop. The
 canonical decision regeneration still returns `await_buyer` with `effect=0` and
