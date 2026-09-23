@@ -13,7 +13,7 @@ listing count, proposals, forecasts, and unpaid contracts are not revenue.
 - Apply: `scripts/application_loop.py` discovers, judges, applies at most once per tick, and requires an official proposal ID.
 - Storefront: `scripts/storefront_offer.py` owns one canonical package, one matching public portfolio proof, official inventory, demand counters, and one-variable improvements.
 - Negotiate / Reply: `scripts/work_sync.py` owns buyer-last messages, replies, Storefront estimates, client-offer verification/acceptance, and funded ContractReceipt handoff.
-- Paid: owns funded work, requirements, production, QA, delivery, payment, provider settlement, and bank reconciliation. This owner is not implemented yet.
+- Paid: owns funded work, requirements, production, QA, delivery, payment, provider settlement, and bank reconciliation. The source owner now has provider-grounded funded-detail readback, quality-digested answer/message effects, and replay fences; formal delivery remains fail-closed until the official Lancers completion surface is verified on a real funded contract and is not production-promoted yet.
 - Reporting: `scripts/telegram_report.py` is the four-lane control plane, not a fifth revenue lane. It renders every wake, effect, skip, blocker, failure, official readback, and verified payment in natural Japanese.
 - Product: `products/monthly-sns-content-ops-v1.json` is the single offer definition. Its image is in `assets/`.
 
