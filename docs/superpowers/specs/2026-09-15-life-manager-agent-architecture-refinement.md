@@ -3132,11 +3132,12 @@ or provider session is part of this reorder.
    |---|---|---|
    | Coconala `hf-gig-apply-direct` | old SHA `aa63982c…`; blocked/75; `resource_effect_unknown`; one claimed unknown occurrence | The old owner-wide fence stops the entrypoint before provider work. Reply passing does not prove Apply. |
    | Lancers `lancers-revenue-application` | old SHA `65a1d563…`; blocked/75; alternates `resource_effect_unknown` and transient `resource_admission_unavailable`; one claimed unknown occurrence | Its loaded release predates the current occurrence-scoped registry contract, so one unresolved historical effect blocks the whole owner before proposal discovery. The earlier 20 verified proposals remain valid history, not current liveness. |
-   | CrowdWorks `crowdworks-revenue-application` | SHA `b939af53…`; latest blocked/75 with `resource_admission_unavailable`; seven claimed unknown occurrences and 115 clean queued occurrences | Occurrence scope exists, but SQLite/control contention and a large unreconciled occurrence backlog prevent reliable admission. Earlier outer/agent passes still report effect unknown and are not official application receipts. |
+   | CrowdWorks `crowdworks-revenue-application` | SHA `b939af53…`; latest blocked/75 with `resource_admission_unavailable`; seven claimed unknown occurrences and 115 clean queued occurrences | Occurrence scope exists, but the current wrapper collapses the lower OSError/RuntimeError/SQLite cause into one generic admission error. The large unreconciled backlog also prevents a reliable current claim. Earlier outer/agent passes still report effect unknown and are not official application receipts. |
    | Mercor `mercor-revenue-application` | old SHA `f3e51868…`; blocked/75; alternates `resource_effect_unknown` and `resource_admission_unavailable`; one claimed unknown occurrence | Its loaded release is owner-scoped, so the retained unknown stops the entrypoint before search/application; interview/media human gates remain separate and must not be treated as successful submission. |
 
    The fix order is shared-foundation first, not four manual browser sessions: retain every unknown row;
-   obtain exact official readback for each unresolved occurrence; add a bounded owner/queue consistency
+   obtain exact official readback for each unresolved occurrence; preserve the lower admission `error_class`
+   and boundary in the receipt; add a bounded owner/queue consistency
    repair that can recreate missing queue/priority identity and compact only clean redundant wake rows under
    the admission control lock; load the current occurrence-scoped contract where it is already accepted;
    add that scope only where candidate-level dedupe/readback proves it cannot duplicate an application; then
