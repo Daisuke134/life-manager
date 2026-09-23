@@ -585,7 +585,7 @@ Local gate and Eval, build meta/self-heal on those proven contracts, then promot
 the approved source to Cloud and pass its gate.
 Reason: a candidate checkout or mock cannot be the production code authority;
 deferring main until after Cloud leaves live owners on the old admission path.
-Current cursor is step 3's A15 fleet gate: the release-reconciler was synced
+The historical cursor at this point was step 3's A15 fleet gate: the release-reconciler was synced
 to the already-built `20c6067c3d` release while loaded-idle, then its next
 natural run `18d603e783e3e858-24932` reached an outer `pass` with no blocker.
 The remaining step is a bounded queue-age/recovery check. Main has the focused source changes; loaded releases
@@ -727,8 +727,8 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **A15 shared foundation — PASS, keep monitored.** Main-only immutable releases, bounded durable admission, owner-scoped effect fences, release reconciliation and disk/headroom guards exist. Foundation completion never implies a provider loop is complete. | Existing A15 receipts remain valid; any new regression is repaired through the same exact-owner path and re-proved by a natural wake. |
 | 4 | **Connector effect chain — previously PASS; continuity recheck remains.** Connpass event `407445` has official `registered`, Calendar exact-one and two replay-zero wakes. The later `wake_boundary_failed` circuit-open report is a new runtime-health cursor, not permission to erase the earlier receipt. | Diagnose the new exact occurrence and restore a natural terminal without repeating the registration; official state stays exact-one and replay-zero. |
-| 5 | **Current cursor — Affiliate local business repair.** PartnerStack auth, runner-pin recovery, bounded renderer recovery and monthly link-report aggregation have natural-terminal/replay evidence. Publication then exposes two defects: protected `main` requires PR delivery, and the public site deploys from `Daisuke134/anicca-products`, not the runtime repository. PR #5794 lands in the wrong repository and produces a truthful public 404. PR #5795 repairs the repository boundary as `5954146182131158893cfc4cd9b3f687d27f866a`; only the exact historical occurrence is reconciled. The next admitted old-SHA wake reaches authenticated/deduplicated PartnerStack readback and creates corrective `anicca-products` PR #412. It merges as `112725fc…`; the owned receipt names the exact repository and commit, and the official article URL is now `LIVE`. The same recovery exposes a refresh-propagation race: refresh HTTP 200 can precede the SPA cookie and make an immediate readback return 401. PR #5797 merges a bounded official-readback wait as `f01c612d6448bc2850f3ed951f8dd3485e0cb121`; Affiliate 220/220, shared runtime 517/517, registry 15/15, 14-loop contract/doctor, all CI and fresh review pass. The first export hits ENOSPC at about 273 MB free; removing only this workstream's merged, remote-backed worktree restores about 1.65 GB, above the 1,155,780,608-byte floor, and the natural reconciler loads complete release `20260923T152920-f01c612d`. A later public X post is officially visible while its occurrence remains unknown, and the 1,814-file job journal makes exact recovery take about thirty minutes. PR #5805 merges the O(1) target index, bounded exact X readback and pending-effect no-repost rules as `80749f841f6a529c2ad745b2a379307c6bfc4f38`; all CI passes. Verified Affiliate revenue remains zero. | Do not manually start the owner or repost. Cut a complete immutable main release, reconcile only the exact public X occurrence under the owner deploy lock, load the safe SHA, then require a natural terminal and same-SHA replay-zero with the identical URL. After operational acceptance, continue bounded owned-visit/CTA/conversion/payment experiments while the primary cursor moves to Mobile Apps. Source/CI/release/publication PASS is not Affiliate revenue completion. |
-| 6 | **Mobile Apps/Postiz local canary.** Recipient counting, occurrence isolation and deterministic-ledger reconciliation are merged and loaded for `life-manager-anicca-jp1-tiktok`; its first scheduled wake is 06:30 JST. | Natural scheduled terminal, official Postiz/provider readback and replay-zero. Then roll the same proven contract through the remaining app/account jobs and restore the required three daily publication slots. |
+| 5 | **Affiliate source repair — merged; background production acceptance remains.** The authenticated source/readback/publication chain is repaired through PR #5805 (`80749f841f…`). The next natural run exposes a separate local receipt-journal failure: rotating a 36,631,936-byte journal can fail with ENOSPC while creating the optional gzip archive, after admission but before provider effect. PR #5807 changes the rotation order so the protected active ledger is atomically retained first and optional archive ENOSPC becomes `skipped_enospc`; it merges to main as `799045e7ba66ee66fe22b35153a3217054ac7ac3`. Affiliate 240/240 and the 14-loop/167-job contract pass. Verified Affiliate revenue remains zero. | Do not hold the portfolio cursor here. Let the owner-scoped immutable-release path load `799045e7…` naturally, reconcile only the exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, then require a same-SHA natural terminal and replay-zero. Never infer that proof from the different public X occurrence or repost. Continue CTA/conversion/payment experiments on the bounded schedule; source repair is not revenue completion. |
+| 6 | **Current cursor — Mobile Apps/Postiz common contract.** The fresh 22-job inventory has 20 jobs in the normal loaded state, one unloaded job (`life-manager-anicca-obou-instagram`) and one running job without a terminal (`life-manager-daily-driver`). All 22 still project `effect_status=unknown`, but official/local Postiz receipts prove current successful Instagram, TikTok and YouTube publications, including multiple posts on 2026-09-23. The fleet is therefore not globally stopped; the dominant defect is that exact provider receipts are not closing the matching host admission occurrences, while old `.terminal-unrecorded` claims remain. | Join every `job_id`/`effect_key`/provider receipt to one exact occurrence, use the existing provider/effect reconcilers, emit terminal effect hints for successful and deduplicated publication, and never clear an owner-wide fence. Prove one natural main-SHA canary plus replay-zero, roll the shared contract across all 22 owners, repair the unloaded/no-terminal jobs, and verify each enabled lane's intended three-per-day cadence from official receipts. |
 | 7 | **Paid fulfillment remains delegated.** The separate Paid owner completes Coconala → CrowdWorks → Lancers → Upwork client work under its own spec and lease. This workstream neither restarts Paid nor reconciles its effect state. | Import only its official delivery/revision/payment receipts after owner completion; no duplicate sender, browser session or state writer. |
 | 8 | **Repair every remaining non-Paid job in all 14 Product Loops, one exact owner at a time.** This includes CrowdWorks Application/Reply/Report where they do not overlap Paid, Affiliate revenue conversion, Connector continuity, Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Self-Build, Mobile Apps, Capafy and CFO. | Each enabled job has the current installed SHA, bounded natural terminal, official effect/readback or explicit setup/not-applicable state, and replay-zero where an effect exists. A process exit or Telegram message alone is not success. |
 | 9 | **Run the complete Local gate and Eval on the actual main-derived candidate.** Bind all fourteen Product Loops, including receipts returned by the Paid owner, to one completion manifest; run baseline, held-out, safety, latency/cost, live-evidence and rollback checks. | Unknown enabled owners = 0; Local and Eval both PASS without mocks standing in for provider effects. |
@@ -2546,8 +2546,10 @@ replay protection, runtime status, completion manifests, Local/Cloud gates, reco
 bounded evaluation/promotion contract. These contracts are necessary infrastructure, but they do not
 by themselves prove that all 14 Product Loops work in production.
 
-The current non-Paid cursor is Affiliate. Public CTA/readback, release-provenance and queued-release
-self-heal repairs are on main. PR #5783 is merged as
+The current non-Paid cursor is Mobile Apps/Postiz. Affiliate's latest source repair is on main and its
+remaining immutable-release/natural-terminal acceptance continues on the owner schedule without
+blocking the portfolio cursor. Earlier Affiliate CTA/readback, release-provenance and queued-release
+self-heal repairs are also on main. PR #5783 is merged as
 `3fe9eadcff1d1cbc0b4fa4551d3fa27563e7372f`: only explicitly opted-in owners may rebind while an
 active reservation exists; loaded-idle readback is mandatory; claimed or `effect_unknown` work stays
 fenced; and the reservation, occurrence and FIFO identity are preserved. The Python runtime suite
@@ -2882,28 +2884,25 @@ passes. PR #5805 merges to main as `80749f841f6a529c2ad745b2a379307c6bfc4f38`. T
 cut as an immutable release or production-accepted. Therefore the official post evidence proves the
 external object, not completion of the internal reconciliation or replay-zero gate.
 
-The remaining order is fixed as follows. The ordering change is deliberate: the old order kept the
-primary cursor on Affiliate through conversion/payment evidence before moving to Mobile Apps. The
-current evidence separates operational acceptance from commercial optimization. Waiting for Affiliate
-revenue before repairing another broken loop reduces portfolio learning and total expected revenue.
-The new order closes Affiliate's exact unsafe occurrence and operational self-heal first, then moves the
-primary cursor to Mobile Apps and Connector while Affiliate continues bounded funnel experiments on its
-normal schedule. The current cursor remains the exact Affiliate X effect/index repair; no Paid owner,
-state or provider session is part of this reorder.
+The remaining order is fixed as follows. The ordering change is deliberate: Affiliate's source defect is
+merged and no longer owns the primary cursor. Its production acceptance and commercial experiments run
+on the bounded owner schedule instead of serializing the entire portfolio behind first revenue. The
+primary cursor is now the shared Mobile Apps/Postiz receipt-to-occurrence contract. No Paid owner, state
+or provider session is part of this reorder.
 
-1. Finish Affiliate operational acceptance without manual restart or a second X delivery. Cut the merged
-   main commit as a complete immutable release and load it through the owner-scoped deploy/reconcile path.
-   Reconcile only job
-   `f9624461...` and its exact host occurrence from the official X proof; never clear the owner or repost
-   by inference. Require a natural same-SHA terminal that marks the existing post `LIVE`, followed by a
-   same-SHA replay-zero with the same public URL and no duplicate. That is the operational handoff point,
-   not a revenue claim: Affiliate then continues owned-visit analytics, experiment terminalization,
-   transient Impact observation and attributable conversion/payment receipts as a bounded scheduled
-   portfolio lane while the primary cursor moves to Mobile Apps. A public page, post, impression,
-   historical click or process `exit 0` is not revenue completion.
-2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
-   the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
-   publication, and analytics/revenue receipts feed the same evaluation contract.
+1. Repair Mobile Apps/Postiz once at the shared boundary, not account by account. Fresh readback proves
+   that distribution is partially active: provider-reconciled posts exist today, while all 22 jobs still
+   project an unknown effect. Map each successful/deduplicated Postiz receipt to its exact admission
+   occurrence, close only that occurrence, retain uncertain rows, and add the terminal effect hint at the
+   common runner boundary. Prove one natural main-SHA canary and replay-zero, roll the contract across all
+   22 owners, then repair `life-manager-anicca-obou-instagram` and the no-terminal daily driver if the
+   fresh state still shows those defects. Finally verify the intended three-per-day cadence per enabled
+   lane from official receipts; a global post count is insufficient.
+2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
+   manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
+   exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
+   replay-zero. The different public X post cannot prove this older occurrence. After that, continue
+   owned-visit, CTA, attributable conversion and payment experiments without blocking another loop.
 3. Repair Connector from the latest typed `wake_boundary_failed` evidence, then prove one natural
    registration/readback and replay-zero without a manual restart.
 4. Continue the remaining non-Paid rows in the Fourteen-Loop Remediation Matrix one owner at a time.
