@@ -347,6 +347,31 @@ def test_non_busy_sqlite_failure_is_not_retried_or_misclassified(tmp_path):
     run.assert_not_called()
 
 
+def test_nonlock_claim_io_failure_is_not_retried_or_started(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                side_effect=OSError("claim cleanup I/O failed")) as claim,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "browser-probe", {}, receipt,
+            occurrence_id="browser-probe:wake-cleanup-io",
+        ) == 75
+
+    assert json.loads(receipt.read_text())["reason"] == "resource_admission_unavailable"
+    claim.assert_called_once()
+    sleep.assert_not_called()
+    run.assert_not_called()
+
+
 def test_sqlite_lock_during_best_effort_reservation_keeps_terminal_path(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 300},
