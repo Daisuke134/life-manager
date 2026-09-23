@@ -860,6 +860,9 @@ inventory verified with zero contracts → Upwork admission precondition. The
 next mutation-capable cursor is only an authenticated Upwork funded-contract
 inventory; until then no Upwork owner or send is created.
 
+The current source branch regression set passes `271` focused tests, and
+`./bin/lm-loop-contract` passes with `shared_job_ids=[]` and `errors=[]`.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
