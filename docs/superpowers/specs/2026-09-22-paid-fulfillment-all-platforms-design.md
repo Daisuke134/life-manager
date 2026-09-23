@@ -875,6 +875,14 @@ CrowdWorks document at `2026-09-23 22:31 JST` both returned Google API
 `404 notFound`; the buyer artifact is still inaccessible and the existing
 permission request remains the sole safe next step.
 
+The Lancers inventory remains contract-empty, but the source adapter is not yet
+mutation-complete: `skills/earn/lancers/scripts/paid_adapter.py` still fails
+`mutate()` with `lancers_paid_effect_not_implemented` and `readback()` has no
+delivery receipt path. The next Lancers implementation cursor is therefore a
+provider-grounded contract/detail fixture followed by the real message/form or
+delivery flow and official readback; no speculative effect is enabled while
+the authenticated inventory is empty.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
