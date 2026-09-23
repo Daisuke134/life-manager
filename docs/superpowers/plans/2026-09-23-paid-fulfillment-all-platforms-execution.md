@@ -73,6 +73,13 @@ this wake does not satisfy the gate. The next safe action is one start only
 after headroom remains stable for the whole wake, then official readback and
 replay-zero.
 
+**Follow-up read-only check:** `lm-loop doctor` is clean, Ryu remains at
+`js-talkroomMessage-222245383` with no newer buyer event, and the Coconala Paid
+owner is still `unloaded` on the same SHA. Free space is `444128 KiB` (below
+the `524288 KiB` guard); the canonical cleanup receipt reports no safe reclaim.
+The next action remains one guarded natural wake only after durable headroom,
+not a duplicate send or a manual bypass.
+
 ### Task 3: CrowdWorks completion and Paid canary
 
 **Files:**

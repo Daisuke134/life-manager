@@ -295,6 +295,14 @@ for this task. The loop is stopped again. This is a host-capacity blocker, not
 a provider receipt or quality result; resume only after headroom remains above
 the guard for the complete wake.
 
+Follow-up read-only status after the next Coconala continuation request found
+`lm-loop doctor` clean and Ryu still at seller message
+`js-talkroomMessage-222245383` with no newer buyer event. `hf-gig-paid-direct`
+remains canonically unloaded on the same installed SHA; host free space is
+`444128 KiB`, below the `524288 KiB` guard, and the disk-cleanup receipt has no
+safe reclaimable artifact. No Paid start or duplicate provider send is safe
+until the guard is true for the full wake.
+
 #### Live override — 2026-09-23T09:49:26Z
 
 The fresh owner-scoped official Coconala readback of Ryu room `18211957` found

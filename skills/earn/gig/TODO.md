@@ -47,6 +47,14 @@ runtime/provider readback.
   blocker, not a Coconala receipt or quality pass; do not retry until durable
   headroom remains above the guard throughout a full wake.
 
+- Follow-up read-only status after the Coconala continuation request:
+  `lm-loop doctor` is clean, Ryu's official seller message remains
+  `js-talkroomMessage-222245383` with no newer buyer event, and
+  `hf-gig-paid-direct` remains `unloaded` on the installed SHA. Host free
+  space is now `444128 KiB`, below the `524288 KiB` guard; the canonical
+  disk-cleanup receipt has no safe reclaimable artifact. Do not start Paid or
+  send a duplicate while this gate is false.
+
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign
   image visibility, 12 registered profiles with no fixed people limit, normal
