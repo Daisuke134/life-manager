@@ -45,6 +45,15 @@ runtime/provider readback.
 - [ ] Continue with Lancers readiness and the first funded ContractReceipt;
   do not claim cross-platform completion or replay any client from this state.
 
+### Runtime checkpoint — 2026-09-24 00:38
+
+- [x] Coconala remains `scheduled`/`loaded-idle`/`pass` with `last_exit=0`.
+- [ ] Lancers remains enabled and scheduled, but its newest wake is waiting at
+  `resource_fifo_wait` (`last_exit=75`); this is a retryable shared-capacity
+  wait with no provider effect, not a client failure.
+- [ ] CrowdWorks returned to `scheduled`/`loaded-idle`/`pass`; retain its
+  historical unknown-effect fence until a canonical resolver state is present.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

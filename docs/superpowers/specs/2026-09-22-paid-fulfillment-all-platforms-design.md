@@ -106,6 +106,16 @@ completion criteria.
   CrowdWorks retries its scheduled admission naturally; no platform is called
   revenue-complete from this checkpoint alone.
 
+### Runtime checkpoint — 2026-09-24 00:38 JST
+
+- Coconala remains `scheduled`/`loaded-idle`/`pass` with `last_exit=0`.
+- Lancers remains enabled and scheduled, but the newest wake was held at
+  admission by `host_admission_deferred:resource_fifo_wait` (`last_exit=75`).
+  This is a retryable shared-capacity wait, not a provider send or client
+  failure; no external effect occurred.
+- CrowdWorks returned to `scheduled`/`loaded-idle`/`pass`, while its historical
+  unknown-effect fence remains held as recorded above.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct
