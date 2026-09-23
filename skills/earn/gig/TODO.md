@@ -116,6 +116,23 @@ runtime/provider readback.
 - [ ] CrowdWorks remains in its existing FIFO/effect-unknown fence; preserve
   the pending `63568785` buyer-material wait and do not force a wake or replay.
 
+### Runtime checkpoint — 2026-09-24 01:02
+
+- [x] Coconala Paid had been failing closed on `disk_headroom_low` while
+  writing its evidence receipt. Five validated, non-Git temporary directories
+  (no open handles) were removed without touching worktrees, provider state, or
+  immutable JSONL. Available Data-volume space returned to about `980MiB`.
+- [x] A targeted lifecycle restart then produced a natural Coconala result of
+  `observed=4`, `effect=0`, `readback=3`, `failed=0`; Ryu remains
+  `reserved_for_owner` and the other three rooms remain `awaiting_buyer`.
+- [x] Lancers occurrence `18d7f457f1b9b080-94365` had an exact
+  `completed/effect=0` marker. The canonical resolver released it and the
+  admission readback now shows `effect_unknown=0`; no provider mutation was
+  performed.
+- [ ] CrowdWorks still has only the historical occurrence
+  `18d62cf32eb0c678-48194` without an exact proof. Keep it fenced and do not
+  clear it broadly.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

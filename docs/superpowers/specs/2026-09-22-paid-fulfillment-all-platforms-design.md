@@ -1381,3 +1381,17 @@ The objective is complete only when all of the following are proven:
   fail-closed and does not guess an endpoint.
 - CrowdWorks' existing FIFO/effect-unknown fence and pending `63568785`
   buyer-material wait remain unchanged; no forced wake or replay was issued.
+
+## Runtime Cursor — 2026-09-24 01:02 JST
+
+- Coconala's evidence writer had been failing closed on `disk_headroom_low`.
+  After validating no open handles, five non-Git temporary directories were
+  removed (about 280MiB); worktrees, provider state, and immutable event logs
+  were preserved. A targeted lifecycle restart was followed by a natural
+  result of `observed=4`, `effect=0`, `readback=3`, `failed=0`. Ryu remains
+  owner-reserved and the other three rooms are buyer-waiting.
+- Lancers occurrence `18d7f457f1b9b080-94365` was reconciled only from its
+  exact `completed/effect=0` run marker. The canonical resolver read back
+  `effect_unknown=0`; no external provider effect occurred.
+- CrowdWorks' historical `18d62cf32eb0c678-48194` occurrence still has no
+  exact proof and remains fenced. No owner-wide clear or replay is allowed.
