@@ -2662,17 +2662,36 @@ same-SHA replay-zero. The money receipt remains truthful: 1,155 exact impression
 zero CTA clicks, eight historical cumulative provider clicks, zero transactions and zero verified
 commission. Affiliate is requeued for its next natural wake; queueing is not revenue completion.
 
+The `links` failure is now narrowed to two provider-contract changes rather than a generic browser or
+authentication failure. The PartnerStack SPA may retain a valid refresh cookie while the access token
+used by the first wake request is expired; the official dashboard refreshes that session with
+`POST /api/auth/token`, `token_type=access_team` and the browser-private active team membership target.
+After that refresh, the report is a valid list whose secondary grouping is
+`click_created_at_month`. Each verified placement currently matches two rows for the same link because
+the rolling report spans two month buckets. The old adapter incorrectly required exactly one row and
+therefore classified the valid report as `ATTRIBUTION_AMBIGUOUS`. A changed rolling window also makes
+a previous total non-comparable; it must never be converted into a negative or zero business delta.
+
+Candidate `1e955b9d41` on branch `fix/affiliate-durable-auth-revenue-20260923` implements the smallest
+durable correction. It refreshes the team-scoped token once, never returns or persists the private
+membership target, aggregates only distinct month buckets for one exact link, rejects different links,
+duplicate months and unexpected grouping, and records an unknown delta when the report window changes.
+Affiliate tests pass 211/211, shared runtime tests pass 511/511, adapter-registry tests pass 15/15,
+the 14-loop contract and installed doctor pass, `py_compile`/`diff --check` pass, and a fresh read-only
+review reports no blocking findings. This is candidate evidence only. Affiliate remains incomplete
+until the candidate is merged, cut as a main-derived immutable release, loaded automatically, and a
+natural same-SHA terminal plus replay-zero prove the official report path without a new effect fence.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
    reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
-   drain and the first admitted same-SHA natural terminal are complete. Fix the now-isolated
-   `revenue_cli links` provider-schema contract failure with a failing regression test and the smallest
-   compatible adapter change; do not retry a `NOT_RETRYABLE` contract failure unchanged. Ship the fix
-   from main as an immutable release and require a natural terminal plus exact-link/no-new-effect
-   replay-zero. Then continue unavailable owned-visit analytics, transient Impact observation,
-   publication timeout/quarantine and attributable conversion/payment receipts. An existing public
-   page, impressions, historical clicks or process `exit 0` is not revenue completion.
+   drain and the first admitted same-SHA natural terminal are complete. The isolated
+   `revenue_cli links` provider-contract candidate and local/review gates are complete at
+   `1e955b9d41`; merge it, ship it from main as an immutable release and require a natural terminal plus
+   exact-link/no-new-effect replay-zero. Then continue unavailable owned-visit analytics, transient
+   Impact observation, publication timeout/quarantine and attributable conversion/payment receipts.
+   An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
