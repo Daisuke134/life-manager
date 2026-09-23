@@ -105,6 +105,11 @@ current funded Paid candidate and its Paid owner is likewise fenced. The next
 safe engineering action is occurrence-scoped CrowdWorks reconciliation after
 the shared source fix is promoted; no fence is cleared owner-wide.
 
+The subsequent scheduled Coconala wake completed with `last_exit=0` and the
+owner returned to `loaded-idle` on its normal five-minute schedule; this is the
+expected post-wake state and does not change the Ryu fence or create a client
+effect.
+
 The one-off reconciliation then ran with the corrected canonical `evidence_ref`
 contract (source commit `348c004077`): six CrowdWorks Paid occurrences and the
 one Lancers Paid occurrence whose exact run markers were `completed` with
