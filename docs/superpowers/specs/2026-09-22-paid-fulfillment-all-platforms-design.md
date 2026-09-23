@@ -900,6 +900,31 @@ the authenticated inventory is empty.
   delivery or fence-clearing guess is allowed. Lancers remains authenticated
   and contract-empty on the latest official sync.
 
+## Runtime Checkpoint — 2026-09-23 22:50 JST
+
+- Coconala remains on its installed Paid schedule (`loaded-idle`,
+  `desired_mode=scheduled`). The latest natural wake is still the verified
+  no-op: Ryu `18211957` is `reserved_for_owner`, Chii and both NPO rooms are
+  `awaiting_buyer`, with no new provider effect. The manual Ryu fence is
+  unchanged; no resend is permitted.
+- CrowdWorks contract `63568785` was re-read through the authenticated
+  provider browser. The previously inaccessible artifact is now officially
+  readable (`artifact_sha256=bf162e983be991c0c7bbf19320de36c78c389e358c20fc652f6130c6b5b4138b`).
+  The quality gate correctly returns `buyer_input_required`: the material does
+  not yet contain the complete five-day/questions set needed for the requested
+  feedback. A private answer draft was prepared at
+  `~/.local/state/anicca/crowdworks/paid/prepared-work/63568785/answer-draft.json`
+  with mode `0600`, and `external_effect=0`. The draft is not sent until the
+  exact historical CrowdWorks `admission_effect_unknown` occurrence is
+  reconciled; no effect fence is bypassed and no duplicate buyer request is
+  created.
+- CrowdWorks remains `scheduled` at the loop layer but fenced at the effect
+  layer. Its latest durable inventory is `observed=5`, `actionable=1`,
+  `effect=0`, `readback=4`, `failed=0`, `pending=1`. Lancers is authenticated
+  and contract-empty, so there is no legitimate Lancers Paid send to perform.
+  The next mutation cursor is the exact CrowdWorks occurrence resolver, not a
+  blind retry or a platform switch that loses the pending contract state.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
