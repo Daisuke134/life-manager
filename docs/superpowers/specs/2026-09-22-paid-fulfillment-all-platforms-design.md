@@ -863,6 +863,13 @@ inventory; until then no Upwork owner or send is created.
 The current source branch regression set passes `271` focused tests, and
 `./bin/lm-loop-contract` passes with `shared_job_ids=[]` and `errors=[]`.
 
+The next scheduled wakes also remain terminally healthy: Coconala
+`hf-gig-paid-direct` passed at `2026-09-23T13:26:42Z`, and CrowdWorks
+`crowdworks-revenue-paid` passed at `2026-09-23T13:25:32Z`. The CrowdWorks
+status still exposes one historical `admission_effect_unknown` occurrence;
+because its exact zero-effect marker is unavailable, it remains fenced rather
+than being cleared by an owner-wide reset.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
