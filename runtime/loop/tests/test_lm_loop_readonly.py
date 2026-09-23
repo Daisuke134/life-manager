@@ -173,6 +173,63 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual((event["status"], event["timestamp"]),
                              ("pass", "2026-08-28T00:00:00Z"))
 
+    def test_last_event_stops_after_latest_requested_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            latest = {
+                "version": 1, "event_id": "a" * 24,
+                "timestamp": "2026-08-28T00:02:00Z", "loop_id": "a",
+                "domain": "system", "run_id": "run-a", "phase": "report",
+                "status": "pass", "release_sha": "b" * 40,
+                "provider": "deterministic", "profile_alias": None,
+                "effect_class": "none", "effect_status": "not_applicable",
+                "blocker": None, "evidence_refs": ["lm-loop://a/run-a/summary.json"],
+            }
+            older = {
+                **latest,
+                "event_id": "b" * 24,
+                "timestamp": "2026-08-28T00:01:00Z",
+                "loop_id": "b",
+                "run_id": "run-b",
+                "evidence_refs": ["lm-loop://b/run-b/summary.json"],
+            }
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in (older, latest)) + "\n"
+            )
+            seen = []
+
+            def record(value):
+                seen.append(value["loop_id"])
+
+            with patch("runtime.loop.lm_loop.validate_runtime_event", side_effect=record):
+                event = _last_event(str(root), "a")
+
+            self.assertEqual(event["loop_id"], "a")
+            self.assertEqual(seen, ["a"])
+
+    def test_last_event_targeted_cache_keeps_shared_loop_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for loop_id, timestamp in (("a", "2026-08-28T00:01:00Z"),
+                                       ("b", "2026-08-28T00:02:00Z")):
+                rows.append({
+                    "version": 1, "event_id": loop_id * 24,
+                    "timestamp": timestamp, "loop_id": loop_id,
+                    "domain": "system", "run_id": f"run-{loop_id}",
+                    "phase": "report", "status": "pass", "release_sha": "b" * 40,
+                    "provider": "deterministic", "profile_alias": None,
+                    "effect_class": "none", "effect_status": "not_applicable",
+                    "blocker": None,
+                    "evidence_refs": [f"lm-loop://{loop_id}/summary.json"],
+                })
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in rows) + "\n"
+            )
+            cache = {}
+            self.assertEqual(_last_event(str(root), "b", cache)["loop_id"], "b")
+            self.assertEqual(_last_event(str(root), "a", cache)["loop_id"], "a")
+
     def test_installed_release_uses_full_sha_from_generated_plist(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "job.plist"

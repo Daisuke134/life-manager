@@ -18,15 +18,43 @@ FIELDS = {
 OPTIONAL_FIELDS = {
     "adapter", "admission_class", "browser_owner", "coalesce_reserved_wakes",
     "coalesce_queued_wakes", "command",
-    "priority", "reconcile_queued_release", "runtime_timeout_seconds", "resource_class",
+    "admission_effect_scope", "priority", "reconcile_queued_release",
+    "runtime_timeout_seconds", "resource_class",
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
+ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
+OCCURRENCE_SCOPED_ENTRYPOINTS = {
+    "apps/life-manager/scripts/mobile-app",
+    "skills/earn/crowdworks/scripts/application-owner",
+    "skills/earn/crowdworks/scripts/paid-owner",
+    "skills/earn/crowdworks/scripts/reply-owner",
+    "skills/earn/lancers/scripts/application-owner",
+    "skills/earn/lancers/scripts/negotiate-owner",
+    "skills/earn/lancers/scripts/paid-owner",
+}
 SECRET_FIELD = re.compile(r"token|secret|password|credential|auth|api.?key", re.I)
 LAUNCHD_LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 def _fail(message: str) -> None:
     raise ValueError(message)
+
+
+def admission_effect_scope(entry: dict) -> str:
+    """Return the durable admission fence scope declared by one validated loop.
+
+    The legacy Mobile publish contract remains occurrence-scoped for backwards
+    compatibility. Every other loop is owner-scoped unless it opts in explicitly
+    in the registry, so a provider cannot become isolated merely by changing its
+    effect class or entrypoint.
+    """
+    configured = entry.get("admission_effect_scope")
+    if configured is not None:
+        return configured
+    if (entry.get("effect_class") == "publish"
+            and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+        return "occurrence"
+    return "owner"
 
 
 def validate_registry(registry: dict) -> dict:
@@ -63,6 +91,11 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid effect_class")
         if row["provider_route"] not in ROUTES:
             _fail(f"{loop_id}: invalid provider_route")
+        if row.get("admission_effect_scope") not in {None, *ADMISSION_EFFECT_SCOPES}:
+            _fail(f"{loop_id}: invalid admission_effect_scope")
+        if (row.get("admission_effect_scope") == "occurrence"
+                and row["entrypoint"] not in OCCURRENCE_SCOPED_ENTRYPOINTS):
+            _fail(f"{loop_id}: occurrence admission scope is not proven for entrypoint")
         if row.get("resource_class") not in {None, "agent", "browser", "deterministic"}:
             _fail(f"{loop_id}: invalid resource_class")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
@@ -218,6 +251,9 @@ def loop_json_schema() -> dict:
             },
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
+            "admission_effect_scope": {
+                "type": "string", "enum": sorted(ADMISSION_EFFECT_SCOPES),
+            },
             "coalesce_reserved_wakes": {"type": "boolean"},
             "coalesce_queued_wakes": {"type": "boolean"},
             "reconcile_queued_release": {"type": "boolean"},

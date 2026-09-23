@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import html
 import hashlib
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any, Callable, Mapping
@@ -97,6 +102,88 @@ def _google_form_urls_from_text(value: str) -> list[str]:
         if _google_form_url(url):
             urls.append(url)
     return sorted(set(urls))
+
+
+def _gog_binary() -> str | None:
+    """Return the installed gog CLI without relying on launchd's PATH."""
+    configured = os.environ.get("GOG_CLI_PATH", "").strip()
+    if configured and Path(configured).is_file() and os.access(configured, os.X_OK):
+        return configured
+    for candidate in ("gog", "/opt/homebrew/bin/gog", "/usr/local/bin/gog"):
+        resolved = shutil.which(candidate) if candidate == "gog" else candidate
+        if resolved and Path(resolved).is_file() and os.access(resolved, os.X_OK):
+            return resolved
+    return None
+
+
+def _gog_json(command: list[str]) -> Mapping[str, Any] | None:
+    try:
+        result = subprocess.run(
+            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        value = json.loads(result.stdout)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, Mapping) else None
+
+
+def _gog_document_text(url: str) -> str | None:
+    """Read a Google Doc through the authenticated Drive CLI when available.
+
+    Drive export works with the normal ``drive`` OAuth scope even when the
+    separate Docs API is disabled.  Returning ``None`` is deliberately soft:
+    callers may fall back to the browser surface and preserve the existing
+    permission/unknown distinction.
+    """
+    parsed = urlsplit(url)
+    if (parsed.scheme, parsed.netloc) != ("https", "docs.google.com") or "/document/" not in parsed.path:
+        return None
+    match = re.search(r"/document/d/([^/]+)", urlsplit(url).path)
+    if not match:
+        return None
+    binary = _gog_binary()
+    if binary is None:
+        return None
+    document_id = match.group(1)
+    # Google-issued document IDs are long opaque tokens.  This also keeps
+    # malformed/test URLs on the normal browser fallback path.
+    if len(document_id) < 16:
+        return None
+    metadata = _gog_json([binary, "--no-input", "--json", "drive", "get", document_id])
+    file_metadata = metadata.get("file") if isinstance(metadata, Mapping) else None
+    if not isinstance(file_metadata, Mapping):
+        return None
+    if (str(file_metadata.get("id") or "") != document_id
+            or file_metadata.get("mimeType") != "application/vnd.google-apps.document"):
+        return None
+    try:
+        with tempfile.TemporaryDirectory(prefix=".crowdworks-gog-doc-") as temporary:
+            output = Path(temporary) / "document.txt"
+            result = subprocess.run(
+                [binary, "--no-input", "drive", "download", document_id,
+                 "--format=txt", f"--out={output}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                text=True, timeout=30, check=False,
+            )
+            if result.returncode != 0 or not output.is_file():
+                return None
+            content = output.read_text(encoding="utf-8-sig").strip()
+    except (OSError, UnicodeError, subprocess.SubprocessError):
+        return None
+    return content or None
+
+
+def _canonical_message_body(value: Any) -> str:
+    """Compare CrowdWorks API HTML bodies with the visible plain-text body."""
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<br\s*/?>\s*", "\n", text, flags=re.IGNORECASE)
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 class CrowdWorksPaidBrowserUnavailable(RuntimeError):
@@ -468,6 +555,14 @@ class CrowdWorksPaidAdapter:
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
         self._goto_contract(work_id)
+        # CrowdWorks returns the contract shell at ``commit`` and hydrates the
+        # message thread immediately afterwards.  Expanding folded messages
+        # before that hydration completes can produce a short, incomplete
+        # buyer_context and a false quality-hash mismatch at mutation time.
+        try:
+            self.page.wait_for_timeout(3_000)
+        except Exception:
+            pass
         self._expand_folded_messages()
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
         buyer_event = self._latest_buyer_event(work_id) or {}
@@ -593,7 +688,7 @@ class CrowdWorksPaidAdapter:
             message.get("own_message") is True
             and isinstance(message.get("id"), int)
             and int(message["id"]) > int(buyer_event_id)
-            and body in str(message.get("body") or "")
+            and body in _canonical_message_body(message.get("body"))
             for message in messages
         )
 
@@ -603,43 +698,71 @@ class CrowdWorksPaidAdapter:
         return (parsed.scheme, parsed.netloc) == ("https", "docs.google.com") and "/document/" in parsed.path
 
     def _document_access(self, urls: list[str]) -> dict[str, Any]:
-        if not urls or self.owned_context is None:
-            return {"artifact_required": bool(urls), "artifact_access": "unknown" if urls else None,
+        if not urls:
+            return {"artifact_required": False, "artifact_access": None,
                     "artifact_verified": False}
         permission_seen = False
         unknown_seen = False
         readable: list[str] = []
+        browser_urls: list[str] = []
         for url in urls:
+            cli_content = _gog_document_text(url)
+            if isinstance(cli_content, str) and cli_content.strip():
+                if len(cli_content) > 12_000:
+                    unknown_seen = True
+                else:
+                    readable.append(f"[{url}]\n{cli_content.strip()}")
+                continue
+            browser_urls.append(url)
+        if self.owned_context is None:
+            if browser_urls:
+                unknown_seen = True
+            if permission_seen:
+                return {"artifact_required": True, "artifact_access": "permission_required",
+                        "artifact_verified": False}
+            if unknown_seen or not readable:
+                return {"artifact_required": True, "artifact_access": "unknown",
+                        "artifact_verified": False}
+            return {"artifact_required": True, "artifact_access": "readable",
+                    "artifact_content": "\n\n".join(readable), "artifact_verified": False}
+        for url in browser_urls:
             page = self.owned_context.new_page()
             try:
                 page.goto(url, wait_until="commit", timeout=20_000)
                 wait_for_timeout = getattr(page, "wait_for_timeout", None)
-                if callable(wait_for_timeout):
-                    wait_for_timeout(1_000)
-                body = str(page.locator("body").inner_text() or "")
-                if "編集権限をリクエスト" in body:
-                    permission_seen = True
+                content_found = False
+                for attempt in range(5):
+                    body = str(page.locator("body").inner_text() or "")
+                    if "編集権限をリクエスト" in body:
+                        permission_seen = True
+                        break
+                    # A Google Docs shell, login page, or error page can have
+                    # body text without exposing the document. Require a
+                    # visible Docs editor/page surface before accepting it.
+                    for selector in (".kix-appview-editor", ".kix-page",
+                                     '[role="textbox"][aria-label*="Document content"]'):
+                        try:
+                            surface = page.locator(selector)
+                            if surface.count() < 1:
+                                continue
+                            visible = [surface.nth(index) for index in range(surface.count())
+                                       if surface.nth(index).is_visible()]
+                            if not visible:
+                                continue
+                            content = "\n".join(str(item.inner_text() or "") for item in visible).strip()
+                            if content:
+                                readable.append(f"[{url}]\n{content}")
+                                content_found = True
+                                break
+                        except Exception:
+                            continue
+                    if content_found or permission_seen or attempt == 4:
+                        break
+                    if callable(wait_for_timeout):
+                        wait_for_timeout(1_000)
+                if permission_seen:
                     continue
-                # A Google Docs shell, login page, or error page can have body
-                # text without exposing the document.  Require a visible Docs
-                # editor/page surface before treating the artifact as readable.
-                for selector in (".kix-appview-editor", ".kix-page",
-                                 '[role="textbox"][aria-label*="Document content"]'):
-                    try:
-                        surface = page.locator(selector)
-                        if surface.count() < 1:
-                            continue
-                        visible = [surface.nth(index) for index in range(surface.count())
-                                   if surface.nth(index).is_visible()]
-                        if not visible:
-                            continue
-                        content = "\n".join(str(item.inner_text() or "") for item in visible).strip()
-                        if content:
-                            readable.append(f"[{url}]\n{content}")
-                            break
-                    except Exception:
-                        continue
-                else:
+                if not content_found:
                     unknown_seen = True
             except Exception:
                 unknown_seen = True
@@ -893,7 +1016,19 @@ class CrowdWorksPaidAdapter:
             if len(matches) != 1:
                 raise RuntimeError("crowdworks_paid_work_unavailable")
             basic = matches[0]
-        return self._cache_update(self._detail(basic))
+        detail = self._detail(basic)
+        # CrowdWorks removes a submitted form link from the live contract page.
+        # Keep the exact durable URL so a later formal-delivery readback can
+        # prove the form receipt instead of treating the task as form-less.
+        if not detail.get("form_urls") and not detail.get("form_url"):
+            legacy_urls = self._legacy_form_urls(detail)
+            if legacy_urls:
+                detail = {
+                    **detail,
+                    "form_urls": sorted(set(legacy_urls)),
+                    "form_url": legacy_urls[0] if len(set(legacy_urls)) == 1 else None,
+                }
+        return self._cache_update(detail)
 
     def observe_active(self) -> list[dict[str, Any]]:
         try:
@@ -1426,19 +1561,20 @@ class CrowdWorksPaidAdapter:
                 self._goto_contract(work_id)
                 visible_body = _text(self.page.locator("body").inner_text(),
                                      "crowdworks_paid_contract_unavailable")
-                if body in visible_body:
-                    buyer_event_id = payload.get("buyer_event_id")
-                    if isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
-                        try:
-                            present = self._seller_message_contains(work_id, buyer_event_id, body)
-                        except Exception:
-                            raise
-                        if not present:
-                            return {"authoritative_absent": True}
-                    return {"verified": True,
-                            "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
-                            "observed_at": _now()}
-                return {"authoritative_absent": True}
+                buyer_event_id = payload.get("buyer_event_id")
+                if body not in visible_body:
+                    # Folded CrowdWorks threads can hide a real seller message
+                    # from the page body. The message API is the authoritative
+                    # fallback, but only with an exact numeric buyer-event bind.
+                    if (not isinstance(buyer_event_id, str) or not buyer_event_id.isdigit()
+                            or not self._seller_message_contains(work_id, buyer_event_id, body)):
+                        return {"authoritative_absent": True}
+                elif isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
+                    if not self._seller_message_contains(work_id, buyer_event_id, body):
+                        return {"authoritative_absent": True}
+                return {"verified": True,
+                        "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
+                        "observed_at": _now()}
             if intent.get("action") == "formal_delivery" and isinstance(intent.get("payload"), Mapping):
                 payload = intent["payload"]; work_id = _text(intent.get("work_id")); self._goto_contract(work_id)
                 if (not isinstance(payload.get("buyer_event_id"), str)
@@ -1450,6 +1586,14 @@ class CrowdWorksPaidAdapter:
                     return {"authoritative_absent": True}
                 if f"納品対象マイルストーン: {milestone_id}" not in delivery_message:
                     return {"authoritative_absent": True}
+                # The contract page hydrates the milestone form and progress
+                # state after the initial navigation commit.  Give the
+                # provider DOM a bounded settle window before observing it;
+                # without this, a genuine delivery can be read as absent.
+                try:
+                    self.page.wait_for_timeout(3_000)
+                except Exception:
+                    pass
                 actions = self.page.locator('form[action^="/milestones/"][action$="/complete"]').evaluate_all(
                     "forms => forms.map(form => form.getAttribute('action'))")
                 progress_steps = self.page.locator("ul.progress li").evaluate_all(
@@ -1467,7 +1611,33 @@ class CrowdWorksPaidAdapter:
                                       and "検収完了までしばらくお待ちください" in body)
                 if any(action != completion_action for action in actions):
                     return {"authoritative_absent": True}
-                delivered = completion_action not in actions and not target_dialog_visible
+                # CrowdWorks keeps the submitted milestone form in the DOM
+                # while the contract is in client inspection.  That form is
+                # hidden and its submit control is disabled, so the raw action
+                # list alone is not an authoritative "still open" signal.
+                target_form_open = completion_action in actions
+                try:
+                    target_forms = self.page.locator(
+                        f'form[action="{completion_action}"]')
+                    target_form_open = False
+                    for index in range(target_forms.count()):
+                        target_form = target_forms.nth(index)
+                        if target_form.is_visible():
+                            target_form_open = True
+                            break
+                        submit = target_form.locator(
+                            'input[name="commit"][type="submit"]')
+                        if any(
+                                submit.nth(submit_index).is_visible()
+                                and submit.nth(submit_index).is_enabled()
+                                for submit_index in range(submit.count())):
+                            target_form_open = True
+                            break
+                except Exception:
+                    # Preserve the conservative legacy fence if the provider
+                    # DOM cannot expose form visibility safely.
+                    target_form_open = completion_action in actions
+                delivered = not target_form_open and not target_dialog_visible
                 delivery_step_done = any(
                     isinstance(step, Mapping)
                     and step.get("label") == "納品"

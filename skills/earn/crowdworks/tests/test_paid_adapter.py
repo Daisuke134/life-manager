@@ -707,6 +707,52 @@ def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
     assert result["verified"] is True
 
 
+def test_formal_delivery_readback_accepts_hidden_disabled_target_form_during_inspection():
+    module = load()
+    message = module._delivery_message("13798056", form=True)
+
+    class Submit:
+        def count(self): return 1
+        def nth(self, _index): return self
+        def is_visible(self): return False
+        def is_enabled(self): return False
+
+    class TargetForm:
+        def is_visible(self): return False
+        def locator(self, _selector): return Submit()
+
+    class Locator:
+        def __init__(self, kind): self.kind = kind
+        def count(self): return 1 if self.kind in {"all_forms", "target_form"} else 0
+        def nth(self, _index): return TargetForm()
+        def evaluate_all(self, expression):
+            if "forms =>" in expression:
+                return ["/milestones/13798056/complete"]
+            if "node.innerText" in expression:
+                return [{"label": "納品", "className": "done"}]
+            return []
+        def inner_text(self):
+            return "クライアント（発注者）が検収を行っています。\n検収完了までしばらくお待ちください。\n" + message
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^='):
+                return Locator("all_forms")
+            if selector.startswith('form[action='):
+                return Locator("target_form")
+            return Locator("other")
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
+    result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
+                               "effect_key": "delivery-effect",
+                               "payload": {"milestone_id": "13798056", "message": message,
+                                           "buyer_event_id": "427573234"}})
+    assert result["verified"] is True
+
+
 def test_formal_delivery_readback_rejects_another_open_milestone():
     module = load()
 
@@ -944,6 +990,72 @@ def test_answer_readback_accepts_new_seller_message_bound_to_buyer_event():
     assert result["verified"] is True
 
 
+def test_answer_readback_accepts_message_api_when_thread_body_is_folded():
+    module = load()
+    expected = module.PERMISSION_REQUEST_BODY
+
+    class Body:
+        def inner_text(self): return "最新メッセージだけが表示されています。"
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304402038, "messageableId": 63568785})
+
+    class Page:
+        def locator(self, selector):
+            if selector == "body": return Body()
+            if selector == "#pack-message-thread": return Root()
+            raise AssertionError(selector)
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304402038
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 426855154, "own_message": False,
+                 "senddate": "2026年09月11日 21:17", "body": "buyer"},
+                {"id": 428634040, "own_message": True,
+                 "senddate": "2026年09月23日 14:30", "body": expected},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63568785",
+                               "effect_key": "permission-key",
+                               "payload": {"body": expected, "buyer_event_id": "426855154"}})
+
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "contract:63568785:answer:permission-key"
+
+
+def test_answer_readback_normalizes_message_api_html_breaks():
+    module = load()
+    expected = "一行目\n\n二行目"
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304402038, "messageableId": 63568785})
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "#pack-message-thread"
+            return Root()
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304402038
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 426855154, "own_message": False, "body": "buyer"},
+                {"id": 428636540, "own_message": True,
+                 "body": "一行目<br />\r\n<br />\r\n二行目"},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    assert adapter._seller_message_contains("63568785", "426855154", expected) is True
+
+
 def test_document_access_reports_permission_required_without_verifying_artifact():
     module = load()
 
@@ -968,6 +1080,64 @@ def test_document_access_reports_permission_required_without_verifying_artifact(
     }
 
 
+def test_document_access_prefers_gog_drive_export_without_browser_context(monkeypatch):
+    module = load()
+    url = "https://docs.google.com/document/d/abc123/edit?tab=t.0"
+    monkeypatch.setattr(module, "_gog_document_text", lambda value: (
+        "buyer assignment contents" if value == url else None
+    ))
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+
+    assert adapter._document_access([url]) == {
+        "artifact_required": True, "artifact_access": "readable",
+        "artifact_content": f"[{url}]\nbuyer assignment contents",
+        "artifact_verified": False,
+    }
+
+
+def test_gog_document_text_uses_drive_get_and_txt_export(monkeypatch):
+    module = load()
+    document_id = "1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA"
+    url = f"https://docs.google.com/document/d/{document_id}/edit?tab=t.0"
+    calls = []
+
+    monkeypatch.setattr(module, "_gog_binary", lambda: "/opt/homebrew/bin/gog")
+    monkeypatch.setattr(module, "_gog_json", lambda command: (
+        calls.append(command)
+        or {"file": {"id": document_id, "mimeType": "application/vnd.google-apps.document"}}
+    ))
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        output = next(value.split("=", 1)[1] for value in command if value.startswith("--out="))
+        Path(output).write_text("buyer assignment contents\n", encoding="utf-8")
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module._gog_document_text(url) == "buyer assignment contents"
+    assert calls[0][-3:] == ["drive", "get", document_id]
+    assert calls[1][2:5] == ["drive", "download", document_id]
+
+
+def test_document_access_does_not_ignore_unresolved_doc_when_cli_reads_only_one(monkeypatch):
+    module = load()
+    readable = "https://docs.google.com/document/d/1111111111111111/edit"
+    unresolved = "https://docs.google.com/document/d/2222222222222222/edit"
+    monkeypatch.setattr(module, "_gog_document_text", lambda url: "one doc" if url == readable else None)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+
+    assert adapter._document_access([readable, unresolved]) == {
+        "artifact_required": True, "artifact_access": "unknown", "artifact_verified": False,
+    }
+
+
 def test_document_access_waits_for_permission_surface_after_commit():
     module = load()
 
@@ -982,6 +1152,34 @@ def test_document_access_waits_for_permission_surface_after_commit():
         def __init__(self): self.body = Body()
         def goto(self, *_args, **_kwargs): return None
         def wait_for_timeout(self, _timeout): self.body.ready = True
+        def locator(self, selector): return self.body if selector == "body" else Surface()
+        def close(self): return None
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.owned_context = Context()
+    assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
+        "artifact_required": True, "artifact_access": "permission_required",
+        "artifact_verified": False,
+    }
+
+
+def test_document_access_keeps_polling_until_delayed_permission_surface_is_visible():
+    module = load()
+
+    class Body:
+        def __init__(self): self.waits = 0
+        def inner_text(self): return "編集権限をリクエスト" if self.waits >= 4 else "読み込み中"
+
+    class Surface:
+        def count(self): return 0
+
+    class Page:
+        def __init__(self): self.body = Body()
+        def goto(self, *_args, **_kwargs): return None
+        def wait_for_timeout(self, _timeout): self.body.waits += 1
         def locator(self, selector): return self.body if selector == "body" else Surface()
         def close(self): return None
 
@@ -1042,6 +1240,23 @@ def test_cached_inventory_detail_is_reused_until_explicit_refresh():
     adapter.refresh_one(row["work_id"])
 
     assert calls == [row["work_id"], row["work_id"]]
+
+
+def test_targeted_detail_restores_durable_form_url_after_provider_hides_submitted_form(tmp_path):
+    module = load()
+    url = "https://forms.gle/vZeQpKMg2ma72Eeu6"
+    row = {**funded(), "form_url": None, "form_urls": []}
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+    )
+    adapter._list_contracts = lambda: [row]
+    adapter._detail = lambda value: dict(value)
+    adapter._legacy_form_urls = lambda _item: [url]
+
+    detail = adapter._targeted_detail(row["work_id"])
+
+    assert detail["form_urls"] == [url]
+    assert detail["form_url"] == url
 
 
 def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():

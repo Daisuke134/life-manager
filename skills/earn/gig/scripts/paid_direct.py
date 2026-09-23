@@ -299,6 +299,8 @@ def _install_bounded_shutdown_handlers() -> dict[int, Any]:
 
     def forward(_signum: int, _frame: Any) -> None:
         _terminate_active_bounded_processes()
+        signal.signal(_signum, signal.SIG_DFL)
+        os.kill(os.getpid(), _signum)
 
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         previous[signum] = signal.getsignal(signum)
@@ -1257,7 +1259,6 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
     if not isinstance(outcomes, list) or not outcomes:
         raise ValueError("invalid paid semantic decision required outcomes")
     outcome_ids: set[str] = set()
-    covered: list[dict[str, str]] = []
     for outcome in outcomes:
         sources = outcome.get("source_message_identities") if isinstance(outcome, dict) else None
         if (not isinstance(outcome, dict) or set(outcome) != outcome_fields
@@ -1272,9 +1273,35 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
                 or protocol_leak.search(_text(outcome.get("required_effect")))):
             raise ValueError("invalid paid semantic decision required outcome")
         outcome_ids.add(outcome["outcome_id"])
-        covered.extend(sources)
     expected = required_identities or [buyer_identity or identity]
-    if ({json.dumps(item, sort_keys=True, separators=(",", ":")) for item in covered}
+    expected_by_id: dict[str, dict[str, str]] = {}
+    for expected_identity in expected:
+        if (not isinstance(expected_identity, dict)
+                or set(expected_identity) != {"message_id", "content_sha256", "side"}
+                or expected_identity.get("side") != "buyer"
+                or not _text(expected_identity.get("message_id"))
+                or not re.fullmatch(r"[0-9a-f]{64}", _text(expected_identity.get("content_sha256")))
+                or expected_identity["message_id"] in expected_by_id):
+            raise ValueError("paid semantic decision outcome coverage mismatch")
+        expected_by_id[expected_identity["message_id"]] = expected_identity
+    bound: list[dict[str, str]] = []
+    for outcome in outcomes:
+        sources = outcome["source_message_identities"]
+        normalized_sources: list[dict[str, str]] = []
+        for source in sources:
+            canonical = expected_by_id.get(source["message_id"])
+            if (canonical is None
+                    or source.get("side") != "buyer"
+                    or not re.fullmatch(r"[0-9a-f]{64}", _text(source.get("content_sha256")))):
+                raise ValueError("paid semantic decision outcome coverage mismatch")
+            # Model output can mistype a supplied SHA while preserving the exact
+            # official message ID. Bind that identity to the deterministic
+            # readback rather than turning a safe await/no-op into a whole-wake
+            # failure. An unknown ID is still rejected above.
+            normalized_sources.append(dict(canonical))
+        outcome["source_message_identities"] = normalized_sources
+        bound.extend(normalized_sources)
+    if ({json.dumps(item, sort_keys=True, separators=(",", ":")) for item in bound}
             != {json.dumps(item, sort_keys=True, separators=(",", ":")) for item in expected}):
         raise ValueError("paid semantic decision outcome coverage mismatch")
     unresolved = value.get("unresolved")
