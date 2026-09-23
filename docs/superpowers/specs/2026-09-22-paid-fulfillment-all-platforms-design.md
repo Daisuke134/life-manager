@@ -961,6 +961,26 @@ the authenticated inventory is empty.
   the historical effect-unknown occurrence remain held. No unsafe retry or
   manual fence clearing is allowed.
 
+## Runtime Checkpoint — 2026-09-23 23:17 JST
+
+- Fresh authenticated CrowdWorks contract readback for `63568785` confirms
+  `provider_state=funded`, buyer event `426855154`, artifact access
+  `readable`, and the same artifact digest already recorded in the private
+  prepared-work file. The artifact contains delivery instructions that depend
+  on five days of LINE-distributed material; that material is not present in
+  the contract readback. The existing access/material request already has an
+  official seller receipt, and no newer buyer event exists, so no duplicate
+  request or formal delivery is sent. The other four active contracts read
+  back as `delivered`.
+- Fresh authenticated Lancers Paid inventory is source-complete (`14` boards,
+  `0` working projects, `0` monthly contracts, `0` incoming offers,
+  `0` contract candidates, finance complete with balance/received `0`). No
+  Lancers provider effect is admitted. The next implementation cursor is the
+  provider-grounded Paid mutation/readback path, not a fabricated contract.
+- Upwork still has no registered Paid owner or live CDP listener; the current
+  official evidence remains zero active contracts/offers with API/UI
+  automation disabled. No Upwork send or owner registration is created.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
