@@ -1453,3 +1453,18 @@ The objective is complete only when all of the following are proven:
   `failed=0`, `pending=0`; its authenticated inventory remains complete with
   zero funded contracts, so no provider send is legitimate yet. Coconala also
   remains passing and Ryu stays manual-only.
+
+## Runtime Cursor — 2026-09-24 01:29 JST
+
+- The Coconala Paid owner completed one owner-scoped wake after disk recovery:
+  `observed=4`, `actionable=0`, `effect=0`, `readback=3`, `failed=0`,
+  `pending=0`. No new provider effect was created; Ryu remains reserved for
+  manual ownership and the other three rooms remain buyer-waiting.
+- The host's Data-volume free space is now about `1.3GiB`. Two exact temporary
+  Git clones were removed only after clean-worktree, origin/main-merged, and
+  no-open-handle checks; current paid worktrees, unmerged branches, releases,
+  credentials, and provider state were preserved. The follow-up Coconala wake
+  wrote its official evidence without a disk-headroom error.
+- CrowdWorks and Lancers remain enabled and passing; the next mutation cursor
+  is still the first admissible buyer-material/funded-contract event rather
+  than a replay of any existing item.

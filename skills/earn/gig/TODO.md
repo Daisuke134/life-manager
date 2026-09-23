@@ -183,6 +183,19 @@ runtime/provider readback.
   official inventory is complete but has zero funded contracts, so the next
   mutation cursor remains the first real funded contract.
 
+### Runtime checkpoint — 2026-09-24 01:29
+
+- [x] Coconala owner-scoped wake completed after disk recovery with
+  `observed=4/actionable=0/effect=0/readback=3/failed=0/pending=0`; no provider
+  effect or duplicate send occurred. Ryu remains manual-only and the other
+  three rooms are buyer-waiting.
+- [x] Removed two exact temporary Git clones only after proving clean state,
+  origin/main ancestry, and no open handles. Data-volume free space is about
+  `1.3GiB`, and the follow-up Coconala evidence write succeeded without
+  `disk_headroom_low`.
+- [ ] Keep the next cursor on the first new admissible buyer event or funded
+  contract; do not replay existing Coconala/CrowdWorks/Lancers work.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
