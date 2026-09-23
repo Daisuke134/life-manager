@@ -150,6 +150,20 @@ completion criteria.
 - This is an occurrence-scoped recovery only. The loop remains scheduled and
   no owner-wide fence clear or duplicate provider action is allowed.
 
+### Runtime checkpoint — 2026-09-24 00:48 JST
+
+- CrowdWorks paid adapter, owner pre-effect, and reconciliation suites pass
+  `131 tests`; the four previously read-back contracts remain completed and
+  `63568785` remains the single buyer-material wait. No provider action was
+  issued during this verification.
+- Lancers paid adapter/owner suites pass `14 tests`; its natural Paid snapshot
+  remains `observed=0`, `effect=0`, `readback=0`, `failed=0`, `pending=0` with
+  no funded contract. Its loop is enabled and idle; formal delivery remains
+  gated on the first real ContractReceipt.
+- The cross-platform implementation cursor is therefore source-verified for
+  CrowdWorks and Lancers, while production promotion and live funded canaries
+  remain open. Do not infer a send from these tests.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct

@@ -81,6 +81,17 @@ runtime/provider readback.
 - [ ] Work `63568785` still needs buyer-provided material before formal
   delivery. Do not clear the owner-wide fence or resend any completed item.
 
+### Runtime checkpoint — 2026-09-24 00:48
+
+- [x] CrowdWorks Paid adapter/owner/reconciliation suites: `131 passed`; no
+  external mutation was performed. Four contracts retain official readback;
+  `63568785` remains buyer-material wait.
+- [x] Lancers Paid adapter/owner suites: `14 passed`; current natural snapshot
+  is zero funded contracts and zero effect/readback. Formal delivery remains
+  gated on the first real ContractReceipt.
+- [ ] Production promotion and funded live canaries remain open. Tests are
+  source evidence only and must not be reported as provider sends.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
