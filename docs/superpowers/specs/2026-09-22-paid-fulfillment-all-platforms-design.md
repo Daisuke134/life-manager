@@ -1429,3 +1429,18 @@ The objective is complete only when all of the following are proven:
   `resource_capacity_busy` wake; its provider snapshot remains
   `observed=5`, `effect=0`, `readback=4`, `pending=1`. The historical
   `18d62cf32eb0c678-48194` occurrence is the only retained unknown fence.
+
+## Runtime Cursor — 2026-09-24 03:18 JST
+
+- Coconala was kickstarted once through managed `lm-loop` and returned to
+  `loaded-idle`/`last_exit=0`/`pass`; official evidence remains
+  `observed=4`, `effect=0`, `readback=3`, `failed=0`, `pending=0`. Ryu was not
+  replayed.
+- CrowdWorks and Lancers were each kickstarted once. Both remained enabled but
+  were deferred by the existing `resource_capacity_busy` admission boundary;
+  their official snapshots remain CrowdWorks `effect=0/readback=4/pending=1`
+  and Lancers `effect=0/readback=0/pending=0`. No provider mutation or formal
+  delivery was created.
+- Keep the historical CrowdWorks unknown fence and the `63568785` buyer-material
+  wait. The next admissible cursor is a permitted CrowdWorks material event or
+  a real funded Lancers contract; Upwork remains unregistered and disabled.

@@ -1894,3 +1894,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `resource_capacity_busy`; keep its single historical unknown occurrence
   fenced and do not replay. The current provider snapshot is still four
   official readbacks plus buyer-material wait `63568785`.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:18 JST
+
+- [x] Kickstarted Coconala once through managed `lm-loop`; it returned
+  `loaded-idle`/`pass` with `observed=4`, `effect=0`, `readback=3`, and no Ryu
+  replay.
+- [x] Kickstarted CrowdWorks and Lancers once; both stayed enabled but were
+  deferred by the existing `resource_capacity_busy` boundary. Their official
+  snapshots remain CrowdWorks `effect=0/readback=4/pending=1` and Lancers
+  `effect=0/readback=0/pending=0`; no provider mutation occurred.
+- [ ] Keep the historical CrowdWorks unknown fence and `63568785` material wait;
+  continue at the next permitted CrowdWorks event or funded Lancers contract.
