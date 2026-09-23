@@ -349,6 +349,16 @@ was performed. Commit `5876390fe6` adds the hydration/hidden-form readback fix
 with 611 focused tests passing, but it remains source-only until the lifecycle
 and immutable-release gates are complete.
 
+The next one-by-one contract, `63659463`, was also completed manually without
+reposting a form: the official contract/milestone-bound receipts for the common
+test and Web Ads results were re-read, the explicitly inapplicable video form
+was recorded as excluded, and CrowdWorks milestone `13820867` was delivered once.
+Readback at `2026-09-23T04:50:38Z` verified the exact delivery message and returned
+`provider_receipt_id=contract:63659463:milestone:13820867`; a fresh context read
+returned `provider_state=delivered` with client inspection in progress. This is
+another isolated manual contract effect; the unresolved Paid occurrence remains
+fenced and no loop wake or replay was used.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by

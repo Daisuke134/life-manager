@@ -100,6 +100,13 @@ runtime/provider readback.
   its official deadline was the current day. The unresolved Paid occurrence was
   not cleared or replayed. Current cursor remains host/lifecycle gate, then
   occurrence reconciliation and immutable loop promotion.
+- The next one-by-one contract `63659463` was completed at `2026-09-23T04:50:38Z`:
+  its existing official receipts for the common test and Web Ads forms were
+  re-read, the video form was explicitly excluded per the buyer instruction,
+  and milestone `13820867` was delivered once. Official readback returned
+  `provider_receipt_id=contract:63659463:milestone:13820867` and the contract
+  context is now `provider_state=delivered`/client inspection. No form was
+  reposted and the Paid unknown occurrence remains fenced.
 - Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
   authenticated/source-complete with 14 boards, one unread, zero working or
   monthly contracts, zero incoming offers, zero storefront contract candidates,
@@ -1238,6 +1245,11 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   confirmation for each form, sent the exact CrowdWorks milestone delivery once, and read back
   `納品=done`, `検収=current`, the seller message, and `provider_state=delivered` at
   `2026-09-23T04:45:32Z`. It is not a Paid-loop receipt and must not be replayed.
+- Contract `63659463` was then completed one-by-one without reposting its already
+  confirmed common-test and Web Ads receipts. The buyer's video form was excluded
+  because the instruction targets Web広告運用者; milestone `13820867` was delivered
+  once and read back at `2026-09-23T04:50:38Z` as `納品=done`, `検収=current`,
+  `provider_state=delivered`.
 - A fresh official readback of 63657015 (2026-09-23T03:20:52Z) confirms `provider_state=funded`,
   contract `63657015`, milestone `13820268`, proposal `305533319`, and message thread `304733788`.
   The buyer's latest instruction (event `427403807`) requires the non-designer hearing sheet and
@@ -1263,8 +1275,9 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   reconciled before any retry. The prepared work is the hearing-sheet copy plus common test,
   followed by formal delivery; do not submit the buyer's anonymous survey or claim completion
   until the two official confirmations are read back. 63570481 still lacks the corrected customer-address answer and
-  formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
-  quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
+  formal delivery. 63568785 still lacks permitted document content. 63659463's formal delivery
+  is verified, but acceptance, settlement, and payout remain. 63583795 needs acceptance,
+  settlement, and payout readback.
 - The latest target cleanup pass is green, but headroom remains PRESSURE at about 1.8 GiB free and one
   ownerless legacy scratch remains protected. The shared cleanup fix is merged and loaded; it requires
   current registry `none`, unique run-bound `none` event, and stale PID/start identity before deleting
@@ -1291,9 +1304,13 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   forms once each, read their official confirmations, pressed CrowdWorks 納品する once, and
   verified the exact milestone state (`納品=done`, `検収=current`, provider `delivered`) at
   `2026-09-23T04:45:32Z`. No replay; Paid-loop occurrence fences remain unchanged.
+- [x] **CW-F6b — 63659463 fulfillment:** reused the two existing contract-bound form receipts,
+  explicitly excluded the video form per the buyer instruction, pressed CrowdWorks 納品する once,
+  and verified `納品=done`, `検収=current`, and `provider_state=delivered` at
+  `2026-09-23T04:50:38Z`; no form repost or replay.
 - [ ] **CW-F7 — remaining funded contracts:** reconcile 63657015, correct and deliver 63570481,
-  obtain permitted content and deliver 63568785, audit and deliver 63659463, and monitor
-  63583795 through acceptance/settlement/payout. Require correct_work_verified and replay-zero.
+  obtain permitted content and deliver 63568785, and monitor 63659463 plus 63583795 through
+  acceptance/settlement/payout. Require correct_work_verified and replay-zero.
 - [ ] **CW-F8 — revenue accounting:** count USD 10,000 MRR only from collected/settled recurring
   value with a documented continuation basis; share contract-ID, quality-gate, and receipt lessons
   through the existing shared kernel only after the same boundary is verified on another provider.
