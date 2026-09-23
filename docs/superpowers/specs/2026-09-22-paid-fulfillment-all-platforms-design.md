@@ -335,7 +335,7 @@ not evidence that client work is being completed or delivered. The new registry
 contract isolates future Application/Negotiate/Paid occurrences after promotion;
 Storefront and Telegram Report remain owner-scoped pending their own proof.
 The latest Paid status is `loaded-idle` with `pid=null` and blocker
-`resource_control_busy`. Admission occurrence
+`host_admission_deferred:resource_effect_unknown`. Admission occurrence
 `lancers-revenue-paid:18d67a28e56c4b58-6829` remains `claimed/effect_unknown=1`.
 The latest paid result reports observed/effect zero, but that is not a no-dispatch
 proof and cannot release the fence.
@@ -346,6 +346,14 @@ zero monthly contracts, zero incoming monthly offers, zero storefront contract
 candidates, and finance balance `0` JPY. Therefore there is no current Lancers
 Paid client to submit; the Paid mutation path remains explicitly unimplemented
 and must be completed before a future funded contract can become a canary.
+
+The same owner-locked read-only probe inspected historical project details
+`5601892`, `5601332`, and one ended proposal. Each exposed only the proposal /
+question surface (`POST` question form); none exposed a funded-contract
+納品・検収 surface or a provider receipt. A guessed mutation from these pages is
+not acceptable. The next safe implementation cursor is the first real funded
+contract detail, followed by a red test and the smallest provider-specific
+mutation/readback path derived from that official DOM/API contract.
 
 Final status readback at `2026-09-23T04:07:52Z` kept both non-Coconala Paid
 owners fenced: CrowdWorks release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
