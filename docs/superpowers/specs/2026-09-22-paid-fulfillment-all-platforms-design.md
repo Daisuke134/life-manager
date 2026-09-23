@@ -870,6 +870,11 @@ status still exposes one historical `admission_effect_unknown` occurrence;
 because its exact zero-effect marker is unavailable, it remains fenced rather
 than being cleared by an owner-wide reset.
 
+A fresh read-only `gog drive get` and `gog drive download` for the pending
+CrowdWorks document at `2026-09-23 22:31 JST` both returned Google API
+`404 notFound`; the buyer artifact is still inaccessible and the existing
+permission request remains the sole safe next step.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
