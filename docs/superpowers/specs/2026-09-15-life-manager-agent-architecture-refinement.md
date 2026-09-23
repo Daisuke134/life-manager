@@ -2850,33 +2850,43 @@ then a same-SHA natural replay with no duplicate. If database contention returns
 liveness, the next Foundation cursor is the measured owner/state index or bounded retention repair,
 not a faster cadence or an unbounded retry.
 
+PR #5803 then merges as `51e7d9c0ba460e8f2486a02112528a81357dc5e1` and cleans phantom claims
+after a SQLite rollback. The natural reconciler cuts complete immutable release
+`20260923T165749-51e7d9c0` and loads Affiliate without a manual restart. Natural run
+`18d7e4c320dad348-64468` reaches outer `pass`, but the business child still ends at
+`PUBLICATION_FAILED`: the exact X write is already public while the immediate authenticated timeline
+readback saw zero rows. Authenticated DOM and independent public readback both prove the same disclosed
+post at `https://x.com/selawmqt/status/2102661291412463855`, with the exact live owned article URL.
+The durable job remains the same `f9624461eafb89067f15a51145c5b50b187760d57b4779f2bac784e48122adc5`
+for placement `elevenlabs-discovered-subtitle-translator-en-experiment-04766a91bcba-1`; no second post
+is permitted.
+
+This run also exposes a separate local liveness defect. The Affiliate state has 1,813 job JSON files,
+including about 900 `key-*.json` indexes. Each unresolved-target lookup scans every key file while
+holding the job lock and takes about fifteen minutes under current disk pressure; the natural run does
+this twice and lasts about thirty minutes. Shared PR #5804 merges as
+`35e66d242798e28403e98d06037484d5c2a28795` and indexes the host occurrence ledger, but it does not
+index this Affiliate-owned job journal. Production currently has `35e66d...` installed while the
+latest terminal event remains on `51e7d9...`; status truthfully remains `effect_status=unknown` and
+`admission_effect_unknown=true`.
+
+The source candidate on `fix/affiliate-job-target-index-20260923` adds a durable target index with
+one-time legacy backfill, keeps duplicate legacy targets quarantined, fails closed on malformed indexes,
+and changes the authenticated X readback to a bounded exact-content wait before and after submission.
+The current focused ledger/X tests pass 13/13 and `git diff --check` passes. The candidate is not yet
+committed, reviewed, merged, released or production-accepted. Therefore the official post evidence
+proves the external object, not completion of the internal reconciliation or replay-zero gate.
+
 The remaining order is fixed as follows:
 
-1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
-   reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
-   drain and the first admitted same-SHA natural terminal are complete. The isolated
-   `revenue_cli links` provider-contract fix, natural same-SHA terminal and replay-zero are complete on
-   immutable release `20260923T095630-3e5ae276`. The managed clean publisher repair is merged and
-   loaded on `20260923T113915-89323b5f`; its natural run proves checkout provisioning and exposes the
-   protected-branch direct-push defect without a confirmed remote effect. The idempotent PR/auto-merge
-   repair is merged and loaded on immutable release `20260923T124904-4dde25bd`; its first exact-SHA
-   wake defers at shared resource FIFO before touching the legacy effect, with
-   `admission_effect_unknown=false`. Later authentication recovery and PR delivery expose the wrong
-   deploy-repository boundary: article PR #5794 lands in Life Manager while the official public URL
-   stays 404. PR #5795 repairs the target-repository contract, and the natural cadence delivers the
-   corrective article through `anicca-products` PR #412; GitHub and the official URL now prove
-   `LIVE`. PR #5797 repairs the observed PartnerStack refresh/cookie propagation race and loads exact
-   release `20260923T152920-f01c612d` after safe capacity recovery. Shared admission contention then
-   prevents stable acceptance, so PR #5802 adds bounded SQLite lock recovery and the natural reconciler
-   loads exact release `20260923T163844-b7479c31`. Its first natural terminal proves same-wake admission
-   recovery but leaves one X publication effect unknown. Reconcile the exact X timeline/content receipt,
-   resolve only that effect job, and require a same-SHA replay-zero with no second delivery. If typed
-   `resource_database_busy` later repeats,
-   repair the measured full-scan occurrence lookup/retention boundary before touching provider logic.
-   Then continue unavailable owned-visit analytics,
-   transient Impact observation, publication
-   timeout/quarantine and attributable conversion/payment receipts.
-   An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
+1. Finish Affiliate locally without manual restart or a second X delivery. Complete the target-index and
+   bounded-readback candidate, rerun the full Affiliate and shared contract gates, obtain fresh read-only
+   review, merge it through main, and load a complete immutable release naturally. Reconcile only job
+   `f9624461...` and its exact host occurrence from the official X proof; never clear the owner or repost
+   by inference. Require a natural same-SHA terminal that marks the existing post `LIVE`, followed by a
+   same-SHA replay-zero with the same public URL and no duplicate. Then continue owned-visit analytics,
+   transient Impact observation and attributable conversion/payment receipts. A public page, post,
+   impression, historical click or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
@@ -2898,6 +2908,14 @@ The remaining order is fixed as follows:
    rare typed gates; routine operation needs no Mac, command, goal-setting conversation or babysitting.
 8. Grow verified net revenue toward self-funding and USD 10,000 MRR. Applications, posts, impressions,
    contracts and model claims never count as revenue without attributable provider/payment receipts.
+
+The basic progression is therefore invariant: make the shared Local foundation observable; use each
+real loop failure as a retained self-heal regression; close all fourteen Local rows with official
+receipts or truthful typed setup states; prove receipt-driven evaluation and bounded promotion; promote
+the same immutable implementation to tenant-isolated Cloud workers; expose phone-only proactive control;
+then allocate effort by verified net revenue until the system pays for itself. Users provide one-shot
+facts, not recurring goals. Life Manager assigns and pursues goals proactively and interrupts a person
+only for a rare typed gate that the system cannot safely complete itself.
 
 ### K. User Communication Contract
 
