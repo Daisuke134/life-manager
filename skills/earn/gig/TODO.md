@@ -59,6 +59,37 @@ runtime/provider readback.
   host-capacity pressure, not a provider completion or a reason to bypass the
   effect gate.
 
+### Continuation — 2026-09-23T10:37Z
+
+- The canonical Paid owner was started once on installed release
+  `35e66d242798e28403e98d06037484d5c2a28795` after a fresh capacity recovery.
+  Its natural run `18d7ec494aa203a8-68253` failed closed at
+  `host_admission_deferred:resource_database_busy`; a later wake
+  `18d7eca1acb6b798-72766` failed closed at
+  `host_admission_deferred:resource_fifo_wait`. Both are
+  `admission_effect_unknown=false` and `effect=0`; no Coconala message,
+  attachment, or formal delivery occurred.
+- The Paid owner is now stopped through the canonical CLI with
+  `launchd_state=unloaded`, `pid=null`, and blocker
+  `host_admission_deferred:resource_fifo_wait`. The latest producer snapshot is
+  honest: `observed=4`, `actionable=0`, `effect=0`, `readback=2`, `pending=1`.
+  Ryu is `reserved_for_owner`; Chii and NPO `18250352` are buyer-waiting; NPO
+  `18223833` remains `WORK_REQUIRED` and is fenced before project-queue mutation.
+- Read-only cleanup verified five stale, ownerless temporary worktrees from this
+  paid-fulfillment investigation with no open handles, then removed only those
+  exact paths: `lm-paid-all-platforms-20260922`,
+  `lm-paid-awaiting-buyer-20260923`, `lm-paid-awaiting-slot-20260923`,
+  `lm-paid-bootstrap-missing-context-20260923`, and
+  `lm-crowdworks-browser-owner-20260923` (about 478 MiB total). No production
+  state, receipt, credential, browser profile, or protected store was touched.
+  Capacity subsequently fell below the 512 MiB guard again as other active
+  owners ran; no further safe reclaim is identified.
+- The next safe cursor is not a manual send: hold Paid unloaded until free space
+  stays above `524288 KiB` for a full wake, then run one canonical natural wake
+  on this SHA, verify top-level terminal plus the four-room official readback,
+  and run replay-zero. Do not bypass the admission database/FIFO or resend any
+  buyer-waiting room.
+
 - Ryu `18211957` is the only permanent manual exception. The deployed release
   `manual-complete-v699` and official browser readback show current campaign
   image visibility, 12 registered profiles with no fixed people limit, normal

@@ -83,6 +83,16 @@ A short read-only capacity poll then fell to `177660 KiB`; the poll was stopped
 without starting Paid. Keep the Coconala gate open until free space is stable
 above the guard for the complete wake.
 
+**Continuation (2026-09-23T10:37Z):** after removing only five verified stale
+paid-fulfillment temporary worktrees, the installed SHA was started once.
+Natural run `18d7ec494aa203a8-68253` failed closed at
+`resource_database_busy`; the next wake `18d7eca1acb6b798-72766` failed closed
+at `resource_fifo_wait`. Both are effect-zero and occurrence-safe. Paid is now
+canonically unloaded again (`pid=null`), with producer `pending=1` for NPO
+`18223833`; the next step remains stable headroom above the 512 MiB guard,
+one natural wake, four-room official readback, and replay-zero. No provider
+send was made in this continuation.
+
 ### Task 3: CrowdWorks completion and Paid canary
 
 **Files:**

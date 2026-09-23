@@ -306,6 +306,23 @@ A short read-only capacity poll then fell to `177660 KiB`; the poll was stopped
 and no loop was started. This is active host-capacity pressure, not a provider
 completion signal or permission to bypass the effect gate.
 
+The next guarded continuation started the same immutable release once after a
+fresh headroom recovery. Run `18d7ec494aa203a8-68253` failed closed at
+`host_admission_deferred:resource_database_busy`; the following wake
+`18d7eca1acb6b798-72766` failed closed at
+`host_admission_deferred:resource_fifo_wait`. Both read back
+`admission_effect_unknown=false` and `effect=0`; no Coconala provider effect
+occurred. The owner was then stopped through the canonical CLI and read back as
+`launchd_state=unloaded`, `pid=null`. The current producer snapshot is
+`observed=4`, `actionable=0`, `effect=0`, `readback=2`, `pending=1`, with NPO
+`18223833` fenced as `WORK_REQUIRED` before project-queue mutation. Five stale,
+ownerless temporary worktrees from this investigation were removed after
+read-only `lsof`/ownership checks (about 478 MiB); unrelated active temporary
+trees, Codex databases, credentials, browser profiles, receipts, and durable
+state were preserved. Capacity is again below the `524288 KiB` guard, so the
+next cursor remains a single stable-headroom natural wake followed by official
+four-room readback and replay-zero; no manual or blind provider send is safe.
+
 #### Live override — 2026-09-23T09:49:26Z
 
 The fresh owner-scoped official Coconala readback of Ryu room `18211957` found
