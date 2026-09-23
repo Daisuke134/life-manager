@@ -1463,3 +1463,21 @@ The objective is complete only when all of the following are proven:
   `180`, Coconala/Paid `274`, plus `lm-loop-contract`. These are source gates,
   not provider-effect receipts; the branch remains unpromoted until a funded
   provider canary has an official receipt and replay-zero readback.
+
+## Inventory Cursor — 2026-09-24 03:28 JST
+
+- A fresh official inventory still finds no newer actionable Coconala event:
+  Ryu is seller-last under the manual fence and Chii plus both NPO rooms are
+  `awaiting_buyer`.
+- CrowdWorks work `63568785` is still `funded`, with buyer event `426855154`
+  as the latest event. The on-platform permission request already has the
+  occurrence-bound answer receipt; the remaining blocker is obtaining and
+  verifying the buyer artifact before formal delivery. The linked request for
+  LINE/external-form work is not an admissible substitute, so no duplicate
+  message or formal delivery was issued.
+- Lancers' authenticated Paid inventory remains contract-empty. Upwork's
+  private authorization store explicitly denies `search`, `inspect`, `propose`,
+  `message`, `accept_offer`, `deliver_milestone`, `read_payments`, and
+  `read_payouts`; no Upwork Paid owner or CDP endpoint is created. The next
+  mutation cursor remains the first permitted CrowdWorks artifact event or
+  funded Lancers contract.
