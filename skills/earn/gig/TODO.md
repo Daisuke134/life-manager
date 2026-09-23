@@ -133,6 +133,24 @@ runtime/provider readback.
   `18d62cf32eb0c678-48194` without an exact proof. Keep it fenced and do not
   clear it broadly.
 
+### Runtime checkpoint — 2026-09-24 01:07
+
+- [x] The shared finite-run cap temporarily blocked Paid wakes after the
+  headroom fix. One `effect_class=none` maintenance owner,
+  `verify-loops-audit`, was suspended only long enough to release its reserved
+  slot; the Coconala Paid owner then completed a natural wake and the audit
+  owner was restarted immediately afterward.
+- [x] Post-retry Coconala status is `loaded-idle`/`pass`, with the authoritative
+  result still `observed=4`, `effect=0`, `readback=3`, `failed=0`, and no Ryu
+  or other client mutation.
+- [x] CrowdWorks also completed a natural wake with
+  `observed=5`, `effect=0`, `readback=4`, `pending=1`; only `63568785` remains
+  buyer-material-gated. Its historical unknown occurrence remains the sole
+  unresolved admission fence.
+- [ ] Do not repeat the maintenance suspension unless a fresh capacity probe
+  shows the same full-reservation condition; allow the scheduled Paid owners
+  to wake naturally now.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

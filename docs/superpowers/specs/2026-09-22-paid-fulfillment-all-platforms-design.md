@@ -1395,3 +1395,19 @@ The objective is complete only when all of the following are proven:
   `effect_unknown=0`; no external provider effect occurred.
 - CrowdWorks' historical `18d62cf32eb0c678-48194` occurrence still has no
   exact proof and remains fenced. No owner-wide clear or replay is allowed.
+
+## Runtime Cursor — 2026-09-24 01:07 JST
+
+- A full shared finite-run reservation briefly deferred Paid wakes after the
+  disk-headroom recovery. The `effect_class=none` maintenance owner
+  `verify-loops-audit` was suspended through the lifecycle tool, one Coconala
+  Paid wake completed, and the maintenance owner was restarted immediately.
+  No provider effect was performed by the maintenance step.
+- The subsequent Coconala readback remains
+  `observed=4/effect=0/readback=3/failed=0`; Ryu is owner-reserved and the
+  other rooms are buyer-waiting. CrowdWorks also passed with
+  `observed=5/effect=0/readback=4/pending=1`; `63568785` still requires buyer
+  material.
+- The only remaining Paid admission unknown is the historical CrowdWorks
+  occurrence `18d62cf32eb0c678-48194`, for which no exact zero-effect marker
+  exists. It remains fenced and must not be cleared broadly.
