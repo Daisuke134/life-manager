@@ -61,6 +61,32 @@ class RefreshingReadbackPage:
         }
 
 
+class DelayedRefreshingReadbackPage:
+    def __init__(self, ready_on_read=4):
+        self.reads = 0
+        self.refreshes = 0
+        self.ready_on_read = ready_on_read
+        self.waits = []
+
+    def evaluate(self, script):
+        if "auth/token" in script:
+            self.refreshes += 1
+            return {"state": "REFRESHED", "http": 200, "token_type": "access_team"}
+        self.reads += 1
+        if self.reads < self.ready_on_read:
+            return {
+                "state": "AUTH_REQUIRED", "partnership_http": 401,
+                "ensure_http": None, "items": [],
+            }
+        return {
+            "state": "READY", "partnership_http": 200,
+            "ensure_http": 200, "items": [],
+        }
+
+    def wait_for_timeout(self, milliseconds):
+        self.waits.append(milliseconds)
+
+
 def fake_playwright(page):
     class Playwright:
         def __enter__(self):
@@ -97,6 +123,39 @@ class ProgramRegistryTest(unittest.TestCase):
         self.assertTrue(result["auth_recovered"])
         self.assertEqual(page.reads, 2)
         self.assertEqual(page.refreshes, 1)
+
+    def test_partnerstack_auth_readback_waits_for_spa_cookie_propagation(self):
+        page = DelayedRefreshingReadbackPage(ready_on_read=4)
+
+        result = MODULE._elevenlabs_links(page)
+
+        self.assertEqual(result["state"], "READY")
+        self.assertEqual(result["auth_refresh_state"], "REFRESHED")
+        self.assertEqual(result["auth_refresh_http"], 200)
+        self.assertTrue(result["auth_recovered"])
+        self.assertEqual(result["auth_readback_attempts"], 4)
+        self.assertEqual(page.refreshes, 1)
+        self.assertEqual(page.waits, [250, 250])
+
+    def test_partnerstack_auth_readback_stops_after_bounded_propagation_wait(self):
+        page = DelayedRefreshingReadbackPage(
+            ready_on_read=MODULE.PARTNERSTACK_AUTH_READBACK_MAX_ATTEMPTS + 1,
+        )
+
+        result = MODULE._elevenlabs_links(page)
+
+        self.assertEqual(result["state"], "AUTH_REQUIRED")
+        self.assertEqual(
+            result["auth_readback_attempts"],
+            MODULE.PARTNERSTACK_AUTH_READBACK_MAX_ATTEMPTS,
+        )
+        self.assertFalse(result["auth_recovered"])
+        self.assertEqual(page.refreshes, 1)
+        self.assertEqual(
+            page.waits,
+            [MODULE.PARTNERSTACK_AUTH_READBACK_INTERVAL_MS]
+            * (MODULE.PARTNERSTACK_AUTH_READBACK_MAX_ATTEMPTS - 2),
+        )
 
     def test_partnerstack_unauthorized_stops_before_link_form_or_effect(self):
         for http_status in (401, 403):
@@ -141,6 +200,7 @@ class ProgramRegistryTest(unittest.TestCase):
                         "reason", "placement", "provider_http_status",
                         "provider_effect_started", "changed", "observed_at",
                         "auth_refresh_state", "auth_refresh_http", "auth_recovered",
+                        "auth_readback_attempts",
                     }.issuperset(stored))
 
     def test_existing_partnerstack_link_verifies_without_link_form(self):
