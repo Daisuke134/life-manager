@@ -843,6 +843,13 @@ formal delivery.
   No Upwork mutation is possible or admitted; the next executable step is
   provider-authorized authentication followed by a fresh funded-contract
   inventory, not a fabricated Paid loop or delivery.
+- The subsequent CrowdWorks natural run completed `pass`/exit `0` at
+  `2026-09-23T13:20:43Z`: `observed=5`, `actionable=1`, `effect=0`,
+  `readback=4`, `failed=0`, `pending=1`. Contract `63568785` is still
+  `waiting_external` with blocker `buyer_task_detail_required`; its only
+  remaining work is to obtain and verify the buyer artifact before formal
+  delivery. The existing access request remains the latest buyer-visible
+  event, so no duplicate request or delivery was sent.
 
 ## Production Promotion Contract
 
