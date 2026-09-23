@@ -2884,6 +2884,12 @@ passes. PR #5805 merges to main as `80749f841f6a529c2ad745b2a379307c6bfc4f38`. T
 cut as an immutable release or production-accepted. Therefore the official post evidence proves the
 external object, not completion of the internal reconciliation or replay-zero gate.
 
+The later Affiliate source correction is now on main as PR #5807 / `799045e7ba66ee66fe22b35153a3217054ac7ac3`.
+This closes the source-code cursor, not the commercial outcome: its exact historical occurrence,
+same-SHA natural replay-zero, attributable conversion, commission and payment receipts remain open.
+Affiliate therefore continues on its bounded natural schedule, but it no longer serializes remediation
+of every other Product Loop.
+
 The remaining order is fixed as follows. The ordering change is deliberate: Affiliate's source defect is
 merged and no longer owns the primary cursor. Its production acceptance and commercial experiments run
 on the bounded owner schedule instead of serializing the entire portfolio behind first revenue. The
@@ -2891,13 +2897,25 @@ primary cursor is now the shared Mobile Apps/Postiz receipt-to-occurrence contra
 or provider session is part of this reorder.
 
 1. Repair Mobile Apps/Postiz once at the shared boundary, not account by account. Fresh readback proves
-   that distribution is partially active: provider-reconciled posts exist today, while all 22 jobs still
-   project an unknown effect. Map each successful/deduplicated Postiz receipt to its exact admission
-   occurrence, close only that occurrence, retain uncertain rows, and add the terminal effect hint at the
-   common runner boundary. Prove one natural main-SHA canary and replay-zero, roll the contract across all
-   22 owners, then repair `life-manager-anicca-obou-instagram` and the no-terminal daily driver if the
-   fresh state still shows those defects. Finally verify the intended three-per-day cadence per enabled
-   lane from official receipts; a global post count is insufficient.
+   that distribution is partially active: provider-reconciled posts exist today, while the effectful
+   publication owners still project terminal `effect_status=unknown` and historical owner aggregates
+   retain occurrence-scoped uncertainty. Candidate `b578c53b04` now lets an exact Postiz receipt reconcile
+   either `released` or stale `claimed` state, distinguishes a different live occurrence from the fenced
+   occurrence, and makes every shared Mobile wake inspect a bounded owner-scoped identity set before its
+   normal work. It resolves at most one occurrence after exact local-receipt and official Postiz proof;
+   rows without an exact receipt remain fenced. Host admission passes 125/125, Postiz reconciliation
+   passes 21/21, and the shared Mobile wrapper passes 6/6. Production read-only replay of the retained
+   Larry identity returns truthful `no_match`: repeated content receipts exist, but none has that exact
+   effect/job identity, so it is not safe to infer success or absence.
+
+   The immediate Mobile cursor is the common successful/deduplicated result hint: write a verified or
+   reconciled terminal only from the exact provider receipt, keep a success without that proof unknown,
+   then integrate a main-derived immutable release and require one natural canary plus same-SHA
+   replay-zero before rolling the contract across the full Mobile owner set. After that, repair the
+   genuinely unloaded `life-manager-anicca-obou-instagram` owner and verify the intended three-per-day
+   cadence per enabled lane from official receipts. `life-manager-daily-driver` is a keep-alive,
+   `effect_class=none` shared browser owner; absence of a finite terminal is expected and is not a Mobile
+   publication defect.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
    exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
