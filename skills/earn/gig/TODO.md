@@ -20,7 +20,7 @@ runtime/provider readback.
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
 - The latest natural `hf-gig-paid-direct` wake at
-  `2026-09-23T00:44:29.094817+00:00` completed with
+  `2026-09-23T00:55:02+00:00` completed with
   `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
   It independently reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO
   rooms as `awaiting_buyer`; no client DM was sent. The installed owner is

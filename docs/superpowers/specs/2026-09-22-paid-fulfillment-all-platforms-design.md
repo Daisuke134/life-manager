@@ -43,6 +43,26 @@ and records an honest terminal state such as `awaiting_buyer`. A human intervene
 only for the named Ryu exception or when a provider-specific incident is explicitly
 reconciled; Chii is not such an incident.
 
+### Why Chii is not being sent again
+
+Chii's paid deliverable is the 300-recipient TikTok campaign and its Coconala
+report/workbook. The canonical evidence is 12 previously verified sends plus 288
+exact-readback sends, followed by one buyer-visible report/workbook message in
+talkroom `18180857`. The later `20/300` remote result is an intermediate run-local
+snapshot, not a new contract deficit. The 24 sends recorded on 2026-09-22 are an
+immutable pre-fix overrun incident; they are preserved for audit and must not be
+replayed or counted as remaining work. The latest official reply readback supports
+zero eligible positive replies and one ineligible reply. The talkroom remains open
+with formal delivery OFF by design, so the correct terminal state is
+`awaiting_buyer`, not another send or the formal-delivery button.
+
+The natural wake at `2026-09-23T00:55:02+00:00` observed all four open Coconala
+rooms and completed with `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
+It re-read Chii as `awaiting_buyer`. This is the expected no-op: the loop has
+already answered the newest buyer event and waits for a genuinely newer buyer
+message before reopening the item. Ryu is the only room that can be handled
+directly by a human; Chii is not a manual exception.
+
 ## Verified Current State
 
 ### Ryu manual exception
@@ -71,7 +91,7 @@ is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, whi
 contains the answered-feedback stop fix. Its latest official queue readback is
 terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
 `awaiting_buyer`.
-The natural wake at `2026-09-23T00:44:29.094817+00:00` completed with
+The natural wake at `2026-09-23T00:55:02+00:00` completed with
 `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`; it
 reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO rooms as
 `awaiting_buyer`. The installed owner is now `loaded-idle`, `last_exit=0`, and
