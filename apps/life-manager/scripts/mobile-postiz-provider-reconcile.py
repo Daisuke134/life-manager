@@ -333,7 +333,7 @@ def reconcile_provider_effect(
 ) -> dict[str, Any]:
     if owner_id != identity.get("loop_id") or occurrence_id != identity.get("occurrence_id"):
         return _inconclusive(owner_id, occurrence_id, "identity_occurrence_mismatch")
-    if state != "released" or effect_unknown != 1:
+    if state not in {"claimed", "released"} or effect_unknown != 1:
         return _inconclusive(owner_id, occurrence_id, "claimed_or_already_resolved")
     if admission_db is not None:
         try:
@@ -368,7 +368,7 @@ def reconcile_provider_effect(
     try:
         changed = resolve_unknown_occurrence(
             owner_id=owner_id, occurrence_id=occurrence_id,
-            official_readback=official_readback, expected_state="released",
+            official_readback=official_readback, expected_state=state,
         )
     except (OSError, RuntimeError, ValueError, sqlite3.Error, ImportError):
         return _inconclusive(owner_id, occurrence_id, "resolve_rejected")

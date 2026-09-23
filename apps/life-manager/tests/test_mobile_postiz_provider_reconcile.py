@@ -297,26 +297,65 @@ def test_same_platform_different_account_is_inconclusive_and_never_resolves(tmp_
     assert calls
 
 
-def test_claimed_occurrence_stays_held_without_provider_request(tmp_path: Path, monkeypatch) -> None:
+def test_apply_resolves_claimed_occurrence_with_exact_proof_after_liveness_gate(
+        tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
     ledger = tmp_path / "distribution.jsonl"
     write_identity(sidecar, identity())
     write_video_ledger(ledger)
-    monkeypatch.setattr(module, "_request_json", lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")))
+    responses = provider_rows()
+    monkeypatch.setattr(
+        module, "_request_json",
+        lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
+    )
+    resolved = []
+
+    def resolver(**kwargs):
+        assert kwargs["expected_state"] == "claimed"
+        proof = kwargs["official_readback"]()
+        resolved.append(proof)
+        return True
+
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+    monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
     value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
 
     result = module.reconcile_provider_effect(
         value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
         state="claimed", effect_unknown=1, api_key="token", apply=True,
+        admission_db=tmp_path / "admission.sqlite3",
     )
 
-    assert result == {
-        "status": "inconclusive",
-        "owner_id": "life-manager-honne-ja",
-        "occurrence_id": "life-manager-honne-ja:run-1",
-        "reason": "claimed_or_already_resolved",
-    }
+    assert result["status"] == "resolved"
+    assert len(resolved) == 1
+    assert resolved[0]["provider_receipt_id"] == "post-1"
+
+
+def test_claimed_occurrence_stays_held_when_liveness_gate_rejects(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, identity())
+    write_video_ledger(ledger)
+    responses = provider_rows()
+    monkeypatch.setattr(
+        module, "_request_json",
+        lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
+    )
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", lambda **_: False)
+    monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
+    value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
+
+    result = module.reconcile_provider_effect(
+        value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+        state="claimed", effect_unknown=1, api_key="token", apply=True,
+        admission_db=tmp_path / "admission.sqlite3",
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "resolve_rejected"
 
 
 def test_receipt_from_a_different_slot_is_not_an_exact_effect_join(tmp_path: Path, monkeypatch) -> None:
