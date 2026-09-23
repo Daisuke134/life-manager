@@ -259,6 +259,20 @@ canary.
 
 ### Coconala
 
+#### Live override — 2026-09-23T09:49:26Z
+
+The fresh owner-scoped official Coconala readback of Ryu room `18211957` found
+no buyer event newer than `222222979`/`222223030`; seller message
+`222245383` remains the latest message. No message was sent during this
+readback, formal delivery remains untouched, and the temporary browser target
+was closed. The canonical `lm-loop stop hf-gig-paid-direct` operation then
+verified `launchd_state=unloaded`, `pid=null`, and
+`admission_effect_unknown=false`. The last natural run failed at
+`entrypoint_exit_1` before any provider effect; host free space was `511220`
+KiB, below the Paid producer's 512 MiB guard. The next safe cursor is headroom
+recovery followed by one natural wake, official four-room readback, and
+replay-zero; blind restart and Ryu replay are prohibited.
+
 Latest production checkpoint: the occurrence-ledger lookup-index fix is merged in
 main at `35e66d242798e28403e98d06037484d5c2a28795` and cut as immutable release
 `20260923T174546-35e66d24`. The Paid owner was stopped only through the canonical

@@ -20,6 +20,12 @@ runtime/provider readback.
   remains prohibited from creating work, replying, attaching, or formally
   delivering for Ryu. Deployment evidence is
   `projects/18211957/delivery/current-cycle-v699-deploy-readback.json`.
+- A fresh official Coconala re-read at `2026-09-23T09:49:26Z` using a new
+  owner-scoped authenticated target found no buyer event newer than
+  `222222979`/`222223030`; seller message `222245383` remains latest. No new
+  Ryu send is required and formal delivery remains untouched. The temporary
+  readback target was closed after inspection; do not reopen or replay this
+  cycle.
 - Coconala schedule extraction is repaired and promoted. PR `#5798` remains the
   parser fix; the subsequent admission-cleanup PR `#5803` is merged at
   `51e7d9c0ba460e8f2486a02112528a81357dc5e1`, and immutable release
@@ -72,6 +78,12 @@ runtime/provider readback.
   active provider effect. Keep it stopped until the Coconala natural-wake
   repair gate is ready; restart only through the canonical lifecycle CLI and
   verify the installed SHA/argv before allowing a wake.
+- After the fresh Ryu re-read, canonical `lm-loop stop hf-gig-paid-direct`
+  returned `launchd_state=unloaded`, `pid=null`, and
+  `admission_effect_unknown=false`. The last natural run failed at
+  `entrypoint_exit_1` before any provider effect. Host free space was
+  `511220` KiB, below the Paid producer's 512 MiB guard, so the next action is
+  safe headroom recovery—not a blind restart.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
