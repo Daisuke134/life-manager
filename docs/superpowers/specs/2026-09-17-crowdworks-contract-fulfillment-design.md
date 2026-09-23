@@ -78,10 +78,17 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   was confirmed by Google, and milestone `13820268` was formally delivered with
   official readback (`contract:63657015:milestone:13820268`; seller message
   `428632173`). Its anonymous survey and designer-only test were not submitted.
-  `63570481` still needs its missing customer-address correction and formal delivery;
-  `63568785` lacks permitted document content; `63659463` and `63712784` are now
-  delivered but still need acceptance/settlement/payout readback; `63583795` needs
-  acceptance, settlement, and payout readback.
+- `63570481` was corrected and formally delivered on `2026-09-23`: the latest buyer
+  correction event `427573234` was bound to one revised Google Form receipt
+  (`confirmation_sha256=168b142a4781d25be8f7807a780239d1e4eb269c03ded584c199a0cd3f163a57`),
+  then milestone `13798056` was delivered once. Formal-delivery readback returned
+  `provider_receipt_id=contract:63570481:milestone:13798056`; a fresh context read
+  returned `provider_state=delivered` and seller message `428633469`. The correction
+  answered the missing customer email using the exact task facts, and the original
+  form receipt was not replayed. The unresolved Paid occurrence remains fenced.
+- `63568785` lacks permitted document content; `63659463`, `63712784`, `63657015`,
+  and `63570481` are delivered but still need acceptance/settlement/payout readback;
+  `63583795` needs acceptance, settlement, and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
   cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the
@@ -99,13 +106,11 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
 4. Reconcile Reply occurrence 18d64a10f2f1f838-83166 item by item. Preserve the verified contract effect
    and confirmation-requested form effects; never resend an uncertain sibling.
 5. Resolve the released Report row through resolver/readback. released plus effect_unknown is not clean.
-6. After all four evidence fences resolve, kickstart one owner at a time. Start with 63712784: read the
-   full buyer request, do the requested work, submit the common test form and Web Ads results form only
-   when each mapping is unambiguous, read each confirmation, then press CrowdWorks 納品する and read
-   the official milestone state.
-7. Continue 63570481 and 63568785, then reconcile acceptance/settlement/payout for
-   the delivered contracts `63712784`, `63659463`, and `63657015` (and historical
-   `63583795`) with the same full-context, correct-work, buyer-visible-readback,
+6. After all four evidence fences resolve, continue the one-owner-at-a-time flow with
+   `63568785`: obtain permitted document content before doing work or delivery.
+7. Reconcile acceptance/settlement/payout for the delivered contracts `63712784`,
+   `63659463`, `63657015`, and `63570481` (and historical `63583795`) with the same
+   full-context, correct-work, buyer-visible-readback,
    formal-delivery, and replay-zero gates. Count USD 10,000 MRR only from
    collected/settled recurring value with a continuation basis.
 8. Share the contract-ID handoff, quality gate, and receipt rules through the existing shared kernel only

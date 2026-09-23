@@ -116,6 +116,15 @@ runtime/provider readback.
   returned `provider_state=delivered` with seller message `428632173`. The anonymous
   survey and designer-only test were explicitly excluded. No form, attachment, or
   delivery was replayed; the unresolved Paid occurrence remains fenced.
+- The next one-by-one contract `63570481` was corrected and completed at
+  `2026-09-23T05:24:53Z`: buyer correction event `427573234` was bound to one
+  revised Google Form receipt (`confirmation_sha256=168b142a4781d25be8f7807a780239d1e4eb269c03ded584c199a0cd3f163a57`),
+  and milestone `13798056` was formally delivered once. Readback returned
+  `provider_receipt_id=contract:63570481:milestone:13798056`; a fresh context read
+  returned `provider_state=delivered` with seller message `428633469`. The original
+  form receipt was retained and not replayed; the unresolved Paid occurrence remains
+  fenced. Source fix `471f3c6a97` retains durable form history when CrowdWorks hides
+  a submitted form link; CrowdWorks tests passed `116`.
 - Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
   authenticated/source-complete with 14 boards, one unread, zero working or
   monthly contracts, zero incoming offers, zero storefront contract candidates,
@@ -180,9 +189,11 @@ runtime/provider readback.
    child/effect receipts, keep every uncertain effect fenced, then promote the
    immutable Paid fix and prove a natural canary/replay-zero without replaying
    `63712784`.
-4. **CrowdWorks remaining funded contracts.** Complete `63570481` and `63568785`
-   through the same contract-keyed flow, including buyer revisions, acceptance and
-   payout evidence; then reconcile any newly funded inventory.
+4. **CrowdWorks remaining funded contracts.** Complete `63568785` through the same
+   contract-keyed flow after permitted document content is available, including
+   acceptance and payout evidence; then reconcile any newly funded inventory. The
+   delivered rows `63712784`, `63659463`, `63657015`, and `63570481` still need
+   acceptance/settlement/payout readback.
 5. **Lancers.** Keep the current browser/work-sync owners running; implement the
    missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
    prove one canary, then complete the funded inventory and payout receipts.

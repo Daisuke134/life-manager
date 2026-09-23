@@ -374,6 +374,19 @@ returned `provider_state=delivered` and the exact seller delivery message
 (`428632173`). No form, attachment, or delivery was replayed, and the unresolved
 Paid occurrence remains fenced.
 
+The next one-by-one contract, `63570481`, was corrected and completed manually on
+`2026-09-23`. The buyer's latest correction event `427573234` said the customer
+email answer was missing while the staff answer was present. The exact prior task
+facts were reread, one revision-bound Google Form response was submitted and
+confirmed (`confirmation_sha256=168b142a4781d25be8f7807a780239d1e4eb269c03ded584c199a0cd3f163a57`),
+and the original form receipt was retained without replay. CrowdWorks milestone
+`13798056` was formally delivered once; readback returned
+`provider_receipt_id=contract:63570481:milestone:13798056`, and a fresh context read
+returned `provider_state=delivered` with seller message `428633469`. The unresolved
+Paid occurrence remains fenced. Source commit `471f3c6a97` retains durable form
+history when CrowdWorks removes a submitted form URL from the live contract page;
+the focused CrowdWorks suite passed `116`.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by
