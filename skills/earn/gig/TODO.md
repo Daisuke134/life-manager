@@ -56,6 +56,11 @@ runtime/provider readback.
 - The coalescing branch now includes the matching admission expectation test at
   `e012343e94`. Focused runtime tests pass `528` with `174` subtests, the loop
   contract gate passes, and the branch remains unmerged/unreleased/unapplied.
+- The follow-up lifecycle fix `470c7b3160` makes `paid_direct.py` re-raise a
+  received stop signal after terminating active child groups, so a Paid parent
+  cannot survive bootout and retain `.paid-direct.lock`. Its regression and
+  related loop tests pass (`263` paid-remote-wait, `70` loop-boundary); it is
+  pushed but not merged/released/applied.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
   symptoms. Headroom later recovered to about 1.27 GiB (above the 512 MiB floor),

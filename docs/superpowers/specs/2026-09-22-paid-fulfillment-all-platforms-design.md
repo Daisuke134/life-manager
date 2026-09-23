@@ -184,6 +184,12 @@ compile, and `./bin/lm-loop-contract` all pass. The branch is not merged,
 released, or applied; production still runs the older release when the owner is
 next started.
 
+The follow-up Paid lifecycle fix is pushed at `470c7b3160`: when a stop signal
+reaches `paid_direct.py`, it now terminates active child groups and re-raises the
+same signal with the default disposition so the Paid parent cannot remain as an
+orphan holding `.paid-direct.lock`. The regression test is included; the fix is
+not yet merged, released, or applied.
+
 ### Coconala
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
