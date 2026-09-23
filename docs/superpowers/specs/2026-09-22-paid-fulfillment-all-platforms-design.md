@@ -938,6 +938,27 @@ formal delivery.
 9. Prove Local and Cloud host adapters use the same item identities, leases, receipts,
    and replay fences before enabling the same provider on two hosts.
 
+## Runtime Checkpoint — 2026-09-23 22:05 JST
+
+- Coconala `hf-gig-paid-direct` was explicitly started once on the installed
+  release `cbc9cf42309f023b20db247d60c6892e672b106b`; it completed `pass` with
+  exit `0`, is `loaded-idle`, and produced no provider effect. Ryu remains
+  manual-only.
+- CrowdWorks `crowdworks-revenue-paid` remained scheduled and automatically
+  recovered from a short shared-admission delay to `pass`/exit `0`. The
+  authoritative summary remains `observed=5`, `actionable=1`, `effect=0`,
+  `readback=4`, `failed=0`, `pending=1`; the pending funded contract still
+  lacks the buyer materials required for safe delivery, so no guess/retry is
+  permitted.
+- Lancers `lancers-revenue-paid` was started once; its first wake was deferred
+  by shared agent-resource capacity, then the scheduled retry completed
+  `pass`/exit `0`. The Paid inventory remains empty (`observed=0`,
+  `actionable=0`, `effect=0`, `readback=0`, `failed=0`, `pending=0`).
+- The shared admission lease is intentionally left to expire naturally; no
+  sibling reservation, occurrence fence, or provider state was edited. This
+  checkpoint does not close the natural-wake/replay-zero gates or promote the
+  unmerged source reconciliation branch.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
