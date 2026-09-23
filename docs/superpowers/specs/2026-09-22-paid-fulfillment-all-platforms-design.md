@@ -326,6 +326,14 @@ Form POST, buyer message, or formal delivery was executed, and no provider
 receipt is claimed. The first canary remains `63712784` after the occurrence
 fence and immutable-release gates are satisfied.
 
+A fresh owner-locked detail read of canary `63712784` confirms
+`provider_state=funded`, milestone `13833587`, latest buyer event `428014314`,
+and two required Google Forms with `completed_form_urls=[]`. The form bodies
+were observed read-only and pinned by SHA-256; no form POST, buyer message, or
+formal delivery was executed. The correct sequence remains form selection →
+one confirmed form submission at a time → formal delivery → milestone
+readback.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by

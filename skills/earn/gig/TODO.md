@@ -1210,6 +1210,11 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 - Read-only provider context is captured for all five funded IDs. Historical confirmed form receipts
   are preserved for 63659463, 63570481, and 63583795; they are replay-fenced and do not prove
   current formal delivery, acceptance, settlement, or payout.
+- A fresh owner-locked read-only detail of canary 63712784 confirms `provider_state=funded`,
+  milestone 13833587, latest buyer event 428014314, and two required Google Forms with
+  `completed_form_urls=[]`. Both form bodies were observed and pinned by SHA-256; no POST,
+  buyer message, or formal delivery was executed. The sequence is form selection, one confirmed
+  submission at a time, formal delivery, then official milestone readback.
 - A fresh official readback of 63657015 (2026-09-23T03:20:52Z) confirms `provider_state=funded`,
   contract `63657015`, milestone `13820268`, proposal `305533319`, and message thread `304733788`.
   The buyer's latest instruction (event `427403807`) requires the non-designer hearing sheet and
