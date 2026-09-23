@@ -191,7 +191,7 @@ PAID_MAX_PARALLEL_PROJECTS = 8
 # readbacks run concurrently while operations for the same owner stay serialized.
 PAID_MAX_PARALLEL_READBACKS = PAID_MAX_PARALLEL_PROJECTS
 PAID_TERMINAL_RECONCILES_PER_WAKE = 1
-MANUAL_ONLY_TALKROOM_IDS = frozenset()
+MANUAL_ONLY_TALKROOM_IDS = frozenset({"18211957"})
 PAID_SOURCE_CENSUS_VERSION = "paid-source-census-v4"
 # The skills a paid order may be built with. A skill the lane cannot see is a skill it will
 # reimplement badly under time pressure, so the BUYMA and video contracts belong here now that both
@@ -6767,6 +6767,7 @@ def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
 
 def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [item for item in items
+            if _text(item.get("talkroom_id")) not in MANUAL_ONLY_TALKROOM_IDS
             if not _paid_project_is_delegated(args, item)
             and not _paid_project_has_owner_fence(args, item)]
 
@@ -6966,7 +6967,9 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _admitted_paid_projects(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    available = [item for item in items if not _paid_timed_retry_is_future(args, item)]
+    available = [item for item in items
+                 if _text(item.get("talkroom_id")) not in MANUAL_ONLY_TALKROOM_IDS
+                 and not _paid_timed_retry_is_future(args, item)]
     if not available:
         return []
     available.sort(key=lambda item: _paid_queue_priority(args, item))

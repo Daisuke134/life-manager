@@ -5059,7 +5059,7 @@ def test_paid_reported_waiter_does_not_consume_only_effect_slot(tmp_path, monkey
     assert [row["event"] for row in events].count("queue_selected") == 1
 
 
-def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):
+def test_paid_observation_excludes_permanent_manual_ryu_room(tmp_path, monkeypatch):
     paid = load("paid_direct")
     evidence = tmp_path / "orders"
     args = SimpleNamespace(collector=tmp_path / "collector", projects_root=tmp_path,
@@ -5095,7 +5095,24 @@ def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):
 
     observed = paid.observe_orders(args, evidence)
 
-    assert [item["talkroom_id"] for item in observed] == ["18211957"]
+    assert observed == []
+
+
+def test_paid_active_items_excludes_permanent_manual_ryu_room(tmp_path):
+    paid = load("paid_direct")
+    ryu = {"talkroom_id": "18211957", "buyer": "Ryu0820119"}
+    other = {"talkroom_id": "18250352", "buyer": "eligible-client"}
+    args = SimpleNamespace(projects_root=tmp_path)
+
+    assert paid._paid_active_items(args, [ryu, other]) == [other]
+
+
+def test_paid_admission_excludes_permanent_manual_ryu_room(tmp_path):
+    paid = load("paid_direct")
+    ryu = {"talkroom_id": "18211957", "buyer": "Ryu0820119"}
+    args = SimpleNamespace(projects_root=tmp_path)
+
+    assert paid._admitted_paid_projects(args, [ryu]) == []
 
 
 def test_paid_admission_skips_future_timed_retry_for_actionable_project(tmp_path):

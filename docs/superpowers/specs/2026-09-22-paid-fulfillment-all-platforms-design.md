@@ -764,6 +764,23 @@ formal delivery.
 9. Prove Local and Cloud host adapters use the same item identities, leases, receipts,
    and replay fences before enabling the same provider on two hosts.
 
+## Runtime Checkpoint — 2026-09-23 22:10 JST
+
+- The fresh authenticated Coconala readback for Ryu talkroom `18211957` reached a
+  fixed point at `2026-09-23T13:07:19Z`. The latest buyer identities remain
+  `222222979` and `222223030`; seller message `222245383` is newer, and no newer
+  buyer event exists. The room is still `取引中`, with formal delivery false.
+- The durable manual receipt
+  `delivery/ryu-v699-manual-send-readback.json` and the four-room official
+  readback identify `222245383` as the manual Ryu reply. No duplicate message is
+  sent for this readback.
+- The installed Paid owner had been observing Ryu because
+  `MANUAL_ONLY_TALKROOM_IDS` was empty in the source. The source fix now makes
+  `18211957` immutable manual-only at both orders observation and active-item
+  admission; the focused Paid suite passes `264` tests and `lm-loop-contract`
+  passes. This change is on the pushed source branch and is not production
+  promoted yet.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
