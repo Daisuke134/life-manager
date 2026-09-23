@@ -2943,6 +2943,26 @@ or provider session is part of this reorder.
    provider retry. If the existing apply policy cannot separate code upgrade from execution, repair that
    narrow handoff rather than deleting state. Then require the wrapper's exact reconciliation, one natural
    canary and same-SHA replay-zero before fleet rollout.
+
+   The deployment boundary is now diagnosed precisely. The shared runtime already has a safe
+   `reconcile_queued_release` contract: an opted-in loaded-idle owner is re-bound under its deployment lock,
+   keeps FIFO and occurrence identity, and does not clear an owner-scoped or claimed unknown effect. Existing
+   runtime tests cover both the allowed opted-in code-only swap and the rejection of a non-opted-in sibling.
+   Production admission readback for `life-manager-honne-ja` shows the compatible occurrence-scoped case:
+   historical claimed/unknown occurrences remain retained, while the current queued occurrence is clean and
+   the owner has no active reservation. The registry currently enables `reconcile_queued_release` only for
+   Affiliate, not for any Mobile publication owner. Therefore Mobile is `skipped_pending` because the safe
+   deployment path is not selected, not because the repair release is missing, Postiz should be retried, or
+   disk capacity is below the recorded floor.
+
+   The next implementation is deliberately one-owner and reversible: add the existing queued-release opt-in
+   only to `life-manager-honne-ja`, prove registry/contract and pending-rebind tests, merge it into a new
+   main-derived immutable release, and let the natural release reconciler load that owner without a manual
+   kick. Do not clear the retained unknown occurrences and do not opt the other Mobile owners in before the
+   canary. Acceptance requires the installed SHA readback, exact Postiz occurrence reconciliation, one natural
+   business terminal, and a same-SHA replay-zero. Only after those receipts pass may the identical registry
+   setting roll through the remaining shared Mobile owners. Obou remains a separate atomic because its
+   pre-existing `MARKETING_PUBLICATION_LANE_FORBIDDEN` boundary is not this deployment defect.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
    exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
