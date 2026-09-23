@@ -17,6 +17,20 @@ runtime/provider readback.
   preserving the CrowdWorks wait/fence. Upwork remains blocked on approved
   provider authorization, fresh authentication, and a funded contract.
 
+### Lancers checkpoint — 2026-09-24 00:31 JST
+
+- [x] Lancers Paid natural wake returned `observed=0`, `effect=0`,
+  `readback=0`, `failed=0`, `pending=0`, `last_exit=0`; no funded contract
+  exists and no external effect was attempted.
+- [x] Focused Lancers Paid adapter/owner tests: `14 passed`; contract and doctor
+  gates remain PASS.
+- [ ] Keep production on the current immutable release until the all-platform
+  main-release gate is met; then run one Lancers canary when a funded contract
+  exists.
+- [ ] For the first funded Lancers ContractReceipt, derive the official formal
+  delivery surface from the live contract DOM/API, add a failing test first,
+  implement one idempotent delivery/readback path, and verify replay-zero.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

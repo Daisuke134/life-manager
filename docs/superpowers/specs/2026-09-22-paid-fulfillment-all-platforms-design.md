@@ -75,6 +75,20 @@ completion criteria.
   remains gated by provider authorization, fresh authentication, and a funded
   contract; its retired browser owners stay disabled.
 
+### Runtime checkpoint — 2026-09-24 00:31 JST
+
+- Lancers completed another natural Paid wake on the installed release with
+  `observed=0`, `actionable=0`, `effect=0`, `readback=0`, `failed=0`, and
+  `pending=0`; the owner returned `loaded-idle`/`last_exit=0`. This is an
+  honest no-contract result, not a fabricated delivery.
+- The Lancers source boundary remains green: the focused Paid adapter/owner
+  suite is `14 passed`; `lm-loop-contract` and `lm-loop doctor` are also green.
+  Production still points to the older immutable release, so promotion waits
+  for the single all-platform main-release gate.
+- The next Lancers implementation cursor is the first real funded ContractReceipt:
+  inspect its official delivery surface, then add the smallest tested formal
+  delivery/readback path. No guessed endpoint or blind delivery is permitted.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct
