@@ -90,6 +90,21 @@ formal delivery remained OFF. The project ledger is reconciled with
 manual 18223833 effect. No client is replayed, and Ryu's site-specific wording
 is not copied to other rooms.
 
+### Operator checkpoint — 2026-09-23 21:20 JST
+
+Ryu's latest direct revision remains closed by the exact seller message
+`js-talkroomMessage-222245383`; no newer buyer event or resend was observed, so
+the permanent manual fence is unchanged. `hf-gig-paid-direct` was kickstarted
+through `lm-loop start` and immediately read back as `loaded-running`,
+`last_exit=0`, `admission_effect_unknown=false`, with installed/event SHA
+`cbc9cf42309f023b20db247d60c6892e672b106b`. This is a lifecycle/readiness
+check, not a new client send. The cursor remains CrowdWorks: its Paid owner is
+already `loaded-running` but still `effect_status=unknown` and therefore stays
+fenced; no restart or duplicate provider effect was attempted. Lancers has no
+current funded Paid candidate and its Paid owner is likewise fenced. The next
+safe engineering action is occurrence-scoped CrowdWorks reconciliation after
+the shared source fix is promoted; no fence is cleared owner-wide.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
