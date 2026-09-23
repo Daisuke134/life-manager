@@ -883,6 +883,23 @@ provider-grounded contract/detail fixture followed by the real message/form or
 delivery flow and official readback; no speculative effect is enabled while
 the authenticated inventory is empty.
 
+## Runtime Checkpoint — 2026-09-23 22:36 JST
+
+- The latest installed Coconala Paid wake completed `pass`/exit `0` at
+  `2026-09-23T13:33:55Z`: `observed=4`, `actionable=0`, `effect=0`,
+  `readback=3`, `failed=0`, `pending=0`. Ryu `18211957` is still
+  `reserved_for_owner`; Chii and both NPO rooms remain `awaiting_buyer`.
+- The local official talkroom snapshot has no buyer event newer than seller
+  message `js-talkroomMessage-222245383`; therefore no manual Ryu resend is
+  permitted. Ryu remains a permanent manual-only exception.
+- `hf-gig-paid-direct` readback is `loaded-idle`, `desired_mode=scheduled`,
+  with installed release `cbc9cf42309f023b20db247d60c6892e672b106b` and no
+  admission fence. Coconala is left running while the cursor advances.
+- The next cursor is CrowdWorks. Its owner is scheduled but still fenced by
+  the exact historical `admission_effect_unknown` occurrence; no duplicate
+  delivery or fence-clearing guess is allowed. Lancers remains authenticated
+  and contract-empty on the latest official sync.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
