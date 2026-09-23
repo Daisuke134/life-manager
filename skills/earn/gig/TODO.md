@@ -1,5 +1,27 @@
 # Gig revenue program — current execution SSOT
 
+## Current checkpoint — 2026-09-23
+
+This checkpoint supersedes older prose below when it conflicts with the latest
+runtime/provider readback.
+
+- Ryu `18211957` is the only permanent manual exception. The latest correction was
+  sent once with formal delivery OFF and officially read back; reopen only for a
+  genuinely newer buyer event.
+- Chii `18180857` is complete for the required campaign and is buyer-waiting. The
+  required 300 consists of 12 previously verified sends plus 288 exact-readback
+  sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook
+  was sent/read back in Coconala with formal delivery OFF. A stale intermediate
+  `delivery/paid-remote-result.json` reported 20/300 and must not reopen the item.
+- Before the answered-feedback stop fix reached production, the direct ledger also
+  recorded 24 extra sends on 2026-09-22. Preserve those immutable effects as an
+  incident; do not resend, undo, or count them as remaining work. The latest queue
+  readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
+  the fix. The latest official inbox readback supports 0 eligible positive replies
+  and 1 ineligible reply.
+- The next production cursor is the CrowdWorks occurrence-by-occurrence
+  reconciliation and one funded-contract canary, followed by Lancers and Upwork.
+
 This file contains only current truth and remaining work. Completed incident detail is preserved in Git
 history through commit `e2b30b8e10`; it must not be copied back into the active TODO. Evidence lives in
 durable runtime ledgers and receipts, not in duplicated historical checklists.

@@ -53,15 +53,37 @@ and is not proof that the automated Paid owner works.
 
 ### Coconala
 
-At the planning readback, the active order inventory contained four talkrooms:
-Ryu `18211957`, two orders for the same NPO (`18250352`, `18223833`), and Chii
-`18180857`. The original `admission_effect_unknown` occurrence was reconciled and the
-Ryu fence plus one-project-per-wake release reached production. A later Chii wake sent
-to a TikTok recipient whose earlier `sent` row already existed under a different
-effect key. `hf-gig-paid-direct` is therefore disabled and unloaded until recipient
-identity, not only effect-key identity, is enforced atomically at the transport
-boundary. `hf-gig-reply-detector` is a separate observation/pre-contract owner and
-must not acquire post-payment fulfillment authority.
+The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
+`18180857`, and the two NPO rooms `18223833` and `18250352`. `hf-gig-paid-direct`
+is loaded from the immutable current-main release and its latest official queue
+readback is terminal with `effect=0`: Ryu is `reserved_for_owner` and the other
+three rooms are `awaiting_buyer`.
+
+Ryu is a permanent manual exception. The automated owner may observe it for
+reconciliation but may never create work, reply, attach a file, or invoke formal
+delivery. The latest manual correction was sent once with formal delivery OFF and
+read back in the official talkroom; a newer buyer event is required before any
+further action.
+
+Chii is **not** an open work item. The required TikTok campaign was satisfied by
+12 previously verified sends plus 288 exact-readback sends on 2026-09-15. The
+official Sheet has 300 unique rows, and the 300-row workbook/report was sent once
+to talkroom `18180857` and read back with formal delivery OFF. The direct ledger
+also records 24 additional sends on 2026-09-22 before the stop fix was deployed;
+these are immutable incident effects, not missing work, and must not be undone or
+replayed. The stale partial file
+`projects/18180857/delivery/paid-remote-result.json` (20/300) is an intermediate
+readback and must not reopen the client. The latest official TikTok inbox readback
+supports 0 eligible positive replies and 1 ineligible reply; older intermediate
+counts are not completion evidence. Chii remains `awaiting_buyer`; no recipient,
+report, or formal-delivery message may be resent.
+
+Release `37e1d582f1` (#5787) added the semantic answered-feedback wait, and
+`4c6b1dc8a5` (#5788) fixed the first-cycle fail-closed state. Since the fix, the
+Chii ledger has no new rows and the natural Coconala wake is `effect=0`. This is
+why Chii is handled by the loop normally but is now closed, while only Ryu stays
+manual. `hf-gig-reply-detector` remains a separate observation/pre-contract owner
+and cannot acquire post-payment fulfillment authority.
 
 ### CrowdWorks
 
@@ -240,23 +262,26 @@ formal delivery.
 ## Execution Order
 
 1. Keep Ryu manual forever; process every new Ryu revision directly and verify it.
-2. Add the durable Coconala manual-owner fence and the Ryu regression fixture.
-3. Reconcile Coconala's exact `effect_unknown`; do not clear it by owner-wide guess.
-4. Audit Chii and both NPO rooms, manually repair any imminent incomplete result, and
-   select one non-Ryu loop canary.
-5. Ship Coconala source through focused tests, contract gate, PR/merge, immutable
-   release, targeted apply, natural canary, official readback, and replay-zero.
-6. Admit every remaining eligible Coconala paid room while Ryu remains excluded.
-7. Resolve CrowdWorks occurrences, close funded contracts one at a time, and prove a
-   natural Paid canary.
-8. Resolve Lancers occurrences, close contracts one at a time, and prove a natural
-   Paid canary without disturbing Browser or Work Sync.
-9. Inventory and register Upwork Paid ownership, then prove one funded live canary.
-10. Move only the proven request map, quality gate, receipt vocabulary, and state
-    transitions into the shared marketplace kernel; keep DOM/API behavior in provider
-    adapters.
-11. Prove Local and Cloud host adapters use the same item identities, leases, receipts,
-    and replay fences before enabling the same provider on two hosts.
+2. Keep Chii closed and buyer-waiting. Never resend its recipients, workbook/report,
+   or formal delivery; the 24 pre-fix overrun rows remain incident evidence only.
+3. Keep the two NPO Coconala rooms independently represented. Reconcile any exact
+   `effect_unknown` occurrence by official provider readback before retrying it; do
+   not clear a fence by owner-wide guess.
+4. Finish the Coconala fleet gates (natural wake, replay-zero, no-starvation and
+   self-heal) while preserving the Ryu fence and Chii wait state.
+5. Continue with CrowdWorks: the dedicated Browser owner is merged in current main
+   and its read-only inventory shows five funded contracts. Reconcile the existing
+   Application/Paid/Reply/Report occurrences one by one, then canary contract
+   `63712784` through full context, correct work, buyer-visible submission, formal
+   delivery, official readback, and replay-zero.
+6. Resolve Lancers occurrences, implement and prove the Paid mutation path, then
+   close contracts one at a time without disturbing Browser or Work Sync.
+7. Inventory and register Upwork Paid ownership, then prove one funded live canary.
+8. Move only the proven request map, quality gate, receipt vocabulary, and state
+   transitions into the shared marketplace kernel; keep DOM/API behavior in provider
+   adapters.
+9. Prove Local and Cloud host adapters use the same item identities, leases, receipts,
+   and replay fences before enabling the same provider on two hosts.
 
 ## Production Promotion Contract
 
