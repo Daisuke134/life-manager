@@ -92,6 +92,17 @@ runtime/provider readback.
 - [ ] Production promotion and funded live canaries remain open. Tests are
   source evidence only and must not be reported as provider sends.
 
+### Runtime checkpoint — 2026-09-24 00:50
+
+- [x] Upwork authorization/delivery/transport/offer-gate suite: `27 passed`.
+  Current live gate remains `API_INELIGIBLE` with browser/API automation
+  disabled, CDP `9233` disabled, and zero funded contracts; no owner or send
+  was created.
+- [ ] Remaining end-state gates are explicit: Coconala production promotion;
+  the one historical CrowdWorks official reconciliation; first funded Lancers
+  formal-delivery canary; and approved Upwork authorization plus a funded
+  contract. Keep all loops fail-closed until their provider evidence exists.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message

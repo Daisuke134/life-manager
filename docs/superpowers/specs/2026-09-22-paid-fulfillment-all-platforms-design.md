@@ -164,6 +164,20 @@ completion criteria.
   CrowdWorks and Lancers, while production promotion and live funded canaries
   remain open. Do not infer a send from these tests.
 
+### Runtime checkpoint — 2026-09-24 00:50 JST
+
+- Upwork authorization, delivery, transport, and offer-gate tests pass
+  `27 tests`. The live authorization evidence still says `API_INELIGIBLE`,
+  browser automation denied, CDP `9233` disabled, and zero funded contracts;
+  no `upwork-revenue-paid` owner or provider effect is created.
+- The source gates across the four requested providers are now exercised, but
+  the user outcome is not complete: Coconala production promotion, CrowdWorks'
+  historical official reconciliation, Lancers' first funded formal-delivery
+  canary, and Upwork authorization/funded-contract prerequisites remain open.
+- Keep all enabled loops scheduled and fail closed at these exact boundaries;
+  do not activate an unapproved Upwork browser/API path or claim a test as a
+  client submission.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct
