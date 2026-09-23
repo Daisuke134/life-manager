@@ -1806,3 +1806,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the item waiting: its required LINE/external-form actions are not an admissible provider effect;
   send only after the buyer supplies permitted material or changes the scope inside CrowdWorks.
 - [ ] Do not formal-deliver this item from the readable document alone; retain the quality gate and replay fence.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:36 JST
+
+- [x] Verify all four paid owners are enabled and scheduled; latest natural
+  wakes for CrowdWorks and Lancers ended `pass` with no provider effect.
+- [x] Coconala remains stable after headroom recovery (`observed=4`,
+  `effect=0`, `readback=3`, `pending=0`); Ryu stays manual-only and is not
+  replayed by the loop.
+- [x] CrowdWorks remains `observed=5`, `effect=0`, `readback=4`, `pending=1`;
+  only `63568785` is waiting for admissible buyer material.
+- [x] Lancers remains `observed=0`, `effect=0`, `pending=0`; no funded contract
+  exists, so the loop correctly performs no submission.
+- [ ] Obtain the first admissible funded-provider canary (official receipt plus
+  replay-zero readback) before production promotion; do not manufacture one.

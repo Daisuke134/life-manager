@@ -1333,3 +1333,23 @@ The objective is complete only when all of the following are proven:
 - No duplicate question or formal delivery was sent. The Paid snapshot remains
   `observed=5`, `effect=0`, `readback=4`, `pending=1`, with `63568785` waiting
   for permitted buyer-provided material or an admissible on-platform scope.
+
+## Runtime Cursor — 2026-09-24 02:36 JST
+
+- All paid owners are enabled on their existing five-minute schedule and were
+  read back as `loaded-idle` or `loaded-running` with no current blocker:
+  Coconala (`hf-gig-paid-direct`), CrowdWorks (`crowdworks-revenue-paid`),
+  Lancers (`lancers-revenue-paid`), and Mercor (`mercor-revenue-paid`).
+- CrowdWorks completed two natural wakes without a provider effect. The latest
+  official snapshot remains `observed=5`, `actionable=1`, `effect=0`,
+  `readback=4`, `failed=0`, `pending=1`; contract `63568785` is still waiting
+  for permitted buyer material. No duplicate question or formal delivery was
+  sent.
+- Lancers completed a natural Paid wake with `observed=0`, `actionable=0`,
+  `effect=0`, `readback=0`, `failed=0`, `pending=0`; its authenticated
+  inventory still contains no funded contract, so no provider mutation is
+  legitimate.
+- Coconala remains `observed=4`, `actionable=0`, `effect=0`, `readback=3`,
+  `pending=0`; Ryu `18211957` is reserved for the already-completed manual
+  delivery and is not eligible for loop replay. The next cursor is the first
+  admissible buyer-material or funded-contract event, not a resend.
