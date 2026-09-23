@@ -2,6 +2,7 @@
 """Mac-local Affiliate wake and append-only receipts."""
 
 import argparse
+import errno
 import fcntl
 import gzip
 import hashlib
@@ -114,7 +115,13 @@ def append(path, value):
 def rotate_tool_attempt_receipts(path, *, max_bytes=32 * 1024 * 1024,
                                  recent_no_effect_bytes=8 * 1024 * 1024,
                                  keep_archives=4):
-    result = {"archived_rows": 0, "protected_rows": 0, "active_rows": 0}
+    result = {
+        "archived_rows": 0,
+        "compacted_rows": 0,
+        "protected_rows": 0,
+        "active_rows": 0,
+        "archive_status": "not_needed",
+    }
     if not path.is_file() or path.stat().st_size <= max_bytes:
         return result
     lines = path.read_bytes().splitlines(keepends=True)
@@ -149,29 +156,42 @@ def rotate_tool_attempt_receipts(path, *, max_bytes=32 * 1024 * 1024,
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     archive = path.with_name(f"tool-attempt-receipts.archive-{stamp}.jsonl.gz")
-    compressed = gzip.compress(b"".join(archived), mtime=0)
     archive_tmp = archive.with_name(f".{archive.name}.{os.getpid()}.tmp")
     active_tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
-        with archive_tmp.open("xb") as stream:
-            os.chmod(archive_tmp, 0o600)
-            stream.write(compressed)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(archive_tmp, archive)
         with active_tmp.open("xb") as stream:
             os.chmod(active_tmp, 0o600)
-            stream.write(b"".join(active))
+            for line in active:
+                stream.write(line)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(active_tmp, path)
     finally:
-        archive_tmp.unlink(missing_ok=True)
         active_tmp.unlink(missing_ok=True)
+    result["compacted_rows"] = len(archived)
+
+    try:
+        with archive_tmp.open("xb") as stream:
+            os.chmod(archive_tmp, 0o600)
+            with gzip.GzipFile(fileobj=stream, mode="wb", mtime=0) as compressed:
+                for line in archived:
+                    compressed.write(line)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(archive_tmp, archive)
+    except OSError as error:
+        result["archive_status"] = (
+            "skipped_enospc" if error.errno == errno.ENOSPC else "skipped_os_error"
+        )
+        result["archive_errno"] = error.errno
+    else:
+        result["archive_status"] = "archived"
+        result["archived_rows"] = len(archived)
+    finally:
+        archive_tmp.unlink(missing_ok=True)
     archives = sorted(path.parent.glob("tool-attempt-receipts.archive-*.jsonl.gz"))
     for old in archives[:-max(0, keep_archives)] if keep_archives else archives:
         old.unlink()
-    result["archived_rows"] = len(archived)
     return result
 
 
