@@ -2716,16 +2716,46 @@ integration, main-derived immutable release selection, one natural publication a
 public readback, then same-SHA replay-zero. Affiliate revenue remains zero until attributable
 conversion and payment receipts prove otherwise.
 
+That candidate passes repository CI in PR #5792 and merges as
+`89323b5fb6d017330d06cd69d153fbc9ae3c2db4`. The automatic release reconciler cuts and selects
+immutable release `20260923T113915-89323b5f`. Its first deterministic reconcile observes a transient
+`control_busy` refusal; the later natural retry installs the exact SHA without manual apply, restart or
+publisher action. Natural Affiliate run `18d7d3cb53059c80-82182` reaches owner terminal `pass` on the
+exact installed SHA and automatically creates the state-scoped sparse checkout. This proves that the
+immutable-release `.git` failure is repaired, but it does not prove publication: the checkout creates
+article commit `509a2da20a9036f06c285e08d9ec562111bcc6b5`, then GitHub correctly rejects the publisher's
+legacy direct update of protected `main` with `GH006: Changes must be made through a pull request`.
+The official remote remains at `89323b5f...`, the external job remains `EFFECT_STARTED`, the receipt
+is not `DELIVERED` or `LIVE`, and revenue remains `NO_TRANSACTIONS`. An outer owner `pass` therefore
+does not close the inner publication boundary.
+
+Candidate `9c63857c18` on branch `fix/affiliate-protected-publisher-pr-20260923` implements the next
+smallest repair. For a plain GitHub HTTPS origin it never pushes the target branch directly. It uses a
+content-hash-derived publication branch, creates or reuses one exact PR, enables GitHub auto-merge
+with exact head-SHA matching, verifies the merge commit and target-branch ancestry, then preserves the
+existing provider readback gate. A crash before branch push, PR creation, auto-merge, journal verify,
+or public readback resumes the same unresolved target instead of creating a blind duplicate. The
+managed checkout accepts only one clean target-only publication commit when `main` has advanced or
+diverged, which lets the already-created production commit recover after the repair itself merges;
+unrelated, dirty or multi-commit divergence remains fail-closed. Focused tests pass 5/5, the full
+Affiliate suite passes 214/214, `py_compile` and `diff --check` pass. Fresh read-only review is in
+progress, so this candidate is pushed but not yet integration- or production-accepted. The current
+cursor is review, PR/CI/main integration, automatic immutable release selection, recovery of the exact
+unresolved publication through the PR, official public readback, then same-SHA replay-zero.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
    reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
    drain and the first admitted same-SHA natural terminal are complete. The isolated
    `revenue_cli links` provider-contract fix, natural same-SHA terminal and replay-zero are complete on
-   immutable release `20260923T095630-3e5ae276`. The managed clean publisher candidate is implemented,
-   tested, reviewed and pushed as `0fe8771dec`; merge it, load the resulting immutable release and prove
-   natural official publication readback plus replay-zero. Then continue unavailable owned-visit
-   analytics, transient Impact observation, publication
+   immutable release `20260923T095630-3e5ae276`. The managed clean publisher repair is merged and
+   loaded on `20260923T113915-89323b5f`; its natural run proves checkout provisioning and exposes the
+   protected-branch direct-push defect without a confirmed remote effect. Candidate `9c63857c18`
+   replaces that direct push with an idempotent PR/auto-merge lifecycle and is under fresh review.
+   Integrate it, let the natural owner resume the exact unresolved publication, and prove official
+   public readback plus same-SHA replay-zero. Then continue unavailable owned-visit analytics,
+   transient Impact observation, publication
    timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
