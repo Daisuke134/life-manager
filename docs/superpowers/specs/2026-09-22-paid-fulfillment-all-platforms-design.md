@@ -40,10 +40,12 @@ completion criteria.
 
 1. **Client layer:** the requested work was performed, sent through the provider,
    and read back officially. Chii satisfies this layer for its current buyer
-   event. Ryu's latest direct revision was sent through seller message
+   event. Ryu's previous direct revision was sent through seller message
    `js-talkroomMessage-222220999` with formal delivery OFF and read back in the
-   official talkroom; Ryu is now waiting for a genuinely newer buyer event. No
-   duplicate send is allowed for the completed cycle.
+   official talkroom, but the room has since reopened on buyer events
+   `js-talkroomMessage-222222979` and `js-talkroomMessage-222223030`. One new
+   manual reply and its official readback remain open; no duplicate send is
+   allowed for either the previous or current cycle.
 2. **System layer:** the loop can safely do the same for the next eligible client,
    including admission, effect fencing, official readback, crash recovery, and
    replay-zero. Coconala's client layer is largely closed, but its system-layer
@@ -147,6 +149,10 @@ A fresh authenticated Coconala browser reload of talkroom `18211957` at
   options disappear; this is a persistence/merge defect to fix and verify.
 - `js-talkroomMessage-222218678` (10:29): asks why the shown content is present
   in WEB予約; attachments `IMG_6434.png` and `IMG_6435.png`.
+- `js-talkroomMessage-222222979` (11:53): repeats the five paid options and
+  requires them to be removed from normal options and configurable per girl.
+- `js-talkroomMessage-222223030` (11:53): asks whether the WEB予約 wording can
+  be changed.
 
 The local `source/talkroom/messages.jsonl` snapshot was older (mtime
 2026-09-22 20:34 JST), so the authenticated provider DOM was the authority for
@@ -162,13 +168,15 @@ no fixed people limit in the current data model; attendance rows are added from
 the roster.
 
 Deployment and browser readback are recorded under project `18211957` in
-`delivery/manual-emergency-v698-readback.json` and
-`delivery/ryu-v697-manual-send-readback.json`. The direct seller message was
-sent once with formal delivery OFF and no Paid-loop effect; official Coconala
-readback is `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST. Ryu is now
-buyer-waiting for a genuinely newer event and remains a permanent manual
-exception; the loop must not create work, reply, attach, or invoke formal
-delivery for Ryu.
+`delivery/manual-emergency-v698-readback.json`,
+`delivery/ryu-v697-manual-send-readback.json`, and the current deployment
+receipt `delivery/current-cycle-v699-deploy-readback.json`. The previous direct
+seller message was sent once with formal delivery OFF and no Paid-loop effect;
+official Coconala readback is `js-talkroomMessage-222220999` at 2026-09-23
+11:15 JST. A fresh official readback now shows buyer events
+`js-talkroomMessage-222222979` and `js-talkroomMessage-222223030` after that
+reply. The current Ryu cycle is reopened and awaits one manual seller reply;
+the loop must not create work, reply, attach, or invoke formal delivery for Ryu.
 
 ### Shared-host blocker observed during loop repair
 
@@ -339,8 +347,9 @@ Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
 delivery. The prior manual correction was sent once with formal delivery OFF and
 read back in the official talkroom as seller message `js-talkroomMessage-222220999`.
-That latest revision is complete; the room is now waiting for a genuinely newer
-buyer event. The Paid loop remains permanently fenced from Ryu.
+The room then received buyer events `js-talkroomMessage-222222979` and
+`js-talkroomMessage-222223030`; the current correction is not yet sent. The Paid
+loop remains permanently fenced from Ryu.
 
 Chii is **not** an open work item. The required TikTok campaign was satisfied by
 12 previously verified sends plus 288 exact-readback sends on 2026-09-15. The
@@ -730,7 +739,10 @@ formal delivery.
 
 ## Execution Order
 
-1. Keep Ryu manual forever; process every new Ryu revision directly and verify it.
+1. Keep Ryu manual forever; process the reopened buyer events
+   `222222979` and `222223030` directly, send one ordinary seller reply with
+   formal delivery OFF, and verify its official readback before advancing to
+   the loop gate.
 2. Keep Chii closed and buyer-waiting. Never resend its recipients, workbook/report,
    or formal delivery; the 24 pre-fix overrun rows remain incident evidence only.
 3. Keep the two NPO Coconala rooms independently represented. Reconcile any exact

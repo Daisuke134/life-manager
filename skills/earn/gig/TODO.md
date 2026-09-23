@@ -5,18 +5,20 @@
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
 
-- Ryu `18211957` is the only permanent manual exception. The five newer official
-  buyer events (`222215345`, `222215354`, `222218450`, `222218603`, `222218678`)
-  were handled directly. The live site and management screen now show current
-  campaign images, 12 registered profiles with no fixed people limit, normal
-  option `写真撮影1枚〜`, the five requested paid options in order/prices, a
-  preserving paid-option save/readback, and a versioned WEB予約 management
-  preview without the public age gate. Public age verification remains enabled.
-  The ordinary seller reply was sent once with formal delivery OFF and read back
-  officially as `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST;
-  evidence is `projects/18211957/delivery/ryu-v697-manual-send-readback.json`.
-  Ryu is now buyer-waiting; the loop remains prohibited from creating, replying,
-  attaching, or formally delivering for Ryu.
+- Ryu `18211957` is the only permanent manual exception. The deployed release
+  `manual-complete-v699` and official browser readback show current campaign
+  image visibility, 12 registered profiles with no fixed people limit, normal
+  options limited to `即尺`/`パンティ持ち帰り`, the five requested paid options
+  in order/prices, per-cast paid-option persistence, and editable WEB予約 copy
+  with a direct management preview. Public age verification remains enabled.
+  The previous seller reply `js-talkroomMessage-222220999` was read back with
+  formal delivery OFF, but the official room now has two newer buyer events:
+  `222222979` (paid-option requirements/persistence) and `222223030` (WEB予約
+  wording). The current cycle is therefore reopened and **not yet replied to**;
+  the next action is one manual seller reply after a fresh pre-send readback.
+  The loop remains prohibited from creating work, replying, attaching, or
+  formally delivering for Ryu. Deployment evidence is
+  `projects/18211957/delivery/current-cycle-v699-deploy-readback.json`.
 - Coconala schedule extraction is repaired and promoted. PR `#5798` remains the
   parser fix; the subsequent admission-cleanup PR `#5803` is merged at
   `51e7d9c0ba460e8f2486a02112528a81357dc5e1`, and immutable release
@@ -264,7 +266,12 @@ runtime/provider readback.
 
 ## Remaining work — outcome order
 
-1. **Finish the Coconala natural-wake gate on the repaired release.** The exact
+1. **Manually finish the reopened Ryu cycle, then finish the Coconala natural-wake gate.**
+   Re-read the room immediately before sending, map events `222222979` and
+   `222223030` to the already deployed v699 result, send one ordinary seller
+   message with formal delivery OFF, and read back its exact official message
+   ID. Do not press formal delivery and do not let the Paid loop touch Ryu.
+   After that manual client gate, finish the Coconala natural-wake gate on the repaired release. The exact
    old fence is resolved with an effect-zero official receipt. Release
    `20260923T174546-35e66d24` is target-installed and its loaded argv is verified.
    The first new natural run acquired admission with `effect=0` but currently
