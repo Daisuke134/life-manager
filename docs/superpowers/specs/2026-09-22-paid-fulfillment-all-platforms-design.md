@@ -199,11 +199,13 @@ the roster.
 Deployment and browser readback are recorded under project `18211957` in
 `delivery/manual-emergency-v698-readback.json` and
 `delivery/ryu-v697-manual-send-readback.json`. The direct seller message was
-sent once with formal delivery OFF and no Paid-loop effect; official Coconala
-readback is `js-talkroomMessage-222220999` at 2026-09-23 11:15 JST. Ryu is now
-buyer-waiting for a genuinely newer event and remains a permanent manual
-exception; the loop must not create work, reply, attach, or invoke formal
-delivery for Ryu.
+sent once with formal delivery OFF and no Paid-loop effect; the earlier cycle's
+official Coconala readback is `js-talkroomMessage-222220999` at 2026-09-23
+11:15 JST. After the buyer's later 11:53 revision, the current direct seller
+readback is `js-talkroomMessage-222245383` at 18:38 JST (buyer read at 20:46).
+Ryu is now buyer-waiting for a genuinely newer event and remains a permanent
+manual exception; the loop must not create work, reply, attach, or invoke
+formal delivery for Ryu.
 
 ### Shared-host blocker observed during loop repair
 
