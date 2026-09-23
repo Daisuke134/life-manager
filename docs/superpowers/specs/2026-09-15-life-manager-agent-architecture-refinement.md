@@ -3192,6 +3192,130 @@ then allocate effort by verified net revenue until the system pays for itself. U
 facts, not recurring goals. Life Manager assigns and pursues goals proactively and interrupts a person
 only for a rare typed gate that the system cannot safely complete itself.
 
+### J4.1. Self-healing rollout — shared kernel, one-by-one acceptance
+
+Self-healing is **not** fourteen separately implemented repair agents and it is **not** Codex manually
+repairing the same loop whenever it breaks. The correct split is:
+
+- build the diagnosis, repair policy, bounded actuator, evidence, promotion and rollback machinery once;
+- give each loop only a thin manifest/provider adapter for facts that cannot be shared;
+- connect and accept loops one at a time so a failure cannot hide behind fleet-wide aggregate health.
+
+Therefore the answer to “do we do self-healing for each loop one by one?” is **no for architecture, yes
+for acceptance**. A shared kernel is implemented once. Each of the fourteen business loops is then proven
+one by one against the same kernel using a real failure, a bounded automatic repair, an official readback
+and replay-zero. A loop-specific fix becomes shared machinery only when the failure class generalizes;
+provider-specific selectors, receipts and mutation semantics remain in the adapter.
+
+```mermaid
+flowchart LR
+  A[Every wake\nstructured receipt] --> B[Shared diagnosis\nerror class + failed boundary]
+  B --> C{Known safe repair?}
+  C -- yes --> D[Bounded actuator\nexact owner + exact resource]
+  C -- no --> E[Retain evidence + fence\nno blind retry]
+  D --> F[Canary]
+  F --> G[Official provider readback]
+  G --> H[Same-SHA replay-zero]
+  H --> I[Healthy loop]
+  E --> J[Eval / repair candidate]
+  J --> K[Tests + safety + held-out eval]
+  K --> F
+  I --> L[Business eval\nrevenue / outcome]
+  L --> M[One-variable improvement candidate]
+  M --> K
+```
+
+The ideal shared kernel owns these responsibilities:
+
+| Shared once across all loops | Thin per-loop contract |
+|---|---|
+| immutable release identity, scheduling, admission, leases, timeouts and cleanup | loop owner, cadence and required resources |
+| structured event/receipt schema and evidence references | provider-specific effect key and official receipt identity |
+| typed diagnosis and retry/repair budget | safe provider readback and authoritative-absence rule |
+| exact-owner repair actions, canary, replay-zero and rollback | allowed mutation, duplicate prevention and stop conditions |
+| eval dataset, candidate isolation, held-out/safety gate and promotion | business reward: revenue, application, contract, post or health outcome |
+| portfolio allocator and cost/revenue accounting | loop-specific revenue/outcome attribution |
+
+The shared kernel never guesses an external effect, clears an unknown globally, borrows another owner’s
+browser/session, or retries an irreversible action without an official receipt or authoritative absence.
+`effect_unknown` is a diagnosis cursor: the kernel identifies the exact occurrence, reads the provider or
+validated pre-effect evidence, resolves only that occurrence, then proves replay-zero. Unknown repair logic
+does not live solely inside a blocked business entrypoint because that creates a self-deadlock; the control
+plane owns pre-entrypoint reconciliation.
+
+#### Current as-is
+
+- Observability is substantial but not complete. The registry, CLI, event stream, release SHA, admission
+  ledger, effect fence and provider receipts exist. Some boundaries still collapse causes or lack an
+  official receipt; candidate `6a4369f8db` adds bounded admission phase/error classification but is not yet
+  integrated into main/production.
+- Self-healing is partial. Disk cleanup has a verified automatic recovery path; admission lock retry,
+  rollback cleanup and queue recreation exist; Connector browser-owner validation and Affiliate exact
+  occurrence recovery are accepted source candidates. Fleet-wide automatic diagnosis → repair → canary →
+  readback → replay-zero is not yet proven.
+- Self-improvement is partial. Evals, evidence and candidate branches exist, but an autonomous
+  receipt-to-hypothesis-to-held-out/safety-to-production promotion and rollback cycle is not yet accepted.
+- Fourteen-loop health is not complete. A passing scheduler/outer process is not enough; each business loop
+  still needs current official effect/no-op evidence and replay-zero. Paid fulfillment remains exclusively
+  owned by the separate Paid workstream.
+- Cloud/phone-only operation is not complete. The Mac Mini remains the primary runtime for important browser
+  and credential paths; tenant-isolated cloud workers, hosted browser/session ownership and phone-only
+  onboarding/control are still future gates.
+
+#### Ideal to-be
+
+One phone supplies one-shot identity, preferences and unavoidable KYC/consent. Life Manager assigns goals
+proactively; users do not repeatedly define goals or babysit execution. A tenant-isolated cloud control
+plane schedules all loops, observes every boundary, automatically repairs known failure classes, creates a
+tested candidate for unknown software failures, promotes only verified improvements and rolls back harmful
+ones. Local mode remains an optional deployment of the same contracts, not a second architecture. Revenue
+and costs are attributable from provider/payment receipts, so the portfolio can fund itself and allocate
+work toward the highest verified net return.
+
+#### Remaining TODO — correct execution order
+
+1. **Finish the shared evidence boundary.** Integrate the accepted admission diagnostics, require
+   `run_id`, `owner_id`, `occurrence_id`, `release_sha`, phase, command/exit, effect, official readback,
+   evidence references, error class, retryability and next action for every wake.
+2. **Finish control-plane self-healing primitives.** Accept exact-occurrence reconciliation,
+   queue/admission recovery, disk/headroom recovery, browser-owner validation, auth/session refresh,
+   timeout/orphan cleanup and immutable-release rollback. Every actuator is exact-owner, bounded and
+   independently verifiable.
+3. **Prove the shared kernel with representative canaries.** Use at least one deterministic loop, one agent
+   loop, one browser/provider-write loop and one publish loop. Inject or retain a real failure, let Life
+   Manager diagnose and repair it, then require official readback and replay-zero without Codex manually
+   performing the business action.
+4. **Onboard the fourteen loops one by one.** For each row in the Fourteen-Loop Remediation Matrix, define
+   only its thin manifest/provider contract, run its canary, capture official effect or truthful no-op, then
+   replay on the same SHA with zero duplicate effect. Do not create fourteen schedulers or repair engines.
+5. **Close current high-value broken boundaries.** Mobile/Postiz delivery and provider reconciliation;
+   Affiliate publication/funnel; Connector browser ownership and provider readback; non-Paid Coconala,
+   Lancers, CrowdWorks and Mercor Apply/Reply/Storefront. The separate owner completes all Paid fulfillment.
+6. **Run the Local completion gate.** All enabled owners are current-release, observable and either healthy
+   or in a truthful typed external/setup gate. No silent failure, generic unknown ending, visible-desktop
+   dependency, duplicate effect or unresolved stale owner remains.
+7. **Complete bounded self-improvement.** Convert receipts into eval cases, rank one-variable hypotheses,
+   create isolated candidates, run focused/held-out/safety tests, promote one canary, compare business
+   outcome, then keep or roll back automatically. X/web/GitHub learning supplies candidates, never direct
+   unreviewed production mutations.
+8. **Complete the new-loop meta-loop.** Discover an opportunity, estimate expected value/cost/human burden,
+   select or reject it, generate a thin adapter/manifest/tests, pass the same gates and register it in the
+   same CLI/registry. Prefer no-human-loop or one-time KYC/credential setup; reject recurring human labor.
+9. **Promote the same implementation to cloud.** Add tenant isolation, encrypted credential references,
+   durable queues/state, hosted browser ownership, spend caps, audit logs and immutable rollout/rollback.
+   Do not fork a separate cloud business implementation.
+10. **Expose phone-only proactive control.** Web/mobile/messaging becomes a conversational surface over the
+    cloud control plane. Onboarding captures one-shot facts and rare typed approvals; normal operation needs
+    no Mac, terminal command or repeated goal-setting.
+11. **Prove self-funding.** Attribute model/browser/platform costs and settled income per loop, allocate work
+    by verified marginal net return, retire losing experiments, and grow the best loops toward verified
+    net USD 10,000 monthly revenue. Revenue claims require contract/payment/bank receipts, not activity.
+
+This order prevents two opposite mistakes: manually perfecting all fourteen loops before the healer exists,
+and building an abstract healer without proving it on real loops. The shared kernel is built first enough to
+repair a real failure; then every new loop acceptance expands its regression/eval corpus until Life Manager,
+not Codex, performs normal recovery and improvement.
+
 ### J5. Affiliate revenue diagnosis and external harness decisions
 
 Affiliate takes too long because five different gates are serialized as though they were one result:
