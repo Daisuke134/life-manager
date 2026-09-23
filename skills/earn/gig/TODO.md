@@ -1933,3 +1933,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   Paid action and no Upwork owner/CDP exists; the denial was not overridden.
 - [ ] Continue at the next permitted CrowdWorks artifact event or funded
   Lancers contract, then obtain the official canary gates before promotion.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:35 JST
+
+- [x] Started Coconala Paid through the managed owner and verified
+  `last_exit=0`/`pass`; its scheduled `loaded-idle` state is normal and its
+  official inventory has no actionable non-Ryu room.
+- [x] Started CrowdWorks Paid through the managed owner and verified
+  `last_exit=0`/`pass`; the only pending funded item is `63568785`, which is
+  still waiting for permitted buyer material and must not be duplicated or
+  formally delivered from the external LINE/form request.
+- [ ] Continue at the first permitted CrowdWorks artifact or funded Lancers
+  contract; keep Upwork disabled until its explicit authorization, fresh
+  authentication, and funded canary exist, then promote only after official
+  receipt and replay-zero.

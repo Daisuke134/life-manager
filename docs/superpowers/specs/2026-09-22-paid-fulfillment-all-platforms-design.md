@@ -1481,3 +1481,22 @@ The objective is complete only when all of the following are proven:
   `read_payouts`; no Upwork Paid owner or CDP endpoint is created. The next
   mutation cursor remains the first permitted CrowdWorks artifact event or
   funded Lancers contract.
+
+## Runtime Cursor — 2026-09-24 03:35 JST
+
+- The requested Coconala Paid wake was started through `lm-loop start
+  hf-gig-paid-direct`; the owner read back `last_exit=0`/`pass` and returned to
+  the normal scheduled `loaded-idle` state. Its official snapshot is unchanged
+  at `observed=4`, `actionable=0`, `effect=0`, `readback=3`, `failed=0`,
+  `pending=0`; Ryu remains manual-only and was not replayed.
+- CrowdWorks Paid was started through its targeted `lm-loop` owner and read
+  back `last_exit=0`/`pass`. Its official snapshot remains
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `failed=0`,
+  `pending=1`; contract `63568785` still has the one occurrence-bound
+  permission-answer receipt and waits for permitted buyer material. No
+  duplicate message, external form/LINE action, or formal delivery was issued.
+- Lancers remains `loaded-idle`/`pass` with `observed=0`, `actionable=0`,
+  `effect=0`, `readback=0`, `failed=0`, `pending=0`; no funded contract means
+  no legitimate provider mutation. Upwork remains disabled by the explicit
+  authorization ledger. The source branch is pushed but unpromoted until the
+  funded-provider canary and replay-zero gates can be proven.
