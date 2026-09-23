@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 from pathlib import Path
 import sys
 import unittest
@@ -36,6 +37,11 @@ class LancersPaidAdapterTests(unittest.TestCase):
         source = PATH.read_text(encoding="utf-8")
         self.assertIn("work_sync.read_paid_inventory", source)
         self.assertNotIn("work_sync.read_only_inventory", source)
+
+    def test_build_wires_provider_for_funded_effects(self):
+        module = load()
+        adapter, _decide = module.build(["--account-id", "seller-1"])
+        self.assertIsNotNone(adapter.provider)
 
     def test_maps_every_contract_candidate_without_claiming_funding(self):
         module = load()
@@ -94,6 +100,92 @@ class LancersPaidAdapterTests(unittest.TestCase):
             adapter.readback({"work_id": "project:7"}),
             {"verified": False, "authoritative_absent": True},
         )
+
+    def test_funded_detail_with_verified_work_produces_one_answer_intent(self):
+        module = load()
+        quality = hashlib.sha256(b"quality").hexdigest()
+        snapshot = {
+            "ok": True,
+            "source_complete": True,
+            "contract_candidates": [{
+                "source_kind": "project", "provider_id": "7", "board_id": None,
+                "detail_path": "/work/detail/7", "funding_status": "requires_detail_readback",
+            }],
+            "boards": [],
+            "finance": {"source_complete": True},
+        }
+
+        class Provider:
+            def read_detail(self, candidate):
+                return {
+                    "provider_state": "funded", "board_id": "board-7",
+                    "buyer_event_id": "buyer-7", "buyer_context": "依頼本文",
+                    "prepared_answer": "成果物を提出します。",
+                    "correct_work_verified": True,
+                    "quality_verdict": "quality_ok", "quality_sha256": quality,
+                    "formal_delivery_required": True,
+                }
+
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1", inventory_reader=lambda: snapshot,
+            provider=Provider(),
+        )
+        row = adapter.observe_active()[0]
+        context = adapter.context(row["work_id"])
+        decision = module.decide({**row, "context": context})
+        self.assertEqual(decision["action"], "answer")
+        self.assertEqual(decision["payload"]["buyer_event_id"], "buyer-7")
+        self.assertTrue(decision["payload"]["correct_work_verified"])
+
+    def test_answer_mutation_requires_provider_receipt_and_replays_by_effect_key(self):
+        module = load()
+        snapshot = {
+            "ok": True,
+            "source_complete": True,
+            "contract_candidates": [{
+                "source_kind": "project", "provider_id": "7", "board_id": None,
+                "detail_path": "/work/detail/7", "funding_status": "requires_detail_readback",
+            }],
+            "boards": [],
+            "finance": {"source_complete": True},
+        }
+
+        class Provider:
+            def __init__(self):
+                self.sent = []
+
+            def read_detail(self, candidate):
+                return {
+                    "provider_state": "funded", "board_id": "board-7",
+                    "buyer_event_id": "buyer-7", "buyer_context": "依頼本文",
+                    "correct_work_verified": True,
+                    "quality_verdict": "quality_ok", "quality_sha256": "a" * 64,
+                }
+
+            def send_message(self, intent, detail):
+                self.sent.append((intent, detail))
+                return {"provider_receipt_id": "message-7"}
+
+            def readback(self, intent, detail):
+                return {"verified": True, "provider_receipt_id": "message-7",
+                        "observed_at": "2026-09-23T00:00:00Z"}
+
+        provider = Provider()
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1", inventory_reader=lambda: snapshot,
+            provider=provider,
+        )
+        intent = {
+            "action": "answer", "work_id": "project:7", "effect_key": "effect-7",
+            "payload": {"body": "確認しました。", "buyer_event_id": "buyer-7",
+                        "correct_work_verified": True, "quality_verdict": "quality_ok",
+                        "quality_sha256": "a" * 64},
+        }
+        adapter.mutate(intent)
+        readback = adapter.readback(intent)
+        self.assertEqual(len(provider.sent), 1)
+        self.assertTrue(readback["verified"])
+        self.assertEqual(readback["provider_receipt_id"], "message-7")
 
 
 if __name__ == "__main__":

@@ -981,6 +981,19 @@ the authenticated inventory is empty.
   official evidence remains zero active contracts/offers with API/UI
   automation disabled. No Upwork send or owner registration is created.
 
+## Implementation Checkpoint — 2026-09-23 23:21 JST
+
+- The Lancers Paid adapter now has a provider-grounded detail/message boundary
+  on the source branch: it refreshes the official contract detail, requires an
+  explicit funded state and latest buyer event, requires the correct-work and
+  independent-quality fields, sends at most one buyer-visible answer, and
+  verifies the exact official message ID. Missing detail, funding, quality, or
+  provider receipt remains a wait/fail-closed result; no Lancers effect was
+  created because the live inventory is contract-empty.
+- Focused Lancers Paid and owner-reconcile tests pass (`228 passed, 17
+  subtests`). This is source-branch evidence only; production promotion and a
+  real funded Lancers canary remain open until an official contract appears.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
