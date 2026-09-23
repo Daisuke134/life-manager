@@ -15,16 +15,35 @@ runtime/provider readback.
   passes.
 - [x] Apply the suspension state to the live `hf-gig-paid-direct` owner and
   verify no reservation for more than 80 seconds (`next_eligible_at=inf`).
-- [ ] Promote this code through an immutable release and target-apply it; read
-  back installed SHA and loaded argv before any Coconala wake.
-- [ ] Keep Ryu `18211957` manual-only; run one stable-headroom Coconala natural
-  wake, official four-room readback, and replay-zero. Do not resend Chii or the
-  NPO `18250352` room while its evidence says buyer-waiting. `18223833` had a
-  newer actionable buyer reply and was handled once manually below; do not replay
-  that send.
+- [x] Promote this code through immutable release
+  `20260923T204351-cbc9cf42`, target-apply only `hf-gig-paid-direct`, and read
+  back installed SHA plus loaded argv. Both installed and event SHA are now
+  `cbc9cf42309f023b20db247d60c6892e672b106b`; launchd is `loaded-idle` with a
+  300-second schedule. The immediate kickstart timed out at the 30-second
+  launchd-safe bound; no duplicate wake or client send was attempted.
+- [ ] Keep Ryu `18211957` manual-only; obtain one stable-headroom Coconala
+  natural wake, official four-room readback, and replay-zero. Do not resend Chii
+  or the NPO `18250352` room while its evidence says buyer-waiting.
+  `18223833` had a newer actionable buyer reply and was handled once manually
+  below; do not replay that send.
 - [ ] After Coconala closes, repair and prove CrowdWorks, Lancers, then Upwork;
   unknown-effect occurrences remain fenced and no platform is declared done
   from local artifacts alone.
+
+### Current production cursor — 2026-09-23 20:48 JST
+
+- Coconala's client layer is closed for the current buyer events. The Paid owner
+  is installed from the current immutable release and remains scheduled, but the
+  natural-wake/provider-readback gate is still open because the host is waiting
+  in the resource FIFO (`last_terminal_result=blocked`, `effect=0`).
+- The next platform is CrowdWorks. `crowdworks-revenue-paid` is deliberately
+  `loaded-idle` with `admission_effect_unknown=true`; its unresolved occurrence
+  must be reconciled by exact provider receipt or occurrence-bound no-dispatch
+  readback before any restart or retry. `crowdworks-revenue-browser` and
+  `crowdworks-revenue-reply` are separate owners and are not proof that Paid is
+  clear.
+- Lancers Paid has the same safety fence (`admission_effect_unknown=true`), so
+  it is not started or declared complete from its local `effect=0` snapshot.
 
 - Latest official Coconala readback (2026-09-23 20:35 JST) is split by client:
   Ryu `18211957` has the manual seller message

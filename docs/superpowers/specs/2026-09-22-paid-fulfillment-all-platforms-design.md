@@ -27,10 +27,15 @@ and `75` tests respectively), `git diff --check` is clean, and
 
 Live verification after applying the suspension state to `hf-gig-paid-direct`
 showed no reservation for more than 80 seconds and `next_eligible_at=inf`.
-This is an internal admission proof only; it is not a provider send or a
-Coconala completion gate. The fix still requires an immutable production release,
-installed-SHA/argv readback, one stable-headroom natural wake, official
-four-room readback, and replay-zero before the Coconala system layer is closed.
+The fix is now in immutable release `20260923T204351-cbc9cf42` (main
+`cbc9cf42309f023b20db247d60c6892e672b106b`) and the target owner is applied with
+installed/event SHA and loaded argv read back. Launchd reports `loaded-idle` and
+the owner remains on its 300-second schedule; an immediate kickstart hit the
+launchd-safe 30-second timeout, so no duplicate wake was attempted. This remains
+an internal admission/lifecycle proof only: one stable-headroom natural wake,
+official four-room readback, and replay-zero are still required before the
+Coconala system layer is closed. The execution cursor then moves to CrowdWorks;
+its Paid owner remains fenced while `admission_effect_unknown=true`.
 
 ### Latest Coconala provider readback — 2026-09-23 20:35 JST
 
