@@ -2017,3 +2017,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   page. On the first real ContractReceipt, capture that page's exact DOM/API
   control and official readback before adding any delivery mutation; do not
   guess a selector or endpoint. (https://www.lancers.jp/help/guide/lancer/offer/2)
+
+### Paid fulfillment checkpoint — 2026-09-24 04:10 JST
+
+- [x] CrowdWorks Paid remains terminal `pass`; the five funded observations
+  are unchanged: four official completed readbacks and `63568785` waiting for
+  permitted buyer material. Latest buyer event `426855154` and its one
+  permission-answer receipt remain bound; no duplicate or formal delivery.
+- [x] Fresh Lancers `ELZ-L01` two-pass official inventory is identical at
+  `4b9b5a4369effd92c35d9930ee404e34736ed511f9e2ec4418a9e73d859350b4`, with
+  14 boards, one unread non-required message, source complete, zero contract
+  candidates, zero working contracts, zero incoming offers, and zero balance.
+- [ ] Keep the next mutation cursor at CrowdWorks buyer-material arrival;
+  when a funded Lancers ContractReceipt appears, capture and verify the
+  official `完了報告` surface before implementing formal delivery.

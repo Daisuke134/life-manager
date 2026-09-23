@@ -1587,3 +1587,19 @@ The objective is complete only when all of the following are proven:
   funded contract page on which to bind that control or its readback selector.
   Keep formal delivery fail-closed until the first funded ContractReceipt
   exposes the actual DOM/API surface. Source: https://www.lancers.jp/help/guide/lancer/offer/2
+
+## Runtime Cursor — 2026-09-24 04:10 JST
+
+- The latest CrowdWorks Paid wake remains terminal `pass` with the same five
+  funded observations: four official completed readbacks and `63568785` waiting
+  on the permitted buyer artifact. Its latest buyer event remains `426855154`
+  and its one permission-answer receipt remains the only effect; no duplicate
+  answer or formal delivery was issued.
+- A fresh authenticated Lancers `ELZ-L01` two-pass inventory is identical at
+  hash `4b9b5a4369effd92c35d9930ee404e34736ed511f9e2ec4418a9e73d859350b4`:
+  logged in/source-complete, 14 boards, one unread non-required message, zero
+  contract candidates, zero working contracts, zero incoming offers, and zero
+  balance. This is a newer official readback, not a provider effect.
+- Coconala remains `observed=4/actionable=0/effect=0/readback=3/pending=0` with
+  Ryu reserved for manual ownership. The next permitted mutation remains the
+  CrowdWorks artifact event; otherwise all later-platform lanes stay fail-closed.
