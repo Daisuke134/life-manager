@@ -1006,6 +1006,21 @@ the authenticated inventory is empty.
   `scheduled`/`loaded-idle`, latest pass at `2026-09-23T14:23:23Z`, with no
   funded contract to mutate. No external send is admitted by this checkpoint.
 
+## Runtime Checkpoint — 2026-09-23 23:31 JST
+
+- A fresh lifecycle readback confirms `hf-gig-paid-direct` (Coconala) is already
+  `scheduled`/`loaded-running`, exit `0`, with its latest pass at
+  `2026-09-23T14:29:13Z`; it was not restarted and no provider effect was
+  created.
+- The active cursor is now CrowdWorks: its Paid owner remains
+  `scheduled`/`loaded-idle`, exit `0`, with one honest pending item waiting for
+  buyer-provided task detail. Four other observed items remain read back with
+  no effect. The historical unknown-effect occurrence fence remains held, so
+  no retry or duplicate send is admitted.
+- Lancers remains scheduled and healthy with no funded contract to mutate. The
+  next action is therefore the CrowdWorks pending-item/provider boundary, not
+  another Coconala restart.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
