@@ -753,6 +753,44 @@ def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
     assert durable_rows(tmp_path, "queue")[0]["sequence"] == 1
 
 
+def test_failed_durable_claim_removes_uncommitted_claim_file(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "locked-claim")
+    assert ticket is not None and reason == "ready"
+
+    real_database = admission._database
+
+    class CommitBusyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self.connection.__enter__()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is None:
+                self.connection.rollback()
+                self.connection.close()
+                raise sqlite3.OperationalError("database is locked")
+            return self.connection.__exit__(exc_type, exc_value, traceback)
+
+    def busy_database(path):
+        return CommitBusyConnection(real_database(path))
+
+    with patch.object(admission, "_database", busy_database):
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            admission.claim_durable("deterministic", "locked-claim")
+
+    assert list((tmp_path / "owners").glob("*.json")) == []
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "locked-claim", "resource_class": "deterministic",
+    }]
+
+    claim, reason = admission.claim_durable("deterministic", "locked-claim")
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+
+
 def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("deterministic", "first")

@@ -1090,6 +1090,9 @@ def claim_durable(resource_class: str, owner_id: str, *,
     if not started:
         raise RuntimeError("process identity unavailable")
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    claim: Path | None = None
+    claim_was_absent = False
+    claim_written = False
     try:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -1168,6 +1171,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
                     admission_class, priority_name, first_queued_at, int(row[0]))
                 occurrence = (coalesced_name, priority_name, first_queued_at)
             claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
+            claim_was_absent = not claim.exists()
             if occurrence is not None:
                 connection.execute(
                     "UPDATE occurrences SET state='claimed' WHERE occurrence_id=?",
@@ -1184,10 +1188,22 @@ def claim_durable(resource_class: str, owner_id: str, *,
                         "heartbeat_at": instant,
                         "heartbeat_timeout_seconds": _heartbeat_timeout_seconds(),
                         "phase": "claimed"})
+            claim_written = True
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
             return claim, "acquired"
+    except Exception:
+        # The database context rolls back on a lock/commit failure, but the
+        # claim JSON is written before that context exits.  Do not leave a
+        # phantom owner that makes the bounded retry report ``owner_busy``.
+        # Never remove a pre-existing path: a live claim is fail-closed.
+        if claim_written and claim_was_absent and claim is not None:
+            try:
+                claim.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
     finally:
         os.close(descriptor)
 
