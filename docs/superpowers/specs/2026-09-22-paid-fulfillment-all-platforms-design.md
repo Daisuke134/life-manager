@@ -1355,6 +1355,22 @@ The objective is complete only when all of the following are proven:
   delivery and is not eligible for loop replay. The next cursor is the first
   admissible buyer-material or funded-contract event, not a resend.
 
+## Runtime Cursor — 2026-09-24 02:49 JST
+
+- A requested scheduler restart/readback was completed through `lm-loop`: Coconala
+  (`hf-gig-paid-direct`) is `loaded-running`, `last_terminal_result=pass`, and
+  remains on the five-minute cadence. Its latest evidence is unchanged at
+  `observed=4`, `actionable=0`, `effect=0`, `readback=3`, `failed=0`,
+  `pending=0`; Ryu `18211957` was not replayed.
+- CrowdWorks remains enabled and its latest official snapshot is
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `failed=0`,
+  `pending=1`; `63568785` is still waiting for permitted buyer material, so
+  no external send or formal delivery was issued.
+- Lancers was started and completed a natural wake with `last_terminal_result=pass`;
+  its latest official Paid snapshot is `observed=0`, `actionable=0`,
+  `effect=0`, `readback=0`, `failed=0`, `pending=0`. No funded contract exists,
+  so no provider mutation is admissible at this cursor.
+
 ## Runtime Cursor — 2026-09-24 03:00 JST
 
 - CrowdWorks contract `63568785` was read back through the official message API

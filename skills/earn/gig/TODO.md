@@ -1838,3 +1838,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   exists, so the loop correctly performs no submission.
 - [ ] Obtain the first admissible funded-provider canary (official receipt plus
   replay-zero readback) before production promotion; do not manufacture one.
+
+### Paid fulfillment checkpoint — 2026-09-24 02:49 JST
+
+- [x] Re-started and read back Coconala Paid; it is `loaded-running`/`pass` on
+  the five-minute cadence, with `observed=4`, `effect=0`, `readback=3`, and
+  no Ryu replay.
+- [x] Started Lancers Paid and observed a natural `pass`; its official snapshot
+  is `observed=0`, `effect=0`, `readback=0`, `pending=0` because no funded
+  contract exists.
+- [x] CrowdWorks remains enabled with four official readbacks and one pending
+  buyer-material item (`63568785`); no external send or formal delivery was
+  attempted.
+- [ ] Continue at the first admissible buyer-material/funded-contract event;
+  the source branch still needs a funded-provider canary before promotion.
