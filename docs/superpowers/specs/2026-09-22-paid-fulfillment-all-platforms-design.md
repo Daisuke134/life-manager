@@ -31,6 +31,18 @@ completion criteria.
   Ryu and create no work item.
 - All other eligible paid clients ultimately belong to their provider's Paid owner.
 
+### Ownership rule in plain language
+
+“Manual” does not mean that every client is manually redone. It is a permanent
+exception fence for Ryu only: the owner may perform a direct correction there, and
+the Paid loop must never create a second effect. Chii and every other eligible
+client remain loop-owned. On each wake the loop checks the newest buyer event,
+required outcomes, duplicate/effect fences, and official provider readback. If the
+request is already satisfied or there is no newer buyer event, it performs no send
+and records an honest terminal state such as `awaiting_buyer`. A human intervenes
+only for the named Ryu exception or when a provider-specific incident is explicitly
+reconciled; Chii is not such an incident.
+
 ## Verified Current State
 
 ### Ryu manual exception
@@ -59,9 +71,12 @@ is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, whi
 contains the answered-feedback stop fix. Its latest official queue readback is
 terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
 `awaiting_buyer`.
-The last completed loop terminal is `pass`; the current read-only status snapshot is
-`loaded-idle` with a transient host FIFO/capacity wait and no provider effect. This is
-a safe idle/deferred state, not a request to send anything.
+The natural wake at `2026-09-23T00:44:29.094817+00:00` completed with
+`status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`; it
+reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO rooms as
+`awaiting_buyer`. The installed owner is now `loaded-idle`, `last_exit=0`, and
+`next_eligible_run=interval:300s`. This is a safe idle state, not a request to send
+anything.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal

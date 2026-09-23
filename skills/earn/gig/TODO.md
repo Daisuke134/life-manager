@@ -19,10 +19,14 @@ runtime/provider readback.
   readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
-- The last completed `hf-gig-paid-direct` terminal is `pass`; the current
-  read-only snapshot is `loaded-idle` with a transient host FIFO/capacity wait
-  and no provider effect. Chii is not the current work cursor and no client DM
-  is needed for this checkpoint.
+- The latest natural `hf-gig-paid-direct` wake at
+  `2026-09-23T00:44:29.094817+00:00` completed with
+  `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
+  It independently reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO
+  rooms as `awaiting_buyer`; no client DM was sent. The installed owner is
+  `loaded-idle`, `last_exit=0`, and eligible again on its normal 300-second
+  interval. Chii is not the current work cursor and no manual Chii action is
+  needed.
 - Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
   on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
   `11dcf8c6f3` adds an explicit `admission_effect_scope` registry field and enables
