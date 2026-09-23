@@ -2989,23 +2989,35 @@ or provider session is part of this reorder.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. The installed owner is now on main-derived SHA `a088a95a…`, but
    host admission still stops every wake on the exact historical occurrence
-   `affiliate-loop:18d7bd776d9c8a78-1576` (`claimed/effect_unknown=1`). The retained execute/report window
-   contains no newly-created Affiliate external job event. Its wake records a PartnerStack UI observation
-   timeout and an `AMBIGUOUS_NO_RETRY` Telegram result for a job that already existed before the occurrence;
-   that branch excludes the old ambiguous job from `pending` and performs no provider send. A separate X
-   job enters `EFFECT_STARTED/NOT_FOUND` about eleven hours later and therefore cannot prove or clear this
-   older host occurrence.
+   `affiliate-loop:18d7bd776d9c8a78-1576` (`claimed/effect_unknown=1`). The exact retained failure source is
+   runtime run `18d7ef3c86d34350-17314`, not the older PartnerStack/Telegram inference. Execute event
+   `e089725cdfdc43301aa456f4` starts it at `2026-09-23T11:20:20Z`; its private scratch retains
+   `host-admission.json` with `effect=0`, `entrypoint-result.json` with
+   `status=pre_effect_failure/effect=0`, and `.terminal-unrecorded`, but no report event. The immediate next
+   owner report `1342bb1966b13080cba42411` is the `resource_effect_unknown` deferral at
+   `2026-09-23T11:30:53Z`. The bounded window contains zero Affiliate external job events. A separate X job
+   enters `EFFECT_STARTED/NOT_FOUND` about eleven hours later and therefore cannot prove or clear this older
+   host occurrence.
 
    This is a self-healing ordering defect: `lm_loop_run.py` applies owner-scoped host admission before the
    Affiliate entrypoint runs, while the Affiliate reconciliation code lives inside that entrypoint. The
-   retained unknown therefore prevents the code capable of reconciling it from executing. Fix the boundary
-   once, not by manually editing SQLite: before any new Affiliate effect, run an exact-occurrence reconciler
-   that emits a secret-free evidence receipt and calls the shared `resolve_pre_effect_occurrence` API only
-   when the owner, occurrence, inactive lease, execute/report window, pre-existing job timestamps and zero
-   new provider mutation all match. If proof is absent or any unknown remains, the current wake must exit
-   pre-effect and create no business mutation. Never clear owner-wide state or borrow proof from the later X
-   job. Acceptance remains one natural same-SHA terminal, exact official readback and replay-zero. Only then
-   continue owned-visit, CTA, attributable conversion and payment experiments without blocking another loop.
+   retained unknown therefore prevents the code capable of reconciling it from executing. The local candidate
+   on `fix/affiliate-pre-effect-occurrence-recovery-20260923` moves Affiliate to occurrence-scoped admission,
+   validates a private non-symlinked exact marker tied to owner/occurrence/runtime run, supports the unique
+   legacy marker only when the single unknown row, dead scratch owner, execute/no-report window, immediate
+   deferral and zero external events all agree, persists a secret-free evidence receipt, and calls the shared
+   exact-occurrence resolver. It holds the current wake before business/provider work if proof is absent or
+   another unknown remains. After exact resolution it coalesces only redundant queued wake occurrences; it
+   never deletes Affiliate business jobs or guesses provider effects.
+
+   A production read-only dry-run returns `PROOF_READY` for the exact row with evidence reference
+   `affiliate-pre-effect://382b07ed4fddbdaabae2da3df87e629ccf9b4058f2aa6e2c9a3cc89c0e6fd12e`
+   and leaves SQLite unchanged. The combined Affiliate/shared runtime regression set passes 533 tests plus
+   274 subtests, and `py_compile`/`git diff --check` pass. This is a locally verified candidate, not a
+   production fix: fresh read-only review, commit/push, main integration, immutable release load, one natural
+   same-SHA terminal, exact official readback and replay-zero remain open. Never clear owner-wide state or
+   borrow proof from the later X job. Only after those receipts pass may owned-visit, CTA, attributable
+   conversion and payment experiments continue without blocking another loop.
 3. Repair Connector from the latest typed `wake_boundary_failed` evidence, then prove one natural
    registration/readback and replay-zero without a manual restart.
 
@@ -3067,9 +3079,9 @@ Affiliate takes too long because five different gates are serialized as though t
 
 | Boundary | Current evidence | Consequence | Required correction |
 |---|---|---|---|
-| Effect safety | `affiliate-loop` is installed on main-derived SHA `a088a95a…`, but exact host occurrence `affiliate-loop:18d7bd776d9c8a78-1576` remains `claimed/effect_unknown=1`. The occurrence window has zero new external job events. Its PartnerStack timeout is an observation failure; its Telegram `AMBIGUOUS_NO_RETRY` references a pre-existing job excluded from `pending`, so that branch performs no provider send. X job `f9624461...` reaches `EFFECT_STARTED/NOT_FOUND` about eleven hours later and is a separate unresolved business job. | Owner-scoped host admission runs before the Affiliate entrypoint, so the retained fence blocks the entrypoint reconciliation that could heal it. Affiliate is not fixed, and neither a later public post nor owner-wide evidence may clear the exact occurrence. | Add a fail-closed pre-effect bridge using the shared exact-occurrence API: verify the occurrence window, inactive lease, zero new provider mutation and pre-existing ambiguous-job timestamps; persist a secret-free receipt; call `resolve_pre_effect_occurrence` only for that exact row. Hold the current wake before all business effects if proof fails or another unknown remains. Then require natural same-SHA terminal, official readback and replay-zero before resuming funnel experiments. |
+| Effect safety | `affiliate-loop` is installed on main-derived SHA `a088a95a…`, but exact host occurrence `affiliate-loop:18d7bd776d9c8a78-1576` remains `claimed/effect_unknown=1`. The retained terminal-unrecorded run `18d7ef3c86d34350-17314` has an exact execute event, private `effect=0/pre_effect_failure` markers, no report, an immediate `resource_effect_unknown` deferral and zero new Affiliate external job events. X job `f9624461...` reaches `EFFECT_STARTED/NOT_FOUND` about eleven hours later and is a separate unresolved business job. | Owner-scoped host admission runs before the Affiliate entrypoint, so the retained fence blocks the entrypoint reconciliation that could heal it. Affiliate is not production-fixed, and neither a later public post nor owner-wide evidence may clear the exact occurrence. | The local fail-closed bridge now validates the unique exact/legacy proof, emits a secret-free receipt, calls `resolve_pre_effect_occurrence` only for that exact row, and holds before all business effects if proof fails or another unknown remains. Its production dry-run is `PROOF_READY` and non-mutating; 533 tests plus 274 subtests pass. Complete fresh read-only review and push, then require natural same-SHA terminal, official readback and replay-zero before resuming funnel experiments. |
 | Local liveness | 1,814 job files include 892 legacy target indexes; the old unresolved-target lookup scanned them under the lock twice and added about thirty minutes. The O(1) index/bounded-readback fix is merged and loaded in `80749f841f...`, with 239 tests + 131 subtests and the 14-loop contract passing. The next admitted natural run `18d7ef3c86d34350-17314` acquires its deterministic slot but fails before any provider effect. Its pre-effect receipt remains intact while `rotate_tool_attempt_receipts` tries to materialize a compressed archive from a 36,631,936-byte journal under low disk headroom. | Business lookup is bounded, but the observability path can still crash before the loop body and leave `.terminal-unrecorded`; an owner classified as `publish` can then re-enter a conservative effect fence even though that exact wake proves `effect=0`. | Make journal retention bounded and failure-atomic under low headroom, preserve the active file on archive/write failure, emit a structured pre-effect failure, and let normal scheduling retry. Accept only after a natural terminal and same-SHA replay-zero on the existing URL. |
-| Shared host capacity | Earlier wakes defer as `resource_capacity_busy` and `resource_database_busy`. The former is shared resource-slot admission and the latter is the admission SQLite lock; neither is a direct synonym for disk-floor failure. Generic producer admission uses a 512 MiB floor. The 1,155,780,608-byte value is a separate Writer high-water floor. The fresh shared cleanup receipt lives at `~/.local/state/life-manager/state/last-receipt.json`; it reports a safe `ULTRA` sweep, zero errors/protected deletions and zero reclaim because all five candidates are open. Safe retirement of six clean, merged, owner-proven worktrees raises observed Data-volume free space to about 1,051,832 KiB, but background/APFS use still fluctuates. | Cleanup `PASS` proves that the bounded sweep is safe; it does not prove capacity recovery. Slot/DB contention, variable disk headroom and the Affiliate journal-copy algorithm are distinct failure boundaries and must not be collapsed into one reason. | Preserve FIFO admission, reclaim only owner-proven/regenerable data, keep the generic floor truthful, and fix the journal algorithm so one 32 MiB retention threshold cannot require another whole-file copy at wake time. Never guess-delete unattributed data or repeatedly kick Affiliate. |
+| Shared host capacity | Earlier wakes defer as `resource_capacity_busy` and `resource_database_busy`. The former is shared resource-slot admission and the latter is the admission SQLite lock; neither is a direct synonym for disk-floor failure. Generic producer admission uses a 512 MiB floor. The 1,155,780,608-byte value is a separate Writer high-water floor. Four additional clean, merged, owner-proven Affiliate worktree directories are safely retired without deleting their branches or commits. The latest `ULTRA` cleanup receipt reports zero errors and zero protected deletions; fresh Data-volume readback is about 1,337,064 KiB free, above both recorded floors, though background/APFS use still fluctuates. | Capacity is currently sufficient, but cleanup `PASS` alone does not prove durable headroom. Slot/DB contention, variable disk space and the Affiliate journal-copy algorithm are distinct failure boundaries and must not be collapsed into one reason. | Preserve FIFO admission, reclaim only owner-proven/regenerable data, keep both floors truthful, and fix the journal algorithm so one 32 MiB retention threshold cannot require another whole-file copy at wake time. Never guess-delete unattributed data or repeatedly kick Affiliate. |
 | Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
 | Money funnel | Exact monetization impressions are 1,232, owned entries are 0, CTA clicks are 0, transactions are 0, and every commission state is 0. Provider cumulative clicks are 23/22 unique but `post_distribution_state=BASELINE_UNAVAILABLE` | There is no attributable conversion or money evidence; more infrastructure success does not imply commercial progress | Optimize the first broken measurable transition, impression→owned entry/CTA, then click→transaction; keep unattributed historical clicks out of the winner decision |
 
@@ -3082,13 +3094,16 @@ indefinitely. Money-producing loops target verified net USD 10,000 monthly reven
 Fundraiser use their own verified outcome units until they produce money; the portfolio allocator never
 fabricates MRR for a non-revenue outcome.
 
-The immediate ordered TODO is therefore: (1) observe the Mobile/Postiz 08:30 JST natural canary and exact
-provider readback, (2) prove its second same-SHA replay-zero and only then roll the shared contract across
-the remaining Mobile owners, (3) implement and locally verify the Affiliate exact pre-effect recovery bridge
-without touching production state, (4) repair Connector's false-positive CDP health/owner validation and
-prove a natural registration or truthful no-op plus replay-zero, (5) close the remaining non-Paid rows in
-the Fourteen-Loop Remediation Matrix, (6) pass the full Local gate, self-heal failure injection and bounded
-self-improvement promotion/rollback, and (7) promote the same immutable main-derived implementation to
+The immediate ordered TODO is therefore: (1) while the Mobile owner waits for its scheduled wake, complete
+fresh read-only review of the locally verified Affiliate exact pre-effect bridge, address any finding, then
+commit/push it without touching production state, (2) observe the Mobile/Postiz 08:30 JST natural canary and
+exact provider readback, (3) prove its second same-SHA replay-zero and only then roll the shared contract
+across the remaining Mobile owners, (4) integrate the Affiliate bridge through a main-derived immutable
+release and require a natural terminal, official readback and replay-zero before returning Affiliate to
+commercial funnel experiments, (5) repair Connector's false-positive CDP health/owner validation and prove a
+natural registration or truthful no-op plus replay-zero, (6) close the remaining non-Paid rows in the
+Fourteen-Loop Remediation Matrix, (7) pass the full Local gate, self-heal failure injection and bounded
+self-improvement promotion/rollback, and (8) promote the same immutable main-derived implementation to
 tenant-isolated cloud workers with phone-only control. Paid fulfillment remains entirely owned by the
 separate Paid workstream throughout this sequence.
 
