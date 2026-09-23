@@ -2684,15 +2684,33 @@ Affiliate owner at exact installed SHA with a new install event and no effect fe
 restart is used. Affiliate remains incomplete until a natural same-SHA terminal plus replay-zero prove
 the official report path without a new effect fence.
 
+That production acceptance now passes. Natural run `18d7cdeb5ef8bdf0-99797` reaches outer `pass` on
+exact installed/event SHA `3e5ae276...` with `effect_unknown=0`. The official PartnerStack link report
+returns HTTP 200 with 48 rows; twenty placements are safely aggregated across distinct month buckets,
+the rolling-window change keeps all 27 placement deltas unknown, and zero click transitions are
+appended. The revenue cycle advances from `REVENUE_CYCLE_FAILED` to truthful `NO_TRANSACTIONS`.
+Natural replay `18d7ceba9ee43b90-17028` also reaches outer `pass` on the same SHA with the verified link
+deduplicated, zero appended link transitions, no distribution change and no effect fence. This closes
+the team-token/report-schema repair and its replay-zero gate.
+
+The same runs expose the next deterministic Affiliate boundary. `publication.advance` fails before an
+owned Git push because the immutable release root is not a Git worktree. The old
+`AFFILIATE_LANDING_ROOT` override correctly disappeared when its external worktree was deleted, but no
+managed clean publisher root replaced it; the default still points at the self-contained immutable
+release. The next cursor is to restore a release-safe, self-healing clean publisher owner with a
+regression test, without reviving a stale ad-hoc worktree or weakening the single-target Git/effect
+fence. Owned-visit analytics remains unavailable and Impact observation remains a typed provider
+transient; neither is treated as zero revenue.
+
 The remaining order is fixed as follows:
 
 1. Finish Affiliate without manual restart. PartnerStack authentication/link readback, exact occurrence
    reconciliation, runner-pin recovery, bounded renderer recovery, acquisition/funnel decisions, FIFO
    drain and the first admitted same-SHA natural terminal are complete. The isolated
-   `revenue_cli links` provider-contract fix is merged and automatically loaded from immutable release
-   `20260923T095630-3e5ae276`. Require a natural terminal plus exact-link/no-new-effect replay-zero.
-   Then continue unavailable owned-visit analytics, transient
-   Impact observation, publication timeout/quarantine and attributable conversion/payment receipts.
+   `revenue_cli links` provider-contract fix, natural same-SHA terminal and replay-zero are complete on
+   immutable release `20260923T095630-3e5ae276`. Repair the missing managed clean publisher root, then
+   continue unavailable owned-visit analytics, transient Impact observation, publication
+   timeout/quarantine and attributable conversion/payment receipts.
    An existing public page, impressions, historical clicks or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
