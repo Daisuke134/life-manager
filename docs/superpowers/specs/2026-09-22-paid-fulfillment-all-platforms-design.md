@@ -82,7 +82,11 @@ completion criteria.
   canary exist.
 - Upwork still has no Paid owner, live CDP, OAuth2 credential, fresh authorization,
   or funded contract. The architectural owner design and provider authorization
-  gate are still required before any Upwork mutation is attempted.
+  gate are still required before any Upwork mutation is attempted. A fresh official
+  help-center read confirms that unapproved browser automation can trigger warnings,
+  restrictions, or bans; Upwork says it does not grant exceptions for interaction-
+  automating tools, and even an API key is limited to its approved use case. The
+  existing UI/browser owners therefore remain disabled and must not be re-enabled.
 
 The current execution cursor is therefore: preserve the CrowdWorks external-input
 wait without replay, keep Ryu manual-only, then finish Lancers production promotion

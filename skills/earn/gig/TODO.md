@@ -47,7 +47,9 @@ runtime/provider readback.
 - [ ] Lancers production promotion and funded canary remain open; production still
   runs the prior immutable release.
 - [ ] Upwork owner readiness remains gated on an approved design, provider
-  authorization, fresh authentication, and a funded contract.
+  authorization, fresh authentication, and a funded contract. The current official
+  help center also confirms that unapproved browser automation has no exception and
+  can trigger restrictions; do not re-enable the retired UI/browser owners.
 
 ### Runtime gate correction — 2026-09-23
 
