@@ -1203,7 +1203,9 @@ The objective is complete only when all of the following are proven:
   official legal/help pages prohibit unauthorised bots/scrapers and access
   outside its interface; an owner cannot be registered or a send fabricated
   until written permission or an approved API path, fresh authentication, and
-  a funded contract exist: https://www.upwork.com/legal and
+  a funded contract exist. The stored browser special-approval receipt expired
+  on `2026-09-22`, and no OAuth2 credential exists. Sources:
+  https://www.upwork.com/legal and
   https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly.
 
 ## Verification Checkpoint — 2026-09-24 00:03 JST
