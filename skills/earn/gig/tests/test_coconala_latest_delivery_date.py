@@ -51,6 +51,23 @@ def test_registered_schedule_event_with_quoted_label_is_observed() -> None:
     assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/30"
 
 
+def test_late_appended_old_registration_cannot_roll_back_change_event() -> None:
+    messages = [
+        {
+            "message_id": "js-talkroomMessage-221421616",
+            "side": "system",
+            "text": "納品予定日が変更されました。\n修正後納品予定日：2026/09/18",
+        },
+        {
+            "message_id": "js-talkroomMessage-220085702",
+            "side": "system",
+            "text": "納品予定日が登録されました。「納品予定日：2026/09/03」",
+        },
+    ]
+
+    assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/18"
+
+
 def test_latest_event_schedule_reaches_existing_order() -> None:
     order = {"delivery_date": "2026-09-18"}
     talkroom = {

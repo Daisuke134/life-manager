@@ -3154,9 +3154,10 @@ def first_match(pattern: str, text: str) -> str | None:
 
 
 _DELIVERY_DATE_FROM_EVENT = re.compile(
-    r"納品予定日(?:が変更されました。\s*(?:修正後)?納品予定日|"
-    r"が登録されました。\s*[「\"]?(?:納品予定日)?)"
-    r"[：:\"「]*\s*(20\d{2}/\d{2}/\d{2})"
+    r"(?:"
+    r"(?P<changed>納品予定日が変更されました。\s*(?:修正後)?納品予定日)"
+    r"|(?P<registered>納品予定日が登録されました。\s*[「\"]?(?:納品予定日)?)"
+    r")[：:\"「]*\s*(?P<date>20\d{2}/\d{2}/\d{2})"
 )
 
 
@@ -3174,18 +3175,38 @@ def delivery_date_event_present(messages: Any) -> bool:
 def latest_delivery_date_from_messages(
     messages: Any, fallback: str | None = None,
 ) -> str | None:
-    """Prefer the newest official schedule event over a historical body match."""
-    latest = fallback
+    """Prefer the newest change event over registrations and body fallbacks.
+
+    The append-only history can discover an older registration after a newer
+    change.  Event kind and the provider's message id therefore outrank the
+    physical order in the merged list.
+    """
     if not isinstance(messages, list):
-        return latest
-    for message in messages:
+        return fallback
+
+    candidates: list[tuple[str, tuple[int, Any, int], str]] = []
+    for index, message in enumerate(messages):
         if not isinstance(message, dict) or message.get("side") != "system":
             continue
         text = str(message.get("text") or "")
         matches = list(_DELIVERY_DATE_FROM_EVENT.finditer(text))
-        if matches:
-            latest = matches[-1].group(1)
-    return latest
+        if not matches:
+            continue
+        message_id = str(message.get("message_id") or "")
+        id_match = re.search(r"(\d+)$", message_id)
+        if id_match:
+            chronology = (2, int(id_match.group(1)), index)
+        else:
+            chronology = (1, str(message.get("sent_at") or ""), index)
+        for match in matches:
+            event_kind = "changed" if match.group("changed") else "registered"
+            candidates.append((event_kind, chronology, match.group("date")))
+
+    if not candidates:
+        return fallback
+    changed = [candidate for candidate in candidates if candidate[0] == "changed"]
+    selected = max(changed or candidates, key=lambda candidate: candidate[1])
+    return selected[2]
 
 
 def parse_price(text: str) -> int:
