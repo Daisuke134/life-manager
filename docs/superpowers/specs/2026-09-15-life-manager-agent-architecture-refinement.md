@@ -2838,11 +2838,17 @@ are classified by primary code, and SIGTERM/SIGINT stops further claims or effec
 tests pass 10/10, the full runner file passes 74/74, the combined runtime/host suite passes 743 tests
 plus 518 subtests, all PR checks are green and fresh read-only re-review reports SHIP. The natural
 reconciler cuts immutable release `20260923T163844-b7479c31` and installs Affiliate on that exact SHA
-without a manual apply or restart. Its first exact-SHA natural wake is running. Acceptance requires
-that run to recover and reach a truthful terminal, or to stop at typed `resource_database_busy`
-without an external effect. A later same-SHA wake must then prove replay-zero. If contention still
-prevents liveness, the next Foundation cursor is the measured owner/state index or bounded retention
-repair, not a faster cadence or an unbounded retry.
+without a manual apply or restart. Its first exact-SHA natural wake
+`18d7e3c26665e580-45843` recovers admission and reaches outer `pass`/exit 0 with
+`admission_effect_unknown=false`, proving the shared retry can make same-wake progress. It also exposes
+the next inner boundary truthfully: `publication.advance` returns `XPostError` with
+`effect_certainty=UNKNOWN`, because the X submit may have succeeded but exact timeline readback did
+not confirm it. The durable publication fence remains in cooldown and status reports
+`effect_status=unknown`; no blind repost is allowed. The next Affiliate cursor is exact authenticated
+and public X timeline reconciliation for that content/placement, resolution of only that effect job,
+then a same-SHA natural replay with no duplicate. If database contention returns and still prevents
+liveness, the next Foundation cursor is the measured owner/state index or bounded retention repair,
+not a faster cadence or an unbounded retry.
 
 The remaining order is fixed as follows:
 
@@ -2862,8 +2868,10 @@ The remaining order is fixed as follows:
    `LIVE`. PR #5797 repairs the observed PartnerStack refresh/cookie propagation race and loads exact
    release `20260923T152920-f01c612d` after safe capacity recovery. Shared admission contention then
    prevents stable acceptance, so PR #5802 adds bounded SQLite lock recovery and the natural reconciler
-   loads exact release `20260923T163844-b7479c31`. Require its current natural terminal and following
-   same-SHA replay-zero with no second delivery. If typed `resource_database_busy` still repeats,
+   loads exact release `20260923T163844-b7479c31`. Its first natural terminal proves same-wake admission
+   recovery but leaves one X publication effect unknown. Reconcile the exact X timeline/content receipt,
+   resolve only that effect job, and require a same-SHA replay-zero with no second delivery. If typed
+   `resource_database_busy` later repeats,
    repair the measured full-scan occurrence lookup/retention boundary before touching provider logic.
    Then continue unavailable owned-visit analytics,
    transient Impact observation, publication
