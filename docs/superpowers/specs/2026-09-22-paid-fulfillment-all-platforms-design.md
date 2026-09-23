@@ -1090,6 +1090,19 @@ the authenticated inventory is empty.
   inventory after provider authorization changes; source implementation must wait
   for that boundary rather than fabricate a canary.
 
+## Implementation Checkpoint — 2026-09-23 23:49 JST
+
+- Lancers mutation now recomputes the quality digest from the exact buyer context,
+  optional artifact content, and outgoing body at the provider boundary. A forged or
+  stale quality hash is rejected before `send_message`; the regression test proves
+  the provider call is not reached. The previously added verified-answer wait still
+  prevents a second answer effect while the official completion surface is unknown.
+- Lancers verification is source-complete for the currently observable boundary:
+  `427 passed, 17 subtests` across the Lancers application/Paid suites and
+  `lm-loop-contract` PASS. The branch is pushed at `1353a358ed`; production remains
+  on the older immutable release because the all-platform acceptance gate is not yet
+  satisfied.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
