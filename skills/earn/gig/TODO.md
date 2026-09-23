@@ -21,21 +21,28 @@ runtime/provider readback.
   `cbc9cf42309f023b20db247d60c6892e672b106b`; launchd is `loaded-idle` with a
   300-second schedule. The immediate kickstart timed out at the 30-second
   launchd-safe bound; no duplicate wake or client send was attempted.
-- [ ] Keep Ryu `18211957` manual-only; obtain one stable-headroom Coconala
-  natural wake, official four-room readback, and replay-zero. Do not resend Chii
-  or the NPO `18250352` room while its evidence says buyer-waiting.
-  `18223833` had a newer actionable buyer reply and was handled once manually
-  below; do not replay that send.
+- [x] Keep Ryu `18211957` manual-only and complete one installed-release
+  Coconala natural wake: at `2026-09-23T12:01:06Z` the run completed with
+  `observed=4/actionable=0/effect=0/readback=3/failed=0/pending=0`; the four
+  room decisions were read back, no client was resent, and replay-zero holds
+  for this cycle. Do not resend Chii or the NPO `18250352` room while its
+  evidence says buyer-waiting. `18223833` was handled once manually above; do
+  not replay that send.
+- [ ] Prove a stable-headroom actionable Coconala canary when an eligible buyer
+  event exists. The current no-action wake is not evidence of a client send;
+  host free space/memory pressure remains below the safe floor for inventing
+  one.
 - [ ] After Coconala closes, repair and prove CrowdWorks, Lancers, then Upwork;
   unknown-effect occurrences remain fenced and no platform is declared done
   from local artifacts alone.
 
-### Current production cursor — 2026-09-23 20:48 JST
+### Current production cursor — 2026-09-23 21:03 JST
 
 - Coconala's client layer is closed for the current buyer events. The Paid owner
-  is installed from the current immutable release and remains scheduled, but the
-  natural-wake/provider-readback gate is still open because the host is waiting
-  in the resource FIFO (`last_terminal_result=blocked`, `effect=0`).
+  is installed from the current immutable release and remains scheduled. Its
+  latest natural wake passed (`last_terminal_result=pass`, `effect=0`,
+  `pending=0`, `readback=3`); only the stable-headroom actionable canary remains
+  open. No client send or resend was performed by that wake.
 - The next platform is CrowdWorks. `crowdworks-revenue-paid` is deliberately
   `loaded-idle` with `admission_effect_unknown=true`; its unresolved occurrence
   must be reconciled by exact provider receipt or occurrence-bound no-dispatch

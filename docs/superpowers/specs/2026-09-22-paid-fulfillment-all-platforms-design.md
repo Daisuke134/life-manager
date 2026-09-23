@@ -33,9 +33,14 @@ installed/event SHA and loaded argv read back. Launchd reports `loaded-idle` and
 the owner remains on its 300-second schedule; an immediate kickstart hit the
 launchd-safe 30-second timeout, so no duplicate wake was attempted. This remains
 an internal admission/lifecycle proof only: one stable-headroom natural wake,
-official four-room readback, and replay-zero are still required before the
-Coconala system layer is closed. The execution cursor then moves to CrowdWorks;
-its Paid owner remains fenced while `admission_effect_unknown=true`.
+official four-room readback, and replay-zero were then confirmed for the
+no-action cycle: at `2026-09-23T12:01:06Z` the installed-release wake completed
+with `observed=4/actionable=0/effect=0/readback=3/failed=0/pending=0`. No client
+send or resend occurred, and replay-zero holds for this cycle. The stable-
+headroom actionable canary is still open because no eligible buyer event exists
+and current host pressure is below the safe floor for fabricating one. The
+execution cursor moves to CrowdWorks; its Paid owner remains fenced while
+`admission_effect_unknown=true`.
 
 ### CrowdWorks handoff readback — 2026-09-23 20:52 JST
 
