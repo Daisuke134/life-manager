@@ -1538,8 +1538,10 @@ evidence history only, not as current work instructions.
   `18211957`, Kokoro `18223833` and Kokoro `18250352` as four independent open rooms.
 - [x] Obtain `selected-talkroom-only` head readback for each open room; Atsugi's latest retained formal-delivery
   head is also recorded. Continue refreshing each digest independently on later wakes.
-- [ ] Fix the shared queue reducer so a newer unhandled buyer digest always overrides stale
-  `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
+- [x] Fix the shared queue reducer so a newer unhandled buyer digest always overrides stale
+  `await_buyer_feedback`; `buyer_feedback_answered_by_seller` now derives from the ordered
+  official history, and regression coverage proves a seller answer closes only the current
+  buyer feedback while a newer buyer message reopens work (Ryu-shaped contradiction).
 - [x] Route active talkrooms to independent work items and effect fences. The current Paid wake ran Ryu and
   Chii owner processes concurrently while both Kokoro rooms independently replayed buyer-wait state.
 - [x] Ryu `18211957`: latest three-message cycle covered both form destinations, grouped easy edit and profile
