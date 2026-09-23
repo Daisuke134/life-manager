@@ -40,6 +40,31 @@ runtime/provider readback.
 - The next production cursor is the CrowdWorks occurrence-by-occurrence
   reconciliation and one funded-contract canary, followed by Lancers and Upwork.
 
+## Remaining work — outcome order
+
+1. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
+   `9df3731ccb` (occurrence-scoped marketplace admission plus Coconala Paid queued
+   and reserved wake coalescing), build one immutable release, apply it, and verify a
+   natural Coconala wake with official readback and replay-zero. Do not edit the
+   admission database by hand or clear old unknown rows.
+2. **CrowdWorks first canary.** Reconcile each existing `effect_unknown` occurrence
+   against provider inventory and the durable child/effect receipts. Keep every
+   uncertain effect fenced; only a proven pre-effect/no-effect case may be closed.
+   Then run one funded contract through requirements → work → quality → delivery →
+   official readback → replay-zero, without using the historical unknown batch as
+   proof.
+3. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
+   for each funded item, including buyer revisions, acceptance and payout evidence.
+4. **Lancers.** Keep the current browser/work-sync owners running; implement the
+   missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
+   prove one canary, then complete the funded inventory and payout receipts.
+5. **Upwork.** Register a Paid owner, obtain a live authenticated contract
+   inventory, and close the same official delivery/payment/replay-zero gates. Do not
+   count historical adapters as live revenue proof.
+6. **Fleet gate.** Run the cross-platform no-starvation, crash recovery, browser
+   lease, 24-hour cadence, revision, settlement and duplicate-zero checks. Only then
+   promote the full release; Chii and Ryu are not blockers for this system work.
+
 This file contains only current truth and remaining work. Completed incident detail is preserved in Git
 history through commit `e2b30b8e10`; it must not be copied back into the active TODO. Evidence lives in
 durable runtime ledgers and receipts, not in duplicated historical checklists.
