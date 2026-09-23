@@ -3021,8 +3021,10 @@ or provider session is part of this reorder.
    and natural production gate are therefore closed. Mobile/Postiz is the primary cursor; recovered headroom
    is capacity evidence, not revenue or provider-effect evidence.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
-   manual restart or second delivery. The installed owner is now on main-derived SHA `a088a95a…`, but
-   host admission still stops every wake on the exact historical occurrence
+   manual restart or second delivery. The installed and evented owner is now on main-derived SHA
+   `1ac87e32ac26cc60b2e2b52cc2ee72ab57adb48f`, but the latest natural interval still reaches
+   `last_terminal_result=blocked`, `last_exit=75` and `effect_status=unknown`: host admission stops the
+   wake on the exact historical occurrence
    `affiliate-loop:18d7bd776d9c8a78-1576` (`claimed/effect_unknown=1`). The exact retained failure source is
    runtime run `18d7ef3c86d34350-17314`, not the older PartnerStack/Telegram inference. Execute event
    `e089725cdfdc43301aa456f4` starts it at `2026-09-23T11:20:20Z`; its private scratch retains
@@ -3087,12 +3089,16 @@ or provider session is part of this reorder.
    fast browser-open failure. This is a shared browser-foundation false-positive, not a Calendar,
    registration or Telegram defect.
 
-   After the Mobile canary and replay-zero gate, add the smallest local regression first: a 404 or a
+   While the Mobile owner waits for its natural calendar wake, the Connector source repair may proceed in
+   a separate fresh worktree because it does not mutate Mobile, Affiliate, Paid, browser-provider or runtime
+   state. Add the smallest local regression first: a 404 or a
    well-formed CDP response from the wrong registered owner must fail health with a typed port-owner/CDP
    mismatch instead of returning `ALIVE`. Make the guard and Connector consume the same validated endpoint
    and authority, preserve the single canonical browser owner, and do not route Connector through any Paid
    provider session. Merge only after focused guard/controller tests and the shared browser/runtime suites
-   pass. Let the natural release reconciler load the main-derived immutable SHA; acceptance then requires a
+   pass. Do not apply or restart Connector in production before the Mobile canary/replay-zero and Affiliate
+   integration gates finish. Then let the natural release reconciler load the main-derived immutable SHA;
+   acceptance requires a
    natural Connector wake, a Calendar/provider registration or truthful no-op receipt, exact official
    readback, and a second same-SHA replay with zero duplicate effect. Do not clear the circuit or repeatedly
    kick the owner before that evidence exists.
@@ -3127,7 +3133,7 @@ Affiliate takes too long because five different gates are serialized as though t
 
 | Boundary | Current evidence | Consequence | Required correction |
 |---|---|---|---|
-| Effect safety | `affiliate-loop` is installed on main-derived SHA `a088a95a…`, but exact host occurrence `affiliate-loop:18d7bd776d9c8a78-1576` remains `claimed/effect_unknown=1`. The retained terminal-unrecorded run `18d7ef3c86d34350-17314` has an exact execute event, private `effect=0/pre_effect_failure` markers, no report, an immediate `resource_effect_unknown` deferral and zero new Affiliate external job events. X job `f9624461...` reaches `EFFECT_STARTED/NOT_FOUND` about eleven hours later and is a separate unresolved business job. | Owner-scoped host admission runs before the Affiliate entrypoint, so the retained fence blocks the entrypoint reconciliation that could heal it. Queue/priorities are also absent while old clean wake occurrences remain, so a naïve occurrence-scope switch would stop at `occurrence_inflight`. Affiliate is not production-fixed, and neither a later public post nor owner-wide evidence may clear the exact occurrence. | Pushed source `ef4cb1a8cd` / synced branch head `bfa06f4f80` validates the unique exact/legacy proof, requires a private validated runtime journal, emits a secret-free receipt, resolves only the exact row, safely adopts the explicit current wake over same-identity clean orphan wakes, and fails closed on cross-scope/cross-identity/unknown state. Production dry-run remains exact `PROOF_READY`; final review is `ship`. Integrate only after Mobile acceptance, then require natural same-SHA terminal, official readback and replay-zero before resuming funnel experiments. |
+| Effect safety | `affiliate-loop` is installed and evented on main-derived SHA `1ac87e32ac26cc60b2e2b52cc2ee72ab57adb48f`, but exact host occurrence `affiliate-loop:18d7bd776d9c8a78-1576` remains `claimed/effect_unknown=1`. The latest natural interval remains `blocked` with exit 75. The retained terminal-unrecorded run `18d7ef3c86d34350-17314` has an exact execute event, private `effect=0/pre_effect_failure` markers, no report, an immediate `resource_effect_unknown` deferral and zero new Affiliate external job events. X job `f9624461...` reaches `EFFECT_STARTED/NOT_FOUND` about eleven hours later and is a separate unresolved business job. | Owner-scoped host admission runs before the Affiliate entrypoint, so the retained fence blocks the entrypoint reconciliation that could heal it. Queue/priorities are also absent while old clean wake occurrences remain, so a naïve occurrence-scope switch would stop at `occurrence_inflight`. Affiliate is not production-fixed, and neither a later public post nor owner-wide evidence may clear the exact occurrence. | Pushed source `ef4cb1a8cd` / synced branch head `bfa06f4f80` validates the unique exact/legacy proof, requires a private validated runtime journal, emits a secret-free receipt, resolves only the exact row, safely adopts the explicit current wake over same-identity clean orphan wakes, and fails closed on cross-scope/cross-identity/unknown state. Production dry-run remains exact `PROOF_READY`; final review is `ship`. Integrate only after Mobile acceptance, then require natural same-SHA terminal, official readback and replay-zero before resuming funnel experiments. |
 | Local liveness | 1,814 job files include 892 legacy target indexes; the old unresolved-target lookup scanned them under the lock twice and added about thirty minutes. The O(1) index/bounded-readback fix is merged and loaded in `80749f841f...`, with 239 tests + 131 subtests and the 14-loop contract passing. The next admitted natural run `18d7ef3c86d34350-17314` acquires its deterministic slot but fails before any provider effect. Its pre-effect receipt remains intact while `rotate_tool_attempt_receipts` tries to materialize a compressed archive from a 36,631,936-byte journal under low disk headroom. | Business lookup is bounded, but the observability path can still crash before the loop body and leave `.terminal-unrecorded`; an owner classified as `publish` can then re-enter a conservative effect fence even though that exact wake proves `effect=0`. | Make journal retention bounded and failure-atomic under low headroom, preserve the active file on archive/write failure, emit a structured pre-effect failure, and let normal scheduling retry. Accept only after a natural terminal and same-SHA replay-zero on the existing URL. |
 | Shared host capacity | Earlier wakes defer as `resource_capacity_busy` and `resource_database_busy`; slot admission, the SQLite lock and disk floors remain separate boundaries. Generic producers use a 512 MiB floor and Writer uses `1,155,780,608` bytes. The latest accepted natural cleanup receipt has `1,778,094,080` bytes free after its sweep. | The immediate outage and permanent source gap are closed. PR #5816 / main `1ac87e32ac…` provides exact PID/path identity, fail-closed probes, pinned no-follow deletion and truthful receipt accounting. Complete release `20260924T040401-1ac87e32` is loaded only for the cleanup owner; its launch-on-load run and following unforced interval both pass, with errors and protected deletions zero. | Keep capacity observation on the normal schedule and advance to Mobile/Postiz. If the same class recurs, the cleanup owner now observes, bounds and heals it; do not replace this with manual deletion, app/browser/Paid-session stops or a second scheduler. |
 | Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
@@ -3142,14 +3148,21 @@ indefinitely. Money-producing loops target verified net USD 10,000 monthly reven
 Fundraiser use their own verified outcome units until they produce money; the portfolio allocator never
 fabricates MRR for a non-revenue outcome.
 
+Affiliate's current verdict is intentionally split: **source repair = accepted and pushed; production
+acceptance = open; attributable revenue = USD 0; portfolio cursor = released**. This prevents an incomplete
+revenue result from being mislabeled as fixed while also preventing one safely fenced owner from serializing
+the rest of the fourteen-loop program.
+
 The immediate ordered TODO is therefore: (1) observe the Mobile/Postiz natural canary on installed
 `a088a95a…` and perform exact provider readback; the latest business event is still from old `f86bacce…`,
 the historical effect fence remains intact, and the next calendar wake is 08:30 JST, (2) prove its second
 same-SHA replay-zero and only then roll the shared contract across the remaining Mobile owners, and (3)
 integrate the already reviewed/pushed Affiliate
 bridge through a main-derived immutable release and require a natural terminal, official readback and
-replay-zero before returning Affiliate to commercial funnel experiments, (4) repair Connector's false-positive
-CDP health/owner validation and prove a natural registration or truthful no-op plus replay-zero, (5) close the
+replay-zero before returning Affiliate to commercial funnel experiments, (4) in parallel with the natural
+Mobile wait, prepare and verify Connector's local false-positive CDP health/owner repair, but hold its
+production mutation until the earlier gates finish; then prove a natural registration or truthful no-op plus
+replay-zero, (5) close the
 remaining non-Paid rows in the Fourteen-Loop Remediation Matrix, (6) pass the full Local gate, self-heal failure
 injection and bounded self-improvement promotion/rollback, and (7) promote the same immutable main-derived
 implementation to tenant-isolated cloud workers with phone-only control. The Affiliate local
