@@ -16,6 +16,7 @@ from websocket import WebSocketException, create_connection
 
 from local_loop import append_unique
 from provider_cli import atomic_write, cdp_call, read_json
+from program_registry import refresh_partnerstack_team_access
 
 
 class RevenueError(Exception):
@@ -304,6 +305,76 @@ def link_fingerprints(value):
     if parsed.scheme == "https" and parsed.hostname:
         values.update({parsed.hostname + parsed.path, parsed.path})
     return {hashlib.sha256(item.encode()).hexdigest() for item in values if item}
+
+
+def _nonnegative_count(value, label):
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise RevenueError(f"PartnerStack {label} is invalid")
+    return value
+
+
+def aggregate_link_rows(rows, candidate, secondary_grouping):
+    matches = [
+        row for row in rows
+        if isinstance(row, dict)
+        and link_fingerprints(row.get("link_path")).intersection(
+            candidate["link_fingerprints"]
+        )
+    ]
+    if not matches:
+        return {
+            "click_count": 0,
+            "unique_click_count": 0,
+            "unique_click_count_state": "OBSERVED",
+            "link_path_sha256": None,
+            "row_count": 0,
+            "aggregation_state": "NO_MATCH",
+        }
+    row_fingerprints = [link_fingerprints(row.get("link_path")) for row in matches]
+    common_fingerprints = set.intersection(*row_fingerprints)
+    if len(matches) > 1:
+        months = [row.get("click_created_at_month") for row in matches]
+        if (
+            secondary_grouping != "click_created_at_month"
+            or not common_fingerprints
+            or not all(isinstance(month, str) and month for month in months)
+            or len(set(months)) != len(months)
+        ):
+            raise RevenueError("PartnerStack link attribution is ambiguous")
+    click_count = sum(
+        _nonnegative_count(row.get("click_count"), "click count") for row in matches
+    )
+    raw_unique = [row.get("unique_click_count") for row in matches]
+    unique_valid = all(
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        for value in raw_unique
+    )
+    unique_count = sum(raw_unique) if unique_valid else None
+    return {
+        "click_count": click_count,
+        "unique_click_count": unique_count,
+        "unique_click_count_state": (
+            "OBSERVED_MONTH_BUCKET_SUM" if unique_valid and len(matches) > 1
+            else "OBSERVED" if unique_valid else "UNKNOWN"
+        ),
+        "link_path_sha256": hash_optional(matches[0].get("link_path")),
+        "row_count": len(matches),
+        "aggregation_state": (
+            "MONTH_BUCKETS_AGGREGATED" if len(matches) > 1 else "SINGLE_ROW"
+        ),
+    }
+
+
+def link_count_delta(current, previous, current_window, previous_window):
+    if previous is None:
+        return {"baseline": current, "delta": 0, "state": "BASELINE_ESTABLISHED"}
+    _nonnegative_count(previous, "previous count")
+    if current_window != previous_window:
+        return {"baseline": None, "delta": None, "state": "WINDOW_CHANGED"}
+    delta = current - previous
+    if delta < 0:
+        raise RevenueError("PartnerStack click count regressed")
+    return {"baseline": previous, "delta": delta, "state": "COMPARABLE"}
 
 
 def placement_candidates(state):
@@ -795,6 +866,11 @@ def capture_link_performance(args):
                 "https://dash.partnerstack.com/reporting/link_performance",
                 wait_until="domcontentloaded", timeout=20_000,
             )
+            auth_refresh = refresh_partnerstack_team_access(page)
+            if auth_refresh["state"] in {"AUTH_REQUIRED", "TEAM_CONTEXT_MISSING"}:
+                raise RevenueError("PartnerStack authentication is required")
+            if auth_refresh["state"] != "REFRESHED":
+                raise RevenueError("PartnerStack team context refresh failed")
             page.get_by_text(re.compile(r"^(リンク追跡レポート|Link tracking report)$")).first.wait_for(
                 timeout=15_000
             )
@@ -833,6 +909,7 @@ def capture_link_performance(args):
         raise RevenueError("PartnerStack link report is not a list")
     query = parse_qs(urlparse(report_url).query)
     window = {key: query.get(key, [None])[0] for key in ("start_date", "end_date")}
+    secondary_grouping = query.get("secondary_grouping", [None])[0]
     state = args.state.expanduser()
     previous_path = state / "provider-reports" / "partnerstack-links" / "latest.json"
     try:
@@ -840,13 +917,14 @@ def capture_link_performance(args):
     except (OSError, ValueError):
         previous = {}
     previous_counts = {
-        row["placement_id"]: row["current_click_count"]
-        for row in previous.get("placements", [])
+        row.get("placement_id"): row.get("current_click_count")
+        for row in previous.get("placements", []) if isinstance(row, dict)
+        and row.get("placement_id")
     }
     previous_unique_counts = {
-        row["placement_id"]: row.get("current_unique_click_count")
-        for row in previous.get("placements", [])
-        if row.get("placement_id")
+        row.get("placement_id"): row.get("current_unique_click_count")
+        for row in previous.get("placements", []) if isinstance(row, dict)
+        and row.get("placement_id")
     }
     candidates = [
         candidate for candidate in placement_candidates(state)
@@ -856,52 +934,53 @@ def capture_link_performance(args):
     appended = 0
     latest_transition = None
     for candidate in candidates:
-        matches = [row for row in rows if link_fingerprints(row.get("link_path")).intersection(
-            candidate["link_fingerprints"]
-        )]
-        if len(matches) > 1:
-            raise RevenueError("PartnerStack link attribution is ambiguous")
-        current = int(matches[0].get("click_count", 0)) if matches else 0
-        baseline = previous_counts.get(candidate["placement_id"], current)
-        delta = current - baseline
-        if delta < 0:
-            raise RevenueError("PartnerStack click count regressed")
-        raw_unique = matches[0].get("unique_click_count") if matches else 0
-        current_unique = (
-            raw_unique if isinstance(raw_unique, int) and not isinstance(raw_unique, bool)
-            and raw_unique >= 0 else None
+        aggregate = aggregate_link_rows(rows, candidate, secondary_grouping)
+        current = aggregate["click_count"]
+        click_delta = link_count_delta(
+            current, previous_counts.get(candidate["placement_id"]),
+            window, previous.get("window"),
         )
-        baseline_unique = previous_unique_counts.get(candidate["placement_id"])
+        baseline = click_delta["baseline"]
+        delta = click_delta["delta"]
+        current_unique = aggregate["unique_click_count"]
+        baseline_unique = None
+        unique_delta = None
+        unique_delta_state = "UNKNOWN"
         if current_unique is not None:
-            if not isinstance(baseline_unique, int) or isinstance(baseline_unique, bool):
-                baseline_unique = current_unique
-            unique_delta = current_unique - baseline_unique
-            if unique_delta < 0:
-                raise RevenueError("PartnerStack unique click count regressed")
-        else:
-            baseline_unique = None
-            unique_delta = None
-        path_hash = hash_optional(matches[0].get("link_path")) if matches else None
+            unique_result = link_count_delta(
+                current_unique,
+                previous_unique_counts.get(candidate["placement_id"]),
+                window, previous.get("window"),
+            )
+            baseline_unique = unique_result["baseline"]
+            unique_delta = unique_result["delta"]
+            unique_delta_state = unique_result["state"]
         row = {
             "provider_link_key": candidate.get("provider_link_key"),
             "placement_id": candidate["placement_id"],
             "public_url": candidate.get("public_url"),
-            "link_path_sha256": path_hash,
+            "link_path_sha256": aggregate["link_path_sha256"],
             "baseline_click_count": baseline,
             "current_click_count": current,
             "delta_click_count": delta,
+            "delta_click_count_state": click_delta["state"],
             "baseline_unique_click_count": baseline_unique,
             "current_unique_click_count": current_unique,
             "delta_unique_click_count": unique_delta,
-            "unique_click_count_state": (
-                "OBSERVED" if current_unique is not None else "UNKNOWN"
-            ),
+            "delta_unique_click_count_state": unique_delta_state,
+            "unique_click_count_state": aggregate["unique_click_count_state"],
+            "provider_row_count": aggregate["row_count"],
+            "aggregation_state": aggregate["aggregation_state"],
         }
         placements.append(row)
-        if delta > 0 and row["provider_link_key"] and path_hash:
+        if (
+            isinstance(delta, int) and delta > 0
+            and row["provider_link_key"] and row["link_path_sha256"]
+        ):
             identity = {
                 "provider": "elevenlabs", "provider_link_key": row["provider_link_key"],
-                "link_path_sha256": path_hash, "placement_id": row["placement_id"],
+                "link_path_sha256": row["link_path_sha256"],
+                "placement_id": row["placement_id"],
                 "observed_click_count": current, "window": window,
             }
             transition_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
@@ -924,6 +1003,8 @@ def capture_link_performance(args):
         "schema_version": 1, "receipt_type": "PARTNERSTACK_LINK_PERFORMANCE",
         "provider": "elevenlabs", "window": window, "placements": placements,
         "provider_row_count": len(rows), "rendered_artifact_sha256": artifact_hash,
+        "auth_refresh_state": auth_refresh["state"],
+        "auth_refresh_http": auth_refresh.get("http"),
         "appended_transitions": appended,
         "latest_transition": latest_transition,
         "observed_at": observed_at,

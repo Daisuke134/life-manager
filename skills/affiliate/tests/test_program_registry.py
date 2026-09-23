@@ -26,12 +26,39 @@ class ReadbackPage:
     def goto(self, url, **_kwargs):
         self.navigations.append(url)
 
-    def evaluate(self, _script):
+    def evaluate(self, script):
+        if "auth/token" in script:
+            return {
+                "state": "AUTH_REQUIRED",
+                "http": self.observed.get("partnership_http"),
+                "token_type": "access_team",
+            }
         return self.observed
 
     def get_by_text(self, *_args, **_kwargs):
         self.ui_reads += 1
         raise AssertionError("official readback must stop before link-form UI")
+
+
+class RefreshingReadbackPage:
+    def __init__(self):
+        self.reads = 0
+        self.refreshes = 0
+
+    def evaluate(self, script):
+        if "auth/token" in script:
+            self.refreshes += 1
+            return {"state": "REFRESHED", "http": 200, "token_type": "access_team"}
+        self.reads += 1
+        if self.reads == 1:
+            return {
+                "state": "AUTH_REQUIRED", "partnership_http": 401,
+                "ensure_http": None, "items": [],
+            }
+        return {
+            "state": "READY", "partnership_http": 200,
+            "ensure_http": 200, "items": [],
+        }
 
 
 def fake_playwright(page):
@@ -59,6 +86,18 @@ def fake_playwright(page):
 
 
 class ProgramRegistryTest(unittest.TestCase):
+    def test_partnerstack_auth_readback_refreshes_team_context_once(self):
+        page = RefreshingReadbackPage()
+
+        result = MODULE._elevenlabs_links(page)
+
+        self.assertEqual(result["state"], "READY")
+        self.assertEqual(result["auth_refresh_state"], "REFRESHED")
+        self.assertEqual(result["auth_refresh_http"], 200)
+        self.assertTrue(result["auth_recovered"])
+        self.assertEqual(page.reads, 2)
+        self.assertEqual(page.refreshes, 1)
+
     def test_partnerstack_unauthorized_stops_before_link_form_or_effect(self):
         for http_status in (401, 403):
             with self.subTest(http_status=http_status):
@@ -101,6 +140,7 @@ class ProgramRegistryTest(unittest.TestCase):
                         "schema_version", "receipt_type", "provider", "state",
                         "reason", "placement", "provider_http_status",
                         "provider_effect_started", "changed", "observed_at",
+                        "auth_refresh_state", "auth_refresh_http", "auth_recovered",
                     }.issuperset(stored))
 
     def test_existing_partnerstack_link_verifies_without_link_form(self):
