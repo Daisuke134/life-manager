@@ -2148,3 +2148,16 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] After promotion, process the next real buyer/contract artifact one at a
   time with quality evidence and one idempotent provider submission. Never
   treat a local test or loop `pass` as a client delivery receipt.
+
+### Paid fulfillment checkpoint — 2026-09-24 08:55 JST
+
+- [x] Fresh authenticated Coconala readback of Ryu's official room found no
+  buyer message after 03:15; the latest seller messages remain the 08:07 and
+  08:09 ordinary replies.
+- [x] Confirmed no duplicate send is allowed and formal delivery remains
+  untouched for Ryu.
+- [ ] On the next genuinely newer Ryu request, perform the full manual
+  fix/readback/reply once, then record the official message receipt.
+- [ ] Continue waiting for Coconala buyer artifacts, CrowdWorks `63568785`
+  buyer material, and a funded Lancers contract; submit only after the
+  provider-specific quality and official-receipt gates pass.

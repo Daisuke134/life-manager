@@ -1819,3 +1819,15 @@ clicked again.
 7. **Close-out:** after a real provider completion, verify acceptance,
    settlement/payout, and revision handling. A loop `pass` or chat receipt is
    not a contract completion.
+
+## Production Cursor — 2026-09-24 08:55 JST
+
+- **Ryu official recheck:** a fresh authenticated navigation of
+  `https://coconala.com/talkrooms/18211957` still ends with Ryu's 03:15
+  buyer message and our 08:07/08:09 ordinary replies. No newer buyer message
+  or attachment request is present, so no duplicate reply or formal-delivery
+  click is permitted.
+- **Next action:** keep Ryu's permanent manual fence. When a genuinely newer
+  buyer message appears, read the whole room, fix/read back the requested
+  change, and send exactly one ordinary reply. Until then, continue with the
+  provider cursors below; do not invent an artifact or send a placeholder.
