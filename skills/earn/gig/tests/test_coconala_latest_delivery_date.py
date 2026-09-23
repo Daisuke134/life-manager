@@ -34,3 +34,33 @@ def test_schedule_falls_back_when_no_system_event_has_a_date() -> None:
     messages = [{"side": "buyer", "text": "納期について相談したいです。"}]
 
     assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/10"
+
+
+def test_non_event_schedule_label_does_not_replace_fallback() -> None:
+    messages = [{"side": "system", "text": "納品予定日：2026/09/18"}]
+
+    assert queue.latest_delivery_date_from_messages(messages, "2026/09/10") == "2026/09/10"
+
+
+def test_latest_event_schedule_reaches_existing_order() -> None:
+    order = {"delivery_date": "2026-09-18"}
+    talkroom = {
+        "delivery_date": "2026-09-30",
+        "delivery_date_source": "system_event",
+    }
+
+    queue.enrich_order(order, talkroom, None)
+
+    assert order["delivery_date"] == "2026-09-30"
+
+
+def test_body_fallback_does_not_replace_existing_order_schedule() -> None:
+    order = {"delivery_date": "2026-09-18"}
+    talkroom = {
+        "delivery_date": "2026-09-30",
+        "delivery_date_source": "body_fallback",
+    }
+
+    queue.enrich_order(order, talkroom, None)
+
+    assert order["delivery_date"] == "2026-09-18"

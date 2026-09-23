@@ -1428,6 +1428,7 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
     delivery_date = latest_delivery_date_from_messages(
         messages, str(talkroom.get("delivery_date") or "") or None,
     )
+    delivery_date_event_observed = delivery_date_event_present(messages)
     # A buyer reply after an earlier artifact is not automatically new work.
     # The seller may already have answered that exact current feedback in plain
     # text (without sending another artifact).  Keep this separate from the
@@ -1476,6 +1477,10 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
         # a distinction that cost two deploys to make from the outside.
         "talkroom_step_label": safe_text(talkroom.get("talkroom_step_label"), 40),
         "delivery_date": iso_date(delivery_date),
+        "delivery_date_source": (
+            "system_event" if delivery_date_event_observed else
+            ("body_fallback" if delivery_date else None)
+        ),
         "formal_delivery_control_checked": talkroom.get("formal_delivery_control_checked") is True,
         "formal_delivery_control_disabled": talkroom.get("formal_delivery_control_disabled") is True,
         "room_contract_kind": room_contract_kind,
@@ -3149,8 +3154,20 @@ def first_match(pattern: str, text: str) -> str | None:
 
 
 _DELIVERY_DATE_FROM_EVENT = re.compile(
-    r"納品予定日(?:が変更されました。)?[：:\"「]*\s*(20\d{2}/\d{2}/\d{2})"
+    r"納品予定日(?:が変更されました。\s*(?:修正後)?納品予定日|が登録されました。)"
+    r"[：:\"「]*\s*(20\d{2}/\d{2}/\d{2})"
 )
+
+
+def delivery_date_event_present(messages: Any) -> bool:
+    if not isinstance(messages, list):
+        return False
+    return any(
+        isinstance(message, dict)
+        and message.get("side") == "system"
+        and _DELIVERY_DATE_FROM_EVENT.search(str(message.get("text") or ""))
+        for message in messages
+    )
 
 
 def latest_delivery_date_from_messages(
@@ -3694,7 +3711,7 @@ def enrich_order(order: dict[str, Any], talkroom: dict[str, Any], offer: dict[st
     order["talkroom_evidence_sha256"] = talkroom.get("evidence_sha256")
     order["talkroom_screenshot_sha256"] = talkroom.get("screenshot_sha256")
     order["talkroom_evidence_file"] = talkroom.get("evidence_file")
-    if not order.get("delivery_date"):
+    if talkroom.get("delivery_date_source") == "system_event" or not order.get("delivery_date"):
         order["delivery_date"] = talkroom.get("delivery_date")
     offer_url = talkroom.get("offer_reference")
     if offer_url:
