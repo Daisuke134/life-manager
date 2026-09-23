@@ -1103,6 +1103,25 @@ the authenticated inventory is empty.
   on the older immutable release because the all-platform acceptance gate is not yet
   satisfied.
 
+## Runtime Checkpoint — 2026-09-23 23:56 JST
+
+- A live loop readback exposed a host-capacity incident rather than a provider
+  mutation: CrowdWorks and Lancers briefly returned
+  `host_admission_deferred:resource_fifo_wait`, and the CrowdWorks log recorded
+  `No space left on device` plus database-lock recovery messages.
+- The exact stale, re-generable directory
+  `~/.local/state/life-manager/loop-tmp/capafy-ig-marketing-daily/18d6aec937035e50-93921`
+  occupied about 385 MB, had no open file descriptor or live owner, and was removed;
+  the current Capafy run directory was untouched. Available Data volume increased
+  from about 356 MB to about 1.1 GB.
+- After natural wake completion, CrowdWorks is again
+  `scheduled`/`loaded-idle`/`pass` (latest pass `2026-09-23T14:53:21Z`) and Lancers is
+  `scheduled`/`loaded-idle`/`pass` (latest pass `2026-09-23T14:54:49Z`). CrowdWorks
+  still reports `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`;
+  its historical unknown-effect fence remains held. Coconala remains scheduled and
+  `loaded-idle`; its latest terminal result is a host-resource admission block
+  (`resource_fifo_wait`), not a provider effect, so no restart or resend was issued.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
