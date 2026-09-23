@@ -422,6 +422,27 @@ def _admission_with_retry(
     return result
 
 
+def _admission_error_class(error: BaseException) -> str:
+    if isinstance(error, sqlite3.OperationalError):
+        return "sqlite_operational_error"
+    if isinstance(error, sqlite3.Error):
+        return "sqlite_error"
+    if isinstance(error, OSError):
+        return "os_error"
+    return "runtime_error"
+
+
+def _record_admission_failure(receipt: Path, phase: str,
+                              error: BaseException) -> None:
+    _atomic_json(receipt, {
+        "status": "deferred",
+        "effect": 0,
+        "reason": "resource_admission_unavailable",
+        "phase": phase,
+        "error_class": _admission_error_class(error),
+    })
+
+
 def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         if not heartbeat_durable_resource(claim):
@@ -781,9 +802,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                         resource_class, loop_id, **enqueue_kwargs)
                 ) if durable else (None, "legacy")
             )
-        except (OSError, RuntimeError, sqlite3.Error):
-            _atomic_json(receipt, {"status": "deferred", "effect": 0,
-                                  "reason": "resource_admission_unavailable"})
+        except (OSError, RuntimeError, sqlite3.Error) as error:
+            _record_admission_failure(receipt, "enqueue", error)
             return 75
         if durable and ticket is None:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -826,9 +846,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                         resource_class, loop_id, admission_class=admission_class,
                         retain_ticket=False, required_protocol=1)
             )
-        except (OSError, RuntimeError, sqlite3.Error):
-            _atomic_json(receipt, {"status": "deferred", "effect": 0,
-                                  "reason": "resource_admission_unavailable"})
+        except (OSError, RuntimeError, sqlite3.Error) as error:
+            _record_admission_failure(receipt, "claim", error)
             return 75
         if claim is None:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
