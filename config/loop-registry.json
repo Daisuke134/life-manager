@@ -2135,6 +2135,7 @@
       "label": "ai.anicca.life-manager-honne-ja",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-instagram-metrics": {

@@ -361,6 +361,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
             True,
         )
 
+    def test_honne_ja_is_the_only_mobile_queued_release_canary(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        mobile = json.loads(
+            (ROOT / "apps/life-manager/config/mobile-app-loops.json").read_text()
+        )
+        opted_in = {
+            loop_id
+            for loop_id in mobile["loops"]
+            if registry["loops"][loop_id].get("reconcile_queued_release") is True
+        }
+        self.assertEqual(opted_in, {"life-manager-honne-ja"})
+
     def test_writer_publication_owners_use_revenue_admission(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in ("article-daily", "article-resume"):
