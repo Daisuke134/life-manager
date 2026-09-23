@@ -10,7 +10,8 @@ from runtime.loop.macos_loop_registry import validate_registry
 
 
 def lifecycle_one(action: str, loop_id: str, entry: dict, agents_dir: Path,
-                  launchctl: Callable[[list[str]], tuple[int, str]]) -> dict:
+                  launchctl: Callable[[list[str]], tuple[int, str]],
+                  admission: Callable[[str], object] | None = None) -> dict:
     if action not in {"start", "stop", "restart"}:
         raise ValueError(f"invalid lifecycle action: {action}")
     label = entry["label"]
@@ -26,6 +27,8 @@ def lifecycle_one(action: str, loop_id: str, entry: dict, agents_dir: Path,
 
     if action == "stop":
         rc, detail = run(["bootout", service])
+        if rc == 0 and admission is not None:
+            admission("suspend")
         return {"loop_id": loop_id, "label": label, "action": action,
                 "return_code": rc, "operations": operations, "detail": detail.strip()}
 
@@ -45,6 +48,8 @@ def lifecycle_one(action: str, loop_id: str, entry: dict, agents_dir: Path,
         action_rc, detail = run(["bootstrap", domain, str(plist)])
     readback_rc, readback = run(["print", service])
     rc = action_rc or readback_rc
+    if rc == 0 and admission is not None:
+        admission("resume")
     return {"loop_id": loop_id, "label": label, "action": action,
             "return_code": rc, "operations": operations,
             "detail": (readback if readback_rc else detail).strip()}

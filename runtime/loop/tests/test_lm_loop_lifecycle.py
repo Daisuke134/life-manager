@@ -41,6 +41,42 @@ class LmLoopLifecycleTest(unittest.TestCase):
             self.assertEqual(result["return_code"], 0)
             self.assertEqual([call[0] for call in calls], ["print", "bootstrap", "print"])
 
+    def test_stop_suspends_durable_admission_after_bootout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            actions = []
+
+            def launchctl(args):
+                self.assertEqual(args[0], "bootout")
+                return 0, ""
+
+            result = lifecycle_one(
+                "stop", "a", REGISTRY["loops"]["a"], Path(directory), launchctl,
+                admission=actions.append,
+            )
+
+            self.assertEqual(result["return_code"], 0)
+            self.assertEqual(actions, ["suspend"])
+
+    def test_start_resumes_durable_admission_after_readback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = Path(directory)
+            (agents / "ai.anicca.a.plist").write_text("plist")
+            actions = []
+
+            def launchctl(args):
+                if args[0] == "print":
+                    return (1, "") if len(actions) == 0 else (0, "loaded")
+                actions.append(args[0])
+                return 0, ""
+
+            result = lifecycle_one(
+                "start", "a", REGISTRY["loops"]["a"], agents, launchctl,
+                admission=lambda action: actions.append(action),
+            )
+
+            self.assertEqual(result["return_code"], 0)
+            self.assertEqual(actions, ["bootstrap", "resume"])
+
     def test_restart_boots_out_then_bootstraps_and_reads_back(self):
         with tempfile.TemporaryDirectory() as directory:
             agents = Path(directory)

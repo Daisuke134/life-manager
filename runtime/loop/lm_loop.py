@@ -29,7 +29,7 @@ from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import (
     ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
-    rebind_queued_owner,
+    rebind_queued_owner, resume_durable, suspend_durable,
     state_root as admission_root,
 )
 
@@ -1278,7 +1278,12 @@ def main(argv: list[str] | None = None) -> int:
             registry, command, target,
             lambda action, loop_id, entry: lifecycle_one(
                 action, loop_id, entry, agents_dir,
-                lambda launch_args: _safe_launchctl(launchctl_safe, launch_args)))
+                lambda launch_args: _safe_launchctl(launchctl_safe, launch_args),
+                admission=lambda admission_action: (
+                    suspend_durable(loop_id)
+                    if admission_action == "suspend"
+                    else resume_durable(loop_id)),
+            ))
         print(json.dumps(results, indent=2, sort_keys=True))
         return 1 if any(row["return_code"] for row in results) else 0
     target = args[1] if len(args) > 1 else "all"
