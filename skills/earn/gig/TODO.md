@@ -1,9 +1,39 @@
 # Gig revenue program — current execution SSOT
 
-## Current checkpoint — 2026-09-23
+## Current checkpoint — 2026-09-24
 
 This checkpoint supersedes older prose below when it conflicts with the latest
 runtime/provider readback.
+
+### Superseding cross-platform readback — 2026-09-24
+
+- [x] **Ryu manual exception:** direct seller message
+  `js-talkroomMessage-222245383` is officially read back; the durable owner
+  record remains `mode=manual`, `owner_id=dais`, `permanent_manual_exception`.
+  The latest Coconala Paid result is `observed=4`, `effect=0`,
+  `readback=3`, `pending=0`; Ryu is `reserved_for_owner`,
+  `send_performed=false`, and `formal_delivery_checkbox=false`.
+- [x] **Coconala runtime:** `hf-gig-paid-direct` is
+  `scheduled`/`loaded-idle`/`pass`; no provider effect was created by the
+  natural wake. The source branch still carries the immutable Ryu fence and
+  must be promoted only through the all-platform release gate.
+- [x] **CrowdWorks runtime:** `crowdworks-revenue-paid` is
+  `scheduled`/`loaded-idle`/`pass`; latest result is
+  `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`.
+  Contract `63568785` is the sole pending item and remains
+  `buyer_task_detail_required`; its prior answer receipt is durable and
+  replay-zero. The historical unknown-effect fence remains held.
+- [x] **Lancers runtime/source:** `lancers-revenue-paid` is
+  `scheduled`/`loaded-idle`/`pass` with zero funded contracts. The branch
+  implementation composes quality-checked answers, binds a SHA-256 quality
+  digest at the provider boundary, and prevents replay; fresh verification is
+  `427 passed, 17 subtests`, but production promotion and a funded canary are
+  still open.
+- [ ] **Upwork:** no Paid owner or live CDP, OAuth2 credential is absent,
+  browser special approval expired on `2026-09-22`, all current auth receipts
+  are denied, and no funded contract is present. Do not register an automated
+  owner or fabricate a send until written/approved provider authorization,
+  fresh authentication, and a funded contract exist.
 
 ### Runtime gate correction — 2026-09-23
 
@@ -313,9 +343,12 @@ runtime/provider readback.
    contract complete from the Google Doc read alone. The delivered rows `63712784`,
    `63659463`, `63657015`, and `63570481` still need acceptance/settlement/payout
    readback.
-5. **Lancers.** Keep the current browser/work-sync owners running; implement the
-   missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
-   prove one canary, then complete the funded inventory and payout receipts.
+5. **Lancers.** Keep the current browser/work-sync owners running. The Paid
+   answer/quality/digest/replay boundary is implemented and verified on the
+   branch; production promotion, a funded provider canary, formal-delivery
+   readback, and payout receipts remain open because the current inventory has
+   zero funded contracts. Do not revive the obsolete
+   `lancers_paid_effect_not_implemented` cursor.
 6. **Upwork.** Register a Paid owner, obtain a live authenticated contract
    inventory, and close the same official delivery/payment/replay-zero gates. Do not
    count historical adapters as live revenue proof.
