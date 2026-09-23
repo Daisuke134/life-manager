@@ -162,6 +162,23 @@ is to use the existing disk-cleanup/rotation owner to reclaim only positively ow
 regenerable artifacts before promoting new loop code; never delete provider state,
 unknown-effect rows, or a protected release by hand.
 
+The latest host readback is still below the Paid write/admission floor: about
+298 MiB available versus the 512 MiB minimum. The cleanup owner ran again and
+reclaimed `0` bytes because its four discovered cache candidates are all open;
+protected deletions remain `0`. The Paid process then remained on one PID for
+more than thirteen minutes while repeating `control_busy`/`production apply is
+already owned`, so it was stopped through the canonical `lm-loop stop
+hf-gig-paid-direct` path. `launchd_state=unloaded` and `pid=null` are verified;
+no provider effect occurred during that stop. It must remain paused until a
+small durable write succeeds and the repaired immutable release is applied.
+
+The queued-wake/occurrence-scope branch is now pushed at `e012343e94` (the
+test expectation update follows the production coalescing behavior). Its focused
+runtime suite is `528 passed, 174 subtests passed`, `git diff --check`, Python
+compile, and `./bin/lm-loop-contract` all pass. The branch is not merged,
+released, or applied; production still runs the older release when the owner is
+next started.
+
 ### Coconala
 
 The current official inventory contains four open talkrooms: Ryu `18211957`, Chii
@@ -174,9 +191,12 @@ The latest natural wake (targeted readback through
 `2026-09-23T01:07:47+00:00`) completed with `status=completed`, `effect=0`,
 `readback=3`, `failed=0`, and `pending=0`; it reconfirmed Ryu as
 `reserved_for_owner` and Chii plus both NPO rooms as `awaiting_buyer`. The
-installed owner is `loaded-idle`, `last_exit=0`, and
-`next_eligible_run=interval:300s`. This is a safe idle state for Chii and the NPO
-rooms; the later official Ryu events supersede the old Ryu no-op snapshot.
+owner was subsequently stopped after the host/control-plane stall described
+above (`launchd_state=unloaded`, `pid=null`). This is intentional containment,
+not a client completion claim: Chii and the NPO rooms remain in their last
+verified `awaiting_buyer` state, while no new Paid wake may run until host writes
+recover and the new release is applied. The later official Ryu events supersede
+the old Ryu no-op snapshot.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal

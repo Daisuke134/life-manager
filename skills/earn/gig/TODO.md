@@ -32,10 +32,11 @@ runtime/provider readback.
   `2026-09-23T01:07:47+00:00`) completed with
   `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
   It independently reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO
-  rooms as `awaiting_buyer`; no client DM was sent. The installed owner is
-  `loaded-idle`, `last_exit=0`, and eligible again on its normal 300-second
-  interval. Chii is not the current work cursor and no manual Chii action is
-  needed.
+  rooms as `awaiting_buyer`; no client DM was sent. A later readback found the
+  owner stuck on one PID while repeating `control_busy` and disk-write failures;
+  the canonical `lm-loop stop hf-gig-paid-direct` path now reports
+  `launchd_state=unloaded`, `pid=null`. Chii is not the current work cursor and
+  no manual Chii action is needed.
 - A prior NPO wake failed closed on a one-character model hash typo even though
   the semantic decision was `await_buyer`; `effect=0` proves no external send.
   Code commit `7244c3e856` now binds each outcome to the exact official message
@@ -52,11 +53,15 @@ runtime/provider readback.
   `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
   safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
   promoted or applied. The follow-up identity-binding fix is `7244c3e856`.
+- The coalescing branch now includes the matching admission expectation test at
+  `e012343e94`. Focused runtime tests pass `528` with `174` subtests, the loop
+  contract gate passes, and the branch remains unmerged/unreleased/unapplied.
 - A shared-host incident is also open: the Paid owner recorded `No space left on
   device` while writing its result, followed by `control_busy`/database-lock
-  symptoms. Safe release GC evaluated 59 releases, protected all 59, and reclaimed
-  0 bytes. Run the existing disk-cleanup/rotation owner and verify durable writes
-  before promoting another release; do not delete protected releases, provider
+  symptoms. Available disk is about 298 MiB against a 512 MiB floor; the
+  disk-cleanup owner re-ran and reclaimed `0` bytes because all four candidates
+  are open. The Paid owner is intentionally unloaded until durable writes and a
+  new immutable release are proven. Do not delete protected releases, provider
   state, or unknown-effect rows by hand.
 - Cursor reorder: the old order began with host recovery → Coconala loop promotion
   → CrowdWorks. The new order began with the newly observed Ryu manual revision
@@ -70,9 +75,10 @@ runtime/provider readback.
 
 1. **Recover host writes.** Restore safe writable headroom using the existing
    disk-cleanup/rotation path, then prove a small state write and a natural Coconala
-   no-op wake. Keep all protected releases and provider ledgers intact.
+   no-op wake. Keep all protected releases and provider ledgers intact. The Paid
+   owner is intentionally paused until this gate passes.
 2. **Promote the queued-wake safety fix.** Run the full loop/host acceptance set for
-   `9df3731ccb` (occurrence-scoped marketplace admission plus Coconala Paid queued
+   `e012343e94` (occurrence-scoped marketplace admission plus Coconala Paid queued
    and reserved wake coalescing), build one immutable release, apply it, and verify a
    natural Coconala wake with official readback and replay-zero. Do not edit the
    admission database by hand or clear old unknown rows.
