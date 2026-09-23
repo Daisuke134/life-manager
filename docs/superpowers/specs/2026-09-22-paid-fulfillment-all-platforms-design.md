@@ -188,6 +188,19 @@ message, no formal delivery, and no buyer reply after the prior artifact.
 The owner must remain paused until child-reap behavior is fixed, a durable write
 and natural no-op wake succeed, and the repaired immutable release is applied.
 
+### CrowdWorks Paid live boundary
+
+At `2026-09-23T07:24:24Z`, read-only process and state inspection found
+`crowdworks-revenue-paid` running as PID `10759` on release `f01c612d`. Its
+current occurrence is `18d7e1fd55967df8-10759`; host admission recorded
+`resource_slot_acquired`, the entrypoint result is `pre_effect_failure`, and the
+effect count is `0`. The durable CrowdWorks snapshot still has four completed
+contracts and `63568785` pending. The owner logs repeat `No space left on
+device`, `database is locked`, and `control_busy`, so `admission_effect_unknown`
+remains fenced even though this occurrence has no provider-effect evidence.
+No stop, kill, fence clear, or replay was performed; high-risk lifecycle actions
+require explicit approval and an exact official readback before mutation.
+
 The queued-wake/occurrence-scope implementation at `e012343e94` (the test
 expectation update follows the production coalescing behavior) is merged in main,
 included in immutable release `20260923T155015-6b72c304`, and target-applied to
