@@ -70,8 +70,9 @@ runtime/provider readback.
   pushed but not merged/released/applied.
 - The targeted status-read fix `313915e0a5` makes `_last_event()` stop at the
   newest requested loop report instead of scanning all older shared-state rows.
-  Its regression is covered; runtime tests pass `516`, the loop contract and
-  adapter tests pass, and `lm-loop doctor` is clean. This is still source-only:
+  Follow-up `2d2417bd5b` covers targeted cache results across shared state roots;
+  runtime tests pass `517`, the loop contract and adapter tests pass, and
+  `lm-loop doctor` is clean. This is still source-only:
   the Paid owner remains unloaded and no new natural wake/readback has run.
 - Read-only host verification at `2026-09-23T03:57:38Z` found 2.9 GiB free,
   no Paid parent/child process, and a 0.18-second targeted status response.
