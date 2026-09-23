@@ -3135,14 +3135,40 @@ or provider session is part of this reorder.
    | CrowdWorks `crowdworks-revenue-application` | SHA `b939af53…`; latest blocked/75 with `resource_admission_unavailable`; seven claimed unknown occurrences and 115 clean queued occurrences | Occurrence scope exists, but the current wrapper collapses the lower OSError/RuntimeError/SQLite cause into one generic admission error. The large unreconciled backlog also prevents a reliable current claim. Earlier outer/agent passes still report effect unknown and are not official application receipts. |
    | Mercor `mercor-revenue-application` | old SHA `f3e51868…`; blocked/75; alternates `resource_effect_unknown` and `resource_admission_unavailable`; one claimed unknown occurrence | Its loaded release is owner-scoped, so the retained unknown stops the entrypoint before search/application; interview/media human gates remain separate and must not be treated as successful submission. |
 
+   The cursor advances immediately rather than waiting for a calendar wake. A read-only SQLite backup of
+   the live admission store reproduces the expected owner-scoped `effect_unknown` for Coconala and Mercor,
+   while fresh occurrence-scoped CrowdWorks and Lancers wakes both recreate their missing queue/priority
+   identity and return `fifo_wait`. This proves the current database is not permanently corrupt and the
+   existing enqueue path already performs the bounded queue identity repair; a second repair framework is
+   not required. CrowdWorks subsequently advances naturally from the generic error to typed
+   `resource_capacity_busy`.
+
+   Candidate `6a4369f8db` on branch `fix/apply-admission-diagnostics-selfheal-20260924` closes the remaining
+   observability gap without exposing raw exception messages: every generic admission failure now records
+   whether `enqueue` or `claim` failed and one bounded `error_class`. The new tests pass 2/2, the admission
+   regression suite passes 125/125, `py_compile` and `diff --check` pass. The broader loop-run suite is
+   79/80 because the unchanged Connector legacy-marker test fails identically on baseline main; it is not
+   caused by this candidate.
+
+   The owner is not left waiting for a natural wake. After Aqua/UID/Directory Services/GUI preflight and
+   immutable-release ancestry all pass, a target-only reconcile moves
+   `lancers-revenue-application` from `65a1d563…` to main-derived `1ac87e32…`. One explicit normal
+   `lm-loop start` kickstart succeeds. Its exact new-SHA terminal is typed
+   `resource_capacity_busy`, not `resource_effect_unknown`, proving that the accepted occurrence scope lets
+   a new Lancers wake pass the historical owner-wide fence without deleting or guessing the old unknown
+   occurrence. No proposal effect occurs and no Paid owner, Paid state, provider session, or port 9228 is
+   touched. Lancers now retries through normal capacity admission; it no longer needs a source fix for the
+   old owner-wide fence.
+
    The fix order is shared-foundation first, not four manual browser sessions: retain every unknown row;
    obtain exact official readback for each unresolved occurrence; preserve the lower admission `error_class`
-   and boundary in the receipt; add a bounded owner/queue consistency
-   repair that can recreate missing queue/priority identity and compact only clean redundant wake rows under
-   the admission control lock; load the current occurrence-scoped contract where it is already accepted;
+   and boundary in the receipt; use the existing enqueue repair that recreates missing queue/priority identity;
+   load the current occurrence-scoped contract where it is already accepted;
    add that scope only where candidate-level dedupe/readback proves it cannot duplicate an application; then
-   require one natural canary, official application receipt or truthful no-op, and same-SHA replay-zero for
-   Coconala, Lancers, CrowdWorks and Mercor in that order. This Application work never edits Paid code,
+   require one explicit or scheduled canary, official application receipt or truthful no-op, and same-SHA
+   replay-zero for Coconala, Lancers, CrowdWorks and Mercor. Current cursor: prove Coconala and Mercor
+   candidate-level dedupe/readback before any occurrence-scope registry change; Lancers and CrowdWorks may
+   continue normal admission retries without holding this workstream. This Application work never edits Paid code,
    Paid state, port 9228 or a Paid provider session.
 5. Re-run the 14-loop Local completion gate until no enabled owner is `unknown`, stale, silently
    failing or dependent on a visible desktop. Every row must have current official evidence or a
