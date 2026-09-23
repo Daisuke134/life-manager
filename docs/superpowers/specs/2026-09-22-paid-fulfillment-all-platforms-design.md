@@ -832,6 +832,18 @@ formal delivery.
   working-project, monthly-contract, storefront-contract, and finance
   candidates. No Lancers mutation is admitted.
 
+## Runtime Checkpoint — 2026-09-23 22:25 JST
+
+- The fresh Upwork read-only check still finds no registered
+  `upwork-revenue-paid` owner in the installed registry and no CDP listener on
+  `127.0.0.1:9233`. The only available account evidence remains the historical
+  API-terminal snapshot (`2026-08-26`): `active_contracts=0`, `offers=0`,
+  `identity_verification=unverified`, `account_standing=At risk`, and both API
+  and UI automation disabled. The private credential SSOT has no Upwork entry.
+  No Upwork mutation is possible or admitted; the next executable step is
+  provider-authorized authentication followed by a fresh funded-contract
+  inventory, not a fabricated Paid loop or delivery.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
