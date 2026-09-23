@@ -116,8 +116,9 @@ A fresh authenticated Coconala browser reload of talkroom `18211957` at
 2026-09-23 10:50 JST found five buyer events newer than seller message
 `js-talkroomMessage-222192497`:
 
-- `js-talkroomMessage-222215345` (09:13): the supplied image is not being used
-  in the requested specification; attachment `IMG_6432.png`.
+- `js-talkroomMessage-222215345` (09:13): the current implementation does not
+  match the specification shown in the image, and asks how it works; attachment
+  `IMG_6432.png`.
 - `js-talkroomMessage-222215354` (09:13): asks the maximum number of people
   allowed in attendance and roster registration.
 - `js-talkroomMessage-222218450` (10:24): changes the option model so the first
