@@ -1193,7 +1193,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
             return claim, "acquired"
-    except Exception:
+    except Exception as error:
         # The database context rolls back on a lock/commit failure, but the
         # claim JSON is written before that context exits.  Do not leave a
         # phantom owner that makes the bounded retry report ``owner_busy``.
@@ -1201,8 +1201,8 @@ def claim_durable(resource_class: str, owner_id: str, *,
         if claim_written and claim_was_absent and claim is not None:
             try:
                 claim.unlink(missing_ok=True)
-            except OSError:
-                pass
+            except OSError as cleanup_error:
+                raise cleanup_error from error
         raise
     finally:
         os.close(descriptor)

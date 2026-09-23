@@ -791,6 +791,49 @@ def test_failed_durable_claim_removes_uncommitted_claim_file(tmp_path, monkeypat
     admission.release_and_reserve(claim, reserve=False)
 
 
+def test_failed_claim_cleanup_io_error_is_not_hidden(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "cleanup-io")
+    assert ticket is not None and reason == "ready"
+
+    real_database = admission._database
+
+    class CommitBusyConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def __enter__(self):
+            return self.connection.__enter__()
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            if exc_type is None:
+                self.connection.rollback()
+                self.connection.close()
+                raise sqlite3.OperationalError("database is locked")
+            return self.connection.__exit__(exc_type, exc_value, traceback)
+
+    def busy_database(path):
+        return CommitBusyConnection(real_database(path))
+
+    original_unlink = Path.unlink
+
+    def fail_claim_unlink(path, *args, **kwargs):
+        if path.parent == tmp_path / "owners" and not path.name.startswith("."):
+            raise OSError("claim cleanup I/O failed")
+        return original_unlink(path, *args, **kwargs)
+
+    with (patch.object(admission, "_database", busy_database),
+          patch.object(Path, "unlink", fail_claim_unlink)):
+        with pytest.raises(OSError, match="claim cleanup I/O failed"):
+            admission.claim_durable("deterministic", "cleanup-io")
+
+    claim_files = list((tmp_path / "owners").glob("*.json"))
+    assert len(claim_files) == 1
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "cleanup-io", "resource_class": "deterministic",
+    }]
+
+
 def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("deterministic", "first")
