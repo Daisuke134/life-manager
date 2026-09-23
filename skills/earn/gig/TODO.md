@@ -161,6 +161,15 @@ runtime/provider readback.
   remains on its immutable main-derived release until the cross-platform gate,
   so do not report the source fix as a live provider canary yet.
 
+### Source checkpoint — 2026-09-24 01:40
+
+- [x] Added the same queued/reserved wake coalescing contract to
+  `mercor-revenue-paid` after a red registry test; regenerated the launchd
+  fixture and fixed the boundary test to stub live admission claims.
+- [x] Runtime gates pass `156 passed, 143 subtests`; `lm-loop-contract` passes.
+- [ ] Production promotion remains gated on the main-derived immutable release
+  and a provider canary; no external provider mutation was issued.
+
 ### Runtime checkpoint — 2026-09-24 01:16
 
 - [x] Re-read the live fleet: Coconala, CrowdWorks, and Lancers Paid owners are

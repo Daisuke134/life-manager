@@ -1480,3 +1480,16 @@ The objective is complete only when all of the following are proven:
   passes with no shared IDs or registry errors. The fix is pushed on this
   dedicated branch and is not yet a production result; promotion still uses
   the main-derived immutable release gate.
+
+## Source Cursor — 2026-09-24 01:40 JST
+
+- Mercor Paid had the same missing wake-coalescing contract as the other
+  finite Paid owners. A red registry test was added first; the registry and
+  launchd fixture now set both `coalesce_queued_wakes=true` and
+  `coalesce_reserved_wakes=true` for `mercor-revenue-paid`.
+- The deterministic boundary test was also made independent of the live
+  admission database by stubbing the claim result; the focused/full runtime
+  gates pass `156 passed, 143 subtests`, and `lm-loop-contract` passes.
+- Commit `0e98de4356` is pushed on the dedicated branch. This remains source
+  evidence only: production still requires the main-derived immutable release
+  gate, and no provider mutation was issued.
