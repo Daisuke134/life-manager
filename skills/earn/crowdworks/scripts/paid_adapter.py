@@ -1728,6 +1728,18 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     previous_intent = context.get("previous_intent") if isinstance(context, Mapping) else None
     previous_verified = (isinstance(context, Mapping)
                          and context.get("previous_effect_verified") is True)
+    previous_payload = (previous_intent.get("payload")
+                        if isinstance(previous_intent, Mapping) else None)
+    permission_request_recovery = (
+        previous_verified
+        and isinstance(previous_intent, Mapping)
+        and previous_intent.get("action") == "answer"
+        and isinstance(previous_payload, Mapping)
+        and previous_payload.get("body") == PERMISSION_REQUEST_BODY
+        and contract.get("artifact_access") == "readable"
+        and isinstance(contract.get("artifact_content"), str)
+        and bool(contract.get("artifact_content").strip())
+    )
     if (has_form
             and (not isinstance(contract.get("buyer_event_id"), str)
                  or not contract.get("buyer_event_id").strip())):
@@ -1738,9 +1750,9 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
         return {"action": "wait", "reason": "awaiting_buyer_inspection",
                 "remaining_work": ["read the official CrowdWorks inspection and acceptance state"]}
     if (previous_verified and isinstance(previous_intent, Mapping)
-            and previous_intent.get("action") == "answer" and not has_form):
+            and previous_intent.get("action") == "answer" and not has_form
+            and not permission_request_recovery):
         buyer_event_id = contract.get("buyer_event_id")
-        previous_payload = previous_intent.get("payload")
         if (not isinstance(buyer_event_id, str) or not buyer_event_id.strip()
                 or not isinstance(previous_payload, Mapping)
                 or previous_payload.get("buyer_event_id") != buyer_event_id):

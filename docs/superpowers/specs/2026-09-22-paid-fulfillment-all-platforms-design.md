@@ -839,7 +839,8 @@ formal delivery.
   `127.0.0.1:9233`. The only available account evidence remains the historical
   API-terminal snapshot (`2026-08-26`): `active_contracts=0`, `offers=0`,
   `identity_verification=unverified`, `account_standing=At risk`, and both API
-  and UI automation disabled. The private credential SSOT has no Upwork entry.
+  and UI automation disabled. A direct Upwork credential exists in the private
+  credential SSOT, but all current browser authorization receipts are denied.
   No Upwork mutation is possible or admitted; the next executable step is
   provider-authorized authentication followed by a fresh funded-contract
   inventory, not a fabricated Paid loop or delivery.
@@ -1353,3 +1354,20 @@ The objective is complete only when all of the following are proven:
   `pending=0`; Ryu `18211957` is reserved for the already-completed manual
   delivery and is not eligible for loop replay. The next cursor is the first
   admissible buyer-material or funded-contract event, not a resend.
+
+## Runtime Cursor — 2026-09-24 03:00 JST
+
+- CrowdWorks contract `63568785` was read back through the official message API
+  without a new send. Buyer event `426855154` has exactly one subsequent seller
+  permission request, official message `428634040`; no duplicate request or
+  formal delivery exists.
+- The linked Google Form is readable but asks for LINE contact plus sensitive
+  identity/demographic information. No external form or LINE submission is
+  admitted; the contract remains waiting rather than receiving a fabricated
+  completion receipt.
+- The source branch now handles the real state transition where that permission
+  request is verified first and the artifact becomes readable later: it starts a
+  fresh quality-checked answer instead of reusing the permission request as
+  deliverable. CrowdWorks tests pass `222`, and `lm-loop-contract` has no shared
+  IDs or registry errors. Production promotion and an official canary remain
+  open.

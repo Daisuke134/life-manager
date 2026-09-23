@@ -228,11 +228,11 @@ runtime/provider readback.
   digest at the provider boundary, and prevents replay; fresh verification is
   `427 passed, 17 subtests`, but production promotion and a funded canary are
   still open.
-- [ ] **Upwork:** no Paid owner or live CDP, OAuth2 credential is absent,
-  browser special approval expired on `2026-09-22`, all current auth receipts
-  are denied, and no funded contract is present. Do not register an automated
-  owner or fabricate a send until written/approved provider authorization,
-  fresh authentication, and a funded contract exist.
+- [ ] **Upwork:** no Paid owner or live CDP. A direct Upwork credential exists
+  in the private SSOT, but all current browser authorization receipts are
+  denied and no funded contract is present. Do not register an automated owner
+  or fabricate a send until written/approved provider authorization, fresh
+  authentication, and a funded contract exist.
 
 ### Fresh natural wake and source verification — 2026-09-24 00:12 JST
 
@@ -249,6 +249,24 @@ runtime/provider readback.
   authorization, fresh authentication, and a funded contract. The current official
   help center also confirms that unapproved browser automation has no exception and
   can trigger restrictions; do not re-enable the retired UI/browser owners.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:00 JST
+
+- [x] CrowdWorks contract `63568785` was checked through the official message
+  API without sending: after buyer event `426855154`, the permission request
+  exists once as seller message `428634040`. No duplicate request or formal
+  delivery was sent.
+- [x] The linked Google Form is readable, but it requests LINE contact and
+  sensitive identity/demographic information. No external form or LINE action
+  was submitted; the provider boundary keeps the job waiting instead of
+  inventing a completion receipt.
+- [x] Source fix added a recovery transition: once a permission-request answer
+  is verified and the artifact later becomes readable, Paid composes a new
+  quality-checked answer instead of treating the old permission request as the
+  work product. CrowdWorks suite passes `222` and `lm-loop-contract` passes.
+- [ ] Promote this source fix only through the main-derived immutable release
+  gate and verify one real CrowdWorks canary; the branch test result is not a
+  production receipt.
 
 ### Runtime gate correction — 2026-09-23
 
