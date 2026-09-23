@@ -1074,6 +1074,22 @@ the authenticated inventory is empty.
   assertion was aligned with the existing bounded-wake implementation (`60s`),
   and `./bin/lm-loop-contract` remains PASS with no shared job IDs or errors.
 
+## Runtime Checkpoint — 2026-09-23 23:47 JST
+
+- Upwork remains outside Paid execution: the installed loop registry has no
+  `upwork-revenue-paid` owner (only retired browser/free-loop labels), and
+  `lm-loop status upwork-revenue-paid` returns `unknown loop id`.
+- The authenticated Upwork CDP endpoint `127.0.0.1:9233` refuses both version and
+  target-list reads. The private authorization store is mode `0600` but has eight
+  Upwork receipts, all `denied` for the browser transport; no approved mutation
+  receipt exists. Stored official account evidence remains historical
+  (`2026-08-26`): identity unverified, standing at risk, zero active contracts and
+  zero offers, with decision `API_INELIGIBLE`.
+- No Upwork owner, browser wake, contract claim, or provider effect is created from
+  this state. The next admissible Upwork step is a fresh authenticated read-only
+  inventory after provider authorization changes; source implementation must wait
+  for that boundary rather than fabricate a canary.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
