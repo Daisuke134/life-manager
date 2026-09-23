@@ -1538,10 +1538,15 @@ def _close_unknown_occurrence(owner_id: str, occurrence_id: str,
             return False
         if expected_state == "claimed":
             starts, snapshot_started_ns = _identity_snapshot(owners)
-            if any((_row(path) or {}).get("owner_id") == owner_id
-                   and _live(path, starts, snapshot_started_ns)
-                   for path in owners.glob("*.json")):
-                return False
+            for path in owners.glob("*.json"):
+                row = _row(path) or {}
+                if (row.get("owner_id") != owner_id
+                        or not _live(path, starts, snapshot_started_ns)):
+                    continue
+                live_occurrence = row.get("occurrence_id")
+                if (not isinstance(live_occurrence, str)
+                        or live_occurrence == occurrence_id):
+                    return False
         if proof_check is not None and not proof_check():
             return False
         with _database(database) as connection:

@@ -23,7 +23,12 @@ from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import admission_effect_scope, validate_registry
-from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
+from runtime.loop.runtime_event import (
+    append_runtime_event,
+    build_runtime_event,
+    build_runtime_start_event,
+    validate_runtime_event,
+)
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -60,6 +65,9 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/mercor/scripts/paid-owner",
     "skills/earn/mercor/scripts/reply-owner",
     "skills/writer-agent/scripts/article-resume-pending.sh",
+})
+EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/mobile-app",
 })
 
 
@@ -447,6 +455,59 @@ def _proven_pre_effect_failure(path: Path) -> bool:
         return False
 
 
+def _verified_effect_result(path: Path, loop_id: str,
+                            occurrence_id: str) -> tuple[str, str] | None:
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600
+                or info.st_size > 4096):
+            return None
+        data = os.read(descriptor, 4097)
+    except OSError:
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(data) > 4096:
+        return None
+    try:
+        value = json.loads(data)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    expected_fields = {
+        "schema_version", "kind", "status", "effect", "owner_id",
+        "occurrence_id", "provider", "provider_receipt_id", "effect_status",
+    }
+    if (not isinstance(value, dict) or set(value) != expected_fields
+            or value.get("schema_version") != 1
+            or value.get("kind") != "life_manager_effect_result"
+            or value.get("status") != "verified_effect"
+            or value.get("effect") != 1
+            or value.get("owner_id") != loop_id
+            or value.get("occurrence_id") != occurrence_id
+            or value.get("provider") != "postiz"
+            or value.get("effect_status") not in {"verified", "reconciled"}):
+        return None
+    receipt_id = value.get("provider_receipt_id")
+    if not isinstance(receipt_id, str) or not SAFE_RUN_ID.fullmatch(receipt_id):
+        return None
+    return value["effect_status"], f"postiz://posts/{receipt_id}"
+
+
+def _apply_verified_effect_result(
+        event: dict, result: tuple[str, str] | None) -> dict:
+    updated = dict(event)
+    updated["evidence_refs"] = list(event.get("evidence_refs", []))
+    if result is not None and updated.get("status") == "pass":
+        updated["effect_status"] = result[0]
+        if result[1] not in updated["evidence_refs"]:
+            updated["evidence_refs"].append(result[1])
+    return validate_runtime_event(updated)
+
+
 def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
                       ) -> tuple[bool, bool, str | None]:
     if return_code == 0:
@@ -688,6 +749,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     interrupted = False
     return_code: int | None = None
     previous = {}
+    pre_effect_hint_allowed = entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
+    effect_result_hint_allowed = entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
+    hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
 
     def interrupt_wait(_signum, _frame):
         nonlocal interrupted
@@ -819,7 +883,6 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 )
                 heartbeat_thread.start()
 
-        hint_allowed = entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
         child_env = {key: value for key, value in env.items()
                      if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
         if hint_allowed:
@@ -827,6 +890,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 receipt.parent / "entrypoint-result.json")
         if claimed_occurrence_id is not None:
             child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
+        if effect_result_hint_allowed:
+            child_env["LIFE_MANAGER_LOOP_ID"] = loop_id
         return_code = _run_entrypoint(
             command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
             on_started=transfer_claim)
@@ -849,7 +914,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                        "reserve": claim_started_child}
                     if (claim_started_child and return_code != 0
                             and entry.get("effect_class") != "none"
-                            and not (hint_allowed and _proven_pre_effect_failure(
+                            and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True
                     dispatch_after_release = release_and_reserve_resource(claim, **release_options)
@@ -907,6 +972,12 @@ def main(argv: list[str] | None = None) -> int:
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
+        effect_result = None
+        if (return_code == 0
+                and entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
+                and claimed_occurrence_id is not None):
+            effect_result = _verified_effect_result(
+                scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id)
         effect_identity_ref = None
         if entry.get("effect_class") != "none" and return_code != 0:
             try:
@@ -929,6 +1000,7 @@ def main(argv: list[str] | None = None) -> int:
                 claimed_occurrence_id=claimed_occurrence_id,
                 effect_identity_ref=effect_identity_ref,
             )
+            event = _apply_verified_effect_result(event, effect_result)
             append_runtime_event(event_path, event)
             terminal_saved = True
         except (OSError, ValueError) as error:
