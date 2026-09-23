@@ -314,8 +314,9 @@ manual bypass is permitted.
 The exact Paid occurrence `crowdworks-revenue-paid:18d62cf32eb0c678-48194` has an
 official execute event with `effect_status=started` followed by a report with
 `effect_status=unknown`; no provider receipt or no-dispatch proof exists, so it
-must remain fenced. Contract `63657015` is read back as funded, but its hearing
-sheet/common-test submission data is not complete and no submission receipt exists.
+must remain fenced. Contract `63657015` was read back as funded at this snapshot;
+its later manual completion is recorded below and does not change the unresolved
+Paid occurrence fence.
 
 Fresh provider-lock read-only detail at `2026-09-23T04:00:55.856173Z` confirmed
 all five funded contracts and produced these source-level preflight decisions:
@@ -358,6 +359,20 @@ Readback at `2026-09-23T04:50:38Z` verified the exact delivery message and retur
 returned `provider_state=delivered` with client inspection in progress. This is
 another isolated manual contract effect; the unresolved Paid occurrence remains
 fenced and no loop wake or replay was used.
+
+The next one-by-one contract, `63657015`, was completed manually on
+`2026-09-23`. The non-designer buyer instruction was mapped to the hearing-sheet
+Excel plus the common test; the anonymous survey and designer-only test were
+explicitly excluded. The hearing sheet was attached once in the official thread
+(message `428631900`, attachment `59259436`). The common test returned the
+official Google confirmation marker with the contract/event-bound receipt
+`confirmation_sha256=0c97adf447c0fa245fe83e1ae72e910e6764ef5f147231d817ed8b75780717b`.
+CrowdWorks milestone `13820268` was formally delivered once. Readback at
+`2026-09-23T05:13:08Z` verified
+`provider_receipt_id=contract:63657015:milestone:13820268`; a fresh context read
+returned `provider_state=delivered` and the exact seller delivery message
+(`428632173`). No form, attachment, or delivery was replayed, and the unresolved
+Paid occurrence remains fenced.
 
 ### Lancers
 

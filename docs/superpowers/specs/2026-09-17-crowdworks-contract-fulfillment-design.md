@@ -73,10 +73,15 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   available evidence cannot prove a no-dispatch result for this row.
 - No current contract has the complete chain correct_work_verified -> formal delivery -> buyer acceptance
   -> settlement -> payout. Verified USD 10,000 MRR is zero.
-- 63657015 has two current forms and no confirmed receipt; its timed-out intent requires official
-  reconciliation before any retry. 63570481 still needs its missing customer-address correction and
-  formal delivery. 63568785 lacks permitted document content. 63659463 needs a full quality audit and
-  delivery. 63583795 needs acceptance, settlement, and payout readback.
+- The earlier snapshot's `63657015` no-receipt statement is superseded: on
+  `2026-09-23` the non-designer hearing sheet was attached once, the common test
+  was confirmed by Google, and milestone `13820268` was formally delivered with
+  official readback (`contract:63657015:milestone:13820268`; seller message
+  `428632173`). Its anonymous survey and designer-only test were not submitted.
+  `63570481` still needs its missing customer-address correction and formal delivery;
+  `63568785` lacks permitted document content; `63659463` and `63712784` are now
+  delivered but still need acceptance/settlement/payout readback; `63583795` needs
+  acceptance, settlement, and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
   cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the
@@ -98,9 +103,11 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
    full buyer request, do the requested work, submit the common test form and Web Ads results form only
    when each mapping is unambiguous, read each confirmation, then press CrowdWorks 納品する and read
    the official milestone state.
-7. Continue 63657015, 63570481, 63568785, 63659463, and 63583795 with the same full-context,
-   correct-work, buyer-visible-readback, formal-delivery, acceptance, settlement, payout, and replay-zero
-   gates. Count USD 10,000 MRR only from collected/settled recurring value with a continuation basis.
+7. Continue 63570481 and 63568785, then reconcile acceptance/settlement/payout for
+   the delivered contracts `63712784`, `63659463`, and `63657015` (and historical
+   `63583795`) with the same full-context, correct-work, buyer-visible-readback,
+   formal-delivery, and replay-zero gates. Count USD 10,000 MRR only from
+   collected/settled recurring value with a continuation basis.
 8. Share the contract-ID handoff, quality gate, and receipt rules through the existing shared kernel only
    after the same boundary is verified on another provider.
 

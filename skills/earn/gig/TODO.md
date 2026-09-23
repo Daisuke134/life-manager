@@ -107,6 +107,15 @@ runtime/provider readback.
   `provider_receipt_id=contract:63659463:milestone:13820867` and the contract
   context is now `provider_state=delivered`/client inspection. No form was
   reposted and the Paid unknown occurrence remains fenced.
+- The next one-by-one contract `63657015` was completed at `2026-09-23T05:13:08Z`:
+  the non-designer hearing sheet was attached once (official message `428631900`,
+  attachment `59259436`), the common test returned an official Google confirmation
+  bound to buyer event `427403807`, and milestone `13820268` was delivered once.
+  Formal-delivery readback returned
+  `provider_receipt_id=contract:63657015:milestone:13820268`; a fresh context read
+  returned `provider_state=delivered` with seller message `428632173`. The anonymous
+  survey and designer-only test were explicitly excluded. No form, attachment, or
+  delivery was replayed; the unresolved Paid occurrence remains fenced.
 - Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
   authenticated/source-complete with 14 boards, one unread, zero working or
   monthly contracts, zero incoming offers, zero storefront contract candidates,
@@ -164,15 +173,16 @@ runtime/provider readback.
    and reserved wake coalescing), build one immutable release, apply it, and verify a
    natural Coconala wake with official readback and replay-zero. Do not edit the
    admission database by hand or clear old unknown rows.
-3. **CrowdWorks occurrence fences and loop promotion.** The first funded canary
-   `63712784` is already manually complete with official form and milestone
-   readback; it is not proof for the unresolved Paid occurrence. Reconcile each
+3. **CrowdWorks occurrence fences and loop promotion.** The manually completed
+   contracts `63712784`, `63659463`, and `63657015` are not proof for the unresolved
+   Paid occurrence. Reconcile each
    existing `effect_unknown` occurrence against provider inventory and durable
    child/effect receipts, keep every uncertain effect fenced, then promote the
    immutable Paid fix and prove a natural canary/replay-zero without replaying
    `63712784`.
-4. **CrowdWorks remaining funded contracts.** Repeat the same contract-keyed flow
-   for each funded item, including buyer revisions, acceptance and payout evidence.
+4. **CrowdWorks remaining funded contracts.** Complete `63570481` and `63568785`
+   through the same contract-keyed flow, including buyer revisions, acceptance and
+   payout evidence; then reconcile any newly funded inventory.
 5. **Lancers.** Keep the current browser/work-sync owners running; implement the
    missing Paid provider mutation/readback (`lancers_paid_effect_not_implemented`),
    prove one canary, then complete the funded inventory and payout receipts.
