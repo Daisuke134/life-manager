@@ -1947,3 +1947,16 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   contract; keep Upwork disabled until its explicit authorization, fresh
   authentication, and funded canary exist, then promote only after official
   receipt and replay-zero.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:40 JST
+
+- [x] Diagnosed the scheduler backlog from the authoritative admission DB:
+  CrowdWorks Paid has 55 queued zero-effect wakes plus one claimed
+  `effect_unknown` occurrence (`18d62cf32eb0c678-48194`), and Lancers Paid has
+  55 queued zero-effect wakes.
+- [x] Confirmed the coalescing fix exists on the pushed source branch but not
+  in the installed CrowdWorks/Lancers releases; this is why repeated wakes do
+  not yet converge in production.
+- [ ] Keep the exact CrowdWorks unknown occurrence fenced until its own
+  provider receipt or pre-effect proof exists. Do not clear the DB or replay it;
+  finish the funded-provider canary/replay-zero gate before promotion.

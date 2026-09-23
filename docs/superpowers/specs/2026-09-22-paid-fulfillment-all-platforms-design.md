@@ -1500,3 +1500,22 @@ The objective is complete only when all of the following are proven:
   no legitimate provider mutation. Upwork remains disabled by the explicit
   authorization ledger. The source branch is pushed but unpromoted until the
   funded-provider canary and replay-zero gates can be proven.
+
+## Admission Diagnosis — 2026-09-24 03:40 JST
+
+- The host-admission database shows the real remaining scheduler defect rather
+  than a missing provider click: `crowdworks-revenue-paid` has 55 queued
+  zero-effect wake occurrences plus the one claimed effect-unknown occurrence
+  `18d62cf32eb0c678-48194`; `lancers-revenue-paid` also has 55 queued
+  zero-effect wakes. Coconala's queued/cancelled history is separate from this
+  backlog.
+- The installed CrowdWorks/Lancers releases (`f01c612d…`/`109f2b396…`) do not
+  contain the `coalesce_queued_wakes` and `coalesce_reserved_wakes` registry
+  fields. The pushed source branch contains those fields and their regression
+  coverage, but it is not a production result until the release/canary gates
+  are met.
+- The claimed CrowdWorks unknown occurrence has no exact zero-effect marker or
+  occurrence-bound provider receipt in the current state root. It stays fenced;
+  no owner-wide clear, manual DB edit, replay, or guessed provider readback is
+  allowed. The next safe mutation is an admissible provider receipt or a
+  formally proven pre-effect marker for that exact occurrence.
