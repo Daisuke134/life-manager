@@ -786,6 +786,30 @@ formal delivery.
   (`18180857`) and both NPO rooms (`18223833`, `18250352`) were each read back
   as `awaiting_buyer`, with no provider send.
 
+## Runtime Checkpoint — 2026-09-23 22:18 JST
+
+- The installed CrowdWorks Paid wake completed `pass`/exit `0` at
+  `2026-09-23T13:11:48Z`: `observed=5`, `actionable=1`, `effect=0`,
+  `readback=4`, `failed=0`, `pending=1`. Contract `63568785` remains an exact
+  nonterminal wait: the buyer's latest event is the existing request for access
+  to the Google document, and the prepared artifact cannot be verified yet.
+  A fresh `gog drive get` and `gog drive download` both returned the provider's
+  `404 File not found`; no duplicate question, fabricated artifact, or formal
+  delivery was sent.
+- The installed Lancers Paid wake completed `pass`/exit `0` at
+  `2026-09-23T13:12:33Z`: `observed=0`, `actionable=0`, `effect=0`,
+  `readback=0`, `failed=0`, `pending=0`. A fresh authenticated inventory is
+  source-complete (`logged_in=true`), with 14 boards but zero application,
+  working, monthly-contract, storefront-contract, and finance candidates; no
+  provider mutation is admitted.
+- Upwork has no `upwork-revenue-paid` lifecycle owner and no live CDP listener
+  on port `9233`. The latest available evidence is the historical
+  `2026-08-26` API-terminal snapshot: zero active contracts, identity
+  unverified, API/UI automation disabled, and the support request still
+  `pending_external`. The next cursor is an authenticated, read-only Upwork
+  inventory and owner-registration decision; no Upwork send or contract claim
+  is made from the historical snapshot.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
