@@ -37,6 +37,19 @@ official four-room readback, and replay-zero are still required before the
 Coconala system layer is closed. The execution cursor then moves to CrowdWorks;
 its Paid owner remains fenced while `admission_effect_unknown=true`.
 
+### CrowdWorks handoff readback — 2026-09-23 20:52 JST
+
+The authenticated read-only inventory returned five active funded contracts:
+`63712784`, `63659463`, `63657015`, and `63570481` are `delivered`, while
+`63568785` is still `funded`. Its official detail (`milestone_id=13797948`,
+buyer event `426855154`) requires five days of LINE-distributed Note lessons
+and one form response per lesson. The current provider context cannot read the
+LINE delivery or the five lesson/form inputs; the seller has already asked the
+buyer once to provide those exact materials in CrowdWorks. Therefore the next
+effect is not authorized: do not repeat the message, answer a guessed form, or
+press formal delivery. The remaining CrowdWorks system gate is to reconcile
+the occurrence-bound `effect_unknown` fences before any Paid restart.
+
 ### Latest Coconala provider readback — 2026-09-23 20:35 JST
 
 The latest official readback is split by client. Ryu `18211957` has the manual

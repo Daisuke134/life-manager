@@ -42,6 +42,13 @@ runtime/provider readback.
   readback before any restart or retry. `crowdworks-revenue-browser` and
   `crowdworks-revenue-reply` are separate owners and are not proof that Paid is
   clear.
+- A fresh official CrowdWorks inventory at `2026-09-23T11:52:18Z` returned five
+  funded/active IDs: `63712784`, `63659463`, `63657015`, and `63570481` are
+  `delivered`; `63568785` is `funded`. The `63568785` detail readback at
+  `11:52:38Z` shows the buyer's five-day LINE/Note/form task and milestone
+  `13797948`. The buyer has not supplied the 1–5 day Note/form content or a
+  usable LINE readback; the seller already asked once for those exact inputs,
+  so no duplicate message, form answer, or delivery click is allowed now.
 - Lancers Paid has the same safety fence (`admission_effect_unknown=true`), so
   it is not started or declared complete from its local `effect=0` snapshot.
 
