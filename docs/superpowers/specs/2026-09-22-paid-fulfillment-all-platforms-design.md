@@ -134,6 +134,22 @@ completion criteria.
 - The next executable cursor remains the cross-platform release/canary gate;
   no Coconala client is replayed while the official room is seller-last.
 
+### Runtime checkpoint — 2026-09-24 00:47 JST
+
+- CrowdWorks occurrence `crowdworks-revenue-paid:18d7f38ac37d59b0-85238` was
+  reconciled through the exact paid-run marker (`completed`, `effect=0`) and
+  the canonical pre-effect resolver returned `resolved=true`. No provider
+  mutation or replay occurred.
+- A separate historical occurrence,
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194`, remains
+  `claimed/effect_unknown=1`; its old run has no exact zero-effect marker or
+  current official receipt, so it stays fenced. The latest natural wake is
+  retryable `resource_fifo_wait`; the durable snapshot remains
+  `observed=5`, `effect=0`, `readback=4`, `failed=0`, `pending=1`, with
+  `63568785` waiting for buyer material.
+- This is an occurrence-scoped recovery only. The loop remains scheduled and
+  no owner-wide fence clear or duplicate provider action is allowed.
+
 ## Runtime checkpoint — 2026-09-24 00:12 JST
 
 - Ryu `18211957` remains closed under the permanent manual fence. The latest direct

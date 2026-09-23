@@ -68,6 +68,19 @@ runtime/provider readback.
   do not count as provider completion. Continue to the next platform cursor
   without replaying any seller-last Coconala room.
 
+### Runtime checkpoint — 2026-09-24 00:47
+
+- [x] Reconciled CrowdWorks occurrence
+  `18d7f38ac37d59b0-85238` with the exact `completed/effect=0` marker;
+  canonical pre-effect resolution returned `resolved=true`, with no provider
+  mutation or replay.
+- [ ] Keep historical occurrence `18d62cf32eb0c678-48194` fenced: no exact
+  no-effect marker or current official receipt exists. The loop remains
+  scheduled; its latest wake is retryable `resource_fifo_wait` and the durable
+  snapshot is `observed=5/effect=0/readback=4/failed=0/pending=1`.
+- [ ] Work `63568785` still needs buyer-provided material before formal
+  delivery. Do not clear the owner-wide fence or resend any completed item.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
