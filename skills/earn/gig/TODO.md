@@ -1303,6 +1303,10 @@ produces one, then add a red test and the smallest provider-specific mutation/re
 ### 6. Freelancer.com and Upwork
 
 - [ ] Recover official account/policy state and prove Apply -> Reply -> Paid -> payout on each.
+  Current local read-only evidence is insufficient: Upwork's stored snapshot is dated 2026-08-26
+  with active contracts 0 and proposal/Connects/payment effects 0, its 9233 CDP endpoint is not
+  responding, and Freelancer work-sync has no fingerprints or contract candidates. Treat these as
+  unverified, not as a current provider logout; do not register a Paid owner or submit anything.
 - [ ] Implement Storefront only where an official provider surface supports it.
 
 ### 7. New-platform meta loop

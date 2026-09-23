@@ -381,6 +381,13 @@ Freelancer has no Paid state directory or registered Paid owner in the current
 inventory. Neither platform is a submission target until account/policy state,
 contract inventory, and the official Apply-to-payout proof path are registered.
 
+The 2026-09-23 local read-only probe adds no live-provider proof: the stored
+Upwork snapshot is from 2026-08-26 with zero active contracts and zero proposal,
+Connects, or payment effects, the Upwork CDP endpoint `9233` is not responding,
+and Freelancer `work-sync` has no fingerprints or contract candidates. These
+are stale/absent observations, not an assertion that either provider is
+currently logged out; no owner or Paid mutation may be enabled from them.
+
 ## Architecture
 
 Use one shared fulfillment contract with provider-owned observation and effect
