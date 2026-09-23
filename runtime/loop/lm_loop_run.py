@@ -22,7 +22,7 @@ from typing import Callable
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
-from runtime.loop.macos_loop_registry import validate_registry
+from runtime.loop.macos_loop_registry import admission_effect_scope, validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
@@ -674,8 +674,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["coalesce_reserved"] = True
             if entry.get("effect_class") == "none":
                 enqueue_kwargs["allow_no_effect_recovery"] = True
-            if (entry.get("effect_class") == "publish"
-                    and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+            if admission_effect_scope(entry) == "occurrence":
                 enqueue_kwargs["effect_scope"] = "occurrence"
             ticket, admission_reason = (None, "legacy")
             for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
@@ -720,8 +719,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             claim = None
             admission_reason = None
             claim_kwargs = {"admission_class": admission_class}
-            if (entry.get("effect_class") == "publish"
-                    and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+            if admission_effect_scope(entry) == "occurrence":
                 claim_kwargs["effect_scope"] = "occurrence"
             if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
                 claim_kwargs["coalesced_occurrence_id"] = occurrence_id

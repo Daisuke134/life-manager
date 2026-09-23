@@ -46,6 +46,13 @@
       ],
       "type": "string"
     },
+    "admission_effect_scope": {
+      "enum": [
+        "occurrence",
+        "owner"
+      ],
+      "type": "string"
+    },
     "browser_owner": {
       "additionalProperties": false,
       "properties": {

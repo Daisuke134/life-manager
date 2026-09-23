@@ -1388,6 +1388,33 @@ def test_paid_decision_requires_exact_buyer_outcome_identity_coverage():
         )
 
 
+def test_paid_decision_binds_model_hash_typo_to_official_buyer_identity():
+    paid = load("paid_direct")
+    identity = {"message_id": "buyer-1", "content_sha256": "a" * 64, "side": "buyer"}
+    typo = {**identity, "content_sha256": "b" + ("a" * 63)}
+    decision = {
+        "decision": "await_buyer", "mode": None,
+        "feedback_sha256": "c" * 64, "requirements_sha256": "d" * 64,
+        "latest_message_identity": identity,
+        "required_output": "Receive the missing buyer facts.",
+        "required_effect": "Wait for the buyer's factual confirmation.",
+        "required_outcomes": [{
+            "outcome_id": "missing-buyer-facts",
+            "source_message_identities": [typo],
+            "required_output": "Receive the missing buyer facts.",
+            "required_effect": "Wait for the buyer's factual confirmation.",
+        }],
+        "required_assets": [], "delivery_stage": "none",
+        "formal_approval_evidence": None, "unresolved": ["buyer facts"],
+    }
+
+    bound = paid._validate_paid_decision(
+        decision, "c" * 64, "d" * 64, identity, identity, [identity],
+    )
+
+    assert bound["required_outcomes"][0]["source_message_identities"] == [identity]
+
+
 def test_remote_completion_requires_receipt_for_every_required_outcome(tmp_path):
     remote = load("paid_remote_result")
     root = tmp_path / "18211957"
@@ -5552,6 +5579,35 @@ def test_active_bounded_process_groups_are_terminated_on_shutdown(monkeypatch):
             paid._ACTIVE_BOUNDED_PROCESSES.discard(process)
 
     assert signals == [(43210, paid.signal.SIGTERM)]
+
+
+def test_shutdown_handler_terminates_paid_parent_after_children(monkeypatch):
+    paid = load("paid_direct")
+    installed = {}
+    killed = []
+    stopped = []
+
+    def fake_signal(signum, handler):
+        installed[signum] = handler
+        return "previous"
+
+    monkeypatch.setattr(paid.signal, "signal", fake_signal)
+    monkeypatch.setattr(
+        paid, "_terminate_active_bounded_processes", lambda: stopped.append(True)
+    )
+    monkeypatch.setattr(
+        paid.os, "kill", lambda pid, signum: killed.append((pid, signum))
+    )
+
+    previous = paid._install_bounded_shutdown_handlers()
+    try:
+        installed[paid.signal.SIGTERM](paid.signal.SIGTERM, None)
+    finally:
+        paid._restore_bounded_shutdown_handlers(previous)
+
+    assert stopped == [True]
+    assert killed == [(paid.os.getpid(), paid.signal.SIGTERM)]
+    assert installed[paid.signal.SIGTERM] is paid.signal.SIG_DFL
 
 
 def test_runner_loop_id_uses_managed_control_plane_identity(monkeypatch):

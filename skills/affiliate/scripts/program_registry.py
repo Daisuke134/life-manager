@@ -32,6 +32,8 @@ TTS_PLACEMENT = "elevenlabs-text-to-speech-api-for-developers"
 TTS_LINK_FIELD = "TTS API affiliate link"
 TTS_DESTINATION = "https://elevenlabs.io/text-to-speech"
 DEFAULT_ELEVENLABS_DESTINATION = "https://elevenlabs.io"
+PARTNERSTACK_AUTH_READBACK_MAX_ATTEMPTS = 20
+PARTNERSTACK_AUTH_READBACK_INTERVAL_MS = 250
 GETRESPONSE_PROMOTION = (
     "We publish evidence-led English software buying guides on aniccaai.com and disclose "
     "affiliate relationships before calls to action. We distribute each guide through "
@@ -260,7 +262,7 @@ def atomic_receipt(path, payload):
         Path(temporary).unlink(missing_ok=True)
 
 
-def _elevenlabs_links(page):
+def _read_elevenlabs_links(page):
     return page.evaluate(
         """async () => {
             const partnershipResponse = await fetch(
@@ -294,6 +296,75 @@ def _elevenlabs_links(page):
             };
         }"""
     )
+
+
+def refresh_partnerstack_team_access(page):
+    """Refresh the dashboard token with the browser's active team context."""
+    result = page.evaluate(
+        """async () => {
+            const target = sessionStorage.getItem('teamMembershipKey');
+            if (!target) {
+              return {state: 'TEAM_CONTEXT_MISSING', http: null,
+                      token_type: 'access_team'};
+            }
+            const response = await fetch(
+              'https://api.partnerstack.com/api/auth/token', {
+                method: 'POST', credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                  token_type: 'access_team', token_target: target,
+                }),
+              });
+            return {
+              state: response.ok ? 'REFRESHED'
+                : [401, 403].includes(response.status) ? 'AUTH_REQUIRED'
+                : 'REFRESH_FAILED',
+              http: response.status,
+              token_type: 'access_team',
+            };
+        }"""
+    )
+    if (
+        not isinstance(result, dict)
+        or result.get("state") not in {
+            "REFRESHED", "AUTH_REQUIRED", "TEAM_CONTEXT_MISSING", "REFRESH_FAILED",
+        }
+        or result.get("token_type") != "access_team"
+        or (
+            result.get("http") is not None
+            and (
+                not isinstance(result.get("http"), int)
+                or isinstance(result.get("http"), bool)
+            )
+        )
+    ):
+        raise ValueError("invalid PartnerStack auth refresh response")
+    return result
+
+
+def _elevenlabs_links(page):
+    observed = _read_elevenlabs_links(page)
+    readback_attempts = 1
+    refresh = {"state": "NOT_NEEDED", "http": None}
+    if observed.get("state") == "AUTH_REQUIRED":
+        refresh = refresh_partnerstack_team_access(page)
+        if refresh["state"] == "REFRESHED":
+            while readback_attempts < PARTNERSTACK_AUTH_READBACK_MAX_ATTEMPTS:
+                if readback_attempts > 1:
+                    page.wait_for_timeout(PARTNERSTACK_AUTH_READBACK_INTERVAL_MS)
+                observed = _read_elevenlabs_links(page)
+                readback_attempts += 1
+                if observed.get("state") != "AUTH_REQUIRED":
+                    break
+    return {
+        **observed,
+        "auth_refresh_state": refresh["state"],
+        "auth_refresh_http": refresh.get("http"),
+        "auth_readback_attempts": readback_attempts,
+        "auth_recovered": (
+            refresh["state"] == "REFRESHED" and observed.get("state") == "READY"
+        ),
+    }
 
 
 def _link_identity(item):
@@ -365,6 +436,10 @@ def elevenlabs_link_action(
                     ),
                     "provider_effect_started": False,
                     "changed": False,
+                    "auth_refresh_state": observed.get("auth_refresh_state"),
+                    "auth_refresh_http": observed.get("auth_refresh_http"),
+                    "auth_readback_attempts": observed.get("auth_readback_attempts"),
+                    "auth_recovered": observed.get("auth_recovered", False),
                     "observed_at": datetime.now(timezone.utc).isoformat(),
                 }
                 atomic_receipt(receipt_path, result)
@@ -443,6 +518,10 @@ def elevenlabs_link_action(
                 "private_link_state": "VERIFIED_NONEMPTY",
                 "private_link_field": private_field,
                 "deduplicated": job is None,
+                "auth_refresh_state": observed.get("auth_refresh_state"),
+                "auth_refresh_http": observed.get("auth_refresh_http"),
+                "auth_readback_attempts": observed.get("auth_readback_attempts"),
+                "auth_recovered": observed.get("auth_recovered", False),
                 "observed_at": datetime.now(timezone.utc).isoformat(),
             }
             atomic_receipt(receipt_path, result)

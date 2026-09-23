@@ -16,7 +16,14 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from job_journal import JobStateError, reconcile_effect, start_effect, verify_effect
+from job_journal import (
+    JobStateError,
+    reconcile_effect,
+    resume_effect,
+    start_effect,
+    unresolved_effect,
+    verify_effect,
+)
 from provider_cli import atomic_write
 
 
@@ -24,11 +31,355 @@ class PublishError(Exception):
     pass
 
 
+DEFAULT_SITE_REPOSITORY = "https://github.com/Daisuke134/anicca-products.git"
+
+
 def git(root, *args):
     result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=False)
     if result.returncode:
         raise PublishError(result.stderr.strip() or "git command failed")
     return result.stdout.strip()
+
+
+def _is_ancestor(root, ancestor, descendant):
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+            cwd=root, capture_output=True, check=False, timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _gh(root, *args):
+    executable = shutil.which("gh")
+    if not executable:
+        raise PublishError("GitHub CLI is unavailable")
+    try:
+        result = subprocess.run(
+            [executable, *args], cwd=root, text=True, capture_output=True,
+            check=False, timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise PublishError("GitHub CLI failed") from error
+    if result.returncode:
+        raise PublishError(result.stderr.strip() or result.stdout.strip() or "GitHub CLI failed")
+    return result.stdout.strip()
+
+
+def _github_repository(remote_url):
+    parsed = urlsplit(remote_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "github.com"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    path = parsed.path.strip("/")
+    if path.endswith(".git"):
+        path = path[:-4]
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", path):
+        return None
+    return path
+
+
+def _publication_repository(remote_url):
+    repository = _github_repository(remote_url)
+    if repository:
+        return repository
+    parsed = urlsplit(remote_url)
+    local_file_url = (
+        parsed.scheme == "file"
+        and parsed.hostname in {None, ""}
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.query
+        and not parsed.fragment
+        and parsed.path.startswith("/")
+    )
+    local_path = not parsed.scheme and Path(remote_url).is_absolute()
+    if local_file_url or local_path:
+        return None
+    raise PublishError("unsupported publisher remote")
+
+
+def _action_fingerprint(action):
+    encoded = json.dumps(action, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def _publication_effect(
+    state, slug, action, legacy_action, last_verified, compatible_actions=(),
+):
+    pending = unresolved_effect(state, "OWNED_GIT_PUSH", slug)
+    action_fingerprint = _action_fingerprint(action)
+    candidates = (action, legacy_action, *compatible_actions)
+    allowed = {_action_fingerprint(candidate) for candidate in candidates}
+    if pending is not None:
+        observed = pending.get("action_fingerprint")
+        prior = pending.get("last_verified_external_object")
+        if (
+            observed not in allowed
+            or not isinstance(prior, dict)
+            or prior.get("remote") != last_verified.get("remote")
+            or prior.get("branch") != last_verified.get("branch")
+            or (
+                observed == action_fingerprint
+                and prior.get("repository") != last_verified.get("repository")
+            )
+        ):
+            raise PublishError("unresolved publication effect does not match current action")
+        resumed = resume_effect(state, "OWNED_GIT_PUSH", slug)
+        if resumed is None or resumed.get("job_id") != pending.get("job_id"):
+            raise PublishError("unresolved publication effect changed during resume")
+        return resumed
+    actions = {_action_fingerprint(item): item for item in candidates}
+    verified = []
+    jobs = state.expanduser() / "jobs"
+    for fingerprint, expected in actions.items():
+        job_key = hashlib.sha256(
+            f"OWNED_GIT_PUSH\0{slug}\0{fingerprint}".encode()
+        ).hexdigest()
+        path = jobs / f"key-{job_key}.json"
+        if not path.is_file():
+            continue
+        row = json.loads(path.read_text(encoding="utf-8"))
+        external = row.get("last_verified_external_object")
+        if (
+            row.get("state") != "VERIFIED"
+            or row.get("kind") != "OWNED_GIT_PUSH"
+            or row.get("target") != slug
+            or row.get("job_key") != job_key
+            or row.get("action_fingerprint") != fingerprint
+            or not isinstance(external, dict)
+            or external.get("state") != "DELIVERED"
+            or external.get("remote") != expected.get("remote")
+            or external.get("branch") != expected.get("branch")
+            or external.get("head") != expected.get("commit")
+            or (
+                expected.get("repository") is not None
+                and external.get("repository") != expected.get("repository")
+            )
+        ):
+            raise PublishError("verified publication effect does not match current action")
+        verified.append(row)
+    if len(verified) > 1:
+        raise PublishError("multiple verified publication effects match current action")
+    if verified:
+        return verified[0]
+    return start_effect(
+        state, "OWNED_GIT_PUSH", slug, action, last_verified, 300,
+    )
+
+
+def _pull_request_view(root, repository, pull_request):
+    fields = "autoMergeRequest,baseRefName,headRefOid,mergeCommit,state,url"
+    try:
+        row = json.loads(_gh(
+            root, "pr", "view", pull_request, "--repo", repository,
+            "--json", fields,
+        ))
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise PublishError("GitHub pull request readback is invalid") from error
+    if not isinstance(row, dict):
+        raise PublishError("GitHub pull request readback is invalid")
+    return row
+
+
+def _github_pull_request(
+    *, root, repository, remote, target_branch, head_branch, commit, slug,
+    merge_mode="auto",
+):
+    if merge_mode not in {"auto", "immediate"}:
+        raise PublishError("unsupported GitHub merge mode")
+    fields = "autoMergeRequest,baseRefName,headRefOid,mergeCommit,state,url"
+    try:
+        rows = json.loads(_gh(
+            root, "pr", "list", "--repo", repository, "--head", head_branch,
+            "--state", "all", "--limit", "10", "--json", fields,
+        ))
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise PublishError("GitHub pull request list readback is invalid") from error
+    if not isinstance(rows, list):
+        raise PublishError("GitHub pull request list readback is invalid")
+    matches = [
+        row for row in rows
+        if row.get("baseRefName") == target_branch and row.get("headRefOid") == commit
+    ]
+    if len(matches) > 1:
+        raise PublishError("multiple GitHub pull requests match publication")
+    if matches:
+        pull_request = matches[0].get("url")
+    else:
+        git(root, "push", remote, f"{commit}:refs/heads/{head_branch}")
+        pull_request = _gh(
+            root, "pr", "create", "--repo", repository, "--base", target_branch,
+            "--head", head_branch, "--title", f"feat(blog): publish {slug}",
+            "--body", "Automated Affiliate publication after policy and quality gates passed.",
+        ).strip()
+    if not isinstance(pull_request, str) or not re.fullmatch(
+        rf"{re.escape(f'https://github.com/{repository}/pull/')}[1-9][0-9]*",
+        pull_request,
+    ):
+        raise PublishError("GitHub pull request URL is invalid")
+    row = _pull_request_view(root, repository, pull_request)
+    if row.get("baseRefName") != target_branch or row.get("headRefOid") != commit:
+        raise PublishError("GitHub pull request identity does not match publication")
+    if row.get("state") == "OPEN" and row.get("autoMergeRequest") is None:
+        merge_args = [
+            "pr", "merge", pull_request, "--repo", repository,
+            "--merge", "--delete-branch", "--match-head-commit", commit,
+        ]
+        if merge_mode == "auto":
+            merge_args.insert(5, "--auto")
+        _gh(root, *merge_args)
+        row = _pull_request_view(root, repository, pull_request)
+    if row.get("state") == "OPEN":
+        return {
+            "state": "PULL_REQUEST_OPEN", "head_branch": head_branch,
+            "pull_request_url": pull_request,
+        }
+    if row.get("state") != "MERGED" or not isinstance(row.get("mergeCommit"), dict):
+        raise PublishError("GitHub pull request closed without merge")
+    merge_commit = row["mergeCommit"].get("oid")
+    if not isinstance(merge_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", merge_commit):
+        raise PublishError("GitHub merge commit readback is invalid")
+    git(root, "fetch", "--no-tags", remote, target_branch)
+    git(root, "merge-base", "--is-ancestor", commit, merge_commit)
+    git(root, "merge-base", "--is-ancestor", merge_commit, "FETCH_HEAD")
+    return {
+        "state": "DELIVERED", "head_branch": head_branch,
+        "pull_request_url": pull_request,
+        "merge_commit": merge_commit,
+    }
+
+
+def _is_single_publication_commit(root, base, head, allowed_path, dirty):
+    if dirty or not allowed_path:
+        return False
+    changed = git(root, "diff", "--name-only", f"{base}..{head}").splitlines()
+    count = git(root, "rev-list", "--count", f"{base}..{head}")
+    return changed == [allowed_path] and count == "1"
+
+
+def _managed_publisher_root(
+    state, release_root, branch, allowed_ahead_path=None, repository=None,
+):
+    try:
+        metadata = json.loads((release_root / "RELEASE.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise PublishError("managed publisher release metadata is unavailable") from error
+    release_repo = metadata.get("repo")
+    release_sha = metadata.get("sha")
+    parsed = urlsplit(release_repo) if isinstance(release_repo, str) else None
+    if (
+        not isinstance(release_sha, str)
+        or not re.fullmatch(r"[0-9a-f]{40}", release_sha)
+        or parsed is None
+        or parsed.scheme not in {"https", "file"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (parsed.scheme == "https" and not parsed.hostname)
+        or (parsed.scheme == "file" and not parsed.path.startswith("/"))
+    ):
+        raise PublishError("managed publisher release metadata is invalid")
+    repo = repository or release_repo
+    target = urlsplit(repo) if isinstance(repo, str) else None
+    if (
+        target is None
+        or target.scheme not in {"https", "file"}
+        or target.username is not None
+        or target.password is not None
+        or target.query
+        or target.fragment
+        or (target.scheme == "https" and not target.hostname)
+        or (target.scheme == "file" and not target.path.startswith("/"))
+    ):
+        raise PublishError("managed publisher repository is invalid")
+    state.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if repo == release_repo:
+        checkout_name = "publisher-checkout"
+    else:
+        suffix = hashlib.sha256(repo.encode()).hexdigest()[:12]
+        checkout_name = f"publisher-checkout-{suffix}"
+    configured_root = state / checkout_name
+    if configured_root.is_symlink():
+        raise PublishError("managed publisher checkout must not be a symlink")
+    root = configured_root.resolve()
+    if not root.exists():
+        temporary = state / f".publisher-checkout.{os.getpid()}.tmp"
+        if temporary.exists():
+            raise PublishError("managed publisher checkout staging path exists")
+        try:
+            result = subprocess.run(
+                [
+                    "git", "clone", "--filter=blob:none", "--no-tags",
+                    "--single-branch", "--branch", branch, "--sparse", repo,
+                    str(temporary),
+                ],
+                text=True, capture_output=True, check=False, timeout=180,
+            )
+            if result.returncode:
+                raise PublishError(result.stderr.strip() or "managed publisher clone failed")
+            git(temporary, "sparse-checkout", "set", "apps/landing/data/research")
+            os.replace(temporary, root)
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+    if git(root, "rev-parse", "--show-toplevel") != str(root):
+        raise PublishError("managed publisher checkout is not the exact git worktree")
+    if git(root, "remote", "get-url", "origin") != repo:
+        raise PublishError("managed publisher remote does not match the repository")
+    push_urls = git(root, "remote", "get-url", "--push", "--all", "origin").splitlines()
+    if push_urls != [repo]:
+        raise PublishError("managed publisher push remote does not match the release")
+    if git(root, "branch", "--show-current") != branch:
+        raise PublishError("managed publisher branch does not match")
+    dirty = git(root, "status", "--porcelain", "--untracked-files=all")
+    git(root, "fetch", "--no-tags", "origin", branch)
+    local_head = git(root, "rev-parse", "HEAD")
+    remote_head = git(root, "rev-parse", "FETCH_HEAD")
+    if repo == release_repo:
+        release_ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", release_sha, remote_head],
+            cwd=root, capture_output=True, check=False, timeout=15,
+        )
+        if release_ancestor.returncode != 0:
+            raise PublishError("managed publisher origin does not contain the release")
+    if local_head != remote_head:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", local_head, remote_head],
+            cwd=root, capture_output=True, check=False, timeout=15,
+        )
+        if ancestor.returncode == 0:
+            if dirty:
+                raise PublishError("managed publisher checkout is dirty while origin advanced")
+            git(root, "merge", "--ff-only", remote_head)
+        else:
+            remote_ancestor = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", remote_head, local_head],
+                cwd=root, capture_output=True, check=False, timeout=15,
+            )
+            if remote_ancestor.returncode == 0:
+                if _is_single_publication_commit(
+                    root, remote_head, local_head, allowed_ahead_path, dirty,
+                ):
+                    return root
+                raise PublishError("managed publisher checkout is ahead of origin")
+            merge_base = git(root, "merge-base", remote_head, local_head)
+            if _is_single_publication_commit(
+                root, merge_base, local_head, allowed_ahead_path, dirty,
+            ):
+                return root
+            raise PublishError("managed publisher checkout diverged from origin")
+    return root
 
 
 def load_artifact(state, slug):
@@ -154,7 +505,10 @@ def fetch_readback(artifact, base_url):
 def publish(args):
     state = args.state.expanduser()
     root = args.landing_root.resolve()
+    managed_repository = None
+    release_repository = None
     artifact = load_artifact(state, args.slug)
+    target_relative = f"apps/landing/data/research/{args.slug}.json"
     receipt_path = state / "owned-publications" / f"{args.slug}.json"
     receipt = {}
     revision = False
@@ -176,9 +530,73 @@ def publish(args):
                 receipt.update(state="LIVE", **live)
                 atomic_write(receipt_path, receipt)
                 return receipt
+    if not (root / ".git").exists() and (root / "RELEASE.json").is_file():
+        if args.remote != "origin":
+            raise PublishError("managed publisher remote must be origin")
+        try:
+            release_metadata = json.loads(
+                (root / "RELEASE.json").read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            raise PublishError("managed publisher release metadata is unavailable") from error
+        release_repository = release_metadata.get("repo")
+        managed_repository = (
+            getattr(args, "repository", None) or DEFAULT_SITE_REPOSITORY
+        )
+        root = _managed_publisher_root(
+            state, root, args.branch, target_relative, managed_repository,
+        )
     if git(root, "rev-parse", "--show-toplevel") != str(root):
         raise PublishError("landing root is not the exact git worktree")
-    target_relative = f"apps/landing/data/research/{args.slug}.json"
+    remote_url = git(root, "remote", "get-url", args.remote)
+    github_repository = _publication_repository(remote_url)
+    current_head = git(root, "rev-parse", "HEAD")
+    recorded_commit = receipt.get("commit")
+    if receipt.get("state") == "DELIVERED":
+        if (
+            isinstance(recorded_commit, str)
+            and re.fullmatch(r"[0-9a-f]{40}", recorded_commit)
+            and _is_ancestor(root, recorded_commit, current_head)
+        ):
+            recorded_repository = receipt.get("repository")
+            if recorded_repository not in {None, remote_url}:
+                raise PublishError("delivered publication repository conflicts with target")
+            if recorded_repository is None:
+                receipt["repository"] = remote_url
+                atomic_write(receipt_path, receipt)
+            return receipt
+        if (
+            managed_repository is None
+            or managed_repository == release_repository
+            or receipt.get("repository") == remote_url
+        ):
+            raise PublishError("delivered publication commit is absent from target branch")
+        legacy = {
+            "state": "DELIVERED",
+            "repository": receipt.get("repository") or release_repository,
+            **{
+                key: receipt[key]
+                for key in (
+                    "commit", "remote", "branch", "head_branch",
+                    "pull_request_url", "merge_commit",
+                )
+                if receipt.get(key) is not None
+            },
+        }
+        legacy_deliveries = list(receipt.get("legacy_deliveries", []))
+        if legacy and legacy not in legacy_deliveries:
+            legacy_deliveries.append(legacy)
+        for key in (
+            "commit", "remote", "branch", "head_branch", "pull_request_url",
+            "merge_commit",
+        ):
+            receipt.pop(key, None)
+        receipt.update(
+            state="INTENT", repository=remote_url,
+            legacy_deliveries=legacy_deliveries,
+            corrective_delivery_started_at=datetime.now(timezone.utc).isoformat(),
+        )
+        atomic_write(receipt_path, receipt)
     target = root / target_relative
     expected = json.dumps(public_row(artifact), ensure_ascii=False, indent=2) + "\n"
     dirty = {line[3:] for line in git(root, "status", "--porcelain", "--untracked-files=all").splitlines() if len(line) >= 4}
@@ -215,6 +633,7 @@ def publish(args):
             "content_sha256": artifact["content_sha256"],
             "state": "INTENT",
             "target": target_relative,
+            "repository": remote_url,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         atomic_write(receipt_path, receipt)
@@ -223,21 +642,83 @@ def publish(args):
         if git(root, "diff", "--cached", "--name-only") != target_relative:
             raise PublishError("git index contains a non-publication target")
         git(root, "commit", "-m", f"feat(blog): publish {args.slug}")
-    commit = git(root, "rev-parse", "HEAD")
+    current_head = git(root, "rev-parse", "HEAD")
+    recorded_commit = receipt.get("commit")
+    if receipt.get("state") == "PULL_REQUEST_OPEN":
+        if not isinstance(recorded_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", recorded_commit):
+            raise PublishError("publication pull request receipt has invalid commit")
+        git(root, "rev-parse", f"{recorded_commit}^{{commit}}")
+        commit = recorded_commit
+    else:
+        commit = current_head
     ref = f"refs/heads/{args.branch}"
     remote_row = git(root, "ls-remote", args.remote, ref)
     remote_head = remote_row.split()[0] if remote_row else None
-    job = start_effect(
-        state, "OWNED_GIT_PUSH", args.slug,
-        {"content_sha256": artifact["content_sha256"], "commit": commit,
-         "remote": args.remote, "branch": args.branch},
-        {"remote": args.remote, "branch": args.branch, "head": remote_head}, 300,
+    head_branch = None
+    merge_mode = None
+    if github_repository:
+        head_branch = f"affiliate/publish-{args.slug}-{artifact['content_sha256'][:12]}"
+        merge_mode = (
+            "immediate"
+            if github_repository == _github_repository(DEFAULT_SITE_REPOSITORY)
+            else "auto"
+        )
+    legacy_action = {
+        "content_sha256": artifact["content_sha256"], "commit": commit,
+        "remote": args.remote, "branch": args.branch,
+    }
+    action = dict(legacy_action)
+    action["repository"] = remote_url
+    compatible_actions = []
+    if head_branch:
+        compatible_actions.append({
+            **legacy_action,
+            "delivery": "pull_request",
+            "head_branch": head_branch,
+        })
+        action.update(
+            delivery="pull_request", head_branch=head_branch,
+            merge_mode=merge_mode,
+        )
+    job = _publication_effect(
+        state, args.slug, action, legacy_action,
+        {
+            "repository": remote_url, "remote": args.remote,
+            "branch": args.branch, "head": remote_head,
+        },
+        compatible_actions,
     )
-    git(root, "push", args.remote, f"HEAD:refs/heads/{args.branch}")
-    verify_effect(state, job["job_id"], {
-        "state": "DELIVERED", "remote": args.remote, "branch": args.branch, "head": commit,
-    })
-    receipt.update(state="DELIVERED", commit=commit, remote=args.remote, branch=args.branch)
+    if github_repository:
+        delivery = _github_pull_request(
+            root=root, repository=github_repository, remote=args.remote,
+            target_branch=args.branch, head_branch=head_branch, commit=commit,
+            slug=args.slug, merge_mode=merge_mode,
+        )
+    else:
+        git(root, "push", args.remote, f"{commit}:refs/heads/{args.branch}")
+        delivery = {"state": "DELIVERED"}
+    receipt.update(
+        state=delivery["state"], commit=commit, remote=args.remote,
+        branch=args.branch, repository=remote_url,
+    )
+    for key in ("head_branch", "pull_request_url", "merge_commit"):
+        if delivery.get(key):
+            receipt[key] = delivery[key]
+    if delivery["state"] != "DELIVERED":
+        if job.get("state") == "VERIFIED":
+            raise PublishError("verified publication effect is not confirmed by provider")
+        atomic_write(receipt_path, receipt)
+        return receipt
+    if job.get("state") == "EFFECT_STARTED":
+        verify_effect(state, job["job_id"], {
+            "state": "DELIVERED", "repository": remote_url,
+            "remote": args.remote, "branch": args.branch, "head": commit, **{
+                key: delivery[key] for key in ("head_branch", "pull_request_url", "merge_commit")
+                if delivery.get(key)
+            },
+        })
+    elif job.get("state") != "VERIFIED":
+        raise PublishError("publication effect has invalid terminal state")
     atomic_write(receipt_path, receipt)
     live = fetch_readback(artifact, args.base_url)
     if live:
@@ -253,6 +734,7 @@ def main():
     parser.add_argument("--landing-root", type=Path, required=True)
     parser.add_argument("--remote", default="origin")
     parser.add_argument("--branch", default="main")
+    parser.add_argument("--repository", default=DEFAULT_SITE_REPOSITORY)
     parser.add_argument("--base-url", default="https://aniccaai.com")
     parser.add_argument("--state", type=Path, default=Path("~/.local/state/life-manager/affiliate"))
     args = parser.parse_args()
