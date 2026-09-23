@@ -207,6 +207,29 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual(event["loop_id"], "a")
             self.assertEqual(seen, ["a"])
 
+    def test_last_event_targeted_cache_keeps_shared_loop_results(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for loop_id, timestamp in (("a", "2026-08-28T00:01:00Z"),
+                                       ("b", "2026-08-28T00:02:00Z")):
+                rows.append({
+                    "version": 1, "event_id": loop_id * 24,
+                    "timestamp": timestamp, "loop_id": loop_id,
+                    "domain": "system", "run_id": f"run-{loop_id}",
+                    "phase": "report", "status": "pass", "release_sha": "b" * 40,
+                    "provider": "deterministic", "profile_alias": None,
+                    "effect_class": "none", "effect_status": "not_applicable",
+                    "blocker": None,
+                    "evidence_refs": [f"lm-loop://{loop_id}/summary.json"],
+                })
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in rows) + "\n"
+            )
+            cache = {}
+            self.assertEqual(_last_event(str(root), "b", cache)["loop_id"], "b")
+            self.assertEqual(_last_event(str(root), "a", cache)["loop_id"], "a")
+
     def test_installed_release_uses_full_sha_from_generated_plist(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "job.plist"
