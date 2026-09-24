@@ -12,7 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop import (
-    _admission_effect_unknown_owners, _last_event, _launchctl,
+    _admission_effect_unknown_occurrences, _admission_effect_unknown_owners,
+    _last_event, _launchctl,
     _pending_admission_owners, _release_from_plist, _safe_launchctl,
     _state_root_from_plist,
     doctor_report, main as lm_loop_main, snapshot, status_rows,
@@ -90,6 +91,75 @@ class LmLoopReadonlyTest(unittest.TestCase):
                   patch("runtime.loop.lm_loop.time.sleep")):
                 with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
                     _admission_effect_unknown_owners()
+
+    def test_effect_fence_read_projects_exact_occurrence_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            with sqlite3.connect(database) as connection:
+                connection.execute("""
+                    CREATE TABLE occurrences (
+                        owner_id TEXT, occurrence_id TEXT, state TEXT,
+                        resource_class TEXT, admission_class TEXT,
+                        sequence INTEGER, effect_unknown INTEGER, queued_at REAL
+                    )
+                """)
+                connection.executemany(
+                    "INSERT INTO occurrences VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        ("example", "example:older", "claimed", "deterministic",
+                         "revenue", 4, 1, 2.0),
+                        ("other", "other:one", "released", "browser", "borrow",
+                         5, 1, 3.0),
+                    ],
+                )
+            with patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)):
+                fences = _admission_effect_unknown_occurrences()
+            self.assertEqual(
+                fences,
+                {
+                    "example": [{
+                        "occurrence_id": "example:older",
+                        "state": "claimed",
+                        "resource_class": "deterministic",
+                        "admission_class": "revenue",
+                        "sequence": 4,
+                        "queued_at": 2.0,
+                    }],
+                    "other": [{
+                        "occurrence_id": "other:one",
+                        "state": "released",
+                        "resource_class": "browser",
+                        "admission_class": "borrow",
+                        "sequence": 5,
+                        "queued_at": 3.0,
+                    }],
+                },
+            )
+
+    def test_status_exposes_effect_fence_occurrence_identity(self):
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events={"example": {
+                "status": "blocked",
+                "effect_status": "unknown",
+                "blocker": "host_admission_deferred:resource_effect_unknown",
+            }},
+            installed_releases={},
+            admission_effect_unknown={"example"},
+            admission_effect_unknown_occurrences={"example": [{
+                "occurrence_id": "example:older",
+                "state": "claimed",
+                "resource_class": "deterministic",
+                "admission_class": "revenue",
+                "sequence": 4,
+                "queued_at": 2.0,
+            }]},
+        )[0]
+        self.assertTrue(row["admission_effect_unknown"])
+        self.assertEqual(row["admission_effect_unknown_occurrences"][0]["occurrence_id"],
+                         "example:older")
 
     def test_launchctl_readback_does_not_require_disk_tempfiles(self):
         completed = subprocess.CompletedProcess(
