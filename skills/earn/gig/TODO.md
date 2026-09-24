@@ -25,12 +25,21 @@ were byte-identical (`raw_diff_count=0`, identical SHA
 inventory is stable and the probe cannot post; it does **not** bind that
 readback to the older Paid occurrence, so the `effect_unknown` fence remains.
 
+Mercor was then reconciled safely: the exact occurrence
+`mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
+`/Users/anicca/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
+with `version=1`, `status=completed`, and `effect=0`. The supported resolver
+returned `verified=true/resolved=true`; the admission readback changed only
+that row from `claimed/effect_unknown=1` to `released/effect_unknown=0`. No
+Mercor provider action was sent or retried. The remaining exact Paid fences
+are now CrowdWorks and Lancers only.
+
 | Platform | Current evidence | Exact state now | What I will do next |
 |---|---|---|---|
 | Coconala | Ryu was manually handled and read back; no resend. Apply request `5289988` and Storefront each have exact readback/pre-effect reconciliation. | The three Coconala paid owners have no live unknown admission row, but Apply/Storefront natural-wake/replay-zero is still not closed. | Keep Ryu manual-only. After capacity recovery, run one controlled no-op wake for Apply/Storefront and verify official readback plus replay-zero. |
 | CrowdWorks (CloudWorks) | Provider-owned history readback: 4 items have official readback; `63568785` is funded but buyer material is still missing. | Exact row `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed/effect_unknown=1`; no exact intent/provider receipt binds it. Paid stays unloaded. | Obtain evidence bound to that occurrence. Resolve only with an admissible no-effect proof or exact provider receipt; then perform a no-effect wake. Never resend completed items or send `63568785` without the buyer material. |
 | Lancers | Latest authenticated adapter readback at `2026-09-24T20:44:34Z`: stable two-pass `ELZ-L01 PASS`, `source_complete=true`, 15 boards, 2 unread, 4 application boards, 0 working/contract candidates, balance `¥0`, payment history `0`, provider effect `0`. | Exact row `lancers-revenue-paid:18d81967220136f8-89928` remains `claimed/effect_unknown=1`; no funded `ContractReceipt`. Application owner is not evidence of a funded contract. | Keep Paid closed. Reconcile the exact Paid occurrence, then continue read-only inventory. Register Paid only after a real funded ContractReceipt and milestone; no speculative proposal/send. Disk has recovered to about `2.0 GiB` but remains at `99%` after the probe. |
-| Mercor | Official earnings readback is `$0.00`/empty; no funded work is proven. | Exact row `mercor-revenue-paid:18d82d9cd75db960-67523` remains `claimed/effect_unknown=1`; no provider receipt/readback bound to it. | Obtain exact work/transaction readback, reconcile the row, refresh inventory, and only then consider a funded action. |
+| Mercor | Official earnings readback is `$0.00`/empty; no funded work is proven. The exact Paid occurrence has now been proven zero-effect by its own marker and released. | No live unknown fence remains for Mercor, but no funded work or current contract inventory is proven. | Refresh the official work/transaction inventory when capacity allows; keep Paid closed until a real funded task exists. |
 | Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is absent. Public watcher data is only 4 stored projects (`active=0/errors=0`), not account-bound. Candidate private profiles are `0700`, but BrowserSkill has `browsers=[]/sessions=[]`; no managed owner exists. | Readiness is **false**: authorization missing for `search/inspect/propose/message/accept_offer/deliver/read_payments/read_payouts`; inventory incomplete; funded project count 0. No Paid owner may be registered. | First obtain one account-bound BrowserSkill lease or official OAuth. Read identity, `/projects/0.1/self/`, milestones/IP/hourly contracts, payments, and payouts; persist one source-complete snapshot. Only a positive funded project opens exactly one owner registration. |
 | Upwork | Official snapshot is source-complete but observed `contracts=[]` at `2026-09-24T17:30:28Z`. Read-only receipts for `inspect/read_payments/read_payouts` remain valid until `2026-09-25T17:30:28Z`; mutation receipts are denied. No Upwork browser lease/page is connected (`browsers=[]/sessions=[]`; port 9223 is the Coconala gig browser). | Readiness is **false**: missing `accept_offer/deliver_milestone/message/propose/search`; funded contract count 0. No current Paid owner is registered or loaded. | Before expiry, use a connected dedicated Upwork browser lease to refresh identity/contracts/transactions/withdrawals. Obtain current mutation authorization, then require a funded contract plus positive milestone. Register exactly one owner from immutable main, run zero-effect canary, funded canary, provider receipt, payment/payout readback, crash recovery, and replay-zero. |
 
@@ -51,8 +60,8 @@ not manual deletion.
 
 1. Recover bounded disk headroom through the owning cleanup/retention path and
    record a receipt; do not delete evidence or profiles by hand.
-2. Reconcile the three exact unknown Paid rows (CrowdWorks, Lancers, Mercor)
-   only with occurrence-bound provider evidence.
+2. Reconcile the two remaining exact unknown Paid rows (CrowdWorks and
+   Lancers) only with occurrence-bound provider evidence.
 3. Close the Coconala Apply/Storefront no-op/replay-zero gate without touching
    Ryu.
 4. For Lancers, use the already authenticated source-complete inventory to
