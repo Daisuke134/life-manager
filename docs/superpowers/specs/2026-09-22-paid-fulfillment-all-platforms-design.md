@@ -2450,6 +2450,34 @@ not convert a transient pass or a no-op into client completion.
 5. Keep Upwork disabled until authorization, authenticated readback, and a
    funded contract exist.
 
+## Production Cursor — 2026-09-24 11:41 JST
+
+- **Lancers root-cause evidence:** raw CDP `Browser.getVersion` responds, but
+  three of the four `/mypage/proposals` pages time out on raw
+  `Page.getFrameTree`; Playwright `connect_over_cdp` still times out at 60s.
+  This is a renderer-stalled duplicate-tab boundary, not a dead CDP port.
+- **Branch fix:** commit `46d165013f` makes the existing timeout retry cleanup
+  close only extra provider-owned `/mypage/proposals` targets, retaining the
+  first target; auth-target cleanup remains unchanged. TDD and the relevant
+  suites are green: `462 passed, 17 subtests passed`.
+- **Safety:** the branch fix is pushed but not loaded into production. No live
+  Lancers tab was closed, no browser owner was restarted, and no provider
+  mutation was attempted during diagnosis.
+
+### Remaining TODO (current ordered cursor)
+
+1. Obtain approval for the targeted Lancers browser recovery/runtime probe,
+   then apply the main-derived immutable release containing `46d165013f` only
+   after the all-platform acceptance gate. Verify loaded SHA, natural run,
+   authenticated inventory readback, and replay-zero.
+2. Keep the Lancers residual effect fence
+   `18d81967220136f8-89928` closed until exact provider/pre-effect evidence;
+   do not retry or submit while its effect is unknown.
+3. Keep CrowdWorks historical fence `18d62cf32eb0c678-48194` closed; process
+   `63568785` only after buyer material with receipt/replay-zero.
+4. Preserve Coconala pass/Ryu manual-only and keep Upwork disabled until its
+   onboarding gates are real.
+
 ## Production Cursor — 2026-09-24 11:37 JST
 
 - **Coconala control plane:** the exact no-effect claim

@@ -2517,3 +2517,21 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   replay-zero; keep Ryu manual-only.
 - [ ] Promote `0ab75d4b0e` via main-derived immutable release after acceptance;
   keep Upwork disabled until onboarding gates exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:41 JST
+
+- [x] Diagnosed Lancers CDP: browser HTTP and raw `Browser.getVersion` respond,
+  but three stale proposal-list targets fail `Page.getFrameTree` and a
+  60-second Playwright attach still times out.
+- [x] Added TDD-covered stale-target cleanup in branch commit `46d165013f`;
+  relevant suites pass (`462 passed, 17 subtests`). The cleanup retains one
+  proposal-list target and closes only extra `/mypage/proposals` targets on the
+  existing attach retry.
+- [ ] Do not apply the branch to production or close live tabs until the
+  targeted browser recovery approval and main-derived immutable release gate
+  are satisfied.
+- [ ] Keep Lancers `18d81967220136f8-89928` and CrowdWorks historical
+  `18d62cf32eb0c678-48194` fenced; no retry/resend without exact evidence.
+- [ ] Preserve Coconala/Ryu state, complete CrowdWorks `63568785` only after
+  buyer material, and keep Upwork disabled until authorization/readback/funded
+  contract gates exist.
