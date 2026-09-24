@@ -2535,3 +2535,41 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Preserve Coconala/Ryu state, complete CrowdWorks `63568785` only after
   buyer material, and keep Upwork disabled until authorization/readback/funded
   contract gates exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:44 JST (superseding cursor)
+
+- [x] Re-read all three registered Paid owners without restarting or mutating a
+  provider: Coconala is `admission_effect_unknown=false`, terminal `pass`, with
+  official `4/0/0/3/0`; Ryu is manual-only and the other rooms are waiting.
+- [x] Confirmed CrowdWorks' latest official snapshot is `5/1/0/4/1`: four
+  contracts retain readback and `63568785` remains buyer-material-gated. The
+  exact current no-effect occurrence is reconciled.
+- [x] Confirmed Lancers has no funded contract and its latest Paid snapshot
+  fails at `provider_inventory` with zero observed/effect/readback; the browser
+  duplicate-target fix is branch-only and no live tab was closed.
+- [ ] Do not report all-platform completion: CrowdWorks' historical
+  `18d62cf32eb0c678-48194` and Lancers'
+  `18d81967220136f8-89928` remain effect-unknown fences.
+- [ ] Obtain approval for the targeted Lancers browser recovery, then promote
+  `46d165013f` through a main-derived immutable release and verify natural
+  inventory readback/replay-zero.
+- [ ] Complete CrowdWorks `63568785` only after the buyer supplies the required
+  materials; verify formal delivery, acceptance/settlement/payout and
+  replay-zero.
+- [ ] Keep Coconala Ryu manual-only/no-op, and keep Upwork disabled until
+  authorization, authenticated readback, and a funded contract exist.
+
+### Remaining TODO (current ordered cursor)
+
+1. Lancers targeted recovery approval → main-derived immutable release →
+   installed-SHA/natural-wake/inventory/replay-zero proof.
+2. Preserve the Lancers and historical CrowdWorks effect-unknown fences; no
+   DB edits, retries, or duplicate sends without exact proof.
+3. Wait for CrowdWorks `63568785` buyer material, then complete once and read
+   back formal delivery, acceptance, settlement, payout, and replay-zero.
+4. Keep Coconala in proven no-op/pass state; only a new buyer event reopens a
+   client, and Ryu remains the sole manual exception.
+5. Onboard Upwork only after authorization, fresh authenticated readback, and a
+   funded contract; then add its official delivery/payment path.
+6. Run the cross-platform fleet acceptance gate before declaring the paid-gig
+   program complete.

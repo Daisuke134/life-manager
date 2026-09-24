@@ -2510,3 +2510,63 @@ not convert a transient pass or a no-op into client completion.
    immutable release after all-platform acceptance; do not hot-load the branch.
 5. Keep Upwork disabled until authorization, authenticated readback, and a
    funded contract exist.
+
+## Production Cursor — 2026-09-24 11:44 JST (superseding live state)
+
+- **Coconala is client-complete for the currently known work, but not a reason
+  to replay anything.** `hf-gig-paid-direct` reports
+  `admission_effect_unknown=false`, terminal `pass`, and the installed/event
+  SHA is `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`. The official snapshot is
+  `observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu `18211957` remains the permanent manual exception with
+  `send_performed=false` and formal delivery off; Chii and the two NPO rooms
+  are buyer-waiting. No new buyer event authorizes a send.
+- **CrowdWorks is not fully closed.** The current Paid status is
+  `admission_effect_unknown=true`, `host_admission_deferred:resource_database_busy`,
+  `last_exit=75`, and `last_terminal_result=blocked`. The latest official
+  snapshot remains `observed=5/actionable=1/effect=0/readback=4/pending=1`:
+  `63712784`, `63659463`, `63657015`, and `63570481` are read back; `63568785`
+  is still `buyer_task_detail_required`. The exact marker for
+  `18d82070dfc14b28-19186` is reconciled; historical
+  `18d62cf32eb0c678-48194` remains claimed/effect-unknown and must not be
+  edited or replayed.
+- **Lancers is not ready for a live submission.** The current Paid status is
+  `admission_effect_unknown=true`, `entrypoint_exit_1`, `last_exit=1`, and
+  `last_terminal_result=fail`; the latest snapshot fails at
+  `provider_inventory` with `observed=0/effect=0/readback=0` and no funded
+  contract. The residual occurrence
+  `18d81967220136f8-89928` has no exact pre-effect marker or provider receipt.
+  The typed inventory/duplicate-tab fix is pushed in branch commit
+  `46d165013f`, but is not production-loaded; the live stale proposal tabs
+  were not closed.
+- **Upwork is intentionally disabled.** No registered Paid owner, approved
+  authorization/readback, or funded contract exists; no submission is
+  admissible.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Lancers recovery (first blocker):** obtain explicit approval for the
+   targeted, owner-scoped browser recovery; then promote `46d165013f` only via
+   a main-derived immutable release. Verify installed SHA, natural wake,
+   authenticated inventory readback, and replay-zero. Do not close live tabs or
+   restart the browser before that approval.
+2. **Lancers effect fence:** keep
+   `18d81967220136f8-89928` claimed/effect-unknown. Release it only with an
+   exact provider receipt or exact pre-effect proof; never infer zero effect
+   from the failed inventory snapshot and never retry while unknown.
+3. **CrowdWorks control fence:** keep historical
+   `18d62cf32eb0c678-48194` claimed/effect-unknown. Let the database-busy
+   admission state settle naturally; never hand-edit the DB or resend the four
+   already-read-back contracts.
+4. **CrowdWorks `63568785`:** wait for the buyer's missing course/form
+   material, then complete once through the existing owner, submit formal
+   delivery, and verify acceptance/settlement/payout plus replay-zero.
+5. **Coconala:** preserve the pass/no-op state. Handle only a genuinely newer
+   buyer event; Ryu remains manual-only and formal delivery remains off.
+6. **Upwork:** only after approved provider authorization, fresh authenticated
+   readback, and a funded contract, register the Paid owner and implement the
+   official delivery/payment/readback path.
+7. **Fleet finish gate:** after provider gates above pass, run the shared
+   no-starvation, crash-recovery, browser-lease, cadence, revision,
+   settlement/payout, and duplicate-zero acceptance checks before declaring all
+   gig platforms complete.
