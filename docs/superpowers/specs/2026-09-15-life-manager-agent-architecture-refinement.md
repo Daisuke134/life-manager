@@ -3346,6 +3346,28 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    The final point-in-time admission readback has ten known queued, three known released, one queue row, one
    reservation and zero unknown. Fundraiser is accepted without waiting for a new application or natural wake;
    the current executable cursor is Writer.
+
+   Writer is seven shared-agent-runner owners, not one process. All seven registry rows omit the explicit
+   admission contract even though durable production history is uniformly `agent/borrow/support`. The missing
+   contract prevents the shared reconciler from rebinding old releases and leaves repeated known wakes
+   uncoalesced: the point-in-time ledger contains 402/9/1622/8/89/123/78 known queued occurrences for claim,
+   craft, money, discovery, response, report and sales respectively. Four additional claimed occurrences are
+   effect-unknown. `writer-craft-train:18d7ad677aebc8f8-31489` and
+   `writer-opportunity-discovery:18d7bc6bec691630-73294` are effect-free jobs whose exact runtime pairs end in
+   outer pass; the existing loaded-idle no-effect recovery is sufficient once their registry contract is
+   explicit. `writer-opportunity-response:18d63bfc9492d518-49933` is an exact pre-entrypoint
+   `resource_fifo_wait`, but its two-row proof is in the private rotated gzip archive rather than the current
+   journal, so the current exact resolver correctly returns no proof. `writer-report:18d69e54e1050578-20866`
+   is not pre-effect: it exits pass and its durable report outbox records Telegram message IDs 89203–89206 at
+   the same interval. That fence requires exact provider readback and must not be cleared as a host deferral.
+
+   The minimum Writer candidate declares the already-observed `agent/borrow/support` contract and enables the
+   existing queued/reserved-wake coalescing on all seven owners. It changes no Writer business code, provider
+   session or runtime state. The contract test fails for all seven owners before the change and passes after it;
+   registry/apply suites pass 208/208. Production remains unchanged until main integration. After integration,
+   reconcile effect-free owners first, retain the report fence until the Telegram receipt is read back, and
+   resolve response only through an archive-aware exact pre-effect proof that applies the same private-file,
+   exact-two-event and no-effect-reference checks as the current-journal proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
