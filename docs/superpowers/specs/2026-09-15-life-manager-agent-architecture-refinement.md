@@ -3220,30 +3220,44 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    The current cursor is Affiliate. Running owners, Paid ownership, pending admission and effect fences remain
    preserved; revenue remains outside this gate and no artificial production failure is injected for proof.
 
-   The Affiliate cursor now has an exact shared-runtime diagnosis. `affiliate-loop` occurrence
-   `affiliate-loop:18d7bd776d9c8a78-1576` runs its scheduler child to `SUCCEEDED`, but the wrapper's final
-   `release_and_reserve` hits SQLite `database is locked`. The release path has no bounded retry, leaves the live
-   claim behind and is later conservatively converted by stale recovery into `effect_unknown`; 47 later
-   effect-known wakes therefore remain queued. This is not evidence that Affiliate needs more time to earn and
-   it is not an Affiliate content failure. The original occurrence window contains zero durable write-ahead
-   provider-effect events. Its two browser attempts time out before the provider mutation boundary, the provider
-   application and verification paths report no effect, already-live publications remain no effect, and the
-   Telegram ambiguity is an inherited older quarantined event rather than a send from this occurrence.
+   The Affiliate cursor now has an exact shared-runtime diagnosis with two distinct occurrences. Historical run
+   `18d7bd776d9c8a78-1576` runs its scheduler child to `SUCCEEDED`, but it claims and releases older occurrence
+   `affiliate-loop:18d6048b69d38938-35148`; the following reservation transaction then hits SQLite
+   `database is locked`. That failure exposes the shared non-atomic release boundary, but it does not prove that
+   the child executed current fence `affiliate-loop:18d7bd776d9c8a78-1576`. The current occurrence remains in
+   FIFO and is claimed later, immediately after released predecessor
+   `affiliate-loop:18d7bd64cdd76c40-680`.
+
+   The exact pre-effect window starts at the predecessor's passing report
+   `2026-09-23T08:38:43.386976Z` and stops at the adjacent next runtime report
+   `2026-09-23T08:56:06.001927Z`, blocked at `host_admission_deferred:resource_effect_unknown`. The target is
+   already queued before the window and no older Affiliate occurrence remains open. Inside that closed interval,
+   the Affiliate job journal has zero rows, the child-run receipt journal has zero overlapping rows and the
+   tool-attempt journal has zero overlapping rows. No Affiliate entrypoint/provider effect occurs before the
+   fence. A later unmatched runtime start falls outside the proof window and is deliberately ignored.
 
    The shared fix keeps the releasing claim file until the database transaction commits, excludes only that exact
    retiring claim from capacity accounting while reserving the next owner, and retries only SQLite BUSY/LOCKED or
-   `control_busy` within the existing bounded admission budget. A forced reservation-lock regression proves the
-   occurrence and claim roll back together; a runner regression proves the transient release lock is retried
-   before stale fencing. The focused regressions pass 2/2 and the complete admission/runner suites pass 217/217 on
-   branch `fix/admission-release-lock-selfheal-20260924`. This evidence is source-side only until PR merge,
-   immutable release and exact production readback. The existing abandoned Affiliate recovery candidate is not
-   reused because it binds its proof to a different later scratch occurrence.
+   `control_busy` within the existing bounded admission budget. The focused regressions pass 2/2 and the complete
+   admission/runner suites pass 217/217. PR #5844 merges the fix at
+   `091ec4d59b78c685b32eb8b707f5ac357cf14786`; complete immutable release
+   `20260924T190842-091ec4d5` is active, doctor reports 169 registry entries with no missing/unmanaged/retired
+   owners, and only `affiliate-loop` is reconciled to that exact release. Its immediate wake stops at the same
+   preserved occurrence fence and never reaches the provider entrypoint.
 
-   The executable order inside the Affiliate slice is: merge the shared release fix; cut the main-derived
-   immutable release; reconcile the old occurrence using only its original run/attempt/write-ahead evidence;
-   coalesce effect-known queued wakes through the existing admission contract; run one bounded Affiliate wake;
-   verify exact terminal diagnosis, preserved provider-effect safety and replay-zero. No commission or natural
-   scheduler wait is required. Then advance the foundation cursor to Investment.
+   The current RED→GREEN slice adds a narrow Affiliate reconciler instead of a manual SQLite edit. It accepts only
+   one unknown occurrence, its immediate released/effect-known FIFO predecessor, the adjacent blocked runtime
+   pair and zero Affiliate job/child/tool evidence in the exact window. Production dry-run returns `PROOF_READY`
+   for the current occurrence with all three effect counts zero. Resolution calls the existing
+   `resolve_pre_effect_occurrence` primitive and writes a private exact-occurrence receipt. The same slice enables
+   the already merged atomic queued/reserved wake coalescing for Affiliate; it creates no second scheduler or
+   healer.
+
+   The executable order inside the Affiliate slice is: integrate this exact reconciler and coalescing contract;
+   cut a main-derived immutable release; re-run the release-owned dry proof; resolve only the proven occurrence;
+   verify the exact receipt and unknown count; reconcile only Affiliate; run one bounded wake; verify exact
+   terminal diagnosis, preserved provider-effect safety and replay-zero. No commission or natural scheduler wait
+   is required. Then advance the foundation cursor to Investment.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

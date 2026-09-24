@@ -222,13 +222,24 @@ current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, ze
 and Self-build are locally accepted. Mobile Apps is actively repairing under its existing Postiz canary owner;
 the next non-conflicting Product Loop cursor is Affiliate.
 
-Affiliate diagnosis reaches the shared release boundary. The original `affiliate-loop` child succeeds, but a
-single SQLite lock during final admission release leaves its claim recoverable and stale recovery subsequently
-fences the occurrence. The source fix is test-driven on `fix/admission-release-lock-selfheal-20260924`: release
-and next-owner reservation are one transaction, the retiring claim alone is excluded from capacity accounting,
-and only BUSY/LOCKED plus `control_busy` receive bounded retry. Focused regressions pass 2/2 and full admission/
-runner tests pass 217/217. Merge/release and evidence-bound reconciliation of the original occurrence remain;
-no provider state, Paid owner or production admission row is manually changed.
+Affiliate diagnosis reaches the shared release boundary. One historical run succeeds while releasing older
+occurrence `affiliate-loop:18d6048b69d38938-35148`, then hits a SQLite lock during next-owner reservation. The
+current fence `affiliate-loop:18d7bd776d9c8a78-1576` is a later FIFO occurrence and cannot inherit the older
+run's evidence. The shared source fix is test-driven: release and next-owner reservation are one transaction,
+the retiring claim alone is excluded from capacity accounting, and only BUSY/LOCKED plus `control_busy` receive
+bounded retry. Focused regressions pass 2/2 and full admission/runner tests pass 217/217. PR #5844 merges at
+`091ec4d59b78c685b32eb8b707f5ac357cf14786`; complete immutable release
+`20260924T190842-091ec4d5` is active and only Affiliate is reconciled to it. Its immediate wake preserves the
+fence and performs no provider entrypoint. No Paid owner, Connector, Postiz owner or provider state is changed.
+
+The target now has an exact proof window. Its immediate FIFO predecessor
+`affiliate-loop:18d7bd64cdd76c40-680` reports pass at `2026-09-23T08:38:43.386976Z`; the adjacent next runtime
+pair stops at `host_admission_deferred:resource_effect_unknown` at `2026-09-23T08:56:06.001927Z`. The target was
+already queued, no older Affiliate occurrence remains open, and the Affiliate job, child-run and tool-attempt
+journals each contain zero overlapping rows. A narrow reconciler and nine regression tests return
+`PROOF_READY` against production read-only data. The same candidate enables the existing atomic queued/reserved
+wake coalescing for Affiliate. Main integration, immutable release, exact resolution, bounded wake and
+replay-zero remain; revenue and natural scheduler time do not.
 Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
 `20260924T134241-60c1e93e` is active with `release_paths=ALL` and
 `provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero
@@ -447,6 +458,12 @@ allowed.
 - [x] Re-read the authoritative gate after Self-build: 14 loops observed, `safely_fenced=2` (Capafy and Self-build), `uncovered_failure=12`, release mismatch 83, diagnostic incomplete 80 and unknown-effect jobs 53. Doctor remains clean at 168 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
 - [x] Audit Mobile Apps without provider mutation: all 22 jobs are observed; 21 have release mismatch, 21 have incomplete diagnostics and the gate has 20 unknown-effect jobs. Admission holds 344 claimed unknown and 16 released unknown occurrences; no fence is cleared or retried.
 - [x] Preserve the two active Mobile/Postiz leases and their JP1 canary contract. PR #5813/#5814 source is already on main; the owning workstream must still prove exact official receipt and replay-zero before staged rollout, so Mobile remains `repairing` rather than falsely closed.
+- [x] Integrate the shared atomic final-release and bounded BUSY/LOCKED retry fix through PR #5844 at main `091ec4d59b78c685b32eb8b707f5ac357cf14786`; activate complete release `20260924T190842-091ec4d5`, reconcile only Affiliate and verify the preserved fence prevents provider entrypoint execution.
+- [x] Separate the historical lock-failure occurrence from the current Affiliate fence, define the exact FIFO proof window and retain regressions for positive proof, in-window job/child/tool evidence, older-open occurrence rejection, exact resolver binding and private receipt output.
+- [x] Run the candidate reconciler read-only against production. It returns `PROOF_READY` for `affiliate-loop:18d7bd776d9c8a78-1576`, predecessor `affiliate-loop:18d7bd64cdd76c40-680`, window `08:38:43.386976Z`–`08:56:06.001927Z`, and job/child/tool counts `0/0/0`.
+- [ ] Merge the exact Affiliate reconciler plus existing atomic queued/reserved-wake coalescing contract, cut a complete immutable release and repeat the release-owned dry proof.
+- [ ] Resolve only `affiliate-loop:18d7bd776d9c8a78-1576` through `resolve_pre_effect_occurrence`; verify its private receipt, released/effect-known database state, no other Affiliate unknown and no provider action.
+- [ ] Reconcile only Affiliate to that release, run one bounded wake and require exact diagnostic completion plus preserved effect safety and replay-zero. Do not wait for commission or a natural wake; then move the cursor to Investment.
 - [ ] Continue the independent non-Paid foundation slices in this order while Mobile remains owned: Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
