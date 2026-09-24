@@ -11,13 +11,27 @@ const { spawnSync } = require("node:child_process");
 const {
   buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
+  buildProductLoopFoundationManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
+  evaluateLocalFoundationGate,
   planProductOnboarding,
   readProductLoopCatalog,
 } = require("./product-onboarding.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
+
+function healthyFoundationRuntimeRows(catalog, releaseSha) {
+  return catalog.loops.flatMap((loop) => loop.job_ids.map((jobId) => ({
+    loop_id: jobId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+    effect_class: "none",
+    effect_status: "not_applicable",
+    blocker: null,
+  })));
+}
 
 test("one catalog describes all 14 public product loops on Local and Cloud", () => {
   const catalog = readProductLoopCatalog();
@@ -1264,6 +1278,163 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "blocked");
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
   assert.equal(manifest.completion, false);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("healthy no-revenue runtime passes foundation while commercial completion stays blocked", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "6".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const commercial = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop) => ({
+      id: loop.id,
+      state: "blocked",
+      reason: "official_receipt_required",
+      contract: {},
+    })),
+    runtime_rows: runtimeRows,
+  });
+  const foundation = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+
+  assert.equal(evaluateLocalCompletionGate(commercial).decision, "block");
+  assert.equal(evaluateLocalFoundationGate(foundation).decision, "pass");
+  assert.equal(foundation.schema_version, "product.loop.foundation.v1");
+  assert.equal(foundation.loops.length, 14);
+  assert.equal(foundation.counts.healthy, 14);
+  assert.equal(foundation.completion, true);
+  assert.equal(foundation.loops.every((loop) => loop.reason === null
+    && loop.next_action === null), true);
+});
+
+test("foundation accepts a typed effect fence but never renames it healthy", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "7".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const fencedJobId = catalog.loops[0].job_ids[0];
+  const fenced = runtimeRows.find((row) => row.loop_id === fencedJobId);
+  fenced.last_terminal_result = "blocked";
+  fenced.effect_class = "publish";
+  fenced.effect_status = "unknown";
+  fenced.blocker = "resource_effect_unknown";
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  const row = manifest.loops[0];
+  assert.equal(row.state, "safely_fenced");
+  assert.equal(row.reason, "external_effect_unknown");
+  assert.equal(row.next_action, "official_provider_readback_required");
+  assert.deepEqual(row.unknown_effect_job_ids, [fencedJobId]);
+  assert.equal(evaluateLocalFoundationGate(manifest).decision, "pass");
+
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].state = "healthy";
+  tampered.loops[0].reason = null;
+  tampered.loops[0].next_action = null;
+  const gate = evaluateLocalFoundationGate(tampered);
+  assert.equal(gate.decision, "block");
+  assert.ok(gate.reasons.includes("healthy_effect_unknown"));
+});
+
+test("foundation fails closed on drift, missing jobs, opaque failures and untyped states", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "8".repeat(40);
+  const cases = [
+    {
+      mutate(rows) { rows[0].event_release_sha = "9".repeat(40); },
+      reason: "runtime_release_drift",
+    },
+    {
+      mutate(rows) { rows.shift(); },
+      reason: "runtime_evidence_missing",
+    },
+    {
+      mutate(rows) {
+        rows[0].last_terminal_result = "fail";
+        rows[0].blocker = "entrypoint_exit_1";
+      },
+      reason: "runtime_terminal_not_pass",
+    },
+  ];
+  for (const item of cases) {
+    const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+    item.mutate(runtimeRows);
+    const manifest = buildProductLoopFoundationManifest({
+      host: "local", release_sha: releaseSha, runtime_rows: runtimeRows,
+    });
+    assert.equal(manifest.loops[0].state, "uncovered_failure");
+    assert.equal(manifest.loops[0].reason, item.reason);
+    assert.equal(evaluateLocalFoundationGate(manifest).decision, "block");
+  }
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: healthyFoundationRuntimeRows(catalog, releaseSha),
+  });
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].state = "setup_required";
+  tampered.loops[0].reason = null;
+  tampered.loops[0].next_action = null;
+  tampered.completion = true;
+  const gate = evaluateLocalFoundationGate(tampered);
+  assert.equal(gate.decision, "block");
+  assert.ok(gate.reasons.includes("untyped_foundation_state"));
+});
+
+test("foundation accepts typed setup and blocks an in-progress repair", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "b".repeat(40);
+  const healthy = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: healthyFoundationRuntimeRows(catalog, releaseSha),
+  });
+  const setup = JSON.parse(JSON.stringify(healthy));
+  setup.loops[0].state = "setup_required";
+  setup.loops[0].reason = "credentials_missing";
+  setup.loops[0].next_action = "configure_declared_prerequisite";
+  assert.equal(evaluateLocalFoundationGate(setup).decision, "pass");
+
+  const repairingRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  repairingRows[0].last_terminal_result = "fail";
+  repairingRows[0].blocker = "entrypoint_exit_1";
+  repairingRows[0].recovery_state = "repairing";
+  const repairing = buildProductLoopFoundationManifest({
+    host: "local", release_sha: releaseSha, runtime_rows: repairingRows,
+  });
+  assert.equal(repairing.loops[0].state, "repairing");
+  assert.ok(evaluateLocalFoundationGate(repairing).reasons.includes("repair_in_progress"));
+});
+
+test("local foundation gate CLI writes a private deterministic no-revenue result", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-foundation-cli-"));
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "foundation.json");
+  fs.writeFileSync(runtimePath, JSON.stringify(healthyFoundationRuntimeRows(catalog, releaseSha)));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-foundation-gate.js"),
+    "--release-sha", releaseSha,
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(output.manifest.schema_version, "product.loop.foundation.v1");
+  assert.equal(output.gate.decision, "pass");
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

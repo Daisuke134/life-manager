@@ -2865,12 +2865,13 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 2. **Done, then intentionally paused:** CFO inventory/source Tasks 1–3 and the Self-Funding/Agent Economy
    Task 4.1 join are complete through `68d59eb2ec`. Remaining Affiliate/Mobile/Capafy/Stripe/Investment/Writer/
    Fundraiser/Marketplace source adapters stay queued; immediate revenue or a natural commission is not a gate.
-3. **Current cursor — shared diagnostic envelope and foundation gate:** the read-only baseline is complete:
-   14/14 Product Loops and all declared jobs are observed, `unknown=0`, thirteen loops show release drift and
-   Connector has a current-release terminal failure. Split foundation/recovery acceptance from commercial
-   completion, then expose product/job/owner/run/wake/occurrence/release/loaded-command identity, phase, exit,
-   effect, readback/receipt, evidence, typed error layer, retryability and next action through the shared status.
-   Do not repair fourteen implementations manually; turn each unexplained state into a named observable boundary.
+3. **Current cursor — shared diagnostic envelope:** the read-only baseline is complete and the foundation gate
+   is now separate from commercial completion on the implementation branch. Its focused tests pass 44/44, and
+   the live read-only projection reports `uncovered_failure=14`: thirteen exact release drifts plus Connector's
+   current-release terminal failure. Next expose product/job/owner/run/wake/occurrence/release/loaded-command
+   identity, phase, exit, effect, readback/receipt, evidence, typed error layer, retryability and next action
+   through the shared status. Do not repair fourteen implementations manually; turn each unexplained state
+   into a named observable boundary.
 4. Build the shared bounded self-heal kernel: failure taxonomy, repair recipes, budgets, isolated candidates,
    recovery evaluation, immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
 5. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.

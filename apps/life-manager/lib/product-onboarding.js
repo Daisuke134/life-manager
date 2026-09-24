@@ -6,6 +6,13 @@ const path = require("node:path");
 const DEFAULT_CATALOG = path.resolve(__dirname, "../config/product-loop-catalog.json");
 const HOSTS = new Set(["local", "cloud"]);
 const COMPLETION_STATES = new Set(["verified", "setup_required", "not_applicable", "blocked", "unknown"]);
+const FOUNDATION_STATES = new Set([
+  "healthy", "setup_required", "safely_fenced", "repairing", "uncovered_failure",
+]);
+const FOUNDATION_ACCEPTABLE_STATES = new Set(["healthy", "setup_required", "safely_fenced"]);
+const FOUNDATION_SETUP_BLOCKERS = new Set([
+  "credentials_missing", "host_adapter_pending", "provider_login_required", "setup_required",
+]);
 const COMPLETION_CONTRACT_FIELDS = [
   "goal",
   "context",
@@ -466,6 +473,167 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
   });
 }
 
+function buildProductLoopFoundationManifest(input = {}, options = {}) {
+  const host = String(input.host || "").trim();
+  if (!HOSTS.has(host)) throw new Error("foundation host must be local or cloud");
+  const releaseSha = String(input.release_sha || "").trim();
+  if (!RELEASE_SHA.test(releaseSha)) throw new Error("foundation release sha invalid");
+  const catalog = readProductLoopCatalog(options.catalogFile);
+  const runtimeByJobId = indexRuntimeRows(input.runtime_rows, catalog);
+
+  const loops = catalog.loops.map((catalogLoop) => {
+    const runtimeEvidence = buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha);
+    const observedRows = catalogLoop.job_ids
+      .filter((jobId) => runtimeByJobId.has(jobId))
+      .map((jobId) => runtimeByJobId.get(jobId));
+    const unknownEffectJobIds = catalogLoop.job_ids.filter((jobId) => {
+      const row = runtimeByJobId.get(jobId);
+      return row && row.effect_class !== "none" && row.effect_status === "unknown";
+    });
+    const repairing = observedRows.some((row) => row.recovery_state === "repairing");
+    const nonPassRows = observedRows.filter((row) => !(
+      row.last_terminal_result === "pass"
+      || (row.desired_mode === "continuous"
+        && row.effect_class === "none"
+        && row.last_terminal_result === "running")
+    ));
+    const setupRequired = nonPassRows.length > 0 && nonPassRows.every((row) => (
+      FOUNDATION_SETUP_BLOCKERS.has(row.blocker)
+    ));
+
+    let state = "healthy";
+    let reason = null;
+    let nextAction = null;
+    if (runtimeEvidence.missing_job_ids.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_evidence_missing";
+      nextAction = "restore_runtime_evidence";
+    } else if (runtimeEvidence.release_mismatch_job_ids.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_release_drift";
+      nextAction = "load_exact_immutable_release";
+    } else if (unknownEffectJobIds.length > 0) {
+      state = "safely_fenced";
+      reason = "external_effect_unknown";
+      nextAction = "official_provider_readback_required";
+    } else if (repairing) {
+      state = "repairing";
+      reason = "bounded_recovery_in_progress";
+      nextAction = "await_bounded_recovery";
+    } else if (setupRequired) {
+      state = "setup_required";
+      reason = "runtime_prerequisite_missing";
+      nextAction = "configure_declared_prerequisite";
+    } else if (!runtimeEvidence.runtime_healthy) {
+      state = "uncovered_failure";
+      reason = "runtime_terminal_not_pass";
+      nextAction = "diagnose_failure";
+    }
+    return Object.freeze({
+      id: catalogLoop.id,
+      name: catalogLoop.name,
+      job_ids: Object.freeze([...catalogLoop.job_ids]),
+      host,
+      state,
+      reason,
+      next_action: nextAction,
+      unknown_effect_job_ids: Object.freeze([...unknownEffectJobIds]),
+      runtime_evidence: runtimeEvidence,
+    });
+  });
+  const counts = Object.fromEntries([...FOUNDATION_STATES].map((state) => [
+    state, loops.filter((loop) => loop.state === state).length,
+  ]));
+  const completion = loops.every((loop) => FOUNDATION_ACCEPTABLE_STATES.has(loop.state));
+  return Object.freeze({
+    schema_version: "product.loop.foundation.v1",
+    host,
+    release_sha: releaseSha,
+    loops: Object.freeze(loops),
+    counts: Object.freeze(counts),
+    completion,
+  });
+}
+
+function evaluateLocalFoundationGate(manifest, options = {}) {
+  const reasons = [];
+  let catalog;
+  try {
+    catalog = readProductLoopCatalog(options.catalogFile);
+  } catch {
+    reasons.push("catalog_invalid");
+  }
+  const validManifest = manifest && typeof manifest === "object" && !Array.isArray(manifest);
+  if (!validManifest) {
+    reasons.push("manifest_invalid");
+  } else {
+    if (manifest.schema_version !== "product.loop.foundation.v1") {
+      reasons.push("manifest_schema_invalid");
+    }
+    if (manifest.host !== "local") reasons.push("host_not_local");
+    if (typeof manifest.release_sha !== "string" || !RELEASE_SHA.test(manifest.release_sha)) {
+      reasons.push("manifest_release_invalid");
+    }
+    if (!Array.isArray(manifest.loops)) {
+      reasons.push("manifest_loops_invalid");
+    } else if (catalog) {
+      const byId = new Map(manifest.loops.map((loop) => [loop && loop.id, loop]));
+      for (const catalogLoop of catalog.loops) {
+        const loop = byId.get(catalogLoop.id);
+        if (!loop) {
+          reasons.push("product_loop_missing");
+          continue;
+        }
+        if (!FOUNDATION_STATES.has(loop.state)) {
+          reasons.push("invalid_foundation_state");
+          continue;
+        }
+        const typed = typeof loop.reason === "string" && loop.reason.trim()
+          && typeof loop.next_action === "string" && loop.next_action.trim();
+        if (loop.state === "healthy") {
+          if (loop.reason !== null || loop.next_action !== null) {
+            reasons.push("healthy_state_not_clear");
+          }
+          if (Array.isArray(loop.unknown_effect_job_ids)
+            && loop.unknown_effect_job_ids.length > 0) {
+            reasons.push("healthy_effect_unknown");
+          }
+          if (!loop.runtime_evidence || loop.runtime_evidence.ready !== true) {
+            reasons.push("healthy_runtime_evidence_incomplete");
+          }
+        } else if (!typed) {
+          reasons.push("untyped_foundation_state");
+        }
+        if (!Array.isArray(loop.unknown_effect_job_ids)) {
+          reasons.push("unknown_effect_jobs_invalid");
+        }
+        if (!loop.runtime_evidence
+          || loop.runtime_evidence.missing_job_ids?.length > 0
+          || loop.runtime_evidence.release_mismatch_job_ids?.length > 0) {
+          reasons.push("foundation_runtime_evidence_incomplete");
+        }
+        if (loop.state === "uncovered_failure") reasons.push("uncovered_failure");
+        if (loop.state === "repairing") reasons.push("repair_in_progress");
+      }
+      if (manifest.loops.length !== catalog.loops.length) {
+        reasons.push("manifest_loop_count_mismatch");
+      }
+      const expectedCompletion = manifest.loops.length === catalog.loops.length
+        && manifest.loops.every((loop) => loop && FOUNDATION_ACCEPTABLE_STATES.has(loop.state));
+      if (manifest.completion !== expectedCompletion) reasons.push("manifest_completion_mismatch");
+    }
+  }
+  const uniqueReasons = [...new Set(reasons)];
+  return Object.freeze({
+    schema_version: "product.local.foundation.v1",
+    decision: uniqueReasons.length ? "block" : "pass",
+    host: validManifest && manifest.host === "local" ? "local" : null,
+    release_sha: validManifest && typeof manifest.release_sha === "string"
+      ? manifest.release_sha : null,
+    reasons: Object.freeze(uniqueReasons),
+  });
+}
+
 function buildProductLoopCompletionManifest(input = {}, options = {}) {
   const host = String(input.host || "").trim();
   if (!HOSTS.has(host)) throw new Error("completion host must be local or cloud");
@@ -578,8 +746,10 @@ module.exports = {
   DEFAULT_CATALOG,
   buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
+  buildProductLoopFoundationManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
+  evaluateLocalFoundationGate,
   planProductOnboarding,
   readProductLoopCatalog,
 };

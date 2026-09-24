@@ -42,10 +42,14 @@ Local foundation acceptance permits `healthy`, `setup_required` and `safely_fenc
 
 ### Task 1: Separate foundation acceptance from commercial completion
 
+**Status:** Complete on the implementation branch. The commercial gate is unchanged; the new foundation
+projection and CLI pass 44/44 focused tests. A read-only live projection returns
+`uncovered_failure=14` (thirteen release-drift loops plus Connector terminal failure) without consulting
+revenue or changing production state.
+
 **Files:**
 - Modify: `apps/life-manager/lib/product-onboarding.js`
 - Modify: `apps/life-manager/lib/product-onboarding.test.js`
-- Modify: `apps/life-manager/scripts/local-completion-gate.js`
 - Create: `apps/life-manager/scripts/local-foundation-gate.js`
 
 **Contract:**
@@ -53,12 +57,12 @@ Local foundation acceptance permits `healthy`, `setup_required` and `safely_fenc
 - Add `product.loop.foundation.v1`, `buildProductLoopFoundationManifest()` and `evaluateLocalFoundationGate()` over the same catalog and runtime rows.
 - Closed foundation states: `healthy`, `setup_required`, `safely_fenced`, `repairing`, `uncovered_failure`.
 
-- [ ] Write failing tests proving a no-revenue, exact-release, healthy runtime passes the foundation gate but still fails commercial completion.
-- [ ] Add failures for missing catalog jobs, release drift, opaque failures, untyped setup/fence rows and `repairing` rows.
-- [ ] Add pass cases for typed `setup_required` and `safely_fenced`; prove `effect_unknown` cannot become `healthy`.
-- [ ] Implement the minimum shared projection and CLI; do not duplicate catalog or runtime indexing logic.
-- [ ] Run `node --test apps/life-manager/lib/product-onboarding.test.js` and focused CLI tests.
-- [ ] Commit and push the gate split.
+- [x] Write failing tests proving a no-revenue, exact-release, healthy runtime passes the foundation gate but still fails commercial completion.
+- [x] Add failures for missing catalog jobs, release drift, opaque failures, untyped setup/fence rows and `repairing` rows.
+- [x] Add pass cases for typed `setup_required` and `safely_fenced`; prove `effect_unknown` cannot become `healthy`.
+- [x] Implement the minimum shared projection and CLI; do not duplicate catalog or runtime indexing logic.
+- [x] Run `node --test apps/life-manager/lib/product-onboarding.test.js` and focused CLI tests.
+- [x] Commit and push the gate split.
 
 ### Task 2: Complete the shared runtime diagnostic envelope
 
