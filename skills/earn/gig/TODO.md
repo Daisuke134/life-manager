@@ -4497,3 +4497,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   then Mercor inventory refresh. CrowdWorks remains waiting for buyer material;
   do not use the LINE/Form instructions as a substitute for permitted work
   content or formal delivery.
+
+### Runtime checkpoint — 2026-09-25 02:19 JST (Storefront connection diagnosis)
+
+- [x] A read-only `listing_inventory.py collect` probe reached the authenticated
+  Coconala browser after the built-in CDP retry path and completed 20 official
+  public-listing readbacks. The ledger comparison saw 10 ledger-published rows,
+  20 live rows, two ledger rows not currently live, and twelve live rows not
+  previously recorded as `shuppin_published`; this is a reconciliation item,
+  not proof of a failed current listing effect. Probe evidence was saved under
+  `/tmp/coconala-inventory.BNkShc/` and no listing mutation or resend occurred.
+- [x] The old Storefront result (`effect=0/readback=0`, HTTP 500) is therefore
+  classified as a stale/contended wake transport failure rather than a current
+  public-page outage. The existing retry/one-context code path is the supported
+  diagnosis; do not blindly replay the mutating wake.
+- [ ] Storefront still needs a clean natural effect/readback reconciliation on
+  the managed release before Coconala can be called complete. Next cursor is
+  Mercor official-inventory refresh, then the CrowdWorks buyer-material gate.

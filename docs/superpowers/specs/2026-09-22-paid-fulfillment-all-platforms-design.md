@@ -5201,3 +5201,26 @@ revenue owner and is not permission to send.
 - [ ] Next accepted cursor is supported Storefront diagnosis/reconciliation,
   followed by Mercor inventory refresh. CrowdWorks stays pending until the
   buyer supplies permitted work material.
+
+## Runtime Status Refresh — 2026-09-25 02:19 JST (Storefront connection diagnosis)
+
+- [x] A read-only `skills/earn/gig/scripts/listing_inventory.py collect` probe
+  reached the authenticated Coconala browser through the existing CDP retry
+  path and completed 20 official public-listing readbacks. The persisted probe
+  comparison reports 10 ledger-published listings, 20 currently live listings,
+  two ledger claims not live now, and twelve live listings never recorded as
+  `shuppin_published`. These are reconciliation facts; no listing mutation or
+  resend was performed. Probe evidence is in the private temporary run output
+  `/tmp/coconala-inventory.BNkShc/` (sha256
+  `e6966df46cf7d26c51bc9d6fa7effb29526b80c1527ff037e8ac8a2a5caffe45`).
+- [x] The prior Storefront durable result (`effect=0/readback=0`, HTTP 500)
+  is classified as a stale/contended wake transport failure, not a current
+  public-listing outage: the same browser path now provides official page
+  readbacks. The supported retry/one-context diagnosis is retained; no blind
+  mutating wake was replayed.
+- [ ] Storefront remains incomplete until one managed natural wake produces an
+  official effect/readback reconciliation and replay-zero. The next cursor is
+  Mercor's stale official-inventory refresh, followed by CrowdWorks'
+  buyer-material gate. Freelancer and Upwork remain source-ready only; their
+  external activation still requires fresh account-bound authorization and a
+  positive funded contract/milestone readback before any loop registration.
