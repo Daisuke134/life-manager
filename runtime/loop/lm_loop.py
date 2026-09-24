@@ -235,6 +235,8 @@ def _admission_rebind_guard(
             return
         if result == "not_queued":
             # A drained queue row has no policy to migrate.
+            if loaded_idle_verified and entry.get("effect_class") == "none":
+                clear_no_effect_unknown(loop_id)
             yield None
             return
         if result not in {"rebound", "unchanged"}:
