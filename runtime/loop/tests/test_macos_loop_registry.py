@@ -163,6 +163,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
 
+    def test_x402_inflow_watch_claude_p_declares_agent_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-inflow-watch-claude-p"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in {

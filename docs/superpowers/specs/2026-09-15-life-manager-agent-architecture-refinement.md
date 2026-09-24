@@ -91,6 +91,11 @@ flowchart LR
   clean terminalを確認しました。durable policyは`deterministic/borrow/support`でしたがregistry宣言が無かったため、
   同じcoalescingとqueued-release reconcileだけを追加し、RED→GREEN registry/fixture 90/90をPASSしました。
   watcher entrypointやfinancial effectは実行していません。main/release昇格とproduction replay-zeroは未完です。
+- `x402-inflow-watch-claude-p`は同じeffect-free watcherでもrouteが`shared-agent-runner`で、durable policyは
+  `agent/borrow/support`、known FIFO 343件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。
+  deterministic設定を流用せず、agent-classのcoalescingとqueued-release reconcileだけをbranchへ追加し、
+  RED→GREEN registry/fixture 91/91、apply 124/124をPASSしました。model wake・financial effectは実行しておらず、
+  main/release昇格とproduction exact-SHA replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
