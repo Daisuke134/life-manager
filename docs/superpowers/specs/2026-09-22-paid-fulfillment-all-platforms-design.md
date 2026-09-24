@@ -4113,3 +4113,28 @@ not convert a transient pass or a no-op into client completion.
    Apply/Storefront wake and replay-zero; do not force-retry the unknown intent.
 3. Complete Coconala four-room acceptance and remaining Ryu manual-only scope,
    then advance Lancers/Mercor and finally Freelancer/Upwork.
+
+## Runtime Status Refresh — 2026-09-24 17:19 JST (automatic reconcile owner)
+
+- [x] Added `hf-gig-apply-reconcile` as a separate deterministic revenue owner.
+  Its `--discover` mode reads admission and intent stores read-only, selects a
+  target only for a one-to-one unknown-occurrence/effect-started-intent match,
+  and otherwise returns `nothing_to_reconcile` without opening a browser.
+- [x] Connected immutable dispatch, browser lease environment, and registry
+  contract. The registry now reports 168 jobs, 97 mapped jobs, and no shared IDs.
+- [x] Live `--discover` probe selected the current exact target, walked two
+  official pages, and stopped at `ReadbackScanTimeout` because a next page
+  remained. It produced no positive exact receipt and left the row
+  `claimed/effect_unknown=1`; no provider send, DB edit, or retry occurred.
+- [ ] The owner is branch-only until release acceptance and must not be treated
+  as permission to infer absence from a truncated history. The earlier live
+  probe also recorded Coconala `403 Forbidden` at the root/page-21 cursor.
+
+### Next one-by-one cursor (17:19 JST)
+
+1. Keep the occurrence fence closed and let the new owner retry only as a fresh
+   official observation; resolve on exact positive ID evidence only.
+2. Run immutable release acceptance and promote only after natural Apply and
+   Storefront wakes plus replay-zero.
+3. Complete Coconala four-room acceptance/Ryu manual-only scope, then advance
+   Lancers/Mercor and finally Freelancer/Upwork.

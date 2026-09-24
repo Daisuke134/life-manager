@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import json
 import re
+import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -222,10 +223,66 @@ def _default_evidence_dir(occurrence_id: str) -> Path:
     return Path.home() / "gig" / "apply-direct" / "evidence" / f"occurrence-reconcile-{digest}"
 
 
+def select_single_target(
+    *,
+    unknown_occurrences: list[str],
+    uncertain_request_ids: list[str],
+) -> tuple[str, str] | None:
+    """Select a target only when the durable occurrence-to-intent mapping is 1:1."""
+    occurrences = sorted({str(value) for value in unknown_occurrences if _OCCURRENCE_ID.fullmatch(str(value))})
+    requests = sorted({str(value) for value in uncertain_request_ids if _REQUEST_ID.fullmatch(str(value))})
+    if len(occurrences) != 1 or len(requests) != 1:
+        return None
+    return occurrences[0], requests[0]
+
+
+def discover_single_target(*, owner_id: str, intent_root: Path) -> tuple[str, str] | None:
+    """Read admission state and intent state without changing either store."""
+    if owner_id != OWNER_ID:
+        raise ReconcileContractError("owner_not_allowlisted")
+    _root, _owners, _tickets, database = resource_admission._durable_paths()
+    try:
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=5)
+    except (OSError, sqlite3.Error) as error:
+        raise ReconcileContractError("admission_database_unreadable") from error
+    try:
+        rows = connection.execute(
+            """SELECT occurrence_id FROM occurrences
+               WHERE owner_id=? AND state='claimed' AND effect_unknown=1""",
+            (owner_id,),
+        ).fetchall()
+    except sqlite3.Error as error:
+        raise ReconcileContractError("admission_occurrences_unreadable") from error
+    finally:
+        connection.close()
+    uncertain: list[str] = []
+    for path in sorted(Path(intent_root).glob("*.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if (
+            isinstance(value, dict)
+            and value.get("state") == "prepared"
+            and value.get("effect_phase") == "irreversible_attempt_started"
+            and _REQUEST_ID.fullmatch(str(value.get("request_id") or ""))
+        ):
+            uncertain.append(str(value["request_id"]))
+    return select_single_target(
+        unknown_occurrences=[str(row[0]) for row in rows],
+        uncertain_request_ids=uncertain,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--occurrence-id", required=True)
-    parser.add_argument("--request-id", required=True)
+    parser.add_argument("--occurrence-id")
+    parser.add_argument("--request-id")
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        help="select exactly one unknown occurrence and one effect-started intent; otherwise do nothing",
+    )
     parser.add_argument("--owner-id", default=OWNER_ID)
     parser.add_argument("--intent-root", type=Path, default=Path.home() / "gig" / "application-intents")
     parser.add_argument("--evidence-dir", type=Path)
@@ -236,6 +293,40 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.max_pages < 1:
         parser.error("--max-pages must be positive")
+    if args.discover and (args.occurrence_id or args.request_id):
+        parser.error("--discover cannot be combined with explicit target arguments")
+    if not args.discover and (not args.occurrence_id or not args.request_id):
+        parser.error("explicit mode requires --occurrence-id and --request-id")
+    if args.discover:
+        try:
+            target = discover_single_target(owner_id=args.owner_id, intent_root=args.intent_root)
+        except ReconcileContractError as error:
+            result = {
+                "status": "unresolved",
+                "reason": str(error),
+                "retryable": True,
+                "effect": 0,
+                "readback": 0,
+                "next_action": "read admission and intent stores again; do not release or retry",
+            }
+            result_path = args.result or Path.home() / "gig" / "apply-direct" / "evidence" / "occurrence-reconcile-scan.json"
+            _atomic_json(result_path, result)
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+            return 0
+        if target is None:
+            result = {
+                "status": "nothing_to_reconcile",
+                "reason": "one_to_one_occurrence_intent_mapping_not_present",
+                "retryable": False,
+                "effect": 0,
+                "readback": 0,
+                "next_action": "wait for a new exact occurrence-to-intent mapping",
+            }
+            result_path = args.result or Path.home() / "gig" / "apply-direct" / "evidence" / "occurrence-reconcile-scan.json"
+            _atomic_json(result_path, result)
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+            return 0
+        args.occurrence_id, args.request_id = target
     evidence_dir = args.evidence_dir or _default_evidence_dir(args.occurrence_id)
     evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence_path = evidence_dir / f"official-readback-{args.request_id}.json"

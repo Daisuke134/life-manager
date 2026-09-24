@@ -3644,3 +3644,23 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 3. [ ] Complete Coconala four-room acceptance and Ryu manual-only scope.
 4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork Paid
    owners and perform final fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 17:19 JST (automatic reconcile owner)
+
+- [x] Registered `hf-gig-apply-reconcile` with a fail-closed `--discover`
+  path. It only selects a target when exactly one Apply unknown occurrence and
+  exactly one effect-started intent exist; ambiguous or empty state is a no-op.
+- [x] Dispatch/env/registry tests passed (loop tests 159 + 31 subtests,
+  contract `14/168/97`). A live discover probe stopped at the remaining-page
+  boundary (`ReadbackScanTimeout`) and left the current row fenced.
+- [ ] The owner is not installed yet. It cannot release a fence from truncated
+  history, and the Coconala route remains subject to the observed 403 denial.
+
+### Remaining TODO (authoritative cursor, 17:19 JST)
+
+1. [ ] Install only after immutable release acceptance; then let the reconcile
+   owner obtain a fresh official readback and resolve exact positive IDs.
+2. [ ] Verify natural Apply/Storefront wakes, four-room official readback, and
+   replay-zero; never retry the fenced proposal blindly.
+3. [ ] Finish Ryu manual-only scope, then advance Lancers/Mercor and finally
+   Freelancer/Upwork fleet acceptance.

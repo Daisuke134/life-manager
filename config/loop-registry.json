@@ -1031,6 +1031,25 @@
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/apply"
     },
+    "hf-gig-apply-reconcile": {
+      "admission_class": "revenue",
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "runtime/loop/entry_dispatch.py",
+      "label": "ai.anicca.hf-gig-apply-reconcile",
+      "log_root": "~/.local/state/life-manager/coconala/apply-reconcile/logs",
+      "provider_route": "deterministic",
+      "priority": "revenue",
+      "resource_class": "agent",
+      "state_root": "~/.local/state/life-manager/coconala/apply-reconcile"
+    },
     "hf-gig-browser": {
       "browser_owner": {
         "cdp_port": 9223,

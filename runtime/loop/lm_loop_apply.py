@@ -109,7 +109,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             })
     if loop_id in _PRIVATE_LOG_LOOP_IDS:
         value["Umask"] = 0o077
-    if loop_id in {"hf-gig-apply-direct", "hf-gig-storefront-direct", "hf-gig-paid-direct"}:
+    if loop_id in {"hf-gig-apply-direct", "hf-gig-apply-reconcile", "hf-gig-storefront-direct", "hf-gig-paid-direct"}:
         value["EnvironmentVariables"].update({
             "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9223",
             "CDP_DAILY_DRIVER_PORT": "9223",
@@ -121,8 +121,11 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             ),
             "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9223/json/version",
             "CLOAK_CONTEXT_COOKIE_DOMAINS": "coconala.com",
+            "CLOAK_CONTEXT_LEASES_FILE": str(
+                Path.home() / ".cloak/vault/gig-leases.json"
+            ),
         })
-    if loop_id == "hf-gig-apply-direct":
+    if loop_id in {"hf-gig-apply-direct", "hf-gig-apply-reconcile"}:
         value["EnvironmentVariables"]["CLOAK_CONTEXT_PARK_ON_IDLE"] = "1"
     if loop_id == "hf-gig-reply-detector":
         value["EnvironmentVariables"].update({
@@ -525,6 +528,7 @@ def install_one(item: dict, target: Path,
             ]
             browser_contract_loops = {
                 "hf-gig-apply-direct",
+                "hf-gig-apply-reconcile",
                 "hf-gig-reply-detector",
                 "hf-gig-storefront-direct",
                 "hf-gig-paid-direct",

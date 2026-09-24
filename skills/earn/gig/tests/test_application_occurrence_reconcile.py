@@ -72,6 +72,21 @@ def test_build_provider_proof_requires_exact_positive_id(tmp_path):
         )
 
 
+def test_discovery_requires_a_single_occurrence_and_single_intent():
+    assert reconcile.select_single_target(
+        unknown_occurrences=[OCCURRENCE],
+        uncertain_request_ids=[REQUEST_ID],
+    ) == (OCCURRENCE, REQUEST_ID)
+    assert reconcile.select_single_target(
+        unknown_occurrences=[OCCURRENCE, "hf-gig-apply-direct:other"],
+        uncertain_request_ids=[REQUEST_ID],
+    ) is None
+    assert reconcile.select_single_target(
+        unknown_occurrences=[OCCURRENCE],
+        uncertain_request_ids=[REQUEST_ID, "5280158"],
+    ) is None
+
+
 def test_denied_or_incomplete_readback_never_calls_resolver(tmp_path):
     intent_root = tmp_path / "intents"
     _intent(intent_root / f"{REQUEST_ID}.json")
