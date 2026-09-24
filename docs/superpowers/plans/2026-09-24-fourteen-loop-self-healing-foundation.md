@@ -1133,3 +1133,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   release-reconciler's loaded SHA, managed Node/Python path, current terminal event, and replay-zero before allowing
   its FIFO reconciler to advance any owner. This is the next cursor; do not clear effect fences or mutate admission
   state manually.
+
+### Observability ENOSPC hardening (2026-09-25 JST)
+
+- [x] Reproduce the read-only failure boundary from the old reconciler logs: disk-backed `TemporaryFile()` in
+  `lm-loop status`/`launchctl-safe` fails with `No usable temporary directory` under the host's ENOSPC pressure,
+  before launchd is queried.
+- [x] Replace those two read-only probes with bounded in-memory `capture_output` while preserving exit code and
+  stderr readback. No launchd mutation, admission state, effect fence, provider session or external effect changes.
+- [x] Add RED→GREEN regression coverage. Readonly tests pass **25/25**; apply passes **124 tests + 31 subtests**;
+  macOS registry passes **123 tests + 154 subtests**.
+- [ ] After main-derived immutable promotion, re-run full status under the host boundary and verify the reconciler
+  reports typed launchd/ENOSPC evidence instead of crashing in tempfile setup. This remains downstream of the
+  bootstrap cursor and does not authorize broad cleanup or manual admission mutation.

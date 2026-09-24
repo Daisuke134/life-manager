@@ -4545,3 +4545,17 @@ The release-reconciler itself is not on the current selector: its live plist is 
 `entrypoint_exit_1`. The selector remains current d4, but the reconciler has not promoted itself. This corrects the
 earlier shorthand that described the reconciler as d4-loaded. The branch fixes are therefore source-ready but not
 production-loaded; the accepted main-derived immutable release is the next bootstrap boundary.
+
+### Observability ENOSPC hardening (2026-09-25 JST)
+
+The old production reconciler also showed a second self-owned boundary: `lm-loop status` used disk-backed
+`TemporaryFile()` handles for both `launchctl` and `launchctl-safe` readbacks. When the host reached its full Data
+volume boundary, the status process failed before querying launchd with `FileNotFoundError: No usable temporary
+directory`, while the same wake also recorded `No space left on device`. This hid control-plane evidence and made
+self-healing look less observable exactly when capacity was under pressure.
+
+The branch now captures the bounded stdout/stderr streams in memory for these read-only probes. This does not
+change launchd mutation, admission, effect fences, provider sessions or external effects; it only ensures that
+observability can report the real launchd result without another disk write. The RED→GREEN read-only tests pass
+25/25, the apply suite passes 124 tests plus 31 subtests, and the macOS registry suite passes 123 tests plus 154
+subtests. The change remains branch-only; main integration and production immutable-release readback are still open.

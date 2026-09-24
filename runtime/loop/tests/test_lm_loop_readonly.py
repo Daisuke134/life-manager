@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop import (
-    _last_event, _release_from_plist, _state_root_from_plist,
+    _last_event, _launchctl, _release_from_plist, _safe_launchctl,
+    _state_root_from_plist,
     doctor_report, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
@@ -27,6 +28,35 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_launchctl_readback_does_not_require_disk_tempfiles(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl", "list"], 0, stdout="loaded\n", stderr="",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            self.assertEqual(_launchctl("list"), "loaded\n")
+        self.assertEqual(run.call_args.args[0], ["launchctl", "list"])
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
+
+    def test_safe_launchctl_keeps_stdout_and_stderr_in_memory(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl-safe", "print", "gui/501/example"], 7,
+            stdout="stdout\n", stderr="stderr\n",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            code, output = _safe_launchctl(
+                Path("/tmp/launchctl-safe"), ["print", "gui/501/example"],
+            )
+        self.assertEqual((code, output), (7, "stdout\nstderr\n"))
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/tmp/launchctl-safe", "print", "gui/501/example"],
+        )
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 30)
+
     def test_status_exposes_complete_diagnostic_contract_and_catalog_product(self):
         event = build_runtime_event(
             loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,

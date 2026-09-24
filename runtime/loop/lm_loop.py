@@ -764,12 +764,12 @@ def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: 
 
 
 def _launchctl(*args: str) -> str:
-    with tempfile.TemporaryFile(mode="w+") as stdout, tempfile.TemporaryFile(mode="w+") as stderr:
-        result = subprocess.run(
-            ["launchctl", *args], stdout=stdout, stderr=stderr, text=True, timeout=15)
-        stdout.seek(0)
-        stderr.seek(0)
-        output, error = stdout.read(), stderr.read()
+    # Keep the read-only observability probe independent of the disk-backed
+    # loop scratch area.  Near an ENOSPC boundary, TemporaryFile() itself can
+    # fail before launchctl is queried, hiding the real control-plane state.
+    result = subprocess.run(
+        ["launchctl", *args], capture_output=True, text=True, timeout=15)
+    output, error = result.stdout, result.stderr
     if result.returncode:
         raise RuntimeError(error.strip() or "launchctl failed")
     return output
@@ -964,11 +964,11 @@ def snapshot(registry: dict, target: str) -> list[dict]:
 
 
 def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
-    with tempfile.TemporaryFile(mode="w+") as output:
-        result = subprocess.run(
-            [str(executable), *args], stdout=output, stderr=output, text=True, timeout=30)
-        output.seek(0)
-        return result.returncode, output.read()
+    # The targeted safe probe is also read-only and must remain observable
+    # when the host cannot create another temporary file.
+    result = subprocess.run(
+        [str(executable), *args], capture_output=True, text=True, timeout=30)
+    return result.returncode, f"{result.stdout}{result.stderr}"
 
 
 def targeted_snapshot(registry: dict, targets: set[str],
