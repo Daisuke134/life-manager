@@ -94,6 +94,21 @@
   `403 Forbidden` on both attempts; the admission row remains exactly
   `claimed/effect_unknown=1` and no provider effect was issued.
 
+### Cross-platform read-only checkpoint — 2026-09-24 20:25 JST
+
+- [x] Lancers public discovery returned 20 normalized/detail-enriched projects
+  with zero provider errors. Authenticated contract inventory remains
+  `source_complete=true`, `contract_candidate_count=0`,
+  `monthly_contract_count=0`, `storefront_contract_candidate_count=0`,
+  balance `0` JPY; the paid owner result is `observed=0/effect=0/readback=0`.
+  No Lancers application or reply was sent.
+- [ ] CrowdWorks paid inventory remains `observed=5/actionable=1/effect=0/
+  readback=4/pending=1`; work `63568785` still requires buyer lesson/answer
+  material. No LINE or external-form action is admissible.
+- [ ] Mercor paid inventory remains pending with
+  `official_work_inventory_stale`; no application or provider effect is
+  authorized from that state.
+
 ## Historical Runtime Status — 2026-09-24 19:28 JST (release86bd official readback)
 
 - [x] PR `#5845` merged as `6022ddc01f`; PR `#5846` merged as

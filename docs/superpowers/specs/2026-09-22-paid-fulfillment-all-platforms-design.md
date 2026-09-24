@@ -104,6 +104,18 @@ Fresh parallel evidence:
   verification. No LINE or external-form action is an admissible completion
   effect, so none was performed.
 
+### Cross-platform read-only checkpoint — 2026-09-24 20:25 JST
+
+- Lancers public discovery returned 20 normalized/detail-enriched projects;
+  the authenticated inventory is source-complete with zero funded contract
+  candidates, zero monthly/storefront candidates, and a zero-JPY balance. Its
+  paid result is `observed=0/effect=0/readback=0`; no provider effect was sent.
+- CrowdWorks remains at `observed=5/actionable=1/effect=0/readback=4/pending=1`;
+  work `63568785` still lacks admissible buyer material, so LINE/external-form
+  actions remain off.
+- Mercor remains pending on `official_work_inventory_stale`; it is not a
+  completed platform and must not be treated as a send-ready inventory.
+
 ### Runtime admission lifecycle correction — 2026-09-23
 
 The live investigation reproduced a shared-host starvation defect: `lm-loop stop`
