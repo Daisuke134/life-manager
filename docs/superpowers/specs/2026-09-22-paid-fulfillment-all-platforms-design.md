@@ -12,6 +12,48 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
+### Current implementation cursor — 2026-09-24 18:10 JST
+
+- The page-history repair and occurrence reconciler are implemented on dedicated
+  branch `fix/paid-main-promotion-20260924` at `670ef023889c`. PR `#5820` is
+  `CLEAN`/`MERGEABLE`; normal Security Scan run `35979165054` passed all nine
+  jobs. Local acceptance also passes the relevant 144 application/Coconala
+  tests, 15 release-cut tests, 82 macOS loop-registry tests, and the loop
+  contract (`169` registry jobs / `98` mapped jobs).
+- This is source/PR evidence only. Production is unchanged: the installed
+  Apply and Storefront owners remain on older immutable releases, and the exact
+  Apply occurrence for request `5280157` is still fenced as
+  `claimed/effect_unknown=1`. A page-20 target absence or a partial scan cannot
+  release that fence; complete official history or exact pre-effect proof is
+  required.
+- Ryu `18211957`'s latest buyer cycle (the five paid-option/WEB予約 issues in
+  messages `222215345`, `222215354`, `222218450`, `222218603`, and
+  `222218678`) already has one official seller reply/readback,
+  `js-talkroomMessage-222220999`. That reply covers: `写真撮影1枚〜` as the
+  first normal option; the five paid options and prices in their own section;
+  preserving options when two paid options are added; the WEB予約 management
+  preview/form behavior; and the requested wording/management editability
+  explanation. No duplicate reply or formal-delivery action is allowed. Only a
+  genuinely newer buyer event reopens Ryu, and that response remains manual;
+  the Paid loop may not create, reply, attach, or formally deliver for Ryu.
+- Lancers job `5606124` was correctly fail-closed with reason code
+  `unsupported_claim`; no external application was sent. It is a later policy
+  review, not a reason to reorder the Coconala cursor.
+
+### Remaining TODO (authoritative cursor)
+
+1. Obtain a complete official Coconala readback for the fenced `5280157`
+   occurrence and resolve only on exact provider proof or separately verified
+   pre-effect proof.
+2. Merge `#5820`, cut/load an immutable release, and verify natural
+   Apply/Storefront wakes, official readback, and replay-zero.
+3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
+   manual-only and do not resend the already-read-back reply.
+4. Reconcile the remaining CrowdWorks fence/material wait, then implement and
+   prove Lancers' funded ContractReceipt/formal-delivery path.
+5. Obtain approved Upwork authorization and a funded contract; register and
+   verify Freelancer/Upwork Paid owners, then run final fleet acceptance.
+
 ### Runtime admission lifecycle correction — 2026-09-23
 
 The live investigation reproduced a shared-host starvation defect: `lm-loop stop`

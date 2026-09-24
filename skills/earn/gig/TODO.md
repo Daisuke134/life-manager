@@ -1,24 +1,43 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 16:53 JST
+## Current cursor — 2026-09-24 18:10 JST
 
-- [ ] **Coconala Apply/Storefront are not complete.** Both owners are loaded but
-  deferred by a durable `resource_effect_unknown` fence; no external effect is
-  inferred from the latest no-op/blocked wakes.
-- [x] Add the branch-only page-20 resumable readback path. A denied resumed
-  cursor records zero progress and keeps the fence closed; it cannot infer
-  absence or release an intent.
-- [ ] Build the occurrence-scoped Coconala reconciler. It must require complete
-  official history or exact pre-effect proof; never clear the admission DB
-  directly and never infer no-effect from exit status.
-- [ ] Promote the pushed SQLite bounded-wait fix through the immutable release
-  gate, then verify a natural wake and replay-zero. The installed Apply and
-  Storefront releases are still older SHAs.
-- [ ] Finish Coconala four-room official readback/replay-zero and remaining Ryu
-  scope (Ryu stays manual-only), then advance Lancers/Mercor.
-- [ ] Register and verify Freelancer/Upwork Paid owners before final fleet
-  acceptance; current Lancers `unsupported_claim` job `5606124` had no external
-  send and is a later policy-review item.
+- [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
+  still on older immutable releases and the Apply occurrence
+  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
+  `claimed/effect_unknown=1`. Page-20 absence is only a partial official
+  readback; it is not proof that the request was never sent.
+- [x] Add the branch-only page-20 resumable readback path and the bounded,
+  same-origin detail-fetch fallback. Both paths are read-only and keep the
+  fence closed on denied, incomplete, or non-200 history.
+- [x] Build and register the occurrence-scoped Coconala reconciler. It selects
+  only one unambiguous target and cannot clear the admission DB, infer no-effect
+  from exit status, or release a fence without exact official proof.
+- [ ] Merge the clean PR and cut/apply an immutable release, then verify a
+  natural Apply/Storefront wake, complete official readback, and replay-zero.
+- [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
+  latest buyer cycle and remains a permanent manual-only exception; do not
+  resend unless a genuinely newer buyer event appears.
+- [ ] After Coconala closes, advance CrowdWorks/Lancers/Mercor, then register
+  and verify Freelancer/Upwork Paid owners and the final fleet gate.
+- [x] Record Lancers job `5606124` as `unsupported_claim` with no external
+  send. It is a later policy-review item and does not change the current
+  Coconala cursor.
+
+### Current remaining TODO (authoritative, 2026-09-24 18:10 JST)
+
+1. Obtain a complete official Coconala history/readback for request `5280157`;
+   resolve the exact occurrence only on positive provider proof or separately
+   verified pre-effect proof.
+2. Merge PR `#5820`, cut and load the immutable release, and verify natural
+   Apply/Storefront wakes plus replay-zero. Production has not changed yet.
+3. Re-read all four open Coconala rooms and confirm the client/system split;
+   Ryu remains manual-only and must not receive a duplicate reply.
+4. Reconcile the remaining CrowdWorks fence and buyer-material wait, then prove
+   Lancers' first funded ContractReceipt/formal-delivery path.
+5. Obtain approved Upwork authorization and a funded contract, then register
+   Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
+   settlement, payout, and duplicate-zero acceptance.
 
 ## Current checkpoint — 2026-09-23
 
@@ -3734,3 +3753,33 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 3. [ ] Complete Coconala four-room/Ryu manual-only acceptance.
 4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
    owners and perform final fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 18:10 JST (rebase/PR verification)
+
+- [x] Rebasing the dedicated branch onto the latest `origin/main` preserved
+  the Coconala page-route fallback, occurrence reconciler, and current main
+  recovery/coalescing changes. The branch is clean at `670ef023889c`.
+- [x] PR `#5820` is `CLEAN`/`MERGEABLE`; normal Security Scan
+  `35979165054` passed all jobs. Local relevant suites pass: 144
+  application/Coconala tests, 15 release-cut tests, 82 macOS registry tests,
+  `lm-loop-contract` (`169/98`), Python compile, and diff check.
+- [x] Ryu's latest five-message buyer cycle is already covered by the single
+  official seller reply `js-talkroomMessage-222220999`; no new reply or formal
+  delivery is due. Keep the permanent manual fence and reopen only for a newer
+  buyer event.
+- [x] Lancers `5606124` remains an `unsupported_claim` safety rejection with no
+  external send; it is not a current blocker for the Coconala cursor.
+- [ ] Production is unchanged. The Apply occurrence `5280157` remains
+  `claimed/effect_unknown=1`; complete official history or exact pre-effect
+  proof is still required before any resolver, retry, release, or send.
+
+### Remaining TODO (authoritative cursor, 18:10 JST)
+
+1. [ ] Obtain complete official Coconala history/readback for `5280157` and
+   resolve only on exact proof.
+2. [ ] Merge/load an immutable release, then verify natural Apply/Storefront
+   wakes and replay-zero.
+3. [ ] Close the four-room Coconala system gate while keeping Ryu manual-only;
+   do not duplicate the already-read-back reply.
+4. [ ] Reconcile CrowdWorks, prove the first funded Lancers delivery path, then
+   register/verify Freelancer and Upwork and run fleet acceptance.
