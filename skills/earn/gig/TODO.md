@@ -3689,3 +3689,28 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 3. [ ] Complete Coconala four-room/Ryu manual-only acceptance.
 4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
    owners and perform final fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 17:51 JST (detail-readback fallback)
+
+- [x] Reproduced the provider boundary: list/detail GETs were `200`, but the
+  old per-offer CDP navigate could stall. Added a bounded read-only
+  same-origin fetch fallback that extracts only the official hidden request ID;
+  non-200/403/404 remains fail-closed.
+- [x] Coconala-related suites pass `73` tests and `application_parent.py`
+  compiles. A live page-20 probe returned `200` for 19 detail GETs and did not
+  contain `5280157`; a page-1 bounded scan stopped with the expected
+  `ReadbackScanTimeout` when more pages remained.
+- [ ] This is branch-only. The exact occurrence remains
+  `claimed/effect_unknown=1`; no resolver, ledger mutation, provider send, or
+  retry occurred, and full-history absence is not proven.
+
+### Remaining TODO (authoritative cursor, 17:51 JST)
+
+1. [ ] Push and pass normal PR/release gates, then run a complete official
+   readback using the fallback; resolve only exact positive ID proof or a
+   separately verified pre-effect proof.
+2. [ ] Verify loaded immutable release, natural Apply/Storefront wake, and
+   replay-zero before changing production.
+3. [ ] Complete Coconala four-room/Ryu manual-only acceptance.
+4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
+   owners and perform final fleet acceptance.

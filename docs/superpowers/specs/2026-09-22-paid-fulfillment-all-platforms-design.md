@@ -4163,3 +4163,32 @@ not convert a transient pass or a no-op into client completion.
    replay-zero checks.
 3. Complete Coconala four-room/Ryu manual-only acceptance, then advance
    Lancers/Mercor and finally Freelancer/Upwork.
+
+## Runtime Status Refresh — 2026-09-24 17:51 JST (detail-readback fallback)
+
+- [x] Root cause was reproduced at the provider boundary: the authenticated
+  applied-offers list and same-origin detail `GET` both returned `200`, while
+  the legacy per-offer CDP `Page.navigate` path could stall on one detail and
+  hold the full history scan. No submit control is reachable from this path.
+- [x] Added a bounded, read-only same-origin `fetch` fallback after a detail
+  navigation timeout. It parses only the official detail document's hidden
+  request ID/request link and still requires a `200` response; 403/404/non-200
+  remains fail-closed. Related Coconala suites pass `73` tests and Python
+  compilation passes.
+- [x] Live page-20 probe returned `200` for all 19 detail GETs and did not show
+  request `5280157`; a bounded page-1 readback ended with the expected
+  `ReadbackScanTimeout` because more pages remained. These are observations,
+  not a full-history absence proof.
+- [ ] The `5280157` occurrence remains `claimed/effect_unknown=1`; no resolver,
+  ledger mutation, provider send, or retry was performed. Full official
+  history/readback is still required before any fence decision.
+
+### Next one-by-one cursor (17:51 JST)
+
+1. Run the new fallback through the normal immutable release gate and obtain a
+   complete official readback; resolve the exact occurrence only on positive
+   ID proof or a separately verified pre-effect proof.
+2. Keep production unchanged until PR checks, release/load readback, natural
+   wake, and replay-zero all pass.
+3. Complete Coconala four-room/Ryu manual-only acceptance, then advance
+   Lancers/Mercor and finally Freelancer/Upwork.

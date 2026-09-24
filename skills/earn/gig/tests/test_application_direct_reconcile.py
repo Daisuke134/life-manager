@@ -280,3 +280,21 @@ def test_full_history_scan_state_preserves_denied_resume_cursor_without_progress
     assert resumed["observed_ids"] == ["111"]
     assert resumed["pages_walked"] == 19
     assert resumed["cards_seen"] == 360
+
+
+def test_offer_detail_fetch_payload_extracts_exact_request_id():
+    detail = {
+        "status": 200,
+        "final_url": "https://coconala.com/mypage/offers/6347576",
+        "hidden_request_id": "5280157",
+        "request_hrefs": [],
+    }
+
+    assert application_parent._offer_detail_request_id(detail) == "5280157"
+
+
+def test_official_readback_has_authenticated_detail_fetch_fallback():
+    source = inspect.getsource(application_parent.CdpParentEffects._official_readback_async)
+
+    assert "_offer_detail_fetch_expression" in source
+    assert "_offer_detail_request_id" in source

@@ -806,6 +806,39 @@ def _next_applied_history_page(current: str, candidates: object) -> str | None:
     return sorted(adjacent)[0]
 
 
+def _offer_detail_request_id(detail: object) -> str:
+    """Extract one exact request id from a rendered or fetched offer detail."""
+    if not isinstance(detail, dict):
+        return ""
+    hidden = detail.get("hidden_request_id", detail.get("hidden"))
+    if isinstance(hidden, str) and hidden.strip().isdigit():
+        return hidden.strip()
+    hrefs = detail.get("request_hrefs", detail.get("hrefs"))
+    if not isinstance(hrefs, list):
+        return ""
+    for href in hrefs:
+        matched = _REQUEST_URL.fullmatch(urlsplit(str(href)).path.rstrip("/"))
+        if matched:
+            return matched.group(1)
+    return ""
+
+
+def _offer_detail_fetch_expression(offer_url: str) -> str:
+    """Build a read-only same-origin detail fetch for a wedged navigation."""
+    encoded_url = json.dumps(offer_url, ensure_ascii=False)
+    return f"""JSON.stringify((async()=>{{
+      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+      const html=await response.text();
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      return {{transport:'fetch',status:response.status,final_url:response.url,
+        title:parsed.title,
+        hidden_request_id:parsed.querySelector('#OfferRequestId')?.value||null,
+        request_hrefs:[...parsed.querySelectorAll("a[href*='/requests/']")].map(a=>a.href),
+        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+    }})())"""
+
+
 def _valid_applied_history_start_url(value: object) -> bool:
     """Accept either official host alias at any resumable history page."""
     if not isinstance(value, str):
@@ -2182,14 +2215,30 @@ class CdpParentEffects:
                     except ParentContractError as error:
                         if "timeout" not in str(error):
                             raise
-                        raise ReadbackScanTimeout(str(error)) from error
-                    request_id = str(detail.get("hidden") or "").strip()
-                    if not request_id.isdigit():
-                        for href in detail.get("hrefs") or []:
-                            matched = _REQUEST_URL.fullmatch(urlsplit(str(href)).path.rstrip("/"))
-                            if matched:
-                                request_id = matched.group(1)
-                                break
+                        # A detail-page navigation can wedge while the authenticated
+                        # listing page and same-origin GET remain healthy.  The fetch is
+                        # read-only and is bounded by the same CDP Runtime.evaluate
+                        # deadline; it must still return a 200 provider document before
+                        # its exact hidden request ID can contribute to readback proof.
+                        try:
+                            detail, call_id = await self._eval_json(
+                                ws,
+                                _offer_detail_fetch_expression(offer_url),
+                                call_id + 2000,
+                            )
+                        except ParentContractError as fetch_error:
+                            if "timeout" not in str(fetch_error):
+                                raise
+                            raise ReadbackScanTimeout(str(fetch_error)) from fetch_error
+                        if detail.get("access_denied") is True:
+                            raise ParentContractError("official_readback_access_denied")
+                        if detail.get("not_found") is True:
+                            raise ParentContractError("official_readback_offer_detail_not_found")
+                        if detail.get("status") != 200:
+                            raise ReadbackScanTimeout(
+                                f"official_readback_offer_detail_fetch_status={detail.get('status')}"
+                            ) from error
+                    request_id = _offer_detail_request_id(detail)
                     if request_id.isdigit():
                         observed.add(request_id)
                 if single_expected and single_expected.issubset(observed):
