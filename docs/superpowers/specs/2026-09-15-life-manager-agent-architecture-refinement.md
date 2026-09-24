@@ -4890,3 +4890,23 @@ paths, two Affiliate receipt-identity files, two x402 settlement-identity files 
 The historical CFO fences remain unresolved because their old journals lack host occurrence identity and exact
 official readback. The new chain applies only to future wakes and does not authorize a resolver, replay, or revenue
 claim. Main integration and immutable production promotion remain blocked by the foundation gate.
+
+### Sol-funding future receipt identity (2026-09-25 JST)
+
+The candidate now carries `4e9d7eed26` for `skills/earn/sol-to-usdc.py`. The entrypoint validates the inherited
+`LIFE_MANAGER_OCCURRENCE_ID` and emits a secret-free `sol_funding_result` JSON boundary on every configuration/no-op
+path and after a submitted Solana transaction. The output carries `occurrence_id`, the Solana signature as
+`provider_receipt_id` only after `sendTransaction` returns, and leaves `official_readback_ref` null until a separate
+read-only Solana/Relay verification proves the exact transaction. This does not change quote, signing, submit,
+wallet, recipient or polling behavior.
+
+The Sol-funding contract/readback tests pass **5/5** and `py_compile` passes. The unconfigured fixture proves that a
+future no-effect wake retains the host occurrence without exposing a secret. The candidate is now **33 files**
+(25 generic control-plane/runtime/test paths, two Affiliate receipt-identity files, two x402 settlement-identity
+files, two CFO receipt-identity files and two Sol-funding receipt-identity files). No historical
+`sol-funding:18d60103c86ce420-74237` fence was resolved: its old release event still lacks the occurrence and both
+receipt/readback fields, so no wallet/RPC/Relay action, admission edit or revenue/cost claim occurred.
+
+The remaining Sol-funding cursor is an owner-specific read-only adapter that requires an exact occurrence-bound
+signature, Solana confirmation and Relay destination readback before any resolver is eligible. The new JSON output
+is future evidence only and is not itself official readback.

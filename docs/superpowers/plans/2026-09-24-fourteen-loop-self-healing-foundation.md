@@ -1411,3 +1411,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   resolver only when the receipt and occurrence match.
 - [ ] Keep main integration, immutable release promotion, Telegram/payout effects and revenue claims closed while
   the foundation gate remains blocked; the candidate now contains **31 files** and remains source-only.
+
+### Sol-funding receipt identity hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `4e9d7eed26`: validate `LIFE_MANAGER_OCCURRENCE_ID` in `sol-to-usdc.py` and emit a
+  secret-free structured result on no-op/configuration paths and after a transaction submission.
+- [x] Keep the submitted Solana signature separate from official readback: `provider_receipt_id` is populated only
+  after `sendTransaction`, while `official_readback_ref` remains null until Solana/Relay confirmation is read.
+- [x] Verify Sol-funding contract/readback tests **5/5**, `py_compile`, and the unconfigured occurrence fixture;
+  push the candidate branch. No quote/sign/send/RPC effect was started by verification.
+- [ ] Build the owner-specific read-only adapter for exact Sol-funding occurrence -> Solana signature -> confirmed
+  signature -> Relay destination status. Persist a mode-0600 reconciliation receipt and call the resolver only when
+  every identity matches; never infer no-effect from the current old journal.
+- [ ] Keep the historical `sol-funding:18d60103c86ce420-74237` fence held and keep main/immutable promotion closed;
+  the candidate now contains **33 files** and remains source-only.
