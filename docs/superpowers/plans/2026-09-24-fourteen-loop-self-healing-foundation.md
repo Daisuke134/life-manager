@@ -691,14 +691,15 @@ The following is the current control-plane state. It is evidence for the next bo
   `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. `launchctl-safe preflight --json` is `pass` with
   `mutation_allowed=true` for `gui/501`/Aqua; no launchd mutation was performed. Running the local foundation
   gate against this exact release and a fresh `lm-loop status all --json` readback returns
-  `healthy=0`, `setup_required=0`, `safely_fenced=0`, `repairing=0`, `uncovered_failure=14`,
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
   `decision=block`, with reasons `foundation_diagnostic_incomplete`,
-  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. Every Product Loop is classified
-  `runtime_release_drift`; no loop is counted healthy merely because its status row exists. This is a read-only
-  release-alignment cursor, not a production repair or a revenue claim. Branch-only admission contracts are not
-  in this release. Next safe action is an accepted main-derived immutable release followed by one-owner loaded-idle
-  reconciliation, while all external-effect fences and the separately owned Paid/Connector/Mobile owners remain
-  untouched.
+  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. `investment` is the one exact-release
+  `runtime_admission_deferred`/`retry_after_eligibility` row; the remaining rows are release/diagnostic drift or
+  Connector's typed terminal failure. No loop is counted healthy merely because its status row exists. This is a
+  read-only release-alignment cursor, not a production repair or a revenue claim. Branch-only admission contracts
+  are not in this release. Next safe action is an accepted main-derived immutable release followed by one-owner
+  loaded-idle reconciliation, while all external-effect fences and the separately owned Paid/Connector/Mobile
+  owners remain untouched.
 
 - A fresh `lm-loop status all --json` readback contains 271 managed rows. The terminal projection is
   `None=116`, `blocked=70`, `pass=51`, `fail=30`, `running=4`; the dominant blockers are missing terminal
@@ -721,6 +722,14 @@ The following is the current control-plane state. It is evidence for the next bo
   `life-manager-daily-driver`); continuous owners intentionally have no finite admission/priority policy. Do not
   touch the Mobile owner. The next safe cursor is accepted main-derived immutable release promotion, then one-owner
   loaded-idle reconciliation; no provider effect or revenue is inferred.
+- [x] Re-read the recovery supervisor after the gate. The exact-current owner
+  `life-manager-recovery-supervisor` is `loaded-idle` with matching installed/event SHA,
+  `last_terminal_result=pass`, `exit_code=0`, `blocker=null`, `diagnostic_complete=true`,
+  `effect_status=not_applicable` and `next_action=none` at occurrence
+  `life-manager-recovery-supervisor:18d8532572e108d0-20098`. The prior `entrypoint_exit_1`/`node` and
+  SQLite-lock lines remain historical log evidence; the latest wake is a clean supervisor terminal. This does
+  not repair sibling release drift or authorize an external effect, so no launchd/provider/fence mutation was
+  performed.
 - [x] Re-run the complete `runtime/loop` Node suite at this branch boundary. It reports 304 tests, 301 pass and
   three file-level failures, all environment dependency gaps: `@solana/web3.js` is absent for
   `always-act-reroute` and `always-act-wire-seam`, and `fast-check` is absent for `always-act-router`. Focused

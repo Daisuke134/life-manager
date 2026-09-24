@@ -3872,6 +3872,17 @@ failures. All three fail before test execution because this low-capacity worktre
 suites remain green; no dependency install is attempted and these failures are environment gaps, not self-healing
 implementation regressions.
 
+A fresh production read-only recheck then confirmed that the recovery supervisor itself has recovered cleanly on
+the exact current release `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`: occurrence
+`life-manager-recovery-supervisor:18d8532572e108d0-20098` is `loaded-idle`, has matching installed/event SHA,
+`last_terminal_result=pass`, `exit_code=0`, `diagnostic_complete=true`, `effect_status=not_applicable`,
+`blocker=null` and `next_action=none`. Earlier `entrypoint_exit_1`/missing-`node` and SQLite-lock messages remain
+historical log evidence and are not reclassified as a current failure. The same fresh foundation gate remains
+blocked at `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13` because
+the other owners are not yet aligned to the accepted immutable release and some still lack complete diagnostics.
+No launchd mutation, provider effect, effect-fence clearing or revenue claim was made; the next cursor remains
+accepted main-derived release promotion followed by one-owner non-Paid reconciliation.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
