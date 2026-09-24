@@ -1298,3 +1298,23 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   provider workstreams. The eventual integration must resolve only the self-healing/control-plane source and fixture
   conflicts, preserve the separate Paid/Connector/Mobile owners, then rerun the focused acceptance suites before
   any PR or immutable promotion.
+
+### Affiliate fence identity and next cursor (2026-09-25 JST)
+
+- [x] Read the authoritative admission DB without mutation. `affiliate-loop` has 94 durable occurrences: 48
+  cancelled/effect-known and one claimed `effect_unknown` fence, `affiliate-loop:18d83ba82b14fb40-24990`,
+  `deterministic/revenue`, sequence `143954`; no queue, priority, deferred or reservation row remains for the
+  owner.
+- [x] Read the current production status without mutation. The owner is exact d4/PID 38327 with complete
+  diagnostics, while the latest event occurrence `affiliate-loop:18d85cdb10d5b3b0-30136` repeatedly stops at
+  `host_admission_deferred:resource_effect_unknown`/75; provider receipt and official readback are absent. The
+  event occurrence is not the durable fenced occurrence, so the resolver must bind by durable occurrence identity.
+- [x] Preserve the non-pre-effect classification. Historical child/Telegram evidence includes a provider message
+  ID (`92843`), so the generic pre-effect resolver is prohibited; no resend or fence clear is allowed without exact
+  official body/readback proof.
+- [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`.
+  Read-only tests pass **30/30** and combined read-only/apply/registry tests pass **243/243**.
+- [ ] Integrate the candidate only after the user-level foundation gate is green, then promote one immutable
+  release and re-read this exact owner. The next Affiliate operation is official readback of the durable target,
+  followed by a mode-0600 receipt, exact owner rebind and two replay-zero foundation projections; never use the
+  generic pre-effect path or wait for commission as a foundation gate.

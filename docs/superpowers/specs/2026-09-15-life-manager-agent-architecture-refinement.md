@@ -4724,3 +4724,29 @@ runtime_terminal_not_pass`, with the corresponding next actions `load_exact_immu
 `retry_after_eligibility`, and `diagnose_failure`. The full product-onboarding suite passes **47/47** and the
 blocked readback output remains mode `0600`; no production or provider state changed. A release-drift regression was
 then added at `824b6b6f4b`; the full product-onboarding suite is now **48/48**, proving the repair action is retained.
+
+### Affiliate occurrence-level fence readback (2026-09-25 JST)
+
+A fresh read-only query used the authoritative host-admission database
+`/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`. It found 94 durable
+`affiliate-loop` occurrences: 48 cancelled/effect-known historical wakes and one live
+`claimed/effect_unknown=1` fence, `affiliate-loop:18d83ba82b14fb40-24990`, with
+`resource_class=deterministic`, `admission_class=revenue` and sequence `143954`. There is currently no
+Affiliate row in `queue`, `priorities`, `deferred` or `reservations`; the claimed occurrence itself remains the
+authoritative fence. This is a read-only observation; no SQL, resolver, provider session or effect state changed.
+
+The production status row is loaded on exact `d4fe0819931c50caaf41f25e86f1052cd8a0359c` with PID `38327` and
+complete diagnostics, but its latest runtime event occurrence is `affiliate-loop:18d85cdb10d5b3b0-30136` and it
+stops at `host_admission_deferred:resource_effect_unknown`/exit 75 with `retry_after_eligibility`, no
+`provider_receipt_id` and no `official_readback_ref`. Subsequent wakes repeat the same pre-entrypoint admission
+stop. The event occurrence and the durable fenced occurrence are therefore different identities; a self-healer
+must reconcile the durable target occurrence, never infer that the latest event cleared it and never resend.
+Historical joined-child evidence already records `SUCCEEDED/AUTH_REQUIRED` plus Telegram provider message ID
+`92843`, so this is not eligible for the generic pre-effect resolver. Only an exact official body/readback proof
+may resolve or preserve this fence.
+
+The branch-only observability improvement at candidate commit `2e759d41f3` keeps the boolean
+`admission_effect_unknown` field and adds `admission_effect_unknown_occurrences` with the exact occurrence ID,
+state, resource/admission classes, sequence and queue timestamp. Read-only tests pass **30/30** and the combined
+read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a main
+integration, production release, fence resolution or revenue claim.
