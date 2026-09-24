@@ -1,5 +1,38 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 07:50 JST (explicit platform gates, live admission readback)
+
+This is the current platform-by-platform situation. “Loop code exists” is not
+the same as “an account-bound provider loop may be registered.” The external
+registration gate remains closed until the account, official source-complete
+inventory, and funded work are all proven.
+
+| platform | exact evidence now | what is actually running | concrete remaining work |
+|---|---|---|---|
+| Freelancer.com | authorization receipts `0`; no authenticated official inventory; funded project `0` | all Freelancer labels are retired/disabled; no owner | connect the account-bound BrowserSkill profile or official OAuth; read identity, projects, milestones, hourly/IP contracts, payments, and payouts; persist a source-complete snapshot; only then register one owner after a positive funded project |
+| Upwork | official source-complete readback `2026-09-24T17:30:28Z` has `contracts=[]`; three read-only receipts (`inspect/read_payments/read_payouts`) are approved; `search/propose/message/accept_offer/deliver_milestone` are denied | legacy Upwork labels are retired/disabled; no Paid owner; the older candidate/proposal JSON is historical discovery, not a funded contract | obtain a dedicated account-bound BrowserSkill session; refresh contracts, transactions, and withdrawals; obtain provider-approved mutation receipts; prove one funded contract with a positive milestone; register one owner; run zero-effect canary, funded canary, receipt/payment/payout readback, crash recovery, and replay-zero |
+| Coconala | Paid provider effect `0`; Ryu is manual-only; current Paid pass has `admission_effect_unknown=false` | Paid is loaded-idle/no-effect; Apply has no live unknown fence but remains unloaded after effect-free cancellation; Storefront is unloaded and still requires `official_readback_required` | restore stable host/admission headroom, obtain Storefront official readback, then replay-zero; never resend Ryu or treat a no-effect pass as a customer delivery |
+| CrowdWorks | admission DB has Paid `1`, application `44`, and reply `192` claimed `effect_unknown` occurrences; report has one released `effect_unknown` history row | Paid/application are unloaded; browser owner last failed at entrypoint; reply remains queued/capacity-constrained | resolve each exact occurrence with an occurrence-bound provider receipt or admissible no-effect proof; no blanket retry, DB edit, or fence clearing |
+| Lancers | current inventory is source-complete with `contract_candidate_count=0`, balance `¥0`; historical project `5606124` proposal `27965342` is not a current funded contract; admission has Paid `1`, application `40`, negotiate `1`, storefront `1`, Telegram-report `1` unknown fences | Paid is unloaded; work-sync holds an admission reservation; browser/work-sync are not proof of a funded job | reconcile every exact fence; keep the historical proposal as history only; register Paid only after a current funded contract and formal delivery surface are read back |
+| Mercor | latest official readbacks through `2026-09-20` show `contracts=[]`; no funded work proof | Paid has a clean no-effect pass and no live unknown fence; one old application and one old reply fence remain | preserve old fences, continue read-only discovery, and wait for a real funded contract before registering a revenue owner |
+
+Shared boundary: BrowserSkill daemon is healthy, but `browsers=[]` and
+`sessions=[]` because the extension is disconnected. Therefore no Freelancer
+or Upwork page was opened and no provider effect was attempted. Host free space
+is about `698,928 KiB` (~`682 MiB`): above the 512 MiB admission floor but far
+below the 6 GiB recovery floor. Canonical cleanup reclaimed `0`; the supported
+job-search retention owner reclaimed `153,529,327` bytes from 166 explicit
+no-effect runs and preserved submitted/unknown/failed/blocked evidence. The
+remaining capacity issue is a shared admission constraint, not proof that a
+provider sent anything.
+
+The non-skippable order for Freelancer and Upwork is:
+`account-bound auth → source-complete official inventory → funded contract /
+positive milestone → exactly one owner → zero-effect canary → funded canary →
+provider receipt + payment/payout readback → crash recovery → replay-zero`.
+Until the first three gates are true, “register the loop” is intentionally
+blocked; the old labels must not be resurrected.
+
 ## Current cursor — 2026-09-25 07:40 JST (live platform-by-platform detail)
 
 This is a fresh read-only status pass. BrowserSkill's daemon is healthy, but
