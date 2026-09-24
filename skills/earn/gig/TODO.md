@@ -1,31 +1,37 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 01:18 JST (all-platform owner map)
+## Current cursor — 2026-09-25 01:36 JST (all-platform live-gate detail)
 
 - [x] Re-read the current paid-owner state for every platform without issuing a
-  provider effect. The evidence separates source implementation readiness from
-  live account/funded-work readiness.
-- [ ] Keep Coconala fenced: Ryu request `5280157` still has no account-bound
-  submit receipt, and the generic Apply/Storefront surfaces are not accepted
-  from scheduler success alone. No duplicate Ryu send is allowed.
-- [ ] CrowdWorks has exactly one pending work item (`63568785`) waiting for
-  admissible buyer lesson/answer material; the four completed rows are already
-  read back and require no resend.
-- [ ] Lancers remains a verified zero-funded no-op (`observed=0`, no ContractReceipt);
-  public discovery and the unsupported-claim decision do not authorize an apply.
-- [ ] Mercor remains authenticated but Paid inventory is stale; the saved
-  assessment is still `2/3` with final submission unobserved.
-- [ ] Freelancer source work is in place through the API/readback seam and
-  regression tests, but live state is closed: no OAuth, approved receipts,
-  authenticated inventory, funded project, or registered owner.
-- [ ] Upwork source work is in place through the browser-state/readback seam and
-  regression tests, but live state is closed: no OAuth, all eight stored action
-  receipts are denied, zero active contracts, and no funded milestone.
-- [ ] The next implementation cursor is to normalize official Freelancer
-  responses into the existing canonical inventory contract, then attach the
-  same live readback proof to the Upwork transport. Neither owner may be
-  registered before fresh account-bound receipts and positive funded-work
-  evidence exist.
+  provider effect. Source readiness, loop registration, authentication, and
+  funded-work evidence are recorded separately below.
+- [x] Coconala Ryu request `5280157` is locally converged as
+  `released/effect_unknown=0` with its intent archived `retired_absent`; this
+  proves no-dispatch, not delivery. Ryu remains manual-only for any genuinely
+  newer buyer event. Apply and Storefront still have separate acceptance gates.
+- [x] CrowdWorks Paid is registered and running safely: `observed=5`,
+  `actionable=1`, `effect=0`, `readback=4`, `pending=1`. Only work `63568785`
+  remains, waiting for admissible buyer lesson/answer material; the four
+  completed rows need no resend.
+- [x] Lancers Paid is registered and returns a verified zero-funded no-op:
+  `observed=0`, no actionable ContractReceipt, and no effect. Public listing
+  `5606124` was recorded as `unsupported_claim`; it does not authorize apply.
+- [x] Mercor Paid is registered but pending: the official work inventory is
+  stale, and the saved assessment is `2/3` with final submission unobserved.
+- [x] Freelancer is source-ready only. The registry contains the three
+  `ai.anicca.freelancer-*` labels as external labels, not managed owners; no
+  OAuth, approved receipts, authenticated inventory, funded project, or loop
+  registration exists.
+- [x] Upwork is source-ready only. The old
+  `ai.anicca.life-manager-upwork-browser` and `...-free-loop` labels are
+  retired; no current Paid owner is registered. OAuth is absent, all eight
+  stored action receipts are denied, and the historical inventory has zero
+  active contracts/funded milestones.
+- [ ] Next cursor: keep source gates in place, then obtain fresh account-bound
+  Freelancer/Upwork authorization and official funded-work readback. Only
+  after that evidence may the corresponding managed owner be registered,
+  followed by zero-spend and funded canaries with official receipts and
+  replay-zero. No provider send is authorized before those gates.
 - [x] Added the first official-response normalization boundary for Freelancer:
   complete success envelopes, numeric account identity, project/milestone/IP
   coverage, hourly/payment/payout presence, bidder binding, explicit currency

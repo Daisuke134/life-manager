@@ -5103,3 +5103,43 @@ owner, or an external submission.
 - [ ] This is no-dispatch convergence, not a Ryu submission. It closes the old
   duplicate fence only; Storefront, the four-room management-screen readback,
   and any genuinely newer Ryu buyer event remain separate work items.
+
+## Runtime Status Refresh — 2026-09-25 01:36 JST (all-platform live-gate detail)
+
+This checkpoint separates four states that must not be conflated: source
+implementation, loop registration, account authorization, and funded-work
+evidence. A source-tested adapter or a registry label alone is not a running
+revenue owner and is not permission to send.
+
+- [x] Coconala Ryu request `5280157` is locally converged as
+  `released/effect_unknown=0`; its durable intent is archived as
+  `retired_absent`. This is a historical no-dispatch proof, not a delivery
+  receipt. Ryu remains manual-only for a genuinely newer buyer event. Apply and
+  Storefront retain independent acceptance gates.
+- [x] CrowdWorks has a registered Paid owner and a safe natural readback of
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`. Only `63568785`
+  remains pending because admissible buyer lesson/answer material is absent;
+  the four completed rows require no resend.
+- [x] Lancers has a registered Paid owner but no funded ContractReceipt:
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`. Listing `5606124`
+  was rejected as `unsupported_claim` with no external send.
+- [x] Mercor has a registered Paid owner, but its official work inventory is
+  stale. The saved assessment is `in_progress_2_of_3` and
+  `final_submission=not_observed`, so no assessment, contract, or payout
+  effect is admissible.
+- [x] Freelancer has source implementation and tests, but no managed owner.
+  The three `ai.anicca.freelancer-*` registry entries are external labels only;
+  OAuth, approved account receipts, authenticated inventory, and funded
+  project evidence are all absent.
+- [x] Upwork has source implementation and tests, but no current managed
+  owner. The historical `ai.anicca.life-manager-upwork-browser` and
+  `ai.anicca.life-manager-upwork-free-loop` entries are retired; OAuth is
+  absent, all eight stored action receipts are denied, and no active/funded
+  contract is present.
+- [ ] The exact Freelancer/Upwork activation sequence remains: fresh
+  account-bound authorization → official identity and contract readback →
+  positive funded project/milestone → canonical inventory validation →
+  register one managed Paid owner → zero-spend canary → one funded canary →
+  official delivery/payment/payout, crash-recovery, and replay-zero receipts.
+  Until the first three gates produce evidence, registering or enabling either
+  loop would be an unsafe false-positive.
