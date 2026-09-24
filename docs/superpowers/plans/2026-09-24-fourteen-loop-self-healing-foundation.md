@@ -1011,6 +1011,13 @@ The following is the current control-plane state. It is evidence for the next bo
   `d4fe0819931c50caaf41f25e86f1052cd8a0359c` both returned `eligible=1`, `applied=[]`, and
   `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The health/learning
   application effect-unknown fences remain untouched.
+- [x] Rebind the non-Paid, effect-free `hf-gig-reply-detector` through its declared `shared-agent-runner` route.
+  The first deterministic-route attempt was rejected before any effect because the route was wrong; the correct
+  route then applied current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Readback is `loaded-idle`,
+  `effect_class=none`, `effect_status=not_applicable`, and admission unknown false, but the terminal event remains
+  old `fa4a8128…`, exit 78/pass and diagnostics incomplete. A second scoped reconcile returned `eligible=0`,
+  proving reconciler replay-zero without a reply/provider effect. This owner is not accepted healthy until a current
+  event and complete diagnostics are durable.
 
 ### Latest branch verification (2026-09-25 JST)
 

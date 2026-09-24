@@ -4394,6 +4394,14 @@ health/learning application effect-unknown fences remain untouched.
 
 ### Latest branch verification (2026-09-25 JST)
 
+The non-Paid, effect-free `hf-gig-reply-detector` was re-bound through its declared `shared-agent-runner` route.
+The first deterministic-route attempt was rejected before any effect because the route was wrong; the correct route
+then applied current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Readback is `loaded-idle`,
+`effect_class=none`, `effect_status=not_applicable`, and admission unknown false, but the terminal event remains old
+`fa4a8128…`, exit 78/pass and diagnostics incomplete. A second scoped reconcile returned `eligible=0`, proving
+reconciler replay-zero without a reply/provider effect. This owner is not accepted healthy until a current event and
+complete diagnostics are durable.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
