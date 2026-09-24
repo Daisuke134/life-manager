@@ -573,6 +573,19 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         elif (catalog_product_loop_id is not None and event_product_loop_id is not None
               and event_product_loop_id != catalog_product_loop_id):
             diagnostic_error = "event_product_identity_mismatch"
+        legacy_runtime_event = (
+            bool(event)
+            and bool(missing_diagnostic_fields)
+            and entry.get("cadence", {}).get("keep_alive") is True
+            and launchd_state == "loaded-running"
+            and event.get("phase") == "execute"
+            and event.get("status") == "running"
+        )
+        if diagnostic_error is None and legacy_runtime_event:
+            # A live process with a pre-diagnostic envelope is not healthy
+            # evidence.  The only safe repair is to reload the owner through
+            # the immutable-release reconciler; never infer an effect result.
+            diagnostic_error = "legacy_runtime_event_schema"
         diagnostic_complete = not missing_diagnostic_fields and diagnostic_error is None
         latest_harness_failure = _latest_harness_failure(entry["state_root"], loop_id, event)
         active_harness_failure = (
@@ -584,6 +597,13 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         error_class = event.get("error_class")
         retryable = event.get("retryable")
         next_action = event.get("next_action")
+        if legacy_runtime_event:
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = "legacy_runtime_event_schema"
+            retryable = True
+            next_action = "reload_current_release"
+            blocker = "legacy_runtime_event_schema"
         if active_harness_failure is not None:
             # Keep launchd/process identity separate from health: a continuous
             # process can be alive while its latest wake is failing.

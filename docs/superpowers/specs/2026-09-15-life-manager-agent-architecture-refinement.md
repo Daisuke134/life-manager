@@ -77,6 +77,17 @@ flowchart LR
   `running`を健康とみなさず、同一run/releaseのharness failureを`latest_harness_failure`へ投影します。
   後続のclean `wake`/`narrate`でactiveを解除しますが、証跡は保持します。CFO と Job Hunter の
   effectful/unknown ownerは同じくfenceを維持し、盲目的に再送しません。
+- 追加のread-only照合では、旧releaseで起動した連続ownerの一部（`the402-provider`、`the402-worker`、
+  `x402-seller-8404`、`image-claude-p`、`x402-research-serve`）に、PIDに対応する`execute/running`イベントは
+  残っているものの、diagnostic envelope（`job_id`、`owner_id`、`occurrence_id`、loaded argv/env hash、
+  failure/next-action等）が無いことを確認しました。これはプロセスがaliveであることをhealth/readbackと
+  誤認させるlegacy runtime-event schema driftです。branch-onlyのRED→GREEN修正では、
+  `keep_alive + loaded-running + execute/running + diagnostic fields欠落`を
+  `diagnostic_error=legacy_runtime_event_schema`、`error_class`/`blocker`同値、retryable、
+  `next_action=reload_current_release`として投影します。旧イベントを削除せず、effect/revenueを推測せず、
+  immutable releaseの再読込だけを次の修復境界にします。read-only/status 23 tests、runtime-event/runner
+  19 testsはPASSしました。これはまだmain/release/productionへ反映しておらず、現行の14-loop gateは
+  引き続き`runtime_release_drift`でblockです。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを

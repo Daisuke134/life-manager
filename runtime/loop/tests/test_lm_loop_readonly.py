@@ -76,6 +76,31 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(row["job_id"], "example")
         self.assertEqual(row["run_id"], "old-run")
 
+    def test_running_legacy_event_exposes_reload_action(self):
+        event = {
+            "timestamp": "2026-08-28T00:00:00Z", "status": "running",
+            "release_sha": "b" * 40, "effect_status": "not_applicable",
+            "blocker": None, "run_id": "old-run-123", "phase": "execute",
+            "evidence_refs": ["lm-loop://example/old-run-123/summary.json"],
+        }
+        registry = {"schema_version": 2, "loops": {"example": {
+            **REGISTRY["loops"]["example"],
+            "cadence": {"keep_alive": True},
+        }}}
+        row = status_rows(
+            registry,
+            loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+            disabled={},
+            events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        self.assertFalse(row["diagnostic_complete"])
+        self.assertEqual(row["diagnostic_error"], "legacy_runtime_event_schema")
+        self.assertEqual(row["error_class"], "legacy_runtime_event_schema")
+        self.assertTrue(row["retryable"])
+        self.assertEqual(row["next_action"], "reload_current_release")
+        self.assertEqual(row["blocker"], "legacy_runtime_event_schema")
+
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
                   "effect_status": "unknown", "blocker": "provider_capacity",
