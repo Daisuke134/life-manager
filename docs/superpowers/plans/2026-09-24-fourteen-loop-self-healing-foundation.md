@@ -892,6 +892,13 @@ The following is the current control-plane state. It is evidence for the next bo
 - [ ] Promote this supervisor exit contract only through the accepted main-derived immutable release gate, then run
   one bounded loaded-idle supervisor wake and verify the typed journal/readback. Do not clear or replay any external
   effect fence while doing so.
+- [x] Fresh production read-only recheck after subsequent natural wakes: `/Users/anicca/loops/current` is now
+  exact release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, and the supervisor plist/installed/event SHA all match
+  that release with pinned `/opt/homebrew/bin/node`. The latest `entrypoint_exit_1` is not the safe queued case:
+  the recovery journal shows Connector's old intent rejected as `blocked / release_sha_mismatch / escalate_owner`.
+  That is a hard release-identity boundary and must remain non-zero. The earlier `healthy_readback_pending` queued
+  outcome is the separate false-failure case addressed by commit `8393380bb2`; no launchd/provider/fence mutation
+  or external effect occurred in this recheck.
 
 ## Deferred until this plan passes
 

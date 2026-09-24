@@ -4247,6 +4247,12 @@ Direct CLI execution is guarded so importing the helper has no side effect. REDâ
 candidate remains branch-only until accepted main-derived immutable release promotion and a fresh loaded-idle
 readback.
 
+A later production read-only wake now loads exact release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` with the pinned
+`/opt/homebrew/bin/node`; the latest `entrypoint_exit_1` is correctly explained by the journal as Connector's old
+intent being `blocked / release_sha_mismatch / escalate_owner`. That hard release-identity boundary remains
+non-zero under the candidate contract. It is distinct from the earlier `healthy_readback_pending` queued outcome,
+which is the safe-wait false failure fixed on the branch. No launchd/provider/effect-fence mutation occurred.
+
 ## E2E Judgment
 
 | Item | Value |
