@@ -4193,3 +4193,21 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Ryu's `5280157` remains the only durable pending Apply target in the
   result (`durable_uncertain_count=1`). Do not reuse the `5284750` receipt or
   release the Ryu fence from it.
+
+### Runtime checkpoint — 2026-09-25 00:30 JST (CrowdWorks buyer gate)
+
+- [x] The authenticated CrowdWorks Paid snapshot remains
+  `observed=5/effect=0/readback=4/pending=1`. The four completed work IDs have
+  official readbacks; `63568785` remains `status=pending` with
+  `reason=buyer_task_detail_required`.
+- [x] The prepared answer for `63568785` is still
+  `prepared_buyer_input_required`, bound to buyer event `426855154`, with
+  `external_effect=0`. The linked lesson document has not become admissible
+  merely because a draft exists; no formal delivery or buyer-visible send was
+  performed.
+- [x] The latest local CrowdWorks application events continue to be
+  read-only/pass or admission-deferred; report/reply effect-unknown fences
+  remain closed. The legacy Paid pre-effect reconciler tests pass (`7`).
+- [ ] Keep `63568785` waiting for permission or pasted lesson content. Do not
+  use the external Google Form/LINE, invent lesson answers, or retry the
+  pending effect.

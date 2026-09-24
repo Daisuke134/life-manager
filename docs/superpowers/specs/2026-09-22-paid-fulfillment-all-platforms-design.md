@@ -4792,3 +4792,18 @@ leaves the provider effect closed.
 - [ ] Ryu's `5280157` remains the sole durable pending Apply target in that
   result. Its fence cannot be released by the `5284750` receipt, and no retry
   or manual submission was performed from this readback.
+
+## Runtime Status Refresh — 2026-09-25 00:30 JST (CrowdWorks buyer gate)
+
+- [x] The latest authenticated CrowdWorks Paid snapshot is
+  `observed=5/effect=0/readback=4/pending=1`; the four completed work IDs have
+  official readbacks and `63568785` remains `buyer_task_detail_required`.
+- [x] Its prepared answer remains `prepared_buyer_input_required`, bound to
+  buyer event `426855154`, with `external_effect=0`. A draft is not buyer
+  material and is not a delivery receipt; no formal delivery or duplicate send
+  was performed.
+- [x] Application events remain read-only/pass or admission-deferred while
+  report/reply effect-unknown fences stay closed. The legacy Paid pre-effect
+  reconciler focused tests pass (`7`).
+- [ ] The next admissible cursor is buyer permission or pasted lesson content
+  for `63568785`; never substitute LINE, the external form, or invented answers.
