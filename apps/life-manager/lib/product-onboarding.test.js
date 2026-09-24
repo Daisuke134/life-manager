@@ -1532,6 +1532,34 @@ test("local foundation gate CLI writes a private deterministic no-revenue result
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("local foundation gate diagnostics identify release drift and its repair action", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "e".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  runtimeRows[0].installed_release_sha = "f".repeat(40);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-foundation-diagnostics-"));
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "foundation.json");
+  fs.writeFileSync(runtimePath, JSON.stringify(runtimeRows));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-foundation-gate.js"),
+    "--release-sha", releaseSha,
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 1, result.stderr);
+  const output = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(output.gate.decision, "block");
+  assert.equal(output.diagnostics.state_counts.uncovered_failure, 1);
+  assert.equal(output.diagnostics.state_counts.healthy, 13);
+  assert.equal(output.diagnostics.reason_counts.runtime_release_drift, 1);
+  assert.equal(output.diagnostics.next_action_counts.load_exact_immutable_release, 1);
+  assert.deepEqual(output.diagnostics.actionable_loops.map((loop) => loop.id), [catalog.loops[0].id]);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test("each public product loop maps only to existing canonical runtime jobs", () => {
   const catalog = readProductLoopCatalog();
   const registry = JSON.parse(fs.readFileSync(
