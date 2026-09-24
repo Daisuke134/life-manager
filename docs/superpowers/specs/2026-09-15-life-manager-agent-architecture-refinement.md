@@ -2773,7 +2773,18 @@ effect-unknown row or live reservation. The registry entry omits the three admis
 history-preserving rebind, so the legacy fail-closed branch is working as designed. The candidate does not add
 a second migration system: it declares the runner's existing effective defaults on the four Self-build jobs.
 Apply passes 119/119, runner 84/84, registry 82/82 and the catalog remains 14 loops, 168 jobs, 98 mapped and
-zero errors. Integration and an exact-release Self-build retry remain pending.
+zero errors. PR #5826 merges that contract at `0468d61bb99d5f2d963f03bebab5b7c7a0974d8f`; complete immutable
+release `20260924T151348-0468d61b` becomes current. `life-manager-dev` and `self-improve-evolve` reconcile one
+at a time to the exact SHA, stay loaded-idle, and preserve 19 and 58 effect-free queued occurrences.
+
+The remaining `life-manager-selfbuild` owner first stays on its old release because it has a live reservation.
+After natural lease expiry, the old release runs successfully and recovers an occurrence left claimed by a
+2026-09-22 database-lock failure, but stale recovery leaves that now-released occurrence
+`effect_unknown=1`. Reconcile then fails closed with zero plist mutation. The owner has `effect_class=none`,
+and the shared admission module already provides `clear_no_effect_unknown()` for this exact no-dispatch class;
+the missing seam is that release reconciliation never invokes it. The minimum candidate connects it only for
+a loaded-idle no-effect owner and retries the same rebind once. Its regression and full apply suite pass
+120/120. Merge, exact-main release and the final single-owner retry remain pending.
 
 Connector remains a real uncovered failure, not an old notification artifact. Its exact current plist is
 loaded, but its latest run reaches `browser_open_failed`; action history then reports the generic outer
@@ -3019,12 +3030,14 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    complete release `20260924T144407-1f03abd4` is active and only the supervisor is reapplied. Exact argv/SHA
    and `/opt/homebrew/bin/node` read back; two bounded wakes exit 0 with `idle/no_pending_intent`, Paid selection
    and sibling mutation zero. The fresh foundation gate observes 14/14 loops with no missing mapped job, but
-   blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The first Self-build
-   canary safely exposes a missing explicit admission contract instead of reloading a queued owner; the
-   candidate adds only the existing defaults to its four registry entries and passes the focused suites.
+   blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The Self-build
+   admission contract is merged in PR #5826 and exact release `20260924T151348-0468d61b` is active;
+   `life-manager-dev` and `self-improve-evolve` are exact and loaded-idle. The third owner exposes a released
+   no-effect stale fence from an older database-lock recovery. A tested minimal candidate connects the already
+   existing no-effect clear primitive to idle reconciliation; its merge and final one-owner retry are next.
    Connector separately remains failed at the shared CDP ownership boundary and has an existing owned fix
    candidate, so this worktree does not duplicate it. The executable order is now Self-build enrollment
-   integration and one-owner retry -> remaining explicit non-Paid owner release alignment -> authoritative
+   fence recovery and one-owner retry -> remaining explicit non-Paid owner release alignment -> authoritative
    fourteen-loop foundation readback twice.
    Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered

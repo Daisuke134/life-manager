@@ -33,7 +33,7 @@ from runtime.loop.runtime_event import (
 )
 from runtime.host.resource_admission import (
     ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
-    cancel_effect_free_queued_owner, rebind_queued_owner, resume_durable,
+    cancel_effect_free_queued_owner, clear_no_effect_unknown, rebind_queued_owner, resume_durable,
     suspend_durable,
     state_root as admission_root,
 )
@@ -218,6 +218,10 @@ def _admission_rebind_guard(
         if _entry_effect_scope(entry) == "occurrence":
             rebind_kwargs["effect_scope"] = "occurrence"
         result = rebind_queued_owner(loop_id, **rebind_kwargs)
+        if (result == "effect_unknown" and loaded_idle_verified
+                and entry.get("effect_class") == "none"):
+            clear_no_effect_unknown(loop_id)
+            result = rebind_queued_owner(loop_id, **rebind_kwargs)
         if result == "reserved":
             if allow_reserved_release_rebind and loaded_idle_verified:
                 # The reservation names only this owner and its preserved FIFO
