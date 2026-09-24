@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:45 JST (retention cap enforced and stale fences reconciled)
+## Current cursor — 2026-09-25 06:48 JST (retention cap and Coconala queue cleanup verified)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -147,9 +147,8 @@ one row. A fresh worktree status readback now reports
 no provider page or external effect was touched. This closes the Coconala Paid
 control-plane fence only. Apply remains unloaded with five effect-free queued
 rows and its last event `resource_effect_unknown`; Storefront remains unloaded
-with eighty-one effect-free queued rows and its last event
-`entrypoint_exit_1/official_readback_required`. Those two natural-wake and
-replay-zero gates remain open and must not be called complete.
+with its last event `entrypoint_exit_1/official_readback_required`. Those two
+natural-wake and replay-zero gates remain open and must not be called complete.
 
 The same bounded no-effect reconciliation was applied individually to the
 remaining control-plane owners `hf-gig-daily-report`,
@@ -157,9 +156,13 @@ remaining control-plane owners `hf-gig-daily-report`,
 `effect_class=none`, `effect_status=not_applicable`, `last_terminal_result=pass`,
 and `launchd_state=loaded-idle`; each released exactly one stale admission row.
 A fresh DB readback now has zero `effect_unknown=1` rows for every `hf-gig-*`
-owner. This does not clear any provider Paid fence: CrowdWorks and Lancers
-remain fenced, and Coconala Apply/Storefront remain unloaded with their
-effect-free queue backlog and open natural-wake gate.
+owner. The Storefront owner then passed the same bounded queue cleanup and
+cancelled all `81` stale effect-free queued occurrences while retaining their
+cancelled history. Apply still has `5` queued occurrences and one queue row;
+four bounded retries returned `control_busy` because unrelated live loops held
+the shared admission lock, so no other loop was stopped or disturbed. This does
+not clear any provider Paid fence: CrowdWorks and Lancers remain fenced, and
+Coconala Apply/Storefront remain unloaded with their open natural-wake gate.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
