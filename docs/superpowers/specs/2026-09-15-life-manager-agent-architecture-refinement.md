@@ -93,6 +93,17 @@ flowchart LR
   そのまま引き渡します。欠落フィールドをopaqueな成功・失敗へ潰さないため、supervisor/executor focused
   testsは16/16、recovery全体は40/40です。これはmain/release/productionへ未反映で、provider effect、
   effect fence、外部stateは変更していません。
+- 2026-09-25 JSTのproduction read-only再確認では、`life-manager-recovery-supervisor`はcurrent exact
+  SHA `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でloaded-idle、diagnostic completeですが、直近terminalは
+  `entrypoint_exit_1`です。journalの実体は、別ownerのConnectorを`healthy_readback_pending`で保持し、旧releaseの
+  Agent Economyを`release_sha_mismatch`で停止したものです。`launchd.err.log`にはConnectorの旧実装由来の
+  `env: node`とadmission database lockが残ります。provider/browser/wallet effectは発生しておらず、Connectorの
+  source/session/stateはこのworkstreamで変更しません。current SHAのnon-self・non-Paid recovery intentは無いため、
+  canaryを捏造せず、accepted main-derived releaseまたはowner側の公式修正を次の外部境界とします。
+- branch runtime全suiteは304 tests中297 pass、7 failでした。recovery 40/40、Affiliate証跡3/3はpassしています。
+  残るfailはmissing optional packages、既存classification drift、既存comment guard、temp cleanup race、proxy
+  fallback環境依存であり、このrecovery readback修正が導入したfailではありません。全suite greenをFoundation完了と
+  誤認せず、関連focused suiteとproduction exact readbackを別に扱います。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
