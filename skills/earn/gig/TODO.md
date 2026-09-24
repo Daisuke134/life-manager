@@ -3664,3 +3664,28 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    replay-zero; never retry the fenced proposal blindly.
 3. [ ] Finish Ryu manual-only scope, then advance Lancers/Mercor and finally
    Freelancer/Upwork fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 17:36 JST (fixture and CI evidence)
+
+- [x] Refreshed the macOS loop-registry fixture for the reconcile owner;
+  local registry tests pass `82`, and `lm-loop-contract` reports
+  `14/168/97` with no shared IDs.
+- [x] Manual Security Scan run `35975239079` passed all jobs at SHA
+  `ae5f9365c9af93b821ecffab8e4560a841d18833` (loop-control, Python/unit,
+  shell, PII, gitleaks, and TruffleHog included).
+- [ ] PR #5820 remains open; the manual-dispatch result is not yet attached
+  to the PR status context, and production remains on the prior immutable
+  release.
+- [ ] Lancers job `5606124` was fail-closed with `unsupported_claim` and no
+  external send; it is later policy review, not the current Coconala cursor.
+
+### Remaining TODO (authoritative cursor, 17:36 JST)
+
+1. [ ] Push this checkpoint and wait for normal pull-request CI to attach to
+   the current SHA; do not merge/promote on a manual dispatch alone.
+2. [ ] Keep the Coconala occurrence fenced until exact official positive
+   readback; then run immutable release acceptance, natural wakes, and
+   replay-zero.
+3. [ ] Complete Coconala four-room/Ryu manual-only acceptance.
+4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
+   owners and perform final fleet acceptance.

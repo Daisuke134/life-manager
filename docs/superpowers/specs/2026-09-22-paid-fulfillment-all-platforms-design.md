@@ -4138,3 +4138,28 @@ not convert a transient pass or a no-op into client completion.
    Storefront wakes plus replay-zero.
 3. Complete Coconala four-room acceptance/Ryu manual-only scope, then advance
    Lancers/Mercor and finally Freelancer/Upwork.
+
+## Runtime Status Refresh — 2026-09-24 17:36 JST (fixture and CI evidence)
+
+- [x] Refreshed the macOS loop-registry fixture for the new reconcile owner;
+  the local registry suite passes `82` tests and the contract reports
+  `14/168/97` with no shared job IDs.
+- [x] Manual Security Scan run `35975239079` passed every job at the current
+  branch SHA `ae5f9365c9af93b821ecffab8e4560a841d18833`, including loop-control,
+  Python/unit, shell, PII, gitleaks, and TruffleHog checks.
+- [ ] PR #5820 is still open and its GitHub PR status context has not yet
+  associated the manual dispatch result; production remains on the previous
+  immutable release. Provider/client acceptance is still outstanding.
+- [ ] Lancers job `5606124` produced a fail-closed `unsupported_claim` decision
+  with no external send. It remains a later policy-review item and does not
+  move the current Coconala page-route cursor.
+
+### Next one-by-one cursor (17:36 JST)
+
+1. Push the checkpoint so the normal pull-request CI is attached to the
+   current SHA; do not merge or promote on a manual-dispatch-only result.
+2. Keep the Coconala occurrence fence closed until official positive readback
+   is available; then run immutable release acceptance and natural wake/
+   replay-zero checks.
+3. Complete Coconala four-room/Ryu manual-only acceptance, then advance
+   Lancers/Mercor and finally Freelancer/Upwork.
