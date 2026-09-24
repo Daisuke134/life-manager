@@ -50,7 +50,7 @@ def _readback(**overrides):
     return value
 
 
-def _historical_no_dispatch_proof(**overrides):
+def _historical_no_dispatch_proof(evidence_ref="historical-proof.json", **overrides):
     value = {
         "source": "code_owned_cdp_historical_identity_reconcile",
         "provider": "coconala",
@@ -80,7 +80,7 @@ def _historical_no_dispatch_proof(**overrides):
             ],
             "historical_account_absent": True,
         },
-        "evidence_ref": "/Users/anicca/gig/apply-direct/evidence/historical-proof.json",
+        "evidence_ref": evidence_ref,
     }
     value.update(overrides)
     return value
