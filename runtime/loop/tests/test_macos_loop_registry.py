@@ -1064,6 +1064,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.cloak/profiles/affiliate/x-en",
         })
 
+    def test_agent_economy_loop_declares_agent_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["agent-economy-loop"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("provider_route"), "shared-agent-runner")
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]
