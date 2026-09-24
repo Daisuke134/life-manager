@@ -4184,3 +4184,12 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] This closes only the Paid capacity/no-op checkpoint. It does not close
   Apply's `5280157` occurrence or Storefront's separate effect fence, and it
   is not a customer-delivery receipt.
+
+### Runtime checkpoint — 2026-09-25 00:24 JST (Apply target separation)
+
+- [x] The latest natural Apply result confirmed a different request,
+  `5284750`, with `effect=1` and `readback=1`. This is a general Coconala
+  application result, not Ryu's `5280157` occurrence.
+- [ ] Ryu's `5280157` remains the only durable pending Apply target in the
+  result (`durable_uncertain_count=1`). Do not reuse the `5284750` receipt or
+  release the Ryu fence from it.

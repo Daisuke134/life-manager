@@ -4783,3 +4783,12 @@ leaves the provider effect closed.
    funded-contract receipts are present.
 5. Run per-provider funded canaries, settlement/payout, crash recovery, and
    replay-zero only after each provider gate opens.
+
+## Runtime Status Refresh — 2026-09-25 00:24 JST (Apply target separation)
+
+- [x] The latest natural Coconala Apply result confirms request `5284750`
+  with `effect=1` and `readback=1`; this is a separate general application,
+  not Ryu's `5280157` occurrence.
+- [ ] Ryu's `5280157` remains the sole durable pending Apply target in that
+  result. Its fence cannot be released by the `5284750` receipt, and no retry
+  or manual submission was performed from this readback.
