@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:53 JST (all-platform readiness and live status rechecked)
+## Current cursor — 2026-09-25 06:58 JST (Apply stale queue closed and all-platform status rechecked)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -49,6 +49,16 @@ and Lancers remain unloaded: their exact old paid occurrences
 `effect_unknown=1`. Mercor is `loaded-idle`, last terminal `pass`, with no
 live effect-unknown row. This recheck made no provider request, retry, or
 external send.
+
+At `2026-09-25 06:58 JST` the admission control lock was free, so the
+supported `cancel_effect_free_queued_owner("hf-gig-apply-direct")` path was
+run once. It returned `cancelled`: all five Apply occurrences were
+`effect_unknown=0`, moved to `cancelled` history, and the Apply queue is now
+zero; Storefront remains zero queued with its prior 81 cancelled history.
+No provider page, proposal, or external effect was touched. A fresh status
+readback shows Apply `admission_effect_unknown=false`, unloaded, and awaiting
+its natural-wake/replay-zero gate; Storefront is still unloaded with
+`official_readback_required`; Paid is loaded-idle with a no-effect pass.
 
 The shared capacity investigation now has a concrete owner boundary. The
 central agent-runner retention code only accepts the guarded
