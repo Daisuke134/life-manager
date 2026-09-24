@@ -100,6 +100,8 @@ def verify_base_readback(
     local: dict[str, Any], finalized: dict[str, Any], receipt: dict[str, Any],
 ) -> bool:
     """Check the exact finalized USDC transfer against the local occurrence row."""
+    if not isinstance(finalized, dict) or not isinstance(receipt, dict):
+        return False
     tx = str(local.get("tx", "")).lower()
     if not TX.fullmatch(tx):
         return False

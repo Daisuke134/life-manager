@@ -108,6 +108,8 @@ def verify_relay_readback(row: dict[str, Any], readback: dict[str, Any]) -> bool
 def verify_base_readback(
     row: dict[str, Any], finalized: dict[str, Any], receipt: dict[str, Any],
 ) -> bool:
+    if not isinstance(finalized, dict) or not isinstance(receipt, dict):
+        return False
     tx = str(row.get("destination_tx_hash", "")).lower()
     recipient = str(row.get("recipient", "")).lower()
     final_block = _number(finalized.get("number")) if isinstance(finalized, dict) else None

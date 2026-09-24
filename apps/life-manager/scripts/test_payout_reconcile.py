@@ -73,6 +73,8 @@ def test_exact_occurrence_and_unique_provider_receipt_are_required():
 def test_base_readback_requires_exact_finalized_transfer():
     row = _row()
     assert MODULE.verify_base_readback(row, {"number": "0x7b"}, _receipt()) is True
+    assert MODULE.verify_base_readback(row, {"number": "0x7b"}, None) is False
+    assert MODULE.verify_base_readback(row, None, _receipt()) is False
     assert MODULE.verify_base_readback(row, {"number": "0x79"}, _receipt()) is False
     assert MODULE.verify_base_readback(row, {"number": "0x7b"}, _receipt("0x0")) is False
 

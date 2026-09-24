@@ -79,6 +79,8 @@ def build_proof_from_rows(
 def verify_base_readback(
     row: dict[str, Any], finalized: dict[str, Any], receipt: dict[str, Any],
 ) -> bool:
+    if not isinstance(finalized, dict) or not isinstance(receipt, dict):
+        return False
     tx = str(row.get("tx_hash", "")).lower()
     expected_from = str(row.get("from", "")).lower()
     expected_to = str(row.get("to", "")).lower()

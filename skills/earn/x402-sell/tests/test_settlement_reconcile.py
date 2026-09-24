@@ -90,6 +90,8 @@ def test_base_readback_must_match_finalized_usdc_transfer():
     assert MODULE.verify_base_readback(local, {"number": hex(122)}, chain_receipt) is False
     assert MODULE.verify_base_readback(local, finalized,
                                       {**chain_receipt, "status": "0x0"}) is False
+    assert MODULE.verify_base_readback(local, finalized, None) is False
+    assert MODULE.verify_base_readback(local, None, chain_receipt) is False
 
 
 def test_official_proof_requires_fresh_base_readback():

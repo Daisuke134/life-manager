@@ -72,6 +72,8 @@ def test_each_provider_boundary_requires_success_and_exact_identity():
     assert MODULE.verify_relay_readback(row, {"status": "success", "txHashes": [DEST_TX]}) is True
     assert MODULE.verify_relay_readback(row, {"status": "success", "txHashes": []}) is False
     assert MODULE.verify_base_readback(row, {"number": "0x7b"}, _base_receipt()) is True
+    assert MODULE.verify_base_readback(row, {"number": "0x7b"}, None) is False
+    assert MODULE.verify_base_readback(row, None, _base_receipt()) is False
     assert MODULE.verify_base_readback(row, {"number": "0x79"}, _base_receipt()) is False
 
 
