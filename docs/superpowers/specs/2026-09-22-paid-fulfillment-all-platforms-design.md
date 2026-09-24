@@ -2422,3 +2422,30 @@ not convert a transient pass or a no-op into client completion.
    act only on a genuinely newer buyer artifact.
 6. **Upwork:** add an owner only after authorization, authenticated readback,
    and a funded contract exist.
+
+## Production Cursor — 2026-09-24 11:29 JST
+
+- **Admission recheck:** the latest `lm-loop status` shows all three registered
+  Paid owners deferred by shared host admission (`resource_control_busy` or
+  `resource_capacity_busy`). No owner was stopped or killed. The last proven
+  Coconala snapshot remains `4/0/0/3/0`, but the newest wake itself is blocked,
+  so Coconala is not currently a fresh terminal pass.
+- **CrowdWorks/Lancers safety:** both remain `effect_status=unknown` at the
+  loop layer because their historical fences are still claimed. Their provider
+  snapshots and exact-fence reconciler results are unchanged from 11:27;
+  no retry, DB edit, or provider mutation was performed.
+
+### Remaining TODO (current ordered cursor)
+
+1. Let shared admission control settle naturally, then obtain fresh terminal
+   readbacks for Coconala, CrowdWorks, and Lancers; do not bypass or kill the
+   current owner.
+2. Keep the exact CrowdWorks and Lancers effect-unknown fences closed until a
+   provider receipt or exact pre-effect marker proves zero effect.
+3. After the admission gate clears, handle CrowdWorks `63568785` only when its
+   buyer artifact exists; handle Lancers only after inventory recovery and a
+   funded contract. Preserve Ryu manual-only.
+4. Keep the typed Lancers fix `0ab75d4b0e` branch-only until a main-derived
+   immutable release passes the all-platform acceptance gate.
+5. Keep Upwork disabled until authorization, authenticated readback, and a
+   funded contract exist.

@@ -2481,3 +2481,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   all-platform acceptance; never hot-load the branch.
 - [ ] Keep Coconala Ryu manual-only and Upwork disabled until its authorization,
   authenticated readback, and funded-contract gates exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:29 JST
+
+- [x] Rechecked `lm-loop status`: Coconala, CrowdWorks, and Lancers are all
+  currently deferred by shared host admission (`resource_control_busy` /
+  `resource_capacity_busy`); no owner was stopped or killed.
+- [x] Kept the last proven Coconala snapshot (`4/0/0/3/0`) separate from the
+  newest blocked wake; it is not reported as a fresh terminal pass.
+- [ ] Let admission settle naturally and capture fresh terminal provider
+  readbacks for all three registered Paid owners.
+- [ ] Keep the exact CrowdWorks/Lancers `effect_unknown` fences closed until
+  provider receipt or exact pre-effect proof exists; never resend or edit the
+  DB.
+- [ ] Preserve Ryu manual-only, wait for CrowdWorks buyer material and a funded
+  Lancers contract, then deliver once with official receipt/replay-zero.
+- [ ] Keep `0ab75d4b0e` branch-only until the main-derived immutable release
+  gate passes; keep Upwork disabled until its three onboarding gates exist.
