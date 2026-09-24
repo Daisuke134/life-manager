@@ -106,7 +106,7 @@ def verify_base_readback(
     finalized_block = _hex_or_int(finalized.get("number")) if isinstance(finalized, dict) else None
     receipt_block = _hex_or_int(receipt.get("blockNumber")) if isinstance(receipt, dict) else None
     if (
-        receipt.get("transactionHash", "").lower() != tx
+        str(receipt.get("transactionHash", "")).lower() != tx
         or receipt.get("status") != "0x1"
         or finalized_block is None
         or receipt_block is None

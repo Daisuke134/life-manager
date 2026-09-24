@@ -21,6 +21,10 @@ function runtimeOccurrenceId(environ = process.env) {
   return HOST_OCCURRENCE_ID_PATTERN.test(value) ? value : null;
 }
 
+function messageSha256(message) {
+  return crypto.createHash("sha256").update(String(message), "utf8").digest("hex");
+}
+
 function reportingDate(now) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
@@ -97,9 +101,9 @@ async function runHourlyCfo(options = {}) {
     const pendingOccurrenceId = runtimeOccurrenceId({
       LIFE_MANAGER_OCCURRENCE_ID: pending.occurrence_id,
     }) || occurrenceId;
+    const message = renderFinancialManagerTelegram(pending.report);
     const delivery = await notify({
-      eventKey: `cfo:${subjectId}:${date}`,
-      observedAt: now.toISOString(), message: renderFinancialManagerTelegram(pending.report),
+      eventKey: `cfo:${subjectId}:${date}`, observedAt: now.toISOString(), message,
       ...(pendingOccurrenceId ? { occurrence_id: pendingOccurrenceId } : {}),
     });
     if (delivery?.delivery !== "delivered" || !String(delivery.provider_message_id || "").trim()) {
@@ -108,6 +112,7 @@ async function runHourlyCfo(options = {}) {
     }
     writeSnapshot(snapshotFile, { ...pending, status: "delivered",
       delivery: { delivery: "delivered", provider_message_id: String(delivery.provider_message_id) },
+      message_sha256: pending.message_sha256 || messageSha256(message),
       ...(pendingOccurrenceId ? { occurrence_id: pendingOccurrenceId } : {}),
       deliveredAt: now.toISOString() });
     const duplicate = Number(delivery.attempted) === 0;
@@ -133,9 +138,10 @@ async function runHourlyCfo(options = {}) {
         return previousDate === date && previous.status !== "pending" ? previous : null;
       },
       claim: async ({ digest, report, observedAt }) => {
+        const message = renderFinancialManagerTelegram(report);
         writeSnapshot(snapshotFile, {
           schemaVersion: 1, status: "pending", reportingDate: date,
-          digest, report, createdAt: observedAt,
+          digest, report, message_sha256: messageSha256(message), createdAt: observedAt,
           ...(occurrenceId ? { occurrence_id: occurrenceId } : {}),
         });
         return { claimed: true };
@@ -143,6 +149,7 @@ async function runHourlyCfo(options = {}) {
       markDelivered: ({ digest, report, delivery, observedAt }) => writeSnapshot(snapshotFile, {
         schemaVersion: 1, status: "delivered", digest, report,
         reportingDate: date,
+        message_sha256: messageSha256(renderFinancialManagerTelegram(report)),
         delivery: { delivery: "delivered", provider_message_id: delivery.providerMessageId },
         ...(delivery.occurrence_id ? { occurrence_id: delivery.occurrence_id } : {}),
         deliveredAt: observedAt,
@@ -194,4 +201,4 @@ async function main(env = process.env) {
 
 if (require.main === module) main().then((code) => { process.exitCode = code; });
 
-module.exports = { agentReceiptPathsFromEnv, main, runHourlyCfo, runtimeOccurrenceId };
+module.exports = { agentReceiptPathsFromEnv, main, messageSha256, runHourlyCfo, runtimeOccurrenceId };

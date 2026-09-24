@@ -63,6 +63,10 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
       .occurrence_id,
     "life-manager-cfo-hourly:run-1",
   );
+  const deliveredSnapshot = JSON.parse(
+    fs.readFileSync(path.join(stateDir, "last-delivered-snapshot.json"), "utf8"),
+  );
+  assert.match(deliveredSnapshot.message_sha256, /^[a-f0-9]{64}$/);
   assert.match(deliveries[0].message, /事業（今日）\n収益：¥12,500/);
   assert.match(deliveries[0].message, /事業（直近7日）\n収益：¥12,500/);
   assert.match(deliveries[0].message, /事業（2026-09）\n収益：¥12,500/);
