@@ -2268,7 +2268,10 @@ class CdpParentEffects:
                         resumable_access_denied = pages_walked == 0
                         break
                     if page.get("access_denied") is True:
-                        raise ParentContractError("official_readback_access_denied")
+                        error = ParentContractError("official_readback_access_denied")
+                        error.readback_resume_url = str(page.get("url") or "")
+                        error.readback_observed_ids = sorted(observed)
+                        raise error
                     raise ParentContractError("official_readback_route_invalid")
                 if first_page is None:
                     first_screenshot, call_id = await self._screenshot(ws, call_id)
@@ -2313,7 +2316,10 @@ class CdpParentEffects:
                                 raise
                             raise ReadbackScanTimeout(str(fetch_error)) from fetch_error
                         if detail.get("access_denied") is True:
-                            raise ParentContractError("official_readback_access_denied")
+                            error = ParentContractError("official_readback_access_denied")
+                            error.readback_resume_url = str(page.get("url") or "")
+                            error.readback_observed_ids = sorted(observed)
+                            raise error
                         if detail.get("not_found") is True:
                             raise ParentContractError("official_readback_offer_detail_not_found")
                         if detail.get("status") != 200:
@@ -2430,17 +2436,17 @@ class CdpParentEffects:
         *, include_retainer_history: bool = False,
         start_url: str | None = None, allow_truncated: bool = False,
     ) -> set[str]:
-        async def readback() -> tuple[dict[str, object], bytes]:
+        async def readback(readback_start_url: str | None) -> tuple[dict[str, object], bytes]:
             return await self._official_readback_async(
                 expected_ids,
                 max_pages=max_pages,
                 include_retainer_history=include_retainer_history,
-                start_url=start_url,
+                start_url=readback_start_url,
                 allow_truncated=allow_truncated,
             )
 
         try:
-            payload, screenshot = asyncio.run(readback())
+            payload, screenshot = asyncio.run(readback(start_url))
         except ParentContractError as error:
             # A later history page can be denied by the provider while a fresh leased
             # context succeeds. Recycle only the readback target, once; never retry a
@@ -2449,7 +2455,33 @@ class CdpParentEffects:
                 raise
             if not self.recover_wedged_target():
                 raise
-            payload, screenshot = asyncio.run(readback())
+            resume_url = getattr(error, "readback_resume_url", None)
+            retry_start_url = (
+                str(resume_url)
+                if isinstance(resume_url, str) and _valid_applied_history_start_url(resume_url)
+                else start_url
+            )
+            payload, screenshot = asyncio.run(readback(retry_start_url))
+            prefix_ids = {
+                str(value) for value in (getattr(error, "readback_observed_ids", []) or [])
+                if str(value).isdigit() or _is_retainer_request(value)
+            }
+            if prefix_ids:
+                observed_ids = {
+                    str(value) for value in (payload.get("request_ids") or [])
+                    if str(value).isdigit() or _is_retainer_request(value)
+                }
+                combined_ids = prefix_ids | observed_ids
+                sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
+                payload["request_ids"] = sorted(combined_ids, key=sort_key)
+                expected_payload_ids = {
+                    str(value) for value in (payload.get("expected_ids") or expected_ids)
+                    if str(value).isdigit() or _is_retainer_request(value)
+                }
+                payload["applied_page_absent_request_ids"] = sorted(
+                    expected_payload_ids - combined_ids, key=sort_key
+                )
+                payload["missing_count"] = len(expected_payload_ids - combined_ids)
         screenshot_path = path.with_suffix(".png")
         _atomic_bytes(screenshot_path, screenshot)
         payload["screenshot_path"] = str(screenshot_path.resolve())

@@ -313,13 +313,19 @@ def test_official_readback_recycles_once_after_access_denied(tmp_path, monkeypat
     calls = []
 
     async def fake_readback(*args, **kwargs):
-        calls.append(effects.ws_url)
+        calls.append((effects.ws_url, kwargs.get("start_url")))
         if len(calls) == 1:
-            raise application_parent.ParentContractError("official_readback_access_denied")
+            error = application_parent.ParentContractError("official_readback_access_denied")
+            error.readback_resume_url = (
+                "https://www.coconala.com/mypage/job_matching/applied/offers?page=22"
+            )
+            error.readback_observed_ids = ["111"]
+            raise error
         return (
             {
                 "source": "code_owned_cdp_readback",
                 "request_ids": ["5280157"],
+                "expected_ids": ["111", "5280157"],
                 "observed": True,
                 "not_found": False,
             },
@@ -331,15 +337,21 @@ def test_official_readback_recycles_once_after_access_denied(tmp_path, monkeypat
     effects.ws_recycler = lambda: "ws://fresh"
 
     observed = effects._official_readback(
-        {"5280157"}, tmp_path / "evidence" / "readback.json"
+        {"111", "5280157"}, tmp_path / "evidence" / "readback.json"
     )
 
-    assert observed == {"5280157"}
-    assert calls == ["ws://initial", "ws://fresh"]
+    assert observed == {"111", "5280157"}
+    assert calls == [
+        ("ws://initial", None),
+        (
+            "ws://fresh",
+            "https://www.coconala.com/mypage/job_matching/applied/offers?page=22",
+        ),
+    ]
     payload = json.loads(
         (tmp_path / "evidence" / "readback.json").read_text(encoding="utf-8")
     )
-    assert payload["request_ids"] == ["5280157"]
+    assert payload["request_ids"] == ["111", "5280157"]
 
 
 def test_official_history_403_has_same_origin_fetch_fallback():
