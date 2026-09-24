@@ -2910,3 +2910,31 @@ not convert a transient pass or a no-op into client completion.
    resolved; keep Consultant calibration human-owned.
 5. Preserve Coconala/Ryu manual-only and Upwork-disabled gates; run final fleet
    acceptance only after every Paid owner has fresh readback and replay-zero.
+
+## Production Cursor — 2026-09-24 13:01 JST (effect fences independently rechecked)
+
+- **Fence evidence is still insufficient for release.** Read-only event and
+  admission-DB checks found Lancers `18d81967220136f8-89928`, CrowdWorks
+  historical `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application
+  `18d6f9cb5bdaef98-33812` all `claimed/effect_unknown=1`; their event trails
+  end at started → unknown/fail, with no provider receipt or summary artifact
+  that proves zero effect. They remain fenced; no blind retry or manual DB
+  release was performed.
+- **Current safe readbacks remain unchanged.** Lancers is an empty `ok` pass;
+  Mercor Paid is pending on its stale official snapshot; CrowdWorks is
+  `5/1/0/4/1` with only `63568785` buyer-material pending; Coconala/Ryu is
+  manual-only/no-op.
+
+### Remaining TODO (cursor unchanged)
+
+1. Release the branch only after PR acceptance, then verify loaded SHA and
+   CrowdWorks no-blank-growth on a natural wake.
+2. Obtain exact provider/run proof for every effect-unknown fence before any
+   release; keep the fences closed otherwise.
+3. After buyer material arrives, complete CrowdWorks `63568785` delivery →
+   acceptance → settlement → payout → replay-zero once.
+4. Refresh Mercor official inventory after its fence is safely resolved and
+   retain Consultant calibration as human-owned.
+5. Finish the final cross-platform fleet acceptance gate; Coconala/Ryu and
+   Upwork remain manual-only/disabled respectively.

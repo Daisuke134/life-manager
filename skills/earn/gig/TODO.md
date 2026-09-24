@@ -2774,3 +2774,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   delivery chain through replay-zero exactly once.
 - [ ] Resolve historical effect-unknown fences, refresh Mercor inventory, and
   finish the cross-platform acceptance gate.
+
+### Paid fulfillment checkpoint — 2026-09-24 13:01 JST (fences remain closed)
+
+- [x] Read-only event and admission-DB recheck confirms Lancers
+  `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application
+  `18d6f9cb5bdaef98-33812` are still `claimed/effect_unknown=1`, with no
+  provider receipt or summary proving zero effect.
+- [x] Did not clear or retry any fence; current empty/pass and pending
+  readbacks remain safe and idempotent.
+- [ ] Obtain exact provider/run proof before releasing each fence; never use
+  a blind retry or manual database mutation.
+- [ ] Promote the CrowdWorks blank-tab fix, satisfy `63568785` buyer-material
+  gate, refresh Mercor official inventory, and run final fleet acceptance.
