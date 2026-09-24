@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 05:23 JST (all-platform gate, exact fences, and capacity probe)
+## Current cursor — 2026-09-25 05:30 JST (all-platform gate, exact fences, and provider-history probe)
 
 This section supersedes the older cursors below. The Coconala Apply occurrence
 was resolved without a resend: its durable intent was already `confirmed`, and
@@ -28,6 +28,16 @@ consumer is `~/.local/state/anicca/job-search/evidence` at about `2.5 GiB`
 currently owns that path. Do not delete it by hand: ledgers, receipts, active
 runs, and evidence must be classified and bounded by their writer before any
 reclamation. No paid provider was retried during this probe.
+
+The provider-owned CrowdWorks adapter then performed read-only contract-history
+readbacks for `63583795`, `63570481`, `63568785`, and `63657015`. The first is
+officially completed; its last seller delivery message is `427903899` at
+`2026-09-17 22:03 JST`, before the unresolved occurrence began at
+`2026-09-18 02:48 JST`. `63570481` and `63657015` are in buyer inspection, and
+`63568785` remains funded with the buyer material request outstanding. These
+pages are useful provider evidence, but the unresolved occurrence has no
+persisted work/intent binding, so they cannot prove that occurrence had no
+dispatch and cannot release it. The exact CrowdWorks fence remains closed.
 
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
 |---|---|---|---|
