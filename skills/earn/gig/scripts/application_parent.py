@@ -1063,9 +1063,12 @@ class CdpParentEffects:
         """
         if not callable(self.ws_recycler):
             return False
-        self._release_target_lock()
+        had_target_lock = self._target_lock_handle is not None
+        if had_target_lock:
+            self._release_target_lock()
         self.ws_url = str(self.ws_recycler())
-        self._acquire_target_lock()
+        if had_target_lock:
+            self._acquire_target_lock()
         return True
 
     @contextlib.contextmanager
@@ -2427,15 +2430,26 @@ class CdpParentEffects:
         *, include_retainer_history: bool = False,
         start_url: str | None = None, allow_truncated: bool = False,
     ) -> set[str]:
-        payload, screenshot = asyncio.run(
-            self._official_readback_async(
+        async def readback() -> tuple[dict[str, object], bytes]:
+            return await self._official_readback_async(
                 expected_ids,
                 max_pages=max_pages,
                 include_retainer_history=include_retainer_history,
                 start_url=start_url,
                 allow_truncated=allow_truncated,
             )
-        )
+
+        try:
+            payload, screenshot = asyncio.run(readback())
+        except ParentContractError as error:
+            # A later history page can be denied by the provider while a fresh leased
+            # context succeeds. Recycle only the readback target, once; never retry a
+            # submission or resolve an effect fence from this transport recovery.
+            if str(error) != "official_readback_access_denied":
+                raise
+            if not self.recover_wedged_target():
+                raise
+            payload, screenshot = asyncio.run(readback())
         screenshot_path = path.with_suffix(".png")
         _atomic_bytes(screenshot_path, screenshot)
         payload["screenshot_path"] = str(screenshot_path.resolve())

@@ -344,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
                 ledger_path=Path.home() / "gig" / "applied.jsonl",
                 pass_id=f"occurrence-reconcile-{task_suffix}",
             )
+            effects.ws_recycler = lease.recycle
 
             def official_readback() -> Mapping[str, object]:
                 effects._official_readback(
