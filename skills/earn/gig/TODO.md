@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 03:47 JST (live platform-by-platform gate)
+## Current cursor — 2026-09-25 03:55 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
 "running" without a current launchd readback. A source registry row is not a
@@ -15,11 +15,11 @@ No provider send is allowed before all preceding gates pass.
 | CrowdWorks (CloudWorks) | Existing provider state is readable. | `63568785` is pending buyer lesson/answer material; four rows are completed with official readback. | Latest result evidence remains `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1`; the direct `lm-loop status` readback confirms `crowdworks-revenue-paid` is **unloaded**, with the persisted `entrypoint_exit_143` occurrence still `admission_effect_unknown=true` and incomplete diagnostics. | Reconcile that exact occurrence with an admissible pre-effect/provider proof; then load one owner and prove a natural no-op. Do not send the pending item without buyer material. |
 | Lancers | Authenticated preflight passes; source-complete inventory has no contract candidate and zero balance. | Latest result is `observed=0/actionable=0/effect=0`; job `5606124` was fail-closed as `unsupported_claim`, with no application. | The direct `lm-loop status` readback confirms `lancers-revenue-paid` is **unloaded**; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is **loaded-idle**, but that is not a funded-contract or provider-receipt proof. | Reconcile the exact Paid occurrence and refresh official inventory. Register/run Paid only after a real funded `ContractReceipt`; formal delivery remains closed. |
 | Mercor | Official browser readback is authenticated; earnings readback is `$0.00`/empty. | Saved work assessment is stale/incomplete; no current funded work is proven. | `mercor-revenue-paid` is loaded-idle; the latest direct status is `host_admission_deferred:resource_effect_unknown` with no provider receipt/readback. | Recover host capacity, refresh official work inventory, and reconcile exact application/Paid/Reply fences before any effect. |
-| Freelancer.com | No OAuth file, no approved account-bound receipts, and no authenticated inventory. The read-only public bid watcher rechecked all 4 stored projects (`40620700`, `40620877`, `40620839`, `40620523`): `checked=4`, `active=0`, `errors=0`. | None proven; the public watcher is not an account-bound contract or payment readback. | Registry labels are disabled/external labels; no managed owner is loaded, and no `gig-freelancer` browser profile exists. | Obtain fresh account-bound authorization and official identity/projects/milestones/payments/payouts readback. Only a positive funded project can open owner registration. |
-| Upwork | No current OAuth file. The stored read-only profile/account evidence is historical (published profile, identity readback, payment-verified job observations), while the canonical funded-contract snapshot is source-complete with `contracts=[]`; transactions/withdrawals are empty. The current CDP has no Upwork page (the listening 9223 browser is on Coconala), and mutation receipts remain denied. | `funded_contract_count=0`; no milestone or contract receipt is proven. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Re-establish fresh account-bound authorization/readback for search/inspect/propose/message/offer/deliver/payments/payouts, obtain a real funded contract and milestone readback, then register and verify the owner. |
+| Freelancer.com | No OAuth file and no account-bound authorization receipts. Two private candidate profiles exist (`gig-freelancer-r1` is mode `700`; `freelancer-daily-driver` is mode `755` and is not eligible for the private-browser gate), but no Freelancer CDP listener or authenticated inventory readback is active. The read-only public bid watcher rechecked all 4 stored projects (`40620700`, `40620877`, `40620839`, `40620523`): `checked=4`, `active=0`, `errors=0`. | None proven; the public watcher is not an account-bound contract or payment readback. | Registry labels are retired/external labels; no managed owner is loaded. | Obtain fresh account-bound authorization and official identity/projects/milestones/payments/payouts readback. Only a positive funded project can open owner registration. |
+| Upwork | No OAuth file. The current authorization store has valid **read-only** browser receipts for `inspect`, `read_payments`, and `read_payouts` until `2026-09-25T17:30:28Z`; `search`, `propose`, `message`, `accept_offer`, and `deliver_milestone` are explicitly denied. The `gig-upwork` profile is mode `700`, but no Upwork page is attached to the live CDP (9223 is Coconala), so no current contract readback was made. The source-complete historical snapshot remains `contracts=[]` with empty transactions/withdrawals. | `funded_contract_count=0`; no current milestone or contract receipt is proven. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Use the still-valid read-only receipts to obtain a fresh account-bound identity/contracts/payments/payouts snapshot; then renew mutation authorization, obtain a real funded contract/milestone, and only then register and verify the owner. |
 
 Host note: the disk guard has repeatedly hit `ENOSPC` while writing receipts/SQLite.
-The latest `df` readback is about 248 MiB free (100% data-volume capacity); this is below a
+The latest `df` readback is about 342 MiB free (97% root / 100% data-volume capacity); this is below a
 stable operating margin even though a small tempfile probe now succeeds. The allowlisted
 cleanup evaluated five candidates, preserved all five because they were open, and
 reclaimed 0 bytes. Storefront and Apply are intentionally unloaded to prevent
@@ -66,6 +66,27 @@ additional failed writes. This is a host-health blocker, not proof of provider e
 7. Run fleet acceptance only after each platform has its own live owner,
    authorization, funded-work proof where applicable, official receipt/readback,
    settlement evidence, and duplicate-zero proof.
+
+### Freelancer/Upwork execution work — 2026-09-25 03:55 JST
+
+- [x] Re-ran the provider readiness/transport suites: `52 passed` (Freelancer
+  readiness/transport plus Upwork readiness/transport). This proves the
+  fail-closed source gates, not provider authentication or delivery.
+- [ ] **Freelancer:** create the first account-bound receipt bundle, make the
+  private browser profile mode `700` (or use approved API OAuth), fetch the
+  official identity/projects/milestones/hourly/IP/payment/payout routes, and
+  persist a source-complete snapshot. Keep Apply/Reply/Paid/settlement owners
+  retired until `evaluate_registration` returns a funded project.
+- [ ] **Upwork:** use the currently valid read-only receipts to attach a fresh
+  Upwork browser lease and read identity/contracts/transactions/withdrawals;
+  record a source-complete snapshot. Then obtain explicit current approval for
+  search/propose/message/accept-offer/deliver, keep the effect fence closed,
+  and register one Paid owner only after a positive funded milestone exists.
+- [ ] For both providers, after registration run (1) zero-effect canary, (2)
+  one funded canary, (3) official provider receipt and contract readback, (4)
+  settlement/payout readback, (5) crash recovery, and (6) replay-zero. A
+  profile directory, historical JSON, or loaded launchd row does not satisfy
+  any of these gates.
 
 ## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
 

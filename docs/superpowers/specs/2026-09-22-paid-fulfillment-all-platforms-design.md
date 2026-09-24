@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 03:47 JST
+### Live platform gate correction — 2026-09-25 03:55 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -24,14 +24,14 @@ Paid "running" solely because a registry row and a result file existed.
 | CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`; direct status confirms the actual launchd service is unloaded, while the persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. | Exact pre-effect/provider proof, then load one owner and run a no-effect canary; pending `63568785` still waits for buyer material. |
 | Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Direct status confirms the Paid service is unloaded; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is loaded-idle, but has no funded-contract or provider-receipt proof. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
 | Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is loaded-idle but latest status is `resource_effect_unknown` with no receipt/readback. | Recover capacity, refresh inventory, and reconcile exact application/Paid/Reply fences. |
-| Freelancer.com | No OAuth, approved receipts, authenticated inventory, or funded project; the read-only watcher rechecked 4 stored projects and found `active=0`, `errors=0`. | Account-bound authentication, source-complete identity/project/milestone/payment/payout readback, then funded-project proof and owner registration. |
-| Upwork | No current OAuth file. Historical profile/account evidence exists, but the stored source-complete contract snapshot is `contracts=[]` with empty transactions/withdrawals; current CDP has no Upwork page and mutation receipts are denied. | Fresh mutation authorization and account-bound contract/milestone readback, real funded contract, then owner registration and canaries. |
+| Freelancer.com | No OAuth or account-bound receipts. Candidate profiles exist (`gig-freelancer-r1` mode `700`; `freelancer-daily-driver` mode `755`, therefore not eligible), but no live Freelancer CDP listener or authenticated inventory readback exists. The public watcher rechecked 4 stored projects and found `active=0`, `errors=0`. | Fresh account-bound authorization, source-complete identity/project/milestone/payment/payout readback, then funded-project proof and owner registration. |
+| Upwork | No current OAuth file. Current authorization has valid read-only browser receipts for `inspect`, `read_payments`, and `read_payouts` until `2026-09-25T17:30:28Z`; search/propose/message/accept-offer/deliver are denied. The mode-700 `gig-upwork` profile has no live Upwork page (9223 is Coconala), so no fresh contract readback exists. The historical source-complete snapshot is `contracts=[]` with empty transactions/withdrawals. | Use the read-only receipts for a fresh account-bound inventory, then renew mutation authorization, obtain a funded contract/milestone, and only then register one Paid owner and run canaries. |
 
 The immediate order is therefore: reconcile exact old fences without guessing,
 then finish each provider's read-only/authentication gate, and only register a
 Freelancer/Upwork owner after both authentication and funded-work evidence exist.
 The host has also hit `ENOSPC` during receipt/SQLite writes. The latest `df`
-readback is about 248 MiB free at 100% data-volume capacity; a small tempfile probe now
+readback is about 342 MiB free at 97% root / 100% data-volume capacity; a small tempfile probe now
 succeeds, but this is still below a stable operating margin. Allowlisted cleanup preserved
 all five open candidates and reclaimed zero bytes. Apply and Storefront are
 unloaded to stop additional failed writes. Disk headroom must be stable before
@@ -47,6 +47,31 @@ runtime-bound tests pass (`90`). This source fix is not yet in an immutable
 production release. CrowdWorks application was stopped and read back as
 `unloaded/pid=null`; its stop occurrence remains `effect_unknown` without a
 provider receipt, so it is not retried or released by inference.
+
+### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 03:55 JST
+
+The implementation is not waiting for a funded contract to begin engineering.
+The provider-neutral readiness and transport boundaries are implemented and the
+focused Freelancer/Upwork suites pass `52`. The remaining work is explicitly
+split into provider readback and provider effect:
+
+- Freelancer has no account-bound authorization receipt at all. The existing
+  private profile directories are only candidates; no live CDP owner or
+  source-complete identity/project/milestone/payment/payout snapshot exists.
+  The next implementation step is the authenticated read-only route adapter,
+  followed by Apply/Reply/Paid/settlement owners kept disabled until a funded
+  project is officially read back.
+- Upwork has three current read-only receipts (`inspect`, `read_payments`,
+  `read_payouts`) but no live Upwork page and no current contract snapshot. Its
+  mutation actions are denied. The next implementation step is to consume the
+  read-only receipts through a fresh browser lease, persist the source-complete
+  contract/finance snapshot, then renew mutation approval before registering one
+  Paid owner.
+- Neither platform may send a proposal, message, offer acceptance, delivery,
+  or payout action from a profile directory or historical JSON. Registration
+  requires account-bound authorization plus a positive funded contract/milestone;
+  after registration the canary sequence is zero-effect → funded → official
+  receipt/readback → settlement/payout → crash recovery → replay-zero.
 
 ### Current implementation cursor — 2026-09-24 21:00 JST
 
