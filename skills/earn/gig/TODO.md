@@ -18,6 +18,11 @@ therefore do not clear the older claimed rows. The exact remaining action is
 to obtain a receipt/no-effect marker for each original occurrence or leave its
 fence closed; no blanket cleanup or resend is admissible.
 
+The current code-side gate verification then ran the focused Freelancer and
+Upwork readiness/transport/release tests: `74 passed in 0.90s`. This proves the
+fail-closed behavior only; it does not create authentication, a funded
+contract, a provider receipt, or a live owner.
+
 ## Current cursor — 2026-09-25 07:50 JST (explicit platform gates, live admission readback)
 
 This is the current platform-by-platform situation. “Loop code exists” is not
