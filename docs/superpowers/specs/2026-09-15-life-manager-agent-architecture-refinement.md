@@ -123,6 +123,12 @@ flowchart LR
   registryに既存の`deterministic/borrow/support`、queued/reserved coalescing、`reconcile_queued_release=true`だけを
   branch-onlyで宣言し、RED→GREEN registry/fixture 97/97、apply 124/124（既知のsqlite `ResourceWarning`のみ）を
   PASSしました。main/release昇格、exact-SHA readback、replay-zeroは未完です。
+- `life-manager-taskmarket-ledger`はdeterministic routeで、known effect-free FIFO 1,438件、released 424件、
+  admission unknown 0件でした。loaded-idleでtyped `resource_capacity_busy`がentrypoint前に発生し、task-market
+  payment/provider effectはありませんでした。registryに既存の`deterministic/borrow/support`、queued/reserved
+  coalescing、`reconcile_queued_release=true`だけをbranch-onlyで宣言し、RED→GREEN registry/fixture 97/97、
+  apply 124/124（既知のsqlite `ResourceWarning`のみ）をPASSしました。main/release昇格、exact-SHA readback、
+  replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
