@@ -4382,6 +4382,16 @@ The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence
 `uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
 Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
 
+The effect-free `job-search-daily` owner was then probed without touching application owners. It was loaded-idle;
+two targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[job-search-daily]`. The old release was not executed, no application/proposal
+effect ran, and the health/learning application fences were left unchanged.
+
+The effect-free `job-search-inbox` owner was also probed without restarting its loaded process. Two targeted
+reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` both returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The
+health/learning application effect-unknown fences remain untouched.
+
 `x402-inflow-watch-franklin2` was also probed twice under the same FIFO-safe contract. Both targeted reconciles
 returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
 `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
