@@ -1668,3 +1668,11 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Keep the cursor at owner-controlled capacity recovery; after the floor is restored, rerun the full suite, load
   the accepted immutable candidate, and require a fresh occurrence-complete reconciler receipt before any retention
   cleanup or bounded owner reconciliation.
+
+### Candidate merge-tree recheck (2026-09-25 JST)
+
+- [x] Fetch and compare candidate `ce1c53285f38d73ccfdf23199edc9ab2f7443468` against `origin/main`
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; `git merge-tree --write-tree` is clean at
+  `85cd634f7899602e8d8655466b1d950d04d9dbca`, with diff-check and clean worktree.
+- [ ] Keep this as readiness evidence only. Do not merge or load production until capacity, full-suite,
+  occurrence-complete readback, replay-zero and the two-pass foundation gate are green.

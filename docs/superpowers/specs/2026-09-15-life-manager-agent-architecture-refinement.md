@@ -5242,3 +5242,11 @@ The same read-only probe now reports only **398,644 KB** available on `/System/V
 below the **1,155,780,608-byte** foundation floor. The candidate fallback and gate-diagnostic commits remain branch
 only; the next safe cursor is still owner-controlled capacity recovery, then full-suite verification and an accepted
 immutable load before expecting a fresh reconciler occurrence.
+
+### Candidate merge-tree recheck (2026-09-25 JST)
+
+After the diagnostic follow-up, the candidate branch is `ce1c53285f38d73ccfdf23199edc9ab2f7443468` and
+`origin/main` is `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. A read-only
+`git merge-tree --write-tree` is clean at tree `85cd634f7899602e8d8655466b1d950d04d9dbca`; `git diff --check`
+and the worktree are clean. This is only a merge-conflict/readiness fact. It is not main integration or production
+approval: capacity, full-suite, immutable-load, occurrence-complete readback and two-pass acceptance remain open.
