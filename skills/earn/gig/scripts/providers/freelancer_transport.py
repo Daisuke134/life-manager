@@ -15,7 +15,7 @@ import stat
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterable
 
 from provider_authorization import (
     AuthorizationDecision,
@@ -191,6 +191,39 @@ class FreelancerTransport:
             for project_id in project_ids
         )
         return tuple(routes)
+
+    def read_inventory(
+        self,
+        receipts: Iterable[Any],
+        *,
+        account_id: str,
+        project_ids: tuple[str, ...],
+        fetch: Callable[[TransportSelection, tuple[tuple[str, str], ...]], Any],
+    ) -> Any:
+        """Attach the route plan to the strict readiness readback boundary.
+
+        ``fetch`` is the provider-owned HTTP/CDP implementation. It receives
+        only after ``read_authenticated_inventory`` has proved all three
+        account-bound read receipts; its return value must be the canonical
+        inventory object accepted by ``freelancer_readiness.parse_inventory``.
+        """
+        if not callable(fetch):
+            raise TransportConfigurationError("inventory_fetch_not_callable")
+        plan = self.inventory_route_plan(project_ids=project_ids)
+        from freelancer_readiness import read_authenticated_inventory
+
+        def readback(_approved: dict[str, Any]) -> Any:
+            selection = self.for_action("inspect")
+            if selection is None:
+                raise TransportConfigurationError("inventory_transport_unavailable")
+            return fetch(selection, plan)
+
+        return read_authenticated_inventory(
+            receipts,
+            account_id=account_id,
+            now=self.now,
+            readback=readback,
+        )
 
     def effect_intent(self, selection: TransportSelection, *, resource_id: str, payload_hash: str):
         """Keep effect identity account-bound; provider effects remain elsewhere."""

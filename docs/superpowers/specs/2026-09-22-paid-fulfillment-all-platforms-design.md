@@ -4937,3 +4937,18 @@ leaves the provider effect closed.
   response readback. The next seam is to connect these routes to the strict
   `read_authenticated_inventory` callback, prove one source-complete funded
   project, then use the disabled-owner → zero-spend → funded-canary sequence.
+
+## Runtime Status Refresh — 2026-09-25 01:01 JST (Freelancer readback attachment)
+
+- [x] `FreelancerTransport.read_inventory` now delegates to the strict
+  `freelancer_readiness.read_authenticated_inventory` boundary. It validates
+  the complete `inspect`/`read_payments`/`read_payouts` receipt set before
+  invoking the injected provider fetch, and passes only the validated official
+  route plan to that fetch. Missing receipts therefore produce zero provider
+  calls.
+- [x] The focused Freelancer/Upwork/readiness/transport suite passes (`84`),
+  including the no-fetch-before-receipt and canonical account-binding cases.
+- [ ] The fetch callback is still the provider-owned HTTP/CDP implementation;
+  no live Freelancer OAuth or official response exists in the current state.
+  Keep the owner unregistered until that callback returns a source-complete
+  funded project and the delivery/payment/payout readbacks are verified.

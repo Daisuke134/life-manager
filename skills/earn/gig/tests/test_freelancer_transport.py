@@ -29,6 +29,7 @@ def _load_module():
 
 
 transport = _load_module()
+from provider_authorization import load_receipts  # noqa: E402
 NOW = datetime(2026, 9, 25, 1, 0, tzinfo=timezone.utc)
 ACCOUNT = "freelancer-owner:v1:" + "1" * 64
 
@@ -73,6 +74,27 @@ def _profile(tmp_path: Path) -> tuple[Path, Path]:
     root.chmod(0o700)
     path.chmod(0o700)
     return root, path
+
+
+def _inventory() -> dict[str, object]:
+    return {
+        "version": 1,
+        "provider": "freelancer",
+        "account_id": ACCOUNT,
+        "source_complete": True,
+        "observed_at": "2026-09-25T00:55:00Z",
+        "source_hash": "b" * 64,
+        "contracts": [{
+            "project_id": "123",
+            "contract_id": "contract-1",
+            "state": "funded",
+            "currency": "USD",
+            "amount_minor": 10000,
+            "source_url": "https://www.freelancer.com/projects/123",
+            "source_hash": "c" * 64,
+            "observed_at": "2026-09-25T00:55:00Z",
+        }],
+    }
 
 
 def _selector(tmp_path: Path, **overrides: object):
@@ -180,3 +202,49 @@ def test_inventory_route_plan_matches_documented_official_endpoints(tmp_path: Pa
 def test_inventory_route_plan_rejects_non_numeric_project_ids(tmp_path: Path):
     with pytest.raises(transport.TransportConfigurationError, match="project_id_invalid"):
         _selector(tmp_path).inventory_route_plan(project_ids=("../secret",))
+
+
+def test_inventory_readback_does_not_call_fetch_without_read_receipts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _authorization_store(tmp_path, monkeypatch, [])
+    calls: list[object] = []
+
+    with pytest.raises(ValueError, match="inventory_authorization_missing"):
+        _selector(tmp_path).read_inventory(
+            load_receipts(tmp_path / "authorizations.json"),
+            account_id=ACCOUNT, project_ids=("123",),
+            fetch=lambda selection, plan: calls.append((selection, plan)) or _inventory(),
+        )
+    assert calls == []
+
+
+def test_inventory_readback_fetches_only_after_all_read_receipts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    root, profile = _profile(tmp_path)
+    selector = transport.FreelancerTransport(
+        account=ACCOUNT, now=NOW, oauth_path=tmp_path / "missing.json",
+        profiles_root=root, browser_profile=profile,
+        matrix_path=GIG_ROOT / "config" / "freelancer-actions.public.json",
+    )
+    calls: list[object] = []
+
+    inventory = selector.read_inventory(
+        load_receipts(tmp_path / "authorizations.json"),
+        account_id=ACCOUNT, project_ids=("123",),
+        fetch=lambda selection, plan: calls.append((selection.mode, plan)) or _inventory(),
+    )
+
+    assert inventory.account_id == ACCOUNT
+    assert calls == [("cloak_browser", (
+        ("identity", "/users/0.1/users/"),
+        ("projects", "/projects/0.1/self/"),
+        ("milestones:123", "/projects/0.1/projects/123/milestones/"),
+        ("hourly_contracts", "/projects/0.1/hourly_contracts/"),
+        ("ip_contract:123", "/projects/0.1/projects/123/ip_contracts/"),
+    ))]
