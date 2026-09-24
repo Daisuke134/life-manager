@@ -4702,9 +4702,10 @@ production still loads the existing immutable
 release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
 made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
 cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
-the candidate diff contains 22 generic control-plane/runtime/test paths, with no `skills/earn/gig`, Capafy catalog,
-affiliate provider state, or Paid-fulfillment-spec path. Its registry changes are limited to the 31 named non-Paid
-contracts above. The candidate worktree is clean and its diff check is clean. Main integration remains intentionally
+the candidate diff contains 27 files: 25 generic control-plane/runtime/test paths plus two Affiliate receipt-identity
+files, with no `skills/earn/gig`, Capafy catalog, Affiliate provider session state, or Paid-fulfillment-spec path.
+Its registry changes are limited to the 31 named non-Paid contracts above. The candidate worktree is clean and its
+diff check is clean. Main integration remains intentionally
 unopened until the user-level foundation gate is green.
 
 ### Fresh read-only foundation recheck after candidate verification (2026-09-25 JST)
@@ -4795,3 +4796,29 @@ The next safe order is therefore: integrate/promote the generic candidate only a
 gate permits it; align effect-free owners one at a time; retain every money/message/application fence until exact
 official readback; then run the two-pass foundation/replay-zero gate. Revenue, commission and a natural wake are not
 acceptance gates for this foundation work.
+
+### Affiliate receipt identity hardening (2026-09-25 JST)
+
+The read-only Affiliate evidence pass found a durable host-admission fence at
+`affiliate-loop:18d83ba82b14fb40-24990` and a historical Telegram delivery receipt with provider message ID
+`92843`, but the delivery receipt had no host `occurrence_id`. The provider message therefore cannot be bound to the
+durable fenced occurrence from local timestamps or a different wake UUID. This remains a provider-readback problem,
+not permission to clear the fence or resend the report.
+
+The candidate now carries `e53a99adc0` on
+`fix/self-healing-control-plane-integration-20260925`. The already-present runtime environment variable
+`LIFE_MANAGER_OCCURRENCE_ID` is validated and copied into future Affiliate Telegram delivery receipts and into their
+event identity hash. This creates the durable chain required by self-healing:
+
+`host occurrence → Affiliate delivery receipt → Telegram provider message ID`.
+
+Malformed or absent occurrence values are omitted (fail closed); no receipt is fabricated. The Affiliate local-loop
+suite passes **83/83**, `py_compile` passes, and `git diff --check` passes. This is branch-only observability and
+identity hardening: no production process, provider session, Telegram message, admission row or effect fence was
+changed. Existing receipts without the identity remain unresolved until an exact official provider readback proves the
+same durable occurrence.
+
+The candidate diff is now **27 files**: generic control-plane/runtime/tests plus two Affiliate receipt-observability
+files. It still contains no Paid fulfillment implementation or provider-session state. The foundation gate remains
+blocked on accepted-main immutable-release alignment and uncovered runtime evidence; Affiliate's next action is exact
+official readback of the durable target, never a generic pre-effect resolver and never a blind retry.
