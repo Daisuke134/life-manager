@@ -5220,9 +5220,10 @@ returned `eligible=0` and `eligible_before_max_owners=0`. The observed gates wer
 fence, browser session or external effect was changed. The counts overlap because one owner can fail more than one
 gate; they are not additive and do not imply 159 distinct failures.
 
-Candidate commit `c1fb26d0ae` includes this observability contract and the managed-Node fallback described above. Each
-of the two targeted runs passes **174 tests + 181 subtests** (the suites overlap), and the candidate remains
-unpromoted. After capacity recovery and accepted immutable loading, the next proof is one real reconciler occurrence
+Candidate commit `c1fb26d0ae` contains the managed-Node fallback; follow-up commit `ce1c53285f` adds this
+observability contract. Each of the two targeted runs passes **174 tests + 181 subtests** (the suites overlap), and
+the candidate remains unpromoted. After capacity recovery and accepted immutable loading, the next proof is one real
+reconciler occurrence
 whose receipt
 contains these fields, followed by bounded owner readback and replay-zero. Paid fulfillment remains outside this
 cursor.

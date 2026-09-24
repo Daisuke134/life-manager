@@ -1651,7 +1651,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `eligible=0`, with pending admission 76, event-release mismatch 20, launchd-state 24, running-not-reloadable 18,
   missing release SHA 2 and already-current 19. The counts overlap and are not a failure total.
 - [x] Verify the change with two focused runs, each **174 tests + 181 subtests**, plus diff/compile checks; push with
-  candidate commit `c1fb26d0ae`.
+  candidate commit `ce1c53285f` (following the managed-Node fallback in `c1fb26d0ae`).
 - [ ] After capacity recovery and accepted immutable loading, require one real reconciler receipt containing the new
   fields, then reconcile only bounded safe owners and prove replay-zero. Do not touch Paid fulfillment or use a
   diagnostic receipt as permission to clear an effect fence.
