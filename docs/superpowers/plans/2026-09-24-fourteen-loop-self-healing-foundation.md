@@ -1612,3 +1612,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Treat this fresh 13/1 projection as the current cursor, not the prior 12/2 snapshot. Restore capacity, accept
   the candidate release, then reconcile owners one at a time and rerun the two-pass gate. Do not infer revenue loss,
   replay an effect, or touch Paid fulfillment from this projection alone.
+- [x] Re-read host capacity after the focused candidate verification: **523,608,064 free bytes**, below the
+  **1,155,780,608-byte** floor by **632,172,544 bytes**. Keep the full-suite and immutable-promotion gates closed;
+  do not perform broad or unowned cleanup to manufacture headroom.

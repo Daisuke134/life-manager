@@ -5150,3 +5150,8 @@ additional release-drift/diagnostic gaps, not a new provider effect. Main integr
 two-pass acceptance gate remain closed until the capacity floor is restored, the candidate is accepted, and each owner
 has exact loaded SHA, complete diagnostics, terminal outcome and replay-zero evidence. Paid fulfillment remains owned by
 the separate Codex and is excluded from this worktree's mutation scope.
+
+The host capacity probe at this same cursor reports **523,608,064 free bytes** (`df`/`disk_usage`), versus the
+required **1,155,780,608-byte** foundation floor. The shortfall is **632,172,544 bytes**, so the environment gate is
+still closed even though the focused candidate tests pass. This is a capacity fact, not evidence that any loop made or
+lost revenue; no broad deletion or unowned cleanup is authorized by this readback.
