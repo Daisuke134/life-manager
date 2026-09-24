@@ -2978,6 +2978,7 @@
       "label": "ai.anicca.the402-worker",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "token-daily-report": {

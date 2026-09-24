@@ -1100,6 +1100,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row.get("resource_class"), "deterministic")
         self.assertEqual(row.get("provider_route"), "deterministic")
 
+    def test_the402_worker_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["the402-worker"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]
