@@ -2784,7 +2784,19 @@ After natural lease expiry, the old release runs successfully and recovers an oc
 and the shared admission module already provides `clear_no_effect_unknown()` for this exact no-dispatch class;
 the missing seam is that release reconciliation never invokes it. The minimum candidate connects it only for
 a loaded-idle no-effect owner and retries the same rebind once. Its regression and full apply suite pass
-120/120. Merge, exact-main release and the final single-owner retry remain pending.
+120/120; runner bounds pass 84/84. PR #5827 merges the change at
+`7cbc861929cd75ef7a6ad08ad05b24ab35b100ff`, and complete release `20260924T152741-7cbc8619` becomes current.
+The production retry closes that one released no-effect fence through the normal runtime path, retains all
+nine queued occurrences and installs the exact release. All four Self-build owners then read back loaded-idle
+on the same SHA with admission unknown 0; their queued occurrence counts are 19/0/9/58. No database row is
+manually edited and no Paid owner is touched.
+
+The post-slice doctor remains clean at 168 entries with zero missing entrypoints, unmanaged labels or installed
+retired labels. The shared foundation gate observes all 14 loops and zero missing mapped jobs. It remains
+blocked at 97 release mismatches, 89 incomplete diagnostics and 49 unknown-effect rows. The installed
+Self-build owners are exact, but current-release terminal evidence is still missing for part of the group, so
+the Product Loop remains `runtime_release_drift`. This is the next immediate effect-free evidence cursor, not
+a revenue wait and not a reason to bypass diagnostic acceptance.
 
 Connector remains a real uncovered failure, not an old notification artifact. Its exact current plist is
 loaded, but its latest run reaches `browser_open_failed`; action history then reports the generic outer
@@ -3033,11 +3045,13 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The Self-build
    admission contract is merged in PR #5826 and exact release `20260924T151348-0468d61b` is active;
    `life-manager-dev` and `self-improve-evolve` are exact and loaded-idle. The third owner exposes a released
-   no-effect stale fence from an older database-lock recovery. A tested minimal candidate connects the already
-   existing no-effect clear primitive to idle reconciliation; its merge and final one-owner retry are next.
+   no-effect stale fence from an older database-lock recovery. PR #5827 connects the already existing
+   no-effect clear primitive to idle reconciliation; production self-heal succeeds and all four Self-build
+   owners are exact, idle and unknown-free. The new shared gate is 14/14 observed, missing 0, release mismatch
+   97, diagnostic incomplete 89 and unknown 49; current-release Self-build terminal evidence is the next cursor.
    Connector separately remains failed at the shared CDP ownership boundary and has an existing owned fix
-   candidate, so this worktree does not duplicate it. The executable order is now Self-build enrollment
-   fence recovery and one-owner retry -> remaining explicit non-Paid owner release alignment -> authoritative
+   candidate, so this worktree does not duplicate it. The executable order is now immediate Self-build
+   current-release terminal evidence -> remaining explicit non-Paid owner release alignment -> authoritative
    fourteen-loop foundation readback twice.
    Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
