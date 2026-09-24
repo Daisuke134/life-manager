@@ -149,5 +149,7 @@ def test_eval_json_goes_through_the_retrying_connect():
 
 def test_apply_parent_reuses_the_retrying_connect():
     source = (SCRIPTS / "application_parent.py").read_text(encoding="utf-8")
-    assert source.count("async with await _cdp_connect(self.ws_url)") == 9
+    # The pre-submit authenticated-identity readback adds one more guarded
+    # session; it must use the same retrying connector as every other CDP path.
+    assert source.count("async with await _cdp_connect(self.ws_url)") == 10
     assert "async with websockets.connect(" not in source
