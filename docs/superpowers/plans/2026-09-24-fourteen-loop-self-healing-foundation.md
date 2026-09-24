@@ -339,8 +339,9 @@ queue/journal closes pending self-intent `fa82ab50703c57ea6540cb35b93576f8` as
 `skipped/supervisor_self_recovery_excluded`, appends exactly one journal row and leaves production unchanged.
 PR/CI/main integration and the production drain/readback remain open.
 
-Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
-run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
+Connector is not accepted as healthy. Its installed plist remains on `5b8e3c3b...` after `current` advances to
+`208b0a36...`; the latest complete status is `entrypoint_exit_1`, and the underlying run fails at
+`browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
 Chromium owns IPv6 `[::1]:9222`; Connector is pinned to the IPv4 endpoint and receives HTTP 404. The shared
 browser guard also uses curl without fail-on-HTTP-error and therefore misreports that 404 as `ALIVE`, which is
 why the outward report collapses to `circuit_open/wake_boundary_failed`. An existing locked, separately owned
@@ -348,6 +349,31 @@ candidate branch contains the shared endpoint-owner validation and recovery fix 
 pushed and clean, but has no PR. It is therefore not on main, not in a main-derived immutable release, not
 loaded and not production-verified. This worktree does not duplicate, merge, apply or restart that shared
 browser owner.
+
+The remaining Capafy audit finds a shared backlog cause rather than four independent implementations to repair.
+`capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager` and
+`capafy-ig-marketing-daily` are recurring effectful owners but are declared `effect_class=none` and omit wake
+coalescing. Their read-only queued counts are 168/8037/1635/71. The existing coalesced claim path closes only one
+old queued wake before claiming the current occurrence, so a recurring owner can never drain a legacy backlog.
+The retained RED fixture reproduces two old queued wake signals surviving a current coalesced claim. The minimum
+shared fix cancels every prior queued, effect-known occurrence for only that owner after the existing unknown
+fences pass. It does not touch claimed, released, unknown or sibling-owner history.
+
+Host admission passes 128 tests, runtime-loop passes 532 tests, registry passes 15 tests and the live contract
+remains 14 loops / 168 jobs / 98 mapped / zero errors. PR #5835 passes all nine repository checks and merges at
+`208b0a36634c60a031b317eb1e3ec596b2faa101`. Complete exact-main release
+`20260924T173838-208b0a36` is active with `release_paths=ALL`, `provenance=ancestor-of-origin-main`, doctor
+168/168 and the release-owned coalescing regression passing. Cutting the release starts or applies no Capafy,
+Paid, Connector or browser owner. The fresh read-only foundation gate is 98 observed, missing 0, release
+mismatch 98, diagnostic incomplete 84, unknown 49 and `uncovered_failure` 14. The mismatch increases because
+`current` advances before one-owner reconciliation; it is an explicit deployment cursor.
+
+The next slice reuses the same registry, durable admission, coalescing, reconciler and recovery supervisor. It
+first declares the four observed effect classes (`publish`, `message`, `account_mutation`, `publish`) and their
+already-effective admission policies, with coalescing enabled. It then aligns the already-complete
+`capafy-loop-healthcheck` and the three goal monitors, followed by one effectful owner at a time with official
+readback and no fence clearing. No replacement orchestration framework or manual admission-database cleanup is
+allowed.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -387,12 +413,29 @@ browser owner.
 - [x] Diagnose the remaining Self-build failure classification as evaluator drift: three owners are typed, retryable capacity deferrals behind shared FIFO reservations, not broken executions.
 - [x] Integrate the strict capacity-deferral-to-`safely_fenced` projection as PR #5829 at `9503276595fc778740c08b6938325e15e52b548d`; retain fail-closed behavior for mixed failures.
 - [x] Reproduce and fix the shared recovery-supervisor self-recursion in pushed candidate `5e2275d977`: the runner does not enqueue it, one old self-intent becomes terminal skipped per wake, and the plan compiler cannot reconcile it.
-- [ ] Integrate the self-recursion fix through PR/CI/main, cut a complete main-derived immutable release, apply only the loaded-idle supervisor, and prove all existing self-intents drain without creating a new one.
-- [ ] Prove one eligible non-self, non-Paid recovery reaches an authoritative exact-release terminal and replay-zero; preserve the old Connector intent and every effect fence.
+- [x] Integrate the self-recursion fix through PR/CI/main as PR #5830 at `25cd0141f9b867cb15c3538d1d0ad9c78f010894`, activate complete release `20260924T161321-25cd0141`, apply only the loaded-idle supervisor, drain its pending self-intents 14 -> 0 with the unique total fixed at 22, and prove exact-SHA replay-zero in wake `9955a84a526f12f2091c451d`.
+- [ ] Immediately trigger one safely eligible non-self, non-Paid recovery and prove it reaches an authoritative exact-release terminal and replay-zero; do not wait for a natural schedule, and preserve the old Connector intent and every effect fence.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; the current pushed `e96e8c422d` has no PR and is not merged/released/loaded/production-verified. Do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
 - [x] Re-read `lm-loop doctor`, `lm-loop status all` and the foundation manifest after current-release wakes: 14/14 observed, missing 0, release mismatch 92, diagnostic incomplete 87, unknown 49. The candidate projects safely fenced 1 and uncovered failure 13; the overall gate correctly remains blocked on the other loops.
 - [x] Re-read after PR #5829 and the natural supervisor failure: 98 mapped jobs observed, missing 0, release mismatch 90, diagnostic incomplete 87 and unknown 49. All 14 loops are uncovered; Self-build is now a real supervisor terminal failure, not evaluator drift.
+- [x] Re-read after PR #5830 and the supervisor replay-zero: 98 mapped jobs observed, missing 0, release mismatch 95, diagnostic incomplete 87 and unknown 49. The newest release is intentionally loaded only for the supervisor, so all 14 loops remain uncovered until the remaining non-Paid owners are aligned and receive current-release diagnostics.
+- [x] Reuse the existing admission/reconciliation primitives for the Capafy goal-monitor family instead of adding a second healer: PR #5831 adds the missing deterministic/borrow/support contract, PR #5832 enables the existing queued/reserved-wake coalescing for the base monitor, and PR #5833 applies the same contract to `capafy-goal-monitor-daily-close` and `capafy-goal-monitor-hourly`.
+- [x] Close the claimed-only idle/no-effect reconciliation gap through PR #5834 at main `5b8e3c3bba65a99938e30fa43e79dd9716e9433f`; complete release `20260924T170628-5b8e3c3b` is active. The shared reconciler now invokes the existing `clear_no_effect_unknown()` only when the owner is loaded-idle, the registry declares `effect_class=none`, and admission reports `not_queued`; running, unloaded and effectful owners remain fail-closed.
+- [x] Verify all three Capafy goal monitors on the exact immutable release: diagnostics are complete, terminal deferral is typed `resource_capacity_busy`, retryable with `retry_after_eligibility`, effect is `not_applicable`, and admission unknown is zero. Repeated immediate wakes preserve queued counts at base 34, daily-close 12 and hourly 190; no queue row, effect fence or provider state is manually edited.
+- [x] Re-read the authoritative gate after the Capafy slice: 98 mapped jobs observed, missing 0, release mismatch 93, diagnostic incomplete 84 and unknown 49. The goal-monitor family leaves both Capafy mismatch and incomplete lists; the remaining Capafy release-drift owners are `capafy-ig-account-manager`, `capafy-ig-marketing-daily`, `capafy-loop-daily`, `capafy-loop-healthcheck` and `capafy-outcome-monitor`.
+- [x] Diagnose the remaining Capafy backlog at the shared durable-admission boundary: coalesced claim cancels only one old queued wake, while four recurring effectful owners omit coalescing and expose 168/8037/1635/71 queued occurrences. Do not delete admission history or create per-loop healers.
+- [x] Integrate the shared all-prior-queued coalescing fix through PR #5835 at main `208b0a36634c60a031b317eb1e3ec596b2faa101`; retain every unknown/effect fence and sibling boundary.
+- [x] Activate complete exact-main release `20260924T173838-208b0a36`; verify complete provenance, doctor 168/168 and the release-owned regression. No effectful owner is applied or awakened by the release cut.
+- [x] Re-read the exact-current foundation gate: 98 observed, missing 0, release mismatch 98, diagnostic incomplete 84, unknown 49 and all 14 loops uncovered. Record that the mismatch increase is expected until deliberate one-owner reconciliation.
+- [x] Declare the observed Capafy effect contracts and existing admission policies for `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager` and `capafy-ig-marketing-daily`; enable the existing coalescing contract with RED→GREEN registry coverage. Focused Capafy passes 3/3, registry 82/82, full runtime-loop 532/532, adapter registry 15/15 and live contract 14 loops / 168 jobs / 98 mapped / zero errors.
+- [x] Integrate the contract through PR #5838 and all repository CI into main `05d235b46b7c76f27d2aec71e8f30d93b98b4728`; activate complete immutable release `20260924T180152-05d235b4`. Reconcile the no-effect Capafy healthcheck and three goal monitors first, then the four effectful owners individually; Paid and Connector remain untouched.
+- [x] Run one immediate bounded wake for every Capafy owner. All eight owners load the exact release and emit complete diagnostics. Healthcheck exits 0/clean; the other seven stop before their entrypoints at typed `resource_capacity_busy` or `resource_fifo_wait`. The four external-effect admission fences remain zero, reservations remain zero and queued counts remain 168/8078/1643/72. No provider effect or receipt occurs, so the existing scheduler owns the next eligible attempt and this foundation cursor advances without waiting for revenue or natural acceptance.
+- [x] Re-read the authoritative gate: 14 loops observed, `safely_fenced=1` (Capafy), `uncovered_failure=13`, release mismatch 88, diagnostic incomplete 80 and unknown-effect jobs 0. Capafy has zero release mismatch and zero incomplete diagnostics.
+- [ ] Align Self-build's three remaining release-drift owners first and re-prove the bounded shared supervisor/replay-zero on the exact release.
+- [ ] Continue one non-Paid Product Loop at a time in this order: Mobile Apps, Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
+- [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
+- [ ] Align Gig non-Paid owners without changing the separately leased Paid fulfillment source, state, sessions or runtime controls.
 - [ ] Re-read the same surfaces and recovery journal after each remaining non-Paid Product Loop slice.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
