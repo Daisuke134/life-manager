@@ -3019,3 +3019,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    Lancers ContractReceipt.
 5. Finish final fleet acceptance; keep Coconala/Ryu manual-only and Upwork
    disabled. All platforms are still not complete.
+
+### Runtime checkpoint — 2026-09-24 14:13 JST (Coconala natural canary)
+
+- [x] Coconala was started once after cleanup and completed a natural canary:
+  `observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu remained manual-only; no seller message, attachment, or formal delivery
+  was created. The occurrence is `released/effect_unknown=0` and the lock is
+  free after terminal readback.
+- [ ] This canary validates only the effect-none Coconala owner. It does not
+  validate the old CrowdWorks release or release any historical fence.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish PR #5820 checks and obtain exact provider/run evidence for all four
+   historical `effect_unknown` fences; keep them closed otherwise.
+2. Cut/apply one immutable release after that gate, then start CrowdWorks
+   first and verify loaded SHA, natural official readback, no blank-target
+   regrowth, and replay-zero before advancing.
+3. Keep `63568785` buyer-material-gated; refresh Mercor through its admitted
+   owner; handle the first funded Lancers ContractReceipt; finish fleet
+   acceptance. All platforms remain incomplete.

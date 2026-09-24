@@ -3238,3 +3238,27 @@ not convert a transient pass or a no-op into client completion.
    refresh Mercor through its admitted owner, handle the first funded Lancers
    contract, and finish fleet acceptance. Coconala/Ryu stays manual-only;
    Upwork stays disabled.
+
+## Runtime Cursor — 2026-09-24 14:13 JST (Coconala natural canary)
+
+- Coconala was started once through canonical `lm-loop start` after the scoped
+  cleanup. Its natural wake completed with `observed=4`, `actionable=0`,
+  `effect=0`, `readback=3`, `pending=0`, and `failed=0`. Ryu remained the
+  manual reservation; no seller message, attachment, or formal delivery was
+  created. The new occurrence was released with `effect_unknown=0`, and the
+  admission lock was empty after terminal readback.
+- This proves the effect-none Coconala canary is healthy on its currently
+  installed immutable release. It does not prove the old CrowdWorks release
+  is healthy and does not close any historical money/message fence.
+
+### Next TODO
+
+1. Finish the current green PR checks and keep PR #5820 open until the four
+   historical effect-unknown fences have exact provider/run evidence.
+2. Cut/apply one immutable branch release only after that gate, then start
+   CrowdWorks first and verify loaded SHA, natural readback, no blank-target
+   regrowth, and replay-zero before advancing.
+3. Keep CrowdWorks `63568785` buyer-material-gated; refresh Mercor through its
+   admitted owner; handle the first funded Lancers ContractReceipt; then run
+   final fleet acceptance. Coconala/Ryu remains manual-only and Upwork remains
+   disabled.
