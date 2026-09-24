@@ -3647,3 +3647,12 @@ not convert a transient pass or a no-op into client completion.
    provider/readback reconciliation before any client handoff.
 3. Continue immutable-release canary work for CrowdWorks → Lancers → Mercor,
    one owner at a time.
+
+## Runtime Status Refresh — 2026-09-24 15:42 JST (Coconala read-only)
+
+- The authenticated Ryu talkroom still has no reply newer than the three
+  requests at 9/24 12:49–12:54: profile WEB予約 connection, full-width
+  profile-top copy, and recruitment official LINE persistence.
+- The deployed v702/v703 readbacks now prove all three implementation
+  contracts. This refresh only read the talkroom; it did not type, send, or
+  press formal delivery.

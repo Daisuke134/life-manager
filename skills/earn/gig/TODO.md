@@ -3319,3 +3319,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Reconcile the Coconala provider/readback and keep effect fences closed
   before any handoff.
 - [ ] Continue immutable-release canaries for CrowdWorks → Lancers → Mercor.
+
+### Runtime checkpoint — 2026-09-24 15:42 JST (Coconala read-only)
+
+- [x] Ryu's authenticated talkroom has no newer reply after the three
+  9/24 12:49–12:54 requests; v702/v703 readbacks prove each requested fix.
+- [x] Read-only only: no message text, send action, or formal delivery button
+  was touched.
