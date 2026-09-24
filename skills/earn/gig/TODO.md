@@ -4473,3 +4473,27 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   transaction, withdrawal, and funded-milestone readbacks, then run the same
   disabled-owner/canary sequence. No Freelancer/Upwork loop registration or
   external effect is allowed before those gates.
+
+### Runtime checkpoint — 2026-09-25 02:15 JST (four-room and buyer-artifact readback)
+
+- [x] A fresh authenticated Coconala readback covered all four open rooms:
+  Ryu `18211957` now has the 02:08 JST seller update; Chii `18180857` remains
+  seller-last at the 9/22 final reconciliation; room `18223833` is seller-last
+  after the 9/23 15:15 acknowledgement and its deadline is 9/30; room
+  `18250352` is seller-last after the 9/22 09:06 confirmation request. No newer
+  buyer event requiring a send was observed in any room. Formal delivery was
+  not pressed in this readback.
+- [x] CrowdWorks contract `63568785` was reread through the authenticated
+  `gog` CLI. The linked Google Doc is accessible and contains only LINE/Google
+  Form onboarding instructions; it does not contain the lesson body or the
+  per-lesson answer material required for quality-gated fulfillment. The
+  existing buyer clarification receipt remains the only admissible effect;
+  formal delivery stays blocked on buyer-provided material.
+- [x] Coconala Storefront's latest durable result remains `effect=0,
+  readback=0`, `status=failed`, reason `server rejected WebSocket connection:
+  HTTP 500`, with its lease released. This is a transport/admission failure,
+  not a provider listing receipt; no blind retry or fence release was made.
+- [ ] Next cursor is now the supported Storefront diagnosis/reconciliation,
+  then Mercor inventory refresh. CrowdWorks remains waiting for buyer material;
+  do not use the LINE/Form instructions as a substitute for permitted work
+  content or formal delivery.

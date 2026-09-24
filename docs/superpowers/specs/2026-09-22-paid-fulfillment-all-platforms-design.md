@@ -5180,3 +5180,24 @@ revenue owner and is not permission to send.
   milestone readbacks → canonical funded inventory → disabled owner →
   zero-spend canary → funded delivery/payment/payout/crash/replay-zero
   readback → enable. Until then, no loop registration or provider effect.
+
+## Runtime Status Refresh — 2026-09-25 02:15 JST (four-room and buyer-artifact readback)
+
+- [x] Fresh authenticated readback covered all four open Coconala rooms:
+  Ryu `18211957` has the 02:08 JST seller update; Chii `18180857` remains
+  seller-last after the 9/22 final reconciliation; `18223833` is seller-last
+  after the 9/23 15:15 acknowledgement with a 9/30 deadline; `18250352` is
+  seller-last after the 9/22 09:06 confirmation request. No newer buyer event
+  requiring another send was observed, and formal delivery was not pressed.
+- [x] Authenticated `gog` readback of CrowdWorks `63568785`'s linked document
+  succeeded. The document contains only LINE/Google Form onboarding
+  instructions, not the lesson body or per-lesson answers. The contract
+  therefore remains buyer-material-gated; no formal delivery or external-form
+  action is admissible.
+- [x] The latest Storefront durable result is still `effect=0/readback=0`,
+  `status=failed`, with `server rejected WebSocket connection: HTTP 500` and a
+  released lease. This is not a provider listing receipt and was not retried
+  blindly.
+- [ ] Next accepted cursor is supported Storefront diagnosis/reconciliation,
+  followed by Mercor inventory refresh. CrowdWorks stays pending until the
+  buyer supplies permitted work material.
