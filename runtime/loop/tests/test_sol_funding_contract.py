@@ -59,6 +59,39 @@ class SolFundingContractTests(unittest.TestCase):
         self.assertIn('os.environ.get("SWAP_RECIPIENT")', source)
         self.assertNotIn('os.environ.get("SWAP_RECIPIENT",', source)
 
+    def test_future_result_identity_binds_the_host_occurrence_without_claiming_confirmation(self):
+        source = (ROOT / "skills/earn/sol-to-usdc.py").read_text()
+        self.assertIn("LIFE_MANAGER_OCCURRENCE_ID", source)
+        self.assertIn('"occurrence_id"', source)
+        self.assertIn('"provider_receipt_id"', source)
+        self.assertIn('"official_readback_ref"', source)
+        self.assertIn('effect_status="submitted"', source)
+
+    def test_unconfigured_wake_emits_secret_free_occurrence_bound_no_effect_result(self):
+        result = subprocess.run(
+            ["python3", str(ROOT / "skills/earn/sol-to-usdc.py")],
+            env={
+                **os.environ,
+                "LIFE_MANAGER_OCCURRENCE_ID": "sol-funding:fixture-1",
+                "SWAP_SOLANA_KEY": "",
+                "ANICCA_SOLANA_KEY": "",
+                "SWAP_RECIPIENT": "",
+            },
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(payload, {
+            "effect_status": "not_started",
+            "kind": "sol_funding_result",
+            "occurrence_id": "sol-funding:fixture-1",
+            "official_readback_ref": None,
+            "provider_receipt_id": None,
+            "schema_version": 1,
+            "status": "not_configured",
+        })
+
 
 if __name__ == "__main__":
     unittest.main()

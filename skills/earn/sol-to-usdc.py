@@ -17,6 +17,7 @@ UNVERIFIED until a real SOL balance exists — relay dry /quote is verified
 import base64
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -43,6 +44,33 @@ DEST_CHAIN = int(os.environ.get("SWAP_DEST_CHAIN", BASE))
 DEST_CURRENCY = os.environ.get("SWAP_DEST_CURRENCY", USDC_BASE).lower()
 RPC = os.environ.get("SOLANA_RPC", "https://api.mainnet-beta.solana.com")
 RENT_BUFFER = 5_000_000  # leave ~0.005 SOL for fees/rent
+OCCURRENCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
+
+
+def runtime_occurrence_id(environ=None):
+    environ = os.environ if environ is None else environ
+    value = str(environ.get("LIFE_MANAGER_OCCURRENCE_ID") or "").strip()
+    return value if OCCURRENCE_ID_PATTERN.fullmatch(value) else None
+
+
+def emit_result(status, occurrence_id, *, effect_status, provider_receipt_id=None,
+                official_readback_ref=None):
+    """Emit a secret-free, occurrence-bound result without claiming confirmation.
+
+    The host can retain this identity for a later provider readback. A Solana signature returned
+    by ``sendTransaction`` is only a provider receipt; it is deliberately not promoted to an
+    official readback here.
+    """
+    result = {
+        "schema_version": 1,
+        "kind": "sol_funding_result",
+        "status": status,
+        "effect_status": effect_status,
+        "occurrence_id": occurrence_id,
+        "provider_receipt_id": provider_receipt_id,
+        "official_readback_ref": official_readback_ref,
+    }
+    print(json.dumps(result, sort_keys=True))
 
 
 def rpc(method, params):
@@ -61,15 +89,18 @@ def get(url):
 
 
 def main():
+    occurrence_id = runtime_occurrence_id()
     secret = os.environ.get("SWAP_SOLANA_KEY") or os.environ.get("ANICCA_SOLANA_KEY")
     recipient = (os.environ.get("SWAP_RECIPIENT") or "").strip().lower()
     if not secret or len(recipient) != 42 or not recipient.startswith("0x"):
         print("sol funding not configured; set a Solana key and SWAP_RECIPIENT")
+        emit_result("not_configured", occurrence_id, effect_status="not_started")
         return
     try:
         int(recipient[2:], 16)
     except ValueError:
         print("sol funding not configured; SWAP_RECIPIENT must be an EVM address")
+        emit_result("invalid_recipient", occurrence_id, effect_status="not_started")
         return
     kp = Keypair.from_base58_string(secret)
     me = str(kp.pubkey())
@@ -82,6 +113,7 @@ def main():
         amount = bal - RENT_BUFFER
     if amount <= 0:
         print("no swappable SOL (need funds + rent buffer)")
+        emit_result("no_effect", occurrence_id, effect_status="not_started")
         return
     print(f"swapping {amount/1e9} SOL -> chain {DEST_CHAIN} token {DEST_CURRENCY} to {recipient}")
 
@@ -132,6 +164,10 @@ def main():
             if st in ("success", "refund"):
                 break
     print("done")
+    emit_result(
+        "submitted", occurrence_id, effect_status="submitted",
+        provider_receipt_id=str(sig),
+    )
 
 
 def _is_b64(s):
