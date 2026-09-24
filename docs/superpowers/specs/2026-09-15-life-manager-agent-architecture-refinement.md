@@ -4773,3 +4773,25 @@ blocked/pass movement is natural runtime state, not a promotion or acceptance si
 the latest event occurrence separately from durable target `affiliate-loop:18d83ba82b14fb40-24990`, with no
 provider receipt or official readback. No production mutation, fence resolution, provider action or revenue claim
 was made.
+
+### Next non-Paid foundation readback (2026-09-25 JST)
+
+The same candidate status projection was read without starting any entrypoint. `agent-economy-loop` is the only
+shown exact-release, diagnostic-complete continuous owner in this slice (`403e272e...`, running, effect
+`not_applicable`); the remaining Agent Economy owners are release-drift or legacy-diagnostic rows. Read-only
+admission shows no claimed Agent Economy fence, but preserves two released money-effect unknowns:
+`sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`. They require their
+owner-specific official readback and must not be cleared as no-effect.
+
+CFO remains three effect fences: claimed message occurrences
+`life-manager-cfo-hourly:18d679cb82869d48-98528` and `life-manager-financial-report:18d601655af3e1c0-86661`,
+plus released money occurrence `life-manager-payout:18d6026a3dc85558-829`. Job Hunter has claimed application
+fences for `job-search-health:18d5fc3605f58c20-90948`, `job-search-learning:18d6ff42778e8868-14131`, and the
+protected Mercor application/reply owners. These are read-only observations; no message, application, payout,
+wallet, provider session or external effect was touched. The admission read initially encountered SQLite lock
+contention, then succeeded on one bounded retry; a lock is never interpreted as an empty fence.
+
+The next safe order is therefore: integrate/promote the generic candidate only after the user-level foundation
+gate permits it; align effect-free owners one at a time; retain every money/message/application fence until exact
+official readback; then run the two-pass foundation/replay-zero gate. Revenue, commission and a natural wake are not
+acceptance gates for this foundation work.

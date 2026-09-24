@@ -1327,3 +1327,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   release and re-read this exact owner. The next Affiliate operation is official readback of the durable target,
   followed by a mode-0600 receipt, exact owner rebind and two replay-zero foundation projections; never use the
   generic pre-effect path or wait for commission as a foundation gate.
+
+### Agent Economy / CFO / Job Hunter read-only cursor (2026-09-25 JST)
+
+- [x] Read the next independent non-Paid slices from candidate status without waking providers. `agent-economy-loop`
+  is exact-release/diagnostic-complete/running; the other owners remain release-drift or legacy-diagnostic rows.
+- [x] Re-read admission once after a typed SQLite lock. Preserve released money-effect unknowns
+  `sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`; no claimed Agent
+  Economy fence was cleared or inferred as no-effect.
+- [x] Record CFO's two claimed message fences and one released payout fence, and Job Hunter's two claimed
+  application fences plus protected Mercor application/reply fences. No message/application/payout/provider effect
+  was run; official readback remains mandatory.
+- [ ] After the accepted immutable release is available, align only effect-free Agent Economy/CFO/Job Hunter owners
+  one at a time and retain every effect fence. Then run the two-pass foundation/replay-zero gate; do not wait for
+  revenue or use a natural wake as an acceptance condition.
