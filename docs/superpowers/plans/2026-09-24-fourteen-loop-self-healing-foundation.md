@@ -1622,3 +1622,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `errors=0`, `evaluated=5`, `preserved=5` (`open=5`), `protected_deletions=0`, `reclaimed=0`; command readback
   `free_after=537,665,536` bytes and post-command probe `534,282,240` bytes. No unowned data was deleted and the
   capacity floor remains unmet.
+
+### Release-reconciler self-healing boundary diagnosis (2026-09-25 JST)
+
+- [x] Poll the live release-reconciler PID without restarting it. Occurrence
+  `life-manager-release-reconciler:18d863638c8ed840-45065` ended `entrypoint_exit_1`; the owner log binds two causes:
+  ENOSPC removed every usable tempfile directory, then current d4 `lm-recovery-supervise` failed with `node: not
+  found` because it ignored `LIFE_MANAGER_RUNTIME_NODE`.
+- [x] Reconcile the release-retention census read-only: 65 release directories, 167 plist references, 162 loaded
+  labels and five unloaded labels. Old generations are still pinned by live launchd configuration; the unloaded Paid
+  plists remain preserved and untouched.
+- [x] Add candidate `c1fb26d0ae`, a fail-closed `/opt/homebrew/bin/node` fallback for launchd's minimal PATH, and
+  verify registry/apply tests **214 tests + 212 subtests** plus shell syntax/diff checks.
+- [ ] After capacity recovery and candidate immutable loading, re-read the reconciler itself first. It must produce an
+  occurrence-complete terminal result and reconcile only loaded-idle owners in bounded batches; no release directory may
+  be deleted until its launchd references are proven absent. Paid owners remain outside this cursor.

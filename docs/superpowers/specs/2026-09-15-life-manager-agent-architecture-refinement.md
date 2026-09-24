@@ -5167,3 +5167,27 @@ The designated disk-cleanup owner was run again through the normal immutable rel
 `free_after` was `537,665,536` bytes. A post-command filesystem probe reports `534,282,240` free bytes, still below
 the floor. This is a verified safe no-op: no unknown path, state, credential, session, source or provider data was
 deleted, and the capacity blocker remains genuine.
+
+### Release-reconciler self-healing boundary diagnosis (2026-09-25 JST)
+
+The live release-reconciler wake was observed without restart. Its old loaded plist still points to release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`; the latest occurrence
+`life-manager-release-reconciler:18d863638c8ed840-45065` terminated `entrypoint_exit_1`. The owner log gives the
+occurrence-bound failure chain: the old runner hit `FileNotFoundError: No usable temporary directory` under ENOSPC,
+and its call into the current d4 recovery supervisor then emitted `/bin/lm-recovery-supervise: line 4: exec: node:
+not found`. The latter is deterministic: the installed recovery-supervisor plist has
+`LIFE_MANAGER_RUNTIME_NODE=/opt/homebrew/bin/node`, but the d4 `lm-recovery-supervise` script ignored that variable and
+called bare `node`; the old release-reconciler plist has no runtime-node env key at all.
+
+Read-only reconciliation output from the same wake returned `ok=true` but `applied=[]`, `eligible=0`, with owners
+listed as `skipped_pending` or `skipped_running`; this is not proof of a fleet repair. A separate launchd readback found
+65 release directories, 167 plist release references, 162 referenced labels currently loaded and only five unloaded
+labels. The old release generations are therefore genuinely pinned by live launchd configuration, not safe cleanup
+candidates. The two unloaded Paid plists remain preserved and were not touched.
+
+Candidate commit `c1fb26d0ae` adds a fail-closed `/opt/homebrew/bin/node` fallback to `bin/lm-recovery-supervise`
+when launchd supplies neither the env key nor a PATH-visible Node, with a regression test. Registry/apply tests pass
+**214 tests + 212 subtests** and shell syntax/diff checks pass. This is a generic control-plane fix only; it is not
+loaded into production, and no Paid fulfillment, Connector source/session, browser session, provider effect or fence was
+changed. Production still requires capacity recovery, full-suite verification, accepted immutable loading and a
+reconciler owner readback before any release-retention deletion can be considered.
