@@ -144,15 +144,15 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - Modify: `runtime/loop/__tests__/recovery-apply-plan.test.mjs`
 - Modify: `runtime/loop/__tests__/recovery-executor.test.mjs`
 - Modify: `runtime/loop/__tests__/recovery-supervisor.test.mjs`
-- Modify: `runtime/loop/macos-loop-jobs.json`
-- Modify only the non-Paid recovery-supervisor registry row in `config/loop-registry.json` if the contract test requires it.
+- Inspect only: the existing release-reconciler already invokes `lm-recovery-supervise`; no new launchd job or registry owner is required.
+- Leave every Paid registry row unchanged.
 
-- [ ] Write failing tests for attempt budget, cooldown, same-owner/same-release binding and duplicate-intent replay-zero.
-- [ ] Add a versioned `recovery_outcome` record with action, before/after event IDs, exit/result, readback, evidence and next action.
-- [ ] After an allowed reconcile, read `lm-loop status <job>` and accept recovery only when the exact owner/release is healthy; otherwise retain the failure and stop within budget.
-- [ ] Prove a sibling owner and every Paid owner are never selected or mutated.
-- [ ] Run all recovery module tests plus registry contract tests.
-- [ ] Commit and push the closed deterministic recovery loop.
+- [x] Write failing tests for attempt budget, cooldown, same-owner/same-release binding and duplicate-intent replay-zero.
+- [x] Add a versioned `recovery_outcome` record with action, before/after event IDs, exit/result, readback, evidence and next action.
+- [x] After an allowed reconcile, read `lm-loop status <job>` and accept recovery only when the exact owner/release is healthy; otherwise retain the failure and stop within budget.
+- [x] Prove a sibling owner and every Paid owner are never selected or mutated.
+- [x] Run all recovery module tests plus registry contract tests: recovery 28/28, registry 82/82 and read-only status 18/18 pass.
+- [x] Commit and push the closed deterministic recovery loop.
 
 ### Task 6: Route uncovered code failures into the guarded self-build path
 

@@ -9,8 +9,12 @@ import { executeRecoveryPlan } from '../recovery-executor.mjs';
 const SHA = 'a'.repeat(40);
 const registry = {
   loops: {
-    'example-loop': { provider_route: 'deterministic', label: 'ai.anicca.example' },
-    'sibling-loop': { provider_route: 'deterministic', label: 'ai.anicca.sibling' },
+    'example-loop': {
+      provider_route: 'deterministic', label: 'ai.anicca.example', effect_class: 'none',
+    },
+    'sibling-loop': {
+      provider_route: 'deterministic', label: 'ai.anicca.sibling', effect_class: 'none',
+    },
   },
 };
 
@@ -19,11 +23,36 @@ function intent(overrides = {}) {
     schema_version: 1,
     intent_id: 'intent-1',
     loop_id: 'example-loop',
-    owner_id: 'owner-1',
+    owner_id: 'example-loop',
+    occurrence_id: 'example-loop:run-1',
     release_sha: SHA,
     action: 'reconcile_owner',
     ...overrides,
   };
+}
+
+function status(overrides = {}) {
+  return {
+    classification: 'managed',
+    loop_id: 'example-loop',
+    job_id: 'example-loop',
+    owner_id: 'example-loop',
+    occurrence_id: 'example-loop:run-2',
+    event_id: 'event-after',
+    launchd_state: 'loaded-idle',
+    installed_release_sha: SHA,
+    event_release_sha: SHA,
+    last_terminal_result: 'pass',
+    diagnostic_complete: true,
+    effect_status: 'not_applicable',
+    blocker: null,
+    evidence_refs: ['lm-loop://example-loop/run-2/summary.json'],
+    ...overrides,
+  };
+}
+
+function statusResult(row) {
+  return { code: 0, stdout: JSON.stringify([row]), stderr: '' };
 }
 
 async function releaseRoot(sha = SHA) {
@@ -40,6 +69,13 @@ test('executes exactly one owner-scoped reconcile on the intended release', asyn
   const root = await releaseRoot();
   const plan = buildRecoveryApplyPlan({ intent: intent(), registry });
   const calls = [];
+  const readbacks = [
+    statusResult(status({
+      event_id: 'event-before', event_release_sha: 'b'.repeat(40),
+      last_terminal_result: 'fail', diagnostic_complete: false,
+    })),
+    statusResult(status()),
+  ];
   const result = await executeRecoveryPlan({
     plan,
     registry,
@@ -59,15 +95,24 @@ test('executes exactly one owner-scoped reconcile on the intended release', asyn
         stderr: '',
       };
     },
+    readStatus: async (request) => {
+      calls.push(request);
+      return readbacks.shift();
+    },
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.state, 'repaired');
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].executable, path.join(root, 'bin', 'lm-loop'));
-  assert.deepEqual(calls[0].args, plan.commands[0].args);
-  assert.equal(calls[0].env.LIFE_MANAGER_RELEASE_ROOT, root);
-  assert.equal(calls[0].env.LIFE_MANAGER_LOOP_ID, 'life-manager-recovery-executor');
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls.map((call) => call.args), [
+    ['status', 'example-loop'], plan.commands[0].args, ['status', 'example-loop'],
+  ]);
+  assert.equal(calls[1].executable, path.join(root, 'bin', 'lm-loop'));
+  assert.equal(calls[1].env.LIFE_MANAGER_RELEASE_ROOT, root);
+  assert.equal(calls[1].env.LIFE_MANAGER_LOOP_ID, 'life-manager-recovery-executor');
+  assert.equal(result.before_readback.event_id, 'event-before');
+  assert.equal(result.after_readback.event_id, 'event-after');
+  assert.equal(result.budget_consumed, true);
 });
 
 test('holds uncertain-effect plans without invoking reconcile', async () => {
@@ -140,6 +185,9 @@ test('keeps a failed reconcile queued for the next bounded wake', async () => {
       stdout: JSON.stringify({ ok: false, failed: [{ loop_id: 'example-loop' }] }),
       stderr: 'resource_control_busy',
     }),
+    readStatus: async () => statusResult(status({
+      event_id: 'event-before', last_terminal_result: 'fail', blocker: 'entrypoint_exit_1',
+    })),
   });
 
   assert.equal(result.ok, false);
@@ -166,9 +214,59 @@ test('does not call a recovery repaired when reconcile applied another owner', a
       }),
       stderr: '',
     }),
+    readStatus: async () => statusResult(status({
+      event_id: 'event-before', last_terminal_result: 'fail', blocker: 'entrypoint_exit_1',
+    })),
   });
 
   assert.equal(result.ok, false);
   assert.equal(result.state, 'blocked');
   assert.equal(result.reason, 'reconcile_target_not_applied');
+});
+
+test('keeps the intent queued when post-reconcile readback is not the exact owner and release', async () => {
+  const root = await releaseRoot();
+  const plan = buildRecoveryApplyPlan({ intent: intent(), registry });
+  const readbacks = [
+    statusResult(status({ event_id: 'before', last_terminal_result: 'fail' })),
+    statusResult(status({ event_id: 'after', owner_id: 'sibling-loop' })),
+  ];
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    releaseRoot: root,
+    runCommand: async () => ({
+      code: 0,
+      stdout: JSON.stringify({
+        ok: true, route: 'deterministic', release_sha: SHA, eligible: 1,
+        applied: [{ label: 'ai.anicca.example' }], failed: [],
+      }),
+      stderr: '',
+    }),
+    readStatus: async () => readbacks.shift(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, 'queued');
+  assert.equal(result.reason, 'healthy_readback_pending');
+  assert.equal(result.after_readback.owner_id, 'sibling-loop');
+});
+
+test('closes an already healthy intent from exact readback without another reconcile', async () => {
+  const root = await releaseRoot();
+  const plan = buildRecoveryApplyPlan({ intent: intent(), registry });
+  let reconciled = false;
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    releaseRoot: root,
+    runCommand: async () => { reconciled = true; throw new Error('must not reconcile'); },
+    readStatus: async () => statusResult(status()),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state, 'repaired');
+  assert.equal(result.executed, false);
+  assert.equal(result.budget_consumed, false);
+  assert.equal(reconciled, false);
 });

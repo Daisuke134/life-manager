@@ -2679,10 +2679,11 @@ completion gate establish the current baseline:
   event. The event predates the diagnostic envelope, so status preserves its run/phase/evidence, projects it
   to Product Loop `connector`, and explicitly reports the missing owner/occurrence/failure/retry/next-action
   fields instead of calling it healthy;
-- the runtime event already carries run/release/phase/effect/evidence data, and the runner already knows the
-  claimed occurrence plus some provider receipts, but `lm-loop status` does not yet expose the complete
-  diagnostic contract. The recovery intent/supervisor exists, but only the model harness writes intents; a
-  normal `lm_loop_run` terminal failure does not close the recovery loop.
+- production still runs the previously loaded release and old events, so its current rows do not yet expose
+  the complete diagnostic or verified-recovery contract. The implementation branch now carries the complete
+  terminal diagnostic projection, universal eligible-failure intent emission and a bounded supervisor that
+  requires exact owner/release health readback before writing a terminal `recovery_outcome`. This is candidate
+  evidence only until local canary, all-loop acceptance, main integration and immutable release promotion pass.
 
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
@@ -2875,29 +2876,35 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 4. **Complete on the implementation branch:** every eligible shared-runner terminal failure emits exactly one
    owner/occurrence/release-bound durable intent through the existing recovery classifier. Duplicate replay is
    zero, unknown effects are held, and Paid owners remain read-only outside the queue.
-5. **Current cursor — verified recovery outcome:** add attempt budget/cooldown plus a versioned outcome, then
-   accept a repair only after the exact same owner and immutable release return healthy through authoritative
-   `lm-loop status`. Preserve replay-zero, sibling isolation and fixed safety policy.
-6. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
+5. **Complete on the implementation branch:** recovery attempts have a bounded budget and cooldown, and every
+   execution writes a versioned `recovery_outcome` with before/after event IDs, command result, sanitized
+   readback, evidence and next action. A repair closes only when authoritative `lm-loop status` shows the exact
+   owner/job and immutable release healthy. Verification-only polls do not spend repair budget, replay is zero,
+   sibling owners stay isolated and every Paid owner is rejected before selection and again at plan build.
+6. **Current cursor — guarded code repair:** route uncovered code failures into the existing isolated self-build
+   and merge guard as one sanitized, deduplicated self-heal issue. Require a retained regression fixture,
+   focused tests, immutable candidate, adversarial review, canary, health readback and rollback; the agent may
+   never edit its own guard/evaluator or bypass main/release policy.
+7. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
    Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
-7. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
+8. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
    Consume marketplace/Paid health and receipts read-only from the separate owner; never operate its runtime.
-8. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
+9. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
    bounded automatic recovery for covered failures, sibling isolation and deterministic replay/rollback.
-9. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
+10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
-10. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
+11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
    Capafy and Self-Funding/x402; a zero-revenue baseline advances to the next bounded hypothesis instead of
    blocking. Add the allocator and keep new investment markets paper/shadow until after-fee safety evidence.
-11. Reach portfolio-wide verified net USD 10,000 MRR, prove Life Manager covers its own compute/cloud/tool cost,
-    and publish reproducible LM-EAB/leaderboard evidence. Then expand the `agent_native` track and grow toward
-    USD 10 million MRR before separate physical- and mental-health outcome benchmarks.
+12. Reach portfolio-wide verified net USD 10,000 MRR, prove Life Manager covers its own compute/cloud/tool cost,
+   and publish reproducible LM-EAB/leaderboard evidence. Then expand the `agent_native` track and grow toward
+   USD 10 million MRR before separate physical- and mental-health outcome benchmarks.
 
 This is an explicit priority change. The old order continued CFO/economic adapters and Affiliate improvement
 before proving the shared healer across all loops. The new order is observability -> shared self-heal -> one
 recovery proof -> fourteen-loop local acceptance -> cloud -> economic eval/self-improvement. The reason is that
 economic optimization cannot safely operate or retain gains on a control plane that still needs manual repair;
-waiting for external revenue also must not hold the foundation cursor. Current cursor is item 3.
+waiting for external revenue also must not hold the foundation cursor. Current cursor is item 6.
 
 #### LM-EAB v1 eval audit and implementation cursor
 

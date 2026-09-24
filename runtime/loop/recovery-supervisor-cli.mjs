@@ -39,9 +39,18 @@ async function main(args = process.argv.slice(2)) {
   );
   const registryPath = path.resolve(options.registry || path.join(releaseRoot, 'config', 'loop-registry.json'));
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  const allowIntent = (intent) => {
+    const entry = registry?.loops?.[intent?.loop_id];
+    const entrypoint = String(entry?.entrypoint || '');
+    return Boolean(entry)
+      && entry?.priority !== 'critical_paid'
+      && !entrypoint.endsWith('/paid-owner')
+      && !entrypoint.endsWith('/paid-direct-owner');
+  };
   const result = await consumeRecoveryIntentQueue({
     queuePath,
     journalPath,
+    allowIntent,
     executeIntent: async (intent) => {
       const plan = buildRecoveryApplyPlan({ intent, registry });
       return executeRecoveryPlan({ plan, registry, releaseRoot });
