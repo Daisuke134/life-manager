@@ -584,6 +584,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
         daily = registry["loops"]["life-manager-daily"]
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")
+        capafy_healthcheck = registry["loops"]["capafy-loop-healthcheck"]
+        self.assertEqual(capafy_healthcheck.get("resource_class"), "deterministic")
+        self.assertEqual(capafy_healthcheck.get("admission_class"), "revenue")
+        self.assertEqual(capafy_healthcheck.get("priority"), "revenue")
 
     def test_marketplace_item_lanes_declare_occurrence_scoped_admission(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

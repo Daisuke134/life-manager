@@ -3755,6 +3755,12 @@ provider receipt, a work-sync execution, or a revenue claim. Promotion still req
 release and one-owner exact-SHA readback in the foundation plan; Paid fulfillment remains owned by its separate
 workstream.
 
+The same contract is now explicit for the existing Capafy `capafy-loop-healthcheck` control-plane owner:
+`resource_class=deterministic` and `priority=revenue`, derived from its observed deterministic provider route,
+revenue admission and no-effect class. The same RED→GREEN registry/fixture check passes in the 127-test,
+154-subtest read-only suite. No Capafy provider effect, marketplace state or admission occurrence was changed;
+this branch-only declaration still needs an accepted immutable release and exact-SHA owner readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
