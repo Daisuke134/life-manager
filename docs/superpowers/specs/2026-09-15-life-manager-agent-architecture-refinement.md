@@ -4955,3 +4955,21 @@ A live read-only probe of `sol-funding:18d60103c86ce420-74237` returns
 evidence that the swap did not happen and cannot clear the fence. The candidate is now **37 files** and remains
 source-only: no Solana RPC, Relay, Base RPC, wallet, admission row, main branch, immutable release or revenue value
 changed.
+
+### CFO Telegram occurrence-bound readback adapter (2026-09-25 JST)
+
+The candidate now carries `98cf68949e` on `fix/self-healing-control-plane-integration-20260925`.
+`cfo-hourly-local.js` now stores a SHA-256 hash of the exact rendered report beside the occurrence and Telegram
+provider message ID in its private snapshot. Pending same-day retries continue to preserve the original occurrence
+and message hash; legacy snapshots without either value remain unresolvable.
+
+The new read-only `apps/life-manager/scripts/cfo-telegram-reconcile.py` requires the exact CFO owner/occurrence,
+mode-0600 snapshot, and an official Telegram readback containing the target chat ID, provider message ID, delivered
+state and exact body hash. It returns `ready` only when all identities match and never sends Telegram or edits
+admission. Focused adapter tests pass **3/3**, CFO local tests **11/11**, combined focused Node tests **14/14**,
+`py_compile` and `git diff --check` pass.
+
+The current historical snapshot has `occurrence_id=null` and no `message_sha256`; a probe for
+`life-manager-cfo-hourly:18d679cb82869d48-98528` returns `inconclusive / snapshot_identity_mismatch`. It is not
+evidence that the message was absent and cannot clear the fence. The candidate is now **39 files**; no Telegram
+readback, message send, admission update, payout, main integration, immutable release or revenue claim occurred.

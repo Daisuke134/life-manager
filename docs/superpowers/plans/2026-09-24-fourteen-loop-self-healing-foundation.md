@@ -1454,3 +1454,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `sol-funding:18d60103c86ce420-74237` fenced and do not start a swap to manufacture evidence.
 - [ ] After accepted immutable promotion, run the adapter against one future occurrence, persist the mode-0600
   reconciliation proof, and invoke the resolver only when all three independent provider readbacks match exactly.
+
+### CFO Telegram occurrence-bound readback adapter (2026-09-25 JST)
+
+- [x] Persist the exact rendered CFO message SHA-256 in `last-delivered-snapshot.json` beside the host occurrence
+  and Telegram provider message ID; preserve it across same-day retry.
+- [x] Add the read-only `cfo-telegram-reconcile.py` adapter. It requires exact occurrence, private snapshot,
+  official target chat/message identity, delivered state and exact body hash; no provider or admission mutation.
+- [x] Verify adapter **3/3**, CFO local runner **11/11**, focused Node **14/14**, `py_compile` and `git diff --check`;
+  push candidate commit `98cf68949e`.
+- [x] Probe the historical CFO occurrence `life-manager-cfo-hourly:18d679cb82869d48-98528`; current snapshot
+  lacks occurrence/body hash and returns `snapshot_identity_mismatch`. Keep it fenced.
+- [ ] After accepted immutable promotion, obtain a fresh official Telegram readback in the correct target chat,
+  persist a mode-0600 proof, and invoke the resolver only on exact occurrence/message/body identity match. Do not
+  treat a missing legacy snapshot or an unrelated message ID as no-effect.
