@@ -3359,15 +3359,21 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    `resource_fifo_wait`, but its two-row proof is in the private rotated gzip archive rather than the current
    journal, so the current exact resolver correctly returns no proof. `writer-report:18d69e54e1050578-20866`
    is not pre-effect: it exits pass and its durable report outbox records Telegram message IDs 89203–89206 at
-   the same interval. That fence requires exact provider readback and must not be cleared as a host deferral.
+   the same interval. Read-only MTProto verification finds all four messages in the same bot dialog at
+   `04:26:39Z`, `04:26:40Z`, `04:26:56Z` and `04:27:01Z`: sender is a bot and the exact stored chunk hash
+   matches for 89203–89205; 89206 matches after Telegram's leading/trailing whitespace normalization. This is
+   an official provider readback for the exact sent bytes, not permission to resend.
 
    The minimum Writer candidate declares the already-observed `agent/borrow/support` contract and enables the
-   existing queued/reserved-wake coalescing on all seven owners. It changes no Writer business code, provider
-   session or runtime state. The contract test fails for all seven owners before the change and passes after it;
-   registry/apply suites pass 208/208. Production remains unchanged until main integration. After integration,
-   reconcile effect-free owners first, retain the report fence until the Telegram receipt is read back, and
-   resolve response only through an archive-aware exact pre-effect proof that applies the same private-file,
-   exact-two-event and no-effect-reference checks as the current-journal proof.
+   existing queued/reserved-wake coalescing on all seven owners. The shared proof reader is extended only to the
+   current journal plus the four newest private gzip archives; every file keeps the existing owner/mode/link and
+   50,000-row bound, and the exact-two-event/no-effect-reference checks are unchanged. The production read-only
+   proof now selects only response's exact FIFO occurrence and still rejects report. The change touches no Writer
+   business code, provider session or runtime state. The contract test fails for all seven owners before the
+   change and passes after it; focused archive/current/negative proof tests pass 3/3 and registry/apply suites
+   pass 209/209. Production remains unchanged until main integration. After integration, reconcile effect-free
+   owners first, resolve response only through the archive proof, and close report only through the verified
+   Telegram receipt; never replay either effect.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

@@ -1,4 +1,5 @@
 import fcntl
+import gzip
 import hashlib
 import io
 import json
@@ -246,6 +247,64 @@ class LmLoopApplyTest(unittest.TestCase):
         receipt = state_root / "reconciliation/pre-effect-wake-fenced.json"
         self.assertEqual(json.loads(receipt.read_text())["resolution"], "RESOLVED")
         self.assertEqual(stat.S_IMODE(receipt.stat().st_mode), 0o600)
+
+    def test_pre_effect_proof_reads_private_rotated_runtime_journal(self):
+        from runtime.host import resource_admission
+
+        owner = "writer-opportunity-response"
+        occurrence = f"{owner}:wake-fenced"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='claimed',effect_unknown=1 "
+                "WHERE occurrence_id=?", (occurrence,),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+        state_root = self.root / "writer"
+        state_root.mkdir()
+        current = state_root / "events.jsonl"
+        current.write_text("")
+        current.chmod(0o600)
+        events = [
+            {
+                "version": 1, "event_id": "a" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "execute", "status": "running",
+                "effect_class": "application", "effect_status": "started",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-fenced",
+                "timestamp": "2026-09-17T03:41:01.372695+00:00",
+                "blocker": None,
+                "evidence_refs": [f"lm-loop://{owner}/wake-fenced/summary.json"],
+            },
+            {
+                "version": 1, "event_id": "b" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "report", "status": "blocked",
+                "effect_class": "application", "effect_status": "unknown",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-fenced",
+                "timestamp": "2026-09-17T03:41:01.655485+00:00",
+                "blocker": "host_admission_deferred:resource_fifo_wait",
+                "evidence_refs": [f"lm-loop://{owner}/wake-fenced/summary.json"],
+            },
+        ]
+        archive = state_root / "events-20260917T034102000000Z.jsonl.gz"
+        with gzip.open(archive, "wt", encoding="utf-8") as stream:
+            stream.write("".join(json.dumps(row) + "\n" for row in events))
+        archive.chmod(0o600)
+
+        proof = lm_loop._pre_effect_admission_proof(owner, {
+            "effect_class": "application", "state_root": str(state_root),
+        })
+
+        self.assertEqual(proof[0:2], (occurrence, "claimed"))
+        self.assertEqual(proof[2]["proof_type"], "pre_effect")
+        self.assertEqual(proof[2]["blocker"], "host_admission_deferred:resource_fifo_wait")
 
     def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
         from runtime.host import resource_admission

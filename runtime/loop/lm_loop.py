@@ -6,6 +6,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime
 import fcntl
+import gzip
 import json
 import os
 import plistlib
@@ -47,6 +48,7 @@ PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
     "host_admission_deferred:resource_fifo_wait",
 })
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
+MAX_PRE_EFFECT_ARCHIVES = 4
 
 
 def _event_epoch(value: object) -> float:
@@ -63,15 +65,23 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
                 or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
             raise ValueError("runtime event journal is not private")
         rows = []
-        with os.fdopen(descriptor, encoding="utf-8") as stream:
+        with os.fdopen(descriptor, "rb") as raw:
             descriptor = -1
-            for line in stream:
-                value = json.loads(line)
-                if not isinstance(value, dict):
-                    raise ValueError("runtime event row invalid")
-                rows.append(validate_runtime_event(value))
-                if len(rows) > max_rows:
-                    raise ValueError("runtime event journal too large")
+            stream = (
+                gzip.GzipFile(fileobj=raw, mode="rb")
+                if path.name.endswith(".jsonl.gz") else raw
+            )
+            try:
+                for line in stream:
+                    value = json.loads(line)
+                    if not isinstance(value, dict):
+                        raise ValueError("runtime event row invalid")
+                    rows.append(validate_runtime_event(value))
+                    if len(rows) > max_rows:
+                        raise ValueError("runtime event journal too large")
+            finally:
+                if stream is not raw:
+                    stream.close()
         return rows
     finally:
         if descriptor >= 0:
@@ -117,9 +127,13 @@ def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, di
     if not isinstance(state_root, str) or not state_root:
         return None
     try:
-        runtime_rows = _private_runtime_rows(
-            Path(os.path.expanduser(state_root)) / "events.jsonl"
-        )
+        root = Path(os.path.expanduser(state_root))
+        journals = [root / "events.jsonl", *sorted(
+            root.glob("events-*.jsonl.gz"), reverse=True,
+        )[:MAX_PRE_EFFECT_ARCHIVES]]
+        runtime_rows = [
+            row for journal in journals for row in _private_runtime_rows(journal)
+        ]
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
         return None
     exact = [row for row in runtime_rows
