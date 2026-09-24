@@ -2798,20 +2798,54 @@ typed tuple `host_admission_deferred:resource_capacity_busy`, retryable true,
 `retry_after_eligibility`, effect none and unknown 0. Self-build release drift becomes zero; the global totals
 improve to 92 release mismatches and 87 incomplete diagnostics while unknown-effect rows remain 49.
 
-The remaining Self-build `uncovered_failure` is evaluator drift, not an execution failure: the evaluator maps
-every non-pass terminal to uncovered even though `safely_fenced` is an accepted foundation state. The minimum
-candidate recognizes only that complete transient capacity tuple as `safely_fenced/runtime_capacity_deferred`.
-It preserves fail-closed behavior for missing fields, non-retryable rows, external effects and mixed failures.
-Product/foundation tests pass 46/46; the unchanged live projection becomes safely fenced 1, uncovered failure
-13. Integration of this shared evaluation correction is the next cursor, not a revenue wait.
+The first remaining Self-build `uncovered_failure` was evaluator drift, not an execution failure: the evaluator
+mapped every non-pass terminal to uncovered even though `safely_fenced` is an accepted foundation state. The
+minimum correction recognizes only that complete transient capacity tuple as
+`safely_fenced/runtime_capacity_deferred`. It preserves fail-closed behavior for missing fields,
+non-retryable rows, external effects and mixed failures. Product/foundation tests pass 46/46, all repository
+CI is green, and PR #5829 merges the correction at
+`9503276595fc778740c08b6938325e15e52b548d`.
 
-Connector remains a real uncovered failure, not an old notification artifact. Its exact current plist is
-loaded, but its latest run reaches `browser_open_failed`; action history then reports the generic outer
-`wake_boundary_failed`. Google Chrome currently serves IPv4 `127.0.0.1:9222` with HTTP 404 while the managed
-Cloak Chromium serves only IPv6 `[::1]:9222`. The existing guard's non-failing curl probe treats the 404 as
-healthy and skips recovery. A separate locked worktree already contains the shared registered-owner endpoint
-fix through `e96e8c422d`. This workstream records and consumes that result read-only; it does not duplicate the
-patch or restart the shared browser while that owner is active.
+The following natural supervisor wakes expose a different real failure, so Self-build correctly remains
+`uncovered_failure` rather than being forced green. The supervisor first consumes Connector intent
+`32fd477f478f6511410ff4c4c329fcf9` and stops at `release_sha_mismatch`: the failure intent is bound to old
+event SHA `1f03abd4150278b234edbb28e5b9cca17dc9d867` while Connector's installed plist is
+`7cbc861929cd75ef7a6ad08ad05b24ab35b100ff`. Subsequent supervisor failures are themselves classified into
+new supervisor intents. Each wake then returns `healthy_readback_pending` with identical before/after event
+IDs and the next supervisor wake creates another intent. This is a control-plane self-recursion bug, not
+capacity backpressure and not fourteen provider-specific defects. The next cursor is therefore to reproduce
+and prevent recovery-owner self-enqueue/reconciliation, retain the existing failed evidence, and prove one
+bounded non-self recovery with replay-zero before aligning another Product Loop.
+
+Candidate `5e2275d977` closes the recursion at the three existing boundaries without adding another healer:
+the shared runner does not emit an intent for the recovery-supervisor entrypoint, the queue consumer
+terminally marks one already-persisted self-intent `skipped/supervisor_self_recovery_excluded` per wake with
+budget consumption zero, and the apply-plan compiler refuses to create a self-reconcile command. Recovery
+tests pass 36/36, runner bounds pass 84/84, apply/registry tests pass 202 tests plus 174 subtests, and
+foundation/catalog tests pass 65/65. Running the candidate CLI against temporary copies of the live queue and
+journal closes exact pending self-intent `fa82ab50703c57ea6540cb35b93576f8` with execution zero and exactly one
+journal append; production files are unchanged. This is pushed source evidence, not a production repair. The
+next gate is PR/CI/main integration, a complete main-derived immutable release, supervisor-only loaded-idle
+apply and bounded wakes until the pre-existing self-intents are terminal without any new self-intent.
+
+Connector remains a real uncovered failure, not an old notification artifact. Its latest action history again
+shows Calendar observation succeeding and `browser_open` failing with `browser_open_failed`; the user-facing
+`circuit_open/wake_boundary_failed` is only the generic outer report. `lm-loop status` currently shows a
+loaded-idle plist on `7cbc861929cd75ef7a6ad08ad05b24ab35b100ff`, but its latest terminal event is still the
+failed old-SHA run `18d82f0915e192c0-90817` on `1f03abd4150278b234edbb28e5b9cca17dc9d867`, so the foundation
+projection correctly reports release drift as well as a non-pass terminal. Google Chrome serves IPv4
+`127.0.0.1:9222` with HTTP 404 while the managed Cloak Chromium serves IPv6 `[::1]:9222`; the old guard's
+non-failing curl probe treats the 404 as healthy and skips recovery.
+
+A separate locked worktree contains the existing registered-owner endpoint candidate through `e96e8c422d`.
+It is pushed and clean, but `gh pr list --state all --head fix/connector-cdp-health-owner-validation-20260924`
+returns no PR. Therefore it is **not** merged to main, not present in a main-derived immutable release, not
+loaded in production and not production-verified. This workstream does not duplicate that locked patch or
+restart the shared browser. Connector closes only after that owner rebases/reviews the minimum shared diff,
+runs focused tests and repository CI, merges once, cuts a complete main-derived immutable release, applies
+Connector loaded-idle through `launchctl-safe`, and observes an immediate effect-free wake with exact-SHA
+terminal readback and replay-zero. Revenue or a natural business event is not required for this foundation
+acceptance.
 
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
@@ -3056,10 +3090,19 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    no-effect clear primitive to idle reconciliation; production self-heal succeeds and all four Self-build
    owners are exact, idle and unknown-free. The new shared gate is 14/14 observed, missing 0, release mismatch
    97, diagnostic incomplete 89 and unknown 49; current-release Self-build terminal evidence is the next cursor.
-   Connector separately remains failed at the shared CDP ownership boundary and has an existing owned fix
-   candidate, so this worktree does not duplicate it. The executable order is now immediate Self-build
-   current-release terminal evidence -> remaining explicit non-Paid owner release alignment -> authoritative
-   fourteen-loop foundation readback twice.
+   PR #5829 subsequently merges the strict typed-capacity projection at
+   `9503276595fc778740c08b6938325e15e52b548d`. Natural supervisor wakes then reveal a real recovery-owner
+   self-recursion: the old-SHA Connector intent stops at `release_sha_mismatch`, and each supervisor failure
+   creates another supervisor intent that returns `healthy_readback_pending`. The latest read-only gate sees
+   98 observed mapped jobs, zero missing jobs, 90 release mismatches, 87 diagnostically incomplete jobs and
+   49 unknown-effect jobs; all 14 Product Loops remain `uncovered_failure`, with Self-build now failing for the
+   real supervisor terminal rather than evaluator drift. Connector separately remains failed at the shared
+   CDP ownership boundary; its candidate is pushed through `e96e8c422d` but has no PR and is not merged,
+   released, loaded or production-verified. The executable order is now recovery-supervisor self-recursion
+   regression and bounded repair proof -> consume the accepted Connector main commit -> remaining explicit
+   non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice. Candidate
+   `5e2275d977` now implements the three-boundary self-exclusion and passes its focused suites plus a copied-live-
+   state probe; main integration, immutable release and production drain/readback remain the current cursor.
    Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.

@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { consumeRecoveryIntentQueue } from '../recovery-supervisor.mjs';
 
 const SHA = 'a'.repeat(40);
+const execFileAsync = promisify(execFile);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 function intent(id, loopId = 'example-loop') {
   return {
@@ -192,4 +197,76 @@ test('skips every Paid intent and consumes the next non-Paid owner without mutat
   assert.equal(result.loop_id, 'connector');
   assert.deepEqual(calls, ['connector']);
   assert.equal((await journalRows(journal)).some((row) => row.loop_id === 'coconala-paid'), false);
+});
+
+test('terminally skips its own intent without execution and then consumes one sibling', async () => {
+  const { queue, journal } = await files([
+    intent('self', 'life-manager-recovery-supervisor'), intent('safe', 'connector'),
+  ]);
+  const calls = [];
+  const options = {
+    queuePath: queue,
+    journalPath: journal,
+    supervisorOwnerId: 'life-manager-recovery-supervisor',
+    now: '2026-09-24T00:00:00.000Z',
+    executeIntent: async (value) => {
+      calls.push(value.loop_id);
+      return { ok: true, state: 'repaired', budget_consumed: false };
+    },
+  };
+
+  assert.deepEqual(await consumeRecoveryIntentQueue(options), {
+    ok: true,
+    state: 'skipped',
+    intent_id: 'self',
+    loop_id: 'life-manager-recovery-supervisor',
+    attempt: 0,
+    reason: 'supervisor_self_recovery_excluded',
+  });
+  assert.equal((await consumeRecoveryIntentQueue(options)).loop_id, 'connector');
+  assert.deepEqual(await consumeRecoveryIntentQueue(options), {
+    ok: true, state: 'idle', reason: 'no_pending_intent',
+  });
+  assert.deepEqual(calls, ['connector']);
+
+  const selfOutcomes = (await journalRows(journal)).filter(
+    (row) => row.record_type === 'recovery_outcome' && row.intent_id === 'self',
+  );
+  assert.equal(selfOutcomes.length, 1);
+  assert.equal(selfOutcomes[0].state, 'skipped');
+  assert.equal(selfOutcomes[0].budget_consumed, false);
+  assert.equal(selfOutcomes[0].reason, 'supervisor_self_recovery_excluded');
+});
+
+test('production CLI derives its owner from the registry and terminally drains one old self intent', async () => {
+  const { queue, journal } = await files([intent('old-self', 'life-manager-recovery-supervisor')]);
+  const registry = path.join(path.dirname(queue), 'registry.json');
+  await writeFile(registry, `${JSON.stringify({ loops: {
+    'life-manager-recovery-supervisor': {
+      entrypoint: 'runtime/loop/recovery-supervisor-cli.mjs',
+      provider_route: 'deterministic',
+    },
+  } })}\n`);
+
+  const { stdout } = await execFileAsync(process.execPath, [
+    path.resolve(HERE, '..', 'recovery-supervisor-cli.mjs'),
+    '--queue', queue,
+    '--journal', journal,
+    '--release-root', path.dirname(queue),
+    '--registry', registry,
+  ]);
+
+  assert.deepEqual(JSON.parse(stdout), {
+    ok: true,
+    state: 'skipped',
+    intent_id: 'old-self',
+    loop_id: 'life-manager-recovery-supervisor',
+    attempt: 0,
+    reason: 'supervisor_self_recovery_excluded',
+  });
+  const outcomes = (await journalRows(journal)).filter(
+    (row) => row.record_type === 'recovery_outcome',
+  );
+  assert.equal(outcomes.length, 1);
+  assert.equal(outcomes[0].state, 'skipped');
 });

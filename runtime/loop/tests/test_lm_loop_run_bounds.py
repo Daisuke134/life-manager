@@ -1182,6 +1182,9 @@ def test_recovery_enqueue_skips_success_admission_and_paid_owned_jobs():
     assert not _should_enqueue_recovery_intent({
         "priority": "critical_paid", "entrypoint": "skills/earn/gig/scripts/paid-direct-owner",
     }, failed)
+    assert not _should_enqueue_recovery_intent({
+        "priority": "support", "entrypoint": "runtime/loop/recovery-supervisor-cli.mjs",
+    }, failed)
 
 
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):

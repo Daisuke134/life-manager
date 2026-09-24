@@ -42,6 +42,11 @@ async function main(args = process.argv.slice(2)) {
   );
   const registryPath = path.resolve(options.registry || path.join(releaseRoot, 'config', 'loop-registry.json'));
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  const supervisorOwners = Object.entries(registry?.loops || {})
+    .filter(([, entry]) => entry?.entrypoint === 'runtime/loop/recovery-supervisor-cli.mjs')
+    .map(([ownerId]) => ownerId);
+  if (supervisorOwners.length !== 1) throw new Error('recovery supervisor owner identity invalid');
+  const supervisorOwnerId = supervisorOwners[0];
   const allowIntent = (intent) => {
     const entry = registry?.loops?.[intent?.loop_id];
     return Boolean(entry)
@@ -51,6 +56,7 @@ async function main(args = process.argv.slice(2)) {
     queuePath,
     journalPath,
     allowIntent,
+    supervisorOwnerId,
     executeIntent: async (intent) => {
       const plan = buildRecoveryApplyPlan({ intent, registry });
       return executeRecoveryPlan({ plan, registry, releaseRoot });
