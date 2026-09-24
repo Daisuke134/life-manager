@@ -107,19 +107,22 @@ flowchart LR
   `env: node`とadmission database lockが残ります。provider/browser/wallet effectは発生しておらず、Connectorの
   source/session/stateはこのworkstreamで変更しません。current SHAのnon-self・non-Paid recovery intentは無いため、
   canaryを捏造せず、accepted main-derived releaseまたはowner側の公式修正を次の外部境界とします。
-- branch runtime全suiteは304 tests中297 pass、7 failでした。recovery 40/40、Affiliate証跡3/3はpassしています。
-  残るfailはmissing optional packages、既存classification drift、既存comment guard、temp cleanup race、proxy
-  fallback環境依存であり、このrecovery readback修正が導入したfailではありません。全suite greenをFoundation完了と
-  誤認せず、関連focused suiteとproduction exact readbackを別に扱います。
+- branch runtime全suiteの最新再実測は304 tests中300 passです。recovery/harness focused suiteは38/38、brainは5/5、
+  PROP-023は2/2です。残る3件はworktreeにoptional dependency `@solana/web3.js` と `fast-check` が無いことによる
+  always-act file-level import failureで、self-healing変更のfailではありません。全suite greenをFoundation完了と
+  誤認せず、依存導入後に再実行する環境ゲートとproduction exact readbackを別に扱います。
 - 既存コメントの文字列を実装呼び出しとして拾っていたself-improvement static guardを、動作変更なしで修正しました。
   `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
+- registry classificationの古い13-slot fixtureが、既にlive registryへ追加済みの`resource-resolver`と`x-repost`を
+  数え落としていたため、現在の15 live slotsへ同期しました。classification checksは3/3 PASSで、runtime behaviorと
+  外部effectは変更していません。
 - self-improvement brainの実装と契約の矛盾をbranchで解消しました。`ANICCA_BRAIN=claude-p`の実行ファイルが
   不在のときだけ、設定済みproxyへfallbackします。成功したfallbackは terminal ledger に
   `brain_fallback={from:claude-p,to:proxy,reason:claude_not_found}` として残し、proxy側も失敗した場合は
   `brain_fallback_failed` へ元の欠損とproxy失敗の両境界を結合します。OAuth失効、timeout、非0終了はfallback
   せず、typed `wake_error`として記録します。直接brain契約は5/5、missing-binary integration caseと
-  ledger-observability assertionもPASSし、統合suiteの残る1件は既存のtemporary-directory cleanup raceです。
-  これはbranch-onlyで、main/release/productionへは未反映です。
+  ledger-observability assertionもPASSしました。以前観測したtemporary-directory cleanup raceは最新full runで
+  再現していません。これはbranch-onlyで、main/release/productionへは未反映です。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
