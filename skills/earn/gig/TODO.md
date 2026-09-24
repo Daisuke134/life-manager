@@ -1,5 +1,32 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:04 JST (specific all-platform gate readback)
+
+This is the current platform-by-platform state. The local loop status and the
+provider readbacks are separate facts; a loaded loop is not proof that a
+provider effect occurred.
+
+| platform | verified evidence now | local effect/loop state | exact next work |
+|---|---|---|---|
+| Coconala | Paid latest terminal is `pass`, `effect=none`, `admission_effect_unknown=false`; Ryu remains manual-only. Apply has five effect-free occurrences cancelled; Storefront has 81 effect-free occurrences cancelled but still requires an official readback. | Paid is loaded-idle; Apply is unloaded; Storefront is unloaded with `official_readback_required`. | Restore host admission headroom, obtain the Storefront official readback, and perform the no-effect natural wake/replay-zero. Do not resend Ryu. |
+| CrowdWorks (CloudWorks) | Admission DB has 44 claimed application fences, 1 exact Paid fence (`crowdworks-revenue-paid:18d62cf32eb0c678-48194`), 195 claimed reply fences, and 1 released report history fence with `effect_unknown=1`. | Paid/application are unloaded; browser last failed at `entrypoint_exit_1`; reply is loaded-idle but effect-unknown; report is blocked by the effect fence. | Obtain an occurrence-bound provider receipt or admissible no-effect proof for each exact fence. Do not blanket retry, edit the DB, or resend completed work. |
+| Lancers | Latest source-complete contract readback has `contract_candidate_count=0`; balance `¥0`. Historical project `5606124`/proposal `27965342` is not a funded contract. Admission has 41 application, 1 Paid (`lancers-revenue-paid:18d81967220136f8-89928`), 1 negotiate, 1 storefront, and 1 Telegram-report claimed fences. | Paid is unloaded; browser/work-sync are loaded; the other effect-unknown owners are blocked. | Reconcile each exact fence. Keep Paid closed until a current funded `ContractReceipt` and positive milestone/formal delivery surface are read back. |
+| Mercor | Latest official readbacks through `2026-09-20` show `contracts=[]`; no funded work is proven. | Paid is loaded-idle with a passing no-effect run; one old application and one old reply fence remain. | Preserve the old fences and continue read-only discovery; do not register a revenue owner without a real funded contract. |
+| Freelancer.com | OAuth file and private authorization receipts are absent; no authenticated official inventory; no funded project. Public watcher data is not account-bound. | All Freelancer revenue labels are disabled/retired; no owner is registered. | Connect the account-bound BrowserSkill profile or official OAuth; read identity, projects, milestones/IP/hourly contracts, payments, and payouts; persist a source-complete snapshot; only a positive funded project opens one owner registration. |
+| Upwork | Account-bound source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`. Read-only receipts (`inspect/read_payments/read_payouts`) are approved until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` remain denied. | Legacy Upwork labels are disabled/retired; no Paid owner is registered. | Use a dedicated account-bound BrowserSkill session, refresh identity/contracts/transactions/withdrawals, obtain current mutation authorization, and require one funded contract with a positive milestone before registering one owner. |
+
+Shared infrastructure is currently the immediate external boundary: BrowserSkill
+daemon is healthy but `browsers=[]` and `sessions=[]`, so no Freelancer or
+Upwork page can be opened. Host free space is about 380MiB, below the 512MiB
+admission floor and far below the 6GiB recovery target; only the canonical
+retention owner may reclaim evidence. No provider send, retry, fence clear, or
+production release was performed in this readback.
+
+The non-skippable Freelancer/Upwork order remains:
+`account-bound auth → source-complete official inventory → funded contract /
+positive milestone → exactly one owner → zero-effect canary → funded canary →
+provider receipt + payment/payout readback → crash recovery → replay-zero`.
+
 ## Current cursor — 2026-09-25 07:59 JST (structured paid-fence blocker readback)
 
 The occurrence-bound resolver now reports a missing proof as structured JSON
