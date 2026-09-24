@@ -140,8 +140,27 @@ fi
 TITLE="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).title || ""))' "$CHOSEN")"
 BODY="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).body || ""))' "$CHOSEN")"
 RECOVERY_PR_MARKER=""
+RECOVERY_CLASS_MARKER=""
 case "$BODY" in
-  *"<!-- lm-recovery:"*) RECOVERY_PR_MARKER="[lm-recovery-self-heal]" ;;
+  *"<!-- lm-recovery:"*)
+    RECOVERY_PR_MARKER="[lm-recovery-self-heal]"
+    RECOVERY_CLASS_MARKER="$(node - "$BODY" "$LIFE_MANAGER_REPO/config/loop-registry.json" "$LIFE_MANAGER_REPO/runtime/loop/recovery-class.cjs" <<'NODE'
+const fs = require("node:fs");
+const [body, registryPath, classifierPath] = process.argv.slice(2);
+const owner = String(body || "").match(/^owner_id: ([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$/m)?.[1];
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const entry = owner && registry?.loops?.[owner];
+if (!entry) process.exit(2);
+const { classifyRecoveryJob } = require(classifierPath);
+process.stdout.write(`[lm-recovery-class:${classifyRecoveryJob(entry)}]`);
+NODE
+)" || {
+      log "recovery owner cannot be classified; no candidate will be produced"
+      record "$NUM" "" "recovery_class_unresolved"
+      write_result "failed" "recovery_class_unresolved" "$NUM"
+      exit 1
+    }
+    ;;
 esac
 log "picked issue #$NUM: $TITLE"
 
@@ -270,6 +289,8 @@ Unattended canonical Life Manager D0 pass. Full app tests and every eval passed 
 [lm-dev-loop]
 
 $RECOVERY_PR_MARKER
+
+$RECOVERY_CLASS_MARKER
 
 That marker is machine-readable provenance, not decoration. The daily self-build pass
 (apps/life-manager/scripts/self-build-daily.js, LOOP_PR_MARKER) hands a PR to the unattended merge

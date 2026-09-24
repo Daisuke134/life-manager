@@ -1465,6 +1465,7 @@ test("each public product loop maps only to existing canonical runtime jobs", ()
   ));
   const seen = new Set();
   for (const loop of catalog.loops) {
+    assert.ok(Array.isArray(loop.recovery_classes) && loop.recovery_classes.length > 0, loop.id);
     assert.ok(Array.isArray(loop.job_ids) && loop.job_ids.length > 0, loop.id);
     for (const jobId of loop.job_ids) {
       assert.equal(typeof jobId, "string", `${loop.id}: job id type`);

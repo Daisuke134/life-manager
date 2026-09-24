@@ -651,6 +651,7 @@ test("the producer stamps its PR body with the loop marker the consumer matches 
   const runAgent = fs.readFileSync(RUN_AGENT_SCRIPT, "utf8");
   assert.ok(d0.includes(LOOP_PR_MARKER), `${D0_SCRIPT} must write ${LOOP_PR_MARKER} into the PR body`);
   assert.ok(d0.includes("[lm-recovery-self-heal]"));
+  assert.ok(d0.includes("[lm-recovery-class:"));
   assert.match(d0, /candidate path\/regression preflight RED/);
   assert.match(d0, /git -C "\$WT" add apps\/life-manager runtime\/loop/);
   assert.match(d0, /--task-class self-heal-code-agent/);

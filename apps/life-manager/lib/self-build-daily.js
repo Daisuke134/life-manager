@@ -80,7 +80,9 @@ const SELF_BUILD_PROTECTED_PATHS = Object.freeze([
   "runtime/loop/recovery-apply-plan.mjs",
   "runtime/loop/recovery-executor.mjs",
   "runtime/loop/recovery-intent.mjs",
+  "runtime/loop/recovery-class.cjs",
   "runtime/loop/recovery-supervisor.mjs",
+  "runtime/loop/fixtures/self-heal/recovery-classes.json",
 ]);
 
 // Closed sets. An outcome that is not in one of these is a bug being loud, not a day being green.

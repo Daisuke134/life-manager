@@ -190,20 +190,34 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 
 ### Task 8: Enrol all fourteen Product Loops through shared classes
 
+**Status:** Complete on the implementation branch. The canonical Product Loop catalog declares one sorted
+set drawn from six closed recovery classes while the runtime registry remains the single source for job
+attributes. The contract derives every job's class, maps 97 catalog jobs once across 14 loops, validates all
+167 registry jobs, and reports zero duplicate mappings or errors. Six retained fixtures exercise the shared
+classifier and intent policy. Paid owners derive to `read_only_external_owner` and are rejected before local
+queue selection or plan construction. Marked recovery PRs now carry their registry-derived class; the old
+boolean promotion bypass is removed. Every class remains explicitly `unbound` for production PR promotion
+until a separate loop-runtime path actually invokes immutable release, isolated canary, exact-health and
+rollback hooks; the Railway application deploy path is not reused. Recovery tests pass 36/36,
+foundation/guard/self-build/catalog tests pass 197/197, the real-installer rollback canary passes 1/1, and the
+live catalog contract reports 14 loops, 97 mapped jobs, 167 registry jobs, zero shared jobs and zero errors.
+
 **Files:**
 - Modify: `apps/life-manager/config/product-loop-catalog.json`
 - Modify: catalog/contract tests
 - Create or modify only shared recovery fixture metadata; do not change Paid implementation files.
 
-- [ ] Add one closed recovery class declaration per Product Loop: deterministic, model, browser, continuous service, external-effect owner, or read-only external-owner.
-- [ ] Map every declared job exactly once and reject missing/duplicate/unrecognized recovery classes.
-- [ ] Add at least one retained failure fixture per class, not one new supervisor per loop.
-- [ ] Classify Paid jobs as read-only external-owner and consume only their status/receipt projections.
-- [ ] Bind marked recovery PR promotion to the declared class policy only where immutable release, isolated canary, exact-health and rollback hooks exist; keep the Railway app path separate and unsupported classes fail-closed.
-- [ ] Run catalog, registry, foundation and recovery suites; require fourteen loops and zero catalog/registry errors.
-- [ ] Commit and push fourteen-loop enrolment.
+- [x] Add one closed recovery class declaration per Product Loop: deterministic, model, browser, continuous service, external-effect owner, or read-only external-owner.
+- [x] Map every declared job exactly once and reject missing/duplicate/unrecognized recovery classes.
+- [x] Add at least one retained failure fixture per class, not one new supervisor per loop.
+- [x] Classify Paid jobs as read-only external-owner and consume only their status/receipt projections.
+- [x] Bind marked recovery PR promotion to the declared class policy only where immutable release, isolated canary, exact-health and rollback hooks exist; keep the Railway app path separate and unsupported classes fail-closed. No class currently claims a production hook bundle, so all remain closed rather than inheriting Railway proof.
+- [x] Run catalog, registry, foundation and recovery suites; require fourteen loops and zero catalog/registry errors.
+- [x] Commit and push fourteen-loop enrolment.
 
 ### Task 9: Pass local foundation acceptance
+
+**Status:** Current cursor. Revenue, conversion, commission and natural-business-event waits are not gates.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence

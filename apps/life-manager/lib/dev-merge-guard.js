@@ -34,6 +34,9 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const {
+  evaluateRecoveryPromotion,
+} = require("../../../runtime/loop/recovery-class.cjs");
 
 
 const REPO = "Daisuke134/life-manager";
@@ -70,6 +73,7 @@ const GUARD_STAGES = Object.freeze([
 
 const DEFAULT_AUTHORS = Object.freeze(["Daisuke134"]);
 const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
+const RECOVERY_CLASS_MARKER = /\[lm-recovery-class:([a-z_]+)\]/g;
 
 // The loop names its branches `feature/lm-dev-<issue>` (real: PR #1094 -> feature/lm-dev-1090,
 // PR #1095 -> feature/lm-dev-1089). `fix/...` is accepted for hand-shaped error fixes.
@@ -321,6 +325,12 @@ function isRetainedRegressionFixture(file) {
     || /^apps\/life-manager\/(?:lib|scripts)\/[^/]+\.test\.js$/.test(value);
 }
 
+function recoveryClassFromBody(body) {
+  const found = [...String(body || "").matchAll(RECOVERY_CLASS_MARKER)].map((match) => match[1]);
+  if (found.length !== 1) return null;
+  return found[0];
+}
+
 
 function evaluateEligibility(pr, options = {}) {
   const authors = options.allowedAuthors || DEFAULT_AUTHORS;
@@ -355,10 +365,15 @@ function evaluateEligibility(pr, options = {}) {
   if (files.length === 0) reasons.push("no_changed_files");
   if (String(value.body || "").includes(RECOVERY_PR_MARKER)) {
     if (!files.some(isRetainedRegressionFixture)) reasons.push("regression_fixture_missing");
-    // runtime/loop repairs cannot inherit the app guard's Railway-only deploy check. Task 7
-    // supplies an immutable release canary and exact owner health readback before this option is
-    // enabled. Until then the issue/PR pipeline may prepare a candidate, but never merge it.
-    if (options.recoveryPromotionEnabled !== true) reasons.push("recovery_promotion_not_enabled");
+    // runtime/loop repairs cannot inherit the app guard's Railway-only deploy check. The class
+    // policy stays fail-closed until a separate runtime promotion path actually invokes every
+    // immutable-release/canary/exact-health/rollback hook. A boolean cannot waive this boundary.
+    const recoveryClass = recoveryClassFromBody(value.body);
+    if (!recoveryClass) reasons.push("recovery_class_missing");
+    else {
+      const promotion = evaluateRecoveryPromotion(recoveryClass, options.recoveryPromotionHooks);
+      if (!promotion.eligible) reasons.push(promotion.reason);
+    }
   }
 
   const crossCheck = {
@@ -1439,6 +1454,7 @@ module.exports = {
   GUARD_STAGES,
   BLOCKED_ACTIONS,
   RECOVERY_PR_MARKER,
+  RECOVERY_CLASS_MARKER,
   BRANCH_PATTERNS,
   ROLLBACK_MUTATION,
   GUARD_SELF_PATHS,
@@ -1449,6 +1465,7 @@ module.exports = {
   evaluatePackageJsonChange,
   evaluateEligibility,
   isRetainedRegressionFixture,
+  recoveryClassFromBody,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,

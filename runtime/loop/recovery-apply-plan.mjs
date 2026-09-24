@@ -1,3 +1,7 @@
+import recoveryClass from './recovery-class.cjs';
+
+const { classifyRecoveryJob } = recoveryClass;
+
 const ACTIONS_WITHOUT_EXECUTION = new Set([
   'no_action',
   'hold_effect_unknown',
@@ -8,13 +12,6 @@ const ACTIONS_WITHOUT_EXECUTION = new Set([
 function required(value, field) {
   if (typeof value !== 'string' || value.length === 0) throw new Error(`recovery plan missing ${field}`);
   return value;
-}
-
-function paidOwner(entry) {
-  const entrypoint = String(entry?.entrypoint || '');
-  return entry?.priority === 'critical_paid'
-    || entrypoint.endsWith('/paid-owner')
-    || entrypoint.endsWith('/paid-direct-owner');
 }
 
 /**
@@ -37,7 +34,9 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
   if (!entry || typeof entry !== 'object') throw new Error(`recovery loop not in registry: ${loopId}`);
   if (ownerId !== loopId) throw new Error('recovery owner identity mismatch');
   if (!occurrenceId.startsWith(`${loopId}:`)) throw new Error('recovery occurrence identity mismatch');
-  if (paidOwner(entry)) throw new Error('recovery paid owner excluded');
+  if (classifyRecoveryJob(entry) === 'read_only_external_owner') {
+    throw new Error('recovery paid owner excluded');
+  }
   if (ACTIONS_WITHOUT_EXECUTION.has(action)) {
     return Object.freeze({
       schema_version: 1,

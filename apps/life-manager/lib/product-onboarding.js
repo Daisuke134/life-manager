@@ -32,6 +32,11 @@ const ECONOMIC_ROLES = new Set([
 const CUSTOMER_REVENUE_CLASSES = new Set(["subscription", "retainer", "recurring_usage", "one_time"]);
 const SOURCE_IMPLEMENTATIONS = new Set(["implemented", "partial", "missing", "not_applicable"]);
 const ADAPTER_ID = /^[a-z][a-z0-9-]{0,127}$/u;
+const RECOVERY_CLASSES = Object.freeze([
+  "browser", "continuous_service", "deterministic", "external_effect_owner",
+  "model", "read_only_external_owner",
+]);
+const RECOVERY_FIXTURE = /^runtime\/loop\/fixtures\/self-heal\/[a-z0-9-]+\.json$/u;
 
 function exactObjectKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -92,6 +97,33 @@ function validateEconomicDeclaration(value) {
   });
 }
 
+function validateRecoveryContract(value) {
+  exactObjectKeys(value, ["schema_version", "classes", "fixture"], "product loop recovery contract");
+  if (value.schema_version !== 1
+    || !Array.isArray(value.classes)
+    || value.classes.length !== RECOVERY_CLASSES.length
+    || value.classes.some((item, index) => item !== RECOVERY_CLASSES[index])
+    || typeof value.fixture !== "string"
+    || !RECOVERY_FIXTURE.test(value.fixture)) {
+    throw new Error("product loop recovery contract invalid");
+  }
+  return Object.freeze({
+    schema_version: 1,
+    classes: Object.freeze([...value.classes]),
+    fixture: value.fixture,
+  });
+}
+
+function validateLoopRecoveryClasses(value) {
+  if (!Array.isArray(value) || value.length < 1
+    || new Set(value).size !== value.length
+    || value.some((item) => !RECOVERY_CLASSES.includes(item))
+    || value.some((item, index) => index > 0 && value[index - 1] >= item)) {
+    throw new Error("product loop recovery classes invalid");
+  }
+  return Object.freeze([...value]);
+}
+
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
   if (value?.schema_version !== 1 || !value.host_requirements
@@ -99,6 +131,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
     || !Array.isArray(value.loops) || value.loops.length !== 14) {
     throw new Error("product loop catalog invalid");
   }
+  const recoveryContract = validateRecoveryContract(value.recovery_contract);
   const ids = new Set();
   for (const loop of value.loops) {
     if (!loop || typeof loop.id !== "string" || !/^[a-z][a-z0-9-]*$/u.test(loop.id)
@@ -108,6 +141,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
       throw new Error("product loop catalog invalid");
     }
     validateEconomicDeclaration(loop.economic);
+    validateLoopRecoveryClasses(loop.recovery_classes);
     ids.add(loop.id);
     for (const host of HOSTS) {
       const target = loop.hosts[host];
@@ -127,6 +161,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
     }
   }
   return Object.freeze({
+    recovery_contract: recoveryContract,
     host_requirements: Object.freeze({
       local: Object.freeze([...value.host_requirements.local]),
       cloud: Object.freeze([...value.host_requirements.cloud]),
@@ -134,6 +169,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
     loops: Object.freeze(value.loops.map((loop) => Object.freeze({
       ...loop,
       economic: validateEconomicDeclaration(loop.economic),
+      recovery_classes: validateLoopRecoveryClasses(loop.recovery_classes),
     }))),
   });
 }

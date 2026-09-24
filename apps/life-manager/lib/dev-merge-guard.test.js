@@ -317,10 +317,10 @@ test("a recovery PR must retain a regression fixture before it can reach review 
   }), { changedFiles: ["runtime/loop/provider_adapter.py"] });
   assert.equal(withoutFixture.ok, false);
   assert.ok(withoutFixture.reasons.includes("regression_fixture_missing"));
-  assert.ok(withoutFixture.reasons.includes("recovery_promotion_not_enabled"));
+  assert.ok(withoutFixture.reasons.includes("recovery_class_missing"));
 
   const withFixture = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
@@ -329,21 +329,28 @@ test("a recovery PR must retain a regression fixture before it can reach review 
     changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
     recoveryPromotionEnabled: true,
   });
-  assert.equal(withFixture.ok, true);
+  assert.equal(withFixture.ok, false);
+  assert.deepEqual(withFixture.reasons, ["recovery_promotion_hooks_incomplete"]);
 });
 
-test("a recovery candidate fails closed before merge until the immutable canary profile is enabled", () => {
+test("a recovery candidate stays closed even with hook claims until a loop runtime path is bound", () => {
   const verdict = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
     ],
   }), {
     changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+    recoveryPromotionHooks: {
+      immutable_release: true,
+      isolated_canary: true,
+      exact_health: true,
+      rollback: true,
+    },
   });
   assert.equal(verdict.ok, false);
-  assert.deepEqual(verdict.reasons, ["recovery_promotion_not_enabled"]);
+  assert.deepEqual(verdict.reasons, ["recovery_runtime_promotion_unbound"]);
 });
 
 

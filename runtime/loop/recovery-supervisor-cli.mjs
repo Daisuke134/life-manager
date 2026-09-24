@@ -6,6 +6,9 @@ import path from 'node:path';
 import { buildRecoveryApplyPlan } from './recovery-apply-plan.mjs';
 import { executeRecoveryPlan } from './recovery-executor.mjs';
 import { consumeRecoveryIntentQueue } from './recovery-supervisor.mjs';
+import recoveryClass from './recovery-class.cjs';
+
+const { classifyRecoveryJob } = recoveryClass;
 
 function usage() {
   return 'usage: recovery-supervisor-cli.mjs [--queue PATH] [--journal PATH] [--release-root PATH] [--registry PATH]';
@@ -41,11 +44,8 @@ async function main(args = process.argv.slice(2)) {
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
   const allowIntent = (intent) => {
     const entry = registry?.loops?.[intent?.loop_id];
-    const entrypoint = String(entry?.entrypoint || '');
     return Boolean(entry)
-      && entry?.priority !== 'critical_paid'
-      && !entrypoint.endsWith('/paid-owner')
-      && !entrypoint.endsWith('/paid-direct-owner');
+      && classifyRecoveryJob(entry) !== 'read_only_external_owner';
   };
   const result = await consumeRecoveryIntentQueue({
     queuePath,
