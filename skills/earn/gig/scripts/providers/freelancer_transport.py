@@ -223,6 +223,8 @@ class FreelancerTransport:
         """
         if not callable(fetch):
             raise TransportConfigurationError("inventory_fetch_not_callable")
+        if account_id != self.account:
+            raise TransportConfigurationError("inventory_account_mismatch")
         plan = self.inventory_route_plan(project_ids=project_ids)
         from freelancer_readiness import read_authenticated_inventory
 

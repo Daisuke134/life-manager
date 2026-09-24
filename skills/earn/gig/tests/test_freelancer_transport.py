@@ -250,6 +250,27 @@ def test_inventory_readback_fetches_only_after_all_read_receipts(
     ))]
 
 
+def test_inventory_readback_rejects_account_mismatch_before_provider_fetch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    selector = _selector(tmp_path)
+    calls: list[object] = []
+
+    with pytest.raises(transport.TransportConfigurationError, match="inventory_account_mismatch"):
+        selector.read_inventory(
+            load_receipts(tmp_path / "authorizations.json"),
+            account_id="freelancer-owner:v1:" + "2" * 64,
+            project_ids=("123",),
+            fetch=lambda selection, plan: calls.append((selection, plan)) or _inventory(),
+        )
+
+    assert calls == []
+
+
 def test_inventory_readback_does_not_admit_unannotated_raw_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):

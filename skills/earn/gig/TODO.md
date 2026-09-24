@@ -88,6 +88,14 @@ focused kernel/CrowdWorks/Lancers suite is `41 passed`. No new source defect
 was found in this boundary; the historical missing markers remain consistent
 with the earlier disk/WAL pressure and are not admissible proof for release.
 
+The Freelancer transport gate was tightened at `2026-09-25 06:28 JST`:
+`FreelancerTransport(account=A).read_inventory(account_id=B)` now fails before
+any provider fetch, so an approved receipt for one account cannot be used to
+read or normalize another account's inventory. The regression test confirms
+zero fetch calls on mismatch. The focused Freelancer/Upwork readiness and
+transport suite is `53 passed`; the complete `skills/earn/gig/tests` suite is
+`1,474 passed`.
+
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
 `/Users/anicca/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
