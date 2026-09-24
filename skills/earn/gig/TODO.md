@@ -1,5 +1,27 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:39 JST (Coconala Paid result-write hardening)
+
+The latest Coconala Paid failure is now bounded to a local result-write
+condition: the production run reached `entrypoint_exit_1` after
+`paid_direct.py` hit `OSError: [Errno 28] No space left on device` while
+atomically writing its evidence JSON. The run recorded `effect_class=none` and
+`admission_effect_unknown=false`; no provider send or retry is indicated.
+
+The branch now creates a 1 MiB, mode-0600 owner-scoped `.receipt-reserve` before
+order observation. If the final result write gets ENOSPC, it consumes that
+reserve once, retries only the local atomic write, and recreates the reserve.
+This does not retry any external effect. TDD evidence is green:
+`test_paid_disk_preflight.py -k receipt_reserve` (1 passed), the related Paid
+suite (26 passed), the remote-wait suite (263 passed), and `lm-loop-contract`
+(`ok: true`). The change is source-only on the current branch; production is
+still the prior immutable release until merge/release gates pass.
+
+Next admissible work is to commit/push this hardening, then obtain a fresh
+no-effect Coconala Paid wake/readback only after the host disk gate is above its
+floor. Storefront still needs an official provider readback. Freelancer and
+Upwork remain external-gate workstreams, not registered Paid owners.
+
 ## Current cursor — 2026-09-25 08:31 JST (live all-platform re-read)
 
 This is a read-only re-read of the local loop registry, admission database, and

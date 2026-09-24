@@ -51,6 +51,7 @@ DEFAULT_BRAKE = Path(
 )
 DEFAULT_TELEGRAM_DATABASE = Path.home() / "gig" / "telegram-outbox.sqlite3"
 DEFAULT_TELEGRAM_RECEIPTS = Path.home() / "gig" / "telegram-delivery-receipts"
+RECEIPT_RESERVE_BYTES = 1024 * 1024
 
 
 def _operator_denied_paths() -> list[str]:
@@ -213,11 +214,89 @@ class Failure(RuntimeError):
 
 def _load(path: Path) -> Any: return json.loads(path.read_text(encoding="utf-8"))
 
-def _write(path: Path, value: Any) -> None:
+def _receipt_reserve_path(directory: Path) -> Path:
+    return directory / ".receipt-reserve"
+
+
+def _receipt_reserve_valid(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    return (
+        stat.S_ISREG(info.st_mode)
+        and stat.S_IMODE(info.st_mode) == 0o600
+        and info.st_size == RECEIPT_RESERVE_BYTES
+        and info.st_blocks * 512 >= RECEIPT_RESERVE_BYTES
+    )
+
+
+def _ensure_receipt_reserve(directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    reserve = _receipt_reserve_path(directory)
+    if _receipt_reserve_valid(reserve):
+        return reserve
+    if reserve.exists() or reserve.is_symlink():
+        raise OSError(errno.EIO, f"invalid receipt reserve: {reserve}")
+    temporary: Path | None = None
+    fd: int | None = None
+    try:
+        fd, name = tempfile.mkstemp(
+            prefix=f".{reserve.name}.", suffix=".tmp", dir=directory,
+        )
+        temporary = Path(name)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            fd = None
+            handle.write(b"\0" * RECEIPT_RESERVE_BYTES)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if not _receipt_reserve_valid(temporary):
+            raise OSError(errno.EIO, f"receipt reserve was not allocated: {temporary}")
+        os.replace(temporary, reserve)
+        temporary = None
+        return reserve
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def _atomic_write(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _write(path: Path, value: Any) -> None:
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n"
+    try:
+        _atomic_write(path, payload)
+    except OSError as error:
+        if error.errno != errno.ENOSPC:
+            raise
+        reserve = _receipt_reserve_path(path.parent)
+        if not _receipt_reserve_valid(reserve):
+            raise
+        reserve.unlink()
+        _atomic_write(path, payload)
+        _ensure_receipt_reserve(path.parent)
 
 
 def _has_resumption_marker(workspace: Path) -> bool:
@@ -7010,6 +7089,10 @@ def _paid_parent_status(*, failed: int, pending: int) -> str:
 
 
 def run_once(args, output: Path) -> int:
+    # Keep one owner-scoped write receipt in reserve before any order observation or
+    # provider action.  If the filesystem fills later, the reserve buys one final
+    # atomic result write without retrying an external effect.
+    _ensure_receipt_reserve(output.parent)
     # An operator must be able to stand this lane down without unloading launchd. This is the
     # one lane that can press an irreversible formal-delivery control, so it checks the brake
     # before it takes the writer lock or observes anything.

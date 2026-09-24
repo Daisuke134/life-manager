@@ -1,5 +1,27 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 08:39 JST (Coconala Paid local failure bounded)
+
+The latest Coconala Paid `entrypoint_exit_1` is a local evidence-write failure,
+not a provider send: `paid_direct.py` received `ENOSPC` while writing its
+atomic result JSON, and the run recorded `effect_class=none` with
+`admission_effect_unknown=false`. No external retry or fence mutation is
+allowed from that state.
+
+The current branch adds a mode-0600, 1 MiB owner-scoped `.receipt-reserve` in
+the output directory before observation. On ENOSPC it is consumed once to
+retry the local result write, then recreated; provider effects are never
+retried by this recovery. Focused TDD is green: reserve test 1 passed, related
+Paid tests 26 passed, remote-wait tests 263 passed, and `lm-loop-contract`
+returned `ok: true`. This is not yet production: the branch must be pushed and
+pass the release/merge gates before a runtime wake can verify it.
+
+The immediate sequence is: push the hardening; wait for the host disk gate to
+recover; perform one no-effect Paid wake and official readback; then obtain the
+Storefront official readback. Freelancer/Upwork remain gated on account-bound
+authentication, source-complete inventory, a funded contract/milestone, and
+current mutation/policy receipts before any owner registration.
+
 ### Live gate cursor — 2026-09-25 08:31 JST (all-platform read-only recheck)
 
 The latest local re-read is evidence-only: no provider send, retry, fence clear,
