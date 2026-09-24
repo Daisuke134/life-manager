@@ -3786,6 +3786,11 @@ reservation. Coalescing and queued-release reconciliation are explicit, but the 
 the report/provider/Paid paths were not run and no effect or revenue is inferred. This is branch-only pending
 accepted-release and official readback.
 
+The CrowdWorks continuous browser owner now declares `resource_class=browser`, derived from its unique CDP/profile
+`browser_owner` (9228) and keep-alive service identity. It has no finite admission rows, so admission/priority fields
+are intentionally not invented. The browser session and provider state were not started or changed; only the
+branch registry/fixture contract is updated and still needs exact-release loaded-idle/readback evidence.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

@@ -84,6 +84,7 @@
       "label": "ai.anicca.crowdworks-revenue-browser",
       "log_root": "~/.local/state/life-manager/crowdworks-revenue-browser/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/crowdworks-revenue-browser"
     },
     "crowdworks-revenue-report": {

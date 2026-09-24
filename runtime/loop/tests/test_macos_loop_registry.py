@@ -1010,6 +1010,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
 
+    def test_crowdworks_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["crowdworks-revenue-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9228,
+            "profile": "~/.local/state/anicca/crowdworks/browser-profile",
+        })
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]
