@@ -4289,6 +4289,19 @@ canonical state-path capacity/persistence, not an Aqua or GUI-owner failure. RED
 This remains branch-only; no launchctl mutation, loop restart, provider effect, fence change, or revenue claim was
 made.
 
+### Latest non-Paid canary (2026-09-25 JST)
+
+The first safely eligible non-self, non-Paid owner after the read-only eligibility audit was
+`capafy-goal-monitor` (`effect_class=none`, provider route `deterministic`). It was aligned from its old loaded
+release to exact current `d4fe0819931c50caaf41f25e86f1052cd8a0359c` through the existing `lm-loop reconcile` path.
+Its live wake first stopped at typed shared-admission `resource_capacity_busy`/exit 75, then completed on the same
+loaded process as `loaded-idle`, `pass`, exit 0 with exact installed/event SHA, complete diagnostics,
+`effect_status=not_applicable`, `admission_effect_unknown=false`, no provider receipt and no external effect. A
+second targeted reconcile returned `eligible=0` and the exact same event/occurrence, providing the replay-zero proof.
+No Paid owner, Connector session, Mobile/Postiz state, provider effect or effect fence was touched. The broader
+14-loop foundation gate remains open because this proves only one owner; remaining non-Paid owners still require
+separate exact-release readback.
+
 ## E2E Judgment
 
 | Item | Value |
