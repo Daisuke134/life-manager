@@ -5099,3 +5099,13 @@ an effectful owner does **not** invoke scratch GC and propagates the failure fai
 **14 passed + 4 subtests**. The broader focused control-plane/read-only/apply/registry/recovery/scratch/cleanup run
 reported **325 passed + 216 subtests**; the only incomplete collection remains the host-capacity tar-extraction
 fixture described above. This does not change the production gate or authorize Paid/provider actions.
+
+### Admission-capacity readback (2026-09-25 JST)
+
+A read-only query of the authoritative `host-admission/resources/admission-v2.sqlite3` snapshot observed **81 queued
+owners** and **8 active reservations** across agent/deterministic capacity. The reservations included another owner's
+`crowdworks-revenue-paid` (critical Paid occurrence) and a Lancers application occurrence with an effect-unknown fence;
+the remaining reservations were independent support/revenue owners. Historical claimed effect-unknown occurrences
+numbered 695, which is not itself an instruction to clear any fence. Connector's `resource_capacity_busy` is therefore
+an admission result, not a provider send failure. Reservation leases are live state and can expire/rebind between
+reads, so no release, replay, Paid action, or admission mutation was performed.

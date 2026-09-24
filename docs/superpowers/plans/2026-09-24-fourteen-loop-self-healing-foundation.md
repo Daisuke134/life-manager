@@ -1586,3 +1586,12 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   216 subtests**. The full collection remains host-capacity blocked at the tar fixture.
 - [ ] Keep the production cursor closed until capacity recovery, full collection completion, exact immutable loading,
   and the two-pass foundation gate.
+
+### Admission-capacity diagnosis (2026-09-25 JST)
+
+- [x] Read the authoritative admission DB without opening a write transaction: **81 queued owners**, **8 active
+  reservations**, and **695 historical claimed effect-unknown occurrences**.
+- [x] Observe that capacity is occupied by independent revenue/support owners, including another Codex's Paid owner;
+  Connector's `resource_capacity_busy` is not a provider failure and is not safe to release from this scope.
+- [ ] Leave leases/fences untouched; let their owners reconcile or expire under their own policies, then re-read one
+  exact Connector occurrence after capacity eligibility returns.
