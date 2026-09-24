@@ -2806,3 +2806,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   then verify loaded SHA, no blank-tab growth, fresh readbacks, and replay-zero.
 - [ ] Obtain proof for all four historical effect-unknown fences and refresh
   Mercor's official snapshot before final fleet acceptance.
+
+### Paid fulfillment checkpoint — 2026-09-24 13:17 JST (latest PR fully green)
+
+- [x] PR #5820 head `6aec45b411` is main-derived, `CLEAN`, and all required
+  GitHub checks pass (loop-control, Python/shell, security scans, drift, OSS,
+  PII, and agent-instruction contracts).
+- [x] No provider mutation was issued during CI/read-only verification;
+  production remains on `07f76049...` until the external acceptance gate.
+- [ ] Merge/cut/apply one immutable release only after effect fences and the
+  provider-result gate are satisfied.
+- [ ] Keep CrowdWorks `63568785` waiting for admissible lesson/answer content;
+  do not formal-deliver from the instruction-only Drive document.
+- [ ] Resolve fences with exact proof, refresh Mercor official inventory, then
+  verify production SHA/no blank-tab growth and run final fleet acceptance.

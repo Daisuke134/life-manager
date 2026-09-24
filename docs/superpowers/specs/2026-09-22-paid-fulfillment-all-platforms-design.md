@@ -2972,3 +2972,28 @@ not convert a transient pass or a no-op into client completion.
    resolved; retain human-owned Consultant calibration.
 5. After release, verify loaded SHA, CrowdWorks no-blank-growth natural wake,
    fresh readbacks for every Paid owner, and final fleet acceptance.
+
+## Production Cursor — 2026-09-24 13:17 JST (PR checks fully green)
+
+- **Latest source checks are complete.** PR #5820 head `6aec45b411` is
+  main-derived (`behind=0`), `CLEAN`, and all required checks are green:
+  Loop control contracts, Python syntax/unittest, shell syntax, startup drift,
+  OSS boundary, PII, gitleaks, TruffleHog, and agent-instruction contract.
+- **This does not equal production/provider completion.** Production Paid
+  owners still load `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; the branch is
+  not merged or released because historical effect fences and the funded
+  CrowdWorks item still lack the external proof required by the acceptance
+  gate. No provider mutation was issued during this verification.
+
+### Remaining TODO (current cursor)
+
+1. Keep the green PR until the provider-result gate allows main merge; then cut
+   one immutable release and apply only the intended Paid owners.
+2. Preserve Lancers/CrowdWorks/Mercor `effect_unknown` fences until exact
+   provider/run proof exists; never blind-retry or manually edit admission DB.
+3. Keep CrowdWorks `63568785` pending until the buyer supplies admissible lesson
+   content/answers; then perform the full delivery-to-replay-zero chain once.
+4. Refresh Mercor's official contract snapshot after its fence is safely
+   resolved and keep Consultant calibration human-owned.
+5. Verify production loaded SHA, CrowdWorks blank-tab stability, fresh official
+   readbacks for every Paid owner, and final fleet acceptance.
