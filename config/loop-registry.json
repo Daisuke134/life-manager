@@ -1495,6 +1495,7 @@
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
       "priority": "revenue",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lateness-heartbeat": {

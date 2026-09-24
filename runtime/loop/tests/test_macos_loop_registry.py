@@ -834,6 +834,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             row["entrypoint"],
             "skills/earn/lancers/scripts/work-sync-owner",
         )
+        self.assertEqual(row["resource_class"], "deterministic")
 
     def test_lancers_negotiate_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
