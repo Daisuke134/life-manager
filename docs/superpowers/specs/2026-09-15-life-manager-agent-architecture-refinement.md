@@ -4373,6 +4373,15 @@ returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` 
 wallet, payment or provider effect ran and no revenue was inferred. Exact-current terminal/replay-zero acceptance
 remains open until durable admission advances.
 
+### Latest foundation gate re-read (2026-09-25 JST)
+
+The exact current local foundation gate was re-read after the effect-free x402 probes. `lm-loop status all` yielded
+271 managed runtime rows; the catalog projection observed all 14 Product Loops and returned `healthy=0`,
+`setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, and `decision=block`.
+The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
+Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
+
 `x402-inflow-watch-franklin2` was also probed twice under the same FIFO-safe contract. Both targeted reconciles
 returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
 `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an

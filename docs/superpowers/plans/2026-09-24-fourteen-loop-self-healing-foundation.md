@@ -995,6 +995,15 @@ The following is the current control-plane state. It is evidence for the next bo
   invoice, payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance
   remains open until admission advances.
 
+### Latest foundation gate re-read (2026-09-25 JST)
+
+- [x] Re-read the exact current local foundation gate after the x402 effect-free probes. `lm-loop status all` yielded
+  271 managed runtime rows; the catalog projection observed all 14 Product Loops and returned
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block`, with reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`,
+  and `uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
+  Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
