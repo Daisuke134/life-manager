@@ -1,5 +1,37 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 04:27 JST (fresh exact-fence and all-platform readback)
+
+This section supersedes the older cursors below. The old CrowdWorks
+`18d8293a…` and Lancers `18d82935…` Paid rows now read `released/effect_unknown=0`
+in the admission ledger and their pre-effect markers verify safely; they are
+not the remaining blockers. The currently unresolved rows are the five exact
+occurrences below. No provider send or retry was issued during this readback.
+
+| Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
+|---|---|---|---|
+| Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. Apply and Storefront are unloaded. | `hf-gig-apply-direct:18d852199baadb90-95298` and `hf-gig-storefront-direct:18d5fe8333276980-33952` remain `claimed/effect_unknown=1`; neither has an exact provider receipt/readback mapping. | Read the official Coconala history for each exact occurrence, resolve only with a one-to-one effect proof, then run one controlled no-op wake and replay-zero. The four-room gate stays open until this is done. |
+| CrowdWorks (CloudWorks) | Paid is unloaded. Provider snapshot is `observed=5/actionable=1/effect=0/readback=4/pending=1`; four items are already read back, and `63568785` still lacks buyer lesson/answer material. | `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed/effect_unknown=1` with no provider receipt; the older 18d829 row is already cleared and must not be confused with this row. | Obtain provider history/readback bound to 18d62cf. If it proves no dispatch, resolve the fence; otherwise record the exact receipt. Then run a no-op wake. Never resend the four completed items or send 63568785 without its missing material. |
+| Lancers | Paid is unloaded. Latest authenticated source-complete inventory is `observed=0/actionable=0/effect=0`; proposal `5606124` was fail-closed as `unsupported_claim`. Application is loaded-idle but no funded work exists. | `lancers-revenue-paid:18d81967220136f8-89928` is `claimed/effect_unknown=1`, `entrypoint_exit_1`, and has no provider receipt. No funded `ContractReceipt` exists. | Reconcile the exact 18d819 row from official provider history. Refresh inventory; keep Paid closed until a real funded `ContractReceipt` and milestone appear. |
+| Mercor | Official account/earnings readback is available (`$0.00`/empty). Paid is loaded-idle but its work snapshot is pending/stale; no funded work is proven. | `mercor-revenue-paid:18d82d9cd75db960-67523` is `claimed/effect_unknown=1` with no provider receipt/readback. | Obtain exact Mercor work/transaction readback, reconcile the occurrence, refresh the inventory, and only then consider a funded action. |
+| Freelancer.com | No OAuth or current account-bound receipt. The public watcher checked 4 stored projects (`active=0/errors=0`), which is not an account/contract/payment proof. Both candidate private profiles now pass local mode `0700`; BrowserSkill has `browsers=[]`, so no authenticated page/lease exists. No managed owner is registered. | Identity, project/milestone/hourly/IP contracts, payments, payouts, source-complete snapshot, and funded project are all unproven. | Attach an approved connected BrowserSkill private profile or use official OAuth. Read identity + `/projects/0.1/self/` + every project milestone/IP + hourly contracts + payments + payouts, normalize one snapshot, and require `evaluate_registration.ready=true` with a funded project before owner registration. |
+| Upwork | Current authorization is read-only for `inspect`, `read_payments`, `read_payouts` until `2026-09-25T17:30:28Z`; search/propose/message/accept-offer/deliver are denied. `gig-upwork` is mode `0700`, but no Upwork BrowserSkill page/lease is connected; the stored snapshot is historical with zero contracts. Retired labels are not owners. | Fresh account-bound identity/contracts/transactions/withdrawals, write authorization, funded contract/milestone, owner registration, and delivery/payment proof are all absent. | Use the valid read-only receipts through a connected Upwork lease to create a fresh source-complete snapshot. Obtain current mutation authorization, then require `evaluate_registration.ready=true` and a positive funded milestone before registering one Paid owner. |
+
+### Freelancer/Upwork registration gate (non-negotiable order)
+
+1. Account-bound authentication and current action receipts.
+2. Official source-complete inventory (not public watcher data or old JSON).
+3. Positive funded project/contract plus milestone readback.
+4. Register exactly one owner from an immutable **main** release.
+5. Zero-effect canary; then one funded canary with an official provider receipt.
+6. Contract/payment/payout readback, crash recovery, and replay-zero.
+
+Until step 3 is true, the provider is **not registered**, the Paid loop must
+remain closed, and no proposal/message/delivery may be sent. The concrete
+external boundary at this moment is the absent connected BrowserSkill lease;
+changing a profile directory permission or relying on historical JSON cannot
+replace it.
+
 ## Current cursor — 2026-09-25 04:20 JST (explicit Freelancer/Upwork and stale-paid gates)
 
 This is the concrete cross-platform cursor for the current one-by-one run. A
