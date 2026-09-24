@@ -3455,3 +3455,43 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 5. [ ] Complete Coconala system acceptance, then advance Lancers/Mercor; review
    the Lancers `unsupported_claim` policy after the active cursor.
 6. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.
+
+### Runtime checkpoint — 2026-09-24 16:07 JST (immutable boundary recheck)
+
+- [x] Installed CrowdWorks Paid plist is pinned to immutable release
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; the release contains the
+  occurrence-scoped paid reconciler and `paid-owner` invokes it with
+  `--resolve` only after an exact marker. This recheck did not resolve or
+  mutate anything.
+- [x] `./bin/lm-loop-contract` passes (`14/167/97`, no shared job IDs) and
+  the focused reconciler/paid-owner/read-only suite passes (`23 passed`).
+- [x] Exact read-only probe verifies recent occurrence
+  `18d8293a2c2d85b8-72114` via its pre-effect marker (`resolved=false`), while
+  canonical `18d62cf32eb0c678-48194` has no exact marker and remains
+  `claimed/effect_unknown=1`. Do not infer or bulk-clear it.
+- [x] Admission currently has `441` claimed agent and `18` claimed
+  deterministic effect-unknown rows. CrowdWorks Paid status remains
+  `unloaded/entrypoint_exit_143/effect_status=unknown`; `paid-latest.json`
+  remains effect-none with `4/5` readback and buyer-detail pending work.
+- [x] No DB edit, provider call, restart, retry, resend, or client submission
+  occurred.
+
+### Remaining TODO (authoritative ordered cursor, 16:07 JST)
+
+1. [ ] Preserve the verified CrowdWorks Application receipt; never replay the
+   proposal.
+2. [ ] Keep the old CrowdWorks Paid fence closed until exact proof exists;
+   obtain a natural Paid wake through the installed boundary, without a
+   force-retry.
+3. [ ] Reconcile CrowdWorks Reply/Report and close the fleet canary only with
+   official readback and replay-zero.
+4. [ ] Complete Coconala Reply/Storefront acceptance, natural wake,
+   four-room official readback, and replay-zero; retain Ryu manual-only. The
+   current Ryu artifact is verified, but this cursor intentionally sent no
+   new message or formal delivery.
+5. [ ] Advance Lancers then Mercor one owner at a time; review the Lancers
+   `unsupported_claim` policy after the active cursor.
+6. [ ] Build/register and verify Freelancer/Upwork Paid owners, auth,
+   funded-contract policy, provider receipt, idempotency, settlement
+   readback, and replay-zero before enablement; then run final fleet
+   acceptance. A loaded/no-op loop is not completion.

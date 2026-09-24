@@ -3807,3 +3807,49 @@ not convert a transient pass or a no-op into client completion.
 5. Complete Coconala system acceptance, then advance Lancers/Mercor; review
    the Lancers `unsupported_claim` policy after the active cursor.
 6. Register and verify Freelancer/Upwork Paid owners before enablement.
+
+## Runtime Status Refresh — 2026-09-24 16:07 JST (immutable boundary recheck)
+
+- [x] The installed CrowdWorks Paid plist points to immutable release
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; both `paid-owner` and the
+  occurrence-scoped `reconcile_paid_no_effect.py` are present in that release.
+  The reconciler is wired with `--resolve`, but no resolve operation was run
+  in this recheck.
+- [x] `./bin/lm-loop-contract` passes (`catalog_loops=14`,
+  `registry_jobs=167`, `mapped_jobs=97`, `shared_job_ids=[]`). Focused
+  reconciler/paid-owner/read-only tests pass: `23 passed in 0.93s`.
+- [x] Read-only exact-proof probe verifies the recent occurrence
+  `crowdworks-revenue-paid:18d8293a2c2d85b8-72114` from its local
+  `pre_effect` marker and reports `resolved=false` because the probe did not
+  mutate admission. The canonical occurrence
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` has no exact marker and
+  returns `exact_paid_zero_effect_proof_unavailable`; its
+  `claimed/effect_unknown=1` fence remains closed.
+- [x] Current admission readback shows `441` claimed agent and `18` claimed
+  deterministic effect-unknown rows. CrowdWorks Paid status still reports
+  `unloaded`, `entrypoint_exit_143`, and `effect_status=unknown`; this stale
+  latest-event view is not a success receipt and is not permission to retry.
+- [x] `paid-latest.json` is an effect-none snapshot (`observed=5`,
+  `readback=4`, `pending=1`, buyer task detail required for `63568785`), not
+  a full fleet acceptance. No DB edit, provider call, restart, resend, or
+  client submission occurred.
+
+### Next one-by-one cursor (16:07 JST)
+
+1. Preserve the verified CrowdWorks Application receipt and prevent proposal
+   replay.
+2. Keep the canonical CrowdWorks Paid fence closed until exact proof exists;
+   use the already-installed occurrence-scoped boundary for future zero-effect
+   runs and obtain a natural Paid wake without force-retry.
+3. Reconcile CrowdWorks Reply/Report and close the CrowdWorks fleet canary
+   only with official readback and replay-zero.
+4. Complete Coconala system acceptance (Reply/Storefront, natural wake,
+   four-room official readback, replay-zero) while retaining Ryu's permanent
+   manual-only fence; the latest Ryu artifact is verified but no new message
+   or formal delivery was sent in this cursor.
+5. Advance Lancers, then Mercor, one owner at a time with stable admission,
+   item idempotency, provider receipt, settlement/readback, and replay-zero;
+   review Lancers `unsupported_claim` after the active cursor.
+6. Register and verify Freelancer/Upwork Paid owners before enablement, then
+   run final cross-platform acceptance. A loaded/no-op loop is not a client
+   delivery and seven-week monitoring is not a completion gate.
