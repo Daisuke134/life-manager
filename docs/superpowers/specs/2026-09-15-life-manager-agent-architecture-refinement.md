@@ -3905,6 +3905,10 @@ provider. This makes the required recovery action explicit—promote/load the ex
 falling through to an opaque owner escalation. The release-mismatch assertion remains part of the 34/34 focused
 recovery contract.
 
+The bounded canary plus recovery contract was re-run after those changes. The combined canary, intent, apply-plan,
+executor, intent-record and supervisor suites pass **38/38** with zero failures. The additional canary cases are
+test-owned; no production release, launchd owner, provider session, effect fence or revenue state changed.
+
 A second read-only one-owner probe targeted `job-search-daily`, an effect-free Job Hunter owner. Its current
 readback was loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission effect-unknown=false,
 but the current release also predates the branch's explicit queued-release contract. The reconciler returned
