@@ -1333,6 +1333,12 @@
       "entrypoint": "apps/job-search-loop/scripts/run-learning.sh",
       "label": "ai.anicca.job-search-learning",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },

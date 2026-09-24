@@ -286,6 +286,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
 
+    def test_job_search_learning_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["job-search-learning"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_citizen_refill_launchd_uses_managed_runtime_node_without_path(self):
         launcher = ROOT / "bin/citizen-refill-launchd"
         with tempfile.TemporaryDirectory() as directory:
