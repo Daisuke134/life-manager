@@ -633,6 +633,21 @@ The following is the current control-plane state. It is evidence for the next bo
   unknown occurrence (`x402-settlement-recorder:18d606127c37d290-73497`), zero claimed and zero reservations.
   No official wallet/provider receipt is available, so both effect fences remain closed and no replay/clear/money
   movement was performed.
+- Read-only CFO recheck 2026-09-25 JST: `life-manager-cfo-hourly` is loaded-idle on old
+  `135fa822be58bb40c038c8ee6bbdbfecceca80bf` with one claimed message `effect_unknown`
+  (`life-manager-cfo-hourly:18d679cb82869d48-98528`), eight queued, eleven released-known, one queue row and zero
+  reservations. `life-manager-financial-report` is loaded-idle on old `d2dca0d18bc6de03dd80b4fdb847b742620423bd`
+  with one claimed unknown (`life-manager-financial-report:18d601655af3e1c0-86661`), 53 queued, two released-known,
+  one queue row and zero reservations. `life-manager-payout` is loaded-idle on old
+  `5748aaf859173eb2532847c65c0982a30d024f5d` with one released money unknown
+  (`life-manager-payout:18d6026a3dc85558-829`), 54 queued, five released-known, one queue row and zero reservations.
+  All remain fenced at `resource_effect_unknown`; no message, payout or wallet effect was replayed.
+- Read-only Job Hunter recheck 2026-09-25 JST: `job-search-health` is loaded-idle on old
+  `37384185bcc36b7033154a6d321a84288b41b8aa` with one claimed application unknown
+  (`job-search-health:18d5fc3605f58c20-90948`), 69 queued, two released-known, one queue row and zero
+  reservations. `job-search-learning` is loaded-idle on old `f3e518681e8482be734d4e432badc05f33415412` with one
+  claimed unknown (`job-search-learning:18d6ff42778e8868-14131`), two queued, eight released-known, no queue row
+  and zero reservations. Both remain at `resource_effect_unknown`; no application/proposal replay or fence clear.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed

@@ -238,6 +238,23 @@ flowchart LR
   `support`）を明示registryへ固定しました。RED→GREEN registry/fixture 103/103、apply 124/124（既知のsqlite
   `ResourceWarning`のみ）をPASSしました。応募再送・fence解除・official proposal/application readback推測はせず、
   main/release昇格、exact-SHA/replay-zeroは未完です。
+- 2026-09-25 JSTのCFO read-only再確認では、`life-manager-cfo-hourly`はold installed/event SHA
+  `135fa822be58bb40c038c8ee6bbdbfecceca80bf`、loaded-idle、message effect unknownで、claimed unknown
+  `life-manager-cfo-hourly:18d679cb82869d48-98528` 1件、queued 8、released-known 11、queue row 1、reservation
+  0です。`life-manager-financial-report`はold `d2dca0d18bc6de03dd80b4fdb847b742620423bd`、claimed unknown
+  `life-manager-financial-report:18d601655af3e1c0-86661` 1件、queued 53、released-known 2、queue row 1、
+  reservation 0です。`life-manager-payout`はold `5748aaf859173eb2532847c65c0982a30d024f5d`、money effect
+  unknownのreleased occurrence `life-manager-payout:18d6026a3dc85558-829` 1件、queued 54、released-known 5、
+  queue row 1、reservation 0です。3件とも直近は`host_admission_deferred:resource_effect_unknown`/exit 75、
+  diagnostic incompleteです。公式Telegram/payment/wallet receiptが無いので、message再送、payout、fence clearは
+  行いません。accepted releaseとoccurrence単位の公式readbackが次の境界です。
+- 同日のJob Hunter read-only再確認では、`job-search-health`はold installed/event SHA
+  `37384185bcc36b7033154a6d321a84288b41b8aa`、loaded-idle、application effect unknownのclaimed occurrence
+  `job-search-health:18d5fc3605f58c20-90948` 1件、queued 69、released-known 2、queue row 1、reservation 0です。
+  `job-search-learning`はold `f3e518681e8482be734d4e432badc05f33415412`、claimed unknown
+  `job-search-learning:18d6ff42778e8868-14131` 1件、queued 2、released-known 8、queue/reservation 0です。
+  直近は両方とも`host_admission_deferred:resource_effect_unknown`/exit 75でdiagnostic incompleteです。
+  応募送信、proposal ID再照合、fence clearは公式provider receiptが揃うまで行いません。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
