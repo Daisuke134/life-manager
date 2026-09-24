@@ -4450,6 +4450,11 @@ deterministic reconcile. It returned `eligible=1`, `applied=[]`, and `skipped_ru
 because the scheduler moved it to running between the read-only status and reconcile. No restart or external
 application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
 
+This work slice closes with a registry/worktree readback: `lm-loop doctor` returns `ok=true`, zero missing
+entrypoints and zero unmanaged labels; `git diff --check` passes and the dedicated branch is clean at
+`d1ac5d166e`. This proves control-plane consistency only. Main merge, accepted release promotion, external effect
+readback, 14-loop foundation pass and revenue remain open.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable

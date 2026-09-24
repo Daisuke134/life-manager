@@ -1053,6 +1053,10 @@ The following is the current control-plane state. It is evidence for the next bo
   deterministic reconcile returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
   because the scheduler moved it to running between the read-only status and reconcile. No restart or external
   application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
+- [x] Close this work slice with a registry/worktree readback. `lm-loop doctor` returns `ok=true`, zero missing
+  entrypoints and zero unmanaged labels; `git diff --check` passes and the dedicated branch is clean at
+  `d1ac5d166e`. This proves control-plane consistency only. Main merge, accepted release promotion, external
+  effect readback, 14-loop foundation pass and revenue remain open.
 - [x] Re-read the 14-loop foundation gate after the Writer, Capafy and Self-build safe rebinds. It remains
   `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
   `decision=block` for `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and
