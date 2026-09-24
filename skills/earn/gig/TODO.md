@@ -3367,3 +3367,32 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 7. [ ] Record final per-lane receipts and run cross-platform acceptance. A
    loaded/running loop or no-op PASS is not a client delivery; seven-week
    monitoring is not a completion gate.
+
+### Runtime checkpoint — 2026-09-24 15:51 JST (CrowdWorks Application canary)
+
+- [x] Existing CrowdWorks Application occurrence
+  `18d7f193c76df848-59799` submitted project `13473802` once and received
+  official proposal ID `306857893` with `application_verified=true`.
+- [x] Receipt readback is durable in
+  `~/.local/state/anicca/crowdworks/application-receipts.jsonl` with
+  `status=verified`, content hash, idempotency key, and
+  `effect_unknown=0` admission release. Do not replay this project.
+- [ ] This does not close CrowdWorks: Paid remains unloaded/effect-unknown and
+  Reply/Report remain admission-fenced; full canary/replay-zero is open.
+- [x] Lancers safety notification `unsupported_claim` was pre-effect and said
+  no external send occurred. Keep it as a later policy-review item; do not
+  change the current one-by-one order.
+
+### Remaining TODO (updated cursor)
+
+1. [ ] Preserve the CrowdWorks Application receipt and prevent duplicate
+   proposal replay.
+2. [ ] Diagnose CrowdWorks Paid/Reply/Report admission and `exit_143` fences;
+   keep unknown effects closed until exact evidence exists.
+3. [ ] Complete Coconala Reply/Storefront natural-wake, four-room official
+   readback, and replay-zero while retaining Ryu's manual fence.
+4. [ ] Advance Lancers then Mercor one owner at a time; review the Lancers
+   `unsupported_claim` policy after the active cursor.
+5. [ ] Register and verify Freelancer/Upwork Paid owners, authentication,
+   funding policy, provider receipts, idempotency, settlement readback, and
+   replay-zero before enablement.

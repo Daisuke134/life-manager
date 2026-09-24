@@ -3709,3 +3709,34 @@ not convert a transient pass or a no-op into client completion.
 7. Run final cross-platform acceptance and record the per-lane receipts. Stop
    treating loaded/running or a no-op PASS as a client delivery; completion is
    provider-visible effect plus official readback, not seven weeks of silence.
+
+## Runtime Cursor — 2026-09-24 15:51 JST (CrowdWorks Application canary)
+
+- **One CrowdWorks Application wake completed with official readback.** The
+  existing loop occurrence
+  `crowdworks-revenue-application:18d7f193c76df848-59799` selected project
+  `13473802`, submitted once, and returned `application_verified=true` with
+  provider proposal ID `306857893`. The durable receipt is in
+  `~/.local/state/anicca/crowdworks/application-receipts.jsonl` with
+  `status=verified`, a content hash, and an idempotency key; the admission row
+  is `released` with `effect_unknown=0`.
+- This proves a single Application provider-effect/readback boundary, not the
+  whole CrowdWorks fleet: Paid remains unloaded/effect-unknown and Reply/Report
+  remain admission-fenced. The immutable release and replay-zero acceptance
+  for every lane are still open.
+- A separate Lancers notification reported `unsupported_claim` and explicitly
+  said no external send occurred. It is recorded as a later safety-policy
+  review item; it does not reorder the current cursor.
+
+### Next one-by-one cursor (15:51 JST)
+
+1. Preserve the verified CrowdWorks Application receipt and do not replay the
+   same project/proposal.
+2. Keep CrowdWorks Paid/Reply/Report and all historical effect-unknown fences
+   closed; diagnose their admission/`exit_143` boundaries before any retry.
+3. Complete Coconala system acceptance (Reply/Storefront, natural wake,
+   four-room readback, replay-zero) while retaining Ryu's manual fence.
+4. Advance Lancers/Mercor one owner at a time, then perform the deferred
+   Lancers `unsupported_claim` policy review.
+5. Build/register Freelancer and Upwork Paid owners and their official
+   receipt/replay-zero gates before enabling them.
