@@ -3422,3 +3422,30 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 4. [ ] Complete Coconala system acceptance, then advance Lancers/Mercor; review
    the Lancers `unsupported_claim` policy after the active cursor.
 5. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.
+
+### Runtime checkpoint — 2026-09-24 15:56 JST (central cleanup readback)
+
+- [x] The old CrowdWorks per-loop `cleanup-latest.json` is stale
+  (`mtime=2026-09-15`, `evaluated_runs=0`) and is not the fleet cleanup
+  receipt.
+- [x] The latest central `life-manager-disk-cleanup` natural run
+  (`2026-09-24T06:55:10Z`) is `ok=true`: host cleanup `errors=0`, scratch
+  cleanup `evaluated=666`, `preserved=665`, `removed=1`, `errors=0`, and no
+  protected deletion. Cleanup is operating; no manual deletion/restart was
+  performed.
+- [ ] The remaining Paid blocker is specifically admission/SQLite/control-lock
+  and release-ownership contention plus the unresolved effect fence. Cleanup
+  health is not a provider receipt and does not permit a retry or fence edit.
+
+### Remaining TODO (updated cursor)
+
+1. [ ] Preserve the verified CrowdWorks Application receipt and prevent
+   duplicate replay.
+2. [ ] Reproduce and test the Paid admission/SQLite/control-lock/release-
+   ownership boundary in the dedicated branch without mutating production or
+   the unresolved effect row; then obtain a natural Paid wake.
+3. [ ] Reconcile CrowdWorks Reply/Report and close the fleet canary only with
+   official readback and replay-zero.
+4. [ ] Complete Coconala system acceptance, then advance Lancers/Mercor; review
+   the Lancers `unsupported_claim` policy after the active cursor.
+5. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.

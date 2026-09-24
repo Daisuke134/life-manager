@@ -3772,3 +3772,31 @@ not convert a transient pass or a no-op into client completion.
 4. Continue Coconala system acceptance, then Lancers/Mercor; review the
    Lancers `unsupported_claim` policy after the active cursor.
 5. Register and verify Freelancer/Upwork Paid owners before enablement.
+
+## Runtime Status Refresh — 2026-09-24 15:56 JST (central cleanup readback)
+
+- The old per-loop `~/.local/state/anicca/crowdworks/cleanup-latest.json`
+  (`mtime=2026-09-15`, `evaluated_runs=0`) is stale and is not the current
+  fleet-cleanup receipt.
+- The current `life-manager-disk-cleanup` natural-run receipt at
+  `2026-09-24T06:55:10Z` is `ok=true`: host cleanup had `errors=0`, the
+  scratch pass evaluated `666` runs, preserved `665`, removed `1`, and had
+  `errors=0`; no protected deletion occurred. This confirms cleanup is
+  operating and must not be “fixed” by manual deletion or a restart.
+- The remaining Paid blocker is therefore narrowed to admission/SQLite and
+  release-ownership contention (`database is locked`, `control_busy`, and
+  `entrypoint_exit_143`) plus the unresolved effect fence. Cleanup health does
+  not authorize a retry or a fence edit.
+
+### Next one-by-one cursor (15:56 JST)
+
+1. Preserve the verified CrowdWorks Application receipt and prevent duplicate
+   replay.
+2. Reproduce and test the Paid admission/SQLite/control-lock/release-ownership
+   boundary in the dedicated branch without mutating production state or the
+   unresolved effect row; then obtain a natural Paid wake.
+3. Reconcile CrowdWorks Reply/Report and close the fleet canary only with
+   official readback and replay-zero.
+4. Complete Coconala system acceptance, then advance Lancers/Mercor; review
+   the Lancers `unsupported_claim` policy after the active cursor.
+5. Register and verify Freelancer/Upwork Paid owners before enablement.
