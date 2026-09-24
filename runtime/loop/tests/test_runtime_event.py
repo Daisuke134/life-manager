@@ -161,6 +161,52 @@ class RuntimeEventTest(unittest.TestCase):
         )
         self.assertEqual(event["status"], "blocked")
 
+    def test_terminal_event_carries_complete_secret_free_diagnostic_identity(self):
+        event = build_runtime_event(
+            loop_id="connector", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="none",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+            product_loop_id="connector", job_id="connector", owner_id="connector",
+            wake_id="wake-1", claimed_occurrence_id="connector:older",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        self.assertEqual(event["product_loop_id"], "connector")
+        self.assertEqual(event["job_id"], "connector")
+        self.assertEqual(event["owner_id"], "connector")
+        self.assertEqual(event["wake_id"], "wake-1")
+        self.assertEqual(event["occurrence_id"], "connector:older")
+        self.assertEqual(event["exit_code"], 1)
+        self.assertEqual(event["failure_layer"], "entrypoint")
+        self.assertEqual(event["error_class"], "entrypoint_exit_1")
+        self.assertTrue(event["retryable"])
+        self.assertEqual(event["next_action"], "reconcile_owner")
+        self.assertIsNone(event["provider_receipt_id"])
+        self.assertIsNone(event["official_readback_ref"])
+        self.assertNotIn("/Users/", json.dumps(event))
+
+    def test_effect_bearing_failure_requires_readback_before_retry(self):
+        event = build_runtime_event(
+            loop_id="affiliate-loop", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1,
+        )
+        self.assertFalse(event["retryable"])
+        self.assertEqual(event["next_action"], "official_readback_required")
+
+    def test_diagnostic_identity_rejects_malformed_hash_occurrence_and_readback(self):
+        common = dict(
+            loop_id="connector", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="none",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+        )
+        with self.assertRaisesRegex(ValueError, "loaded_argv_sha256"):
+            build_runtime_event(**common, loaded_argv_sha256="not-a-hash")
+        with self.assertRaisesRegex(ValueError, "claimed occurrence"):
+            build_runtime_event(**common, claimed_occurrence_id="other:run-1")
+        with self.assertRaisesRegex(ValueError, "official_readback_ref"):
+            build_runtime_event(**common, official_readback_ref="https://example.com/?query=1")
+
     def test_install_event_is_plan_truth_not_external_effect_truth(self):
         event = build_install_event(
             loop_id="example", domain="earn", release_sha="b" * 40,

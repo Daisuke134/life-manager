@@ -50,6 +50,7 @@ from runtime.host.resource_admission import (
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_EVENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
@@ -85,6 +86,35 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
         command.insert(0, sys.executable)
     command.extend(entry.get("command", []))
     return command
+
+
+def _identity_sha256(value: object) -> str:
+    encoded = json.dumps(value, ensure_ascii=True, sort_keys=True,
+                         separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _product_loop_for_job(release_root: Path, job_id: str) -> str | None:
+    """Return one catalog product identity without guessing from the job name."""
+    try:
+        value = json.loads((release_root / "apps/life-manager/config/product-loop-catalog.json")
+                           .read_text(encoding="utf-8"))
+        loops = value.get("loops")
+        if not isinstance(loops, list):
+            return None
+        matches = [loop.get("id") for loop in loops
+                   if isinstance(loop, dict) and isinstance(loop.get("job_ids"), list)
+                   and job_id in loop["job_ids"]]
+        if len(matches) != 1 or not isinstance(matches[0], str):
+            return None
+        return matches[0] if SAFE_EVENT_ID.fullmatch(matches[0]) else None
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _wake_id(run_id: str) -> str:
+    candidate = os.environ.get("WAKE_ID", "").strip()
+    return candidate if SAFE_EVENT_ID.fullmatch(candidate) else run_id
 
 
 def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str, *,
@@ -503,6 +533,10 @@ def _apply_verified_effect_result(
     updated["evidence_refs"] = list(event.get("evidence_refs", []))
     if result is not None and updated.get("status") == "pass":
         updated["effect_status"] = result[0]
+        receipt_id = result[1].rsplit("/", 1)[-1]
+        if "provider_receipt_id" in updated:
+            updated["provider_receipt_id"] = receipt_id
+            updated["official_readback_ref"] = result[1]
         if result[1] not in updated["evidence_refs"]:
             updated["evidence_refs"].append(result[1])
     return validate_runtime_event(updated)
@@ -948,6 +982,9 @@ def main(argv: list[str] | None = None) -> int:
         with _apply_lock(current, item_lock):
             command = build_loop_command(registry, loop_id, release_root)
             run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+            wake_id = _wake_id(run_id)
+            product_loop_id = _product_loop_for_job(release_root, loop_id)
+            loaded_argv_sha256 = _identity_sha256(command)
             event_path = loop_state_root / "events.jsonl"
             scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
                 loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
@@ -999,6 +1036,20 @@ def main(argv: list[str] | None = None) -> int:
                 evidence_scheme="lm-loop",
                 claimed_occurrence_id=claimed_occurrence_id,
                 effect_identity_ref=effect_identity_ref,
+                product_loop_id=product_loop_id,
+                job_id=loop_id,
+                owner_id=loop_id,
+                wake_id=wake_id,
+                loaded_argv_sha256=loaded_argv_sha256,
+                loaded_env_sha256=_identity_sha256({
+                    "job_id": loop_id,
+                    "owner_id": loop_id,
+                    "run_id": run_id,
+                    "wake_id": wake_id,
+                    "occurrence_id": claimed_occurrence_id or f"{loop_id}:{run_id}",
+                    "release_sha": manifest["sha"],
+                }),
+                exit_code=return_code,
             )
             event = _apply_verified_effect_result(event, effect_result)
             append_runtime_event(event_path, event)

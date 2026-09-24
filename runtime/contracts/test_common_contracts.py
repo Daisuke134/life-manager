@@ -139,9 +139,31 @@ class CommonContractTests(unittest.TestCase):
         self.assertEqual(set(definition["status"]["enum"]), runtime_event.STATUSES)
         self.assertEqual(set(definition["effect_class"]["enum"]), runtime_event.EFFECTS)
         self.assertEqual(set(definition["effect_status"]["enum"]), runtime_event.EFFECT_STATUSES)
+        self.assertEqual(set(definition["failure_layer"]["enum"]), runtime_event.FAILURE_LAYERS)
+        self.assertTrue({
+            "product_loop_id", "job_id", "owner_id", "wake_id", "occurrence_id",
+            "loaded_argv_sha256", "loaded_env_sha256", "exit_code", "failure_layer",
+            "error_class", "retryable", "next_action", "provider_receipt_id",
+            "official_readback_ref",
+        }.issubset(definition))
         event = {"version": 1, "event_id": "a" * 24, "timestamp": "2026-09-07T00:00:00Z", "loop_id": "example", "domain": "earn", "run_id": "run-1", "phase": "report", "status": "pass", "release_sha": "b" * 40, "provider": "deterministic", "profile_alias": None, "effect_class": "none", "effect_status": "not_applicable", "blocker": None, "evidence_refs": ["lm-loop://example/run-1/summary.json"]}
         validate(event)
         runtime_event.validate_runtime_event(event)
+        diagnostic = runtime_event.build_runtime_event(
+            loop_id="example", domain="system", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="none", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1, product_loop_id="connector", job_id="example",
+            owner_id="example", wake_id="wake-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        validate(diagnostic)
+        runtime_event.validate_runtime_event(diagnostic)
+        partial_diagnostic = {**event, "job_id": "example"}
+        with self.assertRaises(AssertionError):
+            validate(partial_diagnostic)
+        with self.assertRaises(ValueError):
+            runtime_event.validate_runtime_event(partial_diagnostic)
         event["evidence_refs"] = ["lm-loop://example/run-1/summary.json?query=1"]
         with self.assertRaises(AssertionError):
             validate(event)

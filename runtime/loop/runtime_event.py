@@ -13,18 +13,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-FIELDS = {
+REQUIRED_FIELDS = {
     "version", "event_id", "timestamp", "loop_id", "domain", "run_id", "phase",
     "status", "release_sha", "provider", "profile_alias", "effect_class",
     "effect_status", "blocker", "evidence_refs",
 }
+DIAGNOSTIC_FIELDS = {
+    "product_loop_id", "job_id", "owner_id", "wake_id", "occurrence_id",
+    "loaded_argv_sha256", "loaded_env_sha256", "exit_code", "failure_layer",
+    "error_class", "retryable", "next_action", "provider_receipt_id",
+    "official_readback_ref",
+}
+FIELDS = REQUIRED_FIELDS | DIAGNOSTIC_FIELDS
 DOMAINS = {"physical", "mental", "financial", "earn", "growth", "system"}
 PHASES = {"plan", "execute", "reconcile", "verify", "report"}
 STATUSES = {"running", "pass", "fail", "blocked"}
 EFFECTS = {"none", "publish", "message", "money", "application", "trade", "account_mutation"}
 EFFECT_STATUSES = {"not_applicable", "unknown", "planned", "started", "verified", "failed", "reconciled"}
+FAILURE_LAYERS = {"clean", "admission", "entrypoint", "effect_readback", "runtime", "unknown"}
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_REF = re.compile(r"[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 SECRET = re.compile(
     r"(?i)(?:bearer\s+[A-Za-z0-9._~+/-]+|(?:token|secret|password|credential|api.?key|auth\.json)\s*[=:]|(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}|/" r"Users/)"
 )
@@ -87,7 +96,7 @@ def rotate_jsonl_locked(
 def validate_runtime_event(event: dict) -> dict:
     if not isinstance(event, dict):
         raise ValueError("event must be an object")
-    missing, unknown = FIELDS - set(event), set(event) - FIELDS
+    missing, unknown = REQUIRED_FIELDS - set(event), set(event) - FIELDS
     if missing:
         raise ValueError(f"missing fields: {sorted(missing)}")
     if unknown:
@@ -120,6 +129,40 @@ def validate_runtime_event(event: dict) -> dict:
         not isinstance(ref, str) or not SAFE_REF.fullmatch(ref) for ref in refs
     ):
         raise ValueError("invalid evidence_refs")
+    diagnostic = set(event) & DIAGNOSTIC_FIELDS
+    if diagnostic and diagnostic != DIAGNOSTIC_FIELDS:
+        raise ValueError(f"missing diagnostic fields: {sorted(DIAGNOSTIC_FIELDS - diagnostic)}")
+    if diagnostic:
+        product_loop_id = event["product_loop_id"]
+        if product_loop_id is not None and (
+                not isinstance(product_loop_id, str) or not SAFE_ID.fullmatch(product_loop_id)):
+            raise ValueError("invalid product_loop_id")
+        for key in ("job_id", "owner_id", "wake_id", "occurrence_id", "next_action"):
+            if not isinstance(event[key], str) or not SAFE_ID.fullmatch(event[key]):
+                raise ValueError(f"invalid {key}")
+        if not event["occurrence_id"].startswith(f'{event["job_id"]}:'):
+            raise ValueError("invalid occurrence_id")
+        for key in ("loaded_argv_sha256", "loaded_env_sha256"):
+            value = event[key]
+            if value is not None and (not isinstance(value, str) or not SHA256.fullmatch(value)):
+                raise ValueError(f"invalid {key}")
+        exit_code = event["exit_code"]
+        if exit_code is not None and (
+                isinstance(exit_code, bool) or not isinstance(exit_code, int)
+                or exit_code < -255 or exit_code > 255):
+            raise ValueError("invalid exit_code")
+        if event["failure_layer"] not in FAILURE_LAYERS:
+            raise ValueError("invalid failure_layer")
+        for key in ("error_class", "provider_receipt_id"):
+            value = event[key]
+            if value is not None and (not isinstance(value, str) or not SAFE_ID.fullmatch(value)):
+                raise ValueError(f"invalid {key}")
+        if type(event["retryable"]) is not bool:
+            raise ValueError("invalid retryable")
+        readback = event["official_readback_ref"]
+        if readback is not None and (
+                not isinstance(readback, str) or not SAFE_REF.fullmatch(readback)):
+            raise ValueError("invalid official_readback_ref")
     return event
 
 
@@ -129,7 +172,20 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         deferred: bool = False,
                         evidence_scheme: str = "agent-runner",
                         claimed_occurrence_id: str | None = None,
-                        effect_identity_ref: str | None = None) -> dict:
+                        effect_identity_ref: str | None = None,
+                        product_loop_id: str | None = None,
+                        job_id: str | None = None,
+                        owner_id: str | None = None,
+                        wake_id: str | None = None,
+                        loaded_argv_sha256: str | None = None,
+                        loaded_env_sha256: str | None = None,
+                        exit_code: int | None = None,
+                        failure_layer: str | None = None,
+                        error_class: str | None = None,
+                        retryable: bool | None = None,
+                        next_action: str | None = None,
+                        provider_receipt_id: str | None = None,
+                        official_readback_ref: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -141,6 +197,24 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                 or not claimed_occurrence_id.startswith(f"{loop_id}:")):
             raise ValueError("invalid claimed occurrence")
         material += f":{claimed_occurrence_id}"
+    effective_job_id = job_id or loop_id
+    effective_owner_id = owner_id or loop_id
+    effective_wake_id = wake_id or run_id
+    effective_occurrence_id = claimed_occurrence_id or f"{effective_job_id}:{run_id}"
+    effective_failure_layer = failure_layer or (
+        "clean" if succeeded else ("admission" if deferred else "entrypoint")
+    )
+    effective_error_class = error_class if error_class is not None else blocker
+    effective_retryable = retryable if retryable is not None else (
+        deferred or (not succeeded and effect_class == "none")
+    )
+    effective_next_action = next_action or (
+        "none" if succeeded else (
+            "retry_after_eligibility" if deferred else (
+                "reconcile_owner" if effect_class == "none" else "official_readback_required"
+            )
+        )
+    )
     event = {
         "version": 1,
         "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
@@ -157,6 +231,20 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "effect_status": "not_applicable" if effect_class == "none" else "unknown",
         "blocker": blocker,
         "evidence_refs": [f"{evidence_scheme}://{loop_id}/{run_id}/summary.json"],
+        "product_loop_id": product_loop_id,
+        "job_id": effective_job_id,
+        "owner_id": effective_owner_id,
+        "wake_id": effective_wake_id,
+        "occurrence_id": effective_occurrence_id,
+        "loaded_argv_sha256": loaded_argv_sha256,
+        "loaded_env_sha256": loaded_env_sha256,
+        "exit_code": 0 if succeeded and exit_code is None else exit_code,
+        "failure_layer": effective_failure_layer,
+        "error_class": effective_error_class,
+        "retryable": effective_retryable,
+        "next_action": effective_next_action,
+        "provider_receipt_id": provider_receipt_id,
+        "official_readback_ref": official_readback_ref,
     }
     if claimed_occurrence_id is not None and claimed_occurrence_id != f"{loop_id}:{run_id}":
         suffix = claimed_occurrence_id[len(loop_id) + 1:]

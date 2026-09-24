@@ -1007,6 +1007,7 @@ def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
 def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)
+    (release / "apps/life-manager/config").mkdir(parents=True)
     (release / "config/loop-registry.json").write_text(json.dumps({
         "loops": {"life-manager-honne-ja": {
             "label": "ai.anicca.life-manager-honne-ja",
@@ -1019,6 +1020,9 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     }), encoding="utf-8")
     (release / "RELEASE.json").write_text(json.dumps({
         "sha": "a" * 40,
+    }), encoding="utf-8")
+    (release / "apps/life-manager/config/product-loop-catalog.json").write_text(json.dumps({
+        "loops": [{"id": "mobile-apps", "job_ids": ["life-manager-honne-ja"]}],
     }), encoding="utf-8")
     events = []
 
@@ -1038,6 +1042,7 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     with (patch.dict(os.environ, {
               "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
               "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
           patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
@@ -1049,6 +1054,20 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     assert events[-1]["status"] == "pass"
     assert events[-1]["effect_status"] == "verified"
     assert events[-1]["evidence_refs"][-1] == "postiz://posts/postiz-post-1"
+    assert events[-1]["product_loop_id"] == "mobile-apps"
+    assert events[-1]["job_id"] == "life-manager-honne-ja"
+    assert events[-1]["owner_id"] == "life-manager-honne-ja"
+    assert events[-1]["wake_id"] == "wake-1"
+    assert events[-1]["occurrence_id"] == "life-manager-honne-ja:run-1"
+    assert events[-1]["exit_code"] == 0
+    assert events[-1]["failure_layer"] == "clean"
+    assert events[-1]["error_class"] is None
+    assert events[-1]["retryable"] is False
+    assert events[-1]["next_action"] == "none"
+    assert events[-1]["provider_receipt_id"] == "postiz-post-1"
+    assert events[-1]["official_readback_ref"] == "postiz://posts/postiz-post-1"
+    assert len(events[-1]["loaded_argv_sha256"]) == 64
+    assert len(events[-1]["loaded_env_sha256"]) == 64
 
 
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):

@@ -66,6 +66,10 @@ revenue or changing production state.
 
 ### Task 2: Complete the shared runtime diagnostic envelope
 
+**Status:** Complete on the implementation branch. Old v1 rows remain valid. New terminal rows carry the
+all-or-nothing diagnostic group, while raw argv/env and credentials never enter the event. Contract/runtime
+tests pass 87/87 and runner-bound tests pass 80/80.
+
 **Files:**
 - Modify: `runtime/loop/runtime_event.py`
 - Modify: `runtime/contracts/common-record.schema.json`
@@ -79,12 +83,12 @@ revenue or changing production state.
 - Required observable identity: `product_loop_id`, `job_id`, `owner_id`, `run_id`, `wake_id`, `occurrence_id`, `release_sha`, phase, exit code, effect class/status, provider receipt/readback ref, evidence refs, failure layer, error class, retryable and next action.
 - Loaded command/environment identity is a secret-free digest plus allowlisted metadata, never raw secrets or private paths.
 
-- [ ] Write failing validation tests for exact identity, secret rejection, malformed occurrence/receipt refs and typed terminal diagnosis.
-- [ ] Write failing runner tests proving claimed occurrence and entrypoint outcome reach the terminal event.
-- [ ] Implement the minimum envelope and builders, keeping install/start/terminal events valid.
-- [ ] Update the common JSON schema from the same closed enums and prove schema/runtime parity.
-- [ ] Run the focused runtime-event, contract and runner-bound tests.
-- [ ] Commit and push the diagnostic envelope.
+- [x] Write failing validation tests for exact identity, secret rejection, malformed occurrence/receipt refs and typed terminal diagnosis.
+- [x] Write failing runner tests proving claimed occurrence and entrypoint outcome reach the terminal event.
+- [x] Implement the minimum envelope and builders, keeping install/start/terminal events valid.
+- [x] Update the common JSON schema from the same closed enums and prove schema/runtime parity.
+- [x] Run the focused runtime-event, contract and runner-bound tests.
+- [x] Commit and push the diagnostic envelope.
 
 ### Task 3: Expose the full diagnosis through the existing `lm-loop` status
 

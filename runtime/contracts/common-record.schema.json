@@ -54,8 +54,42 @@
         "effect_class": {"enum": ["none", "publish", "message", "money", "application", "trade", "account_mutation"]},
         "effect_status": {"enum": ["not_applicable", "unknown", "planned", "started", "verified", "failed", "reconciled"]},
         "blocker": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
-        "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}
-      }
+        "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"},
+        "product_loop_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+        "job_id": {"$ref": "#/$defs/Id"},
+        "owner_id": {"$ref": "#/$defs/Id"},
+        "wake_id": {"$ref": "#/$defs/Id"},
+        "occurrence_id": {"$ref": "#/$defs/Id"},
+        "loaded_argv_sha256": {"oneOf": [{"$ref": "#/$defs/Sha256"}, {"type": "null"}]},
+        "loaded_env_sha256": {"oneOf": [{"$ref": "#/$defs/Sha256"}, {"type": "null"}]},
+        "exit_code": {"type": ["integer", "null"], "minimum": -255, "maximum": 255},
+        "failure_layer": {"enum": ["clean", "admission", "entrypoint", "effect_readback", "runtime", "unknown"]},
+        "error_class": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+        "retryable": {"type": "boolean"},
+        "next_action": {"$ref": "#/$defs/Id"},
+        "provider_receipt_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+        "official_readback_ref": {"oneOf": [
+          {"type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}$"},
+          {"type": "null"}
+        ]}
+      },
+      "allOf": [{
+        "if": {"anyOf": [
+          {"required": ["product_loop_id"]}, {"required": ["job_id"]},
+          {"required": ["owner_id"]}, {"required": ["wake_id"]},
+          {"required": ["occurrence_id"]}, {"required": ["loaded_argv_sha256"]},
+          {"required": ["loaded_env_sha256"]}, {"required": ["exit_code"]},
+          {"required": ["failure_layer"]}, {"required": ["error_class"]},
+          {"required": ["retryable"]}, {"required": ["next_action"]},
+          {"required": ["provider_receipt_id"]}, {"required": ["official_readback_ref"]}
+        ]},
+        "then": {"required": [
+          "product_loop_id", "job_id", "owner_id", "wake_id", "occurrence_id",
+          "loaded_argv_sha256", "loaded_env_sha256", "exit_code", "failure_layer",
+          "error_class", "retryable", "next_action", "provider_receipt_id",
+          "official_readback_ref"
+        ]}
+      }]
     },
     "Effect": {
       "type": "object", "additionalProperties": false,
