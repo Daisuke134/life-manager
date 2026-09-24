@@ -31,8 +31,9 @@ central agent-runner retention code only accepts the guarded
 paths. Job-search writes flat run directories directly under
 `~/.local/state/anicca/job-search/evidence`, so I added the owner-side
 `job_search_loop.evidence_retention` module and
-`scripts/retain-evidence.sh`. The daily driver invokes it before disk
-admission; while the volume has its 512MiB floor it returns in a fast
+`scripts/retain-evidence.sh`. All four evidence writers (daily, inbox,
+learning, and Mercor) invoke it before creating their run directory; while the
+volume has its 512MiB floor it returns in a fast
 `capacity_ok` path, and only under pressure it can reclaim old, explicit
 `no_work`/`observed_no_action` runs. Submitted, submit-unknown, failed,
 blocked, human-gated, active, unmarked, and symlinked runs are preserved.
@@ -44,7 +45,8 @@ the floor is crossed; host cleanup still must not reclaim this tree by hand.
 At `2026-09-25 06:16 JST` the owner path was exercised against the live state
 root: `capacity_ok`, `free_bytes=2323501056`, `scanned_runs=0`, and
 `reclaimed_runs=0`. This confirms the fast path and that no evidence was
-deleted.
+deleted. The shell contract now covers all four writers; the full job-search
+suite is `531 passed`.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with

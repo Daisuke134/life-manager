@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 source "$SCRIPT_DIR/runtime-paths.sh"
 source "$SCRIPT_DIR/private-env.sh"
+"$SCRIPT_DIR/retain-evidence.sh"
 
 RUN_ID="inbox-$(date +%Y%m%d-%H%M%S)-$$"
 EVIDENCE="$JOB_SEARCH_STATE_ROOT/evidence/$RUN_ID"

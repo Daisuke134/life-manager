@@ -64,6 +64,13 @@ class LaunchdTests(unittest.TestCase):
         self.assertNotIn("daily_slot_count", script)
         self.assertNotIn("daily_quota_reached", script)
 
+    def test_every_evidence_writer_calls_owner_retention(self):
+        root = Path(__file__).parents[1]
+        for name in ("run-daily.sh", "run-inbox.sh", "run-learning.sh", "run-mercor.sh"):
+            with self.subTest(name=name):
+                script = (root / "scripts" / name).read_text(encoding="utf-8")
+                self.assertIn('retain-evidence.sh', script)
+
     def test_healthcheck_covers_scheduler_ledger_and_private_state(self):
         root = Path(__file__).parents[1]
         script = (root / "scripts" / "healthcheck.sh").read_text(encoding="utf-8")

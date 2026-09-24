@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
 source "$SCRIPT_DIR/runtime-paths.sh"
+"$SCRIPT_DIR/retain-evidence.sh"
 
 RUN_ID="mercor-$(date +%Y%m%d-%H%M%S)-$$"
 MERCOR_STATE_ROOT="${MERCOR_APPLICATION_STATE_ROOT:-${JOB_SEARCH_STATE_ROOT}/mercor}"
