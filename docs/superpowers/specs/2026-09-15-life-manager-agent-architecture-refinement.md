@@ -104,6 +104,8 @@ flowchart LR
   残るfailはmissing optional packages、既存classification drift、既存comment guard、temp cleanup race、proxy
   fallback環境依存であり、このrecovery readback修正が導入したfailではありません。全suite greenをFoundation完了と
   誤認せず、関連focused suiteとproduction exact readbackを別に扱います。
+- 既存コメントの文字列を実装呼び出しとして拾っていたself-improvement static guardを、動作変更なしで修正しました。
+  `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
