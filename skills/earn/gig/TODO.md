@@ -28,6 +28,12 @@
   verified prefix. Live read-only reconcile with `17b8794d15` produced two
   official `page=22 / 403 Forbidden` artifacts (initial attempt and fresh-lease
   resume); the result stayed unresolved without touching the fence.
+- [x] Re-read the official request detail for `5280157` and expand its complete
+  applicant roster: 9 rows, 0 contracts, and no current authenticated account
+  `2564121`. This is a strong no-dispatch candidate, but the old attempt did not
+  durably record its account ID; the evidence is therefore retained without
+  clearing `effect_unknown`. Artifact:
+  `~/gig/apply-direct/evidence/detail-readback-5280157-latest/no-dispatch-candidate.json`.
 - [ ] Load the current release only after the occurrence fence is resolved;
   cut/install the new source release, then verify natural Apply/Storefront wakes,
   complete official readback, and replay-zero. The targeted apply is currently
@@ -46,13 +52,15 @@
 ### Current remaining TODO (authoritative, 2026-09-24 20:21 JST)
 
 1. Bind the 26-page official absence to a separately verified no-dispatch
-   receipt for `5280157`, or obtain a positive provider receipt. The live
-   read-only retry now resumes at the denied page but Coconala still returns
-   `403 Forbidden` there; the original intent is already marked
+   receipt for `5280157`, or obtain a positive provider receipt. The new official
+   request-detail roster excludes the current account, but the old attempt's
+   account identity is not durably recorded, so this remains a candidate rather
+   than a resolver proof. The live read-only retry still returns `403 Forbidden`
+   at history page 22; the original intent is already marked
    `irreversible_attempt_started`, so absence alone is not a legal
    `resolve_pre_effect_occurrence` proof. Do not loop endlessly, retry the
-   provider, or clear the admission row by hand; wait for a new provider-proof
-   surface or independently verifiable no-dispatch evidence.
+   provider, or clear the admission row by hand; accept only a newly bound
+   provider-proof surface or independently verifiable no-dispatch evidence.
 2. Merge/cut/install the source fix `eb28f8df24` as an immutable release. Only
    after item 1 is proven may Apply, then Storefront, be target-applied; verify
    loaded SHA, natural wakes, official readback, and replay-zero. Do not bypass
@@ -93,6 +101,11 @@
   and merges the verified prefix. Live reconcile recorded `page=22` as
   `403 Forbidden` on both attempts; the admission row remains exactly
   `claimed/effect_unknown=1` and no provider effect was issued.
+- [x] The current authenticated identity readback is `Kosuke｜教育研修PPT×AI活用`
+  / user `2564121`. The expanded official applicant roster for `5280157`
+  contains `Kayamori Daisuke` / user `3406932` as its last row, not user
+  `2564121`; this narrows the unresolved question to historical session identity
+  binding, not a new provider submission.
 
 ### Cross-platform read-only checkpoint — 2026-09-24 20:25 JST
 

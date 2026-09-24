@@ -40,6 +40,13 @@ completion.
   merges the verified prefix. A live read-only reconcile recorded official
   `page=22 / 403 Forbidden` on both the initial and fresh-lease attempts; the
   exact occurrence remains unresolved and the admission fence is unchanged.
+- A fresh official request-detail readback for `5280157` expanded the complete
+  applicant roster to 9 rows with 0 contracts. The authenticated account used
+  for the current readback is user `2564121` (`Kosuke｜教育研修PPT×AI活用`), and
+  that ID is absent from the roster; the last row is user `3406932`
+  (`Kayamori Daisuke`). This narrows the no-dispatch question, but the old
+  attempt did not durably record its account ID, so the evidence remains a
+  candidate and does not release `effect_unknown` by itself.
 
 - The page-history repair and occurrence reconciler from PR `#5820` are merged;
   the current immutable source head includes the follow-up fetch syntax fix in
@@ -67,8 +74,10 @@ completion.
 
 1. Obtain a complete official Coconala readback for the fenced `5280157`
    occurrence and resolve only on exact provider proof or separately verified
-   pre-effect proof. The retry path is now bounded and correct, but repeated
-   provider 403s are an external proof gap, not a reason to resend.
+   no-dispatch proof bound to the historical account. The expanded request
+   roster is useful evidence, but the retry path still encounters provider
+   `403 Forbidden` and the historical session identity is missing; neither is a
+   reason to resend or to clear the fence by inference.
 2. Merge/cut/load the immutable release containing `eb28f8df24`, then verify
    natural Apply/Storefront wakes, official readback, and replay-zero.
 3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
