@@ -3916,6 +3916,29 @@ not convert a transient pass or a no-op into client completion.
   unchanged. Full client/platform acceptance remains the gate before main
   integration, immutable release cutting, and targeted apply.
 
+## Runtime Status Refresh — 2026-09-24 16:32 JST (Reply exact-proof sweep)
+
+- [x] The initial 19 Reply capacity/FIFO occurrences plus the later exact
+  occurrence `crowdworks-revenue-reply:18d7f335ae3f22b8-80918` were each probed,
+  resolved one at a time, and read back as `released/effect_unknown=0`.
+- [x] A fresh read-only sweep of all Reply `claimed/effect_unknown` rows found
+  only that one new exact `pre_effect` candidate; it is now resolved. Current
+  Reply readback is `44` claimed unknown rows, `33` released effect-zero rows,
+  and `196` queued rows. The 44 remaining rows lack exact pre-effect proof and
+  remain fenced; no bulk clear or provider retry was performed.
+- [ ] Paid still has the canonical one claimed unknown occurrence, and Report
+  still has one released unknown occurrence. Both remain closed pending their
+  own exact evidence/official readback.
+
+### Next one-by-one cursor (16:32 JST)
+
+1. Keep all remaining unknown fences closed; investigate only with new
+   occurrence-scoped evidence and never infer zero effect from a process exit.
+2. Promote the pushed SQLite bounded-wait fix only after full client/platform
+   acceptance; then observe a natural CrowdWorks wake.
+3. Reconcile Reply/Report official readback and replay-zero, then complete
+   Coconala/Ryu, Lancers/Mercor, and Freelancer/Upwork acceptance in order.
+
 ## Runtime Status Refresh — 2026-09-24 16:22 JST (Reply fence readback)
 
 - [x] After a fresh owner/lock read-only check, exact pre-effect proof allowed

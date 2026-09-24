@@ -3571,3 +3571,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   isolation fixed them and commit `be7be7c499` is pushed.
 - [ ] Branch remains unmerged and production Paid release remains unchanged;
   full client/platform acceptance is still required before immutable promotion.
+
+### Runtime checkpoint — 2026-09-24 16:32 JST (Reply exact-proof sweep)
+
+- [x] Nineteen initial Reply capacity/FIFO occurrences plus
+  `18d7f335ae3f22b8-80918` were each exact-probed, internally resolved, and
+  read back as `released/effect_unknown=0`.
+- [x] Read-only sweep now reports Reply `44` claimed unknown, `33` released
+  effect-zero, and `196` queued. The 44 remaining claimed unknown rows have no
+  exact pre-effect proof, so they remain fenced; no bulk clear/provider retry.
+- [ ] Paid retains one canonical claimed unknown and Report retains one
+  released unknown; handle only with occurrence-scoped proof and official
+  readback.
+
+### Remaining TODO (authoritative ordered cursor, 16:32 JST)
+
+1. [ ] Keep all unknown fences closed; gather occurrence-scoped evidence rather
+   than inferring zero effect from process exit.
+2. [ ] Promote the pushed SQLite bounded-wait fix only after full
+   client/platform acceptance, then verify a natural CrowdWorks wake.
+3. [ ] Reconcile Reply/Report official readback and replay-zero, then complete
+   Coconala/Ryu, Lancers/Mercor, and Freelancer/Upwork in order.
