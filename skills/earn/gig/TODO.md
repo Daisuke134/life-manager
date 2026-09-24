@@ -2327,3 +2327,21 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   submit a real artifact once with official receipt and replay-zero.
 - [ ] Finish provider-by-provider integration/readback; keep Upwork disabled
   until its authorization, authentication, and funded-contract gates exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:50 JST
+
+- [x] Attempted one official Coconala Paid run after safe cache cleanup; it
+  ended with no provider effect because free space fell below the 512MiB guard.
+- [x] Verified Coconala's official snapshot still reads `4/0/0/3/0`.
+- [x] Recorded active profile pressure: CrowdWorks ~610MiB and Lancers
+  ~1.1GiB; neither profile was deleted.
+- [x] Removed only re-generable Camoufox cache; no customer/browser profile
+  data was touched.
+- [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
+  its canonical owner via `./bin/lm-loop`, and verify receipt → CDP →
+  authenticated readback.
+- [ ] Restore stable headroom above 512MiB using safe cache cleanup only, then
+  rerun Coconala Paid to terminal `pass`.
+- [ ] Keep the marker-less CrowdWorks fence
+  `18d62cf32eb0c678-48194` and Lancers' pre-inventory failure fenced; no retry
+  or submission until official evidence is available.

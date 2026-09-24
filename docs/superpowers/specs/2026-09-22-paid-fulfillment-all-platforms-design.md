@@ -2096,3 +2096,37 @@ clicked again.
    replay-zero.
 6. Finish provider-by-provider integration/readback and keep Upwork disabled
    until authorization, authentication, and a funded contract exist.
+
+## Production Cursor — 2026-09-24 10:50 JST
+
+- **Coconala retry:** after the cache cleanup temporarily raised free space
+  above the guard floor, one official `./bin/lm-loop start hf-gig-paid-direct`
+  was attempted. Admission later fell below the floor again and the run ended
+  without provider effect (`entrypoint_exit_1` / no applicable effect). The
+  official Coconala snapshot remains reconciled at `4/0/0/3/0`.
+- **Capacity cause:** the active CrowdWorks browser profile is about 610MiB
+  and the active Lancers profile about 1.1GiB; both are live profile data and
+  were not deleted. The re-generable Camoufox cache was removed, but free
+  space is again only about 447MiB, below the 512MiB guard floor.
+- **CrowdWorks owner:** CDP `9228` is still served by orphan PID `16937`
+  (PPID 1) with no `browser_port_owner` receipt. The latest Paid snapshot is
+  browser-unavailable and the loop retains an `effect_unknown` fence. No
+  provider retry is permitted.
+- **Lancers:** the latest Paid wake failed before an actionable inventory;
+  no funded contract was found. Its active browser profile remains untouched.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Approval boundary:** approve closing only orphan CrowdWorks PID `16937`
+   and restarting the canonical `crowdworks-revenue-browser` through
+   `./bin/lm-loop`; then verify owner receipt → CDP → authenticated readback.
+2. **Capacity recovery:** after browser ownership is corrected, reclaim only
+   safe re-generable browser/cache data or otherwise restore stable headroom
+   above 512MiB; do not delete live profiles or customer deliverables.
+3. **Coconala runner:** rerun the official Paid owner once stable headroom is
+   present and require terminal `pass` plus snapshot reconciliation.
+4. **CrowdWorks fence:** retain the marker-less
+   `18d62cf32eb0c678-48194` fence until official provider/pre-effect evidence
+   exists; never resubmit while unknown.
+5. Keep Ryu manual-only and all other rooms/contracts waiting; submit only a
+   real artifact once with official receipt and replay-zero.
