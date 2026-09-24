@@ -1264,6 +1264,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   managed Node/Python paths, typed recovery terminal result, and replay-zero. Only then allow the FIFO reconciler to
   advance one non-Paid effect-free owner at a time.
 
+### Fresh read-only gate after candidate verification (2026-09-25 JST)
+
+- [x] Re-read `/Users/anicca/loops/current` without mutation. It still selects immutable `d4fe0819`; status returns
+  **271 rows** with `rc=0` and terminal projection `None=135`, `blocked=72`, `pass=37`, `fail=23`, `running=4`.
+- [x] Re-run the local foundation evaluator against that exact status. It remains `decision=block`, with
+  `13 uncovered_failure`, `1 safely_fenced`, and reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete`, and `uncovered_failure`.
+- [ ] Do not merge or promote the candidate while this gate is blocked. The next safe cursor remains resolving the
+  generic foundation evidence/release alignment after the user-level gate becomes green; Paid/Gig/provider state and
+  external effects remain untouched.
+
 ### Main-derived integration dry run (2026-09-25 JST)
 
 - [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.

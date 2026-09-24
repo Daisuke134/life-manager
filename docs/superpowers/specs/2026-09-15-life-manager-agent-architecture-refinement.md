@@ -4699,3 +4699,15 @@ cut/readback only after the user-level foundation acceptance gate remains green.
 the candidate diff contains only 19 generic control-plane/runtime paths, with no `skills/earn/gig`, Capafy catalog,
 affiliate provider state, loop-registry, or Paid-fulfillment-spec path. The candidate worktree is clean and its diff
 check is clean. Main integration remains intentionally unopened until the user-level foundation gate is green.
+
+### Fresh read-only foundation recheck after candidate verification (2026-09-25 JST)
+
+The current selector still resolves to `/Users/anicca/loops/releases/20260925T031007-d4fe0819`. A fresh
+`lm-loop status all --json` read returned **271 rows** with `rc=0`; the terminal projection was
+`None=135`, `blocked=72`, `pass=37`, `fail=23`, `running=4`, and five installed/event SHA mismatches. The local
+foundation evaluator still returns `decision=block` with reasons
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and `uncovered_failure`; its state
+projection is **13 `uncovered_failure` and 1 `safely_fenced`**. This is read-only evidence: no launchd mutation,
+owner rebind, admission edit, effect-fence resolution, provider action, or revenue claim occurred. The candidate
+branch therefore remains the next code artifact, while main integration and immutable promotion remain closed by the
+foundation gate.
