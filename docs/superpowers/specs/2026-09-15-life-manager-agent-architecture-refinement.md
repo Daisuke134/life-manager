@@ -3169,6 +3169,23 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    80 diagnostic-incomplete jobs and zero unknown-effect jobs. This is locally acceptable for Capafy and does not
    wait for capacity or revenue; Self-build exact-release alignment is the next cursor.
 
+   The Self-build slice is now locally accepted on the same immutable release
+   `05d235b46b7c76f27d2aec71e8f30d93b98b4728`. `life-manager-dev`,
+   `life-manager-recovery-supervisor`, `life-manager-selfbuild` and `self-improve-evolve` all load that exact
+   SHA and emit complete diagnostics. The supervisor exits 0/clean; the other three stop before their
+   entrypoints at the typed retryable `host_admission_deferred:resource_capacity_busy` boundary with
+   `effect_status=not_applicable`. Admission readback has effect-unknown zero and reservations zero for all four;
+   queued counts are 21/0/14/60. Two consecutive supervisor terminals exit 0 while the durable recovery files
+   remain fixed at 27 intents and 66 journal events, so replay is zero and no duplicate repair is emitted.
+
+   The fresh authoritative gate now observes two `safely_fenced` loops (Capafy and Self-build) and twelve
+   `uncovered_failure` loops. Release mismatches fall from 88 to 83; diagnostic-incomplete jobs remain 80 because
+   the newly aligned Self-build rows were already complete; the current projection reports 53 unknown-effect
+   jobs outside these two accepted slices. `lm-loop doctor` remains clean at 168 registry entries, zero missing
+   entrypoints, zero unmanaged labels and zero installed retired labels. This is foundation evidence, not a
+   claim that Self-build ran its business entrypoints or produced revenue. The next cursor is Mobile Apps; no
+   natural schedule, capacity opening or revenue event is required before advancing.
+
    Connector remains independently failed: its latest complete status is `entrypoint_exit_1`, event release
    `5b8e3c3b...`, installed release `208b0a36...`, and the outward message reduces that to
    `circuit_open/wake_boundary_failed`. The diagnosed
@@ -3176,12 +3193,11 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    while managed Cloak Chromium owns IPv6 `[::1]:9222`; the shared guard treats the 404 as alive because curl is
    not configured to fail on HTTP error. The separately leased candidate `e96e8c422d` is pushed but still has no
    PR, is not contained by main, is not released and is not loaded. This workstream does not duplicate or mutate
-   that owner. The executable order is now Self-build exact-release/replay-zero -> Mobile Apps -> Affiliate ->
-   Investment -> Fundraiser -> Writer -> Agent Economy -> CFO -> Job Hunter non-Paid owners -> Gig non-Paid
-   owners -> consume the accepted Connector main commit after its owner publishes it -> authoritative fourteen-
-   loop foundation readback twice.
-   Running owners, Paid ownership, pending admission and effect fences remain preserved; revenue remains outside
-   this gate and no artificial production failure is injected for proof.
+   that owner. With Self-build accepted, the executable order is now Mobile Apps -> Affiliate -> Investment ->
+   Fundraiser -> Writer -> Agent Economy -> CFO -> Job Hunter non-Paid owners -> Gig non-Paid owners -> consume
+   the accepted Connector main commit after its owner publishes it -> authoritative fourteen-loop foundation
+   readback twice. Running owners, Paid ownership, pending admission and effect fences remain preserved; revenue
+   remains outside this gate and no artificial production failure is injected for proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

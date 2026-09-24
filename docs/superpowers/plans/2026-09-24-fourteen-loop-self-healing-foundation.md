@@ -218,7 +218,8 @@ current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, ze
 
 ### Task 9: Pass local foundation acceptance
 
-**Status:** Current cursor. Revenue, conversion, commission and natural-business-event waits are not gates.
+**Status:** Current task. Revenue, conversion, commission and natural-business-event waits are not gates. Capafy
+and Self-build are locally accepted; the next Product Loop cursor is Mobile Apps.
 Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
 `20260924T134241-60c1e93e` is active with `release_paths=ALL` and
 `provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero
@@ -432,7 +433,9 @@ allowed.
 - [x] Integrate the contract through PR #5838 and all repository CI into main `05d235b46b7c76f27d2aec71e8f30d93b98b4728`; activate complete immutable release `20260924T180152-05d235b4`. Reconcile the no-effect Capafy healthcheck and three goal monitors first, then the four effectful owners individually; Paid and Connector remain untouched.
 - [x] Run one immediate bounded wake for every Capafy owner. All eight owners load the exact release and emit complete diagnostics. Healthcheck exits 0/clean; the other seven stop before their entrypoints at typed `resource_capacity_busy` or `resource_fifo_wait`. The four external-effect admission fences remain zero, reservations remain zero and queued counts remain 168/8078/1643/72. No provider effect or receipt occurs, so the existing scheduler owns the next eligible attempt and this foundation cursor advances without waiting for revenue or natural acceptance.
 - [x] Re-read the authoritative gate: 14 loops observed, `safely_fenced=1` (Capafy), `uncovered_failure=13`, release mismatch 88, diagnostic incomplete 80 and unknown-effect jobs 0. Capafy has zero release mismatch and zero incomplete diagnostics.
-- [ ] Align Self-build's three remaining release-drift owners first and re-prove the bounded shared supervisor/replay-zero on the exact release.
+- [x] Align Self-build's three remaining release-drift owners to exact release `05d235b46b7c76f27d2aec71e8f30d93b98b4728`. All four Self-build owners emit complete diagnostics; the supervisor exits 0/clean and the other three return typed retryable capacity deferral before entrypoint, with effect unknown 0 and reservations 0.
+- [x] Re-prove the shared supervisor replay-zero with two exact-release exit-0 terminals: recovery storage stays fixed at 27 intents and 66 journal events, so no duplicate intent or recovery action is emitted.
+- [x] Re-read the authoritative gate after Self-build: 14 loops observed, `safely_fenced=2` (Capafy and Self-build), `uncovered_failure=12`, release mismatch 83, diagnostic incomplete 80 and unknown-effect jobs 53. Doctor remains clean at 168 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
 - [ ] Continue one non-Paid Product Loop at a time in this order: Mobile Apps, Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
 - [ ] Align Gig non-Paid owners without changing the separately leased Paid fulfillment source, state, sessions or runtime controls.
