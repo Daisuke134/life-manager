@@ -60,6 +60,16 @@ readback shows Apply `admission_effect_unknown=false`, unloaded, and awaiting
 its natural-wake/replay-zero gate; Storefront is still unloaded with
 `official_readback_required`; Paid is loaded-idle with a no-effect pass.
 
+The legacy Gig release path was also tightened at `2026-09-25 07:06 JST`.
+`gig_release.py activation_labels()` now rejects explicit activation of
+`ai.anicca.life-manager-upwork-browser` and
+`ai.anicca.life-manager-upwork-free-loop` until account-bound authorization
+and a funded-contract readback exist; the CLI returns a typed exit `2` instead
+of a traceback. The manifest remains source-compatible for later reactivation,
+but a retired Upwork loop cannot be resurrected accidentally. TDD coverage is
+RED/GREEN and the complete Gig suite is `1,476 passed`. No release was
+published or activated on the production host by this change.
+
 The shared capacity investigation now has a concrete owner boundary. The
 central agent-runner retention code only accepts the guarded
 `agent-runner-evidence/<task>/<run>` layout; it correctly refuses arbitrary
