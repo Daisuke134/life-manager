@@ -82,6 +82,11 @@ flowchart LR
   apply 124/124（既存ResourceWarningのみ）はPASSしました。main/release/productionへの昇格と、
   exact-SHAのeffect-free wake、zero unknown、replay-zeroは未完です。x402のmoney/seller/settlement ownerは
   effect fence内のため変更しません。
+- 次のowner `x402-experiment-franklin1`も個別readbackで、loaded-idle、known effect-free FIFO 1,427件、claimed/unknown
+  0件、typed `resource_capacity_busy`を確認しました。durable policyは`deterministic/borrow/support`でしたが
+  registry宣言が無かったため、同じqueued/reserved coalescingと`reconcile_queued_release=true`だけをbranchへ追加しました。
+  RED→GREEN registry/fixture 89/89、apply 124/124をPASSし、experiment entrypoint・trade・payment・revenue effectは
+  実行していません。main/release昇格とproduction exact-SHA replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
