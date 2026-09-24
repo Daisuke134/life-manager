@@ -2820,3 +2820,33 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   do not formal-deliver from the instruction-only Drive document.
 - [ ] Resolve fences with exact proof, refresh Mercor official inventory, then
   verify production SHA/no blank-tab growth and run final fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 13:21 JST
+
+- [x] Latest docs head `51de5134f6d0b5aa5af90d5d25dae48f6bdb55a9` passed the
+  complete required PR run `35955026938`.
+- [ ] Production is still on old SHA `07f76049...`; CrowdWorks PID `7646` is
+  still live, and its CDP profile has `83` targets (`79` blank, one new-tab,
+  three nonblank/provider targets). Do not kill the live process or close
+  active provider pages.
+- [ ] The launch log now exposes a resource blocker: `No space left on
+  device`, `database is locked`, and `control_busy`; the Data volume is at
+  `100%` with about `1.8GiB` available. Resolve this with a scoped,
+  recoverable cleanup and verify state writes before promotion.
+- [ ] Keep CrowdWorks `63568785` buyer-material-gated, preserve all four
+  effect-unknown fences, and do not retry, resend, or edit admission state.
+
+### Remaining TODO (current ordered cursor)
+
+1. Wait for the old CrowdWorks run to terminate naturally; then clean only
+   surplus blank targets and take a readback.
+2. Resolve the scoped disk/resource blocker and verify evidence/control writes.
+3. Keep PR #5820 green, then immutable release/apply and production readback:
+   loaded SHA, no blank growth, official receipts, replay-zero.
+4. Obtain exact provider/run proof for every historical effect-unknown fence;
+   never blind-retry or manually edit the admission DB.
+5. Wait for admissible `63568785` material, then complete delivery → acceptance
+   → settlement → payout → replay-zero once.
+6. Refresh Mercor official inventory, keep Consultant calibration human-owned,
+   preserve Coconala/Ryu manual-only and Upwork disabled, then run the final
+   cross-platform fleet acceptance gate.

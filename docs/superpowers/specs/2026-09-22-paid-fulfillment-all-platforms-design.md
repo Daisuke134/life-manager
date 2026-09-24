@@ -2997,3 +2997,30 @@ not convert a transient pass or a no-op into client completion.
    resolved and keep Consultant calibration human-owned.
 5. Verify production loaded SHA, CrowdWorks blank-tab stability, fresh official
    readbacks for every Paid owner, and final fleet acceptance.
+
+## Production Cursor — 2026-09-24 13:21 JST (CI green; production resource blocker)
+
+- **The latest docs head is green.** PR #5820 head `51de5134f6d0b5aa5af90d5d25dae48f6bdb55a9` is main-derived and its complete required GitHub run `35955026938` finished `success`.
+- **Production is still the old immutable release.** CrowdWorks Paid is still running PID `7646` from `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; it has not naturally exited, so it was not killed or restarted.
+- **The leak is still live on old production.** Read-only CDP inventory at `9228` shows `83` targets: `79` `about:blank`, one `chrome://newtab/`, and three nonblank/provider targets (including the CrowdWorks contract/provider pages). The branch GC fix is not yet a production fix.
+- **A second blocker is now explicit.** The CrowdWorks launch log records repeated `No space left on device`, `database is locked`, and `control_busy` errors. The Data volume is at `100%` capacity with about `1.8GiB` available. No broad deletion or admission-DB edit was performed.
+- **Provider safety remains unchanged.** The latest CrowdWorks receipt is still `observed=5/actionable=1/effect=0/readback=4/pending=1`; `63568785` remains buyer-material-gated. Historical effect-unknown fences remain closed, and no duplicate answer, delivery, settlement, or retry was issued.
+
+### Remaining TODO (current cursor)
+
+1. Let the old CrowdWorks run reach a natural terminal state; then perform only
+   targeted blank-target cleanup and read back the profile. Do not kill the live
+   process or close its active provider pages while it is running.
+2. Resolve the Data-volume/resource blocker with a scoped, recoverable cleanup
+   and confirm the loop can write its evidence/control state; never edit the
+   admission DB to bypass `effect_unknown`, `database_locked`, or `control_busy`.
+3. Keep PR #5820 green, then merge/cut/apply one immutable release and verify
+   loaded SHA, no blank-tab growth, fresh official readbacks, and replay-zero.
+4. Preserve all four historical effect-unknown fences until exact provider/run
+   proof exists; no blind retry or resend.
+5. Keep CrowdWorks `63568785` pending until admissible lesson/answer material
+   arrives, then perform delivery → acceptance → settlement → payout →
+   replay-zero exactly once.
+6. Refresh Mercor's official inventory after its fence is safely resolved,
+   retain the human-owned Consultant calibration, and finish the final fleet
+   acceptance gate. Coconala/Ryu stays manual-only; Upwork stays disabled.
