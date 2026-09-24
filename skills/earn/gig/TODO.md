@@ -2191,6 +2191,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 
 ### Paid fulfillment checkpoint — 2026-09-24 09:40 JST
 
+> **Superseded by the 09:50 ownership correction and the 09:58 recheck below.**
+> The browser/account pass recorded here is historical evidence only; it is not
+> current ownership proof.
+
 - [x] Recovered and verified the CrowdWorks browser owner: CDP `9228` is
   served by the managed profile owner, the latest continuous-owner event is
   `pass`, and the authenticated account probe returns `authenticated` /
@@ -2219,3 +2223,36 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the historical `effect_unknown` fences for CrowdWorks/Lancers
   Paid occurrences until their provider/pre-effect evidence proves a safe
   no-effect release; do not clear them from a local `pass` alone.
+
+### Paid fulfillment checkpoint — 2026-09-24 09:58 JST
+
+- [x] Re-read the current official snapshots: Coconala
+  `4/0/0/3/0` (Ryu reserved/manual; three rooms buyer-waiting), CrowdWorks
+  `5/1/0/4/1` (`63568785` buyer-material-gated), and Lancers `0/0/0/0/0`
+  (no funded contract).
+- [x] Confirmed no provider/customer effect occurred during this recheck.
+- [x] Detected the current Coconala runner state: `hf-gig-paid-direct` has
+  `entrypoint_exit_1` / exit `1`, while the official Coconala snapshot remains
+  no-effect and reconciled. This is an engineering failure, not a client
+  submission.
+- [x] Revalidated that CrowdWorks CDP `9228` is served by orphan PID `16937`
+  with no `browser_port_owner` receipt; the browser-loop `pass` event is not
+  ownership proof.
+- [ ] **Blocker:** after the required stop/restart approval, close only PID
+  `16937`, restart `crowdworks-revenue-browser` through `./bin/lm-loop`, and
+  verify receipt → CDP → authenticated readback. Never run the fallback-
+  launching account probe.
+- [ ] Diagnose/fix `hf-gig-paid-direct` `entrypoint_exit_1`, reconcile the
+  no-effect run, and rerun the official Coconala snapshot to terminal `pass`.
+- [ ] Keep Ryu manual-only; act only on a genuinely newer buyer message.
+- [ ] Keep the other Coconala rooms waiting; on a new artifact submit once with
+  official receipt and replay-zero.
+- [ ] Wait for CrowdWorks `63568785` task material, then submit once with
+  official receipt and replay-zero.
+- [ ] Wait for a funded Lancers `ContractReceipt`; identify/read back the
+  `完了報告` control before any delivery.
+- [ ] Obtain external-platform permissions/URLs and connect one provider at a
+  time with official readback; keep Upwork disabled until its authorization,
+  authentication, and funded-contract gates exist.
+- [ ] Retain all historical `effect_unknown` fences until provider/pre-effect
+  evidence proves a safe no-effect release.

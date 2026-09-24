@@ -1872,6 +1872,10 @@ clicked again.
 
 ## Production Cursor — 2026-09-24 09:40 JST
 
+> **Superseded by the 09:50 ownership correction and the 09:58 recheck below.**
+> The browser/account pass recorded here is historical evidence only; it is not
+> current ownership proof.
+
 - **CrowdWorks browser blocker resolved:** the managed owner on CDP `9228` is
   `loaded-running`; the latest continuous-owner event is `pass` with no
   blocker. The authenticated CrowdWorks account probe also passed
@@ -1902,3 +1906,59 @@ clicked again.
 - **Probe rule:** account readback must never launch a fallback browser when a
   managed owner is absent or ambiguous. Use the managed owner lifecycle for
   recovery and keep provider effects fenced until the owner chain is proven.
+
+## Production Cursor — 2026-09-24 09:58 JST
+
+- **Coconala:** the latest official Paid snapshot remains
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`. Ryu
+  (`18211957`) is still `reserved_for_owner` with `send_performed=false`; the
+  other three rooms are `awaiting_buyer`. No new buyer artifact exists, so no
+  message or formal delivery is allowed.
+- **Coconala runner:** `hf-gig-paid-direct` currently reports
+  `last_exit=1`, `last_terminal_result=fail`, blocker `entrypoint_exit_1`, and
+  `effect_status=not_applicable`. This is a loop-runner failure, not a provider
+  delivery; the Coconala snapshot and reconciliation show no external effect.
+  It remains an engineering TODO before treating the runner as healthy.
+- **CrowdWorks:** the Paid snapshot remains
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; work `63568785`
+  is still `buyer_task_detail_required`, so no submission is permitted. The
+  browser loop is emitting `pass`, but CDP `9228` is still served by orphan
+  Chromium PID `16937` and there is no `browser_port_owner` receipt for that
+  port. Therefore browser ownership is **not verified**; no account fallback
+  probe or Paid effect may run.
+- **Lancers:** the latest Paid snapshot remains
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`; no funded
+  `ContractReceipt` exists, so no delivery is permitted.
+- **No-effect boundary:** no customer/provider effect was observed in these
+  rechecks. Historical `effect_unknown` fences for CrowdWorks/Lancers remain
+  intact and are not cleared by local `pass` events.
+
+### Remaining TODO (current ordered cursor)
+
+1. **CrowdWorks browser ownership (current blocker):** obtain the required
+   stop/restart approval, close only orphan PID `16937`, restart
+   `crowdworks-revenue-browser` through `./bin/lm-loop`, and verify the
+   managed receipt → CDP `/json/version` → authenticated readback chain.
+   Never use the fallback-launching account probe.
+2. **Coconala runner health:** diagnose and fix the latest
+   `hf-gig-paid-direct` `entrypoint_exit_1` without replaying a provider effect;
+   reconcile the no-effect run, then rerun the official snapshot and require
+   terminal `pass`.
+3. **Ryu:** keep the permanent manual-only fence. On a genuinely newer buyer
+   message, reread the full room, fix/read back the requested change, and send
+   exactly one ordinary reply. Do not resend the existing replies or click
+   formal delivery.
+4. **Other Coconala rooms:** keep the Paid loop waiting. When a new buyer
+   artifact appears, quality-check it, submit once, capture the official
+   receipt, and verify replay-zero.
+5. **CrowdWorks `63568785`:** wait for the permitted task material; then do the
+   work, submit once, capture the official receipt, and verify replay-zero.
+6. **Lancers:** wait for a funded `ContractReceipt`; identify and read back the
+   exact `完了報告` control before any delivery.
+7. **Cross-platform integration:** obtain provider URLs, permissions,
+   filing/review state, and connector requirements, then connect one provider
+   at a time with official readback. Keep Upwork disabled until explicit
+   authorization, fresh authentication, and a funded contract exist.
+8. **Effect fences:** retain all historical `effect_unknown` occurrences until
+   provider/pre-effect evidence proves a safe no-effect release; never clear a
+   fence from a local loop `pass` alone.
