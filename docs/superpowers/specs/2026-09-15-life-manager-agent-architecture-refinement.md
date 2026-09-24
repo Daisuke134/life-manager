@@ -5191,3 +5191,12 @@ when launchd supplies neither the env key nor a PATH-visible Node, with a regres
 loaded into production, and no Paid fulfillment, Connector source/session, browser session, provider effect or fence was
 changed. Production still requires capacity recovery, full-suite verification, accepted immutable loading and a
 reconciler owner readback before any release-retention deletion can be considered.
+
+### Cleanup candidate open-owner readback (2026-09-25 JST)
+
+The five allow-listed cache candidates are all genuinely open, so the cleanup owner's preservation is correct:
+Codex Service holds `~/Library/Caches/Codex`, ChatGPT holds a runtime archive under `~/.cache/codex-runtimes`, two
+Chromium Helper processes hold the daily-driver cache, Google Chrome Helper holds the Google cache, and a Node process
+holds an `@napi-rs/canvas` module under `~/.npm/_npx`. No process was stopped and no cache was deleted. Capacity
+recovery therefore requires those owners to close/release their files or an explicitly owned cleanup window; guessing
+that these are stale would violate the no-replay/no-data-loss boundary.

@@ -1637,3 +1637,5 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After capacity recovery and candidate immutable loading, re-read the reconciler itself first. It must produce an
   occurrence-complete terminal result and reconcile only loaded-idle owners in bounded batches; no release directory may
   be deleted until its launchd references are proven absent. Paid owners remain outside this cursor.
+- [x] Read the five cleanup candidates' open owners with `lsof`: Codex Service, ChatGPT runtime, Chromium Helpers,
+  Google Chrome Helper and Node each hold a candidate path. Preserve them; no process or cache was mutated.
