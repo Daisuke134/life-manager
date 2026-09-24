@@ -2593,6 +2593,143 @@ permissions, spend caps or external-effect ownership. No Codex or other external
 path after acceptance; isolated development agents may propose candidates, but Life Manager's own control
 plane must diagnose, evaluate, release, read back and roll back them.
 
+#### The operating order is a control loop, not fourteen manual repairs
+
+Observability is the input to self-healing and economic evaluation is the input to self-improvement. They are
+not independent projects and are not completed by making every process return exit zero. A healer without an
+economic evaluator can keep a money-losing loop perfectly healthy; an evaluator without a healer can identify
+the bottleneck but cannot restore or promote anything. The required order is:
+
+```mermaid
+flowchart LR
+  O[Structured observability and official receipts] --> E[Internal eval and LM-EAB]
+  E --> H[Bounded self-heal]
+  H --> I[Revenue self-improvement]
+  I --> C[Cloud and tenant isolation]
+  C --> B[Public benchmark product]
+  B --> I
+```
+
+1. Finish the shared truth layer: every owner emits the same run, release, phase, effect, readback, receipt,
+   error, retry and next-action contract; CFO joins economic sources without converting missing into zero.
+2. Prove one low-risk non-Paid vertical can detect a fault, narrow the boundary, create an isolated candidate,
+   pass regression/held-out/safety/cost gates, promote an immutable release, read it back and roll back.
+3. Reuse that control plane across all fourteen Product Loops. A loop contributes a thin provider adapter,
+   fixtures and authoritative readback; it does not receive a bespoke supervisor, evaluator or release system.
+4. Run commercial self-improvement first on Affiliate, then Mobile Apps/Capafy and Self-Funding/x402. These
+   have bounded downside and direct measurable funnels. Investment remains paper/shadow until a repeatable
+   after-fee edge exists.
+5. Promote the already-proven local contract to isolated cloud workers. A phone or web conversation becomes
+   the optional control surface, not the runtime host and not a recurring goal-entry form.
+6. Publish LM-EAB as a benchmark product only after internal runs are reproducible across cloud workers. The
+   internal benchmark exists from step 1 because the agent needs it to decide whether any change is better.
+
+This ordering replaces the old instinct to repair rows 1–14 serially by hand. Real loop failures are fixtures
+for the common harness; the goal is that the second occurrence is diagnosed and recovered by Life Manager,
+not by Codex. Paid fulfillment remains owned by the separate `paid-fulfillment-all-platforms-20260922`
+workstream and is consumed read-only through its official receipts.
+
+#### Affiliate is the first revenue-improvement vertical, but is not currently fixed
+
+The read-only production status shows why Affiliate is not making verified money even though it contains many
+content and acquisition artifacts:
+
+- `affiliate-browser`, `affiliate-impact-browser` and `affiliate-x-browser` are continuous owners whose latest
+  terminal is `entrypoint_exit_1`. Their owner log identifies `owned_browser_cdp_unhealthy`; attempted owned
+  process-group cleanup also failed. This is a browser-owner health failure, not a content-volume problem.
+- `affiliate-loop` is held behind `resource_effect_unknown`, so blindly publishing again could duplicate an
+  external effect. `affiliate-composition` and `affiliate-source-refresh` are separately capacity-deferred.
+- The catalog has an implemented placement funnel adapter, but the approved/paid commission adapter and cash
+  cost adapter are still missing. Therefore CFO cannot prove settled Affiliate profit even if a provider UI
+  contains a commission.
+
+Affiliate acceptance is not “generated more posts.” It is one attributable chain:
+`owned impression -> owned click -> provider conversion -> approved commission -> settled commission`, with
+actual content/model/browser costs and replay-zero. Its first self-improvement candidate chooses the earliest
+material broken transition and changes one variable. It never fabricates product use, reviews or personal
+experience. The [Affitor skill collection](https://github.com/Affitor/affiliate-skills) is installed only as
+an internal method library. Its useful closed flywheel—research, content, SEO, offer, distribution, analytics,
+automation and meta-improvement—must feed Life Manager's official funnel and cannot substitute its example
+benchmarks or generated claims for provider receipts.
+
+The useful patterns in the supplied X articles are hypotheses, not revenue evidence. Early coverage of a new
+service, recurring commissions, evergreen comparison pages, consumables and multi-channel distribution are
+worth testing. The stated earnings in the [Rakuyoko article](https://x.com/manerun_/status/2099519793598697634),
+[overseas recurring affiliate article](https://x.com/manerun_/status/2080984462935171108),
+[Rakuten article](https://x.com/manerun_/status/2082375593786781843) and
+[low-ticket-to-backend article](https://x.com/totalscore0307/status/2092177218097365351) are author-reported and
+not official provider readbacks. High-ticket consulting and authentic personal-use anecdotes also require
+recurring human delivery or real experience, so those parts are outside the no-human path.
+
+#### Investment is an experiment portfolio, not a money printer
+
+A read-only official Alpaca reconstruction observes one completed live round trip, USD 66.75 owner cash flow,
+USD 66.710349 ending NAV, USD -0.01 realized PnL, USD -0.03 unrealized PnL, USD 0.01 fees and USD -0.05 net PnL
+at the 2026-09-24 JST readback. Net return is -0.0694%, statistical support is false and capital expansion is
+forbidden with reason `net_negative_and_statistically_unsupported`. The scheduled owner is also stale and
+held at `resource_effect_unknown`; this readback does not repair or restart it. Deposits are capital, not
+revenue, and unrealized gains never enter MRR.
+
+The asset universe may expand beyond Alpaca, but every adapter follows the same ladder:
+
+```text
+read-only scout -> historical/replay eval -> paper -> real-account shadow
+  -> smallest bounded live canary -> official settlement -> repeatability gate -> capped scale or rollback
+```
+
+- Alpaca already supplies stocks and 24/7 crypto with API receipts, but its official documentation confirms
+  crypto trading fees; high-frequency turnover must beat spread, fees, slippage, model and cloud cost.
+- Hyperliquid supports client order IDs, signed actions and a dead-man cancel endpoint. “Permissionless” does
+  not mean credentialless: the signing key or master account authority is a credential and funded capital is
+  at risk. The supplied `hyperliquid-trading-agent` repository is unaudited and exposes no repository license,
+  so it is research input, not code to copy or a production dependency.
+- Memecoin snipers and token/copy-trading posts supply discovery and risk-test ideas, not an edge. Extraordinary
+  one-run returns, wallet screenshots or creator claims are never promotion evidence. Contract risk, liquidity,
+  manipulation, adversarial tokens and legal/reputation risk make this the last live tier, not the first.
+
+The [meme-pool scanner](https://x.com/0xcristal/status/2099112805278323097) contributes a useful read-only
+scout decomposition—new pools, whale movement and contract checks—but no verified profit. The
+[twelve-bot portfolio sketch](https://x.com/zostaff/status/2094053188362027203) usefully separates scouts,
+analysts, an allocator, adversarial checks and exit management, and recommends no-execution discovery before
+paper and smallest-size live tests. The [three-bot experiment](https://x.com/0xtenzo/status/2099516042267480076)
+reports only one run per strategy; its extraordinary returns and token-launch component cannot establish a
+repeatable or acceptable production edge.
+
+The [Jev/System One documentation](https://docs.typesafe.ai/concepts/system-one) supports fast typed semantic
+judgments and probabilities. `jev-1.13.0` is currently documented at USD 0.042 per million input tokens with
+free output tokens, but it is not a trading strategy and typed output does not guarantee truth. The valid role
+is a pinned, calibrated ranking/router over already-normalized market state. Deterministic code retains price
+math, position limits, drawdown, duplicate fences, signing isolation and `API failure -> HOLD`. A slow model may
+propose a prompt/feature change; only held-out replay, paper/shadow evidence, a bounded canary and automatic
+rollback may promote it. The self-rewriting Solana example remains author-reported, uses a human approval and
+wallet-signing gate, and therefore is not a no-human-loop proof. Its useful idea is the two-speed separation:
+a cheap fast decision model plus a slower nightly critic, with the human approval replaced only by automated
+held-out/paper/canary/rollback evidence—not by removing the gate. Source:
+[self-rewriting Jev trading agent](https://x.com/alexsssaint/status/2102420062023946602).
+
+#### Opportunity discovery is read-only until the benchmark promotes a candidate
+
+Life Manager continuously reads X, GitHub, official documentation and provider surfaces for new business,
+distribution, harness and model ideas. Each discovery becomes a typed hypothesis containing source URL and
+time, license, claimed versus verified evidence, expected unit economics, credential/autonomy class, maximum
+loss, policy/security risk, required tools and the cheapest falsifying test. Discovery never directly deploys
+code, grants a key, publishes content or spends money.
+
+The supplied projects sharpen different layers:
+
+| Source | Reuse | Do not copy as authority |
+|---|---|---|
+| [OpenMausBot](https://github.com/milind-soni/OpenMausBot) | Per-agent isolated computer, canonical event stream, chat-style control surface, write-only secret flags | Its local-first and approval-heavy runtime is not the cloud/no-human target and does not replace Life Manager's control plane |
+| [Affitor skills](https://github.com/Affitor/affiliate-skills) | Closed Affiliate research-to-analytics flywheel and reusable internal methods | Example metrics, generated claims and a skill inventory are not conversions or settled commissions |
+| [Hyperliquid agent](https://github.com/sanketagarwal/hyperliquid-trading-agent) | Research reference for exposure, stop, reserve and daily-loss gates | No-license unaudited trading code, stored private keys or repository popularity as profit evidence |
+| TypeSafe/Jev | Cheap typed judgments, probability features and uncertainty routing | Direct order authority, fixed global confidence thresholds or model confidence as permission to risk capital |
+
+The ideal interface tends toward “no interface,” but invisible management never means unexplained transfers,
+unconsented enrollment or bypassing law. Today a beneficiary still needs an authorized payout destination and,
+for many providers, KYC/tax consent. The product removes recurring goal entry and babysitting; it does not label
+a private key, broker account or bank rail as credentialless. A future proactive universal-income outcome is a
+mission hypothesis until sustainable verified net revenue and lawful distribution are demonstrated.
+
 #### The benchmark is also a product
 
 The private benchmark uses production traces, official receipts and previous failures to improve Life Manager.
@@ -2644,6 +2781,11 @@ browser contract. Until the extension is connected and an isolated development p
 start/navigate/observe/stop smoke test, browser execution remains unverified. It must never attach to a Paid
 provider session or silently borrow a production profile.
 
+The MIT-licensed TypeSafe skill and substantive Affitor skills are installed for internal development. The
+Affitor placeholder template is removed from the active skill directory. Neither package is a runtime
+dependency or production authority. TypeSafe/Jev must be validated on Life Manager's held-out cases and
+Affitor methods must be evaluated against official Affiliate receipts before either affects promotion.
+
 #### Fundraising and YC provide runway, not self-funding evidence
 
 [YC's official application page](https://www.ycombinator.com/apply) currently accepts Winter 2027 applications,
@@ -2654,26 +2796,36 @@ Fundraising proceeds extend runway and may accelerate the cloud/benchmark produc
 customer revenue or proof that Life Manager pays for itself. The strongest fundraising story is verified net
 USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest path to USD 10 million MRR.
 
-#### Remaining economic-autonomy TODO
+#### Remaining economic-autonomy TODO in execution order
 
 1. **Done on the implementation branch:** freeze the `LM-EAB` case/run/score schema, autonomy labels,
-   settled-net-profit calculation and anti-gaming tripwires; seed it with secret-free receipt/failure fixtures
-   before adding a semantic judge.
-2. **Current cursor:** join every revenue loop's official funnel and full cost receipts to CFO without counting activity,
-   fundraising or unrealized value as MRR.
-3. Accept one Mobile or Capafy subscription funnel, one Affiliate funnel, one marketplace funnel and one x402
-   product funnel through baseline -> candidate -> live settlement -> rollback/replay-zero.
-4. Add the bounded portfolio allocator and prove it releases losing/inconclusive experiments while preserving
-   their evidence and continuing independent revenue work.
-5. Reach portfolio-wide verified net USD 10,000 MRR in the current monthly measurement window, then package
-   the receipts, cost curve and benchmark result for the YC W27 application and any Praxis discussion without
-   fabricating traction.
-6. Prove cost coverage and reserve health, promote the same contracts to tenant-isolated cloud workers, and
-   remove the Mac/Codex/external-AI babysitting path from accepted operation.
-7. Publish the benchmark schema and sealed leaderboard service only after internal runs are reproducible and
-   real-world receipts can be privacy-preservingly audited.
-8. Expand the agent-native track and grow verified net MRR toward USD 10 million; extend to physical and mental
-   health only with independent domain safety/outcome benchmarks.
+   settled-net-profit calculation and anti-gaming tripwires; seed it with secret-free receipt/failure fixtures.
+2. **Current cursor:** complete CFO source join Tasks 4–6. Task 3 is complete at `ca36819fc2`: CFO exposes
+   redacted coverage for every catalog loop/source without adding routine Telegram noise. Connect the existing
+   read-only receipt producers and make every missing revenue/cost source explicit; never operate Paid state.
+3. Prove the common bounded self-heal lifecycle on one non-Paid low-risk owner, including injected failure,
+   diagnosis, isolated candidate, immutable promotion, official readback, replay-zero and rollback. Turn the
+   real Affiliate browser-owner failure into a regression case only after source ownership is isolated.
+4. Close the Affiliate funnel and run the first economic self-improvement episode: restore the owned browser
+   boundary, reconcile the publish effect, join approved/paid commission and cash costs, then test one honest
+   acquisition hypothesis against settled contribution.
+5. Accept one Mobile or Capafy subscription funnel and one Self-Funding/x402 product funnel through baseline,
+   candidate, live settlement and rollback/replay-zero. Reuse the same content/product/distribution/eval tools.
+6. Add the bounded portfolio allocator. It releases losing or inconclusive experiments, preserves their
+   evidence, continues independent revenue work and never lets a high-variance investment displace a proven
+   positive-contribution business without risk-adjusted evidence.
+7. Add Alpaca/public-stock, crypto and Hyperliquid research adapters behind the common investment contract.
+   Keep new markets read-only/paper/shadow until repeated after-fee performance, drawdown and security gates
+   pass; the current Alpaca result explicitly forbids capital expansion.
+8. Apply the proven shared self-heal/eval contract to all fourteen loops through thin adapters, not bespoke
+   supervisors. Consume marketplace/Paid receipts read-only from the separate owner.
+9. Prove cost coverage and reserve health locally, then promote the same immutable contracts to tenant-isolated
+   cloud workers and remove Mac/Codex/external-AI babysitting from accepted operation. The user needs only an
+   optional phone/web control surface after one-shot consent and payout setup.
+10. Reach portfolio-wide verified net USD 10,000 MRR, then package receipts, cost curve and reproducible LM-EAB
+    evidence for YC/Praxis without fabricating traction. Publish the benchmark/leaderboard service after cloud
+    reproducibility, expand the `agent_native` track and grow toward USD 10 million MRR before extending to
+    physical and mental health with separate safety/outcome benchmarks.
 
 #### LM-EAB v1 eval audit and implementation cursor
 
@@ -2711,7 +2863,7 @@ The v1 boundary is one currency per episode. Its current fixtures use USDC; a mi
 and receipt-backed cross-currency conversion is future work. This proves deterministic contract behavior only:
 there is still no real portfolio/CFO join, production MRR readback, proof that Life Manager covers its own
 operating costs, or cloud promotion. Current cursor is §J4.2 item 2, the official funnel-and-cost receipt join
-to CFO. Items 3–8 remain open.
+to CFO. Items 3–10 remain open.
 
 A fresh read-only review initially found four fail-closed gaps; commit `e4504dfded` closes all four with
 regressions: an `external_effect` now requires `effect=verified` plus `readback=present`, simulation can never
@@ -2741,8 +2893,15 @@ source observation, receipt subset and overlapping evidence. Estimated amounts a
 are rejected instead of becoming settled financial records. Evidence validation is shared with LM-EAB and
 rejects secret-like references, URL userinfo, file URIs and local-private paths. Source-contract plus LM-EAB
 tests pass 46/46 twice with byte-identical benchmark output; combined Product Loop/source tests pass 44/44;
-the structural loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 3: expose an
-explicit source-coverage state for every catalog loop through CFO without changing Paid fulfillment runtime.
+the structural loop contract remains 14 loops / 167 jobs / zero errors.
+
+Task 3 is complete at `ca36819fc2`. `buildEconomicSourceCoverage` exposes every catalog loop and each declared
+funnel/financial/cost status; missing remains `not_configured` and not-applicable remains explicit. Receipt and
+evidence references do not leak into coverage. CFO ingestion returns the coverage and the report carries it
+privately, while routine digest and Telegram rendering remain unchanged. Focused CFO/source tests pass 21/21,
+the combined relevant suite passes 60/60, LM-EAB remains 41/41 and the structural loop contract remains 14
+loops / 167 jobs / zero errors. Current cursor is Task 4: connect existing read-only receipt producers one by
+one, starting with Self-Funding/Agent Economy, then Affiliate, without changing Paid fulfillment runtime.
 
 ### K. User Communication Contract
 

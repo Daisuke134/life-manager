@@ -6,14 +6,17 @@
 
 **Scope boundary:** Do not modify or operate Coconala/CrowdWorks/Lancers/Upwork Paid fulfillment code, state, owners, sessions, effects or `config/loop-registry.json` Paid rows. Marketplace integration consumes only official receipts produced by that owner after they exist.
 
-**Current status:** Tasks 1 and 2 are complete on branch commits `13ab24a9a4` and `660c8072cd`.
+**Current status:** Tasks 1–3 are complete on branch commits `13ab24a9a4`, `660c8072cd` and
+`ca36819fc2`.
 The catalog loader covers all fourteen loops and fails closed on malformed economic roles, source declarations
 and fundraising classification. The shared immutable source/funnel join contract preserves unavailable,
 empty, unverified and verified states; rejects estimates, unsupported amount fields, secret-like refs and
-local-private paths; and requires matching loop/subject/source IDs plus receipt/evidence overlap. Focused
-source plus LM-EAB tests pass 46/46; Product Loop tests pass 39/39; runtime catalog tests pass 19/19;
-`lm-loop-contract` reports 14 loops, 167 jobs and zero errors. Current cursor: Task 3, exposing all-loop
-economic source coverage through CFO.
+local-private paths; and requires matching loop/subject/source IDs plus receipt/evidence overlap. CFO now
+exposes every catalog loop and every declared funnel/financial/cost source as private redacted coverage while
+leaving the routine digest and Telegram rendering unchanged. Focused CFO/source tests pass 21/21; the combined
+relevant suite passes 60/60; LM-EAB remains 41/41; `lm-loop-contract` reports 14 loops, 167 jobs and zero
+errors. Current cursor: Task 4, connecting existing read-only receipt producers without operating Paid
+fulfillment.
 
 ## Task 1 — Freeze the fourteen-loop economic source inventory
 
@@ -34,6 +37,8 @@ Status: complete.
 - Never turn a missing count into zero or an estimated amount into a settled `FinancialRecord`.
 
 ## Task 3 — Expose economic source coverage through CFO
+
+Status: complete.
 
 - Extend `ingestFinancialRecords` to return per-loop source coverage alongside the existing source summary.
 - Extend CFO report data with private, redacted coverage; do not add routine Telegram noise.
