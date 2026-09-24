@@ -22,3 +22,5 @@ def test_capafy_goal_monitor_declares_rebindable_host_admission_contract():
     assert entry["resource_class"] == "deterministic"
     assert entry["admission_class"] == "borrow"
     assert entry["priority"] == "support"
+    assert entry["coalesce_queued_wakes"] is True
+    assert entry["coalesce_reserved_wakes"] is True
