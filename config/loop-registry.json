@@ -2193,6 +2193,25 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/release-reconciler"
     },
+    "life-manager-recovery-supervisor": {
+      "adapter": "exec",
+      "cadence": {
+        "start_interval_seconds": 60
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "runtime/loop/recovery-supervisor-cli.mjs",
+      "label": "ai.anicca.life-manager-recovery-supervisor",
+      "log_root": "~/.local/state/life-manager/recovery/logs",
+      "provider_route": "deterministic",
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/recovery"
+    },
     "life-manager-selfbuild": {
       "adapter": "exec",
       "cadence": {
