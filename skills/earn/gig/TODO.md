@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 04:45 JST (specific all-platform transport/readback state)
+## Current cursor — 2026-09-25 04:52 JST (specific all-platform transport/readback state)
 
 This section supersedes the older cursors below. The old CrowdWorks
 `18d8293a…` and Lancers `18d82935…` Paid rows now read `released/effect_unknown=0`
@@ -8,8 +8,8 @@ in the admission ledger and their pre-effect markers verify safely; they are
 not the remaining blockers. Five **effect-critical** occurrences are listed
 below. A fresh read of
 `/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`
-shows `effect_unknown=1` on 665 occurrences overall; exactly 5 belong to the
-critical Paid/Apply/Storefront owners below. The other 660 are non-critical or
+shows `effect_unknown=1` on 667 occurrences overall; exactly 5 belong to the
+critical Paid/Apply/Storefront owners below. The other 662 are non-critical or
 unrelated-owner rows and are a separate audit; they are not silently cleared here.
 No provider send or retry was issued during this readback.
 
@@ -39,11 +39,11 @@ replace it.
 
 ### Fresh admission readback and exact Freelancer/Upwork cursor
 
-The admission count is not a claim that 665 client actions are all waiting for
+The admission count is not a claim that 667 client actions are all waiting for
 manual replay. It is a host-safety count. The five rows in the table are the
 only current effect-critical rows for this revenue run; each is still
 `claimed/effect_unknown=1` and has no admissible exact provider receipt. The
-remaining 660 rows must be audited by owner and occurrence before any cleanup;
+remaining 662 rows must be audited by owner and occurrence before any cleanup;
 no direct SQLite mutation or blanket resolver is allowed.
 
 `lm-loop status all` is not the source of truth for those exact fences: its
