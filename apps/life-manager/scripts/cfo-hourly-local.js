@@ -14,6 +14,12 @@ const { renderFinancialManagerTelegram } = require("../lib/financial-manager-rep
 const { notifyViaLocalOutbox } = require("../lib/financial-transition-local.js");
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const HOST_OCCURRENCE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+
+function runtimeOccurrenceId(environ = process.env) {
+  const value = String(environ?.LIFE_MANAGER_OCCURRENCE_ID || "").trim();
+  return HOST_OCCURRENCE_ID_PATTERN.test(value) ? value : null;
+}
 
 function reportingDate(now) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -83,16 +89,26 @@ async function runHourlyCfo(options = {}) {
   const ingest = options.ingest || ingestFinancialRecords;
   const snapshotFile = path.join(stateDir, "last-delivered-snapshot.json");
   const notify = options.notify || ((input) => notifyViaLocalOutbox(input, options));
+  const occurrenceId = runtimeOccurrenceId({
+    LIFE_MANAGER_OCCURRENCE_ID: options.occurrenceId ?? process.env.LIFE_MANAGER_OCCURRENCE_ID,
+  });
   const pending = readSnapshot(snapshotFile);
   if (pending?.status === "pending" && pending.reportingDate === date && pending.report) {
-    const delivery = await notify({ eventKey: `cfo:${subjectId}:${date}`,
-      observedAt: now.toISOString(), message: renderFinancialManagerTelegram(pending.report) });
+    const pendingOccurrenceId = runtimeOccurrenceId({
+      LIFE_MANAGER_OCCURRENCE_ID: pending.occurrence_id,
+    }) || occurrenceId;
+    const delivery = await notify({
+      eventKey: `cfo:${subjectId}:${date}`,
+      observedAt: now.toISOString(), message: renderFinancialManagerTelegram(pending.report),
+      ...(pendingOccurrenceId ? { occurrence_id: pendingOccurrenceId } : {}),
+    });
     if (delivery?.delivery !== "delivered" || !String(delivery.provider_message_id || "").trim()) {
       return { status: "failed", reason: "telegram_delivery_uncertain", reportingDate: date,
         recordCount: pending.report.verifiedRecordCount || 0, delivered: false };
     }
     writeSnapshot(snapshotFile, { ...pending, status: "delivered",
       delivery: { delivery: "delivered", provider_message_id: String(delivery.provider_message_id) },
+      ...(pendingOccurrenceId ? { occurrence_id: pendingOccurrenceId } : {}),
       deliveredAt: now.toISOString() });
     const duplicate = Number(delivery.attempted) === 0;
     return { status: duplicate ? "quiet" : "sent", reason: duplicate ? "unchanged" : null,
@@ -117,23 +133,31 @@ async function runHourlyCfo(options = {}) {
         return previousDate === date && previous.status !== "pending" ? previous : null;
       },
       claim: async ({ digest, report, observedAt }) => {
-        writeSnapshot(snapshotFile, { schemaVersion: 1, status: "pending", reportingDate: date,
-          digest, report, createdAt: observedAt });
+        writeSnapshot(snapshotFile, {
+          schemaVersion: 1, status: "pending", reportingDate: date,
+          digest, report, createdAt: observedAt,
+          ...(occurrenceId ? { occurrence_id: occurrenceId } : {}),
+        });
         return { claimed: true };
       },
       markDelivered: ({ digest, report, delivery, observedAt }) => writeSnapshot(snapshotFile, {
         schemaVersion: 1, status: "delivered", digest, report,
         reportingDate: date,
         delivery: { delivery: "delivered", provider_message_id: delivery.providerMessageId },
+        ...(delivery.occurrence_id ? { occurrence_id: delivery.occurrence_id } : {}),
         deliveredAt: observedAt,
       }),
     },
     eventKey: () => `cfo:${subjectId}:${date}`,
     notify: async (input) => {
-      const delivery = await notify(input);
+      const delivery = await notify({
+        ...input,
+        ...(occurrenceId ? { occurrence_id: occurrenceId } : {}),
+      });
       return {
         delivered: delivery && delivery.delivery === "delivered",
         providerMessageId: delivery && delivery.provider_message_id,
+        ...(occurrenceId ? { occurrence_id: occurrenceId } : {}),
       };
     },
   });
@@ -153,6 +177,7 @@ async function main(env = process.env) {
       database: env.CFO_TELEGRAM_OUTBOX || path.join(stateDir, "telegram-outbox.sqlite3"),
       chatId: env.TELEGRAM_ALERT_CHAT_ID || env.LM_CFO_TELEGRAM_CHAT_ID || env.LM_ADMIN_TELEGRAM_CHAT_ID,
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),
+      occurrenceId: runtimeOccurrenceId(env),
       agentReceiptPaths: agentReceiptPathsFromEnv(env),
       marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
     });
@@ -169,4 +194,4 @@ async function main(env = process.env) {
 
 if (require.main === module) main().then((code) => { process.exitCode = code; });
 
-module.exports = { agentReceiptPathsFromEnv, main, runHourlyCfo };
+module.exports = { agentReceiptPathsFromEnv, main, runHourlyCfo, runtimeOccurrenceId };

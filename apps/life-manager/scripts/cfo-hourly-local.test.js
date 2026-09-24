@@ -8,7 +8,11 @@ const test = require("node:test");
 
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { agentReceiptPathsFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
+const {
+  agentReceiptPathsFromEnv,
+  runHourlyCfo,
+  runtimeOccurrenceId,
+} = require("./cfo-hourly-local.js");
 
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";
@@ -41,6 +45,7 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
   const options = {
     stateDir, subjectId: "dais-local", store,
     ingest: async () => ({ observed: 0, created: 0, sources: {} }),
+    occurrenceId: "life-manager-cfo-hourly:run-1",
     now: () => new Date("2026-09-07T06:00:00.000Z"),
     notify: async (input) => {
       deliveries.push(input);
@@ -52,6 +57,12 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
   assert.equal(first.status, "sent");
   assert.equal(first.recordCount, 1);
   assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].occurrence_id, "life-manager-cfo-hourly:run-1");
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(stateDir, "last-delivered-snapshot.json"), "utf8"))
+      .occurrence_id,
+    "life-manager-cfo-hourly:run-1",
+  );
   assert.match(deliveries[0].message, /事業（今日）\n収益：¥12,500/);
   assert.match(deliveries[0].message, /事業（直近7日）\n収益：¥12,500/);
   assert.match(deliveries[0].message, /事業（2026-09）\n収益：¥12,500/);
@@ -68,6 +79,51 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
   }));
   assert.equal((await runHourlyCfo(options)).status, "quiet");
   assert.equal(deliveries.length, 1);
+});
+
+test("CFO preserves the pending snapshot occurrence across a retry", async (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-occurrence-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(stateDir, "financial-records") });
+  await store.append(revenue());
+  const deliveries = [];
+  let attempt = 0;
+  const base = {
+    stateDir, subjectId: "dais-local", store,
+    ingest: async () => ({ observed: 0, created: 0, sources: {} }),
+    notify: async (input) => {
+      deliveries.push(input);
+      attempt += 1;
+      return attempt === 1
+        ? { delivery: "pending", provider_message_id: null, attempted: 0 }
+        : { delivery: "delivered", provider_message_id: "recovered", attempted: 1 };
+    },
+  };
+  assert.equal((await runHourlyCfo({
+    ...base,
+    occurrenceId: "life-manager-cfo-hourly:first",
+    now: () => new Date("2026-09-07T06:00:00Z"),
+  })).status, "failed");
+  assert.equal((await runHourlyCfo({
+    ...base,
+    occurrenceId: "life-manager-cfo-hourly:second",
+    now: () => new Date("2026-09-07T10:00:00Z"),
+  })).status, "sent");
+  assert.deepEqual(deliveries.map((input) => input.occurrence_id), [
+    "life-manager-cfo-hourly:first",
+    "life-manager-cfo-hourly:first",
+  ]);
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(stateDir, "last-delivered-snapshot.json"), "utf8"))
+      .occurrence_id,
+    "life-manager-cfo-hourly:first",
+  );
+});
+
+test("CFO occurrence identity is validated and fails closed", () => {
+  assert.equal(runtimeOccurrenceId({ LIFE_MANAGER_OCCURRENCE_ID: "cfo:run-1" }), "cfo:run-1");
+  assert.equal(runtimeOccurrenceId({ LIFE_MANAGER_OCCURRENCE_ID: "bad value" }), null);
+  assert.equal(runtimeOccurrenceId({ LIFE_MANAGER_OCCURRENCE_ID: "" }), null);
 });
 
 test("CFO sends at most one consolidated snapshot per local reporting day", async (t) => {
