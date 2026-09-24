@@ -5,10 +5,12 @@
 - [ ] **Coconala Apply/Storefront are not complete.** Both owners are loaded but
   deferred by a durable `resource_effect_unknown` fence; no external effect is
   inferred from the latest no-op/blocked wakes.
-- [ ] Build the occurrence-scoped Coconala reconciler and page-20 resumable
-  readback path. It must require complete official history or exact pre-effect
-  proof; never clear the admission DB directly and never infer no-effect from
-  exit status.
+- [x] Add the branch-only page-20 resumable readback path. A denied resumed
+  cursor records zero progress and keeps the fence closed; it cannot infer
+  absence or release an intent.
+- [ ] Build the occurrence-scoped Coconala reconciler. It must require complete
+  official history or exact pre-effect proof; never clear the admission DB
+  directly and never infer no-effect from exit status.
 - [ ] Promote the pushed SQLite bounded-wait fix through the immutable release
   gate, then verify a natural wake and replay-zero. The installed Apply and
   Storefront releases are still older SHAs.

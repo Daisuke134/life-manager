@@ -198,12 +198,23 @@ def test_applied_history_accepts_www_start_page_one():
 
 def test_partial_full_history_access_denied_is_recoverable_only_after_a_page():
     denied = {"access_denied": True}
+    page_two = "https://www.coconala.com/mypage/job_matching/applied/offers?page=2"
+    page_one = "https://www.coconala.com/mypage/job_matching/applied/offers"
 
     assert application_parent._history_readback_can_truncate(
         denied, pages_walked=5, allow_truncated=True
     ) is True
+    # A bounded reconcile wake may resume exactly on a page denied by the provider.
+    # The verified prefix lives in the persisted scan state, so zero new pages is
+    # resumable only when the cursor is demonstrably past page one.
+    assert application_parent._history_readback_can_truncate(
+        denied, pages_walked=0, allow_truncated=True, start_url=page_two
+    ) is True
     assert application_parent._history_readback_can_truncate(
         denied, pages_walked=0, allow_truncated=True
+    ) is False
+    assert application_parent._history_readback_can_truncate(
+        denied, pages_walked=0, allow_truncated=True, start_url=page_one
     ) is False
     assert application_parent._history_readback_can_truncate(
         denied, pages_walked=5, allow_truncated=False
@@ -243,3 +254,29 @@ def test_full_history_scan_state_accumulates_across_wakes():
         "https://coconala.com/mypage/job_matching/applied/offers",
         "https://coconala.com/mypage/job_matching/applied/outsource_applications",
     ]
+
+
+def test_full_history_scan_state_preserves_denied_resume_cursor_without_progress():
+    state = {
+        "version": 1, "targets_sha256": "a" * 64,
+        "next_url": "https://www.coconala.com/mypage/job_matching/applied/offers?page=20",
+        "observed_ids": ["111"], "pages_walked": 19, "cards_seen": 360, "chunks": [],
+        "urls": ["https://www.coconala.com/mypage/job_matching/applied/offers"],
+    }
+    targets = {"111": "cas-1", "222": "cas-2"}
+
+    resumed = application_parent._advance_full_history_scan_state(state, {
+        "source": "code_owned_cdp_readback", "observed": True, "not_found": False,
+        "request_ids": [], "pages_walked": 0, "cards_seen": 0,
+        "next_url": "https://www.coconala.com/mypage/job_matching/applied/offers?page=20",
+        "urls": [
+            "https://www.coconala.com/mypage/job_matching/applied/offers?page=20",
+        ],
+        "truncated": True, "access_denied": True,
+        "resumable_access_denied": True,
+    }, targets)
+
+    assert resumed["next_url"].endswith("page=20")
+    assert resumed["observed_ids"] == ["111"]
+    assert resumed["pages_walked"] == 19
+    assert resumed["cards_seen"] == 360

@@ -4056,3 +4056,28 @@ not convert a transient pass or a no-op into client completion.
    after the active Coconala cursor.
 5. Register/verify Freelancer and Upwork Paid owners, then run final
    cross-platform acceptance. A loaded/no-op loop is not completion.
+
+## Runtime Status Refresh — 2026-09-24 16:58 JST (resumable 403 cursor fix)
+
+- [x] Source fix adds a fail-closed resume path for a provider-denied cursor:
+  when a persisted prefix resumes at `page>1` and that page is still 403, the
+  wake records zero new pages and retains the same cursor instead of raising on
+  every wake. It never retires an intent or declares an ID absent.
+- [x] Regression coverage passes for the route helper and scan-state cursor
+  (`13` focused tests, `29` related readback/snapshot tests, Python compile, and
+  `lm-loop-contract`). The full Gig suite reached `1398 passed, 1 failed`; the
+  lone failure is the pre-existing unrelated `reply-semantic-agent` fixture
+  (`acct1` live config vs `acct2` test expectation).
+- [ ] This is branch-only. The installed Apply/Storefront releases and the
+  missing `GIG_RUN_FULL_HISTORY_RECONCILE` setting remain unchanged, so this
+  fix has not altered production behavior. The occurrence-scoped reconciler is
+  still required before the old unknown fence can be released.
+
+### Next one-by-one cursor (16:58 JST)
+
+1. Add and test the occurrence-scoped Coconala reconciler; require complete
+   official history or exact pre-effect proof before any admission release.
+2. Run the normal immutable release gate and promote only after all acceptance
+   checks; then observe natural Apply/Storefront wakes and replay-zero.
+3. Finish Coconala four-room readback and remaining Ryu scope (manual-only),
+   then proceed to Lancers/Mercor and finally Freelancer/Upwork.

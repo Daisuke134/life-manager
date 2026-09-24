@@ -825,14 +825,26 @@ def _valid_applied_history_start_url(value: object) -> bool:
 
 def _history_readback_can_truncate(
     page: object, *, pages_walked: int, allow_truncated: bool,
+    start_url: str | None = None,
 ) -> bool:
-    """Preserve a verified prefix when the provider denies a later page."""
-    return (
+    """Preserve a verified prefix when the provider denies a later page.
+
+    A reconcile wake can resume on the exact page that was denied by the prior
+    wake.  In that case ``pages_walked`` is zero for this invocation, but the
+    persisted cursor proves that the page is after page one.  The caller still
+    receives no absence conclusion; it only retains the same cursor.
+    """
+    if not (
         isinstance(page, dict)
         and page.get("access_denied") is True
-        and pages_walked > 0
         and allow_truncated
-    )
+    ):
+        return False
+    if pages_walked > 0:
+        return True
+    if not _valid_applied_history_start_url(start_url):
+        return False
+    return _page_index(str(start_url)) > 1
 
 
 class CdpParentEffects:
@@ -2042,6 +2054,8 @@ class CdpParentEffects:
             cards_seen = 0
             has_next_page = False
             truncated = False
+            access_denied = False
+            resumable_access_denied = False
             next_url: str | None = None
             while True:
                 try:
@@ -2124,7 +2138,10 @@ class CdpParentEffects:
                         },
                     )
                     if _history_readback_can_truncate(
-                        page, pages_walked=pages_walked, allow_truncated=allow_truncated
+                        page,
+                        pages_walked=pages_walked,
+                        allow_truncated=allow_truncated,
+                        start_url=initial_url,
                     ):
                         # Keep the verified prefix and resume from the denied page on the
                         # next bounded wake. Absence remains inconclusive until the page
@@ -2132,6 +2149,8 @@ class CdpParentEffects:
                         next_url = str(page.get("url") or "")
                         has_next_page = True
                         truncated = True
+                        access_denied = True
+                        resumable_access_denied = pages_walked == 0
                         break
                     if page.get("access_denied") is True:
                         raise ParentContractError("official_readback_access_denied")
@@ -2193,7 +2212,17 @@ class CdpParentEffects:
                     if "timeout" not in str(error):
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
-        assert first_page is not None
+        if first_page is None:
+            # A resumed cursor can be denied before this wake reads a new page.  The
+            # persisted state owns the verified prefix; this chunk records only the
+            # unchanged cursor and must never be used as an absence proof.
+            if not (truncated and access_denied and resumable_access_denied and next_url):
+                raise ParentContractError("official_readback_page_missing")
+            first_page = {
+                "url": next_url,
+                "title": page.get("title"),
+                "body": page.get("body") or "",
+            }
         if (truncated and single_expected and not single_expected.issubset(observed)
                 and not allow_truncated):
             # An exhausted page budget with a next link remaining proves NOTHING about
@@ -2256,6 +2285,9 @@ class CdpParentEffects:
             "cards_seen": cards_seen,
             "has_next_page": has_next_page,
             "next_url": next_url if truncated else None,
+            "truncated": truncated,
+            "access_denied": access_denied,
+            "resumable_access_denied": resumable_access_denied,
             "missing_count": len(expected_ids - observed),
             "unresolved_count": 0,
             "body_sample": first_page.get("body") or "",
@@ -4661,14 +4693,29 @@ def run_parent(
                     start_url=str(scan_state["next_url"]), allow_truncated=True,
                 )
                 chunk = _read_json_object(chunk_path, "full_history_chunk")
-                chunks = [*scan_state["chunks"], {
+                chunk_ref = {
                     "path": str(chunk_path.resolve()),
                     "sha256": _sha256_bytes(chunk_path.read_bytes()),
-                }]
+                }
+                # A provider denial at the persisted cursor makes no progress. Keep the
+                # latest diagnostic separately instead of appending an unbounded duplicate
+                # chunk on every wake while preserving the cursor and all verified chunks.
+                no_progress_denial = (
+                    chunk.get("resumable_access_denied") is True
+                    and int(chunk.get("pages_walked") or 0) == 0
+                    and str(chunk.get("next_url") or "") == str(scan_state.get("next_url") or "")
+                )
+                chunks = list(scan_state["chunks"])
+                if not no_progress_denial:
+                    chunks.append(chunk_ref)
                 scan_state = _advance_full_history_scan_state(
                     scan_state, chunk, uncertain_intents,
                 )
                 scan_state["chunks"] = chunks
+                if no_progress_denial:
+                    scan_state["last_cursor_denial"] = chunk_ref
+                else:
+                    scan_state.pop("last_cursor_denial", None)
                 if scan_state["next_url"]:
                     _atomic_json(scan_state_path, scan_state)
                 else:
@@ -5173,17 +5220,25 @@ def reconcile_durable_intents_from_full_history(
 def _advance_full_history_scan_state(
     state: dict[str, object], chunk: dict[str, object], targets: dict[str, str],
 ) -> dict[str, object]:
+    pages_walked = chunk.get("pages_walked")
+    resumable_access_denied = chunk.get("resumable_access_denied") is True
     if (chunk.get("source") != "code_owned_cdp_readback"
             or chunk.get("observed") is not True
             or chunk.get("not_found") is not False
             or not isinstance(chunk.get("request_ids"), list)
             or not isinstance(chunk.get("urls"), list)
-            or not isinstance(chunk.get("pages_walked"), int)
-            or chunk["pages_walked"] < 1
+            or not isinstance(pages_walked, int)
+            or pages_walked < 0
+            or pages_walked == 0 and not (
+                resumable_access_denied
+                and chunk.get("truncated") is True
+                and chunk.get("access_denied") is True
+            )
             or not isinstance(chunk.get("cards_seen"), int)
             or chunk["cards_seen"] < 0
             or chunk.get("next_url") is not None
-            and not isinstance(chunk.get("next_url"), str)):
+            and not isinstance(chunk.get("next_url"), str)
+            or pages_walked == 0 and not chunk.get("next_url")):
         raise ParentContractError("full_history_chunk_invalid")
     observed = set(state["observed_ids"]) | {
         str(value) for value in chunk["request_ids"] if str(value) in targets
@@ -5202,7 +5257,7 @@ def _advance_full_history_scan_state(
     return {
         **state, "next_url": chunk.get("next_url"),
         "observed_ids": sorted(observed),
-        "pages_walked": int(state["pages_walked"]) + chunk["pages_walked"],
+        "pages_walked": int(state["pages_walked"]) + pages_walked,
         "cards_seen": int(state["cards_seen"]) + chunk["cards_seen"],
         "urls": sorted(urls),
     }
