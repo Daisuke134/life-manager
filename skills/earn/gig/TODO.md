@@ -2459,3 +2459,25 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   restart/recovery; do not kill the owned Chromium or unrelated clients.
 - [ ] Keep `0ab75d4b0e` branch-only until main-derived immutable release gates
   pass, and retain the one unproven Lancers fence.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:27 JST
+
+- [x] Re-read all registered Paid loop states: Coconala is terminal `pass`
+  (`4/0/0/3/0`), CrowdWorks is currently admission-deferred by
+  `resource_capacity_busy`, and Lancers still fails at `provider_inventory`.
+- [x] Reconfirmed healthy canonical browser receipts: CrowdWorks CDP 9228 and
+  Lancers CDP 9227 respond; neither browser owner was stopped or restarted.
+- [x] Re-ran the supported no-effect reconciler for the exact remaining
+  CrowdWorks fence `18d62cf32eb0c678-48194` and Lancers fence
+  `18d81967220136f8-89928`; both returned
+  `exact_paid_zero_effect_proof_unavailable`, so neither was released.
+- [ ] Keep CrowdWorks `18d62cf32eb0c678-48194` fenced; do not resend or edit
+  admission state. Wait for buyer material for `63568785`, then complete once
+  with provider receipt/replay-zero.
+- [ ] Obtain the required approval before targeted Lancers browser recovery;
+  preserve the residual fence and diagnose the typed `provider_inventory`
+  boundary without killing arbitrary browser/Playwright processes.
+- [ ] Promote `0ab75d4b0e` only through a main-derived immutable release after
+  all-platform acceptance; never hot-load the branch.
+- [ ] Keep Coconala Ryu manual-only and Upwork disabled until its authorization,
+  authenticated readback, and funded-contract gates exist.

@@ -2378,3 +2378,47 @@ not convert a transient pass or a no-op into client completion.
    manual-only and the other three rooms remain no-op until a new artifact.
 5. **Upwork:** onboard only after authorization, authenticated readback, and
    a funded contract exist.
+
+## Production Cursor — 2026-09-24 11:27 JST
+
+- **Coconala:** `hf-gig-paid-direct` is terminal `pass` on installed/event
+  release `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; the official snapshot is
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`. Ryu remains
+  reserved-for-owner/manual-only and no formal delivery is pending. The other
+  three rooms remain buyer-waiting/no-op.
+- **CrowdWorks:** the current Paid process is admission-deferred by
+  `resource_capacity_busy`; its canonical browser owner is healthy on CDP
+  9228. The latest official snapshot remains
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`: four work IDs are
+  delivered/read back and `63568785` is waiting for buyer material. The
+  historical occurrence `18d62cf32eb0c678-48194` remains
+  `claimed/effect_unknown=1`; the supported reconciler again returned
+  `exact_paid_zero_effect_proof_unavailable`, so it was not released.
+- **Lancers:** the browser owner is healthy on CDP 9227, but Paid still fails at
+  `provider_inventory` with no observed/effect/readback and no funded contract.
+  The residual occurrence `18d81967220136f8-89928` remains
+  `claimed/effect_unknown=1`; the supported reconciler again returned
+  `exact_paid_zero_effect_proof_unavailable`, so no retry or submission is
+  allowed. The typed browser-connect observability fix remains branch-only in
+  `0ab75d4b0e`.
+- **Upwork:** no loop is registered; authorization, authenticated readback, and
+  a funded contract are absent, so onboarding remains intentionally disabled.
+
+### Remaining TODO (current ordered cursor)
+
+1. **CrowdWorks admission/effect fence:** allow the current owner to settle
+   naturally; retain the marker-less `18d62cf32eb0c678-48194` fence until an
+   exact provider or pre-effect proof exists. Do not resend or edit the DB.
+2. **CrowdWorks material gate:** when the buyer supplies the missing artifact
+   for `63568785`, complete it once through the existing owner and capture
+   provider receipt plus replay-zero.
+3. **Lancers recovery:** obtain the explicit approval required for a targeted
+   `lancers-revenue-browser` restart/recovery, then use the branch's typed error
+   to distinguish CDP/account/source failure. Keep the residual fence closed.
+4. **Release gate:** after all-platform acceptance permits it, promote
+   `0ab75d4b0e` through a main-derived immutable release and verify loaded SHA,
+   natural run, official readback, and replay-zero. Do not hot-load the branch.
+5. **Coconala/Ryu:** preserve pass/no-op state and manual-only Ryu handling;
+   act only on a genuinely newer buyer artifact.
+6. **Upwork:** add an owner only after authorization, authenticated readback,
+   and a funded contract exist.
