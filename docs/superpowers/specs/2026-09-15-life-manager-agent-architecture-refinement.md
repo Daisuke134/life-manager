@@ -3780,6 +3780,12 @@ one durable queue row. Coalescing and queued-release reconciliation are explicit
 FIFO without guessing. The cleanup entrypoint was not run and no Paid source, state, session, marketplace effect or
 revenue was changed; this registry/fixture slice remains branch-only pending exact-release readback.
 
+The Gig non-Paid `hf-gig-daily-report` owner now declares the same deterministic/borrow/support contract from its
+durable read-only evidence: 68 queued, 149 released-known and one claimed `effect_unknown`, with no queue row or
+reservation. Coalescing and queued-release reconciliation are explicit, but the historical unknown remains fenced;
+the report/provider/Paid paths were not run and no effect or revenue is inferred. This is branch-only pending
+accepted-release and official readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

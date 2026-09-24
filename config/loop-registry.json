@@ -1103,6 +1103,7 @@
       "state_root": "~/.openclaw"
     },
     "hf-gig-daily-report": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": {
           "Hour": 9,
@@ -1113,12 +1114,17 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "earn",
       "effect_class": "none",
       "entrypoint": "skills/earn/gig/gig_daily_report.sh",
       "label": "ai.anicca.hf-gig-daily-report",
       "log_root": "~/.openclaw/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.openclaw"
     },
     "hf-gig-paid-direct": {
