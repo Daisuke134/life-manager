@@ -1,5 +1,18 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 07:59 JST (structured paid-fence blocker readback)
+
+The occurrence-bound resolver now reports a missing proof as structured JSON
+with `exit_code=75`, `effect_status=unknown`, `retryable=false`, and
+`next_action=obtain_occurrence_bound_readback`; it no longer emits a Python
+traceback or implies that a fence is safe to release. The change is
+`13c543960b`, pushed on the dedicated branch, and production was not switched
+to it. Focused reconciliation tests pass (`7 passed`); the CrowdWorks and
+Lancers suites pass separately (`226 passed` and `197 passed`). Running both
+directories in one pytest invocation still has an existing collection-only
+module-name collision (`test_reply_adapter`), so that combined command is not
+a valid aggregate gate.
+
 ## Current cursor — 2026-09-25 07:56 JST (occurrence-bound fence probe)
 
 The supported no-effect resolver was rerun one occurrence at a time using the
