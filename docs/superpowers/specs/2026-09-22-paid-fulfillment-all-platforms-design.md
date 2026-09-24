@@ -5156,3 +5156,27 @@ revenue owner and is not permission to send.
 - [ ] Keep the next cursor at account-bound authorization → funded official
   inventory → managed-owner registration. A green branch CI run cannot be
   promoted into a provider effect or a funded-contract claim.
+
+## Runtime Status Refresh — 2026-09-25 02:08 JST (Ryu send and all-platform cursor)
+
+- [x] The three latest Ryu requests were verified after the Colors admin write:
+  public WEB予約 links reach the reservation form, twelve profile catch copies
+  render without truncation at the mobile-safe limit, and the recruitment LINE
+  URL is persisted and publicly linked.
+- [x] The manual buyer update was sent in Coconala talkroom `18211957`; the
+  post-send readback shows the complete text as `自分` at 02:08 JST. The formal
+  delivery control remains untouched, so this receipt is not formal delivery.
+- [x] The platform state is not “all done”: CrowdWorks has four completed
+  readbacks plus one buyer-material blocker; Lancers has no funded item; Mercor
+  is stale; Freelancer is closed for missing OAuth/official readbacks/funded
+  project; Upwork is closed for missing OAuth, denied action receipts, and
+  funded milestone.
+- [ ] The activation contract for Freelancer is: fresh account-bound approval
+  → identity, projects, milestones, hourly/IP, payments, and payouts official
+  readbacks → source-complete funded project → disabled owner → zero-spend
+  canary → funded delivery/payment/payout/crash/replay-zero readback → enable.
+- [ ] The activation contract for Upwork is: fresh account-bound approval →
+  official contracts, contract details, transactions, withdrawals, and funded
+  milestone readbacks → canonical funded inventory → disabled owner →
+  zero-spend canary → funded delivery/payment/payout/crash/replay-zero
+  readback → enable. Until then, no loop registration or provider effect.

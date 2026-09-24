@@ -4444,3 +4444,32 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] This closes only the old Ryu Apply fence. It does not verify a new Ryu
   buyer reply, does not complete Storefront, and does not authorize a Ryu
   duplicate send. The four-room management-screen readback remains separate.
+
+### Runtime checkpoint — 2026-09-25 02:08 JST (Ryu manual delivery readback)
+
+- [x] Ryu's latest three buyer requests were applied to the Colors admin data
+  and verified on the public site: the WEB reservation links route to the
+  reservation form, all twelve profile catch copies render within the
+  platform's mobile-safe limit, and the official LINE URL persists in the
+  recruitment data and public link.
+- [x] The response message was sent manually in talkroom `18211957`; the
+  post-send readback shows the complete message as `自分` at 02:08 JST. The
+  formal-delivery control was not pressed; this is a buyer update, not a
+  Coconala formal-delivery receipt.
+- [x] The current Coconala Paid wake remains a safe no-op and the old Ryu Apply
+  fence is already converged. Do not duplicate-send this buyer event or claim
+  formal delivery from the message receipt.
+- [x] Current platform gates are concrete: CrowdWorks is `5/1/0/4/1` with
+  work `63568785` waiting for buyer material; Lancers has no funded inventory;
+  Mercor's official inventory is stale; Freelancer has no OAuth/readback/
+  funded project; Upwork has no OAuth, all eight stored action receipts are
+  denied, and no funded milestone.
+- [ ] Next cursor: reconcile the remaining Coconala Storefront/management
+  readbacks, then refresh Mercor and process the CrowdWorks buyer-material
+  gate. For Freelancer, obtain fresh account authorization, collect the seven
+  official readbacks and a funded project, then register a disabled owner and
+  run zero-spend → funded → delivery/payment/payout → crash/replay-zero
+  canaries. For Upwork, obtain fresh account authorization, collect contract,
+  transaction, withdrawal, and funded-milestone readbacks, then run the same
+  disabled-owner/canary sequence. No Freelancer/Upwork loop registration or
+  external effect is allowed before those gates.
