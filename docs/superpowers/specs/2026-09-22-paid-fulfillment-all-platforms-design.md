@@ -3773,6 +3773,35 @@ not convert a transient pass or a no-op into client completion.
    Lancers `unsupported_claim` policy after the active cursor.
 5. Register and verify Freelancer/Upwork Paid owners before enablement.
 
+## Runtime Status Refresh — 2026-09-24 16:00 JST (Paid reconciliation boundary)
+
+- Read-only admission DB inspection confirms the canonical CrowdWorks Paid
+  occurrence `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still
+  `claimed/effect_unknown=1`; it remains fenced and was not edited.
+- The recent run `18d8293a2c2d85b8-72114` is `released/effect_unknown=0` in the
+  admission ledger and has a local `pre_effect` marker, but `lm-loop status`
+  still reports its latest terminal event as `entrypoint_exit_143` with
+  `effect_status=unknown`. This is an evidence mismatch requiring
+  reconciliation, not proof of success and not permission to retry.
+- The durable ledger currently has `442` claimed `effect_unknown` agent rows
+  and `19` claimed `effect_unknown` deterministic rows. This explains why
+  capacity/lock contention can starve queued revenue owners; historical
+  unknowns must be resolved one occurrence at a time with exact proof.
+
+### Next one-by-one cursor (16:00 JST)
+
+1. Preserve CrowdWorks Application receipt and prevent proposal replay.
+2. Reconcile the Paid latest-event/ledger mismatch and the canonical unknown
+   occurrence using exact pre-effect or provider evidence; do not edit the DB
+   directly.
+3. Test admission/SQLite/control-lock/release ownership in the dedicated
+   branch, then obtain a natural Paid wake.
+4. Reconcile CrowdWorks Reply/Report and close the fleet canary with official
+   readback/replay-zero.
+5. Complete Coconala system acceptance, then advance Lancers/Mercor; review
+   the Lancers `unsupported_claim` policy after the active cursor.
+6. Register and verify Freelancer/Upwork Paid owners before enablement.
+
 ## Runtime Status Refresh — 2026-09-24 15:56 JST (central cleanup readback)
 
 - The old per-loop `~/.local/state/anicca/crowdworks/cleanup-latest.json`

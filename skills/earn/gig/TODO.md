@@ -3423,6 +3423,34 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    the Lancers `unsupported_claim` policy after the active cursor.
 5. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.
 
+### Runtime checkpoint — 2026-09-24 16:00 JST (Paid reconciliation boundary)
+
+- [x] Read-only DB inspection confirms canonical CrowdWorks Paid occurrence
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains
+  `claimed/effect_unknown=1`; no fence or DB edit was made.
+- [ ] Recent run `18d8293a2c2d85b8-72114` is released with
+  `effect_unknown=0` and has a local `pre_effect` marker, but loop status still
+  reports its terminal event as `entrypoint_exit_143/effect_status=unknown`.
+  Treat this as an evidence mismatch requiring reconciliation, not success or
+  retry permission.
+- [x] Durable ledger currently contains `442` claimed+unknown agent rows and
+  `19` claimed+unknown deterministic rows; this is observed capacity/lock
+  pressure, not authorization to clear historical fences in bulk.
+
+### Remaining TODO (updated cursor)
+
+1. [ ] Preserve CrowdWorks Application receipt and prevent proposal replay.
+2. [ ] Reconcile the Paid latest-event/ledger mismatch and canonical unknown
+   occurrence using exact pre-effect or provider evidence; never edit DB
+   directly.
+3. [ ] Test admission/SQLite/control-lock/release ownership in the dedicated
+   branch, then obtain a natural Paid wake.
+4. [ ] Reconcile CrowdWorks Reply/Report and close the fleet canary with
+   official readback/replay-zero.
+5. [ ] Complete Coconala system acceptance, then advance Lancers/Mercor; review
+   the Lancers `unsupported_claim` policy after the active cursor.
+6. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.
+
 ### Runtime checkpoint — 2026-09-24 15:56 JST (central cleanup readback)
 
 - [x] The old CrowdWorks per-loop `cleanup-latest.json` is stale
