@@ -3768,6 +3768,12 @@ wake coalescing and queued-release reconciliation. This improves the self-healer
 resolve the claimed message effect: no Telegram resend, provider-session action or admission mutation is allowed
 until an exact official readback proves the occurrence. The change is branch-only and not a revenue claim.
 
+The CrowdWorks non-Paid report now has the same explicit contract after a read-only audit of its durable admission:
+`deterministic/borrow/support`, 69 queued, 41 released-known and one released `effect_unknown`, one queue row and
+no reservation. Coalescing and queued-release reconciliation are declared for future self-healing, but the released
+unknown remains fenced and no report message, provider session, admission state or Paid fulfillment was touched. The
+registry/fixture change is branch-only until an accepted immutable release and exact official readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

@@ -88,15 +88,21 @@
     },
     "crowdworks-revenue-report": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "message",
       "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
       "label": "ai.anicca.crowdworks-revenue-report",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
     "crowdworks-revenue-paid": {
