@@ -1,6 +1,7 @@
 """Per-run scratch is isolated without pre-admission recursive cleanup."""
 
 import json
+import errno
 import tempfile
 import unittest
 import os
@@ -10,10 +11,35 @@ from pathlib import Path
 
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.central_cleanup import scratch_gc
-from runtime.loop.lm_loop_run import reset_loop_scratch
+from runtime.loop.lm_loop_run import (
+    _create_loop_scratch_with_recovery,
+    reset_loop_scratch,
+)
 
 
 class LoopScratchTest(unittest.TestCase):
+    def test_enospc_reclaims_stale_no_effect_scratch_once(self) -> None:
+        first = OSError(errno.ENOSPC, "No space left on device")
+        created = (Path("/tmp/recovered"), 11, 12)
+        with (mock.patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                         side_effect=[first, created]) as reset,
+              mock.patch("runtime.loop.lm_loop_run.scratch_gc",
+                          return_value={"removed": 1}) as gc,
+              mock.patch("runtime.loop.lm_loop_run.process_starts",
+                          return_value={}) as starts,
+              mock.patch("runtime.loop.lm_loop_run.time.time_ns",
+                          return_value=1234)):
+            run_id, scratch, parent_fd, run_fd = _create_loop_scratch_with_recovery(
+                Path("/state"), "job", "run", effect_class="none")
+
+        self.assertNotEqual(run_id, "run")
+        self.assertEqual((scratch, parent_fd, run_fd), created)
+        self.assertEqual(reset.call_count, 2)
+        gc.assert_called_once_with(
+            {Path("/state")}, snapshot_started_ns=1234, starts={},
+            no_effect_loop_ids={"job"})
+        starts.assert_called_once_with()
+
     def test_partial_owner_write_stays_protected_when_disk_is_full(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
