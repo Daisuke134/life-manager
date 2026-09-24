@@ -8,6 +8,7 @@ import pytest
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "application_occurrence_reconcile.py"
 sys.path.insert(0, str(SCRIPT.parent))
+import application_effect_fence as fence
 SPEC = importlib.util.spec_from_file_location("application_occurrence_reconcile_test", SCRIPT)
 reconcile = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -21,16 +22,17 @@ REQUEST_ID = "5280157"
 
 def _intent(path: Path, *, state="prepared", phase="irreversible_attempt_started"):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
-        "version": 2,
-        "state": state,
-        "effect_phase": phase,
-        "request_id": REQUEST_ID,
-        "cas": "a" * 64,
-        "price_jpy": 8000,
-        "deliver_date": "2026-09-25",
-        "proposal_sha256": "b" * 64,
-    }), encoding="utf-8")
+    payload = fence.intent_payload(
+        request_id=REQUEST_ID,
+        snapshot_sha256="a" * 64,
+        proposal_text="提案本文です。" * 40,
+        price_jpy=8000,
+        deliver_date="2026-09-25",
+        lease_fence={"task": "historical-reconcile-test", "token": "b" * 32, "generation": 1},
+        state=state,
+        effect_phase=phase,
+    )
+    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def _readback(**overrides):
@@ -157,6 +159,10 @@ def test_historical_no_dispatch_reconcile_uses_dedicated_resolver(tmp_path):
     assert captured[0][0:2] == (OWNER, OCCURRENCE)
     assert captured[0][2]["historical_account_id"] == "2564121"
     assert captured[0][3] == "claimed"
+    retired = json.loads((intent_root / f"{REQUEST_ID}.json").read_text(encoding="utf-8"))
+    assert retired["state"] == fence.RETIRED_ABSENT
+    archive = list((intent_root / "recovery-history" / REQUEST_ID).glob("*.json"))
+    assert len(archive) == 1
 
 
 def test_discovery_requires_a_single_occurrence_and_single_intent():

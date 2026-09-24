@@ -4418,3 +4418,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   OAuth file is absent, the eight stored action receipts remain denied, and no
   positive funded milestone has been read back. No owner registration or
   provider effect is allowed.
+
+### Runtime checkpoint — 2026-09-25 01:31 JST (Coconala no-dispatch convergence)
+
+- [x] The current exact Apply occurrence for Ryu request `5280157` now reads
+  `released/effect_unknown=0` in the admission store after the dedicated
+  historical account-bound no-dispatch proof. The durable intent is archived
+  as `retired_absent` under `application-intents/recovery-history`; the
+  parent-level uncertain-intent map is empty. No Coconala submit or resend
+  occurred.
+- [x] Fixed the reconciler so a successful historical no-dispatch resolution
+  also archives the matching durable intent, preventing the next wake from
+  reporting the same stale `prepared_unconfirmed` item forever. Focused
+  cross-platform/reconcile tests pass (`81`).
+- [ ] This closes only the old Ryu Apply fence. It does not verify a new Ryu
+  buyer reply, does not complete Storefront, and does not authorize a Ryu
+  duplicate send. The four-room management-screen readback remains separate.

@@ -5086,3 +5086,20 @@ owner, or an external submission.
   owner and does not claim a provider effect. The next external step remains
   fresh account authorization followed by a positive official contract and
   funded-milestone readback.
+
+## Runtime Status Refresh — 2026-09-25 01:31 JST (Coconala no-dispatch convergence)
+
+- [x] The current admission occurrence for Ryu request `5280157` is now
+  `released/effect_unknown=0`, based on the dedicated historical proof: same
+  apply pass, authenticated account `2564121` bound by an official sibling
+  receipt, complete target roster, zero contracts, and that account absent from
+  the target roster. The durable intent is archived as `retired_absent` with
+  the same CAS; the parent uncertain-intent scan is empty.
+- [x] Updated `reconcile_historical_no_dispatch_occurrence` so every successful
+  historical resolution also retires/archives the matching durable intent.
+  If admission has already been released, the operation remains idempotent and
+  still converges the intent. Focused reconcile/Freelancer/Upwork tests pass
+  (`81`).
+- [ ] This is no-dispatch convergence, not a Ryu submission. It closes the old
+  duplicate fence only; Storefront, the four-room management-screen readback,
+  and any genuinely newer Ryu buyer event remain separate work items.

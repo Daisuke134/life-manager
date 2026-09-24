@@ -29,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import application_parent as parent
+import application_effect_fence as fence
 from runtime.host import resource_admission
 
 
@@ -385,6 +386,38 @@ def reconcile_historical_no_dispatch_occurrence(
             "request_id": request_id,
             "occurrence_id": occurrence_id,
             "effect": 0,
+            "readback": 1,
+        }
+    try:
+        store = fence.IntentStore(intent_root)
+        with store.locked(request_id):
+            current = store._read_locked(request_id)
+            if current is None:
+                raise fence.IntentFenceError("intent_missing_after_resolution")
+            if current["state"] == fence.RETIRED_ABSENT:
+                pass
+            elif current["state"] == fence.PREPARED and current["cas"] == intent["cas"]:
+                store.retire_prepared_locked(
+                    request_id,
+                    expected_cas=intent["cas"],
+                    reason=(
+                        "historical_account_bound_no_dispatch_confirmed:"
+                        + str(proof["evidence_ref"])
+                    ),
+                )
+            else:
+                raise fence.IntentFenceError("intent_state_changed_after_resolution")
+    except Exception as error:
+        return {
+            "status": "unresolved",
+            "reason": "intent_retire_failed",
+            "error_class": type(error).__name__,
+            "error_detail": str(error)[:240],
+            "retryable": False,
+            "next_action": "inspect the durable intent archive; keep the provider fence closed",
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 1,
             "readback": 1,
         }
     return {
