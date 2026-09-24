@@ -4050,8 +4050,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   receipt, and replay-zero gates.
 - [x] Coconala is still a branch-promotion/reconciliation task, not a completed
   customer lane: Apply's latest natural wake was safe (`effect=0`) but failed
-  acceptance at the planner/intent boundary, Storefront has its own unknown
-  fence, and Ryu's latest reply is already handled manually once.
+  acceptance at the planner/intent boundary; the historical admission row for
+  `5280157` was separately released while its durable prepared intent remains
+  unresolved. Storefront has its own unknown fence, and Ryu's latest reply is
+  already handled manually once.
 - [x] CrowdWorks remains blocked by buyer-provided lesson/answer material for
   `63568785`; no LINE or external Google Form action is permitted. Lancers has
   authenticated inventory but zero funded contracts and a Paid no-op. Mercor
