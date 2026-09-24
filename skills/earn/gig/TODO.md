@@ -1,5 +1,54 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 05:40 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
+
+This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
+now split into the exact external gate and the code/loop gate; neither provider
+is silently treated as registered. The readiness functions were run against
+the current private receipt store and official snapshots. Upwork returns
+`ready=false`, reasons `authorization_missing` and
+`funded_contract_missing`, missing actions
+`accept_offer/deliver_milestone/message/propose/search`, and
+`funded_contract_ids=0`. Freelancer returns `ready=false`, reasons
+`authorization_missing/inventory_incomplete/funded_contract_missing`, with
+all eight lifecycle actions missing. The readiness/transport implementation is
+present and test-covered; it does not create provider credentials or contracts.
+
+| Platform | Current evidence | Exact state now | What I will do next |
+|---|---|---|---|
+| Coconala | Ryu was manually handled and read back; no resend. Apply request `5289988` and Storefront each have exact readback/pre-effect reconciliation. | The three Coconala paid owners have no live unknown admission row, but Apply/Storefront natural-wake/replay-zero is still not closed. | Keep Ryu manual-only. After capacity recovery, run one controlled no-op wake for Apply/Storefront and verify official readback plus replay-zero. |
+| CrowdWorks (CloudWorks) | Provider-owned history readback: 4 items have official readback; `63568785` is funded but buyer material is still missing. | Exact row `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed/effect_unknown=1`; no exact intent/provider receipt binds it. Paid stays unloaded. | Obtain evidence bound to that occurrence. Resolve only with an admissible no-effect proof or exact provider receipt; then perform a no-effect wake. Never resend completed items or send `63568785` without the buyer material. |
+| Lancers | Latest authenticated adapter readback at `2026-09-24T20:36:50Z`: `source_complete=true`, 15 boards, 2 unread, 4 application boards, 0 working/monthly/contract candidates, balance `¥0`, payment history `0`. | Exact row `lancers-revenue-paid:18d81967220136f8-89928` remains `claimed/effect_unknown=1`; no funded `ContractReceipt`. Application owner is not evidence of a funded contract. | Keep Paid closed. Reconcile the exact Paid occurrence, then continue read-only inventory. Register Paid only after a real funded ContractReceipt and milestone; no speculative proposal/send. Disk `ENOSPC` currently also prevents reliable repeated preflight. |
+| Mercor | Official earnings readback is `$0.00`/empty; no funded work is proven. | Exact row `mercor-revenue-paid:18d82d9cd75db960-67523` remains `claimed/effect_unknown=1`; no provider receipt/readback bound to it. | Obtain exact work/transaction readback, reconcile the row, refresh inventory, and only then consider a funded action. |
+| Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is absent. Public watcher data is only 4 stored projects (`active=0/errors=0`), not account-bound. Candidate private profiles are `0700`, but BrowserSkill has `browsers=[]/sessions=[]`; no managed owner exists. | Readiness is **false**: authorization missing for `search/inspect/propose/message/accept_offer/deliver/read_payments/read_payouts`; inventory incomplete; funded project count 0. No Paid owner may be registered. | First obtain one account-bound BrowserSkill lease or official OAuth. Read identity, `/projects/0.1/self/`, milestones/IP/hourly contracts, payments, and payouts; persist one source-complete snapshot. Only a positive funded project opens exactly one owner registration. |
+| Upwork | Official snapshot is source-complete but observed `contracts=[]` at `2026-09-24T17:30:28Z`. Read-only receipts for `inspect/read_payments/read_payouts` remain valid until `2026-09-25T17:30:28Z`; mutation receipts are denied. No Upwork browser lease/page is connected (`browsers=[]/sessions=[]`; port 9223 is the Coconala gig browser). | Readiness is **false**: missing `accept_offer/deliver_milestone/message/propose/search`; funded contract count 0. No current Paid owner is registered or loaded. | Before expiry, use a connected dedicated Upwork browser lease to refresh identity/contracts/transactions/withdrawals. Obtain current mutation authorization, then require a funded contract plus positive milestone. Register exactly one owner from immutable main, run zero-effect canary, funded canary, provider receipt, payment/payout readback, crash recovery, and replay-zero. |
+
+### Shared blocker that currently affects every external readback
+
+The data volume is at about `569 MiB` available and `100%` capacity. Lancers
+logs show `OSError: [Errno 28] No space left on device`, SQLite WAL failures,
+and heartbeat/resource-release errors. The canonical cleanup owner preserved
+all five allow-listed caches because they were open (`reclaimed=0`); no
+protected state/evidence was deleted. I will not clear an admission fence or
+start another browser preflight while this boundary is unsafe. The large
+`job-search/evidence` tree and browser profiles require writer-owned retention,
+not manual deletion.
+
+### Concrete order from here
+
+1. Recover bounded disk headroom through the owning cleanup/retention path and
+   record a receipt; do not delete evidence or profiles by hand.
+2. Reconcile the three exact unknown Paid rows (CrowdWorks, Lancers, Mercor)
+   only with occurrence-bound provider evidence.
+3. Close the Coconala Apply/Storefront no-op/replay-zero gate without touching
+   Ryu.
+4. For Lancers, use the already authenticated source-complete inventory to
+   wait for a genuine funded contract; for Freelancer and Upwork, complete
+   account-bound authentication and official inventory first.
+5. Register one Paid owner per provider only after funded-work readback, then
+   run the canary → receipt → settlement/payout → crash-recovery → replay-zero
+   sequence. Empty/public/old JSON data never opens the loop.
+
 ## Current cursor — 2026-09-25 05:30 JST (all-platform gate, exact fences, and provider-history probe)
 
 This section supersedes the older cursors below. The Coconala Apply occurrence
