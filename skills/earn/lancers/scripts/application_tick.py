@@ -421,11 +421,23 @@ def _stale_auth_target(value: str) -> bool:
     except Exception: return False
 
 
+def _proposal_list_target(value: str) -> bool:
+    parsed = _safe_lancers_url(value)
+    return bool(parsed and parsed.path.startswith("/mypage/proposals"))
+
+
 def _cleanup_stale_targets(cdp_url: str) -> bool:
     targets = _cdp_inventory(cdp_url)
     if targets is None:
         return False
     stale = [target_id for target_id, url in targets if _stale_auth_target(url)]
+    proposal_targets = [target_id for target_id, url in targets if _proposal_list_target(url)]
+    if len(proposal_targets) > 1:
+        # The application lane opens paginated proposal-list tabs and can leave
+        # renderer-stalled copies behind. Keep the first provider-owned tab and
+        # close only the additional copies before the next Playwright attach.
+        stale.extend(proposal_targets[1:])
+    stale = list(dict.fromkeys(stale))
     return bool(stale) and all(_cdp_request(f"{cdp_url}/json/close/{quote(target_id, safe='')}") for target_id in stale)
 
 

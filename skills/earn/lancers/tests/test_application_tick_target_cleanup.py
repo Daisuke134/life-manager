@@ -46,6 +46,27 @@ def test_cleanup_skips_unavailable_cdp_inventory(monkeypatch):
     assert module._cleanup_stale_targets(module.CDP_URL) is False
 
 
+def test_cleanup_closes_extra_proposal_list_targets(monkeypatch):
+    module = _module()
+    monkeypatch.setattr(
+        module,
+        "_cdp_inventory",
+        lambda _url: [
+            ("proposal-current", "https://www.lancers.jp/mypage/proposals/limit:100"),
+            ("proposal-page2", "https://www.lancers.jp/mypage/proposals/page:2/limit:100"),
+            ("proposal-page3", "https://www.lancers.jp/mypage/proposals/page:3/limit:100"),
+        ],
+    )
+    closed = []
+    monkeypatch.setattr(module, "_cdp_request", lambda url, limit=None: closed.append(url) or True)
+
+    assert module._cleanup_stale_targets(module.CDP_URL) is True
+    assert closed == [
+        f"{module.CDP_URL}/json/close/proposal-page2",
+        f"{module.CDP_URL}/json/close/proposal-page3",
+    ]
+
+
 def test_browser_attach_diagnostic_redacts_endpoint():
     module = _module()
     detail = module._safe_browser_failure(RuntimeError(
