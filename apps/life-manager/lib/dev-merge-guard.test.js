@@ -10,6 +10,7 @@ const path = require("node:path");
 const {
   GUARD_STAGES,
   BLOCKED_ACTIONS,
+  RECOVERY_PR_MARKER,
   LEDGER_GENESIS,
   classifyChangedPath,
   evaluatePackageJsonChange,
@@ -154,8 +155,24 @@ test("path allowlist admits the three loop-owned directories", () => {
     "apps/life-manager/lib/transport/mail-gog.js",
     "apps/life-manager/test/inngest.test.js",
     "apps/life-manager/scripts/error-intake-inject.js",
+    "runtime/loop/provider_adapter.py",
+    "runtime/loop/tests/test_provider_adapter.py",
   ]) {
     assert.equal(classifyChangedPath(file).allowed, true, file);
+  }
+});
+
+test("the recovery control plane and evaluator remain protected from their own candidates", () => {
+  for (const file of [
+    "runtime/loop/lm_loop.py",
+    "runtime/loop/lm_loop_run.py",
+    "runtime/loop/runtime_event.py",
+    "runtime/loop/recovery-supervisor.mjs",
+    "apps/life-manager/lib/recovery-self-build-bridge.js",
+    "apps/life-manager/lib/product-onboarding.js",
+    "apps/life-manager/scripts/local-foundation-gate.js",
+  ]) {
+    assert.deepEqual(classifyChangedPath(file), { allowed: false, rule: "deny:guard-self" }, file);
   }
 });
 
@@ -293,6 +310,42 @@ test("eligibility accepts both fix/ and the dev loop's feature/lm-dev- branch na
   assert.equal(evaluateEligibility(loopPullRequest({ headRefName: "fix/1090-timeout" })).ok, true);
 });
 
+test("a recovery PR must retain a regression fixture before it can reach review or merge", () => {
+  const withoutFixture = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}`,
+    files: [{ path: "runtime/loop/provider_adapter.py" }],
+  }), { changedFiles: ["runtime/loop/provider_adapter.py"] });
+  assert.equal(withoutFixture.ok, false);
+  assert.ok(withoutFixture.reasons.includes("regression_fixture_missing"));
+  assert.ok(withoutFixture.reasons.includes("recovery_promotion_not_enabled"));
+
+  const withFixture = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}`,
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+    recoveryPromotionEnabled: true,
+  });
+  assert.equal(withFixture.ok, true);
+});
+
+test("a recovery candidate fails closed before merge until the immutable canary profile is enabled", () => {
+  const verdict = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}`,
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+  });
+  assert.equal(verdict.ok, false);
+  assert.deepEqual(verdict.reasons, ["recovery_promotion_not_enabled"]);
+});
+
 
 test("eligibility reports the exact offending path and marks package.json conditional", () => {
   const workflow = evaluateEligibility(loopPullRequest({
@@ -330,12 +383,23 @@ test("added lines are attributed to their file and exclude removals and headers"
 test("blocked actions cover outreach, payment and wallet transfer with a rationale each", () => {
   assert.deepEqual(
     BLOCKED_ACTIONS.map((entry) => entry.action).sort(),
-    ["outreach_send", "payment", "wallet_transfer"],
+    ["direct_deploy", "direct_main_promotion", "outreach_send", "payment", "wallet_transfer"],
   );
   for (const entry of BLOCKED_ACTIONS) {
     assert.equal(typeof entry.rationale, "string");
     assert.ok(entry.rationale.length > 20, entry.action);
   }
+});
+
+test("recovery candidates cannot push main, merge their PR, or deploy around the guard", () => {
+  const hits = detectBlockedActions([
+    { path: "runtime/loop/x.py", line: 'subprocess.run(["git", "push", "origin", "main"])' },
+    { path: "apps/life-manager/lib/x.js", line: 'execFileSync("gh", ["pr", "merge", "6000"])' },
+    { path: "apps/life-manager/lib/y.js", line: 'execFileSync("railway", ["redeploy", "--yes"])' },
+  ]);
+  assert.deepEqual(hits.map((hit) => hit.action), [
+    "direct_main_promotion", "direct_main_promotion", "direct_deploy",
+  ]);
 });
 
 

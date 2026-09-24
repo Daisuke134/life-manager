@@ -161,16 +161,18 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - Modify: `apps/life-manager/lib/self-build-daily.js`
 - Modify: `apps/life-manager/lib/dev-merge-guard.js`
 - Modify: corresponding existing tests under `apps/life-manager/lib/`
+- Modify: `runtime/agent-runner/config.json`, `runtime/agent-runner/agent_runner.py` and focused route tests
+- Modify: `skills/earn/marketing-engine/run_agent.sh`
 - Create: `apps/life-manager/lib/recovery-self-build-bridge.js`
 - Create: `apps/life-manager/lib/recovery-self-build-bridge.test.js`
 
-- [ ] Write failing tests for a sanitized recovery outcome becoming one deduplicated `lm:type:self-heal` issue with exact owner/release/evidence refs.
-- [ ] Expand the isolated candidate scope only as required for shared runtime files; keep credentials, state, policy, evaluator, guard and Paid paths protected.
-- [ ] Require a retained regression fixture plus focused tests before the producer may open a marked PR.
-- [ ] Keep candidate generation, adversarial review, merge, immutable release, canary, health readback and rollback as distinct recorded stages.
-- [ ] Prove no agent can edit its own guard/evaluator or directly push main/deploy around the guard.
-- [ ] Run the existing self-build/merge-guard tests and the new bridge tests.
-- [ ] Commit and push the guarded code-repair bridge.
+- [x] Write failing tests for a sanitized recovery outcome becoming one deduplicated `lm:type:self-heal` issue with exact owner/release/evidence refs.
+- [x] Expand the isolated candidate scope only as required for shared runtime files; keep credentials, state, policy, evaluator, guard and Paid paths protected.
+- [x] Require a retained regression fixture plus focused tests before the producer may open a marked PR.
+- [x] Keep issue/candidate/review contracts distinct and fail every marked recovery PR closed before merge until Task 7 supplies the separate immutable-release, canary, exact-health and rollback stages. The existing Railway-only app deploy check is not reused as false runtime proof.
+- [x] Prove the candidate agent is Codex-only, workspace-write and network-disabled; it cannot edit its own guard/evaluator or directly push main/deploy around the guard.
+- [x] Run the existing self-build/merge-guard/bridge tests (158/158), recovery tests (29/29) and agent-runner tests (76/76).
+- [x] Commit and push the guarded code-repair bridge.
 
 ### Task 7: Prove one safe end-to-end recovery canary
 

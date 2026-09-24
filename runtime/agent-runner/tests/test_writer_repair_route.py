@@ -31,6 +31,26 @@ class WriterRepairRouteTest(unittest.TestCase):
             self.assertIn("sandbox_workspace_write.network_access=false", command)
             self.assertEqual(command[-3:], ["resume", "thread-123", "-"])
 
+    def test_self_heal_code_route_has_no_network_and_no_unrestricted_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); schema = root / "schema.json"; schema.write_text("{}")
+            args = argparse.Namespace(
+                task_class="self-heal-code-agent", schema=schema, workdir=root,
+                image=[], read_only=False, codex_resume_session_id=None,
+            )
+            command = command_for(
+                "codex", "codex", {},
+                {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium"},
+                args, "repair", {}, root / "result.json",
+                prompt_via_stdin=True,
+            )
+            sandbox = command.index("--sandbox")
+            self.assertEqual(command[sandbox:sandbox + 2], ["--sandbox", "workspace-write"])
+            self.assertIn("sandbox_workspace_write.exclude_slash_tmp=true", command)
+            self.assertIn("sandbox_workspace_write.exclude_tmpdir_env_var=true", command)
+            self.assertIn("sandbox_workspace_write.network_access=false", command)
+            self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
+
 
 if __name__ == "__main__":
     unittest.main()

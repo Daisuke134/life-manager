@@ -19,6 +19,8 @@ function intent(id, loopId = 'example-loop') {
     run_id: `run-${id}`,
     release_sha: SHA,
     action: 'reconcile_owner',
+    failure_layer: 'entrypoint',
+    reason: 'bounded_owner_reconciliation',
     mutates_external_effect: false,
   };
 }
@@ -67,6 +69,8 @@ test('consumes exactly one owner intent and does not replay a repaired intent', 
     occurrence_id: 'example-loop:occurrence-one',
     release_sha: SHA,
     action: 'reconcile_owner',
+    failure_layer: 'entrypoint',
+    intent_reason: 'bounded_owner_reconciliation',
     state: 'repaired',
     result: 'repaired',
     attempt: 1,

@@ -104,6 +104,8 @@ function recoveryOutcome(intent, outcome, { attempt, now, nextEligibleAt }) {
     occurrence_id: intent.occurrence_id,
     release_sha: intent.release_sha,
     action: intent.action,
+    failure_layer: typeof intent.failure_layer === 'string' ? intent.failure_layer : 'unknown',
+    intent_reason: typeof intent.reason === 'string' ? intent.reason : null,
     state,
     result: state,
     attempt,

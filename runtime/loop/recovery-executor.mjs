@@ -148,11 +148,13 @@ export async function executeRecoveryPlan({
   if (!registry || typeof registry !== 'object') throw new Error('loop registry invalid');
 
   if (plan.execute !== true) {
-    const state = plan.action === 'hold_effect_unknown' ? 'held' : 'skipped';
+    const state = plan.action === 'hold_effect_unknown' ? 'held'
+      : plan.action.startsWith('escalate_') ? 'escalated' : 'skipped';
     return resultBase(plan, state, true, {
       executed: false,
       budget_consumed: false,
-      next_action: plan.action === 'hold_effect_unknown' ? 'official_readback_required' : 'none',
+      next_action: plan.action === 'hold_effect_unknown' ? 'official_readback_required'
+        : state === 'escalated' ? 'guarded_code_repair' : 'none',
     });
   }
 

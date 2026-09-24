@@ -132,6 +132,25 @@ test('holds uncertain-effect plans without invoking reconcile', async () => {
   assert.equal(invoked, false);
 });
 
+test('routes an unclassified owner failure to guarded repair without reconciling', async () => {
+  const plan = buildRecoveryApplyPlan({
+    intent: intent({ action: 'escalate_owner' }),
+    registry,
+  });
+  let invoked = false;
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    runCommand: async () => { invoked = true; throw new Error('must not run'); },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state, 'escalated');
+  assert.equal(result.next_action, 'guarded_code_repair');
+  assert.equal(result.budget_consumed, false);
+  assert.equal(invoked, false);
+});
+
 test('refuses a plan whose release SHA is not the loaded release', async () => {
   const root = await releaseRoot('b'.repeat(40));
   const plan = buildRecoveryApplyPlan({ intent: intent(), registry });

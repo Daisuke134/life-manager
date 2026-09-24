@@ -69,6 +69,18 @@ const SELF_BUILD_PROTECTED_PATHS = Object.freeze([
   "apps/life-manager/lib/self-build-daily.js",
   "apps/life-manager/scripts/self-build-daily.js",
   "apps/life-manager/scripts/dev-adversary-review.js",
+  "apps/life-manager/lib/recovery-self-build-bridge.js",
+  "apps/life-manager/scripts/recovery-self-build-bridge.js",
+  "apps/life-manager/scripts/life-manager-dev-d0.sh",
+  "apps/life-manager/lib/product-onboarding.js",
+  "apps/life-manager/scripts/local-foundation-gate.js",
+  "runtime/loop/lm_loop.py",
+  "runtime/loop/lm_loop_run.py",
+  "runtime/loop/runtime_event.py",
+  "runtime/loop/recovery-apply-plan.mjs",
+  "runtime/loop/recovery-executor.mjs",
+  "runtime/loop/recovery-intent.mjs",
+  "runtime/loop/recovery-supervisor.mjs",
 ]);
 
 // Closed sets. An outcome that is not in one of these is a bug being loud, not a day being green.

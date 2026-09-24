@@ -2881,11 +2881,16 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    readback, evidence and next action. A repair closes only when authoritative `lm-loop status` shows the exact
    owner/job and immutable release healthy. Verification-only polls do not spend repair budget, replay is zero,
    sibling owners stay isolated and every Paid owner is rejected before selection and again at plan build.
-6. **Current cursor — guarded code repair:** route uncovered code failures into the existing isolated self-build
-   and merge guard as one sanitized, deduplicated self-heal issue. Require a retained regression fixture,
-   focused tests, immutable candidate, adversarial review, canary, health readback and rollback; the agent may
-   never edit its own guard/evaluator or bypass main/release policy.
-7. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
+6. **Complete on the implementation branch:** terminal uncovered recovery outcomes now become one sanitized,
+   deduplicated self-heal issue with exact owner, occurrence, immutable release, diagnostic reasons and evidence
+   refs. A marked candidate requires a retained regression fixture. The dedicated candidate agent is Codex-only,
+   workspace-write and network-disabled; protected control/evaluator paths and Paid paths remain unavailable.
+   Recovery promotion intentionally fails closed before merge because the existing guard proves only a Railway
+   app deployment, not a runtime-loop immutable release. Self-build/guard/bridge tests pass 158/158, recovery
+   tests 29/29 and agent-runner tests 76/76.
+7. **Current cursor — isolated recovery canary:** prove one low-risk non-Paid recovery end to end, then make the
+   real failure a retained regression fixture. Add the distinct immutable candidate, canary, exact-health and
+   rollback stages before enabling marked recovery PR promotion.
    Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
 8. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
    Consume marketplace/Paid health and receipts read-only from the separate owner; never operate its runtime.
@@ -2904,7 +2909,7 @@ This is an explicit priority change. The old order continued CFO/economic adapte
 before proving the shared healer across all loops. The new order is observability -> shared self-heal -> one
 recovery proof -> fourteen-loop local acceptance -> cloud -> economic eval/self-improvement. The reason is that
 economic optimization cannot safely operate or retain gains on a control plane that still needs manual repair;
-waiting for external revenue also must not hold the foundation cursor. Current cursor is item 6.
+waiting for external revenue also must not hold the foundation cursor. Current cursor is item 7.
 
 #### LM-EAB v1 eval audit and implementation cursor
 
