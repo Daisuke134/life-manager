@@ -4316,6 +4316,12 @@ with typed `resource_capacity_busy`, `retryable=true`, complete diagnostics, `ef
 unchanged event/occurrence, proving replay-zero. This is an admission/runtime proof only; it is not affiliate
 traffic, conversion, commission or revenue evidence.
 
+The next Agent Economy probe, `x402-acquisition-controller`, is also effect-free (`effect_class=none`) but remains
+behind durable FIFO admission. Targeted reconcile returned `eligible=1` with `skipped_pending`; no old-release apply,
+entrypoint or external effect ran. Readback remains loaded-idle with typed `resource_capacity_busy`,
+`effect_status=not_applicable` and `admission_effect_unknown=false`; promotion/reconcile remains pending the accepted
+immutable release and capacity cursor. The queue was not edited and no x402 payment or revenue was inferred.
+
 ## E2E Judgment
 
 | Item | Value |

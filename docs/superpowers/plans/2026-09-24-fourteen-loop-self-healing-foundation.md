@@ -943,6 +943,10 @@ The following is the current control-plane state. It is evidence for the next bo
   `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
   returned `eligible=0` with unchanged event/occurrence, proving replay-zero. This proves runtime fencing only; it
   is not affiliate traffic, conversion or commission revenue.
+- [x] Probe the next Agent Economy effect-free owner, `x402-acquisition-controller`, without breaking its FIFO:
+  `lm-loop reconcile` returned `eligible=1`/`skipped_pending`, so no old-release apply or entrypoint ran. Readback
+  remains `effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, loaded-idle and
+  typed `resource_capacity_busy`; its promotion/reconcile remains pending the accepted-release/capacity cursor.
 
 ## Deferred until this plan passes
 
