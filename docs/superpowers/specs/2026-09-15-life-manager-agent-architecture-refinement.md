@@ -159,6 +159,11 @@ flowchart LR
   `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 102/102、apply 124/124（既知のsqlite
   `ResourceWarning`のみ）をPASSしました。応募を再送せず、application fenceと公式proposal/application receipt待ちを
   維持します。main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `job-search-learning`は09:15 JST calendar ownerで、application effectのclaimed `effect_unknown` 1件、queued 2件、
+  released 8件、reservation 0件を持ち、loaded-idleの`resource_effect_unknown`で停止しています。occurrence履歴には
+  `deterministic/borrow/support`が残りますが、durable `priorities`行が無く、現在policyの正本を確認できません。
+  したがってcontractを推測追加せず、policy provenance欠損と公式proposal/application readback待ちをtyped blockerとして
+  維持します。応募再送・fence解除・main/release昇格・exact-SHA/replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
