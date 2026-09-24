@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:38 JST (exact Paid-fence history and Coconala control-plane reconciled)
+## Current cursor — 2026-09-25 06:39 JST (all stale effect-free control-plane fences reconciled)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -139,6 +139,16 @@ rows and its last event `resource_effect_unknown`; Storefront remains unloaded
 with eighty-one effect-free queued rows and its last event
 `entrypoint_exit_1/official_readback_required`. Those two natural-wake and
 replay-zero gates remain open and must not be called complete.
+
+The same bounded no-effect reconciliation was applied individually to the
+remaining control-plane owners `hf-gig-daily-report`,
+`hf-gig-apply-evidence-gc`, and `hf-gig-reply-detector`. Each latest status was
+`effect_class=none`, `effect_status=not_applicable`, `last_terminal_result=pass`,
+and `launchd_state=loaded-idle`; each released exactly one stale admission row.
+A fresh DB readback now has zero `effect_unknown=1` rows for every `hf-gig-*`
+owner. This does not clear any provider Paid fence: CrowdWorks and Lancers
+remain fenced, and Coconala Apply/Storefront remain unloaded with their
+effect-free queue backlog and open natural-wake gate.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
