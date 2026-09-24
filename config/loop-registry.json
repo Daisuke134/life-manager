@@ -3402,6 +3402,7 @@
       "label": "ai.anicca.x402-franklin1",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-franklin2": {
