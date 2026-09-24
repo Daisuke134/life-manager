@@ -3309,3 +3309,34 @@ not convert a transient pass or a no-op into client completion.
    provider readback and replay-zero. Coconala/Ryu stays manual-only and Upwork
    stays disabled until authorization, fresh authentication, and a funded
    contract exist. **All gig platforms are not complete yet.**
+
+## Runtime Cursor — 2026-09-24 14:31 JST (cleanup pass complete; fences unchanged)
+
+- **The disk-cleanup owner completed its natural run.** Run
+  `life-manager-disk-cleanup:18d82a6faaf4b340-97247` ended with
+  `exit_code=0/status=pass`; it was observed live until terminal readback and
+  was not force-stopped. Data-volume headroom is still only about `1.4GiB`, so
+  the resource precondition remains pressure-limited.
+- **The exact fence audit is unchanged.** Lancers
+  `18d81967220136f8-89928` still ends at `started → entrypoint_exit_1`; the
+  CrowdWorks occurrence has no exact event/marker artifact; Mercor Reply
+  `18d6683223830368-49631` ends at `started → unknown` (with a later unrelated
+  owner-exit reference); and Mercor Application
+  `18d6f9cb5bdaef98-33812` has no exact no-effect marker. The supported
+  reconcilers therefore still return proof-unavailable. No DB edit, retry, or
+  resend was made.
+- **Coconala remains safe but release-drifted.** The latest durable receipt is
+  still `completed/4/0/3/0/0` with Ryu manual-only. Its owner is now
+  `loaded-idle`; the event SHA remains `07f76049...` while the installed SHA is
+  `188dcb53...`, so it is not yet a current-release canary.
+
+### Next one-by-one cursor
+
+1. Keep all four historical fences closed; only an exact provider/run or
+   pre-effect proof may release one through the supported resolver.
+2. Preserve the completed cleanup receipt and wait for a stable resource
+   window; do not restart a live owner solely because observation is stale.
+3. After the fence/resource gates, promote one immutable release and canary
+   CrowdWorks first, then advance platform by platform with readback and
+   replay-zero. Keep buyer-material, Mercor, Lancers, Ryu, and Upwork gates as
+   specified above.

@@ -3072,3 +3072,28 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 5. Handle the first funded Lancers ContractReceipt with official formal
    delivery/readback/replay-zero, then run final fleet acceptance. Coconala/Ryu
    remains manual-only; Upwork remains disabled. All platforms are incomplete.
+
+### Runtime checkpoint — 2026-09-24 14:31 JST (cleanup pass complete; fences unchanged)
+
+- [x] Disk-cleanup natural run `life-manager-disk-cleanup:18d82a6faaf4b340-97247`
+  ended `exit_code=0/status=pass` after live observation; no force-stop was
+  used.
+- [ ] Data-volume headroom remains about `1.4GiB`; resource pressure is still
+  a precondition for release/canary work.
+- [ ] The four exact historical fences remain
+  `claimed/effect_unknown=1`. Lancers ends at `entrypoint_exit_1`, CrowdWorks
+  has no exact event/marker artifact, Mercor Reply ends at unknown, and Mercor
+  Application has no exact marker. Supported reconcilers still report proof
+  unavailable; no DB edit, retry, or resend.
+- [x] Coconala readback remains `4/0/0/3/0/0` and Ryu remains manual-only.
+  [ ] The owner is `loaded-idle` with event SHA `07f76049...` versus installed
+  SHA `188dcb53...`; a current-release canary is still required.
+
+### Next one-by-one cursor
+
+1. Keep all four fences closed until exact provider/run or pre-effect proof is
+   available; release only via the supported resolver.
+2. Preserve the completed cleanup receipt and wait for stable headroom/control;
+   do not restart a live owner just because its observation is stale.
+3. Promote one immutable release after the gates, canary CrowdWorks first, and
+   advance each platform only with official readback and replay-zero.
