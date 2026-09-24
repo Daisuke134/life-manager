@@ -2546,7 +2546,12 @@ class LmLoopApplyTest(unittest.TestCase):
                 "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
             ]), 0)
             self.assertEqual(applied, [])
-            self.assertEqual(json.loads(output.getvalue())["skipped_pending"], ["example"])
+            receipt = json.loads(output.getvalue())
+            self.assertEqual(receipt["skipped_pending"], ["example"])
+            self.assertEqual(
+                receipt["blocked_by_gate"]["pending_admission"],
+                {"count": 1, "sample_loop_ids": ["example"]},
+            )
             with sqlite3.connect(database) as connection:
                 connection.execute("UPDATE occurrences SET state='released'")
             output.seek(0)

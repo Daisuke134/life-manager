@@ -1768,6 +1768,56 @@ def main(argv: list[str] | None = None) -> int:
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == effective_installed_sha(row))
         )]
+        eligible_before_cap = len(eligible)
+        eligible_ids = {row["loop_id"] for row in eligible}
+        blocked_by_gate: dict[str, dict[str, object]] = {}
+
+        def record_blocker(gate: str, loop_id: str) -> None:
+            item = blocked_by_gate.setdefault(
+                gate, {"count": 0, "sample_loop_ids": []})
+            item["count"] = int(item["count"]) + 1
+            samples = item["sample_loop_ids"]
+            if isinstance(samples, list) and loop_id not in samples and len(samples) < 10:
+                samples.append(loop_id)
+
+        # Keep the fleet decision fail-closed, but expose every failed gate so
+        # the self-healing controller can distinguish admission pressure from
+        # stale release evidence without scraping human log text.
+        for row in rows:
+            if (row.get("classification") != "managed"
+                    or row.get("provider_route") != route
+                    or row.get("loop_id") == os.environ.get("LIFE_MANAGER_LOOP_ID")
+                    or row.get("loop_id") in eligible_ids):
+                continue
+            loop_id = row["loop_id"]
+            installed_sha = effective_installed_sha(row)
+            if (loop_id in pending_owners and loop_id not in requested_ids
+                    and loop_id not in pending_policy_mismatches
+                    and loop_id not in pending_release_rebinds):
+                record_blocker("pending_admission", loop_id)
+            if requested_ids and loop_id not in effective_requested_ids:
+                record_blocker("not_requested", loop_id)
+            if row.get("launchd_state") not in eligible_states:
+                record_blocker("launchd_state", loop_id)
+            if (row.get("launchd_state") == "loaded-running"
+                    and not include_running
+                    and loop_id not in explicitly_reloadable):
+                record_blocker("running_not_reloadable", loop_id)
+            if not installed_sha:
+                record_blocker("missing_release_sha", loop_id)
+            elif installed_sha == current_sha:
+                record_blocker("already_current", loop_id)
+            elif automatic_release_reconciler:
+                ancestor = ancestry_cache.get(installed_sha)
+                if ancestor is False:
+                    record_blocker("non_ancestor_release", loop_id)
+                if (loop_id not in explicitly_reloadable
+                        and row.get("event_release_sha") != installed_sha):
+                    record_blocker("event_release_mismatch", loop_id)
+            elif installed_sha and installed_sha != current_sha:
+                # Explicit/manual reconcile still has a release mismatch only
+                # when another earlier gate excluded the owner.
+                record_blocker("not_eligible", loop_id)
         if max_owners is not None:
             extra = [row for row in eligible if auto_disk_cleanup
                      and row["loop_id"] == "life-manager-disk-cleanup"]
@@ -1810,7 +1860,16 @@ def main(argv: list[str] | None = None) -> int:
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
             "skipped_pending": sorted(set(skipped_pending)),
-            "eligible": len(eligible), "applied": applied, "failed": failed,
+            "eligible": len(eligible),
+            "eligible_before_max_owners": eligible_before_cap,
+            "blocked_by_gate": {
+                gate: {
+                    "count": int(value["count"]),
+                    "sample_loop_ids": sorted(value["sample_loop_ids"]),
+                }
+                for gate, value in sorted(blocked_by_gate.items())
+            },
+            "applied": applied, "failed": failed,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"
                 and row["provider_route"] == route
