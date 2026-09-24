@@ -19,7 +19,9 @@ readbacks first, then register a loop only for a provider with a real funded
 contract. Freelancer and Upwork are therefore active workstreams, but they are
 not yet registered loops. Freelancer has no current OAuth/approved receipt and
 no connected private BrowserSkill instance; its public four-project watch is
-not account-bound. Upwork has an account credential and only three current
+not account-bound. Both Freelancer candidate profiles now pass the local
+`0700` private-profile gate, but no BrowserSkill instance or account-bound
+receipt is connected. Upwork has an account credential and only three current
 read-only browser receipts (`inspect`, `read_payments`, `read_payouts`), while
 all mutation actions are denied; its browser profile is not attached and the
 historical inventory has zero contracts. The next implementation boundary for
