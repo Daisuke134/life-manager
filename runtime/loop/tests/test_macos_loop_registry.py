@@ -123,6 +123,59 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
 
+    def test_non_paid_foundation_owners_declare_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        browser_rows = {
+            "affiliate-browser": "browser",
+            "affiliate-impact-browser": "browser",
+            "affiliate-x-browser": "browser",
+        }
+        for loop_id, resource_class in browser_rows.items():
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id].get("resource_class"), resource_class)
+
+        agent_rows = {"agent-economy-loop": "agent", "x402-claude-p": "agent",
+                      "x402-inflow-watch-claude-p": "agent"}
+        for loop_id, resource_class in agent_rows.items():
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id].get("resource_class"), resource_class)
+
+        contract_rows = {
+            "citizen-refill", "job-search-health", "job-search-learning",
+            "life-manager-cfo-hourly", "life-manager-financial-report",
+            "life-manager-payout", "life-manager-taskmarket-ledger",
+            "life-manager-x402-ledger", "sol-funding", "x402-acquisition-controller",
+            "x402-experiment-franklin1", "x402-inflow-watch", "x402-inflow-watch-franklin1",
+            "x402-inflow-watch-franklin2", "x402-sale-observer", "x402-settlement-recorder",
+        }
+        for loop_id in sorted(contract_rows):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertTrue(row.get("coalesce_reserved_wakes"))
+                self.assertTrue(row.get("coalesce_queued_wakes"))
+                self.assertTrue(row.get("reconcile_queued_release"))
+
+        effect_free_rows = {"job-search-daily", "job-search-inbox"}
+        for loop_id in sorted(effect_free_rows):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertTrue(row.get("coalesce_reserved_wakes"))
+                self.assertTrue(row.get("coalesce_queued_wakes"))
+
+        deterministic_rows = {
+            "capafy-loop-healthcheck", "the402-provider", "the402-worker", "x402-franklin1",
+            "x402-franklin2", "x402-research-serve", "x402-seller-8404",
+        }
+        for loop_id in sorted(deterministic_rows):
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id].get("resource_class"), "deterministic")
+
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in {
