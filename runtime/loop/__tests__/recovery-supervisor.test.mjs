@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { consumeRecoveryIntentQueue } from '../recovery-supervisor.mjs';
+import { supervisorExitCode } from '../recovery-supervisor-cli.mjs';
 
 const SHA = 'a'.repeat(40);
 const execFileAsync = promisify(execFile);
@@ -275,4 +276,12 @@ test('production CLI derives its owner from the registry and terminally drains o
   );
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0].state, 'skipped');
+});
+
+test('safe queued recovery waits exit successfully instead of becoming an entrypoint failure', () => {
+  assert.equal(supervisorExitCode({ ok: true, state: 'idle' }), 0);
+  assert.equal(supervisorExitCode({ ok: true, state: 'repaired' }), 0);
+  assert.equal(supervisorExitCode({ ok: false, state: 'queued' }), 0);
+  assert.equal(supervisorExitCode({ ok: false, state: 'blocked' }), 1);
+  assert.equal(supervisorExitCode({ ok: false, state: 'escalated' }), 1);
 });

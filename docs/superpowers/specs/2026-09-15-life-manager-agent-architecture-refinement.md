@@ -4234,6 +4234,19 @@ official-readback, and replay-zero rules.
     run one canary per supported resource class, prove official readback/replay-zero, and expose the
     phone-only notification/control path before enabling broader cloud capacity.
 
+### Latest branch-only supervisor boundary (2026-09-25 JST)
+
+An exact launchd-like empty-queue run of the old immutable release exits `0`; a pending-owner run persists a
+typed `queued` outcome such as `healthy_readback_pending` or bounded retry, but the CLI previously mapped every
+`result.ok=false` to `entrypoint_exit_1`. The outer event therefore reported a supervisor failure even though the
+control-plane operation safely retained the owner for a later bounded wake. The candidate exports and tests a small
+`supervisorExitCode` contract: `queued` returns `0` while hard `blocked` and `escalated` outcomes remain non-zero.
+Direct CLI execution is guarded so importing the helper has no side effect. RED→GREEN recovery regression is
+**39/39**. The full runtime suite is **307 tests, 304 pass, 3 file-level dependency failures** caused by missing
+`@solana/web3.js`/`fast-check`; no production/provider/effect state changed and no revenue is claimed. This
+candidate remains branch-only until accepted main-derived immutable release promotion and a fresh loaded-idle
+readback.
+
 ## E2E Judgment
 
 | Item | Value |

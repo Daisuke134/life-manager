@@ -879,6 +879,20 @@ The following is the current control-plane state. It is evidence for the next bo
   plane to cloud and enable economic self-improvement. Revenue waits do not block this cursor, but unverifiable external
   effects and release drift do.
 
+- [x] Diagnose the shared supervisor's latest `entrypoint_exit_1` boundary without mutating production. An exact
+  launchd-like run of the old immutable release with an empty queue exits `0`; the pending-owner path records the
+  typed `queued` outcome (`healthy_readback_pending`/bounded retry) but the CLI previously converted every
+  `result.ok=false` into exit `1`. That made a safe control-plane wait look like a supervisor entrypoint failure and
+  obscured the typed recovery reason. The branch-only fix exports a small `supervisorExitCode` contract, returns `0`
+  for `queued` while retaining non-zero for hard `blocked`/`escalated` outcomes, and guards direct CLI execution so
+  the helper is testable without side effects. RED→GREEN is recorded by the new regression; the focused recovery
+  suite is **39/39**. The full runtime suite is **307 tests, 304 pass, 3 file-level dependency failures** for missing
+  `@solana/web3.js`/`fast-check`; these are environment gaps, not failures from this fix. The branch is pushed, but
+  no main merge, release promotion, launchd mutation, provider effect, effect-fence change or revenue claim exists.
+- [ ] Promote this supervisor exit contract only through the accepted main-derived immutable release gate, then run
+  one bounded loaded-idle supervisor wake and verify the typed journal/readback. Do not clear or replay any external
+  effect fence while doing so.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
