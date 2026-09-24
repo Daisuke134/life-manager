@@ -2902,3 +2902,26 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    delivery → acceptance → settlement → payout → replay-zero chain once.
 6. Refresh Mercor inventory, retain Consultant human calibration, preserve
    Coconala/Ryu manual-only and Upwork disabled, and run final fleet gate.
+
+### Runtime checkpoint — 2026-09-24 13:32 JST
+
+- [x] CrowdWorks occurrence `18d827342e505378-21861` completed
+  `ok/5/1/0/4/1/0`; no duplicate answer or formal delivery occurred.
+- [x] PID `21861` ended naturally. Target-limited cleanup closed `37` surplus
+  blank pages; immediate readback was two source pages (about:blank/newtab).
+  The old browser later showed one provider page plus blank/newtab targets,
+  confirming that old-release regrowth remains possible.
+- [ ] The checkpoint docs push still needs its own required CI run to finish;
+  prior docs head is green.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish current docs-head CI and keep PR #5820 open pending provider gates.
+2. Immutable-release/apply the tested branch; verify installed SHA, natural
+   CrowdWorks receipt/readback, and no blank-target regrowth.
+3. Preserve four historical `effect_unknown` fences until exact proof; never
+   blind-retry, resend, or edit admission state.
+4. Keep `63568785` buyer-material-gated, then complete delivery → acceptance →
+   settlement → payout → replay-zero once.
+5. Refresh Mercor inventory, retain Consultant human calibration, preserve
+   Coconala/Ryu manual-only and Upwork disabled, and run final fleet gate.

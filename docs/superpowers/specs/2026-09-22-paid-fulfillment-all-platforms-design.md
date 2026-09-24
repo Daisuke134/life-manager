@@ -3089,3 +3089,31 @@ not convert a transient pass or a no-op into client completion.
    deliver → acceptance → settlement → payout → replay-zero exactly once.
 6. Refresh Mercor inventory, retain Consultant human calibration, preserve
    Coconala/Ryu manual-only and Upwork disabled, and run final fleet acceptance.
+
+## Production Cursor — 2026-09-24 13:32 JST (natural readback preserved)
+
+- **The latest old-release wake completed safely.** Occurrence
+  `crowdworks-revenue-paid:18d827342e505378-21861` is `ok` with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1/failed=0`; no
+  duplicate answer or formal delivery was issued.
+- **The old process ended naturally.** PID `21861` is no longer running. A
+  final target-limited cleanup closed `37` surplus blank pages; immediate
+  readback was two source pages (`about:blank` and `chrome://newtab/`). A
+  later stale-browser readback showed one provider contract page plus two
+  blanks/newtab, so the old profile remains subject to regrowth.
+- **CI for the previous docs head is green.** The new docs commit that records
+  this checkpoint must still complete its own required run after push.
+
+### Remaining TODO (current cursor)
+
+1. Finish the current docs-head CI, then leave PR #5820 open until provider
+   acceptance gates—not CI alone—permit merge.
+2. Promote/apply the tested branch as one immutable release and verify the
+   installed SHA, natural CrowdWorks readback, and no blank-target regrowth.
+3. Preserve all four historical `effect_unknown` fences until exact
+   provider/run proof; never blind-retry, resend, or edit admission state.
+4. Keep `63568785` pending for admissible buyer material, then complete
+   delivery → acceptance → settlement → payout → replay-zero exactly once.
+5. Refresh Mercor official inventory, retain human-owned Consultant
+   calibration, preserve Coconala/Ryu manual-only and Upwork disabled, then
+   run the final fleet acceptance gate.
