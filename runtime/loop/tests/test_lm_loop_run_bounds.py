@@ -15,6 +15,7 @@ from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
+    ADMISSION_CONTROL_RETRY_DELAY_SECONDS,
     EFFECT_RESULT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _apply_verified_effect_result,
@@ -399,6 +400,43 @@ def test_nonlock_claim_io_failure_is_not_retried_or_started(tmp_path):
     claim.assert_called_once()
     sleep.assert_not_called()
     run.assert_not_called()
+
+
+def test_transient_sqlite_lock_during_release_recovers_before_stale_fencing(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "deterministic",
+        "effect_class": "publish",
+    }
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({
+        "occurrence_id": "affiliate-loop:wake-release-retry",
+    }))
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", side_effect=[
+              sqlite3.OperationalError("database is locked"),
+              [],
+          ]) as release,
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep,
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "affiliate-loop", {}, tmp_path / "receipt",
+            occurrence_id="affiliate-loop:wake-release-retry",
+        ) == 0
+
+    assert release.call_count == 2
+    sleep.assert_called_once_with(ADMISSION_CONTROL_RETRY_DELAY_SECONDS)
 
 
 def test_sqlite_lock_during_best_effort_reservation_keeps_terminal_path(tmp_path):

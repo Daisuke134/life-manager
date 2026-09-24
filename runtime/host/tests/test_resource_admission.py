@@ -1121,6 +1121,38 @@ def test_running_paid_owner_upgrades_its_queued_next_wake(tmp_path, monkeypatch)
     assert admission.release_and_reserve(running, now=200) == ["paid"]
 
 
+def test_release_and_reserve_rolls_back_before_claim_unlink_on_reservation_lock(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    occurrence_id = "affiliate-loop:release-lock"
+    admission.enqueue_durable(
+        "deterministic", "affiliate-loop", admission_class="revenue",
+        occurrence_id=occurrence_id, now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "deterministic", "affiliate-loop", admission_class="revenue", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    original_reserve = admission._reserve_locked
+    monkeypatch.setattr(
+        admission, "_reserve_locked",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            sqlite3.OperationalError("database is locked")
+        ),
+    )
+
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        admission.release_and_reserve(claim, now=102)
+
+    assert claim.is_file()
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence_id)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 0)
+    monkeypatch.setattr(admission, "_reserve_locked", original_reserve)
+    assert admission.release_and_reserve(claim, now=103) == []
+
+
 def test_coalesced_paid_wake_upgrades_reserved_queue_priority(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()

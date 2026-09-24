@@ -570,6 +570,24 @@ def _admission_with_retry(
     return result
 
 
+def _release_with_retry(operation: Callable[[], list[str]]) -> list[str]:
+    """Retry a release only while its transaction and claim remain atomic."""
+    for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+        try:
+            return operation()
+        except sqlite3.OperationalError as error:
+            if not _sqlite_database_busy(error):
+                raise
+            transient: Exception = error
+        except RuntimeError as error:
+            if str(error) != "control_busy":
+                raise
+            transient = error
+        if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+            time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise transient
+
+
 def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         if not heartbeat_durable_resource(claim):
@@ -1075,7 +1093,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True
-                    dispatch_after_release = release_and_reserve_resource(claim, **release_options)
+                    dispatch_after_release = _release_with_retry(
+                        lambda: release_and_reserve_resource(claim, **release_options)
+                    )
                 else:
                     release_resource(claim)
             except (OSError, RuntimeError, sqlite3.Error) as error:

@@ -221,6 +221,14 @@ current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, ze
 **Status:** Current task. Revenue, conversion, commission and natural-business-event waits are not gates. Capafy
 and Self-build are locally accepted. Mobile Apps is actively repairing under its existing Postiz canary owner;
 the next non-conflicting Product Loop cursor is Affiliate.
+
+Affiliate diagnosis reaches the shared release boundary. The original `affiliate-loop` child succeeds, but a
+single SQLite lock during final admission release leaves its claim recoverable and stale recovery subsequently
+fences the occurrence. The source fix is test-driven on `fix/admission-release-lock-selfheal-20260924`: release
+and next-owner reservation are one transaction, the retiring claim alone is excluded from capacity accounting,
+and only BUSY/LOCKED plus `control_busy` receive bounded retry. Focused regressions pass 2/2 and full admission/
+runner tests pass 217/217. Merge/release and evidence-bound reconciliation of the original occurrence remain;
+no provider state, Paid owner or production admission row is manually changed.
 Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
 `20260924T134241-60c1e93e` is active with `release_paths=ALL` and
 `provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero

@@ -730,7 +730,8 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
 def _next_durable_candidate(connection: sqlite3.Connection, owners: Path,
                             tickets: Path, resource_class: str, now: float,
                             starts: dict[int, str | None],
-                            snapshot_started_ns: int) -> dict[str, object] | None:
+                            snapshot_started_ns: int, *,
+                            excluded_claim: Path | None = None) -> dict[str, object] | None:
     """Choose the first waiter that both wins ordering and fits capacity."""
     if _legacy_waiter_exists(tickets, resource_class, starts, snapshot_started_ns):
         return None
@@ -738,7 +739,7 @@ def _next_durable_candidate(connection: sqlite3.Connection, owners: Path,
         available, _ = _durable_capacity(
             connection, owners, resource_class,
             str(row.get("admission_class", "borrow")), now,
-            starts, snapshot_started_ns,
+            starts, snapshot_started_ns, excluded_claim=excluded_claim,
         )
         if available:
             return row
@@ -812,10 +813,17 @@ def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
 def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_class: str,
                       admission_class: str,
                       now: float, starts: dict[int, str | None],
-                      snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
+                      snapshot_started_ns: int, *,
+                      excluded_claim: Path | None = None,
+                      ) -> tuple[bool, list[dict[str, object]]]:
     live = []
     live_occurrences = set()
     for path in owners.glob("*.json"):
+        # release_and_reserve keeps its claim file until the database commit so
+        # a failed handoff remains recoverable. Treat only that exact claim as
+        # already released while selecting the next durable reservation.
+        if excluded_claim is not None and path == excluded_claim:
+            continue
         row = _row(path) or {}
         if _live(path, starts, snapshot_started_ns):
             live.append(row)
@@ -1441,19 +1449,20 @@ def cancel_effect_free_queued_owner(owner_id: str) -> str:
 def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path, *,
                     instant: float, lease_seconds: int,
                     starts: dict[int, str | None],
-                    snapshot_started_ns: int) -> list[str]:
+                    snapshot_started_ns: int,
+                    excluded_claim: Path | None = None) -> list[str]:
     dispatched = []
     while True:
         connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
         for resource_class in RESOURCE_CLASSES:
             _durable_capacity(
                 connection, owners, resource_class, "borrow", instant,
-                starts, snapshot_started_ns)
+                starts, snapshot_started_ns, excluded_claim=excluded_claim)
         candidates = []
         for resource_class in RESOURCE_CLASSES:
             candidate = _next_durable_candidate(
                 connection, owners, tickets, resource_class, instant,
-                starts, snapshot_started_ns)
+                starts, snapshot_started_ns, excluded_claim=excluded_claim)
             if candidate:
                 owner_id = str(candidate["owner_id"])
                 sequence = int(candidate["sequence"])
@@ -1507,6 +1516,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
         if not _acquire_bounded(descriptor, timeout_seconds=5.0):
             raise RuntimeError("control_busy")
         instant = time.time() if now is None else now
+        dispatched: list[str] = []
         with _database(database) as connection:
             if requeue and value.get("version") == 2:
                 sequence = value.get("sequence")
@@ -1574,14 +1584,14 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                         "UPDATE priorities SET queued_at=? WHERE owner_id=?",
                         (max(remaining, instant), value["owner_id"]),
                     )
+            if reserve:
+                dispatched = _reserve_locked(
+                    connection, owners, tickets, instant=instant,
+                    lease_seconds=lease_seconds, starts=starts,
+                    snapshot_started_ns=snapshot_started_ns,
+                    excluded_claim=claim)
         claim.unlink(missing_ok=True)
-        if not reserve:
-            return []
-        with _database(database) as connection:
-            return _reserve_locked(
-                connection, owners, tickets, instant=instant,
-                lease_seconds=lease_seconds, starts=starts,
-                snapshot_started_ns=snapshot_started_ns)
+        return dispatched
     finally:
         os.close(descriptor)
 
