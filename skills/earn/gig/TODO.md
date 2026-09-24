@@ -24,6 +24,14 @@
   read-only and does not register a loop or contact Freelancer.
 - [ ] Connect the gate to a real authenticated Freelancer inventory adapter;
   only then add the disabled-by-default Apply/Reply/Paid/work-sync owners.
+- [x] Add the equivalent Upwork Paid-owner gate around the existing provider
+  modules. It requires fresh approved receipts for all eight Upwork actions,
+  a source-complete authenticated contract snapshot, and a positive funded
+  milestone before any contract-bound effect intent is created; it also has a
+  duplicate-zero check and never opens CDP or sends a provider action.
+- [ ] Refresh Upwork identity/authorization and build the live contract
+  snapshot adapter; current private receipts remain denied and the stored
+  inventory has zero active contracts, so no owner registration is allowed.
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -93,7 +101,7 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 23:20 JST)
+### Current remaining TODO (authoritative, 2026-09-24 23:28 JST)
 
 1. Promote the pushed source release and obtain a clean Coconala Apply
    acceptance. The latest natural wake is terminal and safe (`effect=0`, no
@@ -125,6 +133,9 @@
      admissible funded project/contract are visible.
 8. Upwork (implementation work is required now, but no provider send is allowed
    yet):
+   - [x] add the fail-closed Paid-owner gate and provider capability declaration
+     requiring all eight current action receipts plus a funded milestone
+     readback;
    - refresh the current account identity, policy authorization, browser/API
      transport, and source-complete job/contract inventory; the installed
      `cloak_browser` authorization entries are currently `denied` for search,

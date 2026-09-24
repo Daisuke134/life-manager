@@ -4557,3 +4557,38 @@ until its own gate is present.
 4. Enable either new Paid owner only after its official funded contract,
    provider receipt, readback, crash recovery, settlement/payout, and
    replay-zero evidence are present.
+
+## Runtime Status Refresh — 2026-09-24 23:28 JST (Upwork owner gate groundwork)
+
+- [x] Added `skills/earn/gig/scripts/upwork_readiness.py` and focused tests.
+  It validates the existing Upwork action vocabulary (`search`, `inspect`,
+  `propose`, `message`, `accept_offer`, `deliver_milestone`, `read_payments`,
+  `read_payouts`) against fresh approved receipts and requires a
+  source-complete authenticated contract snapshot with a positive funded
+  milestone before a Paid-owner intent can be created.
+- [x] The gate binds every intent to one exact contract/action and the
+  authorization receipt hash, rejects incomplete or stale inventory, and
+  exposes duplicate-zero checking. It does not start the Upwork browser,
+  register a launchd owner, spend Connects, accept an offer, message, deliver,
+  or read payment effects.
+- [x] Extended the public capability catalogue for both Freelancer and Upwork
+  with the same explicit lifecycle receipt/funded-contract/reconcile-without-
+  resend/replay-zero policy. The combined focused suite now passes (`53`).
+- [ ] Current Upwork production state remains closed: the eight private
+  `cloak_browser` receipts are `denied`, OAuth is absent, the saved snapshot is
+  stale and has `active_contracts=[]`. The next work is a fresh authenticated
+  identity/transport/inventory adapter, not owner registration or a guessed
+  provider send.
+
+### Next ordered cursor (23:28 JST)
+
+1. Resolve Coconala Apply's two local report boundaries and Storefront's
+   independent effect fence, then prove natural acceptance.
+2. Wire the Freelancer readiness gate to an authenticated official inventory
+   and keep owners disabled until one funded project is read back.
+3. Wire the Upwork gate to a fresh identity/authorization/contract readback;
+   re-use the existing provider modules and register only after all receipts
+   and a funded milestone are present.
+4. Run one provider-specific canary per newly authorized owner, then perform
+   official contract/delivery/payment/payout, crash-recovery, and replay-zero
+   acceptance across the fleet.

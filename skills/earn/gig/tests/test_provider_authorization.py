@@ -189,6 +189,19 @@ def test_public_catalogue_defaults_every_action_to_unknown():
             "readback": {"record_type": "application_receipt"},
         },
     }
+    for provider in ("freelancer", "upwork"):
+        assert catalogue["providers"][provider]["capability"] == {
+            "id": "marketplace.lifecycle",
+            "authorization": {
+                "receipt_required": True,
+                "required_state": "approved_browser_or_api",
+            },
+            "funded_contract": {
+                "required": True,
+                "readback": "official_contract_receipt",
+            },
+            "effect": {"unknown_state": "reconcile_without_resend", "replay": "zero"},
+        }
 
 
 def test_public_marketplace_example_is_reference_only_and_provider_neutral():
