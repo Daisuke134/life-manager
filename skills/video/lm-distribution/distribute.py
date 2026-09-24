@@ -292,6 +292,9 @@ def _append_success(
     logged_out = adapter_result.get("logged_out_readback")
     migration_date = adapter_result.get("migration_date")
     provider_reconciled = adapter_result.get("reconciled") is True
+    public_readback_verified = platform != "tiktok" or provider_reconciled
+    if platform == "tiktok" and not public_readback_verified:
+        raise DistributionError("TikTok adapter did not provide public readback")
     if route == "direct_browser" and not (
         provider_cost == 0
         and logged_out is True
@@ -315,6 +318,7 @@ def _append_success(
         "logged_out_readback": logged_out,
         "migration_date": migration_date,
         "provider_reconciled": provider_reconciled,
+        "public_readback_verified": public_readback_verified,
         # Publication lineage: without these fields a ledger-reconciled receipt cannot
         # pass the adapter's own verification (FIX 1).
         "format_id": config.format_id,
@@ -345,6 +349,8 @@ def distribute_platform(config: DistributionConfig, platform: str) -> dict:
 
     existing = _existing(rows, platform, config.creative_id, video_hash, caption_hash, config.slot)
     if existing:
+        if platform == "tiktok" and existing.get("public_readback_verified") is not True:
+            raise DistributionError("existing TikTok receipt lacks public readback")
         return {
             "creative_id": config.creative_id,
             "video_sha256": video_hash,

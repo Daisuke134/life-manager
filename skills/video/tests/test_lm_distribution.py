@@ -59,6 +59,7 @@ class DistributionTests(unittest.TestCase):
             "state": tt_state,
             "post_url": "https://www.tiktok.com/@life/video/123",
             "post_id": "postiz-real",
+            "reconciled": True,
             **(tt_extra or {}),
         }
         ig = executable(
@@ -234,6 +235,25 @@ class DistributionTests(unittest.TestCase):
         rows = [json.loads(line) for line in self.ledger.read_text().splitlines()]
         exact_rows = [row for row in rows if row.get("public_url", "").find("/video/") >= 0]
         self.assertEqual(len(exact_rows), 1)
+
+    def test_legacy_tiktok_receipt_without_public_readback_fails_closed(self):
+        video_hash = hashlib.sha256(self.video.read_bytes()).hexdigest()
+        caption_hash = hashlib.sha256(self.caption.read_bytes()).hexdigest()
+        self.ledger.write_text(
+            json.dumps({
+                "platform": "tiktok",
+                "status": "published",
+                "creative_id": "A03",
+                "video_sha256": video_hash,
+                "caption_sha256": caption_hash,
+                "public_url": "https://www.tiktok.com/@life/video/123",
+                "provider_id": "legacy-provider",
+            }) + "\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(lm_distribution.DistributionError, "public readback"):
+            lm_distribution.distribute_platform(self.build_config(), "tiktok")
+        self.assertFalse(self.calls.exists(), "a legacy receipt must not trigger a duplicate upload")
 
     def test_rejects_missing_or_empty_inputs_before_any_provider_call(self):
         self.video.unlink()
