@@ -1503,3 +1503,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Do not interpret clean merge-tree as merge authorization. Keep main integration, immutable promotion and
   production reload closed until the user-level foundation gate is green and the Paid ownership boundary remains
   intact.
+
+### Connector diagnostic readback (2026-09-25 JST)
+
+- [x] Read `life-manager-connector-native` status without waking it: current terminal is `entrypoint_exit_1`,
+  retryable, `effect_class=none`, no provider receipt and no effect-unknown admission row.
+- [x] Record the bounded failure clue from the available runner log: Playwright's dialog-dismiss race
+  (`Page.handleJavaScriptDialog: No dialog is showing`) is followed by an OpenClaw gateway timeout on
+  `ws://127.0.0.1:18789` while `reportWake` runs. The report failure can overwrite the underlying safe reason as
+  `wake_boundary_failed`; it must be retained as nested diagnostic evidence by the Connector owner.
+- [x] Keep the clue non-authoritative because the log excerpt is not bound to the current occurrence ID. No provider,
+  browser, admission or Connector source mutation was made; the active Connector-owned branch remains the repair
+  boundary.
+- [ ] After that owner publishes an accepted main-derived release, re-read the exact Connector occurrence with
+  structured nested error evidence, then require a clean no-effect wake and replay-zero before calling the Connector
+  loop healthy.

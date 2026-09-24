@@ -5015,3 +5015,18 @@ clean (tree `846ee714d8d98ffed599c7463745532de7b3736f`), and the candidate diff 
 fulfillment source or provider-session state. A clean merge-tree is not permission to merge: main integration,
 immutable release promotion and production reload remain closed until the user-level foundation gate is green and the
 separate Paid owner is preserved.
+
+### Connector diagnostic readback (2026-09-25 JST)
+
+The current read-only status for `life-manager-connector-native` is `fail / entrypoint_exit_1`, with
+`next_action=reconcile_owner`, `effect_class=none`, `effect_status=not_applicable`, no provider receipt and no
+admission effect unknown. The user's `circuit_open / wake_boundary_failed` output is therefore a safe-stop report, not
+evidence that a Connector provider action succeeded or failed externally.
+
+The available Connector runner log shows two separate failure boundaries: Playwright raised
+`ProtocolError: Page.handleJavaScriptDialog: No dialog is showing` while the legacy `connector-native-completion`
+worktree was driving browser pages; then `reportWake` raised `GatewayTransportError: gateway timeout after 10000ms`
+against `ws://127.0.0.1:18789`. The reporting failure propagated from `finish()` and can mask the original safe
+reason as `wake_boundary_failed`. Because the log excerpt is not bound to the current occurrence ID, it is a diagnosis
+clue rather than an official occurrence receipt. No provider action, browser session, admission row or Connector code
+was changed here; the Connector-owned branch remains the only place to repair its runner/reporting boundary.
