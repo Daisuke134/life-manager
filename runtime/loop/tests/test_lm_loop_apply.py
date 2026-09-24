@@ -191,6 +191,23 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_cancels_effect_free_control_plane_queue(self):
+        entry = {"effect_class": "none"}
+        with (
+            patch.object(
+                lm_loop, "_pending_admission_owners",
+                return_value={"life-manager-recovery-supervisor"},
+            ),
+            patch.object(
+                lm_loop, "cancel_effect_free_queued_owner", return_value="cancelled",
+            ) as cancel,
+            lm_loop._admission_rebind_guard(
+                "life-manager-recovery-supervisor", True, entry=entry,
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+        cancel.assert_called_once_with("life-manager-recovery-supervisor")
+
     def test_admission_rebind_guard_allows_opted_in_release_swap_for_idle_reservation(self):
         entry = {
             "resource_class": "agent",

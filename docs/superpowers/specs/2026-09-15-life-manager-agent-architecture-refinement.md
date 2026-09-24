@@ -2735,6 +2735,16 @@ completion gate establish the current baseline:
   requires exact owner/release health readback before writing a terminal `recovery_outcome`. This is candidate
   evidence only until local canary, all-loop acceptance, main integration and immutable release promotion pass.
 
+The shared-consumer follow-up now registers `life-manager-recovery-supervisor` once at a 60-second cadence and
+maps it once to the existing `self-build` Product Loop. PR #5822 supplies that owner; PR #5823 classifies it
+with the existing effect-free control-plane safety owners so recovery is not starved by the data-plane queue.
+The first production wake records `host_admission_deferred:resource_control_busy` before the classifier fix.
+The next exact-main reconcile finds seven effect-free old queued occurrences and safely returns
+`skipped_pending`; no entrypoint or Paid owner is touched. The remaining implementation cursor is an atomic
+history-preserving migration that marks only unclaimed, unreserved, effect-free occurrences `cancelled` when
+their owner becomes control-plane-exempt. A claim, active reservation or `effect_unknown` keeps the fence shut.
+This is a general self-healing release migration, not a manual production-database cleanup.
+
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
 `docs/superpowers/plans/2026-09-24-fourteen-loop-self-healing-foundation.md`.
@@ -2956,18 +2966,21 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    Every class currently remains fail-closed for production PR promotion because no separate loop-runtime path
    yet invokes all four immutable-release, isolated-canary, exact-health and rollback hooks; the Railway app
    deploy guard is not misreported as runtime proof. Recovery tests pass 36/36, foundation/guard/self-build/
-   catalog tests pass 197/197 and the real-installer canary passes 1/1.
+   catalog tests pass 197/197 and the real-installer canary passes 1/1. The shared recovery owner subsequently
+   increases the live contract to 98 mapped jobs and 168 registry jobs while retaining zero duplicate mappings
+   and zero errors.
 9. **Current cursor — local foundation acceptance:** host preflight passes for `gui/501`/Aqua and registry
-   doctor reports 167 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
-   The production baseline still blocks: all fourteen loops are observed, but thirteen have release drift,
-   Connector has an old incomplete diagnostic, all 97 mapped rows are diagnostically incomplete and 48
-   installed release SHAs are mixed. A pushed, non-activated, complete/read-only immutable candidate at
-   `02ae4f91a9da56baed6dd6bb6fcaa13a8d17c129` leaves production `current` at main-derived `07f76049fdeb…`.
-   Running from the candidate itself passes recovery 36/36, foundation/guard/self-build/catalog 197/197,
-   the live catalog contract with zero errors and the real-installer canary 1/1. The old order attempted
-   production apply before main integration, which the release guard correctly forbids. The executable order
-   is candidate acceptance -> one PR/main integration -> exact main-derived complete release -> non-Paid
-   apply -> authoritative foundation readback twice. Revenue remains outside this gate.
+   reports zero missing entrypoints, unmanaged labels or installed retired labels. Tasks 1–8 are merged through
+   PR #5821. The shared recovery owner is merged through PR #5822, and its control-plane admission fix is merged
+   through PR #5823 at `188dcb53cd513679e21f7e25d1a422ddf20a6e86`; complete exact-main release
+   `20260924T140650-188dcb53` is available. The loaded supervisor is still on the prior release because targeted
+   reconcile correctly preserves seven old queued occurrences and returns `skipped_pending`. They are
+   effect-free, unclaimed and unreserved. The current RED→GREEN change atomically marks only that safe class
+   `cancelled`, retains occurrence history, deletes its stale queue row and refuses any claim, reservation or
+   unknown effect. Admission 127/127, apply 119/119 plus 31 subtests, runner 83/83 and recovery canary 1/1 pass.
+   The executable order is now queue-migration PR/main integration -> exact main-derived complete release ->
+   supervisor-only apply -> one bounded wake with `idle` or one typed non-Paid outcome -> remaining non-Paid
+   apply -> authoritative fourteen-loop foundation readback twice. Revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

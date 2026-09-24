@@ -23,6 +23,12 @@ OPTIONAL_FIELDS = {
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
+CONTROL_PLANE_SAFETY_LOOPS = frozenset({
+    "capafy-loop-healthcheck",
+    "life-manager-disk-cleanup",
+    "life-manager-recovery-supervisor",
+    "life-manager-release-reconciler",
+})
 OCCURRENCE_SCOPED_ENTRYPOINTS = {
     "apps/life-manager/scripts/mobile-app",
     "skills/earn/crowdworks/scripts/application-owner",

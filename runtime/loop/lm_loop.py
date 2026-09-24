@@ -17,7 +17,9 @@ import time
 from pathlib import Path
 
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
-from runtime.loop.macos_loop_registry import admission_effect_scope, validate_registry
+from runtime.loop.macos_loop_registry import (
+    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
+)
 from runtime.loop.lm_loop_apply import (
     _plist,
     _loaded_arguments,
@@ -31,7 +33,8 @@ from runtime.loop.runtime_event import (
 )
 from runtime.host.resource_admission import (
     ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
-    rebind_queued_owner, resume_durable, suspend_durable,
+    cancel_effect_free_queued_owner, rebind_queued_owner, resume_durable,
+    suspend_durable,
     state_root as admission_root,
 )
 
@@ -181,6 +184,22 @@ def _admission_rebind_guard(
         if not pending:
             yield None
             return
+        loaded_idle_verified = False
+        if item is not None and release_sha and launchctl_safe:
+            skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
+            if skipped is not None and skipped.get("skipped") != "unloaded":
+                yield skipped
+                return
+            loaded_idle_verified = skipped is None
+        if loop_id in CONTROL_PLANE_SAFETY_LOOPS:
+            if entry is None or entry.get("effect_class") != "none":
+                raise RuntimeError("control-plane safety loop must be effect-free")
+            result = cancel_effect_free_queued_owner(loop_id)
+            if result in {"cancelled", "not_queued"}:
+                yield None
+                return
+            yield "pending"
+            return
         admission_class = entry.get("admission_class") if entry else None
         resource_class = entry.get("resource_class") if entry else None
         priority = entry.get("priority") if entry else None
@@ -189,13 +208,6 @@ def _admission_rebind_guard(
             # Legacy registry rows retain the old pending-admission skip contract.
             yield "pending"
             return
-        loaded_idle_verified = False
-        if item is not None and release_sha and launchctl_safe:
-            skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
-            if skipped is not None and skipped.get("skipped") != "unloaded":
-                yield skipped
-                return
-            loaded_idle_verified = skipped is None
         rebind_kwargs = {
             "resource_class": resource_class,
             "admission_class": admission_class,

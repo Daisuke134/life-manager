@@ -1380,6 +1380,63 @@ def cancel_durable(owner_id: str) -> bool:
         os.close(descriptor)
 
 
+def cancel_effect_free_queued_owner(owner_id: str) -> str:
+    """Close only an unclaimed, unreserved, effect-free durable queue entry.
+
+    This is the safe migration path for an owner promoted out of data-plane
+    admission. Occurrence history is retained as cancelled; any evidence that
+    work may have started or produced an unknown effect keeps the fence closed.
+    """
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor):
+            return "control_busy"
+        with _database(database) as connection:
+            if not connection.execute(
+                "SELECT 1 FROM queue WHERE owner_id=?", (owner_id,),
+            ).fetchone():
+                return "not_queued"
+            connection.execute(
+                "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
+            )
+            if connection.execute(
+                "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                (owner_id,),
+            ).fetchone() or connection.execute(
+                "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                (owner_id,),
+            ).fetchone():
+                return "effect_unknown"
+            if connection.execute(
+                "SELECT 1 FROM occurrences WHERE owner_id=? AND state='claimed' LIMIT 1",
+                (owner_id,),
+            ).fetchone():
+                return "claimed"
+            if connection.execute(
+                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,),
+            ).fetchone():
+                return "reserved"
+            changed = connection.execute(
+                """UPDATE occurrences SET state='cancelled'
+                   WHERE owner_id=? AND state='queued' AND effect_unknown=0""",
+                (owner_id,),
+            ).rowcount
+            if not changed:
+                return "no_queued_occurrence"
+            connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
+            removed = connection.execute(
+                "DELETE FROM queue WHERE owner_id=?", (owner_id,),
+            ).rowcount
+            if removed != 1:
+                raise RuntimeError("queued owner disappeared during cancellation")
+            return "cancelled"
+    finally:
+        os.close(descriptor)
+
+
 def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path, *,
                     instant: float, lease_seconds: int,
                     starts: dict[int, str | None],
