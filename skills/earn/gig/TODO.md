@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 01:36 JST (all-platform live-gate detail)
+## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
 
 - [x] Re-read the current paid-owner state for every platform without issuing a
   provider effect. Source readiness, loop registration, authentication, and
@@ -32,6 +32,10 @@
   after that evidence may the corresponding managed owner be registered,
   followed by zero-spend and funded canaries with official receipts and
   replay-zero. No provider send is authorized before those gates.
+- [x] PR `#5854` source verification is green: Python syntax/unit tests, loop
+  control contracts, gitleaks/TruffleHog, shell syntax, and repository-boundary
+  checks all passed. This validates the branch only; it does not create live
+  Freelancer/Upwork authentication or a funded contract.
 - [x] Added the first official-response normalization boundary for Freelancer:
   complete success envelopes, numeric account identity, project/milestone/IP
   coverage, hourly/payment/payout presence, bidder binding, explicit currency

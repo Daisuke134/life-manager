@@ -5143,3 +5143,16 @@ revenue owner and is not permission to send.
   official delivery/payment/payout, crash-recovery, and replay-zero receipts.
   Until the first three gates produce evidence, registering or enabling either
   loop would be an unsafe false-positive.
+
+## Runtime Status Refresh — 2026-09-25 01:41 JST (branch verification)
+
+- [x] PR `#5854` completed its current CI run successfully: Python syntax and
+  unit tests, loop-control contracts, shell syntax, secret scans, PII-shape,
+  agent-instruction, startup-drift, and OSS-boundary checks all passed.
+- [x] A fresh browser-control readback still reports the shared daemon alive
+  but `browsers=[]` and `sessions=[]`. No Freelancer or Upwork live login or
+  provider request was attempted; the external authorization gate remains
+  genuinely unobserved.
+- [ ] Keep the next cursor at account-bound authorization → funded official
+  inventory → managed-owner registration. A green branch CI run cannot be
+  promoted into a provider effect or a funded-contract claim.
