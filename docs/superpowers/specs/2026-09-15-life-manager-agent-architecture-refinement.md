@@ -4702,8 +4702,9 @@ production still loads the existing immutable
 release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
 made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
 cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
-the candidate diff contains 27 files: 25 generic control-plane/runtime/test paths plus two Affiliate receipt-identity
-files, with no `skills/earn/gig`, Capafy catalog, Affiliate provider session state, or Paid-fulfillment-spec path.
+the candidate diff contains 29 files: 25 generic control-plane/runtime/test paths, two Affiliate receipt-identity
+files, and two x402 settlement-receipt identity files, with no `skills/earn/gig`, Capafy catalog, Affiliate provider
+session state, or Paid-fulfillment-spec path.
 Its registry changes are limited to the 31 named non-Paid contracts above. The candidate worktree is clean and its
 diff check is clean. Main integration remains intentionally
 unopened until the user-level foundation gate is green.
@@ -4818,8 +4819,8 @@ identity hardening: no production process, provider session, Telegram message, a
 changed. Existing receipts without the identity remain unresolved until an exact official provider readback proves the
 same durable occurrence.
 
-The candidate diff is now **27 files**: generic control-plane/runtime/tests plus two Affiliate receipt-observability
-files. It still contains no Paid fulfillment implementation or provider-session state. The foundation gate remains
+The candidate diff is now **29 files**: generic control-plane/runtime/tests plus Affiliate and x402 receipt
+observability. It still contains no Paid fulfillment implementation or provider-session state. The foundation gate remains
 blocked on accepted-main immutable-release alignment and uncovered runtime evidence; Affiliate's next action is exact
 official readback of the durable target, never a generic pre-effect resolver and never a blind retry.
 
@@ -4861,3 +4862,11 @@ fence and request the owner-specific official readback rather than marking a mon
 No wallet, x402 endpoint, Telegram message, payout, provider session, admission row or effect fence was changed. The
 next order is owner-specific readback for the two Agent Economy money fences, then CFO message/payout readback, with
 the exact durable occurrence carried through every receipt before any resolver is eligible.
+
+The branch adds a small future-proofing slice at `aed3314918` for `skills/earn/x402-sell/settlement-recorder.mjs`:
+the settlement recorder now validates `LIFE_MANAGER_OCCURRENCE_ID` and includes it in its one-shot JSON output. A
+missing or malformed value is emitted as `null`; no settlement, wallet write or RPC mutation is added. The focused
+wiring/identity tests pass **2/2** and `node --check` passes. The broad x402 suite remains environment-limited at
+**154/165**: 11 pre-existing tests stop at missing optional `viem`, `express`, or `@x402/fetch` dependencies (plus
+two port tests that cannot reach the intended server without those dependencies). This does not weaken the focused
+receipt contract or authorize dependency hydration under the current capacity floor.

@@ -1257,10 +1257,10 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway
   **241 passed (212 subtests)**, product-onboarding **48/48**, contract gate 14/169/98/zero-errors, shell syntax,
   managed-runtime no-PATH probe, and `git diff --check`.
-- [x] Review the candidate diff for ownership boundaries. The clean candidate now contains 27 files: 25 generic
-  control-plane/runtime/test paths plus two Affiliate receipt-identity files. Its registry delta is limited to 31
-  non-Paid loop IDs; it contains no `skills/earn/gig`, Capafy catalog, Affiliate provider session state, or
-  Paid-fulfillment-spec path, and `git diff --check` is clean.
+- [x] Review the candidate diff for ownership boundaries. The clean candidate now contains 29 files: 25 generic
+  control-plane/runtime/test paths, two Affiliate receipt-identity files, and two x402 settlement-receipt identity
+  files. Its registry delta is limited to 31 non-Paid loop IDs; it contains no `skills/earn/gig`, Capafy catalog,
+  Affiliate provider session state, or Paid-fulfillment-spec path, and `git diff --check` is clean.
 - [ ] Integrate only this generic slice into main after the user-level foundation gate is green; do not merge the
   separate Paid/Gig/provider implementation or mutate production state in this step.
 - [ ] After the single accepted main integration, cut one immutable release and read back exact loaded/event SHA,
@@ -1386,3 +1386,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After the accepted immutable release is loaded, run the adapters one owner at a time, persist mode-0600
   reconciliation receipts, verify replay-zero, then re-run the foundation gate. Do not start wallet, x402, payout or
   message effects merely to clear these historical fences.
+
+### x402 settlement receipt identity (2026-09-25 JST)
+
+- [x] Add candidate commit `aed3314918`: `settlement-recorder.mjs` validates the runtime host occurrence and emits it
+  in the one-shot JSON result; null/malformed identity fails closed and no settlement or wallet mutation is added.
+- [x] Verify focused x402 identity/wiring tests **2/2**, `node --check`, and diff cleanliness.
+- [x] Probe the broad x402 suite: **154/165** pass; 11 failures are dependency/environment gaps (`viem`, `express`,
+  `@x402/fetch`) plus two server-port assertions that cannot reach the missing server dependencies. Do not hydrate
+  optional dependencies under the current capacity floor; preserve this as a release-build task.
+- [ ] After immutable promotion, bind the x402 output occurrence to a finalized Base receipt and persist the exact
+  reconciliation proof before touching the released `x402-settlement-recorder` fence.
