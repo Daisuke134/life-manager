@@ -3120,15 +3120,44 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    `20260924T170628-5b8e3c3b` are active. All three monitors read back that exact SHA with complete diagnostics,
    typed retryable `resource_capacity_busy`, `effect_status=not_applicable`, admission unknown zero and stable
    repeated-wake queue counts of 34/12/190. No queue row, effect fence or provider state is manually edited.
-   The authoritative gate is now 98 observed, zero missing, 93 release mismatches, 84 diagnostically incomplete
-   jobs and 49 unknown-effect jobs. Capafy's remaining release-drift owners are
-   `capafy-ig-account-manager`, `capafy-ig-marketing-daily`, `capafy-loop-daily`, `capafy-loop-healthcheck` and
-   `capafy-outcome-monitor`; the next cursor is the safest effect-free, non-browser owner among those, before
-   account or marketing automation. The executable order is now remaining explicit non-Paid
-   owner release alignment plus one naturally occurring eligible non-self recovery proof -> consume the
-   accepted Connector main commit when its separate owner publishes it -> authoritative fourteen-loop
-   foundation readback twice. Running owners, pending admission and effect fences remain preserved; revenue
-   remains outside this gate and no artificial production failure is injected for proof.
+   The authoritative gate at that slice is 98 observed, zero missing, 93 release mismatches, 84 diagnostically
+   incomplete jobs and 49 unknown-effect jobs. A read-only audit of the remaining Capafy owners finds that four
+   recurring effectful owners are still declared `effect_class=none` and do not coalesce scheduler wakes:
+   `capafy-loop-daily` can publish, `capafy-outcome-monitor` can send a message,
+   `capafy-ig-account-manager` mutates an account/session, and `capafy-ig-marketing-daily` publishes marketing
+   content. Their observed queued occurrence counts are respectively 168, 8037, 1635 and 71. This is a shared
+   scheduling-contract defect, not four reasons to delete state or build four new healers.
+
+   The existing `claim_durable()` coalescing path previously cancelled only the oldest queued occurrence before
+   claiming the current wake, leaving every other old scheduler wake orphaned. PR #5835 changes that one shared
+   path to cancel every prior queued, effect-known wake for the same owner atomically, only after the existing
+   unknown-effect fences pass. It preserves claimed, released and unknown occurrences and never crosses owner
+   boundaries. Host admission passes 128 tests, runtime-loop passes 532 tests, registry passes 15 tests and the
+   live contract remains 14 loops / 168 jobs / 98 mapped / zero errors. PR #5835 merges at
+   `208b0a36634c60a031b317eb1e3ec596b2faa101`; complete immutable release
+   `20260924T173838-208b0a36` is active with `release_paths=ALL`, `provenance=ancestor-of-origin-main`, doctor
+   168/168 and the release-owned coalescing regression passing. No Capafy effectful owner is applied or awakened
+   by that release cut.
+
+   Because `current` now advances before the loaded owners are deliberately reconciled, the fresh gate is 98
+   observed, zero missing, 98 release mismatches, 84 diagnostically incomplete jobs, 49 unknown-effect jobs and
+   14 `uncovered_failure` loops. That temporary mismatch increase is the deployment cursor, not a code
+   regression. `capafy-loop-healthcheck` already has a complete passing terminal but also needs exact-release
+   alignment. The next minimum slice declares the four observed effect classes and existing admission policies,
+   enables the already-built coalescing contract, then reconciles one owner at a time with every effect fence
+   preserved and authoritative readback before the next owner. It does not invent another framework.
+
+   Connector remains independently failed: its latest complete status is `entrypoint_exit_1`, installed release
+   `5b8e3c3b...`, and the outward message reduces that to `circuit_open/wake_boundary_failed`. The diagnosed
+   boundary is still the wrong CDP endpoint owner: Connector reaches IPv4 `127.0.0.1:9222` and receives HTTP 404
+   while managed Cloak Chromium owns IPv6 `[::1]:9222`; the shared guard treats the 404 as alive because curl is
+   not configured to fail on HTTP error. The separately leased candidate `e96e8c422d` is pushed but still has no
+   PR, is not contained by main, is not released and is not loaded. This workstream does not duplicate or mutate
+   that owner. The executable order is now explicit Capafy effect contracts and one-owner reconciliation -> the
+   remaining non-Paid owner slices -> one immediately triggered, safely eligible non-self recovery proof -> consume the accepted
+   Connector main commit after its owner publishes it -> authoritative fourteen-loop foundation readback twice.
+   Running owners, Paid ownership, pending admission and effect fences remain preserved; revenue remains outside
+   this gate and no artificial production failure is injected for proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
