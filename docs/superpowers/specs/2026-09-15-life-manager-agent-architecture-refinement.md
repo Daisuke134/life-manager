@@ -53,6 +53,12 @@ flowchart LR
   `diagnostic_complete=true`、`admission_effect_unknown=false`、entrypoint 前の typed
   `resource_capacity_busy` です。これは Writer slice の exact-release acceptance であり、全14 loop gateの
   replay-zeroを代替しません。
+- Writerの最新selector再束縛では、7 ownerをloaded-idleのまま `1657972036bddc842682108334e5d30b5e48defe`へ
+  個別reconcileしました。effect-freeのclaim/money/discovery/salesはcapacity前で停止し、craftは同一release
+  でeffectなしのterminal `pass`、opportunity-responseはapplication effect前のtyped capacity停止です。
+  `admission_effect_unknown=false`とcomplete diagnosticsを確認しました。writer-reportはmessage effectを持つため
+  startせず、既存の公式Telegram readback `90905–90908`を保持しています。reportのcurrent-release replay-zeroは
+  provider effect fenceが揃うまで未完了であり、外部送信を推測で再実行しません。
 - Agent Economy は loaded `403e272eb615951b7a125006e2e5797cf28c4b7b` へ再バインドされ、diagnostic は
   complete です。直前の BlockRun HTTP 429 は既存の3回 retry後に `wake_error/brain_transport` として
   ledger/harness-failuresへ記録され、opaque successにはなっていません。fresh run は `gpt-5.6-terra` で
