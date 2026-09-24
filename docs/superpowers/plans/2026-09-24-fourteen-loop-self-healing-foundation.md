@@ -721,6 +721,11 @@ The following is the current control-plane state. It is evidence for the next bo
   `life-manager-daily-driver`); continuous owners intentionally have no finite admission/priority policy. Do not
   touch the Mobile owner. The next safe cursor is accepted main-derived immutable release promotion, then one-owner
   loaded-idle reconciliation; no provider effect or revenue is inferred.
+- [x] Re-run the complete `runtime/loop` Node suite at this branch boundary. It reports 304 tests, 301 pass and
+  three file-level failures, all environment dependency gaps: `@solana/web3.js` is absent for
+  `always-act-reroute` and `always-act-wire-seam`, and `fast-check` is absent for `always-act-router`. Focused
+  recovery/registry/read-only suites remain green; no dependency install is attempted under the low-capacity host
+  constraint, and these are not self-healing implementation regressions.
 - Read-only x402 acquisition recheck 2026-09-25 JST: `x402-acquisition-controller` is loaded-idle on old
   installed/event SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with a typed pre-entrypoint
   `host_admission_deferred:resource_capacity_busy`/exit 75. Durable admission has 1,727 queued and 595 released

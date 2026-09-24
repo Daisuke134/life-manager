@@ -3866,6 +3866,12 @@ intentionally lack finite admission/priority policy. Mobile remains out of scope
 contract work is branch-only; accepted main-derived immutable release promotion and exact-SHA owner reconciliation
 remain the next steps, with no provider effect or revenue claim.
 
+The complete Node runtime suite was re-run at this branch boundary: 304 tests, 301 pass and three file-level
+failures. All three fail before test execution because this low-capacity worktree lacks optional `@solana/web3.js`
+(two always-act harness files) and `fast-check` (one always-act router file). Focused recovery/registry/read-only
+suites remain green; no dependency install is attempted and these failures are environment gaps, not self-healing
+implementation regressions.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
