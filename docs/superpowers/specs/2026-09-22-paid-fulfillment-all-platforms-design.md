@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 02:55 JST
+### Live platform gate correction — 2026-09-25 03:18 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -20,19 +20,20 @@ Paid "running" solely because a registry row and a result file existed.
 
 | Platform | Current observed state | Gate still open |
 |---|---|---|
-| Coconala | Paid is a safe `effect=0` natural no-op. Apply retains the historical `5280157` fence; Storefront is blocked by `resource_effect_unknown` on old release `1c11bda3`. Ryu remains a manual-only, already-read-back exception. | Exact Storefront/Apply proof, natural wake, official readback, replay-zero. |
-| CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`, but the actual launchd service is unloaded and fenced by `entrypoint_exit_143`. | Exact pre-effect/provider proof, then loaded owner and no-effect canary; pending `63568785` still waits for buyer material. |
-| Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Paid service is unloaded and fenced by `entrypoint_exit_143`. | Exact fence reconciliation, refreshed inventory, then funded ContractReceipt before formal delivery. |
-| Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is blocked by `resource_effect_unknown`. | Refresh inventory and reconcile exact fences. |
+| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-idle on installed `d4fe0819`, but its latest event is an old-release `entrypoint_exit_1` with no provider receipt. Apply retains the historical `5280157` fence; Storefront's bounded wake completed, then hit CDP HTTP 500, and its next wake was blocked by `resource_effect_unknown`. Ryu remains a manual-only, already-read-back exception. | Recover disk headroom; obtain exact Paid/Apply proof and Storefront official readback; then natural wake and replay-zero. |
+| CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`, but the actual launchd service is unloaded with `entrypoint_exit_143` and `admission_effect_unknown=true`. | Exact pre-effect/provider proof, then load one owner and run a no-effect canary; pending `63568785` still waits for buyer material. |
+| Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Paid service is unloaded with `entrypoint_exit_143` and `admission_effect_unknown=true`. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
+| Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is loaded-idle but latest wake is blocked by `resource_control_busy`. | Recover capacity, refresh inventory, and reconcile exact application/Paid/Reply fences. |
 | Freelancer.com | No OAuth, approved receipts, authenticated inventory, or funded project; bid watcher only observed four expired projects. | Account-bound authentication, funded-project readback, then owner registration. |
 | Upwork | Read-only authenticated snapshot is source-complete with zero contracts/funded milestones. Transactions/withdrawals are empty; mutation receipts are denied; no current Paid owner is loaded. | Fresh mutation authorization, real funded contract/milestone, then owner registration and canaries. |
 
 The immediate order is therefore: reconcile exact old fences without guessing,
 then finish each provider's read-only/authentication gate, and only register a
 Freelancer/Upwork owner after both authentication and funded-work evidence exist.
-The host has also hit `ENOSPC` during receipt/SQLite writes (allowlisted cleanup
-reclaimed zero bytes because candidates were open), so disk headroom must be
-stable before claiming a natural-wake acceptance.
+The host has also hit `ENOSPC` during receipt/SQLite writes. The latest `df`
+readback is about 228 MiB free at 100% capacity; allowlisted cleanup preserved
+all five open candidates and reclaimed zero bytes. Disk headroom must be stable
+before claiming a natural-wake acceptance.
 
 ### Current implementation cursor — 2026-09-24 21:00 JST
 
