@@ -2633,3 +2633,40 @@ not convert a transient pass or a no-op into client completion.
    acceptance, settlement, payout, and replay-zero once.
 5. Preserve Coconala pass/no-op/Ryu-manual state and keep Upwork disabled until
    authorization, authenticated readback, and a funded contract exist.
+
+## Production Cursor — 2026-09-24 11:58 JST (CrowdWorks browser boundary)
+
+- **CrowdWorks failure boundary is identified.** Paid occurrence
+  `18d821f6a6290630-38115` failed at `provider_inventory` with
+  `CrowdWorksPaidBrowserUnavailable` while an older Chromium process (PID
+  `39592`) was still serving CDP 9228 for the CrowdWorks profile. The browser
+  owner then produced a later natural pass
+  (`18d8224ce4c44110-42241`), restoring the provider snapshot to
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; this does not clear
+  the historical effect-unknown fence.
+- **Source fix:** branch commit `c399767c71` makes the shared browser-port
+  owner check whether CDP already answers after acquiring its locks and fail
+  closed with `browser_port_already_served` instead of spawning a duplicate
+  Chromium. TDD verification is `18` browser-owner tests and `160` runtime-host
+  tests passing; `lm-loop-contract` and `lm-loop doctor` pass. The fix is not
+  production-loaded.
+- **Safety:** no Chromium process was killed, no profile was deleted, no tab was
+  closed, and no provider effect was issued. Coconala's latest provider
+  snapshot remains the prior `4/0/0/3/0` pass, although its newest wake is
+  currently waiting on shared control capacity; do not treat that blocked wake
+  as a new client failure.
+
+### Remaining TODO (superseding)
+
+1. Keep the CrowdWorks historical effect-unknown fence closed; use the later
+   pass only as provider snapshot/readback evidence, never as proof for the old
+   occurrence. Promote `c399767c71` only through a main-derived immutable
+   release and verify loaded SHA plus a natural pass.
+2. Obtain approval before any owner-scoped cleanup of an actually orphaned
+   browser process; never kill by port alone and never touch another profile.
+3. Obtain approval for Lancers' exact three stale proposal-target close, then
+   promote its fix and verify inventory/readback/replay-zero.
+4. Complete CrowdWorks `63568785` only after buyer material, with formal
+   delivery, acceptance, settlement, payout and replay-zero.
+5. Preserve Coconala/Ryu manual-only state and keep Upwork disabled until its
+   authorization, authenticated readback and funded-contract gates exist.

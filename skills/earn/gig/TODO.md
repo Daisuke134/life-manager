@@ -2605,3 +2605,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   release and verify inventory/readback/replay-zero.
 - [ ] Preserve CrowdWorks historical fence and finish `63568785` only after
   buyer material; preserve Coconala/Ryu and Upwork gates.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:58 JST (CrowdWorks browser boundary)
+
+- [x] Diagnosed CrowdWorks Paid occurrence `18d821f6a6290630-38115` as
+  `CrowdWorksPaidBrowserUnavailable` at inventory while an older Chromium PID
+  `39592` still served CDP 9228 for the same profile.
+- [x] Verified a later natural CrowdWorks pass
+  `18d8224ce4c44110-42241` restored the official `5/1/0/4/1` snapshot; the old
+  effect-unknown fence remains held and no resend occurred.
+- [x] Added TDD-covered shared port-owner protection in branch commit
+  `c399767c71`: an already-serving CDP port now fails closed before duplicate
+  browser spawn. Verification: `18` browser-owner tests, `160` runtime-host
+  tests, contract gate and doctor all pass.
+- [ ] Keep the fix branch-only until a main-derived immutable release and
+  natural production readback are approved; do not kill PID `39592` by hand.
+- [ ] Keep Lancers recovery approval/fence and CrowdWorks `63568785` material
+  gate; preserve Coconala/Ryu and Upwork gates.
