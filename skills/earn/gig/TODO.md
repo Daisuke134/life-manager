@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 04:03 JST (live platform-by-platform gate)
+## Current cursor — 2026-09-25 04:08 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
 "running" without a current launchd readback. A source registry row is not a
@@ -40,9 +40,15 @@ remain unresolved provider fences; disk recovery does not clear them.
   stop`; readback is `launchd_state=unloaded`, `pid=null`. Its final stopped
   occurrence is `entrypoint_exit_143/effect_unknown` without a provider receipt;
   no retry or fence release was performed.
-- [ ] The fix is committed on this branch but is not yet cut into the immutable
-  production release. Do not reload effectful owners until stable headroom and
-  release/readback verification are available.
+- [x] A full immutable candidate release was cut at
+  `/Users/anicca/loops/releases/20260925T040819-c755377c` from pushed commit
+  `c755377c9fd0fbb0d3dd5e11b232c33ba7a9c014`; its manifest says
+  `provenance=pushed-not-yet-on-main`, its files are immutable, and the
+  heartbeat fix is present.
+- [ ] The candidate is **not** production: `~/loops/current` and
+  `hf-gig-paid-direct` remain on the prior d4fe release. Main promotion,
+  acceptance, and targeted owner apply are still open; no effectful owner was
+  reloaded from the branch candidate.
 
 ### Remaining TODO from this cursor
 
@@ -68,7 +74,7 @@ remain unresolved provider fences; disk recovery does not clear them.
    authorization, funded-work proof where applicable, official receipt/readback,
    settlement evidence, and duplicate-zero proof.
 
-### Freelancer/Upwork execution work — 2026-09-25 04:03 JST
+### Freelancer/Upwork execution work — 2026-09-25 04:08 JST
 
 - [x] Re-ran the provider readiness/transport suites: `52 passed` (Freelancer
   readiness/transport plus Upwork readiness/transport). This proves the
@@ -89,7 +95,7 @@ remain unresolved provider fences; disk recovery does not clear them.
   profile directory, historical JSON, or loaded launchd row does not satisfy
   any of these gates.
 
-### Fresh transport boundary — 2026-09-25 04:03 JST
+### Fresh transport boundary — 2026-09-25 04:08 JST
 
 - [x] Confirmed the live browser boundary without touching a provider: the
   BrowserSkill daemon reports `browsers=[]`; CDP `9223` is the Coconala
@@ -107,6 +113,10 @@ remain unresolved provider fences; disk recovery does not clear them.
   read-only lease into the strict inventory adapters. This is the first step
   that can change the Freelancer/Upwork state; creating an owner or sending
   from a profile directory cannot.
+- [x] Verified the candidate release without changing production: the release
+  manifest records `c755377c9f…`, the immutable tree contains the heartbeat
+  fix, `~/loops/current` still resolves to `20260925T031007-d4fe0819`, and
+  Coconala Paid remains a natural `pass / effect=none` on d4fe.
 
 ## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
 

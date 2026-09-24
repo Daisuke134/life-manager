@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 04:03 JST
+### Live platform gate correction — 2026-09-25 04:08 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -49,7 +49,7 @@ production release. CrowdWorks application was stopped and read back as
 `unloaded/pid=null`; its stop occurrence remains `effect_unknown` without a
 provider receipt, so it is not retried or released by inference.
 
-### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 04:03 JST
+### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 04:08 JST
 
 The implementation is not waiting for a funded contract to begin engineering.
 The provider-neutral readiness and transport boundaries are implemented and the
@@ -74,7 +74,7 @@ split into provider readback and provider effect:
   after registration the canary sequence is zero-effect → funded → official
   receipt/readback → settlement/payout → crash recovery → replay-zero.
 
-### Transport reality — 2026-09-25 04:03 JST
+### Transport reality — 2026-09-25 04:08 JST
 
 The code-side gates are being worked on now; the provider-side account gate is
 not being faked. BrowserSkill currently reports no connected instances, CDP
@@ -84,6 +84,17 @@ Upwork has no OAuth file and no running `gig-upwork` page. Only the three
 read-only Upwork browser receipts are current; all mutation actions are denied.
 Consequently the next real state transition is an account-bound read-only
 inventory readback, not loop registration or a provider send.
+
+### Candidate release readback — 2026-09-25 04:08 JST
+
+The heartbeat cancellation fix is now packaged in the immutable candidate
+release `/Users/anicca/loops/releases/20260925T040819-c755377c` at commit
+`c755377c9fd0fbb0d3dd5e11b232c33ba7a9c014`. The manifest records
+`pushed-not-yet-on-main`; the release tree is immutable and contains
+`resource_heartbeat_unavailable`. Production was not changed:
+`~/loops/current` still points to `20260925T031007-d4fe0819`, and Coconala
+Paid's latest natural wake remains `pass / effect=none`. Main promotion and
+targeted owner acceptance remain open.
 
 ### Current implementation cursor — 2026-09-24 21:00 JST
 
