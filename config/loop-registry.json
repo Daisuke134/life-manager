@@ -3326,6 +3326,7 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3345,7 +3346,12 @@
       "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
       "label": "ai.anicca.x402-inflow-watch",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch-claude-p": {
