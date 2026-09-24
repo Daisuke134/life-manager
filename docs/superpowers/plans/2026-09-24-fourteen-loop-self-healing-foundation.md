@@ -331,6 +331,14 @@ terminal is then classified into a new recovery intent. Repeated wakes claim tho
 capacity projection correctly fails this mixed state closed. This recovery-owner self-recursion is the current
 cursor; it must be fixed once in the shared healer before any additional per-loop alignment.
 
+Candidate `5e2275d977` prevents new self-intent emission, terminally drains one persisted self-intent per wake
+without executing a reconcile or spending budget, and refuses self-reconcile plan construction as a final
+guard. Recovery tests pass 36/36, runner bounds pass 84/84, apply/registry tests pass 202 tests plus 174
+subtests, and foundation/catalog tests pass 65/65. A candidate CLI probe against temporary copies of the live
+queue/journal closes pending self-intent `fa82ab50703c57ea6540cb35b93576f8` as
+`skipped/supervisor_self_recovery_excluded`, appends exactly one journal row and leaves production unchanged.
+PR/CI/main integration and the production drain/readback remain open.
+
 Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
 run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
 Chromium owns IPv6 `[::1]:9222`; Connector is pinned to the IPv4 endpoint and receives HTTP 404. The shared
@@ -378,7 +386,8 @@ browser owner.
 - [x] Generate immediate current-release terminal diagnostics for all four effect-free Self-build owners; release drift becomes zero for the loop and all rows are complete/unknown-free.
 - [x] Diagnose the remaining Self-build failure classification as evaluator drift: three owners are typed, retryable capacity deferrals behind shared FIFO reservations, not broken executions.
 - [x] Integrate the strict capacity-deferral-to-`safely_fenced` projection as PR #5829 at `9503276595fc778740c08b6938325e15e52b548d`; retain fail-closed behavior for mixed failures.
-- [ ] Reproduce and fix the shared recovery-supervisor self-recursion: the recovery owner must not enqueue or reconcile itself, and an old-SHA intent must terminate once without producing an unbounded chain.
+- [x] Reproduce and fix the shared recovery-supervisor self-recursion in pushed candidate `5e2275d977`: the runner does not enqueue it, one old self-intent becomes terminal skipped per wake, and the plan compiler cannot reconcile it.
+- [ ] Integrate the self-recursion fix through PR/CI/main, cut a complete main-derived immutable release, apply only the loaded-idle supervisor, and prove all existing self-intents drain without creating a new one.
 - [ ] Prove one eligible non-self, non-Paid recovery reaches an authoritative exact-release terminal and replay-zero; preserve the old Connector intent and every effect fence.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; the current pushed `e96e8c422d` has no PR and is not merged/released/loaded/production-verified. Do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.

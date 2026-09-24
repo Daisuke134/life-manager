@@ -2817,6 +2817,17 @@ capacity backpressure and not fourteen provider-specific defects. The next curso
 and prevent recovery-owner self-enqueue/reconciliation, retain the existing failed evidence, and prove one
 bounded non-self recovery with replay-zero before aligning another Product Loop.
 
+Candidate `5e2275d977` closes the recursion at the three existing boundaries without adding another healer:
+the shared runner does not emit an intent for the recovery-supervisor entrypoint, the queue consumer
+terminally marks one already-persisted self-intent `skipped/supervisor_self_recovery_excluded` per wake with
+budget consumption zero, and the apply-plan compiler refuses to create a self-reconcile command. Recovery
+tests pass 36/36, runner bounds pass 84/84, apply/registry tests pass 202 tests plus 174 subtests, and
+foundation/catalog tests pass 65/65. Running the candidate CLI against temporary copies of the live queue and
+journal closes exact pending self-intent `fa82ab50703c57ea6540cb35b93576f8` with execution zero and exactly one
+journal append; production files are unchanged. This is pushed source evidence, not a production repair. The
+next gate is PR/CI/main integration, a complete main-derived immutable release, supervisor-only loaded-idle
+apply and bounded wakes until the pre-existing self-intents are terminal without any new self-intent.
+
 Connector remains a real uncovered failure, not an old notification artifact. Its latest action history again
 shows Calendar observation succeeding and `browser_open` failing with `browser_open_failed`; the user-facing
 `circuit_open/wake_boundary_failed` is only the generic outer report. `lm-loop status` currently shows a
@@ -3089,7 +3100,9 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    CDP ownership boundary; its candidate is pushed through `e96e8c422d` but has no PR and is not merged,
    released, loaded or production-verified. The executable order is now recovery-supervisor self-recursion
    regression and bounded repair proof -> consume the accepted Connector main commit -> remaining explicit
-   non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice.
+   non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice. Candidate
+   `5e2275d977` now implements the three-boundary self-exclusion and passes its focused suites plus a copied-live-
+   state probe; main integration, immutable release and production drain/readback remain the current cursor.
    Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
