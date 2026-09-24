@@ -80,6 +80,35 @@ function safeReadback(value) {
     .map((field) => [field, value[field]]));
 }
 
+function safeReconcileDiagnostics(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const result = {};
+  for (const field of ['eligible', 'eligible_before_max_owners']) {
+    if (Number.isSafeInteger(value[field]) && value[field] >= 0) result[field] = value[field];
+  }
+  if (value.blocked_by_gate && typeof value.blocked_by_gate === 'object'
+      && !Array.isArray(value.blocked_by_gate)) {
+    const gates = {};
+    for (const gate of Object.keys(value.blocked_by_gate).sort().slice(0, 32)) {
+      if (!ID.test(gate)) continue;
+      const item = value.blocked_by_gate[gate];
+      if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+      const safe = {};
+      if (Number.isSafeInteger(item.count) && item.count >= 0) safe.count = item.count;
+      if (Array.isArray(item.sample_loop_ids)) {
+        const samples = item.sample_loop_ids
+          .filter((loopId) => typeof loopId === 'string' && ID.test(loopId))
+          .slice(0, 10)
+          .sort();
+        if (samples.length > 0) safe.sample_loop_ids = samples;
+      }
+      if (Object.keys(safe).length > 0) gates[gate] = safe;
+    }
+    if (Object.keys(gates).length > 0) result.blocked_by_gate = gates;
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 function defaultNextAction(state) {
   if (state === 'repaired' || state === 'skipped') return 'none';
   if (state === 'held') return 'official_readback_required';
@@ -91,6 +120,7 @@ function recoveryOutcome(intent, outcome, { attempt, now, nextEligibleAt }) {
   const state = OUTCOME_STATES.has(outcome?.state) ? outcome.state : 'blocked';
   const before = safeReadback(outcome?.before_readback);
   const after = safeReadback(outcome?.after_readback);
+  const reconcileDiagnostics = safeReconcileDiagnostics(outcome?.reconcile);
   const evidence = Array.isArray(outcome?.evidence_refs)
     ? outcome.evidence_refs.filter((value) => typeof value === 'string' && SAFE_REF.test(value)).slice(0, 32)
     : Array.isArray(intent.evidence_refs)
@@ -121,6 +151,7 @@ function recoveryOutcome(intent, outcome, { attempt, now, nextEligibleAt }) {
     next_eligible_at: nextEligibleAt,
     observed_at: now,
     ...(typeof outcome?.reason === 'string' ? { reason: outcome.reason } : {}),
+    ...(reconcileDiagnostics ? { reconcile_diagnostics: reconcileDiagnostics } : {}),
   };
 }
 

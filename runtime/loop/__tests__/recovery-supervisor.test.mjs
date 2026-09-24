@@ -185,6 +185,41 @@ test('records exact readback evidence and does not spend budget on verification-
   });
 });
 
+test('persists bounded reconcile gate diagnostics in the supervisor journal', async () => {
+  const { queue, journal } = await files([intent('diagnostics')]);
+  await consumeRecoveryIntentQueue({
+    queuePath: queue,
+    journalPath: journal,
+    now: '2026-09-24T00:00:00.000Z',
+    executeIntent: async () => ({
+      ok: false,
+      state: 'queued',
+      reason: 'healthy_readback_pending',
+      reconcile: {
+        eligible: 0,
+        eligible_before_max_owners: 0,
+        blocked_by_gate: {
+          pending_admission: { count: 76, sample_loop_ids: ['example-loop'] },
+          event_release_mismatch: { count: 20, sample_loop_ids: ['sibling-loop'] },
+          ignored: { count: 'not-a-count', sample_loop_ids: [null, {}] },
+        },
+        untrusted: 'discarded',
+      },
+    }),
+  });
+
+  const outcome = (await journalRows(journal)).at(-1);
+  assert.deepEqual(outcome.reconcile_diagnostics, {
+    eligible: 0,
+    eligible_before_max_owners: 0,
+    blocked_by_gate: {
+      event_release_mismatch: { count: 20, sample_loop_ids: ['sibling-loop'] },
+      pending_admission: { count: 76, sample_loop_ids: ['example-loop'] },
+    },
+  });
+  assert.equal(Object.hasOwn(outcome.reconcile_diagnostics, 'untrusted'), false);
+});
+
 test('skips every Paid intent and consumes the next non-Paid owner without mutation', async () => {
   const { queue, journal } = await files([
     intent('paid', 'coconala-paid'), intent('safe', 'connector'),
