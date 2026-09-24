@@ -4406,3 +4406,65 @@ not convert a transient pass or a no-op into client completion.
    then advance the cross-platform cursor: CrowdWorks buyer-material wait,
    Lancers funded-contract gate, Mercor stale inventory, and Freelancer/Upwork
    authorization plus funded-contract gates.
+
+## Runtime Status Refresh — 2026-09-24 22:26 JST (cross-platform readiness)
+
+This refresh supersedes the live-state claims in the 21:22 section above; the
+older section remains historical evidence.
+
+### Coconala
+
+- [x] The exact historical Apply occurrence
+  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` now reads
+  `released/effect_unknown=0`. Official history still shows no request
+  `5280157`, so no provider submit or retry is justified.
+- [ ] The recovery runner left `application_parent.py` nonterminal with no
+  qualifying action (issue `#5855`). A clean natural Apply wake, official
+  readback, and replay-zero are still required before acceptance.
+- [ ] Storefront is independently blocked by
+  `claimed/effect_unknown=1`; it must be reconciled and then naturally
+  read back. Paid/Reply remain pass/no-op; Ryu remains manual-only.
+
+### Runtime matrix (read-only status)
+
+| Platform | Current runtime truth | What we work on next |
+|---|---|---|
+| CrowdWorks | Application/Reply currently fail with effect-unknown; Paid is unloaded/effect-unknown; Report is admission-blocked. `63568785` still waits for admissible buyer material. | Preserve all fences; reread the buyer-material artifact and only resume a funded-contract lane with official receipt/readback. |
+| Lancers | Application/Browser/Work-sync are loaded, but the application has an effect-unknown admission and Paid is unloaded after exit 143; negotiation/storefront/report remain effect-fenced. Current inventory has zero funded contracts. | Keep the truthful no-op; resolve each fence and wait for a real `ContractReceipt` before formal delivery. |
+| Mercor | Application/Paid/Reply are admission-blocked by effect-unknown. | Refresh authenticated inventory and reconcile each occurrence; no guessed mutation. |
+| Freelancer.com | `bid-watch`, application, and work-sync labels are retired/disabled. The only implementation is a public GET watcher for four historical bids; it never authenticates, bids, messages, or syncs contracts. | Build the authenticated account/policy and source-complete inventory path, then add Apply→Reply→Paid→settlement/payout owners with provider receipts, official readback, and replay-zero. Register only after a valid funded project/contract appears. |
+| Upwork | Browser/free-loop labels are retired/disabled. Proposal/message/offer/delivery/finance modules and tests exist, but no active Paid owner exists. The private `cloak_browser` receipts are `denied` for search, propose, message, offer acceptance, delivery, payments, and payouts; the stored read-only snapshot has zero effects and no current funded contract. | Refresh identity/policy/transport and authenticated inventory; obtain approved authorization and a real funded contract; then register one Paid owner, run a zero-spend canary and one funded canary, and verify contract/delivery/payment/payout/replay-zero. |
+
+### Explicit Freelancer/Upwork implementation gates
+
+The phrase “認証・funded contract取得後にloop登録” is a provider-effect
+gate, not a reason to wait without engineering. The branch work proceeds now in
+this order:
+
+1. **Freelancer:** add a durable authenticated account/policy receipt and a
+   source-complete opportunity/contract snapshot; define the shared application,
+   reply, work-sync, Paid, settlement, and payout owner contracts; add red tests
+   for effect fencing and duplicate-zero; only then attach provider transport
+   and register the owners after a funded project is read back.
+2. **Upwork:** reuse the existing proposal/message/offer/delivery/finance
+   modules; add current authorization/identity/transport and funded-contract
+   admission fixtures; register one Paid owner only after exact approved
+   authorization plus authenticated funded-contract readback; run read-only
+   canary → funded canary → official receipt/readback → replay-zero.
+3. **Fleet:** after both lanes pass their provider-specific gates, run crash
+   recovery, settlement, payout attribution, and duplicate-zero together with
+   the already registered platforms. A loaded PID or local unit-test pass is not
+   a provider delivery.
+
+### Next ordered cursor (22:26 JST)
+
+1. Promote the pushed Coconala source, obtain clean natural Apply acceptance,
+   then reconcile and verify Storefront.
+2. Finish Coconala four-room/Ryu manual-only readback.
+3. Preserve CrowdWorks/Lancers/Mercor effect fences while resolving their
+   current bounded blockers.
+4. Implement Freelancer readiness and Upwork authorization/inventory/owner
+   contracts in branch, without sending provider effects until their exact
+   gates are present.
+5. Run the first funded canary for each newly enabled owner, then final fleet
+   settlement/payout/replay-zero acceptance.

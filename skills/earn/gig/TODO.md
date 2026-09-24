@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 21:22 JST
+## Current cursor — 2026-09-24 22:26 JST
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -13,17 +13,13 @@
   waiting for admissible buyer lesson/answer material after the existing
   on-platform request; no external-form or LINE action is allowed.
 
-- [ ] **Coconala Apply/Storefront are not complete yet.** The installed owners are
-  still on older immutable releases and the Apply occurrence
-  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
-  `claimed/effect_unknown=1`. The same historical application pass has a
-  verified sibling receipt for request `5281717` whose official public page
-  binds the pass to account `2564121`; the complete official `5280157` roster
-  has 9 applicants, 0 contracts, and excludes `2564121`. A dedicated
-  `historical_account_bound_no_dispatch` proof and resolver now validate this
-  boundary without retrying the provider. The live fence has not yet been
-  mutated; it remains closed until that proof is executed against the exact
-  current row.
+- [x] **Coconala Apply's stale zero-effect fence was reconciled.** A read-only
+  official-history check confirmed request `5280157` is absent from the complete
+  roster, and the exact admission row now reads `released/effect_unknown=0`.
+  The recovery runner did not submit or retry the provider. Its recovered
+  `application_parent.py` remained nonterminal with no qualifying action, so
+  Apply is not yet accepted as a clean natural wake; issue `#5855` records that
+  boundary. Storefront remains a separate `claimed/effect_unknown=1` blocker.
 - [x] Add the branch-only page-20 resumable readback path and the bounded,
   same-origin detail-fetch fallback. Both paths are read-only and keep the
   fence closed on denied, incomplete, or non-200 history.
@@ -59,10 +55,10 @@
   occurrence-bound identity artifact. Missing or non-Coconala identity aborts
   before the marker and before the final submit click. Focused application tests:
   `58 passed`.
-- [ ] Load the current release only after the occurrence fence is resolved;
-  cut/install the new source release, then verify natural Apply/Storefront wakes,
-  complete official readback, and replay-zero. The targeted apply is currently
-  refused by the safety guard.
+- [ ] After PR `#5854` is promoted, cut/install the immutable source release and
+  verify a clean natural Apply wake, official readback, and replay-zero. The
+  stale fence is clear, but the recovered parent was nonterminal with no action;
+  do not call Apply complete from the scheduler `pass` alone.
 - [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
   latest buyer cycle and remains a permanent manual-only exception; do not
   resend unless a genuinely newer buyer event appears.
@@ -74,26 +70,50 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 21:22 JST)
+### Current remaining TODO (authoritative, 2026-09-24 22:26 JST)
 
-1. Execute the new historical-account-bound no-dispatch resolver once against
-   the exact current occurrence. It must return `resolved` and the official
-   admission row must read `released/effect_unknown=0`; otherwise keep the fence
-   and record the precise boundary. Do not retry the provider or edit SQLite by
-   hand.
-2. Cut/install a new immutable release from the merged source branch. Only
-   after item 1 may Apply, then Storefront, be target-applied; verify loaded
-   SHA, natural wakes, official readback, and replay-zero. Do not bypass the
-   `effect_unknown` guard.
+1. Promote the pushed source release, run a clean natural Coconala Apply wake,
+   and obtain official readback plus replay-zero. The exact old Apply fence is
+   already `released/effect_unknown=0`, but recovery issue `#5855` still shows a
+   nonterminal parent with no qualifying action.
+2. Reconcile Coconala Storefront's independent
+   `claimed/effect_unknown=1` occurrence, then run Storefront natural wake,
+   official readback, and replay-zero. Never bypass the effect fence.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
 4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible
    lesson/answer material; do not perform LINE or external-form actions.
 5. Lancers: keep the zero-funded inventory no-op and finish the formal-delivery
    contract only when a real funded ContractReceipt appears.
-6. Obtain approved Upwork authorization and a funded contract, then register
-   Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
-   settlement, payout, and duplicate-zero acceptance.
+6. Mercor: refresh authenticated inventory and resolve the existing
+   `resource_effect_unknown` application/Paid/Reply fences before any effect.
+7. Freelancer.com (implementation work is required now, but no provider send is
+   allowed yet):
+   - replace the retired application/work-sync labels with an authenticated,
+     policy-qualified account owner and a source-complete opportunity/contract
+     snapshot;
+   - extend the existing read-only bid watcher into Apply→Reply→contract→Paid→
+     settlement/payout adapters with shared effect fencing, provider receipts,
+     official readback, and replay-zero;
+   - register/enable the owners only after a valid authenticated account and an
+     admissible funded project/contract are visible.
+8. Upwork (implementation work is required now, but no provider send is allowed
+   yet):
+   - refresh the current account identity, policy authorization, browser/API
+     transport, and source-complete job/contract inventory; the installed
+     `cloak_browser` authorization entries are currently `denied` for search,
+     propose, message, accept_offer, delivery, payments, and payouts;
+   - restore a fresh authenticated readback and obtain a real funded contract;
+     the historical snapshot is stale/zero-effect and the old browser/free-loop
+     labels are retired;
+   - reuse the existing Upwork proposal/message/offer/delivery/finance modules,
+     register one Paid owner only after those gates, then prove a zero-spend
+     canary followed by one funded-contract canary with official proposal,
+     contract, delivery, payment, payout, crash-recovery, and replay-zero
+     receipts.
+9. Run final fleet acceptance only after each platform has its own owner,
+   authorization, funded work item (where a mutation is applicable), official
+   receipt/readback, settlement/payout evidence, and duplicate-zero proof.
 
 ### Coconala readback checkpoint — 2026-09-24 20:21 JST
 
