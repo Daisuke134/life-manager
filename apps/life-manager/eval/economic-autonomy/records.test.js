@@ -214,7 +214,7 @@ test("attribution requires exactly one revenue or cost classification", () => {
 test("all evidence and trace references reject secret-like and local private paths", () => {
   for (const evidenceRef of [
     "evidence://access_token/raw-secret-value",
-    "file:///Users/person/private-receipt",
+    "file:///tmp/private-receipt",
   ]) {
     assert.throws(
       () => validateAttribution(revenueAttribution({ evidence_refs: [evidenceRef] })),
