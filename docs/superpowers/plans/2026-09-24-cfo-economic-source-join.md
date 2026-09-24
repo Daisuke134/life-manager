@@ -15,8 +15,9 @@ local-private paths; and requires matching loop/subject/source IDs plus receipt/
 exposes every catalog loop and every declared funnel/financial/cost source as private redacted coverage while
 leaving the routine digest and Telegram rendering unchanged. Focused CFO/source tests pass 21/21; the combined
 relevant suite passes 60/60; LM-EAB remains 41/41; `lm-loop-contract` reports 14 loops, 167 jobs and zero
-errors. Current cursor: Task 4, connecting existing read-only receipt producers without operating Paid
-fulfillment.
+errors. Task 4.1 now connects Agent Economy/x402 revenue and compute-cost receipts to the existing CFO
+coverage without operating wallets or Paid fulfillment. Current cursor: Task 4.2, Affiliate placement,
+commission and cash-cost sources.
 
 ## Task 1 — Freeze the fourteen-loop economic source inventory
 
@@ -46,7 +47,10 @@ Status: complete.
 
 ## Task 4 — Connect existing read-only receipt producers one by one
 
-1. Agent Economy/x402 revenue and compute costs.
+1. Agent Economy/x402 revenue and compute costs. **Complete:** the adapter reuses normalized provider/on-chain
+   revenue receipts and verified `x402-cost`/TaskMarket cost `FinancialRecord`s; it emits deterministic
+   funnel/financial/cost observations, a payment-stage funnel observation, replay-zero financial writes and
+   explicit `not_configured`/`unavailable` states rather than false zeroes. Focused source/CFO tests pass 38/38.
 2. Affiliate placement funnel, approved/paid commission and actual cash costs.
 3. Mobile/RevenueCat funnel plus App Store settlement; RevenueCat estimates remain non-settled.
 4. Capafy official seller earnings/refunds/payout state; unknown active subscriptions remain unknown MRR.

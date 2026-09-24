@@ -2903,6 +2903,19 @@ the combined relevant suite passes 60/60, LM-EAB remains 41/41 and the structura
 loops / 167 jobs / zero errors. Current cursor is Task 4: connect existing read-only receipt producers one by
 one, starting with Self-Funding/Agent Economy, then Affiliate, without changing Paid fulfillment runtime.
 
+Task 4.1 is complete on the current branch. `agent-economy-economic-source` now projects the existing
+normalized x402/provider revenue receipt journal and the existing verified x402/TaskMarket compute-cost
+`FinancialRecord`s into the catalog's declared Agent Economy `funnel`, `financial` and `cost` sources. A
+settled external receipt produces a payment-stage funnel observation; identical inputs produce identical
+observation identities, and replay through the immutable financial store creates zero additional records.
+Missing journals, missing compute receipts and malformed/estimated inputs remain `not_configured` or
+`unavailable`; they never become zero revenue, zero cost or verified MRR. This is a read-only CFO join: it
+does not submit a payment, move a wallet, restart a loop, or touch Paid fulfillment. Focused Agent Economy,
+CFO, source-contract and store tests pass 38/38; LM-EAB plus Product Loop tests pass 80/80; the structural
+loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 4.2, Affiliate placement
+funnel, approved/paid commission and actual cash-cost sources. A read-only production receipt pass remains
+part of Task 6 and is not claimed here.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
