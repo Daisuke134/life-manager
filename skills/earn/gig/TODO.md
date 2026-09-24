@@ -26,6 +26,15 @@ stale terminal event or a public snapshot.
 | Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is missing. The public watcher checked 4 stored projects (`active=0/errors=0`), which is not account-bound. Both candidate profiles are mode `0700`, but BrowserSkill currently reports `browsers=[]`; no managed owner is registered. The readiness and transport modules are implemented and test-covered, but no provider readback has entered them. | Account identity, `/users/0.1/users/`, `/projects/0.1/self/`, every project milestone/IP, hourly contracts, payments, payouts, source-complete snapshot, and funded project are unproven. | Connect the approved private BrowserSkill instance or obtain official OAuth. Read the full route plan, normalize one source-complete inventory, and require `evaluate_registration.ready=true` with a funded project before registering one Paid owner. |
 | Upwork | The account-bound identity probe is `blocked_google_2fa`/`authenticated=false`; the old special approval expired 2026-09-22. Current read-only receipts for `inspect`, `read_payments`, and `read_payouts` remain valid until `2026-09-25T17:30:28Z`; `search`, `propose`, `message`, `accept_offer`, and `deliver_milestone` are denied. `gig-upwork` is mode `0700`, but BrowserSkill has no connected page/lease. The source-complete snapshot has `contracts=[]`; no managed owner is registered. | Fresh account-bound identity/contracts/transactions/withdrawals, current write authorization, funded contract/milestone, owner registration, and delivery/payment proof are absent. | Connect a dedicated Upwork BrowserSkill lease and use the still-valid read-only receipts to refresh the three official pages. Renew mutation authorization only after authentication, then require `evaluate_registration.ready=true` and a positive funded milestone before registering one Paid owner. |
 
+Live readiness probes: Upwork `evaluate_registration` is `ready=false` with
+`authorization_missing` (missing `accept_offer`, `deliver_milestone`, `message`,
+`propose`, `search`) and `funded_contract_missing` (`funded_contract_ids=0`).
+Its transport can select only the three read-only actions above; all mutation
+actions return no selection. Freelancer's transport returns no selection for
+every action because neither an OAuth token nor an account-bound BrowserSkill
+authorization exists. The provider readiness/transport tests pass (`52`), but
+these tests do not manufacture an external account or funded contract.
+
 ### Freelancer/Upwork registration gate (non-negotiable order)
 
 1. Account-bound authentication and current action receipts.
