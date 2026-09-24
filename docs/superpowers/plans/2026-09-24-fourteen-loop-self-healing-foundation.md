@@ -1756,3 +1756,13 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Keep the exact order: owner-controlled capacity recovery → full suite → accepted immutable candidate load →
   fresh occurrence-complete recovery/reconciler readback → bounded non-Paid owner reconciliation → replay-zero →
   two-pass 14-loop foundation gate. Do not promote from this read-only block.
+
+### Repeated natural wake confirms the old runtime boundary (2026-09-25 JST)
+
+- [x] Read two further natural terminals without restart: `18d8655abda5d520-77210` at `23:26:30.973767Z` and
+  `18d8657fdd013138-79228` at `23:29:47.020439Z`. Both are old-release `entrypoint_exit_1` with
+  `effect_status=not_applicable`, no provider receipt, and no admission effect-unknown.
+- [x] Bind both failures to the repeated `bin/lm-recovery-supervise: exec: node: not found` stderr. This confirms
+  the managed-Node fallback is the correct source boundary; it does not authorize a production restart or replay.
+- [ ] Keep waiting only for the next safe external state change: capacity floor recovery. Then run the full suite,
+  promote/load the accepted immutable candidate and verify one occurrence-complete managed-Node terminal.

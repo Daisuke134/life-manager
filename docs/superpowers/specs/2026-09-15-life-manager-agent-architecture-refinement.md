@@ -5356,3 +5356,14 @@ The canonical cleanup receipt advanced to `observed_at=2026-09-24T23:25:19Z`: `f
 `free_after=345,677,824`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), `inventory_gaps=22`. The floor
 shortfall is now **810,102,784 bytes**. This is a safe cleanup result with no reclaimable candidate, not permission
 for unowned deletion; full-suite execution and candidate promotion remain closed.
+
+### Repeated natural wake confirms the old runtime boundary (2026-09-25 JST)
+
+Two subsequent natural release-reconciler occurrences, `18d8655abda5d520-77210` (terminal
+`2026-09-24T23:26:30.973767Z`) and `18d8657fdd013138-79228` (terminal
+`2026-09-24T23:29:47.020439Z`), independently ended `status=fail`, `blocker=entrypoint_exit_1`,
+`effect_status=not_applicable`, with the old loaded release `09a59ba1b899849ae7e3be8c67e239ec664dea22`. Both log
+tails contain the same `bin/lm-recovery-supervise: exec: node: not found` boundary; neither occurrence has a provider
+receipt or admission effect-unknown. This is now a reproducible old-release runtime defect, not a transient wake or
+external-effect ambiguity. The candidate managed-Node fallback remains the single source fix; it is still branch-only
+until capacity/full-suite/acceptance gates permit immutable promotion.
