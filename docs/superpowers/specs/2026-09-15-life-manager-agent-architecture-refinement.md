@@ -2792,11 +2792,18 @@ on the same SHA with admission unknown 0; their queued occurrence counts are 19/
 manually edited and no Paid owner is touched.
 
 The post-slice doctor remains clean at 168 entries with zero missing entrypoints, unmanaged labels or installed
-retired labels. The shared foundation gate observes all 14 loops and zero missing mapped jobs. It remains
-blocked at 97 release mismatches, 89 incomplete diagnostics and 49 unknown-effect rows. The installed
-Self-build owners are exact, but current-release terminal evidence is still missing for part of the group, so
-the Product Loop remains `runtime_release_drift`. This is the next immediate effect-free evidence cursor, not
-a revenue wait and not a reason to bypass diagnostic acceptance.
+retired labels. Immediate targeted wakes give all four Self-build owners complete current-release diagnostics.
+The supervisor passes; the other three are safely deferred behind shared admission capacity with the exact
+typed tuple `host_admission_deferred:resource_capacity_busy`, retryable true,
+`retry_after_eligibility`, effect none and unknown 0. Self-build release drift becomes zero; the global totals
+improve to 92 release mismatches and 87 incomplete diagnostics while unknown-effect rows remain 49.
+
+The remaining Self-build `uncovered_failure` is evaluator drift, not an execution failure: the evaluator maps
+every non-pass terminal to uncovered even though `safely_fenced` is an accepted foundation state. The minimum
+candidate recognizes only that complete transient capacity tuple as `safely_fenced/runtime_capacity_deferred`.
+It preserves fail-closed behavior for missing fields, non-retryable rows, external effects and mixed failures.
+Product/foundation tests pass 46/46; the unchanged live projection becomes safely fenced 1, uncovered failure
+13. Integration of this shared evaluation correction is the next cursor, not a revenue wait.
 
 Connector remains a real uncovered failure, not an old notification artifact. Its exact current plist is
 loaded, but its latest run reaches `browser_open_failed`; action history then reports the generic outer

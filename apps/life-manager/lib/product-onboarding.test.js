@@ -1345,6 +1345,38 @@ test("foundation accepts a typed effect fence but never renames it healthy", () 
   assert.ok(gate.reasons.includes("healthy_effect_unknown"));
 });
 
+test("foundation accepts only a fully typed transient capacity deferral as safely fenced", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "d".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const deferredJobId = catalog.loops[0].job_ids[0];
+  const deferred = runtimeRows.find((row) => row.loop_id === deferredJobId);
+  deferred.last_terminal_result = "blocked";
+  deferred.blocker = "host_admission_deferred:resource_capacity_busy";
+  deferred.error_class = "host_admission_deferred:resource_capacity_busy";
+  deferred.retryable = true;
+  deferred.next_action = "retry_after_eligibility";
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  assert.equal(manifest.loops[0].state, "safely_fenced");
+  assert.equal(manifest.loops[0].reason, "runtime_capacity_deferred");
+  assert.equal(manifest.loops[0].next_action, "retry_after_eligibility");
+  assert.equal(evaluateLocalFoundationGate(manifest).decision, "pass");
+
+  deferred.retryable = false;
+  const nonRetryable = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  assert.equal(nonRetryable.loops[0].state, "uncovered_failure");
+  assert.equal(nonRetryable.loops[0].reason, "runtime_terminal_not_pass");
+});
+
 test("foundation fails closed on drift, missing jobs, opaque failures and untyped states", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "8".repeat(40);

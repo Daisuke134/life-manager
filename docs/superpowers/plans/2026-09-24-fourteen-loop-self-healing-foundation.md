@@ -309,11 +309,20 @@ Self-build owners are loaded-idle on the exact SHA with unknown 0; queue counts 
 
 The post-slice shared readback is still a foundation block, as expected for an unfinished fourteen-loop
 rollout. `lm-loop doctor` reports 168 registry entries with missing entrypoints 0, unmanaged labels 0 and
-installed retired labels 0. The foundation gate observes 14/14 loops and missing mapped jobs 0, with 97
-release-mismatch jobs, 89 diagnostic-incomplete jobs and 49 unknown-effect jobs. Installed Self-build owners
-are exact, but some have not yet emitted a terminal diagnostic from the new release, so Self-build remains
-`runtime_release_drift`. The next cursor is bounded immediate current-release evidence for those effect-free
-owners, followed by one non-Paid Product Loop at a time; no revenue wait is introduced.
+installed retired labels 0. Immediate targeted wakes produce current-release, complete diagnostics for all
+four Self-build owners without waiting for revenue. The supervisor passes; `life-manager-dev`,
+`life-manager-selfbuild` and `self-improve-evolve` return the same typed transient backpressure contract:
+`host_admission_deferred:resource_capacity_busy`, retryable true, next action `retry_after_eligibility`,
+effect none and unknown 0. This removes Self-build release drift and reduces the aggregate to 92
+release-mismatch jobs and 87 diagnostic-incomplete jobs, while unknown-effect jobs remain 49.
+
+The existing foundation evaluator nevertheless labels any non-pass terminal `uncovered_failure`, contradicting
+its own acceptable `safely_fenced` state. The minimum candidate recognizes only the complete transient tuple
+above as `safely_fenced/runtime_capacity_deferred`; missing fields, non-retryable rows, external effects and
+mixed failures remain fail-closed. Product/foundation tests pass 46/46. Projecting the unchanged live rows
+through the candidate moves Self-build to safely fenced and the aggregate loop counts to safely fenced 1,
+uncovered failure 13. Integration is the next cursor, followed by one non-Paid Product Loop at a time; no
+revenue wait is introduced.
 
 Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
 run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
@@ -357,10 +366,12 @@ candidate branch already contains the shared endpoint-owner validation and recov
 - [x] Integrate the idle/no-effect reconciler connection to the existing `clear_no_effect_unknown()` primitive as PR #5827 at `7cbc861929cd75ef7a6ad08ad05b24ab35b100ff`, activate complete release `20260924T152741-7cbc8619`, and retry only `life-manager-selfbuild`.
 - [x] Verify the production self-heal: released no-effect unknown 1→0, queued occurrences stay 9, reservation 0, exact installed SHA, loaded-idle, and no manual database mutation.
 - [x] Reconcile all four Self-build owners individually to the same exact SHA; unknown remains 0 and queue counts remain 19/0/9/58.
-- [ ] Generate immediate current-release terminal diagnostics for the effect-free Self-build owners, then require Self-build to leave `runtime_release_drift` without waiting for revenue.
+- [x] Generate immediate current-release terminal diagnostics for all four effect-free Self-build owners; release drift becomes zero for the loop and all rows are complete/unknown-free.
+- [x] Diagnose the remaining Self-build failure classification as evaluator drift: three owners are typed, retryable capacity deferrals behind shared FIFO reservations, not broken executions.
+- [ ] Integrate the strict capacity-deferral-to-`safely_fenced` projection, then verify the unchanged live rows move Self-build from uncovered failure to safely fenced.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
-- [x] Re-read `lm-loop doctor`, `lm-loop status all` and the foundation manifest after the Self-build slice: 14/14 observed, missing 0, release mismatch 97, diagnostic incomplete 89, unknown 49; the overall gate correctly remains blocked.
+- [x] Re-read `lm-loop doctor`, `lm-loop status all` and the foundation manifest after current-release wakes: 14/14 observed, missing 0, release mismatch 92, diagnostic incomplete 87, unknown 49. The candidate projects safely fenced 1 and uncovered failure 13; the overall gate correctly remains blocked on the other loops.
 - [ ] Re-read the same surfaces and recovery journal after each remaining non-Paid Product Loop slice.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
