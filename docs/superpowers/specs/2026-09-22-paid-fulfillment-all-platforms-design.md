@@ -4952,3 +4952,16 @@ leaves the provider effect closed.
   no live Freelancer OAuth or official response exists in the current state.
   Keep the owner unregistered until that callback returns a source-complete
   funded project and the delivery/payment/payout readbacks are verified.
+
+## Runtime Status Refresh — 2026-09-25 01:02 JST (Upwork readback attachment)
+
+- [x] `UpworkTransport.read_inventory` now uses the same strict readiness
+  boundary. It validates account-bound `inspect`, `read_payments`, and
+  `read_payouts` receipts before invoking the provider fetch and supplies the
+  official contracts, transaction-history, and withdrawal routes. Its return
+  value must pass the canonical Upwork inventory parser.
+- [x] The focused Freelancer/Upwork/readiness/transport suite passes (`86`),
+  including zero calls before authorization and the exact Upwork route plan.
+- [ ] Upwork still has no live OAuth or approved receipts, so this remains an
+  attached seam, not a live contract readback or owner. The next external
+  gate is fresh authorization plus a positive funded milestone.

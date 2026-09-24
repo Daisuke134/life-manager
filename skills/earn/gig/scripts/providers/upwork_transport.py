@@ -8,7 +8,7 @@ import stat
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterable
 
 from application_effect_fence import authorized_provider_intent
 from provider_authorization import (
@@ -26,6 +26,11 @@ _OAUTH_KEYS = {
     "version", "access_token", "refresh_token", "token_type", "scopes", "expires_at",
 }
 _MAX_CREDENTIAL_BYTES = 32_768
+INVENTORY_ROUTES = (
+    ("contracts", "https://www.upwork.com/nx/wm/freelancer/home"),
+    ("transactions", "https://www.upwork.com/nx/payments/reports/transaction-history"),
+    ("withdrawals", "https://www.upwork.com/nx/payments/disbursement-methods"),
+)
 
 
 class TransportConfigurationError(ValueError):
@@ -159,6 +164,35 @@ class UpworkTransport:
             if profile is not None:
                 return TransportSelection("cloak_browser", profile, browser_auth)
         return None
+
+    def read_inventory(
+        self,
+        receipts: Iterable[Any],
+        *,
+        fetch: Callable[[TransportSelection, tuple[tuple[str, str], ...]], Any],
+    ) -> Any:
+        """Attach official contract/payment pages to the strict readiness gate.
+
+        ``fetch`` is provider-owned and must return the canonical inventory
+        accepted by ``upwork_readiness.parse_inventory``. It is not called
+        until the three account-bound inventory receipts have been validated.
+        """
+        if not callable(fetch):
+            raise TransportConfigurationError("inventory_fetch_not_callable")
+        from upwork_readiness import read_authenticated_inventory
+
+        def readback(_approved: dict[str, Any]) -> Any:
+            selection = self.for_action("inspect")
+            if selection is None:
+                raise TransportConfigurationError("inventory_transport_unavailable")
+            return fetch(selection, INVENTORY_ROUTES)
+
+        return read_authenticated_inventory(
+            receipts,
+            account_id=self.account,
+            now=self.now,
+            readback=readback,
+        )
 
     def effect_intent(
         self,

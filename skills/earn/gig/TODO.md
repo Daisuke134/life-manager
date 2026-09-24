@@ -4331,3 +4331,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Live OAuth, official API/CDP response parsing, funded project, and owner
   are still absent. Do not register or send until the callback produces a
   source-complete funded inventory and its official readbacks.
+
+### Runtime checkpoint — 2026-09-25 01:02 JST (Upwork readback attachment)
+
+- [x] `UpworkTransport.read_inventory` is attached to the strict readiness
+  gate and supplies the official contracts, transaction-history, and
+  withdrawals routes only after all three account-bound inventory receipts
+  pass. The returned object still must satisfy the canonical inventory parser.
+- [x] Focused Freelancer/Upwork/readiness/transport tests pass (`86`),
+  including no fetch before authorization and exact route binding.
+- [ ] Upwork remains closed: no OAuth, no approved receipts, no funded
+  milestone, and no owner. Next is fresh authorization and official positive
+  contract readback; do not revive retired browser/free-loop labels.
