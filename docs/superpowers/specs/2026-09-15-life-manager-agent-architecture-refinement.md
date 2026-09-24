@@ -5078,3 +5078,16 @@ The designated disk-cleanup owner was then run once with its normal allowlist. I
 296 MB. This is a safe no-op, not a cleanup failure: every discovered candidate was still open, and the owner did not
 delete state, credentials, sessions, source or provider data. The capacity floor therefore remains an external host
 blocker for the full suite and immutable promotion.
+
+### Fresh capacity/admission readback (2026-09-25 JST)
+
+After the cleanup-owner pass, a new read-only status snapshot still contains **271** rows. The exact Connector row is
+now `blocked / host_admission_deferred:resource_capacity_busy` with occurrence
+`life-manager-connector-native:18d8622f120b7978-29000`, exact installed/event SHA `d4fe0819931c50caaf41f25e86f1052cd8a0359c`,
+`diagnostic_complete=true`, and `admission_effect_unknown=false`. The disk-cleanup owner itself is `pass` with exit
+0. This confirms admission capacity—not an external Connector effect—as the current blocker.
+
+The fresh local foundation projection is **12 `uncovered_failure` / 2 `safely_fenced`**, still `decision=block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The candidate
+branch has not been loaded into production; main integration and immutable promotion remain closed until capacity and
+the two-pass gate are green. No Paid state or provider session was touched.

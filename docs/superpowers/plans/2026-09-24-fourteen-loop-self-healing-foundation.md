@@ -1567,3 +1567,13 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   and the capacity floor is still unmet.
 - [ ] Do not rerun cleanup blindly or delete unknown artifacts. Re-read the receipt after the next owner-controlled
   cleanup window, then rerun the full loop suite only after the host floor is actually restored.
+
+### Fresh gate readback after cleanup (2026-09-25 JST)
+
+- [x] Re-read 271 live rows: Connector is `blocked / host_admission_deferred:resource_capacity_busy` with exact
+  occurrence `life-manager-connector-native:18d8622f120b7978-29000`; `diagnostic_complete=true` and no admission
+  effect-unknown fence.
+- [x] Confirm disk-cleanup is itself `pass` (exit 0) while the capacity floor remains unmet.
+- [x] Re-run the local foundation projection: **12 uncovered_failure / 2 safely_fenced**, `decision=block`.
+- [ ] Restore the host floor, then rerun full tests and the two-pass gate; do not interpret this capacity block as a
+  provider failure or as permission to touch Paid state.
