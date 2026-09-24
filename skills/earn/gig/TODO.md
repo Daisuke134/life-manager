@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 05:04 JST (all-platform gate and exact fence state)
+## Current cursor — 2026-09-25 05:23 JST (all-platform gate, exact fences, and capacity probe)
 
 This section supersedes the older cursors below. The Coconala Apply occurrence
 was resolved without a resend: its durable intent was already `confirmed`, and
@@ -17,10 +17,22 @@ The existing runtime pre-effect reconciler was probed against all three
 remaining rows and returned no admissible proof; none may be cleared from a
 stale terminal event or a public snapshot.
 
+The canonical host disk-cleanup owner was run once during this cursor. Its
+receipt reports `evaluated=5`, `reclaimed=0`, `preserved=5` because every
+allow-listed cache was open; no protected path was deleted. The data volume
+still has only about `2.2 GiB` free at `99%` capacity. CrowdWorks previously
+recorded `OSError: [Errno 28] No space left on device` while writing its own
+state, so capacity remains a shared runtime risk. The largest observed private
+consumer is `~/.local/state/anicca/job-search/evidence` at about `2.5 GiB`
+(roughly 11,906 run directories), but no repository-owned retention command
+currently owns that path. Do not delete it by hand: ledgers, receipts, active
+runs, and evidence must be classified and bounded by their writer before any
+reclamation. No paid provider was retried during this probe.
+
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
 |---|---|---|---|
 | Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. Apply `hf-gig-apply-direct:18d852199baadb90-95298` is released from the confirmed intent plus exact official readback (`request_id=5289988`). Storefront `hf-gig-storefront-direct:18d5fe8333276980-33952` is released by the exact host pre-effect proof. | Admission fences are clear for the three Coconala revenue owners, but Apply and Storefront remain unloaded, so the four-room natural-wake/replay-zero gate is not yet closed. | Keep Ryu manual-only; run one controlled no-op wake for Apply and Storefront from the immutable release, verify official readback and replay-zero, then close the Coconala gate. |
-| CrowdWorks (CloudWorks) | Paid is unloaded. Provider snapshot is `observed=5/actionable=1/effect=0/readback=4/pending=1`; four items are already read back, and `63568785` still lacks buyer lesson/answer material. | `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed/effect_unknown=1` with no provider receipt; the older 18d829 row is already cleared and must not be confused with this row. | Obtain provider history/readback bound to 18d62cf. If it proves no dispatch, resolve the fence; otherwise record the exact receipt. Then run a no-op wake. Never resend the four completed items or send 63568785 without its missing material. |
+| CrowdWorks (CloudWorks) | Paid is unloaded. Provider snapshot is `observed=5/actionable=1/effect=0/readback=4/pending=1`; four items are already read back, and `63568785` still lacks buyer lesson/answer material. | `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed/effect_unknown=1`: the event history has `execute/running` (`17:48:44Z`), then `report/unknown` (`17:50:14Z`), and a later `entrypoint_exit_1` (`22:16:57Z`) referring to the same claim, with no provider receipt. This is not admissible pre-effect proof. | Obtain provider history/readback bound to 18d62cf. If it proves no dispatch, resolve the fence; otherwise record the exact receipt. Then run a no-op wake. Never resend the four completed items or send 63568785 without its missing material. |
 | Lancers | Paid is unloaded. Latest authenticated source-complete inventory is `observed=0/actionable=0/effect=0`; proposal `5606124` was fail-closed as `unsupported_claim`. Application is loaded-idle but no funded work exists. | `lancers-revenue-paid:18d81967220136f8-89928` is `claimed/effect_unknown=1`, `entrypoint_exit_1`, and has no provider receipt. No funded `ContractReceipt` exists. | Reconcile the exact 18d819 row from official provider history. Refresh inventory; keep Paid closed until a real funded `ContractReceipt` and milestone appear. |
 | Mercor | Official account/earnings readback is available (`$0.00`/empty). Paid is loaded-idle but its work snapshot is pending/stale; no funded work is proven. | `mercor-revenue-paid:18d82d9cd75db960-67523` is `claimed/effect_unknown=1` with no provider receipt/readback. | Obtain exact Mercor work/transaction readback, reconcile the occurrence, refresh the inventory, and only then consider a funded action. |
 | Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is missing. The public watcher checked 4 stored projects (`active=0/errors=0`), which is not account-bound. Both candidate profiles are mode `0700`, but BrowserSkill currently reports `browsers=[]`; no managed owner is registered. The readiness and transport modules are implemented and test-covered, but no provider readback has entered them. | Account identity, `/users/0.1/users/`, `/projects/0.1/self/`, every project milestone/IP, hourly contracts, payments, payouts, source-complete snapshot, and funded project are unproven. | Connect the approved private BrowserSkill instance or obtain official OAuth. Read the full route plan, normalize one source-complete inventory, and require `evaluate_registration.ready=true` with a funded project before registering one Paid owner. |
