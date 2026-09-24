@@ -1149,3 +1149,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After main-derived immutable promotion, re-run full status under the host boundary and verify the reconciler
   reports typed launchd/ENOSPC evidence instead of crashing in tempfile setup. This remains downstream of the
   bootstrap cursor and does not authorize broad cleanup or manual admission mutation.
+
+### Admission-read fail-closed hardening (2026-09-25 JST)
+
+- [x] Reproduce the safe `writer-craft-train` targeted reconcile failure at the shared SQLite admission read. The
+  command stopped before any effect and exposed only a generic `OperationalError`.
+- [x] Add bounded retries for transient `SQLITE_BUSY`/`SQLITE_LOCKED` reads and typed fail-closed errors. A failed
+  fence read is no longer interpreted as an empty effect-fence set; retryable lock contention is explicitly marked
+  `admission_database_locked` with `next_action=retry_admission_read`.
+- [x] Add regression coverage: readonly 28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154
+  subtests; `py_compile` and `git diff --check` pass.
+- [ ] Re-run one-owner `writer-craft-train` reconcile only after this source fix is pushed, then read its exact
+  current release, diagnostic terminal event, and replay-zero. If the shared database remains locked after bounded
+  retry, retain the typed blocker and do not retry blindly or clear any fence.

@@ -4565,3 +4565,19 @@ The branch version was then run against the current host in read-only mode under
 `loaded-idle` with installed/event SHA `09a59ba1b899849ae7e3be8c67e239ec664dea22`, terminal
 `entrypoint_exit_1`, and diagnostic-incomplete fields. The probe did not crash in tempfile setup. This proves the
 observability repair only; it does not promote the reconciler, clear any fence, or claim self-healing/revenue.
+
+### Admission-read fail-closed hardening (2026-09-25 JST)
+
+A targeted, effect-free reconcile for `writer-craft-train` reached the shared admission boundary but returned only
+`{"ok":false,"error":"admission queue read failed: OperationalError"}` while another process held the SQLite
+database. This was an observability and safety defect: `_admission_effect_unknown_owners()` caught every SQLite read
+error and converted it to an empty set, which could make a live effect fence appear absent instead of preserving the
+unknown state.
+
+The branch now retries bounded `SQLITE_BUSY`/`SQLITE_LOCKED` reads, then fails closed with structured
+`error_class=admission_database_locked`, `retryable=true`, and `next_action=retry_admission_read`. Non-lock read
+errors are typed as `admission_database_read_error`; status, pending-owner, policy-mismatch, and effect-fence reads
+never convert a database failure into an empty admission/fence result. Regression coverage is green: readonly
+28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154 subtests, Python compile, and diff
+check. This is branch-only source evidence; no admission row, effect fence, provider session, or external effect was
+changed, and production promotion remains downstream of the accepted main-derived immutable-release gate.

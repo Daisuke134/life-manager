@@ -50,6 +50,49 @@ PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
+ADMISSION_READ_RETRY_ATTEMPTS = 8
+ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
+
+
+def _sqlite_database_busy(error: sqlite3.Error) -> bool:
+    code = getattr(error, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return (code & 0xFF) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+    return str(error).lower() in {
+        "database is locked",
+        "database schema is locked: main",
+        "database table is locked",
+        "database table is locked: sqlite_master",
+    }
+
+
+def _read_admission_rows(
+    database: Path, query: str, parameters: tuple[object, ...] = (),
+) -> list[tuple]:
+    """Read admission state without treating transient contention as empty state."""
+    uri = f"{database.as_uri()}?mode=ro"
+    for attempt in range(ADMISSION_READ_RETRY_ATTEMPTS):
+        try:
+            with sqlite3.connect(uri, uri=True, timeout=1) as connection:
+                return connection.execute(query, parameters).fetchall()
+        except sqlite3.Error as error:
+            if (not _sqlite_database_busy(error)
+                    or attempt + 1 >= ADMISSION_READ_RETRY_ATTEMPTS):
+                raise
+            time.sleep(ADMISSION_READ_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise RuntimeError("admission read retry exhausted")
+
+
+def _admission_read_error(operation: str, error: sqlite3.Error) -> dict[str, object]:
+    busy = _sqlite_database_busy(error)
+    return {
+        "ok": False,
+        "error": operation,
+        "error_class": "admission_database_locked" if busy else "admission_database_read_error",
+        "retryable": busy,
+        "next_action": "retry_admission_read" if busy else "inspect_admission_database",
+        "detail": str(error)[:200],
+    }
 
 
 def _event_epoch(value: object) -> float:
@@ -352,13 +395,15 @@ def _pending_admission_owners() -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        return {owner_id for (owner_id,) in connection.execute(
-            """SELECT owner_id FROM occurrences WHERE state='claimed'
-               UNION
-               SELECT o.owner_id FROM occurrences o
-                 JOIN queue q ON q.owner_id=o.owner_id
-               WHERE o.state='queued' AND o.effect_unknown=0""")}
+    rows = _read_admission_rows(
+        database,
+        """SELECT owner_id FROM occurrences WHERE state='claimed'
+           UNION
+           SELECT o.owner_id FROM occurrences o
+             JOIN queue q ON q.owner_id=o.owner_id
+           WHERE o.state='queued' AND o.effect_unknown=0""",
+    )
+    return {owner_id for (owner_id,) in rows}
 
 
 def _entry_effect_scope(entry: dict) -> str:
@@ -382,28 +427,28 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        rows = connection.execute(
-            """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
-                      p.admission_policy,p.effect_scope,p.effect_unknown,
-                      EXISTS (
-                          SELECT 1 FROM occurrences claimed
-                          WHERE claimed.owner_id=q.owner_id
-                            AND claimed.state='claimed'
-                            AND claimed.effect_unknown=0
-                      ),
-                      EXISTS (
-                          SELECT 1 FROM occurrences uncertain
-                          WHERE uncertain.owner_id=q.owner_id
-                            AND uncertain.effect_unknown=1
-                      )
-               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
-               WHERE EXISTS (
-                   SELECT 1 FROM occurrences o
-                   WHERE o.owner_id=q.owner_id
-                     AND o.state='queued' AND o.effect_unknown=0
-               )"""
-        ).fetchall()
+    rows = _read_admission_rows(
+        database,
+        """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
+                  p.admission_policy,p.effect_scope,p.effect_unknown,
+                  EXISTS (
+                      SELECT 1 FROM occurrences claimed
+                      WHERE claimed.owner_id=q.owner_id
+                        AND claimed.state='claimed'
+                        AND claimed.effect_unknown=0
+                  ),
+                  EXISTS (
+                      SELECT 1 FROM occurrences uncertain
+                      WHERE uncertain.owner_id=q.owner_id
+                        AND uncertain.effect_unknown=1
+                  )
+           FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+           WHERE EXISTS (
+               SELECT 1 FROM occurrences o
+               WHERE o.owner_id=q.owner_id
+                 AND o.state='queued' AND o.effect_unknown=0
+           )""",
+    )
     mismatches = set()
     for (owner_id, resource_class, admission_class, priority, policy, effect_scope,
          priority_effect_unknown, claimed, occurrence_effect_unknown) in rows:
@@ -428,15 +473,11 @@ def _admission_effect_unknown_owners() -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    try:
-        with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-            return {
-                owner_id for (owner_id,) in connection.execute(
-                    "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1"
-                )
-            }
-    except sqlite3.Error:
-        return set()
+    rows = _read_admission_rows(
+        database,
+        "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1",
+    )
+    return {owner_id for (owner_id,) in rows}
 
 
 @contextmanager
@@ -1609,7 +1650,20 @@ def main(argv: list[str] | None = None) -> int:
                 if automatic_release_reconciler else set()
             )
         except (OSError, sqlite3.Error) as exc:
-            print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
+            if isinstance(exc, sqlite3.Error):
+                print(json.dumps(
+                    _admission_read_error("admission_queue_read_failed", exc),
+                    sort_keys=True,
+                ))
+            else:
+                print(json.dumps({
+                    "ok": False,
+                    "error": "admission_queue_read_failed",
+                    "error_class": "admission_state_unavailable",
+                    "retryable": True,
+                    "next_action": "retry_admission_read",
+                    "detail": str(exc)[:200],
+                }, sort_keys=True))
             return 1
         if automatic_release_reconciler:
             for row in rows:
@@ -1731,7 +1785,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
     while True:
-        print(json.dumps(snapshot(registry, target), indent=2, sort_keys=True), flush=True)
+        try:
+            observed = snapshot(registry, target)
+        except sqlite3.Error as exc:
+            print(json.dumps(
+                _admission_read_error("admission_fence_read_failed", exc),
+                sort_keys=True,
+            ), flush=True)
+            return 1
+        print(json.dumps(observed, indent=2, sort_keys=True), flush=True)
         if command == "status" or os.environ.get("LM_LOOP_WATCH_ONCE") == "1":
             return 0
         time.sleep(2)

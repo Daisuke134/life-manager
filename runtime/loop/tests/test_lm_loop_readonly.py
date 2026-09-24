@@ -1,17 +1,21 @@
 import unittest
+import io
 import json
 import os
+import sqlite3
 import subprocess
 import tempfile
 import plistlib
 import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop import (
-    _last_event, _launchctl, _release_from_plist, _safe_launchctl,
+    _admission_effect_unknown_owners, _last_event, _launchctl,
+    _pending_admission_owners, _release_from_plist, _safe_launchctl,
     _state_root_from_plist,
-    doctor_report, snapshot, status_rows,
+    doctor_report, main as lm_loop_main, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
 from runtime.loop.runtime_event import build_runtime_start_event
@@ -28,6 +32,65 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_status_reports_typed_admission_read_failure(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=sqlite3.OperationalError("database is locked"),
+             ),
+             redirect_stdout(output)):
+            self.assertEqual(lm_loop_main(["status", "example"]), 1)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["error"], "admission_fence_read_failed")
+        self.assertEqual(payload["error_class"], "admission_database_locked")
+        self.assertTrue(payload["retryable"])
+        self.assertEqual(payload["next_action"], "retry_admission_read")
+
+    def test_pending_admission_read_retries_transient_sqlite_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            calls = []
+
+            class Connection:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return False
+
+                def execute(self, *_):
+                    class Cursor:
+                        def fetchall(self):
+                            return [("queued-owner",)]
+
+                    return Cursor()
+
+            def connect(*_args, **_kwargs):
+                calls.append(True)
+                if len(calls) == 1:
+                    raise sqlite3.OperationalError("database is locked")
+                return Connection()
+
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch("runtime.loop.lm_loop.sqlite3.connect", side_effect=connect),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                self.assertEqual(_pending_admission_owners(), {"queued-owner"})
+            self.assertEqual(len(calls), 2)
+
+    def test_effect_fence_read_does_not_turn_sqlite_lock_into_empty_fence_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch(
+                      "runtime.loop.lm_loop.sqlite3.connect",
+                      side_effect=sqlite3.OperationalError("database is locked"),
+                  ),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
+                    _admission_effect_unknown_owners()
+
     def test_launchctl_readback_does_not_require_disk_tempfiles(self):
         completed = subprocess.CompletedProcess(
             ["launchctl", "list"], 0, stdout="loaded\n", stderr="",
