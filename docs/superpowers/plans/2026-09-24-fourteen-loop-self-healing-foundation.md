@@ -1397,3 +1397,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   optional dependencies under the current capacity floor; preserve this as a release-build task.
 - [ ] After immutable promotion, bind the x402 output occurrence to a finalized Base receipt and persist the exact
   reconciliation proof before touching the released `x402-settlement-recorder` fence.
+
+### CFO receipt identity hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `29aaccb0d8`: validate `LIFE_MANAGER_OCCURRENCE_ID` in the local CFO runner and persist
+  the exact occurrence beside the provider message ID in the private snapshot receipt.
+- [x] Preserve the original pending-snapshot occurrence across a later retry; malformed or absent values fail
+  closed instead of inventing identity.
+- [x] Verify focused CFO/financial-transition tests **18/18**, `node --check`, combined Python control-plane/
+  read-only/apply/registry/Affiliate **326/326**, and product-onboarding **48/48**; push the candidate branch.
+- [ ] Do not treat the new future-proofing chain as evidence for historical CFO fences. Obtain official message
+  readback for each exact durable occurrence, persist mode-0600 reconciliation receipts, then run the owner-specific
+  resolver only when the receipt and occurrence match.
+- [ ] Keep main integration, immutable release promotion, Telegram/payout effects and revenue claims closed while
+  the foundation gate remains blocked; the candidate now contains **31 files** and remains source-only.

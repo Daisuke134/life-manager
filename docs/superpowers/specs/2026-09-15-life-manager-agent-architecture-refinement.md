@@ -4870,3 +4870,23 @@ wiring/identity tests pass **2/2** and `node --check` passes. The broad x402 sui
 **154/165**: 11 pre-existing tests stop at missing optional `viem`, `express`, or `@x402/fetch` dependencies (plus
 two port tests that cannot reach the intended server without those dependencies). This does not weaken the focused
 receipt contract or authorize dependency hydration under the current capacity floor.
+
+### CFO occurrence-bound snapshot receipt (2026-09-25 JST)
+
+The candidate now carries `29aaccb0d8` for the local CFO path. `apps/life-manager/scripts/cfo-hourly-local.js`
+validates the runtime-provided `LIFE_MANAGER_OCCURRENCE_ID` and persists it in the private
+`last-delivered-snapshot.json` receipt together with the Telegram provider message ID. The same identity is passed to
+the notifier boundary, and a pending same-day snapshot keeps its original occurrence when a later wake retries it;
+the retry's new runtime occurrence cannot silently replace the effect's original identity. Missing or malformed
+values are omitted, so no occurrence is fabricated.
+
+The focused CFO/financial-transition tests pass **18/18** and `node --check` passes. The broader candidate
+regression remains green at **326/326** Python control-plane/read-only/apply/registry/Affiliate tests and
+**48/48** product-onboarding tests, with only the pre-existing Python `ResourceWarning` diagnostics. This is a
+branch-only receipt-identity improvement: no Telegram message, CFO outbox row, payout, provider session, admission
+row or effect fence was changed. The candidate diff is now **31 files** (25 generic control-plane/runtime/test
+paths, two Affiliate receipt-identity files, two x402 settlement-identity files and two CFO receipt-identity files).
+
+The historical CFO fences remain unresolved because their old journals lack host occurrence identity and exact
+official readback. The new chain applies only to future wakes and does not authorize a resolver, replay, or revenue
+claim. Main integration and immutable production promotion remain blocked by the foundation gate.
