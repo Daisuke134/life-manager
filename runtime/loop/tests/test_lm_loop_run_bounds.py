@@ -843,6 +843,38 @@ def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
     release.assert_called_once_with(claim, requeue=False, reserve=True)
 
 
+def test_allowlisted_owner_hint_exists_before_child_spawn(tmp_path):
+    claim = tmp_path / "claim-host-pre-effect"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        assert hint.is_file()
+        assert json.loads(hint.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0,
+        }
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue",
+            "entrypoint": "skills/earn/mercor/scripts/reply-owner",
+        }, "mercor-reply", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
 def test_writer_article_resume_pre_effect_failure_releases_without_unknown_fence(tmp_path):
     claim = tmp_path / "claim-writer-resume"
     claim.write_text("owned")

@@ -1035,8 +1035,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         child_env = {key: value for key, value in env.items()
                      if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
         if hint_allowed:
-            child_env["LIFE_MANAGER_RESULT_HINT_PATH"] = str(
-                receipt.parent / "entrypoint-result.json")
+            hint_path = receipt.parent / "entrypoint-result.json"
+            child_env["LIFE_MANAGER_RESULT_HINT_PATH"] = str(hint_path)
+            if pre_effect_hint_allowed:
+                # Establish the fail-closed pre-effect state before spawning the
+                # child.  The allowlisted owner clears this marker immediately
+                # before its first mutation; if it dies before then, the host
+                # can safely release the claim without inventing an unknown
+                # external effect.
+                _atomic_json(hint_path, {"status": "pre_effect_failure", "effect": 0})
         if claimed_occurrence_id is not None:
             child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
         if effect_result_hint_allowed:
