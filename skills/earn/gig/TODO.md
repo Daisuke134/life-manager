@@ -2622,3 +2622,30 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   natural production readback are approved; do not kill PID `39592` by hand.
 - [ ] Keep Lancers recovery approval/fence and CrowdWorks `63568785` material
   gate; preserve Coconala/Ryu and Upwork gates.
+
+### Paid fulfillment checkpoint — 2026-09-24 12:11 JST (Lancers recovery readback)
+
+- [x] Routine technical/operational execution is delegated; no additional
+  permission question is required. Exact-target, provider-readback, effect-fence,
+  and replay-zero gates remain mandatory.
+- [x] Closed exactly the three stale Lancers proposal-list targets (page 2/3/4);
+  canonical page and `about:blank` remain. No provider write occurred.
+- [x] Two-pass Lancers official preflight is identical (`ELZ-L01 PASS`, digest
+  `5d2e0f1002b19d8c7c50bef78fb202d4d4b15c38694861643756742df393db11`):
+  logged-in/source-complete, 14 boards, 1 unread, 0 required replies, 0
+  contract candidates, 0 finance effect.
+- [x] Lancers Paid snapshot is `ok/0/0/0/0/0` for
+  `18d822db3102cb08-50260`; interrupted `18d822f155254608-51384` and failed
+  `18d8224ac955eca0-42172` are exact zero-effect reconciled occurrences.
+- [ ] Preserve unresolved historical Lancers fence
+  `18d81967220136f8-89928`; do not infer no effect without its exact proof.
+- [ ] Promote branch fixes `c399767c71`, `46d165013f`, `0ab75d4b0e` via a
+  main-derived immutable release; verify loaded SHA, natural readback, and
+  replay-zero. Production remains `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
+- [ ] CrowdWorks `63568785`: wait for buyer material, then formal delivery,
+  acceptance, settlement, payout, and replay-zero once.
+- [ ] Keep Coconala/Ryu manual-only/no-resend (`4/0/0/3/0`) and Upwork disabled
+  until its auth/readback/funded-contract gates exist.
+- [ ] Final fleet gate: every registered Paid owner loaded on the immutable
+  release with fresh official readback, explicit effect state, and no actionable
+  unresolved work.

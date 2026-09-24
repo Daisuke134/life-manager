@@ -2670,3 +2670,50 @@ not convert a transient pass or a no-op into client completion.
    delivery, acceptance, settlement, payout and replay-zero.
 5. Preserve Coconala/Ryu manual-only state and keep Upwork disabled until its
    authorization, authenticated readback and funded-contract gates exist.
+
+## Production Cursor — 2026-09-24 12:11 JST (Lancers recovery readback)
+
+- **Delegation rule:** Dais has delegated routine technical and operational
+  decisions. Do not ask for another permission question for ordinary diagnosis,
+  cleanup, release preparation, or verification. Safety is enforced by exact
+  target selection, provider readback, effect fences, and replay-zero; a broad
+  delegation does not justify a blind resend or a port-only process kill.
+- **Lancers browser recovery:** closed only the three stale proposal-list page
+  targets (`page:2`, `page:3`, `page:4`) on the Lancers profile. The canonical
+  proposal page and `about:blank` target were preserved. No provider write was
+  issued.
+- **Read-only proof:** branch `work_sync.py --preflight` completed two identical
+  official reads (`ELZ-L01 PASS`, digest
+  `5d2e0f1002b19d8c7c50bef78fb202d4d4b15c38694861643756742df393db11`):
+  logged in, source complete, 14 boards, 1 unread, 0 required replies, 0
+  contract candidates, and 0 financial effect.
+- **Paid readback:** Lancers `paid-latest.json` is now
+  `status=ok/observed=0/actionable=0/effect=0/readback=0/pending=0/failed=0`
+  (`18d822db3102cb08-50260`). The interrupted wake
+  `18d822f155254608-51384` has an exact pre-effect marker and is released with
+  effect `0`; `18d8224ac955eca0-42172` was also reconciled from its exact
+  zero-effect marker. One older fence, `18d81967220136f8-89928`, still has no
+  exact proof and remains closed.
+- **CrowdWorks/Coconala unchanged:** CrowdWorks latest is
+  `18d822f12a298ce8-51327` with `5/1/0/4/1`; work `63568785` still requires
+  buyer material. Coconala remains `4/0/0/3/0`; Ryu remains manual-only with no
+  formal-delivery checkbox or resend.
+
+### Remaining TODO (superseding)
+
+1. Preserve Lancers fence `18d81967220136f8-89928`; do not clear it without an
+   exact provider/run proof. Keep the Lancers loop loaded-idle and confirm one
+   natural pass after the next release.
+2. Promote branch fixes (`c399767c71`, `46d165013f`, `0ab75d4b0e`) from latest
+   main through an immutable release; verify loaded SHA, natural inventory,
+   official readback, and replay-zero for Lancers and CrowdWorks. Production is
+   still on `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
+3. Wait for buyer material for CrowdWorks `63568785`; then perform formal
+   delivery, acceptance, settlement, payout, and replay-zero exactly once.
+4. Keep Coconala/Ryu manual-only and no-resend state; no Coconala action is
+   currently actionable.
+5. Keep Upwork disabled until authorization, authenticated readback, and a
+   funded contract exist; only then run the same provider-neutral Paid gate.
+6. Run the final fleet acceptance only after items 1–5: all registered Paid
+   owners have a loaded release, fresh provider readback, explicit effect state,
+   and no unresolved actionable item.
