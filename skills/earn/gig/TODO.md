@@ -22,6 +22,11 @@ admission floor and far below the 6GiB recovery target; only the canonical
 retention owner may reclaim evidence. No provider send, retry, fence clear, or
 production release was performed in this readback.
 
+The code-side gate suite (Freelancer readiness/transport, Upwork
+authorization/readiness/transport, and legacy release rejection) is green:
+`78 passed in 0.31s`. This verifies fail-closed behavior only; it does not
+create authentication, a funded contract, a provider receipt, or a live owner.
+
 The non-skippable Freelancer/Upwork order remains:
 `account-bound auth → source-complete official inventory → funded contract /
 positive milestone → exactly one owner → zero-effect canary → funded canary →
