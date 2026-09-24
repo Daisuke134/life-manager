@@ -21,7 +21,7 @@ from runtime.loop.lm_loop_run import (
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
-    _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
+    _run_admitted, _run_entrypoint, _runtime_limit, _runtime_node, _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
     main as lm_loop_run_main,
@@ -70,6 +70,18 @@ def test_javascript_entrypoint_uses_pinned_runtime_node(tmp_path):
         assert build_loop_command(registry, "example", tmp_path) == [
             str(node), str(executable),
         ]
+
+
+def test_runtime_node_uses_managed_fallback_when_launchd_has_no_node(monkeypatch):
+    monkeypatch.delenv("LIFE_MANAGER_RUNTIME_NODE", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    with (
+        patch("runtime.loop.lm_loop_run.shutil.which", return_value=None),
+        patch.object(Path, "is_file", autospec=True,
+                     side_effect=lambda path: str(path) == "/opt/homebrew/bin/node"),
+        patch("runtime.loop.lm_loop_run.os.access", return_value=True),
+    ):
+        assert _runtime_node() == "/opt/homebrew/bin/node"
 
 
 def test_crowdworks_paid_owner_declares_a_bounded_runtime():

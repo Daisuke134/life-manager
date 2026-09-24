@@ -84,7 +84,11 @@ JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
 
 def _runtime_node() -> str:
     configured = os.environ.get("LIFE_MANAGER_RUNTIME_NODE")
-    candidate = Path(configured) if configured else Path(shutil.which("node") or "")
+    if configured:
+        candidate = Path(configured)
+    else:
+        discovered = shutil.which("node")
+        candidate = Path(discovered or "/opt/homebrew/bin/node")
     if (not candidate.is_absolute() or not candidate.is_file()
             or not os.access(candidate, os.X_OK)):
         raise RuntimeError("managed node executable is unavailable")
