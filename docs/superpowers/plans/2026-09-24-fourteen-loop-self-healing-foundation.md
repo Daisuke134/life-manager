@@ -1618,3 +1618,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Re-run candidate focused acceptance on `07193f3f61`: **277 tests + 216 subtests passed**, with diff-check and
   Python compilation passing. Confirm the registry diff does not alter any Paid owner entry; this is branch evidence,
   not production acceptance.
+- [x] Run the designated disk-cleanup owner once more through the immutable release: exit 0,
+  `errors=0`, `evaluated=5`, `preserved=5` (`open=5`), `protected_deletions=0`, `reclaimed=0`; command readback
+  `free_after=537,665,536` bytes and post-command probe `534,282,240` bytes. No unowned data was deleted and the
+  capacity floor remains unmet.

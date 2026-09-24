@@ -5161,3 +5161,9 @@ registry/recovery/scratch/runtime-event set passed **277 tests + 216 subtests**;
 compilation of the changed runtime/adapters also passed. Its registry diff does not change any Paid owner entry, and no
 Paid fulfillment path, Connector runner/source, provider session or effect fence was modified. This remains candidate
 evidence only; it does not replace full-suite completion or an accepted immutable release.
+
+The designated disk-cleanup owner was run again through the normal immutable release command. It exited 0 with
+`errors=0`, `evaluated=5`, `preserved=5` (`open=5`), `protected_deletions=0`, and `reclaimed=0`; the command's
+`free_after` was `537,665,536` bytes. A post-command filesystem probe reports `534,282,240` free bytes, still below
+the floor. This is a verified safe no-op: no unknown path, state, credential, session, source or provider data was
+deleted, and the capacity blocker remains genuine.
