@@ -4468,3 +4468,58 @@ this order:
    gates are present.
 5. Run the first funded canary for each newly enabled owner, then final fleet
    settlement/payout/replay-zero acceptance.
+
+## Runtime Status Refresh — 2026-09-24 23:20 JST (Coconala natural wake)
+
+The previous 22:26 matrix remains the cross-platform source of truth. This
+refresh records the next one-by-one execution result.
+
+### Coconala Apply natural wake
+
+- [x] The existing natural process was allowed to finish; no stop, restart,
+  retry, admission edit, or provider submit was performed. Occurrence
+  `hf-gig-apply-direct:18d847143eeffb48-86093` emitted a terminal `report/pass`
+  at `2026-09-24T14:18:53Z` from release
+  `aa63982c917e1ed82d151f0bc1df8dad359b16e9`.
+- [x] Official run result is `observed=129`, `judged=11`,
+  `actionable=0`, `effect=0`, `readback=0`, `failed=1`,
+  `durable_pending_ids=[5280157]`. The decision set contains no submit
+  action; the parent commit contains ten hard-prohibited decisions and the
+  retry-missing item `5266371` was dropped at the visible-text schema
+  boundary. The B2 gate is `ok=true` and the application-decision Telegram
+  receipts were dispatched (`93091`–`93093`); this proves safe classification,
+  not provider delivery.
+- [x] The official applied-history readback observed the Coconala route and
+  did not contain `5280157`; the exact historical admission occurrence remains
+  separately recorded as `released/effect_unknown=0`. No provider effect or
+  duplicate submit is evidenced by this wake.
+- [ ] Apply is not yet accepted. The local report still carries one durable
+  prepared intent (`5280157`) and one failed planner request (`5266371`).
+  Resolve those exact local boundaries, then run the source release and prove
+  official readback plus replay-zero. Storefront remains an independent
+  `claimed/effect_unknown=1` gate.
+
+### Freelancer/Upwork execution cursor
+
+The two platforms remain implementation work, not provider-send work. The
+next concrete branch deliverables are: (1) Freelancer authenticated-account,
+policy, and source-complete opportunity/contract receipts plus shared
+Apply→Reply→Paid→settlement/payout effect-fence contracts and duplicate-zero
+tests; (2) Upwork fresh identity/authorization/transport and funded-contract
+fixtures wired to the existing proposal/message/offer/delivery/finance
+modules, with one Paid owner registered only after an approved authorization
+and authenticated funded-contract readback. Neither lane may register or send
+until its own gate is present.
+
+### Next ordered cursor (23:20 JST)
+
+1. Resolve the Coconala local planner/intent boundaries and then promote the
+   immutable source for clean Apply/Storefront natural acceptance.
+2. Finish the four-room Coconala official readback while keeping Ryu
+   manual-only and avoiding duplicate replies.
+3. Preserve CrowdWorks/Lancers/Mercor fences and their funded-contract or
+   buyer-material gates.
+4. Implement Freelancer readiness first, then Upwork authorization/inventory
+   and owner contracts; perform no provider effect before each exact gate.
+5. Run provider-specific funded canaries, settlement/payout readback,
+   crash-recovery, and replay-zero only after both new lanes are authorized.

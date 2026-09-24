@@ -1,6 +1,21 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 22:26 JST
+## Current cursor — 2026-09-24 23:20 JST
+
+- [x] Complete the same-process Coconala Apply natural wake without a restart.
+  Occurrence `hf-gig-apply-direct:18d847143eeffb48-86093` reached the terminal
+  report at `2026-09-24T14:18:53Z`. The official run observed 129 postings,
+  judged 11, selected 0, sent 0, and read back 0; 85 were hard-prohibited,
+  42 were already applied, and 75 were cached ineligible. The provider
+  mutation surface stayed untouched.
+- [x] Verify the terminal safety artifacts for that wake: `b2-gate-result-refresh`
+  is `ok=true`, the parent commit contains no submit decision, and the
+  official applied-history page contains no `5280157` in the observed page.
+  This is a terminal safe no-op, not customer-delivery acceptance.
+- [ ] Keep Apply acceptance open because the run still reports
+  `failed=1` (`5266371=planner_missing_request_id`) and one durable prepared
+  intent (`5280157=prepared_unconfirmed`). Do not retry either item blindly;
+  reconcile the old intent and fix the visible-text planner boundary first.
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -70,12 +85,13 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 22:26 JST)
+### Current remaining TODO (authoritative, 2026-09-24 23:20 JST)
 
-1. Promote the pushed source release, run a clean natural Coconala Apply wake,
-   and obtain official readback plus replay-zero. The exact old Apply fence is
-   already `released/effect_unknown=0`, but recovery issue `#5855` still shows a
-   nonterminal parent with no qualifying action.
+1. Promote the pushed source release and obtain a clean Coconala Apply
+   acceptance. The latest natural wake is terminal and safe (`effect=0`, no
+   provider submit), but it is not accepted because the report still has
+   `failed=1` (`5266371`) and `durable_pending_ids=[5280157]`; resolve those
+   exact local boundaries, then obtain official readback and replay-zero.
 2. Reconcile Coconala Storefront's independent
    `claimed/effect_unknown=1` occurrence, then run Storefront natural wake,
    official readback, and replay-zero. Never bypass the effect fence.
