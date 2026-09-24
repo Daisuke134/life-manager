@@ -299,7 +299,8 @@ flowchart LR
 - Connectorの2026-09-25 JST read-only statusは、`life-manager-connector-native`がcurrent exact
   `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でloaded-idle、diagnostic complete、
   `failure_layer=entrypoint`/`error_class=entrypoint_exit_1`、retryable、effect none、provider receiptなしです。
-  Observabilityは成立していますが、browser/provider境界の実行は失敗中です。別ownerのendpoint/browser修正を
+  最新 occurrence `life-manager-connector-native:18d850f6939b4aa8-80280`、event `0425cdbd95542cc7e9dd59cc`
+  でも同じ typed readback です。Observabilityは成立していますが、browser/provider境界の実行は失敗中です。別ownerのendpoint/browser修正を
   accepted main-derived releaseで消費するまで、このworkstreamはsource/session/provider stateを変更せず、
   Connectorの成功やCalendar/Telegram receiptを推測しません。
 - Gig non-Paidの同日read-only statusは、`hf-gig-apply-direct`だけがcurrent exact
