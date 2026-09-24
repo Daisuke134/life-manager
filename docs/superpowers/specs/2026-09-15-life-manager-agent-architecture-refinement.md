@@ -3498,6 +3498,29 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 8. Expand the agent-native track and grow verified net MRR toward USD 10 million; extend to physical and mental
    health only with independent domain safety/outcome benchmarks.
 
+#### LM-EAB v1 eval audit and implementation cursor
+
+The existing repository already provides the correct lower layers: exact `FinancialRecord` validation,
+verified revenue/cost ingestion, CFO period/provider rollups, versioned agent-contract case/run/score/gate
+records, held-out/cost/latency/live-readback promotion checks, and deterministic loop evaluators. Replacing
+them with a second eval platform would split the source of truth. The missing layer is a read-only economic-
+autonomy contract that joins verified financial records to revenue/cost attribution, human/credential events
+and complete cost coverage, then emits one auditable eligibility and profit score.
+
+The current agent-contract corpus has five cases and no labeled pass/fail set large enough to validate a
+semantic judge with held-out TPR/TNR. Therefore LM-EAB v1 uses strict schemas and deterministic integer
+arithmetic only. A semantic evaluator is added only after real trace error discovery produces a named failure
+mode and an independently labeled train/dev/test set. Generic helpfulness or holistic quality scores are not
+allowed to promote an economic candidate.
+
+Implementation plan:
+`docs/superpowers/plans/2026-09-24-lm-economic-autonomy-benchmark-v1.md`.
+It owns only §J4.2 item 1: case/episode/attribution/autonomy/cost-coverage/run/score records, a pure scorer,
+four secret-free tuning/held-out fixtures and a fixture-only runner. It does not change a Product Loop,
+production state, provider effect, browser, Paid fulfillment, CFO intake, portfolio allocation or revenue
+claim. Current cursor: execute this plan from a fresh leased `origin/main` worktree, then advance to the
+official funnel/cost-to-CFO join only after the v1 contract and its held-out replay pass.
+
 ### J5. Affiliate revenue diagnosis and external harness decisions
 
 Affiliate takes too long because five different gates are serialized as though they were one result:
