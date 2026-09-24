@@ -1733,3 +1733,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Let this natural occurrence finish, then read its exact terminal/diagnostic fields once. If it reaches the
   old `node: not found` boundary, use the already-tested candidate fallback after capacity recovery and accepted
   immutable loading; do not restart this owner or mutate admission/provider/Paid state from the stale surface.
+
+### Natural occurrence terminal readback (2026-09-25 JST)
+
+- [x] Read the exact terminal for `18d865297aba2440-74128`: `status=fail`, `blocker=entrypoint_exit_1`,
+  `effect_status=not_applicable`, `launchd_state=loaded-idle`, `pid=null`, terminal timestamp
+  `2026-09-24T23:23:51.110570Z`. Its log binds the failure to old d4's bare `node` invocation; no provider receipt,
+  admission effect-unknown, browser/session mutation or external effect exists.
+- [x] Keep the production diagnosis separate from the candidate fix: `e69cd97651` is branch-only and adds the
+  managed Node fallback plus occurrence diagnostics, but has not been merged, sealed or loaded.
+- [ ] After capacity recovery, full-suite pass and accepted immutable loading, re-read one fresh reconciler
+  occurrence and require occurrence-complete diagnostics plus replay-zero before advancing the 14-loop gate.

@@ -5331,3 +5331,12 @@ The canonical cleanup receipt now reads `observed_at=2026-09-24T23:19:47Z`, `fre
 **793,296,896 bytes** below the `1,155,780,608`-byte floor. Cleanup remains healthy but has no safe reclaimable
 candidate; do not manufacture headroom by deleting open or unowned artifacts. The candidate source remains
 `e69cd976518fbe0bd996e507457badd1ba013b94` and is not loaded in production.
+
+The same occurrence then reached its own terminal at `2026-09-24T23:23:51.110570Z`: `status=fail`,
+`blocker=entrypoint_exit_1`, `effect_status=not_applicable`, `launchd_state=loaded-idle`, and `pid=null`. Its
+stderr again names the old d4 recovery-supervisor call to `bin/lm-recovery-supervise` failing with `exec: node: not
+found`; no provider receipt, admission effect-unknown, browser/session change or external effect was recorded.
+The status surface now binds this terminal to `18d865297aba2440-74128`, but remains diagnostic-incomplete because
+the old release does not persist the required occurrence/error/readback fields. This is a confirmed runtime-boundary
+failure, not a reason to retry an external effect. After the host floor is restored, the next promotion proof is to
+load the accepted candidate and confirm the same occurrence fields with the managed Node fallback.
