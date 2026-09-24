@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import errno
 import fcntl
 import os
 import plistlib
@@ -24,6 +25,7 @@ from typing import Callable
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
+from runtime.loop.central_cleanup import scratch_gc
 from runtime.loop.macos_loop_registry import (
     CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
 )
@@ -43,6 +45,7 @@ from runtime.host.resource_admission import (
     durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
     heartbeat_durable as heartbeat_durable_resource,
+    process_starts,
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
@@ -308,6 +311,40 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str, *,
         if loop_tmp_fd >= 0:
             os.close(loop_tmp_fd)
         os.close(root_fd)
+
+
+def _create_loop_scratch_with_recovery(
+        state_root: Path, loop_id: str, run_id: str, *,
+        effect_class: str | None = None) -> tuple[str, Path, int, int]:
+    """Retry one effect-free scratch creation after safe stale-scratch GC.
+
+    Scratch creation happens before the runtime start event exists.  If the host
+    is out of space at that boundary, an ordinary retry would either reuse a
+    partially-created run directory or leave the owner with no diagnostic
+    occurrence.  Only an effect-free owner may reclaim stale scratch here; all
+    effectful owners fail closed and retain the existing safety boundary.
+    """
+    try:
+        scratch, parent_fd, run_fd = reset_loop_scratch(
+            state_root, loop_id, run_id, effect_class=effect_class)
+        return run_id, scratch, parent_fd, run_fd
+    except OSError as error:
+        if error.errno != errno.ENOSPC or effect_class != "none":
+            raise
+        result = scratch_gc(
+            {state_root},
+            snapshot_started_ns=time.time_ns(),
+            starts=process_starts(),
+            no_effect_loop_ids={loop_id},
+        )
+        if (not isinstance(result, dict)
+                or not isinstance(result.get("removed"), int)
+                or result["removed"] < 1):
+            raise
+        retry_run_id = f"{run_id}-capacity-retry-{time.time_ns():x}"
+        scratch, parent_fd, run_fd = reset_loop_scratch(
+            state_root, loop_id, retry_run_id, effect_class=effect_class)
+        return retry_run_id, scratch, parent_fd, run_fd
 
 
 def unprotect_loop_scratch(run_fd: int) -> None:
@@ -1126,6 +1163,12 @@ def main(argv: list[str] | None = None) -> int:
         with _apply_lock(current, item_lock):
             command = build_loop_command(registry, loop_id, release_root)
             run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+            run_id, scratch, scratch_parent_fd, scratch_fd = (
+                _create_loop_scratch_with_recovery(
+                    loop_state_root, loop_id, run_id,
+                    effect_class=entry["effect_class"],
+                )
+            )
             wake_id = _wake_id(run_id)
             product_loop_id = _product_loop_for_job(release_root, loop_id)
             loaded_argv_sha256 = _identity_sha256(command)
@@ -1139,8 +1182,6 @@ def main(argv: list[str] | None = None) -> int:
                 "release_sha": manifest["sha"],
             })
             event_path = loop_state_root / "events.jsonl"
-            scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
-                loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
             try:
                 append_runtime_event(event_path, build_runtime_start_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
