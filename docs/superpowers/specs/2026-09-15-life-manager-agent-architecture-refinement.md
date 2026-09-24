@@ -4601,3 +4601,14 @@ the separately owned Connector terminal failure; this is not evidence of new pro
 labels. Therefore the remaining boundary is release promotion/owner evidence, not a missing registry entrypoint.
 The branch remains pushed but production still runs the accepted main-derived selector; no manual admission edit,
 effect-fence clear, provider session change, or external effect was performed.
+
+### Natural release-reconciler wake after the probe (2026-09-25 JST)
+
+The existing keep-alive reconciler was observed without restart. Run
+`18d85a7bf85334e0-99067` ended with `report:fail:entrypoint_exit_1`; the owner returned to `loaded-idle` with no
+PID, but its installed/event SHA remained the old `09a59ba1b899849ae7e3be8c67e239ec664dea22`. The production
+stderr still contains the exact old boundaries: current d4's `lm-recovery-supervise` executes bare `node` and
+returns `node: not found`, the old d4 `lm-loop.py` allocates disk-backed `TemporaryFile()` during launchctl
+observation and can raise `No usable temporary directory`, and concurrent admission work logs `database is locked`.
+The source fixes on this branch are therefore not loaded by the production reconciler; no owner rebind, fence
+clear, provider action or revenue was inferred.

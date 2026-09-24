@@ -1177,3 +1177,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Promote the accepted main-derived immutable release containing the pushed control-plane fixes before any
   further owner rebind. Do not apply the branch's registry-only contracts to production, clear admission fences,
   or infer provider/revenue success from scheduler health.
+
+### Natural release-reconciler wake readback (2026-09-25 JST)
+
+- [x] Observe the existing keep-alive reconciler without restarting it. Run `18d85a7bf85334e0-99067` reached
+  `report:fail:entrypoint_exit_1` and returned to `loaded-idle` with no PID; installed/event SHA stayed old
+  `09a59ba1...`.
+- [x] Reconfirm the production failure boundary from stderr: bare `node` is still missing for the old supervisor,
+  old d4 still uses disk-backed `TemporaryFile()` for launchctl readback, and shared admission contention still
+  logs `database is locked`. This is evidence that the pushed branch is not production-loaded, not permission to
+  retry or mutate owners.
+- [ ] Keep accepted immutable-release promotion as the next cursor. After promotion, verify the reconciler's
+  managed runtime, in-memory observability, typed admission errors, current terminal event and replay-zero before
+  allowing any further FIFO owner alignment.
