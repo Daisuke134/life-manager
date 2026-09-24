@@ -8,7 +8,7 @@
     },
     "upwork": {
       "state": "unknown",
-      "actions": ["discover", "inspect", "submit_proposal", "message", "accept_offer", "deliver_milestone", "read_payments", "read_payouts"],
+      "actions": ["search", "inspect", "propose", "message", "accept_offer", "deliver_milestone", "read_payments", "read_payouts"],
       "capability": {
         "id": "marketplace.lifecycle",
         "authorization": {"receipt_required": true, "required_state": "approved_browser_or_api"},
