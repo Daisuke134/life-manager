@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:31 JST (retention, Paid marker, and live admission status verified)
+## Current cursor — 2026-09-25 06:35 JST (exact Paid-fence history re-audited)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -108,6 +108,23 @@ shows CrowdWorks `crowdworks-revenue-paid:18d62cf32eb0c678-48194` and Lancers
 diagnostic history only. This changes status truthfulness, not provider state:
 both exact fences are still claimed/effect-unknown, so neither Paid loop is
 started or retried.
+
+The occurrence-bound history was re-audited at `2026-09-25 06:35 JST` rather
+than inferred from the latest provider snapshot. CrowdWorks' compressed event
+log records `execute/running/effect_status=started` for
+`18d62cf32eb0c678-48194`, then a `pass/effect_status=unknown` report and a
+later `entrypoint_exit_1/effect_status=unknown` report carrying the same
+claim; this is positive evidence that the old run crossed the effect boundary,
+not a no-effect proof. Lancers' event log records the exact
+`18d81967220136f8-89928` occurrence as `execute/running`, immediately followed
+by `entrypoint_exit_1/effect_status=unknown`, with no provider receipt. The
+supported no-effect resolver was rerun for both exact occurrences and returned
+`exact_paid_zero_effect_proof_unavailable` for each. The newer provider
+snapshots (`crowdworks 18d8287…`, `lancers 18d8282…`) have `effect=0` but are
+not occurrence-bound and cannot release these older fences. Therefore no
+resolver, retry, or provider send is safe; the next valid evidence must be an
+exact provider receipt/history for the old occurrence or an admissible host
+proof that contradicts the recorded effect start.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
