@@ -1,5 +1,17 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Gate correction — 2026-09-25 08:26 JST (stale funded snapshots closed)
+
+Freelancer and Upwork owner registration now requires an official inventory
+observed within 24 hours of the gate clock, with at most five minutes of future
+clock skew. The freshness check is applied both at authenticated readback and
+at registration evaluation, so a previously funded contract cannot reopen a
+loop after its provider state is unknown or changed. The focused provider gate
+suite remains green (`81 passed`). The full Gig suite was `1481` tests with two
+environmental browser-disk-guard failures because the data volume had only
+`312868 KiB` free; the disk guard was not bypassed and no provider effect was
+attempted.
+
 ### Live gate cursor — 2026-09-25 08:19 JST (specific Freelancer/Upwork boundary)
 
 Freelancer and Upwork are implemented as guarded workstreams, not live Paid

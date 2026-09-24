@@ -1,5 +1,23 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:26 JST (funded-inventory freshness gate)
+
+The Freelancer and Upwork readiness boundaries now reject a source-complete
+funded snapshot unless its official `observed_at` is within 24 hours of the
+registration/readback clock and no more than five minutes in the future. The
+same check runs both when authenticated inventory is read and when an owner
+registration report is evaluated. A stale funded snapshot returns
+`inventory_stale`; it cannot open a Paid owner. This closes the gap where an old
+funded contract could otherwise satisfy the structural gate after its provider
+state had changed.
+
+TDD evidence: the new stale-readback and stale-registration tests are green in
+both providers; the focused Freelancer/Upwork readiness, transport, and release
+suite is `81 passed`. The full Gig suite reached `1481` tests; only two existing
+browser-disk-guard tests failed because the host data volume had `312868 KiB`
+free, below the hardcoded `524288 KiB` admission floor. No test override,
+cleanup bypass, provider effect, retry, or production release was used.
+
 ## Current cursor — 2026-09-25 08:19 JST (Freelancer/Upwork external gate recheck)
 
 The code-side Freelancer/Upwork gate is pushed in `0acb25bb50` and remains
