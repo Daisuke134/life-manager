@@ -1053,6 +1053,14 @@ The following is the current control-plane state. It is evidence for the next bo
   deterministic reconcile returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
   because the scheduler moved it to running between the read-only status and reconcile. No restart or external
   application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
+- [x] Align and verify the non-Paid, effect-free `affiliate-source-refresh` owner. It moved from old
+  `ff11bb0a…` to current d4 and reached `loaded-idle`, exact installed/event SHA, typed retryable
+  `resource_capacity_busy`, complete diagnostics, `effect_status=not_applicable` and admission unknown false. A
+  second targeted reconcile returned `eligible=0`; no affiliate click, commission or provider effect was run.
+- [x] Re-probe `citizen-refill` and `life-manager-x402-ledger` without breaking their FIFO. Each owner returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[owner]` twice against current d4; no old entrypoint, wallet,
+  refill, ledger, payment or provider effect ran. Their exact-current terminal/diagnostic acceptance remains open
+  until durable admission advances.
 - [x] Close this work slice with a registry/worktree readback. `lm-loop doctor` returns `ok=true`, zero missing
   entrypoints and zero unmanaged labels; `git diff --check` passes and the dedicated branch is clean at
   `d1ac5d166e`. This proves control-plane consistency only. Main merge, accepted release promotion, external
