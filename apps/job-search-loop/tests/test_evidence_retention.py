@@ -4,6 +4,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from job_search_loop.evidence_retention import classify_run, reclaim_evidence
 
@@ -83,6 +85,33 @@ class EvidenceRetentionTests(unittest.TestCase):
             self.assertTrue(unmarked.exists())
             self.assertEqual(classify_run(submitted)["eligible"], False)
             self.assertEqual(classify_run(unmarked)["reason"], "no_explicit_no_effect")
+
+    def test_enforces_max_evidence_bytes_even_above_free_space_floor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "job-search" / "evidence"
+            no_work = root / "inbox-20260901-000000-1"
+            self._write_json(
+                no_work / "inbox-terminal.json",
+                {"outcome": "no_work", "reason": "no_new_messages_or_preparation"},
+            )
+            self._old(no_work)
+
+            # The volume still has more than the floor, but the owner tree is
+            # over its explicit byte cap and must not take the fast path.
+            usage = SimpleNamespace(total=100, used=90, free=10)
+            with patch(
+                "job_search_loop.evidence_retention.shutil.disk_usage",
+                return_value=usage,
+            ):
+                result = reclaim_evidence(
+                    root,
+                    min_age_seconds=0,
+                    min_free_bytes=5,
+                    max_evidence_bytes=1,
+                )
+
+            self.assertEqual(result["reclaimed_runs"], 1)
+            self.assertFalse(no_work.exists())
 
     def test_active_marker_and_symlink_are_never_candidates(self):
         with tempfile.TemporaryDirectory() as directory:

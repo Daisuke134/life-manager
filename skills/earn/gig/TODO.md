@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:39 JST (all stale effect-free control-plane fences reconciled)
+## Current cursor — 2026-09-25 06:45 JST (retention cap enforced and stale fences reconciled)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -47,6 +47,17 @@ root: `capacity_ok`, `free_bytes=2323501056`, `scanned_runs=0`, and
 `reclaimed_runs=0`. This confirms the fast path and that no evidence was
 deleted. The shell contract now covers all four writers; the full job-search
 suite is `531 passed`.
+
+The retention fast path was corrected at `2026-09-25 06:45 JST`: it now checks
+the writer-owned `max_evidence_bytes` cap before returning `capacity_ok`, so a
+tree over its cap is reclaimed even when the host still has more than the
+free-space floor. RED/GREEN coverage is in the retention test; the complete
+job-search suite is now `564 passed` with `58` subtests. The live owner receipt
+then scanned `11,909` runs, found `2,249` explicit no-effect candidates, and
+reclaimed `2,050` runs / `178,397,607` bytes with `errors=0`; it never touched
+unknown, submitted, failed, blocked, active, or unmarked runs. Free space rose
+from `889,376,768` bytes to about `1.1GiB`. The remaining tree is retained
+evidence, not a reason to delete protected history by hand.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with

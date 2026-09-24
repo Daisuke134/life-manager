@@ -206,15 +206,20 @@ def reclaim_evidence(
     with _retention_lock(root):
         initial_free = shutil.disk_usage(root).free
         if not force and initial_free >= min_free_bytes:
-            return {
-                "scanned_runs": 0,
-                "eligible_runs": 0,
-                "reclaimed_runs": 0,
-                "reclaimed_bytes": 0,
-                "errors": 0,
-                "skipped": "capacity_ok",
-                "free_bytes": initial_free,
-            }
+            # ``max_evidence_bytes`` is an owner-tree invariant independent
+            # of the filesystem floor.  Probe the tree before taking the fast
+            # path so a healthy-looking volume cannot let this writer grow
+            # without bound (the previous shortcut did exactly that).
+            if max_evidence_bytes <= 0 or _tree_size(root) <= max_evidence_bytes:
+                return {
+                    "scanned_runs": 0,
+                    "eligible_runs": 0,
+                    "reclaimed_runs": 0,
+                    "reclaimed_bytes": 0,
+                    "errors": 0,
+                    "skipped": "capacity_ok",
+                    "free_bytes": initial_free,
+                }
         candidates: list[tuple[float, Path, int]] = []
         total = 0
         scanned = 0
