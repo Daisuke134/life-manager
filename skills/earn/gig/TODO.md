@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 21:00 JST
+## Current cursor — 2026-09-24 21:22 JST
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -13,14 +13,17 @@
   waiting for admissible buyer lesson/answer material after the existing
   on-platform request; no external-form or LINE action is allowed.
 
-- [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
+- [ ] **Coconala Apply/Storefront are not complete yet.** The installed owners are
   still on older immutable releases and the Apply occurrence
   `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
-  `claimed/effect_unknown=1`. A fresh read-only probe using one authenticated
-  lease per page reached all 26 currently paginated history pages; every page
-  stayed on the official route, every detail GET returned HTTP 200, and
-  `5280157` was absent. This proves current-history absence, not that the old
-  irreversible attempt never dispatched, so the fence remains closed.
+  `claimed/effect_unknown=1`. The same historical application pass has a
+  verified sibling receipt for request `5281717` whose official public page
+  binds the pass to account `2564121`; the complete official `5280157` roster
+  has 9 applicants, 0 contracts, and excludes `2564121`. A dedicated
+  `historical_account_bound_no_dispatch` proof and resolver now validate this
+  boundary without retrying the provider. The live fence has not yet been
+  mutated; it remains closed until that proof is executed against the exact
+  current row.
 - [x] Add the branch-only page-20 resumable readback path and the bounded,
   same-origin detail-fetch fallback. Both paths are read-only and keep the
   fence closed on denied, incomplete, or non-200 history.
@@ -31,6 +34,11 @@
 - [x] Build and register the occurrence-scoped Coconala reconciler. It selects
   only one unambiguous target and cannot clear the admission DB, infer no-effect
   from exit status, or release a fence without exact official proof.
+- [x] Add the separate historical-account-bound no-dispatch resolver. It
+  requires the same-pass sibling receipt, exact historical account identity,
+  complete target roster, and explicit absence; provider positive receipts and
+  pre-effect proofs remain separate proof types. Focused recovery/admission
+  tests and the full runtime-loop suite pass.
 - [x] Add a bounded readback-only fresh-lease recovery for the sequential-session
   WAF/403 boundary. Source commit `eb28f8df24` retries only
   `official_readback_access_denied` once, wires the occurrence reconciler to the
@@ -66,25 +74,17 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 20:51 JST)
+### Current remaining TODO (authoritative, 2026-09-24 21:22 JST)
 
-1. Bind the 26-page official absence to a separately verified no-dispatch
-   receipt for `5280157`, or obtain a positive provider receipt. The new official
-   request-detail roster excludes the current account, but the old attempt's
-   account identity is not durably recorded, so this remains a candidate rather
-   than a resolver proof. The live read-only retry still returns `403 Forbidden`
-   at history page 22; the original intent is already marked
-   `irreversible_attempt_started`, so absence alone is not a legal
-   `resolve_pre_effect_occurrence` proof. Do not loop endlessly, retry the
-   provider, or clear the admission row by hand; accept only a newly bound
-   provider-proof surface or independently verifiable no-dispatch evidence.
-   New attempts now persist the authenticated account identity before the
-   irreversible marker; this protects future occurrences but cannot retroactively
-   bind the old `5280157` attempt.
-2. Merge/cut/install the source fix `eb28f8df24` as an immutable release. Only
-   after item 1 is proven may Apply, then Storefront, be target-applied; verify
-   loaded SHA, natural wakes, official readback, and replay-zero. Do not bypass
-   the `effect_unknown` guard.
+1. Execute the new historical-account-bound no-dispatch resolver once against
+   the exact current occurrence. It must return `resolved` and the official
+   admission row must read `released/effect_unknown=0`; otherwise keep the fence
+   and record the precise boundary. Do not retry the provider or edit SQLite by
+   hand.
+2. Cut/install a new immutable release from the merged source branch. Only
+   after item 1 may Apply, then Storefront, be target-applied; verify loaded
+   SHA, natural wakes, official readback, and replay-zero. Do not bypass the
+   `effect_unknown` guard.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
 4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible

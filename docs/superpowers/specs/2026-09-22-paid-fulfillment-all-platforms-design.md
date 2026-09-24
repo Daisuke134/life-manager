@@ -4373,3 +4373,36 @@ not convert a transient pass or a no-op into client completion.
 4. Continue CrowdWorks/Lancers/Mercor/ Freelancer/Upwork readiness in parallel
    only where each platform has its own admissible funded contract and official
    receipt path; a no-op or loaded loop is not a delivery.
+
+## Runtime Status Refresh — 2026-09-24 21:22 JST (historical account-bound proof)
+
+- [x] The old Coconala Apply pass was correlated with a verified sibling
+  application (`5281717`) from the same single Gig pass. Its official public
+  page binds that pass to historical account `2564121`
+  (`Kosuke｜教育研修PPT×AI活用`). The complete official `5280157` detail roster
+  contains 9 applicants, 0 contracts, and excludes that exact account.
+- [x] Added a separate `historical_account_bound_no_dispatch` proof type and
+  resolver. It validates the exact owner/occurrence/request, same-pass sibling
+  receipt, historical profile URL, complete non-truncated target roster, and
+  account absence. It cannot accept a positive provider receipt shape and never
+  retries the provider. Focused tests: `141 passed`; runtime-loop suite:
+  `539 tests OK`; contract and current loop doctor: PASS.
+- [ ] The live admission row is still intentionally
+  `claimed/effect_unknown=1`; the resolver has not yet been executed against
+  production state. Coconala Apply/Storefront therefore remain incomplete, but
+  the blocker is now a single bounded resolver operation rather than an open
+  historical investigation. No Ryu resend or provider submission occurred.
+
+### Next one-by-one cursor (21:22 JST)
+
+1. Execute the new resolver once for the exact `5280157` occurrence; require
+   the official admission row to read `released/effect_unknown=0` and preserve
+   the proof artifact. If the row is not current, leave it fenced and record
+   the exact boundary.
+2. Cut/install an immutable release from the pushed branch, target-apply Apply
+   then Storefront only after item 1, and verify loaded SHA, natural wake,
+   official readback, and replay-zero.
+3. Finish Coconala's four-room official readback while keeping Ryu manual-only;
+   then advance the cross-platform cursor: CrowdWorks buyer-material wait,
+   Lancers funded-contract gate, Mercor stale inventory, and Freelancer/Upwork
+   authorization plus funded-contract gates.
