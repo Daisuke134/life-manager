@@ -544,11 +544,31 @@ allowed.
 
 The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
 
-- A fresh `lm-loop status all --json` readback contains 98 mapped managed jobs: 33 complete diagnostics, 48 typed
+- [x] Read-only recheck 2026-09-25 JST: the `current` selector is
+  `/Users/anicca/loops/releases/20260925T005608-2f809c86`, whose exact SHA is
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. `launchctl-safe preflight --json` is `pass` with
+  `mutation_allowed=true` for `gui/501`/Aqua; no launchd mutation was performed. Running the local foundation
+  gate against this exact release and a fresh `lm-loop status all --json` readback returns
+  `healthy=0`, `setup_required=0`, `safely_fenced=0`, `repairing=0`, `uncovered_failure=14`,
+  `decision=block`, with reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. Every Product Loop is classified
+  `runtime_release_drift`; no loop is counted healthy merely because its status row exists. This is a read-only
+  release-alignment cursor, not a production repair or a revenue claim. Branch-only admission contracts are not
+  in this release. Next safe action is an accepted main-derived immutable release followed by one-owner loaded-idle
+  reconciliation, while all external-effect fences and the separately owned Paid/Connector/Mobile owners remain
+  untouched.
+
+- A fresh `lm-loop status all --json` readback contains 271 managed rows. The terminal projection is
+  `None=116`, `blocked=70`, `pass=51`, `fail=30`, `running=4`; the dominant blockers are missing terminal
+  result, `host_admission_deferred:resource_effect_unknown`, `entrypoint_exit_1`, capacity, exit 143 and FIFO.
+  These are runtime observations, not commercial revenue measurements.
+- The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
+  override the 2026-09-25 selector/gate above.
+- Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
   admission-blocked rows, 17 terminal failures, 23 passes, 4 running rows and 6 rows without a terminal event. It
   still exposes 57 effect-unknown rows and 5 installed/event release mismatches. This is why the 14/14 foundation
   gate remains blocked; these numbers are not commercial revenue measurements.
-- The latest `current` selector readback points to main-derived release `1657972036bddc842682108334e5d30b5e48defe`, while
+- At that historical snapshot, the `current` selector pointed to main-derived release `1657972036bddc842682108334e5d30b5e48defe`, while
   Agent Economy remains loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b` and the seven Writer owners remain
   loaded on the previously accepted `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` release. Source
   merge, release cut, current selector and production loading are therefore not conflated.

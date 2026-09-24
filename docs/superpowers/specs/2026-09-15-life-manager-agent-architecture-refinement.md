@@ -35,12 +35,20 @@ flowchart LR
 - Capafy external-effect ownersはadmission `effect_unknown=0`、reservation 0を維持します。最新queued countsは
   daily 168、outcome 8078、account manager 1643、IG marketing 72です。entrypointは実行されずprovider
   receiptも発生していないため、収益・publish・message・account mutation成功を捏造しません。
-- fresh local foundation gateは14 loopsを観測し、`safely_fenced=1`（Capafy）、
-  `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
-  収益や自然provider eventを待たず、次のloop sliceへ進みます。
+- 直近のfoundation gateは履歴上のCapafy sliceを示すものと、現在のrelease-alignment readbackを分けて記録します。
+  2026-09-25 JSTのread-only再確認では、`current` selectorが
+  `20260925T005608-2f809c86`（SHA `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`）を指し、
+  `launchctl-safe preflight`は`pass`/`mutation_allowed=true`でした（本番mutationは実行していません）。
+  同じSHAを指定したlocal foundation gateは
+  `healthy=0`、`setup_required=0`、`safely_fenced=0`、`repairing=0`、`uncovered_failure=14`、
+  `decision=block`で、理由は`foundation_diagnostic_incomplete`、
+  `foundation_runtime_evidence_incomplete`、`uncovered_failure`です。14/14 Product Loopの分類は
+  `runtime_release_drift`で、status rowが存在するだけではhealthyと数えません。これはrelease昇格前の
+  read-onlyカーソルであり、収益や自然provider eventを待つ理由ではありません。次はaccepted main-derived
+  immutable release後に、外部effect fenceを閉じたままowner単位でloaded-idle reconciliationを行います。
 - main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
-  三つを別々に判定します。最新readbackの`current` selectorは
-  `1657972036bddc842682108334e5d30b5e48defe`ですが、Agent Economyは
+  三つを別々に判定します。2026-09-25 JSTの最新readbackでは`current` selectorは
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`ですが、loaded ownerは旧releaseのままです。Agent Economyは
   `403e272eb615951b7a125006e2e5797cf28c4b7b`、Writer、CFO、Job Hunterの一部は別の旧releaseのままで、
   foundation acceptanceには数えません。
 - Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
