@@ -11,6 +11,7 @@ from runtime.loop.lm_loop import (
     doctor_report, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
+from runtime.loop.runtime_event import build_runtime_start_event
 
 
 REGISTRY = {"schema_version": 2, "loops": {"example": {
@@ -279,6 +280,56 @@ class LmLoopReadonlyTest(unittest.TestCase):
             cache = {}
             self.assertEqual(_last_event(str(root), "b", cache)["loop_id"], "b")
             self.assertEqual(_last_event(str(root), "a", cache)["loop_id"], "a")
+
+    def test_last_event_prefers_pid_bound_diagnostic_running_event(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = build_runtime_event(
+                loop_id="browser", domain="growth", run_id="old-42",
+                release_sha="a" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", succeeded=False,
+                blocker="entrypoint_exit_1", exit_code=1,
+            )
+            running = build_runtime_start_event(
+                loop_id="browser", domain="growth", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="affiliate",
+                job_id="browser", owner_id="browser", wake_id="current-123",
+                occurrence_id="browser:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in (report, running)) + "\n"
+            )
+
+            event = _last_event(str(root), "browser", running_pid="123")
+
+            self.assertEqual(event, running)
+
+    def test_last_event_rejects_running_event_for_different_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = build_runtime_event(
+                loop_id="browser", domain="growth", run_id="old-42",
+                release_sha="a" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", succeeded=False,
+                blocker="entrypoint_exit_1", exit_code=1,
+            )
+            running = build_runtime_start_event(
+                loop_id="browser", domain="growth", run_id="stale-999",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="affiliate",
+                job_id="browser", owner_id="browser", wake_id="stale-999",
+                occurrence_id="browser:stale-999", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in (report, running)) + "\n"
+            )
+
+            event = _last_event(str(root), "browser", running_pid="123")
+
+            self.assertEqual(event, report)
 
     def test_installed_release_uses_full_sha_from_generated_plist(self):
         with tempfile.TemporaryDirectory() as directory:

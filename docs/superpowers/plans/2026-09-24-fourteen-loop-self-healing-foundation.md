@@ -237,9 +237,20 @@ The target now has an exact proof window. Its immediate FIFO predecessor
 pair stops at `host_admission_deferred:resource_effect_unknown` at `2026-09-23T08:56:06.001927Z`. The target was
 already queued, no older Affiliate occurrence remains open, and the Affiliate job, child-run and tool-attempt
 journals each contain zero overlapping rows. A narrow reconciler and nine regression tests return
-`PROOF_READY` against production read-only data. The same candidate enables the existing atomic queued/reserved
-wake coalescing for Affiliate. Main integration, immutable release, exact resolution, bounded wake and
-replay-zero remain; revenue and natural scheduler time do not.
+`PROOF_READY` against production read-only data. PR #5847 merges it with the existing atomic queued/reserved wake
+coalescing at `19d04a3469ea44f9b5e48bbd613aee21cbab295a`; release `20260924T193337-19d04a34` repeats the same proof.
+The exact occurrence becomes released/effect-known, Affiliate unknown becomes zero and its 0600 receipt is
+`RESOLVED`. Two exact-release base-loop wakes stop pre-entrypoint at retryable FIFO wait without growing the
+48 queued occurrences.
+
+The three continuous Affiliate browser owners then load the exact release and remain running, but status keeps
+their old terminal reports because it ignores current execute events. This is a shared continuous-observability
+gap, not three provider repairs. The current test-driven candidate emits complete diagnostic identity at start,
+selects a running event only when bound to the live launchd PID, and classifies explicit pre-effect FIFO/capacity
+deferral with admission unknown false separately from provider effect unknown. Runtime/status/runner tests pass
+126/126, the full runtime suite passes 622 tests plus 522 subtests, and the foundation suite passes 47/47.
+Integration, release-owned readback, the two deterministic
+Affiliate owners and final two-pass Affiliate foundation evidence remain; revenue and natural time do not.
 Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
 `20260924T134241-60c1e93e` is active with `release_paths=ALL` and
 `provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero
@@ -461,9 +472,12 @@ allowed.
 - [x] Integrate the shared atomic final-release and bounded BUSY/LOCKED retry fix through PR #5844 at main `091ec4d59b78c685b32eb8b707f5ac357cf14786`; activate complete release `20260924T190842-091ec4d5`, reconcile only Affiliate and verify the preserved fence prevents provider entrypoint execution.
 - [x] Separate the historical lock-failure occurrence from the current Affiliate fence, define the exact FIFO proof window and retain regressions for positive proof, in-window job/child/tool evidence, older-open occurrence rejection, exact resolver binding and private receipt output.
 - [x] Run the candidate reconciler read-only against production. It returns `PROOF_READY` for `affiliate-loop:18d7bd776d9c8a78-1576`, predecessor `affiliate-loop:18d7bd64cdd76c40-680`, window `08:38:43.386976Z`–`08:56:06.001927Z`, and job/child/tool counts `0/0/0`.
-- [ ] Merge the exact Affiliate reconciler plus existing atomic queued/reserved-wake coalescing contract, cut a complete immutable release and repeat the release-owned dry proof.
-- [ ] Resolve only `affiliate-loop:18d7bd776d9c8a78-1576` through `resolve_pre_effect_occurrence`; verify its private receipt, released/effect-known database state, no other Affiliate unknown and no provider action.
-- [ ] Reconcile only Affiliate to that release, run one bounded wake and require exact diagnostic completion plus preserved effect safety and replay-zero. Do not wait for commission or a natural wake; then move the cursor to Investment.
+- [x] Merge the exact Affiliate reconciler plus existing atomic queued/reserved-wake coalescing contract through PR #5847, cut complete release `20260924T193337-19d04a34` and repeat the release-owned dry proof with the same evidence hash.
+- [x] Resolve only `affiliate-loop:18d7bd776d9c8a78-1576` through `resolve_pre_effect_occurrence`; its private receipt is 0600/`RESOLVED`, the target is released/effect-known, all Affiliate unknown is zero and no provider action occurs.
+- [x] Reconcile the Affiliate base owner and run it twice on the exact release. Both wakes stop before entrypoint at typed retryable `resource_fifo_wait`; queued occurrences stay 48, reservations/unknown stay zero and no duplicate provider effect occurs.
+- [x] Reconcile the three continuous Affiliate browser owners to the exact release and diagnose the remaining drift as a shared status bug: live current-release running events exist, but status selects older terminal reports because healthy continuous services do not exit.
+- [ ] Integrate the PID-bound continuous-running diagnostic and explicit pre-effect admission-deferral projection; cut a complete immutable release and align all six Affiliate owners without manufacturing terminal exits.
+- [ ] Run the Affiliate foundation projection twice with exact current-release evidence, zero opaque diagnostics and replay-zero; then move immediately to Investment without waiting for revenue or a natural wake.
 - [ ] Continue the independent non-Paid foundation slices in this order while Mobile remains owned: Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.

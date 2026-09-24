@@ -1129,6 +1129,15 @@ def main(argv: list[str] | None = None) -> int:
             wake_id = _wake_id(run_id)
             product_loop_id = _product_loop_for_job(release_root, loop_id)
             loaded_argv_sha256 = _identity_sha256(command)
+            occurrence_id = f"{loop_id}:{run_id}"
+            start_env_sha256 = _identity_sha256({
+                "job_id": loop_id,
+                "owner_id": loop_id,
+                "run_id": run_id,
+                "wake_id": wake_id,
+                "occurrence_id": occurrence_id,
+                "release_sha": manifest["sha"],
+            })
             event_path = loop_state_root / "events.jsonl"
             scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
                 loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
@@ -1137,6 +1146,11 @@ def main(argv: list[str] | None = None) -> int:
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                     release_sha=manifest["sha"], provider=entry["provider_route"],
                     profile_alias=None, effect_class=entry["effect_class"],
+                    product_loop_id=product_loop_id, job_id=loop_id,
+                    owner_id=loop_id, wake_id=wake_id,
+                    occurrence_id=occurrence_id,
+                    loaded_argv_sha256=loaded_argv_sha256,
+                    loaded_env_sha256=start_env_sha256,
                 ))
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
@@ -1151,7 +1165,7 @@ def main(argv: list[str] | None = None) -> int:
             "LIFE_MANAGER_RUN_ID": run_id,
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-        }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
+        }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         effect_result = None
         if (return_code == 0
@@ -1191,7 +1205,7 @@ def main(argv: list[str] | None = None) -> int:
                     "owner_id": loop_id,
                     "run_id": run_id,
                     "wake_id": wake_id,
-                    "occurrence_id": claimed_occurrence_id or f"{loop_id}:{run_id}",
+                    "occurrence_id": claimed_occurrence_id or occurrence_id,
                     "release_sha": manifest["sha"],
                 }),
                 exit_code=return_code,

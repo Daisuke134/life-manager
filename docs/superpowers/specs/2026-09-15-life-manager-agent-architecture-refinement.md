@@ -3245,19 +3245,29 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    owners, and only `affiliate-loop` is reconciled to that exact release. Its immediate wake stops at the same
    preserved occurrence fence and never reaches the provider entrypoint.
 
-   The current RED→GREEN slice adds a narrow Affiliate reconciler instead of a manual SQLite edit. It accepts only
-   one unknown occurrence, its immediate released/effect-known FIFO predecessor, the adjacent blocked runtime
-   pair and zero Affiliate job/child/tool evidence in the exact window. Production dry-run returns `PROOF_READY`
-   for the current occurrence with all three effect counts zero. Resolution calls the existing
-   `resolve_pre_effect_occurrence` primitive and writes a private exact-occurrence receipt. The same slice enables
-   the already merged atomic queued/reserved wake coalescing for Affiliate; it creates no second scheduler or
-   healer.
+   The exact reconciler and Affiliate queued/reserved-wake coalescing merge through PR #5847 at
+   `19d04a3469ea44f9b5e48bbd613aee21cbab295a`. Complete immutable release
+   `20260924T193337-19d04a34` reports `release_paths=ALL`, `ancestor-of-origin-main` and doctor 169/169. Its
+   release-owned dry proof returns the same evidence hash and `0/0/0` counts. Resolution through the existing
+   `resolve_pre_effect_occurrence` primitive changes only the exact target to `released/effect_unknown=0`, leaves
+   total Affiliate unknown at zero and writes a 0600 `RESOLVED` receipt. No provider entrypoint or sibling owner
+   is invoked by reconciliation.
 
-   The executable order inside the Affiliate slice is: integrate this exact reconciler and coalescing contract;
-   cut a main-derived immutable release; re-run the release-owned dry proof; resolve only the proven occurrence;
-   verify the exact receipt and unknown count; reconcile only Affiliate; run one bounded wake; verify exact
-   terminal diagnosis, preserved provider-effect safety and replay-zero. No commission or natural scheduler wait
-   is required. Then advance the foundation cursor to Investment.
+   Two exact-release base-loop wakes then stop before entrypoint at typed retryable `resource_fifo_wait`; queued
+   occurrence count remains 48, reservation and unknown remain zero. This proves bounded replay-zero without
+   waiting for commission. Aligning the three Affiliate continuous browser owners exposes the next shared
+   observability defect: each healthy current-release process is loaded-running, but `lm-loop status` selects only
+   an older terminal report. A continuous service intentionally has no new report until it exits, so forcing an
+   exit to manufacture acceptance would invert the health contract.
+
+   The current RED→GREEN slice makes every runtime start carry the complete secret-free diagnostic identity and
+   lets status prefer a diagnostic `execute/running` event only when its run PID matches the live continuous
+   launchd PID. It also distinguishes explicit pre-entrypoint FIFO/capacity deferral with admission unknown false
+   from a real external-effect ambiguity. Python runtime/status/runner tests pass 126/126, the complete runtime
+   suite passes 622 tests plus 522 subtests, and the foundation suite passes 47/47. The remaining order is:
+   integrate this shared observability fix; cut an immutable release; align
+   all six Affiliate owners; produce exact current-release status and foundation readback twice; then advance to
+   Investment. Revenue and natural scheduler time are not gates.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
