@@ -25,15 +25,19 @@
   `state=funded` contract before an effect intent can be built. The gate is
   read-only and does not register a loop or contact Freelancer.
 - [ ] Connect the gate to a real authenticated Freelancer inventory adapter;
-  only then add the disabled-by-default Apply/Reply/Paid/work-sync owners.
+  the branch now has an account-bound readback seam that refuses to call its
+  injected transport without fresh `inspect`, `read_payments`, and
+  `read_payouts` receipts; only then add the disabled-by-default
+  Apply/Reply/Paid/work-sync owners.
 - [x] Add the equivalent Upwork Paid-owner gate around the existing provider
   modules. It requires fresh approved receipts for all eight Upwork actions,
   a source-complete authenticated contract snapshot, and a positive funded
   milestone before any contract-bound effect intent is created; it also has a
   duplicate-zero check and never opens CDP or sends a provider action.
 - [ ] Refresh Upwork identity/authorization and build the live contract
-  snapshot adapter; current private receipts remain denied and the stored
-  inventory has zero active contracts, so no owner registration is allowed.
+  snapshot adapter; the branch now has the same account-bound readback seam,
+  but current private receipts remain denied and the stored inventory has zero
+  active contracts, so no owner registration is allowed.
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -127,6 +131,8 @@
    allowed yet):
    - [x] add the fail-closed authorization + source-complete inventory gate and
      shared effect-intent/replay-zero contract;
+   - [x] add the injected authenticated readback seam; it calls no transport
+     without exact account-bound inspect/payment/payout receipts;
    - replace the retired application/work-sync labels with an authenticated,
      policy-qualified account owner and a source-complete opportunity/contract
      snapshot;
@@ -140,6 +146,8 @@
    - [x] add the fail-closed Paid-owner gate and provider capability declaration
      requiring all eight current action receipts plus a funded milestone
      readback;
+   - [x] add the injected authenticated contract-readback seam; it calls no
+     transport without exact account-bound inspect/payment/payout receipts;
    - refresh the current account identity, policy authorization, browser/API
      transport, and source-complete job/contract inventory; the installed
      `cloak_browser` authorization entries are currently `denied` for search,
@@ -171,6 +179,21 @@
   `./bin/lm-loop-contract` pass.
 - [ ] This source fix is branch-only until PR `#5854` is promoted. No provider
   form, intent fence, Ryu room, or external application was touched by the fix.
+
+### Freelancer/Upwork authenticated inventory seam — 2026-09-24 23:46 JST
+
+- [x] Added `read_authenticated_inventory` to both readiness modules. Each
+  requires fresh approved receipts for `inspect`, `read_payments`, and
+  `read_payouts` on the exact account before invoking an injected provider
+  readback callback; the callback receives the complete receipt map, and the
+  result is parsed by the existing strict source-complete inventory contract.
+- [x] Added regression coverage that proves denied/missing receipts do not call
+  the callback and that an account mismatch is rejected. The adapter is
+  readback-only: it cannot register a loop, send a proposal/message, accept an
+  offer, deliver, or mutate launchd/provider state.
+- [ ] Provider-specific transport wiring remains pending. Freelancer still has
+  no approved account receipt; Upwork's eight stored receipts remain denied,
+  OAuth is absent, and the historical snapshot has zero active contracts.
 
 ### Coconala readback checkpoint — 2026-09-24 20:21 JST
 

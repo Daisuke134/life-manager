@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import urlsplit
 
 from application_effect_fence import authorized_provider_intent
@@ -30,6 +30,7 @@ REQUIRED_ACTIONS = frozenset({
     "search", "inspect", "propose", "message", "accept_offer",
     "deliver_milestone", "read_payments", "read_payouts",
 })
+INVENTORY_READ_ACTIONS = frozenset({"inspect", "read_payments", "read_payouts"})
 _CONTRACT_STATES = frozenset({"pending", "funded", "active", "completed", "closed"})
 
 
@@ -160,6 +161,33 @@ def parse_inventory(raw: Any) -> UpworkInventory:
     )
 
 
+def read_authenticated_inventory(
+    receipts: Iterable[AuthorizationReceipt],
+    *,
+    account_id: str,
+    now: datetime,
+    readback: Callable[[dict[str, AuthorizationReceipt]], Any],
+) -> UpworkInventory:
+    """Read one canonical contract inventory through approved Upwork evidence only.
+
+    The provider-specific browser/API transport is injected at this seam.  No
+    transport is called until the exact account has fresh approved receipts for
+    contract inspection and payment/payout readback; the strict inventory parser
+    then remains the single admission contract for the Paid owner.
+    """
+    account_id = _text(account_id, "account_id_invalid")
+    if not callable(readback):
+        raise ReadinessError("inventory_readback_not_callable")
+    approved = _active_approved(receipts, account_id, now)
+    missing = sorted(INVENTORY_READ_ACTIONS - set(approved))
+    if missing:
+        raise ReadinessError("inventory_authorization_missing:" + ",".join(missing))
+    inventory = parse_inventory(readback(dict(approved)))
+    if inventory.account_id != account_id:
+        raise ReadinessError("inventory_account_mismatch")
+    return inventory
+
+
 def _active_approved(
     receipts: Iterable[AuthorizationReceipt], account_id: str, now: datetime,
 ) -> dict[str, AuthorizationReceipt]:
@@ -243,4 +271,3 @@ def replay_zero(intents: Iterable[EffectIntent]) -> bool:
     """Return true only when no logical effect key is duplicated."""
     keys = [intent.effect_key for intent in intents]
     return len(keys) == len(set(keys))
-

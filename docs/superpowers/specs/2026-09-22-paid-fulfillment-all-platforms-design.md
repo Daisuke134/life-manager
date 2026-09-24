@@ -4608,7 +4608,7 @@ until its own gate is present.
 - [x] Regression evidence covers the two observed shapes: request `5266371`
   becomes the exact page line `画面共有をしながらレクチャー可能な方`, and
   request `5278894` becomes the exact page substring `Live2Dモデルのリギング`.
-  The focused planner/parent/provider run passes (`116` tests), as do
+  The focused planner/parent/provider run passes (`122` tests), as do
   `compileall`, `git diff --check`, and `./bin/lm-loop-contract`.
 - [ ] The fix is not production evidence. PR `#5854` is still open; after
   promotion, the next natural Apply wake must reconcile `5280157`, produce
@@ -4629,3 +4629,32 @@ until its own gate is present.
    provider-specific funded gate is read back.
 5. Run funded canaries, official receipts/readback, crash recovery, settlement,
    payout attribution, and replay-zero only after each new owner is authorized.
+
+## Runtime Status Refresh — 2026-09-24 23:46 JST (Freelancer/Upwork readback seam)
+
+- [x] Added `read_authenticated_inventory` to both provider readiness modules.
+  The seam requires fresh approved, account-matching receipts for `inspect`,
+  `read_payments`, and `read_payouts` before it invokes the injected
+  provider-specific readback callback. The callback receives the complete
+  receipt map; the returned canonical snapshot is then parsed by the existing
+  strict inventory contract.
+- [x] Missing/denied receipts are proven not to call the callback, account
+  mismatch is rejected, and the existing funded-contract/Paid-owner gate remains
+  unchanged. This work is readback-only and cannot register an owner or create a
+  provider effect.
+- [ ] The actual Freelancer authenticated transport and Upwork fresh identity/
+  OAuth/browser transport are still external prerequisites. Current state is
+  unchanged: no approved Freelancer receipt; Upwork's stored receipts are
+  denied, OAuth is absent, and its historical active-contract inventory is empty.
+
+### Updated ordered cursor (23:46 JST)
+
+1. Promote and naturally verify the Coconala planner fix, reconciling `5280157`
+   before any retry; then clear Storefront's independent fence.
+2. Attach the Freelancer readback seam to an authenticated official transport;
+   keep owners disabled until a funded project is read back.
+3. Attach the Upwork seam to fresh identity/authorization/contract readback;
+   reuse existing proposal/message/offer/delivery/finance modules only after
+   the funded-milestone gate opens.
+4. Preserve CrowdWorks/Lancers/Mercor fences and complete their own official
+   readback gates before final fleet canaries and replay-zero.

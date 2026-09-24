@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import urlsplit
 
 from application_effect_fence import authorized_provider_intent
@@ -32,6 +32,7 @@ REQUIRED_ACTIONS = frozenset({
     "search", "inspect", "propose", "message", "accept_offer", "deliver",
     "read_payments", "read_payouts",
 })
+INVENTORY_READ_ACTIONS = frozenset({"inspect", "read_payments", "read_payouts"})
 
 
 class ReadinessError(ValueError):
@@ -168,6 +169,34 @@ def parse_inventory(raw: Any) -> FreelancerInventory:
         source_hash=source_hash,
         contracts=contracts,
     )
+
+
+def read_authenticated_inventory(
+    receipts: Iterable[AuthorizationReceipt],
+    *,
+    account_id: str,
+    now: datetime,
+    readback: Callable[[dict[str, AuthorizationReceipt]], Any],
+) -> FreelancerInventory:
+    """Read one canonical inventory only through an approved account-bound receipt.
+
+    ``readback`` is the provider-owned browser/API adapter.  Keeping it injected
+    makes this boundary testable without inventing a Freelancer endpoint and, more
+    importantly, prevents a missing or denied receipt from opening the transport.
+    The returned value is still parsed by the same strict inventory contract used by
+    the owner gate.
+    """
+    account_id = _text(account_id, "account_id_invalid")
+    if not callable(readback):
+        raise ReadinessError("inventory_readback_not_callable")
+    approved = _active_approved(receipts, account_id, now)
+    missing = sorted(INVENTORY_READ_ACTIONS - set(approved))
+    if missing:
+        raise ReadinessError("inventory_authorization_missing:" + ",".join(missing))
+    inventory = parse_inventory(readback(dict(approved)))
+    if inventory.account_id != account_id:
+        raise ReadinessError("inventory_account_mismatch")
+    return inventory
 
 
 def _active_approved(

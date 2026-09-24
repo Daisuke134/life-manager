@@ -12,11 +12,13 @@ sys.path.insert(0, str(SCRIPTS))
 
 from provider_authorization import AuthorizationReceipt, AuthorizationState  # noqa: E402
 from freelancer_readiness import (  # noqa: E402
+    INVENTORY_READ_ACTIONS,
     REQUIRED_ACTIONS,
     ReadinessError,
     evaluate_registration,
     parse_inventory,
     plan_effect,
+    read_authenticated_inventory,
     replay_zero,
 )
 
@@ -71,6 +73,46 @@ def test_registration_gate_is_closed_without_auth_inventory_or_funding():
         "inventory_incomplete",
         "funded_contract_missing",
     }
+
+
+def test_inventory_readback_does_not_call_transport_without_approved_receipts():
+    calls = []
+
+    def readback(_receipts):
+        calls.append(True)
+        return _inventory()
+
+    with pytest.raises(ReadinessError, match="inventory_authorization_missing"):
+        read_authenticated_inventory(
+            [], account_id="account-94117802", now=NOW, readback=readback,
+        )
+    assert calls == []
+
+
+def test_inventory_readback_requires_all_read_receipts_and_binds_account():
+    receipts = [_receipt(action) for action in sorted(INVENTORY_READ_ACTIONS)]
+    seen = []
+
+    def readback(receipts):
+        seen.extend(sorted(receipts))
+        return _inventory()
+
+    inventory = read_authenticated_inventory(
+        receipts, account_id="account-94117802", now=NOW, readback=readback,
+    )
+
+    assert inventory.account_id == "account-94117802"
+    assert seen == sorted(INVENTORY_READ_ACTIONS)
+
+
+def test_inventory_readback_rejects_provider_account_mismatch():
+    receipts = [_receipt(action) for action in sorted(INVENTORY_READ_ACTIONS)]
+
+    with pytest.raises(ReadinessError, match="inventory_account_mismatch"):
+        read_authenticated_inventory(
+            receipts, account_id="account-94117802", now=NOW,
+            readback=lambda _receipts: {**_inventory(), "account_id": "other"},
+        )
 
 
 def test_registration_gate_requires_every_lifecycle_authorization():
