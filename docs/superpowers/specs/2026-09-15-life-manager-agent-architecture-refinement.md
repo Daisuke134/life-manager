@@ -4678,3 +4678,21 @@ The app-specific probe after hydration passed the two `portable-runtime` tests, 
 `run-agent-payout.test.js` stopped before collection on missing `canonicalize`. Hydrating the entire nested
 `apps/life-manager` dependency tree would consume the remaining headroom, so it was not attempted; the payout
 wrapper remains source-verified by shell syntax and its import test remains an explicit dependency-bundle item.
+
+### Latest-main self-healing control-plane candidate (2026-09-25 JST)
+
+A dedicated candidate worktree was created from `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+`/private/tmp/lm-self-heal-integration-20260925`, branch
+`fix/self-healing-control-plane-integration-20260925`. Only the generic control-plane slice was carried over:
+managed Node/Python resolution for recovery and portable launchers, in-memory launchctl observability under ENOSPC,
+typed admission-read failures and bounded retries, harness-failure projection, brain fallback evidence, queued
+recovery exit/readback typing, and cleanup/preflight readback. No Paid/Gig/provider implementation, provider session,
+effect fence, application state, Connector/Mobile state, or external effect was copied.
+
+The candidate is pushed at `bac2c00c50` (launcher-only first commit `36ec25c59d`). Verification is green: Python
+self-healing/readback tests **162 passed (31 subtests)**, Node recovery/brain/integration tests **36/36**, macOS
+registry/cleanup/gateway tests **142 passed (494 subtests)**, managed-runtime no-PATH probe passed, shell syntax
+passed, and `git diff --check` passed. The candidate is source-only; production still loads the existing immutable
+release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
+made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
+cut/readback only after the user-level foundation acceptance gate remains green.
