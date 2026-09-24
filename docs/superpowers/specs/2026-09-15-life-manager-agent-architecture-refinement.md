@@ -2753,7 +2753,19 @@ launchd's narrow PATH cannot resolve the JavaScript shebang's `node`. That same 
 from invoking the recovery-intent classifier. The current RED→GREEN change therefore projects an absolute
 `LIFE_MANAGER_RUNTIME_NODE` into every managed plist and uses it for both JavaScript entrypoints and recovery
 classification. Apply passes 119 tests plus 31 subtests, runner passes 84/84, the catalog remains
-14 loops/168 jobs/98 mapped/zero errors and the OSS boundary passes. The fix is not yet merged or loaded.
+14 loops/168 jobs/98 mapped/zero errors and the OSS boundary passes. PR #5825 merges the fix at
+`1f03abd4150278b234edbb28e5b9cca17dc9d867`; complete release `20260924T144407-1f03abd4` is active. Only the
+shared supervisor is reapplied. Exact launchd readback includes the pinned `/opt/homebrew/bin/node`, and two
+bounded wakes both exit 0 with `idle/no_pending_intent`. No intent or recovery journal is produced, Paid
+selection and external effect remain zero, and official status reports diagnostic complete, clean terminal
+pass and next action none for the exact release.
+
+The first foundation gate after that transport proof observes all fourteen Product Loops and has zero missing
+mapped jobs. It still returns `block`, with every loop classified `uncovered_failure`, because 97 mapped jobs
+remain on older immutable releases; 90 runtime rows lack the complete diagnostic envelope and 49 rows retain
+unknown-effect state. This is an actionable release-alignment backlog, not a revenue wait. The next operation
+targets only explicitly named non-Paid owners through `launchctl-safe`, preserves running owners, pending
+admission and all effect fences, and never starts or restarts the separately owned Paid runtime.
 
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
@@ -2986,13 +2998,14 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    `20260924T140650-188dcb53` is available. Queue migration is subsequently merged through PR #5824 at
    `e00ce6f732da34ea1eb27e86a774d22a52866c7c`, and complete release `20260924T142850-e00ce6f7` is active.
    Supervisor-only apply preserves 24 old occurrences as `cancelled` and clears its queue, priority and
-   reservation rows. Its bounded wake then exits 127 because launchd cannot resolve `node`; no supervisor
-   intent, Paid selection or external effect occurs. The current RED→GREEN change pins one absolute Node
-   runtime in every managed plist and consumes it from JavaScript entrypoints and the recovery classifier.
-   Apply passes 119/119 plus 31 subtests, runner 84/84, contract 14/168/98 with zero errors and OSS boundary PASS.
-   The executable order is now Node-runtime PR/main integration -> exact main-derived complete release ->
-   supervisor-only apply -> one bounded wake with `idle` or one typed non-Paid outcome -> remaining non-Paid
-   apply -> authoritative fourteen-loop foundation readback twice. Revenue remains outside this gate.
+   reservation rows. Its next bounded wake exposes missing launchd Node resolution and produces no external
+   effect. PR #5825 merges the shared pinned-Node fix at `1f03abd4150278b234edbb28e5b9cca17dc9d867`;
+   complete release `20260924T144407-1f03abd4` is active and only the supervisor is reapplied. Exact argv/SHA
+   and `/opt/homebrew/bin/node` read back; two bounded wakes exit 0 with `idle/no_pending_intent`, Paid selection
+   and sibling mutation zero. The fresh foundation gate observes 14/14 loops with no missing mapped job, but
+   blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The executable order
+   is now explicit non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice.
+   Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
