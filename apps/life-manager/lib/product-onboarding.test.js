@@ -1323,6 +1323,15 @@ test("foundation accepts a typed effect fence but never renames it healthy", () 
   fenced.effect_class = "publish";
   fenced.effect_status = "unknown";
   fenced.blocker = "resource_effect_unknown";
+  fenced.admission_effect_unknown = true;
+  fenced.admission_effect_unknown_occurrences = [{
+    occurrence_id: `${fencedJobId}:occurrence-1`,
+    state: "claimed",
+    resource_class: "deterministic",
+    admission_class: "revenue",
+    sequence: 12,
+    queued_at: 123.5,
+  }];
 
   const manifest = buildProductLoopFoundationManifest({
     host: "local",
@@ -1334,6 +1343,15 @@ test("foundation accepts a typed effect fence but never renames it healthy", () 
   assert.equal(row.reason, "external_effect_unknown");
   assert.equal(row.next_action, "official_provider_readback_required");
   assert.deepEqual(row.unknown_effect_job_ids, [fencedJobId]);
+  assert.deepEqual(row.unknown_effect_occurrences, [{
+    job_id: fencedJobId,
+    occurrence_id: `${fencedJobId}:occurrence-1`,
+    state: "claimed",
+    resource_class: "deterministic",
+    admission_class: "revenue",
+    sequence: 12,
+    queued_at: 123.5,
+  }]);
   assert.equal(evaluateLocalFoundationGate(manifest).decision, "pass");
 
   const tampered = JSON.parse(JSON.stringify(manifest));

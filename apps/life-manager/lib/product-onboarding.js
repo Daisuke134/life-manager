@@ -534,6 +534,27 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       }
       return row.effect_status === "unknown";
     });
+    const unknownEffectOccurrences = catalogLoop.job_ids.flatMap((jobId) => {
+      if (!unknownEffectJobIds.includes(jobId)) return [];
+      const row = runtimeByJobId.get(jobId);
+      const occurrences = row && Array.isArray(row.admission_effect_unknown_occurrences)
+        ? row.admission_effect_unknown_occurrences : [];
+      return occurrences
+        .filter((occurrence) => occurrence && typeof occurrence === "object"
+          && !Array.isArray(occurrence))
+        .map((occurrence) => Object.freeze({
+          job_id: jobId,
+          occurrence_id: typeof occurrence.occurrence_id === "string"
+            ? occurrence.occurrence_id : null,
+          state: typeof occurrence.state === "string" ? occurrence.state : null,
+          resource_class: typeof occurrence.resource_class === "string"
+            ? occurrence.resource_class : null,
+          admission_class: typeof occurrence.admission_class === "string"
+            ? occurrence.admission_class : null,
+          sequence: Number.isInteger(occurrence.sequence) ? occurrence.sequence : null,
+          queued_at: typeof occurrence.queued_at === "number" ? occurrence.queued_at : null,
+        }));
+    });
     const diagnosticIncompleteJobIds = catalogLoop.job_ids.filter((jobId) => {
       const row = runtimeByJobId.get(jobId);
       return row && row.diagnostic_complete !== true;
@@ -618,6 +639,7 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       reason,
       next_action: nextAction,
       unknown_effect_job_ids: Object.freeze([...unknownEffectJobIds]),
+      unknown_effect_occurrences: Object.freeze(unknownEffectOccurrences),
       diagnostic_incomplete_job_ids: Object.freeze([...diagnosticIncompleteJobIds]),
       runtime_evidence: runtimeEvidence,
     });

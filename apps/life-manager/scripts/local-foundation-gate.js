@@ -73,6 +73,8 @@ function foundationDiagnostics(manifest) {
       next_action: loop?.next_action ?? null,
       unknown_effect_job_ids: Array.isArray(loop?.unknown_effect_job_ids)
         ? [...loop.unknown_effect_job_ids] : [],
+      unknown_effect_occurrences: Array.isArray(loop?.unknown_effect_occurrences)
+        ? loop.unknown_effect_occurrences.map((occurrence) => ({ ...occurrence })) : [],
       diagnostic_incomplete_job_ids: Array.isArray(loop?.diagnostic_incomplete_job_ids)
         ? [...loop.diagnostic_incomplete_job_ids] : [],
       runtime_evidence: loop?.runtime_evidence && typeof loop.runtime_evidence === "object"
