@@ -38,6 +38,17 @@ def test_status_binds_runtime_occurrence_for_later_effect_reconciliation():
     }
 
 
+def test_application_owner_clears_host_pre_effect_hint(tmp_path, monkeypatch):
+    module = load()
+    hint = tmp_path / "entrypoint-result.json"
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    module._clear_pre_effect_hint()
+
+    assert not hint.exists()
+
+
 def test_receipt_writer_persists_runtime_occurrence(tmp_path, monkeypatch):
     module = load()
     module.LEDGER = tmp_path / "application-receipts.jsonl"

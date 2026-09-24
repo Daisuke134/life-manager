@@ -3437,3 +3437,31 @@ not convert a transient pass or a no-op into client completion.
    official readback and replay-zero before advancing to Lancers/Mercor.
 4. Finish fleet acceptance; Coconala/Ryu remains manual-only and Upwork stays
    disabled until its explicit authorization/funding gates pass.
+
+## Runtime Cursor — 2026-09-24 14:58 JST (CrowdWorks pre-effect boundary fixed)
+
+- **Future CrowdWorks application/reply wakes now have a safe pre-effect
+  boundary.** `runtime/loop/lm_loop_run.py` allowlists both
+  `skills/earn/crowdworks/scripts/application-owner` and `reply-owner`. The
+  application owner clears the host hint immediately before account/provider
+  work; the reply kernel already clears it at its mutation callback. A timeout
+  after that boundary remains effect-unknown until official readback.
+- **Verification passed.** Runtime-loop tests: `605 passed, 518 subtests`; the
+  CrowdWorks suite: `225 passed`; the Lancers suite: `197 passed`. A repository
+  root pytest run still has a pre-existing collection issue in
+  `skills/_shared/__tests__/test_ytdlp_parse.py` (`SystemExit(0)`), and the
+  combined CrowdWorks+Lancers invocation has duplicate `test_reply_adapter`
+  module names; the suites pass when run separately.
+- **Production state is unchanged by this code-only fix.** The four historical
+  fences remain `claimed/effect_unknown=1` with no exact marker; no provider
+  submission, resend, DB edit, or release was performed by the fix.
+
+### Next one-by-one cursor
+
+1. Commit/push this boundary fix and let its required CI finish.
+2. Keep the four historical fences closed; obtain exact provider/run or
+   pre-effect evidence and resolve only through supported tools.
+3. Verify the deployed immutable release contains this fix, then canary
+   CrowdWorks with official readback/replay-zero before Lancers/Mercor.
+4. Finish final fleet acceptance; Coconala/Ryu remains manual-only and Upwork
+   remains disabled until explicit authorization/funding gates pass.

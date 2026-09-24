@@ -910,6 +910,11 @@ def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
     assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
+def test_crowdworks_application_and_reply_pre_effect_hints_are_allowlisted():
+    assert "skills/earn/crowdworks/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "skills/earn/crowdworks/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+
+
 def test_lancers_application_pre_effect_hint_is_allowlisted():
     assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 

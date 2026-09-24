@@ -3175,3 +3175,27 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    and replay-zero, then advance Lancers/Mercor one owner at a time.
 4. Complete final fleet acceptance; keep Coconala/Ryu manual-only and Upwork
    disabled until authorization/funding gates pass.
+
+### Runtime checkpoint — 2026-09-24 14:58 JST (CrowdWorks pre-effect boundary fixed)
+
+- [x] Added CrowdWorks application/reply to the host pre-effect allowlist.
+- [x] Added the application owner boundary that removes the pre-effect hint
+  before account/provider work; reply kernel already clears it immediately
+  before its mutation callback.
+- [x] Verification: runtime-loop `605 passed, 518 subtests`; CrowdWorks `225
+  passed`; Lancers `197 passed`. Root pytest remains blocked at the existing
+  ytdlp `SystemExit(0)` collection test; combined marketplace collection also
+  has duplicate `test_reply_adapter` module names.
+- [ ] Four historical fences remain `claimed/effect_unknown=1` with no exact
+  markers. This code change made no external submission, resend, DB edit, or
+  release.
+
+### Remaining TODO (current ordered cursor)
+
+1. Commit/push the boundary fix and finish its required CI.
+2. Keep all four historical fences closed; resolve only with exact provider/run
+   or pre-effect evidence through supported resolvers.
+3. Verify the immutable deployed release contains the fix, then canary
+   CrowdWorks with official readback/replay-zero before Lancers/Mercor.
+4. Complete fleet acceptance; keep Coconala/Ryu manual-only and Upwork disabled
+   until authorization/funding gates pass.
