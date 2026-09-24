@@ -710,10 +710,13 @@ The following is the current control-plane state. It is evidence for the next bo
 - Release reconciliation continues to encounter `ENOSPC`/cut-lock pressure. Available bytes are above the nominal
   floor, but release export and database/temp writes are not stable. No broad release/worktree/state deletion is
   performed from this workstream.
-- The execution cursor remains: stabilize release/cleanup admission, run Writer-only replay-zero, then continue Agent
-  Economy → CFO → Job Hunter with typed `setup_required`/`safely_fenced` outcomes;
-  afterwards consume Mobile/Connector/Paid-owner evidence, run the 14/14 gate twice, and only then promote to cloud
-  and economic self-improvement. Revenue waits do not block this cursor, but unverifiable external effects do.
+- The execution cursor is now: (1) promote the branch's shared observability/self-healing source only through the
+  accepted main-derived immutable release gate; (2) consume the Affiliate official-body reconciliation and Writer
+  effectful fence evidence without resending; (3) continue Agent Economy → CFO → Job Hunter one owner at a time with
+  typed `setup_required`/`safely_fenced` outcomes; (4) consume Mobile/Connector/Paid-owner evidence only from their
+  owning workstreams; (5) run the 14/14 foundation gate twice with replay-zero; then (6) promote the accepted control
+  plane to cloud and enable economic self-improvement. Revenue waits do not block this cursor, but unverifiable external
+  effects and release drift do.
 
 ## Deferred until this plan passes
 

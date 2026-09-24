@@ -326,24 +326,25 @@ flowchart LR
 
 現在cursor以降の残りTODOは順番に次のとおりです。
 
-1. Self-buildの残るrelease drift 3件をexact releaseへ揃え、共有supervisorのbounded wakeとreplay-zeroを
-   再確認します。Life Manager自身を直すloopを最初に閉じます。
-2. Mobile Apps、Affiliate、Investment、Fundraiser、Writer、Agent Economy、CFO、Job Hunterの順に、
-   non-Paid ownersだけを1 Product Loopずつ処理します。各sliceは「既存contract確認 → 不足宣言だけを
-   RED→GREEN → CI/main → complete immutable release → 対象限定reconcile → 即時safe wake → status/
-   receipt readback」で閉じ、収益や自然acceptanceを待たず次へ進みます。
-3. Gig platformは別ownerのPaid fulfillmentを変更せず、Application/Reply/Storefront/Reportなど非Paid
-   ownerだけを同じ基盤へ揃えます。Paid ownerのexact stateは別ownerの公式readbackを入力として受け取ります。
-4. Connectorは担当ownerがcandidateをPR/CI/main/releaseへ出した後だけconsumeし、exact SHA terminalと
-   replay-zeroを確認します。candidate未統合の間も他loopを止めません。
-5. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させ、
-   `uncovered_failure`、opaque state、release driftを0にします。同じfoundation gateを二回実行し、
-   recovery replay-zeroと兄弟isolationを確認します。
-6. 受理した同一release/control contractをtenant-isolated always-on cloudへpromoteし、phone/webだけで
-   onboardingと任意controlが完結することを検証します。
-7. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、compute/tool costを含むverified
-   net revenueで再帰的self-improvementを判断します。最初のcommercial milestoneは全体verified net
-   USD 10,000 MRRです。
+1. このbranchのshared observability/self-healing変更を、CIと全体成果条件が揃った後にaccepted main-derived
+   immutable releaseへ昇格します。branch test PASSやspec更新だけではproduction完了に数えません。
+2. Affiliateのofficial-body reconciliationをそのexact releaseへ載せ、`affiliate-loop`のTelegram effect fenceを
+   provider readbackだけで解決します。再送、generic pre-effect resolver、収益推測は禁止します。
+3. Writerはeffect-free ownersのreplay-zeroを維持し、report/applicationのeffectful ownerはprovider-specific
+   fenceと公式receiptが揃った後だけ一件ずつreadbackします。receiptが無いままwakeしません。
+4. Agent Economy → CFO → Job Hunterの順に、non-Paid ownerを一件ずつ「contract確認 → exact release load →
+   bounded wake → typed terminal/readback → replay-zero」で処理します。`setup_required`/`safely_fenced`は完了可能な
+   typed stateであり、revenueやnatural acceptanceを待ちません。
+5. Gig platformは別ownerのPaid fulfillmentを変更せず、Application/Reply/Storefront/Reportなどnon-Paid ownerだけを
+   同じ基盤へ揃えます。Mobile AppsとConnectorは各担当ownerのaccepted main/release/official evidenceをconsumeし、
+   source、session、runtime stateを重複操作しません。
+6. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させ、`uncovered_failure`、
+   opaque state、release driftを0にします。同じfoundation gateを二回実行し、recovery replay-zeroと兄弟isolationを
+   確認します。
+7. 受理した同一release/control contractをtenant-isolated always-on cloudへpromoteし、phone/webだけでonboardingと
+   任意controlが完結することを検証します。local成功をcloud成功と混同しません。
+8. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、compute/tool costを含むverified net
+   revenueで再帰的self-improvementを判断します。最初のcommercial milestoneは全体verified net USD 10,000 MRRです。
 
 ## A15 Foundation completion record
 
