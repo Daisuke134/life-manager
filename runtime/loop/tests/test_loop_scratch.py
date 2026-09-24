@@ -40,6 +40,19 @@ class LoopScratchTest(unittest.TestCase):
             no_effect_loop_ids={"job"})
         starts.assert_called_once_with()
 
+    def test_enospc_keeps_effectful_scratch_fail_closed(self) -> None:
+        first = OSError(errno.ENOSPC, "No space left on device")
+        with (mock.patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                         side_effect=first) as reset,
+              mock.patch("runtime.loop.lm_loop_run.scratch_gc") as gc):
+            with self.assertRaises(OSError) as raised:
+                _create_loop_scratch_with_recovery(
+                    Path("/state"), "job", "run", effect_class="publish")
+
+        self.assertEqual(raised.exception.errno, errno.ENOSPC)
+        reset.assert_called_once()
+        gc.assert_not_called()
+
     def test_partial_owner_write_stays_protected_when_disk_is_full(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
