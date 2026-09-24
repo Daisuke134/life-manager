@@ -4514,3 +4514,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Storefront still needs a clean natural effect/readback reconciliation on
   the managed release before Coconala can be called complete. Next cursor is
   Mercor official-inventory refresh, then the CrowdWorks buyer-material gate.
+
+### Runtime checkpoint — 2026-09-25 02:21 JST (Mercor refresh boundary)
+
+- [x] A read-only runtime probe found no live Mercor CDP endpoint (the known
+  `9334` endpoint is not listening) and the shared browser-control readback is
+  `browsers=[]/sessions=[]`. No login, navigation, assessment, contract, or
+  payment action was attempted.
+- [x] The newest persisted official Mercor snapshot remains the 2026-09-20
+  readback: `contracts=[]`, assessment still `2/3`, and
+  `final_submission=not_observed`. The Paid state remains
+  `pending/official_work_inventory_stale`; this is an evidence-age boundary,
+  not a funded-work rejection or a completed contract.
+- [ ] Mercor requires a fresh authenticated official inventory before any
+  assessment/contract/payment transition can be processed. Keep its effect
+  fence closed and continue with the CrowdWorks buyer-material gate while the
+  browser/auth owner is unavailable.

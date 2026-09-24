@@ -5224,3 +5224,19 @@ revenue owner and is not permission to send.
   buyer-material gate. Freelancer and Upwork remain source-ready only; their
   external activation still requires fresh account-bound authorization and a
   positive funded contract/milestone readback before any loop registration.
+
+## Runtime Status Refresh — 2026-09-25 02:21 JST (Mercor refresh boundary)
+
+- [x] A read-only runtime probe found no live Mercor CDP endpoint (the known
+  `9334` endpoint is not listening) and the shared browser-control readback is
+  `browsers=[]/sessions=[]`. No Mercor login, navigation, assessment,
+  contract, or payment action was attempted.
+- [x] The newest persisted official Mercor snapshot is still the 2026-09-20
+  readback: `contracts=[]`, assessment `2/3`, and
+  `final_submission=not_observed`. Paid remains
+  `pending/official_work_inventory_stale`; this is an evidence-age boundary,
+  not a funded-work rejection or a completed contract.
+- [ ] Mercor needs a fresh authenticated official inventory before any
+  assessment, contract, payment, or payout transition is admissible. Keep the
+  effect fence closed and continue with the CrowdWorks buyer-material gate
+  while the browser/auth owner is unavailable.
