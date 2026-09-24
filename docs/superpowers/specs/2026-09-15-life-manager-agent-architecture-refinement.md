@@ -261,6 +261,22 @@ flowchart LR
   `3bf95b4787863f5cece5c084a481a6567bf9b307`でloaded-idle、typed capacity deferral/exit 75、queued 462、
   released 499、claimed/unknown 0、queue row 1、reservation 0です。両方とも応募・proposal効果はなく、
   branch-only admission contractをaccepted releaseでreadbackするまで外部送信を行いません。
+- Connectorの2026-09-25 JST read-only statusは、`life-manager-connector-native`がcurrent exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でloaded-idle、diagnostic complete、
+  `failure_layer=entrypoint`/`error_class=entrypoint_exit_1`、retryable、effect none、provider receiptなしです。
+  Observabilityは成立していますが、browser/provider境界の実行は失敗中です。別ownerのendpoint/browser修正を
+  accepted main-derived releaseで消費するまで、このworkstreamはsource/session/provider stateを変更せず、
+  Connectorの成功やCalendar/Telegram receiptを推測しません。
+- Gig non-Paidの同日read-only statusは、`hf-gig-apply-direct`だけがcurrent exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でdiagnostic complete/outer passですが、applicationの
+  `effect_status=unknown`かつprovider receiptなしです（admission claimed 0、queued 5、released 30、unknown 0）。
+  `hf-gig-apply-reconcile`はunloadedでeventなし、`hf-gig-apply-evidence-gc`は旧`f7d4ff46…`でpassだが
+  diagnostic incomplete（queued 35、released 144、unknown 0）、`hf-gig-browser`は旧continuous eventの
+  `entrypoint_exit_1`/diagnostic incompleteです。`hf-gig-daily-report`は旧`f1dda2ad…`でclaimed
+  `effect_unknown` 1（queued 68、released 149）、`hf-gig-reply-detector`は旧`fa4a8128…`でouter passだが
+  diagnostic incomplete（queued 635、released 4,868、reservation 1）、`hf-gig-storefront-direct`は旧
+  `1c11bda3…`でpublish `effect_unknown` 1（queued 81、released 22）です。公式Coconala receipt、message、
+  listing readback、収益は未推測・未再送で、Paid-directとPaid fulfillmentのstate/session/sourceは別ownerのままです。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean

@@ -654,6 +654,18 @@ The following is the current control-plane state. It is evidence for the next bo
   loaded-idle on old `3bf95b4787863f5cece5c084a481a6567bf9b307`, typed capacity deferral/exit 75, with 462 queued
   and 499 released, zero claimed/unknown, one queue row and zero reservations. No application effect ran; the
   branch-only contract still needs accepted-release readback.
+- Read-only Connector recheck 2026-09-25 JST: `life-manager-connector-native` is on current exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`, loaded-idle with complete diagnostics but typed
+  `entrypoint_exit_1`, retryable true, effect none and no provider receipt. This worktree does not touch the
+  separately owned browser/provider fix, session or state; accepted main-derived release evidence remains pending.
+- Read-only Gig non-Paid recheck 2026-09-25 JST: `hf-gig-apply-direct` is current exact and diagnostic-complete with
+  outer pass but application `effect_status=unknown` and no provider receipt (admission 5 queued/30 released/0
+  unknown). `hf-gig-apply-reconcile` is unloaded; evidence-gc is old-release diagnostic-incomplete (35 queued/144
+  released); the continuous browser is old-release `entrypoint_exit_1`; daily-report has one claimed
+  effect-unknown (68 queued/149 released); reply-detector is old-release pass with one reservation (635 queued/4,868
+  released); storefront has one publish effect-unknown (81 queued/22 released). This worktree does not touch
+  `hf-gig-paid-direct` or any Paid fulfillment state/session/source, and no marketplace success is inferred without
+  official receipt/readback.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
