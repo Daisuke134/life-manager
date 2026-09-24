@@ -576,6 +576,8 @@
       "resource_class": "deterministic",
       "admission_class": "borrow",
       "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
