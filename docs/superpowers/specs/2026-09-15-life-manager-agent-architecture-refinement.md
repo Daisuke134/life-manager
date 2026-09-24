@@ -108,8 +108,9 @@ flowchart LR
   `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
 - self-improvement brainの実装と契約の矛盾をbranchで解消しました。`ANICCA_BRAIN=claude-p`の実行ファイルが
   不在のときだけ、設定済みproxyへfallbackします。OAuth失効、timeout、非0終了はfallbackせず、typed
-  `wake_error`として記録します。missing-binary integration caseはPASSし、統合suiteの残る1件は既存の
-  temporary-directory cleanup raceです。
+  `wake_error`として記録します。直接brain契約は5/5、missing-binary integration caseもPASSし、統合suiteの
+  残る1件は既存のtemporary-directory cleanup raceです。これはbranch-onlyで、main/release/productionへは
+  未反映です。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
