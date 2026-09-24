@@ -1380,9 +1380,10 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Inspect owner journals read-only. Sol-funding/x402/CFO/payout historical blocked rows expose no
   `provider_receipt_id`, `official_readback_ref`, or host `occurrence_id`; local wallet/ledger/financial records are
   not occurrence-bound provider proof.
-- [ ] Implement or connect each owner-specific official readback adapter so it returns the exact durable occurrence,
-  provider receipt and readback reference. Keep money/message fences closed until that proof exists; never infer
-  no-effect from an empty local journal or a successful RPC/ledger observation.
+- [x] Implement and connect the owner-specific official readback adapters for x402 settlement, Sol-funding, both CFO
+  message owners and payout. Each adapter returns the exact durable occurrence, provider receipt and readback reference
+  only after its provider-specific fresh readback. Historical money/message fences remain closed until that proof exists;
+  no-effect is never inferred from an empty local journal or a successful unrelated RPC/ledger observation.
 - [ ] After the accepted immutable release is loaded, run the adapters one owner at a time, persist mode-0600
   reconciliation receipts, verify replay-zero, then re-run the foundation gate. Do not start wallet, x402, payout or
   message effects merely to clear these historical fences.
@@ -1420,9 +1421,10 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   after `sendTransaction`, while `official_readback_ref` remains null until Solana/Relay confirmation is read.
 - [x] Verify Sol-funding contract/readback tests **5/5**, `py_compile`, and the unconfigured occurrence fixture;
   push the candidate branch. No quote/sign/send/RPC effect was started by verification.
-- [ ] Build the owner-specific read-only adapter for exact Sol-funding occurrence -> Solana signature -> confirmed
-  signature -> Relay destination status. Persist a mode-0600 reconciliation receipt and call the resolver only when
-  every identity matches; never infer no-effect from the current old journal.
+- [x] Build the owner-specific read-only adapter for exact Sol-funding occurrence -> Solana signature -> confirmed
+  signature -> Relay destination status. The candidate persists a mode-0600 future receipt and the adapter calls no
+  resolver; every identity must match before any future resolver is eligible. Never infer no-effect from the current
+  old journal.
 - [ ] Keep the historical `sol-funding:18d60103c86ce420-74237` fence held and keep main/immutable promotion closed;
   the candidate now contains **33 files** and remains source-only.
 
