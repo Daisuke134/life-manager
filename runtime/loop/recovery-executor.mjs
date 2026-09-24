@@ -178,7 +178,10 @@ export async function executeRecoveryPlan({
     return resultBase(plan, 'blocked', false, { reason: 'release_manifest_unreadable' });
   }
   if (manifest?.sha !== plan.release_sha) {
-    return resultBase(plan, 'blocked', false, { reason: 'release_sha_mismatch' });
+    return resultBase(plan, 'blocked', false, {
+      reason: 'release_sha_mismatch',
+      next_action: 'promote_release',
+    });
   }
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');

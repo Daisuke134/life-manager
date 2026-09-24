@@ -172,6 +172,7 @@ test('refuses a plan whose release SHA is not the loaded release', async () => {
   assert.equal(result.ok, false);
   assert.equal(result.state, 'blocked');
   assert.equal(result.reason, 'release_sha_mismatch');
+  assert.equal(result.next_action, 'promote_release');
   assert.equal(invoked, false);
 });
 

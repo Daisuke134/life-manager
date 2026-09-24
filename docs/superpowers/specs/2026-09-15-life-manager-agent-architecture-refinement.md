@@ -3899,6 +3899,12 @@ retry_after_eligibility` and `budget_consumed=false`; without that contract it b
 `reconcile_target_not_applied`; both retain the exact before/after typed readback and reconcile payload. The
 focused recovery contract is 34/34; no production/provider state changed.
 
+The same executor now types the immutable-release boundary: when the release manifest SHA does not match the
+intent SHA, it returns `blocked / release_sha_mismatch / promote_release` without invoking `lm-loop`, launchd or a
+provider. This makes the required recovery action explicit—promote/load the exact immutable release—rather than
+falling through to an opaque owner escalation. The release-mismatch assertion remains part of the 34/34 focused
+recovery contract.
+
 A second read-only one-owner probe targeted `job-search-daily`, an effect-free Job Hunter owner. Its current
 readback was loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission effect-unknown=false,
 but the current release also predates the branch's explicit queued-release contract. The reconciler returned
