@@ -4690,7 +4690,9 @@ recovery exit/readback typing, and cleanup/preflight readback. No Paid/Gig/provi
 effect fence, application state, Connector/Mobile state, or external effect was copied.
 
 The candidate was initially pushed at `bac2c00c50` (launcher-only first commit `36ec25c59d`) and now includes
-foundation-gate diagnostics/regression plus a selective registry-contract commit `6ff4a5e73c`. The registry change
+foundation-gate diagnostics/regression plus a selective registry-contract commit `6ff4a5e73c`. The later
+occurrence-level observability commits are `2e759d41f3`, `1be7f402b2` and `6a424932dc`; `6a424932dc` is the
+current candidate head. The registry change
 declares recovery contracts for **31 non-Paid loop IDs only**; Gig/CrowdWorks/Lancers/Mercor/Upwork/Paid/UGIG IDs
 remain unchanged. Verification is green: Python self-healing/readback tests **162 passed (31 subtests)**, Node
 recovery/brain/integration tests **36/36**, macOS registry/cleanup/gateway tests **241 passed (212 subtests)**,
