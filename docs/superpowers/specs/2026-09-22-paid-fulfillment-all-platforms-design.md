@@ -3024,3 +3024,36 @@ not convert a transient pass or a no-op into client completion.
 6. Refresh Mercor's official inventory after its fence is safely resolved,
    retain the human-owned Consultant calibration, and finish the final fleet
    acceptance gate. Coconala/Ryu stays manual-only; Upwork stays disabled.
+
+## Production Cursor — 2026-09-24 13:25 JST (natural exit and targeted cleanup)
+
+- **The old CrowdWorks run ended naturally.** PID `7646` and its child `7760`
+  are gone; no force-kill or restart was used.
+- **Targeted cleanup completed.** With no owner process holding the profile, the
+  cleanup closed `106` surplus blank/new-tab page targets and preserved every
+  nonblank provider page/iframe. The immediate readback is six total CDP
+  targets: one provider page, one `chrome://newtab/`, one `about:blank`, and
+  three provider iframes. The old browser recreated one blank page after the
+  close, so the recurring leak remains a production symptom until the branch
+  fix is released.
+- **Headroom recovered enough for writes.** The Data volume readback is now
+  about `3.2GiB` free (`99%` used). The earlier ENOSPC/database-lock evidence
+  remains recorded; no admission-DB fence was edited.
+- **CI for docs head `a9f9ae0afabf5e7213fa214ce369e7624993f915` is still
+  running.** The previous head was fully green; this docs-only push must finish
+  before the branch is considered green again.
+
+### Remaining TODO (current cursor)
+
+1. Finish the docs-head CI run, then keep the PR open; do not merge solely on
+   CI while provider-result gates remain unresolved.
+2. Promote the tested branch through one immutable release and apply it only
+   after the resource/effect fences are safe; verify loaded SHA and a natural
+   CrowdWorks wake with no blank-target regrowth.
+3. Preserve the four historical `effect_unknown` fences; obtain exact
+   provider/run proof before any release of a fence, with no blind retry/resend.
+4. Keep `63568785` buyer-material-gated; after admissible lesson/answer input,
+   execute delivery → acceptance → settlement → payout → replay-zero once.
+5. Refresh Mercor's official inventory, retain human-owned Consultant
+   calibration, then run the final fleet gate. Coconala/Ryu remains
+   manual-only and Upwork remains disabled.

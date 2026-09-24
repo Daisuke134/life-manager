@@ -2850,3 +2850,29 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 6. Refresh Mercor official inventory, keep Consultant calibration human-owned,
    preserve Coconala/Ryu manual-only and Upwork disabled, then run the final
    cross-platform fleet acceptance gate.
+
+### Runtime checkpoint — 2026-09-24 13:25 JST
+
+- [x] CrowdWorks old PID `7646`/child `7760` ended naturally; no force-kill or
+  restart was used.
+- [x] After termination, targeted CDP cleanup closed `106` surplus blank/new-tab
+  page targets while preserving provider pages/iframes. Readback is six total
+  targets: provider page 1, newtab 1, blank 1, provider iframes 3. The old
+  browser recreated one blank page, confirming the old-SHA leak.
+- [x] Data-volume headroom is now about `3.2GiB` free (`99%` used); no
+  admission-DB fence was edited.
+- [ ] Docs-head CI for `a9f9ae0afabf5e7213fa214ce369e7624993f915` is still
+  running; do not call the new head green until it completes.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish the docs-head CI run and keep PR #5820 open pending provider gates.
+2. Immutable-release/apply the tested branch, then verify loaded SHA and a
+   natural CrowdWorks wake with no blank-target regrowth.
+3. Preserve all four historical `effect_unknown` fences; obtain exact proof
+   before any release and never blind-retry or resend.
+4. Keep `63568785` pending for admissible buyer material, then complete
+   delivery → acceptance → settlement → payout → replay-zero once.
+5. Refresh Mercor inventory, retain human-owned Consultant calibration,
+   preserve Coconala/Ryu manual-only and Upwork disabled, then run final fleet
+   acceptance.
