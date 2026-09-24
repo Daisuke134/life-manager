@@ -100,6 +100,10 @@ flowchart LR
   effect-free FIFO 393件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry宣言が無かったため、
   このownerだけにcoalescingとqueued-release reconcileを追加し、RED→GREEN registry/fixture 92/92、apply 124/124を
   PASSしました。watcher・financial effectは実行しておらず、main/release昇格とproduction replay-zeroは未完です。
+- `x402-inflow-watch-franklin2`もdeterministic routeで、durable policy `deterministic/borrow/support`、known
+  effect-free FIFO 391件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約をこのownerだけに
+  追加し、RED→GREEN registry/fixture 93/93、apply 124/124をPASSしました。watcher・financial effectは実行しておらず、
+  main/release昇格とproduction replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
