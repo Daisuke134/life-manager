@@ -4530,3 +4530,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   assessment/contract/payment transition can be processed. Keep its effect
   fence closed and continue with the CrowdWorks buyer-material gate while the
   browser/auth owner is unavailable.
+
+### Runtime checkpoint — 2026-09-25 02:27 JST (CI and source-boundary verification)
+
+- [x] PR `#5854` latest security run `36033688801` completed successfully,
+  including Loop control contracts, Python syntax/unit tests, secret scans,
+  PII, shell, startup-drift, and OSS-boundary checks.
+- [x] Freelancer/Upwork readiness and transport focused tests pass (`52`), and
+  `./bin/lm-loop-contract` passes (`catalog_loops=14`, `registry_jobs=169`,
+  `mapped_jobs=98`, no shared job IDs or errors).
+- [ ] These are source/registry proofs only. Coconala managed owners remain
+  unloaded, and Freelancer/Upwork still have no fresh account-bound official
+  readback or funded project/milestone; no provider effect was created.
