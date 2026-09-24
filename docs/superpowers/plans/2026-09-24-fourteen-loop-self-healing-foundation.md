@@ -230,15 +230,24 @@ The follow-up adds exactly one shared owner, `life-manager-recovery-supervisor`,
 `effect_class=none`, deterministic, consumes at most one intent per wake, rejects every Paid fulfillment owner,
 and belongs once to the existing `self-build` Product Loop. RED reproduced the missing registry owner. GREEN
 passes 23 recovery tests, 200 registry/apply tests with 174 subtests, and the catalog contract at 14 loops,
-168 registry jobs, 98 mapped jobs, zero duplicate mappings and zero errors. It is not yet merged, released or
-loaded, so production self-healing remains incomplete.
+168 registry jobs, 98 mapped jobs, zero duplicate mappings and zero errors. PR #5822 is merged at
+`b5855ae558ecc94a7405439be1da5a89cefd987b`; complete release `20260924T135557-b5855ae5` is active and the
+single owner is loaded on that exact SHA.
+
+The first immediate production canary did not reach the queue consumer. It ended before entrypoint with typed
+`host_admission_deferred:resource_control_busy`, exit 75, while multiple ordinary data-plane owners held the
+shared admission control lock. The shared release reconciler, disk cleanup and healthcheck already bypass that
+lock, but the new recovery supervisor was omitted from the same safety-owner set. RED reproduced that omission;
+the minimum fix adds only this owner to the existing control-plane exemption. Runner bounds pass 83/83 and
+recovery remains 23/23. The fix is not yet integrated or loaded, so production self-healing remains incomplete.
 
 **Execution-order correction:** The previous text assumed the release reconciler already called the recovery
 consumer. Repository search and registry readback disprove that assumption. The shortest safe order is now:
 register and test one shared owner -> integrate it once -> cut and activate its exact main release -> load only
-that new owner -> kickstart one bounded wake -> verify one eligible non-Paid repair or idle receipt -> then
+that new owner -> remove its observed data-plane admission dependency through the existing safety exemption ->
+kickstart one bounded wake -> verify one eligible non-Paid repair or idle receipt -> then
 reconcile the remaining non-Paid fleet and run the 14-loop foundation gate twice. Current cursor is shared
-owner PR/main integration; this does not authorize touching the separately owned Paid runtime.
+owner admission-fix PR/main integration; this does not authorize touching the separately owned Paid runtime.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -251,10 +260,13 @@ owner PR/main integration; this does not authorize touching the separately owned
 - [x] Cut and activate complete immutable release `20260924T134241-60c1e93e`; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
 - [x] Audit the live scheduling seam and reproduce the missing recovery consumer owner with a RED contract test; do not mistake intent emission for autonomous consumption.
 - [x] Add one shared recovery supervisor owner and map it once to `self-build`; keep Paid owners rejected and unchanged. Focused recovery, registry/apply and catalog contracts pass.
-- [ ] Push the shared-owner branch, require repository CI, merge it once, and record the exact main SHA. Do not deploy a branch SHA.
-- [ ] Cut and activate one complete immutable release from that exact main merge SHA; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
-- [ ] Apply only `life-manager-recovery-supervisor` through `launchctl-safe`; do not start/restart Paid owners.
-- [ ] Kickstart one bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
+- [x] Push the shared-owner branch, require all ten repository checks, merge PR #5822 once at `b5855ae558ecc94a7405439be1da5a89cefd987b`.
+- [x] Cut and activate complete immutable release `20260924T135557-b5855ae5`; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
+- [x] Apply only `life-manager-recovery-supervisor` through `launchctl-safe`; loaded argv and installed SHA are exact `b5855ae558ecc94a7405439be1da5a89cefd987b`; no Paid owner is started/restarted.
+- [x] Kickstart the first bounded supervisor wake and retain its typed failure evidence: it never reaches the queue consumer because data-plane admission returns `resource_control_busy`/75. Do not call this self-healing success.
+- [x] Add a RED→GREEN regression and the minimum existing control-plane exemption for the shared supervisor. Runner bounds pass 83/83; recovery passes 23/23.
+- [ ] Push/CI/merge the admission fix, cut one exact-main immutable release, and reapply only the shared supervisor.
+- [ ] Kickstart the corrected bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
 - [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
 - [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.

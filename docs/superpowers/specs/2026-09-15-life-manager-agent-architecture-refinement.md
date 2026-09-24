@@ -31,12 +31,18 @@ flowchart LR
 - follow-upは共有owner `life-manager-recovery-supervisor`を1件だけ追加します。60秒ごとに最大1 intentを
   消費し、Paidを選択せず、self-buildへ一度だけ所属します。RED→GREEN後はrecovery 23件、
   registry/apply 200件（subtest 174件）、catalog 14 loops / 168 jobs / 98 mapped / errors 0がPASSしています。
-  このfollow-upはまだmain未統合・未loadです。
+  PR #5822はmain `b5855ae558ecc94a7405439be1da5a89cefd987b`へ統合済みで、complete release
+  `20260924T135557-b5855ae5`から共有ownerだけをload済みです。
+- 初回の即時canaryはentrypoint前に`host_admission_deferred:resource_control_busy`、exit 75で止まりました。
+  queueは空、Paid選択0、external effect 0ですが、supervisor本体が一度も動いていないためself-healing
+  成功とは扱いません。原因は新ownerだけが既存control-plane safety exemptionへ未登録だったことです。
+  RED→GREEN修正後はrunner bounds 83/83、recovery 23/23がPASSしています。修正のmain統合・reload・
+  再canaryが現在cursorです。
 
 現在cursor以降の残りTODOは順番に次のとおりです。
 
-1. 共有recovery ownerをpushし、CI、main統合、main由来immutable releaseまで閉じる。
-2. `launchctl-safe`経由でそのownerだけをloadし、即時のbounded wakeで`idle`または1件のtyped outcome、
+1. 共有recovery ownerのcontrol-plane admission修正をpushし、CI、main統合、main由来immutable releaseまで閉じる。
+2. `launchctl-safe`経由でそのownerだけをreloadし、即時のbounded wakeで`idle`または1件のtyped outcome、
    exact SHA、Paid選択0、兄弟mutation 0を確認する。
 3. non-Paid ownerだけを同じreleaseへ揃え、`lm-loop doctor/status`、foundation manifest、recovery journalを読む。
 4. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させる。
