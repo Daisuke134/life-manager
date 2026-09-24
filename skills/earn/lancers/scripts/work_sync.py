@@ -39,6 +39,13 @@ application_tick = _load("anicca_lancers_work_sync_tick", HERE / "application_ti
 CDP_URL, DEFAULT_STATE_PATH = application_tick.CDP_URL, application_tick.DEFAULT_STATE_PATH
 MAX_BOARD_PAGES = MAX_MESSAGE_PAGES = 20
 TICK_TIMEOUT_SECONDS = 120
+_SAFE_RUNTIME_FAILURES = {
+    "account_unavailable",
+    "browser_connect_failed",
+    "browser_page_unavailable",
+    "cleanup_failed",
+    "observer_unavailable",
+}
 
 
 class SourceFailure(RuntimeError): pass
@@ -48,6 +55,13 @@ class ReplySemanticUncertain(SourceFailure):
     def __init__(self, remaining_work: Sequence[str]):
         self.remaining_work = [str(item).strip() for item in remaining_work if str(item).strip()]
         super().__init__("reply_semantic_uncertain")
+
+
+def _runtime_failure_code(error: Exception) -> str:
+    if type(error).__name__ == "_AccountLockBusy":
+        return "account_lock_busy"
+    value = str(error).strip()
+    return value if value in _SAFE_RUNTIME_FAILURES else "observer_unavailable"
 
 
 def _id(value: Any) -> str:
@@ -403,7 +417,7 @@ def read_only_inventory(*, state_path: Path = DEFAULT_STATE_PATH, browser_factor
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
     except Exception as error:
-        result = _failed("account_lock_busy" if type(error).__name__ == "_AccountLockBusy" else "observer_unavailable", logged_in)
+        result = _failed(_runtime_failure_code(error), logged_in)
     finally:
         if not _cleanup(page, browser):
             result = _failed("cleanup_failed", logged_in)
@@ -427,10 +441,7 @@ def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
     except Exception as error:
-        result = _failed(
-            "account_lock_busy" if type(error).__name__ == "_AccountLockBusy"
-            else "observer_unavailable", logged_in
-        )
+        result = _failed(_runtime_failure_code(error), logged_in)
     finally:
         if not _cleanup(page, browser):
             result = _failed("cleanup_failed", logged_in)
@@ -522,7 +533,7 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
     except Exception as error:
-        result = _failed("account_lock_busy" if type(error).__name__ == "_AccountLockBusy" else "observer_unavailable", logged_in)
+        result = _failed(_runtime_failure_code(error), logged_in)
     finally:
         if not _cleanup(page, browser):
             result = _failed("cleanup_failed", logged_in)

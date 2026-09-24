@@ -225,6 +225,19 @@ class WorkSyncTests(unittest.TestCase):
             with self.assertRaisesRegex(sync.SourceFailure, "finance_detail_readback_required"):
                 sync._read_paid_surfaces(object())
 
+    def test_paid_inventory_preserves_browser_connect_failure(self):
+        sync = _load()
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(
+                sync.application_tick,
+                "_open_owned_page",
+                side_effect=RuntimeError("browser_connect_failed"),
+            ):
+                result = sync.read_paid_inventory(
+                    state_path=Path(directory) / "application.json",
+                )
+        self.assertEqual(result["error"], "browser_connect_failed")
+
     @staticmethod
     def _reachable_from(calls, entry):
         reached, pending = set(), [entry]
