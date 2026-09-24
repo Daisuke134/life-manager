@@ -73,6 +73,15 @@ flowchart LR
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
   宣言し、registry/rendered-fixture 86 testsをPASSしました。main/currentへの反映と本番readbackは未完です。
+- Agent Economyの最初の安全sliceでは、`x402-acquisition-controller`も同じ欠損を持つことを確認しました。
+  durable FIFOには既知のeffect-free occurrenceが残っていますが、registryに
+  `deterministic/borrow/support`、queued/reserved coalescing、queued-release reconcileが無かったため、
+  production reconcilerは`skipped_pending`で停止しました。entrypoint、wallet、payment、tradeは実行していません。
+  branch-only candidateでこのownerだけに既存の`deterministic/borrow/support`を明示し、
+  `reconcile_queued_release=true`を加えました。RED→GREEN contract test、rendered registry 87/87、
+  apply 124/124（既存ResourceWarningのみ）はPASSしました。main/release/productionへの昇格と、
+  exact-SHAのeffect-free wake、zero unknown、replay-zeroは未完です。x402のmoney/seller/settlement ownerは
+  effect fence内のため変更しません。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
