@@ -1962,3 +1962,46 @@ clicked again.
 8. **Effect fences:** retain all historical `effect_unknown` occurrences until
    provider/pre-effect evidence proves a safe no-effect release; never clear a
    fence from a local loop `pass` alone.
+
+## Production Cursor — 2026-09-24 10:20 JST
+
+- **Coconala runner diagnosis:** the latest `entrypoint_exit_1` is reproduced
+  as a host-capacity failure, not a provider or application exception. The
+  `gig_disk_guard` output shows `reason=disk_headroom_low` with a required
+  `536870912` bytes; the failing write was the atomic Paid snapshot temporary
+  file. After scratch cleanup, the next controlled start was deferred with
+  `host_admission_deferred:resource_capacity_busy` (exit `78`).
+- **Host evidence:** APFS reports the container at `99.8%` used with only
+  about `387MB` unallocated; the non-purgeable system snapshot is present.
+  The standard release GC evaluated 62 releases, protected all 62 referenced
+  generations, and reclaimed `0` bytes. No release or provider state was
+  deleted.
+- **Safe cleanup performed:** only unreferenced, old scratch/cache data was
+  removed (recoverable scratch was checked for open handles first); customer
+  deliverables, browser profiles, current releases, and Codex/daily-driver
+  caches were not touched.
+- **Current official state:** Coconala remains
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`; CrowdWorks remains
+  `5/1/0/4/1` with `63568785` buyer-material-gated; Lancers remains
+  `0/0/0/0/0` with no funded contract. No provider/customer effect occurred.
+
+### Remaining TODO (reordered by the current blocker)
+
+1. **Host capacity / Coconala runner:** restore stable headroom above the
+   512MiB guard floor, then let `hf-gig-paid-direct` obtain an admission lease
+   and reach terminal `pass`. Do not force a provider retry while the host is
+   below the floor or the occurrence is admission-deferred.
+2. **CrowdWorks browser ownership:** obtain explicit stop/restart approval,
+   close only orphan PID `16937`, restart `crowdworks-revenue-browser` through
+   `./bin/lm-loop`, and verify receipt → CDP → authenticated readback. This
+   remains a high-risk external-process boundary.
+3. **Coconala/Ryu:** preserve the manual-only fence; act only on a genuinely
+   newer buyer message. Existing replies are not resent and formal delivery is
+   not clicked.
+4. **Other paid work:** keep Coconala's three rooms buyer-waiting, CrowdWorks
+   `63568785` material-waiting, and Lancers contract-waiting. When a real
+   artifact/contract arrives, submit once with official receipt and replay-zero.
+5. **Effect fences and other platforms:** retain historical unknown fences;
+   connect external platforms one at a time with official readback, and keep
+   Upwork disabled until its authorization/authentication/funded-contract gates
+   exist.

@@ -2256,3 +2256,29 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   authentication, and funded-contract gates exist.
 - [ ] Retain all historical `effect_unknown` fences until provider/pre-effect
   evidence proves a safe no-effect release.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:20 JST
+
+- [x] Reproduced the `hf-gig-paid-direct` failure boundary: `entrypoint_exit_1`
+  came from `gig_disk_guard` refusing an atomic Paid snapshot write below the
+  `536870912`-byte headroom floor (`ENOSPC`), not from a provider error.
+- [x] After cleanup, a controlled `lm-loop start hf-gig-paid-direct` reached
+  `host_admission_deferred:resource_capacity_busy` / exit `78`; no provider
+  effect occurred.
+- [x] APFS readback shows the container at `99.8%` used with about `387MB`
+  unallocated. Standard release GC protected all 62 referenced releases and
+  reclaimed `0` bytes. No current release, customer deliverable, or browser
+  profile was deleted.
+- [x] Current official snapshots remain Coconala `4/0/0/3/0`, CrowdWorks
+  `5/1/0/4/1`, and Lancers `0/0/0/0/0`; all observed effects are zero.
+- [ ] Restore stable host headroom above 512MiB, then rerun the official
+  Coconala Paid owner and require terminal `pass`.
+- [ ] Obtain explicit approval before closing orphan CrowdWorks PID `16937`
+  and restarting its canonical browser owner via `./bin/lm-loop`; verify
+  receipt → CDP → authenticated readback.
+- [ ] Keep Ryu manual-only and wait for a genuinely newer buyer message.
+- [ ] Keep the other Coconala rooms, CrowdWorks `63568785`, and Lancers
+  contract waiting; submit only on a real artifact/contract with receipt and
+  replay-zero.
+- [ ] Retain historical `effect_unknown` fences and finish provider-by-provider
+  integration/readback; keep Upwork disabled until its gates are present.
