@@ -2724,3 +2724,36 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    authorization, authenticated readback, and funded-contract gates exist.
 6. Run the fleet acceptance gate last; only then report every registered Paid
    owner complete.
+
+### Paid fulfillment checkpoint — 2026-09-24 12:55 JST (CrowdWorks CDP tab leak fixed)
+
+- [x] Diagnosed the live CrowdWorks browser profile: 287–291 targets were
+  blank/new-tab only, with no provider page. Closed only surplus blank targets;
+  the next natural production wake passed `5/1/0/4/1` and left `63568785`
+  buyer-material-gated. No duplicate answer or delivery was sent.
+- [x] Added branch commit `6437df7e53`: prune surplus blank/new-tab source
+  targets while preserving one blank and every non-blank provider page.
+- [x] TDD/read-only verification passed: 127 CrowdWorks adapter/provider
+  tests, 81 loop-boundary tests, and a live five-contract official inventory
+  readback (`before=3/after=2` pages).
+- [ ] Promote the branch through one immutable release; production remains on
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75` until release acceptance.
+- [ ] Keep CrowdWorks `63568785` waiting for buyer material; do not duplicate
+  the existing access request. Then complete formal delivery through
+  replay-zero exactly once.
+- [ ] Refresh Mercor official inventory after its effect fence is safely
+  resolved; retain the human Consultant calibration handoff.
+- [ ] Preserve all historical effect-unknown fences and finish the final
+  cross-platform fleet acceptance gate.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish PR checks and promote one immutable release; verify loaded SHA,
+   CrowdWorks natural readback, and no recurring blank-tab growth.
+2. Preserve old Lancers/CrowdWorks/Mercor fences until exact provider/run
+   proof; never blind-retry or resend.
+3. Wait for CrowdWorks `63568785` material, then delivery → acceptance →
+   settlement → payout → replay-zero once.
+4. Refresh Mercor's official snapshot and retain human-owned calibration.
+5. Keep Coconala/Ryu manual-only and Upwork disabled until their gates exist;
+   run fleet acceptance last.

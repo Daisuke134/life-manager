@@ -2840,3 +2840,46 @@ not convert a transient pass or a no-op into client completion.
 6. Run final fleet acceptance only when every registered Paid owner has a
    loaded immutable release, fresh official readback, explicit effect state,
    and no unresolved actionable item.
+
+## Production Cursor — 2026-09-24 12:55 JST (CrowdWorks CDP tab leak fixed)
+
+- **CrowdWorks' live failure was narrowed and recovered.** The exact profile
+  on CDP 9228 had 287–291 page targets, all blank/new-tab; no provider page
+  was present. Closing only surplus blank targets left the browser usable, and
+  the next production natural wake returned
+  `crowdworks-revenue-paid:18d8256be37bdcb0-91510` with
+  `ok/observed=5/actionable=1/effect=0/readback=4/pending=1/failed=0`.
+  `63568785` remains the same buyer-material wait; no duplicate answer or
+  delivery was sent.
+- **Permanent fix is branch-only for now.** Commit `6437df7e53` prunes only
+  surplus `about:blank`/`chrome://newtab` targets in the shared CrowdWorks
+  source context, preserving one blank target and every non-blank provider
+  page. Branch read-only inventory verified five official contracts and held
+  pages at `before=3/after=2`; the fix is pushed to PR #5820. Production still
+  loads `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
+- **Other platform readbacks:** Lancers latest is
+  `lancers-revenue-paid:18d8257fdb8d0e48-92466` with `ok/0/0/0/0/0`.
+  Mercor Paid remains `pending/0/0/0/0/1` at
+  `mercor-revenue-paid:18d8258597d79fc8-92943`; Reply remains
+  `ok/97/1/0/96/1` with the human-owned Consultant assessment and stale
+  official snapshot. Coconala/Ryu remains proven no-op/manual-only.
+- **Verification:** CrowdWorks paid adapter/provider-lock/pre-effect tests
+  (127) and loop bounds (81) pass; the live branch read-only inventory also
+  passed. No delivery, reply, form submission, or settlement was issued.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish PR #5820 checks and promote the latest-main-derived branch through
+   one immutable release; verify the loaded SHA and confirm CrowdWorks natural
+   inventory no longer grows blank tabs while preserving official readback.
+2. Keep Lancers `18d81967220136f8-89928`, CrowdWorks historical
+   `18d62cf32eb0c678-48194`, and Mercor Application/Reply fences closed until
+   exact provider/run proof exists; no blind retry or resend.
+3. For CrowdWorks `63568785`, wait for the already-requested buyer material;
+   then execute formal delivery → acceptance → settlement → payout →
+   replay-zero exactly once.
+4. Refresh Mercor's official contract inventory after its effect fence is
+   safely resolved; keep the Consultant calibration assessment human-owned.
+5. Preserve Coconala/Ryu no-op/manual-only and Upwork-disabled gates, then run
+   final fleet acceptance only after every Paid owner has fresh readback,
+   explicit effect state, and replay-zero.
