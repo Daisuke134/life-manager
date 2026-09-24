@@ -4745,7 +4745,8 @@ Historical joined-child evidence already records `SUCCEEDED/AUTH_REQUIRED` plus 
 `92843`, so this is not eligible for the generic pre-effect resolver. Only an exact official body/readback proof
 may resolve or preserve this fence.
 
-The branch-only observability improvement at candidate commit `2e759d41f3` keeps the boolean
+The branch-only observability improvement at candidate commit `1be7f402b2` (after the initial
+`2e759d41f3` slice) keeps the boolean
 `admission_effect_unknown` field and adds `admission_effect_unknown_occurrences` with the exact occurrence ID,
 state, resource/admission classes, sequence and queue timestamp. Read-only tests pass **30/30** and the combined
 read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a main

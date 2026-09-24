@@ -1312,8 +1312,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Preserve the non-pre-effect classification. Historical child/Telegram evidence includes a provider message
   ID (`92843`), so the generic pre-effect resolver is prohibited; no resend or fence clear is allowed without exact
   official body/readback proof.
-- [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`.
-  Read-only tests pass **30/30** and combined read-only/apply/registry tests pass **243/243**.
+- [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`,
+  then thread it through the full resolver path at `1be7f402b2` after a real `status all` probe caught the missing
+  call-site. Read-only tests pass **30/30** and combined read-only/apply/registry tests pass **243/243**.
 - [x] Run the candidate CLI against the live selector in read-only mode. It returns `rc=0` and exposes the latest
   event occurrence separately from the durable fenced occurrence, with no provider receipt or official readback;
   this is diagnostic evidence only.
