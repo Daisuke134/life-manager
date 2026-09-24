@@ -5030,3 +5030,8 @@ against `ws://127.0.0.1:18789`. The reporting failure propagated from `finish()`
 reason as `wake_boundary_failed`. Because the log excerpt is not bound to the current occurrence ID, it is a diagnosis
 clue rather than an official occurrence receipt. No provider action, browser session, admission row or Connector code
 was changed here; the Connector-owned branch remains the only place to repair its runner/reporting boundary.
+
+The second CFO message owner, `life-manager-financial-report:18d601655af3e1c0-86661`, was also checked through the
+same read-only adapter. With the current private snapshot/proof surfaces, it returns
+`inconclusive / private_receipt_unavailable`. This is explicit missing evidence—not a no-effect result—and no
+Telegram, admission or report state was changed.

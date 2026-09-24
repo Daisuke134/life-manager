@@ -1518,3 +1518,11 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After that owner publishes an accepted main-derived release, re-read the exact Connector occurrence with
   structured nested error evidence, then require a clean no-effect wake and replay-zero before calling the Connector
   loop healthy.
+
+### CFO second message owner probe (2026-09-25 JST)
+
+- [x] Run the read-only CFO adapter for `life-manager-financial-report:18d601655af3e1c0-86661`; it returns
+  `inconclusive / private_receipt_unavailable` because the exact occurrence-bound private snapshot/provider proof is
+  absent.
+- [ ] Obtain the correct report-owner snapshot and official Telegram chat/message/body readback after an accepted
+  immutable release. Do not treat the missing proof as no-effect or clear the message fence.
