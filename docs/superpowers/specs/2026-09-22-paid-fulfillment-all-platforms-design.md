@@ -12,20 +12,35 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Current implementation cursor — 2026-09-24 18:10 JST
+### Current implementation cursor — 2026-09-24 19:55 JST
 
-- The page-history repair and occurrence reconciler are implemented on dedicated
-  branch `fix/paid-main-promotion-20260924` at `670ef023889c`. PR `#5820` is
-  `CLEAN`/`MERGEABLE`; normal Security Scan run `35979165054` passed all nine
-  jobs. Local acceptance also passes the relevant 144 application/Coconala
-  tests, 15 release-cut tests, 82 macOS loop-registry tests, and the loop
-  contract (`169` registry jobs / `98` mapped jobs).
-- This is source/PR evidence only. Production is unchanged: the installed
+- The Coconala occurrence `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for
+  request `5280157` remains `claimed/effect_unknown=1`. A fresh authenticated,
+  read-only probe used one isolated lease per history page and reached all 26
+  current pages on the official `応募・スカウト管理 | ココナラ` route. Every
+  enumerated offer detail returned HTTP 200 and exposed its official request ID;
+  `5280157` was absent. The earlier page-22 403 was therefore a sequential
+  session/WAF boundary, not proof of a provider send.
+- This negative observation does **not** prove that the old irreversible attempt
+  never dispatched. The durable intent is already
+  `effect_phase=irreversible_attempt_started`, and the target has a filled-form
+  screenshot but no saved non-landing submit-attempt receipt. The admission fence
+  therefore stays closed; no retry, DB edit, resolver call, or Ryu resend was
+  performed.
+- Source fixes are merged and tested, but Apply/Storefront production promotion
+  still waits for an exact positive provider receipt or a separately verified
+  no-dispatch receipt. The current cursor is a reconciliation proof gap, not a
+  loop cadence failure.
+
+- The page-history repair and occurrence reconciler from PR `#5820` are merged;
+  the current immutable source head includes the follow-up fetch syntax fix in
+  `86bd68bf7b9c3819c0a44f848e861372af9eff54`. Focused application/Coconala
+  tests, release-cut tests, the macOS loop registry, and the loop contract pass.
+- This is source/release evidence only. Production is unchanged: the installed
   Apply and Storefront owners remain on older immutable releases, and the exact
   Apply occurrence for request `5280157` is still fenced as
-  `claimed/effect_unknown=1`. A page-20 target absence or a partial scan cannot
-  release that fence; complete official history or exact pre-effect proof is
-  required.
+  `claimed/effect_unknown=1`. The fresh 26-page absence readback cannot release
+  this effect-started intent without a separately verified no-dispatch receipt.
 - Ryu `18211957`'s latest buyer cycle (the five paid-option/WEB予約 issues in
   messages `222215345`, `222215354`, `222218450`, `222218603`, and
   `222218678`) already has one official seller reply/readback,
