@@ -74,6 +74,17 @@ balance `¥0`; this historical proposal is not evidence of a current funded
 contract and does not open Paid. No resend or new provider action was made in
 this audit.
 
+The same live admission readback also shows why “all platform loops are done”
+would be inaccurate: historical effect fences remain outside Paid. CrowdWorks
+has `44` claimed/unknown application occurrences and `181` claimed/unknown
+reply occurrences (plus its one exact Paid fence). Lancers has `38`
+claimed/unknown application occurrences and one each in negotiate, storefront,
+and Telegram-report (plus its one exact Paid fence). Mercor has one old
+application and one old reply fence. These rows are not proof of a provider
+send or completion; they remain closed until an occurrence-bound provider
+receipt or admissible no-effect proof is available. No blanket DB cleanup or
+replay was performed.
+
 The legacy Gig release path was also tightened at `2026-09-25 07:06 JST`.
 `gig_release.py activation_labels()` now rejects explicit activation of
 `ai.anicca.life-manager-upwork-browser` and
