@@ -1,14 +1,15 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 19:28 JST
+## Current cursor — 2026-09-24 19:55 JST
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
   `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
-  `claimed/effect_unknown=1`. A fresh official readback on release
-  `86bd68bf7b9c3819c0a44f848e861372af9eff54` reached page 22 and received
-  `403 Forbidden` from both navigation and same-origin fetch, so absence is
-  still unproven.
+  `claimed/effect_unknown=1`. A fresh read-only probe using one authenticated
+  lease per page reached all 26 currently paginated history pages; every page
+  stayed on the official route, every detail GET returned HTTP 200, and
+  `5280157` was absent. This proves current-history absence, not that the old
+  irreversible attempt never dispatched, so the fence remains closed.
 - [x] Add the branch-only page-20 resumable readback path and the bounded,
   same-origin detail-fetch fallback. Both paths are read-only and keep the
   fence closed on denied, incomplete, or non-200 history.
@@ -33,12 +34,14 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 19:28 JST)
+### Current remaining TODO (authoritative, 2026-09-24 19:55 JST)
 
-1. Obtain a complete official Coconala history/readback for request `5280157`;
-   resolve the exact occurrence only on positive provider proof or separately
-   verified pre-effect proof.
-2. After the proof, target-apply the current immutable release to Apply, then
+1. Bind the 26-page official absence to a separately verified no-dispatch
+   receipt for `5280157`, or obtain a positive provider receipt. The original
+   intent is already marked `irreversible_attempt_started`, so absence alone is
+   not a legal `resolve_pre_effect_occurrence` proof; do not retry or clear the
+   admission row by hand.
+2. After that proof, target-apply the current immutable release to Apply, then
    Storefront, and verify loaded SHA, natural wakes, official readback, and
    replay-zero. Do not bypass the `effect_unknown` guard.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
@@ -51,7 +54,26 @@
    Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
    settlement, payout, and duplicate-zero acceptance.
 
-## Runtime Status Refresh — 2026-09-24 19:28 JST (release86bd official readback)
+### Coconala readback checkpoint — 2026-09-24 19:55 JST
+
+- [x] Read-only direct-page probe used a fresh authenticated browser lease for
+  each page, avoiding the sequential-session WAF boundary that produced the
+  earlier page-22 403. Pages 1–26 all returned the official
+  `応募・スカウト管理 | ココナラ` route; every enumerated offer detail returned
+  HTTP 200 and exposed its official `OfferRequestId`; request `5280157` was not
+  present.
+- [x] No provider submit, form edit, retry, admission mutation, or Ryu message
+  was performed during this probe.
+- [ ] This is a negative provider observation only. The durable target intent
+  still has `effect_phase=irreversible_attempt_started`; the target has a filled
+  form screenshot but no saved non-landing submit-attempt receipt. Therefore
+  the system cannot safely classify it as pre-effect and cannot release the
+  `claimed/effect_unknown=1` row yet.
+- [ ] Production Apply/Storefront are still not promoted. Source fixes are
+  merged and tested, but the safety guard correctly refuses a target Apply wake
+  while this exact occurrence remains unresolved.
+
+## Historical Runtime Status — 2026-09-24 19:28 JST (release86bd official readback)
 
 - [x] PR `#5845` merged as `6022ddc01f`; PR `#5846` merged as
   `86bd68bf7b`; current immutable release is `86bd68bf7b9c3819c0a44f848e861372af9eff54`.
