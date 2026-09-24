@@ -839,6 +839,52 @@ def _offer_detail_fetch_expression(offer_url: str) -> str:
     }})())"""
 
 
+def _applied_history_fetch_expression(history_url: str) -> str:
+    """Build a read-only same-origin fetch for a denied applied-history page."""
+    encoded_url = json.dumps(history_url, ensure_ascii=False)
+    return f"""JSON.stringify((async()=>{{
+      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+      const html=await response.text();
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      const absolute=href=>{{try{{return new URL(href,response.url).href}}catch(_error){{return ''}}}};
+      const anchors=[...parsed.querySelectorAll('a[href]')];
+      const next=anchors.find(a=>a.rel==='next'||/^(次へ|次のページ|次)$/u.test((a.innerText||'').trim()));
+      const pagination=anchors.filter(a=>/^\\d+$/u.test((a.innerText||'').trim())&&
+        a.getAttribute('href')&&a.getAttribute('href').includes('/mypage/job_matching/applied/offers')&&
+        a.getAttribute('href').includes('page='));
+      return {{transport:'fetch',status:response.status,final_url:response.url,
+        title:parsed.title,
+        offer_urls:[...parsed.querySelectorAll('a[href*="/mypage/offers/"]')]
+          .map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+        next_href:next?absolute(next.getAttribute('href')):null,
+        pagination_hrefs:pagination.map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+        body:(parsed.body?.innerText||'').slice(0,12000),
+        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+    }})())"""
+
+
+def _valid_applied_history_fetch(value: object, expected_url: str) -> bool:
+    """Accept only a 200 same-page fetch carrying the official history marker."""
+    if not isinstance(value, dict) or value.get("transport") != "fetch":
+        return False
+    if value.get("status") != 200 or value.get("access_denied") is True or value.get("not_found") is True:
+        return False
+    title = str(value.get("title") or "")
+    if "応募・スカウト管理" not in title:
+        return False
+    final_url = str(value.get("final_url") or "")
+    parsed = urlsplit(final_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"coconala.com", "www.coconala.com"}
+        or parsed.path.rstrip("/") != _APPLIED_OFFERS_PATH
+        or _page_index(final_url) != _page_index(expected_url)
+    ):
+        return False
+    return True
+
+
 def _valid_applied_history_start_url(value: object) -> bool:
     """Accept either official host alias at any resumable history page."""
     if not isinstance(value, str):
@@ -2126,7 +2172,31 @@ class CdpParentEffects:
                     if pages_walked == 0 or "timeout" not in str(error):
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
-                parsed = urlsplit(str(page.get("url") or ""))
+                history_fetch_summary: dict[str, object] | None = None
+                if page.get("access_denied") is True:
+                    # Coconala intermittently returns a 403 for a later pagination
+                    # navigation while the already-authenticated document can still
+                    # fetch that exact same-origin URL.  A successful fetch is accepted
+                    # only when it is the requested page and carries the official
+                    # history title; a login/403/redirect response remains inconclusive.
+                    fetch_url = str(page.get("url") or "")
+                    try:
+                        fetched, call_id = await self._eval_json(
+                            ws,
+                            _applied_history_fetch_expression(fetch_url),
+                            call_id + 3000,
+                        )
+                    except ParentContractError as error:
+                        fetched = None
+                        history_fetch_summary = {"error": str(error)}
+                    if isinstance(fetched, dict):
+                        history_fetch_summary = {
+                            key: fetched.get(key)
+                            for key in ("transport", "status", "final_url", "title", "access_denied", "not_found")
+                        }
+                    if _valid_applied_history_fetch(fetched, fetch_url):
+                        page = {**fetched, "url": fetched.get("final_url")}
+                parsed = urlsplit(str(page.get("url") or page.get("final_url") or ""))
                 if (
                     parsed.hostname not in {"coconala.com", "www.coconala.com"}
                     or parsed.path.rstrip("/") != _APPLIED_OFFERS_PATH
@@ -2163,6 +2233,7 @@ class CdpParentEffects:
                             "access_denied": page.get("access_denied"),
                             "not_found": page.get("not_found"),
                             "body_sample": str(page.get("body") or ""),
+                            "history_fetch": history_fetch_summary,
                             "screenshot_path": (
                                 str(unexpected_screenshot_path.resolve())
                                 if unexpected_screenshot

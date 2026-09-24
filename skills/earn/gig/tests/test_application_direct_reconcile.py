@@ -298,3 +298,36 @@ def test_official_readback_has_authenticated_detail_fetch_fallback():
 
     assert "_offer_detail_fetch_expression" in source
     assert "_offer_detail_request_id" in source
+    assert "_applied_history_fetch_expression" in source
+    assert "_valid_applied_history_fetch" in source
+
+
+def test_official_history_403_has_same_origin_fetch_fallback():
+    expression = application_parent._applied_history_fetch_expression(
+        "https://www.coconala.com/mypage/job_matching/applied/offers?page=21"
+    )
+
+    assert "credentials:'include'" in expression
+    assert "DOMParser" in expression
+    assert "offer_urls" in expression
+    assert "pagination_hrefs" in expression
+
+
+def test_history_fetch_accepts_only_exact_official_page():
+    expected = "https://www.coconala.com/mypage/job_matching/applied/offers?page=21"
+    page = {
+        "transport": "fetch",
+        "status": 200,
+        "final_url": expected,
+        "title": "応募・スカウト管理 | ココナラ",
+        "access_denied": False,
+        "not_found": False,
+    }
+
+    assert application_parent._valid_applied_history_fetch(page, expected) is True
+    assert application_parent._valid_applied_history_fetch(
+        {**page, "final_url": expected.replace("page=21", "page=1")}, expected
+    ) is False
+    assert application_parent._valid_applied_history_fetch(
+        {**page, "title": "ログイン | ココナラ"}, expected
+    ) is False
