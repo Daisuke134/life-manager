@@ -1766,3 +1766,13 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   the managed-Node fallback is the correct source boundary; it does not authorize a production restart or replay.
 - [ ] Keep waiting only for the next safe external state change: capacity floor recovery. Then run the full suite,
   promote/load the accepted immutable candidate and verify one occurrence-complete managed-Node terminal.
+
+### Cleanup terminal at the lower-capacity cursor (2026-09-25 JST)
+
+- [x] Read the natural cleanup terminal `18d865a87f762748-81472`: `pass`, `exit_code=0`, `errors=0`,
+  `reclaimed=0`, five open candidates preserved. Receipt: `free_before=329,150,464`,
+  `free_after=329,150,464`, `inventory_gaps=18`.
+- [x] Record that the floor shortfall is now `826,630,144` bytes. The owner has no safe allowlisted reclaim, so no
+  process, cache, release, admission row, provider session or external effect was changed.
+- [ ] Keep the promotion cursor closed; only a future owner-controlled capacity recovery can unlock full-suite
+  execution and immutable candidate promotion.

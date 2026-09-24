@@ -5367,3 +5367,13 @@ tails contain the same `bin/lm-recovery-supervise: exec: node: not found` bounda
 receipt or admission effect-unknown. This is now a reproducible old-release runtime defect, not a transient wake or
 external-effect ambiguity. The candidate managed-Node fallback remains the single source fix; it is still branch-only
 until capacity/full-suite/acceptance gates permit immutable promotion.
+
+### Cleanup terminal at the lower-capacity cursor (2026-09-25 JST)
+
+The next natural disk-cleanup occurrence `18d865a87f762748-81472` reached a complete terminal at
+`2026-09-24T23:32:21.582575Z`: `status=pass`, `exit_code=0`, `errors=0`, `reclaimed=0`, and five open candidates
+preserved. Its canonical receipt is `observed_at=2026-09-24T23:32:07Z`, `free_before=329,150,464`,
+`free_after=329,150,464`, `inventory_gaps=18`. The safe cleanup owner therefore has no reclaimable allowlisted item;
+capacity is now **826,630,144 bytes** below the `1,155,780,608`-byte floor. This is an environment/ownership
+boundary, not authorization to delete unowned data or stop live processes. Full-suite and immutable promotion remain
+closed until a later owner-controlled capacity recovery changes this receipt.
