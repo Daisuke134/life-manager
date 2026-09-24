@@ -1524,6 +1524,10 @@ test("local foundation gate CLI writes a private deterministic no-revenue result
   const output = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(output.manifest.schema_version, "product.loop.foundation.v1");
   assert.equal(output.gate.decision, "pass");
+  assert.deepEqual(output.diagnostics.state_counts, { healthy: 14 });
+  assert.deepEqual(output.diagnostics.reason_counts, { none: 14 });
+  assert.deepEqual(output.diagnostics.next_action_counts, { none: 14 });
+  assert.deepEqual(output.diagnostics.actionable_loops, []);
   assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
   fs.rmSync(root, { recursive: true, force: true });
 });

@@ -46,6 +46,54 @@ function writePrivate(pathname, content) {
   fs.chmodSync(pathname, 0o600);
 }
 
+function increment(map, key) {
+  const normalized = key == null
+    ? "none"
+    : (typeof key === "string" && key.trim() ? key : "invalid");
+  map[normalized] = (map[normalized] || 0) + 1;
+}
+
+function foundationDiagnostics(manifest) {
+  const loops = Array.isArray(manifest?.loops) ? manifest.loops : [];
+  const stateCounts = {};
+  const reasonCounts = {};
+  const nextActionCounts = {};
+  for (const loop of loops) {
+    increment(stateCounts, loop?.state);
+    increment(reasonCounts, loop?.reason);
+    increment(nextActionCounts, loop?.next_action);
+  }
+  const actionableLoops = loops
+    .filter((loop) => loop?.state !== "healthy")
+    .map((loop) => ({
+      id: loop?.id ?? null,
+      name: loop?.name ?? null,
+      state: loop?.state ?? null,
+      reason: loop?.reason ?? null,
+      next_action: loop?.next_action ?? null,
+      unknown_effect_job_ids: Array.isArray(loop?.unknown_effect_job_ids)
+        ? [...loop.unknown_effect_job_ids] : [],
+      diagnostic_incomplete_job_ids: Array.isArray(loop?.diagnostic_incomplete_job_ids)
+        ? [...loop.diagnostic_incomplete_job_ids] : [],
+      runtime_evidence: loop?.runtime_evidence && typeof loop.runtime_evidence === "object"
+        ? {
+          missing_job_ids: Array.isArray(loop.runtime_evidence.missing_job_ids)
+            ? [...loop.runtime_evidence.missing_job_ids] : [],
+          release_mismatch_job_ids: Array.isArray(loop.runtime_evidence.release_mismatch_job_ids)
+            ? [...loop.runtime_evidence.release_mismatch_job_ids] : [],
+          non_pass_job_ids: Array.isArray(loop.runtime_evidence.non_pass_job_ids)
+            ? [...loop.runtime_evidence.non_pass_job_ids] : [],
+        }
+        : null,
+    }));
+  return {
+    state_counts: stateCounts,
+    reason_counts: reasonCounts,
+    next_action_counts: nextActionCounts,
+    actionable_loops: actionableLoops,
+  };
+}
+
 function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   const runtimeRows = JSON.parse(fs.readFileSync(options.runtime_status, "utf8"));
@@ -55,7 +103,11 @@ function main(args = process.argv.slice(2)) {
     runtime_rows: runtimeRows,
   });
   const gate = evaluateLocalFoundationGate(manifest);
-  const content = `${JSON.stringify({ manifest, gate }, null, 2)}\n`;
+  const content = `${JSON.stringify({
+    manifest,
+    gate,
+    diagnostics: foundationDiagnostics(manifest),
+  }, null, 2)}\n`;
   if (options.output) writePrivate(options.output, content);
   else process.stdout.write(content);
   return gate.decision === "pass" ? 0 : 1;
