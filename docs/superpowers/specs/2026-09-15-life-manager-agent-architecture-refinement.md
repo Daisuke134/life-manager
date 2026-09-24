@@ -3761,6 +3761,13 @@ revenue admission and no-effect class. The same RED→GREEN registry/fixture che
 154-subtest read-only suite. No Capafy provider effect, marketplace state or admission occurrence was changed;
 this branch-only declaration still needs an accepted immutable release and exact-SHA owner readback.
 
+The Lancers non-Paid Telegram-report owner is also now explicit from a read-only durable-admission audit:
+all observed occurrences use `deterministic/borrow/support` (194 queued, 53 released-known and one claimed
+`effect_unknown`), with no reservation or queue row. Its registry contract declares that tuple plus queued/reserved
+wake coalescing and queued-release reconciliation. This improves the self-healer's queue identity but does not
+resolve the claimed message effect: no Telegram resend, provider-session action or admission mutation is allowed
+until an exact official readback proves the occurrence. The change is branch-only and not a revenue claim.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

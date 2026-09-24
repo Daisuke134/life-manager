@@ -608,6 +608,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
             with self.subTest(loop_id=loop_id):
                 self.assertIsNone(registry["loops"][loop_id].get("admission_effect_scope"))
 
+    def test_lancers_report_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["lancers-revenue-telegram-report"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_affiliate_loop_opts_into_queued_release_reconcile(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertIs(

@@ -546,6 +546,13 @@ allowed.
   those two registry fields and the byte-stable fixture were regenerated. The combined macOS-registry/read-only
   suite passes 127 tests with 154 subtests. No Capafy provider, marketplace, admission state or external effect was
   run; this remains branch-only until accepted-release promotion.
+- [x] Declare the observed Lancers non-Paid Telegram-report admission contract. Read-only durable admission shows
+  every occurrence as `deterministic/borrow/support` (194 queued, 53 released-known and one claimed
+  `effect_unknown`), with no reservation or queue row. Add only `resource_class=deterministic`,
+  `admission_class=borrow`, `priority=support`, queued/reserved coalescing and
+  `reconcile_queued_release=true`; RED→GREEN registry/fixture tests pass and the combined suite is 128 tests with
+  154 subtests. The claimed message effect remains fenced; no Telegram resend, provider session, admission state or
+  Lancers entrypoint was run. This is branch-only until exact-release promotion and official readback.
 - [ ] Promote the continuous harness-failure projection to an accepted main-derived release, then re-read Agent Economy. The current production owner is loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b`; its taskmarket `ENOENT` intent `f5a0b9a428ef34544c7471443819e585` is durable, while the recovery supervisor safely returns `release_sha_mismatch`/`escalate_owner`. Do not clear or replay the owner until exact release identity and a clean post-repair readback agree.
 - [x] Add the narrow legacy-continuous-event diagnosis on this branch. A loaded-running keep-alive owner whose PID-bound event is an old `execute/running` envelope now reports `legacy_runtime_event_schema`, retryable `true`, and `reload_current_release`; it never clears an effect fence or infers provider success. RED→GREEN read-only/status tests pass 23/23 and runtime-event/runner tests pass 19/19. This remains branch-only until an accepted main-derived immutable release is loaded.
 - [x] Preserve the typed diagnostic contract through recovery readback sanitization on this branch. `recovery-supervisor` and `recovery-executor` now retain `diagnostic_error`, `failure_layer`, `error_class`, `retryable` and `next_action` in before/after evidence, so the self-healer can choose a bounded repair from the observed failure instead of receiving an opaque status. RED reproduced two dropped-field failures; focused supervisor/executor tests are 16/16 and the complete recovery suite is 40/40. This is branch-only until an accepted main-derived immutable release is loaded; no provider effect, fence or production state changed.
