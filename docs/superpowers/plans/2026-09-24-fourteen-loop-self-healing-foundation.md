@@ -1028,6 +1028,10 @@ The following is the current control-plane state. It is evidence for the next bo
 - [x] Re-read `writer-claim-loop` and `writer-money-sync` through the same shared-agent-runner route. Both returned
   `eligible=0` without an external action and now show exact current d4 installed/event SHA, complete diagnostics,
   typed `resource_capacity_busy`, `effect_class=none`, `effect_status=not_applicable` and admission unknown false.
+- [x] Re-read `capafy-goal-monitor-hourly` without touching Capafy account/marketing effect owners. It already shows
+  exact current d4 installed/event SHA, complete diagnostics, typed `resource_capacity_busy`,
+  `effect_class=none`, `effect_status=not_applicable` and admission unknown false; the scoped deterministic reconcile
+  returned `eligible=0`.
 
 ### Latest branch verification (2026-09-25 JST)
 

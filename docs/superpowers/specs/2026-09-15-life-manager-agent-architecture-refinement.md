@@ -4415,6 +4415,11 @@ returned `eligible=0` without an external action and now show exact current d4 i
 diagnostics, typed `resource_capacity_busy`, `effect_class=none`, `effect_status=not_applicable` and admission
 unknown false.
 
+`capafy-goal-monitor-hourly` was then re-read without touching Capafy account/marketing effect owners. It already
+shows exact current d4 installed/event SHA, complete diagnostics, typed `resource_capacity_busy`,
+`effect_class=none`, `effect_status=not_applicable` and admission unknown false; the scoped deterministic reconcile
+returned `eligible=0`.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
