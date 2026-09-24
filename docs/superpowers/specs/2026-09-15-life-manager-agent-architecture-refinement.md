@@ -2817,16 +2817,22 @@ capacity backpressure and not fourteen provider-specific defects. The next curso
 and prevent recovery-owner self-enqueue/reconciliation, retain the existing failed evidence, and prove one
 bounded non-self recovery with replay-zero before aligning another Product Loop.
 
-Candidate `5e2275d977` closes the recursion at the three existing boundaries without adding another healer:
+Source commit `5e2275d977` closes the recursion at the three existing boundaries without adding another healer:
 the shared runner does not emit an intent for the recovery-supervisor entrypoint, the queue consumer
 terminally marks one already-persisted self-intent `skipped/supervisor_self_recovery_excluded` per wake with
 budget consumption zero, and the apply-plan compiler refuses to create a self-reconcile command. Recovery
 tests pass 36/36, runner bounds pass 84/84, apply/registry tests pass 202 tests plus 174 subtests, and
 foundation/catalog tests pass 65/65. Running the candidate CLI against temporary copies of the live queue and
 journal closes exact pending self-intent `fa82ab50703c57ea6540cb35b93576f8` with execution zero and exactly one
-journal append; production files are unchanged. This is pushed source evidence, not a production repair. The
-next gate is PR/CI/main integration, a complete main-derived immutable release, supervisor-only loaded-idle
-apply and bounded wakes until the pre-existing self-intents are terminal without any new self-intent.
+journal append. PR #5830 passes all ten repository checks and merges the fix at
+`25cd0141f9b867cb15c3538d1d0ad9c78f010894`. Complete main-derived release
+`20260924T161321-25cd0141` is active, and only the loaded-idle recovery supervisor is reconciled to it through
+`launchctl-safe`; Paid, Connector and browser owners are not applied or restarted. Bounded production wakes
+drain the pre-existing supervisor self-intents from 14 pending to zero while the unique total remains exactly
+22, proving no new self-intent is created. Final wake `9955a84a526f12f2091c451d` is exact-SHA
+`idle/no_pending_intent`, with journal delta zero and self-intent delta zero. The shared self-recursion repair is
+therefore production-complete. The remaining recovery proof is one naturally occurring eligible non-self,
+non-Paid failure; the plan does not inject a production failure merely to manufacture that evidence.
 
 Connector remains a real uncovered failure, not an old notification artifact. Its latest action history again
 shows Calendar observation succeeding and `browser_open` failing with `browser_open_failed`; the user-facing
@@ -3098,12 +3104,17 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    49 unknown-effect jobs; all 14 Product Loops remain `uncovered_failure`, with Self-build now failing for the
    real supervisor terminal rather than evaluator drift. Connector separately remains failed at the shared
    CDP ownership boundary; its candidate is pushed through `e96e8c422d` but has no PR and is not merged,
-   released, loaded or production-verified. The executable order is now recovery-supervisor self-recursion
-   regression and bounded repair proof -> consume the accepted Connector main commit -> remaining explicit
-   non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice. Candidate
-   `5e2275d977` now implements the three-boundary self-exclusion and passes its focused suites plus a copied-live-
-   state probe; main integration, immutable release and production drain/readback remain the current cursor.
-   Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
+   released, loaded or production-verified. PR #5830 then merges the recovery self-recursion repair at
+   `25cd0141f9b867cb15c3538d1d0ad9c78f010894`; complete release `20260924T161321-25cd0141` is active and the
+   supervisor-only loaded-idle apply drains its 14 pending self-intents to zero without increasing the fixed
+   unique total of 22. Exact-SHA wake `9955a84a526f12f2091c451d` is replay-zero. The next authoritative gate sees
+   all 98 mapped jobs and zero missing jobs, but blocks with 95 release mismatches, 87 diagnostically incomplete
+   jobs and 49 unknown-effect jobs because only the supervisor is deliberately loaded on the newest release;
+   all 14 Product Loops remain `uncovered_failure`. The executable order is now remaining explicit non-Paid
+   owner release alignment plus one naturally occurring eligible non-self recovery proof -> consume the
+   accepted Connector main commit when its separate owner publishes it -> authoritative fourteen-loop
+   foundation readback twice. Running owners, pending admission and effect fences remain preserved; revenue
+   remains outside this gate and no artificial production failure is injected for proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

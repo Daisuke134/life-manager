@@ -331,13 +331,18 @@ terminal is then classified into a new recovery intent. Repeated wakes claim tho
 capacity projection correctly fails this mixed state closed. This recovery-owner self-recursion is the current
 cursor; it must be fixed once in the shared healer before any additional per-loop alignment.
 
-Candidate `5e2275d977` prevents new self-intent emission, terminally drains one persisted self-intent per wake
+Source commit `5e2275d977` prevents new self-intent emission, terminally drains one persisted self-intent per wake
 without executing a reconcile or spending budget, and refuses self-reconcile plan construction as a final
 guard. Recovery tests pass 36/36, runner bounds pass 84/84, apply/registry tests pass 202 tests plus 174
 subtests, and foundation/catalog tests pass 65/65. A candidate CLI probe against temporary copies of the live
 queue/journal closes pending self-intent `fa82ab50703c57ea6540cb35b93576f8` as
 `skipped/supervisor_self_recovery_excluded`, appends exactly one journal row and leaves production unchanged.
-PR/CI/main integration and the production drain/readback remain open.
+PR #5830 passes all ten repository checks and merges at
+`25cd0141f9b867cb15c3538d1d0ad9c78f010894`. Complete main-derived release
+`20260924T161321-25cd0141` is active. Supervisor-only loaded-idle reconciliation through `launchctl-safe`
+touches no Paid, Connector or browser owner. Bounded wakes drain pending supervisor self-intents 14 -> 0 while
+the unique total stays 22; final exact-SHA wake `9955a84a526f12f2091c451d` is
+`idle/no_pending_intent` with journal delta zero and self-intent delta zero.
 
 Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
 run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
@@ -387,12 +392,13 @@ browser owner.
 - [x] Diagnose the remaining Self-build failure classification as evaluator drift: three owners are typed, retryable capacity deferrals behind shared FIFO reservations, not broken executions.
 - [x] Integrate the strict capacity-deferral-to-`safely_fenced` projection as PR #5829 at `9503276595fc778740c08b6938325e15e52b548d`; retain fail-closed behavior for mixed failures.
 - [x] Reproduce and fix the shared recovery-supervisor self-recursion in pushed candidate `5e2275d977`: the runner does not enqueue it, one old self-intent becomes terminal skipped per wake, and the plan compiler cannot reconcile it.
-- [ ] Integrate the self-recursion fix through PR/CI/main, cut a complete main-derived immutable release, apply only the loaded-idle supervisor, and prove all existing self-intents drain without creating a new one.
+- [x] Integrate the self-recursion fix through PR/CI/main as PR #5830 at `25cd0141f9b867cb15c3538d1d0ad9c78f010894`, activate complete release `20260924T161321-25cd0141`, apply only the loaded-idle supervisor, drain its pending self-intents 14 -> 0 with the unique total fixed at 22, and prove exact-SHA replay-zero in wake `9955a84a526f12f2091c451d`.
 - [ ] Prove one eligible non-self, non-Paid recovery reaches an authoritative exact-release terminal and replay-zero; preserve the old Connector intent and every effect fence.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; the current pushed `e96e8c422d` has no PR and is not merged/released/loaded/production-verified. Do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
 - [x] Re-read `lm-loop doctor`, `lm-loop status all` and the foundation manifest after current-release wakes: 14/14 observed, missing 0, release mismatch 92, diagnostic incomplete 87, unknown 49. The candidate projects safely fenced 1 and uncovered failure 13; the overall gate correctly remains blocked on the other loops.
 - [x] Re-read after PR #5829 and the natural supervisor failure: 98 mapped jobs observed, missing 0, release mismatch 90, diagnostic incomplete 87 and unknown 49. All 14 loops are uncovered; Self-build is now a real supervisor terminal failure, not evaluator drift.
+- [x] Re-read after PR #5830 and the supervisor replay-zero: 98 mapped jobs observed, missing 0, release mismatch 95, diagnostic incomplete 87 and unknown 49. The newest release is intentionally loaded only for the supervisor, so all 14 loops remain uncovered until the remaining non-Paid owners are aligned and receive current-release diagnostics.
 - [ ] Re-read the same surfaces and recovery journal after each remaining non-Paid Product Loop slice.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
