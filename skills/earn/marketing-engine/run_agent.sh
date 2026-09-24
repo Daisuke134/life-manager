@@ -31,7 +31,7 @@ case "$TASK_CLASS" in
   # Keep this in sync with runtime/agent-runner/config.json.  Capafy's CP1/CP2/CP3
   # browser flow deliberately uses application-lane-agent (3600s); rejecting it
   # here made the bounded drainer fail before the provider could start.
-  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|marketing-agent|high-value-agent) ;;
+  repeatable-agent|tool-agent|browser-lane-agent|application-lane-agent|application-intent-planner|marketing-agent|high-value-agent|self-heal-code-agent) ;;
   *) echo "run_agent.sh: invalid or missing --task-class" >&2; exit 2 ;;
 esac
 [ -n "$EVIDENCE_DIR" ] || { echo "run_agent.sh: missing --evidence-dir" >&2; exit 2; }

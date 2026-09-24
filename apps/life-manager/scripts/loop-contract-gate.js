@@ -5,6 +5,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { readProductLoopCatalog } = require("../lib/product-onboarding.js");
+const {
+  RECOVERY_CLASSES,
+  classifyRecoveryJob,
+} = require("../../../runtime/loop/recovery-class.cjs");
 
 const DEFAULT_REGISTRY = path.resolve(__dirname, "../../../config/loop-registry.json");
 const AVAILABILITIES = new Set(["guided", "ready", "setup_required", "unsupported"]);
@@ -48,7 +52,7 @@ function addError(errors, code, pathValue, detail) {
   errors.push({ code, path: pathValue, detail });
 }
 
-function validateLoopContract({ catalog, registry }) {
+function validateLoopContract({ catalog, registry, recoveryFixtures }) {
   const errors = [];
   const loops = Array.isArray(catalog && catalog.loops) ? catalog.loops : null;
   if (!loops || loops.length === 0) {
@@ -58,6 +62,20 @@ function validateLoopContract({ catalog, registry }) {
 
   const loopIds = new Set();
   const mappedJobs = new Map();
+  const declaredRecoveryClasses = catalog?.recovery_contract?.classes;
+  if (!Array.isArray(declaredRecoveryClasses)
+    || declaredRecoveryClasses.length !== RECOVERY_CLASSES.length
+    || declaredRecoveryClasses.some((item, index) => item !== RECOVERY_CLASSES[index])) {
+    addError(errors, "recovery_contract_invalid", "recovery_contract.classes", "closed class set required");
+  }
+  const fixtureClasses = Array.isArray(recoveryFixtures?.classes)
+    ? recoveryFixtures.classes.map((row) => row?.id) : [];
+  for (const recoveryClass of RECOVERY_CLASSES) {
+    if (fixtureClasses.filter((id) => id === recoveryClass).length !== 1) {
+      addError(errors, "recovery_fixture_missing", `recovery_contract.classes[${recoveryClass}]`,
+        "exactly one retained class fixture is required");
+    }
+  }
   for (const [index, loop] of loops.entries()) {
     const prefix = `loops[${index}]`;
     if (!loop || typeof loop !== "object" || Array.isArray(loop)) {
@@ -88,6 +106,7 @@ function validateLoopContract({ catalog, registry }) {
     if (new Set(loop.job_ids).size !== loop.job_ids.length) {
       addError(errors, "job_ids_duplicate", `${prefix}.job_ids`, "job IDs must be unique per product loop");
     }
+    const observedRecoveryClasses = new Set();
     for (const jobId of loop.job_ids) {
       const jobPath = `${prefix}.job_ids[${jobId}]`;
       const job = registry.loops[jobId];
@@ -96,6 +115,11 @@ function validateLoopContract({ catalog, registry }) {
         continue;
       }
       mappedJobs.set(jobId, (mappedJobs.get(jobId) || 0) + 1);
+      try {
+        observedRecoveryClasses.add(classifyRecoveryJob(job));
+      } catch (error) {
+        addError(errors, "recovery_job_unclassified", jobPath, String(error?.message || error));
+      }
       for (const field of REQUIRED_JOB_FIELDS) {
         if (job[field] === undefined || job[field] === null || job[field] === "") {
           addError(errors, "runtime_job_field_missing", `${jobPath}.${field}`, "required by the shared loop contract");
@@ -108,6 +132,15 @@ function validateLoopContract({ catalog, registry }) {
       if (typeof job.label === "string" && !job.label.startsWith("ai.anicca.")) {
         addError(errors, "label_not_managed", `${jobPath}.label`, job.label);
       }
+    }
+    const declared = Array.isArray(loop.recovery_classes) ? loop.recovery_classes : [];
+    const observed = [...observedRecoveryClasses].sort();
+    if (declared.length === 0
+      || declared.some((item, itemIndex) => !RECOVERY_CLASSES.includes(item)
+        || (itemIndex > 0 && declared[itemIndex - 1] >= item))
+      || JSON.stringify(declared) !== JSON.stringify(observed)) {
+      addError(errors, "recovery_class_mismatch", `${prefix}.recovery_classes`,
+        `declared=${JSON.stringify(declared)} observed=${JSON.stringify(observed)}`);
     }
   }
 
@@ -137,6 +170,10 @@ function validateLoopContract({ catalog, registry }) {
   }
 
   const sharedJobs = [...mappedJobs.entries()].filter(([, count]) => count > 1).map(([id]) => id);
+  for (const jobId of sharedJobs) {
+    addError(errors, "runtime_job_mapped_multiple_times", `job_ids[${jobId}]`,
+      "each runtime job must belong to exactly one Product Loop");
+  }
   return {
     ok: errors.length === 0,
     catalog_loops: loops.length,
@@ -157,9 +194,12 @@ function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   const catalogFile = path.resolve(options.catalog || path.resolve(__dirname, "../config/product-loop-catalog.json"));
   const registryFile = path.resolve(options.registry || DEFAULT_REGISTRY);
+  const catalog = readProductLoopCatalog(catalogFile);
+  const recoveryFixtureFile = path.resolve(__dirname, "../../..", catalog.recovery_contract.fixture);
   const result = validateLoopContract({
-    catalog: readProductLoopCatalog(catalogFile),
+    catalog,
     registry: readRegistry(registryFile),
+    recoveryFixtures: JSON.parse(fs.readFileSync(recoveryFixtureFile, "utf8")),
   });
   const content = `${JSON.stringify(result, null, 2)}\n`;
   if (options.output) writePrivate(path.resolve(options.output), content);

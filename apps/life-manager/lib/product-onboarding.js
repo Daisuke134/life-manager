@@ -6,6 +6,13 @@ const path = require("node:path");
 const DEFAULT_CATALOG = path.resolve(__dirname, "../config/product-loop-catalog.json");
 const HOSTS = new Set(["local", "cloud"]);
 const COMPLETION_STATES = new Set(["verified", "setup_required", "not_applicable", "blocked", "unknown"]);
+const FOUNDATION_STATES = new Set([
+  "healthy", "setup_required", "safely_fenced", "repairing", "uncovered_failure",
+]);
+const FOUNDATION_ACCEPTABLE_STATES = new Set(["healthy", "setup_required", "safely_fenced"]);
+const FOUNDATION_SETUP_BLOCKERS = new Set([
+  "credentials_missing", "host_adapter_pending", "provider_login_required", "setup_required",
+]);
 const COMPLETION_CONTRACT_FIELDS = [
   "goal",
   "context",
@@ -19,6 +26,103 @@ const RELEASE_SHA = /^[a-f0-9]{40}$/iu;
 const RECEIPT_REF = /^[a-z][a-z0-9+.-]*:\/\/\S{1,1024}$/iu;
 const RESOURCE_CLASS = /^[a-z][a-z0-9_.:-]{0,63}$/iu;
 const NOTIFICATION_STATES = new Set(["internal_only", "user_visible", "not_configured"]);
+const ECONOMIC_ROLES = new Set([
+  "customer_revenue", "investment", "financing", "non_economic", "aggregator",
+]);
+const CUSTOMER_REVENUE_CLASSES = new Set(["subscription", "retainer", "recurring_usage", "one_time"]);
+const SOURCE_IMPLEMENTATIONS = new Set(["implemented", "partial", "missing", "not_applicable"]);
+const ADAPTER_ID = /^[a-z][a-z0-9-]{0,127}$/u;
+const RECOVERY_CLASSES = Object.freeze([
+  "browser", "continuous_service", "deterministic", "external_effect_owner",
+  "model", "read_only_external_owner",
+]);
+const RECOVERY_FIXTURE = /^runtime\/loop\/fixtures\/self-heal\/[a-z0-9-]+\.json$/u;
+
+function exactObjectKeys(value, expected, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} invalid`);
+  }
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  if (actual.length !== wanted.length
+    || actual.some((key, index) => key !== wanted[index])) {
+    throw new Error(`${label} invalid`);
+  }
+}
+
+function validateEconomicDeclaration(value) {
+  exactObjectKeys(value, ["role", "revenue_classes", "sources"], "product loop economic declaration");
+  if (!ECONOMIC_ROLES.has(value.role) || !Array.isArray(value.revenue_classes)
+    || new Set(value.revenue_classes).size !== value.revenue_classes.length) {
+    throw new Error("product loop economic declaration invalid");
+  }
+  exactObjectKeys(value.sources, ["funnel", "financial", "cost"], "product loop economic sources");
+  const sources = {};
+  for (const sourceName of ["funnel", "financial", "cost"]) {
+    const source = value.sources[sourceName];
+    exactObjectKeys(source, ["adapter", "implementation"], "product loop economic source");
+    if (!SOURCE_IMPLEMENTATIONS.has(source.implementation)
+      || (source.implementation === "not_applicable") !== (source.adapter === null)
+      || (source.adapter !== null && (typeof source.adapter !== "string" || !ADAPTER_ID.test(source.adapter)))) {
+      throw new Error("product loop economic source invalid");
+    }
+    sources[sourceName] = Object.freeze({ ...source });
+  }
+  const inactive = value.role === "non_economic" || value.role === "aggregator";
+  if (inactive) {
+    if (value.revenue_classes.length !== 0
+      || Object.values(sources).some((source) => source.implementation !== "not_applicable")) {
+      throw new Error("product loop economic source invalid");
+    }
+  } else if (Object.values(sources).some((source) => source.implementation === "not_applicable")) {
+    throw new Error("product loop economic source invalid");
+  }
+  if (value.role === "customer_revenue"
+    && (value.revenue_classes.length === 0
+      || value.revenue_classes.some((item) => !CUSTOMER_REVENUE_CLASSES.has(item)))) {
+    throw new Error("product loop economic revenue class invalid");
+  }
+  if (value.role === "investment"
+    && (value.revenue_classes.length !== 1 || value.revenue_classes[0] !== "realized_investment")) {
+    throw new Error("product loop economic investment class invalid");
+  }
+  if (value.role === "financing"
+    && (value.revenue_classes.length !== 1 || value.revenue_classes[0] !== "fundraising")) {
+    throw new Error("product loop economic financing class invalid");
+  }
+  return Object.freeze({
+    role: value.role,
+    revenue_classes: Object.freeze([...value.revenue_classes]),
+    sources: Object.freeze(sources),
+  });
+}
+
+function validateRecoveryContract(value) {
+  exactObjectKeys(value, ["schema_version", "classes", "fixture"], "product loop recovery contract");
+  if (value.schema_version !== 1
+    || !Array.isArray(value.classes)
+    || value.classes.length !== RECOVERY_CLASSES.length
+    || value.classes.some((item, index) => item !== RECOVERY_CLASSES[index])
+    || typeof value.fixture !== "string"
+    || !RECOVERY_FIXTURE.test(value.fixture)) {
+    throw new Error("product loop recovery contract invalid");
+  }
+  return Object.freeze({
+    schema_version: 1,
+    classes: Object.freeze([...value.classes]),
+    fixture: value.fixture,
+  });
+}
+
+function validateLoopRecoveryClasses(value) {
+  if (!Array.isArray(value) || value.length < 1
+    || new Set(value).size !== value.length
+    || value.some((item) => !RECOVERY_CLASSES.includes(item))
+    || value.some((item, index) => index > 0 && value[index - 1] >= item)) {
+    throw new Error("product loop recovery classes invalid");
+  }
+  return Object.freeze([...value]);
+}
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -27,6 +131,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
     || !Array.isArray(value.loops) || value.loops.length !== 14) {
     throw new Error("product loop catalog invalid");
   }
+  const recoveryContract = validateRecoveryContract(value.recovery_contract);
   const ids = new Set();
   for (const loop of value.loops) {
     if (!loop || typeof loop.id !== "string" || !/^[a-z][a-z0-9-]*$/u.test(loop.id)
@@ -35,6 +140,8 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
       || !Array.isArray(loop.requirements) || !loop.hosts || typeof loop.hosts !== "object") {
       throw new Error("product loop catalog invalid");
     }
+    validateEconomicDeclaration(loop.economic);
+    validateLoopRecoveryClasses(loop.recovery_classes);
     ids.add(loop.id);
     for (const host of HOSTS) {
       const target = loop.hosts[host];
@@ -54,11 +161,16 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
     }
   }
   return Object.freeze({
+    recovery_contract: recoveryContract,
     host_requirements: Object.freeze({
       local: Object.freeze([...value.host_requirements.local]),
       cloud: Object.freeze([...value.host_requirements.cloud]),
     }),
-    loops: Object.freeze(value.loops.map((loop) => Object.freeze(loop))),
+    loops: Object.freeze(value.loops.map((loop) => Object.freeze({
+      ...loop,
+      economic: validateEconomicDeclaration(loop.economic),
+      recovery_classes: validateLoopRecoveryClasses(loop.recovery_classes),
+    }))),
   });
 }
 
@@ -397,6 +509,181 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
   });
 }
 
+function buildProductLoopFoundationManifest(input = {}, options = {}) {
+  const host = String(input.host || "").trim();
+  if (!HOSTS.has(host)) throw new Error("foundation host must be local or cloud");
+  const releaseSha = String(input.release_sha || "").trim();
+  if (!RELEASE_SHA.test(releaseSha)) throw new Error("foundation release sha invalid");
+  const catalog = readProductLoopCatalog(options.catalogFile);
+  const runtimeByJobId = indexRuntimeRows(input.runtime_rows, catalog);
+
+  const loops = catalog.loops.map((catalogLoop) => {
+    const runtimeEvidence = buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha);
+    const observedRows = catalogLoop.job_ids
+      .filter((jobId) => runtimeByJobId.has(jobId))
+      .map((jobId) => runtimeByJobId.get(jobId));
+    const unknownEffectJobIds = catalogLoop.job_ids.filter((jobId) => {
+      const row = runtimeByJobId.get(jobId);
+      return row && row.effect_class !== "none" && row.effect_status === "unknown";
+    });
+    const diagnosticIncompleteJobIds = catalogLoop.job_ids.filter((jobId) => {
+      const row = runtimeByJobId.get(jobId);
+      return row && row.diagnostic_complete !== true;
+    });
+    const repairing = observedRows.some((row) => row.recovery_state === "repairing");
+    const nonPassRows = observedRows.filter((row) => !(
+      row.last_terminal_result === "pass"
+      || (row.desired_mode === "continuous"
+        && row.effect_class === "none"
+        && row.last_terminal_result === "running")
+    ));
+    const setupRequired = nonPassRows.length > 0 && nonPassRows.every((row) => (
+      FOUNDATION_SETUP_BLOCKERS.has(row.blocker)
+    ));
+
+    let state = "healthy";
+    let reason = null;
+    let nextAction = null;
+    if (runtimeEvidence.missing_job_ids.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_evidence_missing";
+      nextAction = "restore_runtime_evidence";
+    } else if (runtimeEvidence.release_mismatch_job_ids.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_release_drift";
+      nextAction = "load_exact_immutable_release";
+    } else if (diagnosticIncompleteJobIds.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_diagnostic_incomplete";
+      nextAction = "collect_structured_diagnosis";
+    } else if (unknownEffectJobIds.length > 0) {
+      state = "safely_fenced";
+      reason = "external_effect_unknown";
+      nextAction = "official_provider_readback_required";
+    } else if (repairing) {
+      state = "repairing";
+      reason = "bounded_recovery_in_progress";
+      nextAction = "await_bounded_recovery";
+    } else if (setupRequired) {
+      state = "setup_required";
+      reason = "runtime_prerequisite_missing";
+      nextAction = "configure_declared_prerequisite";
+    } else if (!runtimeEvidence.runtime_healthy) {
+      state = "uncovered_failure";
+      reason = "runtime_terminal_not_pass";
+      nextAction = "diagnose_failure";
+    }
+    return Object.freeze({
+      id: catalogLoop.id,
+      name: catalogLoop.name,
+      job_ids: Object.freeze([...catalogLoop.job_ids]),
+      host,
+      state,
+      reason,
+      next_action: nextAction,
+      unknown_effect_job_ids: Object.freeze([...unknownEffectJobIds]),
+      diagnostic_incomplete_job_ids: Object.freeze([...diagnosticIncompleteJobIds]),
+      runtime_evidence: runtimeEvidence,
+    });
+  });
+  const counts = Object.fromEntries([...FOUNDATION_STATES].map((state) => [
+    state, loops.filter((loop) => loop.state === state).length,
+  ]));
+  const completion = loops.every((loop) => FOUNDATION_ACCEPTABLE_STATES.has(loop.state));
+  return Object.freeze({
+    schema_version: "product.loop.foundation.v1",
+    host,
+    release_sha: releaseSha,
+    loops: Object.freeze(loops),
+    counts: Object.freeze(counts),
+    completion,
+  });
+}
+
+function evaluateLocalFoundationGate(manifest, options = {}) {
+  const reasons = [];
+  let catalog;
+  try {
+    catalog = readProductLoopCatalog(options.catalogFile);
+  } catch {
+    reasons.push("catalog_invalid");
+  }
+  const validManifest = manifest && typeof manifest === "object" && !Array.isArray(manifest);
+  if (!validManifest) {
+    reasons.push("manifest_invalid");
+  } else {
+    if (manifest.schema_version !== "product.loop.foundation.v1") {
+      reasons.push("manifest_schema_invalid");
+    }
+    if (manifest.host !== "local") reasons.push("host_not_local");
+    if (typeof manifest.release_sha !== "string" || !RELEASE_SHA.test(manifest.release_sha)) {
+      reasons.push("manifest_release_invalid");
+    }
+    if (!Array.isArray(manifest.loops)) {
+      reasons.push("manifest_loops_invalid");
+    } else if (catalog) {
+      const byId = new Map(manifest.loops.map((loop) => [loop && loop.id, loop]));
+      for (const catalogLoop of catalog.loops) {
+        const loop = byId.get(catalogLoop.id);
+        if (!loop) {
+          reasons.push("product_loop_missing");
+          continue;
+        }
+        if (!FOUNDATION_STATES.has(loop.state)) {
+          reasons.push("invalid_foundation_state");
+          continue;
+        }
+        const typed = typeof loop.reason === "string" && loop.reason.trim()
+          && typeof loop.next_action === "string" && loop.next_action.trim();
+        if (loop.state === "healthy") {
+          if (loop.reason !== null || loop.next_action !== null) {
+            reasons.push("healthy_state_not_clear");
+          }
+          if (Array.isArray(loop.unknown_effect_job_ids)
+            && loop.unknown_effect_job_ids.length > 0) {
+            reasons.push("healthy_effect_unknown");
+          }
+          if (!loop.runtime_evidence || loop.runtime_evidence.ready !== true) {
+            reasons.push("healthy_runtime_evidence_incomplete");
+          }
+        } else if (!typed) {
+          reasons.push("untyped_foundation_state");
+        }
+        if (!Array.isArray(loop.unknown_effect_job_ids)) {
+          reasons.push("unknown_effect_jobs_invalid");
+        }
+        if (!Array.isArray(loop.diagnostic_incomplete_job_ids)) {
+          reasons.push("diagnostic_incomplete_jobs_invalid");
+        } else if (loop.diagnostic_incomplete_job_ids.length > 0) {
+          reasons.push("foundation_diagnostic_incomplete");
+        }
+        if (!loop.runtime_evidence
+          || loop.runtime_evidence.missing_job_ids?.length > 0
+          || loop.runtime_evidence.release_mismatch_job_ids?.length > 0) {
+          reasons.push("foundation_runtime_evidence_incomplete");
+        }
+        if (loop.state === "uncovered_failure") reasons.push("uncovered_failure");
+        if (loop.state === "repairing") reasons.push("repair_in_progress");
+      }
+      if (manifest.loops.length !== catalog.loops.length) {
+        reasons.push("manifest_loop_count_mismatch");
+      }
+      const expectedCompletion = manifest.loops.length === catalog.loops.length
+        && manifest.loops.every((loop) => loop && FOUNDATION_ACCEPTABLE_STATES.has(loop.state));
+      if (manifest.completion !== expectedCompletion) reasons.push("manifest_completion_mismatch");
+    }
+  }
+  const uniqueReasons = [...new Set(reasons)];
+  return Object.freeze({
+    schema_version: "product.local.foundation.v1",
+    decision: uniqueReasons.length ? "block" : "pass",
+    host: validManifest && manifest.host === "local" ? "local" : null,
+    release_sha: validManifest && typeof manifest.release_sha === "string"
+      ? manifest.release_sha : null,
+    reasons: Object.freeze(uniqueReasons),
+  });
+}
+
 function buildProductLoopCompletionManifest(input = {}, options = {}) {
   const host = String(input.host || "").trim();
   if (!HOSTS.has(host)) throw new Error("completion host must be local or cloud");
@@ -509,8 +796,10 @@ module.exports = {
   DEFAULT_CATALOG,
   buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
+  buildProductLoopFoundationManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
+  evaluateLocalFoundationGate,
   planProductOnboarding,
   readProductLoopCatalog,
 };

@@ -4,7 +4,12 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const moneytree = require("./moneytree-local-adapter.js");
+const {
+  buildAgentEconomyEconomicSourceBundle,
+} = require("./agent-economy-economic-source.js");
 const { buildMoneytreeObservation } = require("./moneytree-observation-store.js");
+const { buildEconomicSourceCoverage } = require("./economic-source-contract.js");
+const { readProductLoopCatalog } = require("./product-onboarding.js");
 
 async function readJsonl(file) {
   if (!file) return [];
@@ -61,6 +66,9 @@ async function ingestFinancialRecords(options) {
   const recordedAt = now.toISOString();
   const records = [];
   const sources = {};
+  let agentReceipts = [];
+  let agentRevenueRecords = [];
+  let agentRevenueReadState = "not_configured";
 
   try {
     const readAccounts = options.readMoneytreeAccounts || moneytree.readAccounts;
@@ -107,14 +115,21 @@ async function ingestFinancialRecords(options) {
     if (!readAgentReceipts) {
       sources.agentEconomy = "not_configured";
     } else {
-    const receipts = await readAgentReceipts();
-    const adapter = await import("../../../skills/agent-economy/lib/financial-record-adapter.mjs");
-    records.push(...receipts.flatMap((receipt) => (
+      const receipts = await readAgentReceipts();
+      if (!Array.isArray(receipts)) throw new Error("Agent Economy receipts invalid");
+      const adapter = await import("../../../skills/agent-economy/lib/financial-record-adapter.mjs");
+      agentReceipts = receipts;
+      agentRevenueRecords = receipts.flatMap((receipt) => (
         adapter.revenueReceiptToFinancialRecords(receipt, { subjectId })
-      )));
+      ));
+      records.push(...agentRevenueRecords);
+      agentRevenueReadState = "observed";
       sources.agentEconomy = receipts.length ? "observed_verified" : "empty";
     }
   } catch {
+    agentReceipts = [];
+    agentRevenueRecords = [];
+    agentRevenueReadState = "unavailable";
     sources.agentEconomy = "unavailable";
   }
 
@@ -143,7 +158,49 @@ async function ingestFinancialRecords(options) {
     const result = await store.append(record);
     if (result.created) created += 1;
   }
-  return { observed: records.length, created, sources };
+  let agentCostRecords = [];
+  let agentCostReadState = "not_configured";
+  try {
+    const readAgentCosts = options.readAgentEconomyCostRecords
+      || (typeof store.read === "function" ? () => store.read({ subjectId }) : null);
+    if (readAgentCosts) {
+      const rows = await readAgentCosts();
+      if (!Array.isArray(rows)) throw new Error("Agent Economy cost records invalid");
+      agentCostRecords = rows;
+      agentCostReadState = "observed";
+    }
+  } catch {
+    agentCostRecords = [];
+    agentCostReadState = "unavailable";
+  }
+  const agentEconomySources = await buildAgentEconomyEconomicSourceBundle({
+    subjectId, observedAt: recordedAt,
+    revenueReadState: agentRevenueReadState,
+    costReadState: agentCostReadState,
+    receipts: agentReceipts,
+    revenueRecords: agentRevenueRecords,
+    costRecords: agentCostRecords,
+  });
+  const suppliedObservations = options.readEconomicSourceObservations
+    ? await options.readEconomicSourceObservations()
+    : (options.economicSourceObservations || []);
+  const suppliedKeys = new Set(suppliedObservations.map((observation) => (
+    `${observation.product_loop_id}\n${observation.source_kind}`
+  )));
+  const observations = [
+    ...suppliedObservations,
+    ...agentEconomySources.sourceObservations.filter((observation) => (
+      !suppliedKeys.has(`${observation.product_loop_id}\n${observation.source_kind}`)
+    )),
+  ];
+  const catalogLoops = options.productLoops || readProductLoopCatalog(options.catalogFile).loops;
+  const economicSourceCoverage = buildEconomicSourceCoverage({
+    catalogLoops, subjectId, observations,
+  });
+  return {
+    observed: records.length, created, sources, economicSourceCoverage,
+    economicFunnelObservations: agentEconomySources.funnelObservations,
+  };
 }
 
 module.exports = { ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths };

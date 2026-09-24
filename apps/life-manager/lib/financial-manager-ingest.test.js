@@ -10,6 +10,9 @@ const { createJsonlFinancialRecordStore } = require("./financial-record-store.js
 const { ingestFinancialRecords } = require("./financial-manager-ingest.js");
 const { createMoneytreeObservationStore } = require("./moneytree-observation-store.js");
 const { MONEYTREE_OBSERVATION } = require("./moneytree-local-adapter.js");
+const { createX402CostObserver } = require("./x402-cost-observer.js");
+
+function headers(values) { return { get: (name) => values[name.toLowerCase()] || null }; }
 
 test("ingestion projects real provider receipts and appends through the common store", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
@@ -22,6 +25,22 @@ test("ingestion projects real provider receipts and appends through the common s
     terminal_state: "settled", occurred_at: "2026-09-07T01:00:00Z",
     proof: { chain_id: 8453, tx_hash: `0x${"a".repeat(64)}`, log_index: 1, verified: true },
   });
+  const costObserver = createX402CostObserver({
+    store, subjectId: "tenant-1", now: () => "2026-09-07T02:00:00Z",
+  });
+  const costRequirement = Buffer.from(JSON.stringify({
+    resource: { url: "https://blockrun.ai/api/v1/chat/completions" },
+    accepts: [{ amount: "1234", network: "eip155:8453",
+      asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" }],
+  })).toString("base64");
+  const costUrl = "https://blockrun.ai/api/v1/chat/completions";
+  const costBody = JSON.stringify({ model: "test" });
+  await costObserver.observe(costUrl, { body: costBody, headers: {} }, {
+    status: 402, ok: false, headers: headers({ "payment-required": costRequirement }),
+  });
+  await costObserver.observe(costUrl, { body: costBody, headers: { "payment-signature": "signed" } }, {
+    status: 200, ok: true, headers: headers({ "payment-response": "settled-compute-receipt" }),
+  });
   const result = await ingestFinancialRecords({
     store, subjectId: "tenant-1", now: new Date("2026-09-07T02:00:00Z"),
     readMoneytreeAccounts: async () => [],
@@ -31,12 +50,26 @@ test("ingestion projects real provider receipts and appends through the common s
     projectMarketplaceReceipts: async () => [],
   });
 
-  assert.deepEqual(result, {
+  assert.deepEqual({ observed: result.observed, created: result.created, sources: result.sources }, {
     observed: 2, created: 2,
     sources: { moneytree: "observed_unverified", agentEconomy: "observed_verified", marketplace: "empty" },
   });
+  assert.equal(result.economicSourceCoverage.loops.length, 14);
+  assert.equal(result.economicSourceCoverage.subject_id, "tenant-1");
+  assert.equal(result.economicSourceCoverage.complete, false);
+  const agentEconomy = result.economicSourceCoverage.loops.find(
+    (loop) => loop.product_loop_id === "agent-economy",
+  );
+  assert.deepEqual(Object.values(agentEconomy.sources).map((source) => source.state), [
+    "observed_verified", "observed_verified", "observed_verified",
+  ]);
+  assert.deepEqual(result.economicFunnelObservations.map((row) => [
+    row.product_loop_id, row.stage, row.state, row.count,
+  ]), [["agent-economy", "payment", "observed_verified", 1]]);
   const records = await store.read({ subjectId: "tenant-1" });
-  assert.deepEqual(new Set(records.map((row) => row.kind)), new Set(["business_revenue", "fee"]));
+  assert.deepEqual(new Set(records.map((row) => row.kind)), new Set([
+    "business_revenue", "fee", "business_cost",
+  ]));
   assert.equal((await ingestFinancialRecords({
     store, subjectId: "tenant-1", now: new Date("2026-09-07T03:00:00Z"),
     readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],

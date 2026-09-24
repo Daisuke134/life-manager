@@ -16,6 +16,7 @@ test('recovery intent reconciles one owner without mutating an external effect',
   assert.equal(intent.retryable, true);
   assert.equal(intent.mutates_external_effect, false);
   assert.equal(intent.effect_fence, 'not_required');
+  assert.equal(intent.occurrence_id, 'example-loop:run-1');
 });
 
 test('unknown effect is fenced and never retried automatically', () => {
@@ -41,4 +42,17 @@ test('different owners cannot share an intent identity', () => {
   const first = buildRecoveryIntent(base({ owner_id: 'owner-1' }));
   const second = buildRecoveryIntent(base({ owner_id: 'owner-2' }));
   assert.notEqual(first.intent_id, second.intent_id);
+});
+
+test('different occurrences cannot share an intent identity', () => {
+  const first = buildRecoveryIntent(base({ occurrence_id: 'example-loop:occurrence-1' }));
+  const second = buildRecoveryIntent(base({ occurrence_id: 'example-loop:occurrence-2' }));
+  assert.notEqual(first.intent_id, second.intent_id);
+  assert.equal(second.occurrence_id, 'example-loop:occurrence-2');
+});
+
+test('shared runner entrypoint failures use the same bounded classifier', () => {
+  const intent = buildRecoveryIntent(base({ failure_layer: 'entrypoint' }));
+  assert.equal(intent.action, 'reconcile_owner');
+  assert.equal(intent.retryable, true);
 });

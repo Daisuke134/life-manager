@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -10,13 +11,28 @@ const { spawnSync } = require("node:child_process");
 const {
   buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
+  buildProductLoopFoundationManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
+  evaluateLocalFoundationGate,
   planProductOnboarding,
   readProductLoopCatalog,
 } = require("./product-onboarding.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
+
+function healthyFoundationRuntimeRows(catalog, releaseSha) {
+  return catalog.loops.flatMap((loop) => loop.job_ids.map((jobId) => ({
+    loop_id: jobId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+    effect_class: "none",
+    effect_status: "not_applicable",
+    blocker: null,
+    diagnostic_complete: true,
+  })));
+}
 
 test("one catalog describes all 14 public product loops on Local and Cloud", () => {
   const catalog = readProductLoopCatalog();
@@ -34,6 +50,59 @@ test("one catalog describes all 14 public product loops on Local and Cloud", () 
     assert.match(english, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
     assert.match(japanese, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
+});
+
+test("the same fourteen-loop catalog owns exact economic source declarations", () => {
+  const catalog = readProductLoopCatalog();
+  assert.equal(catalog.loops.length, 14);
+  for (const loop of catalog.loops) {
+    assert.deepEqual(Object.keys(loop.economic).sort(), ["revenue_classes", "role", "sources"]);
+    assert.deepEqual(Object.keys(loop.economic.sources).sort(), ["cost", "financial", "funnel"]);
+    for (const source of Object.values(loop.economic.sources)) {
+      assert.deepEqual(Object.keys(source).sort(), ["adapter", "implementation"]);
+      if (source.implementation === "not_applicable") assert.equal(source.adapter, null);
+      else assert.match(source.adapter, /^[a-z][a-z0-9-]+$/u);
+    }
+    assert.equal(Object.isFrozen(loop.economic), true);
+    assert.equal(Object.isFrozen(loop.economic.sources), true);
+  }
+  const fundraiser = catalog.loops.find((loop) => loop.id === "fundraiser");
+  assert.equal(fundraiser.economic.role, "financing");
+  assert.deepEqual(fundraiser.economic.revenue_classes, ["fundraising"]);
+  const nonEconomic = catalog.loops.find((loop) => loop.id === "connector");
+  assert.equal(nonEconomic.economic.role, "non_economic");
+  assert.deepEqual(nonEconomic.economic.revenue_classes, []);
+  assert.equal(catalog.loops.some((loop) => Object.values(loop.economic.sources)
+    .some((source) => source.implementation === "missing")), true);
+});
+
+test("economic source declarations fail closed on extra fields, invalid roles, and MRR financing", (t) => {
+  const original = JSON.parse(fs.readFileSync(
+    path.join(ROOT, "apps/life-manager/config/product-loop-catalog.json"), "utf8",
+  ));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-economic-catalog-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const write = (mutate) => {
+    const value = JSON.parse(JSON.stringify(original));
+    mutate(value);
+    const file = path.join(root, `${crypto.randomUUID()}.json`);
+    fs.writeFileSync(file, JSON.stringify(value));
+    return file;
+  };
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops[0].economic.extra = true;
+  })), /economic/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops[0].economic.role = "money_printer";
+  })), /economic/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops.find((loop) => loop.id === "fundraiser").economic.revenue_classes = ["subscription"];
+  })), /economic|financing/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops.find((loop) => loop.id === "connector").economic.sources.financial = {
+      adapter: "hidden-money", implementation: "implemented",
+    };
+  })), /economic|source/i);
 });
 
 test("the catalog loads from the standalone Cloud application artifact", (t) => {
@@ -1213,6 +1282,181 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("healthy no-revenue runtime passes foundation while commercial completion stays blocked", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "6".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const commercial = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop) => ({
+      id: loop.id,
+      state: "blocked",
+      reason: "official_receipt_required",
+      contract: {},
+    })),
+    runtime_rows: runtimeRows,
+  });
+  const foundation = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+
+  assert.equal(evaluateLocalCompletionGate(commercial).decision, "block");
+  assert.equal(evaluateLocalFoundationGate(foundation).decision, "pass");
+  assert.equal(foundation.schema_version, "product.loop.foundation.v1");
+  assert.equal(foundation.loops.length, 14);
+  assert.equal(foundation.counts.healthy, 14);
+  assert.equal(foundation.completion, true);
+  assert.equal(foundation.loops.every((loop) => loop.reason === null
+    && loop.next_action === null), true);
+});
+
+test("foundation accepts a typed effect fence but never renames it healthy", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "7".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const fencedJobId = catalog.loops[0].job_ids[0];
+  const fenced = runtimeRows.find((row) => row.loop_id === fencedJobId);
+  fenced.last_terminal_result = "blocked";
+  fenced.effect_class = "publish";
+  fenced.effect_status = "unknown";
+  fenced.blocker = "resource_effect_unknown";
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  const row = manifest.loops[0];
+  assert.equal(row.state, "safely_fenced");
+  assert.equal(row.reason, "external_effect_unknown");
+  assert.equal(row.next_action, "official_provider_readback_required");
+  assert.deepEqual(row.unknown_effect_job_ids, [fencedJobId]);
+  assert.equal(evaluateLocalFoundationGate(manifest).decision, "pass");
+
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].state = "healthy";
+  tampered.loops[0].reason = null;
+  tampered.loops[0].next_action = null;
+  const gate = evaluateLocalFoundationGate(tampered);
+  assert.equal(gate.decision, "block");
+  assert.ok(gate.reasons.includes("healthy_effect_unknown"));
+});
+
+test("foundation fails closed on drift, missing jobs, opaque failures and untyped states", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "8".repeat(40);
+  const cases = [
+    {
+      mutate(rows) { rows[0].event_release_sha = "9".repeat(40); },
+      reason: "runtime_release_drift",
+    },
+    {
+      mutate(rows) { rows.shift(); },
+      reason: "runtime_evidence_missing",
+    },
+    {
+      mutate(rows) {
+        rows[0].last_terminal_result = "fail";
+        rows[0].blocker = "entrypoint_exit_1";
+      },
+      reason: "runtime_terminal_not_pass",
+    },
+  ];
+  for (const item of cases) {
+    const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+    item.mutate(runtimeRows);
+    const manifest = buildProductLoopFoundationManifest({
+      host: "local", release_sha: releaseSha, runtime_rows: runtimeRows,
+    });
+    assert.equal(manifest.loops[0].state, "uncovered_failure");
+    assert.equal(manifest.loops[0].reason, item.reason);
+    assert.equal(evaluateLocalFoundationGate(manifest).decision, "block");
+  }
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: healthyFoundationRuntimeRows(catalog, releaseSha),
+  });
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].state = "setup_required";
+  tampered.loops[0].reason = null;
+  tampered.loops[0].next_action = null;
+  tampered.completion = true;
+  const gate = evaluateLocalFoundationGate(tampered);
+  assert.equal(gate.decision, "block");
+  assert.ok(gate.reasons.includes("untyped_foundation_state"));
+});
+
+test("foundation accepts typed setup and blocks an in-progress repair", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "b".repeat(40);
+  const healthy = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: healthyFoundationRuntimeRows(catalog, releaseSha),
+  });
+  const setup = JSON.parse(JSON.stringify(healthy));
+  setup.loops[0].state = "setup_required";
+  setup.loops[0].reason = "credentials_missing";
+  setup.loops[0].next_action = "configure_declared_prerequisite";
+  assert.equal(evaluateLocalFoundationGate(setup).decision, "pass");
+
+  const repairingRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  repairingRows[0].last_terminal_result = "fail";
+  repairingRows[0].blocker = "entrypoint_exit_1";
+  repairingRows[0].recovery_state = "repairing";
+  const repairing = buildProductLoopFoundationManifest({
+    host: "local", release_sha: releaseSha, runtime_rows: repairingRows,
+  });
+  assert.equal(repairing.loops[0].state, "repairing");
+  assert.ok(evaluateLocalFoundationGate(repairing).reasons.includes("repair_in_progress"));
+});
+
+test("foundation keeps an old terminal event visible as an uncovered diagnostic gap", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "c".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  runtimeRows[0].diagnostic_complete = false;
+  runtimeRows[0].diagnostic_missing_fields = ["owner_id", "occurrence_id"];
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local", release_sha: releaseSha, runtime_rows: runtimeRows,
+  });
+  assert.equal(manifest.loops[0].state, "uncovered_failure");
+  assert.equal(manifest.loops[0].reason, "runtime_diagnostic_incomplete");
+  assert.equal(manifest.loops[0].next_action, "collect_structured_diagnosis");
+  assert.deepEqual(manifest.loops[0].diagnostic_incomplete_job_ids,
+    [catalog.loops[0].job_ids[0]]);
+  assert.ok(evaluateLocalFoundationGate(manifest).reasons.includes("uncovered_failure"));
+});
+
+test("local foundation gate CLI writes a private deterministic no-revenue result", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-foundation-cli-"));
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "foundation.json");
+  fs.writeFileSync(runtimePath, JSON.stringify(healthyFoundationRuntimeRows(catalog, releaseSha)));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-foundation-gate.js"),
+    "--release-sha", releaseSha,
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(output.manifest.schema_version, "product.loop.foundation.v1");
+  assert.equal(output.gate.decision, "pass");
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test("each public product loop maps only to existing canonical runtime jobs", () => {
   const catalog = readProductLoopCatalog();
   const registry = JSON.parse(fs.readFileSync(
@@ -1221,6 +1465,7 @@ test("each public product loop maps only to existing canonical runtime jobs", ()
   ));
   const seen = new Set();
   for (const loop of catalog.loops) {
+    assert.ok(Array.isArray(loop.recovery_classes) && loop.recovery_classes.length > 0, loop.id);
     assert.ok(Array.isArray(loop.job_ids) && loop.job_ids.length > 0, loop.id);
     for (const jobId of loop.job_ids) {
       assert.equal(typeof jobId, "string", `${loop.id}: job id type`);

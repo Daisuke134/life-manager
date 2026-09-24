@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "classes": [
+    {
+      "id": "browser",
+      "registry_entry": {"effect_class": "none", "provider_route": "deterministic", "resource_class": "browser", "cadence": {"start_interval_seconds": 300}, "entrypoint": "bin/browser-fixture"},
+      "failure_event": {"loop_id": "fixture-browser", "owner_id": "fixture-browser", "wake_id": "wake-browser", "run_id": "run-browser", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "tool_timeout", "effect_class": "none", "effect_status": "not_applicable", "blocker": "browser_timeout", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-browser/run-browser/summary.json"]},
+      "expected": {"intent_action": "reconcile_owner", "local_queue": true}
+    },
+    {
+      "id": "continuous_service",
+      "registry_entry": {"effect_class": "none", "provider_route": "deterministic", "cadence": {"keep_alive": true}, "entrypoint": "bin/service-fixture"},
+      "failure_event": {"loop_id": "fixture-service", "owner_id": "fixture-service", "wake_id": "wake-service", "run_id": "run-service", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "runtime", "effect_class": "none", "effect_status": "not_applicable", "blocker": "service_exit", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-service/run-service/summary.json"]},
+      "expected": {"intent_action": "reconcile_owner", "local_queue": true}
+    },
+    {
+      "id": "deterministic",
+      "registry_entry": {"effect_class": "none", "provider_route": "deterministic", "cadence": {"start_interval_seconds": 300}, "entrypoint": "bin/deterministic-fixture"},
+      "failure_event": {"loop_id": "fixture-deterministic", "owner_id": "fixture-deterministic", "wake_id": "wake-deterministic", "run_id": "run-deterministic", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "entrypoint", "effect_class": "none", "effect_status": "not_applicable", "blocker": "entrypoint_exit", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-deterministic/run-deterministic/summary.json"]},
+      "expected": {"intent_action": "reconcile_owner", "local_queue": true}
+    },
+    {
+      "id": "external_effect_owner",
+      "registry_entry": {"effect_class": "publish", "provider_route": "shared-agent-runner", "cadence": {"start_interval_seconds": 300}, "entrypoint": "bin/effect-fixture"},
+      "failure_event": {"loop_id": "fixture-effect", "owner_id": "fixture-effect", "wake_id": "wake-effect", "run_id": "run-effect", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "effect_readback", "effect_class": "publish", "effect_status": "unknown", "blocker": "effect_unknown", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-effect/run-effect/summary.json"]},
+      "expected": {"intent_action": "hold_effect_unknown", "local_queue": true}
+    },
+    {
+      "id": "model",
+      "registry_entry": {"effect_class": "none", "provider_route": "shared-agent-runner", "cadence": {"start_interval_seconds": 300}, "entrypoint": "bin/model-fixture"},
+      "failure_event": {"loop_id": "fixture-model", "owner_id": "fixture-model", "wake_id": "wake-model", "run_id": "run-model", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "brain_transport", "effect_class": "none", "effect_status": "not_applicable", "blocker": "model_transport", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-model/run-model/summary.json"]},
+      "expected": {"intent_action": "reconcile_owner", "local_queue": true}
+    },
+    {
+      "id": "read_only_external_owner",
+      "registry_entry": {"priority": "critical_paid", "effect_class": "money", "provider_route": "shared-agent-runner", "cadence": {"start_interval_seconds": 300}, "entrypoint": "skills/earn/fixture/scripts/paid-owner"},
+      "failure_event": {"loop_id": "fixture-paid", "owner_id": "fixture-paid", "wake_id": "wake-paid", "run_id": "run-paid", "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "fail", "failure_layer": "effect_readback", "effect_class": "money", "effect_status": "unknown", "blocker": "effect_unknown", "consecutive_failure_streak": 1, "threshold": 3, "evidence_refs": ["lm-loop://fixture-paid/run-paid/summary.json"]},
+      "expected": {"intent_action": "hold_effect_unknown", "local_queue": false}
+    }
+  ]
+}

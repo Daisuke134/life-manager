@@ -95,6 +95,10 @@ mkdir "$LOCK_DIR" 2>/dev/null || {
 }
 trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
 
+node "$HERE/recovery-self-build-bridge.js" >&2 || {
+  log "recovery outcome bridge failed; continuing with an already-open issue"
+}
+
 ISSUES_JSON="$STATE/issues.json"
 if [ -n "${LM_DEV_ISSUE_NUMBER:-}" ]; then
   gh issue view "$LM_DEV_ISSUE_NUMBER" -R "$REPO" \
@@ -135,6 +139,29 @@ if [ -z "$NUM" ]; then
 fi
 TITLE="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).title || ""))' "$CHOSEN")"
 BODY="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).body || ""))' "$CHOSEN")"
+RECOVERY_PR_MARKER=""
+RECOVERY_CLASS_MARKER=""
+case "$BODY" in
+  *"<!-- lm-recovery:"*)
+    RECOVERY_PR_MARKER="[lm-recovery-self-heal]"
+    RECOVERY_CLASS_MARKER="$(node - "$BODY" "$LIFE_MANAGER_REPO/config/loop-registry.json" "$LIFE_MANAGER_REPO/runtime/loop/recovery-class.cjs" <<'NODE'
+const fs = require("node:fs");
+const [body, registryPath, classifierPath] = process.argv.slice(2);
+const owner = String(body || "").match(/^owner_id: ([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$/m)?.[1];
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const entry = owner && registry?.loops?.[owner];
+if (!entry) process.exit(2);
+const { classifyRecoveryJob } = require(classifierPath);
+process.stdout.write(`[lm-recovery-class:${classifyRecoveryJob(entry)}]`);
+NODE
+)" || {
+      log "recovery owner cannot be classified; no candidate will be produced"
+      record "$NUM" "" "recovery_class_unresolved"
+      write_result "failed" "recovery_class_unresolved" "$NUM"
+      exit 1
+    }
+    ;;
+esac
 log "picked issue #$NUM: $TITLE"
 
 BRANCH="${LM_DEV_BRANCH:-feature/lm-dev-$NUM}"
@@ -158,11 +185,11 @@ else
   fi
 fi
 
-PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Current production funnel focus: $METRIC_FOCUS. Work only inside apps/life-manager. Use test-driven development: add a failing regression test first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, production providers, or any path outside apps/life-manager. Commit the complete apps/life-manager change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, or deploy; the caller performs those steps after independent full test/eval gates."
+PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Current production funnel focus: $METRIC_FOCUS. Work only inside apps/life-manager and runtime/loop. Use test-driven development: add a failing retained regression fixture first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, policy, external-effect owners, the recovery control plane, the foundation evaluator, this producer, the reviewer, or the merge guard. Commit the complete allowed change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, deploy, or change production; the guarded caller performs promotion after independent review, test, canary, health and rollback gates."
 AGENT_OUT="$LOG_DIR/life-manager-dev-agent-last.out"
 EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/life-manager-dev-$NUM/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | "$RUN_AGENT" \
-  --task-class high-value-agent \
+  --task-class self-heal-code-agent \
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label "life-manager-dev-$NUM" \
   --loop "life-manager-dev" \
@@ -177,6 +204,45 @@ if [ "$AGENT_RC" -ne 0 ]; then
   exit 1
 fi
 
+PREFLIGHT_JSON="$(node - "$APP_DIR/lib/dev-merge-guard.js" "$APP_DIR/lib/self-build-daily.js" "$WT" <<'NODE'
+const { execFileSync } = require("node:child_process");
+const [guardPath, selfBuildPath, worktree] = process.argv.slice(2);
+const { classifyChangedPath, isRetainedRegressionFixture, parseNameStatus } = require(guardPath);
+const { SELF_BUILD_PROTECTED_PATHS } = require(selfBuildPath);
+const git = (args) => String(execFileSync("git", ["-C", worktree, ...args], { encoding: "utf8" }) || "");
+const files = new Set();
+for (const args of [
+  ["diff", "--name-status", "-M", "origin/main...HEAD"],
+  ["diff", "--name-status", "-M", "HEAD"],
+  ["diff", "--cached", "--name-status", "-M", "HEAD"],
+]) {
+  for (const file of parseNameStatus(git(args))) files.add(file);
+}
+const untracked = execFileSync(
+  "git", ["-C", worktree, "ls-files", "-z", "--others", "--exclude-standard"],
+);
+for (const file of untracked.toString("utf8").split("\0").filter(Boolean)) files.add(file);
+const changed = [...files];
+const denied = changed.map((file) => ({ file, verdict: classifyChangedPath(file, {
+  protectedPaths: SELF_BUILD_PROTECTED_PATHS,
+}) })).filter(({ verdict }) => !verdict.allowed && !verdict.conditional);
+if (!changed.length || denied.length || !changed.some(isRetainedRegressionFixture)) {
+  process.stderr.write(JSON.stringify({ changed, denied, regression_fixture: changed.some(isRetainedRegressionFixture) }));
+  process.exit(1);
+}
+process.stdout.write(JSON.stringify({
+  changed,
+  runtime_changed: changed.some((file) => file.startsWith("runtime/loop/")),
+}));
+NODE
+)" || {
+  log "candidate path/regression preflight RED; no test execution or PR"
+  record "$NUM" "" "candidate_preflight_red"
+  write_result "failed" "candidate_preflight_red" "$NUM"
+  exit 1
+}
+RUNTIME_CHANGED="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).runtime_changed ? "1" : "0")' "$PREFLIGHT_JSON")"
+
 TEST_LOG="$LOG_DIR/life-manager-dev-test-last.out"
 if ! (
   cd "$WT/apps/life-manager"
@@ -185,6 +251,11 @@ if ! (
   npm test
   npm run eval
   npm run eval:panel-privacy
+  if [ "$RUNTIME_CHANGED" = "1" ]; then
+    cd "$WT"
+    node --test runtime/loop/__tests__/*.test.mjs
+    python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
+  fi
 ) > "$TEST_LOG" 2>&1; then
   log "test/eval gate RED; no PR"
   record "$NUM" "" "test_red"
@@ -193,7 +264,7 @@ if ! (
 fi
 log "test/eval gate GREEN"
 
-git -C "$WT" add apps/life-manager
+git -C "$WT" add apps/life-manager runtime/loop
 if ! git -C "$WT" diff --cached --quiet; then
   git -C "$WT" commit -m "fix(life-manager): resolve feedback issue #$NUM"
 fi
@@ -216,6 +287,10 @@ Unattended canonical Life Manager D0 pass. Full app tests and every eval passed 
 [lm-metric-focus:$METRIC_FOCUS]
 
 [lm-dev-loop]
+
+$RECOVERY_PR_MARKER
+
+$RECOVERY_CLASS_MARKER
 
 That marker is machine-readable provenance, not decoration. The daily self-build pass
 (apps/life-manager/scripts/self-build-daily.js, LOOP_PR_MARKER) hands a PR to the unattended merge

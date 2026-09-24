@@ -221,6 +221,11 @@ test("the self-build orchestrator's own sources are protected the same way", () 
   assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/lib/self-build-daily.js"));
   assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/scripts/self-build-daily.js"));
   assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/scripts/dev-adversary-review.js"));
+  assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/lib/recovery-self-build-bridge.js"));
+  assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/scripts/recovery-self-build-bridge.js"));
+  assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/scripts/life-manager-dev-d0.sh"));
+  assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/lib/product-onboarding.js"));
+  assert.ok(SELF_BUILD_PROTECTED_PATHS.includes("apps/life-manager/scripts/local-foundation-gate.js"));
 });
 
 
@@ -306,6 +311,7 @@ const { parseArgs: parseGuardArgs } = require("../scripts/dev-merge-guard.js");
 const { readGuardProgress, writeGuardProgress } = require("./dev-merge-guard.js");
 
 const D0_SCRIPT = path.join(APP_DIR, "scripts/life-manager-dev-d0.sh");
+const RUN_AGENT_SCRIPT = path.join(REPO_DIR, "skills/earn/marketing-engine/run_agent.sh");
 
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "lm-10f-review-"));
@@ -642,7 +648,15 @@ test("the loop-authored branch pattern is pinned to what the producer actually c
 
 test("the producer stamps its PR body with the loop marker the consumer matches on", () => {
   const d0 = fs.readFileSync(D0_SCRIPT, "utf8");
+  const runAgent = fs.readFileSync(RUN_AGENT_SCRIPT, "utf8");
   assert.ok(d0.includes(LOOP_PR_MARKER), `${D0_SCRIPT} must write ${LOOP_PR_MARKER} into the PR body`);
+  assert.ok(d0.includes("[lm-recovery-self-heal]"));
+  assert.ok(d0.includes("[lm-recovery-class:"));
+  assert.match(d0, /candidate path\/regression preflight RED/);
+  assert.match(d0, /git -C "\$WT" add apps\/life-manager runtime\/loop/);
+  assert.match(d0, /--task-class self-heal-code-agent/);
+  assert.match(d0, /ls-files[\s\S]*--others[\s\S]*--exclude-standard/);
+  assert.match(runAgent, /(?:^|\|)self-heal-code-agent(?:\||\))/);
 });
 
 

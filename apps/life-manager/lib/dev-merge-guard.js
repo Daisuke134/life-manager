@@ -34,6 +34,9 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const {
+  evaluateRecoveryPromotion,
+} = require("../../../runtime/loop/recovery-class.cjs");
 
 
 const REPO = "Daisuke134/life-manager";
@@ -69,6 +72,8 @@ const GUARD_STAGES = Object.freeze([
 ]);
 
 const DEFAULT_AUTHORS = Object.freeze(["Daisuke134"]);
+const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
+const RECOVERY_CLASS_MARKER = /\[lm-recovery-class:([a-z_]+)\]/g;
 
 // The loop names its branches `feature/lm-dev-<issue>` (real: PR #1094 -> feature/lm-dev-1090,
 // PR #1095 -> feature/lm-dev-1089). `fix/...` is accepted for hand-shaped error fixes.
@@ -81,6 +86,7 @@ const ALLOWED_DIRECTORIES = Object.freeze([
   ["apps/life-manager/lib/", "allow:lib"],
   ["apps/life-manager/test/", "allow:test"],
   ["apps/life-manager/scripts/", "allow:scripts"],
+  ["runtime/loop/", "allow:runtime-loop"],
 ]);
 
 // The guard may not be modified by the machinery it guards. Without this, the takeover is two
@@ -92,6 +98,17 @@ const ALLOWED_DIRECTORIES = Object.freeze([
 const GUARD_SELF_PATHS = Object.freeze([
   /^apps\/life-manager\/lib\/dev-merge-guard/,
   /^apps\/life-manager\/scripts\/dev-merge-guard/,
+  /^apps\/life-manager\/lib\/self-build-daily/,
+  /^apps\/life-manager\/scripts\/self-build-daily/,
+  /^apps\/life-manager\/lib\/recovery-self-build-bridge/,
+  /^apps\/life-manager\/scripts\/recovery-self-build-bridge/,
+  /^apps\/life-manager\/scripts\/life-manager-dev-d0\.sh$/,
+  /^apps\/life-manager\/lib\/product-onboarding/,
+  /^apps\/life-manager\/scripts\/local-foundation-gate/,
+  /^runtime\/loop\/lm_loop\.py$/,
+  /^runtime\/loop\/lm_loop_run\.py$/,
+  /^runtime\/loop\/runtime_event\.py$/,
+  /^runtime\/loop\/recovery-/,
 ]);
 
 const CONDITIONAL_MANIFEST = "apps/life-manager/package.json";
@@ -124,6 +141,16 @@ const BLOCKED_ACTIONS = Object.freeze([
     // rolled back by any deploy, so it can never be introduced by machinery that self-merges.
     rationale: "On-chain transfers cannot be reverted by a redeploy, so they never self-merge.",
     pattern: /\b(?:wallet\.transfer|sendTransaction|sendRawTransaction|eth_sendRawTransaction|signTransaction|transferFrom|sendUserOperation)\s*\(/,
+  }),
+  Object.freeze({
+    action: "direct_main_promotion",
+    rationale: "A candidate may push only its feature branch and must never merge or update main around the guard.",
+    pattern: /(?:\bgit\s+push\b[^\n]*\bmain\b|["'`]git["'`][^\n]*["'`]push["'`][^\n]*["'`]origin["'`][^\n]*["'`]main["'`]|\bgh\s+pr\s+merge\b|["'`]gh["'`][^\n]*["'`]pr["'`][^\n]*["'`]merge["'`])/,
+  }),
+  Object.freeze({
+    action: "direct_deploy",
+    rationale: "A candidate may not deploy itself; only the guarded promotion stage owns deployment and rollback.",
+    pattern: /(?:\brailway\s+(?:up|redeploy|deploy)\b|["'`]railway["'`][^\n]*["'`](?:up|redeploy|deploy)["'`])/,
   }),
 ]);
 
@@ -290,6 +317,20 @@ function evaluatePackageJsonChange(before, after) {
   return { allowed: reasons.length === 0, reasons };
 }
 
+function isRetainedRegressionFixture(file) {
+  const value = String(file || "");
+  return /^runtime\/loop\/tests\/test_[^/]+\.py$/.test(value)
+    || /^runtime\/loop\/__tests__\/[^/]+\.test\.mjs$/.test(value)
+    || /^apps\/life-manager\/test\/[^/]+\.test\.js$/.test(value)
+    || /^apps\/life-manager\/(?:lib|scripts)\/[^/]+\.test\.js$/.test(value);
+}
+
+function recoveryClassFromBody(body) {
+  const found = [...String(body || "").matchAll(RECOVERY_CLASS_MARKER)].map((match) => match[1]);
+  if (found.length !== 1) return null;
+  return found[0];
+}
+
 
 function evaluateEligibility(pr, options = {}) {
   const authors = options.allowedAuthors || DEFAULT_AUTHORS;
@@ -322,6 +363,18 @@ function evaluateEligibility(pr, options = {}) {
   const gitFiles = Array.isArray(options.changedFiles) ? options.changedFiles.map(String) : null;
   const files = gitFiles ?? ghFiles;
   if (files.length === 0) reasons.push("no_changed_files");
+  if (String(value.body || "").includes(RECOVERY_PR_MARKER)) {
+    if (!files.some(isRetainedRegressionFixture)) reasons.push("regression_fixture_missing");
+    // runtime/loop repairs cannot inherit the app guard's Railway-only deploy check. The class
+    // policy stays fail-closed until a separate runtime promotion path actually invokes every
+    // immutable-release/canary/exact-health/rollback hook. A boolean cannot waive this boundary.
+    const recoveryClass = recoveryClassFromBody(value.body);
+    if (!recoveryClass) reasons.push("recovery_class_missing");
+    else {
+      const promotion = evaluateRecoveryPromotion(recoveryClass, options.recoveryPromotionHooks);
+      if (!promotion.eligible) reasons.push(promotion.reason);
+    }
+  }
 
   const crossCheck = {
     gh_count: ghFiles.length,
@@ -1096,6 +1149,7 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
         protectedPaths: options.protectedPaths,
         expectHead: options.expectHead,
         changedFiles,
+        recoveryPromotionEnabled: options.recoveryPromotionEnabled,
       });
       const reasons = [...eligibility.reasons];
       if (changedFiles === null) reasons.push("changed_files_unreadable");
@@ -1399,6 +1453,8 @@ module.exports = {
   HEALTH_URL,
   GUARD_STAGES,
   BLOCKED_ACTIONS,
+  RECOVERY_PR_MARKER,
+  RECOVERY_CLASS_MARKER,
   BRANCH_PATTERNS,
   ROLLBACK_MUTATION,
   GUARD_SELF_PATHS,
@@ -1408,6 +1464,8 @@ module.exports = {
   classifyChangedPath,
   evaluatePackageJsonChange,
   evaluateEligibility,
+  isRetainedRegressionFixture,
+  recoveryClassFromBody,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,

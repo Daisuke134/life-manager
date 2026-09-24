@@ -18,9 +18,10 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
-    _persist_effect_identity, _resource_class,
+    _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
-    _terminal_outcome, _verified_effect_result, main as lm_loop_run_main,
+    _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
+    main as lm_loop_run_main,
 )
 from runtime.loop.runtime_event import build_runtime_event
 
@@ -1007,6 +1008,7 @@ def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
 def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)
+    (release / "apps/life-manager/config").mkdir(parents=True)
     (release / "config/loop-registry.json").write_text(json.dumps({
         "loops": {"life-manager-honne-ja": {
             "label": "ai.anicca.life-manager-honne-ja",
@@ -1019,6 +1021,9 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     }), encoding="utf-8")
     (release / "RELEASE.json").write_text(json.dumps({
         "sha": "a" * 40,
+    }), encoding="utf-8")
+    (release / "apps/life-manager/config/product-loop-catalog.json").write_text(json.dumps({
+        "loops": [{"id": "mobile-apps", "job_ids": ["life-manager-honne-ja"]}],
     }), encoding="utf-8")
     events = []
 
@@ -1038,17 +1043,117 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     with (patch.dict(os.environ, {
               "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
               "LIFE_MANAGER_RUN_ID": "run-1",
+              "WAKE_ID": "wake-1",
           }, clear=False),
           patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
           patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/true"]),
           patch("runtime.loop.lm_loop_run._run_admitted", side_effect=run_admitted),
           patch("runtime.loop.lm_loop_run.append_runtime_event",
-                side_effect=lambda _path, event: events.append(event))):
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent") as enqueue):
         assert lm_loop_run_main(["life-manager-honne-ja", str(release)]) == 0
 
     assert events[-1]["status"] == "pass"
     assert events[-1]["effect_status"] == "verified"
     assert events[-1]["evidence_refs"][-1] == "postiz://posts/postiz-post-1"
+    assert events[-1]["product_loop_id"] == "mobile-apps"
+    assert events[-1]["job_id"] == "life-manager-honne-ja"
+    assert events[-1]["owner_id"] == "life-manager-honne-ja"
+    assert events[-1]["wake_id"] == "wake-1"
+    assert events[-1]["occurrence_id"] == "life-manager-honne-ja:run-1"
+    assert events[-1]["exit_code"] == 0
+    assert events[-1]["failure_layer"] == "clean"
+    assert events[-1]["error_class"] is None
+    assert events[-1]["retryable"] is False
+    assert events[-1]["next_action"] == "none"
+    assert events[-1]["provider_receipt_id"] == "postiz-post-1"
+    assert events[-1]["official_readback_ref"] == "postiz://posts/postiz-post-1"
+    assert len(events[-1]["loaded_argv_sha256"]) == 64
+    assert len(events[-1]["loaded_env_sha256"]) == 64
+    enqueue.assert_not_called()
+
+
+def test_shared_runner_failure_emits_one_exact_recovery_intent(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "config/loop-registry.json").write_text(json.dumps({
+        "loops": {"example": {
+            "label": "ai.anicca.example", "domain": "system",
+            "entrypoint": "bin/example", "provider_route": "deterministic",
+            "effect_class": "none", "state_root": str(tmp_path / "unused-state"),
+        }},
+    }), encoding="utf-8")
+    (release / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}), encoding="utf-8")
+    events = []
+
+    def fail(_command, _entry, _loop_id, _env, receipt, **_kwargs):
+        receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+        receipt.chmod(0o600)
+        return 1
+
+    with (patch.dict(os.environ, {
+              "LIFE_MANAGER_STATE_ROOT": str(tmp_path / "state"),
+              "LIFE_MANAGER_RUN_ID": "run-1",
+          }, clear=False),
+          patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+          patch("runtime.loop.lm_loop_run.build_loop_command", return_value=["/bin/false"]),
+          patch("runtime.loop.lm_loop_run._run_admitted", side_effect=fail),
+          patch("runtime.loop.lm_loop_run.append_runtime_event",
+                side_effect=lambda _path, event: events.append(event)),
+          patch("runtime.loop.lm_loop_run._enqueue_recovery_intent", return_value=True) as enqueue):
+        assert lm_loop_run_main(["example", str(release)]) == 1
+
+    enqueue.assert_called_once()
+    queued_event = enqueue.call_args.args[1]
+    assert queued_event["status"] == "fail"
+    assert queued_event["owner_id"] == "example"
+    assert queued_event["occurrence_id"] == "example:run-1"
+    assert queued_event["release_sha"] == "a" * 40
+
+
+def test_recovery_enqueue_is_replay_zero_and_fences_unknown_effect(tmp_path):
+    queue = tmp_path / "recovery" / "intents.jsonl"
+    event = build_runtime_event(
+        loop_id="affiliate-loop", domain="growth", run_id="run-1",
+        release_sha="a" * 40, provider="deterministic", profile_alias=None,
+        effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+        exit_code=1,
+    )
+    with patch.dict(os.environ, {"LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(queue)}):
+        assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
+        assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
+    rows = [json.loads(line) for line in queue.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["record_type"] == "recovery_intent"
+    assert rows[0]["occurrence_id"] == "affiliate-loop:run-1"
+    assert rows[0]["action"] == "hold_effect_unknown"
+    assert rows[0]["retryable"] is False
+    assert rows[0]["mutates_external_effect"] is False
+
+
+def test_recovery_enqueue_skips_success_admission_and_paid_owned_jobs():
+    failed = build_runtime_event(
+        loop_id="example", domain="system", run_id="run-1", release_sha="a" * 40,
+        provider="deterministic", profile_alias=None, effect_class="none",
+        succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+    )
+    admitted = build_runtime_event(
+        loop_id="example", domain="system", run_id="run-2", release_sha="a" * 40,
+        provider="deterministic", profile_alias=None, effect_class="none",
+        succeeded=False, deferred=True, blocker="host_admission_deferred:resource_capacity_busy",
+        exit_code=75,
+    )
+    succeeded = build_runtime_event(
+        loop_id="example", domain="system", run_id="run-3", release_sha="a" * 40,
+        provider="deterministic", profile_alias=None, effect_class="none",
+        succeeded=True, blocker=None, exit_code=0,
+    )
+    assert _should_enqueue_recovery_intent({"priority": "support"}, failed)
+    assert not _should_enqueue_recovery_intent({"priority": "support"}, admitted)
+    assert not _should_enqueue_recovery_intent({"priority": "support"}, succeeded)
+    assert not _should_enqueue_recovery_intent({
+        "priority": "critical_paid", "entrypoint": "skills/earn/gig/scripts/paid-direct-owner",
+    }, failed)
 
 
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):

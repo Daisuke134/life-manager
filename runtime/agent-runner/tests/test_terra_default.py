@@ -63,6 +63,9 @@ class TerraDefaultTest(unittest.TestCase):
                 if name == "writer-repair-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "profile_alias": "acct1"}]
+                if name == "self-heal-code-agent":
+                    expected = [{"provider": "codex", "model": "gpt-5.6-terra",
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "affiliate-marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "high", "profile_alias": "acct2"}]
@@ -86,9 +89,19 @@ class TerraDefaultTest(unittest.TestCase):
                 if name not in {
                     "paid-owner-agent", "escalation-agent", "codex-brain-agent",
                     "affiliate-marketing-agent", "affiliate-escalation-agent",
+                    "self-heal-code-agent",
                 } and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
+
+    def test_self_heal_code_route_is_codex_only(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            config["task_classes"]["self-heal-code-agent"]["candidates"],
+            [{"provider": "codex", "model": "gpt-5.6-terra",
+              "effort": "medium", "profile_alias": "acct1"}],
+        )
 
     def test_paid_route_resolves_each_codex_account_once(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"

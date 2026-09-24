@@ -10,6 +10,7 @@ from runtime.loop.lm_loop import (
     _last_event, _release_from_plist, _state_root_from_plist,
     doctor_report, snapshot, status_rows,
 )
+from runtime.loop.runtime_event import build_runtime_event
 
 
 REGISTRY = {"schema_version": 2, "loops": {"example": {
@@ -23,6 +24,55 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_status_exposes_complete_diagnostic_contract_and_catalog_product(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="application",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+            product_loop_id=None, job_id="example", owner_id="example",
+            wake_id="wake-1", claimed_occurrence_id="example:occurrence-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+            product_by_job={"example": "connector"},
+        )[0]
+        self.assertTrue(row["diagnostic_complete"])
+        self.assertEqual(row["diagnostic_missing_fields"], [])
+        self.assertEqual(row["product_loop_id"], "connector")
+        self.assertEqual(row["job_id"], "example")
+        self.assertEqual(row["owner_id"], "example")
+        self.assertEqual(row["run_id"], "run-1")
+        self.assertEqual(row["wake_id"], "wake-1")
+        self.assertEqual(row["occurrence_id"], "example:occurrence-1")
+        self.assertEqual(row["loaded_argv_sha256"], "c" * 64)
+        self.assertEqual(row["loaded_env_sha256"], "d" * 64)
+        self.assertEqual(row["exit_code"], 1)
+        self.assertEqual(row["failure_layer"], "entrypoint")
+        self.assertEqual(row["error_class"], "entrypoint_exit_1")
+        self.assertFalse(row["retryable"])
+        self.assertEqual(row["next_action"], "official_readback_required")
+        self.assertEqual(row["evidence_refs"], event["evidence_refs"])
+
+    def test_old_event_remains_visible_but_diagnostic_is_incomplete(self):
+        event = {
+            "timestamp": "2026-08-28T00:00:00Z", "status": "pass",
+            "release_sha": "b" * 40, "effect_status": "not_applicable",
+            "blocker": None, "run_id": "old-run", "phase": "report",
+            "evidence_refs": ["lm-loop://example/old-run/summary.json"],
+        }
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+            product_by_job={"example": "connector"},
+        )[0]
+        self.assertFalse(row["diagnostic_complete"])
+        self.assertIn("owner_id", row["diagnostic_missing_fields"])
+        self.assertEqual(row["product_loop_id"], "connector")
+        self.assertEqual(row["job_id"], "example")
+        self.assertEqual(row["run_id"], "old-run")
+
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
                   "effect_status": "unknown", "blocker": "provider_capacity",

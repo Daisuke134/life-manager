@@ -1,3 +1,7 @@
+import recoveryClass from './recovery-class.cjs';
+
+const { classifyRecoveryJob } = recoveryClass;
+
 const ACTIONS_WITHOUT_EXECUTION = new Set([
   'no_action',
   'hold_effect_unknown',
@@ -22,17 +26,24 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
   }
   const loopId = required(intent.loop_id, 'loop_id');
   const ownerId = required(intent.owner_id, 'owner_id');
+  const occurrenceId = required(intent.occurrence_id, 'occurrence_id');
   const intentId = required(intent.intent_id, 'intent_id');
   const releaseSha = required(intent.release_sha, 'release_sha');
   const action = required(intent.action, 'action');
   const entry = registry.loops[loopId];
   if (!entry || typeof entry !== 'object') throw new Error(`recovery loop not in registry: ${loopId}`);
+  if (ownerId !== loopId) throw new Error('recovery owner identity mismatch');
+  if (!occurrenceId.startsWith(`${loopId}:`)) throw new Error('recovery occurrence identity mismatch');
+  if (classifyRecoveryJob(entry) === 'read_only_external_owner') {
+    throw new Error('recovery paid owner excluded');
+  }
   if (ACTIONS_WITHOUT_EXECUTION.has(action)) {
     return Object.freeze({
       schema_version: 1,
       intent_id: intentId,
       loop_id: loopId,
       owner_id: ownerId,
+      occurrence_id: occurrenceId,
       release_sha: releaseSha,
       action,
       execute: false,
@@ -47,6 +58,7 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
     intent_id: intentId,
     loop_id: loopId,
     owner_id: ownerId,
+    occurrence_id: occurrenceId,
     release_sha: releaseSha,
     action,
     execute: true,

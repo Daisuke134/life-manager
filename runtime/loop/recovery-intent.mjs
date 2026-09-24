@@ -3,7 +3,10 @@ import { createHash } from 'node:crypto';
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const SAFE_REF = /^[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9._:/-]{1,512}$/u;
 const EFFECT_BEARING = new Set(['publish', 'message', 'money', 'application', 'trade', 'account_mutation']);
-const FAILURE_LAYERS = new Set(['clean', 'brain_transport', 'tool_missing', 'tool_timeout', 'tool_logic', 'unknown']);
+const FAILURE_LAYERS = new Set([
+  'clean', 'admission', 'entrypoint', 'effect_readback', 'runtime',
+  'brain_transport', 'tool_missing', 'tool_timeout', 'tool_logic', 'unknown',
+]);
 
 function safeId(value, field) {
   if (typeof value !== 'string' || !SAFE_ID.test(value)) throw new Error(`invalid ${field}`);
@@ -31,6 +34,8 @@ export function buildRecoveryIntent(input = {}) {
   const ownerId = safeId(input.owner_id, 'owner_id');
   const wakeId = safeId(input.wake_id, 'wake_id');
   const runId = safeId(input.run_id, 'run_id');
+  const occurrenceId = safeId(input.occurrence_id || `${loopId}:${runId}`, 'occurrence_id');
+  if (!occurrenceId.startsWith(`${loopId}:`)) throw new Error('invalid occurrence_id');
   const releaseSha = safeId(input.release_sha, 'release_sha');
   const failureLayer = input.failure_layer == null ? 'unknown' : String(input.failure_layer);
   if (!FAILURE_LAYERS.has(failureLayer)) throw new Error('invalid failure_layer');
@@ -47,6 +52,7 @@ export function buildRecoveryIntent(input = {}) {
   }
   const evidenceRefs = refs(input.evidence_refs || []);
   const base = { loop_id: loopId, owner_id: ownerId, wake_id: wakeId, run_id: runId,
+    occurrence_id: occurrenceId,
     release_sha: releaseSha, failure_layer: failureLayer, effect_class: effectClass,
     effect_status: effectStatus, blocker, evidence_refs: evidenceRefs };
 
@@ -81,6 +87,7 @@ export function buildRecoveryIntent(input = {}) {
     owner_id: ownerId,
     wake_id: wakeId,
     run_id: runId,
+    occurrence_id: occurrenceId,
     release_sha: releaseSha,
     action,
     reason,

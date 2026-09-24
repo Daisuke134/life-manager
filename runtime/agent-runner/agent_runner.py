@@ -1194,7 +1194,7 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
         command.extend(["-o", str(result_path)])
         for image in getattr(args, "image", []) or []:
             command.extend(["--image", str(image)])
-        if args.task_class == "writer-repair-agent":
+        if args.task_class in {"writer-repair-agent", "self-heal-code-agent"}:
             command.extend([
                 "--sandbox", "workspace-write",
                 "-c", "sandbox_workspace_write.exclude_slash_tmp=true",

@@ -368,6 +368,19 @@
         }
       ]
     },
+    "self-heal-code-agent": {
+      "route": "self-heal-isolated-code-repair",
+      "token_reservation": 65536,
+      "timeout_seconds": 900,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
     "affiliate-marketing-agent": {
       "route": "affiliate-terra-high-strategy",
       "requires_explicit_escalation": true,

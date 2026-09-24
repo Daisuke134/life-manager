@@ -240,6 +240,13 @@ test("the self-build sources are handed to the guard as protected paths, so the 
       { allowed: false, rule: "deny:guard-self" },
     );
   }
+  for (const required of [
+    "apps/life-manager/lib/recovery-self-build-bridge.js",
+    "apps/life-manager/scripts/recovery-self-build-bridge.js",
+    "apps/life-manager/scripts/life-manager-dev-d0.sh",
+    "apps/life-manager/lib/product-onboarding.js",
+    "apps/life-manager/scripts/local-foundation-gate.js",
+  ]) assert.ok(seenProtected.includes(required), `${required} must be protected`);
 });
 
 

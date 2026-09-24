@@ -4,12 +4,19 @@
     "local": ["telegram_credentials"],
     "cloud": []
   },
+  "recovery_contract": {
+    "schema_version": 1,
+    "classes": ["browser", "continuous_service", "deterministic", "external_effect_owner", "model", "read_only_external_owner"],
+    "fixture": "runtime/loop/fixtures/self-heal/recovery-classes.json"
+  },
   "loops": [
     {
       "id": "gig-coconala",
       "job_ids": ["hf-gig-apply-direct", "hf-gig-apply-evidence-gc", "hf-gig-browser", "hf-gig-daily-report", "hf-gig-paid-direct", "hf-gig-reply-detector", "hf-gig-storefront-direct"],
       "name": "Gig — Coconala",
       "description": "Find, apply, negotiate, deliver, reconcile, and report Coconala work.",
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"coconala-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["coconala_account", "work_profile", "telegram"],
       "hosts": {
         "local": {"availability": "guided", "command": ["./install.sh", "coconala"]},
@@ -21,6 +28,8 @@
       "job_ids": ["lancers-revenue-application", "lancers-revenue-browser", "lancers-revenue-negotiate", "lancers-revenue-paid", "lancers-revenue-storefront", "lancers-revenue-telegram-report", "lancers-revenue-work-sync"],
       "name": "Gig — Lancers",
       "description": "Run the shared earning lifecycle for Lancers and reconcile applications, paid work, delivery, and reporting.",
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"lancers-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["lancers_account", "work_profile", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -32,6 +41,8 @@
       "job_ids": ["crowdworks-revenue-application", "crowdworks-revenue-browser", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"],
       "name": "Gig — CrowdWorks",
       "description": "Apply to suitable CrowdWorks projects and report evidence-backed outcomes.",
+      "recovery_classes": ["continuous_service", "external_effect_owner", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"crowdworks-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"marketplace-financial-record","implementation":"implemented"},"cost":{"adapter":"marketplace-financial-record","implementation":"implemented"}}},
       "requirements": ["crowdworks_account", "work_profile", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -43,6 +54,8 @@
       "job_ids": ["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"],
       "name": "Writer",
       "description": "Find paid writing work, respond, and record publisher and payment receipts.",
+      "recovery_classes": ["external_effect_owner", "model"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer","subscription"],"sources":{"funnel":{"adapter":"writer-demand-receipt","implementation":"implemented"},"financial":{"adapter":"writer-money-sync","implementation":"partial"},"cost":{"adapter":"writer-money-sync","implementation":"partial"}}},
       "requirements": ["publisher_account", "provider_credentials", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -54,6 +67,8 @@
       "job_ids": ["affiliate-browser", "affiliate-composition", "affiliate-impact-browser", "affiliate-loop", "affiliate-source-refresh", "affiliate-x-browser"],
       "name": "Affiliate",
       "description": "Find and publish attributable affiliate opportunities through an owned browser path.",
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","recurring_usage"],"sources":{"funnel":{"adapter":"affiliate-money-funnel","implementation":"implemented"},"financial":{"adapter":"affiliate-commission-financial-record","implementation":"missing"},"cost":{"adapter":"affiliate-cost-financial-record","implementation":"missing"}}},
       "requirements": ["affiliate_account", "provider_credentials", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -65,6 +80,8 @@
       "job_ids": ["alpaca-investment-live"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"investment","revenue_classes":["realized_investment"],"sources":{"funnel":{"adapter":"investment-order-reconciliation","implementation":"implemented"},"financial":{"adapter":"investment-financial-record","implementation":"partial"},"cost":{"adapter":"investment-financial-record","implementation":"partial"}}},
       "requirements": ["alpaca_credentials", "investment_mode"],
       "hosts": {
         "local": {"availability": "guided", "command": ["python3", "skills/alpaca-investment/run.py"]},
@@ -76,6 +93,8 @@
       "job_ids": ["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"],
       "name": "Agent Economy",
       "description": "Create an isolated citizen wallet and track agent revenue and receipt-gated compute cost without owner funds.",
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "model"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","recurring_usage"],"sources":{"funnel":{"adapter":"agent-economy-revenue-receipt","implementation":"implemented"},"financial":{"adapter":"agent-economy-financial-record","implementation":"implemented"},"cost":{"adapter":"x402-cost-observer","implementation":"implemented"}}},
       "requirements": [],
       "hosts": {
         "local": {"availability": "guided", "command": ["./install.sh"]},
@@ -87,6 +106,8 @@
       "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
       "name": "Job Hunter",
       "description": "Discover and submit qualified job applications, then reconcile confirmations and replies.",
+      "recovery_classes": ["deterministic", "external_effect_owner", "read_only_external_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["one_time","retainer"],"sources":{"funnel":{"adapter":"job-hunter-funnel-receipt","implementation":"partial"},"financial":{"adapter":"marketplace-financial-record","implementation":"partial"},"cost":{"adapter":"marketplace-financial-record","implementation":"partial"}}},
       "requirements": ["resume", "job_preferences", "gmail", "telegram", "provider_logins"],
       "hosts": {
         "local": {"availability": "guided", "command": ["./install.sh", "job-hunter"]},
@@ -98,6 +119,8 @@
       "job_ids": ["fundraiser"],
       "name": "Fundraiser",
       "description": "Find eligible accelerators, fellowships, grants, and investor intakes and apply with verified product context.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"financing","revenue_classes":["fundraising"],"sources":{"funnel":{"adapter":"fundraiser-application-receipt","implementation":"implemented"},"financial":{"adapter":"fundraiser-financial-record","implementation":"missing"},"cost":{"adapter":"fundraiser-financial-record","implementation":"missing"}}},
       "requirements": ["applicant_profile", "telegram", "provider_login_when_required"],
       "hosts": {
         "local": {"availability": "guided", "command": ["./install.sh", "fundraiser"]},
@@ -109,6 +132,8 @@
       "job_ids": ["life-manager-connector-native"],
       "name": "Connector",
       "description": "Find eligible events, register, verify the outcome, and report Calendar and Telegram receipts.",
+      "recovery_classes": ["browser"],
+      "economic": {"role":"non_economic","revenue_classes":[],"sources":{"funnel":{"adapter":null,"implementation":"not_applicable"},"financial":{"adapter":null,"implementation":"not_applicable"},"cost":{"adapter":null,"implementation":"not_applicable"}}},
       "requirements": ["calendar", "telegram", "provider_login_when_required"],
       "hosts": {
         "local": {"availability": "guided", "command": ["./install.sh", "connector"]},
@@ -120,6 +145,8 @@
       "job_ids": ["life-manager-dev", "life-manager-selfbuild", "self-improve-evolve"],
       "name": "Self-Build / Product Improvement",
       "description": "Turn verified user feedback and product evidence into reviewed Life Manager improvements.",
+      "recovery_classes": ["deterministic", "model"],
+      "economic": {"role":"customer_revenue","revenue_classes":["subscription","recurring_usage"],"sources":{"funnel":{"adapter":"stripe-subscription-receipt","implementation":"partial"},"financial":{"adapter":"stripe-financial-record","implementation":"missing"},"cost":{"adapter":"life-manager-cost-financial-record","implementation":"missing"}}},
       "requirements": ["repository_access", "development_agent", "review_credentials", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -131,6 +158,8 @@
       "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-anicca-obou-instagram", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics"],
       "name": "Mobile App Loops",
       "description": "Create, build, release, improve, market, measure, and reconcile mobile app products through one shared lifecycle.",
+      "recovery_classes": ["continuous_service", "external_effect_owner"],
+      "economic": {"role":"customer_revenue","revenue_classes":["subscription","one_time","recurring_usage"],"sources":{"funnel":{"adapter":"revenuecat-funnel-receipt","implementation":"implemented"},"financial":{"adapter":"app-store-financial-record","implementation":"missing"},"cost":{"adapter":"mobile-product-cost-financial-record","implementation":"missing"}}},
       "requirements": ["mobile_opportunity"],
       "hosts": {
         "local": {"availability": "guided", "command": ["node", "apps/life-manager/scripts/mobile-product-bootstrap.js", "--opportunity-file", "opportunity.json"]},
@@ -142,6 +171,8 @@
       "job_ids": ["capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor"],
       "name": "Capafy",
       "description": "Operate Capafy's product, sales, outcome, and audience-growth workflows.",
+      "recovery_classes": ["deterministic", "model"],
+      "economic": {"role":"customer_revenue","revenue_classes":["subscription","one_time","recurring_usage"],"sources":{"funnel":{"adapter":"capafy-company-receipt","implementation":"implemented"},"financial":{"adapter":"capafy-financial-record","implementation":"missing"},"cost":{"adapter":"capafy-financial-record","implementation":"missing"}}},
       "requirements": ["capafy_account", "publication_profile", "public_guided_installer"],
       "hosts": {
         "local": {"availability": "setup_required", "command": null},
@@ -153,6 +184,8 @@
       "job_ids": ["life-manager-cfo-hourly", "life-manager-financial-report", "life-manager-payout"],
       "name": "CFO",
       "description": "Reconcile verified revenue, balances, cash flow, payouts, and financial reports across earning loops.",
+      "recovery_classes": ["external_effect_owner"],
+      "economic": {"role":"aggregator","revenue_classes":[],"sources":{"funnel":{"adapter":null,"implementation":"not_applicable"},"financial":{"adapter":null,"implementation":"not_applicable"},"cost":{"adapter":null,"implementation":"not_applicable"}}},
       "requirements": [],
       "hosts": {
         "local": {"availability": "guided", "command": ["bash", "skills/cfo/run.sh"]},
