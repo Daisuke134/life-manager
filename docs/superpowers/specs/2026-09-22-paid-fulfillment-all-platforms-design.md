@@ -3203,3 +3203,38 @@ not convert a transient pass or a no-op into client completion.
 7. Run the final all-platform acceptance gate only after every Paid owner has
    fresh provider readback and replay-zero. Therefore **not all gig platforms
    are complete yet**.
+
+## Runtime Cursor — 2026-09-24 14:10 JST (resource recovery step)
+
+- The disk governor completed a scoped allow-listed sweep with `errors=0`,
+  `protected_deletions=0`, and `reclaimed=6407` bytes; Data-volume headroom is
+  about `2.4GiB` free. The disk-cleanup owner was restarted through canonical
+  `lm-loop start` and has no effect fence.
+- Coconala `hf-gig-paid-direct` was stopped canonically after a three-minute
+  effect-none wake held the admission lock while its child remained in
+  `launchctl-safe print`. It is `unloaded/pid=null`; Ryu's last official
+  message and `completed/4/0/3/0/0` readback are unchanged, with no send.
+- CrowdWorks and Lancers Paid owners were stopped canonically after their old
+  release kernels stalled in browser connect/attach. Their latest durable
+  results remain `ok/5/1/0/4/1/0` and `ok/0/0/0/0/0/0`; no provider effect was
+  issued. Their `effect_unknown` fences remain closed.
+- Mercor Paid's latest result remains pending on the stale official snapshot;
+  Mercor Reply remains deferred by its existing effect fence. No direct
+  reply-owner invocation or Gmail mutation was performed.
+- The four historical effect-unknown rows are unchanged
+  (`claimed/effect_unknown=1`). The stop/recovery step changed only launchd
+  desired state; it did not edit admission state or release any fence.
+
+### Next one-by-one cursor
+
+1. Let the disk-cleanup owner finish one natural pass and verify durable
+   headroom/control writes.
+2. Keep the green PR open; obtain exact evidence for all four historical
+   fences before merge or immutable release.
+3. After the release gate is satisfied, apply the branch and bring up one Paid
+   owner at a time, starting with CrowdWorks, verifying loaded SHA, natural
+   readback, no blank-target growth, and replay-zero before the next owner.
+4. Then resume CrowdWorks `63568785` only when admissible material arrives,
+   refresh Mercor through its admitted owner, handle the first funded Lancers
+   contract, and finish fleet acceptance. Coconala/Ryu stays manual-only;
+   Upwork stays disabled.

@@ -2988,3 +2988,34 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    Coconala client work is safe, but system release/fleet acceptance remains
    open; CrowdWorks and Mercor have pending gates; Lancers has no funded
    contract; Upwork is unauthorized/disabled.
+
+### Runtime checkpoint — 2026-09-24 14:10 JST (resource recovery step)
+
+- [x] Disk governor completed a scoped allow-listed sweep: `errors=0`,
+  `protected_deletions=0`, `reclaimed=6407` bytes; free space is about
+  `2.4GiB`. Disk-cleanup owner was restarted canonically.
+- [x] Coconala Paid was canonically stopped after an effect-none wake held the
+  admission lock while stalled in `launchctl-safe print`; it is now
+  `unloaded/pid=null`. Ryu was not resent and its `completed/4/0/3/0/0`
+  readback is unchanged.
+- [x] CrowdWorks and Lancers Paid were canonically stopped after old-release
+  browser connect/attach stalls. Their durable readbacks remain
+  `ok/5/1/0/4/1/0` and `ok/0/0/0/0/0/0`; no provider effect occurred.
+- [x] Mercor Paid remains pending on the stale official snapshot; Mercor Reply
+  remains behind its existing effect fence. No Gmail mutation was attempted.
+- [x] Four historical `claimed/effect_unknown=1` rows remain untouched; no
+  DB edit, fence release, retry, or resend occurred.
+
+### Remaining TODO (current ordered cursor)
+
+1. Verify one natural disk-cleanup pass and durable headroom/control writes.
+2. Keep PR #5820 green/open and obtain exact evidence for all four historical
+   fences before merge or immutable release.
+3. Apply one immutable release only after the external gate, then start Paid
+   owners one by one (CrowdWorks first), checking loaded SHA, natural
+   readback, blank-target stability, and replay-zero at each step.
+4. Wait for CrowdWorks `63568785` material, then complete its delivery chain;
+   refresh Mercor through its admitted owner and handle the first funded
+   Lancers ContractReceipt.
+5. Finish final fleet acceptance; keep Coconala/Ryu manual-only and Upwork
+   disabled. All platforms are still not complete.
