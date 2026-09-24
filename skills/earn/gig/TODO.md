@@ -2161,3 +2161,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Continue waiting for Coconala buyer artifacts, CrowdWorks `63568785`
   buyer material, and a funded Lancers contract; submit only after the
   provider-specific quality and official-receipt gates pass.
+
+### Paid fulfillment checkpoint — 2026-09-24 09:15 JST
+
+- [x] Coconala launchd-owned natural run passed on SHA `07f76049`: 4 observed,
+  0 actionable, 0 effects, 3 official readbacks; Ryu stayed manual-only.
+- [x] CrowdWorks launchd-owned natural run passed: 5 observed, 4 readbacks,
+  and `63568785` remains pending because buyer task material is absent.
+- [x] Lancers launchd-owned natural run passed with zero observed contracts;
+  the current provider snapshot has no funded ContractReceipt.
+- [x] Confirmed no provider effect was performed without a real artifact,
+  and the failed direct Lancers invocation had no external effect because it
+  lacked launchd's managed environment.
+- [ ] Keep the canonical launchd owners running; resolve transient host
+  ENOSPC/admission contention before the next artifact-bearing wake, then
+  capture provider receipt and replay-zero for the first real effect.

@@ -1831,3 +1831,25 @@ clicked again.
   buyer message appears, read the whole room, fix/read back the requested
   change, and send exactly one ordinary reply. Until then, continue with the
   provider cursors below; do not invent an artifact or send a placeholder.
+
+## Production Cursor — 2026-09-24 09:15 JST
+
+- **Coconala natural run:** the installed main-derived SHA
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75` completed `pass` after the
+  launchd-owned run finished. The official snapshot is
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`; Ryu remains
+  `reserved_for_owner` and the other three rooms remain `awaiting_buyer`.
+- **CrowdWorks natural run:** the same SHA completed `pass` with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`. Work `63568785`
+  is still `buyer_task_detail_required`; no permitted buyer artifact exists,
+  so no submission was attempted.
+- **Lancers natural run:** the same SHA completed `pass` with
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`. The current
+  provider snapshot exposes no funded `ContractReceipt`; no delivery effect
+  was attempted. Directly invoking the entrypoint without launchd's managed
+  environment is invalid and produced no provider effect.
+- **Host boundary:** concurrent loop wakes intermittently hit ENOSPC and
+  admission fences while writing temporary receipts, but no external effect
+  occurred. The canonical launchd owners remain the only valid production
+  execution path; keep the historical effect-unknown fences intact and do not
+  retry an uncertain provider effect.
