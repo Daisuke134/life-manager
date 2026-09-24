@@ -3502,3 +3502,37 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    funded-contract policy, provider receipt, idempotency, settlement
    readback, and replay-zero before enablement; then run final fleet
    acceptance. A loaded/no-op loop is not completion.
+
+### Runtime checkpoint — 2026-09-24 16:20 JST (SQLite admission lock fix)
+
+- [x] Reproduced the shared SQLite lock with a real exclusive writer. The
+  admission `_database()` `timeout=0` was the immediate root cause of transient
+  `database is locked` failures; a five-second bounded wait now passes the new
+  regression test.
+- [x] Dedicated-branch verification: lock regression PASS, `runtime/host/tests`
+  `161 passed`, and `./bin/lm-loop-contract` PASS (`14/167/97`, no shared IDs).
+- [x] Reply occurrence `crowdworks-revenue-reply:18d7e99bfeab14a8-32195` had
+  exact pre-effect proof and was released internally to
+  `released/effect_unknown=0`; no provider effect or client send occurred.
+- [ ] Reply occurrence `crowdworks-revenue-reply:18d7e9e255e339a8-34620` has
+  exact pre-effect proof but remains `claimed/effect_unknown=1` because a
+  concurrent `life-manager-anicca-he` process holds the shared DB. Do not kill,
+  restart, or edit the DB; recheck ownership/readback before resolving.
+- [ ] The timeout fix is not yet in the installed immutable production release;
+  promotion and a natural wake remain pending. The old Paid unknown occurrence
+  stays fenced and must not be force-retried.
+
+### Remaining TODO (authoritative ordered cursor, 16:20 JST)
+
+1. [ ] Commit/push and promote the SQLite bounded-wait fix through the immutable
+   release gate; verify a natural CrowdWorks wake.
+2. [ ] Reconcile remaining Reply/Report occurrences one by one using exact
+   pre-effect proof, official readback, and replay-zero.
+3. [ ] Preserve the CrowdWorks Application receipt and keep canonical Paid
+   occurrence `18d62cf32eb0c678-48194` fenced until exact proof exists.
+4. [ ] Finish the remaining Ryu scope and Coconala Reply/Storefront acceptance,
+   natural wake, four-room readback, and replay-zero with Ryu manual-only.
+5. [ ] Advance Lancers then Mercor one owner at a time; review the reported
+   `unsupported_claim` policy after the active cursor.
+6. [ ] Register/verify Freelancer and Upwork Paid owners, then run final
+   cross-platform acceptance. Loaded/no-op is not a client delivery.

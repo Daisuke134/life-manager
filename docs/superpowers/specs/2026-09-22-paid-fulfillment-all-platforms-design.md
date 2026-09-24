@@ -3861,3 +3861,44 @@ not convert a transient pass or a no-op into client completion.
 6. Register and verify Freelancer/Upwork Paid owners before enablement, then
    run final cross-platform acceptance. A loaded/no-op loop is not a client
    delivery and seven-week monitoring is not a completion gate.
+
+## Runtime Status Refresh — 2026-09-24 16:20 JST (SQLite admission lock fix)
+
+- [x] Root cause was reproduced with a real SQLite `BEGIN EXCLUSIVE` holder:
+  admission `_database()` used `timeout=0`, so a transient writer lock failed
+  immediately instead of waiting. The regression test failed before the fix and
+  passes after changing the bounded connection timeout to five seconds.
+- [x] Verification passes on the dedicated branch: the new lock regression,
+  all `runtime/host/tests` (`161 passed`), and `./bin/lm-loop-contract`
+  (`catalog_loops=14`, `registry_jobs=167`, `mapped_jobs=97`, no shared IDs).
+- [x] Exact pre-effect proof for Reply occurrence
+  `crowdworks-revenue-reply:18d7e99bfeab14a8-32195` was reconciled internally;
+  its ledger row is now `released/effect_unknown=0`. No provider call, reply,
+  resend, or client submission occurred.
+- [ ] The next Reply occurrence
+  `crowdworks-revenue-reply:18d7e9e255e339a8-34620` has verified pre-effect
+  evidence but remains `claimed/effect_unknown=1`; its resolve was blocked by a
+  concurrent `life-manager-anicca-he` process holding the shared admission DB.
+  Do not kill/restart that process or edit the DB directly; retry only after a
+  read-only lock/owner check.
+- [ ] The five-second fix is committed only on the dedicated branch and is not
+  yet in the installed immutable production release. Promote it only after the
+  normal release acceptance gate, then obtain a natural wake; do not force-retry
+  the old CrowdWorks Paid unknown occurrence.
+
+### Next one-by-one cursor (16:20 JST)
+
+1. Commit/push the SQLite bounded-wait fix and promote it through the immutable
+   release gate; then verify a natural CrowdWorks wake.
+2. Reconcile the remaining Reply/Report occurrences one at a time with exact
+   pre-effect proof, official readback, and replay-zero; keep unknown fences
+   closed during DB contention.
+3. Keep the canonical CrowdWorks Paid occurrence
+   `18d62cf32eb0c678-48194` closed until exact proof exists; preserve the
+   verified Application receipt and never replay the proposal.
+4. Complete the remaining Ryu scope and Coconala acceptance (Reply/Storefront,
+   natural wake, four-room official readback, replay-zero) with Ryu manual-only.
+5. Advance Lancers then Mercor one owner at a time; review the reported
+   `unsupported_claim` policy after the active cursor.
+6. Register/verify Freelancer and Upwork Paid owners and run final fleet
+   acceptance. A loaded/no-op loop is not a delivery.
