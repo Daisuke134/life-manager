@@ -3110,7 +3110,21 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    unique total of 22. Exact-SHA wake `9955a84a526f12f2091c451d` is replay-zero. The next authoritative gate sees
    all 98 mapped jobs and zero missing jobs, but blocks with 95 release mismatches, 87 diagnostically incomplete
    jobs and 49 unknown-effect jobs because only the supervisor is deliberately loaded on the newest release;
-   all 14 Product Loops remain `uncovered_failure`. The executable order is now remaining explicit non-Paid
+   all 14 Product Loops remain `uncovered_failure`. The next bounded slice reuses the existing admission and
+   reconciliation components for the Capafy goal-monitor family. PR #5831 adds the missing explicit admission
+   contract, PR #5832 enables the existing queued/reserved-wake coalescing, and PR #5833 extends the same
+   contract to daily-close and hourly. PR #5834 closes a shared claimed-only stale-fence gap by invoking the
+   existing `clear_no_effect_unknown()` primitive only for a loaded-idle owner declared `effect_class=none`
+   after admission returns `not_queued`; effectful, running and unloaded owners remain fail-closed. Main
+   `5b8e3c3bba65a99938e30fa43e79dd9716e9433f` and complete immutable release
+   `20260924T170628-5b8e3c3b` are active. All three monitors read back that exact SHA with complete diagnostics,
+   typed retryable `resource_capacity_busy`, `effect_status=not_applicable`, admission unknown zero and stable
+   repeated-wake queue counts of 34/12/190. No queue row, effect fence or provider state is manually edited.
+   The authoritative gate is now 98 observed, zero missing, 93 release mismatches, 84 diagnostically incomplete
+   jobs and 49 unknown-effect jobs. Capafy's remaining release-drift owners are
+   `capafy-ig-account-manager`, `capafy-ig-marketing-daily`, `capafy-loop-daily`, `capafy-loop-healthcheck` and
+   `capafy-outcome-monitor`; the next cursor is the safest effect-free, non-browser owner among those, before
+   account or marketing automation. The executable order is now remaining explicit non-Paid
    owner release alignment plus one naturally occurring eligible non-self recovery proof -> consume the
    accepted Connector main commit when its separate owner publishes it -> authoritative fourteen-loop
    foundation readback twice. Running owners, pending admission and effect fences remain preserved; revenue
