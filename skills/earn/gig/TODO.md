@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 05:40 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
+## Current cursor — 2026-09-25 05:54 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -13,6 +13,17 @@ the current private receipt store and official snapshots. Upwork returns
 `authorization_missing/inventory_incomplete/funded_contract_missing`, with
 all eight lifecycle actions missing. The readiness/transport implementation is
 present and test-covered; it does not create provider credentials or contracts.
+
+At `2026-09-25 05:51–05:52 JST` I rechecked the required BrowserSkill boundary
+before attempting either provider: `bsk browsers --json` and
+`bsk session list --json` both returned empty arrays, and a bounded
+`bsk session start --json --no-focus` timed out after 8 seconds without a
+session. No profile was substituted, no raw-CDP fallback was used, and no
+Freelancer/Upwork page or provider effect was touched. The next external step
+is therefore still an account-bound BrowserSkill lease (or an official OAuth
+receipt), not loop registration. Upwork's three read-only receipts remain
+valid only until `2026-09-25T17:30:28Z`; the five mutation actions remain
+explicitly denied.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with
