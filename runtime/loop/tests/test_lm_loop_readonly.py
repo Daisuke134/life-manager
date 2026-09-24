@@ -1,8 +1,10 @@
 import unittest
 import json
+import os
 import subprocess
 import tempfile
 import plistlib
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -305,6 +307,97 @@ class LmLoopReadonlyTest(unittest.TestCase):
             event = _last_event(str(root), "browser", running_pid="123")
 
             self.assertEqual(event, running)
+
+    def test_status_projects_active_continuous_harness_failure(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            harness = {
+                "ts": int(time.time()), "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1,
+                "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner",
+                    "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "fail")
+            self.assertEqual(row["failure_layer"], "runtime")
+            self.assertEqual(row["error_class"], "tool_missing")
+            self.assertTrue(row["retryable"])
+            self.assertEqual(row["next_action"], "reconcile_owner")
+            self.assertEqual(row["blocker"], "harness_failure:tool_missing")
+            self.assertTrue(row["latest_harness_failure"]["active"])
+
+    def test_status_keeps_harness_failure_as_history_after_clean_wake(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            now = int(time.time())
+            harness = {
+                "ts": now - 2, "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1, "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner", "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            ledger = {"ts": now, "wake_id": "wake-success", "kind": "wake"}
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            ledger_path = state / "ledger.jsonl"
+            ledger_path.write_text(json.dumps(ledger) + "\n", encoding="utf-8")
+            os.chmod(ledger_path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "running")
+            self.assertEqual(row["failure_layer"], "clean")
+            self.assertFalse(row["latest_harness_failure"]["active"])
 
     def test_last_event_rejects_running_event_for_different_process(self):
         with tempfile.TemporaryDirectory() as directory:

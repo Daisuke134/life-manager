@@ -39,9 +39,10 @@ flowchart LR
   `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
   収益や自然provider eventを待たず、次のloop sliceへ進みます。
 - main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
-  三つを別々に判定します。今回の readback 時点の `current` は
-  `403e272eb615951b7a125006e2e5797cf28c4b7b` ですが、
-  Writer、CFO、Job Hunter の一部は旧 release のままで、foundation acceptance には数えません。
+  三つを別々に判定します。最新readbackの`current` selectorは
+  `1657972036bddc842682108334e5d30b5e48defe`ですが、Agent Economyは
+  `403e272eb615951b7a125006e2e5797cf28c4b7b`、Writer、CFO、Job Hunterの一部は別の旧releaseのままで、
+  foundation acceptanceには数えません。
 - Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
   入っています。`writer-opportunity-response` の pre-effect FIFO occurrence は archive proof で
   resolved 済みです。`writer-report` は、保存済み ID 89203–89206 が provider 側の実 ID と一致しない
@@ -52,15 +53,25 @@ flowchart LR
   `diagnostic_complete=true`、`admission_effect_unknown=false`、entrypoint 前の typed
   `resource_capacity_busy` です。これは Writer slice の exact-release acceptance であり、全14 loop gateの
   replay-zeroを代替しません。
-- Agent Economy は current `403e272eb615951b7a125006e2e5797cf28c4b7b` へ再バインドされ、diagnostic は
+- Agent Economy は loaded `403e272eb615951b7a125006e2e5797cf28c4b7b` へ再バインドされ、diagnostic は
   complete です。直前の BlockRun HTTP 429 は既存の3回 retry後に `wake_error/brain_transport` として
   ledger/harness-failuresへ記録され、opaque successにはなっていません。fresh run は `gpt-5.6-terra` で
-  起動していますが、trade/payment/revenue receiptはありません。CFO と Job Hunter の effectful/unknown
-  ownerは同じく fenceを維持し、盲目的に再送しません。
+  起動していますが、trade/payment/revenue receiptはありません。さらに同じownerのtaskmarket wakeで
+  release-local CLIの`ENOENT`が発生し、recovery intent
+  `f5a0b9a428ef34544c7471443819e585`が保存されています。Supervisorは`release_sha_mismatch`を理由に
+  `escalate_owner`へ安全に停止し、推測replayを行っていません。branch-only status candidateは連続PIDの
+  `running`を健康とみなさず、同一run/releaseのharness failureを`latest_harness_failure`へ投影します。
+  後続のclean `wake`/`narrate`でactiveを解除しますが、証跡は保持します。CFO と Job Hunter の
+  effectful/unknown ownerは同じくfenceを維持し、盲目的に再送しません。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
   宣言し、registry/rendered-fixture 86 testsをPASSしました。main/currentへの反映と本番readbackは未完です。
+- `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
+  `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
+  `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
+  wakeは履歴だけを残してactiveを解除します。RED→GREEN 2 tests、readonly 22 tests、registry/apply 210
+  testsはPASSしましたが、sourceはbranch-onlyであり、main/release/production acceptanceは未完です。
 - release export/GC は履歴上 `ENOSPC` を継続しており、Data volume の空きは約 4.5 GB でも安定した cut の
   headroom を証明できていません。保護された release、runtime state、他ownerの worktree を推測削除せず、
   release/cleanup owner の診断を foundation blocker として記録します。

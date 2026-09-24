@@ -49,6 +49,7 @@ PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
 })
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
+MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
 
 
 def _event_epoch(value: object) -> float:
@@ -86,6 +87,129 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
+                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES) -> list[dict]:
+    """Read one private JSONL side channel without following links or trusting its mode.
+
+    Harness failures are diagnostic input, not runtime events, so they cannot use
+    ``_private_runtime_rows``'s strict event validator.  They still need the same
+    ownership, regular-file, link-count and 0600 checks before status consumes them.
+    """
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return []
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > max_bytes):
+            return []
+        with os.fdopen(descriptor, "rb") as raw:
+            descriptor = -1
+            rows = []
+            for line in raw:
+                try:
+                    value = json.loads(line)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if isinstance(value, dict):
+                    rows.append(value)
+                    if len(rows) > max_rows:
+                        return []
+            return rows
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _harness_failure_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "harness-failures.jsonl",
+        root / "state" / "harness-failures.jsonl",
+        root / "harness-failures.jsonl",
+    ]
+
+
+def _ledger_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "ledger.jsonl",
+        root / "state" / "ledger.jsonl",
+        root / "ledger.jsonl",
+    ]
+
+
+def _latest_harness_failure(state_root: str, loop_id: str,
+                            event: dict | None) -> dict | None:
+    """Project the latest same-run harness failure for a continuous owner.
+
+    A running process is not sufficient evidence of health.  This projection is
+    deliberately read-only and owner/run/release bound.  A later clean ledger
+    wake marks the failure inactive while retaining it as diagnostic history.
+    """
+    if not isinstance(event, dict) or event.get("status") != "running":
+        return None
+    run_id = event.get("run_id")
+    release_sha = event.get("release_sha")
+    if not isinstance(run_id, str) or not isinstance(release_sha, str):
+        return None
+    failures: list[dict] = []
+    for path in _harness_failure_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            intent = row.get("recovery_intent")
+            if not isinstance(intent, dict):
+                continue
+            if (intent.get("loop_id") != loop_id or intent.get("run_id") != run_id
+                    or intent.get("release_sha") != release_sha):
+                continue
+            if not isinstance(row.get("ts"), (int, float)):
+                continue
+            failures.append(row)
+    if not failures:
+        return None
+    failure = max(failures, key=lambda row: row["ts"])
+    intent = failure.get("recovery_intent") or {}
+    layer = str(failure.get("layer") or "unknown")
+    detail = str(failure.get("detail") or "")
+    lowered = detail.lower()
+    if layer == "brain_transport" and ("429" in lowered or "rate" in lowered):
+        error_class = "provider_rate_limit"
+    elif layer == "tool_logic" and "enoent" in lowered:
+        error_class = "tool_missing"
+    else:
+        error_class = layer
+    clean_after = False
+    for path in _ledger_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            if (isinstance(row.get("ts"), (int, float))
+                    and row["ts"] > failure["ts"]
+                    and row.get("kind") in {"wake", "narrate"}):
+                clean_after = True
+                break
+        if clean_after:
+            break
+    evidence_refs = intent.get("evidence_refs")
+    if not isinstance(evidence_refs, list):
+        evidence_refs = []
+    return {
+        "active": not clean_after,
+        "kind": failure.get("kind"),
+        "layer": layer,
+        "error_class": error_class,
+        "detail": detail[:4000],
+        "wake_id": failure.get("wake_id"),
+        "run_id": run_id,
+        "release_sha": release_sha,
+        "retryable": intent.get("retryable") is True,
+        "next_action": intent.get("action") or "reconcile_owner",
+        "blocker": f"harness_failure:{error_class}",
+        "evidence_refs": [ref for ref in evidence_refs if isinstance(ref, str)][:32],
+        "ts": failure["ts"],
+    }
 
 
 def _atomic_private_json(path: Path, value: dict) -> None:
@@ -450,6 +574,25 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
               and event_product_loop_id != catalog_product_loop_id):
             diagnostic_error = "event_product_identity_mismatch"
         diagnostic_complete = not missing_diagnostic_fields and diagnostic_error is None
+        latest_harness_failure = _latest_harness_failure(entry["state_root"], loop_id, event)
+        active_harness_failure = (
+            latest_harness_failure if latest_harness_failure
+            and latest_harness_failure.get("active") is True else None
+        )
+        last_terminal_result = event.get("status")
+        failure_layer = event.get("failure_layer")
+        error_class = event.get("error_class")
+        retryable = event.get("retryable")
+        next_action = event.get("next_action")
+        if active_harness_failure is not None:
+            # Keep launchd/process identity separate from health: a continuous
+            # process can be alive while its latest wake is failing.
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = active_harness_failure["error_class"]
+            retryable = active_harness_failure["retryable"]
+            next_action = active_harness_failure["next_action"]
+            blocker = active_harness_failure["blocker"]
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
@@ -475,10 +618,10 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "loaded_argv_sha256": event.get("loaded_argv_sha256"),
             "loaded_env_sha256": event.get("loaded_env_sha256"),
             "exit_code": event.get("exit_code"),
-            "failure_layer": event.get("failure_layer"),
-            "error_class": event.get("error_class"),
-            "retryable": event.get("retryable"),
-            "next_action": event.get("next_action"),
+            "failure_layer": failure_layer,
+            "error_class": error_class,
+            "retryable": retryable,
+            "next_action": next_action,
             "provider_receipt_id": event.get("provider_receipt_id"),
             "official_readback_ref": event.get("official_readback_ref"),
             "evidence_refs": event.get("evidence_refs"),
@@ -486,7 +629,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "diagnostic_missing_fields": missing_diagnostic_fields,
             "diagnostic_error": diagnostic_error,
             "last_pass": event.get("timestamp"),
-            "last_terminal_result": event.get("status"),
+            "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
             "effect_status": event.get("effect_status", "unknown"),
             "event_release_sha": event.get("release_sha"),
@@ -494,6 +637,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
             "stale_event": stale_event,
+            "latest_harness_failure": latest_harness_failure,
         })
     return rows
 
