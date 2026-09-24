@@ -1003,6 +1003,13 @@ The following is the current control-plane state. It is evidence for the next bo
   `decision=block`, with reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`,
   and `uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
   Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
+- [x] Expand the gate readback into the 14-loop cursor. `investment` is the sole acceptable
+  `safely_fenced` loop. The other 13 are still `uncovered_failure`: Coconala/Gig, Lancers, CrowdWorks, Writer,
+  Affiliate, Agent Economy, Job Hunter, Fundraiser, Self-build, Mobile Apps, Capafy and CFO are blocked by
+  exact-release/diagnostic drift (with effect-unknown rows retained), while Connector is blocked by its typed
+  terminal failure and `diagnose_failure` action. The next order remains accepted immutable release promotion,
+  one-owner alignment, current terminal/readback, and official effect reconciliation where a fence exists; no
+  effect-unknown row is cleared by scheduler health or a pass/no-op.
 - [x] Probe `job-search-daily` without touching application owners. It was loaded-idle with
   `effect_class=none`; two targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`
   returned `eligible=1`, `applied=[]`, and `skipped_pending=[job-search-daily]`. The old release was not executed,
