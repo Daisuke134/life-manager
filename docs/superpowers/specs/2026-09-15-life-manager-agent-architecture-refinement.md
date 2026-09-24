@@ -3427,6 +3427,17 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    projection passes twice with stable PIDs/queues and no duplicate effect. This is an effect-preservation
    boundary, not a wait for revenue or a natural scheduler tick.
 
+   The exact readback is now available read-only. The local sender ledger recorded message ID `92843`, but the
+   official user-MTProto history contains the exact outbox body hash
+   `aa6d760cbcb8fc6b9d5f2972045f4cda51ba6de4160e9e3393424689a8b4f8e5` as message `94637` in `Local Life Manager`
+   at `2026-09-24T11:15:43Z`, sender `8613473574`. The branch-only
+   `skills/affiliate/scripts/telegram_effect_reconcile.py` accepts the proof only when body hash, chat, sender and
+   a bounded timestamp window all match; it returns provider receipt `telegram:8613473574:94637` and explicitly
+   records `provider_message_id_mismatch=true`. This proof is not yet loaded in an accepted immutable release and
+   the canonical occurrence remains `claimed/effect_unknown=1`; no message was resent and no admission state was
+   changed. The remaining cursor is accepted-release promotion, one-occurrence official reconciliation, base-owner
+   rebind and two exact current-release replay-zero projections.
+
    Investment has one owner, `alpaca-investment-live`. Its stored last business snapshot is live mode, equity
    USD 66.74, cash USD 0, no-trade decision and daily net P/L `-0.000227`, but it has not updated since
    2026-09-17 and is not fresh official profit evidence. Runtime is loaded-idle on old installed SHA

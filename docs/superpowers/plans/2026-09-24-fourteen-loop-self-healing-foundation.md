@@ -478,7 +478,19 @@ allowed.
 - [x] Reconcile the Affiliate base owner and run it twice on the exact release. Both wakes stop before entrypoint at typed retryable `resource_fifo_wait`; queued occurrences stay 48, reservations/unknown stay zero and no duplicate provider effect occurs.
 - [x] Reconcile the three continuous Affiliate browser owners to the exact release and diagnose the remaining drift as a shared status bug: live current-release running events exist, but status selects older terminal reports because healthy continuous services do not exit.
 - [x] Integrate the PID-bound continuous-running diagnostic and explicit pre-effect admission-deferral projection through PR #5849 at `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b`; cut complete immutable release `20260924T195546-ff11bb0a`. Exact PID-bound, complete running diagnostics pass for all three browser owners, and exact typed capacity deferral passes for composition/source-refresh. Five of six Affiliate owners are aligned without manufacturing exits.
-- [ ] Reconcile the final `affiliate-loop` base occurrence through exact official effect readback. Its old-release child finishes `SUCCEEDED`, but claim release fails with ownership mismatch and leaves `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown; Telegram send is confirmed as provider message `92843`, so the generic pre-effect resolver must not clear it. Then rebind the base owner and run the Affiliate foundation projection twice with exact current-release evidence, zero opaque diagnostics and replay-zero.
+- [x] Diagnose the final `affiliate-loop` base occurrence as a real Telegram effect fence. Its old-release child finishes
+  `SUCCEEDED`, claim release fails with ownership mismatch and leaves
+  `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown. The local sender ledger says provider ID
+  `92843`, but that ID is not sufficient proof: the official user-MTProto readback with the same body hash is
+  message `94637` in `Local Life Manager` at `2026-09-24T11:15:43Z`. The branch-only
+  `telegram_effect_reconcile.py` proof requires exact outbox body hash, chat, sender and time window and records
+  the ID mismatch; its read-only proof returns `provider_receipt_id=telegram:8613473574:94637` and
+  `provider_message_id_mismatch=true`. No admission state or provider message was changed.
+- [ ] Promote the Affiliate official-body reconciler in an accepted immutable release, then resolve only
+  `affiliate-loop:18d83ba82b14fb40-24990` through that exact provider proof. Require a mode-0600 reconciliation
+  receipt, canonical loaded/event SHA, zero remaining Affiliate admission unknowns, base-owner rebind and two
+  exact current-release foundation projections with replay-zero. Never use the generic pre-effect resolver and never
+  resend the Telegram report.
 - [x] Diagnose Investment read-only: one old installed owner, 16 known released, 64 known queued, one released/effect-unknown occurrence, one queue row and no reservation. The sole unknown `alpaca-investment-live:18d5feb0983a54b8-35815` is an exact 0.28-second pre-entrypoint `resource_capacity_busy` terminal with no effect reference.
 - [x] Add the shared loaded-idle exact pre-effect reconciler with a private 0600 receipt, fail-closed negative coverage, and Investment's existing `agent/borrow/support` plus wake-coalescing contract. Reconcile/registry tests pass 206/206 with 174 subtests; runtime passes 624 plus 522 subtests and the unrelated CEO timeout passes alone. Production remains unchanged until integration.
 - [x] Integrate the shared Investment self-heal through PR #5851 at `209f879ec862a24fa0ed5cd954a7680422905c3a`, activate complete release `20260924T203525-209f879e`, resolve only the exact pre-effect occurrence with a 0600 `RESOLVED` receipt, and coalesce 64 stale effect-known wakes. The first current-release wake exits 0 with Alpaca account `ACTIVE`, equity USD 66.74, orders 4, `NO_TRADE`, unresolved orders 0 and Telegram message `92860`; the immediate replay makes no entrypoint/trade, remains unknown-free and stops safely at typed capacity backpressure.
