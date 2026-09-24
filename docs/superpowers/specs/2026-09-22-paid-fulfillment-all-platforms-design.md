@@ -4741,3 +4741,20 @@ leaves the provider effect closed.
    payout/replay-zero. No owner or send is legal before that sequence.
 7. After each provider-specific gate opens, run fleet settlement, crash
    recovery, payout attribution, and duplicate-zero acceptance.
+
+## Runtime Status Refresh — 2026-09-25 00:18 JST (capacity blocker)
+
+- [x] The latest recorded Coconala Paid wake (2026-09-24 10:46 JST) failed
+  closed with repeated `disk_headroom_low` results (`effect=0`,
+  `readback=0`, required headroom 512 MiB). Storefront's latest recorded
+  errors include `Errno 28: No space left on device` while creating its
+  host-admission temporary files. These are runtime capacity failures, not
+  provider receipts and not successful customer submissions.
+- [x] The bounded evidence GC was run against `/Users/anicca/gig/apply-direct`;
+  it found the root below its 400 MiB high-water mark (374.3 MiB) and removed
+  nothing. The current filesystem readback is 5.0 GiB free, but no post-failure
+  Coconala Paid success wake has yet been observed, so recovery is not claimed.
+- [ ] Before the next production canary, read back the loaded owner and one
+  natural terminal result after the capacity condition is stable. Keep the
+  provider effect closed until that result and the Coconala occurrence proof
+  both pass.

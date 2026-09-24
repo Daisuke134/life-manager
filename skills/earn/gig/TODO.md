@@ -4133,3 +4133,43 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
    payout attribution, and duplicate-zero acceptance. Never equate source code,
    a registry entry, or a loop wake with a client submission.
+
+### Runtime checkpoint — 2026-09-25 00:18 JST (capacity failure is separate)
+
+- [x] The latest recorded Coconala Paid wake failed closed at
+  `disk_headroom_low` (`effect=0`, `readback=0`, 512 MiB required), and
+  Storefront recorded `Errno 28` while creating host-admission temporary
+  files. No customer effect was created by these failures.
+- [x] The built-in evidence GC inspected `/Users/anicca/gig/apply-direct` at
+  374.3 MiB, below its 400 MiB high-water mark, and removed nothing. A current
+  `df` readback shows 5.0 GiB free, but there is no successful post-failure
+  Paid wake in the logs yet.
+- [ ] Do not report Coconala Paid as healthy until a read-only owner/status
+  readback and one natural terminal wake after the capacity recovery are
+  recorded. Keep Apply/Storefront effects fenced while the branch is not
+  promoted and `5280157` remains unresolved.
+
+### Updated remaining TODO (capacity-aware order)
+
+1. **Coconala:** preserve the `5280157` effect fence; verify capacity-stable
+   owner/status plus one natural terminal wake; obtain current occurrence
+   account-bound proof or a new official receipt; then promote `#5854` and
+   prove Apply/Storefront/four-room replay-zero.
+2. **CrowdWorks:** receive admissible buyer lesson/answer material for
+   `63568785`, then complete the existing on-platform delivery once and prove
+   official readback/replay-zero; no LINE or external form.
+3. **Lancers:** keep Paid a safe no-op while inventory has zero funded
+   contracts; on the first real `ContractReceipt`, implement and verify
+   formal delivery, settlement, and payout readback.
+4. **Mercor:** refresh authenticated inventory and reconcile each exact old
+   `resource_effect_unknown` occurrence; preserve human assessment gates.
+5. **Freelancer:** attach the authenticated official transport to
+   `read_authenticated_inventory`; obtain account-bound inspect/project/
+   contract/payment/payout receipts and one funded project; then disabled owner
+   → zero-spend canary → funded canary.
+6. **Upwork:** replace the eight denied receipts with fresh identity/
+   authorization/contract/payment/payout receipts; prove one funded milestone;
+   then disabled owner → zero-spend canary → official delivery/payment/payout/
+   replay-zero.
+7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
+   payout attribution, and duplicate-zero acceptance.
