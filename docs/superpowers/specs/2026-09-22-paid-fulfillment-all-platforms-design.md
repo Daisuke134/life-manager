@@ -3625,3 +3625,25 @@ not convert a transient pass or a no-op into client completion.
    passes; do not resend during this cursor.
 3. Keep the paid-loop fences closed and continue the immutable-release canary
    sequence for CrowdWorks → Lancers → Mercor.
+
+## Runtime Cursor — 2026-09-24 15:41 JST (Ryu items 1–3 verified)
+
+- **Recruitment official LINE persistence passed.** Authenticated management
+  GET returned `recruitment.lineUrl = https://lin.ee/RhnPYfJ`. The actual
+  「求人を保存して公開」 UI action returned 「求人を保存して公開しました。」;
+  a fresh authenticated GET then matched the complete `recruitment` object
+  before and after (`recruitmentExact=true`). A direct same-document no-op
+  roundtrip also returned HTTP 200 and `saved:true`.
+- **Ryu's three implementation requests are now verified:** profile
+  reservation route, profile catchcopy no-truncation layout, and recruitment
+  official LINE persistence. No Coconala reply or formal delivery was sent in
+  this cursor.
+
+### Next one-by-one cursor (15:41 JST)
+
+1. Keep the verified Ryu artifact and prepare the final client handoff; do not
+   resend or press formal delivery under the current no-send scope.
+2. Keep all paid-loop effect fences closed and obtain a clean Coconala
+   provider/readback reconciliation before any client handoff.
+3. Continue immutable-release canary work for CrowdWorks → Lancers → Mercor,
+   one owner at a time.

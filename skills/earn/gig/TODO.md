@@ -3305,3 +3305,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Verify/fix authenticated recruitment LINE persistence with post-save
   management/public readback.
 - [ ] Reassess final Ryu delivery only after LINE persistence passes.
+
+### Runtime checkpoint — 2026-09-24 15:41 JST (Ryu items 1–3 verified)
+
+- [x] Authenticated management UI 「求人を保存して公開」 returned success;
+  fresh authenticated GET matched the complete `recruitment` object before and
+  after, including `lineUrl=https://lin.ee/RhnPYfJ`. Direct no-op POST returned
+  HTTP 200 with `saved:true` and exact GET equality.
+- [x] Ryu's three requested fixes are verified: profile reservation route,
+  profile catchcopy no-truncation layout, and recruitment LINE persistence.
+- [ ] Keep the verified artifact and prepare final handoff; no Coconala reply
+  or formal delivery was sent in this cursor.
+- [ ] Reconcile the Coconala provider/readback and keep effect fences closed
+  before any handoff.
+- [ ] Continue immutable-release canaries for CrowdWorks → Lancers → Mercor.
