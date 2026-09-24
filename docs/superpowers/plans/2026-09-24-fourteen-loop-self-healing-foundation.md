@@ -1536,3 +1536,10 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   absent.
 - [ ] Obtain the correct report-owner snapshot and official Telegram chat/message/body readback after an accepted
   immutable release. Do not treat the missing proof as no-effect or clear the message fence.
+
+### Shared control-plane Node verification (2026-09-25 JST)
+
+- [x] Run the shared control-plane Node suite through the same read-only dependency tree: catalog/foundation gate,
+  brain fallback, recovery executor/supervisor, integration and bounded runtime properties **84/84**.
+- [ ] Keep the production acceptance cursor separate: candidate tests do not replace exact immutable loading,
+  owner readback, replay-zero or the two-pass 14-loop foundation gate.

@@ -5046,3 +5046,7 @@ The second CFO message owner, `life-manager-financial-report:18d601655af3e1c0-86
 same read-only adapter. With the current private snapshot/proof surfaces, it returns
 `inconclusive / private_receipt_unavailable`. This is explicit missing evidence—not a no-effect result—and no
 Telegram, admission or report state was changed.
+
+The same read-only dependency reuse also allowed the shared self-healing control-plane suite to run: product-loop
+catalog/foundation gate, brain fallback/timeout contracts, recovery executor/supervisor, integration and bounded
+runtime properties passed **84/84**. This proves the candidate contracts, not production loading or the 14-loop gate.
