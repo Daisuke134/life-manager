@@ -2883,3 +2883,30 @@ not convert a transient pass or a no-op into client completion.
 5. Preserve Coconala/Ryu no-op/manual-only and Upwork-disabled gates, then run
    final fleet acceptance only after every Paid owner has fresh readback,
    explicit effect state, and replay-zero.
+
+## Production Cursor — 2026-09-24 12:59 JST (old production still regrows blank tabs)
+
+- **The diagnosis is reproducible on the installed release.** After another
+  natural CrowdWorks wake, occurrence
+  `crowdworks-revenue-paid:18d825b1df64b390-94925` completed with the same
+  `ok/observed=5/actionable=1/effect=0/readback=4/pending=1/failed=0` result,
+  while CDP 9228 grew from four to eight `about:blank`/new-tab targets. This
+  confirms the old production SHA `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`
+  still leaks blank targets between natural wakes.
+- **The branch fix remains isolated and verified.** PR #5820 is at
+  `908bd43ce2` (`CLEAN`, CodeRabbit `SUCCESS`); the full CrowdWorks test suite
+  passes `224` tests. No provider write or duplicate delivery was performed.
+
+### Remaining TODO (cursor unchanged, blocker sharpened)
+
+1. Promote the branch through one immutable release, verify the loaded SHA,
+   and run a natural CrowdWorks inventory proving no recurring blank-tab growth.
+2. Preserve all historical Lancers/CrowdWorks/Mercor effect-unknown fences;
+   never blind-retry or resend.
+3. Keep CrowdWorks `63568785` waiting for the already-requested buyer
+   material; then execute delivery → acceptance → settlement → payout →
+   replay-zero exactly once.
+4. Refresh Mercor's official contract snapshot after its effect fence is safely
+   resolved; keep Consultant calibration human-owned.
+5. Preserve Coconala/Ryu manual-only and Upwork-disabled gates; run final fleet
+   acceptance only after every Paid owner has fresh readback and replay-zero.

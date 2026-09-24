@@ -2757,3 +2757,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 4. Refresh Mercor's official snapshot and retain human-owned calibration.
 5. Keep Coconala/Ryu manual-only and Upwork disabled until their gates exist;
    run fleet acceptance last.
+
+### Paid fulfillment checkpoint — 2026-09-24 12:59 JST (old production regrowth confirmed)
+
+- [x] Re-ran a natural CrowdWorks production wake:
+  `18d825b1df64b390-94925` returned `5/1/0/4/1`, with `63568785` still
+  buyer-material-gated and no duplicate delivery.
+- [x] Confirmed the installed old SHA `07f76049...` regrows CDP 9228 blank
+  targets from four to eight after the wake; the branch GC fix is therefore
+  still required before production is considered healthy.
+- [x] PR #5820 is `908bd43ce2`, `CLEAN`, CodeRabbit `SUCCESS`; full CrowdWorks
+  suite is `224 passed`.
+- [ ] Promote one immutable release from the branch and verify loaded-SHA
+  natural readback with no blank-tab growth.
+- [ ] Keep `63568785` waiting for buyer material, then complete the formal
+  delivery chain through replay-zero exactly once.
+- [ ] Resolve historical effect-unknown fences, refresh Mercor inventory, and
+  finish the cross-platform acceptance gate.
