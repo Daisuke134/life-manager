@@ -312,6 +312,16 @@ def test_official_history_403_has_same_origin_fetch_fallback():
     assert "DOMParser" in expression
     assert "offer_urls" in expression
     assert "pagination_hrefs" in expression
+    assert ".then(JSON.stringify)" in expression
+
+
+def test_offer_detail_fetch_serializes_after_async_resolution():
+    expression = application_parent._offer_detail_fetch_expression(
+        "https://www.coconala.com/mypage/offers/123"
+    )
+
+    assert expression.startswith("(async()=>{")
+    assert ".then(JSON.stringify)" in expression
 
 
 def test_history_fetch_accepts_only_exact_official_page():

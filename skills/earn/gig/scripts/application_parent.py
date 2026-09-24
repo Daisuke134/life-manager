@@ -826,7 +826,7 @@ def _offer_detail_request_id(detail: object) -> str:
 def _offer_detail_fetch_expression(offer_url: str) -> str:
     """Build a read-only same-origin detail fetch for a wedged navigation."""
     encoded_url = json.dumps(offer_url, ensure_ascii=False)
-    return f"""JSON.stringify((async()=>{{
+    return f"""(async()=>{{
       const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
       const html=await response.text();
       const parsed=new DOMParser().parseFromString(html,'text/html');
@@ -836,13 +836,13 @@ def _offer_detail_fetch_expression(offer_url: str) -> str:
         request_hrefs:[...parsed.querySelectorAll("a[href*='/requests/']")].map(a=>a.href),
         access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
         not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
-    }})())"""
+    }})()).then(JSON.stringify)"""
 
 
 def _applied_history_fetch_expression(history_url: str) -> str:
     """Build a read-only same-origin fetch for a denied applied-history page."""
     encoded_url = json.dumps(history_url, ensure_ascii=False)
-    return f"""JSON.stringify((async()=>{{
+    return f"""(async()=>{{
       const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
       const html=await response.text();
       const parsed=new DOMParser().parseFromString(html,'text/html');
@@ -861,7 +861,7 @@ def _applied_history_fetch_expression(history_url: str) -> str:
         body:(parsed.body?.innerText||'').slice(0,12000),
         access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
         not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
-    }})())"""
+    }})()).then(JSON.stringify)"""
 
 
 def _valid_applied_history_fetch(value: object, expected_url: str) -> bool:
