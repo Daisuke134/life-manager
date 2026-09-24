@@ -1357,3 +1357,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After accepted-main immutable promotion, run one read-only Affiliate status/reconciliation pass and confirm the
   new receipt chain on a natural non-effectful wake. A missing chain is a self-healer diagnostic failure, not permission
   to resend; replay-zero and the two-pass foundation gate remain required before promotion.
+- [x] Run the owner-specific read-only reconciler against the durable target. It returns `HELD /
+  predecessor_not_released` because the immediate predecessor is `cancelled` at the same queued timestamp; the
+  pre-effect window is therefore invalid and no resolver was called.
+- [ ] Restore an official Telegram history-readback path (the current session probe has no Telethon module), then bind
+  the provider body/message ID to the exact durable occurrence. Do not infer the binding from timestamps, local outbox
+  rows, or a different wake UUID.

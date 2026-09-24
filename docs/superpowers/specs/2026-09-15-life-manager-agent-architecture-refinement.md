@@ -4822,3 +4822,10 @@ The candidate diff is now **27 files**: generic control-plane/runtime/tests plus
 files. It still contains no Paid fulfillment implementation or provider-session state. The foundation gate remains
 blocked on accepted-main immutable-release alignment and uncovered runtime evidence; Affiliate's next action is exact
 official readback of the durable target, never a generic pre-effect resolver and never a blind retry.
+
+The owner-specific read-only reconciler currently returns `HELD / predecessor_not_released`: the immediate predecessor
+has `state=cancelled` at the same queued timestamp, so the existing FIFO pre-effect proof window is not valid. A
+Telegram user-history readback was attempted through the existing session path but the current environment has no
+Telethon module; no provider body was claimed from local journals. This is an explicit missing-readback diagnostic,
+not an admission mutation or a revenue blocker to be bypassed. The durable target remains fenced until the provider
+readback path is available and binds the exact occurrence.
