@@ -197,11 +197,11 @@ function contextPlanner() {
   };
 }
 
-test("production contract runs every 30 minutes and maximizes real applications", () => {
+test("production contract runs hourly and maximizes real applications", () => {
   const contract = `${skill}\n${dailyPrompt}`;
-  assert.match(contract, /every 30 minutes/i);
-  assert.equal(loopRegistry.loops.fundraiser.cadence.start_interval_seconds, 1800);
-  assert.match(fundraiserPlist, /<key>StartInterval<\/key><integer>1800<\/integer>/);
+  assert.match(contract, /every hour/i);
+  assert.equal(loopRegistry.loops.fundraiser.cadence.start_interval_seconds, 3600);
+  assert.match(fundraiserPlist, /<key>StartInterval<\/key><integer>3600<\/integer>/);
   assert.match(contract, /as many[^\n]*applications[^\n]*as possible/i);
   assert.match(contract, /continue[^\n]*after[^\n]*(?:first|one)[^\n]*(?:submit|application)/i);
   assert.match(contract, /authenticated[^\n]*X[^\n]*CDP/i);

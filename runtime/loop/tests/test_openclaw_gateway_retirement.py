@@ -14,7 +14,7 @@ class OpenClawGatewayRetirementTests(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         fundraiser = registry["loops"]["fundraiser"]
         self.assertEqual(fundraiser["label"], "ai.anicca.fundraiser")
-        self.assertEqual(fundraiser["cadence"], {"start_interval_seconds": 1800})
+        self.assertEqual(fundraiser["cadence"], {"start_interval_seconds": 3600})
         self.assertEqual(fundraiser["provider_route"], "shared-agent-runner")
 
     def test_no_managed_loop_uses_the_openclaw_gateway(self):

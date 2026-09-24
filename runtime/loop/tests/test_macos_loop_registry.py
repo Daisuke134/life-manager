@@ -97,6 +97,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"][
             "fundraiser"
         ]
+        self.assertEqual(row["cadence"], {"start_interval_seconds": 3600})
         self.assertEqual(row["resource_class"], "agent")
         self.assertEqual(row["admission_class"], "borrow")
         self.assertEqual(row["priority"], "support")
