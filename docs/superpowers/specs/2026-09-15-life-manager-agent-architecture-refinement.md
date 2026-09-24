@@ -4665,3 +4665,9 @@ readers. If the database remains locked or cannot be read, the proof returns no 
 reconcile therefore reports a retryable boundary instead of crashing in the proof reader. A regression confirms the
 locked-read path fails closed. Focused verification is green: the new proof/rebind cases plus readonly tests pass
 30/30. This is still branch-only and does not alter production admission state.
+
+The Node recovery/control-plane subset also passes **50/50** (`recovery-intent`, apply-plan, executor, intent-record,
+supervisor, integration, and registry-classification). The complete `npm test` run reached **304/307**: the three
+failures occur before test execution because this checkout lacks `@solana/web3.js` and `fast-check` required by the
+three always-act tests. No package or lockfile was changed; restoring the release dependency bundle is a separate
+verification prerequisite, not evidence that the recovery changes failed.

@@ -1228,6 +1228,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After accepted immutable promotion, re-read one real fundraiser fence under the production reconciler and verify
   the typed retry/readback path before allowing any fence resolution.
 
+### Node recovery/control-plane verification (2026-09-25 JST)
+
+- [x] Run the focused Node recovery/control-plane subset: **50/50** pass across intent, apply-plan, executor,
+  intent-record, supervisor, integration, and registry-classification contracts.
+- [x] Run the complete loop npm suite for dependency readback: **304/307** pass. The three failures are import-time
+  environment gaps for missing `@solana/web3.js` and `fast-check` in the checkout; no source or lockfile change is
+  justified by that result.
+- [ ] Restore the immutable release dependency bundle and rerun the three always-act tests before declaring the Node
+  suite complete. This remains downstream of accepted-main integration and does not authorize production mutation.
+
 ### Main-derived integration dry run (2026-09-25 JST)
 
 - [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
