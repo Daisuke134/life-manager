@@ -1655,3 +1655,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After capacity recovery and accepted immutable loading, require one real reconciler receipt containing the new
   fields, then reconcile only bounded safe owners and prove replay-zero. Do not touch Paid fulfillment or use a
   diagnostic receipt as permission to clear an effect fence.
+
+### Latest reconciler/capacity cursor (2026-09-25 JST)
+
+- [x] Re-read `life-manager-release-reconciler` without restart or mutation: the loaded plist is still the old
+  `09a59ba1b899849ae7e3be8c67e239ec664dea22`; the surface event remains `entrypoint_exit_1` at `phase=report`, with
+  `diagnostic_complete=false` and no occurrence-bound exit/readback fields. This is stale-surface retention, not a
+  fresh reconciliation proof.
+- [x] Re-read host capacity: only **398,644 KB** is available on `/System/Volumes/Data`, below the
+  **1,155,780,608-byte** floor. No process, cache, launchd job, admission row, provider session, effect fence or
+  Paid state was changed.
+- [ ] Keep the cursor at owner-controlled capacity recovery; after the floor is restored, rerun the full suite, load
+  the accepted immutable candidate, and require a fresh occurrence-complete reconciler receipt before any retention
+  cleanup or bounded owner reconciliation.

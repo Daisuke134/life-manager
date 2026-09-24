@@ -5227,3 +5227,18 @@ reconciler occurrence
 whose receipt
 contains these fields, followed by bounded owner readback and replay-zero. Paid fulfillment remains outside this
 cursor.
+
+### Latest release-reconciler read-only recheck (2026-09-25 JST)
+
+The current production status still points `ai.anicca.life-manager-release-reconciler` at the old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`. Its latest surface event remains `blocker=entrypoint_exit_1`,
+`phase=report`, `effect_status=not_applicable`, with `diagnostic_complete=false` and the occurrence-bound fields
+(`occurrence_id`, `wake_id`, `exit_code`, `retryable`, `next_action`, and provider/readback fields) absent. The
+readback therefore confirms stale-surface retention after an early failure; it does not prove a new reconciliation
+attempt or any provider effect. No restart, apply, reconcile, admission mutation, provider session change or Paid
+operation was performed.
+
+The same read-only probe now reports only **398,644 KB** available on `/System/Volumes/Data` (100% used), further
+below the **1,155,780,608-byte** foundation floor. The candidate fallback and gate-diagnostic commits remain branch
+only; the next safe cursor is still owner-controlled capacity recovery, then full-suite verification and an accepted
+immutable load before expecting a fresh reconciler occurrence.
