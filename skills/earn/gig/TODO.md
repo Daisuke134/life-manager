@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:49 JST (retention cap, queue cleanup, and browser gate rechecked)
+## Current cursor — 2026-09-25 06:53 JST (all-platform readiness and live status rechecked)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -33,6 +33,22 @@ session cannot be created without the connected browser extension, so no
 Freelancer or Upwork page was opened and no provider effect was attempted.
 This is the exact external blocker for the next one-by-one step; the code-side
 registration gates remain fail-closed.
+
+At `2026-09-25 06:51–06:53 JST` the six paid-owner states were read back again
+from the live admission database and the read-only status command. Coconala's
+`hf-gig-paid-direct` has no effect-unknown admission row and remains a
+deterministic no-effect owner, but its current wake is `loaded-running` and
+deferred at `host_admission_deferred:resource_fifo_wait`; this is a host
+capacity wait, not a provider send. `hf-gig-apply-direct` is unloaded with
+five queued effect-free occurrences, and `hf-gig-storefront-direct` is
+unloaded after the 81 stale effect-free occurrences were cancelled; its last
+terminal is `entrypoint_exit_1` with `official_readback_required`. CrowdWorks
+and Lancers remain unloaded: their exact old paid occurrences
+`crowdworks-revenue-paid:18d62cf32eb0c678-48194` and
+`lancers-revenue-paid:18d81967220136f8-89928` are still claimed with
+`effect_unknown=1`. Mercor is `loaded-idle`, last terminal `pass`, with no
+live effect-unknown row. This recheck made no provider request, retry, or
+external send.
 
 The shared capacity investigation now has a concrete owner boundary. The
 central agent-runner retention code only accepts the guarded
