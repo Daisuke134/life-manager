@@ -1,6 +1,30 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 07:12 JST (all-platform gate and Lancers proposal history corrected)
+## Current cursor — 2026-09-25 07:18 JST (explicit Freelancer/Upwork gate and all-platform live readback)
+
+This is the concrete current situation, not a promise that a provider loop is
+already live. At `07:17 JST`, BrowserSkill reported a healthy daemon but
+`browsers=[]` and `sessions=[]`; no Freelancer or Upwork page can be opened
+until an account-bound browser lease or official OAuth receipt exists. The
+readiness code was then evaluated at `07:17 JST` against the private receipt
+store and the latest official snapshots:
+
+| platform | current proof | loop state | exact next gate |
+|---|---|---|---|
+| Freelancer.com | no Freelancer authorization receipt; no authenticated inventory snapshot; public watcher data is not account-bound | all Freelancer labels are `disabled`/`retired`; no owner | attach the approved private BrowserSkill profile (or obtain official OAuth), read identity/projects/milestones/hourly contracts/payments/payouts, and require one positive funded project before registering one owner |
+| Upwork | source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`; only `inspect/read_payments/read_payouts` are approved until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` are denied | both legacy Upwork labels are `disabled`/`retired`; no owner | use a dedicated account-bound BrowserSkill lease to refresh identity/contracts/transactions/withdrawals, obtain current mutation authorization, and require one funded contract with a positive milestone before registering one owner |
+| Coconala | Paid owner has no effect-unknown row; Apply queue is zero; Storefront has no effect-unknown row but needs official readback | Paid is host-capacity deferred; Apply is unloaded awaiting natural wake/replay-zero; Storefront is unloaded with `official_readback_required` | close the two no-op/readback gates; do not resend Ryu or register a new provider effect |
+| CrowdWorks | exact Paid occurrence `18d62cf32eb0c678-48194` remains `effect_unknown=1`; 44 application and 181 reply fences also remain | Paid is unloaded; browser owner is running but its last terminal is `entrypoint_exit_1` | obtain occurrence-bound provider receipt or admissible no-effect proof; no blanket cleanup/retry |
+| Lancers | exact Paid occurrence `18d81967220136f8-89928` remains `effect_unknown=1`; project `5606124` was historically verified as proposal `27965342`, but current funded-contract count is zero | Paid is unloaded; browser/work-sync are running; storefront/negotiate/report fences remain | reconcile the exact Paid occurrence, then wait for a current funded contract before Paid registration |
+| Mercor | Paid fence is clear; last Paid terminal is `pass`; no funded work is proven | Paid is loaded-idle; old application/reply fences remain closed | preserve old fences and wait for a real funded contract |
+
+Therefore the implementation work for Freelancer and Upwork is active now, but
+the external account gate is closed. The registration order is strict:
+`account-bound auth → source-complete official inventory → funded contract /
+positive milestone → exactly one owner registration → zero-effect canary →
+funded canary → provider receipt + payment/payout readback → crash recovery →
+replay-zero`. Nothing may skip from “public watcher” or “retired label” to a
+live Paid loop.
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
