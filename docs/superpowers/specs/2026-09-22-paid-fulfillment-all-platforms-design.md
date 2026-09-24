@@ -41,10 +41,9 @@ completion.
   Apply occurrence for request `5280157` is still fenced as
   `claimed/effect_unknown=1`. The fresh 26-page absence readback cannot release
   this effect-started intent without a separately verified no-dispatch receipt.
-- Ryu `18211957`'s latest buyer cycle (the five paid-option/WEB予約 issues in
-  messages `222215345`, `222215354`, `222218450`, `222218603`, and
-  `222218678`) already has one official seller reply/readback,
-  `js-talkroomMessage-222220999`. That reply covers: `写真撮影1枚〜` as the
+- Ryu `18211957`'s latest buyer cycle already has one official seller
+  reply/readback, `js-talkroomMessage-222245383`. That reply covers:
+  `写真撮影1枚〜` as the
   first normal option; the five paid options and prices in their own section;
   preserving options when two paid options are added; the WEB予約 management
   preview/form behavior; and the requested wording/management editability
