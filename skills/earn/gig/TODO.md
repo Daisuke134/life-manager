@@ -2282,3 +2282,27 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   replay-zero.
 - [ ] Retain historical `effect_unknown` fences and finish provider-by-provider
   integration/readback; keep Upwork disabled until its gates are present.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:35 JST
+
+- [x] Re-read the latest official snapshots: Coconala `4/0/0/3/0`,
+  CrowdWorks `failed/0/0/0/0/0` with
+  `CrowdWorksPaidBrowserUnavailable`, and Lancers `0/0/0/0/0`.
+- [x] Confirmed the newest Coconala run ended `entrypoint_exit_1` with no
+  applicable provider effect; the Coconala snapshot remains reconciled.
+- [x] Confirmed the newest CrowdWorks Paid run ended `entrypoint_exit_1` at
+  browser inventory. Its event still has `effect_status=unknown`, so the
+  effect fence is intentionally retained and no submission is permitted.
+- [ ] Restore stable host headroom above 512MiB, then rerun Coconala Paid to
+  terminal `pass` and reconcile the official snapshot.
+- [ ] Obtain approval to close only orphan CrowdWorks PID `16937`, restart
+  `crowdworks-revenue-browser` via `./bin/lm-loop`, and verify receipt → CDP →
+  authenticated readback. Never use the fallback launcher.
+- [ ] Reconcile CrowdWorks occurrence `18d81d99fc93ed98-68774` with official
+  provider/pre-effect evidence before clearing its `effect_unknown` fence.
+- [ ] Keep Ryu manual-only; act only on a genuinely newer buyer message.
+- [ ] Keep the other Coconala rooms, CrowdWorks `63568785`, and Lancers
+  contract waiting; submit only on a real artifact/contract with receipt and
+  replay-zero.
+- [ ] Finish provider-by-provider integration/readback; keep Upwork disabled
+  until authorization, authentication, and a funded contract exist.

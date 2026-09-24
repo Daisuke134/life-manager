@@ -2005,3 +2005,57 @@ clicked again.
    connect external platforms one at a time with official readback, and keep
    Upwork disabled until its authorization/authentication/funded-contract gates
    exist.
+
+## Production Cursor — 2026-09-24 10:35 JST
+
+- **Coconala:** the official snapshot is unchanged at
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`. Ryu
+  (`18211957`) remains reserved for the owner with no newer buyer artifact;
+  the other three rooms remain buyer-waiting. The latest
+  `hf-gig-paid-direct` run (`18d81d9e4676fac8-69105`) ended
+  `entrypoint_exit_1` with `effect_status=not_applicable`, so this run did not
+  perform a provider action. The runner is still not healthy.
+- **CrowdWorks:** the newest official Paid snapshot is now
+  `status=failed`, `observed=0`, `actionable=0`, `effect=0`, `readback=0`,
+  `pending=0`, `failed=1`, with
+  `error_type=CrowdWorksPaidBrowserUnavailable` at `provider_inventory`.
+  The corresponding loop event (`18d81d99fc93ed98-68774`) ended
+  `entrypoint_exit_1` with `effect_status=unknown`; therefore the
+  `effect_unknown` fence remains and no submission is allowed. CDP `9228` is
+  still served by orphan PID `16937` without a `browser_port_owner` receipt.
+- **Lancers:** the latest Paid snapshot remains
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`; no funded
+  `ContractReceipt` exists.
+- **Host:** free space is still below the 512MiB Paid guard floor, and the
+  admission/release chain is not stable. No customer/provider effect was
+  intentionally performed in this recheck; unresolved `effect_unknown`
+  fences are kept conservative.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Restore host capacity and repair the Coconala runner:** obtain stable
+   headroom above 512MiB without deleting customer deliverables, then rerun
+   `hf-gig-paid-direct` through the official owner and require terminal
+   `pass` plus a reconciled snapshot.
+2. **Repair CrowdWorks browser ownership:** obtain the required approval,
+   close only orphan PID `16937`, restart the canonical owner through
+   `./bin/lm-loop`, and verify owner receipt → CDP → authenticated readback.
+   Do not use the fallback-launching account probe.
+3. **Resolve the CrowdWorks effect fence:** after ownership is healthy, run a
+   read-only provider/pre-effect reconciliation for
+   `18d81d99fc93ed98-68774`; keep the fence until official evidence proves
+   whether an effect occurred. Do not resubmit while it is unknown.
+4. **Ryu:** preserve the permanent manual-only fence. Only a genuinely newer
+   buyer message permits reread → fix → one ordinary reply; do not resend or
+   click formal delivery.
+5. **Other Coconala rooms:** keep the three rooms waiting; on a new buyer
+   artifact, quality-check and submit once with official receipt and
+   replay-zero.
+6. **CrowdWorks `63568785`:** wait for the buyer's task material; after the
+   browser/effect fence is clear, complete and submit once with official
+   receipt and replay-zero.
+7. **Lancers:** wait for a funded `ContractReceipt`, identify/read back the
+   exact `完了報告` control, then submit once with receipt and replay-zero.
+8. **Cross-platform integration:** connect one provider at a time with
+   permissions, URLs, authentication, filing/review state, and official
+   readback; keep Upwork disabled until its gates exist.
