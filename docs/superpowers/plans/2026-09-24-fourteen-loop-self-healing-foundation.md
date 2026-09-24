@@ -218,19 +218,36 @@ live catalog contract reports 14 loops, 97 mapped jobs, 167 registry jobs, zero 
 ### Task 9: Pass local foundation acceptance
 
 **Status:** Current cursor. Revenue, conversion, commission and natural-business-event waits are not gates.
+Host preflight passes for `gui/501`/Aqua, registry doctor reports 167 entries and zero errors, and available
+disk is above the prior floor. The production foundation baseline still blocks honestly: all 14 loops are
+observed, but 13 have release drift, Connector has an old incomplete diagnostic, all 97 mapped rows are
+diagnostically incomplete and 48 installed release SHAs are mixed. Candidate immutable release
+`02ae4f91a9da56baed6dd6bb6fcaa13a8d17c129` is complete/read-only and leaves `current` unchanged. From that
+release, recovery passes 36/36, foundation/guard/self-build/catalog passes 197/197, the catalog contract has
+zero errors and the real-installer canary passes 1/1 with unrelated global pytest plugins/cache disabled.
+
+**Execution-order correction:** The old order attempted production apply/readback before main integration.
+That cannot run: `cut-loop-release.sh` permits a non-main candidate only with `LOOPS_ACTIVATE_CURRENT=0`, while
+production activation requires an `origin/main` ancestor. The shortest safe order is now: validate a pushed,
+non-activated immutable candidate -> integrate the already accepted implementation once -> cut and activate
+the exact merged main release -> apply only shared non-Paid owners -> read back twice. Current cursor is the
+single PR/main integration gate; this does not authorize touching the separately owned Paid runtime.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
 - Modify: this plan checkbox/status text
 
-- [ ] Build an immutable release from the accepted branch only after all prior focused tests pass and the worktree is clean.
-- [ ] Run `bin/launchctl-safe preflight`; if it fails, record the exact boundary and do not probe or mutate `gui/$UID`.
+- [x] Build a complete, read-only candidate immutable release from the pushed accepted branch with `LOOPS_ACTIVATE_CURRENT=0`; prove production `current` is unchanged.
+- [x] Run `bin/launchctl-safe preflight`; it passes for `gui/501`/Aqua. Registry doctor reports 167 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
+- [x] Run the focused acceptance from the immutable candidate itself: recovery 36/36, foundation/guard/self-build/catalog 197/197, real-installer canary 1/1 and live contract 14 loops/zero errors.
+- [ ] Create the one final PR, require repository CI, merge the accepted implementation to main, and record the exact merge SHA. Do not deploy a branch SHA.
+- [ ] Cut and activate one complete immutable release from that exact main merge SHA; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
 - [ ] Apply only the shared non-Paid foundation/recovery owners through `launchctl-safe`; do not start/restart Paid owners.
 - [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
 - [ ] Run the same foundation gate twice and require replay-zero/no duplicate recovery effects.
-- [ ] Record official local evidence, commit/push and only then prepare the one final PR/main merge under repository policy.
+- [ ] Record official local evidence, commit/push and retain the exact accepted release as the Cloud input.
 
 ## Deferred until this plan passes
 

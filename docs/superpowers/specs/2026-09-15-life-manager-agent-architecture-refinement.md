@@ -2907,8 +2907,17 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    yet invokes all four immutable-release, isolated-canary, exact-health and rollback hooks; the Railway app
    deploy guard is not misreported as runtime proof. Recovery tests pass 36/36, foundation/guard/self-build/
    catalog tests pass 197/197 and the real-installer canary passes 1/1.
-9. **Current cursor — local foundation acceptance:** pass all fourteen loops with exact current status, no opaque terminal `unknown`,
-   bounded automatic recovery for covered failures, sibling isolation and deterministic replay/rollback.
+9. **Current cursor — local foundation acceptance:** host preflight passes for `gui/501`/Aqua and registry
+   doctor reports 167 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
+   The production baseline still blocks: all fourteen loops are observed, but thirteen have release drift,
+   Connector has an old incomplete diagnostic, all 97 mapped rows are diagnostically incomplete and 48
+   installed release SHAs are mixed. A pushed, non-activated, complete/read-only immutable candidate at
+   `02ae4f91a9da56baed6dd6bb6fcaa13a8d17c129` leaves production `current` at main-derived `07f76049fdeb…`.
+   Running from the candidate itself passes recovery 36/36, foundation/guard/self-build/catalog 197/197,
+   the live catalog contract with zero errors and the real-installer canary 1/1. The old order attempted
+   production apply before main integration, which the release guard correctly forbids. The executable order
+   is candidate acceptance -> one PR/main integration -> exact main-derived complete release -> non-Paid
+   apply -> authoritative foundation readback twice. Revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
