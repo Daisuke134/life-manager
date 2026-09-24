@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-exec node "$SCRIPT_DIR/../runtime/loop/recovery-supervisor-cli.mjs" "$@"
+NODE_BIN="${LIFE_MANAGER_RUNTIME_NODE:-${LIFE_MANAGER_NODE:-$(command -v node || true)}}"
+[ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || {
+  echo "lm-recovery-supervise: managed node executable is unavailable" >&2
+  exit 69
+}
+exec "$NODE_BIN" "$SCRIPT_DIR/../runtime/loop/recovery-supervisor-cli.mjs" "$@"
