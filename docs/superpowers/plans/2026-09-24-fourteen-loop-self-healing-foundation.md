@@ -1255,8 +1255,11 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Push candidate branch `fix/self-healing-control-plane-integration-20260925` at `bac2c00c50` and verify
   Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway **142 passed (494 subtests)**,
   shell syntax, managed-runtime no-PATH probe, and `git diff --check`.
-- [ ] Review the candidate diff once more for ownership boundaries, then integrate only this generic slice into main;
-  do not merge the separate Paid/Gig/provider implementation or mutate production state in this step.
+- [x] Review the candidate diff for ownership boundaries. The clean candidate contains only 19 generic
+  control-plane/runtime paths; it contains no `skills/earn/gig`, Capafy catalog, affiliate provider state,
+  `config/loop-registry.json`, or Paid-fulfillment-spec path, and `git diff --check` is clean.
+- [ ] Integrate only this generic slice into main after the user-level foundation gate is green; do not merge the
+  separate Paid/Gig/provider implementation or mutate production state in this step.
 - [ ] After the single accepted main integration, cut one immutable release and read back exact loaded/event SHA,
   managed Node/Python paths, typed recovery terminal result, and replay-zero. Only then allow the FIFO reconciler to
   advance one non-Paid effect-free owner at a time.

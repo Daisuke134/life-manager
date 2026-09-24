@@ -4695,4 +4695,7 @@ registry/cleanup/gateway tests **142 passed (494 subtests)**, managed-runtime no
 passed, and `git diff --check` passed. The candidate is source-only; production still loads the existing immutable
 release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
 made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
-cut/readback only after the user-level foundation acceptance gate remains green.
+cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
+the candidate diff contains only 19 generic control-plane/runtime paths, with no `skills/earn/gig`, Capafy catalog,
+affiliate provider state, loop-registry, or Paid-fulfillment-spec path. The candidate worktree is clean and its diff
+check is clean. Main integration remains intentionally unopened until the user-level foundation gate is green.
