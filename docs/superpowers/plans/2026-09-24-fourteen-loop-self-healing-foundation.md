@@ -1776,3 +1776,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   process, cache, release, admission row, provider session or external effect was changed.
 - [ ] Keep the promotion cursor closed; only a future owner-controlled capacity recovery can unlock full-suite
   execution and immutable candidate promotion.
+
+### Contract gate while production remains capacity-bound (2026-09-25 JST)
+
+- [x] Read the next release-reconciler terminal `18d865ada9b0c108-81964`: old-release `entrypoint_exit_1`,
+  repeated `node: not found`, no external effect or provider receipt.
+- [x] Run candidate `./bin/lm-loop-contract`: `ok=true`, `catalog_loops=14`, `registry_jobs=169`,
+  `mapped_jobs=98`, `shared_job_ids=[]`, `errors=[]`; `git diff --check` passes.
+- [x] Preserve the source-boundary result: the helper rejects the registered `/private/tmp` worktree because it
+  expects canonical checkout/`.worktrees`; do not bypass this check or promote from an unapproved path.
+- [ ] After capacity recovery, rerun the full suite from an allowed source worktree, then continue immutable
+  promotion and fresh self-healing readback.

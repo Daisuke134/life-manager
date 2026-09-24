@@ -5377,3 +5377,11 @@ preserved. Its canonical receipt is `observed_at=2026-09-24T23:32:07Z`, `free_be
 capacity is now **826,630,144 bytes** below the `1,155,780,608`-byte floor. This is an environment/ownership
 boundary, not authorization to delete unowned data or stop live processes. Full-suite and immutable promotion remain
 closed until a later owner-controlled capacity recovery changes this receipt.
+
+The next release-reconciler occurrence `18d865ada9b0c108-81964` then ended at
+`2026-09-24T23:33:04.543801Z` with the same old-release `entrypoint_exit_1`/`node: not found` boundary and no
+external effect. On the source candidate, `bin/lm-loop-contract` independently passed with `catalog_loops=14`,
+`registry_jobs=169`, `mapped_jobs=98`, `shared_job_ids=[]`, and `errors=[]`; `git diff --check` also passed. The
+candidate remains source-only. The repository's source-boundary helper rejects this registered `/private/tmp`
+worktree path (it expects the canonical checkout or `.worktrees`), so promotion still requires the normal allowed
+worktree path and the capacity/full-suite gates; this tooling mismatch was not bypassed.
