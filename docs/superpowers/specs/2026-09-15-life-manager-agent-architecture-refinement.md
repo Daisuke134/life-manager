@@ -2743,7 +2743,17 @@ The next exact-main reconcile finds seven effect-free old queued occurrences and
 `skipped_pending`; no entrypoint or Paid owner is touched. The remaining implementation cursor is an atomic
 history-preserving migration that marks only unclaimed, unreserved, effect-free occurrences `cancelled` when
 their owner becomes control-plane-exempt. A claim, active reservation or `effect_unknown` keeps the fence shut.
-This is a general self-healing release migration, not a manual production-database cleanup.
+This is a general self-healing release migration, not a manual production-database cleanup. PR #5824 merges
+that migration at `e00ce6f732da34ea1eb27e86a774d22a52866c7c`; complete release
+`20260924T142850-e00ce6f7` is active and loaded by the supervisor. Production readback retains all 24 accumulated
+old occurrences as `cancelled` and shows zero queue, priority and reservation rows for that owner.
+
+The following bounded wake exposes the next shared boundary rather than an idle success: it exits 127 because
+launchd's narrow PATH cannot resolve the JavaScript shebang's `node`. That same gap prevents any failed loop
+from invoking the recovery-intent classifier. The current RED→GREEN change therefore projects an absolute
+`LIFE_MANAGER_RUNTIME_NODE` into every managed plist and uses it for both JavaScript entrypoints and recovery
+classification. Apply passes 119 tests plus 31 subtests, runner passes 84/84, the catalog remains
+14 loops/168 jobs/98 mapped/zero errors and the OSS boundary passes. The fix is not yet merged or loaded.
 
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
@@ -2973,12 +2983,14 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    reports zero missing entrypoints, unmanaged labels or installed retired labels. Tasks 1–8 are merged through
    PR #5821. The shared recovery owner is merged through PR #5822, and its control-plane admission fix is merged
    through PR #5823 at `188dcb53cd513679e21f7e25d1a422ddf20a6e86`; complete exact-main release
-   `20260924T140650-188dcb53` is available. The loaded supervisor is still on the prior release because targeted
-   reconcile correctly preserves seven old queued occurrences and returns `skipped_pending`. They are
-   effect-free, unclaimed and unreserved. The current RED→GREEN change atomically marks only that safe class
-   `cancelled`, retains occurrence history, deletes its stale queue row and refuses any claim, reservation or
-   unknown effect. Admission 127/127, apply 119/119 plus 31 subtests, runner 83/83 and recovery canary 1/1 pass.
-   The executable order is now queue-migration PR/main integration -> exact main-derived complete release ->
+   `20260924T140650-188dcb53` is available. Queue migration is subsequently merged through PR #5824 at
+   `e00ce6f732da34ea1eb27e86a774d22a52866c7c`, and complete release `20260924T142850-e00ce6f7` is active.
+   Supervisor-only apply preserves 24 old occurrences as `cancelled` and clears its queue, priority and
+   reservation rows. Its bounded wake then exits 127 because launchd cannot resolve `node`; no supervisor
+   intent, Paid selection or external effect occurs. The current RED→GREEN change pins one absolute Node
+   runtime in every managed plist and consumes it from JavaScript entrypoints and the recovery classifier.
+   Apply passes 119/119 plus 31 subtests, runner 84/84, contract 14/168/98 with zero errors and OSS boundary PASS.
+   The executable order is now Node-runtime PR/main integration -> exact main-derived complete release ->
    supervisor-only apply -> one bounded wake with `idle` or one typed non-Paid outcome -> remaining non-Paid
    apply -> authoritative fourteen-loop foundation readback twice. Revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered

@@ -68,6 +68,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_RUNTIME_PYTHON": str(
                 runtime_python or Path(sys.executable).resolve()
             ),
+            "LIFE_MANAGER_RUNTIME_NODE": _managed_node(loop_id),
             # Keep three slots for revenue while support owners share the finite host.
             "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "3",
         },

@@ -9,6 +9,7 @@ import fcntl
 import os
 import plistlib
 import re
+import shutil
 import signal
 import sqlite3
 import stat
@@ -73,6 +74,16 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/mobile-app",
 })
+JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
+
+
+def _runtime_node() -> str:
+    configured = os.environ.get("LIFE_MANAGER_RUNTIME_NODE")
+    candidate = Path(configured) if configured else Path(shutil.which("node") or "")
+    if (not candidate.is_absolute() or not candidate.is_file()
+            or not os.access(candidate, os.X_OK)):
+        raise RuntimeError("managed node executable is unavailable")
+    return str(candidate)
 
 
 def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
@@ -87,6 +98,8 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
     command = [str(executable)]
     if entry.get("adapter") == "python":
         command.insert(0, sys.executable)
+    elif executable.suffix in JAVASCRIPT_ENTRYPOINT_SUFFIXES:
+        command.insert(0, _runtime_node())
     command.extend(entry.get("command", []))
     return command
 
@@ -198,7 +211,8 @@ def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> 
         "evidence_refs": event["evidence_refs"],
     })
     result = subprocess.run(
-        ["node", str(classifier), "--input", str(input_path), "--output", str(output_path)],
+        [_runtime_node(), str(classifier), "--input", str(input_path),
+         "--output", str(output_path)],
         cwd=release_root, capture_output=True, text=True, timeout=30,
         env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
     )

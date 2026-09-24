@@ -250,17 +250,30 @@ owner. The current RED→GREEN slice therefore adds one atomic migration: a loop
 control-plane safety owner may close only effect-free queued occurrences as `cancelled`, retain their history,
 and remove the queue row. Any claim, active reservation or `effect_unknown` remains fenced. The runner and
 apply paths consume one shared safety-owner set. Admission 127/127, apply 119/119 plus 31 subtests, runner
-83/83 and recovery canary 1/1 pass locally. This change is not yet merged or loaded, so production self-healing
-remains incomplete.
+83/83 and recovery canary 1/1 pass locally. PR #5824 is merged at
+`e00ce6f732da34ea1eb27e86a774d22a52866c7c`; complete release `20260924T142850-e00ce6f7` is active. Targeted
+reconcile applies only the supervisor, preserves all 24 accumulated old occurrences as `cancelled`, and leaves
+its queue, priority and reservation rows empty.
+
+The next bounded wake reaches the new release but exits 127 before the supervisor CLI: launchd's narrow PATH
+cannot resolve the JavaScript shebang's `node`. The same missing runtime identity also prevents a failed owner
+from invoking the recovery-intent classifier, so this is a shared self-healing transport defect rather than a
+supervisor-only issue. RED proves that a `.mjs` entrypoint and the classifier both fail when PATH is
+`/usr/bin:/bin`. The minimum GREEN projects one absolute `LIFE_MANAGER_RUNTIME_NODE` through every managed
+plist and uses it for JavaScript entrypoints and recovery classification. Apply passes 119 tests plus 31
+subtests, runner passes 84/84, the live catalog contract remains 14/168/98 with zero errors, and the OSS
+boundary passes. This Node transport change is not yet merged or loaded, so production self-healing remains
+incomplete.
 
 **Execution-order correction:** The previous text assumed the release reconciler already called the recovery
 consumer. Repository search and registry readback disprove that assumption. The shortest safe order is now:
 register and test one shared owner -> integrate it once -> cut and activate its exact main release -> load only
 that new owner -> remove its observed data-plane admission dependency through the existing safety exemption ->
 atomically close its old effect-free queue history -> reapply only that owner -> kickstart one bounded wake ->
-verify one eligible non-Paid repair or idle receipt -> then
+pin the shared Node runtime observed missing at that wake -> kickstart one bounded wake -> verify one eligible
+non-Paid repair or idle receipt -> then
 reconcile the remaining non-Paid fleet and run the 14-loop foundation gate twice. Current cursor is shared
-owner queue-migration PR/main integration; this does not authorize touching the separately owned Paid runtime.
+Node-runtime PR/main integration; this does not authorize touching the separately owned Paid runtime.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -281,8 +294,12 @@ owner queue-migration PR/main integration; this does not authorize touching the 
 - [x] Push/CI/merge the admission fix as PR #5823 at `188dcb53cd513679e21f7e25d1a422ddf20a6e86`, then cut complete exact-main release `20260924T140650-188dcb53`.
 - [x] Reproduce the second canary boundary: targeted reconcile returns `skipped_pending`; seven old occurrences are queued, effect-free, unclaimed and unreserved.
 - [x] Add the atomic control-plane queue migration and regression tests. Preserve cancelled occurrence history and refuse claim, reservation or effect unknown.
-- [ ] Push/CI/merge the queue migration, cut one exact-main immutable release, and reapply only the shared supervisor.
-- [ ] Kickstart the corrected bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
+- [x] Push/CI/merge the queue migration as PR #5824 at `e00ce6f732da34ea1eb27e86a774d22a52866c7c`, cut complete release `20260924T142850-e00ce6f7`, and reapply only the shared supervisor.
+- [x] Verify queue migration in production: 24 old occurrences are `cancelled`; queue, priority and reservation rows are zero; loaded argv/SHA are exact.
+- [x] Kickstart one bounded wake and retain the next typed boundary: entrypoint exits 127 because launchd cannot resolve `node`; no intent, Paid selection or external effect occurs.
+- [x] Add RED→GREEN shared Node runtime identity for every managed plist, JavaScript entrypoint and recovery classifier. Apply passes 119 plus 31 subtests; runner passes 84/84.
+- [ ] Push/CI/merge the Node runtime fix, cut one exact-main immutable release, and reapply only the shared supervisor.
+- [ ] Kickstart the Node-corrected bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
 - [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
 - [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
