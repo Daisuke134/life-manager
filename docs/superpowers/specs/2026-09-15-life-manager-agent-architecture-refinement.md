@@ -2697,8 +2697,8 @@ four secret-free tuning/held-out fixtures and a fixture-only runner. It does not
 production state, provider effect, browser, Paid fulfillment, CFO intake, portfolio allocation or revenue
 claim.
 
-Implementation evidence is branch-only at `feat/lm-eab-v1-20260924` commit `1ba3fdc47b` and is not a `main`,
-production or revenue claim. Exact record contracts, the pure scorer and the bounded fixture runner pass 37/37
+Implementation evidence is branch-only at `feat/lm-eab-v1-20260924` commit `e4504dfded` and is not a `main`,
+production or revenue claim. Exact record contracts, the pure scorer and the bounded fixture runner pass 41/41
 focused tests. The four-case corpus has one eligible and one ineligible case in each of `tuning` and `held_out`;
 two full focused runs produce byte-identical output. Existing agent-contract tests pass 11/11 and
 `lm-loop-contract` reports 14 catalog loops, 167 registry jobs and zero errors. Twelve of thirteen neighboring
@@ -2712,6 +2712,11 @@ and receipt-backed cross-currency conversion is future work. This proves determi
 there is still no real portfolio/CFO join, production MRR readback, proof that Life Manager covers its own
 operating costs, or cloud promotion. Current cursor is §J4.2 item 2, the official funnel-and-cost receipt join
 to CFO. Items 3–8 remain open.
+
+A fresh read-only review initially found four fail-closed gaps; commit `e4504dfded` closes all four with
+regressions: an `external_effect` now requires `effect=verified` plus `readback=present`, simulation can never
+assert `self_funded`, a run uses one case-set hash trace so the 10,000-case bound no longer conflicts with the
+64-reference record bound, and secret-like or local-private-path evidence/trace refs are rejected.
 
 ### K. User Communication Contract
 
