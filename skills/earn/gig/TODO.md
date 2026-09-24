@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 03:30 JST (live platform-by-platform gate)
+## Current cursor — 2026-09-25 03:41 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
 "running" without a current launchd readback. A source registry row is not a
@@ -19,11 +19,29 @@ No provider send is allowed before all preceding gates pass.
 | Upwork | Read-only authenticated account readback exists. Current official contract snapshot is source-complete but `contracts=[]`; transactions/withdrawals are empty. There are 3 invites, 1 active proposal, and 7 submitted proposals, but no funded contract. Read-only receipts are time-limited; mutation actions remain denied. | `funded_contract_count=0`. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Renew the effect authorization for search/propose/message/offer/delivery, obtain a real funded contract and official milestone readback, then register and verify the owner. |
 
 Host note: the disk guard has repeatedly hit `ENOSPC` while writing receipts/SQLite.
-The latest `df` readback is about 188 MiB free (100% capacity); this is below a
+The latest `df` readback is about 161 MiB free (100% capacity); this is below a
 stable operating margin even though a small tempfile probe now succeeds. The allowlisted
 cleanup evaluated five candidates, preserved all five because they were open, and
 reclaimed 0 bytes. Storefront and Apply are intentionally unloaded to prevent
 additional failed writes. This is a host-health blocker, not proof of provider effect.
+
+### Runtime safety correction — 2026-09-25 03:41 JST
+
+- [x] Root cause was reproduced at the shared runtime boundary: a heartbeat
+  `ENOSPC`/descriptor failure previously died only in the daemon thread, while
+  the provider child remained alive and held its browser lock. The runtime now
+  converts heartbeat failure into a cancellation signal, polls running children,
+  terminates the process group, returns `75`, and writes the typed
+  `resource_heartbeat_unavailable` receipt when storage permits.
+- [x] Focused heartbeat/cancellation tests and the complete
+  `test_lm_loop_run_bounds.py` suite pass (`90`).
+- [x] CrowdWorks application owner was contained with the official `lm-loop
+  stop`; readback is `launchd_state=unloaded`, `pid=null`. Its final stopped
+  occurrence is `entrypoint_exit_143/effect_unknown` without a provider receipt;
+  no retry or fence release was performed.
+- [ ] The fix is committed on this branch but is not yet cut into the immutable
+  production release. Do not reload effectful owners until stable headroom and
+  release/readback verification are available.
 
 ### Remaining TODO from this cursor
 

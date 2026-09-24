@@ -21,7 +21,8 @@ from runtime.loop.lm_loop_run import (
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
-    _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
+    _heartbeat_loop, _run_admitted, _run_entrypoint, _runtime_limit,
+    _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
     main as lm_loop_run_main,
@@ -582,6 +583,59 @@ def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     assert calls[-1] == "release"
 
 
+def test_heartbeat_failure_sets_cancellation_event(tmp_path, monkeypatch):
+    stopped = threading.Event()
+    failed = threading.Event()
+
+    def heartbeat(_claim):
+        raise OSError("ENOSPC")
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+               side_effect=heartbeat):
+        _heartbeat_loop(tmp_path / "claim", stopped, failed)
+
+    assert failed.is_set()
+
+
+def test_admitted_child_is_cancelled_when_heartbeat_fails(tmp_path, monkeypatch):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        deadline = time.monotonic() + 1
+        while not kwargs["cancelled"]() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert kwargs["cancelled"]()
+        return 0
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+                side_effect=OSError("ENOSPC")),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint",
+                side_effect=run_child)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
+        ) == 75
+
+    assert json.loads(receipt.read_text())["reason"] == "resource_heartbeat_unavailable"
+
+
 def test_release_waits_for_inflight_heartbeat_before_closing_claim(tmp_path, monkeypatch):
     entry = {
         "cadence": {"start_interval_seconds": 60},
@@ -661,6 +715,26 @@ def test_entrypoint_timeout_terminates_its_process_group():
     )
 
     assert result == 124
+    assert time.monotonic() - started < 2
+
+
+def test_entrypoint_cancellation_terminates_running_process_group():
+    cancelled = threading.Event()
+    trigger = threading.Thread(
+        target=lambda: (time.sleep(0.05), cancelled.set()), daemon=True,
+    )
+    trigger.start()
+    started = time.monotonic()
+
+    result = _run_entrypoint(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        timeout_seconds=0.4,
+        termination_grace_seconds=0.05,
+        cancelled=cancelled.is_set,
+    )
+
+    trigger.join(timeout=1)
+    assert result == 75
     assert time.monotonic() - started < 2
 
 

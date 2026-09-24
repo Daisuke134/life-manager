@@ -588,9 +588,16 @@ def _release_with_retry(operation: Callable[[], list[str]]) -> list[str]:
     raise transient
 
 
-def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
+def _heartbeat_loop(claim: Path, stop: threading.Event,
+                    failed: threading.Event) -> None:
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
-        if not heartbeat_durable_resource(claim):
+        try:
+            healthy = heartbeat_durable_resource(claim)
+        except (OSError, RuntimeError, sqlite3.Error):
+            failed.set()
+            return
+        if not healthy:
+            failed.set()
             return
 
 
@@ -747,20 +754,42 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                 return 75
             raise
         os.close(write_fd)
-        try:
-            return_code = process.wait(timeout=timeout_seconds)
-        except subprocess.TimeoutExpired:
-            forward(signal.SIGTERM, None)
-            try:
-                process.wait(timeout=termination_grace_seconds)
-            except subprocess.TimeoutExpired:
-                if process.poll() is None:
+        deadline = (None if timeout_seconds is None
+                    else time.monotonic() + max(0, timeout_seconds))
+        while True:
+            if cancelled() or pending or stopping:
+                forward(signal.SIGTERM, None)
+                try:
+                    process.wait(timeout=termination_grace_seconds)
+                except subprocess.TimeoutExpired:
+                    if process.poll() is None:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    process.wait()
+                return 75
+            wait_timeout = 0.25
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    forward(signal.SIGTERM, None)
                     try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-                process.wait()
-            return 124
+                        process.wait(timeout=termination_grace_seconds)
+                    except subprocess.TimeoutExpired:
+                        if process.poll() is None:
+                            try:
+                                os.killpg(process.pid, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
+                        process.wait()
+                    return 124
+                wait_timeout = min(wait_timeout, remaining)
+            try:
+                return_code = process.wait(timeout=wait_timeout)
+                break
+            except subprocess.TimeoutExpired:
+                continue
     finally:
         for descriptor in (read_fd, write_fd):
             try:
@@ -912,6 +941,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     claim = None
     claim_started_child = False
     heartbeat_stop = threading.Event()
+    heartbeat_failed = threading.Event()
     heartbeat_thread: threading.Thread | None = None
     durable = False
     dispatch_after_release: list[str] = []
@@ -1047,7 +1077,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             claim_started_child = True
             if durable:
                 heartbeat_thread = threading.Thread(
-                    target=_heartbeat_loop, args=(claim, heartbeat_stop),
+                    target=_heartbeat_loop,
+                    args=(claim, heartbeat_stop, heartbeat_failed),
                     name=f"lm-heartbeat-{loop_id}", daemon=True,
                 )
                 heartbeat_thread.start()
@@ -1069,8 +1100,18 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if effect_result_hint_allowed:
             child_env["LIFE_MANAGER_LOOP_ID"] = loop_id
         return_code = _run_entrypoint(
-            command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
+            command, env=child_env, timeout_seconds=limit,
+            cancelled=lambda: interrupted or heartbeat_failed.is_set(),
             on_started=transfer_claim)
+        if heartbeat_failed.is_set():
+            return_code = 75
+            try:
+                _atomic_json(receipt, {
+                    "status": "deferred", "effect": 0,
+                    "reason": "resource_heartbeat_unavailable",
+                })
+            except OSError:
+                pass
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})

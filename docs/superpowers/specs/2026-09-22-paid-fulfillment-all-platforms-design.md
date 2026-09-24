@@ -31,11 +31,22 @@ The immediate order is therefore: reconcile exact old fences without guessing,
 then finish each provider's read-only/authentication gate, and only register a
 Freelancer/Upwork owner after both authentication and funded-work evidence exist.
 The host has also hit `ENOSPC` during receipt/SQLite writes. The latest `df`
-readback is about 188 MiB free at 100% capacity; a small tempfile probe now
+readback is about 161 MiB free at 100% capacity; a small tempfile probe now
 succeeds, but this is still below a stable operating margin. Allowlisted cleanup preserved
 all five open candidates and reclaimed zero bytes. Apply and Storefront are
 unloaded to stop additional failed writes. Disk headroom must be stable before
 claiming a natural-wake acceptance.
+
+### Runtime safety correction — 2026-09-25 03:41 JST
+
+The shared runtime now fails closed when a durable claim heartbeat raises an
+`ENOSPC`/descriptor error: it signals cancellation, polls the running provider
+child, terminates its process group, returns `75`, and records the typed
+`resource_heartbeat_unavailable` receipt when possible. The focused and complete
+runtime-bound tests pass (`90`). This source fix is not yet in an immutable
+production release. CrowdWorks application was stopped and read back as
+`unloaded/pid=null`; its stop occurrence remains `effect_unknown` without a
+provider receipt, so it is not retried or released by inference.
 
 ### Current implementation cursor — 2026-09-24 21:00 JST
 
