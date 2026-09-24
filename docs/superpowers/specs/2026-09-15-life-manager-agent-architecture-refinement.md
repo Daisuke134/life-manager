@@ -5385,3 +5385,9 @@ external effect. On the source candidate, `bin/lm-loop-contract` independently p
 candidate remains source-only. The repository's source-boundary helper rejects this registered `/private/tmp`
 worktree path (it expects the canonical checkout or `.worktrees`), so promotion still requires the normal allowed
 worktree path and the capacity/full-suite gates; this tooling mismatch was not bypassed.
+
+A read-only worktree inspection found that moving this candidate into `.worktrees` is not safe yet: its Git
+registration is marked `locked` by a managed lease whose owner/task refer to a different historical worktree and
+task. No lease was stolen, deleted or rewritten, and no duplicate worktree was created. The source branch remains
+clean and pushed; the safe next action is to resolve the stale lease through the normal worktree owner process before
+promotion, alongside capacity recovery.

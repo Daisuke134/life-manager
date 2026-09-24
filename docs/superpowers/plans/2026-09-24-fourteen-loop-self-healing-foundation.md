@@ -1787,3 +1787,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   expects canonical checkout/`.worktrees`; do not bypass this check or promote from an unapproved path.
 - [ ] After capacity recovery, rerun the full suite from an allowed source worktree, then continue immutable
   promotion and fresh self-healing readback.
+
+- [ ] Resolve the registered worktree's stale/mismatched managed lease through the owner lifecycle before promotion;
+  do not steal, delete or rewrite it and do not create a duplicate worktree for this task.
