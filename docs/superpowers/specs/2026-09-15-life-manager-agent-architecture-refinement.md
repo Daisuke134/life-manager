@@ -4439,6 +4439,12 @@ then reported typed retryable `host_admission_deferred:resource_control_busy`, c
 `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
 remains open until a current durable terminal is produced.
 
+The 14-loop foundation gate was re-read after the Writer, Capafy and Self-build safe rebinds and remains
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block` for
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The safe
+rebinds did not create an effect or clear a fence; the next executable cursor is accepted main-derived release
+promotion plus stale-event/official-fence resolution.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
