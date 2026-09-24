@@ -1853,3 +1853,19 @@ clicked again.
   occurred. The canonical launchd owners remain the only valid production
   execution path; keep the historical effect-unknown fences intact and do not
   retry an uncertain provider effect.
+
+## Production Cursor — 2026-09-24 09:19 JST
+
+- **Ryu official recheck:** authenticated selected-talkroom readback of
+  `https://coconala.com/talkrooms/18211957` observed `message_count=428` and
+  `new_message_count=6`. The three new buyer requests were external-link
+  status (`222273388`), concept-specific ranking setup (`222273444`), and
+  paid-option row alignment (`222273899`).
+- **Manual completion:** the room already contains the corresponding seller
+  replies `222277933` (concept ranking plus the honest external-integration
+  prerequisite explanation) and `222278017` (single-column paid-option
+  alignment). The live room ends with `222278017`; no buyer message follows it,
+  so no further message or formal-delivery click is allowed.
+- **Current provider state:** the room now reports `取引完了`, while the formal
+  delivery control remains unchecked. Preserve the permanent Ryu manual fence
+  and reopen only on a genuinely newer buyer event.

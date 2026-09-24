@@ -2176,3 +2176,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the canonical launchd owners running; resolve transient host
   ENOSPC/admission contention before the next artifact-bearing wake, then
   capture provider receipt and replay-zero for the first real effect.
+
+### Paid fulfillment checkpoint — 2026-09-24 09:19 JST
+
+- [x] Fresh authenticated Ryu readback observed the three newer buyer requests:
+  external integration status (`222273388`), concept-specific ranking setup
+  (`222273444`), and paid-option row alignment (`222273899`).
+- [x] Verified the corresponding manual seller replies are present in the
+  official room: `222277933` and `222278017`. The room is seller-last; no
+  duplicate ordinary reply and no formal-delivery click is permitted.
+- [x] The live transaction state is `取引完了` with the formal-delivery
+  checkbox still off. Ryu remains a permanent manual-only exception; reopen
+  only when a genuinely newer buyer message appears.
