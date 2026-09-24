@@ -5287,3 +5287,22 @@ revenue owner and is not permission to send.
 - [ ] Upwork remains authenticated/readable but has no Offer or funded
   `ContractReceipt`. Keep all write actions denied and do not register the Paid
   loop until a real funded milestone is officially read back.
+
+## Runtime Status Refresh — 2026-09-25 02:36 JST (Freelancer boundary)
+
+- [x] The read-only public Freelancer watcher refreshed all four historical bids
+  without authentication or provider mutation. Every project now reads
+  `status=closed`, `sub_status=closed_expired`, `frontend_status=complete`,
+  `active=0`, and the request returned no errors. No bid was awarded and no
+  funded project was observed.
+- [x] The existing Freelancer CloakBrowser profile was probed read-only at
+  `/dashboard`; the official site redirected to `/login`, proving that this
+  profile has no authenticated session. There is no
+  `~/.config/anicca/gig/freelancer-oauth2.json` and no Freelancer authorization
+  receipt on this host.
+- [ ] Freelancer is therefore not ready for loop registration. The required
+  activation order is: account-bound authentication and official inventory,
+  positive funded project/award readback, explicit lifecycle authorization,
+  Paid owner registration, then natural effect/readback/replay-zero. Keep all
+  bid/message/delivery actions closed; do not replay the expired historical
+  bids.

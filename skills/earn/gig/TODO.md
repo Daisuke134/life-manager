@@ -4576,3 +4576,22 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Upwork therefore remains authenticated/readable but has no Offer or
   funded ContractReceipt. Keep all write actions denied and do not register the
   Paid loop until a real funded milestone is officially read back.
+
+### Runtime checkpoint — 2026-09-25 02:36 JST (Freelancer boundary)
+
+- [x] The read-only public Freelancer watcher refreshed all four historical bids
+  without authentication or provider mutation. Every project now reads
+  `status=closed`, `sub_status=closed_expired`, `frontend_status=complete`,
+  `active=0`, and the request returned no errors. No bid was awarded and no
+  funded project was observed.
+- [x] The existing Freelancer CloakBrowser profile was probed read-only at
+  `/dashboard`; the official site redirected to `/login`, proving that this
+  profile has no authenticated session. There is no
+  `~/.config/anicca/gig/freelancer-oauth2.json` and no Freelancer authorization
+  receipt on this host.
+- [ ] Freelancer is therefore not ready for loop registration: the required
+  order remains (1) account-bound authentication/official inventory, (2) a
+  positive funded project/award readback, (3) explicit lifecycle authorization,
+  (4) Paid owner registration, and (5) natural effect/readback/replay-zero.
+  Keep bid/message/delivery actions closed; the next safe cursor is obtaining a
+  real authenticated account-bound inventory, not replaying expired bids.
