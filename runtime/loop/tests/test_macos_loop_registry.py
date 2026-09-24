@@ -1019,6 +1019,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.local/state/anicca/crowdworks/browser-profile",
         })
 
+    def test_lancers_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["lancers-revenue-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9227,
+            "profile": "~/.local/state/anicca/lancers/browser-profile",
+        })
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]

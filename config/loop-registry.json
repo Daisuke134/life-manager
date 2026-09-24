@@ -1406,6 +1406,7 @@
       "label": "ai.anicca.lancers-revenue-browser",
       "log_root": "~/.local/state/life-manager/lancers-revenue-browser/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/lancers-revenue-browser"
     },
     "lancers-revenue-storefront": {

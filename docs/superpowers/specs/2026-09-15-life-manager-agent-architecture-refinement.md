@@ -3791,6 +3791,11 @@ The CrowdWorks continuous browser owner now declares `resource_class=browser`, d
 are intentionally not invented. The browser session and provider state were not started or changed; only the
 branch registry/fixture contract is updated and still needs exact-release loaded-idle/readback evidence.
 
+The Lancers continuous browser owner is now classified the same way from its unique CDP/profile `browser_owner`
+(9227) and keep-alive identity: only `resource_class=browser` is declared. No finite admission/priority policy is
+inferred, and no Lancers browser session, provider state, Paid fulfillment or marketplace effect was started. This
+remains a branch-only exact-release/readback requirement.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
