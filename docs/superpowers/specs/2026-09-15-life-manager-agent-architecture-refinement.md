@@ -3836,6 +3836,11 @@ The continuous `x402-franklin2` owner now declares `resource_class=deterministic
 policy is inferred. No Franklin2 model, wallet, payment or provider effect was started; this remains branch-only
 pending exact-release loaded-idle/readback.
 
+The continuous `x402-research-serve` owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No research service, wallet, payment or provider effect was started; this remains branch-only
+pending exact-release loaded-idle/readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
