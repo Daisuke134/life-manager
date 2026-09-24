@@ -41,6 +41,10 @@ against the current `11,907`-directory/`~2.5GiB` tree found `2,245` eligible
 runs and a potential `178,397,607` bytes, but deleted nothing. The remaining
 capacity task is to let the daily owner produce a real pressure receipt when
 the floor is crossed; host cleanup still must not reclaim this tree by hand.
+At `2026-09-25 06:16 JST` the owner path was exercised against the live state
+root: `capacity_ok`, `free_bytes=2323501056`, `scanned_runs=0`, and
+`reclaimed_runs=0`. This confirms the fast path and that no evidence was
+deleted.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with
