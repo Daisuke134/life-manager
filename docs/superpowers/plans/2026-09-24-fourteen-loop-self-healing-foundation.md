@@ -1101,3 +1101,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After supervisor recovery is live, let its bounded FIFO reconciler advance one non-Paid effect-free owner at a
   time. Require exact current release, complete diagnostic envelope, typed terminal result, and replay-zero before
   marking that owner healthy. Paid, Connector and Mobile/Postiz remain outside this plan's mutation scope.
+
+### Shared portable-runtime follow-up (2026-09-25 JST)
+
+- [x] Trace `life-manager-taskmarket-ledger` and `life-manager-ugig-invoice-observer` setup failures to the shared
+  helper: both old production launchers report `missing=node` because `portable-runtime.sh` ignores the plist-injected
+  managed runtime under launchd's minimal PATH.
+- [x] Update `portable-runtime.sh` to resolve `NODE_BIN`/`PYTHON_BIN`, then `LIFE_MANAGER_RUNTIME_NODE`/
+  `LIFE_MANAGER_RUNTIME_PYTHON`, then `LIFE_MANAGER_NODE`/`LIFE_MANAGER_PYTHON`, then PATH. The no-PATH fake-runtime
+  regression is green and the three boot scripts pass `bash -n`.
+- [ ] Promote this helper with the supervisor fix in one accepted main-derived immutable release, then verify both
+  owners produce current diagnostic terminal events. No taskmarket/UGig provider or wallet effect is allowed during
+  this alignment step.
+- [ ] Restore the missing dependency bundle (`@noble/hashes/sha3.js`) in the release build and rerun the two
+  provider-specific test files; until then their import failures remain an explicit environment gap.

@@ -4510,3 +4510,18 @@ files, 2 reservations (one expired at the instant of observation), 637 claimed o
 occurrences. No effect fence was cleared, no stale claim was deleted, and no Paid/Connector/Mobile owner was mutated.
 These numbers confirm that FIFO/admission pressure is real, but the release-reconciler Node-path defect must be fixed
 and promoted before the queue can self-heal through the intended immutable-release path.
+
+### Shared portable-runtime diagnosis (2026-09-25 JST)
+
+Two additional deterministic, effect-free owners were read from their production stderr: `life-manager-taskmarket-
+ledger` and `life-manager-ugig-invoice-observer` repeatedly exited with `{"status":"setup_required","missing":"node"}`.
+Their common `apps/life-manager/scripts/lib/portable-runtime.sh` selected only `NODE_BIN`/`PYTHON_BIN` or the
+interactive PATH, even though every managed plist injects `LIFE_MANAGER_RUNTIME_NODE` and
+`LIFE_MANAGER_RUNTIME_PYTHON`. Under launchd, PATH therefore made valid immutable-release runtimes look absent.
+
+The branch fix makes the helper resolve explicit overrides, then the injected managed runtimes, then PATH. The
+no-PATH fake-runtime regression passes, and all three affected boot scripts remain shell-syntax valid. The two
+provider-specific test files could not be imported in this checkout because the dependency bundle lacks
+`@noble/hashes/sha3.js`; this is an environment dependency gap, not a failure of the helper change. No taskmarket
+award, UGig observation, wallet, payment or provider effect was executed. Main/release promotion and exact
+current-event readback remain open.
