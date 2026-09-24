@@ -1,5 +1,23 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 07:56 JST (occurrence-bound fence probe)
+
+The supported no-effect resolver was rerun one occurrence at a time using the
+provider-owned roots (`~/.local/state/anicca/crowdworks` and
+`~/.local/state/anicca/lancers`). CrowdWorks Paid occurrence
+`18d62cf32eb0c678-48194`, Lancers Paid occurrence
+`18d81967220136f8-89928`, and the current Coconala Paid occurrence all
+returned `exact_paid_zero_effect_proof_unavailable`. The command was run
+without `--resolve`, so no admission row, fence, retry, or provider state was
+changed.
+
+The state roots do contain newer, different pre-effect markers (CrowdWorks
+`18d8293a2c2d85b8-72114` and Lancers `18d82935a588ed80-71905`), but an
+occurrence-bound proof cannot be transferred between IDs. Those newer markers
+therefore do not clear the older claimed rows. The exact remaining action is
+to obtain a receipt/no-effect marker for each original occurrence or leave its
+fence closed; no blanket cleanup or resend is admissible.
+
 ## Current cursor — 2026-09-25 07:50 JST (explicit platform gates, live admission readback)
 
 This is the current platform-by-platform situation. “Loop code exists” is not
