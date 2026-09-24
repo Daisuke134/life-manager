@@ -3581,3 +3581,26 @@ not convert a transient pass or a no-op into client completion.
   effect/admission-unknown and must not be retried blindly.
 - These are read-only observations. No provider submission, client reply,
   formal delivery, resend, database edit, or fence release occurred.
+
+## Runtime Cursor — 2026-09-24 15:36 JST (Ryu item 1 complete)
+
+- **Profile reservation route fixed and verified.** Release
+  `manual-complete-v702` deployed the profile button wiring. Authenticated
+  FTPS exact readback recorded the `data-profile-reserve` button and handler
+  contracts in `delivery/current-cycle-v702-profile-reservation-deploy-readback.json`.
+- **Public browser readback passed.** After the age gate, `#profile/1` showed
+  the profile action; clicking it changed the hash to `#reservation`, opened
+  the reservation screen, and synchronized the cast select to profile `1`.
+  The form was not submitted and no Coconala message or formal delivery was
+  sent.
+
+### Next one-by-one cursor (15:36 JST)
+
+1. Remove the profile-top catchcopy truncation risk and verify mobile plus
+   desktop width behavior.
+2. Verify/fix authenticated recruitment LINE persistence with post-save
+   readback.
+3. Reassess one final Ryu delivery only after 1–2 pass; do not resend during
+   this cursor.
+4. Keep the paid-loop fences closed and continue the immutable-release canary
+   sequence for CrowdWorks → Lancers → Mercor.

@@ -3279,3 +3279,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   effect/admission-unknown.
 - [x] This refresh was read-only: no provider submission, client reply,
   formal delivery, resend, database edit, or fence release occurred.
+
+### Runtime checkpoint — 2026-09-24 15:36 JST (Ryu item 1 complete)
+
+- [x] Deployed `manual-complete-v702` with the profile reservation-button
+  wiring; authenticated FTPS exact readback passed. Evidence:
+  `delivery/current-cycle-v702-profile-reservation-deploy-readback.json`.
+- [x] Fresh public browser readback passed: after the age gate,
+  `#profile/1` → 「予約について相談する」 opened `#reservation` and set the
+  reservation cast select to `1`. No form submission or Coconala message was
+  made.
+- [ ] Remove profile-top catchcopy truncation risk and verify mobile/desktop.
+- [ ] Verify/fix authenticated recruitment LINE persistence with post-save
+  readback.
+- [ ] Reassess final Ryu delivery only after the two remaining fixes pass.
