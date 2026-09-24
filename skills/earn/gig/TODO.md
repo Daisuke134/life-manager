@@ -3690,6 +3690,26 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
    owners and perform final fleet acceptance.
 
+### Runtime checkpoint — 2026-09-24 18:00 JST (current SHA CI result)
+
+- [x] Security Scan `35977807197` passed every job at code SHA
+  `f8c9dfe4a62fae2b7b13165747e08ccf3eac999f` (Loop control, Python/unit, PII,
+  gitleaks, shell, OSS, and TruffleHog included).
+- [ ] It was a manual dispatch rather than a PR status context; PR #5820 stays
+  open/dirty and production is not changed.
+- [ ] The `5280157` Coconala fence and Lancers `5606124` later policy review
+  remain unchanged.
+
+### Remaining TODO (authoritative cursor, 18:00 JST)
+
+1. [ ] Keep the exact Coconala occurrence fenced; obtain complete official
+   readback with the new fallback and resolve only exact positive proof.
+2. [ ] Complete immutable release/load acceptance and natural wake/replay-zero;
+   do not treat manual CI as production acceptance.
+3. [ ] Complete Coconala four-room/Ryu manual-only acceptance.
+4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork
+   owners and perform final fleet acceptance.
+
 ### Runtime checkpoint — 2026-09-24 17:51 JST (detail-readback fallback)
 
 - [x] Reproduced the provider boundary: list/detail GETs were `200`, but the

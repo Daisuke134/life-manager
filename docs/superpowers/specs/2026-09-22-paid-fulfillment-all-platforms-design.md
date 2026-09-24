@@ -4164,6 +4164,16 @@ not convert a transient pass or a no-op into client completion.
 3. Complete Coconala four-room/Ryu manual-only acceptance, then advance
    Lancers/Mercor and finally Freelancer/Upwork.
 
+## Runtime Status Refresh — 2026-09-24 18:00 JST (current SHA CI result)
+
+- [x] Security Scan run `35977807197` completed successfully for code SHA
+  `f8c9dfe4a62fae2b7b13165747e08ccf3eac999f` across all jobs, including Loop
+  control, Python/unit, PII, gitleaks, shell, OSS, and TruffleHog.
+- [ ] The result was a manual dispatch and is not a PR status context; PR #5820
+  remains open/dirty. This code has not been merged or installed in production.
+- [ ] The Coconala occurrence fence and Lancers `unsupported_claim` later-review
+  item are unchanged.
+
 ## Runtime Status Refresh — 2026-09-24 17:51 JST (detail-readback fallback)
 
 - [x] Root cause was reproduced at the provider boundary: the authenticated
