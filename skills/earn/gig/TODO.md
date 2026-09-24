@@ -4542,3 +4542,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] These are source/registry proofs only. Coconala managed owners remain
   unloaded, and Freelancer/Upwork still have no fresh account-bound official
   readback or funded project/milestone; no provider effect was created.
+
+### Runtime checkpoint — 2026-09-25 02:32 JST (Upwork authenticated zero-contract readback)
+
+- [x] The dedicated Upwork browser profile was started on CDP `9233` and the
+  official login succeeded. Hidden, read-only snapshots of Contracts,
+  Transactions, and Withdrawals were captured under
+  `~/gig/trajectory/upwork-auth-20260925/`; the pages read `$0.00`, no active
+  contracts, no pending transactions, no withdrawal method, and no withdrawals.
+- [x] Only account-bound read permissions (`inspect`, `read_payments`,
+  `read_payouts`) were refreshed with the exact page evidence hashes. Proposal,
+  message, offer-accept, milestone-delivery, and search authorizations remain
+  denied; no Connects or external message/effect was used.
+- [x] The strict Upwork transport normalized the official browser bundle into
+  `~/gig/state/upwork/official-readback-20260925.json` with
+  `source_complete=true`, `contract_count=0`, and `funded_contract_count=0`.
+  Registration evaluation is correctly `ready=false` with
+  `authorization_missing` and `funded_contract_missing`.
+- [ ] Upwork still needs an actual funded contract/milestone and explicit
+  write-action authorization before any Paid owner can be registered. Keep the
+  loop disabled; the next safe step is read-only opportunity/offer monitoring,
+  not proposal submission.

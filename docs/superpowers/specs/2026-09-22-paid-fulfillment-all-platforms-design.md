@@ -5253,3 +5253,24 @@ revenue owner and is not permission to send.
   managed owners are still unloaded, and Freelancer/Upwork still lack fresh
   account-bound official readbacks and funded project/milestone evidence. No
   external provider effect was created.
+
+## Runtime Status Refresh — 2026-09-25 02:32 JST (Upwork authenticated zero-contract readback)
+
+- [x] The dedicated Upwork browser profile was started on CDP `9233` and the
+  official login succeeded. Hidden read-only snapshots of Contracts,
+  Transactions, and Withdrawals were captured under the private trajectory
+  directory; the official pages read `$0.00`, no active contracts, no pending
+  transactions, no withdrawal method, and no withdrawals.
+- [x] Only account-bound read permissions (`inspect`, `read_payments`,
+  `read_payouts`) were refreshed with their exact official page evidence hashes.
+  Proposal, message, offer-accept, milestone-delivery, and search
+  authorizations remain denied; no Connects or external message/effect was used.
+- [x] The strict Upwork transport normalized the browser bundle into the
+  private canonical readback `~/gig/state/upwork/official-readback-20260925.json`
+  with `source_complete=true`, zero contracts, and zero funded milestones.
+  Registration evaluation is `ready=false` with
+  `authorization_missing` and `funded_contract_missing`.
+- [ ] Upwork still needs an actual funded contract/milestone and explicit
+  write-action authorization before a Paid owner may be registered. Keep the
+  loop disabled; the next safe step is read-only opportunity/offer monitoring,
+  not proposal submission.
