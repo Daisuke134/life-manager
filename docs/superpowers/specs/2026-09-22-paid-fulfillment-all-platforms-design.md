@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 03:55 JST
+### Live platform gate correction — 2026-09-25 04:03 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -20,7 +20,7 @@ Paid "running" solely because a registry row and a result file existed.
 
 | Platform | Current observed state | Gate still open |
 |---|---|---|
-| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-idle but its latest d4fe wake ended `entrypoint_exit_1` with `effect_class=none`; Apply and Storefront are intentionally unloaded for host safety. Apply still has `5280157` plus a later host fence, while the latest Storefront wake ended `entrypoint_exit_1` after CDP HTTP 500 with no provider receipt/readback. Ryu remains a manual-only, already-read-back exception. | Recover disk headroom, diagnose the 9223/CDP boundary, reconcile exact occurrences, then controlled reload, official readback, and replay-zero. |
+| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-running on d4fe and its latest wake passed with `effect=none`; Apply and Storefront are intentionally unloaded for host safety. Apply still has `5280157` plus a later host fence, while the latest Storefront wake ended `entrypoint_exit_1` after CDP HTTP 500 with no provider receipt/readback. Ryu remains a manual-only, already-read-back exception. | Keep Paid's safe no-op schedule; diagnose the 9223/CDP boundary, reconcile exact Apply/Storefront occurrences, then controlled reload, official readback, and replay-zero. |
 | CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`; direct status confirms the actual launchd service is unloaded, while the persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. | Exact pre-effect/provider proof, then load one owner and run a no-effect canary; pending `63568785` still waits for buyer material. |
 | Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Direct status confirms the Paid service is unloaded; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is loaded-idle, but has no funded-contract or provider-receipt proof. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
 | Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is loaded-idle but latest status is `resource_effect_unknown` with no receipt/readback. | Recover capacity, refresh inventory, and reconcile exact application/Paid/Reply fences. |
@@ -31,11 +31,12 @@ The immediate order is therefore: reconcile exact old fences without guessing,
 then finish each provider's read-only/authentication gate, and only register a
 Freelancer/Upwork owner after both authentication and funded-work evidence exist.
 The host has also hit `ENOSPC` during receipt/SQLite writes. The latest `df`
-readback is about 342 MiB free at 97% root / 100% data-volume capacity; a small tempfile probe now
-succeeds, but this is still below a stable operating margin. Allowlisted cleanup preserved
-all five open candidates and reclaimed zero bytes. Apply and Storefront are
-unloaded to stop additional failed writes. Disk headroom must be stable before
-claiming a natural-wake acceptance.
+readback is about 2.3 GiB available at 82% root / 99% data-volume capacity. The
+allowlisted cleanup owner has a terminal PASS and the immediate 512 MiB admission
+floor is now clear, but the data volume remains at 99%; candidate release and natural
+wake verification must still be bounded. The old effect-unknown fences are not cleared
+by disk recovery. Apply and Storefront remain unloaded until their exact occurrences
+are reconciled.
 
 ### Runtime safety correction — 2026-09-25 03:41 JST
 
@@ -48,7 +49,7 @@ production release. CrowdWorks application was stopped and read back as
 `unloaded/pid=null`; its stop occurrence remains `effect_unknown` without a
 provider receipt, so it is not retried or released by inference.
 
-### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 03:55 JST
+### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 04:03 JST
 
 The implementation is not waiting for a funded contract to begin engineering.
 The provider-neutral readiness and transport boundaries are implemented and the
@@ -72,6 +73,17 @@ split into provider readback and provider effect:
   requires account-bound authorization plus a positive funded contract/milestone;
   after registration the canary sequence is zero-effect → funded → official
   receipt/readback → settlement/payout → crash recovery → replay-zero.
+
+### Transport reality — 2026-09-25 04:03 JST
+
+The code-side gates are being worked on now; the provider-side account gate is
+not being faked. BrowserSkill currently reports no connected instances, CDP
+`9223` belongs to Coconala, and neither `9233` nor `9234` has a listener. The
+Freelancer OAuth file is absent, and its mode-700 profile is only a candidate.
+Upwork has no OAuth file and no running `gig-upwork` page. Only the three
+read-only Upwork browser receipts are current; all mutation actions are denied.
+Consequently the next real state transition is an account-bound read-only
+inventory readback, not loop registration or a provider send.
 
 ### Current implementation cursor — 2026-09-24 21:00 JST
 
