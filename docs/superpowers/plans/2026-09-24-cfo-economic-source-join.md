@@ -6,10 +6,14 @@
 
 **Scope boundary:** Do not modify or operate Coconala/CrowdWorks/Lancers/Upwork Paid fulfillment code, state, owners, sessions, effects or `config/loop-registry.json` Paid rows. Marketplace integration consumes only official receipts produced by that owner after they exist.
 
-**Current status:** Task 1 is complete on branch commit `13ab24a9a4`. The catalog loader covers all fourteen
-loops and fails closed on malformed economic roles, source declarations and fundraising classification.
-Focused Product Loop tests pass 39/39; the runtime catalog tests pass 19/19; `lm-loop-contract` reports
-14 loops, 167 jobs and zero errors. Current cursor: Task 2, the official funnel/source join contract.
+**Current status:** Tasks 1 and 2 are complete on branch commits `13ab24a9a4` and `660c8072cd`.
+The catalog loader covers all fourteen loops and fails closed on malformed economic roles, source declarations
+and fundraising classification. The shared immutable source/funnel join contract preserves unavailable,
+empty, unverified and verified states; rejects estimates, unsupported amount fields, secret-like refs and
+local-private paths; and requires matching loop/subject/source IDs plus receipt/evidence overlap. Focused
+source plus LM-EAB tests pass 46/46; Product Loop tests pass 39/39; runtime catalog tests pass 19/19;
+`lm-loop-contract` reports 14 loops, 167 jobs and zero errors. Current cursor: Task 3, exposing all-loop
+economic source coverage through CFO.
 
 ## Task 1 — Freeze the fourteen-loop economic source inventory
 
@@ -21,6 +25,8 @@ Status: complete.
 - Add contract tests proving all fourteen loops are covered once, unsupported fields fail closed, fundraising is never customer MRR, and missing adapters stay visible.
 
 ## Task 2 — Add the official funnel/source join contract
+
+Status: complete.
 
 - Add exact immutable records for per-loop source observation and funnel stage evidence.
 - Join records only by stable loop/subject/receipt IDs and evidence refs.

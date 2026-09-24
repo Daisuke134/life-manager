@@ -2731,8 +2731,18 @@ Task 1 is complete at `13ab24a9a4`: all fourteen existing Product Loop catalog r
 role, allowed revenue classes and funnel/financial/cost source declarations. Missing adapters are explicit;
 Connector and CFO are explicitly non-source/aggregator rows; Fundraiser is fixed to financing/fundraising and
 cannot be classified as subscription MRR. Product Loop tests pass 39/39, catalog tests 19/19 and the structural
-loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 2, the immutable official
-funnel/source observation and join contract; no provider or Paid runtime was changed.
+loop contract remains 14 loops / 167 jobs / zero errors.
+
+Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
+`not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
+distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
+empty observations require provider receipts and evidence. Funnel joins require the same loop, subject and
+source observation, receipt subset and overlapping evidence. Estimated amounts and unsupported amount fields
+are rejected instead of becoming settled financial records. Evidence validation is shared with LM-EAB and
+rejects secret-like references, URL userinfo, file URIs and local-private paths. Source-contract plus LM-EAB
+tests pass 46/46 twice with byte-identical benchmark output; combined Product Loop/source tests pass 44/44;
+the structural loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 3: expose an
+explicit source-coverage state for every catalog loop through CFO without changing Paid fulfillment runtime.
 
 ### K. User Communication Contract
 
