@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 04:08 JST
+### Live platform gate correction — 2026-09-25 04:11 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -20,7 +20,7 @@ Paid "running" solely because a registry row and a result file existed.
 
 | Platform | Current observed state | Gate still open |
 |---|---|---|
-| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-running on d4fe and its latest wake passed with `effect=none`; Apply and Storefront are intentionally unloaded for host safety. Apply still has `5280157` plus a later host fence, while the latest Storefront wake ended `entrypoint_exit_1` after CDP HTTP 500 with no provider receipt/readback. Ryu remains a manual-only, already-read-back exception. | Keep Paid's safe no-op schedule; diagnose the 9223/CDP boundary, reconcile exact Apply/Storefront occurrences, then controlled reload, official readback, and replay-zero. |
+| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-running on d4fe and its latest wake passed with `effect=none`; Apply and Storefront are intentionally unloaded for host safety. The current unknown occurrences are Apply `18d852199baadb90-95298` and Storefront `18d5fe8333276980-33952`; the read-only reconciler found no one-to-one effect-started intent mapping. Ryu remains a manual-only, already-read-back exception. | Keep Paid's safe no-op schedule; keep both fences closed until exact official provider readback exists. Do not resolve or retry from the missing mapping. |
 | CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`; direct status confirms the actual launchd service is unloaded, while the persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. | Exact pre-effect/provider proof, then load one owner and run a no-effect canary; pending `63568785` still waits for buyer material. |
 | Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Direct status confirms the Paid service is unloaded; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is loaded-idle, but has no funded-contract or provider-receipt proof. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
 | Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is loaded-idle but latest status is `resource_effect_unknown` with no receipt/readback. | Recover capacity, refresh inventory, and reconcile exact application/Paid/Reply fences. |
@@ -49,7 +49,7 @@ production release. CrowdWorks application was stopped and read back as
 `unloaded/pid=null`; its stop occurrence remains `effect_unknown` without a
 provider receipt, so it is not retried or released by inference.
 
-### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 04:08 JST
+### Freelancer/Upwork work is active, but effect-gated — 2026-09-25 04:11 JST
 
 The implementation is not waiting for a funded contract to begin engineering.
 The provider-neutral readiness and transport boundaries are implemented and the
@@ -74,7 +74,7 @@ split into provider readback and provider effect:
   after registration the canary sequence is zero-effect → funded → official
   receipt/readback → settlement/payout → crash recovery → replay-zero.
 
-### Transport reality — 2026-09-25 04:08 JST
+### Transport reality — 2026-09-25 04:11 JST
 
 The code-side gates are being worked on now; the provider-side account gate is
 not being faked. BrowserSkill currently reports no connected instances, CDP
@@ -84,6 +84,22 @@ Upwork has no OAuth file and no running `gig-upwork` page. Only the three
 read-only Upwork browser receipts are current; all mutation actions are denied.
 Consequently the next real state transition is an account-bound read-only
 inventory readback, not loop registration or a provider send.
+
+The fresh transport probe confirms that Freelancer has no selected transport for
+any lifecycle action, while Upwork selects `cloak_browser` only for the three
+read-only actions `inspect`, `read_payments`, and `read_payouts`. Upwork's
+stored account snapshot is dated 2026-08-22 and has no current funded contract;
+it is historical evidence only.
+
+### Fence reconciliation readback — 2026-09-25 04:11 JST
+
+The application occurrence scanner read the admission database in read-only
+mode. Apply currently has claimed `effect_unknown=1` occurrence
+`hf-gig-apply-direct:18d852199baadb90-95298`; Storefront has
+`hf-gig-storefront-direct:18d5fe8333276980-33952`. The scanner returned
+`nothing_to_reconcile` because a unique `effect-started` intent could not be
+paired with the current unknown occurrence. It performed no resolver, intent
+retirement, browser submit, or resend.
 
 ### Candidate release readback — 2026-09-25 04:08 JST
 

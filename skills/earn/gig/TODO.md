@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 04:08 JST (live platform-by-platform gate)
+## Current cursor — 2026-09-25 04:11 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
 "running" without a current launchd readback. A source registry row is not a
@@ -11,7 +11,7 @@ No provider send is allowed before all preceding gates pass.
 
 | Platform | Authentication/readback | Funded work | Actual loop state | Immediate TODO |
 |---|---|---|---|---|
-| Coconala | Authenticated public inventory readback: 20 live listings; the current normalized catalog SHA is unchanged from the earlier official snapshot (`f3242749…`). | Client work is split by room; Ryu is manual-only and already read back. | Paid is **loaded-running** on the immutable d4fe release; its latest wake passed with `effect=none`, no provider receipt, and no provider effect. Apply is **unloaded** as a host-safety pause, with `5280157` and a later `resource_effect_unknown` occurrence still fenced. Storefront is **unloaded** as a host-safety pause; its latest wake ended `entrypoint_exit_1` after `server rejected WebSocket connection: HTTP 500`, with no provider receipt/readback. | Keep Paid's safe no-op schedule. Reconcile Apply/Storefront exact fences and diagnose the 9223/CDP boundary before any effectful restart; then run official readback/replay-zero. Keep Ryu closed and do not resend. |
+| Coconala | Authenticated public inventory readback: 20 live listings; the current normalized catalog SHA is unchanged from the earlier official snapshot (`f3242749…`). | Client work is split by room; Ryu is manual-only and already read back. | Paid is **loaded-running** on the immutable d4fe release; its latest wake passed with `effect=none`, no provider receipt, and no provider effect. Apply is **unloaded** as a host-safety pause; the current admission DB occurrence is `hf-gig-apply-direct:18d852199baadb90-95298` with `effect_unknown=1`. Storefront is **unloaded**; its current unknown occurrence remains `hf-gig-storefront-direct:18d5fe8333276980-33952`. | The read-only reconciler returned `nothing_to_reconcile` because there is no one-to-one occurrence↔effect-started intent mapping. Keep both fences closed; obtain exact official provider readback before any resolver or retry. Keep Ryu closed and do not resend. |
 | CrowdWorks (CloudWorks) | Existing provider state is readable. | `63568785` is pending buyer lesson/answer material; four rows are completed with official readback. | Latest result evidence remains `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1`; the direct `lm-loop status` readback confirms `crowdworks-revenue-paid` is **unloaded**, with the persisted `entrypoint_exit_143` occurrence still `admission_effect_unknown=true` and incomplete diagnostics. | Reconcile that exact occurrence with an admissible pre-effect/provider proof; then load one owner and prove a natural no-op. Do not send the pending item without buyer material. |
 | Lancers | Authenticated preflight passes; source-complete inventory has no contract candidate and zero balance. | Latest result is `observed=0/actionable=0/effect=0`; job `5606124` was fail-closed as `unsupported_claim`, with no application. | The direct `lm-loop status` readback confirms `lancers-revenue-paid` is **unloaded**; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is **loaded-idle**, but that is not a funded-contract or provider-receipt proof. | Reconcile the exact Paid occurrence and refresh official inventory. Register/run Paid only after a real funded `ContractReceipt`; formal delivery remains closed. |
 | Mercor | Official browser readback is authenticated; earnings readback is `$0.00`/empty. | Saved work assessment is stale/incomplete; no current funded work is proven. | `mercor-revenue-paid` is loaded-idle; the latest direct status is `host_admission_deferred:resource_effect_unknown` with no provider receipt/readback. | Recover host capacity, refresh official work inventory, and reconcile exact application/Paid/Reply fences before any effect. |
@@ -74,7 +74,7 @@ remain unresolved provider fences; disk recovery does not clear them.
    authorization, funded-work proof where applicable, official receipt/readback,
    settlement evidence, and duplicate-zero proof.
 
-### Freelancer/Upwork execution work — 2026-09-25 04:08 JST
+### Freelancer/Upwork execution work — 2026-09-25 04:11 JST
 
 - [x] Re-ran the provider readiness/transport suites: `52 passed` (Freelancer
   readiness/transport plus Upwork readiness/transport). This proves the
@@ -117,6 +117,22 @@ remain unresolved provider fences; disk recovery does not clear them.
   manifest records `c755377c9f…`, the immutable tree contains the heartbeat
   fix, `~/loops/current` still resolves to `20260925T031007-d4fe0819`, and
   Coconala Paid remains a natural `pass / effect=none` on d4fe.
+
+### Fresh provider transport/readiness probe — 2026-09-25 04:11 JST
+
+- [x] **Freelancer:** actual `FreelancerTransport.for_action` returns no
+  transport for `inspect`, `read_payments`, `read_payouts`, `search`, `propose`,
+  `message`, `accept_offer`, or `deliver`. The OAuth file is absent, so no
+  account-bound inventory call can be made.
+- [x] **Upwork:** actual `UpworkTransport.for_action` returns `cloak_browser`
+  only for `inspect`, `read_payments`, and `read_payouts`. It returns no
+  transport for `search`, `propose`, `message`, `accept_offer`, or
+  `deliver_milestone`. The stored account snapshot is historical
+  (`observed_on=2026-08-22`) and does not prove a current contract.
+- [x] **Coconala fences:** the read-only occurrence scan wrote
+  `occurrence-reconcile-scan-20260925-0408.json` with
+  `status=nothing_to_reconcile`; it did not resolve, retire, retry, or resend
+  any provider effect.
 
 ## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
 
