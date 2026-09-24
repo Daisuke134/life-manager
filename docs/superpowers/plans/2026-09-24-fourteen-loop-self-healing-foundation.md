@@ -1252,12 +1252,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Carry only generic recovery/control-plane fixes: managed runtime resolution, ENOSPC-safe launchctl probes,
   admission read retry/fail-closed handling, typed harness/recovery readback, brain fallback evidence, and cleanup
   preflight readback. Do not carry registry-only provider classifications or Paid fulfillment changes.
-- [x] Push candidate branch `fix/self-healing-control-plane-integration-20260925` at `bac2c00c50` and verify
-  Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway **142 passed (494 subtests)**,
-  shell syntax, managed-runtime no-PATH probe, and `git diff --check`.
-- [x] Review the candidate diff for ownership boundaries. The clean candidate contains only 19 generic
-  control-plane/runtime paths; it contains no `skills/earn/gig`, Capafy catalog, affiliate provider state,
-  `config/loop-registry.json`, or Paid-fulfillment-spec path, and `git diff --check` is clean.
+- [x] Push candidate branch `fix/self-healing-control-plane-integration-20260925`, latest
+  `6ff4a5e73c`, and verify Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway
+  **241 passed (212 subtests)**, product-onboarding **48/48**, contract gate 14/169/98/zero-errors, shell syntax,
+  managed-runtime no-PATH probe, and `git diff --check`.
+- [x] Review the candidate diff for ownership boundaries. The clean candidate contains 24 generic
+  control-plane/runtime/test paths. Its registry delta is limited to 31 non-Paid loop IDs; it contains no
+  `skills/earn/gig`, Capafy catalog, affiliate provider state, or Paid-fulfillment-spec path, and `git diff --check`
+  is clean.
 - [ ] Integrate only this generic slice into main after the user-level foundation gate is green; do not merge the
   separate Paid/Gig/provider implementation or mutate production state in this step.
 - [ ] After the single accepted main integration, cut one immutable release and read back exact loaded/event SHA,

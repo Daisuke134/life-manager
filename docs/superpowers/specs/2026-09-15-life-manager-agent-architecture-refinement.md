@@ -4689,16 +4689,21 @@ typed admission-read failures and bounded retries, harness-failure projection, b
 recovery exit/readback typing, and cleanup/preflight readback. No Paid/Gig/provider implementation, provider session,
 effect fence, application state, Connector/Mobile state, or external effect was copied.
 
-The candidate is pushed at `bac2c00c50` (launcher-only first commit `36ec25c59d`). Verification is green: Python
-self-healing/readback tests **162 passed (31 subtests)**, Node recovery/brain/integration tests **36/36**, macOS
-registry/cleanup/gateway tests **142 passed (494 subtests)**, managed-runtime no-PATH probe passed, shell syntax
-passed, and `git diff --check` passed. The candidate is source-only; production still loads the existing immutable
+The candidate was initially pushed at `bac2c00c50` (launcher-only first commit `36ec25c59d`) and now includes
+foundation-gate diagnostics/regression plus a selective registry-contract commit `6ff4a5e73c`. The registry change
+declares recovery contracts for **31 non-Paid loop IDs only**; Gig/CrowdWorks/Lancers/Mercor/Upwork/Paid/UGIG IDs
+remain unchanged. Verification is green: Python self-healing/readback tests **162 passed (31 subtests)**, Node
+recovery/brain/integration tests **36/36**, macOS registry/cleanup/gateway tests **241 passed (212 subtests)**,
+product-onboarding **48/48**, `lm-loop-contract` reports 14 catalog loops/169 registry jobs/98 mapped/zero errors,
+managed-runtime no-PATH probe passed, shell syntax passed, and `git diff --check` passed. The candidate is source-only;
+production still loads the existing immutable
 release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
 made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
 cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
-the candidate diff contains only 19 generic control-plane/runtime paths, with no `skills/earn/gig`, Capafy catalog,
-affiliate provider state, loop-registry, or Paid-fulfillment-spec path. The candidate worktree is clean and its diff
-check is clean. Main integration remains intentionally unopened until the user-level foundation gate is green.
+the candidate diff contains 24 generic control-plane/runtime/test paths, with no `skills/earn/gig`, Capafy catalog,
+affiliate provider state, or Paid-fulfillment-spec path. Its registry changes are limited to the 31 named non-Paid
+contracts above. The candidate worktree is clean and its diff check is clean. Main integration remains intentionally
+unopened until the user-level foundation gate is green.
 
 ### Fresh read-only foundation recheck after candidate verification (2026-09-25 JST)
 
