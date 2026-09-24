@@ -219,9 +219,9 @@ current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, ze
 ### Task 9: Pass local foundation acceptance
 
 **Status:** Current task. Revenue, conversion, commission and natural-business-event waits are not gates. Capafy,
-Self-build and Investment are locally accepted. Mobile Apps is actively repairing under its existing Postiz
-canary owner, Affiliate retains one confirmed-effect official-readback fence, and the next non-conflicting
-Product Loop cursor is Fundraiser.
+Self-build, Investment and Fundraiser are locally accepted. Mobile Apps is actively repairing under its existing
+Postiz canary owner, Affiliate retains one confirmed-effect official-readback fence, and the next non-conflicting
+Product Loop cursor is Writer.
 
 Affiliate diagnosis reaches the shared release boundary. One historical run succeeds while releasing older
 occurrence `affiliate-loop:18d6048b69d38938-35148`, then hits a SQLite lock during next-owner reservation. The
@@ -484,7 +484,7 @@ allowed.
 - [x] Integrate the shared Investment self-heal through PR #5851 at `209f879ec862a24fa0ed5cd954a7680422905c3a`, activate complete release `20260924T203525-209f879e`, resolve only the exact pre-effect occurrence with a 0600 `RESOLVED` receipt, and coalesce 64 stale effect-known wakes. The first current-release wake exits 0 with Alpaca account `ACTIVE`, equity USD 66.74, orders 4, `NO_TRADE`, unresolved orders 0 and Telegram message `92860`; the immediate replay makes no entrypoint/trade, remains unknown-free and stops safely at typed capacity backpressure.
 - [x] Diagnose Fundraiser read-only. Its official Startuped AI `submitted_verified` receipt at `02:13:28Z` is preserved. The sole later unknown `fundraiser:18d5fda7a1962e60-16555` is a separate exact two-event pre-entrypoint `resource_capacity_busy` run with no effect reference; admission is claimed-unknown 1, known queued 10, known released 2, queue row 1 and reservation 0.
 - [x] Reuse the shared exact pre-effect reconciler and add only Fundraiser's existing `agent/borrow/support` plus queued/reserved-wake coalescing contract. The RED registry test fails before the declaration; focused tests pass 2/2, full apply/registry passes 207/207, and production dry proof selects exactly the one target. Candidate `d5d4f5ee15` is pushed without production mutation.
-- [ ] Integrate the Fundraiser contract through PR/CI/main, cut a complete immutable release, reconcile only `fundraiser`, verify the 0600 receipt and unchanged official application ledger, then run one current-release wake plus bounded replay-zero without submitting merely for acceptance.
+- [x] Integrate the Fundraiser contract through PR #5852 at `2ff81f6eb1c0e9fb3160fd4bbe654a5810b8d167`, activate complete release `20260924T205828-2ff81f6e`, reconcile only `fundraiser`, and verify its 0600 `RESOLVED` receipt. The 652-row ledger remains byte-identical with 56 verified submissions; apply plus immediate replay both stop pre-entrypoint at typed capacity backpressure, unknown stays zero, and the exact-release foundation row is `safely_fenced` with no mismatch or diagnostic gap.
 - [ ] Continue the independent non-Paid foundation slices in this order while Mobile remains owned: Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice. Affiliate remains an asynchronous official-readback reconciliation and does not block this cursor.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
