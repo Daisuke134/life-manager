@@ -4758,3 +4758,14 @@ same owner-level fence together with both identities: the latest event occurrenc
 `affiliate-loop:18d83ba82b14fb40-24990` (`claimed`, sequence `143954`). The readback had no provider receipt or
 official readback reference. This is the intended diagnostic distinction; it does not authorize a resolver or
 external retry.
+
+### Candidate full-fleet readback after occurrence projection (2026-09-25 JST)
+
+The corrected candidate `lm-loop status all --json` completed with `rc=0` and returned 271 rows. Its current
+terminal projection is `running=4`, `blocked=71`, `pass=38`, `fail=23`, `None=135`; the local foundation gate
+still returns `decision=block` with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`
+and `uncovered_failure`, projecting 13 `uncovered_failure` loops and one `safely_fenced` loop. This small
+blocked/pass movement is natural runtime state, not a promotion or acceptance signal. Affiliate continues to show
+the latest event occurrence separately from durable target `affiliate-loop:18d83ba82b14fb40-24990`, with no
+provider receipt or official readback. No production mutation, fence resolution, provider action or revenue claim
+was made.

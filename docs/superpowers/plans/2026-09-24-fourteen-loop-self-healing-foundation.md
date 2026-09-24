@@ -1318,6 +1318,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Run the candidate CLI against the live selector in read-only mode. It returns `rc=0` and exposes the latest
   event occurrence separately from the durable fenced occurrence, with no provider receipt or official readback;
   this is diagnostic evidence only.
+- [x] Re-read the full fleet after the resolver call-site fix. The candidate returns 271 rows and the gate remains
+  `block` with 13 `uncovered_failure`/1 `safely_fenced`; current terminal projection is
+  `running=4`, `blocked=71`, `pass=38`, `fail=23`, `None=135`. Natural movement here is not acceptance.
 - [ ] Integrate the candidate only after the user-level foundation gate is green, then promote one immutable
   release and re-read this exact owner. The next Affiliate operation is official readback of the durable target,
   followed by a mode-0600 receipt, exact owner rebind and two replay-zero foundation projections; never use the
