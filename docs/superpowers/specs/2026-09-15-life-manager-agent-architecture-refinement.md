@@ -5386,11 +5386,23 @@ candidate remains source-only. The repository's source-boundary helper rejects t
 worktree path (it expects the canonical checkout or `.worktrees`), so promotion still requires the normal allowed
 worktree path and the capacity/full-suite gates; this tooling mismatch was not bypassed.
 
-A read-only worktree inspection found that moving this candidate into `.worktrees` is not safe yet: its Git
-registration is marked `locked` by a managed lease whose owner/task refer to a different historical worktree and
-task. No lease was stolen, deleted or rewritten, and no duplicate worktree was created. The source branch remains
-clean and pushed; the safe next action is to resolve the stale lease through the normal worktree owner process before
-promotion, alongside capacity recovery.
+A read-only worktree inspection corrected the earlier wording: the candidate worktree itself is registered
+`unmanaged` and `unlocked`. The expired managed lease belongs to a different historical worktree,
+`/private/tmp/lm-runtime-admission-marketplace-priority-20260916`, with owner
+`codex-root-marketplace-priority-20260916`; it is not a lease on this candidate. No lease was stolen, deleted or
+rewritten, and no duplicate worktree was created. The candidate remains source-only because the source-boundary
+helper rejects its `/private/tmp` path; promotion still requires an allowed canonical checkout/`.worktrees` path,
+capacity recovery and the full-suite gate. The stale historical lease remains an external owner boundary and is not
+used as a reason to mutate this candidate.
+
+### Worktree-boundary audit correction (2026-09-25 JST)
+
+`python3 scripts/worktree-lease.py audit --path /private/tmp/lm-self-heal-integration-20260925` reports the
+candidate as `state=unmanaged, locked=false`. The only relevant expired managed record is the separate historical
+`lm-runtime-admission-marketplace-priority-20260916` worktree. This read-only audit therefore closes the earlier
+diagnostic ambiguity without changing any lease, branch, worktree, release, launchd owner or provider state. The
+remaining cursor is: recover the owner-controlled capacity floor, run the full suite from an allowed worktree, then
+perform the accepted immutable-release and occurrence-complete self-healing readback sequence.
 
 The following natural release-reconciler occurrence `18d865db6184d2b0-84522` reached its own terminal at
 `2026-09-24T23:36:45.786559Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release

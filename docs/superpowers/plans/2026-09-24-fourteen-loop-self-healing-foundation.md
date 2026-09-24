@@ -1788,8 +1788,10 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After capacity recovery, rerun the full suite from an allowed source worktree, then continue immutable
   promotion and fresh self-healing readback.
 
-- [ ] Resolve the registered worktree's stale/mismatched managed lease through the owner lifecycle before promotion;
-  do not steal, delete or rewrite it and do not create a duplicate worktree for this task.
+- [x] Audit the candidate worktree lease boundary read-only. The candidate is `unmanaged/unlocked`; the expired
+  managed lease belongs to the separate historical `lm-runtime-admission-marketplace-priority-20260916` worktree.
+  Do not steal, delete or rewrite that external lease. The remaining promotion blocker is the source-boundary path
+  plus capacity/full-suite acceptance, not a lock on this candidate.
 
 - [x] Read natural reconciler terminal `18d865db6184d2b0-84522` at `23:36:45.786559Z`: old-release
   `entrypoint_exit_1`, no provider receipt/effect. Keep it distinct from earlier occurrences and do not replay it.
