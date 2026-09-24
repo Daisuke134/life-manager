@@ -2413,3 +2413,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   buyer material for `63568785`; never resend while effect is unknown.
 - [ ] Diagnose Lancers `provider_inventory`, then deliver only after a funded
   `ContractReceipt`; keep Upwork disabled until its three onboarding gates.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:13 JST
+
+- [x] Released Lancers fences
+  `18d804aac5e02e18-25086`, `18d818f53303d720-84348`, and
+  `18d81cc3531d6158-56194` with the supported reconciler after exact
+  `effect=0` markers were verified and the shared lock cleared.
+- [x] Verified only one Lancers fence remains:
+  `18d81967220136f8-89928`; its exact marker/receipt is absent, so it stays
+  fenced and no retry is allowed.
+- [x] Verified Coconala natural wake `pass` and official `4/0/0/3/0`; Ryu
+  remains manual-only and no Coconala send/formal delivery is pending.
+- [x] Verified CrowdWorks latest `5/1/0/4/1`: four delivered/read back and
+  `63568785` buyer-material pending; no duplicate effect occurred.
+- [ ] Resolve the one remaining Lancers fence only with exact evidence, then
+  diagnose the authenticated `provider_inventory` failure; no funded contract
+  exists yet.
+- [ ] Keep CrowdWorks marker-less fence fenced and complete `63568785` only
+  after buyer material arrives.
+- [ ] Maintain Coconala pass/no-op state and keep Upwork disabled until its
+  onboarding gates are real.

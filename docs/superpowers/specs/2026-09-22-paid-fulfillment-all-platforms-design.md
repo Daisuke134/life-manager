@@ -2285,3 +2285,41 @@ not convert a transient pass or a no-op into client completion.
    single `完了報告` submission and official receipt/replay-zero.
 5. **Upwork onboarding:** add no owner until authorization, authenticated
    readback, and a funded contract are real.
+
+## Production Cursor — 2026-09-24 11:13 JST
+
+- **Lancers fence repair:** after the shared control lock became free, the
+  supported reconciler released the three exact zero-effect occurrences
+  `18d804aac5e02e18-25086`, `18d818f53303d720-84348`, and
+  `18d81cc3531d6158-56194` with `resolved=true`. The only remaining Lancers
+  fence is `18d81967220136f8-89928`; no exact marker or provider receipt was
+  found, so it remains claimed and no retry is allowed.
+- **Coconala:** the queued natural wake now has terminal `pass`, matching
+  installed/event SHA `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; the official
+  snapshot remains `4/0/0/3/0`. Ryu stays manual-only and the other rooms are
+  buyer-waiting.
+- **CrowdWorks:** browser/Paid owners are terminally healthy; the latest
+  snapshot is `ok/observed=5/actionable=1/effect=0/readback=4/pending=1`.
+  Four work IDs are delivered/read back; `63568785` still lacks buyer
+  material. The historical marker-less fence `18d62cf32eb0c678-48194` stays
+  fenced.
+- **Lancers Paid:** despite the repaired three fences, the latest wake still
+  fails at `provider_inventory` with zero observed/effect/readback and no
+  funded contract. The browser owner is healthy; this is an inventory/account
+  boundary, not permission to submit.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Lancers residual fence:** retain `18d81967220136f8-89928` until exact
+   pre-effect or provider evidence exists; never infer zero effect from the
+   missing marker.
+2. **Lancers inventory recovery:** diagnose the authenticated
+   `provider_inventory` boundary and rerun only after the residual fence is
+   safely resolved. With no funded contract, the truthful result remains a
+   no-op.
+3. **CrowdWorks:** retain the marker-less fence and wait for buyer material
+   for `63568785`; then complete/deliver once with receipt and replay-zero.
+4. **Coconala:** maintain the proven natural-wake/pass state; Ryu remains
+   manual-only and the other three rooms remain no-op until a new artifact.
+5. **Upwork:** onboard only after authorization, authenticated readback, and
+   a funded contract exist.
