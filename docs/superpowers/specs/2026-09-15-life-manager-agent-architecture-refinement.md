@@ -3315,6 +3315,24 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    `safely_fenced/runtime_admission_deferred` with zero release mismatches and zero diagnostic gaps. This is the
    required bounded replay-zero and safety evidence; profit or a natural scheduler wake is not an acceptance
    gate. Investment is accepted for the local foundation slice, and the current executable cursor is Fundraiser.
+
+   Fundraiser has one owner and one independent historical application receipt. The official ledger records
+   Startuped AI `submitted_verified` at `2026-09-17T02:13:28Z`, with provider completion text, completion PNG,
+   application digest and Telegram photo message `85599`; that effect is preserved and is not replayed. The only
+   durable unknown is a different later occurrence, `fundraiser:18d5fda7a1962e60-16555`, queued at
+   `2026-09-17T03:22:08Z`. Its private runtime journal contains exactly two rows for that run: execute/running at
+   `03:22:03.376245Z` and blocked `resource_capacity_busy` at `03:22:12.184537Z`, with the same summary reference,
+   no `lm-effect://` evidence and no Fundraiser entrypoint/application receipt in the interval. Production
+   admission contains one claimed unknown, ten known queued, two known released, one queue row and no
+   reservation. The loaded owner remains idle on old release `9c2776b3...`, so current status is diagnostically
+   incomplete and must not be accepted.
+
+   No new reconciler is needed. The Investment slice's shared exact pre-effect proof returns this one Fundraiser
+   occurrence as verified in read-only production data. The minimum candidate declares the already-effective
+   durable policy `agent/borrow/support` and enables the existing queued/reserved-wake coalescing. Its RED test
+   fails on the missing registry contract, then the focused contract passes 2/2 and the complete apply/registry
+   suites pass 207/207. Candidate commit `d5d4f5ee15` is pushed; PR/main integration, immutable release,
+   one-owner reconciliation, official ledger preservation, current-release wake and bounded replay-zero remain.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
