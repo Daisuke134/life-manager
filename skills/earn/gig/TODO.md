@@ -4595,3 +4595,25 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   (4) Paid owner registration, and (5) natural effect/readback/replay-zero.
   Keep bid/message/delivery actions closed; the next safe cursor is obtaining a
   real authenticated account-bound inventory, not replaying expired bids.
+
+### Runtime checkpoint — 2026-09-25 02:38 JST (launchd loaded-state readback)
+
+- [x] `bin/launchctl-safe preflight` passed for the Aqua user domain, and the
+  direct `gui/501` readback was captured. Coconala Paid
+  (`ai.anicca.hf-gig-paid-direct`) is installed and scheduled every 300s;
+  its latest run exited `0` (one-shot jobs show `state=not running` between
+  wakes). Coconala Storefront is installed on a 60s schedule but its latest
+  exit is `75/EX_TEMPFAIL`; its durable result remains the old HTTP 500
+  `effect=0/readback=0` boundary.
+- [x] Mercor Paid is installed on a 300s schedule but is not running after
+  `last exit code=75/EX_TEMPFAIL`, matching its stale official-inventory
+  state. CrowdWorks Paid and Lancers Paid labels are not present in the
+  `gui/501` domain even though their source registry entries exist; they are
+  not live LaunchAgents. Freelancer application/work-sync/bid-watch and both
+  Upwork browser/free labels are disabled in `print-disabled` and have no live
+  LaunchAgent.
+- [ ] This is the current loop truth: Coconala's paid wake is installed but
+  storefront remains unproven, Mercor is installed but stale/failed, and
+  CrowdWorks/Lancers/Freelancer/Upwork have no active Paid loop that can be
+  called complete. Do not claim platform completion from registry presence;
+  require a loaded owner plus official effect/readback/replay-zero.
