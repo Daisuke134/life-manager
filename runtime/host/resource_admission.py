@@ -1691,6 +1691,43 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                                      proof_check=proof_check)
 
 
+def resolve_historical_no_dispatch_occurrence(
+        owner_id: str, occurrence_id: str, *,
+        no_dispatch_proof: Callable[[], Mapping[str, object]],
+        expected_state: str = "claimed") -> bool:
+    """Close an unknown occurrence only with a bound historical no-dispatch proof.
+
+    This is intentionally separate from both ``resolve_unknown_occurrence`` and
+    ``resolve_pre_effect_occurrence``.  A provider receipt proves an effect; a
+    pre-effect proof proves the irreversible marker was never crossed.  A
+    historical account-bound no-dispatch proof is a third, provider-specific
+    boundary: the provider's complete roster is read back and the exact
+    historical authenticated account is absent.  Callers must validate the
+    provider-specific evidence before invoking this function; the admission
+    layer only enforces the proof type and occurrence binding.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+
+    def proof_check() -> bool:
+        proof = no_dispatch_proof()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "historical_account_bound_no_dispatch"
+                and proof.get("provider") == "coconala"
+                and isinstance(proof.get("historical_account_id"), str)
+                and bool(proof["historical_account_id"].strip())
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip()))
+
+    return _close_unknown_occurrence(
+        owner_id, occurrence_id, expected_state, proof_check=proof_check
+    )
+
+
 def clear_no_effect_unknown(owner_id: str) -> int:
     """Release stale fences for an owner whose registry contract has no effect."""
     if not owner_id:

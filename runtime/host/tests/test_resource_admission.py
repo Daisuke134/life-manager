@@ -1600,6 +1600,65 @@ def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_unknown_occurrence_can_close_with_historical_account_bound_no_dispatch(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "hf-gig-apply-direct"
+    occurrence = f"{owner}:historical-no-dispatch"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence,
+        no_dispatch_proof=lambda: {
+            "owner_id": owner,
+            "occurrence_id": occurrence,
+            "verified": True,
+            "proof_type": "historical_account_bound_no_dispatch",
+            "provider": "coconala",
+            "historical_account_id": "2564121",
+            "evidence_ref": "coconala://historical-no-dispatch/5280157",
+        },
+    ) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
+def test_historical_account_bound_no_dispatch_rejects_provider_receipt_shape(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "hf-gig-apply-direct"
+    occurrence = f"{owner}:historical-no-dispatch-reject"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.resolve_historical_no_dispatch_occurrence(
+        owner, occurrence,
+        no_dispatch_proof=lambda: {
+            "owner_id": owner,
+            "occurrence_id": occurrence,
+            "verified": True,
+            "proof_type": "provider_official_readback_exact_id",
+            "provider_receipt_id": "official-1",
+            "evidence_ref": "wrong-proof",
+        },
+    ) is False
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+
+
 def test_pre_effect_reconcile_rejects_a_live_claim(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()

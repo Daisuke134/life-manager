@@ -50,6 +50,42 @@ def _readback(**overrides):
     return value
 
 
+def _historical_no_dispatch_proof(**overrides):
+    value = {
+        "source": "code_owned_cdp_historical_identity_reconcile",
+        "provider": "coconala",
+        "proof_type": "historical_account_bound_no_dispatch",
+        "historical_pass_id": "gig-apply-direct-1789863656491097000-13326",
+        "historical_account": {
+            "account_id": "2564121",
+            "profile_url": "https://coconala.com/users/2564121",
+        },
+        "account_binding": {
+            "sibling_request_id": "5281717",
+            "sibling_pass_id": "gig-apply-direct-1789863656491097000-13326-commit-5281717",
+            "official_profile_url": "https://coconala.com/users/2564121",
+            "local_receipt_verified": True,
+        },
+        "target_roster": {
+            "request_id": REQUEST_ID,
+            "official_url": "https://coconala.com/requests/5280157",
+            "complete": True,
+            "truncated": False,
+            "access_denied": False,
+            "applicants_count": 9,
+            "contracted_count": 0,
+            "applicant_ids": [
+                "6130185", "6299295", "412998", "4288437", "6200620",
+                "4766238", "4197088", "4479825", "3406932",
+            ],
+            "historical_account_absent": True,
+        },
+        "evidence_ref": "/Users/anicca/gig/apply-direct/evidence/historical-proof.json",
+    }
+    value.update(overrides)
+    return value
+
+
 def test_build_provider_proof_requires_exact_positive_id(tmp_path):
     proof = reconcile.build_provider_proof(
         owner_id=OWNER,
@@ -70,6 +106,57 @@ def test_build_provider_proof_requires_exact_positive_id(tmp_path):
             readback=_readback(request_ids=[]),
             evidence_path=tmp_path / "readback.json",
         )
+
+
+def test_build_historical_no_dispatch_proof_requires_bound_account_and_complete_roster(tmp_path):
+    proof = reconcile.build_historical_no_dispatch_proof(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        request_id=REQUEST_ID,
+        readback=_historical_no_dispatch_proof(),
+    )
+    assert proof["verified"] is True
+    assert proof["proof_type"] == "historical_account_bound_no_dispatch"
+    assert proof["historical_account_id"] == "2564121"
+
+    for field, value in (
+        ("historical_account_absent", False),
+        ("complete", False),
+        ("truncated", True),
+        ("access_denied", True),
+    ):
+        candidate = _historical_no_dispatch_proof()
+        candidate["target_roster"][field] = value
+        with pytest.raises(reconcile.ReconcileContractError):
+            reconcile.build_historical_no_dispatch_proof(
+                owner_id=OWNER,
+                occurrence_id=OCCURRENCE,
+                request_id=REQUEST_ID,
+                readback=candidate,
+            )
+
+
+def test_historical_no_dispatch_reconcile_uses_dedicated_resolver(tmp_path):
+    intent_root = tmp_path / "intents"
+    _intent(intent_root / f"{REQUEST_ID}.json")
+    captured = []
+
+    def resolver(owner_id, occurrence_id, *, no_dispatch_proof, expected_state=None):
+        captured.append((owner_id, occurrence_id, no_dispatch_proof(), expected_state))
+        return True
+
+    result = reconcile.reconcile_historical_no_dispatch_occurrence(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        request_id=REQUEST_ID,
+        intent_root=intent_root,
+        readback=lambda: _historical_no_dispatch_proof(),
+        resolver=resolver,
+    )
+    assert result["status"] == "resolved"
+    assert captured[0][0:2] == (OWNER, OCCURRENCE)
+    assert captured[0][2]["historical_account_id"] == "2564121"
+    assert captured[0][3] == "claimed"
 
 
 def test_discovery_requires_a_single_occurrence_and_single_intent():
