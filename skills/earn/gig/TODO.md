@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:58 JST (Apply stale queue closed and all-platform status rechecked)
+## Current cursor — 2026-09-25 07:12 JST (all-platform gate and Lancers proposal history corrected)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -59,6 +59,20 @@ No provider page, proposal, or external effect was touched. A fresh status
 readback shows Apply `admission_effect_unknown=false`, unloaded, and awaiting
 its natural-wake/replay-zero gate; Storefront is still unloaded with
 `official_readback_required`; Paid is loaded-idle with a no-effect pass.
+
+At `2026-09-25 07:08 JST` I rechecked the saved Lancers application log for
+project `5606124` instead of relying on the earlier safety notification. The
+history contains three pre-effect `safety_rejected/unsupported_claim` reports,
+then a `submission_uncertain`, followed by a strict provider readback with
+`application_verified=true`, proposal ID `27965342`, and proposed amount
+`¥150,000`. Therefore the old shorthand “no application” is false: the saved
+history proves that an application was later verified, even though the
+reconciliation report carried `submitted=false` because it confirmed an
+already-attempted effect. The current source-complete Lancers snapshot does not
+contain project `5606124`, has `contract_candidate_count=0`, `working=0`, and
+balance `¥0`; this historical proposal is not evidence of a current funded
+contract and does not open Paid. No resend or new provider action was made in
+this audit.
 
 The legacy Gig release path was also tightened at `2026-09-25 07:06 JST`.
 `gig_release.py activation_labels()` now rejects explicit activation of
@@ -222,7 +236,7 @@ are now CrowdWorks and Lancers only.
 |---|---|---|---|
 | Coconala | Ryu was manually handled and read back; no resend. Apply request `5289988` and Storefront each have exact readback/pre-effect reconciliation. | The three Coconala paid owners have no live unknown admission row, but Apply/Storefront natural-wake/replay-zero is still not closed. | Keep Ryu manual-only. After capacity recovery, run one controlled no-op wake for Apply/Storefront and verify official readback plus replay-zero. |
 | CrowdWorks (CloudWorks) | Provider-owned history readback: 4 items have official readback; `63568785` is funded but buyer material is still missing. | Exact row `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed/effect_unknown=1`; no exact intent/provider receipt binds it. Paid stays unloaded. | Obtain evidence bound to that occurrence. Resolve only with an admissible no-effect proof or exact provider receipt; then perform a no-effect wake. Never resend completed items or send `63568785` without the buyer material. |
-| Lancers | Latest authenticated adapter readback at `2026-09-24T20:44:34Z`: stable two-pass `ELZ-L01 PASS`, `source_complete=true`, 15 boards, 2 unread, 4 application boards, 0 working/contract candidates, balance `¥0`, payment history `0`, provider effect `0`. | Exact row `lancers-revenue-paid:18d81967220136f8-89928` remains `claimed/effect_unknown=1`; no funded `ContractReceipt`. Application owner is not evidence of a funded contract. | Keep Paid closed. Reconcile the exact Paid occurrence, then continue read-only inventory. Register Paid only after a real funded ContractReceipt and milestone; no speculative proposal/send. Disk has recovered to about `2.0 GiB` but remains at `99%` after the probe. |
+| Lancers | Latest authenticated adapter readback at `2026-09-24T20:44:34Z`: stable two-pass `ELZ-L01 PASS`, `source_complete=true`, 15 boards, 2 unread, 4 application boards, 0 working/contract candidates, balance `¥0`, payment history `0`, provider effect `0`. Historical log for `5606124` records verified proposal `27965342` after an earlier uncertain submission; current inventory no longer lists that project. | Exact row `lancers-revenue-paid:18d81967220136f8-89928` remains `claimed/effect_unknown=1`; no funded `ContractReceipt` or current working contract exists. The verified application is not a funded contract. | Keep Paid closed. Reconcile the exact Paid occurrence, then continue read-only inventory. Register Paid only after a real funded `ContractReceipt` and milestone; do not resend `5606124` or make a speculative proposal. Disk has recovered to about `2.0 GiB` but remains at `99%` after the probe. |
 | Mercor | Official earnings readback is `$0.00`/empty; no funded work is proven. The exact Paid occurrence has now been proven zero-effect by its own marker and released. | No live unknown fence remains for Mercor, but no funded work or current contract inventory is proven. | Refresh the official work/transaction inventory when capacity allows; keep Paid closed until a real funded task exists. |
 | Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is absent. Public watcher data is only 4 stored projects (`active=0/errors=0`), not account-bound. Candidate private profiles are `0700`, but BrowserSkill has `browsers=[]/sessions=[]`; no managed owner exists. | Readiness is **false**: authorization missing for `search/inspect/propose/message/accept_offer/deliver/read_payments/read_payouts`; inventory incomplete; funded project count 0. No Paid owner may be registered. | First obtain one account-bound BrowserSkill lease or official OAuth. Read identity, `/projects/0.1/self/`, milestones/IP/hourly contracts, payments, and payouts; persist one source-complete snapshot. Only a positive funded project opens exactly one owner registration. |
 | Upwork | Official snapshot is source-complete but observed `contracts=[]` at `2026-09-24T17:30:28Z`. Read-only receipts for `inspect/read_payments/read_payouts` remain valid until `2026-09-25T17:30:28Z`; mutation receipts are denied. No Upwork browser lease/page is connected (`browsers=[]/sessions=[]`; port 9223 is the Coconala gig browser). | Readiness is **false**: missing `accept_offer/deliver_milestone/message/propose/search`; funded contract count 0. No current Paid owner is registered or loaded. | Before expiry, use a connected dedicated Upwork browser lease to refresh identity/contracts/transactions/withdrawals. Obtain current mutation authorization, then require a funded contract plus positive milestone. Register exactly one owner from immutable main, run zero-effect canary, funded canary, provider receipt, payment/payout readback, crash recovery, and replay-zero. |
