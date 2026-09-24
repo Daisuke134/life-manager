@@ -3856,6 +3856,16 @@ The continuous `x402-seller-8404` money owner now declares `resource_class=deter
 policy is inferred. No seller, wallet, payment or provider effect was started and no money receipt is claimed; this
 remains branch-only pending exact-release loaded-idle/readback.
 
+The post-slice read-only catalog/gate audit is explicit: `bin/lm-loop-contract` returns `ok=true` for 14 Product
+Loops, 169 registry jobs, 98 mapped jobs, zero shared IDs and zero errors. The exact current production selector
+`2f809c8621d9c6d92d96c68c01e2c99da8aea3eb` with a fresh 271-row status still yields
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`,
+because release/diagnostic evidence is not yet aligned. The only remaining missing explicit resource fields in the
+14-loop catalog are Mobile-owned `life-manager-daily` and `life-manager-daily-driver`; continuous owners
+intentionally lack finite admission/priority policy. Mobile remains out of scope for this workstream. Registry
+contract work is branch-only; accepted main-derived immutable release promotion and exact-SHA owner reconciliation
+remain the next steps, with no provider effect or revenue claim.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

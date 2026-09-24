@@ -712,6 +712,15 @@ The following is the current control-plane state. It is evidence for the next bo
   This is a read-only observation only: no launchd mutation, provider effect, fence clearing or revenue claim was
   made. The status terminal projection at this later readback is `None=116`, `blocked=81`, `pass=42`, `fail=28`,
   `running=4`; these are control-plane observations, not commercial completion.
+- [x] Re-run the branch catalog contract and exact-current local foundation gate after the registry slices above.
+  `bin/lm-loop-contract` returns `ok=true`, 14 catalog loops, 169 registry jobs, 98 mapped jobs, zero shared IDs and
+  zero errors. Against the fresh 271-row status and exact current release `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`,
+  the read-only gate remains `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+  `uncovered_failure=13`, `decision=block`; reasons are diagnostic incomplete, runtime evidence incomplete and
+  uncovered failure. The remaining missing explicit resource fields are owned Mobile jobs (`life-manager-daily` and
+  `life-manager-daily-driver`); continuous owners intentionally have no finite admission/priority policy. Do not
+  touch the Mobile owner. The next safe cursor is accepted main-derived immutable release promotion, then one-owner
+  loaded-idle reconciliation; no provider effect or revenue is inferred.
 - Read-only x402 acquisition recheck 2026-09-25 JST: `x402-acquisition-controller` is loaded-idle on old
   installed/event SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with a typed pre-entrypoint
   `host_admission_deferred:resource_capacity_busy`/exit 75. Durable admission has 1,727 queued and 595 released
