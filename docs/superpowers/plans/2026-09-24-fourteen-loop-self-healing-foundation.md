@@ -1232,11 +1232,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 
 - [x] Run the focused Node recovery/control-plane subset: **50/50** pass across intent, apply-plan, executor,
   intent-record, supervisor, integration, and registry-classification contracts.
-- [x] Run the complete loop npm suite for dependency readback: **304/307** pass. The three failures are import-time
-  environment gaps for missing `@solana/web3.js` and `fast-check` in the checkout; no source or lockfile change is
-  justified by that result.
-- [ ] Restore the immutable release dependency bundle and rerun the three always-act tests before declaring the Node
-  suite complete. This remains downstream of accepted-main integration and does not authorize production mutation.
+- [x] Hydrate the root lockfile dependencies in this dedicated worktree as a bounded verification probe. The complete
+  loop suite reached **348/362**: 11 failures are the explicitly-RED Phase-2a always-act scenarios, and 3 are
+  concurrent Node 25 `ENOTEMPTY` temp-cleanup races in integration tests. The recovery/control-plane subset remains
+  50/50; no source or lockfile changed.
+- [x] Remove the generated `node_modules` after the probe restored free space above the configured floor. This is
+  recoverable build output only; production and other worktrees were untouched.
+- [ ] In an accepted immutable release build with its full dependency bundle, rerun the app-specific provider tests
+  (`portable-runtime` and payout) and the separate always-act product slice. Their current failures are not evidence
+  against the shared self-healing control plane and must not be hidden by changing the acceptance gate.
+- [x] Probe the app-specific tests after root hydration: `portable-runtime` **2/2** passed; payout collection stopped
+  before tests at missing `canonicalize`. Do not hydrate the full nested app tree under the current capacity floor;
+  preserve this as a release-build dependency task with no payout/provider effect.
 
 ### Main-derived integration dry run (2026-09-25 JST)
 

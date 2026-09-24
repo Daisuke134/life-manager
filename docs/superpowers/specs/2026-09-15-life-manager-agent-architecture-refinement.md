@@ -4667,7 +4667,14 @@ locked-read path fails closed. Focused verification is green: the new proof/rebi
 30/30. This is still branch-only and does not alter production admission state.
 
 The Node recovery/control-plane subset also passes **50/50** (`recovery-intent`, apply-plan, executor, intent-record,
-supervisor, integration, and registry-classification). The complete `npm test` run reached **304/307**: the three
-failures occur before test execution because this checkout lacks `@solana/web3.js` and `fast-check` required by the
-three always-act tests. No package or lockfile was changed; restoring the release dependency bundle is a separate
-verification prerequisite, not evidence that the recovery changes failed.
+supervisor, integration, and registry-classification). A temporary lockfile-only dependency hydration then reached
+**348/362** in the complete `npm test` run. The 14 failures are not recovery-control-plane failures: 11 are the
+existing Phase-2a always-act RED scenarios (the test file explicitly expects them to fail before that product slice is
+implemented), and 3 are integration temp-directory cleanup races (`ENOTEMPTY`) under the concurrent Node 25 runner.
+The generated `node_modules` was removed after the probe because host free space fell below the configured safety
+floor; no package or lockfile changed and no production state was touched.
+
+The app-specific probe after hydration passed the two `portable-runtime` tests, while
+`run-agent-payout.test.js` stopped before collection on missing `canonicalize`. Hydrating the entire nested
+`apps/life-manager` dependency tree would consume the remaining headroom, so it was not attempted; the payout
+wrapper remains source-verified by shell syntax and its import test remains an explicit dependency-bundle item.
