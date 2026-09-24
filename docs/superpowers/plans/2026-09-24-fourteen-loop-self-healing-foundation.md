@@ -1702,3 +1702,11 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   release-reconciler occurrence. Do not use branch test evidence as production proof.
 - [x] Read-only merge-tree for candidate `e69cd976518fbe0bd996e507457badd1ba013b94` against `origin/main d4fe0819`
   is clean at `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`; this does not authorize merge or production loading.
+
+### Admission lock/capacity readback (2026-09-25 JST)
+
+- [x] Read admission DB without a write transaction: `queue=83`, `reservations=7`, `claimed=709`,
+  `effect_unknown=735`, `deferred=0`, `journal_mode=delete`; live loop PIDs hold the file.
+- [x] Preserve the existing bounded retry/defer policy. Do not kill owners, change SQLite journal mode, or clear
+  reservations/fences from this cursor.
+- [ ] Re-read after owner-controlled capacity recovery; only then rerun the full suite and immutable candidate gate.

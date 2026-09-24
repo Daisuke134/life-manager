@@ -5291,3 +5291,12 @@ re-reading these Node and recovery-supervisor boundaries.
 The follow-up candidate `e69cd976518fbe0bd996e507457badd1ba013b94` also has a clean read-only merge-tree against
 `origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c`, tree `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`. This is
 readiness evidence only, not merge or production authorization.
+
+### Admission lock/capacity readback (2026-09-25 JST)
+
+The authoritative admission database was read through a read-only connection while the live loops were running:
+`queue=83`, `reservations=7`, `claimed=709`, `effect_unknown=735`, `deferred=0`, with SQLite `journal_mode=delete`.
+`lsof` showed the database open by the release-reconciler and other loop processes; this is live contention, not a
+stale lock file. The existing bounded retry/defer behavior is therefore the safe response. No process was stopped, no
+transaction was interrupted, and no queue, reservation or effect-unknown row was changed. Switching journal mode or
+clearing rows would be an unverified production mutation and remains out of scope.
