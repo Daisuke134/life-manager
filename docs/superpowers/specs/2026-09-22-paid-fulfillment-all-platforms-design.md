@@ -3975,3 +3975,42 @@ not convert a transient pass or a no-op into client completion.
    later policy-review item because no external send occurred.
 6. Register/verify Freelancer and Upwork Paid owners, then run final fleet
    acceptance.
+
+## Runtime Status Refresh — 2026-09-24 16:41 JST (Coconala page-route cursor; Lancers notice)
+
+- **Lancers notice:** application judgment for job `5606124` was rejected by
+  the safety gate with `unsupported_claim`; the event explicitly says no
+  external send occurred. This is a policy-review item after the active page
+  route cursor and does not reorder the current work.
+- **Coconala read-only status:** `hf-gig-paid-direct` ended with exit `0` and
+  `effect_class=none`; `hf-gig-reply-detector` ended with a no-effect pass.
+  These are scheduler/no-op observations, not a client delivery or a new Ryu
+  receipt. `hf-gig-apply-direct` remains fenced by
+  `host_admission_deferred:resource_effect_unknown`; `hf-gig-storefront-direct`
+  remains fenced by `resource_admission_unavailable` after recent
+  `resource_effect_unknown` events.
+- **Storefront blocker evidence:** the latest stored Coconala storefront
+  result is `status=failed`, `effect=0`, `readback=0`, reason `server rejected
+  WebSocket connection: HTTP 500`; historical launchd stderr also records
+  `Errno 28` while writing host-admission evidence. No publish or formal
+  delivery was inferred from those failures.
+- **Ryu/page route:** the three verified route/profile/LINE changes remain
+  ready for the manual handoff, while the newer option/WEB予約 scope remains
+  unverified. No new Coconala message or formal delivery was sent in this
+  cursor.
+
+### Next one-by-one cursor (16:41 JST)
+
+1. Keep Coconala Apply/Storefront effect fences closed; diagnose and fix the
+   page-route/storefront admission and evidence-capacity boundary with a
+   focused read-only probe before any external mutation.
+2. Preserve the verified Ryu artifact and complete only the remaining
+   separately supplied Ryu scope after its own artifact/readback checks; keep
+   Ryu manual-only.
+3. Do not merge/promote the SQLite branch or call Coconala complete until a
+   natural wake plus four-room official readback and replay-zero are observed.
+4. Advance Lancers/Mercor one owner at a time after Coconala acceptance; review
+   Lancers `unsupported_claim` only then, because this event had no provider
+   effect.
+5. Register/verify Freelancer and Upwork Paid owners and perform final fleet
+   acceptance. A loaded/no-op loop is not a delivery.
