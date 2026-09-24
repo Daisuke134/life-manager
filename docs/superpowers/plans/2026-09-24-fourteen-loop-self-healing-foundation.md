@@ -1012,6 +1012,14 @@ The following is the current control-plane state. It is evidence for the next bo
   `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The health/learning
   application effect-unknown fences remain untouched.
 
+### Latest branch verification (2026-09-25 JST)
+
+- [x] Re-run the branch-only self-healing control-plane regressions after the FIFO-safe probes. Recovery intent,
+  apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
+  launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
+  recovery-intent/receipt paths but exits 0. These are source-contract results only; no main merge, production
+  release promotion, effect-fence change or revenue claim exists.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.

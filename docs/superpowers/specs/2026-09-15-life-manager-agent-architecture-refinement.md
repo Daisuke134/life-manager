@@ -4392,6 +4392,14 @@ reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` bo
 `applied=[]`, and `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The
 health/learning application effect-unknown fences remain untouched.
 
+### Latest branch verification (2026-09-25 JST)
+
+The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
+apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
+launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
+recovery-intent/receipt paths but exits 0. These are source-contract results only; no main merge, production
+release promotion, effect-fence change or revenue claim exists.
+
 `x402-inflow-watch-franklin2` was also probed twice under the same FIFO-safe contract. Both targeted reconciles
 returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
 `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
