@@ -1018,6 +1018,16 @@ The following is the current control-plane state. It is evidence for the next bo
   old `fa4a8128…`, exit 78/pass and diagnostics incomplete. A second scoped reconcile returned `eligible=0`,
   proving reconciler replay-zero without a reply/provider effect. This owner is not accepted healthy until a current
   event and complete diagnostics are durable.
+- [x] Reconcile the three safe Writer internal owners without touching external report/response effects. `writer-craft-
+  train` applied current d4 and remained effect-free/diagnostically complete, but retained old event `1657972…`; its
+  second reconcile returned `eligible=0`. `writer-opportunity-discovery` applied d4 and reached exact current
+  event/installed SHA with typed `resource_capacity_busy`, complete diagnostics and unknown false; its second
+  reconcile returned `eligible=0`. `writer-sales-measure` was already installed on d4 but retained old event
+  `2f809c…`; its scoped reconcile returned `eligible=0`. No writer publication, application or report message ran;
+  the stale-event owners remain open until a current durable event exists.
+- [x] Re-read `writer-claim-loop` and `writer-money-sync` through the same shared-agent-runner route. Both returned
+  `eligible=0` without an external action and now show exact current d4 installed/event SHA, complete diagnostics,
+  typed `resource_capacity_busy`, `effect_class=none`, `effect_status=not_applicable` and admission unknown false.
 
 ### Latest branch verification (2026-09-25 JST)
 
