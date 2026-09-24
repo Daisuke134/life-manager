@@ -2286,6 +2286,37 @@ not convert a transient pass or a no-op into client completion.
 5. **Upwork onboarding:** add no owner until authorization, authenticated
    readback, and a funded contract are real.
 
+## Production Cursor — 2026-09-24 11:21 JST
+
+- **Lancers diagnosis:** a read-only call through the official
+  `read_paid_inventory` path reproduced a Playwright CDP attach timeout while
+  the browser's HTTP `/json/version` endpoint remained reachable. The old
+  generic `observer_unavailable` result hid that boundary.
+- **Lancers code fix:** branch commit `0ab75d4b0e` adds TDD-covered, secret-free
+  error propagation (`browser_connect_failed` →
+  `lancers_paid_inventory_browser_connect_failed`) through the adapter and
+  work-sync result. The relevant suite is green (`461 passed, 17 subtests
+  passed`). This is pushed but not yet in the immutable production release.
+- **Safety:** no browser owner was stopped/restarted, no provider mutation was
+  attempted, and the residual Lancers fence
+  `18d81967220136f8-89928` remains claimed without proof.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Release gate:** integrate the pushed Lancers observability fix only after
+   the all-platform acceptance gate permits a main-derived immutable release;
+   do not hot-load this branch into production.
+2. **Lancers browser boundary:** with the residual fence still closed, use the
+   new typed error on the next official wake to distinguish CDP attach,
+   account, and provider-source failures. Restarting the browser owner remains
+   an explicit high-risk approval boundary.
+3. **CrowdWorks:** retain the marker-less fence and wait for buyer material for
+   `63568785`; then deliver once with official receipt/replay-zero.
+4. **Coconala:** preserve natural-wake `pass`, Ryu manual-only, and buyer-wait
+   no-op rooms.
+5. **Upwork:** onboard only after authorization, authenticated readback, and a
+   funded contract exist.
+
 ## Production Cursor — 2026-09-24 11:13 JST
 
 - **Lancers fence repair:** after the shared control lock became free, the

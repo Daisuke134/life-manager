@@ -2434,3 +2434,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   after buyer material arrives.
 - [ ] Maintain Coconala pass/no-op state and keep Upwork disabled until its
   onboarding gates are real.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:21 JST
+
+- [x] Reproduced the Lancers Paid inventory boundary safely: official
+  `read_paid_inventory` reaches the CDP endpoint but Playwright attach times
+  out; no provider effect occurred.
+- [x] Added and tested secret-free typed error propagation for that boundary
+  in commit `0ab75d4b0e`; the relevant suites pass (`461 passed, 17 subtests`).
+- [ ] Keep the branch fix out of production until it is integrated through a
+  main-derived immutable release after the full acceptance gate.
+- [ ] On the next official Lancers wake, use the typed error to finish the
+  browser/account/source diagnosis; retain residual fence
+  `18d81967220136f8-89928` until exact evidence exists.
+- [ ] Keep CrowdWorks `63568785` material-gated and its marker-less fence
+  fenced; preserve Coconala pass/Ryu manual-only; leave Upwork disabled.
