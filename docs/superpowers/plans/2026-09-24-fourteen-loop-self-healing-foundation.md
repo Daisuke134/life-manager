@@ -487,8 +487,9 @@ allowed.
 - [x] Integrate the Fundraiser contract through PR #5852 at `2ff81f6eb1c0e9fb3160fd4bbe654a5810b8d167`, activate complete release `20260924T205828-2ff81f6e`, reconcile only `fundraiser`, and verify its 0600 `RESOLVED` receipt. The 652-row ledger remains byte-identical with 56 verified submissions; apply plus immediate replay both stop pre-entrypoint at typed capacity backpressure, unknown stays zero, and the exact-release foundation row is `safely_fenced` with no mismatch or diagnostic gap.
 - [x] Diagnose Writer read-only as seven independent owners sharing one private state root. All seven have historical `agent/borrow/support` policy but no registry declaration; known queued counts are 402/9/1622/8/89/123/78. Craft and discovery each have one safe effect-free stale claim; response has one exact pre-entrypoint FIFO fence in the rotated private journal; report has one real message effect backed by durable Telegram IDs 89203–89206 and therefore is not a pre-effect fence.
 - [x] Add only Writer's observed admission/coalescing contract to all seven owners. The RED test fails for every missing row, focused contract/fixture tests pass 2/2. Extend the shared exact proof to at most four private rotated gzip journals while retaining per-file 50,000-row, owner, mode, link, exact-two-event and no-effect-reference checks; production read-only proof selects response and rejects report. Focused archive/current/negative proof tests pass 3/3 and full apply/registry passes 209/209. Do not change Writer business code.
-- [x] Read back report occurrence `18d69e54e1050578-20866` from Telegram over the existing user MTProto session. Provider IDs 89203–89206 all exist in the same bot dialog with matching time/sender/content; the fourth exact payload matches after Telegram whitespace normalization. Preserve these effects and never resend them.
-- [ ] Merge and release the Writer contract/proof. Reconcile loaded-idle effect-free owners first, resolve response only through the archive proof and close report only through the exact Telegram provider proof; then align all seven owners and require exact-release complete diagnostics plus replay-zero.
+- [x] Preserve the historical readback for report occurrence `18d69e54e1050578-20866` from the existing user MTProto session. Provider IDs 89203–89206 were previously recorded in the same bot dialog with matching sender/content evidence; preserve those effects and never resend them.
+- [ ] Re-prove the report effect against the current outbox: a fresh isolated probe finds numeric IDs 89203–89206 in the same bot dialog, but at different times and with different text lengths/hashes, and no exact current outbox payload. Keep `writer-report` fenced until provider-side message identity and exact payload are independently matched; do not resolve by numeric ID alone.
+- [ ] Merge and release the Writer contract/proof into production. The source merge is complete in PR #5853 (`73270f2c`), but loaded owners still show old SHAs while `current` advances. Reconcile loaded-idle effect-free owners first, resolve response only through the archive proof, and close report only through a fresh exact Telegram provider proof; then align all seven owners and require exact-release complete diagnostics plus replay-zero.
 - [ ] Continue the remaining independent non-Paid foundation slices in this order while Mobile remains owned: Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice. Affiliate remains an asynchronous official-readback reconciliation and does not block this cursor.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
@@ -498,6 +499,30 @@ allowed.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
 - [ ] Run the same foundation gate twice and require replay-zero/no duplicate recovery effects.
 - [ ] Record official local evidence, commit/push and retain the exact accepted release as the Cloud input.
+
+## Latest production cursor (read-only recheck)
+
+The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
+
+- `current` points to main-derived release `6e609eba3c7ae593c923621c919fbb2f3c5dc1af`, while
+  `writer-sales-measure` and `writer-report` still report installed SHAs `9f29498c…` and `78aa4bc…`.
+  Source merge and production loading are therefore not conflated.
+- `writer-opportunity-response` has a mode-0600 pre-effect reconciliation receipt and no remaining admission
+  unknown; its old status event is retained as history. No effectful response wake is replayed.
+- `writer-report` remains `resource_effect_unknown` with no fresh exact provider proof. Numeric Telegram IDs alone
+  are insufficient because the current isolated probe found non-matching message bytes; the safe action is to keep the
+  fence and improve readback, not to send again.
+- Agent Economy was re-bound to `73270f2c` and is running with complete diagnostics, but BlockRun returns HTTP 429.
+  No trading, payment, or revenue receipt is claimed. CFO remains effect-unknown; Job Hunter has typed capacity,
+  control, admission, entrypoint, and effect-unknown boundaries across its owners. Effectful/unknown owners are not
+  retried blindly.
+- Release reconciliation continues to encounter `ENOSPC`/cut-lock pressure. Available bytes are above the nominal
+  floor, but release export and database/temp writes are not stable. No broad release/worktree/state deletion is
+  performed from this workstream.
+- The execution cursor remains: stabilize release/cleanup admission, finish Writer's exact evidence and loaded-owner
+  alignment, then continue Agent Economy → CFO → Job Hunter with typed `setup_required`/`safely_fenced` outcomes;
+  afterwards consume Mobile/Connector/Paid-owner evidence, run the 14/14 gate twice, and only then promote to cloud
+  and economic self-improvement. Revenue waits do not block this cursor, but unverifiable external effects do.
 
 ## Deferred until this plan passes
 

@@ -38,6 +38,20 @@ flowchart LR
 - fresh local foundation gateは14 loopsを観測し、`safely_fenced=1`（Capafy）、
   `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
   収益や自然provider eventを待たず、次のloop sliceへ進みます。
+- main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
+  三つを別々に判定します。現在の `current` は `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` ですが、
+  Writer、CFO、Job Hunter の一部は旧 release のままで、foundation acceptance には数えません。
+- Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
+  入っています。`writer-opportunity-response` の pre-effect FIFO occurrence は archive proof で
+  resolved 済みですが、`writer-report` の effect fence は保持します。過去の MTProto readback は履歴証拠
+  として保存されますが、fresh isolated probe では数値 ID 89203–89206 が同じ bot dialog に存在するものの、
+  現在の outbox 本文ハッシュ・送信時刻と一致しませんでした。本文完全一致の再取得なしに解放・再送しません。
+- Agent Economy は旧 loaded owner を `73270f2c` へ再バインドでき、diagnostic は complete ですが、実行中の
+  BlockRun 呼び出しは HTTP 429 を返しています。これは収益成功ではなく、provider rate-limit の typed failure
+  です。CFO と Job Hunter の effectful/unknown owner は同じく fence を維持し、盲目的に再送しません。
+- release export/GC は履歴上 `ENOSPC` を継続しており、Data volume の空きは約 4.5 GB でも安定した cut の
+  headroom を証明できていません。保護された release、runtime state、他ownerの worktree を推測削除せず、
+  release/cleanup owner の診断を foundation blocker として記録します。
 - Connectorは別ownerのcandidate `e96e8c422d`がpush済みですが、PR 0、main未収載、release未反映です。
   productionはなお`entrypoint_exit_1`で、外向き表示が`circuit_open/wake_boundary_failed`です。
   このworkstreamはそのbranch、browser、runtimeを重複操作しません。
