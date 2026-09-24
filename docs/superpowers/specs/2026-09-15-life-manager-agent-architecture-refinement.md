@@ -2721,6 +2721,13 @@ The fresh re-review at branch head `19a8a8476f` returns `ship` with no findings.
 real portfolio/CFO integration and production settlement remain unproven, so this does not close item 2,
 claim self-funding, claim USD 10,000 MRR, promote cloud, or authorize a PR/main merge.
 
+Item 2 implementation plan:
+`docs/superpowers/plans/2026-09-24-cfo-economic-source-join.md`. The first cursor is the fourteen-loop
+economic source inventory in the existing Product Loop catalog. This is deliberately an inventory and
+fail-closed source-coverage contract before any provider adapter: today CFO recognizes Moneytree, Agent
+Economy and Marketplace source families, while Affiliate, Mobile/App Store settlement, Capafy, Stripe,
+Investment and other loop-specific sources are not yet represented through one per-loop coverage surface.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
