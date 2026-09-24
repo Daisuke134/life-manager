@@ -4837,3 +4837,8 @@ local outbox row matched that provider hash. Therefore message `92843` is explic
 `affiliate-loop:18d83ba82b14fb40-24990`. No Telegram message, admission row, provider session or effect was changed.
 The only safe next step is a provider readback in the correct authenticated target context that returns both the target
 chat and message identity, then binds that receipt to the durable host occurrence.
+
+After this identity change, the branch verification was rerun: the combined Python control-plane/read-only/apply/
+registry/Affiliate suite passed **326/326**, and `node --test apps/life-manager/lib/product-onboarding.test.js`
+passed **48/48**. The run emitted only the pre-existing Python `ResourceWarning` diagnostics and no test failure; it
+does not change the production-load or main-integration gate.

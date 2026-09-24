@@ -1369,3 +1369,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   fence; do not resolve or resend.
 - [ ] Obtain a provider readback in the correct authenticated target context that returns chat identity, provider
   message identity and body hash, then bind all three to the exact host occurrence before invoking any resolver.
+- [x] Rerun the branch acceptance subset after the receipt change: combined Python control-plane/read-only/apply/
+  registry/Affiliate **326/326** and product-onboarding **48/48**. Only pre-existing `ResourceWarning` diagnostics
+  remain; no production-load or main-integration condition changed.
