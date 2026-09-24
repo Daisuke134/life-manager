@@ -1159,6 +1159,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `admission_database_locked` with `next_action=retry_admission_read`.
 - [x] Add regression coverage: readonly 28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154
   subtests; `py_compile` and `git diff --check` pass.
-- [ ] Re-run one-owner `writer-craft-train` reconcile only after this source fix is pushed, then read its exact
-  current release, diagnostic terminal event, and replay-zero. If the shared database remains locked after bounded
-  retry, retain the typed blocker and do not retry blindly or clear any fence.
+- [x] Re-run one-owner `writer-craft-train` reconcile after the source fix was pushed. It returned `rc=0`,
+  `eligible=0`, `applied=[]`, and `failed=[]` against current d4; no plist reload or external effect occurred.
+  Two consecutive status readbacks were byte-identical: `loaded-idle`, `pid=null`, `effect_class=none`,
+  `admission_effect_unknown=false`, `diagnostic_complete=true`, terminal `pass`, exit `0`, and `next_action=none`.
+  This proves the lock-safe read path at the production boundary for this already-current owner only; it does not
+  clear any fence or promote the branch.

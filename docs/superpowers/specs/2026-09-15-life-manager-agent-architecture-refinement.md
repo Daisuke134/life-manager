@@ -4581,3 +4581,12 @@ never convert a database failure into an empty admission/fence result. Regressio
 28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154 subtests, Python compile, and diff
 check. This is branch-only source evidence; no admission row, effect fence, provider session, or external effect was
 changed, and production promotion remains downstream of the accepted main-derived immutable-release gate.
+
+After the fix was pushed, the same production-boundary probe was repeated for `writer-craft-train`. The targeted
+reconcile returned `rc=0`, `eligible=0`, `applied=[]`, and `failed=[]` on current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; it did not reload a plist or create an external effect. Two consecutive
+status readbacks were byte-identical and reported `loaded-idle`, `pid=null`, `installed_release_sha=d4fe0819...`,
+`effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, `diagnostic_complete=true`,
+`last_terminal_result=pass`, `exit_code=0`, and `next_action=none`. This closes the read-contention probe for this
+already-current, effect-free owner. It does not promote the branch, clear any other fence, or make the 14-loop
+foundation gate healthy.
