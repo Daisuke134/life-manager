@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="${0:A:h}"
 source "$SCRIPT_DIR/runtime-paths.sh"
 export CLOAK_LEASE_HOLDER_PID=$$
+"$SCRIPT_DIR/retain-evidence.sh"
 
 JOB_SEARCH_DISK_GUARD="${JOB_SEARCH_DISK_GUARD:-$JOB_SEARCH_REPO_ROOT/runtime/host/disk_admission.py}"
 if [[ ! -f "$JOB_SEARCH_DISK_GUARD" || -L "$JOB_SEARCH_DISK_GUARD" || ! -r "$JOB_SEARCH_DISK_GUARD" ]]; then

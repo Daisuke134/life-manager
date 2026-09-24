@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:02 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
+## Current cursor — 2026-09-25 06:08 JST (retention owner added; explicit Freelancer/Upwork gate)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -28,14 +28,19 @@ explicitly denied.
 The shared capacity investigation now has a concrete owner boundary. The
 central agent-runner retention code only accepts the guarded
 `agent-runner-evidence/<task>/<run>` layout; it correctly refuses arbitrary
-paths. Job-search instead creates flat run directories directly under
-`~/.local/state/anicca/job-search/evidence` from four shell drivers, and none
-of those drivers invokes a writer-owned retention routine. A read-only
-inventory at `2026-09-25 05:56 JST` found `11,907` top-level run directories
-occupying about `2.5 GiB`. No directory was deleted or moved. The next
-capacity fix must therefore be a job-search-owned, terminal-marker-aware
-retention path with tests; host cleanup cannot safely reclaim this tree by
-itself.
+paths. Job-search writes flat run directories directly under
+`~/.local/state/anicca/job-search/evidence`, so I added the owner-side
+`job_search_loop.evidence_retention` module and
+`scripts/retain-evidence.sh`. The daily driver invokes it before disk
+admission; while the volume has its 512MiB floor it returns in a fast
+`capacity_ok` path, and only under pressure it can reclaim old, explicit
+`no_work`/`observed_no_action` runs. Submitted, submit-unknown, failed,
+blocked, human-gated, active, unmarked, and symlinked runs are preserved.
+The 3 focused retention tests and all 530 job-search tests pass. A dry-run
+against the current `11,907`-directory/`~2.5GiB` tree found `2,245` eligible
+runs and a potential `178,397,607` bytes, but deleted nothing. The remaining
+capacity task is to let the daily owner produce a real pressure receipt when
+the floor is crossed; host cleanup still must not reclaim this tree by hand.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with
@@ -81,8 +86,9 @@ not manual deletion.
 
 ### Concrete order from here
 
-1. Recover bounded disk headroom through the owning cleanup/retention path and
-   record a receipt; do not delete evidence or profiles by hand.
+1. Keep the daily owner’s retention path active. If the 512MiB floor is
+   crossed, let it emit its receipt and reclaim only explicit no-effect runs;
+   do not delete evidence or profiles by hand.
 2. Reconcile the two remaining exact unknown Paid rows (CrowdWorks and
    Lancers) only with occurrence-bound provider evidence.
 3. Close the Coconala Apply/Storefront no-op/replay-zero gate without touching
