@@ -643,6 +643,8 @@ class ParentEffects(Protocol):
 
     def preflight_submit(self, request_id: str) -> None: ...
 
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]: ...
+
     def click_submit(self, request_id: str) -> None: ...
 
     def authoritative_exact_id_readback(self, request_id: str) -> bool: ...
@@ -669,6 +671,54 @@ def _page_index(url: str) -> int:
     if len(pages) != 1 or re.fullmatch(r"[1-9][0-9]*", pages[0]) is None:
         raise ParentContractError("source_page_index_invalid")
     return int(pages[0])
+
+
+_COCONALA_USER_PATH = re.compile(r"^/users/(\d+)$")
+
+
+def _validated_authenticated_identity(
+    request_id: str, raw: object,
+) -> dict[str, object]:
+    """Validate the seller identity read from the authenticated Coconala page.
+
+    This is deliberately a small, local proof.  It does not infer an account from an
+    avatar or a display name: the provider-owned profile URL must be present in the
+    authenticated page DOM and must contain one numeric user id.
+    """
+    if not isinstance(raw, dict):
+        raise ParentContractError("authenticated_identity_readback_invalid")
+    path = str(raw.get("own_user_path") or "")
+    match = _COCONALA_USER_PATH.fullmatch(path)
+    if match is None:
+        error = ParentContractError("authenticated_identity_readback_missing")
+        error.observed = {
+            "url": str(raw.get("url") or "")[:300],
+            "title": str(raw.get("title") or "")[:150],
+            "own_user_path": path[:200],
+            "candidate_user_paths": raw.get("candidate_user_paths"),
+        }
+        raise error
+    page_url = str(raw.get("url") or "")
+    if not page_url.startswith("https://coconala.com/") and not page_url.startswith(
+        "https://www.coconala.com/"
+    ):
+        raise ParentContractError("authenticated_identity_provider_route_invalid")
+    return {
+        "source": "code_owned_cdp_authenticated_identity",
+        "provider": "coconala",
+        "request_id": str(request_id),
+        "account_id": match.group(1),
+        "profile_url": f"https://coconala.com{path}",
+        "profile_path": path,
+        "page_url": page_url[:300],
+        "page_title": str(raw.get("title") or "")[:150],
+        "selection": str(raw.get("selection") or "")[:80],
+        "candidate_user_paths": [
+            str(value)[:100] for value in (raw.get("candidate_user_paths") or [])
+            if isinstance(value, str)
+        ][:32],
+        "observed_at": _utc_now(),
+    }
 
 
 def _is_expected_offer_form_url(request_id: str, url: object) -> bool:
@@ -1524,6 +1574,41 @@ class CdpParentEffects:
         self._fresh_details[request_id] = detail
         self._persist_retainer_title(request_id, detail)
         return detail
+
+    async def _authenticated_identity_async(self) -> dict[str, object]:
+        """Read the authenticated seller profile link without navigating or mutating."""
+        expression = r'''JSON.stringify((()=>{
+          const path=a=>{try{
+            const u=new URL(a.href,location.origin);
+            return u.origin==='https://coconala.com'&&/^\/users\/\d+$/.test(u.pathname)
+              ?u.pathname:null;
+          }catch(_){return null}};
+          const links=[...document.querySelectorAll('a[href]')]
+            .map(a=>({node:a,path:path(a)})).filter(x=>x.path);
+          const sidebar=links.find(x=>x.node.closest('.sidebar-profile'));
+          const header=links.find(x=>x.node.closest('header,nav,[class*="header"],[class*="Header"]'));
+          const selected=sidebar||header;
+          return {
+            url:location.href,title:document.title,
+            own_user_path:selected?.path||null,
+            selection:sidebar?'sidebar-profile':(header?'header':'none'),
+            candidate_user_paths:[...new Set(links.map(x=>x.path))].slice(0,32)
+          };
+        })())'''
+        async with await _cdp_connect(self.ws_url) as ws:
+            call_id = 1
+            await self._call(ws, "Page.enable", {}, call_id)
+            state, _ = await self._eval_json(ws, expression, call_id + 1)
+        return state
+
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
+        """Persist the seller identity before the irreversible submit marker."""
+        identity = _validated_authenticated_identity(
+            request_id, asyncio.run(self._authenticated_identity_async())
+        )
+        path = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-identity.json"
+        _atomic_json(path, {**identity, "evidence_path": str(path.resolve())})
+        return {**identity, "evidence_path": str(path.resolve())}
 
     async def _form_state_async(
         self, request_id: str, *, navigate: bool
@@ -3693,6 +3778,15 @@ def commit_decisions(
                         submit_attempts += 1
                     phase = "submit_preflight"
                     effects.preflight_submit(request_id)
+                    phase = "authenticated_identity_capture"
+                    capture_identity = getattr(effects, "capture_authenticated_identity", None)
+                    if not callable(capture_identity):
+                        raise ParentContractError("authenticated_identity_capture_unavailable")
+                    # This is read-only provider identity evidence.  It is persisted before
+                    # the irreversible marker so a later complete-history absence can be
+                    # bound to the exact authenticated account rather than to an avatar,
+                    # display name, or whichever account happens to be logged in later.
+                    capture_identity(request_id)
                     phase = "irreversible_attempt_marker"
                     intent = store.mark_irreversible_attempt_started_locked(
                         request_id, expected_cas=intent["cas"]
@@ -4020,6 +4114,18 @@ class FixtureEffects:
 
     def preflight_submit(self, request_id: str) -> None:
         return None
+
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
+        raw = self.fixture.get("authenticated_identity")
+        if not isinstance(raw, dict):
+            raw = {
+                "url": "https://coconala.com/offers/add/" + str(request_id),
+                "title": "応募する",
+                "own_user_path": "/users/12345",
+                "selection": "fixture",
+                "candidate_user_paths": ["/users/12345"],
+            }
+        return _validated_authenticated_identity(request_id, raw)
 
     def click_submit(self, request_id: str) -> None:
         self.click_count += 1

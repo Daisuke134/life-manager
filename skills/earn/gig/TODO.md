@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 20:21 JST
+## Current cursor — 2026-09-24 20:51 JST
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
@@ -34,6 +34,12 @@
   durably record its account ID; the evidence is therefore retained without
   clearing `effect_unknown`. Artifact:
   `~/gig/apply-direct/evidence/detail-readback-5280157-latest/no-dispatch-candidate.json`.
+- [x] Fix the future-submit evidence gap: immediately before the irreversible
+  marker, the Coconala form now reads the authenticated seller profile path
+  (`/users/<numeric-id>`) from the provider DOM and durably stores an
+  occurrence-bound identity artifact. Missing or non-Coconala identity aborts
+  before the marker and before the final submit click. Focused application tests:
+  `58 passed`.
 - [ ] Load the current release only after the occurrence fence is resolved;
   cut/install the new source release, then verify natural Apply/Storefront wakes,
   complete official readback, and replay-zero. The targeted apply is currently
@@ -49,7 +55,7 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 20:21 JST)
+### Current remaining TODO (authoritative, 2026-09-24 20:51 JST)
 
 1. Bind the 26-page official absence to a separately verified no-dispatch
    receipt for `5280157`, or obtain a positive provider receipt. The new official
@@ -61,6 +67,9 @@
    `resolve_pre_effect_occurrence` proof. Do not loop endlessly, retry the
    provider, or clear the admission row by hand; accept only a newly bound
    provider-proof surface or independently verifiable no-dispatch evidence.
+   New attempts now persist the authenticated account identity before the
+   irreversible marker; this protects future occurrences but cannot retroactively
+   bind the old `5280157` attempt.
 2. Merge/cut/install the source fix `eb28f8df24` as an immutable release. Only
    after item 1 is proven may Apply, then Storefront, be target-applied; verify
    loaded SHA, natural wakes, official readback, and replay-zero. Do not bypass

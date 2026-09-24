@@ -182,6 +182,47 @@ def test_disk_headroom_is_rechecked_before_irreversible_submit(tmp_path, monkeyp
     assert results[0]["status"] == "pre_submit_aborted:pre_submit_headroom:ParentContractError"
 
 
+def test_missing_authenticated_identity_stops_before_irreversible_marker(
+    tmp_path, monkeypatch
+) -> None:
+    class MissingIdentity(application_parent.FixtureEffects):
+        def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
+            raise application_parent.ParentContractError("authenticated_identity_readback_missing")
+
+    snapshot = _single_application_snapshot()
+    decisions = {"decisions": [{
+        "request_id": "123",
+        "business_class": "submit_required",
+        "reason_codes": [],
+        "proposal_text": application_parent.commercial_proposal_text(
+            "既存業務の自動化を設計から検証まで担当します。" * 8,
+            price_jpy=20_000,
+            deliver_date="2026-09-01",
+        ),
+        "price_jpy": 20_000,
+        "deliver_date": "2026-09-01",
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }]}
+    effects = MissingIdentity(snapshot, {})
+    monkeypatch.setattr(gig_disk_guard, "disk_headroom_ok", lambda: True)
+    store = application_parent.fence.IntentStore(tmp_path)
+
+    results = application_parent.commit_decisions(
+        snapshot, decisions, store=store, effects=effects,
+    )
+
+    assert results[0]["status"] == (
+        "pre_submit_aborted:authenticated_identity_capture:ParentContractError"
+    )
+    assert effects.click_count == 1  # confirmation only; final submit was never clicked
+    intent = store.read("123")
+    assert intent["effect_phase"] == application_parent.fence.PRE_EFFECT
+    assert intent["state"] == application_parent.fence.RETIRED_ABSENT
+
+
 def test_old_effect_started_intent_stays_fenced_out_of_foreground_apply(tmp_path) -> None:
     snapshot = _single_application_snapshot()
     proposal = application_parent.commercial_proposal_text(

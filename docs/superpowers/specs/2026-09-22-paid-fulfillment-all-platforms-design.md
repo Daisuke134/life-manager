@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Current implementation cursor — 2026-09-24 20:21 JST
+### Current implementation cursor — 2026-09-24 20:51 JST
 
 - The Coconala occurrence `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for
   request `5280157` remains `claimed/effect_unknown=1`. A fresh authenticated,
@@ -47,6 +47,12 @@ completion.
   (`Kayamori Daisuke`). This narrows the no-dispatch question, but the old
   attempt did not durably record its account ID, so the evidence remains a
   candidate and does not release `effect_unknown` by itself.
+- New Coconala application commits now capture the authenticated seller profile
+  path (`/users/<numeric-id>`) immediately before the irreversible marker and
+  persist it beside the filled-form evidence. If the provider DOM cannot expose a
+  provider-owned identity, the commit aborts before the marker and before the
+  final submit click. This closes the evidence gap for future attempts; it is not
+  retroactive proof for `5280157`.
 
 - The page-history repair and occurrence reconciler from PR `#5820` are merged;
   the current immutable source head includes the follow-up fetch syntax fix in
@@ -78,6 +84,9 @@ completion.
    roster is useful evidence, but the retry path still encounters provider
    `403 Forbidden` and the historical session identity is missing; neither is a
    reason to resend or to clear the fence by inference.
+   Future attempts already persist their authenticated account identity before
+   crossing the irreversible marker; the old occurrence still needs independent
+   proof.
 2. Merge/cut/load the immutable release containing `eb28f8df24`, then verify
    natural Apply/Storefront wakes, official readback, and replay-zero.
 3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
