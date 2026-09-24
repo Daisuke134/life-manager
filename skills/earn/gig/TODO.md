@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 19:55 JST
+## Current cursor — 2026-09-24 20:07 JST
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
@@ -20,9 +20,14 @@
 - [x] Build and register the occurrence-scoped Coconala reconciler. It selects
   only one unambiguous target and cannot clear the admission DB, infer no-effect
   from exit status, or release a fence without exact official proof.
+- [x] Add a bounded readback-only fresh-lease recovery for the sequential-session
+  WAF/403 boundary. Source commit `eb28f8df24` retries only
+  `official_readback_access_denied` once, wires the occurrence reconciler to the
+  lease recycler, and leaves provider-send/effect-fence logic unchanged.
 - [ ] Load the current release only after the occurrence fence is resolved;
-  then verify natural Apply/Storefront wakes, complete official readback, and
-  replay-zero. The targeted apply is currently refused by the safety guard.
+  cut/install the new source release, then verify natural Apply/Storefront wakes,
+  complete official readback, and replay-zero. The targeted apply is currently
+  refused by the safety guard.
 - [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
   latest buyer cycle and remains a permanent manual-only exception; do not
   resend unless a genuinely newer buyer event appears.
@@ -34,16 +39,17 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 19:55 JST)
+### Current remaining TODO (authoritative, 2026-09-24 20:07 JST)
 
 1. Bind the 26-page official absence to a separately verified no-dispatch
    receipt for `5280157`, or obtain a positive provider receipt. The original
    intent is already marked `irreversible_attempt_started`, so absence alone is
    not a legal `resolve_pre_effect_occurrence` proof; do not retry or clear the
    admission row by hand.
-2. After that proof, target-apply the current immutable release to Apply, then
-   Storefront, and verify loaded SHA, natural wakes, official readback, and
-   replay-zero. Do not bypass the `effect_unknown` guard.
+2. Merge/cut/install the source fix `eb28f8df24` as an immutable release. Only
+   after item 1 is proven may Apply, then Storefront, be target-applied; verify
+   loaded SHA, natural wakes, official readback, and replay-zero. Do not bypass
+   the `effect_unknown` guard.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
 4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible
@@ -54,7 +60,7 @@
    Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
    settlement, payout, and duplicate-zero acceptance.
 
-### Coconala readback checkpoint — 2026-09-24 19:55 JST
+### Coconala readback checkpoint — 2026-09-24 20:07 JST
 
 - [x] Read-only direct-page probe used a fresh authenticated browser lease for
   each page, avoiding the sequential-session WAF boundary that produced the
@@ -72,6 +78,10 @@
 - [ ] Production Apply/Storefront are still not promoted. Source fixes are
   merged and tested, but the safety guard correctly refuses a target Apply wake
   while this exact occurrence remains unresolved.
+- [x] Source commit `eb28f8df24` adds one bounded fresh-lease retry for an
+  `official_readback_access_denied` boundary and wires the standalone reconciler
+  to recycle its lease. Coconala/application tests pass; production has not
+  loaded this branch.
 
 ## Historical Runtime Status — 2026-09-24 19:28 JST (release86bd official readback)
 

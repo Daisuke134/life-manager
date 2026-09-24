@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Current implementation cursor — 2026-09-24 19:55 JST
+### Current implementation cursor — 2026-09-24 20:07 JST
 
 - The Coconala occurrence `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for
   request `5280157` remains `claimed/effect_unknown=1`. A fresh authenticated,
@@ -31,6 +31,11 @@ completion.
   still waits for an exact positive provider receipt or a separately verified
   no-dispatch receipt. The current cursor is a reconciliation proof gap, not a
   loop cadence failure.
+- A source-only recovery commit `eb28f8df24` now retries the official readback
+  once with a fresh leased context after `official_readback_access_denied` and
+  wires the standalone occurrence reconciler to the same lease recycler. It
+  never retries a provider send or releases an effect fence; it is pushed but
+  not yet in the immutable production release.
 
 - The page-history repair and occurrence reconciler from PR `#5820` are merged;
   the current immutable source head includes the follow-up fetch syntax fix in
@@ -59,8 +64,8 @@ completion.
 1. Obtain a complete official Coconala readback for the fenced `5280157`
    occurrence and resolve only on exact provider proof or separately verified
    pre-effect proof.
-2. Merge `#5820`, cut/load an immutable release, and verify natural
-   Apply/Storefront wakes, official readback, and replay-zero.
+2. Merge/cut/load the immutable release containing `eb28f8df24`, then verify
+   natural Apply/Storefront wakes, official readback, and replay-zero.
 3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
    manual-only and do not resend the already-read-back reply.
 4. In parallel, reread the CrowdWorks material wait and keep Lancers ready for
