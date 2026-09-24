@@ -844,8 +844,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None) -> int:
     limit = _runtime_limit(entry)
-    if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup",
-                   "capafy-loop-healthcheck"}:
+    if loop_id in {"life-manager-release-reconciler", "life-manager-recovery-supervisor",
+                   "life-manager-disk-cleanup", "capafy-loop-healthcheck"}:
         if entry.get("effect_class") == "none":
             try:
                 clear_no_effect_unknown_resource(loop_id)
