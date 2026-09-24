@@ -540,6 +540,15 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
     const setupRequired = nonPassRows.length > 0 && nonPassRows.every((row) => (
       FOUNDATION_SETUP_BLOCKERS.has(row.blocker)
     ));
+    const capacityDeferred = nonPassRows.length > 0 && nonPassRows.every((row) => (
+      row.last_terminal_result === "blocked"
+      && row.blocker === "host_admission_deferred:resource_capacity_busy"
+      && row.error_class === "host_admission_deferred:resource_capacity_busy"
+      && row.retryable === true
+      && row.next_action === "retry_after_eligibility"
+      && row.effect_class === "none"
+      && row.effect_status === "not_applicable"
+    ));
 
     let state = "healthy";
     let reason = null;
@@ -564,6 +573,10 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       state = "repairing";
       reason = "bounded_recovery_in_progress";
       nextAction = "await_bounded_recovery";
+    } else if (capacityDeferred) {
+      state = "safely_fenced";
+      reason = "runtime_capacity_deferred";
+      nextAction = "retry_after_eligibility";
     } else if (setupRequired) {
       state = "setup_required";
       reason = "runtime_prerequisite_missing";
