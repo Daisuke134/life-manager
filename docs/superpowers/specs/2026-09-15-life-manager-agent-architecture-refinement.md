@@ -153,6 +153,12 @@ flowchart LR
   `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 101/101、apply 124/124（既知のsqlite
   `ResourceWarning`のみ）をPASSしました。payout/transferを実行せず、money fenceと公式receipt待ちを維持します。
   main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `job-search-health`はapplication effect ownerで、durable policy `deterministic/borrow/support`のclaimed
+  `effect_unknown` 1件、queued 69件、released 2件、reservation 0件を持ち、loaded-idleの
+  `resource_effect_unknown`で停止しています。branch-onlyで観測済みpolicy、queued/reserved coalescing、
+  `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 102/102、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。応募を再送せず、application fenceと公式proposal/application receipt待ちを
+  維持します。main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
