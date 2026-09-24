@@ -2345,3 +2345,26 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep the marker-less CrowdWorks fence
   `18d62cf32eb0c678-48194` and Lancers' pre-inventory failure fenced; no retry
   or submission until official evidence is available.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:53 JST
+
+- [x] Rechecked APFS headroom at about 5.9GB, above the 512MiB Paid guard
+  floor; the immediate disk-capacity failure is no longer the active blocker.
+- [x] Observed a canonical CrowdWorks owner receipt at
+  `browser-ports/9228.json` with healthy CDP `9228`; the former orphan PID
+  `16937` is gone. Do not stop the current owner or use a fallback launcher.
+- [x] Re-read Coconala's official snapshot: `4/0/0/3/0`, Ryu reserved/manual,
+  three rooms buyer-waiting, and no provider effect in the snapshot.
+- [ ] Let the queued `hf-gig-paid-direct` wake clear
+  `host_admission_deferred:resource_capacity_busy`, then require terminal
+  `pass`, official four-room readback, and replay-zero.
+- [ ] Obtain authenticated CrowdWorks account readback through the existing
+  owner, then reconcile current Paid occurrence
+  `18d81ec6a7ac29c0-89648`; keep it fenced until exact provider/no-effect
+  evidence exists.
+- [ ] Retain historical marker-less CrowdWorks occurrence
+  `18d62cf32eb0c678-48194` and the Lancers pre-inventory/effect fence; do not
+  retry or submit while either effect is unknown.
+- [ ] Keep Ryu manual-only and all buyer/material/contract waits unchanged;
+  submit only for a genuinely new artifact with official receipt and
+  replay-zero.

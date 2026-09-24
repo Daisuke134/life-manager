@@ -2130,3 +2130,59 @@ clicked again.
    exists; never resubmit while unknown.
 5. Keep Ryu manual-only and all other rooms/contracts waiting; submit only a
    real artifact once with official receipt and replay-zero.
+
+## Production Cursor — 2026-09-24 10:53 JST
+
+This cursor supersedes the 10:50 cursor above where the live readback differs.
+
+- **Host capacity:** APFS readback now shows about 5.9GB available, above the
+  512MiB Paid guard floor. Capacity is no longer the immediate disk blocker;
+  customer deliverables and live provider profiles remain untouched.
+- **Coconala:** the official snapshot remains `completed` with
+  `observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu `18211957` is still `reserved_for_owner`; the other three rooms remain
+  `awaiting_buyer`. The Paid owner is loaded and retrying, but its latest
+  terminal state is `blocked` with
+  `host_admission_deferred:resource_capacity_busy` (exit `75`); a new
+  terminal `pass` has not been proven.
+- **CrowdWorks browser ownership:** a canonical receipt now exists at
+  `browser-ports/9228.json` for `crowdworks-revenue-browser`, and CDP `9228`
+  responds. The former orphan PID `16937` is gone. This observation supersedes
+  the prior approval item to close that PID; do not stop the current owner.
+  Authenticated account readback and a clean Paid wake are still required.
+- **CrowdWorks Paid:** the latest official Paid snapshot is still `failed` at
+  `provider_inventory` with `CrowdWorksPaidBrowserUnavailable` and zero
+  observed/effect/readback. The current admission occurrence remains
+  `effect_unknown`/fenced (`18d81ec6a7ac29c0-89648`); no retry or submission is
+  allowed until an exact provider/no-effect reconciliation releases it.
+- **Lancers Paid:** the latest snapshot is `failed` before actionable
+  inventory (`observed=0/actionable=0/effect=0/readback=0`), with no funded
+  contract. Its admission/effect fence remains conservative; no submission is
+  allowed.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Coconala admission:** let the queued `hf-gig-paid-direct` wake clear
+   `host_admission_deferred:resource_capacity_busy`; verify installed SHA/argv,
+   terminal `pass`, official four-room readback, and replay-zero. Do not treat
+   the existing `4/0/0/3/0` snapshot as proof of a new successful wake.
+2. **CrowdWorks owner readback:** use the existing owner receipt/CDP 9228 to
+   obtain authenticated account readback, then rerun Paid only after the exact
+   `effect_unknown` occurrence is reconciled. Never use a fallback launcher.
+3. **CrowdWorks fence:** reconcile occurrence
+   `18d81ec6a7ac29c0-89648` (and retain the historical marker-less
+   `18d62cf32eb0c678-48194`) using official provider/pre-effect evidence;
+   release only an exact durable no-effect proof.
+4. **Ryu:** keep the permanent manual-only fence. Act only on a genuinely
+   newer buyer message; never resend or press formal delivery for the current
+   cycle.
+5. **Other Coconala rooms:** keep the three `awaiting_buyer` rooms no-op;
+   when a new buyer artifact appears, complete and submit once with official
+   receipt and replay-zero.
+6. **CrowdWorks contract `63568785`:** wait for the buyer's missing course
+   material, then complete and deliver once with official receipt/replay-zero.
+7. **Lancers:** wait for a funded `ContractReceipt`, then read back the exact
+   `完了報告` control before any delivery; preserve the current fence.
+8. **Cross-platform:** finish one provider's authenticated readback and
+   replay-zero gates at a time; keep Upwork disabled until authorization,
+   authentication, and a funded contract exist.
