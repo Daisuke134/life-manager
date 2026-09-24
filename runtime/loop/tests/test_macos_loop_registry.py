@@ -357,6 +357,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertNotIn("--include-running", script)
         self.assertNotIn("--loop-id", script)
 
+    def test_recovery_supervisor_has_managed_node_fallback_for_launchd(self):
+        script = (ROOT / "bin/lm-recovery-supervise").read_text()
+        self.assertIn("LIFE_MANAGER_RUNTIME_NODE", script)
+        self.assertIn("command -v node", script)
+        self.assertIn("/opt/homebrew/bin/node", script)
+
     def test_registry_rejects_missing_and_secret_fields(self):
         missing = {"schema_version": 2, "loops": {"example": entry()}}
         del missing["loops"]["example"]["cleanup"]
