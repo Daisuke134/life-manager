@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 20:07 JST
+## Current cursor — 2026-09-24 20:21 JST
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
@@ -24,6 +24,10 @@
   WAF/403 boundary. Source commit `eb28f8df24` retries only
   `official_readback_access_denied` once, wires the occurrence reconciler to the
   lease recycler, and leaves provider-send/effect-fence logic unchanged.
+- [x] Extend the recovery to resume at the denied history page and retain the
+  verified prefix. Live read-only reconcile with `17b8794d15` produced two
+  official `page=22 / 403 Forbidden` artifacts (initial attempt and fresh-lease
+  resume); the result stayed unresolved without touching the fence.
 - [ ] Load the current release only after the occurrence fence is resolved;
   cut/install the new source release, then verify natural Apply/Storefront wakes,
   complete official readback, and replay-zero. The targeted apply is currently
@@ -39,13 +43,16 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 20:07 JST)
+### Current remaining TODO (authoritative, 2026-09-24 20:21 JST)
 
 1. Bind the 26-page official absence to a separately verified no-dispatch
-   receipt for `5280157`, or obtain a positive provider receipt. The original
-   intent is already marked `irreversible_attempt_started`, so absence alone is
-   not a legal `resolve_pre_effect_occurrence` proof; do not retry or clear the
-   admission row by hand.
+   receipt for `5280157`, or obtain a positive provider receipt. The live
+   read-only retry now resumes at the denied page but Coconala still returns
+   `403 Forbidden` there; the original intent is already marked
+   `irreversible_attempt_started`, so absence alone is not a legal
+   `resolve_pre_effect_occurrence` proof. Do not loop endlessly, retry the
+   provider, or clear the admission row by hand; wait for a new provider-proof
+   surface or independently verifiable no-dispatch evidence.
 2. Merge/cut/install the source fix `eb28f8df24` as an immutable release. Only
    after item 1 is proven may Apply, then Storefront, be target-applied; verify
    loaded SHA, natural wakes, official readback, and replay-zero. Do not bypass
@@ -60,7 +67,7 @@
    Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
    settlement, payout, and duplicate-zero acceptance.
 
-### Coconala readback checkpoint — 2026-09-24 20:07 JST
+### Coconala readback checkpoint — 2026-09-24 20:21 JST
 
 - [x] Read-only direct-page probe used a fresh authenticated browser lease for
   each page, avoiding the sequential-session WAF boundary that produced the
@@ -82,6 +89,10 @@
   `official_readback_access_denied` boundary and wires the standalone reconciler
   to recycle its lease. Coconala/application tests pass; production has not
   loaded this branch.
+- [x] Source commit `17b8794d15` resumes a fresh readback from the denied page
+  and merges the verified prefix. Live reconcile recorded `page=22` as
+  `403 Forbidden` on both attempts; the admission row remains exactly
+  `claimed/effect_unknown=1` and no provider effect was issued.
 
 ## Historical Runtime Status — 2026-09-24 19:28 JST (release86bd official readback)
 

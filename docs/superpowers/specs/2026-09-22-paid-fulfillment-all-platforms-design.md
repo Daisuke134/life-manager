@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Current implementation cursor — 2026-09-24 20:07 JST
+### Current implementation cursor — 2026-09-24 20:21 JST
 
 - The Coconala occurrence `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for
   request `5280157` remains `claimed/effect_unknown=1`. A fresh authenticated,
@@ -36,6 +36,10 @@ completion.
   wires the standalone occurrence reconciler to the same lease recycler. It
   never retries a provider send or releases an effect fence; it is pushed but
   not yet in the immutable production release.
+- Follow-up commit `17b8794d15` resumes the fresh readback at the denied page and
+  merges the verified prefix. A live read-only reconcile recorded official
+  `page=22 / 403 Forbidden` on both the initial and fresh-lease attempts; the
+  exact occurrence remains unresolved and the admission fence is unchanged.
 
 - The page-history repair and occurrence reconciler from PR `#5820` are merged;
   the current immutable source head includes the follow-up fetch syntax fix in
@@ -63,7 +67,8 @@ completion.
 
 1. Obtain a complete official Coconala readback for the fenced `5280157`
    occurrence and resolve only on exact provider proof or separately verified
-   pre-effect proof.
+   pre-effect proof. The retry path is now bounded and correct, but repeated
+   provider 403s are an external proof gap, not a reason to resend.
 2. Merge/cut/load the immutable release containing `eb28f8df24`, then verify
    natural Apply/Storefront wakes, official readback, and replay-zero.
 3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
