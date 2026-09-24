@@ -1,5 +1,40 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 01:18 JST (all-platform owner map)
+
+- [x] Re-read the current paid-owner state for every platform without issuing a
+  provider effect. The evidence separates source implementation readiness from
+  live account/funded-work readiness.
+- [ ] Keep Coconala fenced: Ryu request `5280157` still has no account-bound
+  submit receipt, and the generic Apply/Storefront surfaces are not accepted
+  from scheduler success alone. No duplicate Ryu send is allowed.
+- [ ] CrowdWorks has exactly one pending work item (`63568785`) waiting for
+  admissible buyer lesson/answer material; the four completed rows are already
+  read back and require no resend.
+- [ ] Lancers remains a verified zero-funded no-op (`observed=0`, no ContractReceipt);
+  public discovery and the unsupported-claim decision do not authorize an apply.
+- [ ] Mercor remains authenticated but Paid inventory is stale; the saved
+  assessment is still `2/3` with final submission unobserved.
+- [ ] Freelancer source work is in place through the API/readback seam and
+  regression tests, but live state is closed: no OAuth, approved receipts,
+  authenticated inventory, funded project, or registered owner.
+- [ ] Upwork source work is in place through the browser-state/readback seam and
+  regression tests, but live state is closed: no OAuth, all eight stored action
+  receipts are denied, zero active contracts, and no funded milestone.
+- [ ] The next implementation cursor is to normalize official Freelancer
+  responses into the existing canonical inventory contract, then attach the
+  same live readback proof to the Upwork transport. Neither owner may be
+  registered before fresh account-bound receipts and positive funded-work
+  evidence exist.
+- [x] Added the first official-response normalization boundary for Freelancer:
+  complete success envelopes, numeric account identity, project/milestone/IP
+  coverage, hourly/payment/payout presence, bidder binding, explicit currency
+  precision, and milestone-to-canonical-contract mapping are all fail-closed.
+  The transport accepts this bundle only with explicit observation metadata and
+  a caller-supplied currency minor-unit policy; focused readiness/transport
+  tests pass (`50`). This remains source/readback work, not live auth or owner
+  registration.
+
 ## Current cursor — 2026-09-24 23:20 JST
 
 - [x] Complete the same-process Coconala Apply natural wake without a restart.

@@ -4996,3 +4996,77 @@ leaves the provider effect closed.
 - [x] The full `skills/earn/gig/tests` regression passes (`1465 passed`),
   including the new Freelancer API boundary. This is source verification only;
   no provider request, submission, or resend occurred.
+
+## Runtime Status Refresh — 2026-09-25 01:18 JST (all-platform owner map)
+
+This checkpoint is an explicit separation of implementation state from live
+provider state. A green local suite does not imply login, funded work, a loop
+owner, or an external submission.
+
+- [x] Coconala Apply is still fenced. Request `5280157` remains a prepared
+  intent with `effect_phase=irreversible_attempt_started`, `effect=0`, and no
+  account-bound submit receipt. The complete official history readback omits
+  the request and the expanded detail roster omits authenticated account
+  `2564121`; this remains a no-dispatch candidate only. The generic Paid wake
+  is a safe no-op, not Ryu delivery. Storefront has its own unresolved
+  `claimed/effect_unknown=1` occurrence. Ryu remains manual-only and must not
+  be resent without a genuinely newer buyer event.
+- [x] CrowdWorks is `observed=5/actionable=1/effect=0/readback=4/pending=1`.
+  Work `63568785` is the sole open item and is waiting for admissible buyer
+  lesson/answer material (`buyer_event_id=426855154`); the four completed rows
+  are officially read back and need no duplicate submission.
+- [x] Lancers is a verified zero-funded no-op (`observed=0`, no actionable
+  contract, no effect). Listing `5606124` was recorded as
+  `unsupported_claim` with no external send. A public listing or prior browser
+  receipt is not a funded `ContractReceipt`.
+- [x] Mercor is authenticated, but Paid is `pending` because the official work
+  inventory is stale. The saved application remains `in_progress_2_of_3` at
+  Assessment and `final_submission=not_observed`; no assessment/contract/payout
+  effect is legal from this snapshot.
+- [x] Freelancer implementation is ready only at the source boundary:
+  authorization gate, account-bound readback seam, allow-listed official API
+  route plan, OAuth/header/error handling, and regression tests are present.
+  Live state is closed: OAuth file absent, no approved lifecycle receipts, no
+  authenticated inventory, no funded project, and no owner. Exact next path is
+  fresh account auth → `/users/0.1/users/` identity → awarded
+  `/projects/0.1/self/` projects → per-project milestones/hourly/IP readback →
+  payment/payout evidence → canonical source-complete inventory → disabled
+  owner → zero-spend canary → one funded canary with official delivery,
+  settlement, payout, crash-recovery, and replay-zero receipts.
+- [x] Upwork implementation is ready only at the source boundary:
+  authorization gate, browser-state canonical adapter, account-bound readback
+  seam, and regression tests are present. Live state is closed: OAuth file
+  absent, all eight stored action receipts are `denied`, historical active
+  contracts are zero, and no funded milestone exists. Exact next path is fresh
+  account auth → official contract/detail/payment/payout readback → positive
+  funded milestone → canonical inventory → disabled owner → zero-spend canary
+  → one funded canary with official proposal/contract/delivery/payment/payout,
+  crash-recovery, and replay-zero receipts.
+- [ ] Do not register or enable Freelancer/Upwork loops now. The current
+  blocker is external evidence, not a missing permission prompt: the local
+  transport/readback seams are testable, but no valid credential/receipt and no
+  funded contract are present. Continue source-side normalization and keep all
+  effect fences closed until the exact evidence sequence above is observed.
+
+## Runtime Status Refresh — 2026-09-25 01:22 JST (Freelancer response normalization)
+
+- [x] Added `snapshot_from_official_readbacks` to the Freelancer readiness
+  boundary. It accepts only the complete seven-part readback bundle, requires
+  `status=success` / object `result` envelopes, binds the identity and each
+  milestone bidder to the authenticated numeric account, requires every
+  project to have milestone and IP readbacks, validates hourly/payment/payout
+  presence, rejects duplicate/orphan/malformed rows, and maps only documented
+  milestone statuses into canonical funded/completed/cancelled contracts.
+- [x] Money conversion is fail-closed: the adapter must pass an explicit
+  currency minor-unit policy; missing policy or non-integral precision is
+  rejected rather than assuming cents. The transport now accepts either the
+  existing canonical inventory or a metadata-wrapped official bundle and sends
+  both through the same strict parser.
+- [x] Freelancer readiness/transport and Upwork readiness/transport tests pass
+  (`50`). This validates source behavior only; no OAuth was created, no
+  provider request was made, no owner was registered, and no external effect
+  occurred.
+- [ ] Still pending: obtain fresh Freelancer authorization and real official
+  responses, then prove one funded project through this parser. Upwork still
+  needs the equivalent live authenticated contract/payment normalization; its
+  current OAuth/receipts remain absent/denied.

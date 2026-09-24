@@ -211,13 +211,15 @@ class FreelancerTransport:
         account_id: str,
         project_ids: tuple[str, ...],
         fetch: Callable[[TransportSelection, tuple[tuple[str, str], ...]], Any],
+        currency_minor_units: dict[str, int] | None = None,
     ) -> Any:
         """Attach the route plan to the strict readiness readback boundary.
 
         ``fetch`` is the provider-owned HTTP/CDP implementation. It receives
         only after ``read_authenticated_inventory`` has proved all three
-        account-bound read receipts; its return value must be the canonical
-        inventory object accepted by ``freelancer_readiness.parse_inventory``.
+        account-bound read receipts. It may return the canonical inventory
+        directly, or an explicit readback bundle plus observation metadata;
+        the latter is normalized only with a caller-supplied currency policy.
         """
         if not callable(fetch):
             raise TransportConfigurationError("inventory_fetch_not_callable")
@@ -228,7 +230,30 @@ class FreelancerTransport:
             selection = self.for_action("inspect")
             if selection is None:
                 raise TransportConfigurationError("inventory_transport_unavailable")
-            return fetch(selection, plan)
+            payload = fetch(selection, plan)
+            if (
+                isinstance(payload, dict)
+                and payload.get("version") == 1
+                and payload.get("provider") == "freelancer"
+            ):
+                return payload
+            if currency_minor_units is None:
+                raise TransportConfigurationError("inventory_normalization_required")
+            if not isinstance(payload, dict) or set(payload) != {
+                "readbacks", "observed_at", "source_hash",
+            }:
+                raise TransportConfigurationError("inventory_readbacks_bundle_invalid")
+            from freelancer_readiness import snapshot_from_official_readbacks
+
+            try:
+                return snapshot_from_official_readbacks(
+                    payload["readbacks"], account_id=account_id,
+                    observed_at=payload["observed_at"],
+                    source_hash=payload["source_hash"],
+                    currency_minor_units=currency_minor_units,
+                )
+            except ValueError as exc:
+                raise TransportConfigurationError("inventory_readbacks_invalid") from exc
 
         return read_authenticated_inventory(
             receipts,

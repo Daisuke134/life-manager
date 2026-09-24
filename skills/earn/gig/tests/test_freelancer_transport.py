@@ -250,6 +250,28 @@ def test_inventory_readback_fetches_only_after_all_read_receipts(
     ))]
 
 
+def test_inventory_readback_does_not_admit_unannotated_raw_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    root, profile = _profile(tmp_path)
+    selector = transport.FreelancerTransport(
+        account=ACCOUNT, now=NOW, oauth_path=tmp_path / "missing.json",
+        profiles_root=root, browser_profile=profile,
+        matrix_path=GIG_ROOT / "config" / "freelancer-actions.public.json",
+    )
+
+    with pytest.raises(transport.TransportConfigurationError, match="normalization_required"):
+        selector.read_inventory(
+            load_receipts(tmp_path / "authorizations.json"),
+            account_id=ACCOUNT, project_ids=("123",),
+            fetch=lambda _selection, _plan: {"readbacks": {}},
+        )
+
+
 class _Response:
     def __init__(self, status: int, body: bytes):
         self.status = status

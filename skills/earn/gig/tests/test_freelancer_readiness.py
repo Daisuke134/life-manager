@@ -20,6 +20,7 @@ from freelancer_readiness import (  # noqa: E402
     plan_effect,
     read_authenticated_inventory,
     replay_zero,
+    snapshot_from_official_readbacks,
 )
 
 
@@ -186,3 +187,102 @@ def test_inventory_rejects_noncanonical_source_evidence(field: str):
     value["contracts"][0][field] = "bad"
     with pytest.raises(ReadinessError):
         parse_inventory(value)
+
+
+def _official(status: str, result: dict):
+    return {"status": status, "request_id": "req-1", "result": result}
+
+
+def _official_readbacks(*, milestone_status: str = "pending"):
+    return {
+        "identity": _official("success", {
+            "users": {"94117802": {"id": 94117802, "username": "rasi4op"}},
+        }),
+        "projects": _official("success", {
+            "projects": {
+                "projects": [{"id": 40620700, "status": "awarded"}],
+                "contests": [],
+                "total_count": 1,
+            },
+            "contests": {"contests": [], "total_count": 0},
+            "total_count": 1,
+        }),
+        "milestones": {"40620700": _official("success", {
+            "milestones": {"7001": {
+                "transaction_id": 7001,
+                "project_owner_id": 111,
+                "bidder_id": 94117802,
+                "amount": 250,
+                "reason": "full_payment",
+                "other_reason": None,
+                "project_id": 40620700,
+                "bid_id": 491448418,
+                "currency": {"id": 1, "code": "USD", "sign": "$"},
+                "is_from_prepaid": False,
+                "status": milestone_status,
+                "dispute_id": None,
+                "cancellation_requested": False,
+                "time_created": 1780230000,
+            }},
+            "users": None,
+        })},
+        "hourly_contracts": _official("success", {"hourly_contracts": []}),
+        "ip_contracts": {"40620700": _official("success", {"contracts": []})},
+        "payments": _official("success", {"payments": []}),
+        "payouts": _official("success", {"payouts": []}),
+    }
+
+
+def test_official_readbacks_map_documented_milestone_to_funded_inventory():
+    snapshot = snapshot_from_official_readbacks(
+        _official_readbacks(), account_id="94117802",
+        observed_at="2026-09-24T13:55:00Z", source_hash=HASH,
+        currency_minor_units={"USD": 2},
+    )
+
+    assert snapshot["source_complete"] is True
+    assert snapshot["account_id"] == "94117802"
+    assert snapshot["contracts"] == [{
+        "project_id": "40620700",
+        "contract_id": "project-40620700-milestone-7001",
+        "state": "funded",
+        "currency": "USD",
+        "amount_minor": 25000,
+        "source_url": "https://www.freelancer.com/projects/40620700",
+        "source_hash": HASH,
+        "observed_at": "2026-09-24T13:55:00Z",
+    }]
+
+
+def test_official_readbacks_reject_missing_payment_or_project_envelope():
+    raw = _official_readbacks()
+    del raw["payments"]
+    with pytest.raises(ReadinessError, match="official_readbacks_fields_invalid"):
+        snapshot_from_official_readbacks(
+            raw, account_id="94117802", observed_at="2026-09-24T13:55:00Z",
+            source_hash=HASH, currency_minor_units={"USD": 2},
+        )
+
+    raw = _official_readbacks()
+    raw["projects"]["result"]["projects"]["projects"][0]["id"] = 999
+    with pytest.raises(ReadinessError, match="official_project_readbacks_incomplete"):
+        snapshot_from_official_readbacks(
+            raw, account_id="94117802", observed_at="2026-09-24T13:55:00Z",
+            source_hash=HASH, currency_minor_units={"USD": 2},
+        )
+
+
+def test_official_readbacks_reject_unknown_money_precision_and_bad_status():
+    with pytest.raises(ReadinessError, match="currency_minor_units_missing"):
+        snapshot_from_official_readbacks(
+            _official_readbacks(), account_id="94117802",
+            observed_at="2026-09-24T13:55:00Z", source_hash=HASH,
+            currency_minor_units={},
+        )
+
+    raw = _official_readbacks(milestone_status="created")
+    with pytest.raises(ReadinessError, match="milestone_status_invalid"):
+        snapshot_from_official_readbacks(
+            raw, account_id="94117802", observed_at="2026-09-24T13:55:00Z",
+            source_hash=HASH, currency_minor_units={"USD": 2},
+        )
