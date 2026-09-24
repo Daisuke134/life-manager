@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:15 JST (retention owner and Paid marker boundary verified)
+## Current cursor — 2026-09-25 06:20 JST (retention owner and Paid marker boundary verified)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -37,7 +37,7 @@ volume has its 512MiB floor it returns in a fast
 `capacity_ok` path, and only under pressure it can reclaim old, explicit
 `no_work`/`observed_no_action` runs. Submitted, submit-unknown, failed,
 blocked, human-gated, active, unmarked, and symlinked runs are preserved.
-The 3 focused retention tests and all 530 job-search tests pass. A dry-run
+The 3 focused retention tests and all 531 job-search tests pass. A dry-run
 against the current `11,907`-directory/`~2.5GiB` tree found `2,245` eligible
 runs and a potential `178,397,607` bytes, but deleted nothing. The remaining
 capacity task is to let the daily owner produce a real pressure receipt when
