@@ -313,6 +313,8 @@ def test_official_history_403_has_same_origin_fetch_fallback():
     assert "offer_urls" in expression
     assert "pagination_hrefs" in expression
     assert ".then(JSON.stringify)" in expression
+    assert "})().then(JSON.stringify)" in expression
+    assert "})()).then(JSON.stringify)" not in expression
     assert "catch (error)" in expression
 
 
@@ -323,6 +325,8 @@ def test_offer_detail_fetch_serializes_after_async_resolution():
 
     assert expression.startswith("(async()=>{")
     assert ".then(JSON.stringify)" in expression
+    assert "})().then(JSON.stringify)" in expression
+    assert "})()).then(JSON.stringify)" not in expression
     assert "catch (error)" in expression
 
 
