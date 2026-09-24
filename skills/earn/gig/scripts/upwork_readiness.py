@@ -106,6 +106,67 @@ class RegistrationReport:
     funded_contract_ids: tuple[str, ...]
 
 
+def snapshot_from_browser_state(
+    state: Any, *, account_id: str,
+    contract_details: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Convert one official Upwork browser state into the canonical inventory."""
+    account_id = _text(account_id, "account_id_invalid")
+    if not isinstance(state, dict) or state.get("version") != 1:
+        raise ReadinessError("browser_state_invalid")
+    if state.get("provider") != "upwork":
+        raise ReadinessError("browser_state_provider_invalid")
+    observed_at = _time(state.get("observed_at"), "browser_state_observed_at_invalid")
+    evidence = state.get("evidence_sha256")
+    if not isinstance(evidence, dict):
+        raise ReadinessError("browser_state_evidence_invalid")
+    source_hash = _hash(evidence.get("contracts"), "inventory_source_hash_invalid")
+    rows = state.get("active_contracts")
+    if not isinstance(rows, list):
+        raise ReadinessError("browser_state_contracts_invalid")
+    details = contract_details if contract_details is not None else {}
+    if not isinstance(details, dict):
+        raise ReadinessError("contract_details_invalid")
+
+    contracts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ReadinessError("browser_state_contract_invalid")
+        contract_id = _text(row.get("id"), "contract_id_invalid")
+        if contract_id in seen:
+            raise ReadinessError("duplicate_contract_id")
+        seen.add(contract_id)
+        href = _official_url(row.get("href"), contract_id)
+        detail = details.get(contract_id)
+        if detail is None:
+            raise ReadinessError("contract_detail_required")
+        if not isinstance(detail, dict) or detail.get("contract_id", contract_id) != contract_id:
+            raise ReadinessError("contract_detail_invalid")
+        detail_url = detail.get("source_url", href)
+        contracts.append({
+            "contract_id": contract_id,
+            "state": detail.get("state"),
+            "funded_milestone_minor": detail.get("funded_milestone_minor"),
+            "source_url": detail_url,
+            "source_hash": detail.get("source_hash"),
+            "observed_at": detail.get("observed_at"),
+        })
+    if set(details) - seen:
+        raise ReadinessError("orphan_contract_detail")
+    snapshot = {
+        "version": 1,
+        "provider": "upwork",
+        "account_id": account_id,
+        "source_complete": True,
+        "observed_at": observed_at,
+        "source_hash": source_hash,
+        "contracts": contracts,
+    }
+    parse_inventory(snapshot)
+    return snapshot
+
+
 def _contract(raw: Any) -> UpworkContract:
     required = {
         "contract_id", "state", "funded_milestone_minor", "source_url",

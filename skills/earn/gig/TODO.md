@@ -4258,3 +4258,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Only after that evidence exists: register one disabled owner, run a
   zero-spend canary, then a funded canary with official delivery/payment/
   payout/replay-zero readback. Do not revive retired browser/free-loop labels.
+
+### Runtime checkpoint — 2026-09-25 00:46 JST (Upwork readback adapter slice)
+
+- [x] The Upwork readiness module now converts official browser contract state
+  into the canonical inventory. Empty official contracts remain source-complete
+  but have no funded target; every non-empty contract requires an exact detail
+  readback with funding amount, URL, source hash, and observation time.
+- [x] Missing/orphan/duplicate contract details and malformed official evidence
+  fail closed. The focused Upwork readiness/browser/transport/authorization
+  suite passes (`63`).
+- [ ] OAuth and approved account-bound receipts are still absent/denied, so
+  this adapter is not a live transport and no Upwork Paid owner is registered.
+  Next: attach it to the authenticated readback callback, then perform the
+  disabled-owner → zero-spend → funded canary sequence only after a positive
+  funded milestone exists.

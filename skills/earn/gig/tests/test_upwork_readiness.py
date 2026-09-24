@@ -20,6 +20,7 @@ from upwork_readiness import (  # noqa: E402
     plan_effect,
     read_authenticated_inventory,
     replay_zero,
+    snapshot_from_browser_state,
 )
 
 
@@ -150,3 +151,62 @@ def test_upwork_inventory_rejects_bad_contract_evidence(field: str):
     value["contracts"][0][field] = "bad"
     with pytest.raises(ReadinessError):
         parse_inventory(value)
+
+
+def test_browser_zero_contract_readback_becomes_source_complete_inventory():
+    snapshot = snapshot_from_browser_state({
+        "version": 1,
+        "provider": "upwork",
+        "observed_at": "2026-09-24T13:55:00Z",
+        "active_contracts": [],
+        "evidence_sha256": {"contracts": HASH},
+    }, account_id="upwork-account-1")
+
+    assert snapshot == {
+        **_inventory(contracts=[]),
+        "source_complete": True,
+    }
+
+
+def test_browser_contract_readback_requires_official_detail_for_each_contract():
+    state = {
+        "version": 1,
+        "provider": "upwork",
+        "observed_at": "2026-09-24T13:55:00Z",
+        "active_contracts": [{
+            "id": "contract-1",
+            "href": "https://www.upwork.com/ab/workroom/contract-1",
+        }],
+        "evidence_sha256": {"contracts": HASH},
+    }
+
+    with pytest.raises(ReadinessError, match="contract_detail_required"):
+        snapshot_from_browser_state(state, account_id="upwork-account-1")
+
+
+def test_browser_funded_contract_detail_maps_to_readiness_inventory():
+    state = {
+        "version": 1,
+        "provider": "upwork",
+        "observed_at": "2026-09-24T13:55:00Z",
+        "active_contracts": [{
+            "id": "contract-1",
+            "href": "https://www.upwork.com/ab/workroom/contract-1",
+        }],
+        "evidence_sha256": {"contracts": HASH},
+    }
+    snapshot = snapshot_from_browser_state(
+        state,
+        account_id="upwork-account-1",
+        contract_details={"contract-1": {
+            "contract_id": "contract-1",
+            "state": "funded",
+            "funded_milestone_minor": 50000,
+            "source_hash": "b" * 64,
+            "observed_at": "2026-09-24T13:54:00Z",
+        }},
+    )
+
+    assert snapshot["source_complete"] is True
+    assert snapshot["contracts"][0]["contract_id"] == "contract-1"
+    assert snapshot["contracts"][0]["funded_milestone_minor"] == 50000

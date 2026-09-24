@@ -4860,3 +4860,21 @@ leaves the provider effect closed.
   funded canary and official delivery/payment/payout/replay-zero readback. No
   owner registration or external send is legal before those evidence gates
   pass.
+
+## Runtime Status Refresh — 2026-09-25 00:46 JST (Upwork readback adapter slice)
+
+- [x] `snapshot_from_browser_state` now converts the existing official Upwork
+  browser contract page state into the canonical readiness inventory. An empty
+  official contract list is represented as source-complete with zero funded
+  contracts; every visible contract requires its own official detail readback,
+  funding amount, source hash, URL, and observation time before the snapshot is
+  admitted.
+- [x] The adapter rejects missing contract details, orphan details, duplicate
+  IDs, non-Upwork URLs, malformed hashes/timestamps, and invalid funding data
+  through the existing strict parser. The broader Upwork readiness/browser/
+  transport/authorization suite passes (`63`).
+- [ ] This is still a source/readback adapter slice, not a live Upwork
+  transport: OAuth is absent and the eight stored action receipts remain
+  denied. Do not register an owner or treat the zero-contract snapshot as a
+  funded canary until fresh approved account-bound receipts and a positive
+  funded milestone are read back.
