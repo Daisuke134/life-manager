@@ -11,7 +11,10 @@ is consumed by the provider-owned adapter before its response is passed to
 from __future__ import annotations
 
 import json
+import re
 import stat
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +35,15 @@ _OAUTH_KEYS = {
     "version", "access_token", "refresh_token", "token_type", "scopes", "expires_at",
 }
 _MAX_CREDENTIAL_BYTES = 32_768
+_API_ORIGIN = "https://www.freelancer.com/api"
+_STATIC_INVENTORY_ROUTES = frozenset({
+    "/users/0.1/users/",
+    "/projects/0.1/self/",
+    "/projects/0.1/hourly_contracts/",
+})
+_PROJECT_INVENTORY_ROUTE = re.compile(
+    r"^/projects/0\.1/projects/[0-9]+/(?:milestones|ip_contracts)/$"
+)
 
 
 class TransportConfigurationError(ValueError):
@@ -224,6 +236,63 @@ class FreelancerTransport:
             now=self.now,
             readback=readback,
         )
+
+    def fetch_official_json(
+        self,
+        selection: TransportSelection,
+        route: str,
+        *,
+        opener: Callable[..., Any] | None = None,
+        timeout: float = 25.0,
+    ) -> dict[str, Any]:
+        """Fetch one allow-listed Freelancer API route after authorization.
+
+        The caller must still pass the returned object through the strict
+        inventory parser. This method intentionally has no retry, refresh, or
+        mutation behavior; a provider boundary error stays closed.
+        """
+        if selection.mode != "official_api":
+            raise TransportConfigurationError("api_transport_required")
+        if (
+            not isinstance(route, str)
+            or route not in _STATIC_INVENTORY_ROUTES
+            and _PROJECT_INVENTORY_ROUTE.fullmatch(route) is None
+        ):
+            raise TransportConfigurationError("route_not_allowed")
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 60:
+            raise TransportConfigurationError("api_timeout_invalid")
+        token = load_oauth2_token(selection.credential_path, self.now)
+        if token is None:
+            raise TransportConfigurationError("oauth_missing_or_expired")
+        request = urllib.request.Request(
+            _API_ORIGIN + route,
+            headers={
+                "Accept": "application/json",
+                "Freelancer-OAuth-V1": token.access_token,
+                "User-Agent": "life-manager-gig/1",
+            },
+            method="GET",
+        )
+        call = opener or urllib.request.urlopen
+        try:
+            with call(request, timeout=float(timeout)) as response:
+                status = getattr(response, "status", None)
+                if type(status) is not int or status != 200:
+                    raise TransportConfigurationError("api_http_status")
+                body = response.read(4_000_001)
+        except TransportConfigurationError:
+            raise
+        except (OSError, urllib.error.URLError) as exc:
+            raise TransportConfigurationError("api_transport_failed") from exc
+        if not isinstance(body, (bytes, bytearray)) or len(body) > 4_000_000:
+            raise TransportConfigurationError("api_body_invalid")
+        try:
+            value = json.loads(bytes(body).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise TransportConfigurationError("api_json_invalid") from exc
+        if not isinstance(value, dict):
+            raise TransportConfigurationError("api_json_invalid")
+        return value
 
     def effect_intent(self, selection: TransportSelection, *, resource_id: str, payload_hash: str):
         """Keep effect identity account-bound; provider effects remain elsewhere."""

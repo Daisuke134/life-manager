@@ -248,3 +248,84 @@ def test_inventory_readback_fetches_only_after_all_read_receipts(
         ("hourly_contracts", "/projects/0.1/hourly_contracts/"),
         ("ip_contract:123", "/projects/0.1/projects/123/ip_contracts/"),
     ))]
+
+
+class _Response:
+    def __init__(self, status: int, body: bytes):
+        self.status = status
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self, _limit=-1):
+        return self._body
+
+
+def test_official_api_fetch_uses_freelancer_oauth_header_and_allowed_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    oauth_path = tmp_path / "freelancer-oauth2.json"
+    _oauth(oauth_path)
+    selector = _selector(tmp_path, oauth_path=oauth_path)
+    seen: list[object] = []
+
+    def opener(request, timeout):
+        seen.append((request.full_url, request.get_header("Freelancer-oauth-v1"), timeout))
+        return _Response(200, b'{"result": {"projects": []}}')
+
+    selection = transport.TransportSelection(
+        "official_api", oauth_path,
+        authorization=object(),  # type: ignore[arg-type]
+    )
+    result = selector.fetch_official_json(
+        selection, "/projects/0.1/self/", opener=opener,
+    )
+
+    assert result == {"result": {"projects": []}}
+    assert seen == [(
+        "https://www.freelancer.com/api/projects/0.1/self/",
+        "freelancer-access-token-must-never-appear", 25.0,
+    )]
+
+
+def test_official_api_fetch_rejects_browser_selection_and_unknown_route(
+    tmp_path: Path,
+):
+    selector = _selector(tmp_path)
+    profile = selector.browser_profile
+    browser = transport.TransportSelection(
+        "cloak_browser", profile,
+        authorization=object(),  # type: ignore[arg-type]
+    )
+    with pytest.raises(transport.TransportConfigurationError, match="api_transport_required"):
+        selector.fetch_official_json(browser, "/projects/0.1/self/", opener=lambda *_: None)
+    with pytest.raises(transport.TransportConfigurationError, match="route_not_allowed"):
+        selector.fetch_official_json(
+            transport.TransportSelection("official_api", tmp_path / "missing", authorization=object()),
+            "/users/0.1/users/../../secrets", opener=lambda *_: None,
+        )
+
+
+@pytest.mark.parametrize("status,body,error", [
+    (403, b"{}", "api_http_status"),
+    (200, b"not-json", "api_json_invalid"),
+])
+def test_official_api_fetch_fails_closed_on_provider_boundary(
+    tmp_path: Path, status: int, body: bytes, error: str,
+):
+    oauth_path = tmp_path / "freelancer-oauth2.json"
+    _oauth(oauth_path)
+    selector = _selector(tmp_path, oauth_path=oauth_path)
+    selection = transport.TransportSelection(
+        "official_api", oauth_path,
+        authorization=object(),  # type: ignore[arg-type]
+    )
+    with pytest.raises(transport.TransportConfigurationError, match=error):
+        selector.fetch_official_json(
+            selection, "/projects/0.1/self/",
+            opener=lambda *_args, **_kwargs: _Response(status, body),
+        )

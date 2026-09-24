@@ -4975,3 +4975,18 @@ leaves the provider effect closed.
 - [ ] This regression result validates source behavior only; it does not add
   the missing Ryu receipt, buyer material, Mercor inventory, Freelancer OAuth,
   or Upwork funded milestone required for external completion.
+
+## Runtime Status Refresh — 2026-09-25 01:12 JST (Freelancer API boundary)
+
+- [x] `FreelancerTransport.fetch_official_json` now performs one allow-listed
+  `GET` against the documented Freelancer API origin with the canonical
+  `Freelancer-OAuth-V1` header, only for an approved official-API selection
+  with a live mode-600 OAuth record. It rejects browser selections, unknown or
+  traversal routes, invalid timeouts, non-200 responses, oversized bodies, and
+  malformed JSON without retry or mutation.
+- [x] The focused Freelancer/Upwork/readiness/transport suite passes (`90`),
+  including header, route, provider-error, and no-fetch-before-receipt cases.
+- [ ] No Freelancer OAuth record or official response is present on this host;
+  the API boundary is therefore uncalled in production and no owner/effect is
+  enabled. The returned payload still must be normalized into the strict
+  source-complete funded inventory before registration.

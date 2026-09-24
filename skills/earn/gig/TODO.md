@@ -4352,3 +4352,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Tests do not substitute for the still-missing Ryu receipt, CrowdWorks
   buyer material, Mercor inventory, Freelancer OAuth/funded project, or
   Upwork OAuth/funded milestone.
+
+### Runtime checkpoint — 2026-09-25 01:12 JST (Freelancer API boundary)
+
+- [x] Freelancer now has an allow-listed official API GET boundary using the
+  documented `Freelancer-OAuth-V1` header. It requires a live mode-600 OAuth
+  record and an approved API selection, and fails closed on unsafe routes,
+  non-200 responses, oversized bodies, or invalid JSON.
+- [x] Focused Freelancer/Upwork/readiness/transport tests pass (`90`), with
+  header and provider-boundary coverage.
+- [ ] No live Freelancer OAuth or API response exists yet. Do not register a
+  loop until its payload is normalized into source-complete funded inventory
+  and official payment/payout readback.
