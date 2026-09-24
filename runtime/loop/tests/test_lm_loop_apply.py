@@ -488,6 +488,10 @@ class LmLoopApplyTest(unittest.TestCase):
             value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
             str(Path(sys.executable).resolve()),
         )
+        self.assertEqual(
+            value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_NODE"],
+            shutil.which("node"),
+        )
         self.assertEqual(value["StartInterval"], 60)
         self.assertNotIn("Umask", value)
         self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)

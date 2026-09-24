@@ -1,6 +1,7 @@
 import json
 import hashlib
 import os
+import shutil
 import signal
 import plistlib
 import sqlite3
@@ -21,6 +22,7 @@ from runtime.loop.lm_loop_run import (
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
+    build_loop_command,
     main as lm_loop_run_main,
 )
 from runtime.loop.runtime_event import build_runtime_event
@@ -45,6 +47,28 @@ def test_scheduled_wakes_have_a_finite_one_hour_safety_limit():
     assert _runtime_limit({"cadence": {"start_interval_seconds": 300}}) == 3600
     assert _runtime_limit({"cadence": {"calendar_interval": {"Minute": 5}}}) == 3600
     assert _runtime_limit({"cadence": {"run_at_load": True}}) == 3600
+
+
+def test_javascript_entrypoint_uses_pinned_runtime_node(tmp_path):
+    executable = tmp_path / "worker.mjs"
+    executable.write_text("#!/usr/bin/env node\n")
+    executable.chmod(0o755)
+    node = tmp_path / "node"
+    node.write_text("#!/bin/sh\nexit 0\n")
+    node.chmod(0o755)
+    registry = {"schema_version": 2, "loops": {"example": {
+        "label": "ai.anicca.example", "domain": "system",
+        "entrypoint": "worker.mjs", "cadence": {"start_interval_seconds": 60},
+        "effect_class": "none", "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic", "adapter": "exec", "command": [],
+    }}}
+
+    with patch.dict(os.environ, {"LIFE_MANAGER_RUNTIME_NODE": str(node)}):
+        assert build_loop_command(registry, "example", tmp_path) == [
+            str(node), str(executable),
+        ]
 
 
 def test_crowdworks_paid_owner_declares_a_bounded_runtime():
@@ -1119,7 +1143,11 @@ def test_recovery_enqueue_is_replay_zero_and_fences_unknown_effect(tmp_path):
         effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
         exit_code=1,
     )
-    with patch.dict(os.environ, {"LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(queue)}):
+    with patch.dict(os.environ, {
+        "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(queue),
+        "LIFE_MANAGER_RUNTIME_NODE": shutil.which("node"),
+        "PATH": "/usr/bin:/bin",
+    }):
         assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
         assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
     rows = [json.loads(line) for line in queue.read_text(encoding="utf-8").splitlines()]
