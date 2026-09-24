@@ -87,6 +87,23 @@ class LancersPaidAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "lancers_paid_inventory_unavailable"):
             adapter.observe_active()
 
+    def test_inventory_failure_preserves_safe_provider_error_code(self):
+        module = load()
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1",
+            inventory_reader=lambda: {
+                "ok": False,
+                "source_complete": False,
+                "error": "browser_connect_failed",
+            },
+        )
+        with self.assertRaisesRegex(RuntimeError, "lancers_paid_inventory_unavailable") as raised:
+            adapter.observe_active()
+        self.assertEqual(
+            getattr(raised.exception, "paid_error_code", None),
+            "lancers_paid_inventory_browser_connect_failed",
+        )
+
     def test_readback_marks_absent_work_only_after_complete_inventory(self):
         module = load()
         adapter = module.LancersPaidAdapter(

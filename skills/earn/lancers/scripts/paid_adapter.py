@@ -63,6 +63,7 @@ _REPLY_GROUNDING = _load_shared(
 
 DEFAULT_CANDIDATE_PROFILE = Path.home() / ".config/anicca/job-search/profile.json"
 DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/crowdworks/public-profile.json"
+_SAFE_ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{1,127}\Z")
 
 
 class _LiveLancersProvider:
@@ -311,7 +312,13 @@ class LancersPaidAdapter:
         if (not isinstance(snapshot, Mapping) or snapshot.get("ok") is not True
                 or snapshot.get("source_complete") is not True
                 or not isinstance(snapshot.get("contract_candidates"), list)):
-            raise RuntimeError("lancers_paid_inventory_unavailable")
+            error = RuntimeError("lancers_paid_inventory_unavailable")
+            reason = snapshot.get("error") if isinstance(snapshot, Mapping) else None
+            if isinstance(reason, str) and _SAFE_ERROR_CODE.fullmatch(reason):
+                code = f"lancers_paid_inventory_{reason}"
+                if len(code) <= 127:
+                    error.paid_error_code = code
+            raise error
         observed_at = self.clock()
         rows = []
         contexts: dict[str, dict[str, Any]] = {}

@@ -1,10 +1,13 @@
 import json
 import os
+import socket
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,6 +22,12 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "browser_port_owner.py"
 LANCERS_LAUNCHER = Path(__file__).parents[3] / "skills/earn/lancers/scripts/browser-owner"
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
 
 
 class BrowserPortOwnerTests(unittest.TestCase):
@@ -102,6 +111,33 @@ class BrowserPortOwnerTests(unittest.TestCase):
         popen.assert_called_once_with(["/usr/bin/true"], start_new_session=True)
         terminate.assert_called_once_with(43210)
 
+    def test_existing_cdp_port_fails_closed_before_spawning_duplicate_browser(self):
+        args = type("Args", (), {
+            "state_dir": Path("/tmp/browser-owner-test-state"),
+            "profile": "/profiles/owned",
+            "port": 9224,
+            "owner": "owned",
+            "command": ["--", "/usr/bin/true"],
+        })()
+        stderr = StringIO()
+        child = MagicMock(pid=43210)
+        child.wait.return_value = 0
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(args, "state_dir", Path(temporary) / "state"),
+            patch("runtime.host.browser_port_owner._port_answers", return_value=True),
+            patch("runtime.host.browser_port_owner.subprocess.Popen", return_value=child) as popen,
+            patch("runtime.host.browser_port_owner._terminate_process_group"),
+            redirect_stderr(stderr),
+        ):
+            from runtime.host.browser_port_owner import run
+            self.assertEqual(run(args), 75)
+        popen.assert_not_called()
+        conflict = json.loads(stderr.getvalue())
+        self.assertEqual(conflict["reason"], "browser_port_already_served")
+        self.assertEqual(conflict["port"], 9224)
+        self.assertNotIn("profile", conflict)
+
     def test_descendant_cannot_survive_after_browser_root_exits(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -169,16 +205,19 @@ class BrowserPortOwnerTests(unittest.TestCase):
     def test_different_ports_can_run_concurrently(self):
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "state"
+            first_port, second_port = _free_port(), _free_port()
+            while second_port == first_port:
+                second_port = _free_port()
             first = subprocess.Popen(
                 [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                 "--port", "9222", "--profile", "/profiles/daily", "--owner", "daily",
+                 "--port", str(first_port), "--profile", "/profiles/daily", "--owner", "daily",
                  "--", sys.executable, "-c", "import time; time.sleep(10)"],
             )
             try:
                 time.sleep(0.1)
                 second = subprocess.run(
                     [sys.executable, str(SCRIPT), "run", "--state-dir", str(state),
-                     "--port", "9223", "--profile", "/profiles/gig", "--owner", "gig",
+                     "--port", str(second_port), "--profile", "/profiles/gig", "--owner", "gig",
                      "--", sys.executable, "-c", "raise SystemExit(0)"],
                     capture_output=True, text=True, check=False,
                 )

@@ -806,6 +806,85 @@ def _next_applied_history_page(current: str, candidates: object) -> str | None:
     return sorted(adjacent)[0]
 
 
+def _offer_detail_request_id(detail: object) -> str:
+    """Extract one exact request id from a rendered or fetched offer detail."""
+    if not isinstance(detail, dict):
+        return ""
+    hidden = detail.get("hidden_request_id", detail.get("hidden"))
+    if isinstance(hidden, str) and hidden.strip().isdigit():
+        return hidden.strip()
+    hrefs = detail.get("request_hrefs", detail.get("hrefs"))
+    if not isinstance(hrefs, list):
+        return ""
+    for href in hrefs:
+        matched = _REQUEST_URL.fullmatch(urlsplit(str(href)).path.rstrip("/"))
+        if matched:
+            return matched.group(1)
+    return ""
+
+
+def _offer_detail_fetch_expression(offer_url: str) -> str:
+    """Build a read-only same-origin detail fetch for a wedged navigation."""
+    encoded_url = json.dumps(offer_url, ensure_ascii=False)
+    return f"""JSON.stringify((async()=>{{
+      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+      const html=await response.text();
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      return {{transport:'fetch',status:response.status,final_url:response.url,
+        title:parsed.title,
+        hidden_request_id:parsed.querySelector('#OfferRequestId')?.value||null,
+        request_hrefs:[...parsed.querySelectorAll("a[href*='/requests/']")].map(a=>a.href),
+        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+    }})())"""
+
+
+def _applied_history_fetch_expression(history_url: str) -> str:
+    """Build a read-only same-origin fetch for a denied applied-history page."""
+    encoded_url = json.dumps(history_url, ensure_ascii=False)
+    return f"""JSON.stringify((async()=>{{
+      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+      const html=await response.text();
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      const absolute=href=>{{try{{return new URL(href,response.url).href}}catch(_error){{return ''}}}};
+      const anchors=[...parsed.querySelectorAll('a[href]')];
+      const next=anchors.find(a=>a.rel==='next'||/^(次へ|次のページ|次)$/u.test((a.innerText||'').trim()));
+      const pagination=anchors.filter(a=>/^\\d+$/u.test((a.innerText||'').trim())&&
+        a.getAttribute('href')&&a.getAttribute('href').includes('/mypage/job_matching/applied/offers')&&
+        a.getAttribute('href').includes('page='));
+      return {{transport:'fetch',status:response.status,final_url:response.url,
+        title:parsed.title,
+        offer_urls:[...parsed.querySelectorAll('a[href*="/mypage/offers/"]')]
+          .map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+        next_href:next?absolute(next.getAttribute('href')):null,
+        pagination_hrefs:pagination.map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+        body:(parsed.body?.innerText||'').slice(0,12000),
+        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+    }})())"""
+
+
+def _valid_applied_history_fetch(value: object, expected_url: str) -> bool:
+    """Accept only a 200 same-page fetch carrying the official history marker."""
+    if not isinstance(value, dict) or value.get("transport") != "fetch":
+        return False
+    if value.get("status") != 200 or value.get("access_denied") is True or value.get("not_found") is True:
+        return False
+    title = str(value.get("title") or "")
+    if "応募・スカウト管理" not in title:
+        return False
+    final_url = str(value.get("final_url") or "")
+    parsed = urlsplit(final_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"coconala.com", "www.coconala.com"}
+        or parsed.path.rstrip("/") != _APPLIED_OFFERS_PATH
+        or _page_index(final_url) != _page_index(expected_url)
+    ):
+        return False
+    return True
+
+
 def _valid_applied_history_start_url(value: object) -> bool:
     """Accept either official host alias at any resumable history page."""
     if not isinstance(value, str):
@@ -825,14 +904,26 @@ def _valid_applied_history_start_url(value: object) -> bool:
 
 def _history_readback_can_truncate(
     page: object, *, pages_walked: int, allow_truncated: bool,
+    start_url: str | None = None,
 ) -> bool:
-    """Preserve a verified prefix when the provider denies a later page."""
-    return (
+    """Preserve a verified prefix when the provider denies a later page.
+
+    A reconcile wake can resume on the exact page that was denied by the prior
+    wake.  In that case ``pages_walked`` is zero for this invocation, but the
+    persisted cursor proves that the page is after page one.  The caller still
+    receives no absence conclusion; it only retains the same cursor.
+    """
+    if not (
         isinstance(page, dict)
         and page.get("access_denied") is True
-        and pages_walked > 0
         and allow_truncated
-    )
+    ):
+        return False
+    if pages_walked > 0:
+        return True
+    if not _valid_applied_history_start_url(start_url):
+        return False
+    return _page_index(str(start_url)) > 1
 
 
 class CdpParentEffects:
@@ -2042,6 +2133,8 @@ class CdpParentEffects:
             cards_seen = 0
             has_next_page = False
             truncated = False
+            access_denied = False
+            resumable_access_denied = False
             next_url: str | None = None
             while True:
                 try:
@@ -2079,7 +2172,31 @@ class CdpParentEffects:
                     if pages_walked == 0 or "timeout" not in str(error):
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
-                parsed = urlsplit(str(page.get("url") or ""))
+                history_fetch_summary: dict[str, object] | None = None
+                if page.get("access_denied") is True:
+                    # Coconala intermittently returns a 403 for a later pagination
+                    # navigation while the already-authenticated document can still
+                    # fetch that exact same-origin URL.  A successful fetch is accepted
+                    # only when it is the requested page and carries the official
+                    # history title; a login/403/redirect response remains inconclusive.
+                    fetch_url = str(page.get("url") or "")
+                    try:
+                        fetched, call_id = await self._eval_json(
+                            ws,
+                            _applied_history_fetch_expression(fetch_url),
+                            call_id + 3000,
+                        )
+                    except ParentContractError as error:
+                        fetched = None
+                        history_fetch_summary = {"error": str(error)}
+                    if isinstance(fetched, dict):
+                        history_fetch_summary = {
+                            key: fetched.get(key)
+                            for key in ("transport", "status", "final_url", "title", "access_denied", "not_found")
+                        }
+                    if _valid_applied_history_fetch(fetched, fetch_url):
+                        page = {**fetched, "url": fetched.get("final_url")}
+                parsed = urlsplit(str(page.get("url") or page.get("final_url") or ""))
                 if (
                     parsed.hostname not in {"coconala.com", "www.coconala.com"}
                     or parsed.path.rstrip("/") != _APPLIED_OFFERS_PATH
@@ -2116,6 +2233,7 @@ class CdpParentEffects:
                             "access_denied": page.get("access_denied"),
                             "not_found": page.get("not_found"),
                             "body_sample": str(page.get("body") or ""),
+                            "history_fetch": history_fetch_summary,
                             "screenshot_path": (
                                 str(unexpected_screenshot_path.resolve())
                                 if unexpected_screenshot
@@ -2124,7 +2242,10 @@ class CdpParentEffects:
                         },
                     )
                     if _history_readback_can_truncate(
-                        page, pages_walked=pages_walked, allow_truncated=allow_truncated
+                        page,
+                        pages_walked=pages_walked,
+                        allow_truncated=allow_truncated,
+                        start_url=initial_url,
                     ):
                         # Keep the verified prefix and resume from the denied page on the
                         # next bounded wake. Absence remains inconclusive until the page
@@ -2132,6 +2253,8 @@ class CdpParentEffects:
                         next_url = str(page.get("url") or "")
                         has_next_page = True
                         truncated = True
+                        access_denied = True
+                        resumable_access_denied = pages_walked == 0
                         break
                     if page.get("access_denied") is True:
                         raise ParentContractError("official_readback_access_denied")
@@ -2163,14 +2286,30 @@ class CdpParentEffects:
                     except ParentContractError as error:
                         if "timeout" not in str(error):
                             raise
-                        raise ReadbackScanTimeout(str(error)) from error
-                    request_id = str(detail.get("hidden") or "").strip()
-                    if not request_id.isdigit():
-                        for href in detail.get("hrefs") or []:
-                            matched = _REQUEST_URL.fullmatch(urlsplit(str(href)).path.rstrip("/"))
-                            if matched:
-                                request_id = matched.group(1)
-                                break
+                        # A detail-page navigation can wedge while the authenticated
+                        # listing page and same-origin GET remain healthy.  The fetch is
+                        # read-only and is bounded by the same CDP Runtime.evaluate
+                        # deadline; it must still return a 200 provider document before
+                        # its exact hidden request ID can contribute to readback proof.
+                        try:
+                            detail, call_id = await self._eval_json(
+                                ws,
+                                _offer_detail_fetch_expression(offer_url),
+                                call_id + 2000,
+                            )
+                        except ParentContractError as fetch_error:
+                            if "timeout" not in str(fetch_error):
+                                raise
+                            raise ReadbackScanTimeout(str(fetch_error)) from fetch_error
+                        if detail.get("access_denied") is True:
+                            raise ParentContractError("official_readback_access_denied")
+                        if detail.get("not_found") is True:
+                            raise ParentContractError("official_readback_offer_detail_not_found")
+                        if detail.get("status") != 200:
+                            raise ReadbackScanTimeout(
+                                f"official_readback_offer_detail_fetch_status={detail.get('status')}"
+                            ) from error
+                    request_id = _offer_detail_request_id(detail)
                     if request_id.isdigit():
                         observed.add(request_id)
                 if single_expected and single_expected.issubset(observed):
@@ -2193,7 +2332,17 @@ class CdpParentEffects:
                     if "timeout" not in str(error):
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
-        assert first_page is not None
+        if first_page is None:
+            # A resumed cursor can be denied before this wake reads a new page.  The
+            # persisted state owns the verified prefix; this chunk records only the
+            # unchanged cursor and must never be used as an absence proof.
+            if not (truncated and access_denied and resumable_access_denied and next_url):
+                raise ParentContractError("official_readback_page_missing")
+            first_page = {
+                "url": next_url,
+                "title": page.get("title"),
+                "body": page.get("body") or "",
+            }
         if (truncated and single_expected and not single_expected.issubset(observed)
                 and not allow_truncated):
             # An exhausted page budget with a next link remaining proves NOTHING about
@@ -2256,6 +2405,9 @@ class CdpParentEffects:
             "cards_seen": cards_seen,
             "has_next_page": has_next_page,
             "next_url": next_url if truncated else None,
+            "truncated": truncated,
+            "access_denied": access_denied,
+            "resumable_access_denied": resumable_access_denied,
             "missing_count": len(expected_ids - observed),
             "unresolved_count": 0,
             "body_sample": first_page.get("body") or "",
@@ -4661,14 +4813,29 @@ def run_parent(
                     start_url=str(scan_state["next_url"]), allow_truncated=True,
                 )
                 chunk = _read_json_object(chunk_path, "full_history_chunk")
-                chunks = [*scan_state["chunks"], {
+                chunk_ref = {
                     "path": str(chunk_path.resolve()),
                     "sha256": _sha256_bytes(chunk_path.read_bytes()),
-                }]
+                }
+                # A provider denial at the persisted cursor makes no progress. Keep the
+                # latest diagnostic separately instead of appending an unbounded duplicate
+                # chunk on every wake while preserving the cursor and all verified chunks.
+                no_progress_denial = (
+                    chunk.get("resumable_access_denied") is True
+                    and int(chunk.get("pages_walked") or 0) == 0
+                    and str(chunk.get("next_url") or "") == str(scan_state.get("next_url") or "")
+                )
+                chunks = list(scan_state["chunks"])
+                if not no_progress_denial:
+                    chunks.append(chunk_ref)
                 scan_state = _advance_full_history_scan_state(
                     scan_state, chunk, uncertain_intents,
                 )
                 scan_state["chunks"] = chunks
+                if no_progress_denial:
+                    scan_state["last_cursor_denial"] = chunk_ref
+                else:
+                    scan_state.pop("last_cursor_denial", None)
                 if scan_state["next_url"]:
                     _atomic_json(scan_state_path, scan_state)
                 else:
@@ -5173,17 +5340,25 @@ def reconcile_durable_intents_from_full_history(
 def _advance_full_history_scan_state(
     state: dict[str, object], chunk: dict[str, object], targets: dict[str, str],
 ) -> dict[str, object]:
+    pages_walked = chunk.get("pages_walked")
+    resumable_access_denied = chunk.get("resumable_access_denied") is True
     if (chunk.get("source") != "code_owned_cdp_readback"
             or chunk.get("observed") is not True
             or chunk.get("not_found") is not False
             or not isinstance(chunk.get("request_ids"), list)
             or not isinstance(chunk.get("urls"), list)
-            or not isinstance(chunk.get("pages_walked"), int)
-            or chunk["pages_walked"] < 1
+            or not isinstance(pages_walked, int)
+            or pages_walked < 0
+            or pages_walked == 0 and not (
+                resumable_access_denied
+                and chunk.get("truncated") is True
+                and chunk.get("access_denied") is True
+            )
             or not isinstance(chunk.get("cards_seen"), int)
             or chunk["cards_seen"] < 0
             or chunk.get("next_url") is not None
-            and not isinstance(chunk.get("next_url"), str)):
+            and not isinstance(chunk.get("next_url"), str)
+            or pages_walked == 0 and not chunk.get("next_url")):
         raise ParentContractError("full_history_chunk_invalid")
     observed = set(state["observed_ids"]) | {
         str(value) for value in chunk["request_ids"] if str(value) in targets
@@ -5202,7 +5377,7 @@ def _advance_full_history_scan_state(
     return {
         **state, "next_url": chunk.get("next_url"),
         "observed_ids": sorted(observed),
-        "pages_walked": int(state["pages_walked"]) + chunk["pages_walked"],
+        "pages_walked": int(state["pages_walked"]) + pages_walked,
         "cards_seen": int(state["cards_seen"]) + chunk["cards_seen"],
         "urls": sorted(urls),
     }

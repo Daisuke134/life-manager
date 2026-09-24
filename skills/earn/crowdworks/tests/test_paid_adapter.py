@@ -1533,6 +1533,45 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     ]
 
 
+def test_blank_source_page_gc_preserves_provider_pages_and_one_newtab():
+    module = load()
+    closed = []
+
+    class Page:
+        def __init__(self, url): self.url = url
+        def close(self): closed.append(self.url)
+        def set_default_timeout(self, _timeout): pass
+
+    source_pages = [
+        Page("about:blank"), Page("https://crowdworks.jp/dashboard"),
+        Page("about:blank"), Page("chrome://newtab/"), Page("about:blank"),
+    ]
+
+    class SourceContext:
+        pages = source_pages
+        def storage_state(self): return {"cookies": [], "origins": []}
+
+    class OwnedContext:
+        def new_page(self): return Page("about:blank")
+        def close(self): pass
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **_kwargs): return OwnedContext()
+
+    class Runtime:
+        def stop(self): pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+
+    assert closed == ["about:blank", "about:blank", "about:blank"]
+    adapter.close()
+    assert closed.count("https://crowdworks.jp/dashboard") == 0
+    assert closed.count("chrome://newtab/") == 0
+
+
 def test_open_falls_back_to_source_context_when_clone_creation_fails():
     module = load()
     calls = []

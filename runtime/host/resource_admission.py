@@ -401,7 +401,7 @@ def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
 
 
 def _database(path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(path, timeout=0)
+    connection = sqlite3.connect(path, timeout=5.0)
     os.chmod(path, 0o600)
     connection.execute("PRAGMA journal_mode=DELETE")
     connection.execute("PRAGMA synchronous=FULL")

@@ -3,6 +3,7 @@ import fcntl
 import hashlib
 import json
 import multiprocessing
+import threading
 import time
 import sqlite3
 from pathlib import Path
@@ -377,6 +378,43 @@ def test_interrupted_browser_schema_migration_recovers_renamed_queue(tmp_path):
             "SELECT effect_unknown FROM occurrences WHERE occurrence_id='waiting-agent:old'").fetchone() == (1,)
         assert connection.execute(
             "SELECT 1 FROM sqlite_master WHERE name='occurrences_legacy_browser'").fetchone() is None
+
+
+def test_database_waits_for_transient_sqlite_writer_lock(tmp_path):
+    database = tmp_path / "admission-v2.sqlite3"
+    with admission._database(database) as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS lock_probe(value INTEGER)")
+
+    holder = sqlite3.connect(database, timeout=0, isolation_level=None)
+    holder.execute("BEGIN EXCLUSIVE")
+    started = threading.Event()
+    finished = threading.Event()
+    result = {}
+
+    def open_database():
+        started.set()
+        try:
+            connection = admission._database(database)
+        except BaseException as error:  # pragma: no cover - assertion reports the error
+            result["error"] = error
+        else:
+            connection.close()
+        finally:
+            finished.set()
+
+    worker = threading.Thread(target=open_database)
+    worker.start()
+    try:
+        assert started.wait(timeout=1)
+        time.sleep(0.2)
+        assert not finished.is_set(), "transient SQLite lock was not waited out"
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
+        worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert "error" not in result
 
 
 def test_browser_migration_keeps_legacy_table_on_conflicting_owner(tmp_path):

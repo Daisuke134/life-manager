@@ -227,6 +227,18 @@ def run(args: argparse.Namespace) -> int:
                 }, sort_keys=True), file=sys.stderr)
                 return 75
 
+            # A previous supervisor can die after its lock is released while
+            # its Chromium child keeps serving the port.  Do not spawn a
+            # second browser against that live CDP/profile; fail closed and
+            # let the owner-scoped recovery path reconcile the orphan.
+            if _port_answers(args.port):
+                print(json.dumps({
+                    "ok": False,
+                    "reason": "browser_port_already_served",
+                    "port": args.port,
+                }, sort_keys=True), file=sys.stderr)
+                return 75
+
             child = subprocess.Popen(command, start_new_session=True)
             payload = {
                 "owner": args.owner,

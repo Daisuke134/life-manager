@@ -71,6 +71,10 @@ def command_for(loop_id: str, root: Path, home: Path) -> list[str]:
             "--all-eligible", "--planner-runner",
             str(root / "runtime/agent-runner/agent_runner.py"),
         ],
+        "hf-gig-apply-reconcile": [
+            python, str(root / "skills/earn/gig/scripts/application_occurrence_reconcile.py"),
+            "--discover",
+        ],
         "hf-gig-storefront-direct": [
             python, str(root / "skills/earn/gig/scripts/gig_disk_guard.py"),
             python, str(root / "skills/earn/gig/scripts/storefront_direct.py"),

@@ -51,6 +51,12 @@ def _bind_runtime_occurrence(result, occurrence_id=None):
     return data
 
 
+def _clear_pre_effect_hint():
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if hint:
+        Path(hint).expanduser().resolve().unlink(missing_ok=True)
+
+
 def _group_cursor():
     try: value = json.loads((STATE / "application-owner.json").read_text(encoding="utf-8")).get("next_group_index", 0)
     except (OSError, ValueError, AttributeError): return 0
@@ -346,6 +352,10 @@ def main():
     group_cursor = _group_cursor()
     if not account._owner():result={"ok":False,"status":"browser_unavailable","effect_delta":0}
     else:
+        # Account setup may itself cross the provider boundary. Clear the host's
+        # pre-effect marker before the first browser/provider operation; a
+        # failure after this point must remain effect-unknown until readback.
+        _clear_pre_effect_hint()
         ensured=account.run_ensure(state_path=account.DEFAULT_STATE_PATH,allow_signup=False,ownership_checker=account._owner,browser_factory=account._browser,vault_restorer=account._restore,vault_dumper=account._dump,credential_loader=account._credentials,notifier=account._notify,now=lambda:datetime.now(timezone.utc).isoformat())
         if not ensured.authenticated:result={"ok":False,"status":ensured.error or ensured.status,"effect_delta":0}
         else:
