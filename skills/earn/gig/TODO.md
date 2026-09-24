@@ -3230,3 +3230,35 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   and replay-zero before enabling either platform.
 - [ ] Run final fleet acceptance. No seven-week monitoring gate is required
   once each lane has a clean canary and normal alerting.
+
+### Runtime checkpoint — 2026-09-24 15:24 JST (Ryu root-cause probe; read-only)
+
+- [ ] Ryu WEB予約 is not complete: the global `#reservation` route works,
+  but the profile-page 「予約について相談する」 button is still a demo action
+  and reports 「プロフィール予約は現在準備中です」 instead of opening the
+  reservation form.
+- [ ] Ryu’s profile-top catchcopy is currently fully visible at 390×844, but
+  its CSS still permits silent ellipsis. Encode the requested full-width/no-
+  truncation behavior and verify mobile plus desktop.
+- [ ] Ryu’s official LINE URL is already visible on the public recruitment page
+  and is returned by the authenticated management GET. The screenshot’s
+  management save failure is not resolved by that visibility; perform an
+  authenticated POST plus exact readback before marking it done.
+- [x] This checkpoint performed no content POST, Coconala reply, formal
+  delivery, provider submission, resend, or admission-fence release.
+
+### Remaining TODO (current ordered cursor)
+
+1. Fix/read back the profile-page reservation button (local → public route
+   verification; no client message yet).
+2. Remove profile catchcopy truncation risk and verify the width contract on
+   mobile and desktop.
+3. Verify/fix authenticated recruitment LINE persistence with post-save
+   readback.
+4. Reassess one final Ryu delivery only after 1–3 pass; do not resend now.
+5. Keep Coconala Reply/Storefront and all historical marketplace effect fences
+   closed; align an immutable release and canary CrowdWorks, then Lancers and
+   Mercor with official readback/replay-zero.
+6. Build Freelancer and Upwork lanes before enablement (authenticated adapter,
+   funded-contract policy, idempotent send/delivery, settlement readback,
+   replay-zero). They are not done or safe to turn on today.

@@ -3521,3 +3521,43 @@ not convert a transient pass or a no-op into client completion.
 5. Finish final cross-platform acceptance. Continuous seven-week monitoring
    is not a completion requirement; one clean canary plus normal alerting is
    sufficient after each lane passes its gates.
+
+## Runtime Cursor — 2026-09-24 15:24 JST (Ryu follow-up root-cause probe; read-only)
+
+- **WEB予約:** the public header/menu `#reservation` route and reservation form
+  do open after the age gate. The actual profile-page button still has
+  `data-demo-action="プロフィール予約"`; clicking it leaves the user on
+  `#profile/1` and shows 「プロフィール予約は現在準備中です。店舗までお問い合わせください。」.
+  The missing connection is therefore the profile-button wiring, not the
+  reservation route itself.
+- **プロフィール上部の文字:** at a 390×844 mobile viewport the current
+  catchcopy is fully present (`初めてでも、笑顔で寄り添います。`,
+  `scrollWidth == clientWidth`), but the CSS still uses
+  `white-space: nowrap; overflow: hidden; text-overflow: ellipsis`. The
+  requested “幅いっぱい” acceptance rule is not yet encoded; remove the
+  truncation risk and verify the intended mobile/desktop layout before any
+  release.
+- **求人公式LINE:** the public recruitment page currently exposes
+  `https://lin.ee/RhnPYfJ` and hides the “未設定” fallback. The authenticated
+  management GET also reads the same URL. The buyer’s screenshot error is a
+  failed management save/readback, so public visibility alone is not sufficient;
+  the authenticated save path must be exercised and read back before calling
+  this item complete.
+- **Scope fence:** this probe changed no provider state, did not POST the
+  content API, did not send a Coconala reply, and did not press formal delivery.
+
+### Next one-by-one cursor (15:24 JST)
+
+1. Fix and locally verify the profile-page reservation-button route, then
+   verify the public mobile/desktop route without sending anything to Ryu.
+2. Define and implement the “プロフィール上部の文字を幅いっぱい” layout
+   contract (no silent ellipsis), then verify both viewports.
+3. Verify the authenticated recruitment LINE save with an exact post-save
+   readback; if the session/API boundary is the cause, fix that boundary and
+   retest. Public URL visibility is not proof of management persistence.
+4. Only after all three pass decide whether a single final Coconala delivery
+   is warranted; do not resend during this cursor.
+5. Keep the paid-loop effect fences closed, then continue immutable-release
+   canary work for CrowdWorks → Lancers → Mercor. Freelancer/Upwork remain
+   retired until their provider adapters, funded-contract policy, idempotency,
+   settlement readback, and replay-zero acceptance exist.
