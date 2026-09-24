@@ -1248,9 +1248,12 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "job-search-daily": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 1800
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -1260,7 +1263,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
       "label": "ai.anicca.job-search-daily",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-health": {
@@ -1280,9 +1285,12 @@
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-inbox": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 900
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -1292,7 +1300,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-inbox.sh",
       "label": "ai.anicca.job-search-inbox",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-learning": {

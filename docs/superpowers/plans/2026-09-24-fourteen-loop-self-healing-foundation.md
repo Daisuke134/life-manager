@@ -492,6 +492,8 @@ allowed.
 - [x] Merge and release the Writer contract/proof into production. The source merge is complete in PR #5853 (`73270f2c`); all seven owners are now loaded on current `6e609eba` and one bounded wake per owner is complete with `diagnostic_complete=true`, `admission_effect_unknown=false`, typed pre-entrypoint capacity deferral and no new provider effect. The response archive proof and report official effect proof are both retained.
 - [ ] Run the Writer-only immediate replay check without entering a message/application effect, then retain the exact release evidence. This is separate from the final two-pass 14-loop replay-zero gate.
 - [ ] Continue the remaining independent non-Paid foundation slices in this order while Mobile remains owned: Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice. Affiliate remains an asynchronous official-readback reconciliation and does not block this cursor.
+- [x] Reconcile Agent Economy onto the current main-derived release `403e272eb615951b7a125006e2e5797cf28c4b7b` and record its provider boundary. The previous BlockRun HTTP 429s are durable `wake_error/brain_transport` evidence; the existing proxy brain retries three times and the new run is loaded with complete diagnostics on `gpt-5.6-terra`. No trade, payment, or revenue receipt is claimed.
+- [ ] Promote the Job Search effect-free admission declaration from this branch to an accepted main-derived release, then reconcile `job-search-daily` and `job-search-inbox`. The production attempt on current `403e272e` correctly skipped both pending owners because the loaded release predates the declaration; no external application was run.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
 - [ ] Align Gig non-Paid owners without changing the separately leased Paid fulfillment source, state, sessions or runtime controls.
@@ -505,18 +507,23 @@ allowed.
 
 The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
 
-- `current` points to main-derived release `6e609eba3c7ae593c923621c919fbb2f3c5dc1af`, while
-  `writer-sales-measure` and `writer-report` still report installed SHAs `9f29498c…` and `78aa4bc…`.
-  Source merge and production loading are therefore not conflated.
+- `current` points to main-derived release `403e272eb615951b7a125006e2e5797cf28c4b7b`, while the seven Writer
+  owners remain loaded on the previously accepted `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` release. Source
+  merge, release cut, current selector and production loading are therefore not conflated.
 - `writer-opportunity-response` has a mode-0600 pre-effect reconciliation receipt and no remaining admission
   unknown; its old status event is retained as history. No effectful response wake is replayed.
 - `writer-report` had a receipt-ID mismatch: stored IDs 89203–89206 mapped to unrelated provider messages, while
   exact payload/time readback mapped the actual four effects to 90905–90908. The claimed occurrence is now
   `released/effect_unknown=0` with a mode-0600 official-effect reconciliation receipt; no message was resent.
-- Agent Economy was re-bound to `73270f2c` and is running with complete diagnostics, but BlockRun returns HTTP 429.
-  No trading, payment, or revenue receipt is claimed. CFO remains effect-unknown; Job Hunter has typed capacity,
-  control, admission, entrypoint, and effect-unknown boundaries across its owners. Effectful/unknown owners are not
-  retried blindly.
+- Agent Economy is loaded on current `403e272eb615951b7a125006e2e5797cf28c4b7b` with complete diagnostics. Historical
+  BlockRun HTTP 429s are recorded as `wake_error/brain_transport`; the existing brain retry/backoff path is present,
+  and the fresh run uses `gpt-5.6-terra`. No trading, payment, or revenue receipt is claimed. CFO remains
+  effect-unknown; Job Hunter has typed capacity, control, admission, entrypoint, and effect-unknown boundaries across
+  its owners. Effectful/unknown owners are not retried blindly.
+- Job Search's `daily` and `inbox` rows were missing the shared admission/coalescing declaration. A branch-only RED→GREEN
+  change adds `resource_class=deterministic`, `admission_class=borrow`, `priority=support`, and queued/reserved wake
+  coalescing; registry and rendered-fixture tests pass 86/86. It is not production evidence until an accepted
+  main-derived release loads it.
 - Release reconciliation continues to encounter `ENOSPC`/cut-lock pressure. Available bytes are above the nominal
   floor, but release export and database/temp writes are not stable. No broad release/worktree/state deletion is
   performed from this workstream.

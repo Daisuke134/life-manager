@@ -39,7 +39,8 @@ flowchart LR
   `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
   収益や自然provider eventを待たず、次のloop sliceへ進みます。
 - main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
-  三つを別々に判定します。現在の `current` は `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` ですが、
+  三つを別々に判定します。今回の readback 時点の `current` は
+  `403e272eb615951b7a125006e2e5797cf28c4b7b` ですが、
   Writer、CFO、Job Hunter の一部は旧 release のままで、foundation acceptance には数えません。
 - Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
   入っています。`writer-opportunity-response` の pre-effect FIFO occurrence は archive proof で
@@ -51,9 +52,15 @@ flowchart LR
   `diagnostic_complete=true`、`admission_effect_unknown=false`、entrypoint 前の typed
   `resource_capacity_busy` です。これは Writer slice の exact-release acceptance であり、全14 loop gateの
   replay-zeroを代替しません。
-- Agent Economy は旧 loaded owner を `73270f2c` へ再バインドでき、diagnostic は complete ですが、実行中の
-  BlockRun 呼び出しは HTTP 429 を返しています。これは収益成功ではなく、provider rate-limit の typed failure
-  です。CFO と Job Hunter の effectful/unknown owner は同じく fence を維持し、盲目的に再送しません。
+- Agent Economy は current `403e272eb615951b7a125006e2e5797cf28c4b7b` へ再バインドされ、diagnostic は
+  complete です。直前の BlockRun HTTP 429 は既存の3回 retry後に `wake_error/brain_transport` として
+  ledger/harness-failuresへ記録され、opaque successにはなっていません。fresh run は `gpt-5.6-terra` で
+  起動していますが、trade/payment/revenue receiptはありません。CFO と Job Hunter の effectful/unknown
+  ownerは同じく fenceを維持し、盲目的に再送しません。
+- Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
+  pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
+  `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
+  宣言し、registry/rendered-fixture 86 testsをPASSしました。main/currentへの反映と本番readbackは未完です。
 - release export/GC は履歴上 `ENOSPC` を継続しており、Data volume の空きは約 4.5 GB でも安定した cut の
   headroom を証明できていません。保護された release、runtime state、他ownerの worktree を推測削除せず、
   release/cleanup owner の診断を foundation blocker として記録します。
