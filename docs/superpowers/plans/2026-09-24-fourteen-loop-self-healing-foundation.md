@@ -1440,3 +1440,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After accepted immutable promotion, run this adapter once against a future occurrence and persist a private
   mode-0600 reconciliation receipt. Invoke the resolver only if exact occurrence, tx and fresh finalized Base
   readback all match; never infer no-effect from an empty ledger or a successful unrelated RPC query.
+
+### Sol-funding cross-chain readback adapter (2026-09-25 JST)
+
+- [x] Extend `sol-to-usdc.py` with a secret-free, mode-0600 future receipt journal containing occurrence,
+  Solana signature, Relay endpoint/status, destination tx hash, chain/currency and recipient; no quote/sign/submit
+  semantics or wallet destination changed.
+- [x] Add the read-only `sol_funding_reconcile.py` adapter. It requires exact occurrence identity and independently
+  verifies Solana confirmation, Relay success/destination hash, and finalized Base USDC delivery to the recipient.
+- [x] Verify adapter tests **3/3**, Sol-funding contract **5/5**, `py_compile`, and `git diff --check`; push
+  candidate commit `39e7579733`.
+- [x] Probe the historical target read-only: `inconclusive / occurrence_receipt_missing`; keep
+  `sol-funding:18d60103c86ce420-74237` fenced and do not start a swap to manufacture evidence.
+- [ ] After accepted immutable promotion, run the adapter against one future occurrence, persist the mode-0600
+  reconciliation proof, and invoke the resolver only when all three independent provider readbacks match exactly.

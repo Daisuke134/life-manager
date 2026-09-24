@@ -4933,3 +4933,25 @@ This is not evidence of no effect and does not authorize clearing, replaying, or
 future-proofing only until an accepted immutable release loads it and a future occurrence writes the complete chain.
 The candidate diff is now **35 files**; no wallet, Base RPC write, x402 endpoint, admission row, provider session,
 main branch, immutable release, or revenue value changed.
+
+### Sol-funding cross-chain readback adapter (2026-09-25 JST)
+
+The candidate now carries `39e7579733` on `fix/self-healing-control-plane-integration-20260925`. Future
+`sol-to-usdc.py` executions append only secret-free public identity to private
+`sol-funding/sol-funding-receipts.jsonl`: the host occurrence, Solana signature, Relay status endpoint, Relay
+destination transaction hash when exactly one exists, destination chain/currency, and recipient. The write is
+best-effort after the effect boundary, so a state-write failure cannot hide the submitted signature or create a
+false success claim. Existing quote/sign/submit behavior is unchanged.
+
+`skills/earn/sol_funding_reconcile.py` is read-only and fail-closed. It requires the exact `sol-funding` occurrence
+and one unambiguous receipt, then independently checks Solana `getSignatureStatuses`, Relay `status=success` with the
+same destination tx, and a finalized Base-mainnet USDC Transfer to the exact recipient. It returns `ready` only
+with the exact occurrence, provider signature and readback reference; it never sends funds or edits admission.
+Focused adapter tests pass **3/3**, the Sol-funding contract remains **5/5**, `py_compile` and `git diff --check`
+pass.
+
+A live read-only probe of `sol-funding:18d60103c86ce420-74237` returns
+`inconclusive / occurrence_receipt_missing`; the historical journal has no occurrence-bound receipt. This is not
+evidence that the swap did not happen and cannot clear the fence. The candidate is now **37 files** and remains
+source-only: no Solana RPC, Relay, Base RPC, wallet, admission row, main branch, immutable release or revenue value
+changed.
