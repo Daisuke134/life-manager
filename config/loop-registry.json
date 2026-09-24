@@ -573,6 +573,9 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor",
       "log_root": "~/.local/state/life-manager/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
