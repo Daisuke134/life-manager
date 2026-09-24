@@ -2872,22 +2872,24 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    become `uncovered_failure`, never a healthy zero. The fresh projection has `uncovered_failure=14`: thirteen
    loops are still on non-current releases, while Connector is current-release but diagnostically incomplete.
    Focused foundation/status/registry tests pass.
-4. **Current cursor — universal recovery intent:** make every shared-runner terminal failure emit exactly one
-   owner/occurrence/release-bound durable intent through the existing recovery classifier. Then complete the
-   remaining shared bounded self-heal kernel: repair recipes, budgets, isolated candidates, recovery evaluation,
-   immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
-5. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
+4. **Complete on the implementation branch:** every eligible shared-runner terminal failure emits exactly one
+   owner/occurrence/release-bound durable intent through the existing recovery classifier. Duplicate replay is
+   zero, unknown effects are held, and Paid owners remain read-only outside the queue.
+5. **Current cursor — verified recovery outcome:** add attempt budget/cooldown plus a versioned outcome, then
+   accept a repair only after the exact same owner and immutable release return healthy through authoritative
+   `lm-loop status`. Preserve replay-zero, sibling isolation and fixed safety policy.
+6. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
    Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
-6. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
+7. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
    Consume marketplace/Paid health and receipts read-only from the separate owner; never operate its runtime.
-7. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
+8. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
    bounded automatic recovery for covered failures, sibling isolation and deterministic replay/rollback.
-8. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
+9. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
-9. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
+10. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
    Capafy and Self-Funding/x402; a zero-revenue baseline advances to the next bounded hypothesis instead of
    blocking. Add the allocator and keep new investment markets paper/shadow until after-fee safety evidence.
-10. Reach portfolio-wide verified net USD 10,000 MRR, prove Life Manager covers its own compute/cloud/tool cost,
+11. Reach portfolio-wide verified net USD 10,000 MRR, prove Life Manager covers its own compute/cloud/tool cost,
     and publish reproducible LM-EAB/leaderboard evidence. Then expand the `agent_native` track and grow toward
     USD 10 million MRR before separate physical- and mental-health outcome benchmarks.
 

@@ -16,6 +16,7 @@ test('failure record becomes an owner-scoped recovery intent with no external mu
 
   assert.equal(intent.loop_id, 'example-loop');
   assert.equal(intent.owner_id, 'example-loop');
+  assert.equal(intent.occurrence_id, 'example-loop:run-1');
   assert.equal(intent.action, 'reconcile_owner');
   assert.equal(intent.mutates_external_effect, false);
   assert.deepEqual(intent.evidence_refs, ['lm-loop://example-loop/wake-1/failure']);

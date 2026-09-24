@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import fcntl
 import os
 import plistlib
 import re
@@ -115,6 +116,104 @@ def _product_loop_for_job(release_root: Path, job_id: str) -> str | None:
 def _wake_id(run_id: str) -> str:
     candidate = os.environ.get("WAKE_ID", "").strip()
     return candidate if SAFE_EVENT_ID.fullmatch(candidate) else run_id
+
+
+def _should_enqueue_recovery_intent(entry: dict, event: dict) -> bool:
+    if event.get("status") != "fail":
+        return False
+    entrypoint = str(entry.get("entrypoint") or "")
+    if (entry.get("priority") == "critical_paid"
+            or entrypoint.endswith("/paid-owner")
+            or entrypoint.endswith("/paid-direct-owner")):
+        return False
+    return True
+
+
+def _valid_recovery_intent(value: object, event: dict) -> bool:
+    return (isinstance(value, dict)
+            and value.get("schema_version") == 1
+            and isinstance(value.get("intent_id"), str)
+            and SAFE_EVENT_ID.fullmatch(value["intent_id"]) is not None
+            and value.get("loop_id") == event.get("loop_id")
+            and value.get("owner_id") == event.get("owner_id")
+            and value.get("wake_id") == event.get("wake_id")
+            and value.get("run_id") == event.get("run_id")
+            and value.get("occurrence_id") == event.get("occurrence_id")
+            and value.get("release_sha") == event.get("release_sha")
+            and value.get("mutates_external_effect") is False
+            and type(value.get("retryable")) is bool)
+
+
+def _append_recovery_intent(path: Path, intent: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        needle = intent["intent_id"].encode("utf-8")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        with os.fdopen(os.dup(descriptor), "rb") as existing:
+            for line in existing:
+                if needle not in line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if isinstance(row, dict) and row.get("intent_id") == intent["intent_id"]:
+                    return
+        if os.fstat(descriptor).st_size:
+            os.lseek(descriptor, -1, os.SEEK_END)
+            if os.read(descriptor, 1) != b"\n":
+                os.write(descriptor, b"\n")
+        os.write(descriptor, (json.dumps(intent, ensure_ascii=True, sort_keys=True,
+                                         separators=(",", ":")) + "\n").encode("utf-8"))
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> bool:
+    classifier = release_root / "runtime/loop/recovery-intent-cli.mjs"
+    if not classifier.is_file():
+        raise RuntimeError("recovery intent classifier unavailable")
+    input_path = scratch / "recovery-intent-input.json"
+    output_path = scratch / "recovery-intent-output.json"
+    _atomic_json(input_path, {
+        "loop_id": event["loop_id"],
+        "owner_id": event["owner_id"],
+        "wake_id": event["wake_id"],
+        "run_id": event["run_id"],
+        "occurrence_id": event["occurrence_id"],
+        "release_sha": event["release_sha"],
+        "status": event["status"],
+        "failure_layer": event["failure_layer"],
+        "effect_class": event["effect_class"],
+        "effect_status": event["effect_status"],
+        "blocker": event["blocker"],
+        "consecutive_failure_streak": 1,
+        "threshold": 3,
+        "evidence_refs": event["evidence_refs"],
+    })
+    result = subprocess.run(
+        ["node", str(classifier), "--input", str(input_path), "--output", str(output_path)],
+        cwd=release_root, capture_output=True, text=True, timeout=30,
+        env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+    )
+    if result.returncode != 0:
+        raise RuntimeError("recovery intent classifier failed")
+    try:
+        intent = json.loads(output_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise RuntimeError("recovery intent output invalid") from error
+    if not _valid_recovery_intent(intent, event):
+        raise RuntimeError("recovery intent identity invalid")
+    queue = Path(os.path.expanduser(os.environ.get(
+        "LIFE_MANAGER_RECOVERY_INTENTS_PATH",
+        "~/.local/state/life-manager/recovery/intents.jsonl",
+    )))
+    _append_recovery_intent(queue, {"record_type": "recovery_intent", **intent})
+    return True
 
 
 def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str, *,
@@ -1025,6 +1124,7 @@ def main(argv: list[str] | None = None) -> int:
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
         terminal_saved = False
+        event = None
         try:
             succeeded, deferred, blocker = _terminal_outcome(
                 return_code, host_deferred=host_deferred)
@@ -1056,6 +1156,11 @@ def main(argv: list[str] | None = None) -> int:
             terminal_saved = True
         except (OSError, ValueError) as error:
             print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
+        if terminal_saved and event is not None and _should_enqueue_recovery_intent(entry, event):
+            try:
+                _enqueue_recovery_intent(release_root, event, scratch)
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+                print(f"lm-loop-run: recovery intent append failed: {error}", file=sys.stderr)
         try:
             if terminal_saved:
                 unprotect_loop_scratch(scratch_fd)

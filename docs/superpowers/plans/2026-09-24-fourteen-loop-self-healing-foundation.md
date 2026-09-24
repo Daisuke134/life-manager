@@ -112,6 +112,13 @@ blocks all fourteen loops for foundation reasons, not commercial revenue.
 
 ### Task 4: Emit one durable recovery intent for every shared-runner failure
 
+**Status:** Complete on the implementation branch. Normal shared-runner failures call the existing JavaScript
+classifier through one narrow CLI seam; Python contains persistence/identity checks, not a second policy table.
+Intent identity includes owner, occurrence and immutable release. Queue append is private, locked and replay-zero.
+Success/admission/setup states do not enqueue, unknown effects become a non-retryable hold, and `critical_paid`
+or Paid-owner entrypoints remain read-only and never enter this recovery queue. Recovery tests pass 13/13,
+runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
+
 **Files:**
 - Modify: `runtime/loop/recovery-intent.mjs`
 - Modify: `runtime/loop/recovery-intent-record.mjs`
@@ -120,13 +127,13 @@ blocks all fourteen loops for foundation reasons, not commercial revenue.
 - Modify: `runtime/loop/__tests__/recovery-intent-record.test.mjs`
 - Modify: `runtime/loop/tests/test_lm_loop_run_bounds.py`
 
-- [ ] Write failing tests that a normal `lm_loop_run` terminal failure emits exactly one owner/occurrence/release-bound intent.
-- [ ] Prove success, admission deferral and duplicate event replay do not enqueue duplicate repair work.
-- [ ] Prove `effect_unknown`, Paid ownership, policy failures and non-retryable setup gaps produce hold/escalation intents with `mutates_external_effect=false`.
-- [ ] Reuse one recovery classifier; do not fork Python and JavaScript policy tables. If necessary, add a narrow JSON CLI seam around the existing pure classifier.
-- [ ] Append atomically to the existing private recovery queue and keep event/intent evidence cross-referenced.
-- [ ] Run the focused intent and runner tests.
-- [ ] Commit and push universal intent emission.
+- [x] Write failing tests that a normal `lm_loop_run` terminal failure emits exactly one owner/occurrence/release-bound intent.
+- [x] Prove success, admission deferral and duplicate event replay do not enqueue duplicate repair work.
+- [x] Prove `effect_unknown` becomes a hold with `mutates_external_effect=false`; setup/admission states do not enqueue and Paid ownership remains read-only outside the queue.
+- [x] Reuse one recovery classifier; do not fork Python and JavaScript policy tables. Add only a narrow JSON CLI seam around the existing pure classifier.
+- [x] Append atomically to the existing private recovery queue and keep event/intent evidence cross-referenced.
+- [x] Run the focused intent and runner tests.
+- [x] Commit and push universal intent emission.
 
 ### Task 5: Close recovery with outcome, readback, budget and replay-zero
 
