@@ -974,6 +974,26 @@ The following is the current control-plane state. It is evidence for the next bo
   `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. The typed
   `resource_capacity_busy` observer remains effect-free, so no sale, wallet, payment or provider effect ran and no
   revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `citizen-refill` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[citizen-refill]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; its old loaded/event release was not executed. The registry marks
+  this owner effect-free, so no wallet/refill/provider effect ran and no revenue was inferred. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `life-manager-x402-ledger` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-x402-ledger]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. Its effect-free
+  ledger path caused no trade, payment, wallet/provider effect or revenue claim. Exact-current terminal/replay-zero
+  acceptance remains open until admission advances.
+- [x] Probe `life-manager-taskmarket-ledger` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-taskmarket-ledger]` against current
+  release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No task-market
+  payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains
+  open until admission advances.
+- [x] Probe `life-manager-ugig-invoice-observer` without breaking its FIFO. Two consecutive targeted reconciles
+  both returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-ugig-invoice-observer]` against
+  current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No
+  invoice, payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance
+  remains open until admission advances.
 
 ## Deferred until this plan passes
 

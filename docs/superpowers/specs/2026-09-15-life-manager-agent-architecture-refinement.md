@@ -4342,6 +4342,31 @@ remains open until the admission cursor advances; the queue and all effect fence
 effect-free deterministic watcher, so no wallet, payment, provider effect or revenue was inferred. Exact-current
 terminal/replay-zero acceptance remains open until durable admission advances.
 
+The effect-free `citizen-refill` owner was then probed twice under the same FIFO-safe contract. Both targeted
+reconciles returned `eligible=1`, `applied=[]`, and `skipped_pending=[citizen-refill]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; its old loaded/event release was not executed. No wallet, refill,
+provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until durable
+admission advances.
+
+The effect-free `life-manager-x402-ledger` was probed twice without changing its FIFO. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-x402-ledger]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No trade, payment,
+wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until
+durable admission advances.
+
+The effect-free `life-manager-taskmarket-ledger` was probed twice under the same FIFO-safe contract. Both targeted
+reconciles returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-taskmarket-ledger]` against current
+release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No task-market
+payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open
+until durable admission advances.
+
+The final effect-free observer in this slice, `life-manager-ugig-invoice-observer`, was probed twice without changing
+its FIFO. Both targeted reconciles returned `eligible=1`, `applied=[]`, and
+`skipped_pending=[life-manager-ugig-invoice-observer]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No invoice, payment,
+wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until
+durable admission advances.
+
 The `x402-sale-observer` was then probed twice without changing its typed capacity boundary. Both targeted reconciles
 returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` against current release
 `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No sale observation,
