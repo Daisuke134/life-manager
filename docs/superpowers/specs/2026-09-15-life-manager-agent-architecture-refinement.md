@@ -5050,3 +5050,25 @@ Telegram, admission or report state was changed.
 The same read-only dependency reuse also allowed the shared self-healing control-plane suite to run: product-loop
 catalog/foundation gate, brain fallback/timeout contracts, recovery executor/supervisor, integration and bounded
 runtime properties passed **84/84**. This proves the candidate contracts, not production loading or the 14-loop gate.
+
+### Effect-free scratch recovery at the host-capacity boundary (2026-09-25 JST)
+
+The latest Connector status still reports `fail / entrypoint_exit_1`, but the host log identifies the lower-level
+failure boundary: `lm-loop-run` raised `Errno 28 No space left on device` while creating a per-run `loop-tmp` directory.
+Scratch creation occurs before the runtime start event is persisted, so this failure left no new occurrence/event and
+the status view retained the previous `entrypoint_exit_1`; it did not prove a Connector provider effect. The current
+host filesystem is still at **100% capacity** and a clean-install test independently failed while extracting a tar
+fixture with the same `Errno 28`.
+
+Candidate commit `5d65810e4d` adds `_create_loop_scratch_with_recovery` to the common runner. When, and only when,
+the registry marks the owner `effect_class=none`, an `ENOSPC` during scratch creation invokes the existing bounded
+`scratch_gc` for that owner, then retries exactly once with a fresh run ID. Effectful owners do not reclaim or retry;
+they remain fail-closed so no external effect can be replayed without an occurrence fence. This is a local
+self-healing boundary, not a disk-capacity claim and not a production promotion.
+
+The focused scratch/cleanup/run-boundary verification passes **149 tests + 4 subtests**, including a red-then-green
+ENOSPC regression. The complete `runtime/loop/tests` collection remains environment-blocked: after 26 tests passed,
+`test_clean_user_install` failed during repository tar extraction with `Errno 28`; no code failure was inferred. The
+next verification is to rerun that collection after the capacity floor is restored, then re-read the exact Connector
+occurrence and confirm a clean no-effect wake. No Paid source, Paid state, provider session, admission fence, main
+branch or immutable release was changed.

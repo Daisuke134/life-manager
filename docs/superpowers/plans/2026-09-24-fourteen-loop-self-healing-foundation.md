@@ -1543,3 +1543,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   brain fallback, recovery executor/supervisor, integration and bounded runtime properties **84/84**.
 - [ ] Keep the production acceptance cursor separate: candidate tests do not replace exact immutable loading,
   owner readback, replay-zero or the two-pass 14-loop foundation gate.
+
+### Effect-free scratch ENOSPC recovery (2026-09-25 JST)
+
+- [x] Trace the Connector `entrypoint_exit_1` to the host boundary: `lm-loop-run` failed before its start event while
+  creating `loop-tmp`, with `Errno 28 No space left on device`; the surface status therefore retained an older event.
+- [x] Add candidate commit `5d65810e4d`: effect-free owners may run the existing bounded `scratch_gc` once and retry
+  scratch creation under a fresh run ID; effectful owners remain fail-closed and never reclaim/replay at this boundary.
+- [x] Verify the affected scratch/cleanup/run-boundary tests: **149 passed + 4 subtests**, including red-then-green
+  ENOSPC coverage; push the candidate branch.
+- [ ] Restore the host capacity floor and rerun the full `runtime/loop/tests` collection. The current run is blocked
+  by fixture tar extraction at `Errno 28` after 26 prior tests passed, so this is an environment blocker, not a green
+  foundation gate.
+- [ ] Only after capacity recovery, load the exact immutable candidate, observe one effect-free Connector/no-op
+  occurrence with a persisted event, and rerun the two-pass foundation gate. Do not touch Paid fulfillment or clear
+  any external-effect fence from this cursor.
