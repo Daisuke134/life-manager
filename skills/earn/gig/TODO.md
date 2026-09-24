@@ -2947,3 +2947,44 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    settlement → payout → replay-zero once.
 5. Refresh Mercor inventory, retain Consultant human calibration, preserve
    Coconala/Ryu manual-only and Upwork disabled, then run final fleet gate.
+
+### Runtime checkpoint — 2026-09-24 13:47 JST (latest live recheck)
+
+- [x] Routine permission questions are removed from the workflow. Continue
+  autonomously; provider receipts and effect fences, not a permission pause,
+  determine whether an external effect is admissible.
+- [x] Coconala readback remains `completed/4/0/3/0/0`; Ryu is the permanent
+  manual exception and no duplicate/formal-delivery action is due.
+- [x] CrowdWorks natural result is `ok/5/1/0/4/1/0`; `63568785` is still
+  waiting for buyer lesson/answer material and no duplicate answer or delivery
+  was sent.
+- [x] Lancers natural result is `ok/0/0/0/0/0/0`; no funded contract exists.
+- [x] Mercor Paid remains pending on the stale official snapshot; Mercor Reply
+  is readback `ok/97/1/0/96/1/0` but remains behind its effect fence.
+- [x] The four historical admission rows remain `claimed/effect_unknown=1`:
+  Lancers `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`,
+  Mercor Reply `18d6683223830368-49631`, and Mercor Application
+  `18d6f9cb5bdaef98-33812`. No DB edit, blind retry, or resend was performed.
+- [ ] Resource pressure remains a release precondition (about `2.4GiB`
+  available, `99%` used); resolve it with scoped recoverable cleanup and
+  verify durable writes before promotion.
+
+### Remaining TODO (current ordered cursor)
+
+1. Keep PR #5820 green/open; merge and cut one immutable release only after
+   the external provider/effect gate is satisfied.
+2. Resolve the four exact `effect_unknown` fences from provider/run evidence;
+   never clear them by hand or blind-retry.
+3. Resolve host resource/database pressure, apply the release, and verify
+   loaded SHA, natural CrowdWorks no-blank-growth, official readback, and
+   replay-zero.
+4. Wait for admissible `63568785` material, then complete delivery →
+   acceptance → settlement → payout → replay-zero exactly once.
+5. Refresh Mercor inventory through the admitted owner and retain
+   human-owned Consultant calibration; do not call reply-owner directly.
+6. Implement the first funded Lancers formal-delivery/readback canary; keep
+   Coconala/Ryu manual-only and Upwork disabled until their gates exist.
+7. Run final fleet acceptance last. All gig platforms are **not** complete:
+   Coconala client work is safe, but system release/fleet acceptance remains
+   open; CrowdWorks and Mercor have pending gates; Lancers has no funded
+   contract; Upwork is unauthorized/disabled.

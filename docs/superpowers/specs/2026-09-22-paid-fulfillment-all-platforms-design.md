@@ -3146,3 +3146,60 @@ not convert a transient pass or a no-op into client completion.
    delivery → acceptance → settlement → payout → replay-zero exactly once.
 5. Refresh Mercor inventory, retain human-owned Consultant calibration, keep
    Coconala/Ryu manual-only and Upwork disabled, and run the final fleet gate.
+
+## Production Cursor — 2026-09-24 13:47 JST (latest live recheck)
+
+- **Routine permission questions are removed from the operating procedure.**
+  The operator has delegated normal investigation, spec/TODO edits, loop
+  control, cleanup, release preparation, and ordinary provider work. Continue
+  autonomously; do not pause to ask whether to inspect, update, retry safely,
+  or advance the cursor. Effect fences and provider receipts still control
+  whether an external send is admissible.
+- **Coconala remains client-safe, not fleet-complete.** The authoritative
+  `paid-direct-live/latest.json` is `completed` with `observed=4`,
+  `actionable=0`, `effect=0`, `readback=3`, `pending=0`, `failed=0`.
+  Ryu `18211957` remains permanent manual-only; no resend or formal delivery
+  is due. The loaded Coconala owner is idle on its current immutable release;
+  this is a no-op/readback result, not proof that every platform is released.
+- **CrowdWorks is safe but waiting.** Latest occurrence
+  `crowdworks-revenue-paid:18d8283ce9a03e50-52638` is
+  `ok/observed=5/actionable=1/effect=0/readback=4/pending=1/failed=0`.
+  Contract `63568785` still lacks admissible lesson/answer material. No
+  duplicate answer or formal delivery is allowed. Production still loads the
+  old SHA `07f76049...`; the blank-target fix remains unreleased.
+- **Lancers has no funded work.** Latest occurrence
+  `lancers-revenue-paid:18d8282d8e595658-51694` is
+  `ok/0/0/0/0/0/0`; no provider effect is admissible. The first funded
+  `ContractReceipt` still needs official completion-surface discovery,
+  idempotent delivery, readback, and replay-zero.
+- **Mercor is not complete.** Paid occurrence
+  `mercor-revenue-paid:18d8284f19ffc4a0-53935` is pending on the stale
+  official contract snapshot. Reply readback is `ok/97/1/0/96/1/0`, but its
+  owner is deferred by the effect-unknown fence; do not invoke the reply owner
+  directly because it can send Gmail replies.
+- **Safety state is unchanged.** Exact admission rows for the historical
+  Lancers, CrowdWorks, Mercor Reply, and Mercor Application occurrences remain
+  `claimed/effect_unknown=1`, with no exact provider/run proof of zero effect.
+  No fence was cleared, no admission DB row was edited, and no blind retry or
+  resend was issued. Data-volume headroom is about `2.4GiB` free (`99%` used),
+  so resource pressure remains a release precondition.
+
+### Remaining TODO (current cursor)
+
+1. Keep PR #5820 open at the green head; do not merge/release until the
+   provider-result and effect-fence gates are satisfied.
+2. Obtain exact provider/run proof for all four historical
+   `effect_unknown` fences; otherwise keep them closed and do not retry.
+3. Resolve the scoped resource/database pressure, then cut/apply one
+   immutable release and verify loaded SHA, a natural CrowdWorks wake, no
+   blank-target regrowth, official readback, and replay-zero.
+4. Wait for admissible material for CrowdWorks `63568785`, then perform
+   delivery → acceptance → settlement → payout → replay-zero exactly once.
+5. Refresh Mercor's official inventory only through its admitted owner and keep
+   Consultant calibration human-owned; do not bypass the reply fence.
+6. When the first funded Lancers contract appears, implement and verify its
+   official formal-delivery path. Keep Coconala/Ryu manual-only and Upwork
+   disabled until authorization, authentication, and a funded contract exist.
+7. Run the final all-platform acceptance gate only after every Paid owner has
+   fresh provider readback and replay-zero. Therefore **not all gig platforms
+   are complete yet**.
