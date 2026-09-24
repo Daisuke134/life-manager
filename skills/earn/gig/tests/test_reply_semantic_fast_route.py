@@ -74,7 +74,7 @@ def test_reply_semantic_route_uses_bounded_luna_candidate():
     assert route["token_reservation"] <= composition["token_reservation"]
     assert route["candidates"][0] == {
         "provider": "codex", "model": "gpt-5.6-luna", "effort": "medium",
-        "timeout_seconds": 120, "profile_alias": "acct2",
+        "timeout_seconds": 120, "profile_alias": "acct1",
     }
     # 2026-09-04 1604f332cc "fix(runner): give every task class a working Claude fallback" added
     # a claude-direct candidate to reply-semantic-agent (and 13 other task classes) because a

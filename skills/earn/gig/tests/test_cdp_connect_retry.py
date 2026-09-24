@@ -38,6 +38,15 @@ class _CleanupDisconnectSocket(_Socket):
         raise OSError("no close frame received or sent")
 
 
+class _EventOnlySocket:
+    async def send(self, _message):
+        return None
+
+    async def recv(self):
+        await asyncio.sleep(0.02)
+        return '{"method":"Page.lifecycleEvent"}'
+
+
 @pytest.fixture
 def connect(monkeypatch):
     calls, sleeps = [], []
@@ -131,6 +140,16 @@ def test_read_only_session_preserves_page_error_when_cleanup_disconnects(monkeyp
         asyncio.run(read_page())
 
 
+def test_cdp_call_has_one_deadline_even_when_unrelated_events_continue(monkeypatch):
+    monkeypatch.setattr(listing_inventory, "CDP_CALL_TIMEOUT_SECONDS", 0.01)
+
+    async def call():
+        return await listing_inventory._call(_EventOnlySocket(), "Runtime.evaluate", {}, 7)
+
+    with pytest.raises(asyncio.TimeoutError, match="CDP call timed out"):
+        asyncio.run(call())
+
+
 def test_the_last_refusal_is_raised_unchanged(connect):
     install, _, _ = connect
     specific = OSError("server rejected WebSocket connection: HTTP 500")
@@ -149,5 +168,7 @@ def test_eval_json_goes_through_the_retrying_connect():
 
 def test_apply_parent_reuses_the_retrying_connect():
     source = (SCRIPTS / "application_parent.py").read_text(encoding="utf-8")
-    assert source.count("async with await _cdp_connect(self.ws_url)") == 9
+    # The pre-submit authenticated-identity readback adds one more guarded
+    # session; it must use the same retrying connector as every other CDP path.
+    assert source.count("async with await _cdp_connect(self.ws_url)") == 10
     assert "async with websockets.connect(" not in source

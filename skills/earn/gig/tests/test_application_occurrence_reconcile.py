@@ -8,6 +8,7 @@ import pytest
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "application_occurrence_reconcile.py"
 sys.path.insert(0, str(SCRIPT.parent))
+import application_effect_fence as fence
 SPEC = importlib.util.spec_from_file_location("application_occurrence_reconcile_test", SCRIPT)
 reconcile = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -21,16 +22,17 @@ REQUEST_ID = "5280157"
 
 def _intent(path: Path, *, state="prepared", phase="irreversible_attempt_started"):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({
-        "version": 2,
-        "state": state,
-        "effect_phase": phase,
-        "request_id": REQUEST_ID,
-        "cas": "a" * 64,
-        "price_jpy": 8000,
-        "deliver_date": "2026-09-25",
-        "proposal_sha256": "b" * 64,
-    }), encoding="utf-8")
+    payload = fence.intent_payload(
+        request_id=REQUEST_ID,
+        snapshot_sha256="a" * 64,
+        proposal_text="提案本文です。" * 40,
+        price_jpy=8000,
+        deliver_date="2026-09-25",
+        lease_fence={"task": "historical-reconcile-test", "token": "b" * 32, "generation": 1},
+        state=state,
+        effect_phase=phase,
+    )
+    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def _readback(**overrides):
@@ -45,6 +47,42 @@ def _readback(**overrides):
         "urls": ["https://coconala.com/mypage/job_matching/applied/offers"],
         "truncated": False,
         "access_denied": False,
+    }
+    value.update(overrides)
+    return value
+
+
+def _historical_no_dispatch_proof(evidence_ref="historical-proof.json", **overrides):
+    value = {
+        "source": "code_owned_cdp_historical_identity_reconcile",
+        "provider": "coconala",
+        "proof_type": "historical_account_bound_no_dispatch",
+        "historical_pass_id": "gig-apply-direct-1789863656491097000-13326",
+        "historical_account": {
+            "account_id": "2564121",
+            "profile_url": "https://coconala.com/users/2564121",
+        },
+        "account_binding": {
+            "sibling_request_id": "5281717",
+            "sibling_pass_id": "gig-apply-direct-1789863656491097000-13326-commit-5281717",
+            "official_profile_url": "https://coconala.com/users/2564121",
+            "local_receipt_verified": True,
+        },
+        "target_roster": {
+            "request_id": REQUEST_ID,
+            "official_url": "https://coconala.com/requests/5280157",
+            "complete": True,
+            "truncated": False,
+            "access_denied": False,
+            "applicants_count": 9,
+            "contracted_count": 0,
+            "applicant_ids": [
+                "6130185", "6299295", "412998", "4288437", "6200620",
+                "4766238", "4197088", "4479825", "3406932",
+            ],
+            "historical_account_absent": True,
+        },
+        "evidence_ref": evidence_ref,
     }
     value.update(overrides)
     return value
@@ -70,6 +108,61 @@ def test_build_provider_proof_requires_exact_positive_id(tmp_path):
             readback=_readback(request_ids=[]),
             evidence_path=tmp_path / "readback.json",
         )
+
+
+def test_build_historical_no_dispatch_proof_requires_bound_account_and_complete_roster(tmp_path):
+    proof = reconcile.build_historical_no_dispatch_proof(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        request_id=REQUEST_ID,
+        readback=_historical_no_dispatch_proof(),
+    )
+    assert proof["verified"] is True
+    assert proof["proof_type"] == "historical_account_bound_no_dispatch"
+    assert proof["historical_account_id"] == "2564121"
+
+    for field, value in (
+        ("historical_account_absent", False),
+        ("complete", False),
+        ("truncated", True),
+        ("access_denied", True),
+    ):
+        candidate = _historical_no_dispatch_proof()
+        candidate["target_roster"][field] = value
+        with pytest.raises(reconcile.ReconcileContractError):
+            reconcile.build_historical_no_dispatch_proof(
+                owner_id=OWNER,
+                occurrence_id=OCCURRENCE,
+                request_id=REQUEST_ID,
+                readback=candidate,
+            )
+
+
+def test_historical_no_dispatch_reconcile_uses_dedicated_resolver(tmp_path):
+    intent_root = tmp_path / "intents"
+    _intent(intent_root / f"{REQUEST_ID}.json")
+    captured = []
+
+    def resolver(owner_id, occurrence_id, *, no_dispatch_proof, expected_state=None):
+        captured.append((owner_id, occurrence_id, no_dispatch_proof(), expected_state))
+        return True
+
+    result = reconcile.reconcile_historical_no_dispatch_occurrence(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        request_id=REQUEST_ID,
+        intent_root=intent_root,
+        readback=lambda: _historical_no_dispatch_proof(),
+        resolver=resolver,
+    )
+    assert result["status"] == "resolved"
+    assert captured[0][0:2] == (OWNER, OCCURRENCE)
+    assert captured[0][2]["historical_account_id"] == "2564121"
+    assert captured[0][3] == "claimed"
+    retired = json.loads((intent_root / f"{REQUEST_ID}.json").read_text(encoding="utf-8"))
+    assert retired["state"] == fence.RETIRED_ABSENT
+    archive = list((intent_root / "recovery-history" / REQUEST_ID).glob("*.json"))
+    assert len(archive) == 1
 
 
 def test_discovery_requires_a_single_occurrence_and_single_intent():
