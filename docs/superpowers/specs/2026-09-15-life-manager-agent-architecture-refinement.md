@@ -4433,6 +4433,12 @@ d4, then reported typed retryable `host_admission_deferred:resource_control_busy
 `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
 remains open until a current durable terminal is produced.
 
+The effect-free `life-manager-dev` owner was then re-bound through its deterministic route. It applied current d4,
+then reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+`effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+`05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+remains open until a current durable terminal is produced.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable

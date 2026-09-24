@@ -1044,6 +1044,11 @@ The following is the current control-plane state. It is evidence for the next bo
   `effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
   `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
   remains open until a current durable terminal is produced.
+- [x] Rebind the effect-free `life-manager-dev` owner through its deterministic route. It applied current d4, then
+  reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+  `effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+  `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+  remains open until a current durable terminal is produced.
 
 ### Latest branch verification (2026-09-25 JST)
 
