@@ -1,5 +1,16 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:43 JST (post-push boundary recheck)
+
+The receipt-reserve hardening and the refreshed platform gate evidence are
+committed and pushed on `fix/coconala-history-retry-20260924` at
+`7cdb0a8763`. The worktree is clean. No provider send, retry, credential
+creation, admission-fence mutation, or production apply occurred. Production
+still runs immutable release `d4fe081`; PR #5868 remains open, so the new code
+has not yet been runtime-verified. The remaining TODO is therefore execution,
+not another source rewrite: pass merge/release gates, wait for disk headroom,
+then take one no-effect Coconala readback before touching any other owner.
+
 ## Current cursor — 2026-09-25 08:39 JST (Coconala Paid result-write hardening)
 
 The latest Coconala Paid failure is now bounded to a local result-write

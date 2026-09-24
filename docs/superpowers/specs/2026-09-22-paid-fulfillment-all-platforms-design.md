@@ -1,5 +1,16 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 08:43 JST (post-push boundary recheck)
+
+Receipt-reserve hardening and the platform-gate evidence are now committed and
+pushed on `fix/coconala-history-retry-20260924` at `7cdb0a8763`; the worktree
+is clean. No provider send, retry, credential creation, admission-fence
+mutation, or production apply occurred. Production remains immutable release
+`d4fe081`, and PR #5868 is still open, so runtime verification is pending.
+The next action is execution after merge/release and disk-headroom recovery:
+one no-effect Coconala readback, then Storefront readback; other providers
+remain gated by their exact account/funding evidence.
+
 ### Live gate cursor — 2026-09-25 08:39 JST (Coconala Paid local failure bounded)
 
 The latest Coconala Paid `entrypoint_exit_1` is a local evidence-write failure,
