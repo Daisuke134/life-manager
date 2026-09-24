@@ -40,17 +40,18 @@ export async function think(ctx, config) {
   const brain = config.ANICCA_BRAIN || 'proxy';
 
   if (brain === 'claude-p') {
-    // NO FALLBACK TO THE PROXY. claude-p is human-funded: its brain is an Anthropic subscription
-    // that is already paid for, and its crypto wallet exists to TRADE, not to buy inference.
-    // Falling back to ClawRouter silently put a free model in charge of the money — and measured
-    // 2026-07-12 that model could not even issue the tool call correctly ("run_skill skill not
-    // found"), so a wake that fell back was worse than a wake that never happened. Failing loudly
-    // is right: the ledger records a wake_error and the next wake retries with the real brain.
-    //
-    // Franklin and the other SELF-funded instances still take the proxy path below, and that is
-    // correct for them: they buy inference out of the very wallet they trade with, so a free model
-    // is the only way they stay net-positive.
-    return thinkClaudeP(ctx, config);
+    try {
+      return await thinkClaudeP(ctx, config);
+    } catch (error) {
+      // A missing executable is an infrastructure gap, not a model decision. Recover through the
+      // configured proxy so one broken local binary cannot stop the always-on loop. Do not broaden
+      // this to OAuth, timeout, or non-zero Claude exits: those remain typed wake errors and must
+      // not silently hand a different brain control of a funded loop.
+      if (error instanceof Error && error.message.startsWith('claude_not_found:')) {
+        return thinkProxy(ctx, config);
+      }
+      throw error;
+    }
   }
 
   if (brain === 'codex') {

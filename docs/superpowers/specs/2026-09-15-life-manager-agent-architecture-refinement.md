@@ -106,6 +106,10 @@ flowchart LR
   誤認せず、関連focused suiteとproduction exact readbackを別に扱います。
 - 既存コメントの文字列を実装呼び出しとして拾っていたself-improvement static guardを、動作変更なしで修正しました。
   `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
+- self-improvement brainの実装と契約の矛盾をbranchで解消しました。`ANICCA_BRAIN=claude-p`の実行ファイルが
+  不在のときだけ、設定済みproxyへfallbackします。OAuth失効、timeout、非0終了はfallbackせず、typed
+  `wake_error`として記録します。missing-binary integration caseはPASSし、統合suiteの残る1件は既存の
+  temporary-directory cleanup raceです。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
