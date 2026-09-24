@@ -626,6 +626,13 @@ The following is the current control-plane state. It is evidence for the next bo
   SHA `766ef884e5881e0752c268b91b6fdbbd9bd7ec71`, typed capacity deferral/exit 75, and durable admission 1,468
   queued/464 released effect-free occurrences with zero claimed, zero effect-unknown, one queue row and zero
   reservations under `deterministic/borrow/support`. Sale observation is not a payment or revenue receipt.
+- Read-only x402 money-observer recheck 2026-09-25 JST: `sol-funding` is loaded-idle on `a76c8931ea87644696017f6ef87c820bc3651425`,
+  blocked at `host_admission_deferred:resource_effect_unknown`, with 234 queued and one released unknown occurrence
+  (`sol-funding:18d60103c86ce420-74237`), zero claimed and zero reservations. `x402-settlement-recorder` is
+  loaded-idle on `93cb74594755f18f3e4e8fc08aaa9a8cd2cb9648`, with 50 queued, six released-known and one released
+  unknown occurrence (`x402-settlement-recorder:18d606127c37d290-73497`), zero claimed and zero reservations.
+  No official wallet/provider receipt is available, so both effect fences remain closed and no replay/clear/money
+  movement was performed.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed

@@ -172,6 +172,15 @@ flowchart LR
   だけを明示し、registry/rendered-fixture 104/104、shared apply 124/124をPASSしました。money movement、
   wallet action、settlement receiptは実行していません。released `effect_unknown`は公式wallet/provider
   readbackとaccepted immutable releaseが揃うまでfence内に残します。
+- 2026-09-25 JSTの最新readbackでは、`sol-funding`はinstalled/event SHA
+  `a76c8931ea87644696017f6ef87c820bc3651425`、loaded-idle、typed
+  `host_admission_deferred:resource_effect_unknown`、`effect_class=money`です。durable admissionはqueued
+  234、released-known 0、released `effect_unknown` 1（`sol-funding:18d60103c86ce420-74237`）、claimed 0、
+  queue row 1、reservation 0です。`x402-settlement-recorder`はinstalled/event SHA
+  `93cb74594755f18f3e4e8fc08aaa9a8cd2cb9648`、loaded-idle、同じmoney/effect-unknown fenceで、queued 50、
+  released-known 6、released `effect_unknown` 1（`x402-settlement-recorder:18d606127c37d290-73497`）、
+  claimed 0、queue row 1、reservation 0です。両方とも公式wallet/provider receipt未取得のため、clear、
+  replay、money movement、settlementを実行しません。accepted releaseと正確な公式readbackが次の境界です。
 - `citizen-refill`はdeterministic routeで、durable admission上のknown effect-free FIFO 144件、claimed/unknown 0件、
   loaded-idleでした。productionのrelease `f7d4ff46afa42539a6def192774de66ff3317cec`では、entrypoint前に
   `citizen-refill: node executable not found`を繰り返していました。原因は、共有plistがmanaged Nodeを
