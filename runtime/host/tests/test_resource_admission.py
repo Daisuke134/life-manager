@@ -1389,6 +1389,32 @@ def test_opted_in_connector_claim_uses_executing_wake_identity(tmp_path, monkeyp
     admission.release_and_reserve(claim, reserve=False, now=104)
 
 
+def test_coalesced_claim_cancels_every_prior_queued_wake_signal(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "publisher", admission_class="revenue",
+        occurrence_id="publisher:old-1", now=100)
+    admission.enqueue_durable(
+        "agent", "publisher", admission_class="revenue",
+        occurrence_id="publisher:old-2", now=101)
+    ticket, reason = admission.enqueue_durable(
+        "agent", "publisher", admission_class="revenue",
+        occurrence_id="publisher:current", coalesce_reserved=True, now=102)
+    assert ticket is not None and reason == "queued_coalesced"
+
+    claim, reason = admission.claim_durable(
+        "agent", "publisher", admission_class="revenue",
+        coalesced_occurrence_id="publisher:current", now=103)
+    assert claim is not None and reason == "acquired"
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert rows["publisher:old-1"]["state"] == "cancelled"
+    assert rows["publisher:old-2"]["state"] == "cancelled"
+    assert rows["publisher:current"]["state"] == "claimed"
+    assert not [row for row in rows.values() if row["state"] == "queued"]
+    admission.release_and_reserve(claim, reserve=False, now=104)
+
+
 def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
