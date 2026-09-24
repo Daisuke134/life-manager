@@ -4309,6 +4309,13 @@ reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete dia
 `eligible=0` and preserved the same event/occurrence, proving replay-zero. The remaining foundation work is still
 owner-by-owner release alignment; these two no-effect canaries do not prove the 14-loop gate or revenue.
 
+The next independent no-effect canary was `affiliate-composition`. It moved from old
+`ff11bb0a2c2ae81af087c687fb6ba3eda049b87b` to current d4 and reached exact-release `loaded-idle`/`blocked`/exit 75
+with typed `resource_capacity_busy`, `retryable=true`, complete diagnostics, `effect_status=not_applicable`,
+`admission_effect_unknown=false` and no provider receipt. A second targeted reconcile returned `eligible=0` with
+unchanged event/occurrence, proving replay-zero. This is an admission/runtime proof only; it is not affiliate
+traffic, conversion, commission or revenue evidence.
+
 ## E2E Judgment
 
 | Item | Value |

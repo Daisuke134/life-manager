@@ -937,6 +937,12 @@ The following is the current control-plane state. It is evidence for the next bo
   reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics,
   `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
   returned `eligible=0` with unchanged event/occurrence, proving replay-zero.
+- [x] Align and verify `affiliate-composition` as the next independent effect-free owner. It moved from old
+  `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b` to current d4 and reached an exact current-release terminal
+  `loaded-idle`/`blocked`/exit 75 with typed `resource_capacity_busy`, `retryable=true`, complete diagnostics,
+  `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
+  returned `eligible=0` with unchanged event/occurrence, proving replay-zero. This proves runtime fencing only; it
+  is not affiliate traffic, conversion or commission revenue.
 
 ## Deferred until this plan passes
 
