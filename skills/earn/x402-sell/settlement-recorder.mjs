@@ -19,6 +19,14 @@ const OWN_PAY_TOS = [
   '0x810F6D61F7606dEEE2657d3083E150a222Bc29C5',
   '0x6592EB8EF820aBC092e8C3474fb2042dffCCEDc7',
 ].map((wallet) => wallet.toLowerCase());
+const OCCURRENCE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+
+export function runtimeOccurrenceId(environ = process.env) {
+  const value = environ?.LIFE_MANAGER_OCCURRENCE_ID;
+  return typeof value === 'string' && OCCURRENCE_ID_PATTERN.test(value.trim())
+    ? value.trim()
+    : null;
+}
 
 function readCandidates(path) {
   if (!existsSync(path)) return [];
@@ -79,6 +87,7 @@ async function main() {
   const isRevenue = result.recorded > 0;
   process.stdout.write(`${JSON.stringify({
     observed_at: new Date().toISOString(),
+    occurrence_id: runtimeOccurrenceId(),
     ...result,
     verified_external_revenue: isRevenue,
   })}\n`);

@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runtimeOccurrenceId } from '../settlement-recorder.mjs';
+
+test('settlement receipts carry only a validated host occurrence identity', () => {
+  assert.equal(
+    runtimeOccurrenceId({ LIFE_MANAGER_OCCURRENCE_ID: 'x402-settlement-recorder:run-1' }),
+    'x402-settlement-recorder:run-1',
+  );
+  assert.equal(runtimeOccurrenceId({ LIFE_MANAGER_OCCURRENCE_ID: 'not safe/identity' }), null);
+  assert.equal(runtimeOccurrenceId({}), null);
+});
 
 test('normalized candidates are reverified and recorded by a five-minute one-shot LaunchAgent', () => {
   const runner = readFileSync(new URL('../settlement-recorder.mjs', import.meta.url), 'utf8');
@@ -13,6 +23,7 @@ test('normalized candidates are reverified and recorded by a five-minute one-sho
   assert.match(runner, /appendUniqueExternalInflows/);
   assert.match(runner, /walletLedgerPath/);
   assert.match(runner, /SELF_WALLETS/);
+  assert.match(runner, /occurrence_id: runtimeOccurrenceId\(\)/);
   assert.match(runner, /verified_external_revenue/);
   assert.match(boot, /exec \/usr\/bin\/env node "\$DIR\/settlement-recorder\.mjs"/);
   assert.equal(job.label, 'ai.anicca.x402-settlement-recorder');
