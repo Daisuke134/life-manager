@@ -2698,6 +2698,11 @@ not convert a transient pass or a no-op into client completion.
   `18d822f12a298ce8-51327` with `5/1/0/4/1`; work `63568785` still requires
   buyer material. Coconala remains `4/0/0/3/0`; Ryu remains manual-only with no
   formal-delivery checkbox or resend.
+- **Mercor is not closed:** its Paid snapshot is `pending/observed=0/effect=0`
+  with `official_work_inventory_stale`; the Reply observer must refresh the
+  official contract snapshot. Mercor Paid/Application/Reply owners are loaded
+  idle but still carry resource-effect-unknown fences. Freelancer.com owners
+  are retired, not an active Paid platform.
 
 ### Remaining TODO (superseding)
 
@@ -2712,8 +2717,11 @@ not convert a transient pass or a no-op into client completion.
    delivery, acceptance, settlement, payout, and replay-zero exactly once.
 4. Keep Coconala/Ryu manual-only and no-resend state; no Coconala action is
    currently actionable.
-5. Keep Upwork disabled until authorization, authenticated readback, and a
+5. Refresh Mercor's official contract inventory through its Reply observer,
+   then verify Paid readback, effect state, and payout attribution; do not infer
+   completion from the stale pending snapshot.
+6. Keep Upwork disabled until authorization, authenticated readback, and a
    funded contract exist; only then run the same provider-neutral Paid gate.
-6. Run the final fleet acceptance only after items 1–5: all registered Paid
+7. Run the final fleet acceptance only after items 1–6: all registered Paid
    owners have a loaded release, fresh provider readback, explicit effect state,
    and no unresolved actionable item.

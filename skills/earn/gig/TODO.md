@@ -2644,6 +2644,9 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   replay-zero. Production remains `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
 - [ ] CrowdWorks `63568785`: wait for buyer material, then formal delivery,
   acceptance, settlement, payout, and replay-zero once.
+- [ ] Mercor Paid remains pending on `official_work_inventory_stale`; refresh
+  the Reply observer's official contract snapshot before any Paid action. Its
+  Paid/Application/Reply owners still carry resource-effect-unknown fences.
 - [ ] Keep Coconala/Ryu manual-only/no-resend (`4/0/0/3/0`) and Upwork disabled
   until its auth/readback/funded-contract gates exist.
 - [ ] Final fleet gate: every registered Paid owner loaded on the immutable
