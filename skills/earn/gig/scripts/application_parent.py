@@ -827,15 +827,19 @@ def _offer_detail_fetch_expression(offer_url: str) -> str:
     """Build a read-only same-origin detail fetch for a wedged navigation."""
     encoded_url = json.dumps(offer_url, ensure_ascii=False)
     return f"""(async()=>{{
-      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
-      const html=await response.text();
-      const parsed=new DOMParser().parseFromString(html,'text/html');
-      return {{transport:'fetch',status:response.status,final_url:response.url,
-        title:parsed.title,
-        hidden_request_id:parsed.querySelector('#OfferRequestId')?.value||null,
-        request_hrefs:[...parsed.querySelectorAll("a[href*='/requests/']")].map(a=>a.href),
-        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
-        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+      try {{
+        const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+        const html=await response.text();
+        const parsed=new DOMParser().parseFromString(html,'text/html');
+        return {{transport:'fetch',status:response.status,final_url:response.url,
+          title:parsed.title,
+          hidden_request_id:parsed.querySelector('#OfferRequestId')?.value||null,
+          request_hrefs:[...parsed.querySelectorAll("a[href*='/requests/']")].map(a=>a.href),
+          access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+          not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+      }} catch (error) {{
+        return {{transport:'fetch',error:String(error)}};
+      }}
     }})()).then(JSON.stringify)"""
 
 
@@ -843,24 +847,28 @@ def _applied_history_fetch_expression(history_url: str) -> str:
     """Build a read-only same-origin fetch for a denied applied-history page."""
     encoded_url = json.dumps(history_url, ensure_ascii=False)
     return f"""(async()=>{{
-      const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
-      const html=await response.text();
-      const parsed=new DOMParser().parseFromString(html,'text/html');
-      const absolute=href=>{{try{{return new URL(href,response.url).href}}catch(_error){{return ''}}}};
-      const anchors=[...parsed.querySelectorAll('a[href]')];
-      const next=anchors.find(a=>a.rel==='next'||/^(次へ|次のページ|次)$/u.test((a.innerText||'').trim()));
-      const pagination=anchors.filter(a=>/^\\d+$/u.test((a.innerText||'').trim())&&
-        a.getAttribute('href')&&a.getAttribute('href').includes('/mypage/job_matching/applied/offers')&&
-        a.getAttribute('href').includes('page='));
-      return {{transport:'fetch',status:response.status,final_url:response.url,
-        title:parsed.title,
-        offer_urls:[...parsed.querySelectorAll('a[href*="/mypage/offers/"]')]
-          .map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
-        next_href:next?absolute(next.getAttribute('href')):null,
-        pagination_hrefs:pagination.map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
-        body:(parsed.body?.innerText||'').slice(0,12000),
-        access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
-        not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+      try {{
+        const response=await fetch({encoded_url},{{credentials:'include',cache:'no-store'}});
+        const html=await response.text();
+        const parsed=new DOMParser().parseFromString(html,'text/html');
+        const absolute=href=>{{try{{return new URL(href,response.url).href}}catch(_error){{return ''}}}};
+        const anchors=[...parsed.querySelectorAll('a[href]')];
+        const next=anchors.find(a=>a.rel==='next'||/^(次へ|次のページ|次)$/u.test((a.innerText||'').trim()));
+        const pagination=anchors.filter(a=>/^\\d+$/u.test((a.innerText||'').trim())&&
+          a.getAttribute('href')&&a.getAttribute('href').includes('/mypage/job_matching/applied/offers')&&
+          a.getAttribute('href').includes('page='));
+        return {{transport:'fetch',status:response.status,final_url:response.url,
+          title:parsed.title,
+          offer_urls:[...parsed.querySelectorAll('a[href*="/mypage/offers/"]')]
+            .map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+          next_href:next?absolute(next.getAttribute('href')):null,
+          pagination_hrefs:pagination.map(a=>absolute(a.getAttribute('href'))).filter(Boolean),
+          body:(parsed.body?.innerText||'').slice(0,12000),
+          access_denied:response.status===403||parsed.title==='403 Forbidden'||parsed.title==='Access Denied',
+          not_found:response.status===404||/404|ページが見つかりません|お探しのページ/.test(parsed.title)}};
+      }} catch (error) {{
+        return {{transport:'fetch',error:String(error)}};
+      }}
     }})()).then(JSON.stringify)"""
 
 
