@@ -5,6 +5,8 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const moneytree = require("./moneytree-local-adapter.js");
 const { buildMoneytreeObservation } = require("./moneytree-observation-store.js");
+const { buildEconomicSourceCoverage } = require("./economic-source-contract.js");
+const { readProductLoopCatalog } = require("./product-onboarding.js");
 
 async function readJsonl(file) {
   if (!file) return [];
@@ -143,7 +145,14 @@ async function ingestFinancialRecords(options) {
     const result = await store.append(record);
     if (result.created) created += 1;
   }
-  return { observed: records.length, created, sources };
+  const observations = options.readEconomicSourceObservations
+    ? await options.readEconomicSourceObservations()
+    : (options.economicSourceObservations || []);
+  const catalogLoops = options.productLoops || readProductLoopCatalog(options.catalogFile).loops;
+  const economicSourceCoverage = buildEconomicSourceCoverage({
+    catalogLoops, subjectId, observations,
+  });
+  return { observed: records.length, created, sources, economicSourceCoverage };
 }
 
 module.exports = { ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths };

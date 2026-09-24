@@ -87,7 +87,9 @@ function zonedMidnight(key, timezone) {
   return instant;
 }
 
-function buildFinancialManagerReport(rawRecords, reportingDate, { timezone = "Asia/Tokyo" } = {}) {
+function buildFinancialManagerReport(rawRecords, reportingDate, {
+  timezone = "Asia/Tokyo", economicSourceCoverage = null,
+} = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const verified = records.filter((record) => record.verification.status === "verified");
   const month = reportingDate.slice(0, 7);
@@ -141,10 +143,12 @@ function buildFinancialManagerReport(rawRecords, reportingDate, { timezone = "As
       byProvider,
     },
     providers,
+    economicSourceCoverage,
   };
   const digestReport = { ...report };
   delete digestReport.verifiedRecordCount;
   delete digestReport.excludedRecordCount;
+  delete digestReport.economicSourceCoverage;
   return {
     report,
     digest: crypto.createHash("sha256").update(canonical(digestReport)).digest("hex"),

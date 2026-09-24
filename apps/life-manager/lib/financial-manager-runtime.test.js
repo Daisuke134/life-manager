@@ -96,3 +96,16 @@ test("a missing provider receipt fails closed after the shared render", async ()
   assert.equal(result.status, "failed");
   assert.equal(result.reason, "telegram_provider_receipt_missing");
 });
+
+test("CFO report carries private economic coverage from ingestion", async () => {
+  const coverage = { schema_version: 1, subject_id: "tenant-a", complete: false, loops: [] };
+  const result = await runFinancialManager({
+    subjectId: "tenant-a", reportingDate: "2026-09-07", now: "2026-09-07T06:00:00.000Z",
+    store: store([]),
+    ingest: async () => ({
+      observed: 0, created: 0, sources: {}, economicSourceCoverage: coverage,
+    }),
+  });
+  assert.equal(result.status, "quiet");
+  assert.deepEqual(result.report.economicSourceCoverage, coverage);
+});

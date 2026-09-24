@@ -80,3 +80,17 @@ test("Financial Manager uses the tenant timezone at a non-JST day boundary", () 
   assert.deepEqual(report.business.today.revenue, [{ currency: "JPY", amountMinor: 500 }]);
   assert.deepEqual(report.business.revenue, [{ currency: "JPY", amountMinor: 500 }]);
 });
+
+test("economic source coverage stays private and does not change the notification digest", () => {
+  const rows = [record("covered", {
+    kind: "business_revenue", amount: 500, occurredAt: "2026-09-01T06:30:00.000Z",
+  })];
+  const coverage = { schema_version: 1, subject_id: "tenant-1", complete: false, loops: [] };
+  const withCoverage = buildFinancialManagerReport(rows, "2026-09-07", {
+    economicSourceCoverage: coverage,
+  });
+  const withoutCoverage = buildFinancialManagerReport(rows, "2026-09-07");
+  assert.deepEqual(withCoverage.report.economicSourceCoverage, coverage);
+  assert.equal(withCoverage.digest, withoutCoverage.digest);
+  assert.doesNotMatch(renderFinancialManagerTelegram(withCoverage.report), /economic|coverage|tenant-1/i);
+});

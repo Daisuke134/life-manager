@@ -55,6 +55,7 @@ async function runFinancialManager(options = {}) {
   const records = await store.read({ subjectId });
   const { report, digest } = buildFinancialManagerReport(records, reportingDate, {
     timezone: options.timezone || "Asia/Tokyo",
+    economicSourceCoverage: ingestion.economicSourceCoverage || null,
   });
   if (report.verifiedRecordCount === 0) {
     return {

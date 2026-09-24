@@ -4,10 +4,12 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  buildEconomicSourceCoverage,
   joinEconomicFunnelObservation,
   validateEconomicFunnelObservation,
   validateEconomicSourceObservation,
 } = require("./economic-source-contract.js");
+const { readProductLoopCatalog } = require("./product-onboarding.js");
 
 const HASH = "a".repeat(64);
 
@@ -108,4 +110,61 @@ test("unavailable source evidence can join only an unavailable null-count funnel
   assert.throws(() => joinEconomicFunnelObservation(
     unavailableSource, funnel(),
   ), /join/i);
+});
+
+test("coverage exposes every catalog loop without leaking receipt or evidence references", () => {
+  const catalog = readProductLoopCatalog();
+  const coverage = buildEconomicSourceCoverage({
+    catalogLoops: catalog.loops,
+    subjectId: "tenant-a",
+    observations: [source()],
+  });
+
+  assert.equal(coverage.schema_version, 1);
+  assert.equal(coverage.subject_id, "tenant-a");
+  assert.equal(coverage.loops.length, 14);
+  assert.equal(Object.isFrozen(coverage), true);
+  assert.equal(Object.isFrozen(coverage.loops), true);
+  const affiliate = coverage.loops.find((loop) => loop.product_loop_id === "affiliate");
+  assert.deepEqual(affiliate.sources.funnel, {
+    adapter: "affiliate-money-funnel",
+    implementation: "implemented",
+    state: "observed_verified",
+    observation_id: "source-affiliate-1",
+    observed_at: "2026-09-24T00:00:00.000Z",
+  });
+  assert.equal(affiliate.sources.financial.state, "not_configured");
+  assert.equal(affiliate.sources.financial.implementation, "missing");
+  assert.equal(affiliate.complete, false);
+  const connector = coverage.loops.find((loop) => loop.product_loop_id === "connector");
+  assert.equal(connector.complete, true);
+  assert.deepEqual(Object.values(connector.sources).map((entry) => entry.state), [
+    "not_applicable", "not_applicable", "not_applicable",
+  ]);
+  assert.equal(coverage.complete, false);
+  assert.doesNotMatch(JSON.stringify(coverage), /affiliate-snapshot-1|affiliate:\/\/snapshot/);
+});
+
+test("coverage selects the latest exact observation and rejects catalog mismatches", () => {
+  const catalogLoops = readProductLoopCatalog().loops;
+  const latest = source({
+    observation_id: "source-affiliate-2",
+    state: "empty",
+    observed_at: "2026-09-24T01:00:00.000Z",
+  });
+  const coverage = buildEconomicSourceCoverage({
+    catalogLoops, subjectId: "tenant-a", observations: [latest, source()],
+  });
+  assert.equal(
+    coverage.loops.find((loop) => loop.product_loop_id === "affiliate").sources.funnel.state,
+    "empty",
+  );
+  assert.throws(() => buildEconomicSourceCoverage({
+    catalogLoops, subjectId: "tenant-a",
+    observations: [source({ adapter: "other-adapter" })],
+  }), /catalog/i);
+  assert.throws(() => buildEconomicSourceCoverage({
+    catalogLoops, subjectId: "tenant-a",
+    observations: [source({ subject_id: "tenant-b" })],
+  }), /subject/i);
 });

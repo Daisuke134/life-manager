@@ -31,10 +31,13 @@ test("ingestion projects real provider receipts and appends through the common s
     projectMarketplaceReceipts: async () => [],
   });
 
-  assert.deepEqual(result, {
+  assert.deepEqual({ observed: result.observed, created: result.created, sources: result.sources }, {
     observed: 2, created: 2,
     sources: { moneytree: "observed_unverified", agentEconomy: "observed_verified", marketplace: "empty" },
   });
+  assert.equal(result.economicSourceCoverage.loops.length, 14);
+  assert.equal(result.economicSourceCoverage.subject_id, "tenant-1");
+  assert.equal(result.economicSourceCoverage.complete, false);
   const records = await store.read({ subjectId: "tenant-1" });
   assert.deepEqual(new Set(records.map((row) => row.kind)), new Set(["business_revenue", "fee"]));
   assert.equal((await ingestFinancialRecords({
