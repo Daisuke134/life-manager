@@ -4211,3 +4211,14 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep `63568785` waiting for permission or pasted lesson content. Do not
   use the external Google Form/LINE, invent lesson answers, or retry the
   pending effect.
+
+### Runtime checkpoint — 2026-09-25 00:34 JST (Lancers funded gate)
+
+- [x] The latest persisted Lancers Paid snapshot is
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`; it contains no
+  funded contract candidate and no provider effect.
+- [x] Lancers Paid/readback focused tests pass (`17`). The existing adapter
+  still requires source-complete inventory, funded provider state, buyer event,
+  quality verification, and official delivery readback before mutation.
+- [ ] Keep Lancers as a no-op monitor. A public listing or approved browser
+  receipt is not a funded `ContractReceipt`; do not invent a delivery target.

@@ -4807,3 +4807,14 @@ leaves the provider effect closed.
   reconciler focused tests pass (`7`).
 - [ ] The next admissible cursor is buyer permission or pasted lesson content
   for `63568785`; never substitute LINE, the external form, or invented answers.
+
+## Runtime Status Refresh — 2026-09-25 00:34 JST (Lancers funded gate)
+
+- [x] The latest persisted Lancers Paid snapshot is
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`; no funded contract
+  candidate or provider effect is present.
+- [x] Lancers Paid/readback focused tests pass (`17`). Its adapter remains
+  fail-closed on source-complete inventory, funded provider state, buyer event,
+  quality verification, and official delivery readback.
+- [ ] Keep Lancers in monitor/no-op state. A public listing or approved browser
+  receipt is not a funded `ContractReceipt`; do not create a guessed delivery.
