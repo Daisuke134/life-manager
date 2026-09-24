@@ -2717,6 +2717,9 @@ A fresh read-only review initially found four fail-closed gaps; commit `e4504dfd
 regressions: an `external_effect` now requires `effect=verified` plus `readback=present`, simulation can never
 assert `self_funded`, a run uses one case-set hash trace so the 10,000-case bound no longer conflicts with the
 64-reference record bound, and secret-like or local-private-path evidence/trace refs are rejected.
+The fresh re-review at branch head `19a8a8476f` returns `ship` with no findings. Its residual risk is unchanged:
+real portfolio/CFO integration and production settlement remain unproven, so this does not close item 2,
+claim self-funding, claim USD 10,000 MRR, promote cloud, or authorize a PR/main merge.
 
 ### K. User Communication Contract
 
