@@ -25,6 +25,12 @@ const DEFAULT_FACILITATOR_START = join(
   __dirname, "..", "..", "..", "services", "facilitator", "start.sh",
 );
 const MAX_WALLET_BYTES = 4096;
+const HOST_OCCURRENCE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+
+function runtimeOccurrenceId(environ = process.env) {
+  const value = String(environ?.LIFE_MANAGER_OCCURRENCE_ID || "").trim();
+  return HOST_OCCURRENCE_ID_PATTERN.test(value) ? value : null;
+}
 
 function parseArgs(argv) {
   const args = Array.isArray(argv) ? argv : [];
@@ -133,6 +139,7 @@ async function main(argv = process.argv.slice(2), env = process.env, deps = {}) 
   const walletAddress = env.AGENT_WALLET_ADDRESS || DEFAULT_AGENT_WALLET;
   const rpcUrl = env.BASE_RPC_URL || DEFAULT_RPC_URL;
   const walletPath = env.LM_AGENT_WALLET_PATH || DEFAULT_WALLET_PATH;
+  const occurrenceId = runtimeOccurrenceId(env);
   const execute = deps.runPayout || runPayout;
   const balanceReader = deps.readUsdcBalance || readUsdcBalance;
   const protectedReader = deps.readProtectedWallet || readProtectedWallet;
@@ -153,6 +160,8 @@ async function main(argv = process.argv.slice(2), env = process.env, deps = {}) 
   const result = await execute({
     uid,
     walletAddress,
+    ...(occurrenceId ? { occurrenceId } : {}),
+    stateDir: env.LM_PAYOUT_STATE_DIR || join(homedir(), ".local/state/life-manager/life-manager-payout"),
     reserveAtomic: env.LM_PAYOUT_RESERVE_USDC_ATOMIC || undefined,
     maxPayoutAtomic: env.LM_PAYOUT_MAX_USDC_ATOMIC || undefined,
     facilitatorUrl: env.LM_PAYOUT_FACILITATOR_URL || DEFAULT_FACILITATOR_URL,
@@ -199,5 +208,6 @@ module.exports = {
   readUsdcBalance,
   ensureMainnetFacilitator,
   publicResult,
+  runtimeOccurrenceId,
   main,
 };

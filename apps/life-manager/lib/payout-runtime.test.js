@@ -1,13 +1,18 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const { mkdtempSync, readFileSync, statSync } = require("node:fs");
+const { tmpdir } = require("node:os");
+const { join } = require("node:path");
 const test = require("node:test");
 
 const {
+  appendPayoutReceipt,
   payoutIdFor,
   payoutReceiptText,
   readPayoutTenant,
   readWalletLedger,
+  runtimeOccurrenceId,
   runPayout,
 } = require("./payout-runtime.js");
 
@@ -15,6 +20,32 @@ const WALLET = "0x477EeE969ccfdc0e959F38cE8B83e372FC0262ad";
 const DESTINATION = "0x6592AA47ccAC10031253551D3CC30fC64Ba7edc7";
 const TX = `0x${"a".repeat(64)}`;
 const NOW = Date.parse("2026-07-27T12:00:00.000Z");
+
+test("payout receipt journal is occurrence-bound and mode 0600", () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "lm-payout-receipt-"));
+  const occurrenceId = "life-manager-payout:fixture-1";
+  const row = {
+    occurrence_id: occurrenceId,
+    provider_receipt_id: TX,
+    official_readback_ref: `base://tx/${TX}`,
+    proof_kind: "base_provider_settlement_receipt",
+    verified: true,
+    tx_hash: TX,
+    amount_atomic: "7000000",
+    from: WALLET.toLowerCase(),
+    to: DESTINATION.toLowerCase(),
+    block_number: "123",
+    status: "transferred",
+    effect_status: "submitted",
+  };
+  assert.equal(runtimeOccurrenceId(occurrenceId), occurrenceId);
+  assert.equal(runtimeOccurrenceId("bad value"), null);
+  assert.equal(appendPayoutReceipt(row, stateDir), true);
+  const path = join(stateDir, "payout-receipts.jsonl");
+  assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), row);
+  assert.equal(appendPayoutReceipt({ ...row, occurrence_id: null }, ""), false);
+});
 
 function earning(kind, amountMinor, suffix) {
   return {

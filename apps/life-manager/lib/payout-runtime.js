@@ -1,6 +1,9 @@
 "use strict";
 
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const { homedir } = require("node:os");
+const { join } = require("node:path");
 
 const { settleBaseUsdc } = require("./base-usdc-payout.js");
 const { normaliseEntry, formatUsdMicros } = require("./earnings-ledger.js");
@@ -11,6 +14,47 @@ const { sendMessage } = require("./telegram.js");
 
 const PAGE_SIZE = 1000;
 const MAX_LEDGER_ROWS = 10_000;
+const HOST_OCCURRENCE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+
+function runtimeOccurrenceId(value) {
+  const candidate = String(value == null ? "" : value).trim();
+  return HOST_OCCURRENCE_ID_PATTERN.test(candidate) ? candidate : null;
+}
+
+function appendPayoutReceipt(row, stateDir = process.env.LM_PAYOUT_STATE_DIR
+  || join(homedir(), ".local/state/life-manager/life-manager-payout")) {
+  if (!row || !row.occurrence_id) return false;
+  const directory = String(stateDir || "");
+  if (!directory || directory === ".") return false;
+  const file = join(directory, "payout-receipts.jsonl");
+  let descriptor;
+  try {
+    try {
+      const directoryStat = fs.lstatSync(directory);
+      if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) return false;
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") return false;
+      fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    }
+    try {
+      const fileStat = fs.lstatSync(file);
+      if (fileStat.isSymbolicLink() || !fileStat.isFile()) return false;
+    } catch (error) {
+      if (!error || error.code !== "ENOENT") return false;
+    }
+    const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND
+      | (fs.constants.O_NOFOLLOW || 0);
+    descriptor = fs.openSync(file, flags, 0o600);
+    fs.fchmodSync(descriptor, 0o600);
+    fs.writeSync(descriptor, `${JSON.stringify(row)}\n`);
+    fs.fsyncSync(descriptor);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+}
 
 function credentials(opts = {}) {
   const supaUrl = opts.supaUrl || process.env.SUPABASE_URL;
@@ -211,6 +255,21 @@ async function runPayout(request = {}, deps = {}) {
     from: walletAddress,
     to: destination,
   });
+  appendPayoutReceipt({
+    occurrence_id: runtimeOccurrenceId(request.occurrenceId),
+    provider_receipt_id: receipt.txHash.toLowerCase(),
+    official_readback_ref: `base://tx/${receipt.txHash.toLowerCase()}`,
+    proof_kind: "base_provider_settlement_receipt",
+    verified: true,
+    tx_hash: receipt.txHash.toLowerCase(),
+    amount_atomic: String(receipt.amountAtomic),
+    from: walletAddress.toLowerCase(),
+    to: destination.toLowerCase(),
+    block_number: String(receipt.blockNumber),
+    status: "transferred",
+    effect_status: "submitted",
+    payout_id: payoutId,
+  }, request.stateDir);
   const entry = {
     entry_key: `payout:${receipt.txHash}:transfer`,
     wallet_address: walletAddress,
@@ -264,6 +323,8 @@ module.exports = {
   readWalletLedger,
   payoutIdFor,
   payoutReceiptText,
+  appendPayoutReceipt,
+  runtimeOccurrenceId,
   assertSettlementReceipt,
   runPayout,
 };
