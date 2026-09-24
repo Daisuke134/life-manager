@@ -1676,3 +1676,12 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `85cd634f7899602e8d8655466b1d950d04d9dbca`, with diff-check and clean worktree.
 - [ ] Keep this as readiness evidence only. Do not merge or load production until capacity, full-suite,
   occurrence-complete readback, replay-zero and the two-pass foundation gate are green.
+
+### Durable recovery-journal diagnostics (2026-09-25 JST)
+
+- [x] Add bounded `reconcile_diagnostics` persistence to the private recovery journal. It retains eligibility counts
+  and validated gate/sample data only; unknown fields are discarded and no retry/effect-fence semantics change.
+- [x] Add regression coverage and run recovery Node suites **44/44** plus focused Python control-plane
+  **331 tests + 212 subtests**; push candidate commit `9e37fa5712`.
+- [ ] After accepted immutable loading, read back this field from one real non-Paid recovery occurrence and verify
+  replay-zero. Do not use branch journal evidence as production evidence.

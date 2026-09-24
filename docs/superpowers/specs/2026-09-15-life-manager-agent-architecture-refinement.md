@@ -5228,6 +5228,20 @@ whose receipt
 contains these fields, followed by bounded owner readback and replay-zero. Paid fulfillment remains outside this
 cursor.
 
+### Durable recovery-journal diagnostics (2026-09-25 JST)
+
+The candidate recovery supervisor now persists a bounded `reconcile_diagnostics` object in its private recovery
+journal whenever an executor returns the reconcile receipt. It retains only non-negative safe-integer eligibility
+counts and at most 32 gate names with at most ten validated loop-ID samples per gate; untrusted fields are discarded.
+This lets the next self-healing wake distinguish admission pressure, release-evidence drift and launchd state without
+parsing log text, while preserving the existing fail-closed retry and effect-fence behavior.
+
+Candidate commit `9e37fa5712` adds the implementation and regression. The recovery Node suites pass **44/44** and the
+focused Python control-plane suite passes **331 tests + 212 subtests**. This is branch evidence only; no production
+journal, launchd state, admission row, provider session or external effect was changed. After accepted immutable
+loading, the durable journal field must be read back from one real non-Paid recovery occurrence and replay-zero must
+still pass before the foundation gate is reconsidered.
+
 ### Latest release-reconciler read-only recheck (2026-09-25 JST)
 
 The current production status still points `ai.anicca.life-manager-release-reconciler` at the old loaded release
