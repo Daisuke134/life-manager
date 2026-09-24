@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 from provider_authorization import AuthorizationReceipt, AuthorizationState  # noqa: E402
 from freelancer_readiness import (  # noqa: E402
     INVENTORY_READ_ACTIONS,
+    FREELANCER_AUTOMATED_BID_APPROVAL_TERMS,
     REQUIRED_ACTIONS,
     ReadinessError,
     evaluate_registration,
@@ -28,7 +29,12 @@ NOW = datetime(2026, 9, 24, 14, 0, tzinfo=timezone.utc)
 HASH = "a" * 64
 
 
-def _receipt(action: str, *, state: AuthorizationState = AuthorizationState.APPROVED_BROWSER):
+def _receipt(
+    action: str,
+    *,
+    state: AuthorizationState = AuthorizationState.APPROVED_BROWSER,
+    terms_version: str = FREELANCER_AUTOMATED_BID_APPROVAL_TERMS,
+):
     return AuthorizationReceipt(
         provider="freelancer",
         account="account-94117802",
@@ -36,7 +42,7 @@ def _receipt(action: str, *, state: AuthorizationState = AuthorizationState.APPR
         transport="cloak_browser" if state is AuthorizationState.APPROVED_BROWSER else "official_api",
         state=state,
         jurisdiction="JP",
-        terms_version="freelancer-v1",
+        terms_version=terms_version,
         evidence_hash=HASH,
         issued_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
         expires_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
@@ -73,6 +79,7 @@ def test_registration_gate_is_closed_without_auth_inventory_or_funding():
         "authorization_missing",
         "inventory_incomplete",
         "funded_contract_missing",
+        "provider_policy_missing",
     }
 
 
@@ -143,6 +150,24 @@ def test_registration_gate_opens_only_with_fresh_auth_and_funded_contract():
     assert report.ready is True
     assert report.reasons == ()
     assert report.funded_contract_ids == ("contract-1",)
+
+
+def test_registration_rejects_automatic_bid_without_provider_policy_approval():
+    snapshot = parse_inventory(_inventory())
+    receipts = [
+        _receipt(
+            action,
+            terms_version=(
+                "freelancer-v1"
+                if action == "propose"
+                else FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+            ),
+        )
+        for action in sorted(REQUIRED_ACTIONS)
+    ]
+    report = evaluate_registration(receipts, snapshot, now=NOW)
+    assert report.ready is False
+    assert report.reasons == ("provider_policy_missing",)
 
 
 def test_plan_effect_is_bound_to_funded_contract_and_authorization():

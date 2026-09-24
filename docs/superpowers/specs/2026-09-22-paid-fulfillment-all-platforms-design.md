@@ -41,6 +41,16 @@ registration → zero-effect canary → funded canary/official receipt → settl
 and payout readback → crash recovery/replay-zero. Ryu's Coconala manual send is
 a client-layer completion and does not close the Coconala system-layer gate.
 
+### Freelancer policy correction — 2026-09-25 08:11 JST
+
+The official Freelancer API guidance prohibits automatic bidders unless the
+provider has granted an explicit internal-tool exception. The execution SSOT
+now enforces this at both transport selection and owner readiness: `propose`
+requires the dedicated provider-approved terms version
+`freelancer-internal-automation-approved-v1`; a normal account receipt cannot
+open an automatic proposal lane. See `skills/earn/gig/TODO.md` for the current
+gate and evidence. No provider account or external proposal was touched.
+
 ### Live platform gate correction — 2026-09-25 04:11 JST
 
 The current production readback distinguishes source registration from a loaded

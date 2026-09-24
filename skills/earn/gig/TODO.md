@@ -1,5 +1,26 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:11 JST (Freelancer automatic-bid policy gate)
+
+The official Freelancer API integration guidance lists an automatic bidder as a
+prohibited integration unless the provider grants an explicit internal-tool
+exception: <https://developers.freelancer.com/docs/api-overview/types-of-integrations>.
+The Freelancer readiness and transport boundaries now enforce that policy:
+the `propose` action requires a dedicated provider-approved terms version
+(`freelancer-internal-automation-approved-v1`) in addition to the normal
+account-bound action receipt. A generic authorization receipt can no longer
+select a proposal transport or open the owner gate. This is a code-side
+fail-closed correction; no Freelancer account, proposal, or external effect
+was created.
+
+The focused Freelancer/Upwork gate suite is green at `81 passed`; the complete
+Gig regression suite is green at `1479 passed in 98.55s`. The external
+Freelancer and Upwork gates remain unchanged: no connected BrowserSkill lease,
+no Freelancer OAuth/inventory/funded project, and Upwork's official snapshot
+still has `contracts=[]` with only read-only receipts. Owner registration stays
+closed until the provider policy, authentication, source-complete inventory,
+and funded-work gates are all proven.
+
 ## Current cursor — 2026-09-25 08:04 JST (specific all-platform gate readback)
 
 This is the current platform-by-platform state. The local loop status and the

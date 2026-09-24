@@ -35,6 +35,10 @@ _OFFICIAL_READBACK_KEYS = frozenset({
 })
 _MILESTONE_FUNDED_STATES = frozenset({"pending", "requested_release", "frozen", "disputed"})
 _MILESTONE_STATES = _MILESTONE_FUNDED_STATES | {"cleared", "canceled"}
+# Freelancer's public API documentation prohibits automatic bidders unless
+# the provider has explicitly approved an internal tool exception. A normal
+# action receipt is not that exception; it needs this separate terms version.
+FREELANCER_AUTOMATED_BID_APPROVAL_TERMS = "freelancer-internal-automation-approved-v1"
 REQUIRED_ACTIONS = frozenset({
     "search", "inspect", "propose", "message", "accept_offer", "deliver",
     "read_payments", "read_payouts",
@@ -412,6 +416,11 @@ def evaluate_registration(
     reasons: list[str] = []
     if missing:
         reasons.append("authorization_missing")
+    if (
+        approved.get("propose") is None
+        or approved["propose"].terms_version != FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+    ):
+        reasons.append("provider_policy_missing")
     if not inventory.source_complete:
         reasons.append("inventory_incomplete")
     funded_ids = tuple(
@@ -437,6 +446,7 @@ def _decision(receipt: AuthorizationReceipt) -> AuthorizationDecision:
         reason="matching_receipt",
         evidence_hash=receipt.evidence_hash,
         receipt_hash=receipt.receipt_hash,
+        terms_version=receipt.terms_version,
     )
 
 
