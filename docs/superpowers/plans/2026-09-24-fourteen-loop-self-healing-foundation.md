@@ -1689,3 +1689,16 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Re-run read-only merge-tree after the journal commit: candidate `9e37fa5712162c44f308caefe2a1c4ac063a4bed`
   against `origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c` is clean at
   `d6bc25e8aeb81b288c6f847e963077f23cce01fb`.
+
+### Common launchd Node boundary follow-up (2026-09-25 JST)
+
+- [x] Re-read the live boundaries: old release-reconciler still logs `exec: node: not found`; recovery-supervisor
+  has a complete retryable terminal but logs database-lock/ENOSPC deferrals; disk-cleanup still exits 0 with no
+  reclaim. No production mutation was performed.
+- [x] Add candidate `e69cd97651`: shared `lm_loop_run._runtime_node()` now uses the managed `/opt/homebrew/bin/node`
+  fallback when both runtime env and PATH are unavailable, while an explicitly invalid configured path remains
+  fail-closed. Verify **332 tests + 212 subtests**, compile and diff checks; push the candidate.
+- [ ] Restore capacity, then load the candidate as immutable release and re-read the recovery supervisor and
+  release-reconciler occurrence. Do not use branch test evidence as production proof.
+- [x] Read-only merge-tree for candidate `e69cd976518fbe0bd996e507457badd1ba013b94` against `origin/main d4fe0819`
+  is clean at `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`; this does not authorize merge or production loading.

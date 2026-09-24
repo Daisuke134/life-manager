@@ -5268,3 +5268,26 @@ approval: capacity, full-suite, immutable-load, occurrence-complete readback and
 The subsequent durable-journal commit `9e37fa5712162c44f308caefe2a1c4ac063a4bed` was also compared read-only
 against the same `origin/main`; the clean merge tree is now `d6bc25e8aeb81b288c6f847e963077f23cce01fb`. No merge,
 release creation or production loading was performed.
+
+### Common launchd Node boundary follow-up (2026-09-25 JST)
+
+During a fresh read-only poll, the loaded old release-reconciler continued to emit `bin/lm-recovery-supervise:
+exec: node: not found` while its surface event remained occurrence-incomplete. The loaded recovery-supervisor had a
+complete retryable terminal (`entrypoint_exit_1`) but its owner log also showed repeated `database is locked` and
+ENOSPC deferrals. The disk-cleanup owner still exited 0 without reclaiming space. This confirms that the production
+release has not received the candidate Node boundary fixes.
+
+Candidate commit `e69cd97651` extends the managed Node fallback from the shell supervisor to the shared
+`lm_loop_run._runtime_node()` path used to invoke JavaScript entrypoints and recovery intent classification. A red/green
+regression proves that an empty launchd PATH and absent runtime-node env resolve to `/opt/homebrew/bin/node` only when
+that managed executable is present; an explicitly configured invalid path still fails closed. The focused Python set
+passes **332 tests + 212 subtests**, with compilation and diff checks clean. No production process was restarted and no
+admission, provider, Connector or Paid state was mutated.
+
+The current capacity probe is **399,544 KB free** at 100% filesystem use, still below the
+`1,155,780,608`-byte floor. After capacity recovery, the candidate must be loaded as an immutable release before
+re-reading these Node and recovery-supervisor boundaries.
+
+The follow-up candidate `e69cd976518fbe0bd996e507457badd1ba013b94` also has a clean read-only merge-tree against
+`origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c`, tree `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`. This is
+readiness evidence only, not merge or production authorization.
