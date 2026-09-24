@@ -3536,3 +3536,28 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    `unsupported_claim` policy after the active cursor.
 6. [ ] Register/verify Freelancer and Upwork Paid owners, then run final
    cross-platform acceptance. Loaded/no-op is not a client delivery.
+
+### Runtime checkpoint — 2026-09-24 16:22 JST (Reply fence readback)
+
+- [x] Fresh owner/lock readback plus exact pre-effect proof allowed internal
+  reconciliation of Reply occurrence `18d7e9e255e339a8-34620`.
+- [x] Both reconciled Reply occurrences (`18d7e99bfeab14a8-32195` and
+  `18d7e9e255e339a8-34620`) now read back as `released/effect_unknown=0`.
+  No provider call, reply, resend, or client submission occurred.
+- [ ] Branch fix `8aedae534a` is pushed but not yet in the immutable production
+  release; release acceptance/promotion and a natural wake remain pending.
+
+### Remaining TODO (authoritative ordered cursor, 16:22 JST)
+
+1. [ ] Promote the bounded SQLite-wait fix through the immutable release gate;
+   verify a natural CrowdWorks wake.
+2. [ ] Reconcile remaining Reply/Report occurrences one by one with exact
+   pre-effect proof, official readback, and replay-zero.
+3. [ ] Keep the canonical CrowdWorks Paid unknown fenced; preserve the
+   Application receipt and never replay its proposal.
+4. [ ] Finish Ryu's remaining scope and Coconala Reply/Storefront acceptance,
+   natural wake, four-room readback, and replay-zero with Ryu manual-only.
+5. [ ] Advance Lancers then Mercor; review `unsupported_claim` later because
+   the reported Lancers event had no external send.
+6. [ ] Register/verify Freelancer and Upwork Paid owners, then run final fleet
+   acceptance.
