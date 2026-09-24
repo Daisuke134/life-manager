@@ -10,7 +10,7 @@ below. A fresh read of
 `/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`
 shows `effect_unknown=1` on 665 occurrences overall; exactly 5 belong to the
 critical Paid/Apply/Storefront owners below. The other 660 are non-critical or
-system-owner rows and are a separate audit; they are not silently cleared here.
+unrelated-owner rows and are a separate audit; they are not silently cleared here.
 No provider send or retry was issued during this readback.
 
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
@@ -45,6 +45,13 @@ only current effect-critical rows for this revenue run; each is still
 `claimed/effect_unknown=1` and has no admissible exact provider receipt. The
 remaining 660 rows must be audited by owner and occurrence before any cleanup;
 no direct SQLite mutation or blanket resolver is allowed.
+
+`lm-loop status all` is not the source of truth for those exact fences: its
+CrowdWorks/Lancers entries currently show stale historical 18d829 events with
+incomplete diagnostics, while the read-only Admission DB identifies the active
+critical rows as CrowdWorks `18d62c…` and Lancers `18d819…`. The DB occurrence
+plus an exact provider receipt/readback wins; a stale status event never
+authorizes a retry or a blanket release.
 
 For the two not-yet-registered providers, the gate is concrete:
 
