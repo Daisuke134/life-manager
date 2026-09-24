@@ -12,7 +12,7 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Live platform gate correction — 2026-09-25 03:30 JST
+### Live platform gate correction — 2026-09-25 03:47 JST
 
 The current production readback distinguishes source registration from a loaded
 loop. This correction supersedes older prose that called CrowdWorks or Lancers
@@ -20,18 +20,18 @@ Paid "running" solely because a registry row and a result file existed.
 
 | Platform | Current observed state | Gate still open |
 |---|---|---|
-| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid remains effect-free/loaded-idle. Apply and Storefront are now intentionally unloaded for host safety; Apply still has `5280157` plus a later host fence, while the latest Storefront d4fe wake ended `entrypoint_exit_1` after CDP HTTP 500 with no provider receipt/readback. Ryu remains a manual-only, already-read-back exception. | Recover disk headroom, diagnose the 9223/CDP boundary, reconcile exact occurrences, then controlled reload, official readback, and replay-zero. |
+| Coconala | Public inventory readback has 20 live listings with unchanged normalized catalog SHA. Paid is loaded-idle but its latest d4fe wake ended `entrypoint_exit_1` with `effect_class=none`; Apply and Storefront are intentionally unloaded for host safety. Apply still has `5280157` plus a later host fence, while the latest Storefront wake ended `entrypoint_exit_1` after CDP HTTP 500 with no provider receipt/readback. Ryu remains a manual-only, already-read-back exception. | Recover disk headroom, diagnose the 9223/CDP boundary, reconcile exact occurrences, then controlled reload, official readback, and replay-zero. |
 | CrowdWorks (CloudWorks) | Latest Paid result is `5 observed / 1 actionable / 4 readback / 0 effect / 1 pending`; direct status confirms the actual launchd service is unloaded, while the persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. | Exact pre-effect/provider proof, then load one owner and run a no-effect canary; pending `63568785` still waits for buyer material. |
-| Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Direct status confirms the Paid service is unloaded; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
+| Lancers | Source-complete zero-funded inventory, zero balance, `0/0/0/0`; job `5606124` is `unsupported_claim` with no send. Direct status confirms the Paid service is unloaded; its persisted `entrypoint_exit_143` occurrence remains `admission_effect_unknown=true` with incomplete diagnostics. The separate application owner is loaded-idle, but has no funded-contract or provider-receipt proof. | Exact fence reconciliation, refreshed inventory, then a funded `ContractReceipt` before formal delivery. |
 | Mercor | Browser account is authenticated, but the official work inventory is stale and earnings are `$0.00`; Paid is loaded-idle but latest status is `resource_effect_unknown` with no receipt/readback. | Recover capacity, refresh inventory, and reconcile exact application/Paid/Reply fences. |
-| Freelancer.com | No OAuth, approved receipts, authenticated inventory, or funded project; bid watcher only observed four expired projects. | Account-bound authentication, funded-project readback, then owner registration. |
-| Upwork | Read-only authenticated snapshot is source-complete with zero contracts/funded milestones. Transactions/withdrawals are empty; mutation receipts are denied; no current Paid owner is loaded. | Fresh mutation authorization, real funded contract/milestone, then owner registration and canaries. |
+| Freelancer.com | No OAuth, approved receipts, authenticated inventory, or funded project; the read-only watcher rechecked 4 stored projects and found `active=0`, `errors=0`. | Account-bound authentication, source-complete identity/project/milestone/payment/payout readback, then funded-project proof and owner registration. |
+| Upwork | No current OAuth file. Historical profile/account evidence exists, but the stored source-complete contract snapshot is `contracts=[]` with empty transactions/withdrawals; current CDP has no Upwork page and mutation receipts are denied. | Fresh mutation authorization and account-bound contract/milestone readback, real funded contract, then owner registration and canaries. |
 
 The immediate order is therefore: reconcile exact old fences without guessing,
 then finish each provider's read-only/authentication gate, and only register a
 Freelancer/Upwork owner after both authentication and funded-work evidence exist.
 The host has also hit `ENOSPC` during receipt/SQLite writes. The latest `df`
-readback is about 161 MiB free at 100% capacity; a small tempfile probe now
+readback is about 248 MiB free at 100% data-volume capacity; a small tempfile probe now
 succeeds, but this is still below a stable operating margin. Allowlisted cleanup preserved
 all five open candidates and reclaimed zero bytes. Apply and Storefront are
 unloaded to stop additional failed writes. Disk headroom must be stable before
