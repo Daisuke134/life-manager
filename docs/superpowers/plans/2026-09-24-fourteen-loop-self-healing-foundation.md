@@ -1634,6 +1634,8 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   plists remain preserved and untouched.
 - [x] Add candidate `c1fb26d0ae`, a fail-closed `/opt/homebrew/bin/node` fallback for launchd's minimal PATH, and
   verify registry/apply tests **214 tests + 212 subtests** plus shell syntax/diff checks.
+- [x] Exercise that fallback with `PATH=/usr/bin:/bin`, no runtime-node env and an empty temporary queue: candidate
+  supervisor returned `ok=true / idle / no_pending_intent`; production state was untouched.
 - [ ] After capacity recovery and candidate immutable loading, re-read the reconciler itself first. It must produce an
   occurrence-complete terminal result and reconcile only loaded-idle owners in bounded batches; no release directory may
   be deleted until its launchd references are proven absent. Paid owners remain outside this cursor.

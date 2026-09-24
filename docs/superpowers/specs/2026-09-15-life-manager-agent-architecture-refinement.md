@@ -5192,6 +5192,11 @@ loaded into production, and no Paid fulfillment, Connector source/session, brows
 changed. Production still requires capacity recovery, full-suite verification, accepted immutable loading and a
 reconciler owner readback before any release-retention deletion can be considered.
 
+The candidate fallback was also exercised in a clean environment with `PATH=/usr/bin:/bin` and no runtime-node env
+variable, using an empty temporary recovery queue and the candidate registry. It selected `/opt/homebrew/bin/node` and
+returned `ok=true`, `state=idle`, `reason=no_pending_intent`; no production queue, provider, browser or launchd state was
+read or mutated.
+
 ### Cleanup candidate open-owner readback (2026-09-25 JST)
 
 The five allow-listed cache candidates are all genuinely open, so the cleanup owner's preservation is correct:
