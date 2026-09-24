@@ -25,8 +25,10 @@ present and test-covered; it does not create provider credentials or contracts.
 
 ### Shared blocker that currently affects every external readback
 
-The data volume is at about `569 MiB` available and `100%` capacity. Lancers
-logs show `OSError: [Errno 28] No space left on device`, SQLite WAL failures,
+The data volume briefly fell to about `569 MiB` available at `100%` capacity
+during the failed preflight; a later readback recovered to about `2.1 GiB`
+available but remains at `99%`. Lancers logs show `OSError: [Errno 28] No
+space left on device`, SQLite WAL failures,
 and heartbeat/resource-release errors. The canonical cleanup owner preserved
 all five allow-listed caches because they were open (`reclaimed=0`); no
 protected state/evidence was deleted. I will not clear an admission fence or
