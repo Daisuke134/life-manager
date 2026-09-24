@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:48 JST (retention cap and Coconala queue cleanup verified)
+## Current cursor — 2026-09-25 06:49 JST (retention cap, queue cleanup, and browser gate rechecked)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -24,6 +24,15 @@ is therefore still an account-bound BrowserSkill lease (or an official OAuth
 receipt), not loop registration. Upwork's three read-only receipts remain
 valid only until `2026-09-25T17:30:28Z`; the five mutation actions remain
 explicitly denied.
+
+After disk recovery, the BrowserSkill boundary was rechecked at
+`2026-09-25 06:49 JST`: the daemon is healthy and protocol-compatible, but
+`extension connected` still fails with `0 browsers connected`, while both
+`bsk browsers --json` and `bsk session list --json` remain empty. A fresh
+session cannot be created without the connected browser extension, so no
+Freelancer or Upwork page was opened and no provider effect was attempted.
+This is the exact external blocker for the next one-by-one step; the code-side
+registration gates remain fail-closed.
 
 The shared capacity investigation now has a concrete owner boundary. The
 central agent-runner retention code only accepts the guarded
