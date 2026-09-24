@@ -3898,6 +3898,13 @@ is successful at the command layer but returns `skipped_pending` for the request
 readback and the reconcile payload, so the next wake can retry only after admission eligibility changes. The
 focused recovery contract is 33/33; no production/provider state changed.
 
+A second read-only one-owner probe targeted `job-search-daily`, an effect-free Job Hunter owner. Its current
+readback was loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission effect-unknown=false,
+but the current release also predates the branch's explicit queued-release contract. The reconciler returned
+`ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[job-search-daily]`; no launchd reload, job-search
+entrypoint or external application occurred. The shared boundary is therefore release promotion, not a provider
+submission failure.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

@@ -739,6 +739,13 @@ The following is the current control-plane state. It is evidence for the next bo
   without reloading the job or entering its entrypoint. This is the expected fail-closed result: the next step is
   accepted-release promotion of the explicit Agent Economy contract, not a blind retry or a manual admission
   database edit. No wallet, payment, model, provider or revenue effect occurred.
+- [x] Probe the next independent effect-free Job Hunter owner, `job-search-daily`, against the same current
+  release. Its readback is loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission
+  effect-unknown=false, but the current release likewise lacks the branch's explicit queued-release contract.
+  The bounded command returned `ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[job-search-daily]`; no
+  launchd reload, job-search entrypoint or external application occurred. This confirms the blocker is shared
+  release promotion, not a provider/application failure, and the next action remains the accepted immutable
+  release containing the branch admission contracts.
 - [x] Re-run the complete `runtime/loop` Node suite at this branch boundary. It reports 304 tests, 301 pass and
   three file-level failures, all environment dependency gaps: `@solana/web3.js` is absent for
   `always-act-reroute` and `always-act-wire-seam`, and `fast-check` is absent for `always-act-router`. Focused
