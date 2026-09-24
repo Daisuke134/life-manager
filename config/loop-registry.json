@@ -3363,6 +3363,7 @@
       "label": "ai.anicca.x402-claude-p",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-experiment-franklin1": {

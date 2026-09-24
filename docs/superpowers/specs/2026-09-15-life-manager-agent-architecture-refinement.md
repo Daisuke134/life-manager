@@ -3821,6 +3821,11 @@ The top-level `agent-economy-loop` continuous owner now declares `resource_class
 admission/priority policy is inferred. No Agent Economy/x402 model, wallet, payment or provider effect was started;
 the declaration remains branch-only pending exact-release loaded-idle/readback.
 
+The continuous `x402-claude-p` model owner now declares `resource_class=agent` from its
+`provider_route=shared-agent-runner` and keep-alive identity. It has no finite admission rows, so no
+admission/priority policy is inferred. No x402 model wake, wallet, payment or provider effect was started; this
+remains branch-only pending exact-release loaded-idle/readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
