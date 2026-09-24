@@ -1049,6 +1049,10 @@ The following is the current control-plane state. It is evidence for the next bo
   `effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
   `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
   remains open until a current durable terminal is produced.
+- [x] Probe the remaining catalog effect-free Lancers candidate, `lancers-revenue-work-sync`. Its scoped
+  deterministic reconcile returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
+  because the scheduler moved it to running between the read-only status and reconcile. No restart or external
+  application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
 - [x] Re-read the 14-loop foundation gate after the Writer, Capafy and Self-build safe rebinds. It remains
   `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
   `decision=block` for `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and

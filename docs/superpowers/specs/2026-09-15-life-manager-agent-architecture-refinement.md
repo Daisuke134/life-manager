@@ -4445,6 +4445,11 @@ The 14-loop foundation gate was re-read after the Writer, Capafy and Self-build 
 rebinds did not create an effect or clear a fence; the next executable cursor is accepted main-derived release
 promotion plus stale-event/official-fence resolution.
 
+The remaining catalog effect-free Lancers candidate, `lancers-revenue-work-sync`, was probed with the scoped
+deterministic reconcile. It returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
+because the scheduler moved it to running between the read-only status and reconcile. No restart or external
+application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
+
 The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
 apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
 launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
