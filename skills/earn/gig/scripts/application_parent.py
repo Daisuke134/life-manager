@@ -840,7 +840,7 @@ def _offer_detail_fetch_expression(offer_url: str) -> str:
       }} catch (error) {{
         return {{transport:'fetch',error:String(error)}};
       }}
-    }})()).then(JSON.stringify)"""
+    }})().then(JSON.stringify)"""
 
 
 def _applied_history_fetch_expression(history_url: str) -> str:
@@ -869,7 +869,7 @@ def _applied_history_fetch_expression(history_url: str) -> str:
       }} catch (error) {{
         return {{transport:'fetch',error:String(error)}};
       }}
-    }})()).then(JSON.stringify)"""
+    }})().then(JSON.stringify)"""
 
 
 def _valid_applied_history_fetch(value: object, expected_url: str) -> bool:
