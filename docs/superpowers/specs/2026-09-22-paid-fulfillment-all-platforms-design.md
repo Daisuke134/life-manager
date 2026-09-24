@@ -5274,3 +5274,16 @@ revenue owner and is not permission to send.
   write-action authorization before a Paid owner may be registered. Keep the
   loop disabled; the next safe step is read-only opportunity/offer monitoring,
   not proposal submission.
+
+## Runtime Status Refresh — 2026-09-25 02:33 JST (Upwork invite/proposal readback)
+
+- [x] A fresh authenticated Proposals and offers readback shows `Offers (0)`,
+  `Invites from clients (3)`, `Active proposal (1)`, and `Submitted proposals
+  (7)`. No proposal, invite acceptance, Connects spend, or message effect was
+  performed; evidence is stored in the private Upwork trajectory.
+- [x] The official job-search URL returned a Cloudflare challenge page rather
+  than a job inventory. No bypass, retry loop, or candidate submission was
+  attempted; the challenge is recorded as an inventory-readback boundary.
+- [ ] Upwork remains authenticated/readable but has no Offer or funded
+  `ContractReceipt`. Keep all write actions denied and do not register the Paid
+  loop until a real funded milestone is officially read back.
