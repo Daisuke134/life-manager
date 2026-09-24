@@ -3485,3 +3485,39 @@ not convert a transient pass or a no-op into client completion.
    CrowdWorks with official readback/replay-zero before Lancers/Mercor.
 4. Complete fleet acceptance; keep Coconala/Ryu manual-only and Upwork disabled
    until authorization/funding gates pass.
+
+## Runtime Cursor — 2026-09-24 15:11 JST (CI green; Ryu follow-up read)
+
+- **Required CI is complete.** Security Scan run `35962458809` passed all jobs;
+  this clears the code-verification gate but does not authorize a provider
+  submission or release.
+- **Ryu sent three new requests after the prior formal delivery.** The latest
+  Coconala talkroom readback at 9/24 12:49–12:54 says: make WEB予約 connect,
+  fill the profile-top text area, and add the supplied official LINE to the
+  recruitment page (it currently cannot be added). The room already shows
+  formal-delivery sent, but these newer requests mean the client work is not
+  complete; no reply or new delivery was sent in this read-only check.
+- **Live fleet is mixed, not complete.** Coconala Paid has effect-none passes,
+  but its four-talkroom official receipt is older than Ryu's new messages;
+  Coconala Reply is blocked by an inbox HTTP error and Storefront is
+  effect-fenced. CrowdWorks/Lancers Paid remain unloaded/effect-unknown;
+  Mercor Reply/Application remain effect-fenced. Freelancer and Upwork owners
+  are retired/disabled in the registry.
+
+### Next one-by-one cursor (15:11 JST)
+
+1. Keep the four canonical historical fences closed; resolve only with exact
+   provider/run or pre-effect evidence through supported resolvers. Other new
+   resource-fenced occurrences must likewise remain closed.
+2. Complete Ryu's three new requirements manually, verify the public site and
+   management screen, and only then decide whether a single final delivery is
+   warranted. Do not resend now.
+3. Align the immutable release and stable resource window, then canary
+   CrowdWorks with official readback/replay-zero before Lancers/Mercor.
+4. Build and verify Freelancer and Upwork lanes before enabling them: fresh
+   authenticated sessions, provider adapters, funded-contract/application
+   policy, idempotent delivery, settlement readback, and replay-zero. They are
+   not turn-on-ready today.
+5. Finish final cross-platform acceptance. Continuous seven-week monitoring
+   is not a completion requirement; one clean canary plus normal alerting is
+   sufficient after each lane passes its gates.

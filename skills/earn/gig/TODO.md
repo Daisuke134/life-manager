@@ -3211,3 +3211,22 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   canary, then proceed one platform at a time.
 - [ ] Final fleet acceptance; Coconala/Ryu remains manual-only and Upwork stays
   disabled until authorization/funding gates pass.
+
+### Runtime checkpoint — 2026-09-24 15:11 JST (CI green; Ryu follow-up read)
+
+- [x] Required CI/security run `35962458809` passed all jobs.
+- [ ] Keep the four canonical historical fences closed; resolve only with
+  exact provider/run or pre-effect evidence. Keep newer resource-fenced wakes
+  closed as well.
+- [ ] Ryu has three new Coconala requirements after the prior formal delivery:
+  WEB予約 connection, full profile-top text, and official LINE on the
+  recruitment page. Verify both public and management views; do not resend yet.
+- [ ] Coconala Paid no-op canary is healthy, but Reply has an inbox HTTP error
+  and Storefront is effect-fenced; the client lane is therefore not complete.
+- [ ] Deploy/align an immutable release and canary CrowdWorks with official
+  readback/replay-zero, then advance Lancers/Mercor one owner at a time.
+- [ ] Freelancer and Upwork are retired/disabled. Add authenticated provider
+  adapters, funded-contract policy, idempotent delivery/settlement readback,
+  and replay-zero before enabling either platform.
+- [ ] Run final fleet acceptance. No seven-week monitoring gate is required
+  once each lane has a clean canary and normal alerting.
