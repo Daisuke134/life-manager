@@ -1165,3 +1165,15 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `admission_effect_unknown=false`, `diagnostic_complete=true`, terminal `pass`, exit `0`, and `next_action=none`.
   This proves the lock-safe read path at the production boundary for this already-current owner only; it does not
   clear any fence or promote the branch.
+
+### Post-probe fleet/registry readback (2026-09-25 JST)
+
+- [x] Re-read the full fleet after the admission probe. The selector d4 projection returned 271 rows and the local
+  foundation gate stayed `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block`; no new external/provider failure was inferred.
+- [x] Run read-only `lm-loop doctor` against the same selector. It returned `rc=0`, `ok=true`, zero missing
+  entrypoints and zero unmanaged labels. The remaining blocker is accepted-release/owner evidence alignment, not
+  registry entrypoint loss.
+- [ ] Promote the accepted main-derived immutable release containing the pushed control-plane fixes before any
+  further owner rebind. Do not apply the branch's registry-only contracts to production, clear admission fences,
+  or infer provider/revenue success from scheduler health.

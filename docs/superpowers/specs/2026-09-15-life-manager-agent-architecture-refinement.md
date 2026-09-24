@@ -4590,3 +4590,14 @@ status readbacks were byte-identical and reported `loaded-idle`, `pid=null`, `in
 `last_terminal_result=pass`, `exit_code=0`, and `next_action=none`. This closes the read-contention probe for this
 already-current, effect-free owner. It does not promote the branch, clear any other fence, or make the 14-loop
 foundation gate healthy.
+
+### Post-probe fleet/registry readback (2026-09-25 JST)
+
+After the targeted probe, a fresh `lm-loop status all` against selector d4 returned 271 rows and the local
+foundation projection remained `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+`uncovered_failure=13`, `decision=block`. The 13 uncovered loops are still release/diagnostic alignment gaps or
+the separately owned Connector terminal failure; this is not evidence of new provider revenue failure. A read-only
+`lm-loop doctor` against the same selector returned `rc=0`, `ok=true`, zero missing entrypoints and zero unmanaged
+labels. Therefore the remaining boundary is release promotion/owner evidence, not a missing registry entrypoint.
+The branch remains pushed but production still runs the accepted main-derived selector; no manual admission edit,
+effect-fence clear, provider session change, or external effect was performed.
