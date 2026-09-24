@@ -142,3 +142,24 @@ def test_exact_paid_zero_effect_run_supports_shared_paid_state_layout(tmp_path):
 
     assert proof["verified"] is True
     assert proof["occurrence_id"] == occurrence
+
+
+def test_cli_reports_missing_occurrence_proof_as_structured_safety_stop(tmp_path,
+                                                                        capsys):
+    module = load()
+    occurrence = "crowdworks-revenue-paid:missing-proof"
+
+    result = module.main([
+        "--state-root", str(tmp_path / "crowdworks"),
+        "--owner", "crowdworks-revenue-paid",
+        "--occurrence", occurrence,
+    ])
+
+    assert result == 75
+    output = capsys.readouterr().out
+    event = json.loads(output)
+    assert event["error_class"] == "exact_paid_zero_effect_proof_unavailable"
+    assert event["effect_status"] == "unknown"
+    assert event["retryable"] is False
+    assert event["next_action"] == "obtain_occurrence_bound_readback"
+    assert event["resolved"] is False
