@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "target": {
+    "loop_id": "life-manager-connector-native",
+    "label": "ai.anicca.life-manager-connector-native",
+    "provider_route": "deterministic",
+    "effect_class": "none"
+  },
+  "sibling": {
+    "loop_id": "affiliate-composition",
+    "label": "ai.anicca.affiliate-composition",
+    "provider_route": "deterministic",
+    "effect_class": "none"
+  },
+  "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "failure_event": {
+    "loop_id": "life-manager-connector-native",
+    "owner_id": "life-manager-connector-native",
+    "wake_id": "wake-canary-1",
+    "run_id": "run-canary-1",
+    "occurrence_id": "life-manager-connector-native:run-canary-1",
+    "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "fail",
+    "failure_layer": "entrypoint",
+    "effect_class": "none",
+    "effect_status": "not_applicable",
+    "blocker": "wake_boundary_failed",
+    "consecutive_failure_streak": 1,
+    "threshold": 3,
+    "evidence_refs": [
+      "lm-loop://life-manager-connector-native/run-canary-1/summary.json"
+    ]
+  }
+}

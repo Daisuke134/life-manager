@@ -2888,11 +2888,16 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    Recovery promotion intentionally fails closed before merge because the existing guard proves only a Railway
    app deployment, not a runtime-loop immutable release. Self-build/guard/bridge tests pass 158/158, recovery
    tests 29/29 and agent-runner tests 76/76.
-7. **Current cursor — isolated recovery canary:** prove one low-risk non-Paid recovery end to end, then make the
-   real failure a retained regression fixture. Add the distinct immutable candidate, canary, exact-health and
-   rollback stages before enabling marked recovery PR promotion.
-   Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
-8. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
+7. **Complete on the implementation branch:** the canonical `life-manager-connector-native` contract is pinned
+   as non-Paid, `effect_class=none`, deterministic and Connector-catalog-owned. A test-owned
+   `wake_boundary_failed` traverses event -> typed intent -> one-owner repair -> exact immutable-release status
+   -> recovery outcome -> replay-zero through the real Life Manager recovery modules. A forced verification
+   failure stays inside attempt/cooldown budget; the real `install_one` snapshot rollback restores the target
+   plist byte-for-byte and leaves a sibling byte-for-byte unchanged. Node recovery tests pass 32/32 and the
+   real-installer canary passes 1/1. No production process, browser, credential, network owner or Paid runtime
+   is touched. This does not claim the production Connector is repaired or enable marked recovery PR promotion.
+8. **Current cursor — fourteen-loop recovery enrolment:** enrol the remaining thirteen Product Loops one by one
+   through closed shared recovery classes and retained class fixtures, not one bespoke healer per loop.
    Consume marketplace/Paid health and receipts read-only from the separate owner; never operate its runtime.
 9. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
    bounded automatic recovery for covered failures, sibling isolation and deterministic replay/rollback.
@@ -2909,7 +2914,7 @@ This is an explicit priority change. The old order continued CFO/economic adapte
 before proving the shared healer across all loops. The new order is observability -> shared self-heal -> one
 recovery proof -> fourteen-loop local acceptance -> cloud -> economic eval/self-improvement. The reason is that
 economic optimization cannot safely operate or retain gains on a control plane that still needs manual repair;
-waiting for external revenue also must not hold the foundation cursor. Current cursor is item 7.
+waiting for external revenue also must not hold the foundation cursor. Current cursor is item 8.
 
 #### LM-EAB v1 eval audit and implementation cursor
 

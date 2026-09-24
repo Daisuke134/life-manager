@@ -169,7 +169,7 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - [x] Write failing tests for a sanitized recovery outcome becoming one deduplicated `lm:type:self-heal` issue with exact owner/release/evidence refs.
 - [x] Expand the isolated candidate scope only as required for shared runtime files; keep credentials, state, policy, evaluator, guard and Paid paths protected.
 - [x] Require a retained regression fixture plus focused tests before the producer may open a marked PR.
-- [x] Keep issue/candidate/review contracts distinct and fail every marked recovery PR closed before merge until Task 7 supplies the separate immutable-release, canary, exact-health and rollback stages. The existing Railway-only app deploy check is not reused as false runtime proof.
+- [x] Keep issue/candidate/review contracts distinct and fail every marked recovery PR closed before merge until Task 7 proves, and Task 8 binds, the separate immutable-release, canary, exact-health and rollback stages. The existing Railway-only app deploy check is not reused as false runtime proof.
 - [x] Prove the candidate agent is Codex-only, workspace-write and network-disabled; it cannot edit its own guard/evaluator or directly push main/deploy around the guard.
 - [x] Run the existing self-build/merge-guard/bridge tests (158/158), recovery tests (29/29) and agent-runner tests (76/76).
 - [x] Commit and push the guarded code-repair bridge.
@@ -181,12 +181,12 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - Modify: existing recovery and foundation tests
 - Modify: architecture spec evidence section after the run
 
-- [ ] Select one non-Paid, `effect_class=none`, deterministic owner whose failure can be injected in an isolated fixture or test-owned installation.
-- [ ] Inject a bounded known failure without stopping/restarting a production agent, browser, network, authentication service or Paid owner.
-- [ ] Demonstrate event -> typed intent -> bounded repair -> exact status readback -> recovery outcome -> replay-zero.
-- [ ] Demonstrate a forced verification failure stops/rolls back within budget and does not affect a sibling.
-- [ ] Retain the failure and rollback paths as regression fixtures.
-- [ ] Record exact evidence and commit/push. Do not call this proof production-wide acceptance.
+- [x] Select canonical `life-manager-connector-native`: non-Paid, `effect_class=none`, deterministic and catalog-owned by Connector.
+- [x] Inject `wake_boundary_failed` only in a test-owned installation; no production agent, browser, network, authentication service or Paid owner is stopped/restarted.
+- [x] Demonstrate event -> typed intent -> bounded repair -> exact status readback -> recovery outcome -> replay-zero.
+- [x] Demonstrate a forced verification failure stops within cooldown/budget; the real `install_one` snapshot rollback restores the target byte-for-byte and leaves the sibling byte-for-byte unchanged.
+- [x] Retain both the success and forced-failure paths as regression fixtures.
+- [x] Record exact evidence and commit/push. Node recovery is 32/32 and the real-installer canary is 1/1. This is isolated foundation proof, not a production Connector repair or production-wide acceptance.
 
 ### Task 8: Enrol all fourteen Product Loops through shared classes
 
@@ -199,6 +199,7 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - [ ] Map every declared job exactly once and reject missing/duplicate/unrecognized recovery classes.
 - [ ] Add at least one retained failure fixture per class, not one new supervisor per loop.
 - [ ] Classify Paid jobs as read-only external-owner and consume only their status/receipt projections.
+- [ ] Bind marked recovery PR promotion to the declared class policy only where immutable release, isolated canary, exact-health and rollback hooks exist; keep the Railway app path separate and unsupported classes fail-closed.
 - [ ] Run catalog, registry, foundation and recovery suites; require fourteen loops and zero catalog/registry errors.
 - [ ] Commit and push fourteen-loop enrolment.
 
