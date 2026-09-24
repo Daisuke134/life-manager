@@ -2938,3 +2938,37 @@ not convert a transient pass or a no-op into client completion.
    retain Consultant calibration as human-owned.
 5. Finish the final cross-platform fleet acceptance gate; Coconala/Ryu and
    Upwork remain manual-only/disabled respectively.
+
+## Production Cursor — 2026-09-24 13:13 JST (release candidate verified)
+
+- **The code candidate is now main-derived and green.** The branch was rebased
+  onto `origin/main` (`behind=0`) and pushed at `91b09d9fb1`. PR #5820 checks
+  all pass: loop-control contracts, Python syntax/unittest, shell syntax,
+  startup drift, OSS boundary, PII, gitleaks, TruffleHog, and agent-instruction
+  contract. Sequential local acceptance also passes CrowdWorks `224`, Lancers
+  `197`, runtime/host `160`, and runtime/loop `604` tests (`518` subtests).
+  The earlier parallel test timeout was host contention; the same test passed
+  alone in `12.22s`, and the loop suite passed when run serially.
+- **CrowdWorks material was re-read through the authorized Drive CLI.** File
+  `1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA` is the buyer's
+  `仮払い後の案内`; its content only instructs LINE friend-add, an external
+  Google Form, and daily Note distribution. It contains none of the five
+  lesson bodies or answer inputs, so `63568785` remains legitimately
+  `buyer_task_detail_required`. The existing permission/material request was
+  not duplicated and no formal delivery was attempted.
+- **Production is still old.** Paid owners still load
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; therefore the CrowdWorks blank
+  target leak is not yet fixed in production, and the PR is not merged.
+
+### Remaining TODO (release gate remains external-effect dependent)
+
+1. Keep PR #5820 at the green main-derived head and merge/release only after
+   the full provider-result gate, not merely CI.
+2. Obtain exact proof for the four historical `effect_unknown` fences before
+   clearing them; no blind retry or database mutation.
+3. Wait for admissible CrowdWorks `63568785` lesson/answer material; then
+   deliver → acceptance → settlement → payout → replay-zero exactly once.
+4. Refresh Mercor's official snapshot after its effect fence is safely
+   resolved; retain human-owned Consultant calibration.
+5. After release, verify loaded SHA, CrowdWorks no-blank-growth natural wake,
+   fresh readbacks for every Paid owner, and final fleet acceptance.

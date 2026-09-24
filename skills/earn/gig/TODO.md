@@ -2788,3 +2788,21 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   a blind retry or manual database mutation.
 - [ ] Promote the CrowdWorks blank-tab fix, satisfy `63568785` buyer-material
   gate, refresh Mercor official inventory, and run final fleet acceptance.
+
+### Paid fulfillment checkpoint — 2026-09-24 13:13 JST (release candidate green)
+
+- [x] Rebased the dedicated branch onto current `origin/main` (`behind=0`),
+  pushed head `91b09d9fb1`, and verified all PR checks pass.
+- [x] Serial local acceptance passed: CrowdWorks `224`, Lancers `197`,
+  runtime/host `160`, runtime/loop `604` tests plus `518` subtests. The
+  earlier parallel-only timeout was resource contention, not a deterministic
+  code failure.
+- [x] Re-read Drive file `1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA`
+  with `gog`; it only points to LINE/external-form distribution and does not
+  contain the five lesson bodies/answer inputs needed for formal delivery.
+- [ ] Keep `63568785` buyer-material-gated; do not duplicate the existing
+  permission request or formal-deliver from the instruction-only document.
+- [ ] Merge/release the green candidate only after the provider-result gate;
+  then verify loaded SHA, no blank-tab growth, fresh readbacks, and replay-zero.
+- [ ] Obtain proof for all four historical effect-unknown fences and refresh
+  Mercor's official snapshot before final fleet acceptance.
