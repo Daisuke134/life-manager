@@ -102,6 +102,11 @@
   `monthly_contract_count=0`, `storefront_contract_candidate_count=0`,
   balance `0` JPY; the paid owner result is `observed=0/effect=0/readback=0`.
   No Lancers application or reply was sent.
+- [x] CrowdWorks already has one independently verified application for
+  project `13470618`: provider proposal `306927137`, occurrence
+  `crowdworks-revenue-application:18d7f9a39024d948-79467`,
+  `submitted=true`, `application_verified=true`, observed at
+  `2026-09-24T11:04:13Z`. Do not resend this application.
 - [ ] CrowdWorks paid inventory remains `observed=5/actionable=1/effect=0/
   readback=4/pending=1`; work `63568785` still requires buyer lesson/answer
   material. No LINE or external-form action is admissible.

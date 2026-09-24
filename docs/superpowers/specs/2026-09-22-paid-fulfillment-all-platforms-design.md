@@ -110,6 +110,11 @@ Fresh parallel evidence:
   the authenticated inventory is source-complete with zero funded contract
   candidates, zero monthly/storefront candidates, and a zero-JPY balance. Its
   paid result is `observed=0/effect=0/readback=0`; no provider effect was sent.
+- CrowdWorks project `13470618` already has one verified application:
+  provider proposal `306927137`, occurrence
+  `crowdworks-revenue-application:18d7f9a39024d948-79467`,
+  `submitted=true` and `application_verified=true` at
+  `2026-09-24T11:04:13Z`; it must not be submitted again.
 - CrowdWorks remains at `observed=5/actionable=1/effect=0/readback=4/pending=1`;
   work `63568785` still lacks admissible buyer material, so LINE/external-form
   actions remain off.
