@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:35 JST (exact Paid-fence history re-audited)
+## Current cursor — 2026-09-25 06:38 JST (exact Paid-fence history and Coconala control-plane reconciled)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -125,6 +125,20 @@ not occurrence-bound and cannot release these older fences. Therefore no
 resolver, retry, or provider send is safe; the next valid evidence must be an
 exact provider receipt/history for the old occurrence or an admissible host
 proof that contradicts the recorded effect start.
+
+The Coconala Paid control-plane owner was then reconciled at
+`2026-09-25 06:38 JST`. Its latest event is `pass`, `exit_code=0`,
+`effect_class=none`, and `effect_status=not_applicable`; the admission row was
+the stale internal fence left by the earlier capacity/SQLite-lock failures. The
+supported `clear_no_effect_unknown("hf-gig-paid-direct")` path released exactly
+one row. A fresh worktree status readback now reports
+`admission_effect_unknown=false`, `blocker=null`, and `launchd_state=loaded-idle`;
+no provider page or external effect was touched. This closes the Coconala Paid
+control-plane fence only. Apply remains unloaded with five effect-free queued
+rows and its last event `resource_effect_unknown`; Storefront remains unloaded
+with eighty-one effect-free queued rows and its last event
+`entrypoint_exit_1/official_readback_required`. Those two natural-wake and
+replay-zero gates remain open and must not be called complete.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
