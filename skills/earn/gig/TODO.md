@@ -3293,3 +3293,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Verify/fix authenticated recruitment LINE persistence with post-save
   readback.
 - [ ] Reassess final Ryu delivery only after the two remaining fixes pass.
+
+### Runtime checkpoint — 2026-09-24 15:39 JST (Ryu item 2 complete)
+
+- [x] Deployed `manual-complete-v703` with a profile-scoped no-truncation
+  style; exact FTPS readback passed. Evidence:
+  `delivery/current-cycle-v703-profile-catchcopy-deploy-readback.json`.
+- [x] Fresh public readback passed at 390×844 and 1280×900 using
+  `styles.css?v=manual-complete-v703`; both had `scrollWidth == clientWidth`,
+  `white-space: normal`, `overflow: visible`, and `text-overflow: clip`.
+- [ ] Verify/fix authenticated recruitment LINE persistence with post-save
+  management/public readback.
+- [ ] Reassess final Ryu delivery only after LINE persistence passes.

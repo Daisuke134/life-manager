@@ -3604,3 +3604,24 @@ not convert a transient pass or a no-op into client completion.
    this cursor.
 4. Keep the paid-loop fences closed and continue the immutable-release canary
    sequence for CrowdWorks → Lancers → Mercor.
+
+## Runtime Cursor — 2026-09-24 15:39 JST (Ryu item 2 complete)
+
+- **Profile catchcopy width contract fixed and verified.** Release
+  `manual-complete-v703` added a profile-scoped CSS override and updated the
+  stylesheet cache-bust. Exact FTPS readback recorded the no-truncation
+  contract in `delivery/current-cycle-v703-profile-catchcopy-deploy-readback.json`.
+- **Fresh public browser readback passed at both viewports.** At 390×844 the
+  loaded asset was `styles.css?v=manual-complete-v703`, the profile copy was
+  353.625px wide with `scrollWidth == clientWidth`, `white-space: normal`,
+  `overflow: visible`, and `text-overflow: clip`. The 1280×900 readback passed
+  the same contract. No form submission or Coconala message was made.
+
+### Next one-by-one cursor (15:39 JST)
+
+1. Verify/fix authenticated recruitment LINE persistence with a POST followed
+   by exact management/public readback.
+2. Reassess one final Ryu delivery only after the LINE persistence contract
+   passes; do not resend during this cursor.
+3. Keep the paid-loop fences closed and continue the immutable-release canary
+   sequence for CrowdWorks → Lancers → Mercor.
