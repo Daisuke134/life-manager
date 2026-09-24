@@ -1199,3 +1199,13 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Confirm there is no safe pre-existing immutable release to promote. Do not point the selector at c755 or any
   other non-accepted release; the next cursor remains accepted main integration, immutable cut, and exact
   reconciler readback.
+
+### Main-derived integration dry run (2026-09-25 JST)
+
+- [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+  The only textual conflicts are `runtime/loop/lm_loop.py` and
+  `runtime/loop/tests/fixtures/macos-loop-jobs.json`; no merge was started.
+- [x] Record the ownership boundary before integration: the branch diff also contains files under Paid/Gig and other
+  provider workstreams. The eventual integration must resolve only the self-healing/control-plane source and fixture
+  conflicts, preserve the separate Paid/Connector/Mobile owners, then rerun the focused acceptance suites before
+  any PR or immutable promotion.
