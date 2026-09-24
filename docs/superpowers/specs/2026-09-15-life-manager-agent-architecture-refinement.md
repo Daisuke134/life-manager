@@ -3219,6 +3219,31 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    reason is the active same-resource lease and unresolved official-effect fence, not a lower priority for Mobile.
    The current cursor is Affiliate. Running owners, Paid ownership, pending admission and effect fences remain
    preserved; revenue remains outside this gate and no artificial production failure is injected for proof.
+
+   The Affiliate cursor now has an exact shared-runtime diagnosis. `affiliate-loop` occurrence
+   `affiliate-loop:18d7bd776d9c8a78-1576` runs its scheduler child to `SUCCEEDED`, but the wrapper's final
+   `release_and_reserve` hits SQLite `database is locked`. The release path has no bounded retry, leaves the live
+   claim behind and is later conservatively converted by stale recovery into `effect_unknown`; 47 later
+   effect-known wakes therefore remain queued. This is not evidence that Affiliate needs more time to earn and
+   it is not an Affiliate content failure. The original occurrence window contains zero durable write-ahead
+   provider-effect events. Its two browser attempts time out before the provider mutation boundary, the provider
+   application and verification paths report no effect, already-live publications remain no effect, and the
+   Telegram ambiguity is an inherited older quarantined event rather than a send from this occurrence.
+
+   The shared fix keeps the releasing claim file until the database transaction commits, excludes only that exact
+   retiring claim from capacity accounting while reserving the next owner, and retries only SQLite BUSY/LOCKED or
+   `control_busy` within the existing bounded admission budget. A forced reservation-lock regression proves the
+   occurrence and claim roll back together; a runner regression proves the transient release lock is retried
+   before stale fencing. The focused regressions pass 2/2 and the complete admission/runner suites pass 217/217 on
+   branch `fix/admission-release-lock-selfheal-20260924`. This evidence is source-side only until PR merge,
+   immutable release and exact production readback. The existing abandoned Affiliate recovery candidate is not
+   reused because it binds its proof to a different later scratch occurrence.
+
+   The executable order inside the Affiliate slice is: merge the shared release fix; cut the main-derived
+   immutable release; reconcile the old occurrence using only its original run/attempt/write-ahead evidence;
+   coalesce effect-known queued wakes through the existing admission contract; run one bounded Affiliate wake;
+   verify exact terminal diagnosis, preserved provider-effect safety and replay-zero. No commission or natural
+   scheduler wait is required. Then advance the foundation cursor to Investment.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
