@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:08 JST (retention owner added; explicit Freelancer/Upwork gate)
+## Current cursor — 2026-09-25 06:15 JST (retention owner and Paid marker boundary verified)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -73,6 +73,14 @@ SSOT has no Freelancer or Upwork key path. Neither provider has an active
 registry owner; the old labels remain retired. This is the intended fail-closed
 state until account-bound authorization, official inventory, and one funded
 contract/milestone are proven.
+
+The Paid marker boundary was regression-tested at `2026-09-25 06:15 JST`:
+the shared kernel writes an occurrence-bound `pre_effect` marker before
+provider inventory, preserves `effect_started` after a mutation-side failure,
+and records a completed zero-effect marker for an inventory failure. The
+focused kernel/CrowdWorks/Lancers suite is `41 passed`. No new source defect
+was found in this boundary; the historical missing markers remain consistent
+with the earlier disk/WAL pressure and are not admissible proof for release.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
