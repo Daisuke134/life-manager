@@ -3409,3 +3409,31 @@ not convert a transient pass or a no-op into client completion.
 4. Advance Lancers/Mercor and final fleet acceptance one owner at a time with
    official readback and replay-zero; keep Coconala/Ryu manual-only and Upwork
    disabled.
+
+## Runtime Cursor — 2026-09-24 14:47 JST (cleanup terminal; historical fences unchanged)
+
+- **The cleanup observation reached terminal state.** PID `27890` was observed
+  live and then absent; canonical `lm-loop status life-manager-disk-cleanup`
+  now reports `loaded-idle`, `last_exit=0`, and no live PID. No owner was
+  force-stopped. Data-volume free space is about `3.4GiB` (`99%` reported use).
+  The durable status timestamp is stale, so this is a headroom observation, not
+  a newly claimed receipt.
+- **The four historical fences are unchanged and still closed.** Lancers
+  `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application `18d6f9cb5bdaef98-33812`
+  remain `claimed/effect_unknown=1`; no exact provider/run proof appeared.
+- **PR checks remain green, but production is not promoted.** PR #5820 head
+  `0d3239a08b` has all listed checks passing; GitHub currently reports
+  `mergeStateStatus=UNKNOWN`, and no merge/release was attempted while the
+  external-effect gate remains open.
+
+### Next one-by-one cursor
+
+1. Keep the four historical fences closed; run each supported resolver only
+   when its exact provider/run or pre-effect evidence exists.
+2. Confirm one further stable resource/control window after cleanup; do not
+   treat a stale status timestamp as a fresh receipt.
+3. Then promote the immutable release and canary CrowdWorks first, requiring
+   official readback and replay-zero before advancing to Lancers/Mercor.
+4. Finish fleet acceptance; Coconala/Ryu remains manual-only and Upwork stays
+   disabled until its explicit authorization/funding gates pass.

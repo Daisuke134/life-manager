@@ -3152,3 +3152,26 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    canary CrowdWorks with official readback and replay-zero.
 4. Advance Lancers/Mercor and final fleet acceptance one owner at a time;
    keep Coconala/Ryu manual-only and Upwork disabled.
+
+### Runtime checkpoint — 2026-09-24 14:47 JST (cleanup terminal; historical fences unchanged)
+
+- [x] Cleanup PID `27890` was observed live, then terminated naturally; status
+  is `loaded-idle/last_exit=0` with no forced stop. Data-volume free space is
+  about `3.4GiB` (`99%` reported use). Durable timestamp remains stale.
+- [ ] Historical fences are unchanged at `claimed/effect_unknown=1` for
+  Lancers `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`,
+  Mercor Reply `18d6683223830368-49631`, and Mercor Application
+  `18d6f9cb5bdaef98-33812`; exact proof is still absent.
+- [x] PR #5820 head `0d3239a08b` has all listed checks passing. [ ] No merge or
+  release was attempted while the external-effect gate remains open.
+
+### Remaining TODO (current ordered cursor)
+
+1. Keep all four fences closed; resolve only with exact provider/run or
+   pre-effect evidence through supported resolvers.
+2. Confirm one more stable resource/control window; do not call stale status a
+   fresh receipt.
+3. Promote the immutable release and canary CrowdWorks with official readback
+   and replay-zero, then advance Lancers/Mercor one owner at a time.
+4. Complete final fleet acceptance; keep Coconala/Ryu manual-only and Upwork
+   disabled until authorization/funding gates pass.
