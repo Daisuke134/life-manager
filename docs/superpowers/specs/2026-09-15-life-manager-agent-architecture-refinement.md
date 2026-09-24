@@ -5264,3 +5264,7 @@ After the diagnostic follow-up, the candidate branch is `ce1c53285f38d73ccfdf231
 `git merge-tree --write-tree` is clean at tree `85cd634f7899602e8d8655466b1d950d04d9dbca`; `git diff --check`
 and the worktree are clean. This is only a merge-conflict/readiness fact. It is not main integration or production
 approval: capacity, full-suite, immutable-load, occurrence-complete readback and two-pass acceptance remain open.
+
+The subsequent durable-journal commit `9e37fa5712162c44f308caefe2a1c4ac063a4bed` was also compared read-only
+against the same `origin/main`; the clean merge tree is now `d6bc25e8aeb81b288c6f847e963077f23cce01fb`. No merge,
+release creation or production loading was performed.

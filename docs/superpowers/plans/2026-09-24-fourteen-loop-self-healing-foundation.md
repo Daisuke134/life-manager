@@ -1685,3 +1685,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   **331 tests + 212 subtests**; push candidate commit `9e37fa5712`.
 - [ ] After accepted immutable loading, read back this field from one real non-Paid recovery occurrence and verify
   replay-zero. Do not use branch journal evidence as production evidence.
+
+- [x] Re-run read-only merge-tree after the journal commit: candidate `9e37fa5712162c44f308caefe2a1c4ac063a4bed`
+  against `origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c` is clean at
+  `d6bc25e8aeb81b288c6f847e963077f23cce01fb`.
