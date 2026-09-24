@@ -2239,3 +2239,49 @@ where the provider snapshot or loop status has since changed.
 6. **Upwork onboarding:** only after authorization, authenticated readback,
    and a funded contract exist, add its provider-specific Paid owner and prove
    one canary with official receipt/replay-zero.
+
+## Production Cursor — 2026-09-24 11:10 JST
+
+This cursor records the next observed state after the 10:58 cursor; it does
+not convert a transient pass or a no-op into client completion.
+
+- **Coconala:** the last official four-room readback remains
+  `completed/observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu `18211957` is still `reserved_for_owner` and must not be resent or
+  formally delivered; the other three rooms remain `awaiting_buyer`. A newer
+  natural wake is currently deferred by the shared admission database lock
+  (`host_admission_deferred:resource_database_busy`), with no provider effect.
+- **CrowdWorks:** browser owner is live and the latest Paid snapshot is
+  `ok/observed=5/actionable=1/effect=0/readback=4/failed=1`; four work IDs
+  (`63712784`, `63659463`, `63657015`, `63570481`) are delivered/read back.
+  `63568785` is a pre-effect failure because the buyer contract/material is
+  unavailable. The historical marker-less fence
+  `18d62cf32eb0c678-48194` remains claimed; no resend is allowed.
+- **Lancers:** the latest Paid wake fails before provider inventory with
+  `observed=0/actionable=0/effect=0/readback=0`; no funded contract exists.
+  Three historical occurrences have exact durable `completed/effect=0`
+  markers, but the supported reconciler returned `resolved=false` because the
+  shared host-admission control lock was held by the unrelated live
+  `life-manager-anicca-larry-ja-instagram` run (PID 96585). The fourth
+  occurrence `18d81967220136f8-89928` has no exact proof and remains fenced.
+  No Lancers submission is authorized.
+- **Upwork:** still not onboarded; authorization, authenticated readback, and
+  a funded contract are absent.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Shared lock boundary:** do not stop or kill the live Instagram run. After
+   its owner receipt disappears naturally, rerun the supported no-effect
+   reconciler for the three exact Lancers occurrences, then verify the
+   admission DB and Lancers status. Leave `18d81967220136f8-89928` fenced.
+2. **Coconala natural wake:** after the database lock clears, require the
+   official owner to finish with terminal `pass` and preserve the proven
+   four-room readback/replay-zero. No Ryu formal delivery.
+3. **CrowdWorks fence/material:** retain the marker-less fence; when the buyer
+   supplies the missing material for `63568785`, complete and deliver once
+   with provider receipt/replay-zero.
+4. **Lancers recovery/delivery:** diagnose `provider_inventory` after the
+   fences are safely reconciled; only a funded `ContractReceipt` can unlock a
+   single `完了報告` submission and official receipt/replay-zero.
+5. **Upwork onboarding:** add no owner until authorization, authenticated
+   readback, and a funded contract are real.

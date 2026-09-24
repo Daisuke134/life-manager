@@ -2389,3 +2389,27 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep Coconala Ryu manual-only, other rooms no-op until new buyer
   artifacts, and Upwork disabled until authorization/authenticated readback/
   funded-contract gates are present.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:10 JST
+
+- [x] Preserved the last Coconala official readback at `4/0/0/3/0`: Ryu is
+  reserved/manual-only; the other three rooms are buyer-waiting; no send or
+  formal delivery is pending.
+- [x] Confirmed CrowdWorks four delivered/read-back work IDs and the
+  `63568785` pre-effect buyer-material failure; no duplicate send occurred.
+- [x] Located exact zero-effect markers for three Lancers historical fences;
+  the supported reconciler was attempted with full occurrence IDs and did not
+  mutate admission state.
+- [x] Diagnosed the reconciler refusal as the shared host-admission control
+  lock held by the live `life-manager-anicca-larry-ja-instagram` owner (PID
+  96585), not by Lancers; no process was stopped or killed.
+- [ ] After that owner naturally exits, rerun the supported reconciler for
+  `18d804aac5e02e18-25086`, `18d818f53303d720-84348`, and
+  `18d81cc3531d6158-56194`; verify the DB and leave
+  `18d81967220136f8-89928` fenced without proof.
+- [ ] Let Coconala's current database-busy wake settle and verify a new
+  terminal `pass` when the shared lock clears; keep Ryu manual-only.
+- [ ] Keep CrowdWorks `18d62cf32eb0c678-48194` marker-less fence and wait for
+  buyer material for `63568785`; never resend while effect is unknown.
+- [ ] Diagnose Lancers `provider_inventory`, then deliver only after a funded
+  `ContractReceipt`; keep Upwork disabled until its three onboarding gates.
