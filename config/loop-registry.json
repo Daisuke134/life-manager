@@ -2377,6 +2377,12 @@
       "entrypoint": "apps/life-manager/scripts/ugig-invoice-observer-boot.sh",
       "label": "ai.anicca.life-manager-ugig-invoice-observer",
       "log_root": "~/.local/state/life-manager/life-manager-ugig-invoice-observer/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-ugig-invoice-observer"
     },
