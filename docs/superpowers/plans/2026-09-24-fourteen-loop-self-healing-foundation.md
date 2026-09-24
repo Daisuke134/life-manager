@@ -1143,6 +1143,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   stderr readback. No launchd mutation, admission state, effect fence, provider session or external effect changes.
 - [x] Add RED→GREEN regression coverage. Readonly tests pass **25/25**; apply passes **124 tests + 31 subtests**;
   macOS registry passes **123 tests + 154 subtests**.
+- [x] Run the branch `lm-loop status all` against the current host boundary. It completed in 17.1 seconds and
+  returned all 271 rows, including the old reconciler's exact installed/event SHA and `entrypoint_exit_1`, without
+  failing in tempfile setup.
 - [ ] After main-derived immutable promotion, re-run full status under the host boundary and verify the reconciler
   reports typed launchd/ENOSPC evidence instead of crashing in tempfile setup. This remains downstream of the
   bootstrap cursor and does not authorize broad cleanup or manual admission mutation.

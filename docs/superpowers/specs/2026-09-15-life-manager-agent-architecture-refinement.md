@@ -4559,3 +4559,9 @@ change launchd mutation, admission, effect fences, provider sessions or external
 observability can report the real launchd result without another disk write. The RED→GREEN read-only tests pass
 25/25, the apply suite passes 124 tests plus 31 subtests, and the macOS registry suite passes 123 tests plus 154
 subtests. The change remains branch-only; main integration and production immutable-release readback are still open.
+
+The branch version was then run against the current host in read-only mode under the same capacity boundary:
+`lm-loop status all` completed in 17.1 seconds, returned 271 rows, and successfully exposed the reconciler as
+`loaded-idle` with installed/event SHA `09a59ba1b899849ae7e3be8c67e239ec664dea22`, terminal
+`entrypoint_exit_1`, and diagnostic-incomplete fields. The probe did not crash in tempfile setup. This proves the
+observability repair only; it does not promote the reconciler, clear any fence, or claim self-healing/revenue.
