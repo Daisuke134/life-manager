@@ -930,6 +930,14 @@ The following is the current control-plane state. It is evidence for the next bo
   canonical-path preflight and require a durable typed receipt before any non-Paid owner apply/reconcile. Do not use
   the temporary-path success as permission to mutate production.
 
+### Latest non-Paid canaries (2026-09-25 JST)
+
+- [x] Align and verify `capafy-goal-monitor-daily-close` as the second independent effect-free canary. It moved from
+  old `05d235b46b7c76f27d2aec71e8f30d93b98b4728` to current d4, initially emitted typed capacity deferral, then
+  reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics,
+  `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
+  returned `eligible=0` with unchanged event/occurrence, proving replay-zero.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.

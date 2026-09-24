@@ -4302,6 +4302,13 @@ No Paid owner, Connector session, Mobile/Postiz state, provider effect or effect
 14-loop foundation gate remains open because this proves only one owner; remaining non-Paid owners still require
 separate exact-release readback.
 
+The second bounded canary, `capafy-goal-monitor-daily-close`, followed the same contract. It moved from old
+`05d235b46b7c76f27d2aec71e8f30d93b98b4728` to current d4, initially returned typed `resource_capacity_busy`, then
+reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics,
+`effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile returned
+`eligible=0` and preserved the same event/occurrence, proving replay-zero. The remaining foundation work is still
+owner-by-owner release alignment; these two no-effect canaries do not prove the 14-loop gate or revenue.
+
 ## E2E Judgment
 
 | Item | Value |
