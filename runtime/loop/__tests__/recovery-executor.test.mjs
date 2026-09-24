@@ -11,6 +11,7 @@ const registry = {
   loops: {
     'example-loop': {
       provider_route: 'deterministic', label: 'ai.anicca.example', effect_class: 'none',
+      reconcile_queued_release: true,
     },
     'sibling-loop': {
       provider_route: 'deterministic', label: 'ai.anicca.sibling', effect_class: 'none',
@@ -251,6 +252,44 @@ test('keeps a pending-admission reconcile queued without consuming repair budget
   assert.equal(result.next_action, 'retry_after_eligibility');
   assert.equal(result.budget_consumed, false);
   assert.equal(result.reconcile.skipped_pending[0], 'example-loop');
+});
+
+test('escalates a pending-admission reconcile when the release lacks its queue contract', async () => {
+  const root = await releaseRoot();
+  const registryWithoutContract = {
+    loops: {
+      ...registry.loops,
+      'example-loop': { ...registry.loops['example-loop'], reconcile_queued_release: false },
+    },
+  };
+  const plan = buildRecoveryApplyPlan({ intent: intent(), registry: registryWithoutContract });
+  const result = await executeRecoveryPlan({
+    plan,
+    registry: registryWithoutContract,
+    releaseRoot: root,
+    runCommand: async () => ({
+      code: 0,
+      stdout: JSON.stringify({
+        ok: true,
+        route: 'deterministic',
+        release_sha: SHA,
+        eligible: 1,
+        applied: [],
+        skipped_pending: ['example-loop'],
+        failed: [],
+      }),
+      stderr: '',
+    }),
+    readStatus: async () => statusResult(status({
+      event_id: 'event-before', last_terminal_result: 'fail', blocker: 'host_admission_deferred:resource_capacity_busy',
+    })),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, 'blocked');
+  assert.equal(result.reason, 'admission_contract_missing');
+  assert.equal(result.next_action, 'promote_release');
+  assert.equal(result.budget_consumed, false);
 });
 
 test('does not call a recovery repaired when reconcile applied another owner', async () => {

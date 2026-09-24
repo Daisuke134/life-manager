@@ -312,15 +312,16 @@ export async function executeRecoveryPlan({
   const skippedPending = Array.isArray(parsed?.skipped_pending)
     && parsed.skipped_pending.includes(plan.loop_id);
   if (skippedPending && !after.healthy) {
-    return resultBase(plan, 'queued', false, {
-      reason: 'admission_pending',
+    const queueContractMissing = command.entry.reconcile_queued_release !== true;
+    return resultBase(plan, queueContractMissing ? 'blocked' : 'queued', false, {
+      reason: queueContractMissing ? 'admission_contract_missing' : 'admission_pending',
       executed: false,
       budget_consumed: false,
       before_readback: before.readback,
       after_readback: after.readback,
       command_exit_code: commandResult.code,
       evidence_refs: evidence,
-      next_action: 'retry_after_eligibility',
+      next_action: queueContractMissing ? 'promote_release' : 'retry_after_eligibility',
       command: { executable, args: command.args },
       reconcile: parsed,
     });

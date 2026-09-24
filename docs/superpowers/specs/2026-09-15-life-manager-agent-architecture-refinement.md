@@ -3892,11 +3892,12 @@ model, provider or revenue effect occurred; accepted-release promotion of the br
 the one-owner wake can proceed.
 
 The recovery executor now preserves this boundary when it consumes a supervisor intent. A reconcile response that
-is successful at the command layer but returns `skipped_pending` for the requested owner is classified as
-`queued / admission_pending / retry_after_eligibility` with `budget_consumed=false`; it is not converted into
-`reconcile_target_not_applied` or a bounded-repair escalation. The result retains the exact before/after typed
-readback and the reconcile payload, so the next wake can retry only after admission eligibility changes. The
-focused recovery contract is 33/33; no production/provider state changed.
+is successful at the command layer but returns `skipped_pending` for the requested owner is classified from the
+loaded release contract: with `reconcile_queued_release=true` it becomes `queued / admission_pending /
+retry_after_eligibility` and `budget_consumed=false`; without that contract it becomes terminal
+`blocked / admission_contract_missing / promote_release`, also with zero budget. Neither path is converted into
+`reconcile_target_not_applied`; both retain the exact before/after typed readback and reconcile payload. The
+focused recovery contract is 34/34; no production/provider state changed.
 
 A second read-only one-owner probe targeted `job-search-daily`, an effect-free Job Hunter owner. Its current
 readback was loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission effect-unknown=false,
