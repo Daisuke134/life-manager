@@ -490,6 +490,10 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       const row = runtimeByJobId.get(jobId);
       return row && row.effect_class !== "none" && row.effect_status === "unknown";
     });
+    const diagnosticIncompleteJobIds = catalogLoop.job_ids.filter((jobId) => {
+      const row = runtimeByJobId.get(jobId);
+      return row && row.diagnostic_complete !== true;
+    });
     const repairing = observedRows.some((row) => row.recovery_state === "repairing");
     const nonPassRows = observedRows.filter((row) => !(
       row.last_terminal_result === "pass"
@@ -512,6 +516,10 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       state = "uncovered_failure";
       reason = "runtime_release_drift";
       nextAction = "load_exact_immutable_release";
+    } else if (diagnosticIncompleteJobIds.length > 0) {
+      state = "uncovered_failure";
+      reason = "runtime_diagnostic_incomplete";
+      nextAction = "collect_structured_diagnosis";
     } else if (unknownEffectJobIds.length > 0) {
       state = "safely_fenced";
       reason = "external_effect_unknown";
@@ -538,6 +546,7 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       reason,
       next_action: nextAction,
       unknown_effect_job_ids: Object.freeze([...unknownEffectJobIds]),
+      diagnostic_incomplete_job_ids: Object.freeze([...diagnosticIncompleteJobIds]),
       runtime_evidence: runtimeEvidence,
     });
   });
@@ -606,6 +615,11 @@ function evaluateLocalFoundationGate(manifest, options = {}) {
         }
         if (!Array.isArray(loop.unknown_effect_job_ids)) {
           reasons.push("unknown_effect_jobs_invalid");
+        }
+        if (!Array.isArray(loop.diagnostic_incomplete_job_ids)) {
+          reasons.push("diagnostic_incomplete_jobs_invalid");
+        } else if (loop.diagnostic_incomplete_job_ids.length > 0) {
+          reasons.push("foundation_diagnostic_incomplete");
         }
         if (!loop.runtime_evidence
           || loop.runtime_evidence.missing_job_ids?.length > 0

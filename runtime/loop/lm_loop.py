@@ -26,7 +26,9 @@ from runtime.loop.lm_loop_apply import (
     install_one,
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
-from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
+from runtime.loop.runtime_event import (
+    DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
+)
 from runtime.host.resource_admission import (
     ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
     rebind_queued_owner, resume_durable, suspend_durable,
@@ -35,6 +37,33 @@ from runtime.host.resource_admission import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _product_loop_job_map(catalog_path: Path | None = None) -> dict[str, str]:
+    path = catalog_path or ROOT / "apps/life-manager/config/product-loop-catalog.json"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {}
+    loops = value.get("loops") if isinstance(value, dict) else None
+    if not isinstance(loops, list):
+        return {}
+    result: dict[str, str] = {}
+    duplicates: set[str] = set()
+    for loop in loops:
+        if (not isinstance(loop, dict) or not isinstance(loop.get("id"), str)
+                or not isinstance(loop.get("job_ids"), list)):
+            continue
+        for job_id in loop["job_ids"]:
+            if not isinstance(job_id, str):
+                continue
+            if job_id in result:
+                duplicates.add(job_id)
+            else:
+                result[job_id] = loop["id"]
+    for job_id in duplicates:
+        result.pop(job_id, None)
+    return result
 
 
 def _pending_admission_owners() -> set[str]:
@@ -208,8 +237,10 @@ def _next_eligible(cadence: dict) -> str:
 
 def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
-                admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                admission_effect_unknown: set[str] | None = None,
+                product_by_job: dict[str, str] | None = None) -> list[dict]:
     validate_registry(registry)
+    product_by_job = _product_loop_job_map() if product_by_job is None else product_by_job
     rows = []
     for loop_id in sorted(registry["loops"]):
         entry = registry["loops"][loop_id]
@@ -235,6 +266,16 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         ):
             stale_event = "resource_effect_unknown_resolved"
             blocker = None
+        missing_diagnostic_fields = sorted(DIAGNOSTIC_FIELDS - set(event))
+        catalog_product_loop_id = product_by_job.get(loop_id)
+        event_product_loop_id = event.get("product_loop_id")
+        diagnostic_error = None
+        if event.get("job_id") is not None and event.get("job_id") != loop_id:
+            diagnostic_error = "event_job_identity_mismatch"
+        elif (catalog_product_loop_id is not None and event_product_loop_id is not None
+              and event_product_loop_id != catalog_product_loop_id):
+            diagnostic_error = "event_product_identity_mismatch"
+        diagnostic_complete = not missing_diagnostic_fields and diagnostic_error is None
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
@@ -249,6 +290,27 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "provider_route": entry["provider_route"],
             "provider": event.get("provider"),
             "profile_alias": event.get("profile_alias"),
+            "event_id": event.get("event_id"),
+            "product_loop_id": catalog_product_loop_id or event_product_loop_id,
+            "job_id": loop_id,
+            "owner_id": event.get("owner_id"),
+            "run_id": event.get("run_id"),
+            "wake_id": event.get("wake_id"),
+            "occurrence_id": event.get("occurrence_id"),
+            "phase": event.get("phase"),
+            "loaded_argv_sha256": event.get("loaded_argv_sha256"),
+            "loaded_env_sha256": event.get("loaded_env_sha256"),
+            "exit_code": event.get("exit_code"),
+            "failure_layer": event.get("failure_layer"),
+            "error_class": event.get("error_class"),
+            "retryable": event.get("retryable"),
+            "next_action": event.get("next_action"),
+            "provider_receipt_id": event.get("provider_receipt_id"),
+            "official_readback_ref": event.get("official_readback_ref"),
+            "evidence_refs": event.get("evidence_refs"),
+            "diagnostic_complete": diagnostic_complete,
+            "diagnostic_missing_fields": missing_diagnostic_fields,
+            "diagnostic_error": diagnostic_error,
             "last_pass": event.get("timestamp"),
             "last_terminal_result": event.get("status"),
             "effect_class": entry["effect_class"],
@@ -308,6 +370,27 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "provider_route": None,
             "provider": None,
             "profile_alias": None,
+            "event_id": None,
+            "product_loop_id": None,
+            "job_id": label,
+            "owner_id": None,
+            "run_id": None,
+            "wake_id": None,
+            "occurrence_id": None,
+            "phase": None,
+            "loaded_argv_sha256": None,
+            "loaded_env_sha256": None,
+            "exit_code": None,
+            "failure_layer": None,
+            "error_class": None,
+            "retryable": None,
+            "next_action": None,
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "evidence_refs": None,
+            "diagnostic_complete": False,
+            "diagnostic_missing_fields": sorted(DIAGNOSTIC_FIELDS),
+            "diagnostic_error": None,
             "last_pass": None,
             "last_terminal_result": None,
             "effect_class": "unknown",

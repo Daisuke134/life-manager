@@ -30,6 +30,7 @@ function healthyFoundationRuntimeRows(catalog, releaseSha) {
     effect_class: "none",
     effect_status: "not_applicable",
     blocker: null,
+    diagnostic_complete: true,
   })));
 }
 
@@ -1413,6 +1414,24 @@ test("foundation accepts typed setup and blocks an in-progress repair", () => {
   });
   assert.equal(repairing.loops[0].state, "repairing");
   assert.ok(evaluateLocalFoundationGate(repairing).reasons.includes("repair_in_progress"));
+});
+
+test("foundation keeps an old terminal event visible as an uncovered diagnostic gap", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "c".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  runtimeRows[0].diagnostic_complete = false;
+  runtimeRows[0].diagnostic_missing_fields = ["owner_id", "occurrence_id"];
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local", release_sha: releaseSha, runtime_rows: runtimeRows,
+  });
+  assert.equal(manifest.loops[0].state, "uncovered_failure");
+  assert.equal(manifest.loops[0].reason, "runtime_diagnostic_incomplete");
+  assert.equal(manifest.loops[0].next_action, "collect_structured_diagnosis");
+  assert.deepEqual(manifest.loops[0].diagnostic_incomplete_job_ids,
+    [catalog.loops[0].job_ids[0]]);
+  assert.ok(evaluateLocalFoundationGate(manifest).reasons.includes("uncovered_failure"));
 });
 
 test("local foundation gate CLI writes a private deterministic no-revenue result", () => {

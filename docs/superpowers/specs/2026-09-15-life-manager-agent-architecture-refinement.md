@@ -2674,9 +2674,11 @@ completion gate establish the current baseline:
   `unknown=0`; this is an honest incomplete result, not an observation gap;
 - thirteen Product Loops are primarily blocked by `runtime_release_drift` against current immutable release
   `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`;
-- Connector is on the current release but its latest terminal is `fail` with the shared status exposing only
-  `entrypoint_exit_1`. The user-facing `wake_boundary_failed` safe stop is therefore not yet joined to an exact
-  failure layer, evidence reference, retryability decision and next action;
+- Connector is on the current release. Its latest terminal is now `blocked` with exit `75` and blocker
+  `host_admission_deferred:resource_capacity_busy`; the earlier `entrypoint_exit_1` is no longer the latest
+  event. The event predates the diagnostic envelope, so status preserves its run/phase/evidence, projects it
+  to Product Loop `connector`, and explicitly reports the missing owner/occurrence/failure/retry/next-action
+  fields instead of calling it healthy;
 - the runtime event already carries run/release/phase/effect/evidence data, and the runner already knows the
   claimed occurrence plus some provider receipts, but `lm-loop status` does not yet expose the complete
   diagnostic contract. The recovery intent/supervisor exists, but only the model harness writes intents; a
@@ -2865,15 +2867,15 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 2. **Done, then intentionally paused:** CFO inventory/source Tasks 1–3 and the Self-Funding/Agent Economy
    Task 4.1 join are complete through `68d59eb2ec`. Remaining Affiliate/Mobile/Capafy/Stripe/Investment/Writer/
    Fundraiser/Marketplace source adapters stay queued; immediate revenue or a natural commission is not a gate.
-3. **Current cursor — shared status projection:** the read-only baseline and foundation/commercial gate split
-   are complete on the implementation branch. New terminal events now carry an all-or-nothing, secret-free
-   diagnostic group for product/job/owner/run/wake/occurrence/release, loaded argv/env digests, phase/exit,
-   effect, readback/receipt, evidence, failure layer/error class, retryability and next action. Old v1 events
-   remain readable. Next expose that group through `lm-loop status`; an old or incomplete event must become
-   `uncovered_failure`, never a healthy zero. Do not repair fourteen implementations manually; turn each
-   unexplained state into a named observable boundary.
-4. Build the shared bounded self-heal kernel: failure taxonomy, repair recipes, budgets, isolated candidates,
-   recovery evaluation, immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
+3. **Complete on the implementation branch:** the foundation/commercial gate split, secret-free diagnostic
+   event envelope and shared `lm-loop status` projection are implemented. Old v1 events remain visible but
+   become `uncovered_failure`, never a healthy zero. The fresh projection has `uncovered_failure=14`: thirteen
+   loops are still on non-current releases, while Connector is current-release but diagnostically incomplete.
+   Focused foundation/status/registry tests pass.
+4. **Current cursor — universal recovery intent:** make every shared-runner terminal failure emit exactly one
+   owner/occurrence/release-bound durable intent through the existing recovery classifier. Then complete the
+   remaining shared bounded self-heal kernel: repair recipes, budgets, isolated candidates, recovery evaluation,
+   immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
 5. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
    Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
 6. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.

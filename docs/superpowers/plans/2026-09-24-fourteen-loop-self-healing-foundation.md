@@ -92,18 +92,23 @@ tests pass 87/87 and runner-bound tests pass 80/80.
 
 ### Task 3: Expose the full diagnosis through the existing `lm-loop` status
 
+**Status:** Complete on the implementation branch. The existing status row now projects catalog Product Loop
+identity plus every terminal diagnostic field, and marks old/incomplete events explicitly. Read-only/runtime
+tests pass 51/51, registry tests pass 82/82 and foundation/product tests pass 45/45. The fresh local gate still
+blocks all fourteen loops for foundation reasons, not commercial revenue.
+
 **Files:**
 - Modify: `runtime/loop/lm_loop.py`
 - Modify: `runtime/loop/tests/test_lm_loop_readonly.py`
 - Modify: `apps/life-manager/lib/product-onboarding.js`
 - Modify: `apps/life-manager/lib/product-onboarding.test.js`
 
-- [ ] Write a failing read-only status test for every diagnostic field required by Task 2.
-- [ ] Prove older events remain visible but classify as `uncovered_failure` when required diagnosis is absent.
-- [ ] Project product-loop identity from the catalog without renaming the registry job identity.
-- [ ] Make the foundation manifest consume these rows and report exact missing fields instead of `unknown`.
-- [ ] Run the focused read-only status and foundation tests.
-- [ ] Commit and push the status projection.
+- [x] Write a failing read-only status test for every diagnostic field required by Task 2.
+- [x] Prove older events remain visible but classify as `uncovered_failure` when required diagnosis is absent.
+- [x] Project product-loop identity from the catalog without renaming the registry job identity.
+- [x] Make the foundation manifest consume these rows and report exact missing fields instead of `unknown`.
+- [x] Run the focused read-only status and foundation tests.
+- [x] Commit and push the status projection.
 
 ### Task 4: Emit one durable recovery intent for every shared-runner failure
 
