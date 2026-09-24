@@ -1,5 +1,44 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 08:31 JST (all-platform read-only recheck)
+
+The latest local re-read is evidence-only: no provider send, retry, fence clear,
+credential creation, or owner registration occurred. Current facts are:
+
+- **Coconala:** Ryu remains manual-only. Paid has no admission
+  `effect_unknown` row, but local status still records `entrypoint_exit_1`;
+  Apply is unloaded after effect-free cancellation; Storefront is unloaded and
+  still requires an official provider readback.
+- **CrowdWorks/CloudWorks:** the admission DB holds 44 application, 1 Paid,
+  201 reply, and 1 released report `effect_unknown` fences. Paid and
+  application are unloaded after `entrypoint_exit_143`; reply is loaded but
+  blocked by `resource_admission_unavailable`. Each exact occurrence needs its
+  own provider receipt or admissible no-effect proof.
+- **Lancers:** the current source-complete inventory is zero-funded
+  (`contract_candidate_count=0`, balance `¥0`); historical job `5606124` /
+  proposal `27965342` is not funded. The DB holds 42 application plus one each
+  for Paid, negotiate, storefront, and Telegram-report as `effect_unknown`;
+  Paid is unloaded after `entrypoint_exit_143`.
+- **Mercor:** official readbacks show `contracts=[]`; Paid has a passing
+  no-effect run, while old application/reply fences remain blocked.
+- **Freelancer.com:** no OAuth, account-bound receipt, official inventory, or
+  funded project exists. All old labels are retired. Public watcher results are
+  not account-bound evidence. The next step is authenticated identity/project/
+  milestone/payment/payout readback, followed by the provider's explicit
+  automatic-bid exception before any `propose` transport.
+- **Upwork:** the source-complete snapshot observed at `2026-09-25 02:30 JST`
+  has `contracts=[]`. Only read-only `inspect/read_payments/read_payouts`
+  receipts are approved until `2026-09-26 02:30 JST`; all mutation actions are
+  denied. Legacy labels are retired and no Paid owner exists.
+
+BrowserSkill's daemon is healthy but has no connected browser/session, and the
+host data volume has only `315444 KiB` free (below the `524288 KiB` admission
+floor). The provider-gate suite is `81 passed`; this confirms fail-closed code,
+not external authentication or funded work. The only valid activation order is
+`account-bound auth → source-complete inventory → funded contract/milestone →
+current mutation/policy receipts → one owner → zero-effect canary → funded
+receipt → payment/payout readback → crash recovery → replay-zero`.
+
 ### Gate correction — 2026-09-25 08:26 JST (stale funded snapshots closed)
 
 Freelancer and Upwork owner registration now requires an official inventory

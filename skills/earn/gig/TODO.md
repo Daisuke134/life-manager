@@ -1,5 +1,34 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:31 JST (live all-platform re-read)
+
+This is a read-only re-read of the local loop registry, admission database, and
+provider snapshots. It did not send, retry, clear a fence, create credentials,
+or register an owner. The exact current boundary is:
+
+| platform | verified state now | loop/admission state now | next admissible work |
+|---|---|---|---|
+| Coconala | Ryu is manual-only and must not be resent. Paid has no `effect_unknown` admission row, but its latest local status still records `entrypoint_exit_1`; Storefront still has no official provider readback. | Paid `loaded-idle`; Apply `unloaded` after effect-free cancellation; Storefront `unloaded` with `official_readback_required`. | Reconcile the Paid local failure, obtain Storefront official readback, then run the bounded no-effect wake/replay-zero. This is not a customer-delivery proof. |
+| CrowdWorks (CloudWorks) | The read-only admission DB currently holds 44 application, 1 Paid, 201 reply, and 1 released report `effect_unknown` fences. The exact Paid fence is `crowdworks-revenue-paid:18d62cf32eb0c678-48194`; no provider receipt exists. | Paid/application `unloaded` after `entrypoint_exit_143`; reply `loaded-running` but blocked with `resource_admission_unavailable`. | Resolve each exact occurrence with its own provider receipt or admissible no-effect proof. Do not blanket retry, edit SQLite, or resend. |
+| Lancers | Current source-complete inventory is zero-funded (`contract_candidate_count=0`, balance `¥0`). Historical job `5606124` / proposal `27965342` is not a funded contract. The DB holds 42 application plus one each for Paid, negotiate, storefront, and Telegram-report as `effect_unknown`. | Paid `unloaded` after `entrypoint_exit_143`; application `loaded-idle` but fenced; work-sync `loaded-idle` and capacity-blocked. | Reconcile exact fences, refresh the official inventory, and keep Paid closed until a current funded `ContractReceipt` and formal delivery surface exist. |
+| Mercor | Latest official readbacks show `contracts=[]`; no funded work is proven. | Paid has a passing no-effect run; old application/reply fences remain `effect_unknown` and blocked. | Preserve those fences and continue read-only discovery; no revenue owner without a funded contract. |
+| Freelancer.com | No OAuth file, account-bound authorization receipt, official inventory, or funded project. The public watcher checked four stored projects (`active=0`, `errors=0`), which is not account evidence. | All old Freelancer labels are retired/disabled; no owner exists. | Attach one account-bound BrowserSkill profile or official OAuth; read identity/projects/milestones/hourly-IP contracts/payments/payouts; persist a fresh source-complete snapshot; obtain the explicit automatic-bid exception before `propose`; only then register one owner. |
+| Upwork | Fresh source-complete snapshot observed `2026-09-25 02:30 JST` has `contracts=[]`. Only read-only `inspect/read_payments/read_payouts` receipts are approved until `2026-09-26 02:30 JST`; `search/propose/message/accept_offer/deliver_milestone` are denied. | Legacy Upwork labels are retired/disabled; no Paid owner exists. | Use a dedicated account-bound BrowserSkill session (or official OAuth) to refresh identity/contracts/transactions/withdrawals, obtain current mutation approval, prove one positive funded contract/milestone, then register exactly one owner and run canaries/readbacks/replay-zero. |
+
+Shared external boundary: BrowserSkill's daemon is healthy, but it currently has
+`browsers=[]` and `sessions=[]`; no Freelancer or Upwork page can be opened.
+The data volume has only `315444 KiB` free, below the `524288 KiB` admission
+floor. No cleanup bypass or protected-state deletion is admissible. The
+Freelancer/Upwork code-side readiness, transport, policy, and freshness suite
+is green at `81 passed`; that proves fail-closed behavior, not authentication,
+funding, or a live provider owner.
+
+The non-skippable order remains:
+`account-bound auth → source-complete official inventory → funded contract /
+positive milestone → current mutation/policy receipts → exactly one immutable
+owner → zero-effect canary → funded provider receipt → payment/payout readback
+→ crash recovery → replay-zero`.
+
 ## Current cursor — 2026-09-25 08:26 JST (funded-inventory freshness gate)
 
 The Freelancer and Upwork readiness boundaries now reject a source-complete
