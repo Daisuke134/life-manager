@@ -1,5 +1,23 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-24 16:53 JST
+
+- [ ] **Coconala Apply/Storefront are not complete.** Both owners are loaded but
+  deferred by a durable `resource_effect_unknown` fence; no external effect is
+  inferred from the latest no-op/blocked wakes.
+- [ ] Build the occurrence-scoped Coconala reconciler and page-20 resumable
+  readback path. It must require complete official history or exact pre-effect
+  proof; never clear the admission DB directly and never infer no-effect from
+  exit status.
+- [ ] Promote the pushed SQLite bounded-wait fix through the immutable release
+  gate, then verify a natural wake and replay-zero. The installed Apply and
+  Storefront releases are still older SHAs.
+- [ ] Finish Coconala four-room official readback/replay-zero and remaining Ryu
+  scope (Ryu stays manual-only), then advance Lancers/Mercor.
+- [ ] Register and verify Freelancer/Upwork Paid owners before final fleet
+  acceptance; current Lancers `unsupported_claim` job `5606124` had no external
+  send and is a later policy-review item.
+
 ## Current checkpoint — 2026-09-23
 
 This checkpoint supersedes older prose below when it conflicts with the latest

@@ -4014,3 +4014,45 @@ not convert a transient pass or a no-op into client completion.
    effect.
 5. Register/verify Freelancer and Upwork Paid owners and perform final fleet
    acceptance. A loaded/no-op loop is not a delivery.
+
+## Runtime Status Refresh — 2026-09-24 16:53 JST (page-route admission boundary)
+
+- **Lancers notice remains unchanged:** job `5606124` was rejected by the
+  safety gate with `unsupported_claim`; the event says no external send. It is
+  recorded for a later policy review and does not reorder the active cursor.
+- **Fresh live readback:** `hf-gig-apply-direct` and
+  `hf-gig-storefront-direct` are still `loaded-idle` but blocked at
+  `host_admission_deferred:resource_effect_unknown`. `hf-gig-paid-direct` is a
+  clean `effect_class=none` pass and Reply is a no-effect pass; neither proves
+  a client delivery.
+- **Installed-code boundary:** the loaded Apply plist points at release
+  `aa63982c917e1ed82d151f0bc1df8dad359b16e9` and Storefront at
+  `1c11bda318047375ef2fe4183acabd232d19c20e`; the dedicated branch containing
+  the SQLite bounded-wait fix is not installed. The Apply plist also does not
+  set `GIG_RUN_FULL_HISTORY_RECONCILE`, so the resumable full-history scan is
+  not entering the revenue wake.
+- **Page-route finding:** the only exact Apply proof is a verified 19-page
+  prefix for request `5280157`; the next official page (`page=20`) returns
+  `403 Forbidden`. The current code correctly keeps the effect fence closed,
+  but the background scan cannot run while the owner is blocked by that same
+  fence. Enabling the flag alone would not resolve this: a separate,
+  occurrence-scoped Coconala read-only reconciler must obtain complete official
+  history (or an exact pre-effect proof) before any release/retire operation.
+- **Storefront finding:** recent owner wakes continue to be deferred before
+  child execution; the historical HTTP 500/Errno 28 evidence is no provider
+  publish receipt. No publish, formal delivery, DB edit, or fence release was
+  performed.
+
+### Next one-by-one cursor (16:53 JST)
+
+1. Keep Apply/Storefront fences closed; design and test the occurrence-scoped
+   Coconala reconciler and resumable page-20 denial path, with no false absence
+   conclusion.
+2. Promote the SQLite branch only through the immutable release gate, then
+   obtain a natural Apply/Storefront wake; do not force-retry an unknown effect.
+3. Complete Coconala's four-room official readback/replay-zero and the remaining
+   Ryu scope, retaining Ryu's permanent manual-only fence.
+4. Advance Lancers/Mercor one owner at a time; review `unsupported_claim` only
+   after the active Coconala cursor.
+5. Register/verify Freelancer and Upwork Paid owners, then run final
+   cross-platform acceptance. A loaded/no-op loop is not completion.
