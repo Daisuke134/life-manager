@@ -118,23 +118,53 @@ flowchart LR
   clean terminalを確認しました。durable policyは`deterministic/borrow/support`でしたがregistry宣言が無かったため、
   同じcoalescingとqueued-release reconcileだけを追加し、RED→GREEN registry/fixture 90/90をPASSしました。
   watcher entrypointやfinancial effectは実行していません。main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch`は旧installed/event SHA
+  `f7d4ff46afa42539a6def192774de66ff3317cec`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_capacity_busy`です。durable admissionはqueued 319、released 425、
+  claimed 0、effect_unknown 0、queue row 1、reservation 0、policy `deterministic/borrow/support`です。
+  Inflow watcherやfinancial effectは実行していません。accepted releaseのexact-SHA wakeとreplay-zeroが未完です。
 - `x402-inflow-watch-claude-p`は同じeffect-free watcherでもrouteが`shared-agent-runner`で、durable policyは
   `agent/borrow/support`、known FIFO 343件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。
   deterministic設定を流用せず、agent-classのcoalescingとqueued-release reconcileだけをbranchへ追加し、
   RED→GREEN registry/fixture 91/91、apply 124/124をPASSしました。model wake・financial effectは実行しておらず、
   main/release昇格とproduction exact-SHA replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-claude-p`は旧installed/event SHA
+  `e6cdef15b8d63c53ed91450e87feac54d481a5b1`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_control_busy`/exit 75です。durable admissionはqueued 346、released
+  547、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy `agent/borrow/support`です。
+  モデルwake・financial effectは実行していません。deterministic設定を流用せず、agent-class contractの
+  accepted release、exact-SHA wake、replay-zeroを待ちます。
+- 2026-09-25 JSTの再確認では、`x402-experiment-franklin1`は旧installed/event SHA
+  `f885e963e4784af316855a2d390f8945899cd1a2`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_capacity_busy`/exit 75です。durable admissionはqueued 1,440、released
+  472、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。experiment entrypoint、trade、payment、revenue effectは実行していません。
+  旧eventのdiagnostic欠落は、accepted releaseの一回のbounded wakeで更新するまでfoundation未受入です。
 - `x402-inflow-watch-franklin1`はdeterministic routeで、durable policy `deterministic/borrow/support`、known
   effect-free FIFO 393件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry宣言が無かったため、
   このownerだけにcoalescingとqueued-release reconcileを追加し、RED→GREEN registry/fixture 92/92、apply 124/124を
   PASSしました。watcher・financial effectは実行しておらず、main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-franklin1`は旧installed/event SHA
+  `14ae9e04088f7839e8c2348fb9b1b5de3768d408`、loaded-idle、typed capacity deferral/exit 75です。durable
+  admissionはqueued 395、released 532、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。watcher・financial effectは実行していません。
 - `x402-inflow-watch-franklin2`もdeterministic routeで、durable policy `deterministic/borrow/support`、known
   effect-free FIFO 391件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約をこのownerだけに
   追加し、RED→GREEN registry/fixture 93/93、apply 124/124をPASSしました。watcher・financial effectは実行しておらず、
   main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-franklin2`は旧installed/event SHA
+  `f86bacceaba2133ecf0568994bd2a48b2ad2c8cd`、loaded-idle、typed
+  `host_admission_deferred:resource_admission_unavailable`/exit 75です。durable admissionはqueued 393、
+  released 541、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。watcher・financial effectは実行していません。
 - `x402-sale-observer`もdeterministic routeで、durable policy `deterministic/borrow/support`、known effect-free FIFO
   1,459件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約を追加し、RED→GREEN
   registry/fixture 94/94、apply 124/124をPASSしました。sale observation・payment・revenue effectは実行しておらず、
   main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-sale-observer`は旧installed/event SHA
+  `766ef884e5881e0752c268b91b6fdbbd9bd7ec71`、loaded-idle、typed capacity deferral/exit 75です。durable
+  admissionはqueued 1,468、released 464、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。sale observation・payment・revenue effectは実行していません。
 - Agent Economyの二つのdurable money observerもread-onlyで確認しました。`sol-funding`はknown queued 234件、
   known released 1件、released `effect_unknown` 1件、`x402-settlement-recorder`はknown queued 50件、known
   released 6件、released `effect_unknown` 1件です。両方のpriorityは既存ledger上で

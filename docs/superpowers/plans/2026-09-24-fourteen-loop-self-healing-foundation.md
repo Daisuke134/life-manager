@@ -598,6 +598,34 @@ The following is the current control-plane state. It is evidence for the next bo
   `deterministic/borrow/support`. No entrypoint, wallet, payment or trade effect ran. Its old event is still
   diagnostically incomplete, so this is not acceptance. The next safe action remains accepted-release promotion,
   one-owner reconciliation, one bounded wake and replay-zero; no production mutation was performed.
+- Read-only x402 experiment recheck 2026-09-25 JST: `x402-experiment-franklin1` is loaded-idle on old
+  installed/event SHA `f885e963e4784af316855a2d390f8945899cd1a2`, with the same typed pre-entrypoint capacity
+  deferral/exit 75. Durable admission has 1,440 queued and 472 released effect-free occurrences, zero claimed,
+  zero effect-unknown, one queue row and zero reservations under `deterministic/borrow/support`. No experiment,
+  trade, payment or revenue effect ran. Its explicit branch contract is not production evidence until accepted
+  immutable release and exact-SHA replay-zero.
+- Read-only x402 inflow recheck 2026-09-25 JST: `x402-inflow-watch` is loaded-idle on old installed/event
+  SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with typed capacity deferral and no entrypoint effect. Durable
+  admission has 319 queued and 425 released effect-free occurrences, zero claimed, zero effect-unknown, one queue
+  row and zero reservations under `deterministic/borrow/support`. The observer remains branch-contract-only until
+  accepted release, exact-SHA wake and replay-zero.
+- Read-only x402 agent inflow recheck 2026-09-25 JST: `x402-inflow-watch-claude-p` is loaded-idle on old
+  installed/event SHA `e6cdef15b8d63c53ed91450e87feac54d481a5b1`, with typed control-busy deferral/exit 75.
+  Durable admission has 346 queued and 547 released effect-free occurrences, zero claimed, zero effect-unknown,
+  one queue row and zero reservations under the observed `agent/borrow/support` policy. No model wake or financial
+  effect ran; preserve the agent resource class through accepted-release promotion and replay-zero.
+- Read-only x402 Franklin1 inflow recheck 2026-09-25 JST: `x402-inflow-watch-franklin1` is loaded-idle on old
+  installed/event SHA `14ae9e04088f7839e8c2348fb9b1b5de3768d408`, typed capacity deferral/exit 75, and durable
+  admission 395 queued/532 released effect-free occurrences with zero claimed, zero effect-unknown, one queue row
+  and zero reservations under `deterministic/borrow/support`. No watcher or financial effect ran.
+- Read-only x402 Franklin2 inflow recheck 2026-09-25 JST: `x402-inflow-watch-franklin2` is loaded-idle on old
+  installed/event SHA `f86bacceaba2133ecf0568994bd2a48b2ad2c8cd`, typed admission-unavailable deferral/exit 75, and
+  durable admission 393 queued/541 released effect-free occurrences with zero claimed, zero effect-unknown, one
+  queue row and zero reservations under `deterministic/borrow/support`. No watcher or financial effect ran.
+- Read-only x402 sale-observer recheck 2026-09-25 JST: `x402-sale-observer` is loaded-idle on old installed/event
+  SHA `766ef884e5881e0752c268b91b6fdbbd9bd7ec71`, typed capacity deferral/exit 75, and durable admission 1,468
+  queued/464 released effect-free occurrences with zero claimed, zero effect-unknown, one queue row and zero
+  reservations under `deterministic/borrow/support`. Sale observation is not a payment or revenue receipt.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
