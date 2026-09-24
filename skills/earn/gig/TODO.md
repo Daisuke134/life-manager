@@ -53,6 +53,16 @@ were byte-identical (`raw_diff_count=0`, identical SHA
 inventory is stable and the probe cannot post; it does **not** bind that
 readback to the older Paid occurrence, so the `effect_unknown` fence remains.
 
+At `2026-09-25 06:09 JST` I reran the supported zero-effect resolver in
+read-only mode for the exact CrowdWorks and Lancers occurrences. Both returned
+`exact_paid_zero_effect_proof_unavailable`; neither provider-owned digest
+marker exists at its canonical `paid/runs/<sha256 occurrence>.json` path. The
+Lancers event pair is still `execute/running` followed by
+`report/fail/entrypoint_exit_1` with `effect_status=unknown` and no provider
+receipt. No admission row was edited, no provider page was opened, and no
+retry/send was issued. The next permissible step is an occurrence-bound
+provider readback or an admissible pre-effect proof, not a blanket release.
+
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
 `/Users/anicca/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
