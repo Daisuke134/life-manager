@@ -4717,4 +4717,5 @@ existing pass/block contract while exposing state, reason, next-action and actio
 fresh d4 status, it reports `13 runtime_release_drift`, `1 runtime_admission_deferred`, and `1
 runtime_terminal_not_pass`, with the corresponding next actions `load_exact_immutable_release`,
 `retry_after_eligibility`, and `diagnose_failure`. The full product-onboarding suite passes **47/47** and the
-blocked readback output remains mode `0600`; no production or provider state changed.
+blocked readback output remains mode `0600`; no production or provider state changed. A release-drift regression was
+then added at `824b6b6f4b`; the full product-onboarding suite is now **48/48**, proving the repair action is retained.

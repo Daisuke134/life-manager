@@ -1281,8 +1281,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   next-action counts and the exact actionable Product Loop rows without changing the existing gate decision.
 - [x] Verify against the current d4 readback: `13 runtime_release_drift`, `1 runtime_admission_deferred`, and
   `1 runtime_terminal_not_pass`, with explicit next actions for release promotion, eligibility retry, and diagnosis.
-- [x] Run the full product-onboarding suite: **47/47**. Output remains private mode `0600`; no production/provider/
-  effect state changed. Candidate commit: `e9145a094c`.
+- [x] Run the full product-onboarding suite: **48/48**, including a release-drift regression that requires
+  `load_exact_immutable_release`. Output remains private mode `0600`; no production/provider/effect state changed.
+  Candidate commits: `e9145a094c`, `824b6b6f4b`.
 - [ ] Load this candidate only through the accepted main-derived immutable-release path after the foundation gate
   permits integration; do not bypass the gate by selecting the branch or mutating launchd directly.
 
