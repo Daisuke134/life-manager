@@ -4273,3 +4273,34 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   Next: attach it to the authenticated readback callback, then perform the
   disabled-owner → zero-spend → funded canary sequence only after a positive
   funded milestone exists.
+
+### Runtime checkpoint — 2026-09-25 00:54 JST (concrete all-platform state)
+
+- [x] Ryu `5280157` is still unresolved, not sent: the prepared intent has no
+  historical account binding; the old run is `failed/effect=0/readback=0` with
+  one durable pending ID. Complete official history omits the request and the
+  detail roster omits account `2564121`, but this remains absence-only evidence
+  and cannot release the current fence. The accepted no-dispatch proof is for
+  another occurrence. Do not retry or release from this artifact.
+- [x] Coconala Paid is only a safe no-op (`effect=0`,
+  `effect_status=not_applicable`); it is not Ryu delivery. Apply and Storefront
+  remain fenced. Ryu's requested option/UI changes still lack management-screen
+  readback and are not claimed complete.
+- [x] CrowdWorks is `5/1/0/4/1` (observed/actionable/effect/readback/pending),
+  with `63568785` waiting for buyer material `426855154`; Lancers is a
+  zero-funded no-op; Mercor is authenticated but stale and still at assessment
+  `2/3` with no observed final submission.
+- [x] Freelancer has no OAuth, approved receipts, inventory, funded project,
+  or owner. Its fail-closed gate and effect/replay binding are implemented, but
+  the official API transport and project/milestone/payment/payout adapter are
+  not wired.
+- [x] Upwork has no OAuth, eight denied action receipts, zero active contracts,
+  and no owner. Its strict browser-state adapter is tested but is not a live
+  transport until fresh approved receipts and a positive funded milestone are
+  present.
+- [ ] Next cursor is Ryu fence proof → CrowdWorks buyer material → Mercor
+  refresh → Freelancer transport → Upwork transport. Only after each provider
+  has official funded evidence may its single disabled owner run zero-spend,
+  funded, delivery/payment/payout, and replay-zero canaries. PR `#5854`
+  (`96a2b317ea`) is CI-green/mergeable but remains unmerged pending these
+  external gates.

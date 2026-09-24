@@ -4878,3 +4878,44 @@ leaves the provider effect closed.
   denied. Do not register an owner or treat the zero-contract snapshot as a
   funded canary until fresh approved account-bound receipts and a positive
   funded milestone are read back.
+
+## Runtime Status Refresh — 2026-09-25 00:54 JST (concrete all-platform state)
+
+- [x] Ryu's current Coconala target remains request `5280157` with a prepared
+  intent whose `account_id` and `profile_url` are null. The historical run is
+  `status=failed`, `effect=0`, `readback=0`, and retains one durable pending
+  ID. The complete official applied-history readback omits `5280157`, while
+  the detail roster shows the authenticated account `2564121` absent; this is
+  only a no-dispatch candidate because the old submit session did not persist
+  its account binding. The older accepted no-dispatch artifact belongs to a
+  different occurrence. No Ryu retry, duplicate send, or fence release is
+  allowed from this evidence.
+- [x] The generic Coconala Paid wake is a safe no-op (`effect=0`,
+  `effect_status=not_applicable`); it is not Ryu delivery. Apply and Storefront
+  remain separate fenced surfaces. Ryu's requested option removal/per-girl
+  paid-option behavior, two-option data-loss fix, WEB予約 wording/image
+  behavior, and registration-limit confirmation still lack a verified
+  management-screen readback.
+- [x] CrowdWorks is `observed=5/actionable=1/effect=0/readback=4/pending=1`;
+  only `63568785` is open and it is blocked on buyer lesson/answer material
+  (`buyer_event_id=426855154`). Lancers is a verified zero-funded no-op
+  (`observed=0/effect=0/readback=0`), and Mercor is authenticated but its Paid
+  inventory is stale with the assessment still `2/3` and final submission
+  unobserved.
+- [x] Freelancer has no OAuth file, approved lifecycle receipts, authenticated
+  inventory, funded project, or owner. The strict gate and account/contract/
+  action/replay binding are implemented; the official API transport and
+  source-complete project/milestone/payment/payout adapter are not yet wired.
+- [x] Upwork has no OAuth file; all eight stored action receipts are denied,
+  the historical browser inventory has zero active contracts, and no owner is
+  registered. The browser-state-to-inventory adapter and strict gate are
+  implemented and tested, but they are not a live transport until fresh
+  approved receipts and a positive funded milestone are read back.
+- [ ] Ordered next work is: (1) preserve Ryu's fence and obtain an admissible
+  account-bound proof or new provider receipt; (2) finish the CrowdWorks
+  buyer-material gate; (3) refresh Mercor; (4) attach Freelancer's official
+  transport; (5) attach Upwork's authenticated contract/payment transport;
+  then, for each provider only, disabled owner → zero-spend canary → funded
+  canary → official delivery/payment/payout/replay-zero. PR `#5854` at
+  `96a2b317ea` is CI-green and mergeable, but remains unmerged until these
+  external outcome gates are actually satisfied.
