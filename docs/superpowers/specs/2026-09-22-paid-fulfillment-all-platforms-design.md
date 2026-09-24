@@ -3833,6 +3833,12 @@ not convert a transient pass or a no-op into client completion.
   `readback=4`, `pending=1`, buyer task detail required for `63568785`), not
   a full fleet acceptance. No DB edit, provider call, restart, resend, or
   client submission occurred.
+- [ ] The user-supplied Ryu transcript adds a separate unverified scope:
+  remove five named items from the standard options and expose them as
+  per-girl paid options, fix the bug where adding two paid options clears all
+  options, clarify the WEB予約 wording/image behavior, and confirm the
+  registration limit. These items are not covered by the verified v702/v703
+  artifact and stay pending until management/public readback proves them.
 
 ### Next one-by-one cursor (16:07 JST)
 
@@ -3843,10 +3849,12 @@ not convert a transient pass or a no-op into client completion.
    runs and obtain a natural Paid wake without force-retry.
 3. Reconcile CrowdWorks Reply/Report and close the CrowdWorks fleet canary
    only with official readback and replay-zero.
-4. Complete Coconala system acceptance (Reply/Storefront, natural wake,
+4. Complete the remaining Ryu scope (including the separately supplied
+   options/WEB予約 requirements) with management/public readback, then
+   complete Coconala system acceptance (Reply/Storefront, natural wake,
    four-room official readback, replay-zero) while retaining Ryu's permanent
-   manual-only fence; the latest Ryu artifact is verified but no new message
-   or formal delivery was sent in this cursor.
+   manual-only fence; no new message or formal delivery was sent in this
+   cursor.
 5. Advance Lancers, then Mercor, one owner at a time with stable admission,
    item idempotency, provider receipt, settlement/readback, and replay-zero;
    review Lancers `unsupported_claim` after the active cursor.

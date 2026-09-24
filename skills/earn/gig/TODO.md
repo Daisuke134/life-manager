@@ -3475,6 +3475,11 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   remains effect-none with `4/5` readback and buyer-detail pending work.
 - [x] No DB edit, provider call, restart, retry, resend, or client submission
   occurred.
+- [ ] The user-supplied Ryu transcript also lists unverified option/WEB予約
+  work: remove five named items from standard options and make them
+  per-girl paid options, fix the two-option clearing bug, clarify the WEB予約
+  wording/image behavior, and confirm the registration limit. v702/v703 does
+  not cover this scope; require management/public readback before handoff.
 
 ### Remaining TODO (authoritative ordered cursor, 16:07 JST)
 
@@ -3485,8 +3490,10 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    force-retry.
 3. [ ] Reconcile CrowdWorks Reply/Report and close the fleet canary only with
    official readback and replay-zero.
-4. [ ] Complete Coconala Reply/Storefront acceptance, natural wake,
-   four-room official readback, and replay-zero; retain Ryu manual-only. The
+4. [ ] Complete the remaining Ryu scope (including the separately supplied
+   options/WEB予約 requirements) with management/public readback; then
+   complete Coconala Reply/Storefront acceptance, natural wake, four-room
+   official readback, and replay-zero while retaining Ryu manual-only. The
    current Ryu artifact is verified, but this cursor intentionally sent no
    new message or formal delivery.
 5. [ ] Advance Lancers then Mercor one owner at a time; review the Lancers
