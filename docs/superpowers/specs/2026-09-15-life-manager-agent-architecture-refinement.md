@@ -4532,3 +4532,16 @@ only `LIFE_MANAGER_NODE`/`LIFE_MANAGER_PYTHON` or PATH. The branch now falls bac
 it only prevents a valid managed runtime from being reported as absent. `bash -n` passes. Its JavaScript test file
 cannot be imported in this checkout because the dependency bundle is missing `@noble/hashes/sha3.js`; that import
 gap is recorded separately and no money effect was executed.
+
+### Current fleet readback after source-only fixes (2026-09-25 JST)
+
+The bounded full status read completed in 15.8 seconds and returned 271 managed rows. The local foundation gate
+still reports `healthy=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `setup_required=0`,
+`decision=block`, with reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. `investment` is the only safely fenced Product Loop; no revenue or external effect was inferred.
+
+The release-reconciler itself is not on the current selector: its live plist is installed/event release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, `loaded-running`, and its latest terminal evidence is
+`entrypoint_exit_1`. The selector remains current d4, but the reconciler has not promoted itself. This corrects the
+earlier shorthand that described the reconciler as d4-loaded. The branch fixes are therefore source-ready but not
+production-loaded; the accepted main-derived immutable release is the next bootstrap boundary.

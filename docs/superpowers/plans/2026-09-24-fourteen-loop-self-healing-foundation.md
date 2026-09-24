@@ -1118,3 +1118,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Harden the non-platform-Paid CFO payout wrapper with the same managed Node/Python fallback. `bash -n` passes;
   the JavaScript test remains blocked at import by the recorded `@noble/hashes/sha3.js` dependency gap. No payout,
   wallet or transfer effect was executed.
+
+### Current fleet readback after source-only fixes (2026-09-25 JST)
+
+- [x] Re-read the bounded full status and local foundation gate. The 271-row projection completes in 15.8 seconds and
+  remains `healthy=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `setup_required=0`,
+  `decision=block`, with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+  `uncovered_failure`. No revenue or external effect was inferred.
+- [x] Correct the bootstrap cursor: the live release-reconciler is still installed/running at old release
+  `09a59ba1b899849ae7e3be8c67e239ec664dea22` with latest terminal `entrypoint_exit_1`; the selector points at
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, but the reconciler has not promoted itself. The branch launcher,
+  portable-runtime, and payout-wrapper fixes are source-ready only.
+- [ ] Promote one accepted main-derived immutable release containing these runtime fixes, then verify the
+  release-reconciler's loaded SHA, managed Node/Python path, current terminal event, and replay-zero before allowing
+  its FIFO reconciler to advance any owner. This is the next cursor; do not clear effect fences or mutate admission
+  state manually.
