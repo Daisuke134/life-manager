@@ -899,6 +899,12 @@ The following is the current control-plane state. It is evidence for the next bo
   That is a hard release-identity boundary and must remain non-zero. The earlier `healthy_readback_pending` queued
   outcome is the separate false-failure case addressed by commit `8393380bb2`; no launchd/provider/fence mutation
   or external effect occurred in this recheck.
+- [x] Fresh exact-current foundation gate after that read-only recheck remains closed: all 14 catalog loops are
+  observed, `healthy=0`, `setup_required=0`, `safely_fenced=1` (`investment`), `repairing=0`,
+  `uncovered_failure=13`, with reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The remaining 13 loop states are
+  `runtime_release_drift` with next action `load_exact_immutable_release`; this is a release-alignment cursor,
+  not a revenue wait. No mutation, provider action, fence clear or revenue claim was made.
 
 ## Deferred until this plan passes
 

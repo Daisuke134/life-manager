@@ -4253,6 +4253,13 @@ intent being `blocked / release_sha_mismatch / escalate_owner`. That hard releas
 non-zero under the candidate contract. It is distinct from the earlier `healthy_readback_pending` queued outcome,
 which is the safe-wait false failure fixed on the branch. No launchd/provider/effect-fence mutation occurred.
 
+The corresponding exact-current foundation gate remains closed: all 14 catalog loops are observed, with
+`healthy=0`, `setup_required=0`, `safely_fenced=1` (`investment`), `repairing=0`, and `uncovered_failure=13`.
+The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`; the other 13 loop states are `runtime_release_drift` with next action
+`load_exact_immutable_release`. This is a release-alignment cursor, not a revenue wait, and no mutation, provider
+action, fence clear, or revenue claim was made.
+
 ## E2E Judgment
 
 | Item | Value |
