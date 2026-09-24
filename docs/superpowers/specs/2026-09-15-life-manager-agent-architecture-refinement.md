@@ -117,6 +117,12 @@ flowchart LR
   `reconcile_queued_release=true`をregistryへ追加しました。fake managed-nodeのRED→GREEN回帰、registry/rendered-fixture
   95/95、apply 124/124（既知のsqlite `ResourceWarning`のみ）はPASSしました。wallet/refill/payment/provider effectは
   実行しておらず、main/release昇格、exact-SHA readback、replay-zeroは未完です。
+- `life-manager-x402-ledger`はdeterministic routeで、known effect-free FIFO 1,711件、released 600件、
+  claimed/unknown 0件、reservation 0件でした。loaded ownerの最新状態はentrypoint前の
+  `resource_admission_unavailable`/capacity deferralで、trade・payment・provider effectはありませんでした。
+  registryに既存の`deterministic/borrow/support`、queued/reserved coalescing、`reconcile_queued_release=true`だけを
+  branch-onlyで宣言し、RED→GREEN registry/fixture 97/97、apply 124/124（既知のsqlite `ResourceWarning`のみ）を
+  PASSしました。main/release昇格、exact-SHA readback、replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean

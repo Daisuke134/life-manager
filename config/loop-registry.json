@@ -2387,6 +2387,12 @@
       "entrypoint": "apps/life-manager/scripts/x402-sale-ledger-boot.sh",
       "label": "ai.anicca.life-manager-x402-ledger",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
