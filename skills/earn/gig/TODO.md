@@ -2498,3 +2498,22 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   Lancers contract, then deliver once with official receipt/replay-zero.
 - [ ] Keep `0ab75d4b0e` branch-only until the main-derived immutable release
   gate passes; keep Upwork disabled until its three onboarding gates exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:37 JST
+
+- [x] Released Coconala's exact no-effect claim
+  `18d8210a0da8b550-26410` through the supported no-effect control-plane API;
+  Coconala now has zero unknown claims and terminal `pass` (`4/0/0/3`).
+- [x] Released CrowdWorks claim `18d82070dfc14b28-19186` after its exact
+  `effect=0/completed` marker was verified; the latest snapshot is
+  `5/1/0/4/1` and only historical `18d62cf32eb0c678-48194` remains fenced.
+- [x] Reconfirmed the Lancers residual fence
+  `18d81967220136f8-89928` has no exact proof; Paid remains
+  `provider_inventory`/capacity-blocked with no funded contract.
+- [ ] Keep the historical CrowdWorks fence closed; no resend or DB edit.
+- [ ] Let Lancers capacity settle and obtain approval before targeted browser
+  recovery; diagnose inventory and release the fence only with exact evidence.
+- [ ] Complete CrowdWorks `63568785` only after buyer material, with receipt and
+  replay-zero; keep Ryu manual-only.
+- [ ] Promote `0ab75d4b0e` via main-derived immutable release after acceptance;
+  keep Upwork disabled until onboarding gates exist.

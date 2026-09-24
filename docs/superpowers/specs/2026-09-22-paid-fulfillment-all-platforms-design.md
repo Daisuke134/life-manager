@@ -2449,3 +2449,36 @@ not convert a transient pass or a no-op into client completion.
    immutable release passes the all-platform acceptance gate.
 5. Keep Upwork disabled until authorization, authenticated readback, and a
    funded contract exist.
+
+## Production Cursor — 2026-09-24 11:37 JST
+
+- **Coconala control plane:** the exact no-effect claim
+  `hf-gig-paid-direct:18d8210a0da8b550-26410` was released through the
+  supported `clear_no_effect_unknown` API after its event pair proved
+  `effect_class=none`, `effect_status=not_applicable`, and `pass`. The loop now
+  reports `admission_effect_unknown=false`, terminal `pass`, and the official
+  snapshot remains `4/0/0/3`.
+- **CrowdWorks control plane:** the exact `effect=0/completed` marker for
+  `18d82070dfc14b28-19186` was verified and released through the supported
+  reconciler. The latest Paid run is terminal `pass` with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; only the historical
+  marker-less fence `18d62cf32eb0c678-48194` remains claimed.
+- **Lancers:** the Paid loop remains blocked by `resource_capacity_busy` and
+  its single residual fence `18d81967220136f8-89928` has no exact marker or
+  provider receipt. The latest snapshot is still
+  `provider_inventory` failure with zero observed/effect/readback and no funded
+  contract. No retry or provider mutation was made.
+
+### Remaining TODO (current ordered cursor)
+
+1. Keep CrowdWorks `18d62cf32eb0c678-48194` fenced until exact provider or
+   pre-effect evidence exists; do not resend or edit the DB.
+2. Let Lancers admission capacity settle, then diagnose the residual
+   `provider_inventory` boundary. Targeted browser recovery remains an explicit
+   approval boundary; do not kill the owned browser or arbitrary clients.
+3. If a funded CrowdWorks `63568785` artifact arrives, complete once with
+   provider receipt/replay-zero. Preserve Coconala Ryu manual-only/no-op state.
+4. Promote the typed Lancers fix `0ab75d4b0e` only through a main-derived
+   immutable release after all-platform acceptance; do not hot-load the branch.
+5. Keep Upwork disabled until authorization, authenticated readback, and a
+   funded contract exist.
