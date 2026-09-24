@@ -21,6 +21,7 @@ import re
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -71,6 +72,36 @@ def emit_result(status, occurrence_id, *, effect_status, provider_receipt_id=Non
         "official_readback_ref": official_readback_ref,
     }
     print(json.dumps(result, sort_keys=True))
+
+
+def append_future_receipt(row, environ=None):
+    """Persist only public, occurrence-bound settlement identity for a later readback."""
+    if not isinstance(row, dict) or not row.get("occurrence_id"):
+        return False
+    environ = os.environ if environ is None else environ
+    state_dir = Path(environ.get(
+        "LIFE_MANAGER_SOL_FUNDING_STATE_DIR",
+        "~/.local/state/life-manager/sol-funding",
+    )).expanduser()
+    path = state_dir / "sol-funding-receipts.jsonl"
+    try:
+        if state_dir.is_symlink() or path.is_symlink():
+            return False
+        state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(path, flags, 0o600)
+        try:
+            os.fchmod(descriptor, 0o600)
+            payload = (json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n").encode()
+            os.write(descriptor, payload)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        return True
+    except (OSError, TypeError, ValueError):
+        return False
 
 
 def rpc(method, params):
@@ -155,14 +186,43 @@ def main():
 
     # poll relay cross-chain status
     check = item.get("check", {}).get("endpoint")
+    relay_readback = {}
+    append_future_receipt({
+        "occurrence_id": occurrence_id,
+        "provider_receipt_id": str(sig),
+        "relay_check_endpoint": check,
+        "relay_status": "submitted",
+        "destination_chain_id": DEST_CHAIN,
+        "destination_currency": DEST_CURRENCY,
+        "recipient": recipient,
+        "effect_status": "submitted",
+    })
     if check:
         url = "https://api.relay.link" + check
         for _ in range(40):
             time.sleep(3)
-            st = get(url).get("status")
+            relay_readback = get(url)
+            st = relay_readback.get("status")
             print("relay status:", st)
             if st in ("success", "refund"):
                 break
+    destination_hashes = relay_readback.get("txHashes") if isinstance(relay_readback, dict) else None
+    receipt = {
+        "occurrence_id": occurrence_id,
+        "provider_receipt_id": str(sig),
+        "relay_check_endpoint": check,
+        "relay_status": relay_readback.get("status") if isinstance(relay_readback, dict) else "unknown",
+        "destination_chain_id": DEST_CHAIN,
+        "destination_currency": DEST_CURRENCY,
+        "recipient": recipient,
+        "effect_status": "submitted",
+    }
+    if isinstance(destination_hashes, list) and len(destination_hashes) == 1:
+        receipt["destination_tx_hash"] = str(destination_hashes[0])
+    amount_out = det.get("currencyOut", {}).get("amount")
+    if isinstance(amount_out, str) and amount_out.isdigit():
+        receipt["destination_usdc_atomic"] = amount_out
+    append_future_receipt(receipt)
     print("done")
     emit_result(
         "submitted", occurrence_id, effect_status="submitted",

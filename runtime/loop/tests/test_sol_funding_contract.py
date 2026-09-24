@@ -66,6 +66,10 @@ class SolFundingContractTests(unittest.TestCase):
         self.assertIn('"provider_receipt_id"', source)
         self.assertIn('"official_readback_ref"', source)
         self.assertIn('effect_status="submitted"', source)
+        self.assertIn("append_future_receipt", source)
+        self.assertIn("sol-funding-receipts.jsonl", source)
+        self.assertIn("relay_check_endpoint", source)
+        self.assertIn("destination_tx_hash", source)
 
     def test_unconfigured_wake_emits_secret_free_occurrence_bound_no_effect_result(self):
         result = subprocess.run(
