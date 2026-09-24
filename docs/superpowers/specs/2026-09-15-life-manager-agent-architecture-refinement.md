@@ -5091,3 +5091,11 @@ The fresh local foundation projection is **12 `uncovered_failure` / 2 `safely_fe
 `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The candidate
 branch has not been loaded into production; main integration and immutable promotion remain closed until capacity and
 the two-pass gate are green. No Paid state or provider session was touched.
+
+### ENOSPC safety regression follow-up (2026-09-25 JST)
+
+Candidate follow-up commit `07193f3f61` adds the complementary regression: an `ENOSPC` during scratch creation for
+an effectful owner does **not** invoke scratch GC and propagates the failure fail-closed. The scratch suite is now
+**14 passed + 4 subtests**. The broader focused control-plane/read-only/apply/registry/recovery/scratch/cleanup run
+reported **325 passed + 216 subtests**; the only incomplete collection remains the host-capacity tar-extraction
+fixture described above. This does not change the production gate or authorize Paid/provider actions.

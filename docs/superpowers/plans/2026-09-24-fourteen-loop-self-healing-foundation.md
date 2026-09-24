@@ -1577,3 +1577,12 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Re-run the local foundation projection: **12 uncovered_failure / 2 safely_fenced**, `decision=block`.
 - [ ] Restore the host floor, then rerun full tests and the two-pass gate; do not interpret this capacity block as a
   provider failure or as permission to touch Paid state.
+
+### ENOSPC effect-fence regression follow-up (2026-09-25 JST)
+
+- [x] Add candidate follow-up `07193f3f61`: effectful scratch creation never invokes stale-scratch GC or retries after
+  `ENOSPC`; it propagates fail-closed. Scratch verification is **14 passed + 4 subtests**.
+- [x] Re-run the broader focused control-plane/read-only/apply/registry/recovery/scratch/cleanup set: **325 passed +
+  216 subtests**. The full collection remains host-capacity blocked at the tar fixture.
+- [ ] Keep the production cursor closed until capacity recovery, full collection completion, exact immutable loading,
+  and the two-pass foundation gate.
