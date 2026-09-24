@@ -3299,7 +3299,22 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    policy (`agent/borrow/support`) and enables the existing queued/reserved-wake coalescing instead of replaying 64
    old five-minute wakes. Focused proof/negative/registry tests pass 4/4; reconcile plus registry suites pass
    206/206 with 174 subtests; the full runtime suite passes 624 tests plus 522 subtests, with the unrelated CEO
-   light-pass timeout passing on its isolated retry. Production admission remains unchanged until PR/main/release.
+   light-pass timeout passing on its isolated retry. PR #5851 merges the shared repair at
+   `209f879ec862a24fa0ed5cd954a7680422905c3a`; complete immutable release
+   `20260924T203525-209f879e` is active with `release_paths=ALL`, `ancestor-of-origin-main` provenance and a
+   clean 169-entry doctor readback.
+
+   Production reconciliation resolves only `alpaca-investment-live:18d5feb0983a54b8-35815`. Its private
+   `HOST_PRE_EFFECT_RECONCILIATION` receipt is mode 0600 and `RESOLVED`; Investment admission changes from one
+   unknown occurrence to zero without invoking the broker. The first exact-release wake coalesces all 64 stale
+   effect-known wakes and exits 0. Fresh Alpaca readback reports account `ACTIVE`, equity USD 66.74, cash USD 0,
+   four orders, nine activities, one position and `NO_TRADE`; pending/reconciled/unresolved orders are all zero,
+   and Telegram delivery receipt is message `92860`. The following immediate wake performs no entrypoint or
+   trade: it stops at typed retryable `resource_capacity_busy`, leaves one known queued occurrence, no
+   reservation and no unknown effect. The foundation evaluator therefore records Investment as exact-release
+   `safely_fenced/runtime_admission_deferred` with zero release mismatches and zero diagnostic gaps. This is the
+   required bounded replay-zero and safety evidence; profit or a natural scheduler wake is not an acceptance
+   gate. Investment is accepted for the local foundation slice, and the current executable cursor is Fundraiser.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
