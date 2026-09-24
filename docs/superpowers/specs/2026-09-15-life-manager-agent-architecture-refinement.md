@@ -3774,6 +3774,12 @@ no reservation. Coalescing and queued-release reconciliation are declared for fu
 unknown remains fenced and no report message, provider session, admission state or Paid fulfillment was touched. The
 registry/fixture change is branch-only until an accepted immutable release and exact official readback.
 
+The Gig non-Paid `hf-gig-apply-evidence-gc` owner now declares its observed effect-free contract as
+`deterministic/borrow/support`, with 35 queued and 145 released-known occurrences, no claim/unknown/reservation and
+one durable queue row. Coalescing and queued-release reconciliation are explicit so the self-healer can manage its
+FIFO without guessing. The cleanup entrypoint was not run and no Paid source, state, session, marketplace effect or
+revenue was changed; this registry/fixture slice remains branch-only pending exact-release readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

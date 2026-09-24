@@ -990,6 +990,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("coalesce_reserved_wakes"))
 
+    def test_hf_gig_evidence_gc_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-apply-evidence-gc"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]
