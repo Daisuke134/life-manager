@@ -1037,6 +1037,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.cloak/profiles/gig-daily-driver",
         })
 
+    def test_affiliate_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["affiliate-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9324,
+            "profile": "~/.cloak/profiles/affiliate/en",
+        })
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]

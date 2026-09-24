@@ -3801,6 +3801,11 @@ The Gig continuous browser owner is now classified `resource_class=browser` from
 inferred. The Gig browser session and all Paid source/state/session/provider effects remain untouched; accepted
 release loaded-idle/readback is still required.
 
+The Affiliate `affiliate-browser` continuous owner is now classified `resource_class=browser` from its unique
+CDP/profile `browser_owner` (9324) and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No Affiliate browser session, Telegram/provider effect or admission state was changed; this is
+branch-only until exact-release loaded-idle/readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

@@ -163,6 +163,7 @@
       "label": "ai.anicca.affiliate-browser",
       "log_root": "~/.local/state/life-manager/affiliate-browser/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/affiliate-browser"
     },
     "affiliate-composition": {
