@@ -1210,7 +1210,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Add the drained-fundraiser regression with a durable claimed/effect-unknown occurrence and matching private
   runtime journal. The test proves only the evidence-backed path resolves to `released/effect_unknown=0`; the existing
   external-effect fence test remains green.
-- [x] Verify the change: apply **126/126** (including the exact-entrypoint negative proof), readonly **28/28**, Python
+- [x] Verify the change: apply **127/127** (including the exact-entrypoint negative proof and locked-read proof), readonly **28/28**, Python
   compile, and `git diff --check`.
 - [x] Re-run the non-mutating main integration analysis. The only textual conflicts remain `lm_loop.py` and the
   whole-array macOS fixture. Keep the conflict unresolved until field-by-field fixture merging can preserve current
@@ -1219,6 +1219,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Integrate the self-healing control-plane changes onto accepted latest main without merging or editing the
   separate Paid fulfillment implementation. Resolve the lm-loop helper composition and fixture entries, rerun full
   registry/apply acceptance, then cut an immutable release only after the user-level foundation gate passes.
+
+### Pre-effect proof lock handling (2026-09-25 JST)
+
+- [x] Route `_pre_effect_admission_proof` through the bounded admission-read helper. A persistent `SQLITE_BUSY`/
+  `SQLITE_LOCKED` now returns no proof and preserves `effect_unknown`; it cannot be mistaken for a clean fence.
+- [x] Add a locked-read fail-closed regression. Focused proof/rebind plus readonly verification passes **30/30**.
+- [ ] After accepted immutable promotion, re-read one real fundraiser fence under the production reconciler and verify
+  the typed retry/readback path before allowing any fence resolution.
 
 ### Main-derived integration dry run (2026-09-25 JST)
 

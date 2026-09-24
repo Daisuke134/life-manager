@@ -294,13 +294,18 @@ def _atomic_private_json(path: Path, value: dict) -> None:
 def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
     """Prove one exact old fence stopped in host admission before entrypoint."""
     database = admission_root() / "admission-v2.sqlite3"
-    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as connection:
-        rows = connection.execute(
+    try:
+        rows = _read_admission_rows(
+            database,
             """SELECT occurrence_id,state FROM occurrences
                  WHERE owner_id=? AND effect_unknown=1
                  ORDER BY queued_at,occurrence_id""",
             (loop_id,),
-        ).fetchall()
+        )
+    except sqlite3.Error:
+        # Proof failure is fail-closed: retain the effect fence and let the
+        # enclosing reconcile report a retryable admission-read boundary.
+        return None
     if len(rows) != 1:
         return None
     occurrence_id, expected_state = rows[0]

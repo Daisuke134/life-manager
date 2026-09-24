@@ -4639,7 +4639,7 @@ occurrence is the sole exact fence. A generic exit 75 or any other effectful own
 proves a drained fundraiser fence resolves to `released/effect_unknown=0` only after this evidence gate; the existing
 external-effect fence test remains green.
 
-Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **126/126**, readonly **28/28**, Python
+Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **127/127**, readonly **28/28**, Python
 compile, and `git diff --check`. This is source-only evidence; no admission row, selector, launchd job, provider
 session, Paid/Connector/Mobile state, external effect or revenue was changed.
 
@@ -4656,3 +4656,12 @@ and latest main; the three-way comparison found no same-field divergent edits. T
 serialization/order noise plus independent field additions, not an irreconcilable semantic conflict. A future
 integration can merge each loop object field-by-field, then serialize once and run the registry/apply suites. This
 read-only result does not authorize merging the Paid workstream or selecting a non-main release.
+
+### Pre-effect proof under admission lock contention (2026-09-25 JST)
+
+The exact pre-effect proof now uses the same bounded admission-read retry boundary as status and pending-owner
+readers. If the database remains locked or cannot be read, the proof returns no proof and retains the durable
+`effect_unknown` fence; it never treats a failed read as an empty occurrence set or clears the fence. The enclosing
+reconcile therefore reports a retryable boundary instead of crashing in the proof reader. A regression confirms the
+locked-read path fails closed. Focused verification is green: the new proof/rebind cases plus readonly tests pass
+30/30. This is still branch-only and does not alter production admission state.

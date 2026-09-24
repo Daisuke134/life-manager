@@ -306,6 +306,17 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(proof[2]["proof_type"], "pre_effect")
         self.assertEqual(proof[2]["blocker"], "host_admission_deferred:resource_fifo_wait")
 
+    def test_pre_effect_proof_fails_closed_when_admission_read_is_locked(self):
+        with patch.object(
+            lm_loop, "_read_admission_rows",
+            side_effect=sqlite3.OperationalError("database is locked"),
+        ):
+            self.assertIsNone(lm_loop._pre_effect_admission_proof("fundraiser", {
+                "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+                "effect_class": "application",
+                "state_root": str(self.root / "fundraiser"),
+            }))
+
     def test_rebind_guard_resolves_pre_effect_fence_after_queue_drains(self):
         from runtime.host import resource_admission
 
