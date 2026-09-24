@@ -2642,6 +2642,57 @@ def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatc
     assert durable_rows(tmp_path, "reservations") == []
 
 
+def test_cancel_effect_free_queued_owner_preserves_cancelled_occurrence_history(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable(
+        "deterministic", "control-owner", occurrence_id="control-owner:wake-1",
+    )
+    admission.enqueue_durable(
+        "deterministic", "control-owner", occurrence_id="control-owner:wake-2",
+    )
+
+    assert admission.cancel_effect_free_queued_owner("control-owner") == "cancelled"
+    assert durable_rows(tmp_path, "queue") == []
+    assert durable_rows(tmp_path, "priorities") == []
+    assert [row["state"] for row in durable_rows(tmp_path, "occurrences")] == [
+        "cancelled", "cancelled",
+    ]
+
+
+def test_cancel_effect_free_queued_owner_refuses_reserved_or_effect_unknown(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable(
+        "deterministic", "reserved-owner", occurrence_id="reserved-owner:wake",
+    )
+    assert admission.reserve_available(now=100, lease_seconds=60) == ["reserved-owner"]
+    monkeypatch.setattr(admission.time, "time", lambda: 101)
+    assert admission.cancel_effect_free_queued_owner("reserved-owner") == "reserved"
+    assert durable_rows(tmp_path, "queue")[0]["owner_id"] == "reserved-owner"
+
+    admission.enqueue_durable(
+        "deterministic", "claimed-owner", occurrence_id="claimed-owner:wake",
+    )
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='claimed' WHERE owner_id='claimed-owner'",
+        )
+    assert admission.cancel_effect_free_queued_owner("claimed-owner") == "claimed"
+
+    admission.enqueue_durable(
+        "deterministic", "unknown-owner", occurrence_id="unknown-owner:wake",
+    )
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET effect_unknown=1 WHERE owner_id='unknown-owner'",
+        )
+    assert admission.cancel_effect_free_queued_owner("unknown-owner") == "effect_unknown"
+    assert {row["owner_id"] for row in durable_rows(tmp_path, "queue")} == {
+        "claimed-owner", "reserved-owner", "unknown-owner",
+    }
+
+
 def test_five_hundred_durable_waiters_remain_bounded(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     started = time.monotonic()

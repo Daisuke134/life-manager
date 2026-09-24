@@ -23,7 +23,9 @@ from typing import Callable
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
-from runtime.loop.macos_loop_registry import admission_effect_scope, validate_registry
+from runtime.loop.macos_loop_registry import (
+    CONTROL_PLANE_SAFETY_LOOPS, admission_effect_scope, validate_registry,
+)
 from runtime.loop.runtime_event import (
     append_runtime_event,
     build_runtime_event,
@@ -844,8 +846,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None) -> int:
     limit = _runtime_limit(entry)
-    if loop_id in {"life-manager-release-reconciler", "life-manager-recovery-supervisor",
-                   "life-manager-disk-cleanup", "capafy-loop-healthcheck"}:
+    if loop_id in CONTROL_PLANE_SAFETY_LOOPS:
         if entry.get("effect_class") == "none":
             try:
                 clear_no_effect_unknown_resource(loop_id)

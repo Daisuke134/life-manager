@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- Tasks 1–8 are merged through PR #5821 at main SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`. The Task 9 follow-up works only in `/private/tmp/lm-recovery-owner-20260924` on `fix/lm-recovery-owner-20260924`, based on that exact main SHA and protected by the `codex-root` worktree lease.
+- Tasks 1–8 are merged through PR #5821 at main SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`. Task 9 uses only `/private/tmp/lm-recovery-owner-20260924`, its current result branch, and the `codex-root` worktree lease. Shared-owner scheduling is merged through PR #5822 and its control-plane admission classification through PR #5823.
 - Never modify or operate the separate Paid fulfillment worktree/branch, Paid source/tests/config/state/effect fences, Paid provider sessions/tabs, Coconala project `18211957`, or Paid runtime owners. Their health and receipts are read-only inputs.
 - Do not wait for Affiliate commission, application acceptance, contract, order, payout or any other natural business event. Foundation acceptance proves execution, diagnosis and recovery; commercial completion remains separate.
 - Do not create a second loop registry, scheduler, release mechanism, evaluator platform or browser owner. Extend the catalog, runtime event, `lm-loop`, recovery modules, completion projections and guarded self-build path already present.
@@ -234,20 +234,33 @@ passes 23 recovery tests, 200 registry/apply tests with 174 subtests, and the ca
 `b5855ae558ecc94a7405439be1da5a89cefd987b`; complete release `20260924T135557-b5855ae5` is active and the
 single owner is loaded on that exact SHA.
 
-The first immediate production canary did not reach the queue consumer. It ended before entrypoint with typed
+The first immediate production canary does not reach the queue consumer. It ends before entrypoint with typed
 `host_admission_deferred:resource_control_busy`, exit 75, while multiple ordinary data-plane owners held the
 shared admission control lock. The shared release reconciler, disk cleanup and healthcheck already bypass that
 lock, but the new recovery supervisor was omitted from the same safety-owner set. RED reproduced that omission;
 the minimum fix adds only this owner to the existing control-plane exemption. Runner bounds pass 83/83 and
-recovery remains 23/23. The fix is not yet integrated or loaded, so production self-healing remains incomplete.
+recovery remains 23/23. PR #5823 is merged at `188dcb53cd513679e21f7e25d1a422ddf20a6e86`, and complete release
+`20260924T140650-188dcb53` is available.
+
+The next targeted reconcile correctly refuses to replace the loaded owner because seven wakes created by the
+old release remain as `queued` occurrences. They are all effect-free, unclaimed and unreserved, but the old
+apply guard knows only how to rebind ordinary data-plane policy and returns `skipped_pending`. Manual SQL or
+deleting the queue would discard audit history and leave the same migration bug for the next control-plane
+owner. The current RED→GREEN slice therefore adds one atomic migration: a loop newly classified as a
+control-plane safety owner may close only effect-free queued occurrences as `cancelled`, retain their history,
+and remove the queue row. Any claim, active reservation or `effect_unknown` remains fenced. The runner and
+apply paths consume one shared safety-owner set. Admission 127/127, apply 119/119 plus 31 subtests, runner
+83/83 and recovery canary 1/1 pass locally. This change is not yet merged or loaded, so production self-healing
+remains incomplete.
 
 **Execution-order correction:** The previous text assumed the release reconciler already called the recovery
 consumer. Repository search and registry readback disprove that assumption. The shortest safe order is now:
 register and test one shared owner -> integrate it once -> cut and activate its exact main release -> load only
 that new owner -> remove its observed data-plane admission dependency through the existing safety exemption ->
-kickstart one bounded wake -> verify one eligible non-Paid repair or idle receipt -> then
+atomically close its old effect-free queue history -> reapply only that owner -> kickstart one bounded wake ->
+verify one eligible non-Paid repair or idle receipt -> then
 reconcile the remaining non-Paid fleet and run the 14-loop foundation gate twice. Current cursor is shared
-owner admission-fix PR/main integration; this does not authorize touching the separately owned Paid runtime.
+owner queue-migration PR/main integration; this does not authorize touching the separately owned Paid runtime.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -265,7 +278,10 @@ owner admission-fix PR/main integration; this does not authorize touching the se
 - [x] Apply only `life-manager-recovery-supervisor` through `launchctl-safe`; loaded argv and installed SHA are exact `b5855ae558ecc94a7405439be1da5a89cefd987b`; no Paid owner is started/restarted.
 - [x] Kickstart the first bounded supervisor wake and retain its typed failure evidence: it never reaches the queue consumer because data-plane admission returns `resource_control_busy`/75. Do not call this self-healing success.
 - [x] Add a RED→GREEN regression and the minimum existing control-plane exemption for the shared supervisor. Runner bounds pass 83/83; recovery passes 23/23.
-- [ ] Push/CI/merge the admission fix, cut one exact-main immutable release, and reapply only the shared supervisor.
+- [x] Push/CI/merge the admission fix as PR #5823 at `188dcb53cd513679e21f7e25d1a422ddf20a6e86`, then cut complete exact-main release `20260924T140650-188dcb53`.
+- [x] Reproduce the second canary boundary: targeted reconcile returns `skipped_pending`; seven old occurrences are queued, effect-free, unclaimed and unreserved.
+- [x] Add the atomic control-plane queue migration and regression tests. Preserve cancelled occurrence history and refuse claim, reservation or effect unknown.
+- [ ] Push/CI/merge the queue migration, cut one exact-main immutable release, and reapply only the shared supervisor.
 - [ ] Kickstart the corrected bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
 - [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
 - [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
