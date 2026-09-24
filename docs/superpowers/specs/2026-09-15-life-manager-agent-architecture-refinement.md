@@ -3260,14 +3260,26 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    an older terminal report. A continuous service intentionally has no new report until it exits, so forcing an
    exit to manufacture acceptance would invert the health contract.
 
-   The current RED→GREEN slice makes every runtime start carry the complete secret-free diagnostic identity and
-   lets status prefer a diagnostic `execute/running` event only when its run PID matches the live continuous
-   launchd PID. It also distinguishes explicit pre-entrypoint FIFO/capacity deferral with admission unknown false
-   from a real external-effect ambiguity. Python runtime/status/runner tests pass 126/126, the complete runtime
-   suite passes 622 tests plus 522 subtests, and the foundation suite passes 47/47. The remaining order is:
-   integrate this shared observability fix; cut an immutable release; align
-   all six Affiliate owners; produce exact current-release status and foundation readback twice; then advance to
-   Investment. Revenue and natural scheduler time are not gates.
+   The RED→GREEN slice makes every runtime start carry the complete secret-free diagnostic identity and lets
+   status prefer a diagnostic `execute/running` event only when its run PID matches the live continuous launchd
+   PID. It also distinguishes explicit pre-entrypoint FIFO/capacity deferral with admission unknown false from a
+   real external-effect ambiguity. Python runtime/status/runner tests pass 126/126, the complete runtime suite
+   passes 622 tests plus 522 subtests, and the foundation suite passes 47/47. PR #5849 merges the shared fix at
+   `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b`; complete immutable release
+   `20260924T195546-ff11bb0a` passes doctor with 169 registry entries and zero missing, unmanaged or retired
+   owners.
+
+   Production then proves five of Affiliate's six owners on that exact release. `affiliate-browser`,
+   `affiliate-impact-browser` and `affiliate-x-browser` are loaded-running with PID-matched `execute/running`,
+   complete diagnostics, clean failure layer and admission unknown false. `affiliate-composition` and
+   `affiliate-source-refresh` are loaded-idle with complete typed `resource_capacity_busy`, retryable true,
+   `retry_after_eligibility`, effect `not_applicable` and admission unknown false. The sixth owner,
+   `affiliate-loop`, is not interrupted merely to make the rollout look complete: its old-release child is still
+   actively updating funnel and receipt state, has no current admission/effect-unknown fence, and therefore must
+   reach its normal terminal before exact-release rebind. This is an in-flight effect-preservation boundary, not
+   a wait for revenue or a natural scheduler tick. Investment read-only diagnosis may overlap, but Affiliate is
+   not accepted until the base owner is rebound and the exact foundation projection passes twice with stable
+   PIDs/queues and no duplicate effect.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
