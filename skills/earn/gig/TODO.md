@@ -2876,3 +2876,29 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 5. Refresh Mercor inventory, retain human-owned Consultant calibration,
    preserve Coconala/Ryu manual-only and Upwork disabled, then run final fleet
    acceptance.
+
+### Runtime checkpoint — 2026-09-24 13:30 JST
+
+- [x] Docs head `0a4460709ec65ec8e90e49dd3f26256654cd590e` completed CI run
+  `35955606390` successfully for every required job.
+- [ ] Old CrowdWorks production restarted as PID `21861` from SHA
+  `07f76049...`; four minutes later CDP `9228` had `29` targets (`28`
+  blank/new-tab plus one provider contract page). The leak is reproduced;
+  cleanup alone is not the fix.
+- [ ] Data-volume free space is about `2.1GiB` (`99%` used), with continuing
+  `database is locked` evidence. Do not force-stop, edit admission state, or
+  retry/resend provider effects.
+
+### Remaining TODO (current ordered cursor)
+
+1. Keep the green PR open pending provider/effect gates.
+2. Wait for PID `21861` to terminate naturally; then do one target-limited
+   cleanup/readback, without calling cleanup the permanent fix.
+3. Resolve scoped resource/database contention, immutable-release/apply the
+   tested branch, and verify loaded SHA plus no blank growth on a natural wake.
+4. Preserve all four `effect_unknown` fences until exact proof; never blind
+   retry or resend.
+5. Keep `63568785` waiting for buyer material, then complete the full
+   delivery → acceptance → settlement → payout → replay-zero chain once.
+6. Refresh Mercor inventory, retain Consultant human calibration, preserve
+   Coconala/Ryu manual-only and Upwork disabled, and run final fleet gate.

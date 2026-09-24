@@ -3057,3 +3057,35 @@ not convert a transient pass or a no-op into client completion.
 5. Refresh Mercor's official inventory, retain human-owned Consultant
    calibration, then run the final fleet gate. Coconala/Ryu remains
    manual-only and Upwork remains disabled.
+
+## Production Cursor — 2026-09-24 13:30 JST (old release regrowth reproduced)
+
+- **The docs-only head is now fully green.** PR #5820 head
+  `0a4460709ec65ec8e90e49dd3f26256654cd590e` completed run
+  `35955606390` with `success` for every required job.
+- **Old production immediately regrew the leak after launchd restart.** The
+  old CrowdWorks Paid release restarted as PID `21861` from
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`. Four minutes later, CDP `9228`
+  had `29` targets, `28` blank/new-tab pages, and one provider contract page
+  (`63712784`). This is a reproducible old-release failure, not a provider
+  receipt or delivery effect.
+- **Resource pressure persists.** Data-volume free space is about `2.1GiB`
+  (`99%` used), and the launch log continues to record `database is locked`.
+  No force-stop, admission-DB edit, retry, resend, or duplicate provider
+  mutation was issued.
+
+### Remaining TODO (current cursor)
+
+1. Keep the green PR open; do not merge until the external provider/effect
+   gate is satisfied. The source and security checks are complete.
+2. Wait for the old PID to terminate naturally; then perform one final
+   target-limited cleanup/readback. Do not treat cleanup as the fix.
+3. Resolve host resource/database contention with scoped, recoverable cleanup,
+   then promote/apply one immutable release and verify loaded SHA plus a
+   natural CrowdWorks wake with no blank-target regrowth.
+4. Keep all four historical `effect_unknown` fences closed until exact
+   provider/run proof exists; no blind retry or resend.
+5. Keep `63568785` buyer-material-gated; after admissible material arrives,
+   deliver → acceptance → settlement → payout → replay-zero exactly once.
+6. Refresh Mercor inventory, retain Consultant human calibration, preserve
+   Coconala/Ryu manual-only and Upwork disabled, and run final fleet acceptance.
