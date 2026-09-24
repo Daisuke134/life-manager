@@ -730,6 +730,14 @@ The following is the current control-plane state. It is evidence for the next bo
   SQLite-lock lines remain historical log evidence; the latest wake is a clean supervisor terminal. This does
   not repair sibling release drift or authorize an external effect, so no launchd/provider/fence mutation was
   performed.
+- [x] Attempt the next one-owner non-Paid canary through the existing reconciler, targeting
+  `x402-acquisition-controller` on route `deterministic`. Read-only preconditions were safe
+  (`loaded-idle`, `effect_class=none`, `effect_status=not_applicable`, admission effect-unknown=false), but the
+  current main-derived release does not yet carry the branch's `reconcile_queued_release` contract. The bounded
+  command therefore returned `ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[x402-acquisition-controller]`
+  without reloading the job or entering its entrypoint. This is the expected fail-closed result: the next step is
+  accepted-release promotion of the explicit Agent Economy contract, not a blind retry or a manual admission
+  database edit. No wallet, payment, model, provider or revenue effect occurred.
 - [x] Re-run the complete `runtime/loop` Node suite at this branch boundary. It reports 304 tests, 301 pass and
   three file-level failures, all environment dependency gaps: `@solana/web3.js` is absent for
   `always-act-reroute` and `always-act-wire-seam`, and `fast-check` is absent for `always-act-router`. Focused

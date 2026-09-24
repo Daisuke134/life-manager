@@ -3883,6 +3883,14 @@ the other owners are not yet aligned to the accepted immutable release and some 
 No launchd mutation, provider effect, effect-fence clearing or revenue claim was made; the next cursor remains
 accepted main-derived release promotion followed by one-owner non-Paid reconciliation.
 
+The first bounded non-Paid reconciliation probe against that release targeted the loaded-idle,
+effect-free `x402-acquisition-controller`. The existing command returned `ok=true` with one eligible owner but
+`applied=[]` and `skipped_pending=[x402-acquisition-controller]`: the current release predates the branch's
+explicit `reconcile_queued_release` contract, so the runtime correctly refused to reload an owner with a durable
+FIFO backlog. This is a typed fail-closed admission result, not a failed provider action. No wallet, payment,
+model, provider or revenue effect occurred; accepted-release promotion of the branch contract is required before
+the one-owner wake can proceed.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
