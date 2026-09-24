@@ -2022,6 +2022,7 @@
     },
     "life-manager-dev": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": {
           "Hour": 4,
@@ -2038,7 +2039,9 @@
       "entrypoint": "apps/life-manager/scripts/life-manager-dev-daily.js",
       "label": "ai.anicca.life-manager-dev",
       "log_root": "~/.local/state/life-manager/state/life-manager-dev/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/state/life-manager-dev"
     },
     "life-manager-disk-cleanup": {
@@ -2195,6 +2198,7 @@
     },
     "life-manager-recovery-supervisor": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 60
       },
@@ -2208,12 +2212,14 @@
       "entrypoint": "runtime/loop/recovery-supervisor-cli.mjs",
       "label": "ai.anicca.life-manager-recovery-supervisor",
       "log_root": "~/.local/state/life-manager/recovery/logs",
+      "priority": "support",
       "provider_route": "deterministic",
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/recovery"
     },
     "life-manager-selfbuild": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": {
           "Hour": 4,
@@ -2230,7 +2236,9 @@
       "entrypoint": "skills/life-manager/self-build-daily.sh",
       "label": "ai.anicca.life-manager-selfbuild",
       "log_root": "~/.local/state/life-manager/life-manager-selfbuild/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-selfbuild"
     },
     "life-manager-taskmarket-ledger": {
@@ -2668,6 +2676,7 @@
     },
     "self-improve-evolve": {
       "adapter": "python",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 21600
       },
@@ -2683,7 +2692,9 @@
       "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
       "label": "ai.anicca.self-improve-evolve",
       "log_root": "~/.local/state/life-manager/self-improve-evolve/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/self-improve-evolve"
     },
     "session-vault": {

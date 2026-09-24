@@ -262,8 +262,12 @@ supervisor-only issue. RED proves that a `.mjs` entrypoint and the classifier bo
 `/usr/bin:/bin`. The minimum GREEN projects one absolute `LIFE_MANAGER_RUNTIME_NODE` through every managed
 plist and uses it for JavaScript entrypoints and recovery classification. Apply passes 119 tests plus 31
 subtests, runner passes 84/84, the live catalog contract remains 14/168/98 with zero errors, and the OSS
-boundary passes. This Node transport change is not yet merged or loaded, so production self-healing remains
-incomplete.
+boundary passes. PR #5825 merges the fix at `1f03abd4150278b234edbb28e5b9cca17dc9d867`; complete release
+`20260924T144407-1f03abd4` is active. A supervisor-only apply loads that exact release and
+`LIFE_MANAGER_RUNTIME_NODE=/opt/homebrew/bin/node`. Two bounded wakes both exit 0 with
+`idle/no_pending_intent`; the intent and recovery journals remain absent, Paid selection and external effect are
+zero, and official `lm-loop status` reports `diagnostic_complete=true`, terminal `pass`, clean failure layer and
+next action `none` for event `07b2bee7499be44ba7b2c07e`.
 
 **Execution-order correction:** The previous text assumed the release reconciler already called the recovery
 consumer. Repository search and registry readback disprove that assumption. The shortest safe order is now:
@@ -271,9 +275,29 @@ register and test one shared owner -> integrate it once -> cut and activate its 
 that new owner -> remove its observed data-plane admission dependency through the existing safety exemption ->
 atomically close its old effect-free queue history -> reapply only that owner -> kickstart one bounded wake ->
 pin the shared Node runtime observed missing at that wake -> kickstart one bounded wake -> verify one eligible
-non-Paid repair or idle receipt -> then
-reconcile the remaining non-Paid fleet and run the 14-loop foundation gate twice. Current cursor is shared
-Node-runtime PR/main integration; this does not authorize touching the separately owned Paid runtime.
+non-Paid repair or idle receipt -> then reconcile the remaining non-Paid fleet and run the 14-loop foundation
+gate twice. The Node-corrected idle receipt now passes. A fresh gate observes all 14 Product Loops with zero
+missing mapped jobs, but remains `block`: 97 mapped jobs have release mismatch, 90 are diagnostically
+incomplete and 49 expose unknown-effect runtime rows. The current cursor is explicit, bounded release alignment
+of non-Paid owners only; this does not authorize touching the separately owned Paid runtime.
+
+The first one-owner alignment canary targets `life-manager-dev` in Self-build. It safely returns
+`skipped_pending` twice with zero mutation. Read-only admission evidence shows 19 queued occurrences, all
+effect-free, with zero claimed occurrences, effect-unknown rows or live reservations. The actual boundary is
+canonical registry enrollment: this legacy owner omits `resource_class`, `admission_class` and `priority`, so
+the existing reconciler correctly refuses to infer a migration policy. The minimum candidate declares the
+already-effective runner defaults for all four Self-build jobs (`deterministic` or `agent`, `borrow`, `support`)
+without changing runner logic or weakening any fence. Apply passes 119/119, runner 84/84, registry 82/82 and
+the catalog contract remains 14/168/98 with zero errors. After integration, Self-build is retried one owner at
+a time before any other Product Loop is enrolled.
+
+Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
+run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
+Chromium owns IPv6 `[::1]:9222`; Connector is pinned to the IPv4 endpoint and receives HTTP 404. The shared
+browser guard also uses curl without fail-on-HTTP-error and therefore misreports that 404 as `ALIVE`, which is
+why the outward report collapses to `circuit_open/wake_boundary_failed`. An existing locked, separately owned
+candidate branch already contains the shared endpoint-owner validation and recovery fix through
+`e96e8c422d`; this worktree does not duplicate, merge, apply or restart that shared browser owner.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -298,10 +322,15 @@ Node-runtime PR/main integration; this does not authorize touching the separatel
 - [x] Verify queue migration in production: 24 old occurrences are `cancelled`; queue, priority and reservation rows are zero; loaded argv/SHA are exact.
 - [x] Kickstart one bounded wake and retain the next typed boundary: entrypoint exits 127 because launchd cannot resolve `node`; no intent, Paid selection or external effect occurs.
 - [x] Add RED→GREEN shared Node runtime identity for every managed plist, JavaScript entrypoint and recovery classifier. Apply passes 119 plus 31 subtests; runner passes 84/84.
-- [ ] Push/CI/merge the Node runtime fix, cut one exact-main immutable release, and reapply only the shared supervisor.
-- [ ] Kickstart the Node-corrected bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
+- [x] Push/CI/merge the Node runtime fix as PR #5825 at `1f03abd4150278b234edbb28e5b9cca17dc9d867`, cut complete release `20260924T144407-1f03abd4`, and reapply only the shared supervisor.
+- [x] Kickstart the Node-corrected bounded supervisor wake twice. Both exit 0 with `idle/no_pending_intent`; exact loaded SHA and pinned Node read back, Paid selection/external effect/sibling mutation are zero.
 - [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
-- [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
+- [x] Run the first Self-build one-owner canary and retain the safe `skipped_pending` result plus exact admission evidence; no owner is reloaded.
+- [x] Add the missing explicit admission contract to the four Self-build registry jobs using their existing runtime defaults; focused suites and the 14-loop catalog contract pass.
+- [ ] Integrate the Self-build registry enrollment, cut an exact-main release, then retry its three drifted owners individually with loaded-idle and fence preservation.
+- [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; do not duplicate its branch or restart the shared browser from this worktree.
+- [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
+- [ ] Re-read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal after non-Paid release alignment.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
 - [ ] Run the same foundation gate twice and require replay-zero/no duplicate recovery effects.
