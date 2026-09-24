@@ -1115,3 +1115,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   this alignment step.
 - [ ] Restore the missing dependency bundle (`@noble/hashes/sha3.js`) in the release build and rerun the two
   provider-specific test files; until then their import failures remain an explicit environment gap.
+- [x] Harden the non-platform-Paid CFO payout wrapper with the same managed Node/Python fallback. `bash -n` passes;
+  the JavaScript test remains blocked at import by the recorded `@noble/hashes/sha3.js` dependency gap. No payout,
+  wallet or transfer effect was executed.

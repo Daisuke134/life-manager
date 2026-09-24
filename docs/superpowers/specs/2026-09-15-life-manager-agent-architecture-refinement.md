@@ -4525,3 +4525,10 @@ provider-specific test files could not be imported in this checkout because the 
 `@noble/hashes/sha3.js`; this is an environment dependency gap, not a failure of the helper change. No taskmarket
 award, UGig observation, wallet, payment or provider effect was executed. Main/release promotion and exact
 current-event readback remain open.
+
+The CFO `life-manager-payout` boot wrapper had the same launchd-path gap in its money-adapter boundary: it selected
+only `LIFE_MANAGER_NODE`/`LIFE_MANAGER_PYTHON` or PATH. The branch now falls back to the plist-injected
+`LIFE_MANAGER_RUNTIME_NODE`/`LIFE_MANAGER_RUNTIME_PYTHON` before PATH. This changes no payout decision or transfer;
+it only prevents a valid managed runtime from being reported as absent. `bash -n` passes. Its JavaScript test file
+cannot be imported in this checkout because the dependency bundle is missing `@noble/hashes/sha3.js`; that import
+gap is recorded separately and no money effect was executed.

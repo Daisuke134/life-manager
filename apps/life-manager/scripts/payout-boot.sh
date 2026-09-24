@@ -30,12 +30,12 @@ export LM_PAYOUT_RESERVE_USDC_ATOMIC="${LM_PAYOUT_RESERVE_USDC_ATOMIC:-35000000}
 export LM_PAYOUT_FACILITATOR_URL="${LM_PAYOUT_FACILITATOR_URL:-http://127.0.0.1:8406}"
 export LM_PAYOUT_FACILITATOR_START="${LM_PAYOUT_FACILITATOR_START:-${REPO_ROOT}/services/facilitator/start.sh}"
 
-LIFE_MANAGER_NODE="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
+LIFE_MANAGER_NODE="${LIFE_MANAGER_NODE:-${LIFE_MANAGER_RUNTIME_NODE:-$(command -v node || true)}}"
 [ -n "$LIFE_MANAGER_NODE" ] && [ "${LIFE_MANAGER_NODE#/}" != "$LIFE_MANAGER_NODE" ] && [ -x "$LIFE_MANAGER_NODE" ] || {
   echo "managed node executable is unavailable" >&2
   exit 78
 }
-LIFE_MANAGER_PYTHON="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
+LIFE_MANAGER_PYTHON="${LIFE_MANAGER_PYTHON:-${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}}"
 [ -n "$LIFE_MANAGER_PYTHON" ] && [ "${LIFE_MANAGER_PYTHON#/}" != "$LIFE_MANAGER_PYTHON" ] && [ -x "$LIFE_MANAGER_PYTHON" ] || {
   echo "managed Python executable is unavailable" >&2
   exit 78
