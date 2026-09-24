@@ -1510,6 +1510,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   non-object RPC responses as inconclusive instead of raising an untyped exception.
 - [x] Verify the three focused adapter suites **10/10**, `py_compile` and `git diff --check`; no provider, wallet,
   admission or production state was changed.
+- [x] Re-run Node evidence through an existing read-only dependency tree via `NODE_PATH`: payout/Base settlement
+  **34/34**, x402 wiring **3/3**, CFO local runner **11/11**. A fresh `npm ci` still hit ENOSPC, its partial
+  candidate `node_modules` was removed, and no lockfile/source was modified.
 
 ### Connector diagnostic readback (2026-09-25 JST)
 

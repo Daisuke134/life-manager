@@ -5021,6 +5021,12 @@ Sol-funding now return a negative verification result when an RPC returns a null
 transaction receipt instead of throwing through the reconciler. The three focused adapter suites pass **10/10** and
 `py_compile`/`git diff --check` pass. This changes no provider, wallet, admission or production state.
 
+After the host capacity check showed that a fresh install would still hit ENOSPC, the candidate's Node tests were run
+without writing dependencies by pointing `NODE_PATH` at an existing read-only dependency tree in another worktree.
+Payout runtime plus Base settlement passed **34/34**, x402 settlement wiring passed **3/3**, and CFO local runner
+passed **11/11**. The candidate `node_modules` directory was removed after the failed install attempt; no lockfile or
+tracked source changed.
+
 ### Connector diagnostic readback (2026-09-25 JST)
 
 The current read-only status for `life-manager-connector-native` is `fail / entrypoint_exit_1`, with
