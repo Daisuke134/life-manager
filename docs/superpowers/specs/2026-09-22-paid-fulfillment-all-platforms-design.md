@@ -4695,3 +4695,49 @@ leaves the provider effect closed.
    identity/contract adapter; owners remain disabled until funded gates open.
 5. Run per-platform funded canaries and final settlement, payout, crash-recovery,
    and replay-zero acceptance only after the preceding receipts exist.
+
+## Runtime Status Refresh — 2026-09-25 00:10 JST (Coconala full-history readback)
+
+- [x] Read the authenticated official `応募・スカウト管理` route through the
+  existing Gig CDP target on port `9223` (the Gig launch plist uses `9223`;
+  port `9222` is a different endpoint returning HTTP 404). Pages 1–70 each
+  returned HTTP 200 and contained 1,326 unique request IDs. Page 71 returned
+  HTTP 200 with zero cards and no pagination links; pages 72–74 were retained
+  as empty terminal probes. The target request `5280157` is absent from the
+  complete readback.
+- [x] Stored the secret-free evidence at
+  `/Users/anicca/gig/apply-direct/evidence/coconala-applied-history-5280157-20260925.json`
+  (SHA-256 `35aed0672e64288ca7cbea848db6a8379e29b31f70cd02550442286b5f63fae9`).
+- [ ] This is an official *absence* readback, not a positive submission receipt.
+  It does not resolve the current `claimed/effect_unknown=1` occurrence
+  `hf-gig-apply-direct:18d8467a4b057b28-79451`: the prepared intent still
+  lacks a historical account binding for that occurrence. The older accepted
+  no-dispatch artifact belongs to a different occurrence and must not be
+  conflated with this one. No retry, duplicate send, or fence release was
+  performed.
+
+### Updated ordered cursor (00:10 JST)
+
+1. Keep Coconala `5280157` fenced until the current occurrence receives an
+   admissible historical-account-bound proof (or a new provider receipt); then
+   promote PR `#5854`, run the natural Apply/Storefront canary, and prove the
+   four-room/Ryu manual-only replay-zero gate.
+2. Complete the CrowdWorks buyer-material gate for `63568785`; do not use LINE
+   or the external form as substitute evidence.
+3. Keep Lancers as a no-op monitor until an official funded `ContractReceipt`
+   exists; then derive formal delivery, settlement, and payout readback.
+4. Refresh Mercor's authenticated inventory and reconcile each exact old
+   effect-unknown occurrence without inventing assessment or earnings state.
+5. Implement the real authenticated Freelancer transport behind the existing
+   readback seam. Current prerequisites are: fresh account-bound lifecycle
+   receipts (`inspect`, project/contract, payment, payout), one official
+   `state=funded` project, then a disabled owner, zero-spend canary, and only
+   after that a single funded delivery canary with official receipt/readback.
+6. Implement the Upwork identity/contract transport behind its readback seam.
+   Current prerequisites are: replace the eight denied receipts, obtain fresh
+   account-bound identity/authorization/contract/payment/payout receipts, read
+   one positive funded milestone, then register one disabled-by-default owner,
+   run zero-spend and funded canaries, and prove contract/delivery/payment/
+   payout/replay-zero. No owner or send is legal before that sequence.
+7. After each provider-specific gate opens, run fleet settlement, crash
+   recovery, payout attribution, and duplicate-zero acceptance.

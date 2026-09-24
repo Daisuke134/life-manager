@@ -4088,3 +4088,48 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 7. **Fleet:** after each provider's own gate opens, run crash recovery,
    settlement/payout attribution, and duplicate-zero acceptance. Until then,
    “loop exists” must not be reported as “client work submitted.”
+
+### Runtime checkpoint — 2026-09-25 00:10 JST (Coconala official history + next platforms)
+
+- [x] Coconala official authenticated history was read through the Gig CDP
+  target on `9223`: pages 1–70 returned HTTP 200 with 1,326 unique request IDs;
+  page 71 was the terminal empty page and pages 72–74 were empty probes.
+  Request `5280157` was not present. Evidence:
+  `/Users/anicca/gig/apply-direct/evidence/coconala-applied-history-5280157-20260925.json`.
+- [x] The 9222 failure is classified as an endpoint mismatch (HTTP 404), not
+  a provider denial. The Gig launch configuration points to 9223. No provider
+  mutation occurred during this readback.
+- [ ] The absence result cannot close the current
+  `hf-gig-apply-direct:18d8467a4b057b28-79451` fence because its prepared
+  intent has no durable historical account binding. The prior accepted
+  no-dispatch proof is for another occurrence. Do not retry or call the
+  positive-ID resolver from this absence-only artifact.
+- [x] Freelancer/Upwork status was rechecked: no Freelancer OAuth/approved
+  lifecycle receipt exists; Upwork OAuth is absent and all eight stored Upwork
+  action receipts are `denied`. No Freelancer/Upwork owner is registered.
+
+### Remaining TODO (authoritative cursor, 00:10 JST)
+
+1. **Coconala:** obtain admissible account-bound proof for the current
+   `5280157` occurrence or a new official receipt; then promote `#5854`, run
+   Apply/Storefront and four-room/Ryu manual-only replay-zero. Keep the fence
+   closed meanwhile.
+2. **CrowdWorks:** receive admissible buyer lesson/answer material for
+   `63568785`, then complete the existing on-platform delivery once and prove
+   official readback/replay-zero; no LINE or external form.
+3. **Lancers:** keep Paid a safe no-op while inventory has zero funded
+   contracts; when a real `ContractReceipt` appears, implement and verify
+   formal delivery, settlement, and payout readback.
+4. **Mercor:** refresh authenticated inventory and reconcile each exact
+   `resource_effect_unknown` occurrence; preserve human assessment gates.
+5. **Freelancer:** attach an authenticated official transport to
+   `read_authenticated_inventory`; collect account-bound inspect/project/
+   contract/payment/payout receipts, prove one funded project, then register a
+   disabled owner, run a zero-spend canary, and only then a funded canary.
+6. **Upwork:** obtain fresh account-bound identity/authorization/contract/
+   payment/payout receipts (the current eight are denied), prove one funded
+   milestone, then register one disabled owner and run zero-spend → funded
+   canary → official contract/delivery/payment/payout/replay-zero.
+7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
+   payout attribution, and duplicate-zero acceptance. Never equate source code,
+   a registry entry, or a loop wake with a client submission.
