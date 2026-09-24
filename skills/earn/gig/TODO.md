@@ -4343,3 +4343,12 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Upwork remains closed: no OAuth, no approved receipts, no funded
   milestone, and no owner. Next is fresh authorization and official positive
   contract readback; do not revive retired browser/free-loop labels.
+
+### Runtime checkpoint — 2026-09-25 01:09 JST (full Gig regression)
+
+- [x] Full `skills/earn/gig/tests` regression passes (`1461 passed`). The two
+  stale expectation checks now match the existing identity-capture and current
+  reply-semantic runner behavior; no external provider action occurred.
+- [ ] Tests do not substitute for the still-missing Ryu receipt, CrowdWorks
+  buyer material, Mercor inventory, Freelancer OAuth/funded project, or
+  Upwork OAuth/funded milestone.

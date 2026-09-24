@@ -4965,3 +4965,13 @@ leaves the provider effect closed.
 - [ ] Upwork still has no live OAuth or approved receipts, so this remains an
   attached seam, not a live contract readback or owner. The next external
   gate is fresh authorization plus a positive funded milestone.
+
+## Runtime Status Refresh — 2026-09-25 01:09 JST (full Gig regression)
+
+- [x] The complete `skills/earn/gig/tests` suite passes: `1461 passed`.
+  Two stale assertions were aligned with already-landed behavior (the
+  pre-submit Coconala identity readback adds a guarded CDP session, and the
+  current reply-semantic runner uses `acct1`). No provider send was performed.
+- [ ] This regression result validates source behavior only; it does not add
+  the missing Ryu receipt, buyer material, Mercor inventory, Freelancer OAuth,
+  or Upwork funded milestone required for external completion.
