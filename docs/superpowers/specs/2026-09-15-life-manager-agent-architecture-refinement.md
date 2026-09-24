@@ -43,9 +43,14 @@ flowchart LR
   Writer、CFO、Job Hunter の一部は旧 release のままで、foundation acceptance には数えません。
 - Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
   入っています。`writer-opportunity-response` の pre-effect FIFO occurrence は archive proof で
-  resolved 済みですが、`writer-report` の effect fence は保持します。過去の MTProto readback は履歴証拠
-  として保存されますが、fresh isolated probe では数値 ID 89203–89206 が同じ bot dialog に存在するものの、
-  現在の outbox 本文ハッシュ・送信時刻と一致しませんでした。本文完全一致の再取得なしに解放・再送しません。
+  resolved 済みです。`writer-report` は、保存済み ID 89203–89206 が provider 側の実 ID と一致しない
+  ことを検出した後、本文 hash・送信時刻・bot sender が一致する official Telegram readback
+  `90905–90908` を取得し、claimed occurrence を `released/effect_unknown=0` に解決しました。0600 receipt は
+  旧保存 ID と正しい provider ID の対応を保持し、再送はしていません。
+- Writer 7 owner は current `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` に揃い、bounded wake は全て
+  `diagnostic_complete=true`、`admission_effect_unknown=false`、entrypoint 前の typed
+  `resource_capacity_busy` です。これは Writer slice の exact-release acceptance であり、全14 loop gateの
+  replay-zeroを代替しません。
 - Agent Economy は旧 loaded owner を `73270f2c` へ再バインドでき、diagnostic は complete ですが、実行中の
   BlockRun 呼び出しは HTTP 429 を返しています。これは収益成功ではなく、provider rate-limit の typed failure
   です。CFO と Job Hunter の effectful/unknown owner は同じく fence を維持し、盲目的に再送しません。
