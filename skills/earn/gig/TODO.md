@@ -4364,3 +4364,8 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] No live Freelancer OAuth or API response exists yet. Do not register a
   loop until its payload is normalized into source-complete funded inventory
   and official payment/payout readback.
+
+### Runtime checkpoint — 2026-09-25 01:14 JST (regression after API boundary)
+
+- [x] Full Gig regression passes (`1465 passed`) after the Freelancer API
+  boundary addition. No provider request, submission, or resend occurred.

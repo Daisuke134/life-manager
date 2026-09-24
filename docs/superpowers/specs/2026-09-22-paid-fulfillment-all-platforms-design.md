@@ -4990,3 +4990,9 @@ leaves the provider effect closed.
   the API boundary is therefore uncalled in production and no owner/effect is
   enabled. The returned payload still must be normalized into the strict
   source-complete funded inventory before registration.
+
+## Runtime Status Refresh — 2026-09-25 01:14 JST (regression after API boundary)
+
+- [x] The full `skills/earn/gig/tests` regression passes (`1465 passed`),
+  including the new Freelancer API boundary. This is source verification only;
+  no provider request, submission, or resend occurred.
