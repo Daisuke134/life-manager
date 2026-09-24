@@ -21,36 +21,47 @@ flowchart LR
 
 現在の事実は次のとおりです。
 
-- Tasks 1–8はPR #5821、main SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`へ統合済みです。
-- complete immutable release `20260924T134241-60c1e93e`がactiveで、`release_paths=ALL`、
-  `provenance=ancestor-of-origin-main`です。
 - 14 Product Loopsは、共通diagnostic envelope、foundation/commercial gate分離、recovery intent、
   owner/release-bound plan、budget/cooldown、exact readback、replay-zero、Paid拒否へ接続済みです。
-- ただしproduction caller auditでは`recovery-supervisor-cli.mjs`を周期実行するregistry ownerが0件でした。
-  したがって、intentは生成できても自動消費されず、self-healingはまだproductionで常時稼働していません。
-- follow-upは共有owner `life-manager-recovery-supervisor`を1件だけ追加します。60秒ごとに最大1 intentを
-  消費し、Paidを選択せず、self-buildへ一度だけ所属します。RED→GREEN後はrecovery 23件、
-  registry/apply 200件（subtest 174件）、catalog 14 loops / 168 jobs / 98 mapped / errors 0がPASSしています。
-  PR #5822はmain `b5855ae558ecc94a7405439be1da5a89cefd987b`へ統合済みで、complete release
-  `20260924T135557-b5855ae5`から共有ownerだけをload済みです。
-- 初回の即時canaryはentrypoint前に`host_admission_deferred:resource_control_busy`、exit 75で止まりました。
-  queueは空、Paid選択0、external effect 0ですが、supervisor本体が一度も動いていないためself-healing
-  成功とは扱いません。原因は新ownerだけが既存control-plane safety exemptionへ未登録だったことです。
-  RED→GREEN修正後はrunner bounds 83/83、recovery 23/23がPASSしています。修正のmain統合・reload・
-  再canaryが現在cursorです。
+- 共有recovery supervisor、control-plane admission例外、queue migration、pinned Node、no-effect fence
+  reconciliation、typed capacity projection、self-recursion exclusion、all-prior queued-wake coalescingはmainへ
+  統合済みです。個別loop用の第二healerは作りません。
+- Capafyの4 recurring external-effect ownersは実際のeffectを`publish`、`message`、
+  `account_mutation`、`publish`として宣言し、既存admission policyとqueued/reserved coalescingを再利用します。
+  PR #5838は全CIを通過し、main `05d235b46b7c76f27d2aec71e8f30d93b98b4728`へ統合済みです。
+- complete immutable release `20260924T180152-05d235b4`がactiveで、
+  `provenance=ancestor-of-origin-main`です。Capafy 8 ownersは全てこのexact SHAをloadし、全terminal
+  diagnosticsがcompleteです。healthcheckはclean PASS、他7件は即時wakeでtyped capacity/FIFO deferralです。
+- Capafy external-effect ownersはadmission `effect_unknown=0`、reservation 0を維持します。最新queued countsは
+  daily 168、outcome 8078、account manager 1643、IG marketing 72です。entrypointは実行されずprovider
+  receiptも発生していないため、収益・publish・message・account mutation成功を捏造しません。
+- fresh local foundation gateは14 loopsを観測し、`safely_fenced=1`（Capafy）、
+  `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
+  収益や自然provider eventを待たず、次のloop sliceへ進みます。
+- Connectorは別ownerのcandidate `e96e8c422d`がpush済みですが、PR 0、main未収載、release未反映です。
+  productionはなお`entrypoint_exit_1`で、外向き表示が`circuit_open/wake_boundary_failed`です。
+  このworkstreamはそのbranch、browser、runtimeを重複操作しません。
 
 現在cursor以降の残りTODOは順番に次のとおりです。
 
-1. 共有recovery ownerのcontrol-plane admission修正をpushし、CI、main統合、main由来immutable releaseまで閉じる。
-2. `launchctl-safe`経由でそのownerだけをreloadし、即時のbounded wakeで`idle`または1件のtyped outcome、
-   exact SHA、Paid選択0、兄弟mutation 0を確認する。
-3. non-Paid ownerだけを同じreleaseへ揃え、`lm-loop doctor/status`、foundation manifest、recovery journalを読む。
-4. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させる。
-   `uncovered_failure`、opaque state、release driftは0にするが、収益0や自然business event待ちは許容する。
-5. 同じfoundation gateを二回実行し、回復effectのreplay-zeroと兄弟isolationを確認する。
-6. その同一releaseをtenant-isolated cloudへpromoteし、phone-only control pathを検証する。
-7. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、costを含むverified net revenueで
-   self-improvementを判断する。最初のcommercial milestoneは全体verified net USD 10,000 MRRです。
+1. Self-buildの残るrelease drift 3件をexact releaseへ揃え、共有supervisorのbounded wakeとreplay-zeroを
+   再確認します。Life Manager自身を直すloopを最初に閉じます。
+2. Mobile Apps、Affiliate、Investment、Fundraiser、Writer、Agent Economy、CFO、Job Hunterの順に、
+   non-Paid ownersだけを1 Product Loopずつ処理します。各sliceは「既存contract確認 → 不足宣言だけを
+   RED→GREEN → CI/main → complete immutable release → 対象限定reconcile → 即時safe wake → status/
+   receipt readback」で閉じ、収益や自然acceptanceを待たず次へ進みます。
+3. Gig platformは別ownerのPaid fulfillmentを変更せず、Application/Reply/Storefront/Reportなど非Paid
+   ownerだけを同じ基盤へ揃えます。Paid ownerのexact stateは別ownerの公式readbackを入力として受け取ります。
+4. Connectorは担当ownerがcandidateをPR/CI/main/releaseへ出した後だけconsumeし、exact SHA terminalと
+   replay-zeroを確認します。candidate未統合の間も他loopを止めません。
+5. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させ、
+   `uncovered_failure`、opaque state、release driftを0にします。同じfoundation gateを二回実行し、
+   recovery replay-zeroと兄弟isolationを確認します。
+6. 受理した同一release/control contractをtenant-isolated always-on cloudへpromoteし、phone/webだけで
+   onboardingと任意controlが完結することを検証します。
+7. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、compute/tool costを含むverified
+   net revenueで再帰的self-improvementを判断します。最初のcommercial milestoneは全体verified net
+   USD 10,000 MRRです。
 
 ## A15 Foundation completion record
 
@@ -3133,7 +3144,7 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    168/168 and the release-owned coalescing regression passing. No Capafy effectful owner is applied or awakened
    by that release cut.
 
-   Because `current` now advances before the loaded owners are deliberately reconciled, the fresh gate is 98
+   At that slice, `current` advances before the loaded owners are deliberately reconciled, so the gate is 98
    observed, zero missing, 98 release mismatches, 84 diagnostically incomplete jobs, 49 unknown-effect jobs and
    14 `uncovered_failure` loops. That temporary mismatch increase is the deployment cursor, not a code
    regression. `capafy-loop-healthcheck` already has a complete passing terminal but also needs exact-release
@@ -3141,15 +3152,34 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    enables the already-built coalescing contract, then reconciles one owner at a time with every effect fence
    preserved and authoritative readback before the next owner. It does not invent another framework.
 
-   Connector remains independently failed: its latest complete status is `entrypoint_exit_1`, installed release
-   `5b8e3c3b...`, and the outward message reduces that to `circuit_open/wake_boundary_failed`. The diagnosed
+   PR #5838 completes that slice. It declares the four effects as `publish`, `message`, `account_mutation` and
+   `publish`, records the already-effective resource/admission/priority policy and opts all four owners into the
+   existing queued/reserved coalescing contract. Focused Capafy passes 3/3, registry passes 82/82, the complete
+   runtime-loop suite passes 532/532, adapter registry passes 15/15 and the live contract remains 14 loops / 168
+   jobs / 98 mapped / zero errors. All repository checks pass and main becomes
+   `05d235b46b7c76f27d2aec71e8f30d93b98b4728`; complete immutable release
+   `20260924T180152-05d235b4` is active with main ancestry provenance.
+
+   All eight Capafy owners load that exact SHA. Healthcheck returns clean exit 0. Immediate bounded wakes for the
+   three goal monitors and four external-effect owners emit complete terminal diagnostics and stop at typed
+   `resource_capacity_busy` or `resource_fifo_wait` before their entrypoints. Admission effect-unknown remains
+   zero, reservations remain zero and the four queued counts are 168/8078/1643/72. No provider effect or receipt
+   occurs, so no publish, message, account mutation or revenue success is inferred. The fresh foundation gate is
+   14 loops observed, one `safely_fenced` Capafy loop, thirteen `uncovered_failure` loops, 88 release mismatches,
+   80 diagnostic-incomplete jobs and zero unknown-effect jobs. This is locally acceptable for Capafy and does not
+   wait for capacity or revenue; Self-build exact-release alignment is the next cursor.
+
+   Connector remains independently failed: its latest complete status is `entrypoint_exit_1`, event release
+   `5b8e3c3b...`, installed release `208b0a36...`, and the outward message reduces that to
+   `circuit_open/wake_boundary_failed`. The diagnosed
    boundary is still the wrong CDP endpoint owner: Connector reaches IPv4 `127.0.0.1:9222` and receives HTTP 404
    while managed Cloak Chromium owns IPv6 `[::1]:9222`; the shared guard treats the 404 as alive because curl is
    not configured to fail on HTTP error. The separately leased candidate `e96e8c422d` is pushed but still has no
    PR, is not contained by main, is not released and is not loaded. This workstream does not duplicate or mutate
-   that owner. The executable order is now explicit Capafy effect contracts and one-owner reconciliation -> the
-   remaining non-Paid owner slices -> one immediately triggered, safely eligible non-self recovery proof -> consume the accepted
-   Connector main commit after its owner publishes it -> authoritative fourteen-loop foundation readback twice.
+   that owner. The executable order is now Self-build exact-release/replay-zero -> Mobile Apps -> Affiliate ->
+   Investment -> Fundraiser -> Writer -> Agent Economy -> CFO -> Job Hunter non-Paid owners -> Gig non-Paid
+   owners -> consume the accepted Connector main commit after its owner publishes it -> authoritative fourteen-
+   loop foundation readback twice.
    Running owners, Paid ownership, pending admission and effect fences remain preserved; revenue remains outside
    this gate and no artificial production failure is injected for proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
