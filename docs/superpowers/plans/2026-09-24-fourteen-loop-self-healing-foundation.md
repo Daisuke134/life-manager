@@ -595,6 +595,14 @@ The following is the current control-plane state. It is evidence for the next bo
   `None=116`, `blocked=70`, `pass=51`, `fail=30`, `running=4`; the dominant blockers are missing terminal
   result, `host_admission_deferred:resource_effect_unknown`, `entrypoint_exit_1`, capacity, exit 143 and FIFO.
   These are runtime observations, not commercial revenue measurements.
+- [x] Later read-only recheck on the same current selector/SHAs: the fresh status still contains 271 rows and
+  maps 98 jobs to the 14 Product Loop catalog rows. The exact local foundation gate now projects
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`.
+  `investment` is the one exact-release `runtime_admission_deferred`/`retry_after_eligibility` row; the other
+  12 loops remain `runtime_release_drift`, and Connector is separately `runtime_terminal_not_pass`/`diagnose_failure`.
+  This is a read-only observation only: no launchd mutation, provider effect, fence clearing or revenue claim was
+  made. The status terminal projection at this later readback is `None=116`, `blocked=81`, `pass=42`, `fail=28`,
+  `running=4`; these are control-plane observations, not commercial completion.
 - Read-only x402 acquisition recheck 2026-09-25 JST: `x402-acquisition-controller` is loaded-idle on old
   installed/event SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with a typed pre-entrypoint
   `host_admission_deferred:resource_capacity_busy`/exit 75. Durable admission has 1,727 queued and 595 released

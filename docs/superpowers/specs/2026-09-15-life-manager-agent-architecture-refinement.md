@@ -46,6 +46,13 @@ flowchart LR
   `runtime_release_drift`で、status rowが存在するだけではhealthyと数えません。これはrelease昇格前の
   read-onlyカーソルであり、収益や自然provider eventを待つ理由ではありません。次はaccepted main-derived
   immutable release後に、外部effect fenceを閉じたままowner単位でloaded-idle reconciliationを行います。
+- 同じcurrent selectorに対する後続のread-only再確認では、statusは271行、14 Product Loopへ結び付くjobは98件を
+  観測し、local foundation gateは`healthy=0`、`setup_required=0`、`safely_fenced=1`、`repairing=0`、
+  `uncovered_failure=13`、`decision=block`を返します。`investment`だけがexact-releaseの
+  `runtime_admission_deferred`/`retry_after_eligibility`としてtyped fenceになり、12 loopはrelease drift、
+  Connectorは別owner由来の`runtime_terminal_not_pass`/`diagnose_failure`です。これはread-only観測であり、
+  launchd mutation、provider effect、fence clearing、revenue claimはありません。statusのterminal projectionは
+  `None=116`、`blocked=81`、`pass=42`、`fail=28`、`running=4`で、commercial completionとは別の制御面証拠です。
 - main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
   三つを別々に判定します。2026-09-25 JSTの最新readbackでは`current` selectorは
   `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`ですが、loaded ownerは旧releaseのままです。Agent Economyは
