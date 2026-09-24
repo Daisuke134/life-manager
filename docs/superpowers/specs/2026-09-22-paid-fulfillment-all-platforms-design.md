@@ -2186,3 +2186,56 @@ This cursor supersedes the 10:50 cursor above where the live readback differs.
 8. **Cross-platform:** finish one provider's authenticated readback and
    replay-zero gates at a time; keep Upwork disabled until authorization,
    authentication, and a funded contract exist.
+
+## Production Cursor — 2026-09-24 10:58 JST
+
+This cursor is the current all-platform status; it supersedes earlier cursors
+where the provider snapshot or loop status has since changed.
+
+- **Coconala: system gate passed.** `hf-gig-paid-direct` is loaded from the
+  matching installed/event SHA `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`,
+  ended with exit `0`/terminal `pass`, and has no blocker or effect fence. The
+  official four-room snapshot is `completed` with
+  `observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu `18211957` remains the intentional `reserved_for_owner` manual fence;
+  Chii and both NPO rooms are `awaiting_buyer`. There is no Coconala send to
+  perform now.
+- **CrowdWorks: observation gate passed, client work not fully closed.** The
+  Paid owner and browser owner both terminally pass, and the latest official
+  Paid snapshot is `ok`: `observed=5/actionable=1/effect=0/readback=4/pending=1`.
+  Contracts `63712784`, `63659463`, `63657015`, and `63570481` are already
+  delivered/read back with `effect=0`; `63568785` is pending only because the
+  buyer has not supplied the requested course material. The old claimed
+  `effect_unknown` fence `18d62cf32eb0c678-48194` still blocks a clean system
+  close; it has no exact no-effect proof, so no resend is permitted.
+- **Lancers: not complete.** The browser owner is running, but the latest
+  Paid wake fails at `provider_inventory` (`RuntimeError`,
+  `observed=0/actionable=0/effect=0/readback=0`) and no funded contract is
+  present. Four historical Paid occurrences remain claimed with
+  `effect_unknown`; no delivery is allowed until provider evidence resolves
+  them and a funded `ContractReceipt` exists.
+- **Upwork: not onboarded.** Authorization, authenticated account readback,
+  and a funded contract are absent, so the Paid owner remains disabled by
+  design.
+
+### Remaining TODO (current all-platform order)
+
+1. **CrowdWorks fence repair:** obtain exact provider/pre-effect evidence for
+   `18d62cf32eb0c678-48194`; release only through the supported reconciler when
+   the evidence proves zero effect. Do not manually edit admission state.
+2. **CrowdWorks `63568785`:** wait for the buyer's missing course material;
+   then complete the work, submit/formally deliver once, and verify the
+   provider receipt plus replay-zero.
+3. **Lancers recovery:** diagnose the `provider_inventory` failure using the
+   existing authenticated browser owner, reconcile all four historical
+   `effect_unknown` fences with exact evidence, and rerun only after the fence
+   is safe. If no funded contract appears, record a truthful no-op.
+4. **Lancers delivery:** when a funded `ContractReceipt` appears, read back the
+   exact `完了報告` control, submit once, and verify official receipt and
+   replay-zero.
+5. **Coconala maintenance:** keep Ryu manual-only and the three other rooms
+   waiting; act only on a genuinely newer buyer artifact. Preserve the proven
+   natural-wake/pass state and never press formal delivery for Ryu.
+6. **Upwork onboarding:** only after authorization, authenticated readback,
+   and a funded contract exist, add its provider-specific Paid owner and prove
+   one canary with official receipt/replay-zero.

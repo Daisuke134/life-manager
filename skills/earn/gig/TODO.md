@@ -2368,3 +2368,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Keep Ryu manual-only and all buyer/material/contract waits unchanged;
   submit only for a genuinely new artifact with official receipt and
   replay-zero.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:58 JST
+
+- [x] Coconala natural wake passed from matching installed/event SHA
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; official snapshot is
+  `4/0/0/3/0`, with Ryu manual-only and the other three rooms buyer-waiting.
+- [x] CrowdWorks Paid/browser owners pass; official snapshot is
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`. Four contracts
+  (`63712784`, `63659463`, `63657015`, `63570481`) are delivered/read back;
+  `63568785` is buyer-material gated.
+- [ ] Resolve CrowdWorks historical claimed fence
+  `18d62cf32eb0c678-48194` only with exact provider/no-effect evidence; no
+  resend or manual DB edit.
+- [ ] Diagnose Lancers Paid `provider_inventory` failure and reconcile its
+  four historical `effect_unknown` fences. Current state has no funded
+  contract and no provider effect/readback.
+- [ ] When a funded Lancers `ContractReceipt` appears, verify the exact
+  `完了報告` control, submit once, and capture official receipt/replay-zero.
+- [ ] Keep Coconala Ryu manual-only, other rooms no-op until new buyer
+  artifacts, and Upwork disabled until authorization/authenticated readback/
+  funded-contract gates are present.
