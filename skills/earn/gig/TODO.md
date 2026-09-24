@@ -1,5 +1,49 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 02:55 JST (live platform-by-platform gate)
+
+This section supersedes earlier summaries that described a registered owner as
+"running" without a current launchd readback. A source registry row is not a
+live loop. The required order for Freelancer and Upwork is now explicit:
+authenticated account → official funded-work readback → owner registration →
+zero-effect canary → funded canary → official settlement/readback → replay-zero.
+No provider send is allowed before all preceding gates pass.
+
+| Platform | Authentication/readback | Funded work | Actual loop state | Immediate TODO |
+|---|---|---|---|---|
+| Coconala | Authenticated public inventory readback: 20 live listings. Paid wake `effect=0`, `exit=0`; Ryu is manual-only and already read back. | Client work is split by room; no new Ryu event is eligible. | Paid owner is loaded-idle and safe. Apply still carries the historical `5280157` effect-unknown/durable fence. Storefront is loaded-idle but blocked by `resource_effect_unknown`; its old production release is `1c11bda3`. | Resolve the exact Storefront occurrence from provider/no-dispatch proof, then natural wake, official readback, replay-zero. Keep Ryu closed and do not resend. |
+| CrowdWorks (CloudWorks) | Existing provider state is readable. | `63568785` is pending buyer lesson/answer material; four rows are completed with official readback. | `paid-latest.json`: `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1`; however `ai.anicca.crowdworks-revenue-paid` is actually **unloaded**, with an old `entrypoint_exit_143` effect-unknown fence. | Reconcile that exact paid occurrence only with an admissible pre-effect marker/readback; then load one owner and prove a natural no-op. Do not send the pending item without buyer material. |
+| Lancers | Authenticated preflight passes; source-complete inventory has no contract candidate and zero balance. | `paid-latest.json` is `observed=0/actionable=0/effect=0`; job `5606124` was fail-closed as `unsupported_claim`, with no application. | `ai.anicca.lancers-revenue-paid` is **unloaded** and fenced by old `entrypoint_exit_143`; the application owner is loaded-idle. | Reconcile the exact paid occurrence, refresh official inventory, and only then load Paid. A real funded ContractReceipt is required before formal delivery. |
+| Mercor | Official browser readback is authenticated; earnings readback is `$0.00`/empty. | Saved assessment is incomplete/stale; no current funded work is proven. | Paid owner is loaded-idle but blocked by `host_admission_deferred:resource_effect_unknown`. | Refresh official work inventory and resolve the exact application/Paid/Reply fences before any effect. |
+| Freelancer.com | No OAuth file, no approved account-bound receipts, and no authenticated inventory. Bid watcher only sees four `closed_expired` projects (`40620700`, `40620877`, `40620839`, `40620523`). | None proven. | Registry labels are disabled/external labels; no managed owner is loaded. | Obtain fresh account-bound authorization and official identity/projects/milestones/payments/payouts readback. Only a positive funded project can open owner registration. |
+| Upwork | Read-only authenticated account readback exists. Current official contract snapshot is source-complete but `contracts=[]`; transactions/withdrawals are empty. There are 3 invites, 1 active proposal, and 7 submitted proposals, but no funded contract. Read-only receipts are time-limited; mutation actions remain denied. | `funded_contract_count=0`. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Renew the effect authorization for search/propose/message/offer/delivery, obtain a real funded contract and official milestone readback, then register and verify the owner. |
+
+Host note: the disk guard has repeatedly hit `ENOSPC` while writing receipts/SQLite
+(`free_before` reached 308–473 MiB). The allowlisted cleanup ran without protected
+deletions but reclaimed 0 bytes because its five candidates were open. Current free
+space is about 1.3 GiB; this is a host-health blocker, not proof of any provider
+effect.
+
+### Remaining TODO from this cursor
+
+1. Keep all provider effect fences closed; reconcile only exact occurrences with
+   provider-owned evidence.
+2. Coconala: resolve Storefront and the separate Apply historical fence; then
+   natural wake/readback/replay-zero and close the four-room system gate.
+3. CrowdWorks and Lancers: reconcile their stale `entrypoint_exit_143` Paid
+   occurrences, verify the exact loaded SHA/argv, and run a no-effect natural
+   wake. Their existing pending/zero-funded items do not authorize a send.
+4. Mercor: refresh the stale authenticated inventory and reconcile every exact
+   `resource_effect_unknown` occurrence before any new action.
+5. Freelancer: complete authentication and source-complete funded-project
+   readback; then add the managed owner and canaries.
+6. Upwork: renew the expired/denied mutation authorization, obtain a funded
+   milestone, register the Paid owner, and prove delivery/payment/payout and
+   replay-zero.
+7. Run fleet acceptance only after each platform has its own live owner,
+   authorization, funded-work proof where applicable, official receipt/readback,
+   settlement evidence, and duplicate-zero proof.
+
 ## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
 
 - [x] Re-read the current paid-owner state for every platform without issuing a
