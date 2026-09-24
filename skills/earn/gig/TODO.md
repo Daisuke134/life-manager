@@ -2449,3 +2449,13 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `18d81967220136f8-89928` until exact evidence exists.
 - [ ] Keep CrowdWorks `63568785` material-gated and its marker-less fence
   fenced; preserve Coconala pass/Ryu manual-only; leave Upwork disabled.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:23 JST
+
+- [x] Confirmed a 30-second Playwright attach probe still times out against
+  Lancers CDP 9227 even though the owned browser's HTTP health endpoint
+  responds; no provider effect occurred.
+- [ ] Obtain explicit approval before targeted `lancers-revenue-browser`
+  restart/recovery; do not kill the owned Chromium or unrelated clients.
+- [ ] Keep `0ab75d4b0e` branch-only until main-derived immutable release gates
+  pass, and retain the one unproven Lancers fence.

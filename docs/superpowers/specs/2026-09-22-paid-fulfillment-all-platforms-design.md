@@ -2317,6 +2317,30 @@ not convert a transient pass or a no-op into client completion.
 5. **Upwork:** onboard only after authorization, authenticated readback, and a
    funded contract exist.
 
+## Production Cursor — 2026-09-24 11:23 JST
+
+- **Lancers attach probe:** increasing the branch probe's Playwright CDP attach
+  timeout from 10s to 30s still produced no attach/readback, while the owned
+  browser remained alive and `/json/version` answered. This narrows the
+  failure to a persistent Playwright/renderer boundary, not a short timeout.
+- **No mutation:** the probe opened no provider form and sent nothing. The
+  Lancers browser owner was not stopped or restarted because that is a
+  high-risk production operation requiring approval.
+
+### Remaining TODO (current ordered cursor)
+
+1. **Approval boundary:** obtain the required approval before any targeted
+   restart/recovery of `lancers-revenue-browser`; do not kill arbitrary
+   Playwright clients or the owned Chromium process.
+2. **Release gate:** keep commit `0ab75d4b0e` branch-only until a main-derived
+   immutable release is permitted by the full acceptance gate.
+3. **Lancers residual fence:** retain `18d81967220136f8-89928` until exact
+   provider/pre-effect evidence exists; no retry or submission.
+4. **CrowdWorks/Coconala:** preserve the four completed CrowdWorks contracts,
+   wait for `63568785` material, and keep Coconala pass/Ryu manual-only.
+5. **Upwork:** remain disabled until authorization, authenticated readback,
+   and a funded contract exist.
+
 ## Production Cursor — 2026-09-24 11:13 JST
 
 - **Lancers fence repair:** after the shared control lock became free, the
