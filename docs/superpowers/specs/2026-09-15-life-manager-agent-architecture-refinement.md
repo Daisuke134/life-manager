@@ -4639,7 +4639,7 @@ occurrence is the sole exact fence. A generic exit 75 or any other effectful own
 proves a drained fundraiser fence resolves to `released/effect_unknown=0` only after this evidence gate; the existing
 external-effect fence test remains green.
 
-Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **125/125**, readonly **28/28**, Python
+Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **126/126**, readonly **28/28**, Python
 compile, and `git diff --check`. This is source-only evidence; no admission row, selector, launchd job, provider
 session, Paid/Connector/Mobile state, external effect or revenue was changed.
 
@@ -4650,3 +4650,9 @@ The fixture is a whole-array JSON conflict because the branch's resource/admissi
 loop enrollment changes both edit the same serialized row set. It is not safe to resolve by choosing one side: the
 eventual integration must merge entries field-by-field, preserve the separate Paid/Gig/Connector/Mobile owners, and
 rerun registry/apply acceptance before any PR or immutable release. No merge was started in this slice.
+
+The fixture conflict was then compared as structured JSON rather than text. All 169 loop IDs exist in base, branch,
+and latest main; the three-way comparison found no same-field divergent edits. The apparent conflict is therefore
+serialization/order noise plus independent field additions, not an irreconcilable semantic conflict. A future
+integration can merge each loop object field-by-field, then serialize once and run the registry/apply suites. This
+read-only result does not authorize merging the Paid workstream or selecting a non-main release.

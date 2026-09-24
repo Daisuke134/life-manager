@@ -1210,7 +1210,8 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Add the drained-fundraiser regression with a durable claimed/effect-unknown occurrence and matching private
   runtime journal. The test proves only the evidence-backed path resolves to `released/effect_unknown=0`; the existing
   external-effect fence test remains green.
-- [x] Verify the change: apply **125/125**, readonly **28/28**, Python compile, and `git diff --check`.
+- [x] Verify the change: apply **126/126** (including the exact-entrypoint negative proof), readonly **28/28**, Python
+  compile, and `git diff --check`.
 - [x] Re-run the non-mutating main integration analysis. The only textual conflicts remain `lm_loop.py` and the
   whole-array macOS fixture. Keep the conflict unresolved until field-by-field fixture merging can preserve current
   branch resource classifications and latest main enrollment without touching the separate Paid/Gig/Connector/Mobile
