@@ -5314,3 +5314,20 @@ The authoritative host-cleanup receipt at the same cursor is fresh (`observed_at
 `free_after=657,887,232`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`). Capacity improved but remains below
 the `1,155,780,608`-byte floor by **497,893,376 bytes**. No process, cache, launchd job, admission row, provider
 session, effect fence or Paid state was mutated.
+
+### Natural wake still running under the old release (2026-09-25 JST)
+
+A subsequent read-only poll observed the next natural release-reconciler run
+`18d865297aba2440-74128` still `running` after the bounded observation window. The loaded launchd selector remains
+the old release `09a59ba1b899849ae7e3be8c67e239ec664dea22`, while the current selector remains d4. The event stream
+has a start event for this run but no occurrence-complete terminal yet; the status surface therefore still shows the
+previous `entrypoint_exit_1` event from run `18d864fc23610448-71944`. This is not evidence of a successful reconcile,
+a provider effect, or permission to interrupt the owner. The safe action is to let this natural run reach its own
+terminal and read that exact occurrence once; no restart, kill, apply, admission mutation, browser/session change or
+Paid operation was performed.
+
+The canonical cleanup receipt now reads `observed_at=2026-09-24T23:19:47Z`, `free_after=362,483,712`,
+`errors=0`, `reclaimed=0`, and `preserved=5` (`open=5`). The host is still at 100% filesystem use and is
+**793,296,896 bytes** below the `1,155,780,608`-byte floor. Cleanup remains healthy but has no safe reclaimable
+candidate; do not manufacture headroom by deleting open or unowned artifacts. The candidate source remains
+`e69cd976518fbe0bd996e507457badd1ba013b94` and is not loaded in production.

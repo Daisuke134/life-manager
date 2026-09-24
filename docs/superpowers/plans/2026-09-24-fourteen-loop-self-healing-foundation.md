@@ -1721,3 +1721,15 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   `preserved=5/open`; capacity remains **497,893,376 bytes** below floor.
 - [ ] After the floor is restored, run full tests, load the candidate immutable release, and require a fresh
   occurrence-complete reconciliation/recovery readback before the two-pass gate.
+
+### Natural wake remains in progress (2026-09-25 JST)
+
+- [x] Observe the next natural release-reconciler occurrence `18d865297aba2440-74128` read-only; after the
+  bounded poll it remains `running` and has no terminal receipt. Keep the prior terminal event separate from this
+  occurrence; do not call it healthy, failed, or effectful until its own terminal is persisted.
+- [x] Re-read the canonical disk-cleanup receipt: `free_after=362,483,712`, `errors=0`, `reclaimed=0`, and
+  five open candidates preserved. The capacity floor is short by `793,296,896` bytes, so the full-suite and
+  immutable-promotion gates remain closed.
+- [ ] Let this natural occurrence finish, then read its exact terminal/diagnostic fields once. If it reaches the
+  old `node: not found` boundary, use the already-tested candidate fallback after capacity recovery and accepted
+  immutable loading; do not restart this owner or mutate admission/provider/Paid state from the stale surface.
