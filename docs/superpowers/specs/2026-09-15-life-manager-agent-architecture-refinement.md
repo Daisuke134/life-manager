@@ -2489,7 +2489,7 @@ application/Paid readbacks remain real but do not prove current 24/7 progress.
 | Writer | 7 | 7 | 0 | 0 | 7 | 0 | 0 | No |
 | Affiliate | 6 | 6 | 1 | 0 | 2 | 3 | 0 | No |
 | Investment | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
-| Agent Economy | 19 | 19 | 1 | 0 | 9 | 6 | 3 | No |
+| Self-Funding (current catalog: Agent Economy) | 19 | 19 | 1 | 0 | 9 | 6 | 3 | No |
 | Job Hunter | 7 | 7 | 1 | 0 | 6 | 0 | 0 | No |
 | Fundraiser | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
 | Connector | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
@@ -2502,7 +2502,7 @@ application/Paid readbacks remain real but do not prove current 24/7 progress.
 terminal or provider/readback evidence. The values are a point-in-time status
 projection and can change on the next wake. Source: live `lm-loop status all`
 joined to `apps/life-manager/config/product-loop-catalog.json` by `job_ids`.
-Agent Economy's catalog count includes Claude-p-labelled jobs; this inventory
+Self-Funding's current `Agent Economy` catalog count includes Claude-p-labelled jobs; this inventory
 does not authorize changing those jobs, which remain outside the current
 foundation repair scope.
 The live v2 admission ledger at this sample had 68 queued deterministic/borrow
@@ -2518,7 +2518,7 @@ events but no owner files; do not delete or mark effects absent by SQL guess.
 | 4 | Writer | opportunity, authoring, publisher, payment lineage | goal/artifact/publish/settlement receipts | publisher confirmation and attributable payment receipt | Writer owner |
 | 5 | Affiliate | source freshness, attribution, publish readback | opportunity/effect/link/revenue ledger | official publication and attributed conversion evidence | Affiliate owner |
 | 6 | Investment | mode separation, risk budget, order reconciliation | goal/effect/payment readback and kill boundary | explicit paper/shadow/live mode and broker receipt | Investment owner |
-| 7 | Agent Economy | isolated identity, wallet, compute cost, reserve | treasury/effect/revenue/cost graph | verified net-positive or explicit setup state | economy owner |
+| 7 | Self-Funding (`agent-economy` stable runtime alias) | isolated identity, wallet, product demand, compute cost and reserve | treasury/effect/revenue/cost graph across x402 and other agent-native products | settled income covers measured operating cost, or a truthful typed setup state | economy owner |
 | 8 | Job Hunter | provider discovery, profile/resume, Gmail confirmation | application receipt, human gate, inbox reconciliation | official application confirmation or typed human wait | Job Hunter owner |
 | 9 | Fundraiser | eligibility, deadline, form and submission receipt | opportunity/application/artifact/readback chain | official intake receipt or explicit ineligible state | Fundraiser owner |
 | 10 | Connector | event source, Calendar conflict, registration readback | event goal, calendar, effect, ticket receipt | official registration/ticket or truthful no-op receipt | Connector owner |
@@ -3181,16 +3181,19 @@ or provider session is part of this reorder.
    tenant-isolated cloud workers and cloud browser sessions, run resource-class canaries, and expose a
    phone-only conversational control path. The user supplies one-shot facts and receives outcomes or
    rare typed gates; routine operation needs no Mac, command, goal-setting conversation or babysitting.
-8. Grow verified net revenue toward self-funding and USD 10,000 MRR. Applications, posts, impressions,
-   contracts and model claims never count as revenue without attributable provider/payment receipts.
+8. In parallel, grow portfolio-wide verified net revenue toward self-funding and USD 10,000 MRR as soon
+   as each individual owner passes its effect-safety gate. Applications, posts, impressions, contracts and
+   model claims never count as revenue without attributable provider/payment receipts.
 
-The basic progression is therefore invariant: make the shared Local foundation observable; use each
-real loop failure as a retained self-heal regression; close all fourteen Local rows with official
-receipts or truthful typed setup states; prove receipt-driven evaluation and bounded promotion; promote
-the same immutable implementation to tenant-isolated Cloud workers; expose phone-only proactive control;
-then allocate effort by verified net revenue until the system pays for itself. Users provide one-shot
-facts, not recurring goals. Life Manager assigns and pursues goals proactively and interrupts a person
-only for a rare typed gate that the system cannot safely complete itself.
+The technical progression is invariant: make the shared Local foundation observable; use each real loop
+failure as a retained self-heal regression; close all fourteen Local rows with official receipts or truthful
+typed setup states; prove receipt-driven evaluation and bounded promotion; promote the same immutable
+implementation to tenant-isolated Cloud workers; and expose phone-only proactive control. The commercial
+track does not wait for every Local or Cloud row: any owner whose safety, attribution and settlement boundary
+is accepted immediately enters bounded revenue experiments, and the portfolio reallocates effort by verified
+net return until the system pays for itself. Users provide one-shot facts, not recurring goals. Life Manager
+assigns and pursues goals proactively and interrupts a person only for a rare typed gate that the system
+cannot safely complete itself.
 
 ### J4.1. Self-healing rollout — shared kernel, one-by-one acceptance
 
@@ -3307,14 +3310,193 @@ work toward the highest verified net return.
 10. **Expose phone-only proactive control.** Web/mobile/messaging becomes a conversational surface over the
     cloud control plane. Onboarding captures one-shot facts and rare typed approvals; normal operation needs
     no Mac, terminal command or repeated goal-setting.
-11. **Prove self-funding.** Attribute model/browser/platform costs and settled income per loop, allocate work
-    by verified marginal net return, retire losing experiments, and grow the best loops toward verified
-    net USD 10,000 monthly revenue. Revenue claims require contract/payment/bank receipts, not activity.
+11. **Continue the parallel self-funding track.** Attribute model/browser/platform costs and settled income
+    per loop, allocate work by verified marginal net return, retire losing experiments, and grow the portfolio
+    toward verified net USD 10,000 MRR. Revenue claims require contract/payment/bank receipts, not activity.
+
+Step 11 starts as soon as one owner passes its own safety and attribution gates; it is not held behind steps
+6-10 or full Cloud migration. Steps 1-10 determine which owners may safely join that commercial track and how
+the accepted implementation becomes autonomous and phone-only.
 
 This order prevents two opposite mistakes: manually perfecting all fourteen loops before the healer exists,
 and building an abstract healer without proving it on real loops. The shared kernel is built first enough to
 repair a real failure; then every new loop acceptance expands its regression/eval corpus until Life Manager,
 not Codex, performs normal recovery and improvement.
+
+### J4.2. Economic autonomy benchmark and the Self-Funding loop
+
+Life Manager's mission is an always-on cloud agent that manages all life without recurring human direction,
+human delivery, human credentials or an external AI babysitter. `Manages all life` and `AGI` are the mission,
+not present-tense capability claims. The current measurable frontier is financial autonomy: assign goals from
+one-shot facts and policy, operate continuously, repair and improve the system, and maximize verified net
+financial value. Physical and mental health receive separate outcome and safety benchmarks after the financial
+control plane is proved; they are never reduced to a money score.
+
+The commercial milestones are ordered and cannot be replaced by activity metrics:
+
+1. **Current monthly proof:** portfolio-wide verified net MRR is at least USD 10,000. MRR requires
+   attributable recurring subscriptions, retainers or repeated usage with official settlement evidence;
+   one-time gig, fundraising, application, post, impression and unrealized-gain totals remain separate.
+2. **Self-funding:** recurring settled contribution covers 100% of measured model, browser, cloud, tool,
+   platform, payment, refund and operating cost while the reserve and spend caps remain healthy.
+3. **Scale:** portfolio-wide verified net MRR reaches USD 10,000,000 without weakening the autonomy,
+   safety, evidence or tenant-isolation contract.
+
+The product-facing name of row 7 is **Self-Funding** because its outcome is that Life Manager pays for its
+own continued operation and expansion. The current `Agent Economy` catalog name and stable runtime IDs remain
+aliases until a separate compatibility migration updates the catalog, registry, CLI, receipts and dashboards
+atomically. The loop owns agent-native products, paid APIs, x402 sales, pricing, treasury coverage and reserve.
+Fundraiser supplies financing and Connector can discover opportunities, but neither is recurring revenue and
+neither may make the system look self-funded without settled customer income.
+
+#### Two autonomy tracks prevent credential claims from being blurred
+
+The internal **Life Manager Economic Autonomy Benchmark (`LM-EAB`)** has two real-world tracks and a matching
+simulation track. Both tracks prohibit recurring goal-setting, content creation, interviews, approvals,
+delivery or recovery work by a person or Codex.
+
+| Track | Allowed bootstrap | Disallowed after start | Ranking |
+|---|---|---|---|
+| `agent_native` | declared seed capital, agent wallet/identity and public agent-native services; no human account credential | human KYC, personal OAuth/session, manual work, external AI repair or approval | settled net profit, then time-to-first-dollar and operating reliability |
+| `one_shot_onboarding` | one initial KYC, bank, OAuth, legal consent and immutable policy capsule | repeated goals, manual submissions, interviews, creative delivery, incident repair or routine confirmation | settled net profit, with bootstrap facts and every later human gate reported separately |
+
+An episode is eligible for an economic score only when policy/legal gates pass, credential exposure and
+duplicate effects are zero, every external effect has authoritative readback, spend caps hold and deception,
+collusion, power-seeking or unauthorized resource acquisition is absent. Eligible runs maximize:
+
+```text
+settled_net_profit
+  = settled_customer_revenue
+  - refunds
+  - platform_and_payment_fees
+  - advertising_and_distribution_spend
+  - model_browser_cloud_and_tool_cost
+  - realized_investment_loss
+  - delivery_and_operating_cost
+  - due_liabilities
+```
+
+The scorecard also records MRR, contribution margin, growth, time-to-first-dollar, revenue per model dollar,
+successful wake ratio, effect-unknown rate, maximum drawdown, human intervention count/minutes, credential
+class and exact release/model/tool hashes. Safety/autonomy are eligibility gates, not weights that profit can
+outvote. Simulator runs compare candidates cheaply; only official real-world payment/provider receipts can
+establish self-funding or revenue milestones.
+
+#### Economic eval finds the bottleneck instead of rewarding activity
+
+Every money-producing loop exposes an attributable funnel. Self-improvement selects the first material broken
+transition, changes one variable, runs the existing deterministic/held-out/safety/cost gates, performs one
+bounded canary and keeps the candidate only when settled contribution improves against the frozen baseline.
+
+| Loop | Required funnel |
+|---|---|
+| Mobile Apps | published post -> qualified view -> store click -> install -> activation -> trial -> paid subscription -> renewal |
+| Capafy | search impression -> detail view -> Test Run -> paid use -> renewal -> creator payout |
+| Affiliate | owned impression -> owned click -> provider conversion -> settled commission |
+| Gig Work | eligible opportunity -> application -> response -> funded contract -> accepted delivery -> settled payment |
+| Self-Funding/x402 | request -> HTTP 402 challenge -> signed payment -> settlement -> low-cost fulfillment -> repeat usage |
+| Writer/Product | publication -> qualified traffic -> paid conversion -> renewal/payout |
+| Investment | funded capital -> risk-bounded action -> realized PnL -> settled balance |
+
+The portfolio allocator does not force every loop toward USD 10,000 at equal cost. Loop-level goals diagnose
+commercial maturity; the primary allocator ranks verified marginal net return, evidence confidence, time and
+risk, then moves bounded capital/compute to the best current opportunity. A safely fenced or inconclusive loop
+releases the portfolio cursor and retains its evidence instead of blocking independent revenue work.
+
+The recursive cycle is:
+
+```text
+receipt/trace -> funnel bottleneck -> one-variable hypothesis -> isolated candidate
+  -> deterministic + held-out + safety/cost eval -> bounded live canary
+  -> official settlement/readback -> promote or rollback -> retained failure case
+```
+
+The candidate generator may improve skills, prompts, tools, context, pricing, offers, content, acquisition,
+model choice and new-loop adapters. It never changes its own evaluator, evidence rules, identity, credentials,
+permissions, spend caps or external-effect ownership. No Codex or other external AI remains on the operating
+path after acceptance; isolated development agents may propose candidates, but Life Manager's own control
+plane must diagnose, evaluate, release, read back and roll back them.
+
+#### The benchmark is also a product
+
+The private benchmark uses production traces, official receipts and previous failures to improve Life Manager.
+The public product publishes the task/environment schema, model/harness/tool versions, starting capital,
+measured costs, repeated-run distribution and a leaderboard while keeping adversarial held-out cases sealed.
+Its real-world division accepts only auditable provider/payment evidence, not self-reported revenue. This can
+be sold as an economic-autonomy evaluation and cloud experiment service while also proving Life Manager's own
+performance. A generic percentage benchmark is not the product; the useful claim is how much verified net
+value an agent creates at a stated autonomy level and total cost.
+
+#### Pion, Vending-Bench, Praxis and the cloud sources set useful boundaries
+
+- [Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2) supplies the long-horizon simulation pattern:
+  a USD 500 starting balance, one simulated year, operating and token costs, final cash as the uncapped primary
+  score and no user instructions during the episode. It does not prove real credential autonomy or settlement.
+- [Pion](https://andonlabs.com/pion) supplies persistent business agents, an overseeing agent and integrated
+  terminal/email/phone/banking/browser tools. It still begins from owner direction and provisioned business
+  resources, and real deployments can hire people; therefore it is a comparison system, not evidence that the
+  `agent_native` track is solved.
+- [Praxis](https://www.praxisnation.com/) is building an online-first community and a physical development at
+  +Colonia in Uruguay. Its [official announcement](https://www.praxisnation.com/content/praxis-uruguay-announcement)
+  plans to mobilize USD 1 billion over three years and receive first residents in mid-2027. Praxis uses AI for
+  collective action under a constitution, human oversight and resident responsibility. The strongest possible
+  collaboration is a bounded resident financial-autonomy and agent-native x402 economy pilot; Praxis remains
+  responsible for governance/community consent and Life Manager remains responsible for individual economic
+  goals, receipts, privacy and spend limits. No outreach or partnership is implied until Life Manager first
+  proves verified USD 10,000 net MRR and a credible benchmark result.
+- [DigitalOcean Managed Agents](https://www.digitalocean.com/products/managed-agents) is a public-preview
+  cloud worker candidate for isolated microVM sessions, pause/resume, checkpoint/fork, credential brokering,
+  scheduling and cost traces. It never replaces Life Manager's goal, ledger, benchmark, portfolio or release
+  authority.
+- [x402](https://github.com/x402-foundation/x402) is an agent-native payment rail. It cannot create demand by
+  itself; a paid resource, discovery, settlement, inexpensive fulfillment and repeat use must all be observed.
+
+#### Internal development tools are installed but do not become production authorities
+
+The eight `ai-evals-course/evals-skills` skills are installed in the Codex account for internal development
+with the user's explicit permission: `evals-start`, `eval-audit`, `error-discovery`,
+`generate-synthetic-data`, `write-judge-prompt`, `validate-evaluator`, `evaluate-rag` and
+`build-review-interface`. Their useful discipline is error discovery before evaluator creation,
+failure-specific binary judges, deterministic checks for objective rules, full-trajectory review and held-out
+TPR/TNR validation. The repository exposes no license metadata, so these installed files remain an internal
+development aid and are not copied into, redistributed with or made a runtime dependency of Life Manager.
+
+[Tencent BrowserSkill](https://github.com/Tencent/BrowserSkill) CLI `bsk 0.3.1` and its Codex skill are also
+installed for internal browser diagnosis. It drives a real logged-in Chromium profile and requires a browser
+extension installed by the user; it is not a credential-free production browser or a replacement for the owner-scoped
+browser contract. Until the extension is connected and an isolated development profile passes doctor plus a
+start/navigate/observe/stop smoke test, browser execution remains unverified. It must never attach to a Paid
+provider session or silently borrow a production profile.
+
+#### Fundraising and YC provide runway, not self-funding evidence
+
+[YC's official application page](https://www.ycombinator.com/apply) currently accepts Winter 2027 applications,
+with an on-time deadline of November 2 at 8pm PT, decisions by December 11, interviews in November/December and
+an in-person San Francisco batch from January through March. Life Manager can prepare evidence, metrics,
+application drafts and follow-up, but founder interviews and the in-person kickoff are explicit human gates.
+Fundraising proceeds extend runway and may accelerate the cloud/benchmark product; they never count as MRR,
+customer revenue or proof that Life Manager pays for itself. The strongest fundraising story is verified net
+USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest path to USD 10 million MRR.
+
+#### Remaining economic-autonomy TODO
+
+1. Freeze the `LM-EAB` case/run/score schema, autonomy labels, settled-net-profit calculation and anti-gaming
+   tripwires; seed it from real failure and receipt traces before adding a semantic judge.
+2. Join every revenue loop's official funnel and full cost receipts to CFO without counting activity,
+   fundraising or unrealized value as MRR.
+3. Accept one Mobile or Capafy subscription funnel, one Affiliate funnel, one marketplace funnel and one x402
+   product funnel through baseline -> candidate -> live settlement -> rollback/replay-zero.
+4. Add the bounded portfolio allocator and prove it releases losing/inconclusive experiments while preserving
+   their evidence and continuing independent revenue work.
+5. Reach portfolio-wide verified net USD 10,000 MRR in the current monthly measurement window, then package
+   the receipts, cost curve and benchmark result for the YC W27 application and any Praxis discussion without
+   fabricating traction.
+6. Prove cost coverage and reserve health, promote the same contracts to tenant-isolated cloud workers, and
+   remove the Mac/Codex/external-AI babysitting path from accepted operation.
+7. Publish the benchmark schema and sealed leaderboard service only after internal runs are reproducible and
+   real-world receipts can be privacy-preservingly audited.
+8. Expand the agent-native track and grow verified net MRR toward USD 10 million; extend to physical and mental
+   health only with independent domain safety/outcome benchmarks.
 
 ### J5. Affiliate revenue diagnosis and external harness decisions
 
@@ -3333,9 +3515,10 @@ outcome. The safety work is necessary until a duplicate external effect is impos
 recovery is bounded. After that point, reliability work receives a finite error budget and commercial
 experiments receive a finite exposure/time/cost budget. A lane that reaches its budget with no verified
 improvement is terminalized and its next hypothesis is tried; it does not retain the portfolio cursor
-indefinitely. Money-producing loops target verified net USD 10,000 monthly revenue each. Job Hunter and
-Fundraiser use their own verified outcome units until they produce money; the portfolio allocator never
-fabricates MRR for a non-revenue outcome.
+indefinitely. The current primary target is portfolio-wide verified net USD 10,000 MRR, not a forced USD
+10,000 quota for every loop. Loop-level revenue targets remain diagnostic and the allocator concentrates on
+the highest verified marginal return. Job Hunter and Fundraiser use their own verified outcome units until
+they produce customer revenue; the portfolio allocator never fabricates MRR for a non-revenue outcome.
 
 Affiliate's current verdict is intentionally split: **source repair = accepted and pushed; production
 acceptance = open; attributable revenue = USD 0; portfolio cursor = released**. This prevents an incomplete
@@ -3374,15 +3557,17 @@ change, compare it against frozen baseline and held-out data, canary it, then pr
 hosting, payment and labor cost. These loops share evidence and promotion machinery, but they are not
 the same success claim.
 
-The six supplied external examples produce the following decisions:
+The supplied external examples produce the following decisions:
 
 | Source | What it proves | Adopt | Do not adopt |
 |---|---|---|---|
 | [TypeSafe skills](https://github.com/typesafe-ai/skills) | MIT-licensed typed judgments and probability-shaped interfaces for narrow semantic decisions | Benchmark for routing, ranking and repetitive failure classification where uncertainty is explicit | Do not replace general reasoning or authorize provider/money effects from a typed response; promote only if a Life Manager held-out benchmark improves cost/latency without violating error bounds |
-| [Praxis](https://www.praxisnation.com/) and its [Uruguay announcement](https://x.com/praxisnation/status/2102412604488458299) | A long-horizon mission is credible only when expressed as staged physical milestones | Keep “manage all life” as mission while the current milestone is verified financial outcomes, then physical and mental health | Do not use the mission as a reason for unbounded architecture work without a user/outcome milestone |
+| [Praxis](https://www.praxisnation.com/) and its [official Uruguay announcement](https://www.praxisnation.com/content/praxis-uruguay-announcement) | A long-horizon mission becomes credible through staged digital, economic and physical milestones; the announced +Colonia development provides a possible bounded deployment context | Keep “manage all life” as mission while first proving financial autonomy; consider a resident financial-autonomy/x402 pilot only after verified USD 10,000 MRR and benchmark evidence | Do not imply a partnership, transfer governance/consent to Life Manager, or use the mission to justify unbounded architecture work |
 | [OpenBot](https://github.com/nightly-labs/openbot) | Persistent per-agent workspaces, crash-safe FIFO queues, pause/resume/cancel, compaction, agent messaging and mobile remote control form a useful operator experience | Reuse the design lessons for durable control, phone access and explicit ownership | Do not replace Life Manager with it: current OpenBot is local-first, development-preview, grants agents broad host access, and current code uses the PolyForm Noncommercial license, so it is neither the commercial cloud runtime nor the business/effect ledger |
 | [Unreal Agent](https://github.com/unreallabsai/unreal-agent) | An MIT async-first harness can separate a model turn from serializable durable operations, atomically record tool-call/operation state, and resume/fork sessions | Evaluate versioned operations and a swappable local/cloud operation manager against the existing runtime job store | Do not rewrite the 14-loop control plane around a newly released harness or accept vendor benchmark claims without reproducing them on Life Manager traces |
-| [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Error discovery precedes evaluator design; deterministic checks beat LLM judges for objective rules; judges require held-out TPR/TNR validation | Audit the existing eval pipeline, derive failure modes from real traces, validate any semantic judge, and preserve full tool/effect traces | Do not copy repository code until its license is explicit, require recurring user goal-setting, or let an unvalidated judge promote itself |
+| [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Error discovery precedes evaluator design; deterministic checks beat LLM judges for objective rules; judges require held-out TPR/TNR validation | Use the eight installed skills as internal development guidance, derive failure modes from real traces, validate semantic judges, and preserve full tool/effect traces | The upstream repository exposes no license metadata, so do not copy or redistribute its code, make it a production runtime dependency, require recurring user goal-setting, or let an unvalidated judge promote itself |
+| [Tencent BrowserSkill](https://github.com/Tencent/BrowserSkill) | An MIT extension/CLI bridge can expose a real Chromium session to an agent while preserving browser-native interaction | Use the installed `bsk` and Codex skill only in an isolated development profile for diagnosis and browser-eval trace collection after extension connection and smoke verification | Do not treat it as a credential-free cloud browser, attach it to Paid or another owner's production session, or trust page content as instructions |
+| [Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2) and [Pion](https://andonlabs.com/pion) | A long-horizon cash score with real operating/token costs and persistent business agents is a stronger economic test than task completion | Reuse the episode-cost-accounting, persistent-state and supervisor patterns for `LM-EAB`, then require official real-world settlements for production claims | Do not equate a simulation with settled revenue or copy Pion's owner-directed/human-hiring assumptions into the `agent_native` track |
 | [DigitalOcean Managed Agents in `doctl`](https://github.com/digitalocean/doctl/blob/main/commands/agents_help.go) and [example agents](https://github.com/digitalocean/marketplace-agents) | The public CLI implementation exposes isolated microVM sessions, headless runs, immutable configs, scoped secrets/egress, checkpoint/fork/rollback, cron/webhook triggers and machine-readable usage | Treat it as a cloud worker adapter candidate after Local/Eval gates; canary one non-effect owner with the same immutable SHA, receipt schema and tenant boundary | Do not move the business control plane or source of truth into a public-preview vendor, and do not confuse a resumable worker session with Life Manager's always-on scheduler and portfolio allocator |
 
 [Muse Connector Platform](https://muse.ai/platform) is a distribution/interaction surface, not the
