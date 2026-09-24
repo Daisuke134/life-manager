@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 06:20 JST (retention owner and Paid marker boundary verified)
+## Current cursor — 2026-09-25 06:31 JST (retention, Paid marker, and live admission status verified)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -95,6 +95,19 @@ read or normalize another account's inventory. The regression test confirms
 zero fetch calls on mismatch. The focused Freelancer/Upwork readiness and
 transport suite is `53 passed`; the complete `skills/earn/gig/tests` suite is
 `1,474 passed`.
+
+The read-only `lm-loop status` path was corrected at `2026-09-25 06:31 JST`.
+Previously its event fields could show an old `18d829…` run while the
+admission database was holding a different current effect fence. Status rows
+now include the exact admission `occurrence_id` list from the read-only
+SQLite boundary. The regression test proves the occurrence is exposed, the
+targeted readonly suite is `21 passed`, and the complete `runtime/loop/tests`
+suite is `630 passed` with `522` subtests. A worktree-only status readback now
+shows CrowdWorks `crowdworks-revenue-paid:18d62cf32eb0c678-48194` and Lancers
+`lancers-revenue-paid:18d81967220136f8-89928`; the stale event IDs remain
+diagnostic history only. This changes status truthfulness, not provider state:
+both exact fences are still claimed/effect-unknown, so neither Paid loop is
+started or retried.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
