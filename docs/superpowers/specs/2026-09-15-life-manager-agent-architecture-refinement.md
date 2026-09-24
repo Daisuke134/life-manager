@@ -5396,3 +5396,9 @@ The following natural release-reconciler occurrence `18d865db6184d2b0-84522` rea
 `2026-09-24T23:36:45.786559Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release
 `09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. This is another
 occurrence-bound confirmation of the same old-release bare-Node defect; it does not authorize restart or replay.
+
+The next natural cleanup occurrence `18d86609e15eb3d8-86988` reached `status=pass`, `exit_code=0` at
+`2026-09-24T23:38:22.455280Z`. Its canonical receipt is `observed_at=2026-09-24T23:37:56Z`,
+`free_before=333,656,064`, `free_after=333,537,280`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), and
+`inventory_gaps=22`. The safe owner still has no allowlisted reclaimable item; the floor shortfall is
+**822,243,328 bytes**. This small capacity movement does not unlock full-suite or immutable promotion.

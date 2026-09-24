@@ -1793,3 +1793,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 
 - [x] Read natural reconciler terminal `18d865db6184d2b0-84522` at `23:36:45.786559Z`: old-release
   `entrypoint_exit_1`, no provider receipt/effect. Keep it distinct from earlier occurrences and do not replay it.
+
+- [x] Read cleanup terminal `18d86609e15eb3d8-86988`: `pass`, `exit_code=0`, `errors=0`, `reclaimed=0`,
+  five open candidates preserved. Receipt `free_after=333,537,280`, `inventory_gaps=22`; floor shortfall
+  `822,243,328` bytes remains.
