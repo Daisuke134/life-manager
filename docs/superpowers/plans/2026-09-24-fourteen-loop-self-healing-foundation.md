@@ -1504,6 +1504,13 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   production reload closed until the user-level foundation gate is green and the Paid ownership boundary remains
   intact.
 
+### Readback null-safety hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `04ec25045e`: payout, x402 and Sol-funding official readback adapters reject null or
+  non-object RPC responses as inconclusive instead of raising an untyped exception.
+- [x] Verify the three focused adapter suites **10/10**, `py_compile` and `git diff --check`; no provider, wallet,
+  admission or production state was changed.
+
 ### Connector diagnostic readback (2026-09-25 JST)
 
 - [x] Read `life-manager-connector-native` status without waking it: current terminal is `entrypoint_exit_1`,

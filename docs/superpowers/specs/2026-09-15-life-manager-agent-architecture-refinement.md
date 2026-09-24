@@ -5016,6 +5016,11 @@ fulfillment source or provider-session state. A clean merge-tree is not permissi
 immutable release promotion and production reload remain closed until the user-level foundation gate is green and the
 separate Paid owner is preserved.
 
+The readback adapters received a small fail-closed hardening at candidate commit `04ec25045e`: payout, x402 and
+Sol-funding now return a negative verification result when an RPC returns a null/non-object finalized block or
+transaction receipt instead of throwing through the reconciler. The three focused adapter suites pass **10/10** and
+`py_compile`/`git diff --check` pass. This changes no provider, wallet, admission or production state.
+
 ### Connector diagnostic readback (2026-09-25 JST)
 
 The current read-only status for `life-manager-connector-native` is `fail / entrypoint_exit_1`, with
