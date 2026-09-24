@@ -2600,3 +2600,36 @@ not convert a transient pass or a no-op into client completion.
    buyer event may reopen a room.
 5. Keep Upwork disabled until authorization, authenticated readback, and a
    funded contract exist, then run the fleet acceptance gate.
+
+## Production Cursor — 2026-09-24 11:52 JST (latest Lancers wake)
+
+- **Lancers Paid failed again before provider work.** The fresh natural
+  occurrence `18d821f66e484a78-38052` on installed SHA
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75` ended with
+  `entrypoint_exit_1` at `provider_inventory`; the authoritative snapshot is
+  `observed=0/actionable=0/effect=0/readback=0/pending=0/failed=1`. This does not
+  prove zero effect for the residual unknown occurrence, so its fence remains.
+- **Ownership proof is clean and read-only.** Lancers browser owner PID 946
+  owns port-owner PID 1101 and Chromium PID 1152 on profile
+  `/Users/anicca/.local/state/anicca/lancers/browser-profile`; Paid PID 38052
+  is separate. CDP 9227 lists five pages: four proposal lists and one
+  `about:blank`. No tab, browser, owner, or provider state was changed.
+- **The blocker is now narrowed:** the production SHA still lacks the pushed
+  duplicate-proposal cleanup/typed diagnostic fix, while applying that fix or
+  closing the three stale targets is a live browser mutation requiring explicit
+  approval.
+
+### Remaining TODO (superseding)
+
+1. Obtain approval for the exact owner-scoped close of the three additional
+   Lancers proposal targets; preserve the first proposal target and
+   `about:blank`. Do not stop/restart the browser or touch unrelated targets.
+2. Promote the tested fix through a main-derived immutable release, apply only
+   to the Lancers owner, and verify loaded SHA, natural inventory readback, and
+   replay-zero.
+3. Keep Lancers occurrence `18d81967220136f8-89928` and CrowdWorks historical
+   occurrence `18d62cf32eb0c678-48194` effect-unknown until exact proof.
+4. Wait for CrowdWorks `63568785` buyer material; then complete delivery,
+   acceptance, settlement, payout, and replay-zero once.
+5. Preserve Coconala pass/no-op/Ryu-manual state and keep Upwork disabled until
+   authorization, authenticated readback, and a funded contract exist.

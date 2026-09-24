@@ -2589,3 +2589,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `63568785` only after buyer material and official delivery/readback.
 - [ ] Keep Upwork disabled until its authorization, authenticated readback, and
   funded-contract gates exist; finish the cross-platform fleet gate last.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:52 JST (latest Lancers wake)
+
+- [x] Lancers natural occurrence `18d821f66e484a78-38052` ended at
+  `provider_inventory`/`entrypoint_exit_1` with
+  `observed=0/effect=0/readback=0/pending=0`; no provider submission occurred.
+- [x] Read-only ownership proof confirms browser PID 1152 is the Lancers
+  profile on CDP 9227 via owner PID 1101; Paid PID 38052 is separate. The
+  target inventory is four proposal pages plus one `about:blank`.
+- [ ] Keep the residual Lancers effect-unknown fence; this failed inventory
+  wake is not proof that the earlier occurrence had no effect.
+- [ ] Obtain explicit approval before closing exactly the three extra proposal
+  targets; then promote the tested fix only through a main-derived immutable
+  release and verify inventory/readback/replay-zero.
+- [ ] Preserve CrowdWorks historical fence and finish `63568785` only after
+  buyer material; preserve Coconala/Ryu and Upwork gates.
