@@ -4745,12 +4745,14 @@ Historical joined-child evidence already records `SUCCEEDED/AUTH_REQUIRED` plus 
 `92843`, so this is not eligible for the generic pre-effect resolver. Only an exact official body/readback proof
 may resolve or preserve this fence.
 
-The branch-only observability improvement at candidate commit `1be7f402b2` (after the initial
+The branch-only observability improvement at candidate commit `6a424932dc` (after the initial
 `2e759d41f3` slice) keeps the boolean
 `admission_effect_unknown` field and adds `admission_effect_unknown_occurrences` with the exact occurrence ID,
-state, resource/admission classes, sequence and queue timestamp. Read-only tests pass **30/30** and the combined
-read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a main
-integration, production release, fence resolution or revenue claim.
+state, resource/admission classes, sequence and queue timestamp. The foundation manifest and private gate
+diagnostics now carry the same occurrence identity under `unknown_effect_occurrences`, so the actionable Affiliate
+row names the durable target directly. Read-only tests pass **30/30**, product-onboarding passes **48/48** and the
+combined read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a
+main integration, production release, fence resolution or revenue claim.
 
 The candidate CLI was then run against the live selector in read-only mode. It returned `rc=0` and showed the
 same owner-level fence together with both identities: the latest event occurrence was

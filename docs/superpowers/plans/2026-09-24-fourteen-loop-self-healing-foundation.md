@@ -1314,7 +1314,8 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   official body/readback proof.
 - [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`,
   then thread it through the full resolver path at `1be7f402b2` after a real `status all` probe caught the missing
-  call-site. Read-only tests pass **30/30** and combined read-only/apply/registry tests pass **243/243**.
+  call-site. Carry the same identity into foundation/actionable diagnostics at `6a424932dc`. Read-only tests pass
+  **30/30**, product-onboarding **48/48**, and combined read-only/apply/registry tests **243/243**.
 - [x] Run the candidate CLI against the live selector in read-only mode. It returns `rc=0` and exposes the latest
   event occurrence separately from the durable fenced occurrence, with no provider receipt or official readback;
   this is diagnostic evidence only.
