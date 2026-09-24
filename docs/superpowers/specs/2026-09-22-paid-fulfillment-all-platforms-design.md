@@ -2725,3 +2725,61 @@ not convert a transient pass or a no-op into client completion.
 7. Run the final fleet acceptance only after items 1–6: all registered Paid
    owners have a loaded release, fresh provider readback, explicit effect state,
    and no unresolved actionable item.
+
+## Production Cursor — 2026-09-24 12:26 JST (spec refresh)
+
+- **Delegation is active.** Routine technical and operational decisions are
+  already delegated; no further permission question is a gate. Exact target
+  selection, provider readback, effect fences, and replay-zero remain required
+  before any irreversible provider effect.
+- **Coconala is currently a proven no-op.** The latest direct snapshot is
+  `completed/observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`.
+  Ryu remains the manual-only reserved-for-owner case (no formal-delivery
+  checkbox and no resend); the other rooms are awaiting buyer activity. There
+  is no Coconala action to submit now.
+- **CrowdWorks still has one real pending item.** Latest occurrence
+  `crowdworks-revenue-paid:18d823c8ee673240-64122` is
+  `ok/5/1/0/4/1`; four work IDs are completed with `no_effect_required`, while
+  `63568785` is pending `buyer_task_detail_required`. No delivery or resend has
+  been issued.
+- **Lancers is read-only clean, but production is old.** Latest occurrence
+  `lancers-revenue-paid:18d823c84a7e07a8-64041` is
+  `ok/0/0/0/0/0`. The earlier two-pass official preflight remains the evidence
+  for the 14-board inventory and zero required replies/contracts. Historical
+  fence `18d81967220136f8-89928` remains `effect_unknown` and closed.
+- **Mercor Paid's exact fence is reconciled, but its inventory is stale.** The
+  exact occurrence `mercor-revenue-paid:18d816ea8a314030-46372` is now released
+  with `effect_unknown=0` from its stored zero-effect run marker. The current
+  Paid snapshot is still `pending/0/0/0/1` with
+  `official_work_inventory_stale`; this is not proof of a current contract.
+  Mercor Application and Reply still retain their historical effect-unknown
+  fences (`18d6f9cb5bdaef98-33812` and `18d6683223830368-49631`), so they are
+  not cleared by the stale snapshot. The Reply snapshot's one pending item is a
+  human Consultant calibration assessment and must not be fabricated or
+  auto-submitted.
+- **The tested loop fixes are not in production yet.** Branch
+  `fix/paid-main-promotion-20260924` is pushed at `87447b335e` with PR #5820;
+  production still loads `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
+
+### Remaining TODO (current ordered cursor)
+
+1. Preserve the Lancers fence `18d81967220136f8-89928`, CrowdWorks historical
+   fence `18d62cf32eb0c678-48194`, and Mercor Application/Reply fences until
+   each has an exact provider/run proof; never retry or resend from an unknown
+   effect state.
+2. After the user-result acceptance gates are satisfied, promote the tested
+   branch fixes (`c399767c71`, `46d165013f`, `0ab75d4b0e`) from latest main
+   through one immutable release, apply it, and verify loaded SHA, natural
+   inventory, official readback, and replay-zero for Lancers and CrowdWorks.
+3. For CrowdWorks `63568785`, wait for buyer material, then perform formal
+   delivery, acceptance, settlement, payout, and replay-zero exactly once.
+4. Refresh Mercor's official contract snapshot through the Reply observer;
+   separately resolve or retain the Application/Reply fences using exact
+   provider evidence. Keep the human calibration assessment as a human-owned
+   handoff, not an automated submission.
+5. Keep Coconala/Ryu in the proven manual/no-op state; only a new buyer event
+   reopens a Coconala client. Keep Upwork disabled until authorization,
+   authenticated readback, and a funded contract exist.
+6. Run the final fleet acceptance only when every registered Paid owner has a
+   loaded immutable release, fresh official readback, explicit effect state,
+   and no unresolved actionable item.

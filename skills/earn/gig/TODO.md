@@ -2652,3 +2652,34 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Final fleet gate: every registered Paid owner loaded on the immutable
   release with fresh official readback, explicit effect state, and no actionable
   unresolved work.
+
+### Paid fulfillment checkpoint — 2026-09-24 12:26 JST (current cursor)
+
+- [x] Recorded the standing delegation: routine technical/operational work does
+  not wait for another permission question; exact target, provider readback,
+  effect-fence, and replay-zero rules still apply.
+- [x] Coconala remains `completed/4/0/0/3/0`; Ryu is manual-only with no
+  formal-delivery checkbox and no resend, and no Coconala item is actionable.
+- [x] CrowdWorks latest is `18d823c8ee673240-64122` with `5/1/0/4/1`; four
+  work IDs are no-effect complete and `63568785` remains buyer-material-gated.
+- [x] Lancers latest is `18d823c84a7e07a8-64041` with `ok/0/0/0/0/0`; the
+  earlier official 14-board preflight remains the read-only evidence.
+- [x] Reconciled Mercor Paid occurrence
+  `18d816ea8a314030-46372` from its exact stored zero-effect marker; its
+  occurrence is released with `effect_unknown=0`.
+- [ ] Keep Lancers `18d81967220136f8-89928`, CrowdWorks
+  `18d62cf32eb0c678-48194`, and Mercor Application/Reply fences closed until
+  exact provider/run proof exists.
+- [ ] Promote the pushed branch fixes only through one latest-main-derived
+  immutable release after the user-result gates; verify loaded SHA, natural
+  inventory, official readback, and replay-zero for Lancers/CrowdWorks.
+- [ ] Wait for CrowdWorks `63568785` buyer material, then complete formal
+  delivery → acceptance → settlement → payout → replay-zero once.
+- [ ] Refresh Mercor's official contract snapshot via Reply observer; resolve
+  or retain its remaining fences from exact evidence. Keep the Consultant
+  calibration assessment human-owned.
+- [ ] Keep Coconala/Ryu no-op/manual-only and Upwork disabled until its auth,
+  authenticated readback, and funded-contract gates exist.
+- [ ] Run the cross-platform fleet acceptance gate last; do not report all
+  gig-platform work as complete before every registered Paid owner has fresh
+  official readback and explicit effect state.
