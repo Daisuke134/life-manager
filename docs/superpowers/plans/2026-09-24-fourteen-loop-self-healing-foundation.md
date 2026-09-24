@@ -689,6 +689,19 @@ allowed.
 
 The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
 
+- [x] Newest read-only recheck 2026-09-25 JST: `origin/main` and the `current` selector have advanced to
+  immutable release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+  `/Users/anicca/loops/releases/20260925T031007-d4fe0819` from the separately owned Coconala change. Most
+  loaded launchd entries, including `life-manager-recovery-supervisor`, still point to the prior immutable release
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`; the supervisor's latest row is `loaded-idle` but
+  `entrypoint_exit_1` on that old SHA (`18d8544a60d082f8-48064`), with `diagnostic_complete=true`,
+  `effect_status=not_applicable`, and no provider receipt. A fresh 271-row status against the new selector yields
+  `running=4`, `blocked=82`, `pass=41`, `fail=28`, `None=116`, eight event/installed SHA mismatches and 233
+  diagnostically incomplete rows; the local foundation gate remains `decision=block` for diagnostic/runtime
+  evidence incompleteness and uncovered failure. `launchctl-safe preflight --json` passes, but no launchd mutation,
+  provider effect, effect-fence change or revenue claim was made. This supersedes the earlier `2f809c86` readback;
+  the next safe cursor remains accepted-release alignment followed by one-owner non-Paid reconciliation.
+
 - [x] Read-only recheck 2026-09-25 JST: the `current` selector is
   `/Users/anicca/loops/releases/20260925T005608-2f809c86`, whose exact SHA is
   `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. `launchctl-safe preflight --json` is `pass` with

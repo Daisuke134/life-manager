@@ -3866,6 +3866,20 @@ intentionally lack finite admission/priority policy. Mobile remains out of scope
 contract work is branch-only; accepted main-derived immutable release promotion and exact-SHA owner reconciliation
 remain the next steps, with no provider effect or revenue claim.
 
+The newest read-only recheck on 2026-09-25 JST supersedes that earlier selector: `origin/main` and
+`/Users/anicca/loops/current` now point to immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+`/Users/anicca/loops/releases/20260925T031007-d4fe0819`, from the separately owned Coconala change. Most loaded
+launchd entries, including `life-manager-recovery-supervisor`, still point to the prior immutable release
+`2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. Its newest status row is `loaded-idle` but
+`entrypoint_exit_1` on that old SHA (`18d8544a60d082f8-48064`), while diagnostics are complete and
+`effect_status=not_applicable`; no provider receipt is present. The fresh 271-row status against the new selector
+contains `running=4`, `blocked=82`, `pass=41`, `fail=28`, `None=116`, eight event/installed SHA mismatches and
+233 diagnostically incomplete rows. The local foundation gate remains `decision=block` for diagnostic/runtime
+evidence incompleteness and uncovered failure. `launchctl-safe preflight --json` passes, but this workstream made
+no launchd mutation, provider effect, effect-fence change or revenue claim. The next cursor remains accepted-release
+alignment followed by one-owner non-Paid reconciliation.
+
 The complete Node runtime suite was re-run at this branch boundary: 304 tests, 301 pass and three file-level
 failures. All three fail before test execution because this low-capacity worktree lacks optional `@solana/web3.js`
 (two always-act harness files) and `fast-check` (one always-act router file). Focused recovery/registry/read-only
