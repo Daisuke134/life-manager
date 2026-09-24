@@ -4829,3 +4829,11 @@ Telegram user-history readback was attempted through the existing session path b
 Telethon module; no provider body was claimed from local journals. This is an explicit missing-readback diagnostic,
 not an admission mutation or a revenue blocker to be bypassed. The durable target remains fenced until the provider
 readback path is available and binds the exact occurrence.
+
+The bounded read-only provider probe was then run in an isolated temporary environment. The configured Affiliate target
+chat did not contain message `92843`. Searching the 18 accessible dialogs found the same numeric message ID only in a
+different dialog and at a different timestamp; its body hash did not match the local Affiliate outbox body, and no
+local outbox row matched that provider hash. Therefore message `92843` is explicitly **not** an official receipt for
+`affiliate-loop:18d83ba82b14fb40-24990`. No Telegram message, admission row, provider session or effect was changed.
+The only safe next step is a provider readback in the correct authenticated target context that returns both the target
+chat and message identity, then binds that receipt to the durable host occurrence.

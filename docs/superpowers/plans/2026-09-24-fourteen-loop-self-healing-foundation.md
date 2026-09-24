@@ -1363,3 +1363,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Restore an official Telegram history-readback path (the current session probe has no Telethon module), then bind
   the provider body/message ID to the exact durable occurrence. Do not infer the binding from timestamps, local outbox
   rows, or a different wake UUID.
+- [x] Run the bounded read-only Telegram probe in an isolated temporary environment. The configured Affiliate target
+  chat does not contain message `92843`; the same numeric ID appears only in another accessible dialog, with a
+  different timestamp and body hash, and no local outbox body matches it. Mark that ID as non-evidence for the durable
+  fence; do not resolve or resend.
+- [ ] Obtain a provider readback in the correct authenticated target context that returns chat identity, provider
+  message identity and body hash, then bind all three to the exact host occurrence before invoking any resolver.
