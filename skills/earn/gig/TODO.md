@@ -1,5 +1,28 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 07:30 JST (specific cross-platform readback)
+
+This readback keeps the external account gates separate from the local loop
+states. BrowserSkill's daemon is healthy, but `extension connected` fails with
+`0 browsers connected`; `browsers=[]` and `sessions=[]`. No Freelancer or
+Upwork page was opened and no provider effect was attempted.
+
+| platform | verified now | local loop state | next owned action |
+|---|---|---|---|
+| Freelancer.com | authorization receipt 0; OAuth/inventory absent; funded project 0 | all Freelancer labels disabled/retired; no owner | obtain one account-bound BrowserSkill lease or official OAuth, then read identity/projects/milestones/hourly/IP/payments/payouts and persist a source-complete snapshot |
+| Upwork | source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`; only `inspect/read_payments/read_payouts` are approved until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` remain denied | both legacy labels disabled/retired; no owner | refresh identity/contracts/transactions/withdrawals through a dedicated account-bound lease, renew mutation receipts, and require one funded contract with a positive milestone |
+| Coconala | latest Paid wake has `effect=0`; no Ryu resend | Paid admission has no provider effect but terminal `entrypoint_exit_1`; host disk/admission is unstable; Storefront still requires official readback | restore stable host headroom through the canonical owner, then reconcile the no-effect/readback gates; keep Ryu manual-only |
+| CrowdWorks (クラウドワークス) | no new provider receipt; old Paid/application/reply/report effect fences remain | Paid/application are unloaded or failed; browser owner last terminal `entrypoint_exit_1`; report is admission-blocked | reconcile each exact occurrence with provider receipt or admissible no-effect proof; no blanket retry |
+| Lancers | project `5606124` historical proposal `27965342` is verified, but current source-complete inventory has `contract_candidate_count=0` and balance `¥0` | Paid/application/negotiate/storefront/Telegram-report fences remain; browser/work-sync are running | reconcile exact fences, then wait for a current funded contract before Paid registration |
+| Mercor | latest Paid terminal `pass`; no funded work proof | Paid loaded-idle; old application/reply fences remain | preserve fences and obtain a real funded contract before treating revenue as proven |
+
+The implementation work for Freelancer and Upwork is therefore active in code
+(strict readiness/transport gates and tests), but external onboarding is not
+complete. The non-skippable order remains: account-bound auth → source-complete
+official inventory → funded contract/positive milestone → exactly one owner
+registration → zero-effect canary → funded canary → provider receipt and
+payment/payout readback → crash recovery → replay-zero.
+
 ## Current cursor — 2026-09-25 07:18 JST (explicit Freelancer/Upwork gate and all-platform live readback)
 
 This is the concrete current situation, not a promise that a provider loop is
