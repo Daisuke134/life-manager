@@ -3299,7 +3299,40 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    policy (`agent/borrow/support`) and enables the existing queued/reserved-wake coalescing instead of replaying 64
    old five-minute wakes. Focused proof/negative/registry tests pass 4/4; reconcile plus registry suites pass
    206/206 with 174 subtests; the full runtime suite passes 624 tests plus 522 subtests, with the unrelated CEO
-   light-pass timeout passing on its isolated retry. Production admission remains unchanged until PR/main/release.
+   light-pass timeout passing on its isolated retry. PR #5851 merges the shared repair at
+   `209f879ec862a24fa0ed5cd954a7680422905c3a`; complete immutable release
+   `20260924T203525-209f879e` is active with `release_paths=ALL`, `ancestor-of-origin-main` provenance and a
+   clean 169-entry doctor readback.
+
+   Production reconciliation resolves only `alpaca-investment-live:18d5feb0983a54b8-35815`. Its private
+   `HOST_PRE_EFFECT_RECONCILIATION` receipt is mode 0600 and `RESOLVED`; Investment admission changes from one
+   unknown occurrence to zero without invoking the broker. The first exact-release wake coalesces all 64 stale
+   effect-known wakes and exits 0. Fresh Alpaca readback reports account `ACTIVE`, equity USD 66.74, cash USD 0,
+   four orders, nine activities, one position and `NO_TRADE`; pending/reconciled/unresolved orders are all zero,
+   and Telegram delivery receipt is message `92860`. The following immediate wake performs no entrypoint or
+   trade: it stops at typed retryable `resource_capacity_busy`, leaves one known queued occurrence, no
+   reservation and no unknown effect. The foundation evaluator therefore records Investment as exact-release
+   `safely_fenced/runtime_admission_deferred` with zero release mismatches and zero diagnostic gaps. This is the
+   required bounded replay-zero and safety evidence; profit or a natural scheduler wake is not an acceptance
+   gate. Investment is accepted for the local foundation slice, and the current executable cursor is Fundraiser.
+
+   Fundraiser has one owner and one independent historical application receipt. The official ledger records
+   Startuped AI `submitted_verified` at `2026-09-17T02:13:28Z`, with provider completion text, completion PNG,
+   application digest and Telegram photo message `85599`; that effect is preserved and is not replayed. The only
+   durable unknown is a different later occurrence, `fundraiser:18d5fda7a1962e60-16555`, queued at
+   `2026-09-17T03:22:08Z`. Its private runtime journal contains exactly two rows for that run: execute/running at
+   `03:22:03.376245Z` and blocked `resource_capacity_busy` at `03:22:12.184537Z`, with the same summary reference,
+   no `lm-effect://` evidence and no Fundraiser entrypoint/application receipt in the interval. Production
+   admission contains one claimed unknown, ten known queued, two known released, one queue row and no
+   reservation. The loaded owner remains idle on old release `9c2776b3...`, so current status is diagnostically
+   incomplete and must not be accepted.
+
+   No new reconciler is needed. The Investment slice's shared exact pre-effect proof returns this one Fundraiser
+   occurrence as verified in read-only production data. The minimum candidate declares the already-effective
+   durable policy `agent/borrow/support` and enables the existing queued/reserved-wake coalescing. Its RED test
+   fails on the missing registry contract, then the focused contract passes 2/2 and the complete apply/registry
+   suites pass 207/207. Candidate commit `d5d4f5ee15` is pushed; PR/main integration, immutable release,
+   one-owner reconciliation, official ledger preservation, current-release wake and bounded replay-zero remain.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
