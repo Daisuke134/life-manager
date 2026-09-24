@@ -5391,3 +5391,8 @@ registration is marked `locked` by a managed lease whose owner/task refer to a d
 task. No lease was stolen, deleted or rewritten, and no duplicate worktree was created. The source branch remains
 clean and pushed; the safe next action is to resolve the stale lease through the normal worktree owner process before
 promotion, alongside capacity recovery.
+
+The following natural release-reconciler occurrence `18d865db6184d2b0-84522` reached its own terminal at
+`2026-09-24T23:36:45.786559Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. This is another
+occurrence-bound confirmation of the same old-release bare-Node defect; it does not authorize restart or replay.

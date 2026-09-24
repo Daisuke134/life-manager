@@ -1790,3 +1790,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 
 - [ ] Resolve the registered worktree's stale/mismatched managed lease through the owner lifecycle before promotion;
   do not steal, delete or rewrite it and do not create a duplicate worktree for this task.
+
+- [x] Read natural reconciler terminal `18d865db6184d2b0-84522` at `23:36:45.786559Z`: old-release
+  `entrypoint_exit_1`, no provider receipt/effect. Keep it distinct from earlier occurrences and do not replay it.
