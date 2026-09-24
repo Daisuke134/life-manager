@@ -365,6 +365,77 @@ class LmLoopApplyTest(unittest.TestCase):
             "effect_class": "application", "state_root": str(state_root),
         }))
 
+    def test_rebind_guard_resolves_pre_effect_fence_after_queue_drains(self):
+        from runtime.host import resource_admission
+
+        owner = "fundraiser"
+        occurrence = f"{owner}:wake-preflight-drained"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='claimed',effect_unknown=1 "
+                "WHERE occurrence_id=?", (occurrence,),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+            connection.execute("DELETE FROM queue WHERE owner_id=?", (owner,))
+        state_root = self.root / owner
+        state_root.mkdir()
+        event_path = state_root / "events.jsonl"
+        events = [
+            {
+                "version": 1, "event_id": "f" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "execute", "status": "running",
+                "effect_class": "application", "effect_status": "started",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "e" * 40, "run_id": "wake-preflight-drained",
+                "timestamp": "2026-09-24T12:03:46.793510+00:00",
+                "blocker": None,
+                "evidence_refs": [
+                    f"lm-loop://{owner}/wake-preflight-drained/summary.json",
+                ],
+            },
+            {
+                "version": 1, "event_id": "1" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "report", "status": "fail",
+                "effect_class": "application", "effect_status": "unknown",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "e" * 40, "run_id": "wake-preflight-drained",
+                "timestamp": "2026-09-24T12:04:53.266302+00:00",
+                "blocker": "entrypoint_exit_75",
+                "evidence_refs": [
+                    f"lm-loop://{owner}/wake-preflight-drained/summary.json",
+                ],
+            },
+        ]
+        event_path.write_text("".join(json.dumps(row) + "\n" for row in events))
+        event_path.chmod(0o600)
+        entry = {
+            "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+            "resource_class": "agent", "admission_class": "borrow",
+            "priority": "support", "effect_class": "application",
+            "state_root": str(state_root),
+        }
+
+        with patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None):
+            with lm_loop._admission_rebind_guard(
+                owner, True, entry=entry,
+                item={"loop_id": owner, "label": "ai.anicca.fundraiser"},
+                release_sha=SHA, launchctl_safe=self.root / "bin/launchctl-safe",
+            ) as decision:
+                self.assertIsNone(decision)
+
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("released", 0))
+
     def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
         from runtime.host import resource_admission
 

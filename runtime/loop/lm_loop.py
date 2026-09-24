@@ -413,7 +413,13 @@ def _admission_rebind_guard(
             return
         if result == "not_queued":
             # A drained queue row has no policy to migrate.
-            if loaded_idle_verified and entry.get("effect_class") == "none":
+            if loaded_idle_verified and entry.get("effect_class") != "none":
+                # Queue drain can happen before reconciliation observes the
+                # terminal event. Only the exact pre-effect proof may close
+                # that stale fence; an evidence-free external-effect fence
+                # must remain blocked.
+                _resolve_pre_effect_admission_unknown(loop_id, entry)
+            elif loaded_idle_verified:
                 clear_no_effect_unknown(loop_id)
             yield None
             return
