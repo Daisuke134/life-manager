@@ -4842,3 +4842,22 @@ After this identity change, the branch verification was rerun: the combined Pyth
 registry/Affiliate suite passed **326/326**, and `node --test apps/life-manager/lib/product-onboarding.test.js`
 passed **48/48**. The run emitted only the pre-existing Python `ResourceWarning` diagnostics and no test failure; it
 does not change the production-load or main-integration gate.
+
+### Agent Economy / CFO fence readback (2026-09-25 JST)
+
+The next read-only admission slice contains five effect-unknown occurrences: released money fences for
+`sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`, claimed message fences
+for `life-manager-cfo-hourly:18d679cb82869d48-98528` and
+`life-manager-financial-report:18d601655af3e1c0-86661`, and a released money fence for
+`life-manager-payout:18d6026a3dc85558-829`. No row was edited.
+
+The owner journals are not sufficient to resolve these fences: the current Sol-funding and x402 settlement journals
+contain runtime `blocked / host_admission_deferred:resource_effect_unknown` rows but no `provider_receipt_id`,
+`official_readback_ref`, or host `occurrence_id`. The CFO and payout runtime journals have the same missing host
+identity on their historical blocked rows. Wallet ledgers, Base RPC observations, financial records, and message
+outboxes are not substituted for an exact occurrence-bound provider receipt. This is why self-healing must expose the
+fence and request the owner-specific official readback rather than marking a money or message effect safe.
+
+No wallet, x402 endpoint, Telegram message, payout, provider session, admission row or effect fence was changed. The
+next order is owner-specific readback for the two Agent Economy money fences, then CFO message/payout readback, with
+the exact durable occurrence carried through every receipt before any resolver is eligible.

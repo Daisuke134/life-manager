@@ -1372,3 +1372,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Rerun the branch acceptance subset after the receipt change: combined Python control-plane/read-only/apply/
   registry/Affiliate **326/326** and product-onboarding **48/48**. Only pre-existing `ResourceWarning` diagnostics
   remain; no production-load or main-integration condition changed.
+
+### Agent Economy / CFO exact-fence cursor (2026-09-25 JST)
+
+- [x] Re-read the canonical admission database for the next slice. Preserve five effect-unknown occurrences:
+  `sol-funding`, `x402-settlement-recorder`, two CFO message owners, and `life-manager-payout`; no row was edited.
+- [x] Inspect owner journals read-only. Sol-funding/x402/CFO/payout historical blocked rows expose no
+  `provider_receipt_id`, `official_readback_ref`, or host `occurrence_id`; local wallet/ledger/financial records are
+  not occurrence-bound provider proof.
+- [ ] Implement or connect each owner-specific official readback adapter so it returns the exact durable occurrence,
+  provider receipt and readback reference. Keep money/message fences closed until that proof exists; never infer
+  no-effect from an empty local journal or a successful RPC/ledger observation.
+- [ ] After the accepted immutable release is loaded, run the adapters one owner at a time, persist mode-0600
+  reconciliation receipts, verify replay-zero, then re-run the foundation gate. Do not start wallet, x402, payout or
+  message effects merely to clear these historical fences.
