@@ -2925,3 +2925,25 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    settlement → payout → replay-zero once.
 5. Refresh Mercor inventory, retain Consultant human calibration, preserve
    Coconala/Ryu manual-only and Upwork disabled, and run final fleet gate.
+
+### Runtime checkpoint — 2026-09-24 13:38 JST
+
+- [x] Latest natural CrowdWorks occurrence `18d827c03e072198-37566` returned
+  `ok/5/1/0/4/1/0`; `63568785` remains the only buyer-material pending item.
+- [x] With no Paid PID active, targeted cleanup closed `36` surplus blank
+  pages. Readback is provider proposal `13471713`, one about:blank, and one
+  chrome://newtab page; this is safe idle state, not a permanent leak fix.
+- [ ] Data-volume free space is about `2.5GiB` (`99%` used); preserve the
+  prior ENOSPC/database-lock evidence and all effect fences.
+
+### Remaining TODO (current ordered cursor)
+
+1. Keep PR #5820 green/open pending provider/effect gates.
+2. Immutable-release/apply the tested branch; verify loaded SHA, official
+   readback, and no blank-target regrowth on a natural wake.
+3. Preserve four `effect_unknown` fences until exact proof; never blind-retry,
+   resend, or edit admission state.
+4. Keep `63568785` buyer-material-gated, then complete delivery → acceptance →
+   settlement → payout → replay-zero once.
+5. Refresh Mercor inventory, retain Consultant human calibration, preserve
+   Coconala/Ryu manual-only and Upwork disabled, then run final fleet gate.

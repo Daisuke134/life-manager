@@ -3117,3 +3117,32 @@ not convert a transient pass or a no-op into client completion.
 5. Refresh Mercor official inventory, retain human-owned Consultant
    calibration, preserve Coconala/Ryu manual-only and Upwork disabled, then
    run the final fleet acceptance gate.
+
+## Production Cursor — 2026-09-24 13:38 JST (latest old-release wake)
+
+- **The newest natural CrowdWorks wake is safe but still not complete.**
+  Occurrence `crowdworks-revenue-paid:18d827c03e072198-37566` is `ok` with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1/failed=0`; the sole
+  pending item is still `63568785` buyer material. No duplicate answer or
+  formal delivery was issued.
+- **The old process is currently idle/no PID.** After it ended, targeted
+  cleanup closed `36` surplus blank pages. Readback is three page targets: the
+  provider proposal surface for job `13471713`, one `about:blank`, and one
+  `chrome://newtab/`. This is a safe idle state, not proof that the old release
+  is fixed; the next wake can recreate the blanks.
+- **Headroom is about `2.5GiB` free (`99%` used).** Historical
+  `database is locked`/ENOSPC observations and all effect fences remain
+  preserved.
+
+### Remaining TODO (current cursor)
+
+1. Keep the green PR open and do not merge without the external provider/effect
+   gate; latest source/security checks are already green.
+2. Promote/apply one immutable release, verify loaded SHA, and run a natural
+   CrowdWorks wake proving no blank-target regrowth and official readback.
+3. Preserve the four historical `effect_unknown` fences until exact
+   provider/run proof; never blind-retry, resend, or edit admission state.
+4. Keep `63568785` pending until admissible buyer material arrives, then do
+   delivery → acceptance → settlement → payout → replay-zero exactly once.
+5. Refresh Mercor inventory, retain human-owned Consultant calibration, keep
+   Coconala/Ryu manual-only and Upwork disabled, and run the final fleet gate.
