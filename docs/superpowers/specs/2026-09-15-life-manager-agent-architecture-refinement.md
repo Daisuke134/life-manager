@@ -5402,3 +5402,9 @@ The next natural cleanup occurrence `18d86609e15eb3d8-86988` reached `status=pas
 `free_before=333,656,064`, `free_after=333,537,280`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), and
 `inventory_gaps=22`. The safe owner still has no allowlisted reclaimable item; the floor shortfall is
 **822,243,328 bytes**. This small capacity movement does not unlock full-suite or immutable promotion.
+
+The next natural release-reconciler occurrence `18d8660f24ff7078-87162` reached its own terminal at
+`2026-09-24T23:40:04.851144Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. The repeated occurrence
+continues to prove the same old-release bare-Node runtime boundary; the candidate fallback remains unpromoted while
+capacity and worktree-lease gates are unresolved.
