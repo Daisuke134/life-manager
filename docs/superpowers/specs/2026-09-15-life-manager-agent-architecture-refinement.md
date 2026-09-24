@@ -3260,14 +3260,79 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    an older terminal report. A continuous service intentionally has no new report until it exits, so forcing an
    exit to manufacture acceptance would invert the health contract.
 
-   The current RED→GREEN slice makes every runtime start carry the complete secret-free diagnostic identity and
-   lets status prefer a diagnostic `execute/running` event only when its run PID matches the live continuous
-   launchd PID. It also distinguishes explicit pre-entrypoint FIFO/capacity deferral with admission unknown false
-   from a real external-effect ambiguity. Python runtime/status/runner tests pass 126/126, the complete runtime
-   suite passes 622 tests plus 522 subtests, and the foundation suite passes 47/47. The remaining order is:
-   integrate this shared observability fix; cut an immutable release; align
-   all six Affiliate owners; produce exact current-release status and foundation readback twice; then advance to
-   Investment. Revenue and natural scheduler time are not gates.
+   The RED→GREEN slice makes every runtime start carry the complete secret-free diagnostic identity and lets
+   status prefer a diagnostic `execute/running` event only when its run PID matches the live continuous launchd
+   PID. It also distinguishes explicit pre-entrypoint FIFO/capacity deferral with admission unknown false from a
+   real external-effect ambiguity. Python runtime/status/runner tests pass 126/126, the complete runtime suite
+   passes 622 tests plus 522 subtests, and the foundation suite passes 47/47. PR #5849 merges the shared fix at
+   `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b`; complete immutable release
+   `20260924T195546-ff11bb0a` passes doctor with 169 registry entries and zero missing, unmanaged or retired
+   owners.
+
+   Production then proves five of Affiliate's six owners on that exact release. `affiliate-browser`,
+   `affiliate-impact-browser` and `affiliate-x-browser` are loaded-running with PID-matched `execute/running`,
+   complete diagnostics, clean failure layer and admission unknown false. `affiliate-composition` and
+   `affiliate-source-refresh` are loaded-idle with complete typed `resource_capacity_busy`, retryable true,
+   `retry_after_eligibility`, effect `not_applicable` and admission unknown false. The sixth owner,
+   `affiliate-loop`, is not interrupted merely to make the rollout look complete. Its old-release child finishes
+   normally after about 35 minutes, but claim release reports `resource claim ownership mismatch` and leaves the
+   exact occurrence `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown. This is not a pre-effect
+   fence: the joined child receipt is `SUCCEEDED`/`AUTH_REQUIRED`, publication waits for a placement link, revenue
+   reports provider-not-authenticated, and its Telegram tool receipt confirms message send with provider message
+   ID `92843`. The generic pre-effect resolver must reject this occurrence. Affiliate stays unaccepted until the
+   confirmed effect is reconciled through exact official readback, the base owner is rebound, and the foundation
+   projection passes twice with stable PIDs/queues and no duplicate effect. This is an effect-preservation
+   boundary, not a wait for revenue or a natural scheduler tick.
+
+   Investment has one owner, `alpaca-investment-live`. Its stored last business snapshot is live mode, equity
+   USD 66.74, cash USD 0, no-trade decision and daily net P/L `-0.000227`, but it has not updated since
+   2026-09-17 and is not fresh official profit evidence. Runtime is loaded-idle on old installed SHA
+   `b271a670...`, with an older incomplete event SHA `61036e1e...`. Durable admission contains 16 known released,
+   64 known queued and one released/effect-unknown occurrence, with one queue row and no reservation. The sole
+   unknown occurrence `alpaca-investment-live:18d5feb0983a54b8-35815` has an exact two-event window from
+   `03:41:01.372695Z` to `03:41:01.655485Z`; it terminates at
+   `host_admission_deferred:resource_capacity_busy` before the entrypoint and has no effect reference.
+
+   The minimum shared candidate teaches the loaded-idle reconciler to resolve only one exact private runtime
+   journal occurrence with that pre-entrypoint capacity/FIFO tuple, retain every entrypoint/effect ambiguity, and
+   write a 0600 `HOST_PRE_EFFECT_RECONCILIATION` receipt. It also declares Investment's already-effective durable
+   policy (`agent/borrow/support`) and enables the existing queued/reserved-wake coalescing instead of replaying 64
+   old five-minute wakes. Focused proof/negative/registry tests pass 4/4; reconcile plus registry suites pass
+   206/206 with 174 subtests; the full runtime suite passes 624 tests plus 522 subtests, with the unrelated CEO
+   light-pass timeout passing on its isolated retry. PR #5851 merges the shared repair at
+   `209f879ec862a24fa0ed5cd954a7680422905c3a`; complete immutable release
+   `20260924T203525-209f879e` is active with `release_paths=ALL`, `ancestor-of-origin-main` provenance and a
+   clean 169-entry doctor readback.
+
+   Production reconciliation resolves only `alpaca-investment-live:18d5feb0983a54b8-35815`. Its private
+   `HOST_PRE_EFFECT_RECONCILIATION` receipt is mode 0600 and `RESOLVED`; Investment admission changes from one
+   unknown occurrence to zero without invoking the broker. The first exact-release wake coalesces all 64 stale
+   effect-known wakes and exits 0. Fresh Alpaca readback reports account `ACTIVE`, equity USD 66.74, cash USD 0,
+   four orders, nine activities, one position and `NO_TRADE`; pending/reconciled/unresolved orders are all zero,
+   and Telegram delivery receipt is message `92860`. The following immediate wake performs no entrypoint or
+   trade: it stops at typed retryable `resource_capacity_busy`, leaves one known queued occurrence, no
+   reservation and no unknown effect. The foundation evaluator therefore records Investment as exact-release
+   `safely_fenced/runtime_admission_deferred` with zero release mismatches and zero diagnostic gaps. This is the
+   required bounded replay-zero and safety evidence; profit or a natural scheduler wake is not an acceptance
+   gate. Investment is accepted for the local foundation slice, and the current executable cursor is Fundraiser.
+
+   Fundraiser has one owner and one independent historical application receipt. The official ledger records
+   Startuped AI `submitted_verified` at `2026-09-17T02:13:28Z`, with provider completion text, completion PNG,
+   application digest and Telegram photo message `85599`; that effect is preserved and is not replayed. The only
+   durable unknown is a different later occurrence, `fundraiser:18d5fda7a1962e60-16555`, queued at
+   `2026-09-17T03:22:08Z`. Its private runtime journal contains exactly two rows for that run: execute/running at
+   `03:22:03.376245Z` and blocked `resource_capacity_busy` at `03:22:12.184537Z`, with the same summary reference,
+   no `lm-effect://` evidence and no Fundraiser entrypoint/application receipt in the interval. Production
+   admission contains one claimed unknown, ten known queued, two known released, one queue row and no
+   reservation. The loaded owner remains idle on old release `9c2776b3...`, so current status is diagnostically
+   incomplete and must not be accepted.
+
+   No new reconciler is needed. The Investment slice's shared exact pre-effect proof returns this one Fundraiser
+   occurrence as verified in read-only production data. The minimum candidate declares the already-effective
+   durable policy `agent/borrow/support` and enables the existing queued/reserved-wake coalescing. Its RED test
+   fails on the missing registry contract, then the focused contract passes 2/2 and the complete apply/registry
+   suites pass 207/207. Candidate commit `d5d4f5ee15` is pushed; PR/main integration, immutable release,
+   one-owner reconciliation, official ledger preservation, current-release wake and bounded replay-zero remain.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

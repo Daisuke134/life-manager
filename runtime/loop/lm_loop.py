@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from datetime import datetime
 import fcntl
 import json
 import os
 import plistlib
 import re
 import sqlite3
+import stat
 import subprocess
 import sys
 import tempfile
@@ -34,12 +36,149 @@ from runtime.loop.runtime_event import (
 from runtime.host.resource_admission import (
     ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
     cancel_effect_free_queued_owner, clear_no_effect_unknown, rebind_queued_owner, resume_durable,
-    suspend_durable,
+    resolve_pre_effect_occurrence, suspend_durable,
     state_root as admission_root,
 )
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
+    "host_admission_deferred:resource_capacity_busy",
+    "host_admission_deferred:resource_fifo_wait",
+})
+SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
+
+
+def _event_epoch(value: object) -> float:
+    if not isinstance(value, str):
+        raise ValueError("runtime event timestamp missing")
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
+def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError("runtime event journal is not private")
+        rows = []
+        with os.fdopen(descriptor, encoding="utf-8") as stream:
+            descriptor = -1
+            for line in stream:
+                value = json.loads(line)
+                if not isinstance(value, dict):
+                    raise ValueError("runtime event row invalid")
+                rows.append(validate_runtime_event(value))
+                if len(rows) > max_rows:
+                    raise ValueError("runtime event journal too large")
+        return rows
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _atomic_private_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, sort_keys=True, separators=(",", ":"))
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
+    """Prove one exact old fence stopped in host admission before entrypoint."""
+    database = admission_root() / "admission-v2.sqlite3"
+    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as connection:
+        rows = connection.execute(
+            """SELECT occurrence_id,state FROM occurrences
+                 WHERE owner_id=? AND effect_unknown=1
+                 ORDER BY queued_at,occurrence_id""",
+            (loop_id,),
+        ).fetchall()
+    if len(rows) != 1:
+        return None
+    occurrence_id, expected_state = rows[0]
+    prefix = f"{loop_id}:"
+    if (expected_state not in {"claimed", "released"}
+            or not isinstance(occurrence_id, str)
+            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(prefix)):
+        return None
+    run_id = occurrence_id[len(prefix):]
+    state_root = entry.get("state_root")
+    if not isinstance(state_root, str) or not state_root:
+        return None
+    try:
+        runtime_rows = _private_runtime_rows(
+            Path(os.path.expanduser(state_root)) / "events.jsonl"
+        )
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+        return None
+    exact = [row for row in runtime_rows
+             if row.get("loop_id") == loop_id and row.get("run_id") == run_id]
+    starts = [row for row in exact
+              if row.get("phase") == "execute" and row.get("status") == "running"
+              and row.get("effect_status") == "started"]
+    terminals = [row for row in exact
+                 if row.get("phase") == "report" and row.get("status") == "blocked"]
+    if len(exact) != 2 or len(starts) != 1 or len(terminals) != 1:
+        return None
+    start, terminal = starts[0], terminals[0]
+    summary_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
+    evidence_refs = terminal.get("evidence_refs", [])
+    if (terminal.get("blocker") not in PRE_EFFECT_ADMISSION_BLOCKERS
+            or terminal.get("effect_status") != "unknown"
+            or summary_ref not in start.get("evidence_refs", [])
+            or summary_ref not in evidence_refs
+            or any(isinstance(ref, str) and ref.startswith("lm-effect://")
+                   for ref in evidence_refs)):
+        return None
+    try:
+        if _event_epoch(start.get("timestamp")) > _event_epoch(terminal.get("timestamp")):
+            return None
+    except ValueError:
+        return None
+    proof = {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": f"lm-event://{loop_id}/{run_id}/{terminal['event_id']}",
+        "blocker": terminal["blocker"],
+    }
+    return occurrence_id, expected_state, proof
+
+
+def _resolve_pre_effect_admission_unknown(loop_id: str, entry: dict) -> bool:
+    proof_row = _pre_effect_admission_proof(loop_id, entry)
+    if proof_row is None:
+        return False
+    occurrence_id, expected_state, proof = proof_row
+    state_root = Path(os.path.expanduser(entry["state_root"]))
+    run_id = occurrence_id[len(loop_id) + 1:]
+    receipt_path = state_root / "reconciliation" / f"pre-effect-{run_id}.json"
+    receipt = {
+        "schema_version": 1,
+        "receipt_type": "HOST_PRE_EFFECT_RECONCILIATION",
+        "resolution": "PROOF_READY",
+        **proof,
+    }
+    _atomic_private_json(receipt_path, receipt)
+    resolved = resolve_pre_effect_occurrence(
+        loop_id, occurrence_id, pre_effect_readback=lambda: proof,
+        expected_state=expected_state,
+    )
+    if resolved:
+        _atomic_private_json(receipt_path, {**receipt, "resolution": "RESOLVED"})
+    return resolved
 
 
 def _product_loop_job_map(catalog_path: Path | None = None) -> dict[str, str]:
@@ -221,6 +360,9 @@ def _admission_rebind_guard(
         if (result == "effect_unknown" and loaded_idle_verified
                 and entry.get("effect_class") == "none"):
             clear_no_effect_unknown(loop_id)
+            result = rebind_queued_owner(loop_id, **rebind_kwargs)
+        elif (result == "effect_unknown" and loaded_idle_verified
+              and _resolve_pre_effect_admission_unknown(loop_id, entry)):
             result = rebind_queued_owner(loop_id, **rebind_kwargs)
         if result == "reserved":
             if allow_reserved_release_rebind and loaded_idle_verified:
