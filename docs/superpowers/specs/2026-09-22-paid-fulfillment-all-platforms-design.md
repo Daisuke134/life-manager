@@ -17,7 +17,8 @@ returned `ok: true`. This is not yet production: the branch must be pushed and
 pass the release/merge gates before a runtime wake can verify it.
 
 The immediate sequence is: push the hardening; wait for the host disk gate to
-recover; perform one no-effect Paid wake and official readback; then obtain the
+recover (latest read-only probe: `309636 KiB` available versus the `524288 KiB`
+floor); perform one no-effect Paid wake and official readback; then obtain the
 Storefront official readback. Freelancer/Upwork remain gated on account-bound
 authentication, source-complete inventory, a funded contract/milestone, and
 current mutation/policy receipts before any owner registration.

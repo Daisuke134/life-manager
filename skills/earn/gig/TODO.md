@@ -19,7 +19,8 @@ still the prior immutable release until merge/release gates pass.
 
 Next admissible work is to commit/push this hardening, then obtain a fresh
 no-effect Coconala Paid wake/readback only after the host disk gate is above its
-floor. Storefront still needs an official provider readback. Freelancer and
+floor (latest read-only probe: `309636 KiB` available versus `524288 KiB`).
+Storefront still needs an official provider readback. Freelancer and
 Upwork remain external-gate workstreams, not registered Paid owners.
 
 ## Current cursor — 2026-09-25 08:31 JST (live all-platform re-read)
