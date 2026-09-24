@@ -175,7 +175,7 @@ function runCorpus(casesPath) {
     finished_at: FINISHED_AT,
     status: "completed",
     score_ids: scores.map((score) => score.score_id),
-    trace_refs: cases.map((item) => `fixture://economic-autonomy/${item.case_id}`),
+    trace_refs: [`fixture://economic-autonomy/cases-${caseSetSha256}`],
     error: null,
   });
   return Object.freeze({ run, scores: Object.freeze(scores) });

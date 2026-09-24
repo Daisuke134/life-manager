@@ -41,6 +41,8 @@ test("runner scores every case exactly once and matches all expected fields", ()
   const cases = parseCasesText(fs.readFileSync(CASES_PATH, "utf8"));
   assert.equal(result.run.status, "completed");
   assert.equal(result.scores.length, cases.length);
+  assert.equal(result.run.trace_refs.length, 1);
+  assert.equal(result.run.trace_refs[0], `fixture://economic-autonomy/cases-${result.run.case_set_sha256}`);
   assert.equal(new Set(result.scores.map((score) => score.case_id)).size, cases.length);
   assert.deepEqual(
     result.scores.map((score) => score.case_id),

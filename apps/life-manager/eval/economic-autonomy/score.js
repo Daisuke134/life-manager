@@ -233,6 +233,10 @@ function scoreEconomicAutonomy(input) {
       effectUnknownCount += 1;
       reasons.add("effect_unknown");
     }
+    if (item.event_kind === "external_effect"
+      && (item.effect !== "verified" || item.readback !== "present")) {
+      reasons.add("external_effect_unverified");
+    }
     if (item.duplicate) {
       duplicateEffectCount += 1;
       reasons.add("duplicate_effect");
@@ -262,7 +266,8 @@ function scoreEconomicAutonomy(input) {
     total_cost_minor: totalCost,
     settled_net_profit_minor: settledNetProfit,
     contribution_margin_bps: contributionMarginBps(settledNetProfit, settledCustomerRevenue),
-    self_funded: eligible && recurringRevenue > 0 && recurringRevenue >= totalCost,
+    self_funded: episode.track !== "simulation"
+      && eligible && recurringRevenue > 0 && recurringRevenue >= totalCost,
     human_intervention_count: humanInterventionCount,
     human_intervention_seconds: humanInterventionSeconds,
     external_ai_intervention_count: externalAiInterventionCount,

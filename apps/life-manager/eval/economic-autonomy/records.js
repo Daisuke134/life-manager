@@ -28,6 +28,8 @@ const HASH = /^[a-f0-9]{64}$/u;
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,127}$/u;
 const CURRENCY = /^[A-Z][A-Z0-9]{2,9}$/u;
 const REF = /^[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9._:/?#-]{1,512}$/iu;
+const SECRET_REF = /(?:password|cookie|api[_ -]?key|access[_ -]?token|secret|private[_ -]?key)/iu;
+const LOCAL_PATH_REF = /(?:^|[/:])(?:Users|home|private|tmp|var)(?:[/:]|$)/u;
 
 function invalid(label) {
   throw new Error(`EconomicAutonomyRecord ${label} invalid`);
@@ -86,7 +88,9 @@ function boundedText(value, label, max = 2048) {
 function refs(value, label, { min = 0, max = 64 } = {}) {
   if (!Array.isArray(value) || value.length < min || value.length > max) invalid(label);
   const checked = value.map((item) => {
-    if (typeof item !== "string" || !REF.test(item) || item.includes("@")) invalid(label);
+    if (typeof item !== "string" || !REF.test(item) || item.includes("@")
+      || item.toLowerCase().startsWith("file://") || SECRET_REF.test(item)
+      || LOCAL_PATH_REF.test(item)) invalid(label);
     return item;
   });
   if (new Set(checked).size !== checked.length) invalid(`${label} duplicate`);

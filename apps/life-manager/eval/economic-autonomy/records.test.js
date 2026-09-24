@@ -211,6 +211,26 @@ test("attribution requires exactly one revenue or cost classification", () => {
   assert.throws(() => validateAttribution(costAttribution({ evidence_refs: ["https://user:pass@example.com"] })), /evidence|ref/i);
 });
 
+test("all evidence and trace references reject secret-like and local private paths", () => {
+  for (const evidenceRef of [
+    "evidence://access_token/raw-secret-value",
+    "file:///Users/person/private-receipt",
+  ]) {
+    assert.throws(
+      () => validateAttribution(revenueAttribution({ evidence_refs: [evidenceRef] })),
+      /evidence|ref/i,
+    );
+    assert.throws(
+      () => validateScore(scoreRecord({ evidence_refs: [evidenceRef] })),
+      /evidence|ref/i,
+    );
+    assert.throws(
+      () => validateRun(runRecord({ trace_refs: [evidenceRef] })),
+      /trace|ref/i,
+    );
+  }
+});
+
 test("autonomy events enforce closed actor, credential, effect, and readback vocabularies", () => {
   assert.throws(() => validateAutonomyEvent(autonomyEvent({ actor_class: "codex" })), /actor/i);
   assert.throws(() => validateAutonomyEvent(autonomyEvent({ credential_class: "borrowed" })), /credential/i);

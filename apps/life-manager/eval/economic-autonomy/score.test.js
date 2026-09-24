@@ -237,6 +237,9 @@ test("anti-gaming and autonomy failures emit stable reason codes", async (t) => 
     ["effect_unknown", (input) => {
       input.autonomyEvents.push(event("unknown-effect", { effect: "unknown", readback: "unknown" }));
     }],
+    ["external_effect_unverified", (input) => {
+      input.autonomyEvents[0].readback = "absent";
+    }],
     ["duplicate_effect", (input) => {
       input.autonomyEvents.push(event("duplicate-effect", { duplicate: true }));
     }],
@@ -258,6 +261,31 @@ test("anti-gaming and autonomy failures emit stable reason codes", async (t) => 
       assert.equal(result.self_funded, false);
     });
   }
+});
+
+test("every external effect requires verified effect and present readback", () => {
+  for (const overrides of [
+    { effect: "verified", readback: "absent" },
+    { effect: "not_applicable", readback: "not_applicable" },
+    { effect: "failed", readback: "present" },
+  ]) {
+    const input = baseInput();
+    Object.assign(input.autonomyEvents[0], overrides);
+    const result = scoreEconomicAutonomy(input);
+    assert.equal(result.eligible, false);
+    assert.ok(result.reason_codes.includes("external_effect_unverified"));
+    assert.equal(result.self_funded, false);
+  }
+});
+
+test("simulation can be scored but never proves self-funding", () => {
+  const input = baseInput();
+  input.episode.track = "simulation";
+  const result = scoreEconomicAutonomy(input);
+  assert.equal(result.eligible, true);
+  assert.equal(result.settled_net_profit_minor, 9685000);
+  assert.equal(result.recurring_revenue_minor, 10000000);
+  assert.equal(result.self_funded, false);
 });
 
 test("MRR includes subscriptions, retainers, and repeated usage but excludes financing and one-time income", () => {
