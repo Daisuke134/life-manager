@@ -333,6 +333,45 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 [str(ROOT / "bin/citizen-refill"), "--live"],
             )
 
+    def test_recovery_supervisor_uses_managed_runtime_node_without_path(self):
+        launcher = ROOT / "bin/lm-recovery-supervise"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            empty_bin = root / "empty-bin"
+            empty_bin.mkdir()
+            (empty_bin / "bash").symlink_to("/bin/bash")
+            (empty_bin / "dirname").symlink_to("/usr/bin/dirname")
+            fake_node = root / "managed-node"
+            fake_node.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" > \"$FAKE_NODE_ARGS\"\n"
+                "exit 0\n"
+            )
+            fake_node.chmod(0o700)
+            args_path = root / "node-args"
+            queue_path = root / "recovery-intents.jsonl"
+            env = os.environ.copy()
+            env.update({
+                "PATH": str(empty_bin),
+                "LIFE_MANAGER_RUNTIME_NODE": str(fake_node),
+                "FAKE_NODE_ARGS": str(args_path),
+            })
+            result = subprocess.run(
+                [str(launcher), "--queue", str(queue_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            node_args = args_path.read_text().splitlines()
+            node_args[0] = str(Path(node_args[0]).resolve())
+            self.assertEqual(
+                node_args,
+                [str((ROOT / "runtime/loop/recovery-supervisor-cli.mjs").resolve()),
+                 "--queue", str(queue_path)],
+            )
+
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in {

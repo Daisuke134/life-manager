@@ -4483,3 +4483,30 @@ terminal/replay-zero acceptance remains open until durable admission advances.
 |---|---|
 | UI変更 | なし |
 | 結論 | Maestro: 不要 — this specification changes runtime contracts and worker control, not iOS UI |
+
+### Recovery supervisor launchd-path diagnosis (2026-09-25 JST)
+
+The production release-reconciler log was read without changing any loop or provider state. Its latest repeated
+entrypoint failure was:
+
+```text
+/Users/anicca/loops/releases/20260925T031007-d4fe0819/bin/lm-recovery-supervise: line 4: exec: node: not found
+```
+
+This is a self-owned control-plane defect, not a provider or revenue blocker. The launchd plist already injects the
+absolute managed runtime as `LIFE_MANAGER_RUNTIME_NODE`, but `bin/lm-recovery-supervise` ignored that variable and
+called the bare `node` command. Because the release reconciler is the owner that promotes immutable releases and
+rebinds loaded-idle owners, this defect explains why old releases such as `citizen-refill` remained installed and why
+their old launcher errors (`node executable not found`) continued.
+
+The branch fix now selects `LIFE_MANAGER_RUNTIME_NODE`, then `LIFE_MANAGER_NODE`, then PATH, validates an executable,
+and exits typed `69` when no managed Node exists. A regression test runs the launcher with an empty PATH and a fake
+managed Node; `runtime.loop.tests.test_macos_loop_registry` passes 123/123 including this case. The fix is branch-only:
+the current production release still contains the old launcher until the accepted main-derived immutable release is
+cut and read back.
+
+At the same read-only admission snapshot, the canonical v2 database contained 79 queued owners, 4 live owner claim
+files, 2 reservations (one expired at the instant of observation), 637 claimed occurrences and 660 effect-unknown
+occurrences. No effect fence was cleared, no stale claim was deleted, and no Paid/Connector/Mobile owner was mutated.
+These numbers confirm that FIFO/admission pressure is real, but the release-reconciler Node-path defect must be fixed
+and promoted before the queue can self-heal through the intended immutable-release path.

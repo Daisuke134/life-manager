@@ -1087,3 +1087,17 @@ The following is the current control-plane state. It is evidence for the next bo
 4. Public LM-EAB benchmark product and verified net USD 10,000 MRR/self-funding proof.
 
 None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue is a valid foundation baseline, not a reason to wait.
+
+### Latest self-healing blocker diagnosis (2026-09-25 JST)
+
+- [x] Read the release-reconciler stderr and prove the control-plane failure boundary. The current immutable release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c` repeatedly executes `lm-recovery-supervise` with bare `node`, while
+  launchd supplies no Node on PATH; it exits `127` before the recovery supervisor can reconcile owners.
+- [x] Add the smallest source fix: `bin/lm-recovery-supervise` now uses the plist-injected
+  `LIFE_MANAGER_RUNTIME_NODE` fallback, validates the executable, and returns typed `69` when unavailable. Add a
+  no-PATH fake-Node regression test; the macOS registry suite passes `123/123`.
+- [ ] Cut and promote a main-derived immutable release containing this launcher fix, then read back the supervisor
+  process and exact loaded/event SHA. Do not clear any effect fence or manually edit admission state.
+- [ ] After supervisor recovery is live, let its bounded FIFO reconciler advance one non-Paid effect-free owner at a
+  time. Require exact current release, complete diagnostic envelope, typed terminal result, and replay-zero before
+  marking that owner healthy. Paid, Connector and Mobile/Postiz remain outside this plan's mutation scope.
