@@ -5155,3 +5155,9 @@ The host capacity probe at this same cursor reports **523,608,064 free bytes** (
 required **1,155,780,608-byte** foundation floor. The shortfall is **632,172,544 bytes**, so the environment gate is
 still closed even though the focused candidate tests pass. This is a capacity fact, not evidence that any loop made or
 lost revenue; no broad deletion or unowned cleanup is authorized by this readback.
+
+The candidate branch `07193f3f61` was rechecked without production loading: the focused control-plane/read-only/apply/
+registry/recovery/scratch/runtime-event set passed **277 tests + 216 subtests**; `git diff --check` and Python
+compilation of the changed runtime/adapters also passed. Its registry diff does not change any Paid owner entry, and no
+Paid fulfillment path, Connector runner/source, provider session or effect fence was modified. This remains candidate
+evidence only; it does not replace full-suite completion or an accepted immutable release.

@@ -1615,3 +1615,6 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Re-read host capacity after the focused candidate verification: **523,608,064 free bytes**, below the
   **1,155,780,608-byte** floor by **632,172,544 bytes**. Keep the full-suite and immutable-promotion gates closed;
   do not perform broad or unowned cleanup to manufacture headroom.
+- [x] Re-run candidate focused acceptance on `07193f3f61`: **277 tests + 216 subtests passed**, with diff-check and
+  Python compilation passing. Confirm the registry diff does not alter any Paid owner entry; this is branch evidence,
+  not production acceptance.
