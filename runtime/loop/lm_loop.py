@@ -766,7 +766,9 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
 
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
-                    admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                    admission_effect_unknown: set[str] | None = None,
+                    admission_effect_unknown_occurrences: dict[str, list[dict[str, object]]] | None = None,
+                    ) -> list[dict]:
     rows = status_rows(
         registry,
         loaded=loaded,
@@ -774,6 +776,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         events=events,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
+        admission_effect_unknown_occurrences=admission_effect_unknown_occurrences,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
