@@ -2767,6 +2767,22 @@ unknown-effect state. This is an actionable release-alignment backlog, not a rev
 targets only explicitly named non-Paid owners through `launchctl-safe`, preserves running owners, pending
 admission and all effect fences, and never starts or restarts the separately owned Paid runtime.
 
+The first explicit Self-build canary, `life-manager-dev`, performs zero mutation and returns
+`skipped_pending` twice. Its durable ledger contains 19 effect-free queued occurrences and no claim,
+effect-unknown row or live reservation. The registry entry omits the three admission fields required for a
+history-preserving rebind, so the legacy fail-closed branch is working as designed. The candidate does not add
+a second migration system: it declares the runner's existing effective defaults on the four Self-build jobs.
+Apply passes 119/119, runner 84/84, registry 82/82 and the catalog remains 14 loops, 168 jobs, 98 mapped and
+zero errors. Integration and an exact-release Self-build retry remain pending.
+
+Connector remains a real uncovered failure, not an old notification artifact. Its exact current plist is
+loaded, but its latest run reaches `browser_open_failed`; action history then reports the generic outer
+`wake_boundary_failed`. Google Chrome currently serves IPv4 `127.0.0.1:9222` with HTTP 404 while the managed
+Cloak Chromium serves only IPv6 `[::1]:9222`. The existing guard's non-failing curl probe treats the 404 as
+healthy and skips recovery. A separate locked worktree already contains the shared registered-owner endpoint
+fix through `e96e8c422d`. This workstream records and consumes that result read-only; it does not duplicate the
+patch or restart the shared browser while that owner is active.
+
 This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
 provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
 `docs/superpowers/plans/2026-09-24-fourteen-loop-self-healing-foundation.md`.
@@ -3003,8 +3019,13 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    complete release `20260924T144407-1f03abd4` is active and only the supervisor is reapplied. Exact argv/SHA
    and `/opt/homebrew/bin/node` read back; two bounded wakes exit 0 with `idle/no_pending_intent`, Paid selection
    and sibling mutation zero. The fresh foundation gate observes 14/14 loops with no missing mapped job, but
-   blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The executable order
-   is now explicit non-Paid owner release alignment -> authoritative fourteen-loop foundation readback twice.
+   blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows. The first Self-build
+   canary safely exposes a missing explicit admission contract instead of reloading a queued owner; the
+   candidate adds only the existing defaults to its four registry entries and passes the focused suites.
+   Connector separately remains failed at the shared CDP ownership boundary and has an existing owned fix
+   candidate, so this worktree does not duplicate it. The executable order is now Self-build enrollment
+   integration and one-owner retry -> remaining explicit non-Paid owner release alignment -> authoritative
+   fourteen-loop foundation readback twice.
    Running owners, pending admission and effect fences remain preserved; revenue remains outside this gate.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
