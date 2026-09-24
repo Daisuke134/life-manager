@@ -4081,3 +4081,35 @@ not convert a transient pass or a no-op into client completion.
    checks; then observe natural Apply/Storefront wakes and replay-zero.
 3. Finish Coconala four-room readback and remaining Ryu scope (manual-only),
    then proceed to Lancers/Mercor and finally Freelancer/Upwork.
+
+## Runtime Status Refresh — 2026-09-24 17:12 JST (occurrence reconciler probe)
+
+- [x] Added `application_occurrence_reconcile.py`, an allowlisted,
+  occurrence-scoped Coconala recovery command. It validates the exact durable
+  intent, uses a separate CDP lease, performs official applied-history readback,
+  and calls `resolve_unknown_occurrence` only for a positive exact-ID proof. It
+  never opens an application form or retries a submit.
+- [x] Six focused tests pass, including fail-closed 403/incomplete readback,
+  stable provider error reporting, exact owner/occurrence binding, and intent
+  phase checks. Python compilation passes.
+- [x] Live diagnostic probe for request `5280157` and occurrence
+  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` used the production-equivalent
+  Coconala CDP lease. Coconala returned `403 Forbidden` at both the root
+  applied-history route and the persisted page-21 cursor. No exact positive
+  receipt was obtained; the admission row remains `claimed/effect_unknown=1`.
+  Evidence is under the occurrence-reconcile directory; no DB edit, provider
+  send, retry, or fence release occurred.
+- [ ] The reconciler is branch-only and not yet an installed immutable release.
+  It is not safe to declare Coconala Apply complete while the official route is
+  denied; the next step is a fresh provider-available readback, then release
+  acceptance and natural wake. The Lancers `unsupported_claim` event remains a
+  later policy-review item because it explicitly had no external send.
+
+### Next one-by-one cursor (17:12 JST)
+
+1. Keep the Apply occurrence fenced; retry only after a new provider observation
+   and resolve only on exact official ID evidence.
+2. Promote the branch through the immutable release gate, then verify a natural
+   Apply/Storefront wake and replay-zero; do not force-retry the unknown intent.
+3. Complete Coconala four-room acceptance and remaining Ryu manual-only scope,
+   then advance Lancers/Mercor and finally Freelancer/Upwork.

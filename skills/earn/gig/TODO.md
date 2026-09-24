@@ -3620,3 +3620,27 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   TruffleHog.
 - [ ] PR remains OPEN and production still uses the previous immutable release;
   CI does not substitute for provider/client acceptance or official readback.
+
+### Runtime checkpoint — 2026-09-24 17:12 JST (Coconala occurrence reconciler)
+
+- [x] Added and tested the separate Coconala occurrence reconciler. It is
+  readback-only, exact-ID bound, and fail-closed on 403/incomplete history;
+  focused suite: `6 passed`.
+- [x] Live probe for Apply occurrence
+  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` / request `5280157` reached the
+  official route but received `403 Forbidden` (root and page-21 cursor). The
+  row remains `claimed/effect_unknown=1`; no DB edit or external submission.
+- [ ] Branch is not installed. Do not release the fence, retire the intent, or
+  retry the proposal until a fresh official positive readback or exact pre-effect
+  proof exists. Lancers job `5606124` is a later `unsupported_claim` policy
+  review; the event says external send was not performed.
+
+### Remaining TODO (authoritative cursor, 17:12 JST)
+
+1. [ ] Obtain a provider-available official Coconala readback for the fenced
+   Apply occurrence; resolve only the exact occurrence on positive proof.
+2. [ ] Run immutable release acceptance, promote the branch, and verify natural
+   Apply/Storefront wakes plus replay-zero.
+3. [ ] Complete Coconala four-room acceptance and Ryu manual-only scope.
+4. [ ] Advance Lancers/Mercor, then register/verify Freelancer and Upwork Paid
+   owners and perform final fleet acceptance.
