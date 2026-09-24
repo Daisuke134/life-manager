@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 03:18 JST (live platform-by-platform gate)
+## Current cursor — 2026-09-25 03:26 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
 "running" without a current launchd readback. A source registry row is not a
@@ -11,7 +11,7 @@ No provider send is allowed before all preceding gates pass.
 
 | Platform | Authentication/readback | Funded work | Actual loop state | Immediate TODO |
 |---|---|---|---|---|
-| Coconala | Authenticated public inventory readback: 20 live listings; the current normalized catalog SHA is unchanged from the earlier official snapshot (`f3242749…`). | Client work is split by room; Ryu is manual-only and already read back. | Paid is loaded-idle on installed release `d4fe0819`, but its latest event is an old-release `entrypoint_exit_1` with no provider receipt. Apply is loaded-idle with `5280157` still `admission_effect_unknown=true`. Storefront is loaded-idle on `d4fe0819`; its bounded wake finished in ~12.5s, then hit CDP HTTP 500 with no receipt/readback; the next wake was blocked by `host_admission_deferred:resource_effect_unknown`. | Recover disk headroom, then reconcile Paid/Apply exact fences and rerun Storefront read-only/provider readback. Only a receipt or separately verified no-dispatch proof can close a fence. Keep Ryu closed and do not resend. |
+| Coconala | Authenticated public inventory readback: 20 live listings; the current normalized catalog SHA is unchanged from the earlier official snapshot (`f3242749…`). | Client work is split by room; Ryu is manual-only and already read back. | Paid remains effect-free/loaded-idle. Apply is now **unloaded** as a host-safety pause, with `5280157` and a later `resource_effect_unknown` occurrence still fenced. Storefront is **unloaded** as a host-safety pause; the latest d4fe wake ended `entrypoint_exit_1` after `server rejected WebSocket connection: HTTP 500`, with no provider receipt/readback. | Recover disk headroom and diagnose the browser/CDP boundary before any restart. Then reconcile each exact fence and run official readback/replay-zero. Keep Ryu closed and do not resend. |
 | CrowdWorks (CloudWorks) | Existing provider state is readable. | `63568785` is pending buyer lesson/answer material; four rows are completed with official readback. | Latest result evidence remains `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1`; the actual `crowdworks-revenue-paid` launchd service is **unloaded**, with `entrypoint_exit_143` and `admission_effect_unknown=true`. | Reconcile that exact occurrence with an admissible pre-effect/provider proof; then load one owner and prove a natural no-op. Do not send the pending item without buyer material. |
 | Lancers | Authenticated preflight passes; source-complete inventory has no contract candidate and zero balance. | Latest result is `observed=0/actionable=0/effect=0`; job `5606124` was fail-closed as `unsupported_claim`, with no application. | `lancers-revenue-paid` is **unloaded**, with `entrypoint_exit_143` and `admission_effect_unknown=true`; the application owner is loaded-idle. | Reconcile the exact Paid occurrence and refresh official inventory. Register/run Paid only after a real funded `ContractReceipt`; formal delivery remains closed. |
 | Mercor | Official browser readback is authenticated; earnings readback is `$0.00`/empty. | Saved work assessment is stale/incomplete; no current funded work is proven. | `mercor-revenue-paid` is loaded-idle but its latest wake is blocked by `host_admission_deferred:resource_control_busy`, with no provider receipt/readback. | Recover host capacity, refresh official work inventory, and reconcile exact application/Paid/Reply fences before any effect. |
@@ -19,17 +19,19 @@ No provider send is allowed before all preceding gates pass.
 | Upwork | Read-only authenticated account readback exists. Current official contract snapshot is source-complete but `contracts=[]`; transactions/withdrawals are empty. There are 3 invites, 1 active proposal, and 7 submitted proposals, but no funded contract. Read-only receipts are time-limited; mutation actions remain denied. | `funded_contract_count=0`. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Renew the effect authorization for search/propose/message/offer/delivery, obtain a real funded contract and official milestone readback, then register and verify the owner. |
 
 Host note: the disk guard has repeatedly hit `ENOSPC` while writing receipts/SQLite.
-The latest `df` readback is about 228 MiB free (100% capacity). The allowlisted
+The latest `df` readback is about 172 MiB free (100% capacity). The allowlisted
 cleanup evaluated five candidates, preserved all five because they were open, and
-reclaimed 0 bytes. This is a host-health blocker, not proof of any provider effect.
+reclaimed 0 bytes. Storefront and Apply are intentionally unloaded to prevent
+additional failed writes. This is a host-health blocker, not proof of provider effect.
 
 ### Remaining TODO from this cursor
 
 1. Keep all provider effect fences closed; reconcile only exact occurrences with
    provider-owned evidence.
-2. Coconala: recover host headroom; reconcile the separate Paid/Apply historical
-   fences; then run Storefront/Apply natural wakes, official readback, and
-   replay-zero before closing the four-room system gate.
+2. Coconala: recover host headroom; diagnose the 9223/CDP HTTP-500 boundary;
+   reconcile the separate Paid/Apply/Storefront occurrences; then reload only
+   after a controlled preflight and run official readback/replay-zero before
+   closing the four-room system gate.
 3. CrowdWorks and Lancers: reconcile their stale `entrypoint_exit_143` Paid
    occurrences, verify the exact loaded SHA/argv, and run a no-effect natural
    wake. Their existing pending/zero-funded items do not authorize a send.
