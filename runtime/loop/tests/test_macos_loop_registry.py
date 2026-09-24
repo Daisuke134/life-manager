@@ -83,6 +83,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertIn("ai.anicca.alpaca-investment", registry["retired_labels"])
         self.assertIn("ai.anicca.alpaca-investment-shadow", registry["retired_labels"])
 
+    def test_investment_live_declares_existing_admission_and_coalescing_contract(self):
+        row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"][
+            "alpaca-investment-live"
+        ]
+        self.assertEqual(row["resource_class"], "agent")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
+        self.assertTrue(row["coalesce_reserved_wakes"])
+        self.assertTrue(row["coalesce_queued_wakes"])
+
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         for loop_id in {
