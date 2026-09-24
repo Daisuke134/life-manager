@@ -16,6 +16,14 @@
   `failed=1` (`5266371=planner_missing_request_id`) and one durable prepared
   intent (`5280157=prepared_unconfirmed`). Do not retry either item blindly;
   reconcile the old intent and fix the visible-text planner boundary first.
+- [x] Add the first Freelancer onboarding gate. The new provider-neutral
+  capability entry and `freelancer_readiness.py` require fresh approved
+  receipts for search/inspect/propose/message/offer/deliver/payments/payouts,
+  a source-complete authenticated inventory, and at least one official
+  `state=funded` contract before an effect intent can be built. The gate is
+  read-only and does not register a loop or contact Freelancer.
+- [ ] Connect the gate to a real authenticated Freelancer inventory adapter;
+  only then add the disabled-by-default Apply/Reply/Paid/work-sync owners.
 
 - [x] Perform the historical-session continuity audit without touching the
   provider or admission DB. The production launch configuration points to the
@@ -105,6 +113,8 @@
    `resource_effect_unknown` application/Paid/Reply fences before any effect.
 7. Freelancer.com (implementation work is required now, but no provider send is
    allowed yet):
+   - [x] add the fail-closed authorization + source-complete inventory gate and
+     shared effect-intent/replay-zero contract;
    - replace the retired application/work-sync labels with an authenticated,
      policy-qualified account owner and a source-complete opportunity/contract
      snapshot;

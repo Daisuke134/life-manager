@@ -25,6 +25,16 @@
         "readback": {"record_type": "application_receipt"}
       }
     },
+    "freelancer": {
+      "state": "unknown",
+      "actions": ["search", "inspect", "propose", "message", "accept_offer", "deliver", "read_payments", "read_payouts"],
+      "capability": {
+        "id": "marketplace.lifecycle",
+        "authorization": {"receipt_required": true, "required_state": "approved_browser_or_api"},
+        "funded_contract": {"required": true, "readback": "official_contract_receipt"},
+        "effect": {"unknown_state": "reconcile_without_resend", "replay": "zero"}
+      }
+    },
     "fiverr": {
       "state": "unknown",
       "actions": ["read_catalogue", "publish_gig", "update_gig", "message", "custom_offer", "read_order", "deliver", "revise", "read_earnings", "read_payouts"]

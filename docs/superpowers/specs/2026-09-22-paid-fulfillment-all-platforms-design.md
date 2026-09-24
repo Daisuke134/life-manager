@@ -4523,3 +4523,37 @@ until its own gate is present.
    and owner contracts; perform no provider effect before each exact gate.
 5. Run provider-specific funded canaries, settlement/payout readback,
    crash-recovery, and replay-zero only after both new lanes are authorized.
+
+## Runtime Status Refresh — 2026-09-24 23:26 JST (Freelancer gate groundwork)
+
+- [x] Added `skills/earn/gig/scripts/freelancer_readiness.py` and its focused
+  tests. It parses an authenticated source-complete Freelancer inventory,
+  accepts non-funded rows only as visible state, and opens registration only
+  when all eight lifecycle authorizations are fresh/approved and at least one
+  official contract has `state=funded` with a positive amount.
+- [x] The gate builds an authorization-bound provider effect intent for the
+  exact contract/action and exposes a replay-zero check; missing auth, stale
+  auth, incomplete inventory, non-funded contracts, malformed source evidence,
+  or duplicate effect keys fail closed. It performs no HTTP call, provider
+  submit, loop registration, or launchd change.
+- [x] Added the public capability declaration for `freelancer` with the
+  lifecycle action set, receipt requirement, funded-contract readback
+  requirement, and reconcile-without-resend/replay-zero policy. Related
+  authorization/effect/upwork tests plus the Freelancer tests pass (`46`).
+- [ ] The provider-specific authenticated inventory adapter and disabled
+  owner registration are still pending. They must be added only after a real
+  Freelancer account receipt and funded contract are read back; the historical
+  public bid watcher remains read-only and cannot satisfy this gate.
+
+### Next ordered cursor (23:26 JST)
+
+1. Finish Coconala's two local blockers and Storefront acceptance without
+   reopening an effect fence.
+2. Wire the Freelancer gate to an authenticated provider inventory/readback,
+   then add disabled-by-default owners and a zero-spend canary.
+3. Reuse the existing Upwork modules to add an equivalent current identity,
+   authorization, and funded-contract owner gate; keep all eight existing
+   Upwork actions denied until fresh approved receipts exist.
+4. Enable either new Paid owner only after its official funded contract,
+   provider receipt, readback, crash recovery, settlement/payout, and
+   replay-zero evidence are present.

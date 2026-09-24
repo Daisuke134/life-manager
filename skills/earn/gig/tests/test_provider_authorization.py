@@ -169,6 +169,7 @@ def test_public_catalogue_defaults_every_action_to_unknown():
         "outlier",
         "babel_audio",
         "lancers",
+        "freelancer",
     }
     for provider in catalogue["providers"].values():
         assert provider["actions"]
