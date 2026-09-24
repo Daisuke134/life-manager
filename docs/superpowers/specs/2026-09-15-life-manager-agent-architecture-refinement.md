@@ -4750,3 +4750,10 @@ The branch-only observability improvement at candidate commit `2e759d41f3` keeps
 state, resource/admission classes, sequence and queue timestamp. Read-only tests pass **30/30** and the combined
 read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a main
 integration, production release, fence resolution or revenue claim.
+
+The candidate CLI was then run against the live selector in read-only mode. It returned `rc=0` and showed the
+same owner-level fence together with both identities: the latest event occurrence was
+`affiliate-loop:18d85d697b701380-38327`, while `admission_effect_unknown_occurrences` named the durable target
+`affiliate-loop:18d83ba82b14fb40-24990` (`claimed`, sequence `143954`). The readback had no provider receipt or
+official readback reference. This is the intended diagnostic distinction; it does not authorize a resolver or
+external retry.

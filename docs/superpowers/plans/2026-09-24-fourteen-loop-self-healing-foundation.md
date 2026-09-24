@@ -1314,6 +1314,9 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   official body/readback proof.
 - [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`.
   Read-only tests pass **30/30** and combined read-only/apply/registry tests pass **243/243**.
+- [x] Run the candidate CLI against the live selector in read-only mode. It returns `rc=0` and exposes the latest
+  event occurrence separately from the durable fenced occurrence, with no provider receipt or official readback;
+  this is diagnostic evidence only.
 - [ ] Integrate the candidate only after the user-level foundation gate is green, then promote one immutable
   release and re-read this exact owner. The next Affiliate operation is official readback of the durable target,
   followed by a mode-0600 receipt, exact owner rebind and two replay-zero foundation projections; never use the
