@@ -1,0 +1,205 @@
+# Fourteen-Loop Self-Healing Foundation Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make all fourteen Product Loops share one observable, bounded self-healing control plane that diagnoses and recovers covered failures without Codex, without waiting for revenue and without touching the separately owned Paid fulfillment runtime.
+
+**Architecture:** Keep `config/product-loop-catalog.json` as the only Product Loop catalog and `lm-loop` as the only runtime operator surface. Extend the existing runtime event/status contract, reuse the existing recovery-intent policy and supervisor, and project a separate foundation/recovery gate from the same rows used by commercial completion. Covered deterministic repairs stay owner-scoped; code-fix candidates flow through the existing isolated self-build PR/guard/release path. Promotion requires exact post-repair readback and sibling isolation. Commercial receipts remain a separate later gate.
+
+**Tech Stack:** Python 3 runtime/CLI contracts, Node.js CommonJS and ESM control-plane modules, `node:test`, Python `unittest`/`pytest`, immutable Git releases, existing `lm-loop` and `launchctl-safe` boundaries.
+
+**Spec:** `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`, “The operating order is a control loop” through “Fresh fourteen-loop foundation baseline”.
+
+## Global constraints
+
+- Work only in `/private/tmp/lm-eab-v1-20260924` on `feat/lm-eab-v1-20260924`, rebased from the current `origin/main` baseline and protected by the `codex-root` worktree lease.
+- Never modify or operate the separate Paid fulfillment worktree/branch, Paid source/tests/config/state/effect fences, Paid provider sessions/tabs, Coconala project `18211957`, or Paid runtime owners. Their health and receipts are read-only inputs.
+- Do not wait for Affiliate commission, application acceptance, contract, order, payout or any other natural business event. Foundation acceptance proves execution, diagnosis and recovery; commercial completion remains separate.
+- Do not create a second loop registry, scheduler, release mechanism, evaluator platform or browser owner. Extend the catalog, runtime event, `lm-loop`, recovery modules, completion projections and guarded self-build path already present.
+- `effect_unknown` is not retryable. No recovery recipe may resend, submit, publish, trade, pay, apply, deliver or reconcile an external effect without the existing owner-specific official receipt contract.
+- Fixed policy, identity, evidence rules, credentials, permissions, spend caps, evaluator and protected paths are outside self-modification authority.
+- Every task is test-driven. A failing regression test precedes the minimum implementation; run the focused tests after each task and commit/push before proceeding.
+
+## Acceptance state model
+
+```mermaid
+stateDiagram-v2
+  [*] --> observed
+  observed --> healthy: exact release + healthy terminal
+  observed --> setup_required: typed missing prerequisite
+  observed --> safely_fenced: effect unknown or fixed-policy fence
+  observed --> repairing: covered retryable failure
+  observed --> uncovered_failure: missing diagnosis or recipe
+  repairing --> healthy: bounded repair + authoritative readback
+  repairing --> safely_fenced: uncertainty appears
+  repairing --> uncovered_failure: budget exhausted or verification fails
+  healthy --> observed: later wake
+```
+
+Local foundation acceptance permits `healthy`, `setup_required` and `safely_fenced` only when each row has an exact typed reason and next action. It rejects `repairing`, `uncovered_failure`, missing jobs, release drift and opaque terminal results. It does not require a commercial receipt.
+
+---
+
+### Task 1: Separate foundation acceptance from commercial completion
+
+**Files:**
+- Modify: `apps/life-manager/lib/product-onboarding.js`
+- Modify: `apps/life-manager/lib/product-onboarding.test.js`
+- Modify: `apps/life-manager/scripts/local-completion-gate.js`
+- Create: `apps/life-manager/scripts/local-foundation-gate.js`
+
+**Contract:**
+- Keep `product.loop.completion.v1` and `evaluateLocalCompletionGate()` unchanged as the commercial gate.
+- Add `product.loop.foundation.v1`, `buildProductLoopFoundationManifest()` and `evaluateLocalFoundationGate()` over the same catalog and runtime rows.
+- Closed foundation states: `healthy`, `setup_required`, `safely_fenced`, `repairing`, `uncovered_failure`.
+
+- [ ] Write failing tests proving a no-revenue, exact-release, healthy runtime passes the foundation gate but still fails commercial completion.
+- [ ] Add failures for missing catalog jobs, release drift, opaque failures, untyped setup/fence rows and `repairing` rows.
+- [ ] Add pass cases for typed `setup_required` and `safely_fenced`; prove `effect_unknown` cannot become `healthy`.
+- [ ] Implement the minimum shared projection and CLI; do not duplicate catalog or runtime indexing logic.
+- [ ] Run `node --test apps/life-manager/lib/product-onboarding.test.js` and focused CLI tests.
+- [ ] Commit and push the gate split.
+
+### Task 2: Complete the shared runtime diagnostic envelope
+
+**Files:**
+- Modify: `runtime/loop/runtime_event.py`
+- Modify: `runtime/contracts/common-record.schema.json`
+- Modify: `runtime/contracts/test_common_contracts.py`
+- Modify: `runtime/loop/tests/test_runtime_event.py`
+- Modify: `runtime/loop/lm_loop_run.py`
+- Modify: `runtime/loop/tests/test_lm_loop_run_bounds.py`
+
+**Contract:**
+- Preserve existing v1 readers while adding bounded optional diagnostic fields or introduce a versioned v2 with an explicit v1 projection; choose the smaller backward-compatible path after the RED tests.
+- Required observable identity: `product_loop_id`, `job_id`, `owner_id`, `run_id`, `wake_id`, `occurrence_id`, `release_sha`, phase, exit code, effect class/status, provider receipt/readback ref, evidence refs, failure layer, error class, retryable and next action.
+- Loaded command/environment identity is a secret-free digest plus allowlisted metadata, never raw secrets or private paths.
+
+- [ ] Write failing validation tests for exact identity, secret rejection, malformed occurrence/receipt refs and typed terminal diagnosis.
+- [ ] Write failing runner tests proving claimed occurrence and entrypoint outcome reach the terminal event.
+- [ ] Implement the minimum envelope and builders, keeping install/start/terminal events valid.
+- [ ] Update the common JSON schema from the same closed enums and prove schema/runtime parity.
+- [ ] Run the focused runtime-event, contract and runner-bound tests.
+- [ ] Commit and push the diagnostic envelope.
+
+### Task 3: Expose the full diagnosis through the existing `lm-loop` status
+
+**Files:**
+- Modify: `runtime/loop/lm_loop.py`
+- Modify: `runtime/loop/tests/test_lm_loop_readonly.py`
+- Modify: `apps/life-manager/lib/product-onboarding.js`
+- Modify: `apps/life-manager/lib/product-onboarding.test.js`
+
+- [ ] Write a failing read-only status test for every diagnostic field required by Task 2.
+- [ ] Prove older events remain visible but classify as `uncovered_failure` when required diagnosis is absent.
+- [ ] Project product-loop identity from the catalog without renaming the registry job identity.
+- [ ] Make the foundation manifest consume these rows and report exact missing fields instead of `unknown`.
+- [ ] Run the focused read-only status and foundation tests.
+- [ ] Commit and push the status projection.
+
+### Task 4: Emit one durable recovery intent for every shared-runner failure
+
+**Files:**
+- Modify: `runtime/loop/recovery-intent.mjs`
+- Modify: `runtime/loop/recovery-intent-record.mjs`
+- Modify: `runtime/loop/lm_loop_run.py`
+- Modify: `runtime/loop/__tests__/recovery-intent.test.mjs`
+- Modify: `runtime/loop/__tests__/recovery-intent-record.test.mjs`
+- Modify: `runtime/loop/tests/test_lm_loop_run_bounds.py`
+
+- [ ] Write failing tests that a normal `lm_loop_run` terminal failure emits exactly one owner/occurrence/release-bound intent.
+- [ ] Prove success, admission deferral and duplicate event replay do not enqueue duplicate repair work.
+- [ ] Prove `effect_unknown`, Paid ownership, policy failures and non-retryable setup gaps produce hold/escalation intents with `mutates_external_effect=false`.
+- [ ] Reuse one recovery classifier; do not fork Python and JavaScript policy tables. If necessary, add a narrow JSON CLI seam around the existing pure classifier.
+- [ ] Append atomically to the existing private recovery queue and keep event/intent evidence cross-referenced.
+- [ ] Run the focused intent and runner tests.
+- [ ] Commit and push universal intent emission.
+
+### Task 5: Close recovery with outcome, readback, budget and replay-zero
+
+**Files:**
+- Modify: `runtime/loop/recovery-apply-plan.mjs`
+- Modify: `runtime/loop/recovery-executor.mjs`
+- Modify: `runtime/loop/recovery-supervisor.mjs`
+- Modify: `runtime/loop/__tests__/recovery-apply-plan.test.mjs`
+- Modify: `runtime/loop/__tests__/recovery-executor.test.mjs`
+- Modify: `runtime/loop/__tests__/recovery-supervisor.test.mjs`
+- Modify: `runtime/loop/macos-loop-jobs.json`
+- Modify only the non-Paid recovery-supervisor registry row in `config/loop-registry.json` if the contract test requires it.
+
+- [ ] Write failing tests for attempt budget, cooldown, same-owner/same-release binding and duplicate-intent replay-zero.
+- [ ] Add a versioned `recovery_outcome` record with action, before/after event IDs, exit/result, readback, evidence and next action.
+- [ ] After an allowed reconcile, read `lm-loop status <job>` and accept recovery only when the exact owner/release is healthy; otherwise retain the failure and stop within budget.
+- [ ] Prove a sibling owner and every Paid owner are never selected or mutated.
+- [ ] Run all recovery module tests plus registry contract tests.
+- [ ] Commit and push the closed deterministic recovery loop.
+
+### Task 6: Route uncovered code failures into the guarded self-build path
+
+**Files:**
+- Modify: `apps/life-manager/scripts/life-manager-dev-d0.sh`
+- Modify: `apps/life-manager/lib/self-build-daily.js`
+- Modify: `apps/life-manager/lib/dev-merge-guard.js`
+- Modify: corresponding existing tests under `apps/life-manager/lib/`
+- Create: `apps/life-manager/lib/recovery-self-build-bridge.js`
+- Create: `apps/life-manager/lib/recovery-self-build-bridge.test.js`
+
+- [ ] Write failing tests for a sanitized recovery outcome becoming one deduplicated `lm:type:self-heal` issue with exact owner/release/evidence refs.
+- [ ] Expand the isolated candidate scope only as required for shared runtime files; keep credentials, state, policy, evaluator, guard and Paid paths protected.
+- [ ] Require a retained regression fixture plus focused tests before the producer may open a marked PR.
+- [ ] Keep candidate generation, adversarial review, merge, immutable release, canary, health readback and rollback as distinct recorded stages.
+- [ ] Prove no agent can edit its own guard/evaluator or directly push main/deploy around the guard.
+- [ ] Run the existing self-build/merge-guard tests and the new bridge tests.
+- [ ] Commit and push the guarded code-repair bridge.
+
+### Task 7: Prove one safe end-to-end recovery canary
+
+**Files:**
+- Create: `runtime/loop/fixtures/self-heal/` fixture files only as required
+- Modify: existing recovery and foundation tests
+- Modify: architecture spec evidence section after the run
+
+- [ ] Select one non-Paid, `effect_class=none`, deterministic owner whose failure can be injected in an isolated fixture or test-owned installation.
+- [ ] Inject a bounded known failure without stopping/restarting a production agent, browser, network, authentication service or Paid owner.
+- [ ] Demonstrate event -> typed intent -> bounded repair -> exact status readback -> recovery outcome -> replay-zero.
+- [ ] Demonstrate a forced verification failure stops/rolls back within budget and does not affect a sibling.
+- [ ] Retain the failure and rollback paths as regression fixtures.
+- [ ] Record exact evidence and commit/push. Do not call this proof production-wide acceptance.
+
+### Task 8: Enrol all fourteen Product Loops through shared classes
+
+**Files:**
+- Modify: `apps/life-manager/config/product-loop-catalog.json`
+- Modify: catalog/contract tests
+- Create or modify only shared recovery fixture metadata; do not change Paid implementation files.
+
+- [ ] Add one closed recovery class declaration per Product Loop: deterministic, model, browser, continuous service, external-effect owner, or read-only external-owner.
+- [ ] Map every declared job exactly once and reject missing/duplicate/unrecognized recovery classes.
+- [ ] Add at least one retained failure fixture per class, not one new supervisor per loop.
+- [ ] Classify Paid jobs as read-only external-owner and consume only their status/receipt projections.
+- [ ] Run catalog, registry, foundation and recovery suites; require fourteen loops and zero catalog/registry errors.
+- [ ] Commit and push fourteen-loop enrolment.
+
+### Task 9: Pass local foundation acceptance
+
+**Files:**
+- Modify: architecture spec current-state/TODO evidence
+- Modify: this plan checkbox/status text
+
+- [ ] Build an immutable release from the accepted branch only after all prior focused tests pass and the worktree is clean.
+- [ ] Run `bin/launchctl-safe preflight`; if it fails, record the exact boundary and do not probe or mutate `gui/$UID`.
+- [ ] Apply only the shared non-Paid foundation/recovery owners through `launchctl-safe`; do not start/restart Paid owners.
+- [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
+- [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
+- [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.
+- [ ] Run the same foundation gate twice and require replay-zero/no duplicate recovery effects.
+- [ ] Record official local evidence, commit/push and only then prepare the one final PR/main merge under repository policy.
+
+## Deferred until this plan passes
+
+1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
+2. CFO economic adapters Task 4.2 onward.
+3. Economic evaluation, Affiliate/Mobile/Capafy/x402 revenue optimization and portfolio allocation.
+4. Public LM-EAB benchmark product and verified net USD 10,000 MRR/self-funding proof.
+
+None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue is a valid foundation baseline, not a reason to wait.

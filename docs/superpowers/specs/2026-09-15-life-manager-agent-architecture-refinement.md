@@ -2640,6 +2640,52 @@ for the common harness; the goal is that the second occurrence is diagnosed and 
 not by Codex. Paid fulfillment remains owned by the separate `paid-fulfillment-all-platforms-20260922`
 workstream and is consumed read-only through its official receipts.
 
+#### Foundation acceptance is separate from commercial completion
+
+The existing `product.loop.completion.v1` manifest is the commercial truth surface. Its `verified` state
+correctly requires the loop contract, exact immutable release, official receipt and replay-zero. That is too
+strong to be the admission gate for self-healing or Cloud: a working Affiliate loop may legitimately have no
+commission yet, and a working marketplace loop may legitimately have no funded contract. Waiting for those
+natural business events would turn observability into a revenue lottery and would keep Codex on the critical
+path.
+
+The same catalog and the same runtime rows therefore expose two projections, never two registries:
+
+| Projection | Question | Required evidence | Revenue required? |
+|---|---|---|---:|
+| Foundation/recovery | Can this owner run, diagnose, recover and prove its state safely? | exact release, terminal or explicit setup/fence state, structured diagnosis, bounded recovery outcome, authoritative post-repair readback, sibling isolation | No |
+| Commercial completion | Did this loop produce its intended external business outcome exactly once? | full loop contract, official provider receipt/readback, exact release, replay-zero | Yes, when revenue is the intended outcome |
+
+A foundation row may be `healthy`, `setup_required`, `safely_fenced`, `repairing` or `uncovered_failure`.
+Only the first three are locally acceptable; `repairing` is transient and `uncovered_failure` blocks promotion.
+`effect_unknown` remains a safety fence and is never auto-retried. A `setup_required` or `safely_fenced` row
+must carry an exact typed reason and next action; it is not renamed `pass`. Commercial zero stays a valid
+observed baseline and advances the economic optimizer to its next bounded hypothesis.
+
+#### Fresh fourteen-loop foundation baseline
+
+Read-only `launchctl-safe preflight`, `lm-loop doctor`, `lm-loop status all`, the product catalog and the local
+completion gate establish the current baseline:
+
+- host preflight passes for GUI owner `gui/501`; registry doctor reports 167 jobs, zero unmanaged labels,
+  zero missing entrypoints and zero installed retired jobs;
+- all fourteen catalog Product Loops have every declared job represented in the shared runtime status;
+- the commercial completion manifest is deterministically `blocked` with `verified=0`, `blocked=14`,
+  `unknown=0`; this is an honest incomplete result, not an observation gap;
+- thirteen Product Loops are primarily blocked by `runtime_release_drift` against current immutable release
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`;
+- Connector is on the current release but its latest terminal is `fail` with the shared status exposing only
+  `entrypoint_exit_1`. The user-facing `wake_boundary_failed` safe stop is therefore not yet joined to an exact
+  failure layer, evidence reference, retryability decision and next action;
+- the runtime event already carries run/release/phase/effect/evidence data, and the runner already knows the
+  claimed occurrence plus some provider receipts, but `lm-loop status` does not yet expose the complete
+  diagnostic contract. The recovery intent/supervisor exists, but only the model harness writes intents; a
+  normal `lm_loop_run` terminal failure does not close the recovery loop.
+
+This baseline proves that the next unit of work is the shared diagnostic and recovery seam, not fourteen
+provider-specific repairs and not a wait for Affiliate revenue. The implementation plan is
+`docs/superpowers/plans/2026-09-24-fourteen-loop-self-healing-foundation.md`.
+
 #### Affiliate is the first revenue-improvement vertical after self-healing acceptance
 
 The read-only production status shows why Affiliate is not making verified money even though it contains many
@@ -2819,8 +2865,11 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 2. **Done, then intentionally paused:** CFO inventory/source Tasks 1–3 and the Self-Funding/Agent Economy
    Task 4.1 join are complete through `68d59eb2ec`. Remaining Affiliate/Mobile/Capafy/Stripe/Investment/Writer/
    Fundraiser/Marketplace source adapters stay queued; immediate revenue or a natural commission is not a gate.
-3. **Current cursor — fourteen-loop observability baseline:** read every Product Loop owner through the shared
-   structured contract, record the exact healthy/fenced/broken/setup state and close missing diagnostic fields.
+3. **Current cursor — shared diagnostic envelope and foundation gate:** the read-only baseline is complete:
+   14/14 Product Loops and all declared jobs are observed, `unknown=0`, thirteen loops show release drift and
+   Connector has a current-release terminal failure. Split foundation/recovery acceptance from commercial
+   completion, then expose product/job/owner/run/wake/occurrence/release/loaded-command identity, phase, exit,
+   effect, readback/receipt, evidence, typed error layer, retryability and next action through the shared status.
    Do not repair fourteen implementations manually; turn each unexplained state into a named observable boundary.
 4. Build the shared bounded self-heal kernel: failure taxonomy, repair recipes, budgets, isolated candidates,
    recovery evaluation, immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
