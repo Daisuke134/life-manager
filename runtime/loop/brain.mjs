@@ -26,7 +26,25 @@ const CODEX_BRAIN_TASK_CLASS = 'codex-brain-agent';
 const CODEX_BRAIN_TIMEOUT_MS = 180_000;
 const CODEX_BRAIN_SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CODEX_BRAIN_RESULT_REASON = /^[a-z][a-z0-9_:-]{1,99}$/;
+const BRAIN_FALLBACK_FIELD = '__anicca_brain_fallback';
 const LOOP_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+function markBrainFallback(response, fallback) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) return response;
+  return { ...response, [BRAIN_FALLBACK_FIELD]: Object.freeze({ ...fallback }) };
+}
+
+/**
+ * Return the typed fallback evidence attached by think(), or null for a normal brain response.
+ * The private response field is consumed by the loop before ledger serialization and is never sent
+ * back to a provider or treated as an OpenAI response field.
+ */
+export function getBrainFallback(response) {
+  const fallback = response && typeof response === 'object' ? response[BRAIN_FALLBACK_FIELD] : null;
+  if (!fallback || typeof fallback !== 'object' || Array.isArray(fallback)) return null;
+  if (fallback.from !== 'claude-p' || fallback.to !== 'proxy' || fallback.reason !== 'claude_not_found') return null;
+  return { from: fallback.from, to: fallback.to, reason: fallback.reason };
+}
 
 /**
  * Execute the THINK step for the current wake.
@@ -48,7 +66,19 @@ export async function think(ctx, config) {
       // this to OAuth, timeout, or non-zero Claude exits: those remain typed wake errors and must
       // not silently hand a different brain control of a funded loop.
       if (error instanceof Error && error.message.startsWith('claude_not_found:')) {
-        return thinkProxy(ctx, config);
+        try {
+          const response = await thinkProxy(ctx, config);
+          return markBrainFallback(response, {
+            from: 'claude-p',
+            to: 'proxy',
+            reason: 'claude_not_found',
+          });
+        } catch (proxyError) {
+          const message = proxyError instanceof Error ? proxyError.message : String(proxyError);
+          const combined = new Error(`brain_fallback_failed: claude_not_found -> ${message}`);
+          combined.cause = proxyError;
+          throw combined;
+        }
       }
       throw error;
     }

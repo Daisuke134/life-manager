@@ -107,10 +107,12 @@ flowchart LR
 - 既存コメントの文字列を実装呼び出しとして拾っていたself-improvement static guardを、動作変更なしで修正しました。
   `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
 - self-improvement brainの実装と契約の矛盾をbranchで解消しました。`ANICCA_BRAIN=claude-p`の実行ファイルが
-  不在のときだけ、設定済みproxyへfallbackします。OAuth失効、timeout、非0終了はfallbackせず、typed
-  `wake_error`として記録します。直接brain契約は5/5、missing-binary integration caseもPASSし、統合suiteの
-  残る1件は既存のtemporary-directory cleanup raceです。これはbranch-onlyで、main/release/productionへは
-  未反映です。
+  不在のときだけ、設定済みproxyへfallbackします。成功したfallbackは terminal ledger に
+  `brain_fallback={from:claude-p,to:proxy,reason:claude_not_found}` として残し、proxy側も失敗した場合は
+  `brain_fallback_failed` へ元の欠損とproxy失敗の両境界を結合します。OAuth失効、timeout、非0終了はfallback
+  せず、typed `wake_error`として記録します。直接brain契約は5/5、missing-binary integration caseと
+  ledger-observability assertionもPASSし、統合suiteの残る1件は既存のtemporary-directory cleanup raceです。
+  これはbranch-onlyで、main/release/productionへは未反映です。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
