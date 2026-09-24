@@ -1209,7 +1209,7 @@ class CdpParentEffects:
         result = await self._call(
             ws,
             "Runtime.evaluate",
-            {"expression": expression, "returnByValue": True},
+            {"expression": expression, "returnByValue": True, "awaitPromise": True},
             call_id,
         )
         value = ((result.get("result") or {}) if isinstance(result, dict) else {}).get("value")

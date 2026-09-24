@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import inspect
 import json
@@ -331,3 +332,25 @@ def test_history_fetch_accepts_only_exact_official_page():
     assert application_parent._valid_applied_history_fetch(
         {**page, "title": "ログイン | ココナラ"}, expected
     ) is False
+
+
+def test_cdp_eval_awaits_async_fetch_promises():
+    effects = object.__new__(application_parent.CdpParentEffects)
+    calls = []
+
+    async def fake_call(_ws, method, params, call_id):
+        calls.append((method, params, call_id))
+        return {"result": {"value": '{"ok":true}'}}
+
+    effects._call = fake_call
+    value, next_call_id = asyncio.run(effects._eval_json(object(), "async-fetch", 7))
+
+    assert value == {"ok": True}
+    assert next_call_id == 8
+    assert calls == [
+        (
+            "Runtime.evaluate",
+            {"expression": "async-fetch", "returnByValue": True, "awaitPromise": True},
+            7,
+        )
+    ]
