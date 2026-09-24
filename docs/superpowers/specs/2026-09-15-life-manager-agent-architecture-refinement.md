@@ -3314,11 +3314,11 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    reservation and no unknown effect. The foundation evaluator therefore records Investment as exact-release
    `safely_fenced/runtime_admission_deferred` with zero release mismatches and zero diagnostic gaps. This is the
    required bounded replay-zero and safety evidence; profit or a natural scheduler wake is not an acceptance
-   gate. Investment is accepted for the local foundation slice, and the current executable cursor is Fundraiser.
+   gate. Investment is accepted for the local foundation slice, and the next executable cursor was Fundraiser.
 
-   Fundraiser has one owner and one independent historical application receipt. The official ledger records
-   Startuped AI `submitted_verified` at `2026-09-17T02:13:28Z`, with provider completion text, completion PNG,
-   application digest and Telegram photo message `85599`; that effect is preserved and is not replayed. The only
+   Fundraiser has one owner and 56 historical `submitted_verified` application receipts. The latest such receipt
+   records Startuped AI at `2026-09-17T02:13:28Z`, with provider completion text, completion PNG, application
+   digest and Telegram photo message `85599`; those effects are preserved and are not replayed. The only
    durable unknown is a different later occurrence, `fundraiser:18d5fda7a1962e60-16555`, queued at
    `2026-09-17T03:22:08Z`. Its private runtime journal contains exactly two rows for that run: execute/running at
    `03:22:03.376245Z` and blocked `resource_capacity_busy` at `03:22:12.184537Z`, with the same summary reference,
@@ -3331,8 +3331,49 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    occurrence as verified in read-only production data. The minimum candidate declares the already-effective
    durable policy `agent/borrow/support` and enables the existing queued/reserved-wake coalescing. Its RED test
    fails on the missing registry contract, then the focused contract passes 2/2 and the complete apply/registry
-   suites pass 207/207. Candidate commit `d5d4f5ee15` is pushed; PR/main integration, immutable release,
-   one-owner reconciliation, official ledger preservation, current-release wake and bounded replay-zero remain.
+   suites pass 207/207. PR #5852 merges the contract at
+   `2ff81f6eb1c0e9fb3160fd4bbe654a5810b8d167`; complete release
+   `20260924T205828-2ff81f6e` is active with `release_paths=ALL`, `ancestor-of-origin-main` provenance and clean
+   doctor 169/169.
+
+   Production reconciliation resolves only the exact historical occurrence and writes a mode-0600
+   `HOST_PRE_EFFECT_RECONCILIATION` receipt with `resolution=RESOLVED`. Admission unknown becomes zero, while the
+   official application ledger remains byte-identical at SHA-256
+   `2cbe2b522ab21b1b6631d53e3bd53d1ec44dd6c94816769d1f2e082b500a6fc9`, 652 rows and 56 verified submissions.
+   The apply wake and one immediate replay both stop before the entrypoint at typed retryable
+   `resource_capacity_busy`; they submit nothing and leave no unknown effect. The authoritative foundation row is
+   exact-release `safely_fenced/runtime_admission_deferred`, with zero release mismatch and zero diagnostic gaps.
+   The final point-in-time admission readback has ten known queued, three known released, one queue row, one
+   reservation and zero unknown. Fundraiser is accepted without waiting for a new application or natural wake;
+   the current executable cursor is Writer.
+
+   Writer is seven shared-agent-runner owners, not one process. All seven registry rows omit the explicit
+   admission contract even though durable production history is uniformly `agent/borrow/support`. The missing
+   contract prevents the shared reconciler from rebinding old releases and leaves repeated known wakes
+   uncoalesced: the point-in-time ledger contains 402/9/1622/8/89/123/78 known queued occurrences for claim,
+   craft, money, discovery, response, report and sales respectively. Four additional claimed occurrences are
+   effect-unknown. `writer-craft-train:18d7ad677aebc8f8-31489` and
+   `writer-opportunity-discovery:18d7bc6bec691630-73294` are effect-free jobs whose exact runtime pairs end in
+   outer pass; the existing loaded-idle no-effect recovery is sufficient once their registry contract is
+   explicit. `writer-opportunity-response:18d63bfc9492d518-49933` is an exact pre-entrypoint
+   `resource_fifo_wait`, but its two-row proof is in the private rotated gzip archive rather than the current
+   journal, so the current exact resolver correctly returns no proof. `writer-report:18d69e54e1050578-20866`
+   is not pre-effect: it exits pass and its durable report outbox records Telegram message IDs 89203–89206 at
+   the same interval. Read-only MTProto verification finds all four messages in the same bot dialog at
+   `04:26:39Z`, `04:26:40Z`, `04:26:56Z` and `04:27:01Z`: sender is a bot and the exact stored chunk hash
+   matches for 89203–89205; 89206 matches after Telegram's leading/trailing whitespace normalization. This is
+   an official provider readback for the exact sent bytes, not permission to resend.
+
+   The minimum Writer candidate declares the already-observed `agent/borrow/support` contract and enables the
+   existing queued/reserved-wake coalescing on all seven owners. The shared proof reader is extended only to the
+   current journal plus the four newest private gzip archives; every file keeps the existing owner/mode/link and
+   50,000-row bound, and the exact-two-event/no-effect-reference checks are unchanged. The production read-only
+   proof now selects only response's exact FIFO occurrence and still rejects report. The change touches no Writer
+   business code, provider session or runtime state. The contract test fails for all seven owners before the
+   change and passes after it; focused archive/current/negative proof tests pass 3/3 and registry/apply suites
+   pass 209/209. Production remains unchanged until main integration. After integration, reconcile effect-free
+   owners first, resolve response only through the archive proof, and close report only through the verified
+   Telegram receipt; never replay either effect.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/

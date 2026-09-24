@@ -2931,9 +2931,12 @@
     },
     "writer-claim-loop": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 900
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "cleanup": {
         "max_age_days": 14,
@@ -2944,17 +2947,22 @@
       "entrypoint": "skills/writer-agent/scripts/claim-loop-owner",
       "label": "ai.anicca.writer-claim-loop",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-craft-train": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": {
           "Hour": 23,
           "Minute": 10
         }
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -2965,15 +2973,20 @@
       "entrypoint": "skills/writer-agent/scripts/craft-train-owner",
       "label": "ai.anicca.writer-craft-train",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "runtime_timeout_seconds": 25200,
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-money-sync": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "cleanup": {
         "max_age_days": 14,
@@ -2984,14 +2997,19 @@
       "entrypoint": "skills/writer-agent/scripts/money-sync-owner",
       "label": "ai.anicca.writer-money-sync",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-opportunity-discovery": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 86400
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "cleanup": {
         "max_age_days": 14,
@@ -3002,14 +3020,19 @@
       "entrypoint": "skills/writer-agent/scripts/opportunity-discovery-owner",
       "label": "ai.anicca.writer-opportunity-discovery",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-opportunity-response": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 900
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "cleanup": {
         "max_age_days": 14,
@@ -3020,14 +3043,19 @@
       "entrypoint": "skills/writer-agent/scripts/opportunity-response-owner",
       "label": "ai.anicca.writer-opportunity-response",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-report": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "cleanup": {
         "max_age_days": 14,
@@ -3038,13 +3066,18 @@
       "entrypoint": "skills/writer-agent/scripts/writer-report-owner",
       "label": "ai.anicca.writer-report",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "writer-sales-measure": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 3600
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -3054,7 +3087,9 @@
       "entrypoint": "skills/writer-agent/scripts/writer-sales-measure-worker.sh",
       "label": "ai.anicca.writer-sales-measure",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/writer"
     },
     "x-repost": {
