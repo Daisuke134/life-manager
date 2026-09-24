@@ -51,7 +51,12 @@ export async function recordSaleCandidates({
   candidates,
   rpc = rpcCall,
   stateDir = resolveX402StateDir(),
+  occurrenceId = runtimeOccurrenceId(),
 } = {}) {
+  const normalizedOccurrenceId = typeof occurrenceId === 'string'
+    && OCCURRENCE_ID_PATTERN.test(occurrenceId.trim())
+    ? occurrenceId.trim()
+    : null;
   if (!Array.isArray(candidates) || candidates.length === 0) {
     return { chain_id: null, finalized_block: null, candidates_seen: 0, verified: 0, recorded: 0, duplicates: 0 };
   }
@@ -64,7 +69,18 @@ export async function recordSaleCandidates({
   let recorded = 0;
   let duplicates = 0;
   for (const payTo of OWN_PAY_TOS) {
-    const rows = verified.rows.filter((row) => row.payTo === payTo);
+    const rows = verified.rows
+      .filter((row) => row.payTo === payTo)
+      .map((row) => normalizedOccurrenceId
+        ? {
+          ...row,
+          occurrence_id: normalizedOccurrenceId,
+          provider_receipt_id: row.tx,
+          official_readback_ref: `base://tx/${row.tx}`,
+          proof_kind: 'base_finalized_usdc_transfer',
+          verified: true,
+        }
+        : row);
     if (rows.length === 0) continue;
     const write = appendUniqueExternalInflows(walletLedgerPath(payTo, { stateDir }), rows);
     recorded += write.recorded;
@@ -83,11 +99,14 @@ export async function recordSaleCandidates({
 async function main() {
   const stateDir = resolveX402StateDir();
   const candidatePath = join(stateDir, 'x402-sale-candidates.jsonl');
-  const result = await recordSaleCandidates({ candidates: readCandidates(candidatePath), stateDir });
+  const occurrenceId = runtimeOccurrenceId();
+  const result = await recordSaleCandidates({
+    candidates: readCandidates(candidatePath), stateDir, occurrenceId,
+  });
   const isRevenue = result.recorded > 0;
   process.stdout.write(`${JSON.stringify({
     observed_at: new Date().toISOString(),
-    occurrence_id: runtimeOccurrenceId(),
+    occurrence_id: occurrenceId,
     ...result,
     verified_external_revenue: isRevenue,
   })}\n`);
