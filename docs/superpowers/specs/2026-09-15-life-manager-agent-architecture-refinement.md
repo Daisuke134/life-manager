@@ -4623,3 +4623,30 @@ contains the managed-runtime supervisor fallback plus in-memory observability fi
 pre-existing release to select; the next cursor is accepted main integration of the pushed branch, followed by
 immutable cut and readback. No selector, plist, admission row, effect fence, provider session or external effect was
 changed during this inventory check.
+
+### Fundraiser pre-effect fence hardening and scoped integration analysis (2026-09-25 JST)
+
+The shared rebind guard had one remaining unsafe gap after a queue row drained: for an effectful owner it could
+observe `not_queued` without attempting the exact pre-effect proof, while an `effect_unknown` occurrence remained
+durable. The branch now invokes the proof-only resolver for that path. It never clears an effect fence from scheduler
+health, a missing queue row, or a generic child exit.
+
+The proof accepts fundraiser's `entrypoint_exit_75` only when all boundaries match: the registry entrypoint is
+`skills/fundraiser-agent/runtime/run.sh`, the effect class is `application`, the runtime journal contains exactly
+one `execute/running` event with `effect_status=started` and one `report/fail` event with
+`effect_status=unknown`, both carry the same summary reference, no provider-effect evidence exists, and the durable
+occurrence is the sole exact fence. A generic exit 75 or any other effectful owner remains fenced. The regression
+proves a drained fundraiser fence resolves to `released/effect_unknown=0` only after this evidence gate; the existing
+external-effect fence test remains green.
+
+Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **125/125**, readonly **28/28**, Python
+compile, and `git diff --check`. This is source-only evidence; no admission row, selector, launchd job, provider
+session, Paid/Connector/Mobile state, external effect or revenue was changed.
+
+The non-mutating integration dry run against `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c` still has only
+two textual conflicts: `runtime/loop/lm_loop.py` and the macOS loop fixture. The lm-loop conflict is mechanically
+resolvable by retaining both the branch's ENOSPC/admission-read hardening and main's fundraiser pre-effect proof.
+The fixture is a whole-array JSON conflict because the branch's resource/admission classifications and main's newer
+loop enrollment changes both edit the same serialized row set. It is not safe to resolve by choosing one side: the
+eventual integration must merge entries field-by-field, preserve the separate Paid/Gig/Connector/Mobile owners, and
+rerun registry/apply acceptance before any PR or immutable release. No merge was started in this slice.

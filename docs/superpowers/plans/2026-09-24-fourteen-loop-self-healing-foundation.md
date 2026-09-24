@@ -1200,6 +1200,25 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   other non-accepted release; the next cursor remains accepted main integration, immutable cut, and exact
   reconciler readback.
 
+### Fundraiser pre-effect fence hardening and scoped integration analysis (2026-09-25 JST)
+
+- [x] Close the drained-queue gap in the shared rebind guard. When an effectful owner returns `not_queued`, invoke
+  the exact pre-effect resolver instead of treating the missing queue row as evidence that an external effect did not
+  occur. Effect-free owners retain the existing no-effect clear path.
+- [x] Accept fundraiser `entrypoint_exit_75` as a pre-effect terminal only for the exact fundraiser entrypoint and
+  `application` effect class. Generic exit 75 and all other effectful owners remain fenced.
+- [x] Add the drained-fundraiser regression with a durable claimed/effect-unknown occurrence and matching private
+  runtime journal. The test proves only the evidence-backed path resolves to `released/effect_unknown=0`; the existing
+  external-effect fence test remains green.
+- [x] Verify the change: apply **125/125**, readonly **28/28**, Python compile, and `git diff --check`.
+- [x] Re-run the non-mutating main integration analysis. The only textual conflicts remain `lm_loop.py` and the
+  whole-array macOS fixture. Keep the conflict unresolved until field-by-field fixture merging can preserve current
+  branch resource classifications and latest main enrollment without touching the separate Paid/Gig/Connector/Mobile
+  workstreams.
+- [ ] Integrate the self-healing control-plane changes onto accepted latest main without merging or editing the
+  separate Paid fulfillment implementation. Resolve the lm-loop helper composition and fixture entries, rerun full
+  registry/apply acceptance, then cut an immutable release only after the user-level foundation gate passes.
+
 ### Main-derived integration dry run (2026-09-25 JST)
 
 - [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
