@@ -3340,3 +3340,38 @@ not convert a transient pass or a no-op into client completion.
    CrowdWorks first, then advance platform by platform with readback and
    replay-zero. Keep buyer-material, Mercor, Lancers, Ryu, and Upwork gates as
    specified above.
+
+## Runtime Cursor — 2026-09-24 14:35 JST (live recheck; no fence release)
+
+- **The current PR remains in verification.** PR #5820 head `7249bc1bd5` is
+  pushed and clean in the worktree. The new CI run has passed the source,
+  syntax, PII, startup, and gitleaks checks; Loop control contracts and
+  TruffleHog are still pending. This is not yet a merge/release gate.
+- **The host is still resource-limited.** Data-volume free space is about
+  `1.2GiB` at reported `100%` capacity. The disk-cleanup owner is
+  `loaded-idle` with terminal `exit_code=0`, but its status timestamp is older
+  than the latest event receipt; no live owner was killed or restarted.
+- **The four historical effect fences remain closed.** Exact rows are still
+  `claimed/effect_unknown=1`: Lancers `18d81967220136f8-89928`, CrowdWorks
+  `18d62cf32eb0c678-48194`, Mercor Reply `18d6683223830368-49631`, and Mercor
+  Application `18d6f9cb5bdaef98-33812`. Current provider logs show newer
+  capacity/effect-fence blocks, not exact no-effect proof for those rows.
+- **No platform completion claim is valid.** The deterministic owners for
+  CrowdWorks/Lancers are unloaded after `entrypoint_exit_143`/resource-fence
+  outcomes; Mercor Paid/Reply are loaded-idle but blocked by
+  `resource_effect_unknown`/`resource_control_busy`. Durable snapshots still
+  show CrowdWorks `5/1/0/4/1`, Lancers `0/0/0/0/0`, Mercor Paid pending, and
+  Mercor Reply `97/1/0/96/1`. Coconala remains effect-none `4/0/0/3/0/0`
+  and Ryu manual-only; its owner is not a registry ID in this checkout.
+
+### Next one-by-one cursor
+
+1. Let the remaining PR checks finish; do not merge while any check is pending.
+2. Keep all four historical fences closed and obtain exact provider/run or
+   pre-effect proof through the supported resolver; never edit the admission DB
+   or blind-retry/resend.
+3. Restore a stable resource window and align the release SHA, then promote one
+   immutable release and canary CrowdWorks first with official readback and
+   replay-zero.
+4. Advance Lancers, Mercor, and the remaining paid owners only after their own
+   readback/replay-zero gates; keep Coconala/Ryu manual-only and Upwork disabled.

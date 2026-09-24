@@ -3097,3 +3097,32 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    do not restart a live owner just because its observation is stale.
 3. Promote one immutable release after the gates, canary CrowdWorks first, and
    advance each platform only with official readback and replay-zero.
+
+### Runtime checkpoint — 2026-09-24 14:35 JST (live recheck; no fence release)
+
+- [x] Pushed docs checkpoint commit `7249bc1bd5`; PR #5820 is clean locally.
+- [ ] The new CI run still has Loop control contracts and TruffleHog pending;
+  the other listed source/security checks are green, so merge/release is not
+  yet allowed.
+- [ ] Data-volume headroom is only about `1.2GiB` at reported `100%`; disk
+  cleanup is idle after a natural `exit_code=0` pass, but no stable release
+  window has been demonstrated.
+- [ ] Exact historical fences remain `claimed/effect_unknown=1` for Lancers
+  `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application `18d6f9cb5bdaef98-33812`.
+  New capacity/effect-fence blocks do not prove no effect for those rows.
+- [x] Coconala remains client-safe at `4/0/0/3/0/0` with Ryu manual-only.
+  [ ] CrowdWorks/Lancers remain unloaded; Mercor Paid/Reply remain blocked;
+  therefore all gig platforms are not complete.
+
+### Remaining TODO (current ordered cursor)
+
+1. Finish the remaining PR checks; do not merge while a required check is
+   pending.
+2. Keep all four historical fences closed and obtain exact provider/run or
+   pre-effect proof through the supported resolver; never edit the admission DB
+   or blind-retry/resend.
+3. Restore stable resource headroom and align release SHA, then promote one
+   immutable release and canary CrowdWorks with official readback/replay-zero.
+4. Advance Lancers and Mercor one owner at a time with the same gates; keep
+   Coconala/Ryu manual-only and Upwork disabled until their explicit gates pass.
