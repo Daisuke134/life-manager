@@ -116,6 +116,13 @@ flowchart LR
   1,459件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約を追加し、RED→GREEN
   registry/fixture 94/94、apply 124/124をPASSしました。sale observation・payment・revenue effectは実行しておらず、
   main/release昇格とproduction replay-zeroは未完です。
+- Agent Economyの二つのdurable money observerもread-onlyで確認しました。`sol-funding`はknown queued 234件、
+  known released 1件、released `effect_unknown` 1件、`x402-settlement-recorder`はknown queued 50件、known
+  released 6件、released `effect_unknown` 1件です。両方のpriorityは既存ledger上で
+  `deterministic/borrow/support`でした。branch-only registry契約は既存coalescingとqueued-release reconcile
+  だけを明示し、registry/rendered-fixture 104/104、shared apply 124/124をPASSしました。money movement、
+  wallet action、settlement receiptは実行していません。released `effect_unknown`は公式wallet/provider
+  readbackとaccepted immutable releaseが揃うまでfence内に残します。
 - `citizen-refill`はdeterministic routeで、durable admission上のknown effect-free FIFO 144件、claimed/unknown 0件、
   loaded-idleでした。productionのrelease `f7d4ff46afa42539a6def192774de66ff3317cec`では、entrypoint前に
   `citizen-refill: node executable not found`を繰り返していました。原因は、共有plistがmanaged Nodeを

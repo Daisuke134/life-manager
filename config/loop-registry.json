@@ -2840,6 +2840,7 @@
       "state_root": "~/.local/state/life-manager/session-vault"
     },
     "sol-funding": {
+      "admission_class": "borrow",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 60
@@ -2849,13 +2850,18 @@
         "max_runs": 100
       },
       "command": [],
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "financial",
       "effect_class": "money",
       "entrypoint": "skills/earn/sol-funding-owner",
       "label": "ai.anicca.sol-funding",
       "log_root": "~/.local/state/life-manager/sol-funding/logs",
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/sol-funding"
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/sol-funding",
+      "priority": "support"
     },
     "ubi-watcher": {
       "adapter": "exec",
@@ -3550,6 +3556,7 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-settlement-recorder": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -3559,11 +3566,16 @@
       },
       "domain": "financial",
       "effect_class": "money",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "entrypoint": "skills/earn/x402-sell/settlement-recorder-boot.sh",
       "label": "ai.anicca.x402-settlement-recorder",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/x402-sell"
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/x402-sell",
+      "priority": "support"
     }
   },
   "retired_labels": [

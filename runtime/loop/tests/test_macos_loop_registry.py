@@ -611,6 +611,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
             True,
         )
 
+    def test_x402_money_observers_declare_existing_admission_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("sol-funding", "x402-settlement-recorder"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+                self.assertTrue(row.get("coalesce_queued_wakes"))
+                self.assertTrue(row.get("coalesce_reserved_wakes"))
+                self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_honne_ja_is_the_only_mobile_queued_release_canary(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         mobile = json.loads(
