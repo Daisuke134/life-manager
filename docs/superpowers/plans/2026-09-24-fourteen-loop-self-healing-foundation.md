@@ -1601,3 +1601,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   evidence, repair the runner/report boundary that currently surfaces `circuit_open / wake_boundary_failed`, publish an
   accepted main-derived immutable release, and prove one clean no-effect wake plus replay-zero. Do not infer a provider
   failure from the reporting symptom and do not mutate the Connector session, admission state or effect fence here.
+
+### Latest live foundation gate re-read (2026-09-25 JST)
+
+- [x] Re-read the complete live status snapshot against immutable release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+  The 14-loop projection is now **13 `uncovered_failure` / 1 `safely_fenced`**, with no healthy or repairing rows;
+  the gate remains `decision=block` for diagnostic incompleteness, runtime evidence incompleteness and uncovered
+  failure. Connector is the exact `runtime_terminal_not_pass / diagnose_failure` family; the other uncovered rows are
+  release-drift/diagnostic alignment failures.
+- [ ] Treat this fresh 13/1 projection as the current cursor, not the prior 12/2 snapshot. Restore capacity, accept
+  the candidate release, then reconcile owners one at a time and rerun the two-pass gate. Do not infer revenue loss,
+  replay an effect, or touch Paid fulfillment from this projection alone.

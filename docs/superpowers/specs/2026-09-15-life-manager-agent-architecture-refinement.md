@@ -5134,3 +5134,19 @@ production owner. The next safe proof is therefore: (1) the Connector owner adds
 entrypoint/error fields and fixes its runner/report boundary, (2) an accepted main-derived immutable release is loaded,
 (3) one effect-free Connector wake persists a clean terminal event, and (4) an immediate replay proves zero duplicate
 effect before the two-pass foundation gate is reconsidered.
+
+### Latest live foundation gate re-read (2026-09-25 JST)
+
+Using a fresh read-only `lm-loop status all --json` snapshot from immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, the 14-loop foundation projection currently contains **13
+`uncovered_failure`** rows and **1 `safely_fenced`** row; there are no healthy or repairing rows. The gate returns
+`decision=block` with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. The 13 uncovered rows are ten product/runtime-drift families plus Connector's
+`runtime_terminal_not_pass / diagnose_failure` (the exact family names remain in the generated manifest); they are not
+evidence of new revenue loss or permission to replay an effect.
+
+This replaces the earlier 12/2 readback as the current cursor. The difference is a fresh live projection observing
+additional release-drift/diagnostic gaps, not a new provider effect. Main integration, immutable promotion and the
+two-pass acceptance gate remain closed until the capacity floor is restored, the candidate is accepted, and each owner
+has exact loaded SHA, complete diagnostics, terminal outcome and replay-zero evidence. Paid fulfillment remains owned by
+the separate Codex and is excluded from this worktree's mutation scope.
