@@ -5000,3 +5000,18 @@ evidence that no payout occurred and does not authorize clearing, replaying or s
 revenue value changed. After accepted immutable promotion, the next safe step is one future payout occurrence through
 the adapter, then an exact occurrence-bound official readback and replay-zero check before any historical resolver is
 considered.
+
+### Candidate gate and merge re-read (2026-09-25 JST)
+
+The candidate status read-only pass still returns **271** loop rows. Against the currently selected immutable release
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819` with SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, the local foundation gate remains `decision=block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The exact
+manifest projection is **13 `uncovered_failure` / 1 `safely_fenced`**; the actionable next actions are twelve
+`load_exact_immutable_release`, one `retry_after_eligibility` and one `diagnose_failure`.
+
+The candidate is based directly on that `origin/main` SHA. A non-mutating `git merge-tree --write-tree` re-read is
+clean (tree `846ee714d8d98ffed599c7463745532de7b3736f`), and the candidate diff is **44 files** with no Paid
+fulfillment source or provider-session state. A clean merge-tree is not permission to merge: main integration,
+immutable release promotion and production reload remain closed until the user-level foundation gate is green and the
+separate Paid owner is preserved.

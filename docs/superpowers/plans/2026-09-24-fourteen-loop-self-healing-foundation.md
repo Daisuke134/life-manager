@@ -1488,3 +1488,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After accepted immutable promotion, run one future payout occurrence, obtain the exact official Base readback,
   persist the reconciliation proof, and invoke any resolver only when occurrence, transaction, amount, wallet and
   finalized transfer all match. Then run replay-zero and the two-pass foundation gate.
+
+### Candidate gate and merge re-read (2026-09-25 JST)
+
+- [x] Re-read candidate `status all` without mutation: **271** rows; selected production immutable release remains
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+- [x] Re-run the local foundation gate against that exact release: `decision=block`, reasons
+  `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, `uncovered_failure`; manifest is
+  **13 `uncovered_failure` / 1 `safely_fenced`** with twelve release-load actions, one eligibility retry and one
+  diagnosis action.
+- [x] Re-run non-mutating `git merge-tree --write-tree` against `origin/main`; it is clean at tree
+  `846ee714d8d98ffed599c7463745532de7b3736f`. Candidate remains **44 files**, with no Paid fulfillment source or
+  provider-session state.
+- [ ] Do not interpret clean merge-tree as merge authorization. Keep main integration, immutable promotion and
+  production reload closed until the user-level foundation gate is green and the Paid ownership boundary remains
+  intact.
