@@ -1190,3 +1190,12 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Keep accepted immutable-release promotion as the next cursor. After promotion, verify the reconciler's
   managed runtime, in-memory observability, typed admission errors, current terminal event and replay-zero before
   allowing any further FIFO owner alignment.
+
+### Immutable-release inventory check (2026-09-25 JST)
+
+- [x] Inspect every local release for the managed supervisor fallback and in-memory launchctl probes. Main-derived d4
+  and `1f03abd4` still carry the old bare-`node`/`TemporaryFile()` code; the newest local c755 release is marked
+  `pushed-not-yet-on-main` and also lacks both fixes.
+- [x] Confirm there is no safe pre-existing immutable release to promote. Do not point the selector at c755 or any
+  other non-accepted release; the next cursor remains accepted main integration, immutable cut, and exact
+  reconciler readback.

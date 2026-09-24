@@ -4612,3 +4612,14 @@ returns `node: not found`, the old d4 `lm-loop.py` allocates disk-backed `Tempor
 observation and can raise `No usable temporary directory`, and concurrent admission work logs `database is locked`.
 The source fixes on this branch are therefore not loaded by the production reconciler; no owner rebind, fence
 clear, provider action or revenue was inferred.
+
+### Immutable-release inventory check (2026-09-25 JST)
+
+The local release inventory was checked before considering any promotion shortcut. Main-derived releases such as d4
+and `1f03abd4` still contain the bare `node` supervisor and disk-backed `TemporaryFile()` probes. The newest local
+release, `c755377c9fd0fbb0d3dd5e11b232c33ba7a9c014`, is explicitly marked
+`provenance=pushed-not-yet-on-main` and also contains both old implementations. No existing immutable release
+contains the managed-runtime supervisor fallback plus in-memory observability fix. Therefore there is no safe
+pre-existing release to select; the next cursor is accepted main integration of the pushed branch, followed by
+immutable cut and readback. No selector, plist, admission row, effect fence, provider session or external effect was
+changed during this inventory check.
