@@ -3811,6 +3811,11 @@ CDP/profile `browser_owner` (9327) and keep-alive identity. No finite admission/
 Impact/Affiliate browser session, provider effect, Telegram send or admission state was changed. This remains
 branch-only pending exact-release loaded-idle/readback.
 
+The Affiliate `affiliate-x-browser` continuous owner is now classified `resource_class=browser` from its unique
+CDP/profile `browser_owner` (9326) and keep-alive identity. No finite admission/priority policy is inferred, and no
+X/Affiliate browser session, post, provider effect, Telegram send or admission state was changed. This remains
+branch-only pending exact-release loaded-idle/readback.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

@@ -285,6 +285,7 @@
       "label": "ai.anicca.affiliate-x-browser",
       "log_root": "~/.local/state/life-manager/affiliate-x-browser/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/affiliate-x-browser"
     },
     "agent-economy-loop": {
