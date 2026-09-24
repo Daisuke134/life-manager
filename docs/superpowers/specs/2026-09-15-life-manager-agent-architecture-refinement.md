@@ -101,6 +101,14 @@ flowchart LR
   apply 124/124（既存ResourceWarningのみ）はPASSしました。main/release/productionへの昇格と、
   exact-SHAのeffect-free wake、zero unknown、replay-zeroは未完です。x402のmoney/seller/settlement ownerは
   effect fence内のため変更しません。
+- 2026-09-25 JSTの同owner read-only再確認では、installed/event SHAは旧`f7d4ff46afa42539a6def192774de66ff3317cec`、
+  `launchd_state=loaded-idle`、直近イベントは`host_admission_deferred:resource_capacity_busy`（exit 75）で、
+  `effect_class=none`、`effect_status=not_applicable`、`admission_effect_unknown=false`です。durable admissionは
+  queued 1,727、released 595、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。entrypoint、wallet、payment、tradeは実行していません。
+  ただし旧eventはdiagnostic envelope欠落のためfoundation acceptedとは数えません。branchの
+  `legacy_runtime_event_schema → reload_current_release`投影とregistry契約を、accepted main-derived
+  immutable releaseで同時にreadbackするのが次の一件です。
 - 次のowner `x402-experiment-franklin1`も個別readbackで、loaded-idle、known effect-free FIFO 1,427件、claimed/unknown
   0件、typed `resource_capacity_busy`を確認しました。durable policyは`deterministic/borrow/support`でしたが
   registry宣言が無かったため、同じqueued/reserved coalescingと`reconcile_queued_release=true`だけをbranchへ追加しました。

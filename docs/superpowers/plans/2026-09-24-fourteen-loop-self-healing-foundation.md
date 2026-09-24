@@ -591,6 +591,13 @@ The following is the current control-plane state. It is evidence for the next bo
   `None=116`, `blocked=70`, `pass=51`, `fail=30`, `running=4`; the dominant blockers are missing terminal
   result, `host_admission_deferred:resource_effect_unknown`, `entrypoint_exit_1`, capacity, exit 143 and FIFO.
   These are runtime observations, not commercial revenue measurements.
+- Read-only x402 acquisition recheck 2026-09-25 JST: `x402-acquisition-controller` is loaded-idle on old
+  installed/event SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with a typed pre-entrypoint
+  `host_admission_deferred:resource_capacity_busy`/exit 75. Durable admission has 1,727 queued and 595 released
+  effect-free occurrences, zero claimed, zero effect-unknown, one queue row and zero reservations under observed
+  `deterministic/borrow/support`. No entrypoint, wallet, payment or trade effect ran. Its old event is still
+  diagnostically incomplete, so this is not acceptance. The next safe action remains accepted-release promotion,
+  one-owner reconciliation, one bounded wake and replay-zero; no production mutation was performed.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
