@@ -4304,3 +4304,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   funded, delivery/payment/payout, and replay-zero canaries. PR `#5854`
   (`96a2b317ea`) is CI-green/mergeable but remains unmerged pending these
   external gates.
+
+### Runtime checkpoint — 2026-09-25 00:59 JST (Freelancer transport slice)
+
+- [x] Added the fail-closed Freelancer transport selector and public action
+  matrix. It requires a fresh account-bound approved API receipt plus a
+  mode-600 OAuth record, or an approved browser receipt plus a private Cloak
+  profile; denied/expired/malformed/unlisted actions produce no transport.
+- [x] Added the exact documented read-only inventory route plan: users,
+  authenticated projects, project milestones, hourly contracts, and IP
+  contracts. No route is called and no owner/effect is created by this slice.
+- [x] The focused Freelancer/Upwork/readiness/transport suite passes (`82`).
+- [ ] Still absent: live Freelancer OAuth, approved receipts, provider
+  response readback, source-complete funded project, and owner. Next is to
+  wire the route responses into `read_authenticated_inventory`, then prove
+  funded inventory before any disabled owner or canary.

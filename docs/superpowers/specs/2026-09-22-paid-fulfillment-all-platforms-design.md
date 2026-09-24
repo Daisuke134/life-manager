@@ -4919,3 +4919,21 @@ leaves the provider effect closed.
   canary → official delivery/payment/payout/replay-zero. PR `#5854` at
   `96a2b317ea` is CI-green and mergeable, but remains unmerged until these
   external outcome gates are actually satisfied.
+
+## Runtime Status Refresh — 2026-09-25 00:59 JST (Freelancer transport slice)
+
+- [x] Added `freelancer_transport.py` and its public action matrix. It selects
+  only an active, account-bound approved official API receipt with a mode-600
+  OAuth record, or an approved browser receipt with a private Cloak profile;
+  denied, expired, missing, malformed, or unlisted actions return zero
+  transport. Secrets never appear in object representations.
+- [x] Added the documented read-only route plan for authenticated inventory:
+  `/users/0.1/users/`, `/projects/0.1/self/`, per-project
+  `/milestones/`, `/hourly_contracts/`, and per-project `/ip_contracts/`.
+  Numeric project IDs are validated and duplicate/unsafe IDs are rejected.
+  The plan does not issue requests or create an owner/effect.
+- [x] Freelancer/Upwork/readiness/transport focused tests now pass (`82`).
+- [ ] The transport has not been given a live OAuth record or provider
+  response readback. The next seam is to connect these routes to the strict
+  `read_authenticated_inventory` callback, prove one source-complete funded
+  project, then use the disabled-owner → zero-spend → funded-canary sequence.
