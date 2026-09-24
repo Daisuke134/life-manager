@@ -2157,6 +2157,12 @@
       "entrypoint": "apps/life-manager/scripts/financial-report-boot.sh",
       "label": "ai.anicca.life-manager-financial-report",
       "log_root": "~/.anicca/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.anicca"
     },
