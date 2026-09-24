@@ -255,6 +255,12 @@ flowchart LR
   `job-search-learning:18d6ff42778e8868-14131` 1件、queued 2、released-known 8、queue/reservation 0です。
   直近は両方とも`host_admission_deferred:resource_effect_unknown`/exit 75でdiagnostic incompleteです。
   応募送信、proposal ID再照合、fence clearは公式provider receiptが揃うまで行いません。
+- 同日、effect-freeの`job-search-daily`はold installed/event SHA `2fab674b28ddbc11f9a08e4cf5283a3650559304`で
+  loaded-running、typed `host_admission_deferred:resource_fifo_wait`/exit 75、claimed 1、queued 305、
+  released 439、unknown 0、queue row 0、reservation 0です。`job-search-inbox`はold
+  `3bf95b4787863f5cece5c084a481a6567bf9b307`でloaded-idle、typed capacity deferral/exit 75、queued 462、
+  released 499、claimed/unknown 0、queue row 1、reservation 0です。両方とも応募・proposal効果はなく、
+  branch-only admission contractをaccepted releaseでreadbackするまで外部送信を行いません。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean

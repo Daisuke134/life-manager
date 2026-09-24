@@ -648,6 +648,12 @@ The following is the current control-plane state. It is evidence for the next bo
   reservations. `job-search-learning` is loaded-idle on old `f3e518681e8482be734d4e432badc05f33415412` with one
   claimed unknown (`job-search-learning:18d6ff42778e8868-14131`), two queued, eight released-known, no queue row
   and zero reservations. Both remain at `resource_effect_unknown`; no application/proposal replay or fence clear.
+- Read-only Job Hunter effect-free recheck 2026-09-25 JST: `job-search-daily` is loaded-running on old
+  `2fab674b28ddbc11f9a08e4cf5283a3650559304`, typed FIFO wait/exit 75, with one claimed, 305 queued and 439
+  released effect-free occurrences, zero unknown, no queue row and no reservation. `job-search-inbox` is
+  loaded-idle on old `3bf95b4787863f5cece5c084a481a6567bf9b307`, typed capacity deferral/exit 75, with 462 queued
+  and 499 released, zero claimed/unknown, one queue row and zero reservations. No application effect ran; the
+  branch-only contract still needs accepted-release readback.
 - The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
   override the 2026-09-25 selector/gate above.
 - Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
