@@ -12,6 +12,33 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
+### Live gate cursor — 2026-09-25 04:20 JST
+
+The currently actionable order is explicit: finish read-only provider
+readbacks first, then register a loop only for a provider with a real funded
+contract. Freelancer and Upwork are therefore active workstreams, but they are
+not yet registered loops. Freelancer has no current OAuth/approved receipt and
+no connected private BrowserSkill instance; its public four-project watch is
+not account-bound. Upwork has an account credential and only three current
+read-only browser receipts (`inspect`, `read_payments`, `read_payouts`), while
+all mutation actions are denied; its browser profile is not attached and the
+historical inventory has zero contracts. The next implementation boundary for
+both is a fresh account-bound identity/contracts/payments/payouts snapshot, not
+a launchd registration.
+
+CrowdWorks and Lancers are also not silently clear: their old Paid occurrences
+(`crowdworks-revenue-paid:18d8293a2c2d85b8-72114` and
+`lancers-revenue-paid:18d82935a588ed80-71905`) report `entrypoint_exit_143` with
+`effect_unknown`. Their separate run markers say `pre_effect`, but the exact
+host-deferred reconciler has no matching admissible event, so neither fence is
+released and neither job is retried. This preserves duplicate-effect safety.
+
+The acceptance sequence for every provider is now: account-bound auth →
+source-complete official inventory → funded work readback → immutable owner
+registration → zero-effect canary → funded canary/official receipt → settlement
+and payout readback → crash recovery/replay-zero. Ryu's Coconala manual send is
+a client-layer completion and does not close the Coconala system-layer gate.
+
 ### Live platform gate correction — 2026-09-25 04:11 JST
 
 The current production readback distinguishes source registration from a loaded

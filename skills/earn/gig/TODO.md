@@ -1,5 +1,33 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 04:20 JST (explicit Freelancer/Upwork and stale-paid gates)
+
+This is the concrete cross-platform cursor for the current one-by-one run. A
+stored password, a retired launchd label, or a historical JSON snapshot is not
+an authenticated provider readback. No new provider effect is issued from this
+cursor.
+
+| Platform | Evidence confirmed now | What is not proven | Exact next work |
+|---|---|---|---|
+| Coconala | Ryu `18211957` was handled manually and read back; Ryu remains manual-only. Paid's latest safe wake was `effect=none` and Apply/Storefront remain separately fenced. | The four-room system gate is still open; Apply occurrence `hf-gig-apply-direct:18d852199baadb90-95298` and Storefront occurrence `hf-gig-storefront-direct:18d5fe8333276980-33952` have no exact one-to-one effect mapping. | Keep both fences closed, obtain official history/readback, then run the controlled natural-wake and replay-zero gate. Never resend Ryu or Chii from inference. |
+| CrowdWorks | Paid is registered. The old occurrence `crowdworks-revenue-paid:18d8293a2c2d85b8-72114` has an `entrypoint_exit_143` report and a separate run marker with `status=pre_effect`; the four completed items still have official readback and `63568785` is waiting for buyer material. | The runtime report is `effect_unknown`; the read-only host-deferred reconciler found no admissible exact proof, so the marker is not enough to clear the fence. | Keep Paid unloaded; obtain provider-owned evidence bound to that exact occurrence, reconcile only if the proof matches, then run one no-effect natural wake. Do not resend completed work or send `63568785` without the missing material. |
+| Lancers | Authenticated inventory previously returned `observed=0/actionable=0/effect=0`; application `5606124` was fail-closed as `unsupported_claim`. | Paid occurrence `lancers-revenue-paid:18d82935a588ed80-71905` has the same `entrypoint_exit_143`/`effect_unknown` shape and no provider receipt; no funded `ContractReceipt` exists. | Keep Paid closed, reconcile only with exact provider proof, refresh inventory, and register a funded-contract canary only after a real `ContractReceipt` appears. |
+| Mercor | The official account is readable and earnings are `$0.00`/empty; Paid is registered. | Current work inventory and the latest application/Paid/Reply effect fences are not fully reconciled. | Refresh authenticated inventory, reconcile each exact fence, and do not treat stale assessment data as funded work. |
+| Freelancer.com | No OAuth file or current account-bound receipt exists. Public watcher checked 4 stored projects (`active=0`, `errors=0`) only; it is not a contract/payment readback. `gig-freelancer-r1` is mode `700` but no BrowserSkill instance is connected; `freelancer-daily-driver` is mode `755` and fails the private-profile gate. No managed owner is registered. | Identity, projects, milestones, hourly/IP contracts, payments, payouts, a source-complete snapshot, and any funded project are all unproven. | First obtain a connected approved private profile or official OAuth. Then read identity + `/projects/0.1/self/` + each project milestones/IP + hourly contracts + payments + payouts, normalize one source-complete snapshot, and run `evaluate_registration`. Only a positive `state=funded` project opens owner registration. |
+| Upwork | The credential SSOT has an Upwork account, but the current private receipts approve only `inspect`, `read_payments`, and `read_payouts` until `2026-09-25T17:30:28Z`. `search`, `propose`, `message`, `accept_offer`, and `deliver_milestone` are denied. `gig-upwork` is mode `700`, but no BrowserSkill instance/page is connected; the stored contract snapshot is historical and has zero contracts. Retired browser/free-loop labels are not managed owners. | Fresh identity/contracts/transactions/withdrawals readback, mutation authorization, any funded contract/milestone, owner registration, and delivery/payout proof are all unproven. | Use the approved read-only receipts with a connected dedicated Upwork browser lease to read identity/contracts/transactions/withdrawals. Then obtain current mutation authorization, refresh the source-complete contract snapshot, and require `state=funded` with a positive milestone before registering one Paid owner. |
+
+### Registration rule for Freelancer and Upwork
+
+The order is fixed and executable without a permission pause: (1) account-bound
+authentication, (2) official source-complete inventory, (3) positive funded
+project/contract and milestone readback, (4) register the owner from an
+immutable release, (5) zero-effect canary, (6) one funded canary with an
+official receipt, (7) payment/payout readback, (8) crash recovery and
+replay-zero. Until step 3 is true, the correct state is **not registered**;
+there is no valid loop to turn on and no provider action to send. A connected
+BrowserSkill instance is currently the missing external boundary for the
+read-only step; an unconnected profile directory must not be substituted.
+
 ## Current cursor — 2026-09-25 04:11 JST (live platform-by-platform gate)
 
 This section supersedes earlier summaries that described a registered owner as
