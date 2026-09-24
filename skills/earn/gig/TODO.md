@@ -3199,3 +3199,15 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    CrowdWorks with official readback/replay-zero before Lancers/Mercor.
 4. Complete fleet acceptance; keep Coconala/Ryu manual-only and Upwork disabled
    until authorization/funding gates pass.
+
+### Runtime checkpoint — 2026-09-24 15:00 JST (commit/push complete; CI pending)
+
+- [x] Commit/push boundary fix `02726f20e9` to the dedicated branch.
+- [ ] Finish required CI; Python/PII/instruction/syntax checks pass, while
+  loop-control, gitleaks, and TruffleHog remain in progress.
+- [ ] Keep the four historical fences closed and obtain exact provider/run or
+  pre-effect evidence through supported resolvers.
+- [ ] Verify the immutable release and run the official-readback/replay-zero
+  canary, then proceed one platform at a time.
+- [ ] Final fleet acceptance; Coconala/Ryu remains manual-only and Upwork stays
+  disabled until authorization/funding gates pass.

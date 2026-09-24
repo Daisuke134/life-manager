@@ -3465,3 +3465,23 @@ not convert a transient pass or a no-op into client completion.
    CrowdWorks with official readback/replay-zero before Lancers/Mercor.
 4. Finish final fleet acceptance; Coconala/Ryu remains manual-only and Upwork
    remains disabled until explicit authorization/funding gates pass.
+
+## Runtime Cursor — 2026-09-24 15:00 JST (pushed; CI pending)
+
+- **Commit/push is complete.** Boundary fix `02726f20e9` is on
+  `origin/fix/paid-main-promotion-20260924`.
+- **Required CI is still running.** Python/PII/instruction/syntax checks passed;
+  loop-control, gitleaks, and TruffleHog jobs are still in progress.
+- **Remaining cursor is unchanged after CI:** keep the four historical fences
+  closed, then verify the immutable release and canary official readback before
+  any fleet enablement. No external provider submission or resend was made.
+
+### Next one-by-one cursor (15:00 JST)
+
+1. Finish required CI for `02726f20e9`.
+2. Keep the four historical fences closed; resolve only with exact provider/run
+   or pre-effect evidence through supported resolvers.
+3. Verify the immutable deployed release contains the fix, then canary
+   CrowdWorks with official readback/replay-zero before Lancers/Mercor.
+4. Complete fleet acceptance; keep Coconala/Ryu manual-only and Upwork disabled
+   until authorization/funding gates pass.
