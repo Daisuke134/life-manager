@@ -1257,7 +1257,7 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway
   **241 passed (212 subtests)**, product-onboarding **48/48**, contract gate 14/169/98/zero-errors, shell syntax,
   managed-runtime no-PATH probe, and `git diff --check`.
-- [x] Review the candidate diff for ownership boundaries. The clean candidate contains 24 generic
+- [x] Review the candidate diff for ownership boundaries. The clean candidate contains 22 generic
   control-plane/runtime/test paths. Its registry delta is limited to 31 non-Paid loop IDs; it contains no
   `skills/earn/gig`, Capafy catalog, affiliate provider state, or Paid-fulfillment-spec path, and `git diff --check`
   is clean.

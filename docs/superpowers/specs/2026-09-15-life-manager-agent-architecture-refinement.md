@@ -4702,7 +4702,7 @@ production still loads the existing immutable
 release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
 made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
 cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
-the candidate diff contains 24 generic control-plane/runtime/test paths, with no `skills/earn/gig`, Capafy catalog,
+the candidate diff contains 22 generic control-plane/runtime/test paths, with no `skills/earn/gig`, Capafy catalog,
 affiliate provider state, or Paid-fulfillment-spec path. Its registry changes are limited to the 31 named non-Paid
 contracts above. The candidate worktree is clean and its diff check is clean. Main integration remains intentionally
 unopened until the user-level foundation gate is green.
