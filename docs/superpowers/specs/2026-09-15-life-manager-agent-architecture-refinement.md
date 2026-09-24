@@ -3891,6 +3891,13 @@ FIFO backlog. This is a typed fail-closed admission result, not a failed provide
 model, provider or revenue effect occurred; accepted-release promotion of the branch contract is required before
 the one-owner wake can proceed.
 
+The recovery executor now preserves this boundary when it consumes a supervisor intent. A reconcile response that
+is successful at the command layer but returns `skipped_pending` for the requested owner is classified as
+`queued / admission_pending / retry_after_eligibility` with `budget_consumed=false`; it is not converted into
+`reconcile_target_not_applied` or a bounded-repair escalation. The result retains the exact before/after typed
+readback and the reconcile payload, so the next wake can retry only after admission eligibility changes. The
+focused recovery contract is 33/33; no production/provider state changed.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and

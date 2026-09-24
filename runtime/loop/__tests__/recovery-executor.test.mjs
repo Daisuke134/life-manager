@@ -220,6 +220,39 @@ test('keeps a failed reconcile queued for the next bounded wake', async () => {
   assert.equal(result.reason, 'reconcile_failed');
 });
 
+test('keeps a pending-admission reconcile queued without consuming repair budget', async () => {
+  const root = await releaseRoot();
+  const plan = buildRecoveryApplyPlan({ intent: intent(), registry });
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    releaseRoot: root,
+    runCommand: async () => ({
+      code: 0,
+      stdout: JSON.stringify({
+        ok: true,
+        route: 'deterministic',
+        release_sha: SHA,
+        eligible: 1,
+        applied: [],
+        skipped_pending: ['example-loop'],
+        failed: [],
+      }),
+      stderr: '',
+    }),
+    readStatus: async () => statusResult(status({
+      event_id: 'event-before', last_terminal_result: 'fail', blocker: 'host_admission_deferred:resource_capacity_busy',
+    })),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.state, 'queued');
+  assert.equal(result.reason, 'admission_pending');
+  assert.equal(result.next_action, 'retry_after_eligibility');
+  assert.equal(result.budget_consumed, false);
+  assert.equal(result.reconcile.skipped_pending[0], 'example-loop');
+});
+
 test('does not call a recovery repaired when reconcile applied another owner', async () => {
   const root = await releaseRoot();
   const plan = buildRecoveryApplyPlan({ intent: intent(), registry });

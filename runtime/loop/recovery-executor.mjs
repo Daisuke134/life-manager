@@ -309,6 +309,22 @@ export async function executeRecoveryPlan({
       reconcile: parsed,
     });
   }
+  const skippedPending = Array.isArray(parsed?.skipped_pending)
+    && parsed.skipped_pending.includes(plan.loop_id);
+  if (skippedPending && !after.healthy) {
+    return resultBase(plan, 'queued', false, {
+      reason: 'admission_pending',
+      executed: false,
+      budget_consumed: false,
+      before_readback: before.readback,
+      after_readback: after.readback,
+      command_exit_code: commandResult.code,
+      evidence_refs: evidence,
+      next_action: 'retry_after_eligibility',
+      command: { executable, args: command.args },
+      reconcile: parsed,
+    });
+  }
   const applied = appliedTarget(parsed, plan.loop_id, command.entry.label);
   if (parsed.eligible === 1 && !applied) {
     if (after.healthy) {
