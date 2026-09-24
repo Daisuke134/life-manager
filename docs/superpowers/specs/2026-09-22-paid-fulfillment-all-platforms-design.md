@@ -1,5 +1,28 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 08:19 JST (specific Freelancer/Upwork boundary)
+
+Freelancer and Upwork are implemented as guarded workstreams, not live Paid
+owners. The current external readback is:
+
+- Freelancer has no OAuth file, no account-bound authorization receipt, no
+  official inventory, and no funded project. All old Freelancer labels are
+  retired/disabled. The code now additionally requires the explicit provider
+  automatic-bid exception `freelancer-internal-automation-approved-v1` before
+  selecting `propose` or opening registration.
+- Upwork has a source-complete snapshot observed `2026-09-24T17:30:28Z` with
+  zero contracts. Its read-only `inspect/read_payments/read_payouts` receipts
+  remain valid until `2026-09-25T17:30:28Z`, while all mutation actions are
+  denied. No OAuth file, connected BrowserSkill page, or Paid owner exists.
+
+The next work is therefore read-only account-bound acquisition, not loop
+registration: connect one dedicated BrowserSkill lease (or use official OAuth),
+refresh the complete official inventory, and prove a positive funded contract
+or milestone. Only then may one immutable owner be registered and verified by
+zero-effect canary, funded provider receipt, settlement/payout readback,
+crash-recovery, and replay-zero. Current code/tests are recorded in
+`skills/earn/gig/TODO.md`; no provider effect was attempted by this recheck.
+
 ## Goal
 
 Life Manager completes every funded client engagement on Coconala, CrowdWorks,

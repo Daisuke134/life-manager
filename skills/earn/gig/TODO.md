@@ -1,5 +1,31 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 08:19 JST (Freelancer/Upwork external gate recheck)
+
+The code-side Freelancer/Upwork gate is pushed in `0acb25bb50` and remains
+fail-closed: focused gate tests are `81 passed`, and the full Gig regression is
+`1479 passed`. This does not imply that either provider is ready for a live
+owner.
+
+The external state is exact and unchanged in the important parts:
+
+| provider | authenticated evidence now | loop/owner state | next admissible action |
+|---|---|---|---|
+| Freelancer.com | `~/.config/anicca/gig/freelancer-oauth2.json` is absent; private authorization receipts are absent; no official account-bound inventory or funded project exists; BrowserSkill reports `0 browsers connected` | all Freelancer labels are retired/disabled; no owner is registered | attach one account-bound BrowserSkill profile or obtain official OAuth, read identity/projects/milestones/IP/hourly/payments/payouts, persist a source-complete snapshot, then obtain the provider's explicit automatic-bid exception before any `propose` transport or owner registration |
+| Upwork | source-complete snapshot observed `2026-09-24T17:30:28Z` has `contracts=[]`; `inspect/read_payments/read_payouts` receipts are valid until `2026-09-25T17:30:28Z`; `search/propose/message/accept_offer/deliver_milestone` are denied; no OAuth file and no BrowserSkill page are connected | legacy Upwork labels are retired/disabled; no Paid owner is registered | use the still-valid read-only receipts with a dedicated account-bound browser to refresh identity/contracts/transactions/withdrawals, obtain current mutation authorization, and require one positive funded contract/milestone before owner registration |
+
+The non-skippable activation order for both is:
+`account-bound auth → source-complete official inventory → funded contract /
+positive milestone → all required mutation/policy receipts → exactly one
+immutable owner registration → zero-effect canary → funded canary with provider
+receipt → payment/payout readback → crash recovery → replay-zero`.
+Until the first three gates are true, no loop is registered, started, or used
+to send a proposal/delivery. BrowserSkill's daemon is healthy but its extension
+has no connected browser; the host has about `632576 KiB` free on the data
+volume, above the `512 MiB` admission floor but far below the recovery target.
+No provider effect, retry, fence clear, credential creation, or production
+release was performed by this recheck.
+
 ## Current cursor — 2026-09-25 08:11 JST (Freelancer automatic-bid policy gate)
 
 The official Freelancer API integration guidance lists an automatic bidder as a
