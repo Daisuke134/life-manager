@@ -2306,3 +2306,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   replay-zero.
 - [ ] Finish provider-by-provider integration/readback; keep Upwork disabled
   until authorization, authentication, and a funded contract exist.
+
+### Paid fulfillment checkpoint — 2026-09-24 10:43 JST
+
+- [x] Reclaimed only re-generable `/private/tmp/uv-cache` (23.9MiB) and
+  pruned five missing Git worktree records; free space is still ~422MiB,
+  below the 512MiB guard floor.
+- [x] Released three exact CrowdWorks Paid `effect_unknown` occurrences after
+  their durable markers proved `completed/effect=0`:
+  `18d81bd158f32628-29922`, `18d80017054a3000-69869`, and
+  `18d80118ccaef4a8-86867`.
+- [ ] Keep the remaining marker-less claimed fence
+  `18d62cf32eb0c678-48194` until official provider/pre-effect evidence exists.
+- [ ] Restore host headroom above 512MiB, then rerun Coconala Paid to
+  terminal `pass` and reconcile the official snapshot.
+- [ ] Obtain approval to close orphan CrowdWorks PID `16937`, restart the
+  canonical browser owner through `./bin/lm-loop`, and verify receipt → CDP →
+  authenticated readback.
+- [ ] Keep Ryu manual-only and all buyer/material/contract waits fenced; only
+  submit a real artifact once with official receipt and replay-zero.
+- [ ] Finish provider-by-provider integration/readback; keep Upwork disabled
+  until its authorization, authentication, and funded-contract gates exist.

@@ -2059,3 +2059,40 @@ clicked again.
 8. **Cross-platform integration:** connect one provider at a time with
    permissions, URLs, authentication, filing/review state, and official
    readback; keep Upwork disabled until its gates exist.
+
+## Production Cursor — 2026-09-24 10:43 JST
+
+- **Capacity work:** cleared only the re-generable `/private/tmp/uv-cache`
+  (23.9MiB) and pruned five already-missing Git worktree records. Free space
+  rose to about 422MiB, still below the 512MiB Paid guard floor. No customer
+  deliverable, browser profile, current release, or active Codex cache was
+  touched.
+- **CrowdWorks fences:** exact Paid markers proved `effect=0` for
+  occurrences `18d81bd158f32628-29922`, `18d80017054a3000-69869`, and
+  `18d80118ccaef4a8-86867`; each was released individually through the
+  supported reconciler. The current admission ledger now has one remaining
+  claimed `effect_unknown` occurrence, `18d62cf32eb0c678-48194`, with no
+  matching no-effect marker. It remains fenced; no retry or submission is
+  allowed.
+- **Current runner state:** CrowdWorks Paid is still deferred by
+  `resource_database_busy`; Coconala Paid is still below the disk floor and
+  has no provider effect. The newest official CrowdWorks snapshot remains
+  `CrowdWorksPaidBrowserUnavailable` at inventory, and Lancers has no funded
+  contract.
+
+### Remaining TODO (current ordered cursor)
+
+1. Restore stable free space above 512MiB without deleting customer output,
+   then rerun Coconala Paid to terminal `pass` and reconcile its snapshot.
+2. Obtain approval to close only orphan CrowdWorks PID `16937`; restart the
+   canonical browser owner via `./bin/lm-loop` and verify owner receipt → CDP
+   → authenticated readback.
+3. With the browser owner healthy, investigate the remaining
+   `18d62cf32eb0c678-48194` fence using official provider/pre-effect evidence.
+   Keep it fenced if evidence is missing; never resubmit while unknown.
+4. Keep Ryu manual-only; act only on a genuinely newer buyer message.
+5. Keep the other Coconala rooms, CrowdWorks `63568785`, and Lancers waiting;
+   submit only for a real artifact/contract with official receipt and
+   replay-zero.
+6. Finish provider-by-provider integration/readback and keep Upwork disabled
+   until authorization, authentication, and a funded contract exist.
