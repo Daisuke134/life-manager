@@ -5205,3 +5205,24 @@ Chromium Helper processes hold the daily-driver cache, Google Chrome Helper hold
 holds an `@napi-rs/canvas` module under `~/.npm/_npx`. No process was stopped and no cache was deleted. Capacity
 recovery therefore requires those owners to close/release their files or an explicitly owned cleanup window; guessing
 that these are stale would violate the no-replay/no-data-loss boundary.
+
+### Reconciler gate diagnostics (2026-09-25 JST)
+
+The candidate control-plane change adds a read-only `blocked_by_gate` section to every reconciliation receipt. It
+does not change eligibility or apply behavior; it reports each failed gate as a count with at most ten sorted loop-ID
+examples, so a self-healing controller can choose a bounded next action without scraping logs. The receipt also
+reports `eligible_before_max_owners` separately from the bounded `eligible` count.
+
+A shadow invocation against the live d4 release (production `apply_live` replaced by a no-op in the test process)
+returned `eligible=0` and `eligible_before_max_owners=0`. The observed gates were: `pending_admission=76`,
+`event_release_mismatch=20`, `launchd_state=24`, `running_not_reloadable=18`, `missing_release_sha=2`, and
+`already_current=19`. This is a diagnostic readback only: no launchd plist, admission row, provider session, effect
+fence, browser session or external effect was changed. The counts overlap because one owner can fail more than one
+gate; they are not additive and do not imply 159 distinct failures.
+
+Candidate commit `c1fb26d0ae` includes this observability contract and the managed-Node fallback described above. Each
+of the two targeted runs passes **174 tests + 181 subtests** (the suites overlap), and the candidate remains
+unpromoted. After capacity recovery and accepted immutable loading, the next proof is one real reconciler occurrence
+whose receipt
+contains these fields, followed by bounded owner readback and replay-zero. Paid fulfillment remains outside this
+cursor.

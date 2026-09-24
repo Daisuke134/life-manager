@@ -1641,3 +1641,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   be deleted until its launchd references are proven absent. Paid owners remain outside this cursor.
 - [x] Read the five cleanup candidates' open owners with `lsof`: Codex Service, ChatGPT runtime, Chromium Helpers,
   Google Chrome Helper and Node each hold a candidate path. Preserve them; no process or cache was mutated.
+
+### Reconciler gate observability (2026-09-25 JST)
+
+- [x] Add `blocked_by_gate` (count plus at most ten sorted loop-ID examples) and
+  `eligible_before_max_owners` to the reconcile receipt. This is diagnostic-only; eligibility and apply behavior are
+  unchanged.
+- [x] Run a production shadow readback with `apply_live` replaced by a no-op: current d4 returns
+  `eligible=0`, with pending admission 76, event-release mismatch 20, launchd-state 24, running-not-reloadable 18,
+  missing release SHA 2 and already-current 19. The counts overlap and are not a failure total.
+- [x] Verify the change with two focused runs, each **174 tests + 181 subtests**, plus diff/compile checks; push with
+  candidate commit `c1fb26d0ae`.
+- [ ] After capacity recovery and accepted immutable loading, require one real reconciler receipt containing the new
+  fields, then reconcile only bounded safe owners and prove replay-zero. Do not touch Paid fulfillment or use a
+  diagnostic receipt as permission to clear an effect fence.
