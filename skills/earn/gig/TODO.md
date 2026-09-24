@@ -1,16 +1,21 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 04:35 JST (specific all-platform transport/readback state)
+## Current cursor — 2026-09-25 04:45 JST (specific all-platform transport/readback state)
 
 This section supersedes the older cursors below. The old CrowdWorks
 `18d8293a…` and Lancers `18d82935…` Paid rows now read `released/effect_unknown=0`
 in the admission ledger and their pre-effect markers verify safely; they are
-not the remaining blockers. The currently unresolved rows are the five exact
-occurrences below. No provider send or retry was issued during this readback.
+not the remaining blockers. Five **effect-critical** occurrences are listed
+below. A fresh read of
+`/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`
+shows `effect_unknown=1` on 665 occurrences overall; exactly 5 belong to the
+critical Paid/Apply/Storefront owners below. The other 660 are non-critical or
+system-owner rows and are a separate audit; they are not silently cleared here.
+No provider send or retry was issued during this readback.
 
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
 |---|---|---|---|
-| Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. Apply and Storefront are unloaded. | `hf-gig-apply-direct:18d852199baadb90-95298` and `hf-gig-storefront-direct:18d5fe8333276980-33952` remain `claimed/effect_unknown=1`; neither has an exact provider receipt/readback mapping. | Read the official Coconala history for each exact occurrence, resolve only with a one-to-one effect proof, then run one controlled no-op wake and replay-zero. The four-room gate stays open until this is done. |
+| Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. Later Apply passes reached `observed=57/actionable=6/effect=6/readback=6/failed=0`, but those are newer runs, not proof for the old fence. Apply and Storefront are unloaded. | `hf-gig-apply-direct:18d852199baadb90-95298` and `hf-gig-storefront-direct:18d5fe8333276980-33952` remain `claimed/effect_unknown=1`; neither has an exact one-to-one provider receipt/readback mapping. Storefront also has no matching pre-effect marker for this occurrence. | Read the official Coconala history for each exact occurrence, resolve only with a one-to-one effect proof, then run one controlled no-op wake and replay-zero. The four-room gate stays open until this is done. |
 | CrowdWorks (CloudWorks) | Paid is unloaded. Provider snapshot is `observed=5/actionable=1/effect=0/readback=4/pending=1`; four items are already read back, and `63568785` still lacks buyer lesson/answer material. | `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed/effect_unknown=1` with no provider receipt; the older 18d829 row is already cleared and must not be confused with this row. | Obtain provider history/readback bound to 18d62cf. If it proves no dispatch, resolve the fence; otherwise record the exact receipt. Then run a no-op wake. Never resend the four completed items or send 63568785 without its missing material. |
 | Lancers | Paid is unloaded. Latest authenticated source-complete inventory is `observed=0/actionable=0/effect=0`; proposal `5606124` was fail-closed as `unsupported_claim`. Application is loaded-idle but no funded work exists. | `lancers-revenue-paid:18d81967220136f8-89928` is `claimed/effect_unknown=1`, `entrypoint_exit_1`, and has no provider receipt. No funded `ContractReceipt` exists. | Reconcile the exact 18d819 row from official provider history. Refresh inventory; keep Paid closed until a real funded `ContractReceipt` and milestone appear. |
 | Mercor | Official account/earnings readback is available (`$0.00`/empty). Paid is loaded-idle but its work snapshot is pending/stale; no funded work is proven. | `mercor-revenue-paid:18d82d9cd75db960-67523` is `claimed/effect_unknown=1` with no provider receipt/readback. | Obtain exact Mercor work/transaction readback, reconcile the occurrence, refresh the inventory, and only then consider a funded action. |
@@ -31,6 +36,28 @@ remain closed, and no proposal/message/delivery may be sent. The concrete
 external boundary at this moment is the absent connected BrowserSkill lease;
 changing a profile directory permission or relying on historical JSON cannot
 replace it.
+
+### Fresh admission readback and exact Freelancer/Upwork cursor
+
+The admission count is not a claim that 665 client actions are all waiting for
+manual replay. It is a host-safety count. The five rows in the table are the
+only current effect-critical rows for this revenue run; each is still
+`claimed/effect_unknown=1` and has no admissible exact provider receipt. The
+remaining 660 rows must be audited by owner and occurrence before any cleanup;
+no direct SQLite mutation or blanket resolver is allowed.
+
+For the two not-yet-registered providers, the gate is concrete:
+
+| Provider | Gate 1: auth | Gate 2: official inventory | Gate 3: funded work | Gates 4–8 |
+|---|---|---|---|---|
+| Freelancer.com | **BLOCKED** — OAuth file is absent and BrowserSkill has `browsers=[]`; no account-bound receipt exists. | **BLOCKED** — public watcher saw 4 stored projects (`active=0/errors=0`), but this is not account-bound; identity, `/projects/0.1/self/`, milestones/IP/hourly, payments, and payouts have not been read. | **BLOCKED** — no funded project/award or milestone receipt. | **CLOSED** — no owner registration, canary, settlement/readback, or replay-zero may run. |
+| Upwork | **PARTIAL/READ-ONLY** — account-state says `email_verified_authenticated`, but the current identity probe is `blocked_google_2fa`; only `inspect`, `read_payments`, and `read_payouts` receipts are valid until `2026-09-25T17:30:28Z`; no connected BrowserSkill lease. | **BLOCKED** — the only stored contract snapshot is historical with `contracts=[]`; fresh contracts, transactions, and withdrawals cannot be read without the connected lease. | **BLOCKED** — `funded_contract_count=0`, with no milestone/offer receipt. | **CLOSED** — no mutation authorization renewal, owner registration, canary, delivery, payout proof, or replay-zero may run. |
+
+Therefore “work on Freelancer/Upwork” currently means completing the blocked
+read-only boundary and proving a funded contract; it does **not** mean turning
+on an empty Paid loop or sending speculative proposals. Once Gate 3 is proven,
+the existing readiness modules already enforce the remaining owner/canary/
+readback order.
 
 ## Current cursor — 2026-09-25 04:20 JST (explicit Freelancer/Upwork and stale-paid gates)
 
