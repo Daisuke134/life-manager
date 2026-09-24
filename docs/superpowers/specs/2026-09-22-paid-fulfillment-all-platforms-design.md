@@ -3375,3 +3375,37 @@ not convert a transient pass or a no-op into client completion.
    replay-zero.
 4. Advance Lancers, Mercor, and the remaining paid owners only after their own
    readback/replay-zero gates; keep Coconala/Ryu manual-only and Upwork disabled.
+
+## Runtime Cursor — 2026-09-24 14:41 JST (one exact Mercor fence resolved)
+
+- **The docs commit is CI-green.** PR #5820 head `bd6ce4bd61` is pushed and
+  `mergeStateStatus=CLEAN`; all reported source, syntax, security, and loop
+  contract checks pass. It remains unmerged because the provider/effect gate is
+  still open.
+- **One current Mercor Paid occurrence was safely reconciled.** The exact
+  marker for `mercor-revenue-paid:18d82a1e4787b268-92833` was
+  `status=completed,effect=0`; after the SQLite lock cleared, the supported
+  resolver returned `resolved=true`, and the DB row is now
+  `released/effect_unknown=0`. This is not one of the four historical fences.
+- **The historical fences remain untouched.** Lancers
+  `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application `18d6f9cb5bdaef98-33812`
+  are still `claimed/effect_unknown=1`; no exact provider/run proof exists for
+  them. No retry, resend, or admission-DB edit was made.
+- **Resource pressure improved but is not cleared.** The natural cleanup pass
+  ended and free Data-volume space is about `2.5GiB` (`99%` reported use).
+  CrowdWorks/Lancers remain effect-fenced/unloaded; later Mercor wakes still
+  stop at resource admission. Coconala remains client-safe at `4/0/0/3/0/0`
+  with Ryu manual-only. The full gig-platform acceptance is still incomplete.
+
+### Next one-by-one cursor
+
+1. Keep the four historical fences closed; only exact provider/run or
+   pre-effect evidence may release each through its supported resolver.
+2. Observe the next Mercor Paid wake for its own exact marker; do not treat the
+   one resolved occurrence as proof for later unknown runs.
+3. Keep the stable resource window, then merge/promote the immutable release
+   only after the external-effect gate and canary CrowdWorks first.
+4. Advance Lancers/Mercor and final fleet acceptance one owner at a time with
+   official readback and replay-zero; keep Coconala/Ryu manual-only and Upwork
+   disabled.

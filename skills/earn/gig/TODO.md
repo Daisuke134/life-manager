@@ -3126,3 +3126,29 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    immutable release and canary CrowdWorks with official readback/replay-zero.
 4. Advance Lancers and Mercor one owner at a time with the same gates; keep
    Coconala/Ryu manual-only and Upwork disabled until their explicit gates pass.
+
+### Runtime checkpoint — 2026-09-24 14:41 JST (one exact Mercor fence resolved)
+
+- [x] PR #5820 head `bd6ce4bd61` is pushed, CI-green, and `CLEAN`; no merge yet
+  because provider/effect gates remain open.
+- [x] Exact Mercor Paid occurrence `18d82a1e4787b268-92833` had a matching
+  `completed/effect=0` marker and was released by the supported resolver;
+  admission now reads `released/effect_unknown=0` for that row.
+- [ ] The four historical fences remain `claimed/effect_unknown=1` with no
+  exact proof: Lancers `18d81967220136f8-89928`, CrowdWorks
+  `18d62cf32eb0c678-48194`, Mercor Reply `18d6683223830368-49631`, and Mercor
+  Application `18d6f9cb5bdaef98-33812`. Do not retry/resend/edit the DB.
+- [ ] Data-volume free space improved to about `2.5GiB` after natural cleanup,
+  but CrowdWorks/Lancers and later Mercor wakes remain admission-fenced;
+  Coconala is safe but the fleet is not complete.
+
+### Remaining TODO (current ordered cursor)
+
+1. Obtain exact proof for the four historical fences and release only through
+   their supported resolvers.
+2. Capture an exact pre-effect marker for the next Mercor Paid wake; the one
+   resolved occurrence does not authorize later unknown runs.
+3. After resource/effect gates, merge and promote one immutable release, then
+   canary CrowdWorks with official readback and replay-zero.
+4. Advance Lancers/Mercor and final fleet acceptance one owner at a time;
+   keep Coconala/Ryu manual-only and Upwork disabled.
