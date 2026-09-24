@@ -52,7 +52,12 @@ def _atomic_json(path: Path, value: Mapping[str, object]) -> None:
     temporary.replace(path)
 
 
-def _load_intent(intent_root: Path, request_id: str) -> dict[str, object]:
+def _load_intent(
+    intent_root: Path,
+    request_id: str,
+    *,
+    expected_state: str = "prepared",
+) -> dict[str, object]:
     if not _REQUEST_ID.fullmatch(request_id):
         raise ReconcileContractError("request_id_invalid")
     path = Path(intent_root) / f"{request_id}.json"
@@ -62,7 +67,7 @@ def _load_intent(intent_root: Path, request_id: str) -> dict[str, object]:
         raise ReconcileContractError("intent_unreadable") from error
     if not isinstance(value, dict):
         raise ReconcileContractError("intent_invalid")
-    if value.get("state") != "prepared" or value.get("effect_phase") != "irreversible_attempt_started":
+    if value.get("state") != expected_state or value.get("effect_phase") != "irreversible_attempt_started":
         raise ReconcileContractError("intent_not_effect_started")
     if str(value.get("request_id") or "") != request_id:
         raise ReconcileContractError("intent_request_id_mismatch")
@@ -316,6 +321,122 @@ def reconcile_occurrence(
     }
 
 
+def reconcile_confirmed_occurrence(
+    *,
+    owner_id: str,
+    occurrence_id: str,
+    request_id: str,
+    intent_root: Path,
+    evidence_path: Path,
+    readback: Callable[[], Mapping[str, object]],
+    resolver: Callable[..., bool] = resource_admission.resolve_unknown_occurrence,
+) -> dict[str, object]:
+    """Close a stale admission fence for an already-confirmed intent.
+
+    A provider effect can be confirmed and read back while the admission event
+    that started it remains fenced (for example, a worker died before writing
+    the terminal event).  This path is intentionally separate from
+    ``reconcile_occurrence``: it accepts only a durable ``confirmed`` intent
+    and still requires an exact official provider receipt before resolving the
+    occurrence.  It never retries or sends the application.
+    """
+    if owner_id != OWNER_ID:
+        raise ReconcileContractError("owner_not_allowlisted")
+    if not _OCCURRENCE_ID.fullmatch(occurrence_id):
+        raise ReconcileContractError("occurrence_id_invalid")
+    try:
+        intent = _load_intent(
+            Path(intent_root), request_id, expected_state="confirmed"
+        )
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": False,
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        raw_readback = readback()
+    except Exception as error:
+        detail = str(error)[:240]
+        reason = detail if re.fullmatch(r"official_readback_[a-z_]+", detail) else "official_readback_failed"
+        return {
+            "status": "unresolved",
+            "reason": reason,
+            "error_class": type(error).__name__,
+            "error_detail": detail,
+            "retryable": True,
+            "next_action": "obtain a fresh official Coconala readback; keep the effect fence closed",
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        proof = build_provider_proof(
+            owner_id=owner_id,
+            occurrence_id=occurrence_id,
+            request_id=request_id,
+            readback=raw_readback,
+            evidence_path=evidence_path,
+        )
+    except ReconcileContractError as error:
+        return {
+            "status": "unresolved",
+            "reason": str(error),
+            "retryable": True,
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 0,
+        }
+    try:
+        closed = resolver(
+            owner_id,
+            occurrence_id,
+            official_readback=lambda: proof,
+            expected_state="claimed",
+        )
+    except Exception as error:
+        return {
+            "status": "unresolved",
+            "reason": "admission_resolver_failed",
+            "error_class": type(error).__name__,
+            "error_detail": str(error)[:240],
+            "retryable": True,
+            "next_action": "inspect the admission boundary before any retry",
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 0,
+            "readback": 1,
+        }
+    if closed is not True:
+        return {
+            "status": "unresolved",
+            "reason": "occurrence_not_current_or_already_closed",
+            "retryable": False,
+            "request_id": request_id,
+            "occurrence_id": occurrence_id,
+            "effect": 1,
+            "readback": 1,
+        }
+    return {
+        "status": "resolved",
+        "reason": "confirmed_intent_provider_readback_confirmed",
+        "retryable": False,
+        "request_id": request_id,
+        "occurrence_id": occurrence_id,
+        "intent_cas": str(intent["cas"]),
+        "provider_receipt_id": proof["provider_receipt_id"],
+        "evidence_ref": proof["evidence_ref"],
+        "effect": 1,
+        "readback": 1,
+    }
+
+
 def reconcile_historical_no_dispatch_occurrence(
     *,
     owner_id: str,
@@ -508,6 +629,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="validate and resolve a code-owned historical-account no-dispatch proof without opening a browser",
     )
+    parser.add_argument(
+        "--confirmed-readback",
+        type=Path,
+        help="resolve a confirmed intent with an existing exact official readback without opening a browser",
+    )
     parser.add_argument("--lease-script", type=Path, default=SCRIPT_DIR.parents[2] / "browser" / "scripts" / "cdp_context_lease.py")
     parser.add_argument("--lease-task")
     parser.add_argument("--max-pages", type=int, default=1000)
@@ -518,10 +644,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--discover cannot be combined with explicit target arguments")
     if not args.discover and (not args.occurrence_id or not args.request_id):
         parser.error("explicit mode requires --occurrence-id and --request-id")
-    if args.discover and args.historical_proof:
-        parser.error("--discover cannot be combined with --historical-proof")
+    if args.discover and (args.historical_proof or args.confirmed_readback):
+        parser.error("--discover cannot be combined with an explicit proof")
+    if args.historical_proof and args.confirmed_readback:
+        parser.error("--historical-proof and --confirmed-readback are mutually exclusive")
     if args.historical_proof and (not args.occurrence_id or not args.request_id):
         parser.error("--historical-proof requires explicit target arguments")
+    if args.confirmed_readback and (not args.occurrence_id or not args.request_id):
+        parser.error("--confirmed-readback requires explicit target arguments")
     if args.discover:
         try:
             target = discover_single_target(owner_id=args.owner_id, intent_root=args.intent_root)
@@ -552,6 +682,37 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
             return 0
         args.occurrence_id, args.request_id = target
+    if args.confirmed_readback:
+        evidence_ref = str(args.confirmed_readback.resolve())
+        try:
+            raw_readback = json.loads(args.confirmed_readback.read_text(encoding="utf-8"))
+            result = reconcile_confirmed_occurrence(
+                owner_id=args.owner_id,
+                occurrence_id=args.occurrence_id,
+                request_id=args.request_id,
+                intent_root=args.intent_root,
+                evidence_path=args.confirmed_readback,
+                readback=lambda: raw_readback,
+            )
+        except (OSError, json.JSONDecodeError) as error:
+            result = {
+                "status": "unresolved",
+                "reason": "confirmed_readback_unreadable",
+                "error_class": type(error).__name__,
+                "error_detail": str(error)[:240],
+                "retryable": False,
+                "request_id": args.request_id,
+                "occurrence_id": args.occurrence_id,
+                "evidence_ref": evidence_ref,
+                "effect": 0,
+                "readback": 0,
+            }
+        result_path = args.result or args.confirmed_readback.with_name(
+            "confirmed-occurrence-reconcile-result.json"
+        )
+        _atomic_json(result_path, result)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        return 0
     if args.historical_proof:
         evidence_ref = str(args.historical_proof.resolve())
         try:

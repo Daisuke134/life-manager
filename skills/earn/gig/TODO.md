@@ -1,21 +1,25 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 04:52 JST (specific all-platform transport/readback state)
+## Current cursor — 2026-09-25 04:56 JST (specific all-platform transport/readback state)
 
 This section supersedes the older cursors below. The old CrowdWorks
 `18d8293a…` and Lancers `18d82935…` Paid rows now read `released/effect_unknown=0`
 in the admission ledger and their pre-effect markers verify safely; they are
-not the remaining blockers. Five **effect-critical** occurrences are listed
-below. A fresh read of
+not the remaining blockers. Four **effect-critical** occurrences remain listed
+below. The Coconala Apply occurrence was resolved without a resend: its durable
+intent was already `confirmed`, and the saved official readback for request
+`5289988` matched it exactly (`observed=true`, `pages_walked=1`, `readback=1`).
+A fresh read of
 `/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`
-shows `effect_unknown=1` on 667 occurrences overall; exactly 5 belong to the
-critical Paid/Apply/Storefront owners below. The other 662 are non-critical or
+shows `effect_unknown=1` on 667 occurrences overall; exactly 4 belong to the
+critical Paid/Storefront owners below. The other 663 are non-critical or
 unrelated-owner rows and are a separate audit; they are not silently cleared here.
-No provider send or retry was issued during this readback.
+No provider send or retry was issued; only the exact Apply admission fence was
+resolved through the provider-owned receipt.
 
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
 |---|---|---|---|
-| Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. Later Apply passes reached `observed=57/actionable=6/effect=6/readback=6/failed=0`, but those are newer runs, not proof for the old fence. Apply and Storefront are unloaded. | `hf-gig-apply-direct:18d852199baadb90-95298` and `hf-gig-storefront-direct:18d5fe8333276980-33952` remain `claimed/effect_unknown=1`; neither has an exact one-to-one provider receipt/readback mapping. Storefront also has no matching pre-effect marker for this occurrence. | Read the official Coconala history for each exact occurrence, resolve only with a one-to-one effect proof, then run one controlled no-op wake and replay-zero. The four-room gate stays open until this is done. |
+| Coconala | Ryu was manually handled and read back; do not resend. Paid is loaded-idle on the d4fe production release and its latest wake is `effect=none`. The old Apply occurrence is now released from its confirmed intent plus exact official readback (`request_id=5289988`); later Apply passes reached `observed=57/actionable=6/effect=6/readback=6/failed=0`. Apply and Storefront remain unloaded. | Only `hf-gig-storefront-direct:18d5fe8333276980-33952` remains `claimed/effect_unknown=1`; it has no exact provider receipt/readback mapping and no matching pre-effect marker. | Read the official Coconala storefront history for that exact occurrence, resolve only with a one-to-one effect proof, then run one controlled no-op wake and replay-zero. The four-room gate stays open until this is done. |
 | CrowdWorks (CloudWorks) | Paid is unloaded. Provider snapshot is `observed=5/actionable=1/effect=0/readback=4/pending=1`; four items are already read back, and `63568785` still lacks buyer lesson/answer material. | `crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed/effect_unknown=1` with no provider receipt; the older 18d829 row is already cleared and must not be confused with this row. | Obtain provider history/readback bound to 18d62cf. If it proves no dispatch, resolve the fence; otherwise record the exact receipt. Then run a no-op wake. Never resend the four completed items or send 63568785 without its missing material. |
 | Lancers | Paid is unloaded. Latest authenticated source-complete inventory is `observed=0/actionable=0/effect=0`; proposal `5606124` was fail-closed as `unsupported_claim`. Application is loaded-idle but no funded work exists. | `lancers-revenue-paid:18d81967220136f8-89928` is `claimed/effect_unknown=1`, `entrypoint_exit_1`, and has no provider receipt. No funded `ContractReceipt` exists. | Reconcile the exact 18d819 row from official provider history. Refresh inventory; keep Paid closed until a real funded `ContractReceipt` and milestone appear. |
 | Mercor | Official account/earnings readback is available (`$0.00`/empty). Paid is loaded-idle but its work snapshot is pending/stale; no funded work is proven. | `mercor-revenue-paid:18d82d9cd75db960-67523` is `claimed/effect_unknown=1` with no provider receipt/readback. | Obtain exact Mercor work/transaction readback, reconcile the occurrence, refresh the inventory, and only then consider a funded action. |
@@ -40,10 +44,10 @@ replace it.
 ### Fresh admission readback and exact Freelancer/Upwork cursor
 
 The admission count is not a claim that 667 client actions are all waiting for
-manual replay. It is a host-safety count. The five rows in the table are the
+manual replay. It is a host-safety count. The four rows in the table are the
 only current effect-critical rows for this revenue run; each is still
 `claimed/effect_unknown=1` and has no admissible exact provider receipt. The
-remaining 662 rows must be audited by owner and occurrence before any cleanup;
+remaining 663 rows must be audited by owner and occurrence before any cleanup;
 no direct SQLite mutation or blanket resolver is allowed.
 
 `lm-loop status all` is not the source of truth for those exact fences: its
@@ -52,6 +56,13 @@ incomplete diagnostics, while the read-only Admission DB identifies the active
 critical rows as CrowdWorks `18d62c…` and Lancers `18d819…`. The DB occurrence
 plus an exact provider receipt/readback wins; a stale status event never
 authorizes a retry or a blanket release.
+
+The Apply exception is recorded at
+`/Users/anicca/gig/apply-direct/gig-apply-direct-1790271122849734000-95320/refresh-evidence/confirmed-occurrence-reconcile-result.json`.
+Its exact receipt is
+`https://coconala.com/mypage/job_matching/applied/offers#request-5289988`.
+The resolver changed only `hf-gig-apply-direct:18d852199baadb90-95298` to
+`released/effect_unknown=0`; it did not touch the provider or any other row.
 
 For the two not-yet-registered providers, the gate is concrete:
 
