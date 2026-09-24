@@ -6,7 +6,14 @@
 
 **Scope boundary:** Do not modify or operate Coconala/CrowdWorks/Lancers/Upwork Paid fulfillment code, state, owners, sessions, effects or `config/loop-registry.json` Paid rows. Marketplace integration consumes only official receipts produced by that owner after they exist.
 
+**Current status:** Task 1 is complete on branch commit `13ab24a9a4`. The catalog loader covers all fourteen
+loops and fails closed on malformed economic roles, source declarations and fundraising classification.
+Focused Product Loop tests pass 39/39; the runtime catalog tests pass 19/19; `lm-loop-contract` reports
+14 loops, 167 jobs and zero errors. Current cursor: Task 2, the official funnel/source join contract.
+
 ## Task 1 — Freeze the fourteen-loop economic source inventory
+
+Status: complete.
 
 - Add an exact `economic` declaration to all fourteen entries in `apps/life-manager/config/product-loop-catalog.json`.
 - Validate closed roles, revenue classes and source declarations in `product-onboarding.js`.

@@ -2727,6 +2727,12 @@ economic source inventory in the existing Product Loop catalog. This is delibera
 fail-closed source-coverage contract before any provider adapter: today CFO recognizes Moneytree, Agent
 Economy and Marketplace source families, while Affiliate, Mobile/App Store settlement, Capafy, Stripe,
 Investment and other loop-specific sources are not yet represented through one per-loop coverage surface.
+Task 1 is complete at `13ab24a9a4`: all fourteen existing Product Loop catalog rows now carry an exact economic
+role, allowed revenue classes and funnel/financial/cost source declarations. Missing adapters are explicit;
+Connector and CFO are explicitly non-source/aggregator rows; Fundraiser is fixed to financing/fundraising and
+cannot be classified as subscription MRR. Product Loop tests pass 39/39, catalog tests 19/19 and the structural
+loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 2, the immutable official
+funnel/source observation and join contract; no provider or Paid runtime was changed.
 
 ### K. User Communication Contract
 
