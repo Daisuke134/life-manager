@@ -2188,3 +2188,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [x] The live transaction state is `取引完了` with the formal-delivery
   checkbox still off. Ryu remains a permanent manual-only exception; reopen
   only when a genuinely newer buyer message appears.
+
+### Paid fulfillment checkpoint — 2026-09-24 09:40 JST
+
+- [x] Recovered and verified the CrowdWorks browser owner: CDP `9228` is
+  served by the managed profile owner, the latest continuous-owner event is
+  `pass`, and the authenticated account probe returns `authenticated` /
+  `employee`.
+- [x] Verified the CrowdWorks Paid natural run after recovery; it is `pass`
+  with no provider effect and no new buyer artifact. The previous
+  `entrypoint_exit_1` is not active; do not make an unproven code change.
+- [ ] Keep the one-owner health chain monitored and investigate only if a new
+  failure reproduces. Do not kill or relaunch another profile while CDP and
+  account readback are healthy.
+- [ ] Wait for buyer material on CrowdWorks `63568785`; then complete the
+  work, submit once, capture the official receipt, and verify replay-zero.

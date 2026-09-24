@@ -1869,3 +1869,20 @@ clicked again.
 - **Current provider state:** the room now reports `取引完了`, while the formal
   delivery control remains unchecked. Preserve the permanent Ryu manual fence
   and reopen only on a genuinely newer buyer event.
+
+## Production Cursor — 2026-09-24 09:40 JST
+
+- **CrowdWorks browser blocker resolved:** the managed owner on CDP `9228` is
+  `loaded-running`; the latest continuous-owner event is `pass` with no
+  blocker. The authenticated CrowdWorks account probe also passed
+  (`authenticated`, role `employee`), and the Paid natural run has a fresh
+  `pass` readback. The earlier `entrypoint_exit_1` was a stale/transient
+  browser-owner failure, not a current provider outage.
+- **Recovery rule:** preserve the single managed owner and verify this chain
+  before changing code: owner receipt → CDP `/json/version` → authenticated
+  account probe → Paid official snapshot. Do not kill another profile or
+  replay a provider effect while this chain is healthy.
+- **Current boundary:** no CrowdWorks customer effect was performed. Work
+  `63568785` remains buyer-material-gated; the only remaining work is to wait
+  for the permitted artifact and then submit once with official receipt and
+  replay-zero.
