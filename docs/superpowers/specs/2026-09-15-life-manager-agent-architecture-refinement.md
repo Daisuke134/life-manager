@@ -2595,41 +2595,52 @@ plane must diagnose, evaluate, release, read back and roll back them.
 
 #### The operating order is a control loop, not fourteen manual repairs
 
-Observability is the input to self-healing and economic evaluation is the input to self-improvement. They are
-not independent projects and are not completed by making every process return exit zero. A healer without an
-economic evaluator can keep a money-losing loop perfectly healthy; an evaluator without a healer can identify
-the bottleneck but cannot restore or promote anything. The required order is:
+Observability is the input to self-healing; a working, bounded self-healing control plane is the prerequisite
+for economic evaluation and recursive self-improvement. They are not completed by making every process return
+exit zero. Recovery evaluation belongs inside self-healing and proves that a known failure is detected,
+isolated, repaired, promoted, read back and rolled back safely. Economic evaluation is different: it compares
+working variants by verified settled contribution. A loop does not have to produce immediate revenue before
+the foundation cursor advances. Zero revenue, no conversion and a delayed commission are measurable baselines,
+not reasons to wait or keep Codex repairing one vertical indefinitely. The required order is:
 
 ```mermaid
 flowchart LR
-  O[Structured observability and official receipts] --> E[Internal eval and LM-EAB]
-  E --> H[Bounded self-heal]
-  H --> I[Revenue self-improvement]
-  I --> C[Cloud and tenant isolation]
-  C --> B[Public benchmark product]
-  B --> I
+  O[Structured observability across all 14 loops] --> H[Shared bounded self-heal]
+  H --> A[Local recovery acceptance across all 14 loops]
+  A --> C[Always-on cloud and tenant isolation]
+  C --> E[Economic eval and LM-EAB source joins]
+  E --> I[Revenue self-improvement and self-funding]
+  I --> B[Public benchmark product]
+  B --> E
 ```
 
-1. Finish the shared truth layer: every owner emits the same run, release, phase, effect, readback, receipt,
-   error, retry and next-action contract; CFO joins economic sources without converting missing into zero.
-2. Prove one low-risk non-Paid vertical can detect a fault, narrow the boundary, create an isolated candidate,
-   pass regression/held-out/safety/cost gates, promote an immutable release, read it back and roll back.
-3. Reuse that control plane across all fourteen Product Loops. A loop contributes a thin provider adapter,
-   fixtures and authoritative readback; it does not receive a bespoke supervisor, evaluator or release system.
-4. Run commercial self-improvement first on Affiliate, then Mobile Apps/Capafy and Self-Funding/x402. These
-   have bounded downside and direct measurable funnels. Investment remains paper/shadow until a repeatable
-   after-fee edge exists.
-5. Promote the already-proven local contract to isolated cloud workers. A phone or web conversation becomes
-   the optional control surface, not the runtime host and not a recurring goal-entry form.
-6. Publish LM-EAB as a benchmark product only after internal runs are reproducible across cloud workers. The
-   internal benchmark exists from step 1 because the agent needs it to decide whether any change is better.
+1. Freeze the fourteen-loop truth surface: every owner exposes the same run, owner, occurrence, release,
+   loaded command/environment, phase, exit, effect, official readback/receipt, evidence, error class,
+   retryability and next-action contract. Missing stays missing; it never becomes a healthy zero.
+2. Build one shared bounded healer: failure taxonomy, safe repair recipes, incident/retry budgets, isolated
+   candidate workspace, regression and recovery evaluation, immutable promotion, canary, authoritative
+   readback, replay-zero and rollback. Policy, identity, permissions, evidence rules and spend caps remain fixed.
+3. Prove the shared healer on one low-risk non-Paid owner with an injected or safely reproducible failure. The
+   accepted path has Life Manager diagnose and recover it without Codex or another external AI operating it.
+4. Enrol all fourteen Product Loops one by one through thin adapters and recovery fixtures. A loop does not
+   receive a bespoke supervisor, evaluator or release system. Paid fulfillment stays with its separate owner;
+   this control plane consumes its health and official receipts read-only.
+5. Pass local foundation acceptance: every loop is healthy, explicitly setup-blocked/not-applicable with an
+   exact next action, or safely fenced; every covered repeat failure is recovered within budget without harming
+   sibling loops. Revenue is not an acceptance condition at this stage.
+6. Promote that exact accepted control plane to tenant-isolated cloud workers. A phone or web conversation is
+   the optional control surface, not the runtime host and never a recurring goal-entry form.
+7. Resume economic-source joins and LM-EAB, then run commercial self-improvement first on Affiliate, Mobile
+   Apps/Capafy and Self-Funding/x402. Investment remains paper/shadow until repeatable after-fee evidence exists.
+8. Publish LM-EAB as a benchmark product after runs are reproducible across cloud workers; use verified settled
+   net contribution to allocate effort toward self-funding and portfolio-wide USD 10,000 MRR.
 
 This ordering replaces the old instinct to repair rows 1–14 serially by hand. Real loop failures are fixtures
 for the common harness; the goal is that the second occurrence is diagnosed and recovered by Life Manager,
 not by Codex. Paid fulfillment remains owned by the separate `paid-fulfillment-all-platforms-20260922`
 workstream and is consumed read-only through its official receipts.
 
-#### Affiliate is the first revenue-improvement vertical, but is not currently fixed
+#### Affiliate is the first revenue-improvement vertical after self-healing acceptance
 
 The read-only production status shows why Affiliate is not making verified money even though it contains many
 content and acquisition artifacts:
@@ -2660,6 +2671,11 @@ worth testing. The stated earnings in the [Rakuyoko article](https://x.com/maner
 [low-ticket-to-backend article](https://x.com/totalscore0307/status/2092177218097365351) are author-reported and
 not official provider readbacks. High-ticket consulting and authentic personal-use anecdotes also require
 recurring human delivery or real experience, so those parts are outside the no-human path.
+
+Affiliate remains a valid first commercial-eval vertical, but it is not the current foundation cursor. Its
+absence of commission does not block shared observability, self-healing enrolment, local acceptance or cloud
+promotion. The existing evidence is retained, and the economic cursor resumes from the first broken funnel
+transition after the shared healer is accepted instead of waiting for an affiliate payment.
 
 #### Investment is an experiment portfolio, not a money printer
 
@@ -2800,32 +2816,34 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
 
 1. **Done on the implementation branch:** freeze the `LM-EAB` case/run/score schema, autonomy labels,
    settled-net-profit calculation and anti-gaming tripwires; seed it with secret-free receipt/failure fixtures.
-2. **Current cursor:** complete CFO source join Tasks 4–6. Task 3 is complete at `ca36819fc2`: CFO exposes
-   redacted coverage for every catalog loop/source without adding routine Telegram noise. Connect the existing
-   read-only receipt producers and make every missing revenue/cost source explicit; never operate Paid state.
-3. Prove the common bounded self-heal lifecycle on one non-Paid low-risk owner, including injected failure,
-   diagnosis, isolated candidate, immutable promotion, official readback, replay-zero and rollback. Turn the
-   real Affiliate browser-owner failure into a regression case only after source ownership is isolated.
-4. Close the Affiliate funnel and run the first economic self-improvement episode: restore the owned browser
-   boundary, reconcile the publish effect, join approved/paid commission and cash costs, then test one honest
-   acquisition hypothesis against settled contribution.
-5. Accept one Mobile or Capafy subscription funnel and one Self-Funding/x402 product funnel through baseline,
-   candidate, live settlement and rollback/replay-zero. Reuse the same content/product/distribution/eval tools.
-6. Add the bounded portfolio allocator. It releases losing or inconclusive experiments, preserves their
-   evidence, continues independent revenue work and never lets a high-variance investment displace a proven
-   positive-contribution business without risk-adjusted evidence.
-7. Add Alpaca/public-stock, crypto and Hyperliquid research adapters behind the common investment contract.
-   Keep new markets read-only/paper/shadow until repeated after-fee performance, drawdown and security gates
-   pass; the current Alpaca result explicitly forbids capital expansion.
-8. Apply the proven shared self-heal/eval contract to all fourteen loops through thin adapters, not bespoke
-   supervisors. Consume marketplace/Paid receipts read-only from the separate owner.
-9. Prove cost coverage and reserve health locally, then promote the same immutable contracts to tenant-isolated
-   cloud workers and remove Mac/Codex/external-AI babysitting from accepted operation. The user needs only an
-   optional phone/web control surface after one-shot consent and payout setup.
-10. Reach portfolio-wide verified net USD 10,000 MRR, then package receipts, cost curve and reproducible LM-EAB
-    evidence for YC/Praxis without fabricating traction. Publish the benchmark/leaderboard service after cloud
-    reproducibility, expand the `agent_native` track and grow toward USD 10 million MRR before extending to
-    physical and mental health with separate safety/outcome benchmarks.
+2. **Done, then intentionally paused:** CFO inventory/source Tasks 1–3 and the Self-Funding/Agent Economy
+   Task 4.1 join are complete through `68d59eb2ec`. Remaining Affiliate/Mobile/Capafy/Stripe/Investment/Writer/
+   Fundraiser/Marketplace source adapters stay queued; immediate revenue or a natural commission is not a gate.
+3. **Current cursor — fourteen-loop observability baseline:** read every Product Loop owner through the shared
+   structured contract, record the exact healthy/fenced/broken/setup state and close missing diagnostic fields.
+   Do not repair fourteen implementations manually; turn each unexplained state into a named observable boundary.
+4. Build the shared bounded self-heal kernel: failure taxonomy, repair recipes, budgets, isolated candidates,
+   recovery evaluation, immutable release, canary, readback, replay-zero and rollback with fixed safety policy.
+5. Prove one low-risk non-Paid recovery end to end, then make the real failure a retained regression fixture.
+   Acceptance requires Life Manager—not Codex—to diagnose, repair, verify and either promote or roll back.
+6. Enrol the remaining thirteen Product Loops one by one with thin adapters and loop-specific recovery fixtures.
+   Consume marketplace/Paid health and receipts read-only from the separate owner; never operate its runtime.
+7. Pass local foundation acceptance for all fourteen loops: exact current status, no opaque terminal `unknown`,
+   bounded automatic recovery for covered failures, sibling isolation and deterministic replay/rollback.
+8. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
+   credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
+9. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
+   Capafy and Self-Funding/x402; a zero-revenue baseline advances to the next bounded hypothesis instead of
+   blocking. Add the allocator and keep new investment markets paper/shadow until after-fee safety evidence.
+10. Reach portfolio-wide verified net USD 10,000 MRR, prove Life Manager covers its own compute/cloud/tool cost,
+    and publish reproducible LM-EAB/leaderboard evidence. Then expand the `agent_native` track and grow toward
+    USD 10 million MRR before separate physical- and mental-health outcome benchmarks.
+
+This is an explicit priority change. The old order continued CFO/economic adapters and Affiliate improvement
+before proving the shared healer across all loops. The new order is observability -> shared self-heal -> one
+recovery proof -> fourteen-loop local acceptance -> cloud -> economic eval/self-improvement. The reason is that
+economic optimization cannot safely operate or retain gains on a control plane that still needs manual repair;
+waiting for external revenue also must not hold the foundation cursor. Current cursor is item 3.
 
 #### LM-EAB v1 eval audit and implementation cursor
 
@@ -2861,9 +2879,11 @@ worktree has no installed `viem`; no dependency install is attempted with less t
 
 The v1 boundary is one currency per episode. Its current fixtures use USDC; a mismatched record fails closed,
 and receipt-backed cross-currency conversion is future work. This proves deterministic contract behavior only:
-there is still no real portfolio/CFO join, production MRR readback, proof that Life Manager covers its own
-operating costs, or cloud promotion. Current cursor is §J4.2 item 2, the official funnel-and-cost receipt join
-to CFO. Items 3–10 remain open.
+there is still no complete portfolio/CFO join, production MRR readback, proof that Life Manager covers its own
+operating costs, or cloud promotion. The LM-EAB contract and completed source joins are retained, but the
+execution cursor is now the fourteen-loop observability baseline and shared self-healing sequence above.
+Economic source joins resume only after local self-healing acceptance; this is a priority pause, not a failure
+and not a requirement to wait for revenue.
 
 A fresh read-only review initially found four fail-closed gaps; commit `e4504dfded` closes all four with
 regressions: an `external_effect` now requires `effect=verified` plus `readback=present`, simulation can never
@@ -2900,8 +2920,8 @@ funnel/financial/cost status; missing remains `not_configured` and not-applicabl
 evidence references do not leak into coverage. CFO ingestion returns the coverage and the report carries it
 privately, while routine digest and Telegram rendering remain unchanged. Focused CFO/source tests pass 21/21,
 the combined relevant suite passes 60/60, LM-EAB remains 41/41 and the structural loop contract remains 14
-loops / 167 jobs / zero errors. Current cursor is Task 4: connect existing read-only receipt producers one by
-one, starting with Self-Funding/Agent Economy, then Affiliate, without changing Paid fulfillment runtime.
+loops / 167 jobs / zero errors. Task 4.1 subsequently connects Self-Funding/Agent Economy. The remaining
+provider joins are queued behind the shared self-healing foundation and do not change Paid fulfillment runtime.
 
 Task 4.1 is complete on the current branch. `agent-economy-economic-source` now projects the existing
 normalized x402/provider revenue receipt journal and the existing verified x402/TaskMarket compute-cost
@@ -2912,9 +2932,10 @@ Missing journals, missing compute receipts and malformed/estimated inputs remain
 `unavailable`; they never become zero revenue, zero cost or verified MRR. This is a read-only CFO join: it
 does not submit a payment, move a wallet, restart a loop, or touch Paid fulfillment. Focused Agent Economy,
 CFO, source-contract and store tests pass 38/38; LM-EAB plus Product Loop tests pass 80/80; the structural
-loop contract remains 14 loops / 167 jobs / zero errors. Current cursor is Task 4.2, Affiliate placement
-funnel, approved/paid commission and actual cash-cost sources. A read-only production receipt pass remains
-part of Task 6 and is not claimed here.
+loop contract remains 14 loops / 167 jobs / zero errors. Task 4.2, Affiliate placement funnel, approved/paid
+commission and actual cash-cost sources, is intentionally paused until the fourteen-loop observability and
+self-healing acceptance sequence completes. A read-only production receipt pass remains part of Task 6 and
+is not claimed here.
 
 ### K. User Communication Contract
 

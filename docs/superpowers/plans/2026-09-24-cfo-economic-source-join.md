@@ -16,8 +16,11 @@ exposes every catalog loop and every declared funnel/financial/cost source as pr
 leaving the routine digest and Telegram rendering unchanged. Focused CFO/source tests pass 21/21; the combined
 relevant suite passes 60/60; LM-EAB remains 41/41; `lm-loop-contract` reports 14 loops, 167 jobs and zero
 errors. Task 4.1 now connects Agent Economy/x402 revenue and compute-cost receipts to the existing CFO
-coverage without operating wallets or Paid fulfillment. Current cursor: Task 4.2, Affiliate placement,
-commission and cash-cost sources.
+coverage without operating wallets or Paid fulfillment. Task 4.2, Affiliate placement, commission and
+cash-cost sources, is intentionally paused by the architecture priority change. The active program cursor is
+now the fourteen-loop observability baseline followed by the shared bounded self-heal kernel and local
+recovery acceptance. This plan resumes at Task 4.2 only after that acceptance; neither an Affiliate commission
+nor any other natural revenue event is a prerequisite for advancing the foundation.
 
 ## Task 1 — Freeze the fourteen-loop economic source inventory
 
@@ -46,6 +49,8 @@ Status: complete.
 - Fail a complete LM-EAB episode when a required cost or official revenue source is absent.
 
 ## Task 4 — Connect existing read-only receipt producers one by one
+
+Status: Task 4.1 complete at `68d59eb2ec`; Tasks 4.2–4.9 queued behind shared self-healing acceptance.
 
 1. Agent Economy/x402 revenue and compute costs. **Complete:** the adapter reuses normalized provider/on-chain
    revenue receipts and verified `x402-cost`/TaskMarket cost `FinancialRecord`s; it emits deterministic
