@@ -4592,3 +4592,40 @@ until its own gate is present.
 4. Run one provider-specific canary per newly authorized owner, then perform
    official contract/delivery/payment/payout, crash-recovery, and replay-zero
    acceptance across the fleet.
+
+## Runtime Status Refresh — 2026-09-24 23:42 JST (Coconala planner evidence boundary)
+
+- [x] Added a branch-only, fail-closed repair for a model hard-prohibition
+  excerpt that differs from the official visible text only at a boundary. The
+  repair chooses one contiguous substring shared by the model excerpt and one
+  visible page line, requires a meaningful 12-character/40%-of-excerpt match at
+  the excerpt boundary, and never changes `business_class` or any offer field.
+  A suffix-only match cannot override a more specific prefix match.
+- [x] The parent now writes a secret-free `planner-evidence-repairs.json`
+  artifact with request ID, repair method, original/repaired hashes, content
+  hash, pass ID, and snapshot hash. Invalid paraphrases remain dropped and are
+  still reported as `planner_missing_request_id`.
+- [x] Regression evidence covers the two observed shapes: request `5266371`
+  becomes the exact page line `画面共有をしながらレクチャー可能な方`, and
+  request `5278894` becomes the exact page substring `Live2Dモデルのリギング`.
+  The focused planner/parent/provider run passes (`116` tests), as do
+  `compileall`, `git diff --check`, and `./bin/lm-loop-contract`.
+- [ ] The fix is not production evidence. PR `#5854` is still open; after
+  promotion, the next natural Apply wake must reconcile `5280157`, produce
+  official Coconala history readback, and prove replay-zero. No provider send
+  or Ryu reply occurred during this source change.
+
+### Updated ordered cursor (23:42 JST)
+
+1. Push the planner boundary fix, promote only after the existing PR checks,
+   then run the clean Coconala Apply natural wake and reconcile its durable
+   intent before any retry.
+2. Reconcile and naturally verify the independent Coconala Storefront fence;
+   finish the four-room readback with Ryu manual-only.
+3. Preserve CrowdWorks/Lancers/Mercor effect fences while resolving their
+   buyer-material, funded-contract, and authenticated-inventory gates.
+4. Continue the required Freelancer authenticated inventory adapter and the
+   Upwork identity/authorization/contract adapter; register no owner until its
+   provider-specific funded gate is read back.
+5. Run funded canaries, official receipts/readback, crash recovery, settlement,
+   payout attribution, and replay-zero only after each new owner is authorized.

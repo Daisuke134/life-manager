@@ -33,7 +33,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import application_effect_fence as fence
 import gig_disk_guard
 import application_snapshot as snapshot_contract
-from application_planner import bind_retainer_terms_from_snapshot, validate_decisions
+from application_planner import (
+    bind_retainer_terms_from_snapshot,
+    repair_hard_prohibited_evidence,
+    validate_decisions,
+)
 from coconala_applied_readback import (
     RETAINER_APPLIED_URL,
     _wait_for_retainer_page,
@@ -4221,7 +4225,7 @@ def default_planner_cache_path() -> Path:
 # answers were available to the planner. Keeping version 1 would suppress a
 # corrected request for seven days after the planner policy changed.
 INELIGIBLE_CACHE_VERSION = 3
-PLANNER_CACHE_VERSION = 4
+PLANNER_CACHE_VERSION = 5
 INELIGIBLE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 def default_ineligible_cache_path() -> Path:
@@ -4526,7 +4530,8 @@ def _planner_subsnapshot(
 
 
 def _degrade_id_mismatch(
-    snapshot: dict[str, object], decisions: dict[str, object], *, allow_empty: bool = False
+    snapshot: dict[str, object], decisions: dict[str, object], *, allow_empty: bool = False,
+    evidence_dir: Path | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     """Keep only independently valid rows; report every other expected ID as missing.
 
@@ -4539,6 +4544,17 @@ def _degrade_id_mismatch(
     """
     if not isinstance(decisions, dict) or not isinstance(decisions.get("decisions"), list):
         raise ParentContractError("application_intent_planner_contract:decisions_must_be_array")
+    decisions, evidence_repairs = repair_hard_prohibited_evidence(snapshot, decisions)
+    if evidence_dir is not None:
+        _atomic_json(
+            evidence_dir / "planner-evidence-repairs.json",
+            {
+                "version": 1,
+                "pass_id": snapshot.get("pass_id"),
+                "snapshot_sha256": snapshot.get("snapshot_sha256"),
+                "repairs": evidence_repairs,
+            },
+        )
     expected_ids = {str(item["request_id"]) for item in snapshot["request_details"]}
     rows = decisions["decisions"]
     id_counts: dict[str, int] = {}
@@ -4644,7 +4660,9 @@ def _invoke_isolated_planner_once(
     decisions = bind_retainer_terms_from_snapshot(
         snapshot, _read_json_object(result_path, "planner_decisions")
     )
-    return _degrade_id_mismatch(snapshot, decisions, allow_empty=True)
+    return _degrade_id_mismatch(
+        snapshot, decisions, allow_empty=True, evidence_dir=evidence_dir,
+    )
 
 
 def invoke_isolated_planner(

@@ -14,8 +14,10 @@
   This is a terminal safe no-op, not customer-delivery acceptance.
 - [ ] Keep Apply acceptance open because the run still reports
   `failed=1` (`5266371=planner_missing_request_id`) and one durable prepared
-  intent (`5280157=prepared_unconfirmed`). Do not retry either item blindly;
-  reconcile the old intent and fix the visible-text planner boundary first.
+  intent (`5280157=prepared_unconfirmed`). The branch now repairs only a
+  boundary-safe exact visible-text substring for the planner evidence and
+  persists a secret-free repair artifact; production has not loaded it yet.
+  Reconcile the old intent and run a fresh natural wake after promotion.
 - [x] Add the first Freelancer onboarding gate. The new provider-neutral
   capability entry and `freelancer_readiness.py` require fresh approved
   receipts for search/inspect/propose/message/offer/deliver/payments/payouts,
@@ -106,8 +108,10 @@
 1. Promote the pushed source release and obtain a clean Coconala Apply
    acceptance. The latest natural wake is terminal and safe (`effect=0`, no
    provider submit), but it is not accepted because the report still has
-   `failed=1` (`5266371`) and `durable_pending_ids=[5280157]`; resolve those
-   exact local boundaries, then obtain official readback and replay-zero.
+   `failed=1` (`5266371`) and `durable_pending_ids=[5280157]`. The branch now
+   repairs `5266371` only when an exact page substring can be proven and writes
+   `planner-evidence-repairs.json`; after promotion, reconcile `5280157`, then
+   obtain official readback and replay-zero.
 2. Reconcile Coconala Storefront's independent
    `claimed/effect_unknown=1` occurrence, then run Storefront natural wake,
    official readback, and replay-zero. Never bypass the effect fence.
@@ -151,6 +155,22 @@
 9. Run final fleet acceptance only after each platform has its own owner,
    authorization, funded work item (where a mutation is applicable), official
    receipt/readback, settlement/payout evidence, and duplicate-zero proof.
+
+### Coconala planner evidence boundary — 2026-09-24 23:42 JST
+
+- [x] Added a fail-closed repair for model hard-prohibition evidence that is
+  almost verbatim but contains a boundary-only addition or omission. The repair
+  selects only one contiguous, page-exact substring at the model-excerpt
+  boundary, rejects paraphrases, preserves the original business class, and
+  persists hashes plus the snapshot content hash in
+  `planner-evidence-repairs.json`.
+- [x] Added regression coverage for the actual failure shapes: the
+  `5266371` screen-sharing line and the `5278894` Live2D rigging line, including
+  a shared-suffix case and an unrelated paraphrase. Focused parent/planner and
+  provider suites pass (`116` tests); `compileall`, `git diff --check`, and
+  `./bin/lm-loop-contract` pass.
+- [ ] This source fix is branch-only until PR `#5854` is promoted. No provider
+  form, intent fence, Ryu room, or external application was touched by the fix.
 
 ### Coconala readback checkpoint — 2026-09-24 20:21 JST
 
