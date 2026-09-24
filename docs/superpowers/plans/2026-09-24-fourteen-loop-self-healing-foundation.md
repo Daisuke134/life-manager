@@ -1744,3 +1744,15 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   managed Node fallback plus occurrence diagnostics, but has not been merged, sealed or loaded.
 - [ ] After capacity recovery, full-suite pass and accepted immutable loading, re-read one fresh reconciler
   occurrence and require occurrence-complete diagnostics plus replay-zero before advancing the 14-loop gate.
+
+### Foundation gate after the terminal readback (2026-09-25 JST)
+
+- [x] Re-run the read-only current-release status and foundation evaluator: status `rc=0`, **271 rows**, all
+  **14 Product Loops** observed, `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+  `uncovered_failure=13`, `decision=block`. Reasons are diagnostic incompleteness, runtime evidence incompleteness
+  and uncovered failure; no revenue or provider effect was inferred.
+- [x] Re-read the canonical cleanup receipt: `free_before=348,270,592`, `free_after=345,677,824`, `errors=0`,
+  `reclaimed=0`, five open candidates preserved, inventory gaps 22. The floor shortfall is `810,102,784` bytes.
+- [ ] Keep the exact order: owner-controlled capacity recovery → full suite → accepted immutable candidate load →
+  fresh occurrence-complete recovery/reconciler readback → bounded non-Paid owner reconciliation → replay-zero →
+  two-pass 14-loop foundation gate. Do not promote from this read-only block.

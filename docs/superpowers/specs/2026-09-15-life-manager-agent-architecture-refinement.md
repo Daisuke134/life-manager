@@ -5340,3 +5340,19 @@ The status surface now binds this terminal to `18d865297aba2440-74128`, but rema
 the old release does not persist the required occurrence/error/readback fields. This is a confirmed runtime-boundary
 failure, not a reason to retry an external effect. After the host floor is restored, the next promotion proof is to
 load the accepted candidate and confirm the same occurrence fields with the managed Node fallback.
+
+### Foundation gate after the terminal readback (2026-09-25 JST)
+
+The read-only `lm-loop status all --json` plus the current immutable d4 local foundation evaluator completed with
+`rc=0` for status and returned **271 rows**. The evaluator observed all **14 Product Loops** and still projects
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`.
+The reasons remain `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`; the single accepted fence is `investment`, while the other loop rows remain release-drift or
+runtime-terminal evidence gaps. The reconciler terminal above does not make a loop healthy and does not change the
+commercial/revenue gate. No launchd mutation, admission write, provider effect, fence clearing or Paid operation was
+performed.
+
+The canonical cleanup receipt advanced to `observed_at=2026-09-24T23:25:19Z`: `free_before=348,270,592`,
+`free_after=345,677,824`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), `inventory_gaps=22`. The floor
+shortfall is now **810,102,784 bytes**. This is a safe cleanup result with no reclaimable candidate, not permission
+for unowned deletion; full-suite execution and candidate promotion remain closed.
