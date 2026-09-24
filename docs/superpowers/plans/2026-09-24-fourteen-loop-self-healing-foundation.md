@@ -219,7 +219,8 @@ current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, ze
 ### Task 9: Pass local foundation acceptance
 
 **Status:** Current task. Revenue, conversion, commission and natural-business-event waits are not gates. Capafy
-and Self-build are locally accepted; the next Product Loop cursor is Mobile Apps.
+and Self-build are locally accepted. Mobile Apps is actively repairing under its existing Postiz canary owner;
+the next non-conflicting Product Loop cursor is Affiliate.
 Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
 `20260924T134241-60c1e93e` is active with `release_paths=ALL` and
 `provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero
@@ -436,7 +437,10 @@ allowed.
 - [x] Align Self-build's three remaining release-drift owners to exact release `05d235b46b7c76f27d2aec71e8f30d93b98b4728`. All four Self-build owners emit complete diagnostics; the supervisor exits 0/clean and the other three return typed retryable capacity deferral before entrypoint, with effect unknown 0 and reservations 0.
 - [x] Re-prove the shared supervisor replay-zero with two exact-release exit-0 terminals: recovery storage stays fixed at 27 intents and 66 journal events, so no duplicate intent or recovery action is emitted.
 - [x] Re-read the authoritative gate after Self-build: 14 loops observed, `safely_fenced=2` (Capafy and Self-build), `uncovered_failure=12`, release mismatch 83, diagnostic incomplete 80 and unknown-effect jobs 53. Doctor remains clean at 168 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
-- [ ] Continue one non-Paid Product Loop at a time in this order: Mobile Apps, Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
+- [x] Audit Mobile Apps without provider mutation: all 22 jobs are observed; 21 have release mismatch, 21 have incomplete diagnostics and the gate has 20 unknown-effect jobs. Admission holds 344 claimed unknown and 16 released unknown occurrences; no fence is cleared or retried.
+- [x] Preserve the two active Mobile/Postiz leases and their JP1 canary contract. PR #5813/#5814 source is already on main; the owning workstream must still prove exact official receipt and replay-zero before staged rollout, so Mobile remains `repairing` rather than falsely closed.
+- [ ] Continue the independent non-Paid foundation slices in this order while Mobile remains owned: Affiliate, Investment, Fundraiser, Writer, Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice.
+- [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
 - [ ] Align Gig non-Paid owners without changing the separately leased Paid fulfillment source, state, sessions or runtime controls.
 - [ ] Re-read the same surfaces and recovery journal after each remaining non-Paid Product Loop slice.

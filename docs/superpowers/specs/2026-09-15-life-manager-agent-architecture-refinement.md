@@ -3186,6 +3186,24 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    claim that Self-build ran its business entrypoints or produced revenue. The next cursor is Mobile Apps; no
    natural schedule, capacity opening or revenue event is required before advancing.
 
+   The first Mobile Apps read-only slice observes all 22 catalog jobs, but it is not locally accepted. Only
+   `life-manager-honne-ja` has the exact active release and complete diagnostics; 21 jobs have release mismatch
+   and 21 have incomplete diagnostics. The foundation projection has 20 unknown-effect jobs. The point-in-time
+   runtime distribution is 19 loaded-idle, two loaded-running and one intentionally unloaded OBOU owner.
+   Durable admission contains 344 claimed unknown occurrences across 18 owners, 16 released unknown occurrences,
+   241 queued effect-known occurrences, 11 queue rows and one reservation. Those rows are not cleared, replayed
+   or inferred from old process success.
+
+   The source-side occurrence isolation and exact terminal projection are already merged through PR #5813
+   (`57a19002687779ed822926fba0d6ec7cf1d152a4`) and the queued release-rebind canary through PR #5814
+   (`a088a95a670240f4da8bae7c2d6b200ef6c4d18c`). Their production acceptance remains owned by the active
+   `mobile-postiz-terminal-occurrence-20260923` and `mobile-postiz-pending-release-canary-20260923` leases: apply
+   only `life-manager-anicca-jp1-tiktok`, obtain its exact official Postiz/native receipt and prove replay-zero
+   before staged rollout. This foundation workstream does not mutate those owners, provider sessions, admission
+   occurrences or runtime controls. Mobile stays `repairing`; to avoid waiting on an independently owned
+   provider effect, the next safe foundation cursor is Affiliate. Mobile evidence must still be consumed before
+   the final 14/14 gate, so this changes execution overlap, not the completion definition.
+
    Connector remains independently failed: its latest complete status is `entrypoint_exit_1`, event release
    `5b8e3c3b...`, installed release `208b0a36...`, and the outward message reduces that to
    `circuit_open/wake_boundary_failed`. The diagnosed
@@ -3193,11 +3211,14 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    while managed Cloak Chromium owns IPv6 `[::1]:9222`; the shared guard treats the 404 as alive because curl is
    not configured to fail on HTTP error. The separately leased candidate `e96e8c422d` is pushed but still has no
    PR, is not contained by main, is not released and is not loaded. This workstream does not duplicate or mutate
-   that owner. With Self-build accepted, the executable order is now Mobile Apps -> Affiliate -> Investment ->
-   Fundraiser -> Writer -> Agent Economy -> CFO -> Job Hunter non-Paid owners -> Gig non-Paid owners -> consume
-   the accepted Connector main commit after its owner publishes it -> authoritative fourteen-loop foundation
-   readback twice. Running owners, Paid ownership, pending admission and effect fences remain preserved; revenue
-   remains outside this gate and no artificial production failure is injected for proof.
+   that owner. The previous strict order was Mobile Apps -> Affiliate -> Investment -> Fundraiser -> Writer ->
+   Agent Economy -> CFO -> Job Hunter. The safe executable order is now: keep Mobile Apps repairing under its
+   existing provider-effect owner while this workstream advances Affiliate -> Investment -> Fundraiser -> Writer
+   -> Agent Economy -> CFO -> Job Hunter non-Paid owners -> Gig non-Paid owners; then consume accepted Mobile and
+   Connector main/production evidence and run the authoritative fourteen-loop foundation readback twice. The
+   reason is the active same-resource lease and unresolved official-effect fence, not a lower priority for Mobile.
+   The current cursor is Affiliate. Running owners, Paid ownership, pending admission and effect fences remain
+   preserved; revenue remains outside this gate and no artificial production failure is injected for proof.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
