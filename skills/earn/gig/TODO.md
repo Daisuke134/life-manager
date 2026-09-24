@@ -3396,3 +3396,29 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 5. [ ] Register and verify Freelancer/Upwork Paid owners, authentication,
    funding policy, provider receipts, idempotency, settlement readback, and
    replay-zero before enablement.
+
+### Runtime checkpoint — 2026-09-24 15:54 JST (CrowdWorks Paid boundary)
+
+- [x] `paid-latest.json` reports `status=ok`, `observed=5`, `readback=4`, and
+  `effect=0`; four prior contracts have official readback and `63568785` waits
+  for buyer task detail (`buyer_task_detail_required`).
+- [ ] Paid owner remains `unloaded/entrypoint_exit_143`; canonical occurrence
+  `18d62cf32eb0c678-48194` remains `claimed/effect_unknown=1`.
+- [x] Logs provide concrete infrastructure evidence: `No space left on
+  device`, `database is locked`, `control_busy`, and resource-claim ownership
+  mismatch. No admission DB edit, fence release, force-stop, or retry occurred.
+- [x] Low free space is recorded as write pressure only; an 11GiB threshold is
+  not a completion gate.
+
+### Remaining TODO (updated cursor)
+
+1. [ ] Preserve the verified CrowdWorks Application receipt and prevent
+   duplicate replay.
+2. [ ] Repair/test Paid write-pressure and SQLite/control-lock/release
+   ownership boundaries without touching the unknown effect row; prove a
+   natural Paid wake afterward.
+3. [ ] Reconcile CrowdWorks Reply/Report and close the fleet canary only with
+   official readback and replay-zero.
+4. [ ] Complete Coconala system acceptance, then advance Lancers/Mercor; review
+   the Lancers `unsupported_claim` policy after the active cursor.
+5. [ ] Register and verify Freelancer/Upwork Paid owners before enablement.

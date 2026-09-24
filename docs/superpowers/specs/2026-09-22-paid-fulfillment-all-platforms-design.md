@@ -3740,3 +3740,35 @@ not convert a transient pass or a no-op into client completion.
    Lancers `unsupported_claim` policy review.
 5. Build/register Freelancer and Upwork Paid owners and their official
    receipt/replay-zero gates before enabling them.
+
+## Runtime Status Refresh — 2026-09-24 15:54 JST (CrowdWorks Paid boundary)
+
+- The current CrowdWorks Paid artifact is not an empty failure: `paid-latest.json`
+  reports `status=ok`, `observed=5`, `readback=4`, `effect=0`, and one pending
+  item. Four prior contracts have official readback; contract `63568785` is
+  pending only because `reason=buyer_task_detail_required`. No new Paid
+  provider effect is authorized from this snapshot.
+- The Paid owner itself is not healthy enough for fleet acceptance. Status is
+  `unloaded` after `entrypoint_exit_143`, with canonical occurrence
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` still
+  `claimed/effect_unknown=1`. The launch error log records repeated
+  `No space left on device`, `database is locked`, `control_busy`, and
+  `resource claim ownership mismatch`. These are observed infrastructure
+  boundaries, not permission to edit the admission DB or retry a paid effect.
+- The current data-volume free space is low enough to reproduce write pressure,
+  but an 11GiB target is not a completion requirement. The required repair is
+  bounded cleanup/lock/release behavior with receipts, followed by a natural
+  Paid no-op/canary and official readback; do not force-stop a live owner or
+  clear the effect fence.
+
+### Next one-by-one cursor (15:54 JST)
+
+1. Preserve the verified Application receipt and prevent duplicate replay.
+2. Repair and test the Paid infrastructure boundary (write-pressure,
+   SQLite/control-lock contention, release ownership) without touching the
+   unresolved effect row; then prove a natural Paid wake.
+3. Reconcile CrowdWorks Reply/Report and only then close the CrowdWorks fleet
+   canary with official readback/replay-zero.
+4. Continue Coconala system acceptance, then Lancers/Mercor; review the
+   Lancers `unsupported_claim` policy after the active cursor.
+5. Register and verify Freelancer/Upwork Paid owners before enablement.
