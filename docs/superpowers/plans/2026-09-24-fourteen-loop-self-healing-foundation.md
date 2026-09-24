@@ -1558,3 +1558,12 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] Only after capacity recovery, load the exact immutable candidate, observe one effect-free Connector/no-op
   occurrence with a persisted event, and rerun the two-pass foundation gate. Do not touch Paid fulfillment or clear
   any external-effect fence from this cursor.
+
+### Capacity-owner readback (2026-09-25 JST)
+
+- [x] Run the designated disk-cleanup owner once with the normal allowlist. Receipt: `errors=0`,
+  `protected_deletions=0`, `evaluated=5`, `preserved=5` (`open=5`), `reclaimed=0`.
+- [x] Confirm the owner made no state/credential/session/source/provider deletion; free space remains roughly 296 MB
+  and the capacity floor is still unmet.
+- [ ] Do not rerun cleanup blindly or delete unknown artifacts. Re-read the receipt after the next owner-controlled
+  cleanup window, then rerun the full loop suite only after the host floor is actually restored.

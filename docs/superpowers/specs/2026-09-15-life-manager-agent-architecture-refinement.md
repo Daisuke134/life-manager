@@ -5072,3 +5072,9 @@ ENOSPC regression. The complete `runtime/loop/tests` collection remains environm
 next verification is to rerun that collection after the capacity floor is restored, then re-read the exact Connector
 occurrence and confirm a clean no-effect wake. No Paid source, Paid state, provider session, admission fence, main
 branch or immutable release was changed.
+
+The designated disk-cleanup owner was then run once with its normal allowlist. Its receipt reports `errors=0`,
+`protected_deletions=0`, `evaluated=5`, `preserved=5` (`open=5`) and `reclaimed=0`; free space remains only about
+296 MB. This is a safe no-op, not a cleanup failure: every discovered candidate was still open, and the owner did not
+delete state, credentials, sessions, source or provider data. The capacity floor therefore remains an external host
+blocker for the full suite and immutable promotion.
