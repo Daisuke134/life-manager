@@ -1468,3 +1468,21 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [ ] After accepted immutable promotion, obtain a fresh official Telegram readback in the correct target chat,
   persist a mode-0600 proof, and invoke the resolver only on exact occurrence/message/body identity match. Do not
   treat a missing legacy snapshot or an unrelated message ID as no-effect.
+
+### Payout occurrence-bound Base readback adapter (2026-09-25 JST)
+
+- [x] Add candidate commit `4e4e7b7ca6`: propagate a validated `LIFE_MANAGER_OCCURRENCE_ID` into the payout runtime
+  and append a private mode-0600 provider-settlement receipt after the existing exact Base settlement receipt.
+- [x] Keep the local payout row honest: it is `base_provider_settlement_receipt`; finality is not claimed until a
+  separate fresh Base readback proves the finalized block and exact USDC Transfer.
+- [x] Add the read-only `payout-reconcile.py` adapter. It requires the exact payout owner/occurrence, one unambiguous
+  local receipt, Base chain 8453, a finalized block, a successful transaction, and exactly one matching transfer.
+  It never sends funds or edits admission.
+- [x] Verify adapter tests **3/3**, `py_compile`, `node --check`, and `git diff --check`. Existing Node payout suites
+  remain environment-limited because `viem` and `@noble/hashes/sha3.js` are absent; do not hydrate dependencies
+  under the capacity floor.
+- [x] Probe `life-manager-payout:18d6026a3dc85558-829` read-only: `inconclusive / occurrence_receipt_missing`.
+  Keep the historical money fence held; this is not a no-effect proof.
+- [ ] After accepted immutable promotion, run one future payout occurrence, obtain the exact official Base readback,
+  persist the reconciliation proof, and invoke any resolver only when occurrence, transaction, amount, wallet and
+  finalized transfer all match. Then run replay-zero and the two-pass foundation gate.

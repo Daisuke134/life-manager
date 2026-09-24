@@ -4973,3 +4973,30 @@ The current historical snapshot has `occurrence_id=null` and no `message_sha256`
 `life-manager-cfo-hourly:18d679cb82869d48-98528` returns `inconclusive / snapshot_identity_mismatch`. It is not
 evidence that the message was absent and cannot clear the fence. The candidate is now **39 files**; no Telegram
 readback, message send, admission update, payout, main integration, immutable release or revenue claim occurred.
+
+### Payout occurrence-bound Base readback adapter (2026-09-25 JST)
+
+The candidate now carries `4e4e7b7ca6` on
+`fix/self-healing-control-plane-integration-20260925`. `run-agent-payout.js` validates the inherited
+`LIFE_MANAGER_OCCURRENCE_ID` and passes it through `payout-runtime.js`. After the existing exact settlement receipt is
+returned, the runtime appends a private mode-0600 `payout-receipts.jsonl` row containing the occurrence, transaction,
+wallet addresses, amount, provider receipt reference and payout identity. The local row is explicitly classified as a
+`base_provider_settlement_receipt`; it does not claim finality. Missing or malformed occurrence identity produces no
+receipt row, and a state-write failure cannot turn an unverified effect into success.
+
+The new read-only `apps/life-manager/scripts/payout-reconcile.py` adapter first checks the authoritative admission row,
+then requires exactly one occurrence-bound provider receipt, and finally performs a fresh Base-mainnet readback: chain
+8453, finalized block, successful transaction, and exactly one matching USDC Transfer from the recorded wallet to the
+recorded destination for the recorded atomic amount. Only this fresh readback is returned as
+`base_finalized_usdc_transfer`; the adapter never sends funds or edits admission state. The Python adapter tests pass
+**3/3**, `py_compile`, `node --check` and `git diff --check` pass. The existing Node payout suites cannot load in this
+worktree because optional dependencies `viem` and `@noble/hashes/sha3.js` are absent; no dependency hydration was
+performed under the capacity floor.
+
+A live read-only probe of `life-manager-payout:18d6026a3dc85558-829` returns
+`inconclusive / occurrence_receipt_missing`: the historical payout state has no occurrence-bound receipt. This is not
+evidence that no payout occurred and does not authorize clearing, replaying or sending funds. The candidate diff is now
+**44 files**. No wallet, Base RPC write, payout, Telegram message, admission row, main branch, immutable release or
+revenue value changed. After accepted immutable promotion, the next safe step is one future payout occurrence through
+the adapter, then an exact occurrence-bound official readback and replay-zero check before any historical resolver is
+considered.
