@@ -2270,6 +2270,29 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(receipt["telegram_event_uuid"], "old-event")
             self.assertEqual(receipt["telegram_kind"], "AFFILIATE_DAILY_SUMMARY")
 
+    def test_telegram_receipt_binds_the_host_occurrence_identity(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root)
+            event = {
+                "event_uuid": "current-event", "kind": "REPOST_OBSERVED",
+                "body": "current", "created_at": 2,
+            }
+            with patch.dict(
+                MODULE.os.environ,
+                {"LIFE_MANAGER_OCCURRENCE_ID": "affiliate-loop:occurrence-1"},
+                clear=False,
+            ):
+                receipt = MODULE.append_telegram_delivery_receipt(
+                    state,
+                    {"wake_event_uuid": "wake-1", "ts": 1},
+                    event,
+                    {"state": "SENT", "sent_event_uuid": "current-event", "message_id": "7641"},
+                )
+
+            self.assertEqual(receipt["occurrence_id"], "affiliate-loop:occurrence-1")
+            persisted = json.loads((state / "events.jsonl").read_text())
+            self.assertEqual(persisted["occurrence_id"], "affiliate-loop:occurrence-1")
+
     def test_telegram_supersedes_pending_equivalent_blocker_after_delivery(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root)

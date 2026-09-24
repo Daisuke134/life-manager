@@ -72,6 +72,7 @@ COST_BUDGET_JST = ZoneInfo("Asia/Tokyo")
 REPOST_PROPOSAL_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REPOST_PLACEMENT_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,80}$")
 REPOST_CONSUMPTION_STATES = {"EFFECT_STARTED", "POSTED", "UNVERIFIED", "NO_EFFECT"}
+HOST_OCCURRENCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
 
 
 def atomic_json(path, value):
@@ -3387,6 +3388,11 @@ def append_telegram_delivery_receipt(state, wake_event, telegram_event, delivery
         "delivery_state": delivery_state,
         "provider_message_id": message_id,
     }
+    host_occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip()
+    if not HOST_OCCURRENCE_ID_PATTERN.fullmatch(host_occurrence_id):
+        host_occurrence_id = None
+    if host_occurrence_id:
+        identity["occurrence_id"] = host_occurrence_id
     receipt = {
         "event": "affiliate_telegram_delivery",
         "schema_version": 1,
@@ -3407,6 +3413,8 @@ def append_telegram_delivery_receipt(state, wake_event, telegram_event, delivery
         "failure_type": failure_type,
         "observed_at": datetime.now(timezone.utc).isoformat(),
     }
+    if host_occurrence_id:
+        receipt["occurrence_id"] = host_occurrence_id
     append_unique(state / "events.jsonl", receipt, ("event_uuid",))
     return receipt
 
