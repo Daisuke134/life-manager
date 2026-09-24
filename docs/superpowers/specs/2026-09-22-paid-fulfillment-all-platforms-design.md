@@ -4818,3 +4818,16 @@ leaves the provider effect closed.
   quality verification, and official delivery readback.
 - [ ] Keep Lancers in monitor/no-op state. A public listing or approved browser
   receipt is not a funded `ContractReceipt`; do not create a guessed delivery.
+
+## Runtime Status Refresh — 2026-09-25 00:36 JST (Mercor inventory gate)
+
+- [x] Mercor live-auth readback is `authenticated`, but Paid remains
+  `status=pending`, `observed=0/effect=0/readback=0`, with
+  `reason=official_work_inventory_stale`; no Paid effect was created.
+- [x] The saved application is still `in_progress_2_of_3` at Assessment with
+  `final_submission=not_observed`. Its persisted Summary-field gap survives
+  reload, so the old browser evidence cannot establish completion.
+- [x] Mercor Paid/Reply/Application focused tests pass (`31`).
+- [ ] Refresh the shared authenticated Reply inventory and reconcile each exact
+  old effect-unknown occurrence before assessment, contract, or payout work.
+  Keep the assessment human-grounded and fail closed.

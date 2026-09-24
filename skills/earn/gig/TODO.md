@@ -4222,3 +4222,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   quality verification, and official delivery readback before mutation.
 - [ ] Keep Lancers as a no-op monitor. A public listing or approved browser
   receipt is not a funded `ContractReceipt`; do not invent a delivery target.
+
+### Runtime checkpoint — 2026-09-25 00:36 JST (Mercor inventory gate)
+
+- [x] Mercor's saved live-auth readback is `authenticated`, but the latest
+  Paid snapshot is `status=pending`, `observed=0/effect=0/readback=0`, with
+  `reason=official_work_inventory_stale` and one pending provider-inventory
+  item. No Mercor Paid effect was created.
+- [x] The saved application remains `in_progress_2_of_3`; the Assessment
+  stage is incomplete and `final_submission=not_observed`. The persisted gap
+  says the Summary field is cleared after reload, so completion cannot be
+  claimed from the old browser evidence.
+- [x] Mercor Paid/Reply/Application focused tests pass (`31`).
+- [ ] Refresh the shared authenticated Reply inventory and reconcile every
+  exact old effect-unknown occurrence before any assessment, contract, or
+  payout action. Do not submit an ungrounded assessment.
