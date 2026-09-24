@@ -4322,6 +4322,38 @@ entrypoint or external effect ran. Readback remains loaded-idle with typed `reso
 `effect_status=not_applicable` and `admission_effect_unknown=false`; promotion/reconcile remains pending the accepted
 immutable release and capacity cursor. The queue was not edited and no x402 payment or revenue was inferred.
 
+The following effect-free Agent Economy probe, `x402-experiment-franklin1`, is behind the same durable FIFO boundary.
+Two consecutive targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` each returned
+`eligible=1`, `applied=[]`, and `skipped_pending=[x402-experiment-franklin1]`; the old loaded/event release was not
+executed. Its registry route is deterministic with `effect_class=none`, so no wallet, payment, seller, experiment or
+provider effect ran and no revenue was inferred. The separate exact-current terminal/replay-zero acceptance remains
+open until admission advances; the queue was not edited and no effect fence was changed.
+
+The next effect-free watcher, `x402-inflow-watch`, is also behind the durable FIFO. Two consecutive targeted
+reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` each returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[x402-inflow-watch]`; its old loaded/event release was not executed. Readback
+remains `effect_class=none`, `effect_status=not_applicable`, and `admission_effect_unknown=false`, so no watcher,
+wallet, payment or provider effect ran and no revenue was inferred. Exact-current terminal/replay-zero acceptance
+remains open until the admission cursor advances; the queue and all effect fences were left unchanged.
+
+`x402-inflow-watch-franklin1` was then probed twice under the same contract. Both targeted reconciles returned
+`eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin1]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+effect-free deterministic watcher, so no wallet, payment, provider effect or revenue was inferred. Exact-current
+terminal/replay-zero acceptance remains open until durable admission advances.
+
+The `x402-sale-observer` was then probed twice without changing its typed capacity boundary. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No sale observation,
+wallet, payment or provider effect ran and no revenue was inferred. Exact-current terminal/replay-zero acceptance
+remains open until durable admission advances.
+
+`x402-inflow-watch-franklin2` was also probed twice under the same FIFO-safe contract. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+effect-free deterministic watcher, so no wallet, payment, provider effect or revenue was inferred. Exact-current
+terminal/replay-zero acceptance remains open until durable admission advances.
+
 ## E2E Judgment
 
 | Item | Value |

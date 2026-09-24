@@ -947,6 +947,33 @@ The following is the current control-plane state. It is evidence for the next bo
   `lm-loop reconcile` returned `eligible=1`/`skipped_pending`, so no old-release apply or entrypoint ran. Readback
   remains `effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, loaded-idle and
   typed `resource_capacity_busy`; its promotion/reconcile remains pending the accepted-release/capacity cursor.
+- [x] Probe `x402-experiment-franklin1` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-experiment-franklin1]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. The owner is
+  deterministic and `effect_class=none`, so no wallet, payment, seller, experiment or provider effect ran and no
+  revenue was inferred. The separate promotion/wake/replay-zero checkbox remains open until admission advances and
+  the exact current-release terminal readback has complete diagnostics.
+- [x] Probe `x402-inflow-watch` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. Readback remains
+  `effect_class=none`, `effect_status=not_applicable`, and `admission_effect_unknown=false`, so no watcher, wallet,
+  payment or provider effect ran and no revenue was inferred. Its exact-current wake/replay-zero checkbox remains
+  open until the durable admission cursor advances.
+- [x] Probe `x402-inflow-watch-franklin1` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin1]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+  effect-free deterministic watcher with no wallet/payment/provider effect or revenue claim. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `x402-inflow-watch-franklin2` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+  effect-free deterministic watcher with no wallet/payment/provider effect or revenue claim. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `x402-sale-observer` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. The typed
+  `resource_capacity_busy` observer remains effect-free, so no sale, wallet, payment or provider effect ran and no
+  revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until admission advances.
 
 ## Deferred until this plan passes
 
