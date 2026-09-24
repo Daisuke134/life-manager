@@ -1173,8 +1173,9 @@ def claim_durable(resource_class: str, owner_id: str, *,
                     return None, "occurrence_inflight"
                 if occurrence is not None:
                     connection.execute(
-                        "UPDATE occurrences SET state='cancelled' WHERE occurrence_id=?",
-                        (occurrence[0],))
+                        """UPDATE occurrences SET state='cancelled'
+                           WHERE owner_id=? AND state='queued' AND effect_unknown=0""",
+                        (owner_id,))
                 first_queued_at = occurrence[2] if occurrence else row[4] or instant
                 priority_name = row[3] or _default_priority(admission_class)
                 _record_occurrence(
