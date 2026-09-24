@@ -49,10 +49,36 @@ completion.
    Apply/Storefront wakes, official readback, and replay-zero.
 3. Re-read the four open Coconala rooms and close the system gate; keep Ryu
    manual-only and do not resend the already-read-back reply.
-4. Reconcile the remaining CrowdWorks fence/material wait, then implement and
-   prove Lancers' funded ContractReceipt/formal-delivery path.
-5. Obtain approved Upwork authorization and a funded contract; register and
-   verify Freelancer/Upwork Paid owners, then run final fleet acceptance.
+4. In parallel, reread the CrowdWorks material wait and keep Lancers ready for
+   its first funded ContractReceipt/formal-delivery surface; provider effects
+   remain independently gated.
+5. Continue Mercor/Freelancer/Upwork authorization and inventory readiness, then
+   run final fleet acceptance only after each provider has its own proof.
+
+### Parallel-readiness correction — 2026-09-24
+
+The one-by-one rule applies to **provider effects and production canaries**, not
+to read-only inventory, source tests, authorization checks, or branch work for
+unrelated platforms. Coconala's `5280157` fence must remain closed, but it must
+not prevent CrowdWorks/Lancers/Mercor/Freelancer/Upwork readiness work from
+advancing in parallel. A provider send still requires that provider's own
+funded contract, complete buyer context, effect receipt, official readback, and
+replay-zero.
+
+Fresh parallel evidence:
+
+- Lancers inventory at `2026-09-24T09:12:15Z` is source-complete with 14 boards,
+  zero working/monthly/storefront contract candidates, balance `0` JPY, and
+  `contract_candidate_count=0`; its Paid result is `observed=0/effect=0`.
+  The focused Lancers suite passes `197`. Formal delivery remains fail-closed
+  until a real funded contract exposes the official provider surface.
+- CrowdWorks `63568785`'s linked Doc was reread with authenticated
+  `gog drive download --format=txt`: 1,619 bytes, SHA-256
+  `40a59c39386ab955eeaf688fa6ccd118ceb157dc2296e7678f707a80955906cb`.
+  It still contains onboarding instructions for LINE/note content and a Google
+  Form, not the five lesson materials or buyer answers needed for quality
+  verification. No LINE or external-form action is an admissible completion
+  effect, so none was performed.
 
 ### Runtime admission lifecycle correction — 2026-09-23
 

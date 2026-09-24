@@ -18,8 +18,10 @@
 - [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
   latest buyer cycle and remains a permanent manual-only exception; do not
   resend unless a genuinely newer buyer event appears.
-- [ ] After Coconala closes, advance CrowdWorks/Lancers/Mercor, then register
-  and verify Freelancer/Upwork Paid owners and the final fleet gate.
+- [ ] In parallel with the Coconala fence, continue read-only/branch readiness
+  for CrowdWorks, Lancers, Mercor, Freelancer, and Upwork. This does not
+  authorize a provider effect; each send still requires its own funded contract
+  and official receipt path.
 - [x] Record Lancers job `5606124` as `unsupported_claim` with no external
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
@@ -33,9 +35,11 @@
    Apply/Storefront wakes plus replay-zero. Production has not changed yet.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
-4. Reconcile the remaining CrowdWorks fence and buyer-material wait, then prove
-   Lancers' first funded ContractReceipt/formal-delivery path.
-5. Obtain approved Upwork authorization and a funded contract, then register
+4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible
+   lesson/answer material; do not perform LINE or external-form actions.
+5. Lancers: keep the zero-funded inventory no-op and finish the formal-delivery
+   contract only when a real funded ContractReceipt appears.
+6. Obtain approved Upwork authorization and a funded contract, then register
    Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
    settlement, payout, and duplicate-zero acceptance.
 
@@ -3783,3 +3787,36 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    do not duplicate the already-read-back reply.
 4. [ ] Reconcile CrowdWorks, prove the first funded Lancers delivery path, then
    register/verify Freelancer and Upwork and run fleet acceptance.
+
+### Runtime checkpoint — 2026-09-24 (parallel platform readiness)
+
+- [x] Lancers authenticated inventory readback at `2026-09-24T09:12:15Z`
+  is source-complete: 14 boards, 0 working projects, 0 monthly contracts,
+  0 storefront candidates, finance balance `0` JPY, and
+  `contract_candidate_count=0`. Paid snapshot is `observed=0/effect=0`, so no
+  Lancers provider mutation is legitimate at this cursor.
+- [x] Lancers focused suite passes `197`; the only earlier failure was the
+  test environment missing the `playwright` package. The formal-delivery
+  adapter remains fail-closed because the live funded-contract surface has not
+  been observed; no guessed endpoint was added.
+- [x] CrowdWorks contract `63568785` linked Doc was reread through authenticated
+  `gog drive download --format=txt` (1,619 bytes, SHA-256
+  `40a59c39386ab955eeaf688fa6ccd118ceb157dc2296e7678f707a80955906cb`). The
+  current text is still onboarding instructions for LINE/note content and a
+  Google Form, not the five lesson materials or buyer answers required for
+  quality verification. No LINE or external-form action was performed.
+- [ ] Coconala Apply request `5280157` remains fenced; its provider proof is
+  independent of this parallel readiness work.
+
+### Remaining TODO (authoritative cursor, parallel lanes)
+
+1. [ ] Coconala: obtain complete official history for `5280157`, then load the
+   immutable release and prove natural Apply/Storefront readback/replay-zero.
+2. [ ] CrowdWorks: wait for admissible lesson/answer material for `63568785`,
+   then complete its existing on-platform delivery chain once.
+3. [ ] Lancers: monitor for the first funded ContractReceipt; derive and test
+   the official formal-delivery/readback surface before any effect.
+4. [ ] Mercor/Freelancer/Upwork: continue read-only auth/inventory readiness;
+   register Paid owners only after authorized funded contracts exist.
+5. [ ] Run final cross-platform cadence, settlement, payout, crash-recovery,
+   and duplicate-zero acceptance after provider-specific gates pass.
