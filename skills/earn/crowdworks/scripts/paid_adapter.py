@@ -322,6 +322,7 @@ class CrowdWorksPaidAdapter:
             raise RuntimeError("crowdworks_paid_browser_unavailable")
         try:
             self.source_context = contexts[0]
+            self._prune_blank_source_pages()
             self.owned_context = self.context_factory(self.browser, contexts[0])
             self.owns_context = self.owned_context is not contexts[0]
             if self._requires_isolation and self.owned_context is contexts[0]:
@@ -375,6 +376,39 @@ class CrowdWorksPaidAdapter:
         if not isinstance(state, Mapping) or not isinstance(state.get("cookies"), list):
             raise RuntimeError("crowdworks_paid_browser_state_invalid")
         return browser.new_context(storage_state=json.loads(json.dumps(state)))
+
+    @staticmethod
+    def _is_blank_source_page(page: Any) -> bool:
+        try:
+            url = str(getattr(page, "url", "") or "")
+        except Exception:
+            return False
+        return url.startswith(("about:blank", "chrome://newtab"))
+
+    def _prune_blank_source_pages(self) -> None:
+        """Keep one blank tab and every non-blank provider page in the shared context."""
+        context = self.source_context
+        if context is None:
+            return
+        try:
+            pages = list(getattr(context, "pages", ()))
+        except Exception:
+            return
+        blanks = [page for page in pages if self._is_blank_source_page(page)]
+        if len(blanks) <= 1:
+            return
+        keep = next(
+            (page for page in blanks
+             if str(getattr(page, "url", "") or "").startswith("chrome://newtab")),
+            blanks[0],
+        )
+        for page in blanks:
+            if page is keep:
+                continue
+            try:
+                page.close()
+            except Exception:
+                pass
 
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
@@ -1691,6 +1725,7 @@ class CrowdWorksPaidAdapter:
             try: self.owned_context.close()
             except Exception: pass
         self.owned_context = None
+        self._prune_blank_source_pages()
         if self.runtime is not None:
             try: self.runtime.stop()
             except Exception: pass
