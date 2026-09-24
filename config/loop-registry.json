@@ -1101,6 +1101,7 @@
       "label": "ai.anicca.hf-gig-browser",
       "log_root": "~/.openclaw/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.openclaw"
     },
     "hf-gig-daily-report": {

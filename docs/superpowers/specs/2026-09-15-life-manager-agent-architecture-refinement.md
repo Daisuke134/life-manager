@@ -3796,6 +3796,11 @@ The Lancers continuous browser owner is now classified the same way from its uni
 inferred, and no Lancers browser session, provider state, Paid fulfillment or marketplace effect was started. This
 remains a branch-only exact-release/readback requirement.
 
+The Gig continuous browser owner is now classified `resource_class=browser` from its unique CDP/profile
+`browser_owner` (9223) and keep-alive identity. It has no finite admission rows, so no admission/priority fields are
+inferred. The Gig browser session and all Paid source/state/session/provider effects remain untouched; accepted
+release loaded-idle/readback is still required.
+
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
 distinct; a missing count stays `null`, while an official empty result is the only valid zero. Verified and
