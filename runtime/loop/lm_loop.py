@@ -47,6 +47,11 @@ PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
     "host_admission_deferred:resource_capacity_busy",
     "host_admission_deferred:resource_fifo_wait",
 })
+FUNDRAISER_PRE_EFFECT_ENTRYPOINT = "skills/fundraiser-agent/runtime/run.sh"
+FUNDRAISER_PRE_EFFECT_BLOCKER = "entrypoint_exit_75"
+PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
+    FUNDRAISER_PRE_EFFECT_BLOCKER,
+})
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 
@@ -86,6 +91,22 @@ def _private_runtime_rows(path: Path, *, max_rows: int = 50_000) -> list[dict]:
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
+    if (row.get("status") == "blocked"
+            and row.get("blocker") in PRE_EFFECT_ADMISSION_BLOCKERS):
+        return True
+    # fundraiser's exit 75 is emitted only by the disk/CDP preflight in
+    # run.sh, before run_agent.sh can open an application or dispatch a
+    # provider request. Scope this compatibility proof to that exact
+    # entrypoint so a generic child exit 75 never clears an effect fence.
+    return (
+        entry.get("entrypoint") == FUNDRAISER_PRE_EFFECT_ENTRYPOINT
+        and entry.get("effect_class") == "application"
+        and row.get("status") == "fail"
+        and row.get("blocker") == FUNDRAISER_PRE_EFFECT_BLOCKER
+    )
 
 
 def _atomic_private_json(path: Path, value: dict) -> None:
@@ -142,13 +163,14 @@ def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, di
               if row.get("phase") == "execute" and row.get("status") == "running"
               and row.get("effect_status") == "started"]
     terminals = [row for row in exact
-                 if row.get("phase") == "report" and row.get("status") == "blocked"]
+                 if row.get("phase") == "report"
+                 and _is_pre_effect_terminal(entry, row)]
     if len(exact) != 2 or len(starts) != 1 or len(terminals) != 1:
         return None
     start, terminal = starts[0], terminals[0]
     summary_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
     evidence_refs = terminal.get("evidence_refs", [])
-    if (terminal.get("blocker") not in PRE_EFFECT_ADMISSION_BLOCKERS
+    if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
             or terminal.get("effect_status") != "unknown"
             or summary_ref not in start.get("evidence_refs", [])
             or summary_ref not in evidence_refs
