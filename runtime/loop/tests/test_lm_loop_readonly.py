@@ -1,14 +1,21 @@
 import unittest
+import io
 import json
+import os
+import sqlite3
 import subprocess
 import tempfile
 import plistlib
+import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop import (
-    _last_event, _release_from_plist, _state_root_from_plist,
-    doctor_report, snapshot, status_rows,
+    _admission_effect_unknown_owners, _last_event, _launchctl,
+    _pending_admission_owners, _release_from_plist, _safe_launchctl,
+    _state_root_from_plist,
+    doctor_report, main as lm_loop_main, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
 from runtime.loop.runtime_event import build_runtime_start_event
@@ -25,6 +32,94 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_status_reports_typed_admission_read_failure(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=sqlite3.OperationalError("database is locked"),
+             ),
+             redirect_stdout(output)):
+            self.assertEqual(lm_loop_main(["status", "example"]), 1)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["error"], "admission_fence_read_failed")
+        self.assertEqual(payload["error_class"], "admission_database_locked")
+        self.assertTrue(payload["retryable"])
+        self.assertEqual(payload["next_action"], "retry_admission_read")
+
+    def test_pending_admission_read_retries_transient_sqlite_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            calls = []
+
+            class Connection:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return False
+
+                def execute(self, *_):
+                    class Cursor:
+                        def fetchall(self):
+                            return [("queued-owner",)]
+
+                    return Cursor()
+
+            def connect(*_args, **_kwargs):
+                calls.append(True)
+                if len(calls) == 1:
+                    raise sqlite3.OperationalError("database is locked")
+                return Connection()
+
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch("runtime.loop.lm_loop.sqlite3.connect", side_effect=connect),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                self.assertEqual(_pending_admission_owners(), {"queued-owner"})
+            self.assertEqual(len(calls), 2)
+
+    def test_effect_fence_read_does_not_turn_sqlite_lock_into_empty_fence_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch(
+                      "runtime.loop.lm_loop.sqlite3.connect",
+                      side_effect=sqlite3.OperationalError("database is locked"),
+                  ),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
+                    _admission_effect_unknown_owners()
+
+    def test_launchctl_readback_does_not_require_disk_tempfiles(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl", "list"], 0, stdout="loaded\n", stderr="",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            self.assertEqual(_launchctl("list"), "loaded\n")
+        self.assertEqual(run.call_args.args[0], ["launchctl", "list"])
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
+
+    def test_safe_launchctl_keeps_stdout_and_stderr_in_memory(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl-safe", "print", "gui/501/example"], 7,
+            stdout="stdout\n", stderr="stderr\n",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            code, output = _safe_launchctl(
+                Path("/tmp/launchctl-safe"), ["print", "gui/501/example"],
+            )
+        self.assertEqual((code, output), (7, "stdout\nstderr\n"))
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/tmp/launchctl-safe", "print", "gui/501/example"],
+        )
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 30)
+
     def test_status_exposes_complete_diagnostic_contract_and_catalog_product(self):
         event = build_runtime_event(
             loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
@@ -73,6 +168,31 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(row["product_loop_id"], "connector")
         self.assertEqual(row["job_id"], "example")
         self.assertEqual(row["run_id"], "old-run")
+
+    def test_running_legacy_event_exposes_reload_action(self):
+        event = {
+            "timestamp": "2026-08-28T00:00:00Z", "status": "running",
+            "release_sha": "b" * 40, "effect_status": "not_applicable",
+            "blocker": None, "run_id": "old-run-123", "phase": "execute",
+            "evidence_refs": ["lm-loop://example/old-run-123/summary.json"],
+        }
+        registry = {"schema_version": 2, "loops": {"example": {
+            **REGISTRY["loops"]["example"],
+            "cadence": {"keep_alive": True},
+        }}}
+        row = status_rows(
+            registry,
+            loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+            disabled={},
+            events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        self.assertFalse(row["diagnostic_complete"])
+        self.assertEqual(row["diagnostic_error"], "legacy_runtime_event_schema")
+        self.assertEqual(row["error_class"], "legacy_runtime_event_schema")
+        self.assertTrue(row["retryable"])
+        self.assertEqual(row["next_action"], "reload_current_release")
+        self.assertEqual(row["blocker"], "legacy_runtime_event_schema")
 
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
@@ -305,6 +425,97 @@ class LmLoopReadonlyTest(unittest.TestCase):
             event = _last_event(str(root), "browser", running_pid="123")
 
             self.assertEqual(event, running)
+
+    def test_status_projects_active_continuous_harness_failure(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            harness = {
+                "ts": int(time.time()), "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1,
+                "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner",
+                    "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "fail")
+            self.assertEqual(row["failure_layer"], "runtime")
+            self.assertEqual(row["error_class"], "tool_missing")
+            self.assertTrue(row["retryable"])
+            self.assertEqual(row["next_action"], "reconcile_owner")
+            self.assertEqual(row["blocker"], "harness_failure:tool_missing")
+            self.assertTrue(row["latest_harness_failure"]["active"])
+
+    def test_status_keeps_harness_failure_as_history_after_clean_wake(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            now = int(time.time())
+            harness = {
+                "ts": now - 2, "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1, "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner", "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            ledger = {"ts": now, "wake_id": "wake-success", "kind": "wake"}
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            ledger_path = state / "ledger.jsonl"
+            ledger_path.write_text(json.dumps(ledger) + "\n", encoding="utf-8")
+            os.chmod(ledger_path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "running")
+            self.assertEqual(row["failure_layer"], "clean")
+            self.assertFalse(row["latest_harness_failure"]["active"])
 
     def test_last_event_rejects_running_event_for_different_process(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -742,6 +742,12 @@ test('PROP-023(e): ANICCA_BRAIN=claude-p with missing claude binary falls back t
     const lines = readLedger(ledgerPath);
     proc.kill('SIGTERM');
     assert.ok(lines.length >= 1, 'Loop must produce ledger lines even when claude binary is missing (fallback to proxy)');
+    assert.ok(
+      lines.some((line) => line.brain_fallback?.from === 'claude-p'
+        && line.brain_fallback?.to === 'proxy'
+        && line.brain_fallback?.reason === 'claude_not_found'),
+      'the recovered brain route must remain observable in the ledger',
+    );
     // HTTP must have been called (proxy fallback)
     assert.ok(httpHitCount >= 1, 'Proxy HTTP must be called on claude-p fallback');
   } finally {

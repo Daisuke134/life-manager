@@ -222,6 +222,28 @@ def host_cleanup_ok(returncode: int, result: object) -> bool:
             and result.get("errors") == 0 and result.get("protected_deletions") == 0)
 
 
+def host_cleanup_readback(returncode: int, stdout: str) -> tuple[bool, dict]:
+    """Parse the host governor's final JSON without collapsing missing output to ``{}``."""
+    if not isinstance(stdout, str) or not stdout.strip():
+        return False, {
+            "error": "host_cleanup_result_missing",
+            "returncode": returncode,
+        }
+    try:
+        result = json.loads(stdout.splitlines()[-1])
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False, {
+            "error": "host_cleanup_result_invalid",
+            "returncode": returncode,
+        }
+    if not isinstance(result, dict):
+        return False, {
+            "error": "host_cleanup_result_invalid",
+            "returncode": returncode,
+        }
+    return host_cleanup_ok(returncode, result), result
+
+
 def loaded_release_roots(agents_dir: Path, releases_root: Path) -> set[Path]:
     protected = set()
     base = releases_root.resolve()
@@ -306,10 +328,16 @@ def main() -> int:
             host_cleanup_command(ROOT, home, cleanup_state),
             capture_output=True, text=True, timeout=240,
         )
-        host_result = json.loads(host_process.stdout.splitlines()[-1]) if host_process.stdout.strip() else {}
-        host_ok = host_cleanup_ok(host_process.returncode, host_result)
-    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError) as error:
-        host_ok, host_result = False, {"error": str(error)}
+        host_ok, host_result = host_cleanup_readback(
+            host_process.returncode, host_process.stdout,
+        )
+    except subprocess.TimeoutExpired:
+        host_ok, host_result = False, {"error": "host_cleanup_timeout"}
+    except OSError as error:
+        host_ok, host_result = False, {"error": "host_cleanup_invocation_failed",
+                                       "error_class": type(error).__name__}
+        if isinstance(error.errno, int):
+            host_result["errno"] = error.errno
     try:
         result = release_gc(releases, current, agents,
                             keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))

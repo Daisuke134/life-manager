@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { consumeRecoveryIntentQueue } from '../recovery-supervisor.mjs';
+import { supervisorExitCode } from '../recovery-supervisor-cli.mjs';
 
 const SHA = 'a'.repeat(40);
 const execFileAsync = promisify(execFile);
@@ -157,6 +158,9 @@ test('records exact readback evidence and does not spend budget on verification-
       after_readback: {
         event_id: 'event-after', loop_id: 'example-loop', owner_id: 'example-loop',
         installed_release_sha: SHA, event_release_sha: SHA,
+        diagnostic_error: 'legacy_runtime_event_schema',
+        failure_layer: 'runtime', error_class: 'legacy_runtime_event_schema',
+        retryable: true, next_action: 'reload_current_release',
       },
       command_exit_code: 0,
       evidence_refs: ['lm-loop://example-loop/run-1/summary.json'],
@@ -175,6 +179,9 @@ test('records exact readback evidence and does not spend budget on verification-
   assert.deepEqual(outcome.readback, {
     event_id: 'event-after', loop_id: 'example-loop', owner_id: 'example-loop',
     installed_release_sha: SHA, event_release_sha: SHA,
+    diagnostic_error: 'legacy_runtime_event_schema',
+    failure_layer: 'runtime', error_class: 'legacy_runtime_event_schema',
+    retryable: true, next_action: 'reload_current_release',
   });
 });
 
@@ -269,4 +276,12 @@ test('production CLI derives its owner from the registry and terminally drains o
   );
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0].state, 'skipped');
+});
+
+test('safe queued recovery waits exit successfully instead of becoming an entrypoint failure', () => {
+  assert.equal(supervisorExitCode({ ok: true, state: 'idle' }), 0);
+  assert.equal(supervisorExitCode({ ok: true, state: 'repaired' }), 0);
+  assert.equal(supervisorExitCode({ ok: false, state: 'queued' }), 0);
+  assert.equal(supervisorExitCode({ ok: false, state: 'blocked' }), 1);
+  assert.equal(supervisorExitCode({ ok: false, state: 'escalated' }), 1);
 });

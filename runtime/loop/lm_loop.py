@@ -54,6 +54,50 @@ PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
 })
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
+MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
+ADMISSION_READ_RETRY_ATTEMPTS = 8
+ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
+
+
+def _sqlite_database_busy(error: sqlite3.Error) -> bool:
+    code = getattr(error, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return (code & 0xFF) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+    return str(error).lower() in {
+        "database is locked",
+        "database schema is locked: main",
+        "database table is locked",
+        "database table is locked: sqlite_master",
+    }
+
+
+def _read_admission_rows(
+    database: Path, query: str, parameters: tuple[object, ...] = (),
+) -> list[tuple]:
+    """Read admission state without treating transient contention as empty state."""
+    uri = f"{database.as_uri()}?mode=ro"
+    for attempt in range(ADMISSION_READ_RETRY_ATTEMPTS):
+        try:
+            with sqlite3.connect(uri, uri=True, timeout=1) as connection:
+                return connection.execute(query, parameters).fetchall()
+        except sqlite3.Error as error:
+            if (not _sqlite_database_busy(error)
+                    or attempt + 1 >= ADMISSION_READ_RETRY_ATTEMPTS):
+                raise
+            time.sleep(ADMISSION_READ_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise RuntimeError("admission read retry exhausted")
+
+
+def _admission_read_error(operation: str, error: sqlite3.Error) -> dict[str, object]:
+    busy = _sqlite_database_busy(error)
+    return {
+        "ok": False,
+        "error": operation,
+        "error_class": "admission_database_locked" if busy else "admission_database_read_error",
+        "retryable": busy,
+        "next_action": "retry_admission_read" if busy else "inspect_admission_database",
+        "detail": str(error)[:200],
+    }
 
 
 def _event_epoch(value: object) -> float:
@@ -109,6 +153,129 @@ def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     )
 
 
+def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
+                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES) -> list[dict]:
+    """Read one private JSONL side channel without following links or trusting its mode.
+
+    Harness failures are diagnostic input, not runtime events, so they cannot use
+    ``_private_runtime_rows``'s strict event validator.  They still need the same
+    ownership, regular-file, link-count and 0600 checks before status consumes them.
+    """
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return []
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > max_bytes):
+            return []
+        with os.fdopen(descriptor, "rb") as raw:
+            descriptor = -1
+            rows = []
+            for line in raw:
+                try:
+                    value = json.loads(line)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if isinstance(value, dict):
+                    rows.append(value)
+                    if len(rows) > max_rows:
+                        return []
+            return rows
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _harness_failure_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "harness-failures.jsonl",
+        root / "state" / "harness-failures.jsonl",
+        root / "harness-failures.jsonl",
+    ]
+
+
+def _ledger_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "ledger.jsonl",
+        root / "state" / "ledger.jsonl",
+        root / "ledger.jsonl",
+    ]
+
+
+def _latest_harness_failure(state_root: str, loop_id: str,
+                            event: dict | None) -> dict | None:
+    """Project the latest same-run harness failure for a continuous owner.
+
+    A running process is not sufficient evidence of health.  This projection is
+    deliberately read-only and owner/run/release bound.  A later clean ledger
+    wake marks the failure inactive while retaining it as diagnostic history.
+    """
+    if not isinstance(event, dict) or event.get("status") != "running":
+        return None
+    run_id = event.get("run_id")
+    release_sha = event.get("release_sha")
+    if not isinstance(run_id, str) or not isinstance(release_sha, str):
+        return None
+    failures: list[dict] = []
+    for path in _harness_failure_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            intent = row.get("recovery_intent")
+            if not isinstance(intent, dict):
+                continue
+            if (intent.get("loop_id") != loop_id or intent.get("run_id") != run_id
+                    or intent.get("release_sha") != release_sha):
+                continue
+            if not isinstance(row.get("ts"), (int, float)):
+                continue
+            failures.append(row)
+    if not failures:
+        return None
+    failure = max(failures, key=lambda row: row["ts"])
+    intent = failure.get("recovery_intent") or {}
+    layer = str(failure.get("layer") or "unknown")
+    detail = str(failure.get("detail") or "")
+    lowered = detail.lower()
+    if layer == "brain_transport" and ("429" in lowered or "rate" in lowered):
+        error_class = "provider_rate_limit"
+    elif layer == "tool_logic" and "enoent" in lowered:
+        error_class = "tool_missing"
+    else:
+        error_class = layer
+    clean_after = False
+    for path in _ledger_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            if (isinstance(row.get("ts"), (int, float))
+                    and row["ts"] > failure["ts"]
+                    and row.get("kind") in {"wake", "narrate"}):
+                clean_after = True
+                break
+        if clean_after:
+            break
+    evidence_refs = intent.get("evidence_refs")
+    if not isinstance(evidence_refs, list):
+        evidence_refs = []
+    return {
+        "active": not clean_after,
+        "kind": failure.get("kind"),
+        "layer": layer,
+        "error_class": error_class,
+        "detail": detail[:4000],
+        "wake_id": failure.get("wake_id"),
+        "run_id": run_id,
+        "release_sha": release_sha,
+        "retryable": intent.get("retryable") is True,
+        "next_action": intent.get("action") or "reconcile_owner",
+        "blocker": f"harness_failure:{error_class}",
+        "evidence_refs": [ref for ref in evidence_refs if isinstance(ref, str)][:32],
+        "ts": failure["ts"],
+    }
+
+
 def _atomic_private_json(path: Path, value: dict) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -127,13 +294,18 @@ def _atomic_private_json(path: Path, value: dict) -> None:
 def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
     """Prove one exact old fence stopped in host admission before entrypoint."""
     database = admission_root() / "admission-v2.sqlite3"
-    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as connection:
-        rows = connection.execute(
+    try:
+        rows = _read_admission_rows(
+            database,
             """SELECT occurrence_id,state FROM occurrences
                  WHERE owner_id=? AND effect_unknown=1
                  ORDER BY queued_at,occurrence_id""",
             (loop_id,),
-        ).fetchall()
+        )
+    except sqlite3.Error:
+        # Proof failure is fail-closed: retain the effect fence and let the
+        # enclosing reconcile report a retryable admission-read boundary.
+        return None
     if len(rows) != 1:
         return None
     occurrence_id, expected_state = rows[0]
@@ -250,13 +422,15 @@ def _pending_admission_owners() -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        return {owner_id for (owner_id,) in connection.execute(
-            """SELECT owner_id FROM occurrences WHERE state='claimed'
-               UNION
-               SELECT o.owner_id FROM occurrences o
-                 JOIN queue q ON q.owner_id=o.owner_id
-               WHERE o.state='queued' AND o.effect_unknown=0""")}
+    rows = _read_admission_rows(
+        database,
+        """SELECT owner_id FROM occurrences WHERE state='claimed'
+           UNION
+           SELECT o.owner_id FROM occurrences o
+             JOIN queue q ON q.owner_id=o.owner_id
+           WHERE o.state='queued' AND o.effect_unknown=0""",
+    )
+    return {owner_id for (owner_id,) in rows}
 
 
 def _entry_effect_scope(entry: dict) -> str:
@@ -280,28 +454,28 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        rows = connection.execute(
-            """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
-                      p.admission_policy,p.effect_scope,p.effect_unknown,
-                      EXISTS (
-                          SELECT 1 FROM occurrences claimed
-                          WHERE claimed.owner_id=q.owner_id
-                            AND claimed.state='claimed'
-                            AND claimed.effect_unknown=0
-                      ),
-                      EXISTS (
-                          SELECT 1 FROM occurrences uncertain
-                          WHERE uncertain.owner_id=q.owner_id
-                            AND uncertain.effect_unknown=1
-                      )
-               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
-               WHERE EXISTS (
-                   SELECT 1 FROM occurrences o
-                   WHERE o.owner_id=q.owner_id
-                     AND o.state='queued' AND o.effect_unknown=0
-               )"""
-        ).fetchall()
+    rows = _read_admission_rows(
+        database,
+        """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
+                  p.admission_policy,p.effect_scope,p.effect_unknown,
+                  EXISTS (
+                      SELECT 1 FROM occurrences claimed
+                      WHERE claimed.owner_id=q.owner_id
+                        AND claimed.state='claimed'
+                        AND claimed.effect_unknown=0
+                  ),
+                  EXISTS (
+                      SELECT 1 FROM occurrences uncertain
+                      WHERE uncertain.owner_id=q.owner_id
+                        AND uncertain.effect_unknown=1
+                  )
+           FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+           WHERE EXISTS (
+               SELECT 1 FROM occurrences o
+               WHERE o.owner_id=q.owner_id
+                 AND o.state='queued' AND o.effect_unknown=0
+           )""",
+    )
     mismatches = set()
     for (owner_id, resource_class, admission_class, priority, policy, effect_scope,
          priority_effect_unknown, claimed, occurrence_effect_unknown) in rows:
@@ -326,15 +500,11 @@ def _admission_effect_unknown_owners() -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    try:
-        with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-            return {
-                owner_id for (owner_id,) in connection.execute(
-                    "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1"
-                )
-            }
-    except sqlite3.Error:
-        return set()
+    rows = _read_admission_rows(
+        database,
+        "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1",
+    )
+    return {owner_id for (owner_id,) in rows}
 
 
 @contextmanager
@@ -477,7 +647,46 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         elif (catalog_product_loop_id is not None and event_product_loop_id is not None
               and event_product_loop_id != catalog_product_loop_id):
             diagnostic_error = "event_product_identity_mismatch"
+        legacy_runtime_event = (
+            bool(event)
+            and bool(missing_diagnostic_fields)
+            and entry.get("cadence", {}).get("keep_alive") is True
+            and launchd_state == "loaded-running"
+            and event.get("phase") == "execute"
+            and event.get("status") == "running"
+        )
+        if diagnostic_error is None and legacy_runtime_event:
+            # A live process with a pre-diagnostic envelope is not healthy
+            # evidence.  The only safe repair is to reload the owner through
+            # the immutable-release reconciler; never infer an effect result.
+            diagnostic_error = "legacy_runtime_event_schema"
         diagnostic_complete = not missing_diagnostic_fields and diagnostic_error is None
+        latest_harness_failure = _latest_harness_failure(entry["state_root"], loop_id, event)
+        active_harness_failure = (
+            latest_harness_failure if latest_harness_failure
+            and latest_harness_failure.get("active") is True else None
+        )
+        last_terminal_result = event.get("status")
+        failure_layer = event.get("failure_layer")
+        error_class = event.get("error_class")
+        retryable = event.get("retryable")
+        next_action = event.get("next_action")
+        if legacy_runtime_event:
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = "legacy_runtime_event_schema"
+            retryable = True
+            next_action = "reload_current_release"
+            blocker = "legacy_runtime_event_schema"
+        if active_harness_failure is not None:
+            # Keep launchd/process identity separate from health: a continuous
+            # process can be alive while its latest wake is failing.
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = active_harness_failure["error_class"]
+            retryable = active_harness_failure["retryable"]
+            next_action = active_harness_failure["next_action"]
+            blocker = active_harness_failure["blocker"]
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
@@ -503,10 +712,10 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "loaded_argv_sha256": event.get("loaded_argv_sha256"),
             "loaded_env_sha256": event.get("loaded_env_sha256"),
             "exit_code": event.get("exit_code"),
-            "failure_layer": event.get("failure_layer"),
-            "error_class": event.get("error_class"),
-            "retryable": event.get("retryable"),
-            "next_action": event.get("next_action"),
+            "failure_layer": failure_layer,
+            "error_class": error_class,
+            "retryable": retryable,
+            "next_action": next_action,
             "provider_receipt_id": event.get("provider_receipt_id"),
             "official_readback_ref": event.get("official_readback_ref"),
             "evidence_refs": event.get("evidence_refs"),
@@ -514,7 +723,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "diagnostic_missing_fields": missing_diagnostic_fields,
             "diagnostic_error": diagnostic_error,
             "last_pass": event.get("timestamp"),
-            "last_terminal_result": event.get("status"),
+            "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
             "effect_status": event.get("effect_status", "unknown"),
             "event_release_sha": event.get("release_sha"),
@@ -522,6 +731,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
             "stale_event": stale_event,
+            "latest_harness_failure": latest_harness_failure,
         })
     return rows
 
@@ -628,12 +838,12 @@ def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: 
 
 
 def _launchctl(*args: str) -> str:
-    with tempfile.TemporaryFile(mode="w+") as stdout, tempfile.TemporaryFile(mode="w+") as stderr:
-        result = subprocess.run(
-            ["launchctl", *args], stdout=stdout, stderr=stderr, text=True, timeout=15)
-        stdout.seek(0)
-        stderr.seek(0)
-        output, error = stdout.read(), stderr.read()
+    # Keep the read-only observability probe independent of the disk-backed
+    # loop scratch area.  Near an ENOSPC boundary, TemporaryFile() itself can
+    # fail before launchctl is queried, hiding the real control-plane state.
+    result = subprocess.run(
+        ["launchctl", *args], capture_output=True, text=True, timeout=15)
+    output, error = result.stdout, result.stderr
     if result.returncode:
         raise RuntimeError(error.strip() or "launchctl failed")
     return output
@@ -828,11 +1038,11 @@ def snapshot(registry: dict, target: str) -> list[dict]:
 
 
 def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
-    with tempfile.TemporaryFile(mode="w+") as output:
-        result = subprocess.run(
-            [str(executable), *args], stdout=output, stderr=output, text=True, timeout=30)
-        output.seek(0)
-        return result.returncode, output.read()
+    # The targeted safe probe is also read-only and must remain observable
+    # when the host cannot create another temporary file.
+    result = subprocess.run(
+        [str(executable), *args], capture_output=True, text=True, timeout=30)
+    return result.returncode, f"{result.stdout}{result.stderr}"
 
 
 def targeted_snapshot(registry: dict, targets: set[str],
@@ -1473,7 +1683,20 @@ def main(argv: list[str] | None = None) -> int:
                 if automatic_release_reconciler else set()
             )
         except (OSError, sqlite3.Error) as exc:
-            print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
+            if isinstance(exc, sqlite3.Error):
+                print(json.dumps(
+                    _admission_read_error("admission_queue_read_failed", exc),
+                    sort_keys=True,
+                ))
+            else:
+                print(json.dumps({
+                    "ok": False,
+                    "error": "admission_queue_read_failed",
+                    "error_class": "admission_state_unavailable",
+                    "retryable": True,
+                    "next_action": "retry_admission_read",
+                    "detail": str(exc)[:200],
+                }, sort_keys=True))
             return 1
         if automatic_release_reconciler:
             for row in rows:
@@ -1595,7 +1818,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
     while True:
-        print(json.dumps(snapshot(registry, target), indent=2, sort_keys=True), flush=True)
+        try:
+            observed = snapshot(registry, target)
+        except sqlite3.Error as exc:
+            print(json.dumps(
+                _admission_read_error("admission_fence_read_failed", exc),
+                sort_keys=True,
+            ), flush=True)
+            return 1
+        print(json.dumps(observed, indent=2, sort_keys=True), flush=True)
         if command == "status" or os.environ.get("LM_LOOP_WATCH_ONCE") == "1":
             return 0
         time.sleep(2)
