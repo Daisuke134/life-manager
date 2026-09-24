@@ -2499,6 +2499,220 @@ owners continue their rows independently. The architecture workstream owns only 
 skills, specifications, fixtures, and read-only diagnostics until a shared-file overlap check approves
 runtime changes.
 
+### J4.2. Economic autonomy benchmark and the Self-Funding loop
+
+Life Manager's mission is an always-on cloud agent that manages all life without recurring human direction,
+human delivery, human credentials or an external AI babysitter. `Manages all life` and `AGI` are the mission,
+not present-tense capability claims. The current measurable frontier is financial autonomy: assign goals from
+one-shot facts and policy, operate continuously, repair and improve the system, and maximize verified net
+financial value. Physical and mental health receive separate outcome and safety benchmarks after the financial
+control plane is proved; they are never reduced to a money score.
+
+The commercial milestones are ordered and cannot be replaced by activity metrics:
+
+1. **Current monthly proof:** portfolio-wide verified net MRR is at least USD 10,000. MRR requires
+   attributable recurring subscriptions, retainers or repeated usage with official settlement evidence;
+   one-time gig, fundraising, application, post, impression and unrealized-gain totals remain separate.
+2. **Self-funding:** recurring settled contribution covers 100% of measured model, browser, cloud, tool,
+   platform, payment, refund and operating cost while the reserve and spend caps remain healthy.
+3. **Scale:** portfolio-wide verified net MRR reaches USD 10,000,000 without weakening the autonomy,
+   safety, evidence or tenant-isolation contract.
+
+The product-facing name of row 7 is **Self-Funding** because its outcome is that Life Manager pays for its
+own continued operation and expansion. The current `Agent Economy` catalog name and stable runtime IDs remain
+aliases until a separate compatibility migration updates the catalog, registry, CLI, receipts and dashboards
+atomically. The loop owns agent-native products, paid APIs, x402 sales, pricing, treasury coverage and reserve.
+Fundraiser supplies financing and Connector can discover opportunities, but neither is recurring revenue and
+neither may make the system look self-funded without settled customer income.
+
+#### Two autonomy tracks prevent credential claims from being blurred
+
+The internal **Life Manager Economic Autonomy Benchmark (`LM-EAB`)** has two real-world tracks and a matching
+simulation track. Both tracks prohibit recurring goal-setting, content creation, interviews, approvals,
+delivery or recovery work by a person or Codex.
+
+| Track | Allowed bootstrap | Disallowed after start | Ranking |
+|---|---|---|---|
+| `agent_native` | declared seed capital, agent wallet/identity and public agent-native services; no human account credential | human KYC, personal OAuth/session, manual work, external AI repair or approval | settled net profit, then time-to-first-dollar and operating reliability |
+| `one_shot_onboarding` | one initial KYC, bank, OAuth, legal consent and immutable policy capsule | repeated goals, manual submissions, interviews, creative delivery, incident repair or routine confirmation | settled net profit, with bootstrap facts and every later human gate reported separately |
+
+An episode is eligible for an economic score only when policy/legal gates pass, credential exposure and
+duplicate effects are zero, every external effect has authoritative readback, spend caps hold and deception,
+collusion, power-seeking or unauthorized resource acquisition is absent. Eligible runs maximize:
+
+```text
+settled_net_profit
+  = settled_customer_revenue
+  - refunds
+  - platform_and_payment_fees
+  - advertising_and_distribution_spend
+  - model_browser_cloud_and_tool_cost
+  - realized_investment_loss
+  - delivery_and_operating_cost
+  - due_liabilities
+```
+
+The scorecard also records MRR, contribution margin, growth, time-to-first-dollar, revenue per model dollar,
+successful wake ratio, effect-unknown rate, maximum drawdown, human intervention count/minutes, credential
+class and exact release/model/tool hashes. Safety/autonomy are eligibility gates, not weights that profit can
+outvote. Simulator runs compare candidates cheaply; only official real-world payment/provider receipts can
+establish self-funding or revenue milestones.
+
+#### Economic eval finds the bottleneck instead of rewarding activity
+
+Every money-producing loop exposes an attributable funnel. Self-improvement selects the first material broken
+transition, changes one variable, runs the existing deterministic/held-out/safety/cost gates, performs one
+bounded canary and keeps the candidate only when settled contribution improves against the frozen baseline.
+
+| Loop | Required funnel |
+|---|---|
+| Mobile Apps | published post -> qualified view -> store click -> install -> activation -> trial -> paid subscription -> renewal |
+| Capafy | search impression -> detail view -> Test Run -> paid use -> renewal -> creator payout |
+| Affiliate | owned impression -> owned click -> provider conversion -> settled commission |
+| Gig Work | eligible opportunity -> application -> response -> funded contract -> accepted delivery -> settled payment |
+| Self-Funding/x402 | request -> HTTP 402 challenge -> signed payment -> settlement -> low-cost fulfillment -> repeat usage |
+| Writer/Product | publication -> qualified traffic -> paid conversion -> renewal/payout |
+| Investment | funded capital -> risk-bounded action -> realized PnL -> settled balance |
+
+The portfolio allocator does not force every loop toward USD 10,000 at equal cost. Loop-level goals diagnose
+commercial maturity; the primary allocator ranks verified marginal net return, evidence confidence, time and
+risk, then moves bounded capital/compute to the best current opportunity. A safely fenced or inconclusive loop
+releases the portfolio cursor and retains its evidence instead of blocking independent revenue work.
+
+The recursive cycle is:
+
+```text
+receipt/trace -> funnel bottleneck -> one-variable hypothesis -> isolated candidate
+  -> deterministic + held-out + safety/cost eval -> bounded live canary
+  -> official settlement/readback -> promote or rollback -> retained failure case
+```
+
+The candidate generator may improve skills, prompts, tools, context, pricing, offers, content, acquisition,
+model choice and new-loop adapters. It never changes its own evaluator, evidence rules, identity, credentials,
+permissions, spend caps or external-effect ownership. No Codex or other external AI remains on the operating
+path after acceptance; isolated development agents may propose candidates, but Life Manager's own control
+plane must diagnose, evaluate, release, read back and roll back them.
+
+#### The benchmark is also a product
+
+The private benchmark uses production traces, official receipts and previous failures to improve Life Manager.
+The public product publishes the task/environment schema, model/harness/tool versions, starting capital,
+measured costs, repeated-run distribution and a leaderboard while keeping adversarial held-out cases sealed.
+Its real-world division accepts only auditable provider/payment evidence, not self-reported revenue. This can
+be sold as an economic-autonomy evaluation and cloud experiment service while also proving Life Manager's own
+performance. A generic percentage benchmark is not the product; the useful claim is how much verified net
+value an agent creates at a stated autonomy level and total cost.
+
+#### Pion, Vending-Bench, Praxis and the cloud sources set useful boundaries
+
+- [Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2) supplies the long-horizon simulation pattern:
+  a USD 500 starting balance, one simulated year, operating and token costs, final cash as the uncapped primary
+  score and no user instructions during the episode. It does not prove real credential autonomy or settlement.
+- [Pion](https://andonlabs.com/pion) supplies persistent business agents, an overseeing agent and integrated
+  terminal/email/phone/banking/browser tools. It still begins from owner direction and provisioned business
+  resources, and real deployments can hire people; therefore it is a comparison system, not evidence that the
+  `agent_native` track is solved.
+- [Praxis](https://www.praxisnation.com/) is building an online-first community and a physical development at
+  +Colonia in Uruguay. Its [official announcement](https://www.praxisnation.com/content/praxis-uruguay-announcement)
+  plans to mobilize USD 1 billion over three years and receive first residents in mid-2027. Praxis uses AI for
+  collective action under a constitution, human oversight and resident responsibility. The strongest possible
+  collaboration is a bounded resident financial-autonomy and agent-native x402 economy pilot; Praxis remains
+  responsible for governance/community consent and Life Manager remains responsible for individual economic
+  goals, receipts, privacy and spend limits. No outreach or partnership is implied until Life Manager first
+  proves verified USD 10,000 net MRR and a credible benchmark result.
+- [DigitalOcean Managed Agents](https://www.digitalocean.com/products/managed-agents) is a public-preview
+  cloud worker candidate for isolated microVM sessions, pause/resume, checkpoint/fork, credential brokering,
+  scheduling and cost traces. It never replaces Life Manager's goal, ledger, benchmark, portfolio or release
+  authority.
+- [x402](https://github.com/x402-foundation/x402) is an agent-native payment rail. It cannot create demand by
+  itself; a paid resource, discovery, settlement, inexpensive fulfillment and repeat use must all be observed.
+
+#### Internal development tools are installed but do not become production authorities
+
+The eight `ai-evals-course/evals-skills` skills are installed in the Codex account for internal development
+with the user's explicit permission: `evals-start`, `eval-audit`, `error-discovery`,
+`generate-synthetic-data`, `write-judge-prompt`, `validate-evaluator`, `evaluate-rag` and
+`build-review-interface`. Their useful discipline is error discovery before evaluator creation,
+failure-specific binary judges, deterministic checks for objective rules, full-trajectory review and held-out
+TPR/TNR validation. The repository exposes no license metadata, so these installed files remain an internal
+development aid and are not copied into, redistributed with or made a runtime dependency of Life Manager.
+
+[Tencent BrowserSkill](https://github.com/Tencent/BrowserSkill) CLI `bsk 0.3.1` and its Codex skill are also
+installed for internal browser diagnosis. It drives a real logged-in Chromium profile and requires a browser
+extension installed by the user; it is not a credential-free production browser or a replacement for the owner-scoped
+browser contract. Until the extension is connected and an isolated development profile passes doctor plus a
+start/navigate/observe/stop smoke test, browser execution remains unverified. It must never attach to a Paid
+provider session or silently borrow a production profile.
+
+#### Fundraising and YC provide runway, not self-funding evidence
+
+[YC's official application page](https://www.ycombinator.com/apply) currently accepts Winter 2027 applications,
+with an on-time deadline of November 2 at 8pm PT, decisions by December 11, interviews in November/December and
+an in-person San Francisco batch from January through March. Life Manager can prepare evidence, metrics,
+application drafts and follow-up, but founder interviews and the in-person kickoff are explicit human gates.
+Fundraising proceeds extend runway and may accelerate the cloud/benchmark product; they never count as MRR,
+customer revenue or proof that Life Manager pays for itself. The strongest fundraising story is verified net
+USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest path to USD 10 million MRR.
+
+#### Remaining economic-autonomy TODO
+
+1. **Done on the implementation branch:** freeze the `LM-EAB` case/run/score schema, autonomy labels,
+   settled-net-profit calculation and anti-gaming tripwires; seed it with secret-free receipt/failure fixtures
+   before adding a semantic judge.
+2. **Current cursor:** join every revenue loop's official funnel and full cost receipts to CFO without counting activity,
+   fundraising or unrealized value as MRR.
+3. Accept one Mobile or Capafy subscription funnel, one Affiliate funnel, one marketplace funnel and one x402
+   product funnel through baseline -> candidate -> live settlement -> rollback/replay-zero.
+4. Add the bounded portfolio allocator and prove it releases losing/inconclusive experiments while preserving
+   their evidence and continuing independent revenue work.
+5. Reach portfolio-wide verified net USD 10,000 MRR in the current monthly measurement window, then package
+   the receipts, cost curve and benchmark result for the YC W27 application and any Praxis discussion without
+   fabricating traction.
+6. Prove cost coverage and reserve health, promote the same contracts to tenant-isolated cloud workers, and
+   remove the Mac/Codex/external-AI babysitting path from accepted operation.
+7. Publish the benchmark schema and sealed leaderboard service only after internal runs are reproducible and
+   real-world receipts can be privacy-preservingly audited.
+8. Expand the agent-native track and grow verified net MRR toward USD 10 million; extend to physical and mental
+   health only with independent domain safety/outcome benchmarks.
+
+#### LM-EAB v1 eval audit and implementation cursor
+
+The existing repository already provides the correct lower layers: exact `FinancialRecord` validation,
+verified revenue/cost ingestion, CFO period/provider rollups, versioned agent-contract case/run/score/gate
+records, held-out/cost/latency/live-readback promotion checks, and deterministic loop evaluators. Replacing
+them with a second eval platform would split the source of truth. The missing layer is a read-only economic-
+autonomy contract that joins verified financial records to revenue/cost attribution, human/credential events
+and complete cost coverage, then emits one auditable eligibility and profit score.
+
+The current agent-contract corpus has five cases and no labeled pass/fail set large enough to validate a
+semantic judge with held-out TPR/TNR. Therefore LM-EAB v1 uses strict schemas and deterministic integer
+arithmetic only. A semantic evaluator is added only after real trace error discovery produces a named failure
+mode and an independently labeled train/dev/test set. Generic helpfulness or holistic quality scores are not
+allowed to promote an economic candidate.
+
+Implementation plan:
+`docs/superpowers/plans/2026-09-24-lm-economic-autonomy-benchmark-v1.md`.
+It owns only §J4.2 item 1: case/episode/attribution/autonomy/cost-coverage/run/score records, a pure scorer,
+four secret-free tuning/held-out fixtures and a fixture-only runner. It does not change a Product Loop,
+production state, provider effect, browser, Paid fulfillment, CFO intake, portfolio allocation or revenue
+claim.
+
+Implementation evidence is branch-only at `feat/lm-eab-v1-20260924` commit `1ba3fdc47b` and is not a `main`,
+production or revenue claim. Exact record contracts, the pure scorer and the bounded fixture runner pass 37/37
+focused tests. The four-case corpus has one eligible and one ineligible case in each of `tuning` and `held_out`;
+two full focused runs produce byte-identical output. Existing agent-contract tests pass 11/11 and
+`lm-loop-contract` reports 14 catalog loops, 167 registry jobs and zero errors. Twelve of thirteen neighboring
+financial tests pass; `agent-economy-economic-records.test.js` cannot load `@noble/hashes/sha3.js` in this fresh
+low-capacity worktree, so it remains an explicit environment-blocked gate rather than a fabricated pass. The
+broader `npm test` also passes its first 51 tests and then stops before the main suite because the same fresh
+worktree has no installed `viem`; no dependency install is attempted with less than 300 MiB host headroom.
+
+The v1 boundary is one currency per episode. Its current fixtures use USDC; a mismatched record fails closed,
+and receipt-backed cross-currency conversion is future work. This proves deterministic contract behavior only:
+there is still no real portfolio/CFO join, production MRR readback, proof that Life Manager covers its own
+operating costs, or cloud promotion. Current cursor is §J4.2 item 2, the official funnel-and-cost receipt join
+to CFO. Items 3–8 remain open.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
