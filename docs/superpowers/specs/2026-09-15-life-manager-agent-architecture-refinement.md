@@ -5300,3 +5300,17 @@ The authoritative admission database was read through a read-only connection whi
 stale lock file. The existing bounded retry/defer behavior is therefore the safe response. No process was stopped, no
 transaction was interrupted, and no queue, reservation or effect-unknown row was changed. Switching journal mode or
 clearing rows would be an unverified production mutation and remains out of scope.
+
+### Natural reconciler wake after capacity improvement (2026-09-25 JST)
+
+The live release-reconciler completed a natural wake (`run_id=18d864d3270c74e8-69141`) without restart. Its two
+bounded route passes both returned `ok=true`, `eligible=0`, `applied=[]`, and `failed=[]` for immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; therefore no owner reload or external effect occurred. The overall shell
+owner still ended `entrypoint_exit_1` because its final call to the old `bin/lm-recovery-supervise` emitted
+`exec: node: not found`. This separates the reconciliation decision (no eligible owners under current gates) from
+the supervisor runtime failure that the candidate fallback addresses.
+
+The authoritative host-cleanup receipt at the same cursor is fresh (`observed_at=2026-09-24T23:14:14Z`):
+`free_after=657,887,232`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`). Capacity improved but remains below
+the `1,155,780,608`-byte floor by **497,893,376 bytes**. No process, cache, launchd job, admission row, provider
+session, effect fence or Paid state was mutated.

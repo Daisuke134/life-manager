@@ -1710,3 +1710,14 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
 - [x] Preserve the existing bounded retry/defer policy. Do not kill owners, change SQLite journal mode, or clear
   reservations/fences from this cursor.
 - [ ] Re-read after owner-controlled capacity recovery; only then rerun the full suite and immutable candidate gate.
+
+### Natural reconciler wake after capacity improvement (2026-09-25 JST)
+
+- [x] Observe a natural release-reconciler wake `18d864d3270c74e8-69141`: both route passes returned
+  `ok=true / eligible=0 / applied=[] / failed=[]` on d4, so no owner reload or external effect occurred.
+- [x] Confirm the overall old shell owner still failed only at its final recovery-supervise call (`node: not found`);
+  this is the boundary addressed by candidate `e69cd97651`, not a provider failure.
+- [x] Read the canonical host-cleanup receipt: fresh `free_after=657,887,232`, `errors=0`, `reclaimed=0`,
+  `preserved=5/open`; capacity remains **497,893,376 bytes** below floor.
+- [ ] After the floor is restored, run full tests, load the candidate immutable release, and require a fresh
+  occurrence-complete reconciliation/recovery readback before the two-pass gate.
