@@ -4041,3 +4041,48 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    register Paid owners only after authorized funded contracts exist.
 5. [ ] Run final cross-platform cadence, settlement, payout, crash-recovery,
    and duplicate-zero acceptance after provider-specific gates pass.
+
+### Runtime checkpoint — 2026-09-24 23:52 JST (all-platform execution matrix)
+
+- [x] Reconciled platform state into separate source/owner/auth/funded/effect
+  fields. A registry entry or passing test is not provider delivery; each
+  mutation remains behind authenticated readback, funded contract, official
+  receipt, and replay-zero gates.
+- [x] Coconala is still a branch-promotion/reconciliation task, not a completed
+  customer lane: Apply's latest natural wake was safe (`effect=0`) but failed
+  acceptance at the planner/intent boundary, Storefront has its own unknown
+  fence, and Ryu's latest reply is already handled manually once.
+- [x] CrowdWorks remains blocked by buyer-provided lesson/answer material for
+  `63568785`; no LINE or external Google Form action is permitted. Lancers has
+  authenticated inventory but zero funded contracts and a Paid no-op. Mercor
+  has stale human-gated/`resource_effect_unknown` state, not a paid receipt.
+- [x] Freelancer has no approved account receipt and no active owner; Upwork
+  has no OAuth file, eight denied receipts, a stale zero-contract snapshot,
+  and retired browser/free-loop labels. Neither platform may be registered or
+  sent to yet.
+
+### Remaining TODO (authoritative cursor, 23:52 JST)
+
+1. **Coconala:** promote PR `#5854` only after its checks, run the repaired
+   natural Apply wake, reconcile `5280157` exactly, then clear Storefront's
+   separate fence and prove four-room official readback/replay-zero.
+2. **CrowdWorks:** reread `63568785`'s linked source, wait for admissible buyer
+   lesson/answer material, finish the existing on-platform delivery once, and
+   prove official readback/replay-zero; do not use LINE or the external form.
+3. **Lancers:** keep the zero-funded inventory no-op; monitor for a real funded
+   `ContractReceipt`, then add/test formal delivery, settlement, and payout
+   readback before an effect.
+4. **Mercor:** refresh authenticated inventory and reconcile each
+   `resource_effect_unknown` occurrence; keep human assessment gates grounded.
+5. **Freelancer:** implement the authenticated account/opportunity/contract
+   adapter behind `read_authenticated_inventory`, obtain all fresh lifecycle
+   receipts plus one official funded project, then add disabled owners and a
+   zero-spend canary. Do not revive the public bid watcher as Paid.
+6. **Upwork:** obtain fresh identity/authorization (the current eight receipts
+   are denied and OAuth is absent), adapt official contracts/detail pages into a
+   source-complete funded-milestone snapshot, then register one Paid owner and
+   verify zero-spend → funded canary → contract/delivery/payment/payout/replay-
+   zero. Reuse existing modules; do not guess an API or send.
+7. **Fleet:** after each provider's own gate opens, run crash recovery,
+   settlement/payout attribution, and duplicate-zero acceptance. Until then,
+   “loop exists” must not be reported as “client work submitted.”

@@ -4658,3 +4658,40 @@ until its own gate is present.
    the funded-milestone gate opens.
 4. Preserve CrowdWorks/Lancers/Mercor fences and complete their own official
    readback gates before final fleet canaries and replay-zero.
+
+## Runtime Status Refresh — 2026-09-24 23:52 JST (all-platform execution matrix)
+
+This matrix separates four states that must not be reported as one: source code
+exists, an owner is registered, the provider is authenticated, and a provider
+effect is accepted. Only the last state is a delivery.
+
+| Platform | Current verified state | Registered/running state | Exact blocker | Next owned action |
+|---|---|---|---|---|
+| Coconala | Apply natural wake was safe (`observed=129`, `effect=0`, `readback=0`), but not accepted; `5280157` remains fenced and Storefront has an independent `claimed/effect_unknown=1` fence. Ryu's latest cycle already has the single official reply and is manual-only. | Existing Apply/Reply/Storefront paths exist; the planner repair is branch-only in PR `#5854`. | Production has not loaded the repair; official history is still incomplete/denied at the old boundary, so retrying would be unsafe. | Pass PR/release gates, run a clean natural Apply wake, reconcile exact IDs, then Storefront and four-room replay-zero. |
+| CrowdWorks (CloudWorks) | Application has `observed=5/actionable=1/effect=0/readback=4/pending=1`; contract `63568785` still lacks the buyer lesson/answer material required for admissible delivery. Paid remains unloaded/effect-unknown and report/reply remain fenced. | Application/browser/report/reply/Paid owners exist in the registry, but Paid is not an accepted provider lane. | External source material is missing; LINE and the external Google Form are outside the permitted on-platform evidence. | Re-read the linked Doc, wait for admissible buyer material, complete the existing on-platform chain once, then official readback/replay-zero. |
+| Lancers | Authenticated inventory is source-complete: 14 boards, 0 working projects, 0 monthly contracts, finance `0` JPY, and `contract_candidate_count=0`. Paid latest is `observed=0/effect=0`. Job `5606124` was rejected as `unsupported_claim` with no external send. | Application/browser/storefront/negotiate/report/Paid/work-sync owners are registered; Paid is a safe no-op, not a funded delivery lane. | No funded `ContractReceipt`; formal-delivery mapper cannot open without an official working/escrow-confirmed contract. | Keep no-op, monitor for the first funded contract, then derive/test official delivery and payment/payout readback before any effect. |
+| Mercor | Existing acquisition/inbox/browser work is read-only or human-gated; saved state has assessment stage `2/3`, `final_submission=not_observed`, and earnings remain `not_observed`. Application/Paid/Reply effect fences are still `resource_effect_unknown`. | Mercor acquisition/browser owners existed historically; current evidence is not a paid-contract acceptance. | Fresh authenticated inventory and exact reconciliation of old effect-unknown rows are missing. | Refresh official inventory, reconcile each exact occurrence, and only then complete a grounded assessment/contract/payment chain. |
+| Freelancer.com | Only the historical public project/bid watcher is available. No approved Freelancer authorization receipt or authenticated funded contract is present; old application/work-sync labels are retired. | No active Freelancer loop owner. The new readiness/readback gate is source-complete but intentionally unregistered. | Authenticated account transport, all lifecycle receipts, and an official `state=funded` contract are absent. | Attach a real authenticated inventory adapter to the injected seam, read back one funded project, then create disabled-by-default owners and run a zero-spend canary before enabling effects. |
+| Upwork | `~/.config/anicca/gig/upwork-oauth2.json` is absent; the eight stored Upwork receipts are `denied`; the historical browser snapshot is stale with `active_contracts=[]`; no active Upwork owner is registered. | `life-manager-upwork-browser` and `life-manager-upwork-free-loop` are retired. Existing proposal/message/offer/delivery/finance modules remain reusable source. | Fresh identity/authorization, authenticated contract-page readback, and a positive funded milestone are absent. | Restore approved account-bound receipts and a source-complete funded snapshot, then register one Paid owner, perform zero-spend → funded canary, and prove official contract/delivery/payment/payout/replay-zero. |
+
+### No-loop-confusion rule
+
+An entry in `config/loop-registry.json`, a passing unit test, or a loaded
+browser observer is not proof of provider delivery. The promotion sequence for
+every platform is: authenticated readback → source-complete contract snapshot
+→ funded/authorized gate → disabled owner registration → zero-spend canary →
+one funded canary → official receipt/readback → replay-zero. Missing any one
+leaves the provider effect closed.
+
+### Updated ordered cursor (23:52 JST)
+
+1. Finish Coconala branch promotion and exact Apply/Storefront reconciliation;
+   keep Ryu manual-only and do not duplicate the existing reply.
+2. Resolve CrowdWorks' buyer-material gate, then keep its Paid/report fences
+   closed until official on-platform evidence exists.
+3. Keep Lancers as a funded-contract monitor and reconcile Mercor's existing
+   effect-unknown rows; neither gets a guessed send.
+4. Build the real Freelancer authenticated inventory adapter, then the Upwork
+   identity/contract adapter; owners remain disabled until funded gates open.
+5. Run per-platform funded canaries and final settlement, payout, crash-recovery,
+   and replay-zero acceptance only after the preceding receipts exist.
