@@ -1275,6 +1275,17 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   generic foundation evidence/release alignment after the user-level gate becomes green; Paid/Gig/provider state and
   external effects remain untouched.
 
+### Foundation-gate diagnostics projection (2026-09-25 JST)
+
+- [x] Add a private, typed diagnostics projection to the local foundation-gate output. It reports state/reason/
+  next-action counts and the exact actionable Product Loop rows without changing the existing gate decision.
+- [x] Verify against the current d4 readback: `13 runtime_release_drift`, `1 runtime_admission_deferred`, and
+  `1 runtime_terminal_not_pass`, with explicit next actions for release promotion, eligibility retry, and diagnosis.
+- [x] Run the full product-onboarding suite: **47/47**. Output remains private mode `0600`; no production/provider/
+  effect state changed. Candidate commit: `e9145a094c`.
+- [ ] Load this candidate only through the accepted main-derived immutable-release path after the foundation gate
+  permits integration; do not bypass the gate by selecting the branch or mutating launchd directly.
+
 ### Main-derived integration dry run (2026-09-25 JST)
 
 - [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.

@@ -4711,3 +4711,10 @@ projection is **13 `uncovered_failure` and 1 `safely_fenced`**. This is read-onl
 owner rebind, admission edit, effect-fence resolution, provider action, or revenue claim occurred. The candidate
 branch therefore remains the next code artifact, while main integration and immutable promotion remain closed by the
 foundation gate.
+
+The candidate then added a private foundation-gate diagnostics projection at `e9145a094c`. It preserves the
+existing pass/block contract while exposing state, reason, next-action and actionable-loop summaries. Against the
+fresh d4 status, it reports `13 runtime_release_drift`, `1 runtime_admission_deferred`, and `1
+runtime_terminal_not_pass`, with the corresponding next actions `load_exact_immutable_release`,
+`retry_after_eligibility`, and `diagnose_failure`. The full product-onboarding suite passes **47/47** and the
+blocked readback output remains mode `0600`; no production or provider state changed.
