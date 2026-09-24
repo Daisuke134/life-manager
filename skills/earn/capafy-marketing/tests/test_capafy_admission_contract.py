@@ -28,3 +28,25 @@ def test_capafy_goal_monitors_declare_rebindable_host_admission_contract():
         assert entry["priority"] == "support", loop_id
         assert entry["coalesce_queued_wakes"] is True, loop_id
         assert entry["coalesce_reserved_wakes"] is True, loop_id
+
+
+def test_capafy_effectful_recurring_owners_declare_effect_and_coalescing_contract():
+    root = Path(__file__).resolve().parents[4]
+    loops = json.loads((root / "config/loop-registry.json").read_text())["loops"]
+    expected = {
+        "capafy-loop-daily": ("publish", "deterministic", "revenue", "revenue"),
+        "capafy-outcome-monitor": ("message", "deterministic", "borrow", "support"),
+        "capafy-ig-account-manager": ("account_mutation", "agent", "borrow", "support"),
+        "capafy-ig-marketing-daily": ("publish", "agent", "borrow", "support"),
+    }
+
+    for loop_id, contract in expected.items():
+        entry = loops[loop_id]
+        assert (
+            entry["effect_class"],
+            entry["resource_class"],
+            entry["admission_class"],
+            entry["priority"],
+        ) == contract, loop_id
+        assert entry["coalesce_queued_wakes"] is True, loop_id
+        assert entry["coalesce_reserved_wakes"] is True, loop_id

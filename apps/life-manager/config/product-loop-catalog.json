@@ -171,7 +171,7 @@
       "job_ids": ["capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor"],
       "name": "Capafy",
       "description": "Operate Capafy's product, sales, outcome, and audience-growth workflows.",
-      "recovery_classes": ["deterministic", "model"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["subscription","one_time","recurring_usage"],"sources":{"funnel":{"adapter":"capafy-company-receipt","implementation":"implemented"},"financial":{"adapter":"capafy-financial-record","implementation":"missing"},"cost":{"adapter":"capafy-financial-record","implementation":"missing"}}},
       "requirements": ["capafy_account", "publication_profile", "public_guided_installer"],
       "hosts": {
