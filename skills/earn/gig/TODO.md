@@ -3561,3 +3561,13 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    the reported Lancers event had no external send.
 6. [ ] Register/verify Freelancer and Upwork Paid owners, then run final fleet
    acceptance.
+
+### Runtime checkpoint — 2026-09-24 16:28 JST (release-gate tests)
+
+- [x] Release-gate checks are green: host `161 passed`, loop unit `523 tests
+  OK`, Node registry `15 passed`, contract `14/167/97`, and doctor reports no
+  missing/unmanaged/retired-installed labels.
+- [x] Two loop-test failures were host recovery-queue leakage; tmp queue
+  isolation fixed them and commit `be7be7c499` is pushed.
+- [ ] Branch remains unmerged and production Paid release remains unchanged;
+  full client/platform acceptance is still required before immutable promotion.

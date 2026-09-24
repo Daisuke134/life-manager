@@ -3903,6 +3903,19 @@ not convert a transient pass or a no-op into client completion.
 6. Register/verify Freelancer and Upwork Paid owners and run final fleet
    acceptance. A loaded/no-op loop is not a delivery.
 
+## Runtime Status Refresh — 2026-09-24 16:28 JST (release-gate tests)
+
+- [x] Release-gate verification is now green: `runtime/host/tests` (`161
+  passed`), `runtime/loop/tests` (`523 tests OK`), Node registry tests (`15
+  passed`), `lm-loop-contract` (`14/167/97`), and `lm-loop doctor`
+  (`missing_entrypoints=0`, `retired_installed_labels=0`, `unmanaged_labels=0`).
+- [x] The two loop-test failures were fixture leakage from the real recovery
+  queue, not the SQLite change; the fixtures now point to an isolated tmp queue
+  and pass without reading host state. Commit `be7be7c499` is pushed.
+- [ ] The branch is still unmerged and the installed CrowdWorks Paid release is
+  unchanged. Full client/platform acceptance remains the gate before main
+  integration, immutable release cutting, and targeted apply.
+
 ## Runtime Status Refresh — 2026-09-24 16:22 JST (Reply fence readback)
 
 - [x] After a fresh owner/lock read-only check, exact pre-effect proof allowed
