@@ -13,6 +13,10 @@ const FOUNDATION_ACCEPTABLE_STATES = new Set(["healthy", "setup_required", "safe
 const FOUNDATION_SETUP_BLOCKERS = new Set([
   "credentials_missing", "host_adapter_pending", "provider_login_required", "setup_required",
 ]);
+const FOUNDATION_ADMISSION_DEFERRALS = new Set([
+  "host_admission_deferred:resource_capacity_busy",
+  "host_admission_deferred:resource_fifo_wait",
+]);
 const COMPLETION_CONTRACT_FIELDS = [
   "goal",
   "context",
@@ -524,7 +528,11 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       .map((jobId) => runtimeByJobId.get(jobId));
     const unknownEffectJobIds = catalogLoop.job_ids.filter((jobId) => {
       const row = runtimeByJobId.get(jobId);
-      return row && row.effect_class !== "none" && row.effect_status === "unknown";
+      if (!row || row.effect_class === "none") return false;
+      if (Object.hasOwn(row, "admission_effect_unknown")) {
+        return row.admission_effect_unknown === true;
+      }
+      return row.effect_status === "unknown";
     });
     const diagnosticIncompleteJobIds = catalogLoop.job_ids.filter((jobId) => {
       const row = runtimeByJobId.get(jobId);
@@ -548,6 +556,17 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
       && row.next_action === "retry_after_eligibility"
       && row.effect_class === "none"
       && row.effect_status === "not_applicable"
+    ));
+    const admissionDeferred = nonPassRows.length > 0 && nonPassRows.every((row) => (
+      row.last_terminal_result === "blocked"
+      && FOUNDATION_ADMISSION_DEFERRALS.has(row.blocker)
+      && row.error_class === row.blocker
+      && row.failure_layer === "admission"
+      && row.retryable === true
+      && row.next_action === "retry_after_eligibility"
+      && row.admission_effect_unknown === false
+      && (row.effect_class === "none"
+        ? row.effect_status === "not_applicable" : row.effect_status === "unknown")
     ));
 
     let state = "healthy";
@@ -576,6 +595,10 @@ function buildProductLoopFoundationManifest(input = {}, options = {}) {
     } else if (capacityDeferred) {
       state = "safely_fenced";
       reason = "runtime_capacity_deferred";
+      nextAction = "retry_after_eligibility";
+    } else if (admissionDeferred) {
+      state = "safely_fenced";
+      reason = "runtime_admission_deferred";
       nextAction = "retry_after_eligibility";
     } else if (setupRequired) {
       state = "setup_required";

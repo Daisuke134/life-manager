@@ -258,9 +258,20 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
 
 def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
                               release_sha: str, provider: str,
-                              profile_alias: str | None, effect_class: str) -> dict:
+                              profile_alias: str | None, effect_class: str,
+                              product_loop_id: str | None = None,
+                              job_id: str | None = None,
+                              owner_id: str | None = None,
+                              wake_id: str | None = None,
+                              occurrence_id: str | None = None,
+                              loaded_argv_sha256: str | None = None,
+                              loaded_env_sha256: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     material = f"{release_sha}:{loop_id}:{run_id}:execute:running"
+    effective_job_id = job_id or loop_id
+    effective_owner_id = owner_id or loop_id
+    effective_wake_id = wake_id or run_id
+    effective_occurrence_id = occurrence_id or f"{effective_job_id}:{run_id}"
     return validate_runtime_event({
         "version": 1,
         "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
@@ -277,6 +288,20 @@ def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
         "effect_status": "not_applicable" if effect_class == "none" else "started",
         "blocker": None,
         "evidence_refs": [f"lm-loop://{loop_id}/{run_id}/summary.json"],
+        "product_loop_id": product_loop_id,
+        "job_id": effective_job_id,
+        "owner_id": effective_owner_id,
+        "wake_id": effective_wake_id,
+        "occurrence_id": effective_occurrence_id,
+        "loaded_argv_sha256": loaded_argv_sha256,
+        "loaded_env_sha256": loaded_env_sha256,
+        "exit_code": None,
+        "failure_layer": "clean",
+        "error_class": None,
+        "retryable": False,
+        "next_action": "monitor_running",
+        "provider_receipt_id": None,
+        "official_readback_ref": None,
     })
 
 

@@ -456,9 +456,10 @@ def _launchctl(*args: str) -> str:
 
 
 def _last_event(state_root: str, loop_id: str | None = None,
-                cache: dict[Path, dict[str | None, dict]] | None = None) -> dict | None:
+                cache: dict[Path, dict[str | None, dict]] | None = None,
+                running_pid: str | None = None) -> dict | None:
     path = Path(os.path.expanduser(state_root)) / "events.jsonl"
-    if cache is not None and path in cache:
+    if running_pid is None and cache is not None and path in cache:
         cached = cache[path]
         # A targeted scan stores only the requested loop.  The ``None`` key
         # is populated only by a complete scan, so it is the signal that a
@@ -476,7 +477,14 @@ def _last_event(state_root: str, loop_id: str | None = None,
             validate_runtime_event(value)
         except (json.JSONDecodeError, ValueError):
             continue
-        if value.get("phase") != "report":
+        pid_bound_running = (
+            running_pid is not None
+            and value.get("phase") == "execute"
+            and value.get("status") == "running"
+            and value.get("job_id") is not None
+            and str(value.get("run_id", "")).endswith(f"-{running_pid}")
+        )
+        if value.get("phase") != "report" and not pid_bound_running:
             continue
         if loop_id is not None and value.get("loop_id") == loop_id:
             if cache is not None:
@@ -546,7 +554,10 @@ def collect_live(registry: dict, *, full_inventory: bool = True
         plist_path = plist_dir / f"{label}.plist"
         releases[label] = _release_from_plist(plist_path)
         event = _last_event(
-            _state_root_from_plist(plist_path, entry["state_root"]), loop_id, event_cache)
+            _state_root_from_plist(plist_path, entry["state_root"]), loop_id, event_cache,
+            running_pid=(loaded.get(label) or {}).get("pid")
+            if entry.get("cadence", {}).get("keep_alive") is True else None,
+        )
         if event:
             events[loop_id] = event
     return loaded, disabled, events, releases, installed
@@ -665,7 +676,10 @@ def targeted_snapshot(registry: dict, targets: set[str],
             }
         plist_path = plist_dir / f"{label}.plist"
         event = _last_event(
-            _state_root_from_plist(plist_path, entry["state_root"]), loop_id)
+            _state_root_from_plist(plist_path, entry["state_root"]), loop_id,
+            running_pid=(loaded.get(label) or {}).get("pid")
+            if entry.get("cadence", {}).get("keep_alive") is True else None,
+        )
         selected_registry = {**registry, "loops": {loop_id: entry}}
         rows.extend(status_rows(
             selected_registry,

@@ -1377,6 +1377,45 @@ test("foundation accepts only a fully typed transient capacity deferral as safel
   assert.equal(nonRetryable.loops[0].reason, "runtime_terminal_not_pass");
 });
 
+test("foundation accepts an explicit pre-effect FIFO deferral without inventing effect unknown", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "f".repeat(40);
+  const runtimeRows = healthyFoundationRuntimeRows(catalog, releaseSha);
+  const deferredJobId = catalog.loops[0].job_ids[0];
+  const deferred = runtimeRows.find((row) => row.loop_id === deferredJobId);
+  Object.assign(deferred, {
+    last_terminal_result: "blocked",
+    effect_class: "publish",
+    effect_status: "unknown",
+    blocker: "host_admission_deferred:resource_fifo_wait",
+    error_class: "host_admission_deferred:resource_fifo_wait",
+    failure_layer: "admission",
+    retryable: true,
+    next_action: "retry_after_eligibility",
+    admission_effect_unknown: false,
+  });
+
+  const manifest = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  const row = manifest.loops[0];
+  assert.equal(row.state, "safely_fenced");
+  assert.equal(row.reason, "runtime_admission_deferred");
+  assert.equal(row.next_action, "retry_after_eligibility");
+  assert.deepEqual(row.unknown_effect_job_ids, []);
+  assert.equal(evaluateLocalFoundationGate(manifest).decision, "pass");
+
+  deferred.admission_effect_unknown = true;
+  const unknown = buildProductLoopFoundationManifest({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: runtimeRows,
+  });
+  assert.equal(unknown.loops[0].reason, "external_effect_unknown");
+});
+
 test("foundation fails closed on drift, missing jobs, opaque failures and untyped states", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "8".repeat(40);

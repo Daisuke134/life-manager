@@ -12,6 +12,7 @@ from runtime.loop.runtime_event import (
     append_runtime_event,
     build_install_event,
     build_runtime_event,
+    build_runtime_start_event,
     rotate_jsonl_locked,
     validate_runtime_event,
 )
@@ -214,6 +215,28 @@ class RuntimeEventTest(unittest.TestCase):
         self.assertEqual((event["phase"], event["status"], event["effect_status"]),
                          ("plan", "pass", "unknown"))
         self.assertEqual(event["evidence_refs"], ["lm-loop://example/install/summary.json"])
+
+    def test_runtime_start_event_carries_complete_running_diagnostic_identity(self):
+        event = build_runtime_start_event(
+            loop_id="affiliate-browser", domain="growth", run_id="wake-123",
+            release_sha="b" * 40, provider="shared-agent-runner",
+            profile_alias=None, effect_class="none", product_loop_id="affiliate",
+            job_id="affiliate-browser", owner_id="affiliate-browser",
+            wake_id="wake-123", occurrence_id="affiliate-browser:wake-123",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+
+        self.assertEqual((event["phase"], event["status"]), ("execute", "running"))
+        self.assertEqual(event["product_loop_id"], "affiliate")
+        self.assertEqual(event["job_id"], "affiliate-browser")
+        self.assertEqual(event["owner_id"], "affiliate-browser")
+        self.assertEqual(event["occurrence_id"], "affiliate-browser:wake-123")
+        self.assertIsNone(event["exit_code"])
+        self.assertEqual(event["failure_layer"], "clean")
+        self.assertIsNone(event["error_class"])
+        self.assertFalse(event["retryable"])
+        self.assertEqual(event["next_action"], "monitor_running")
+        self.assertEqual(validate_runtime_event(event), event)
 
 
 if __name__ == "__main__":
