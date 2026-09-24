@@ -2573,3 +2573,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    funded contract; then add its official delivery/payment path.
 6. Run the cross-platform fleet acceptance gate before declaring the paid-gig
    program complete.
+
+### Paid fulfillment checkpoint — 2026-09-24 11:48 JST (latest natural wake)
+
+- [x] Coconala natural wake passed again with `4/0/0/3/0`; no external effect,
+  no duplicate, and no formal delivery. Ryu remains the manual-only exception.
+- [x] CrowdWorks latest snapshot remains `5/1/0/4/1`; four work IDs have
+  readback and `63568785` still requires buyer material. No resend occurred.
+- [x] Read-only Lancers CDP inventory still shows four proposal-list pages plus
+  one `about:blank`; exactly three extra proposal targets remain candidates for
+  the branch cleanup. No target was closed and no owner was restarted.
+- [ ] Obtain the explicit Lancers recovery approval, then promote and verify
+  the fix through a main-derived immutable release.
+- [ ] Keep CrowdWorks/Lancers effect-unknown fences closed; complete
+  `63568785` only after buyer material and official delivery/readback.
+- [ ] Keep Upwork disabled until its authorization, authenticated readback, and
+  funded-contract gates exist; finish the cross-platform fleet gate last.

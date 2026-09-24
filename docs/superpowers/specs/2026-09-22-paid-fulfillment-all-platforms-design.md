@@ -2570,3 +2570,33 @@ not convert a transient pass or a no-op into client completion.
    no-starvation, crash-recovery, browser-lease, cadence, revision,
    settlement/payout, and duplicate-zero acceptance checks before declaring all
    gig platforms complete.
+
+## Production Cursor — 2026-09-24 11:48 JST (latest natural-wake readback)
+
+- **Coconala natural wake passed again without an external effect.** The
+  authoritative snapshot is `completed` with
+  `observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`; Ryu remains
+  `reserved_for_owner` with `send_performed=false` and formal delivery off, and
+  the other three rooms remain `awaiting_buyer`.
+- **CrowdWorks remains a control-plane wait, not a customer resend.** Its latest
+  snapshot is still `observed=5/actionable=1/effect=0/readback=4/pending=1` and
+  `63568785` is still `buyer_task_detail_required`; the latest wake passed, but
+  the historical effect-unknown fence remains held.
+- **Lancers read-only CDP inventory is unchanged:** five page targets, four
+  `/mypage/proposals` targets and one `about:blank`; the first proposal target
+  is responsive and three additional proposal targets are the renderer-stalled
+  cleanup candidates. No target was closed and no browser owner was restarted.
+
+### Remaining TODO (still current)
+
+1. Obtain approval for the owner-scoped Lancers stale-target recovery, then
+   release the branch fix through main-derived immutable promotion and verify
+   inventory/readback/replay-zero.
+2. Keep both exact effect-unknown fences closed until exact provider/pre-effect
+   evidence exists; never retry or edit the admission database.
+3. Wait for CrowdWorks `63568785` buyer material, then perform one complete
+   delivery and read back acceptance, settlement, payout, and replay-zero.
+4. Preserve Coconala's pass/no-op/Ryu-manual state; only a genuinely newer
+   buyer event may reopen a room.
+5. Keep Upwork disabled until authorization, authenticated readback, and a
+   funded contract exist, then run the fleet acceptance gate.
