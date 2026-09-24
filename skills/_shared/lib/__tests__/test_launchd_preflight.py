@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import errno
+import json
 import subprocess
+import sys
 
 from skills._shared.lib.launchd_preflight import probe
 
@@ -83,3 +86,40 @@ def test_gig_healer_does_not_kickstart_when_preflight_fails():
     assert result["error"] == "blocked_control_plane"
     assert result["side_effect_performed"] is False
     assert not any("kickstart" in argv for argv in calls)
+
+
+def test_main_returns_typed_receipt_write_failure(monkeypatch, capsys):
+    from skills._shared.lib import launchd_preflight
+
+    monkeypatch.setattr(
+        launchd_preflight,
+        "probe",
+        lambda: {
+            "schema": "life-manager.launchd-control-plane-preflight.v1",
+            "status": "pass",
+            "mutation_allowed": True,
+            "errors": [],
+            "observations": {},
+        },
+    )
+
+    def fail_write(_path, _payload):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(launchd_preflight, "write_atomic", fail_write)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["launchd_preflight.py", "--receipt", "/private/tmp/preflight-test-receipt.json"],
+    )
+    assert launchd_preflight.main() == 75
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "blocked_control_plane"
+    assert output["mutation_allowed"] is False
+    assert output["receipt_written"] is False
+    assert output["errors"] == ["receipt_write_failed"]
+    assert output["receipt_write_error"] == {
+        "error_class": "OSError",
+        "errno": errno.ENOSPC,
+    }

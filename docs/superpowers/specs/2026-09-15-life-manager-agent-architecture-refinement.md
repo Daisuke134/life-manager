@@ -4277,6 +4277,18 @@ errors because the host had no usable temporary directory under the same ENOSPC 
 capacity observation, not a code-pass claim. The change is branch-only, with no production mutation, effect-fence
 clear, provider action, or revenue claim.
 
+### Latest launchd preflight receipt boundary (2026-09-25 JST)
+
+The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
+UID 501, username `anicca`, Directory Services, `managername=Aqua`, `manageruid=501`, `managerpid=1`, and
+`gui/501` all read back successfully, but writing the canonical
+`~/.local/state/life-manager/launchd-control-plane-preflight.json` fails with `errno=28`. The candidate returns
+`blocked_control_plane`/exit 75 with `receipt_write_failed`, `receipt_written=false`, and typed `error_class`/`errno`
+instead of an unstructured traceback. The same probe succeeds when pointed at a temporary path, so this boundary is
+canonical state-path capacity/persistence, not an Aqua or GUI-owner failure. RED→GREEN preflight tests are **7/7**.
+This remains branch-only; no launchctl mutation, loop restart, provider effect, fence change, or revenue claim was
+made.
+
 ## E2E Judgment
 
 | Item | Value |

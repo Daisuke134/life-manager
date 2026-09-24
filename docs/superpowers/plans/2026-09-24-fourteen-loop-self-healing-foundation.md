@@ -918,6 +918,15 @@ The following is the current control-plane state. It is evidence for the next bo
   the host had no usable temporary directory; this is recorded as the capacity blocker, not as a code failure.
   No launchd/provider/effect-fence mutation or revenue claim exists.
 
+### Latest launchd preflight receipt boundary (2026-09-25 JST)
+
+- [x] Preserve a typed failure when the launchd preflight cannot persist its canonical receipt. The branch candidate's
+  real probe reads back UID/Directory Services/Aqua/GUI successfully, but the canonical state path fails with
+  `errno=28`; it now returns `blocked_control_plane`, `receipt_write_failed`, `receipt_written=false`, typed
+  `error_class`/`errno`, and exit 75 instead of a traceback. The same probe succeeds at a temporary path, separating
+  state-path capacity from the launchd owner probe. RED→GREEN preflight coverage is **7/7**. This is branch-only;
+  no launchctl mutation, loop restart, provider effect, fence change or revenue claim exists.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
