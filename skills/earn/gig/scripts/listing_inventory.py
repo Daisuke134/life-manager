@@ -236,10 +236,43 @@ def build_fit_judgment_context(inventory: list[dict]) -> dict:
 
 # --- live browser collection ---------------------------------------------------------
 
+CDP_CALL_TIMEOUT_SECONDS = 25
+
+
 async def _call(ws, method: str, params: dict, cid: int) -> dict:
-    await ws.send(json.dumps({"id": cid, "method": method, "params": params}))
+    """Send one CDP request with a deadline for the whole request.
+
+    CDP emits unrelated page events on the same socket.  A per-receive timeout is not
+    sufficient: a busy page can keep yielding unrelated events forever, which used to
+    leave a loop wake running indefinitely.  Bound both the send and the event-draining
+    phase by one deadline so the caller can record a bounded failure and release its
+    browser lease.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + CDP_CALL_TIMEOUT_SECONDS
+
+    remaining = deadline - loop.time()
+    if remaining <= 0:
+        raise asyncio.TimeoutError(f"CDP call timed out before send: {method}#{cid}")
+    try:
+        await asyncio.wait_for(
+            ws.send(json.dumps({"id": cid, "method": method, "params": params})),
+            timeout=remaining,
+        )
+    except asyncio.TimeoutError as error:
+        raise asyncio.TimeoutError(
+            f"CDP call timed out sending request: {method}#{cid}"
+        ) from error
     while True:
-        response = json.loads(await asyncio.wait_for(ws.recv(), timeout=25))
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            raise asyncio.TimeoutError(f"CDP call timed out waiting for response: {method}#{cid}")
+        try:
+            response = json.loads(await asyncio.wait_for(ws.recv(), timeout=remaining))
+        except asyncio.TimeoutError as error:
+            raise asyncio.TimeoutError(
+                f"CDP call timed out waiting for response: {method}#{cid}"
+            ) from error
         if response.get("id") == cid:
             return response
 
