@@ -4260,6 +4260,23 @@ The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence
 `load_exact_immutable_release`. This is a release-alignment cursor, not a revenue wait, and no mutation, provider
 action, fence clear, or revenue claim was made.
 
+### Latest host-cleanup readback boundary (2026-09-25 JST)
+
+The fresh read-only `life-manager-disk-cleanup` status is exact-current and diagnostically complete, but its latest
+terminal is `entrypoint_exit_1` with `last_exit=78` and no external effect. The launchd error log shows repeated
+`ENOSPC` while the host governor attempts its cleanup receipt, alongside older `database is locked` and
+`production apply is already owned` diagnostics. The important control-plane bug was that
+`central_cleanup.py` converted empty host-governor stdout into `host_cleanup={}`, losing the distinction between a
+valid empty result and a missing/failed readback. The branch now parses the final JSON through
+`host_cleanup_readback`: missing output is typed `host_cleanup_result_missing`, malformed/non-object output is
+`host_cleanup_result_invalid`, timeout is `host_cleanup_timeout`, and invocation failure is
+`host_cleanup_invocation_failed` with only a typed error class/errno. Existing valid receipts retain their exact
+payload and `host_cleanup_ok` decision. RED→GREEN tests cover missing and valid readback; the complete cleanup
+unittest file is **51/51**. The disk-cleanup pytest command could only run 4 tests before 87 `tmp_path` fixture
+errors because the host had no usable temporary directory under the same ENOSPC condition; this is an environment
+capacity observation, not a code-pass claim. The change is branch-only, with no production mutation, effect-fence
+clear, provider action, or revenue claim.
+
 ## E2E Judgment
 
 | Item | Value |

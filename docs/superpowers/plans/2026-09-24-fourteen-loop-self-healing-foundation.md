@@ -906,6 +906,18 @@ The following is the current control-plane state. It is evidence for the next bo
   `runtime_release_drift` with next action `load_exact_immutable_release`; this is a release-alignment cursor,
   not a revenue wait. No mutation, provider action, fence clear or revenue claim was made.
 
+### Latest host-cleanup readback boundary (2026-09-25 JST)
+
+- [x] Diagnose and narrow the disk-cleanup host-governor readback boundary without mutating production. The current
+  exact release reports `entrypoint_exit_1`/`last_exit=78`; launchd logs show `ENOSPC` and the host governor can
+  emit no final JSON. Previously `central_cleanup.py` collapsed that missing stdout to `{}`, so the outer receipt
+  could not distinguish a valid empty result from a failed host cleanup. The branch-only `host_cleanup_readback`
+  helper now preserves typed `host_cleanup_result_missing`/`host_cleanup_result_invalid` outcomes and typed
+  timeout/invocation errors while retaining valid receipts. RED→GREEN readback tests pass and the complete cleanup
+  unittest file is **51/51**. The disk-cleanup pytest attempt reached 4 passes and 87 `tmp_path` errors because
+  the host had no usable temporary directory; this is recorded as the capacity blocker, not as a code failure.
+  No launchd/provider/effect-fence mutation or revenue claim exists.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
