@@ -3326,3 +3326,44 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   9/24 12:49–12:54 requests; v702/v703 readbacks prove each requested fix.
 - [x] Read-only only: no message text, send action, or formal delivery button
   was touched.
+
+### Runtime checkpoint — 2026-09-24 15:46 JST (admission reconciliation; read-only)
+
+- [x] `hf-gig-paid-direct` is `loaded-idle`, latest terminal result PASS with
+  `effect_class=none`, and has no queued/claimed/`effect_unknown` occurrence in
+  the durable admission DB. This proves a clean no-op scheduler boundary, not
+  a Coconala provider receipt; Ryu remains manual-only.
+- [ ] Coconala Reply detector is deferred by `resource_capacity_busy` and
+  Storefront by `resource_admission_unavailable` with an effect-unknown fence;
+  the Coconala system layer is not fully accepted.
+- [ ] CrowdWorks Application/Reply are admission-deferred, Paid is unloaded
+  after `entrypoint_exit_143` with an unresolved effect fence.
+- [ ] Lancers Application is capacity-blocked; Paid is unloaded after
+  `entrypoint_exit_143` with an unresolved effect fence.
+- [ ] Mercor Application/Reply are admission-deferred; Paid is deferred by
+  `resource_effect_unknown`; historical fences remain closed.
+- [x] No provider submission, buyer message, formal delivery, resend, DB edit,
+  or effect-fence release occurred in this refresh.
+
+### Remaining TODO (full ordered cursor)
+
+1. [ ] Keep all unresolved effect fences closed; reconcile only with exact
+   provider/run or pre-effect evidence. Do not blindly retry or clear unknowns.
+2. [ ] Ryu: retain the verified v702/v703 artifact for the final manual
+   handoff. The three requested fixes pass public and management readback, but
+   this cursor intentionally sent no new Coconala message or formal delivery.
+3. [ ] Coconala system acceptance: reconcile Reply/Storefront, obtain a clean
+   natural wake plus four-room official readback, and prove replay-zero while
+   preserving the Ryu manual fence.
+4. [ ] Promote the dedicated-branch boundary fix into an immutable main
+   release; clear the CrowdWorks admission/`exit_143` boundary only with
+   evidence, then run the CrowdWorks official-readback/replay-zero canary.
+5. [ ] Advance Lancers, then Mercor, one owner at a time with stable admission,
+   item idempotency, provider receipt, settlement/readback, and replay-zero.
+6. [ ] Build/verify Freelancer and Upwork before enabling: authenticated
+   session, funded-contract policy, adapter, idempotent delivery, settlement
+   readback, and replay-zero. Upwork has no registered Paid owner; Freelancer
+   has no registered Paid state/owner, so neither is done.
+7. [ ] Record final per-lane receipts and run cross-platform acceptance. A
+   loaded/running loop or no-op PASS is not a client delivery; seven-week
+   monitoring is not a completion gate.

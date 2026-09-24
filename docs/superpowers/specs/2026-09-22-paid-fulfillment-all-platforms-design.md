@@ -3656,3 +3656,56 @@ not convert a transient pass or a no-op into client completion.
 - The deployed v702/v703 readbacks now prove all three implementation
   contracts. This refresh only read the talkroom; it did not type, send, or
   press formal delivery.
+
+## Runtime Status Refresh — 2026-09-24 15:46 JST (admission reconciliation; read-only)
+
+- `hf-gig-paid-direct` is not stopped: it is `loaded-idle`, its latest
+  terminal result is PASS with `effect_class=none`, and the durable admission
+  DB has no queued/claimed occurrence or `effect_unknown` row for this owner.
+  This is scheduler/admission health only; it is not a Coconala provider
+  submission receipt. Ryu remains permanently manual-only.
+- The remaining Coconala system lanes are not fully closed. Reply detector is
+  admission-deferred by `resource_capacity_busy` with queued work; Storefront
+  is deferred by `resource_admission_unavailable` with an effect-unknown
+  fence. Therefore “Coconala loop is running” and “Coconala is fully
+  production-proven” are different states.
+- CrowdWorks is not complete: Application/Reply are repeatedly admission-
+  deferred (capacity/control busy); Paid is unloaded after `entrypoint_exit_143`
+  and still has an effect-unknown occurrence. Lancers Application is waiting
+  on capacity; Paid is unloaded after `entrypoint_exit_143` and effect-unknown.
+  Mercor Application/Reply are admission-deferred and Paid is deferred by
+  `resource_effect_unknown`; its historical fences remain closed.
+- The evidence is read-only from the durable admission DB and `lm-loop status`.
+  No provider submission, buyer message, formal delivery, resend, DB edit, or
+  fence release occurred. A seven-week monitoring gate is not required, but
+  every lane still needs one clean canary with official provider readback and
+  replay-zero before it is called done.
+
+### Full remaining TODO (ordered)
+
+1. Keep every unresolved effect fence closed; reconcile only with an exact
+   provider receipt/run marker or pre-effect proof. Never clear or retry an
+   `effect_unknown` occurrence blindly.
+2. Ryu: keep the verified v702/v703 artifact ready for one final manual
+   handoff. The three requested fixes are implemented and publicly/admin
+   verified, but no new Coconala message or formal delivery has been sent in
+   this cursor.
+3. Coconala system layer: reconcile Reply/Storefront, obtain a clean natural
+   wake and four-room official readback, and prove replay-zero while preserving
+   the permanent Ryu manual fence. Paid-direct being healthy is only one part
+   of this gate.
+4. Promote the boundary fix from the dedicated branch as an immutable main
+   release, then run the official-readback/replay-zero canary for CrowdWorks.
+   Its current admission and Paid `exit_143` blockers must be resolved first.
+5. Advance Lancers one owner at a time (Application, Paid, Reply/Negotiate,
+   Storefront/report as applicable), then Mercor. Each needs stable admission,
+   exact item idempotency, provider receipt, settlement/readback, and
+   replay-zero; the browser process alone is not completion.
+6. Build and verify Freelancer and Upwork paid lanes before enablement:
+   authenticated provider session, funded-contract/application policy, provider
+   adapter, idempotent send/delivery, settlement readback, and replay-zero.
+   Neither is currently turn-on-ready; Upwork has no registered Paid owner and
+   Freelancer has no registered Paid state/owner.
+7. Run final cross-platform acceptance and record the per-lane receipts. Stop
+   treating loaded/running or a no-op PASS as a client delivery; completion is
+   provider-visible effect plus official readback, not seven weeks of silence.
