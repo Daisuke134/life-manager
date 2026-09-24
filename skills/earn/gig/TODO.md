@@ -1,6 +1,6 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-25 05:54 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
+## Current cursor — 2026-09-25 06:02 JST (explicit Freelancer/Upwork work boundary and all-platform readback)
 
 This cursor supersedes the previous cursor. “Work on Freelancer/Upwork” is
 now split into the exact external gate and the code/loop gate; neither provider
@@ -24,6 +24,18 @@ is therefore still an account-bound BrowserSkill lease (or an official OAuth
 receipt), not loop registration. Upwork's three read-only receipts remain
 valid only until `2026-09-25T17:30:28Z`; the five mutation actions remain
 explicitly denied.
+
+The shared capacity investigation now has a concrete owner boundary. The
+central agent-runner retention code only accepts the guarded
+`agent-runner-evidence/<task>/<run>` layout; it correctly refuses arbitrary
+paths. Job-search instead creates flat run directories directly under
+`~/.local/state/anicca/job-search/evidence` from four shell drivers, and none
+of those drivers invokes a writer-owned retention routine. A read-only
+inventory at `2026-09-25 05:56 JST` found `11,907` top-level run directories
+occupying about `2.5 GiB`. No directory was deleted or moved. The next
+capacity fix must therefore be a job-search-owned, terminal-marker-aware
+retention path with tests; host cleanup cannot safely reclaim this tree by
+itself.
 
 The next Lancers read-only step was executed, not merely planned. A first
 preflight at `2026-09-24T20:43:00Z` read both official inventories with
