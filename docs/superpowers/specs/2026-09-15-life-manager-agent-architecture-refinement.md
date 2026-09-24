@@ -108,6 +108,15 @@ flowchart LR
   1,459件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約を追加し、RED→GREEN
   registry/fixture 94/94、apply 124/124をPASSしました。sale observation・payment・revenue effectは実行しておらず、
   main/release昇格とproduction replay-zeroは未完です。
+- `citizen-refill`はdeterministic routeで、durable admission上のknown effect-free FIFO 144件、claimed/unknown 0件、
+  loaded-idleでした。productionのrelease `f7d4ff46afa42539a6def192774de66ff3317cec`では、entrypoint前に
+  `citizen-refill: node executable not found`を繰り返していました。原因は、共有plistがmanaged Nodeを
+  `LIFE_MANAGER_RUNTIME_NODE`へ注入する一方、`bin/citizen-refill-launchd`が`LIFE_MANAGER_NODE`とlaunchd PATH
+  だけを参照していた変数名不一致です。branch-only candidateで`LIFE_MANAGER_NODE`→`LIFE_MANAGER_RUNTIME_NODE`
+  →PATHの順にfallbackし、同時に`deterministic/borrow/support`、queued/reserved coalescing、
+  `reconcile_queued_release=true`をregistryへ追加しました。fake managed-nodeのRED→GREEN回帰、registry/rendered-fixture
+  95/95、apply 124/124（既知のsqlite `ResourceWarning`のみ）はPASSしました。wallet/refill/payment/provider effectは
+  実行しておらず、main/release昇格、exact-SHA readback、replay-zeroは未完です。
 - `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
   `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
   `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean

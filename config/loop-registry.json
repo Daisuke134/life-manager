@@ -765,6 +765,12 @@
       "entrypoint": "bin/citizen-refill-launchd",
       "label": "ai.anicca.citizen-refill",
       "log_root": "~/.local/state/life-manager/agent-economy/instance/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/agent-economy/instance"
     },

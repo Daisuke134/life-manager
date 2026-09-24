@@ -1,6 +1,9 @@
 import json
 import copy
+import os
 import re
+import subprocess
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -202,6 +205,53 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_citizen_refill_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["citizen-refill"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_citizen_refill_launchd_uses_managed_runtime_node_without_path(self):
+        launcher = ROOT / "bin/citizen-refill-launchd"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            empty_bin = root / "empty-bin"
+            empty_bin.mkdir()
+            (empty_bin / "dirname").symlink_to("/usr/bin/dirname")
+            fake_node = root / "managed-node"
+            fake_node.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" > \"$FAKE_NODE_ARGS\"\n"
+                "exit 0\n"
+            )
+            fake_node.chmod(0o700)
+            args_path = root / "node-args"
+            env = os.environ.copy()
+            env.update({
+                "PATH": str(empty_bin),
+                "LIFE_MANAGER_NODE": "",
+                "LIFE_MANAGER_RUNTIME_NODE": str(fake_node),
+                "LIFE_MANAGER_STATE_HOME": str(root / "state"),
+                "LIFE_MANAGER_ENV_FILE": str(root / "missing-env"),
+                "FAKE_NODE_ARGS": str(args_path),
+            })
+            result = subprocess.run(
+                [str(launcher)],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                args_path.read_text().splitlines(),
+                [str(ROOT / "bin/citizen-refill"), "--live"],
+            )
 
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
