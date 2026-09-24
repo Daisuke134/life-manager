@@ -13,6 +13,9 @@ the same run contains only host-admission `execute/running` plus
 The exact critical owners now have **zero** unknown rows for Coconala and one
 remaining claimed/effect-unknown row each for CrowdWorks, Lancers, and Mercor.
 No provider send, retry, or manual client resend was issued by these resolvers.
+The existing runtime pre-effect reconciler was probed against all three
+remaining rows and returned no admissible proof; none may be cleared from a
+stale terminal event or a public snapshot.
 
 | Platform | What is actually true now | Exact blocker / what is missing | Next action (in order) |
 |---|---|---|---|
