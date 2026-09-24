@@ -4270,3 +4270,35 @@ not convert a transient pass or a no-op into client completion.
    wake, and replay-zero all pass.
 3. Complete Coconala four-room/Ryu manual-only acceptance, then advance
    Lancers/Mercor and finally Freelancer/Upwork.
+
+## Runtime Status Refresh — 2026-09-24 19:28 JST (release86bd official readback)
+
+- [x] PR `#5845` merged as `6022ddc01faed9dcaed4ec29547d10de741d27df` and PR
+  `#5846` merged as `86bd68bf7b9c3819c0a44f848e861372af9eff54`. The immutable
+  current release is `86bd68bf7b9c3819c0a44f848e861372af9eff54`.
+- [x] The second readback-fix PR corrected the extra closing parenthesis in
+  the Coconala async history/detail fetch expressions. Focused application
+  tests, 149 Coconala/release/disk tests, 72 application tests, Python
+  compilation, diff check, and `lm-loop-contract` passed; CI passed all jobs.
+- [x] A fresh occurrence-scoped read-only reconcile for request `5280157`
+  reached the persisted page-22 cursor. Both browser navigation and the
+  corrected same-origin fetch returned HTTP `403 Forbidden`; the evidence
+  records `transport=fetch`, `status=403`, and `title=403 Forbidden` at
+  `~/gig/apply-direct/evidence/occurrence-reconcile-20260924-release86bd/`.
+- [ ] The Apply occurrence remains `claimed/effect_unknown=1`; no resolver,
+  admission mutation, provider send, retry, or manual Ryu resend occurred.
+  Storefront remains fenced by its separate host-admission boundary. The
+  safety guard correctly refuses targeted apply while the exact effect is
+  unknown.
+
+### Next one-by-one cursor (19:28 JST)
+
+1. Obtain a provider-available official Coconala history/readback for request
+   `5280157`, or an independently verified pre-effect proof; resolve only with
+   exact owner/occurrence/request binding.
+2. After proof, target-apply the current release to Apply then Storefront and
+   verify loaded SHA, natural wake, four-room official readback, and replay-zero.
+3. Keep Ryu manual-only and do not resend the already verified seller receipt.
+4. Continue CrowdWorks/Lancers/Mercor/ Freelancer/Upwork readiness in parallel
+   only where each platform has its own admissible funded contract and official
+   receipt path; a no-op or loaded loop is not a delivery.
