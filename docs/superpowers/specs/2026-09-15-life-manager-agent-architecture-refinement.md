@@ -4910,3 +4910,26 @@ receipt/readback fields, so no wallet/RPC/Relay action, admission edit or revenu
 The remaining Sol-funding cursor is an owner-specific read-only adapter that requires an exact occurrence-bound
 signature, Solana confirmation and Relay destination readback before any resolver is eligible. The new JSON output
 is future evidence only and is not itself official readback.
+
+### x402 occurrence-bound Base readback adapter (2026-09-25 JST)
+
+The candidate now carries `e4b74a13f7` on
+`fix/self-healing-control-plane-integration-20260925`. `settlement-recorder.mjs` attaches the validated host
+occurrence to each newly recorded verified sale row, together with the public Base transaction hash,
+`base://tx/<hash>` reference, and the `base_finalized_usdc_transfer` proof kind. Missing or malformed occurrence
+identity remains fail-closed and does not annotate a historical row.
+
+The new read-only `skills/earn/x402-sell/settlement_reconcile.py` adapter first checks the authoritative admission
+row, then requires exactly one occurrence-bound ledger receipt, and finally performs a fresh Base-mainnet readback:
+chain 8453, finalized block, successful transaction, and exactly one matching USDC Transfer to the owned wallet.
+It returns `ready` only with the exact owner, occurrence, transaction receipt and readback reference. It never sends
+transactions or edits admission state. Focused tests pass **4/4**, the Node wiring/identity suite passes **3/3**,
+`py_compile` and `git diff --check` pass.
+
+A live read-only probe of the released historical target
+`x402-settlement-recorder:18d606127c37d290-73497` returns
+`inconclusive / occurrence_receipt_missing`: every existing external-inflow ledger row lacks a host occurrence.
+This is not evidence of no effect and does not authorize clearing, replaying, or resending the fence. The adapter is
+future-proofing only until an accepted immutable release loads it and a future occurrence writes the complete chain.
+The candidate diff is now **35 files**; no wallet, Base RPC write, x402 endpoint, admission row, provider session,
+main branch, immutable release, or revenue value changed.

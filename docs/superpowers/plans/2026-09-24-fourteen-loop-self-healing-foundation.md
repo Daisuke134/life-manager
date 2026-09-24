@@ -1425,3 +1425,18 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   every identity matches; never infer no-effect from the current old journal.
 - [ ] Keep the historical `sol-funding:18d60103c86ce420-74237` fence held and keep main/immutable promotion closed;
   the candidate now contains **33 files** and remains source-only.
+
+### x402 occurrence-bound Base readback adapter (2026-09-25 JST)
+
+- [x] Extend `settlement-recorder.mjs` so every newly verified sale row retains the validated host occurrence,
+  provider transaction ID, `base://tx/<hash>` reference and `base_finalized_usdc_transfer` proof kind.
+- [x] Add the read-only `settlement_reconcile.py` adapter. It accepts only the exact x402 owner/occurrence, reads
+  admission state without mutation, requires exactly one matching private ledger receipt, and checks a fresh Base
+  mainnet finalized receipt with the exact USDC sender, destination and atomic amount.
+- [x] Verify focused Python reconciler **4/4**, Node wiring/identity **3/3**, `py_compile` and `git diff --check`;
+  push candidate commit `e4b74a13f7`.
+- [x] Probe the historical target read-only: it returns `inconclusive / occurrence_receipt_missing` because old
+  ledger rows contain no host occurrence. Keep `x402-settlement-recorder:18d606127c37d290-73497` fenced.
+- [ ] After accepted immutable promotion, run this adapter once against a future occurrence and persist a private
+  mode-0600 reconciliation receipt. Invoke the resolver only if exact occurrence, tx and fresh finalized Base
+  readback all match; never infer no-effect from an empty ledger or a successful unrelated RPC query.
