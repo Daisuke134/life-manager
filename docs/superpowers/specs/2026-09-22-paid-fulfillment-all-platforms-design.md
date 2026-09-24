@@ -3561,3 +3561,23 @@ not convert a transient pass or a no-op into client completion.
    canary work for CrowdWorks → Lancers → Mercor. Freelancer/Upwork remain
    retired until their provider adapters, funded-contract policy, idempotency,
    settlement readback, and replay-zero acceptance exist.
+
+## Runtime Status Refresh — 2026-09-24 15:28 JST (read-only)
+
+- The current loop snapshot is not a completion receipt. `hf-gig-paid-direct`
+  has a recent terminal PASS with `effect_class=none`, but
+  `admission_effect_unknown=true`; keep its acceptance fence closed until a
+  clean admission/readback boundary is recorded.
+- `hf-gig-reply-detector` has a recent PASS with no blocker, but that is
+  scheduler/control health, not a fresh Coconala provider receipt. The latest
+  four-talkroom official readback still predates Ryu's new requests.
+- `hf-gig-storefront-direct` remains blocked by
+  `host_admission_deferred:resource_effect_unknown`.
+- CrowdWorks application is blocked by resource capacity, CrowdWorks paid is
+  unloaded after `entrypoint_exit_143`, and CrowdWorks reply most recently
+  failed with `entrypoint_exit_1`.
+- Lancers paid is unloaded after `entrypoint_exit_143`; Lancers application is
+  waiting on a resource FIFO. Mercor paid/application/reply remain
+  effect/admission-unknown and must not be retried blindly.
+- These are read-only observations. No provider submission, client reply,
+  formal delivery, resend, database edit, or fence release occurred.

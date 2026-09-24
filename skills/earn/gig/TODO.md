@@ -3262,3 +3262,20 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 6. Build Freelancer and Upwork lanes before enablement (authenticated adapter,
    funded-contract policy, idempotent send/delivery, settlement readback,
    replay-zero). They are not done or safe to turn on today.
+
+### Runtime status refresh — 2026-09-24 15:28 JST (read-only)
+
+- [ ] `hf-gig-paid-direct` has a recent terminal PASS with no effect class,
+  but `admission_effect_unknown=true`; this is not a clean acceptance receipt.
+- [ ] `hf-gig-reply-detector` is currently PASS, but that only proves
+  scheduler/control health; it does not replace a fresh Coconala provider
+  receipt for Ryu's post-delivery changes.
+- [ ] `hf-gig-storefront-direct` remains deferred by
+  `resource_effect_unknown`.
+- [ ] CrowdWorks application is capacity-blocked; Paid is unloaded after
+  `entrypoint_exit_143`; Reply most recently failed with `entrypoint_exit_1`.
+- [ ] Lancers Paid is unloaded after `entrypoint_exit_143`; Application is
+  waiting on a resource FIFO. Mercor Paid/Application/Reply remain
+  effect/admission-unknown.
+- [x] This refresh was read-only: no provider submission, client reply,
+  formal delivery, resend, database edit, or fence release occurred.
