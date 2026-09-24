@@ -2683,3 +2683,44 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Run the cross-platform fleet acceptance gate last; do not report all
   gig-platform work as complete before every registered Paid owner has fresh
   official readback and explicit effect state.
+
+### Paid fulfillment checkpoint — 2026-09-24 12:39 JST (host pre-effect fence hardening)
+
+- [x] Added `92fd7a9aa4` to pre-create the allowlisted owner zero-effect hint
+  before child spawn; child kernels still clear it immediately before their
+  first provider mutation, preserving the effect fence.
+- [x] Verification passed: 523 runtime-loop unittest cases, 81 loop-boundary
+  cases, 64 marketplace paid/reply cases, and 160 runtime-host cases.
+- [x] Pushed the fix to PR #5820. Production still loads
+  `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`; CI is rerunning for the new
+  commit.
+- [x] Coconala remains terminal `completed/4/0/0/3/0`; Ryu is manual-only and
+  has no formal delivery checkbox, so no resend is due.
+- [x] Lancers latest is `ok/0/0/0/0/0` at
+  `18d8248b3cbf1918-78637`; historical fence
+  `18d81967220136f8-89928` remains closed.
+- [ ] CrowdWorks `63568785` is still waiting for buyer material; the existing
+  access-request answer is the only answer and must not be duplicated.
+- [ ] Mercor Paid still needs a fresh official inventory; retain its old
+  Application/Reply fences and keep the one Consultant calibration assessment
+  human-owned.
+- [ ] Finish CI, promote one immutable release from latest main, verify loaded
+  SHA + natural readback + replay-zero, complete CrowdWorks once the buyer
+  material arrives, then run the final all-platform acceptance gate.
+
+### Remaining TODO (current ordered cursor)
+
+1. Preserve all historical effect-unknown fences; no blind retry, resend, or
+   database edit without exact provider/run proof.
+2. Finish PR #5820 checks and promote the tested branch through one immutable
+   release; verify Lancers/CrowdWorks loaded SHA, natural inventory,
+   provider readback, and replay-zero.
+3. Wait for CrowdWorks `63568785` buyer material, then complete formal
+   delivery → acceptance → settlement → payout → replay-zero exactly once.
+4. Refresh Mercor's official contract snapshot; resolve or retain its
+   Application/Reply fences from exact evidence and leave Consultant
+   calibration to a human.
+5. Keep Coconala/Ryu no-op/manual-only and Upwork disabled until their
+   authorization, authenticated readback, and funded-contract gates exist.
+6. Run the fleet acceptance gate last; only then report every registered Paid
+   owner complete.
