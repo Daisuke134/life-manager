@@ -30,6 +30,7 @@ test('one shared recovery supervisor owner continuously consumes non-Paid intent
 
   assert.deepEqual(entry, {
     adapter: 'exec',
+    admission_class: 'borrow',
     cadence: { start_interval_seconds: 60 },
     cleanup: { max_age_days: 14, max_runs: 100 },
     command: [],
@@ -38,6 +39,7 @@ test('one shared recovery supervisor owner continuously consumes non-Paid intent
     entrypoint: 'runtime/loop/recovery-supervisor-cli.mjs',
     label: 'ai.anicca.life-manager-recovery-supervisor',
     log_root: '~/.local/state/life-manager/recovery/logs',
+    priority: 'support',
     provider_route: 'deterministic',
     resource_class: 'deterministic',
     state_root: '~/.local/state/life-manager/recovery',

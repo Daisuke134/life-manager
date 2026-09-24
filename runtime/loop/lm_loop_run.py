@@ -139,7 +139,8 @@ def _should_enqueue_recovery_intent(entry: dict, event: dict) -> bool:
     entrypoint = str(entry.get("entrypoint") or "")
     if (entry.get("priority") == "critical_paid"
             or entrypoint.endswith("/paid-owner")
-            or entrypoint.endswith("/paid-direct-owner")):
+            or entrypoint.endswith("/paid-direct-owner")
+            or entrypoint == "runtime/loop/recovery-supervisor-cli.mjs"):
         return False
     return True
 

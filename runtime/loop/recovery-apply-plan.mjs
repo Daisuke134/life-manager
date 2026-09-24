@@ -34,6 +34,9 @@ export function buildRecoveryApplyPlan({ intent, registry }) {
   if (!entry || typeof entry !== 'object') throw new Error(`recovery loop not in registry: ${loopId}`);
   if (ownerId !== loopId) throw new Error('recovery owner identity mismatch');
   if (!occurrenceId.startsWith(`${loopId}:`)) throw new Error('recovery occurrence identity mismatch');
+  if (entry.entrypoint === 'runtime/loop/recovery-supervisor-cli.mjs') {
+    throw new Error('recovery supervisor owner excluded');
+  }
   if (classifyRecoveryJob(entry) === 'read_only_external_owner') {
     throw new Error('recovery paid owner excluded');
   }

@@ -4,6 +4,9 @@ import { buildRecoveryApplyPlan } from '../recovery-apply-plan.mjs';
 
 const registry = { loops: {
   'example-loop': { provider_route: 'deterministic', entrypoint: 'bin/example' },
+  'life-manager-recovery-supervisor': {
+    provider_route: 'deterministic', entrypoint: 'runtime/loop/recovery-supervisor-cli.mjs',
+  },
   'paid-loop': {
     provider_route: 'deterministic', entrypoint: 'skills/earn/gig/scripts/paid-direct-owner',
     priority: 'critical_paid',
@@ -51,5 +54,16 @@ test('plan refuses every Paid fulfillment owner even if a queue row is forged', 
       loop_id: 'paid-loop', owner_id: 'paid-loop', occurrence_id: 'paid-loop:run-1',
     }), registry }),
     /paid owner excluded/,
+  );
+});
+
+test('plan refuses the recovery supervisor itself even if a queue row already exists', () => {
+  assert.throws(
+    () => buildRecoveryApplyPlan({ intent: intent({
+      loop_id: 'life-manager-recovery-supervisor',
+      owner_id: 'life-manager-recovery-supervisor',
+      occurrence_id: 'life-manager-recovery-supervisor:run-1',
+    }), registry }),
+    /supervisor owner excluded/,
   );
 });

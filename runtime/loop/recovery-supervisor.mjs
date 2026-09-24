@@ -144,6 +144,7 @@ export async function consumeRecoveryIntentQueue({
   journalPath,
   executeIntent,
   allowIntent = () => true,
+  supervisorOwnerId = null,
   maxAttempts = 3,
   now = new Date().toISOString(),
   cooldownSeconds = 300,
@@ -152,6 +153,10 @@ export async function consumeRecoveryIntentQueue({
   if (typeof journalPath !== 'string' || !journalPath) throw new Error('recovery journal path required');
   if (typeof executeIntent !== 'function') throw new Error('recovery executor required');
   if (typeof allowIntent !== 'function') throw new Error('recovery allowIntent invalid');
+  if (supervisorOwnerId !== null
+      && (typeof supervisorOwnerId !== 'string' || !ID.test(supervisorOwnerId))) {
+    throw new Error('recovery supervisor owner invalid');
+  }
   if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1) throw new Error('recovery maxAttempts invalid');
   if (!Number.isSafeInteger(cooldownSeconds) || cooldownSeconds < 1) {
     throw new Error('recovery cooldownSeconds invalid');
@@ -171,11 +176,22 @@ export async function consumeRecoveryIntentQueue({
     const intent = candidate?.recovery_intent && typeof candidate.recovery_intent === 'object'
       ? candidate.recovery_intent : candidate;
     if (!validIntent(intent)) continue;
-    if (!allowIntent(intent)) continue;
     const state = history.get(intent.intent_id) || {
       attempts: 0, terminal: false, nextEligibleAt: null,
     };
     if (state.terminal) continue;
+    if (supervisorOwnerId !== null
+        && (intent.loop_id === supervisorOwnerId || intent.owner_id === supervisorOwnerId)) {
+      const reason = 'supervisor_self_recovery_excluded';
+      await appendJsonLine(journalPath, recoveryOutcome(intent, {
+        state: 'skipped',
+        budget_consumed: false,
+        next_action: 'none',
+        reason,
+      }, { attempt: state.attempts, now, nextEligibleAt: null }));
+      return resultFor(intent, 'skipped', state.attempts, true, { reason });
+    }
+    if (!allowIntent(intent)) continue;
     const eligibleAt = state.nextEligibleAt || intent.next_eligible_at;
     if (typeof eligibleAt === 'string' && Number.isFinite(Date.parse(eligibleAt))
         && Date.parse(eligibleAt) > nowMs) {
