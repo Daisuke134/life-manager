@@ -63,6 +63,17 @@ receipt. No admission row was edited, no provider page was opened, and no
 retry/send was issued. The next permissible step is an occurrence-bound
 provider readback or an admissible pre-effect proof, not a blanket release.
 
+At `2026-09-25 06:11 JST` the account gate was re-evaluated without opening a
+provider page. Upwork's current source-complete snapshot still has zero
+contracts; `ready=false` with `authorization_missing` and
+`funded_contract_missing`, missing mutation actions
+`accept_offer/deliver_milestone/message/propose/search`, and no funded IDs.
+Freelancer's OAuth/readback files are still absent, and the private credential
+SSOT has no Freelancer or Upwork key path. Neither provider has an active
+registry owner; the old labels remain retired. This is the intended fail-closed
+state until account-bound authorization, official inventory, and one funded
+contract/milestone are proven.
+
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
 `/Users/anicca/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
