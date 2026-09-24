@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -34,6 +35,59 @@ test("one catalog describes all 14 public product loops on Local and Cloud", () 
     assert.match(english, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
     assert.match(japanese, new RegExp(loop.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
+});
+
+test("the same fourteen-loop catalog owns exact economic source declarations", () => {
+  const catalog = readProductLoopCatalog();
+  assert.equal(catalog.loops.length, 14);
+  for (const loop of catalog.loops) {
+    assert.deepEqual(Object.keys(loop.economic).sort(), ["revenue_classes", "role", "sources"]);
+    assert.deepEqual(Object.keys(loop.economic.sources).sort(), ["cost", "financial", "funnel"]);
+    for (const source of Object.values(loop.economic.sources)) {
+      assert.deepEqual(Object.keys(source).sort(), ["adapter", "implementation"]);
+      if (source.implementation === "not_applicable") assert.equal(source.adapter, null);
+      else assert.match(source.adapter, /^[a-z][a-z0-9-]+$/u);
+    }
+    assert.equal(Object.isFrozen(loop.economic), true);
+    assert.equal(Object.isFrozen(loop.economic.sources), true);
+  }
+  const fundraiser = catalog.loops.find((loop) => loop.id === "fundraiser");
+  assert.equal(fundraiser.economic.role, "financing");
+  assert.deepEqual(fundraiser.economic.revenue_classes, ["fundraising"]);
+  const nonEconomic = catalog.loops.find((loop) => loop.id === "connector");
+  assert.equal(nonEconomic.economic.role, "non_economic");
+  assert.deepEqual(nonEconomic.economic.revenue_classes, []);
+  assert.equal(catalog.loops.some((loop) => Object.values(loop.economic.sources)
+    .some((source) => source.implementation === "missing")), true);
+});
+
+test("economic source declarations fail closed on extra fields, invalid roles, and MRR financing", (t) => {
+  const original = JSON.parse(fs.readFileSync(
+    path.join(ROOT, "apps/life-manager/config/product-loop-catalog.json"), "utf8",
+  ));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-economic-catalog-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const write = (mutate) => {
+    const value = JSON.parse(JSON.stringify(original));
+    mutate(value);
+    const file = path.join(root, `${crypto.randomUUID()}.json`);
+    fs.writeFileSync(file, JSON.stringify(value));
+    return file;
+  };
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops[0].economic.extra = true;
+  })), /economic/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops[0].economic.role = "money_printer";
+  })), /economic/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops.find((loop) => loop.id === "fundraiser").economic.revenue_classes = ["subscription"];
+  })), /economic|financing/i);
+  assert.throws(() => readProductLoopCatalog(write((value) => {
+    value.loops.find((loop) => loop.id === "connector").economic.sources.financial = {
+      adapter: "hidden-money", implementation: "implemented",
+    };
+  })), /economic|source/i);
 });
 
 test("the catalog loads from the standalone Cloud application artifact", (t) => {

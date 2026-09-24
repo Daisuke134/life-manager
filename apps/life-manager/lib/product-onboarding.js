@@ -19,6 +19,71 @@ const RELEASE_SHA = /^[a-f0-9]{40}$/iu;
 const RECEIPT_REF = /^[a-z][a-z0-9+.-]*:\/\/\S{1,1024}$/iu;
 const RESOURCE_CLASS = /^[a-z][a-z0-9_.:-]{0,63}$/iu;
 const NOTIFICATION_STATES = new Set(["internal_only", "user_visible", "not_configured"]);
+const ECONOMIC_ROLES = new Set([
+  "customer_revenue", "investment", "financing", "non_economic", "aggregator",
+]);
+const CUSTOMER_REVENUE_CLASSES = new Set(["subscription", "retainer", "recurring_usage", "one_time"]);
+const SOURCE_IMPLEMENTATIONS = new Set(["implemented", "partial", "missing", "not_applicable"]);
+const ADAPTER_ID = /^[a-z][a-z0-9-]{0,127}$/u;
+
+function exactObjectKeys(value, expected, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} invalid`);
+  }
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  if (actual.length !== wanted.length
+    || actual.some((key, index) => key !== wanted[index])) {
+    throw new Error(`${label} invalid`);
+  }
+}
+
+function validateEconomicDeclaration(value) {
+  exactObjectKeys(value, ["role", "revenue_classes", "sources"], "product loop economic declaration");
+  if (!ECONOMIC_ROLES.has(value.role) || !Array.isArray(value.revenue_classes)
+    || new Set(value.revenue_classes).size !== value.revenue_classes.length) {
+    throw new Error("product loop economic declaration invalid");
+  }
+  exactObjectKeys(value.sources, ["funnel", "financial", "cost"], "product loop economic sources");
+  const sources = {};
+  for (const sourceName of ["funnel", "financial", "cost"]) {
+    const source = value.sources[sourceName];
+    exactObjectKeys(source, ["adapter", "implementation"], "product loop economic source");
+    if (!SOURCE_IMPLEMENTATIONS.has(source.implementation)
+      || (source.implementation === "not_applicable") !== (source.adapter === null)
+      || (source.adapter !== null && (typeof source.adapter !== "string" || !ADAPTER_ID.test(source.adapter)))) {
+      throw new Error("product loop economic source invalid");
+    }
+    sources[sourceName] = Object.freeze({ ...source });
+  }
+  const inactive = value.role === "non_economic" || value.role === "aggregator";
+  if (inactive) {
+    if (value.revenue_classes.length !== 0
+      || Object.values(sources).some((source) => source.implementation !== "not_applicable")) {
+      throw new Error("product loop economic source invalid");
+    }
+  } else if (Object.values(sources).some((source) => source.implementation === "not_applicable")) {
+    throw new Error("product loop economic source invalid");
+  }
+  if (value.role === "customer_revenue"
+    && (value.revenue_classes.length === 0
+      || value.revenue_classes.some((item) => !CUSTOMER_REVENUE_CLASSES.has(item)))) {
+    throw new Error("product loop economic revenue class invalid");
+  }
+  if (value.role === "investment"
+    && (value.revenue_classes.length !== 1 || value.revenue_classes[0] !== "realized_investment")) {
+    throw new Error("product loop economic investment class invalid");
+  }
+  if (value.role === "financing"
+    && (value.revenue_classes.length !== 1 || value.revenue_classes[0] !== "fundraising")) {
+    throw new Error("product loop economic financing class invalid");
+  }
+  return Object.freeze({
+    role: value.role,
+    revenue_classes: Object.freeze([...value.revenue_classes]),
+    sources: Object.freeze(sources),
+  });
+}
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -35,6 +100,7 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
       || !Array.isArray(loop.requirements) || !loop.hosts || typeof loop.hosts !== "object") {
       throw new Error("product loop catalog invalid");
     }
+    validateEconomicDeclaration(loop.economic);
     ids.add(loop.id);
     for (const host of HOSTS) {
       const target = loop.hosts[host];
@@ -58,7 +124,10 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
       local: Object.freeze([...value.host_requirements.local]),
       cloud: Object.freeze([...value.host_requirements.cloud]),
     }),
-    loops: Object.freeze(value.loops.map((loop) => Object.freeze(loop))),
+    loops: Object.freeze(value.loops.map((loop) => Object.freeze({
+      ...loop,
+      economic: validateEconomicDeclaration(loop.economic),
+    }))),
   });
 }
 
