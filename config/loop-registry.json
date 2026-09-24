@@ -597,6 +597,11 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor-daily-close",
       "log_root": "~/.local/state/life-manager/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
@@ -615,6 +620,11 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor-hourly",
       "log_root": "~/.local/state/life-manager/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
