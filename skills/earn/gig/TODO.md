@@ -4237,3 +4237,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Refresh the shared authenticated Reply inventory and reconcile every
   exact old effect-unknown occurrence before any assessment, contract, or
   payout action. Do not submit an ungrounded assessment.
+
+### Runtime checkpoint — 2026-09-25 00:40 JST (Freelancer/Upwork implementation gate)
+
+- [x] Freelancer and Upwork now have strict readiness/readback gates in source:
+  current approved account-bound receipts + source-complete official inventory
+  + funded contract (positive funded milestone for Upwork) are required before
+  registration or any effect intent. Effect intents are account/contract/action
+  bound and replay-zero is checked.
+- [x] The focused Freelancer/Upwork/readiness/authorization run passes (`39`);
+  this is a source-level safety result, not live login, funded inventory, or
+  provider delivery evidence.
+- [x] Live prerequisites remain absent: Freelancer has no OAuth or approved
+  lifecycle receipt; Upwork has no OAuth, eight stored action receipts are
+  denied, and no funded milestone inventory exists. No Paid owner is
+  registered for either provider.
+- [ ] Build and attach each provider's authenticated inventory transport behind
+  `read_authenticated_inventory`; record official identity/project/contract/
+  payment/payout receipts and one funded contract/milestone.
+- [ ] Only after that evidence exists: register one disabled owner, run a
+  zero-spend canary, then a funded canary with official delivery/payment/
+  payout/replay-zero readback. Do not revive retired browser/free-loop labels.

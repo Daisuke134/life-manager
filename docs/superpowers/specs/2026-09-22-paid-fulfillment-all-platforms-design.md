@@ -4831,3 +4831,32 @@ leaves the provider effect closed.
 - [ ] Refresh the shared authenticated Reply inventory and reconcile each exact
   old effect-unknown occurrence before assessment, contract, or payout work.
   Keep the assessment human-grounded and fail closed.
+
+## Runtime Status Refresh — 2026-09-25 00:40 JST (Freelancer/Upwork implementation gate)
+
+- [x] The provider-specific readiness gates are implemented and fail closed in
+  `skills/earn/gig/scripts/freelancer_readiness.py` and
+  `skills/earn/gig/scripts/upwork_readiness.py`. They require fresh,
+  account-bound approved receipts, a source-complete official inventory, and a
+  funded contract (a positive funded milestone for Upwork) before an owner can
+  be considered registerable. They also bind every effect intent to the
+  account, contract, action, authorization receipt, and payload hash, and expose
+  replay-zero validation.
+- [x] The gate/readiness/provider-authorization focused tests pass (`39` tests
+  in the current local run). This proves rejection of missing/denied/stale
+  authorization and malformed/unfunded inventory; it is not proof of a live
+  provider login or a customer effect.
+- [x] Current external state is still closed: Freelancer has no OAuth file,
+  approved lifecycle receipts, or owner; Upwork has no OAuth file, its eight
+  stored action receipts are `denied`, and no funded milestone snapshot exists.
+  The old Upwork browser/free-loop labels remain retired and are not a Paid
+  owner.
+- [ ] Implement and attach the official authenticated inventory transports
+  (Freelancer account/project/contract/payment/payout; Upwork identity/
+  contract/payment/payout) behind the existing readback seams. Do not invent
+  endpoint data or reuse the denied receipts.
+- [ ] When fresh receipts and one funded contract/milestone actually appear,
+  register exactly one disabled owner, prove a zero-spend canary, then run one
+  funded canary and official delivery/payment/payout/replay-zero readback. No
+  owner registration or external send is legal before those evidence gates
+  pass.
