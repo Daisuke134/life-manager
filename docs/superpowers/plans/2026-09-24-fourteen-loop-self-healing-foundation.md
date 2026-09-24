@@ -926,6 +926,9 @@ The following is the current control-plane state. It is evidence for the next bo
   `error_class`/`errno`, and exit 75 instead of a traceback. The same probe succeeds at a temporary path, separating
   state-path capacity from the launchd owner probe. RED→GREEN preflight coverage is **7/7**. This is branch-only;
   no launchctl mutation, loop restart, provider effect, fence change or revenue claim exists.
+- [ ] Promote this preflight receipt contract only through an accepted main-derived immutable release, then re-run the
+  canonical-path preflight and require a durable typed receipt before any non-Paid owner apply/reconcile. Do not use
+  the temporary-path success as permission to mutate production.
 
 ## Deferred until this plan passes
 
