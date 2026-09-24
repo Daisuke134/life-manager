@@ -191,6 +191,31 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_clears_idle_no_effect_unknown_then_rebinds(self):
+        entry = {
+            "resource_class": "deterministic",
+            "admission_class": "borrow",
+            "priority": "support",
+            "effect_class": "none",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
+            patch.object(
+                lm_loop, "rebind_queued_owner",
+                side_effect=["effect_unknown", "unchanged"],
+            ) as rebind,
+            patch.object(lm_loop, "clear_no_effect_unknown", return_value=1) as clear,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+        clear.assert_called_once_with("example")
+        self.assertEqual(rebind.call_count, 2)
+
     def test_admission_rebind_guard_cancels_effect_free_control_plane_queue(self):
         entry = {"effect_class": "none"}
         with (

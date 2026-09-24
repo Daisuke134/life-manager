@@ -288,8 +288,19 @@ canonical registry enrollment: this legacy owner omits `resource_class`, `admiss
 the existing reconciler correctly refuses to infer a migration policy. The minimum candidate declares the
 already-effective runner defaults for all four Self-build jobs (`deterministic` or `agent`, `borrow`, `support`)
 without changing runner logic or weakening any fence. Apply passes 119/119, runner 84/84, registry 82/82 and
-the catalog contract remains 14/168/98 with zero errors. After integration, Self-build is retried one owner at
-a time before any other Product Loop is enrolled.
+the catalog contract remains 14/168/98 with zero errors. PR #5826 integrates the contract at
+`0468d61bb99d5f2d963f03bebab5b7c7a0974d8f`; complete release `20260924T151348-0468d61b` is active.
+`life-manager-dev` and `self-improve-evolve` then reconcile individually to the exact release while remaining
+loaded-idle, and their 19 and 58 queued occurrences remain effect-free.
+
+`life-manager-selfbuild` first defers behind a live reservation. After that lease expires, an old
+2026-09-22 occurrence is recovered by a natural run from the still-loaded old release. The entrypoint passes,
+but the stale-recovery path leaves that released occurrence `effect_unknown=1`; the next reconcile correctly
+refuses mutation. This is not an external-effect ambiguity because the registry contract is
+`effect_class=none`. The existing `clear_no_effect_unknown()` primitive already closes exactly this state, but
+the release reconciler does not call it. The minimum candidate connects that existing primitive only after a
+loaded-idle readback and only for a no-effect owner, then retries the same rebind once. The new regression and
+the full apply suite pass 120/120; integration and the final one-owner production retry remain pending.
 
 Connector is not accepted as healthy. Its installed plist is exact current release, but the latest complete
 run fails at `browser_open`. Host evidence shows Google Chrome owns IPv4 `127.0.0.1:9222` while managed Cloak
@@ -327,7 +338,10 @@ candidate branch already contains the shared endpoint-owner validation and recov
 - [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
 - [x] Run the first Self-build one-owner canary and retain the safe `skipped_pending` result plus exact admission evidence; no owner is reloaded.
 - [x] Add the missing explicit admission contract to the four Self-build registry jobs using their existing runtime defaults; focused suites and the 14-loop catalog contract pass.
-- [ ] Integrate the Self-build registry enrollment, cut an exact-main release, then retry its three drifted owners individually with loaded-idle and fence preservation.
+- [x] Integrate the Self-build registry enrollment as PR #5826 at `0468d61bb99d5f2d963f03bebab5b7c7a0974d8f` and activate complete release `20260924T151348-0468d61b`.
+- [x] Reconcile `life-manager-dev` and `self-improve-evolve` individually to the exact release; retain loaded-idle and all effect-free queued occurrences.
+- [x] Diagnose the remaining `life-manager-selfbuild` refusal to one released no-effect stale occurrence; do not clear the fence manually or retry blindly.
+- [ ] Integrate the idle/no-effect reconciler connection to the existing `clear_no_effect_unknown()` primitive, cut an exact-main release, then retry only `life-manager-selfbuild`.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
 - [ ] Re-read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal after non-Paid release alignment.
