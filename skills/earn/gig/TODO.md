@@ -1,20 +1,27 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 18:10 JST
+## Current cursor — 2026-09-24 19:28 JST
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
   `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
-  `claimed/effect_unknown=1`. Page-20 absence is only a partial official
-  readback; it is not proof that the request was never sent.
+  `claimed/effect_unknown=1`. A fresh official readback on release
+  `86bd68bf7b9c3819c0a44f848e861372af9eff54` reached page 22 and received
+  `403 Forbidden` from both navigation and same-origin fetch, so absence is
+  still unproven.
 - [x] Add the branch-only page-20 resumable readback path and the bounded,
   same-origin detail-fetch fallback. Both paths are read-only and keep the
   fence closed on denied, incomplete, or non-200 history.
+- [x] Merge PRs `#5845` and `#5846`, cut immutable release
+  `86bd68bf7b9c3819c0a44f848e861372af9eff54`, and verify the release metadata.
+  The second PR fixed an extra closing parenthesis in both async fetch
+  expressions; the focused tests now prove the browser receives valid JS.
 - [x] Build and register the occurrence-scoped Coconala reconciler. It selects
   only one unambiguous target and cannot clear the admission DB, infer no-effect
   from exit status, or release a fence without exact official proof.
-- [ ] Merge the clean PR and cut/apply an immutable release, then verify a
-  natural Apply/Storefront wake, complete official readback, and replay-zero.
+- [ ] Load the current release only after the occurrence fence is resolved;
+  then verify natural Apply/Storefront wakes, complete official readback, and
+  replay-zero. The targeted apply is currently refused by the safety guard.
 - [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
   latest buyer cycle and remains a permanent manual-only exception; do not
   resend unless a genuinely newer buyer event appears.
@@ -26,13 +33,14 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 18:10 JST)
+### Current remaining TODO (authoritative, 2026-09-24 19:28 JST)
 
 1. Obtain a complete official Coconala history/readback for request `5280157`;
    resolve the exact occurrence only on positive provider proof or separately
    verified pre-effect proof.
-2. Merge PR `#5820`, cut and load the immutable release, and verify natural
-   Apply/Storefront wakes plus replay-zero. Production has not changed yet.
+2. After the proof, target-apply the current immutable release to Apply, then
+   Storefront, and verify loaded SHA, natural wakes, official readback, and
+   replay-zero. Do not bypass the `effect_unknown` guard.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
 4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible
@@ -42,6 +50,23 @@
 6. Obtain approved Upwork authorization and a funded contract, then register
    Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
    settlement, payout, and duplicate-zero acceptance.
+
+## Runtime Status Refresh — 2026-09-24 19:28 JST (release86bd official readback)
+
+- [x] PR `#5845` merged as `6022ddc01f`; PR `#5846` merged as
+  `86bd68bf7b`; current immutable release is `86bd68bf7b9c3819c0a44f848e861372af9eff54`.
+- [x] A fresh occurrence-scoped, read-only reconcile reached the persisted
+  Coconala cursor and recorded `status=403`, `title=403 Forbidden`, and
+  `transport=fetch` for page 22. Evidence:
+  `~/gig/apply-direct/evidence/occurrence-reconcile-20260924-release86bd/parent-B2-applied-readback-unexpected-route-*.json`.
+- [x] The async fetch syntax bug is fixed and the latest evidence now contains
+  the provider's actual 403 rather than `cdp_dom_value_missing`.
+- [ ] The Apply occurrence still reads `claimed/effect_unknown=1`; no resolver,
+  DB edit, provider send, retry, or manual Ryu resend was performed. Storefront
+  remains fenced by its own host-admission boundary.
+- [ ] Obtain a provider-available official readback (or independently verified
+  pre-effect proof) before any fence decision. Until then, Coconala is not
+  complete even though the code release is complete.
 
 ## Current checkpoint — 2026-09-23
 
