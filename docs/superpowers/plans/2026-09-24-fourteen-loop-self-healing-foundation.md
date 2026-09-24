@@ -509,6 +509,10 @@ allowed.
 
 The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
 
+- A fresh `lm-loop status all --json` readback contains 98 mapped managed jobs: 33 complete diagnostics, 48 typed
+  admission-blocked rows, 17 terminal failures, 23 passes, 4 running rows and 6 rows without a terminal event. It
+  still exposes 57 effect-unknown rows and 5 installed/event release mismatches. This is why the 14/14 foundation
+  gate remains blocked; these numbers are not commercial revenue measurements.
 - The latest `current` selector readback points to main-derived release `1657972036bddc842682108334e5d30b5e48defe`, while
   Agent Economy remains loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b` and the seven Writer owners remain
   loaded on the previously accepted `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` release. Source
