@@ -2203,3 +2203,19 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   account readback are healthy.
 - [ ] Wait for buyer material on CrowdWorks `63568785`; then complete the
   work, submit once, capture the official receipt, and verify replay-zero.
+
+### Paid fulfillment checkpoint — 2026-09-24 09:50 JST
+
+- [x] Detected that CDP `9228` is currently served by an orphaned Chromium
+  process without a `browser_port_owner` receipt; the previous managed
+  `pass` event is not sufficient ownership proof. No external effect occurred.
+- [ ] With the required stop/restart approval, close only that exact orphaned
+  CrowdWorks profile process, restart `crowdworks-revenue-browser` via
+  `./bin/lm-loop`, and verify owner receipt → CDP → authenticated account
+  readback. Do not use the account probe's fallback launcher.
+- [ ] After ownership is restored, rerun the Paid natural readback. Keep
+  CrowdWorks `63568785` pending until buyer task material arrives; then submit
+  once with official receipt and replay-zero.
+- [ ] Keep the historical `effect_unknown` fences for CrowdWorks/Lancers
+  Paid occurrences until their provider/pre-effect evidence proves a safe
+  no-effect release; do not clear them from a local `pass` alone.

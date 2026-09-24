@@ -1886,3 +1886,19 @@ clicked again.
   `63568785` remains buyer-material-gated; the only remaining work is to wait
   for the permitted artifact and then submit once with official receipt and
   replay-zero.
+
+## Production Cursor — 2026-09-24 09:50 JST
+
+- **Ownership correction:** a later read-only account probe ran while the
+  managed browser owner was being respawned. The probe's fallback launched a
+  Chromium process for the same CrowdWorks profile; CDP `9228` responds, but
+  the process has no current `browser_port_owner` receipt and is therefore not
+  an acceptable production owner. No customer/provider effect occurred.
+- **Current blocker:** the exact orphaned profile process must be closed and
+  the canonical `crowdworks-revenue-browser` owner restarted through
+  `lm-loop`, then verified by owner receipt + CDP + account readback. This is
+  an explicit high-risk stop/restart boundary; do not hide it behind a stale
+  `pass` event or run a Paid effect until ownership is restored.
+- **Probe rule:** account readback must never launch a fallback browser when a
+  managed owner is absent or ambiguous. Use the managed owner lifecycle for
+  recovery and keep provider effects fenced until the owner chain is proven.
