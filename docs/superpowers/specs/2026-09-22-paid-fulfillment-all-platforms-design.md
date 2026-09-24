@@ -12,7 +12,19 @@ result that satisfies the buyer's complete current request**. A generated artifa
 green local test, filled composer, provider click, or sent message alone is not
 completion.
 
-### Current implementation cursor — 2026-09-24 20:51 JST
+### Current implementation cursor — 2026-09-24 21:00 JST
+
+- A historical-session continuity audit checked the vault actually referenced
+  by the production Gig launch configuration,
+  `/Users/anicca/.cloak/vault/gig-daily-driver`. Its retained `auth-state`
+  backups begin on 2026-09-23; there is no retained 2026-09-20 account-ID
+  binding for the old attempt. Cookie/session continuity is therefore only a
+  candidate signal and cannot resolve the `effect_unknown` fence.
+- The cross-platform wait boundary was rechecked: CrowdWorks is still
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; funded work
+  `63568785` has an existing on-platform request and still waits for the
+  buyer's admissible lesson/answer material. No LINE or external-form action
+  is permitted.
 
 - The Coconala occurrence `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for
   request `5280157` remains `claimed/effect_unknown=1`. A fresh authenticated,

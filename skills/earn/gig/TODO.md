@@ -1,6 +1,17 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 20:51 JST
+## Current cursor — 2026-09-24 21:00 JST
+
+- [x] Perform the historical-session continuity audit without touching the
+  provider or admission DB. The production launch configuration points to the
+  Gig vault `/Users/anicca/.cloak/vault/gig-daily-driver`; its retained
+  `auth-state` backups begin on 2026-09-23, so no 2026-09-20 account binding
+  exists. The current cookie/session continuity is only a candidate signal,
+  not provider proof, and cannot resolve the old `5280157` fence.
+- [x] Reconfirm the cross-platform wait boundary: CrowdWorks remains
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`, with `63568785`
+  waiting for admissible buyer lesson/answer material after the existing
+  on-platform request; no external-form or LINE action is allowed.
 
 - [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
   still on older immutable releases and the Apply occurrence
