@@ -88,6 +88,11 @@ flowchart LR
   immutable releaseの再読込だけを次の修復境界にします。read-only/status 23 tests、runtime-event/runner
   19 testsはPASSしました。これはまだmain/release/productionへ反映しておらず、現行の14-loop gateは
   引き続き`runtime_release_drift`でblockです。
+- recovery supervisor/executorのbranch-only RED→GREEN修正では、sanitized before/after readbackから
+  `diagnostic_error`、`failure_layer`、`error_class`、`retryable`、`next_action`を落とさず、自己修復判断へ
+  そのまま引き渡します。欠落フィールドをopaqueな成功・失敗へ潰さないため、supervisor/executor focused
+  testsは16/16、recovery全体は40/40です。これはmain/release/productionへ未反映で、provider effect、
+  effect fence、外部stateは変更していません。
 - Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
   pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
   `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを

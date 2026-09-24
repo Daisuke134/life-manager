@@ -73,7 +73,8 @@ function safeReadback(value) {
   const fields = [
     'event_id', 'loop_id', 'job_id', 'owner_id', 'occurrence_id', 'launchd_state',
     'installed_release_sha', 'event_release_sha', 'last_terminal_result',
-    'diagnostic_complete', 'effect_status', 'blocker',
+    'diagnostic_complete', 'diagnostic_error', 'effect_status', 'blocker',
+    'failure_layer', 'error_class', 'retryable', 'next_action',
   ];
   return Object.fromEntries(fields.filter((field) => Object.hasOwn(value, field))
     .map((field) => [field, value[field]]));

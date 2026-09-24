@@ -157,6 +157,9 @@ test('records exact readback evidence and does not spend budget on verification-
       after_readback: {
         event_id: 'event-after', loop_id: 'example-loop', owner_id: 'example-loop',
         installed_release_sha: SHA, event_release_sha: SHA,
+        diagnostic_error: 'legacy_runtime_event_schema',
+        failure_layer: 'runtime', error_class: 'legacy_runtime_event_schema',
+        retryable: true, next_action: 'reload_current_release',
       },
       command_exit_code: 0,
       evidence_refs: ['lm-loop://example-loop/run-1/summary.json'],
@@ -175,6 +178,9 @@ test('records exact readback evidence and does not spend budget on verification-
   assert.deepEqual(outcome.readback, {
     event_id: 'event-after', loop_id: 'example-loop', owner_id: 'example-loop',
     installed_release_sha: SHA, event_release_sha: SHA,
+    diagnostic_error: 'legacy_runtime_event_schema',
+    failure_layer: 'runtime', error_class: 'legacy_runtime_event_schema',
+    retryable: true, next_action: 'reload_current_release',
   });
 });
 

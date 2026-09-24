@@ -74,7 +74,11 @@ test('executes exactly one owner-scoped reconcile on the intended release', asyn
       event_id: 'event-before', event_release_sha: 'b'.repeat(40),
       last_terminal_result: 'fail', diagnostic_complete: false,
     })),
-    statusResult(status()),
+    statusResult(status({
+      diagnostic_error: 'legacy_runtime_event_schema',
+      failure_layer: 'runtime', error_class: 'legacy_runtime_event_schema',
+      retryable: true, next_action: 'reload_current_release',
+    })),
   ];
   const result = await executeRecoveryPlan({
     plan,
@@ -112,6 +116,8 @@ test('executes exactly one owner-scoped reconcile on the intended release', asyn
   assert.equal(calls[1].env.LIFE_MANAGER_LOOP_ID, 'life-manager-recovery-executor');
   assert.equal(result.before_readback.event_id, 'event-before');
   assert.equal(result.after_readback.event_id, 'event-after');
+  assert.equal(result.after_readback.diagnostic_error, 'legacy_runtime_event_schema');
+  assert.equal(result.after_readback.next_action, 'reload_current_release');
   assert.equal(result.budget_consumed, true);
 });
 
