@@ -3939,6 +3939,15 @@ not convert a transient pass or a no-op into client completion.
 3. Reconcile Reply/Report official readback and replay-zero, then complete
    Coconala/Ryu, Lancers/Mercor, and Freelancer/Upwork acceptance in order.
 
+## Runtime Status Refresh — 2026-09-24 16:37 JST (PR CI complete)
+
+- [x] PR #5820's required checks are all green: agent instruction contract,
+  loop control contracts, Python syntax/unittest, startup context drift, OSS
+  boundary, PII shapes, shell syntax, gitleaks, and TruffleHog.
+- [ ] The PR remains OPEN and production still points at the prior immutable
+  release. CI success proves source integrity only; it does not prove client
+  delivery, provider effect, or permission to merge before full acceptance.
+
 ## Runtime Status Refresh — 2026-09-24 16:22 JST (Reply fence readback)
 
 - [x] After a fresh owner/lock read-only check, exact pre-effect proof allowed

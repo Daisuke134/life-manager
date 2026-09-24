@@ -3592,3 +3592,11 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    client/platform acceptance, then verify a natural CrowdWorks wake.
 3. [ ] Reconcile Reply/Report official readback and replay-zero, then complete
    Coconala/Ryu, Lancers/Mercor, and Freelancer/Upwork in order.
+
+### Runtime checkpoint — 2026-09-24 16:37 JST (PR CI complete)
+
+- [x] PR #5820 required checks are all green: instruction/loop contracts,
+  Python syntax+unittest, startup/OSS/PII gates, shell syntax, gitleaks, and
+  TruffleHog.
+- [ ] PR remains OPEN and production still uses the previous immutable release;
+  CI does not substitute for provider/client acceptance or official readback.
