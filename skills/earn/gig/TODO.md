@@ -4404,3 +4404,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 
 - [x] Full Gig regression passes (`1465 passed`) after the Freelancer API
   boundary addition. No provider request, submission, or resend occurred.
+
+### Runtime checkpoint — 2026-09-25 01:26 JST (Upwork state-bundle attachment)
+
+- [x] `snapshot_from_browser_state` now supports a stricter evidence list, and
+  `UpworkTransport.read_inventory` accepts the provider's browser bundle only
+  when contract, transaction-history, and withdrawal evidence hashes are all
+  present. It then routes the bundle through the canonical contract parser;
+  missing finance evidence is rejected.
+- [x] Focused Upwork readiness/transport tests pass (`23`), and the existing
+  canonical-inventory path remains unchanged.
+- [ ] This is still source/readback plumbing, not live Upwork readiness. The
+  OAuth file is absent, the eight stored action receipts remain denied, and no
+  positive funded milestone has been read back. No owner registration or
+  provider effect is allowed.

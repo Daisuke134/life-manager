@@ -168,6 +168,33 @@ def test_browser_zero_contract_readback_becomes_source_complete_inventory():
     }
 
 
+def test_browser_state_can_require_contract_and_finance_evidence():
+    state = {
+        "version": 1,
+        "provider": "upwork",
+        "observed_at": "2026-09-24T13:55:00Z",
+        "active_contracts": [],
+        "evidence_sha256": {
+            "contracts": HASH,
+            "transactions": "b" * 64,
+            "withdrawals": "c" * 64,
+        },
+    }
+
+    snapshot = snapshot_from_browser_state(
+        state, account_id="upwork-account-1",
+        required_evidence=("contracts", "transactions", "withdrawals"),
+    )
+    assert snapshot["source_complete"] is True
+
+    del state["evidence_sha256"]["withdrawals"]
+    with pytest.raises(ReadinessError, match="browser_state_evidence_invalid"):
+        snapshot_from_browser_state(
+            state, account_id="upwork-account-1",
+            required_evidence=("contracts", "transactions", "withdrawals"),
+        )
+
+
 def test_browser_contract_readback_requires_official_detail_for_each_contract():
     state = {
         "version": 1,

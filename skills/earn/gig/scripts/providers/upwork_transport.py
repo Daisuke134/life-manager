@@ -185,7 +185,27 @@ class UpworkTransport:
             selection = self.for_action("inspect")
             if selection is None:
                 raise TransportConfigurationError("inventory_transport_unavailable")
-            return fetch(selection, INVENTORY_ROUTES)
+            payload = fetch(selection, INVENTORY_ROUTES)
+            if (
+                isinstance(payload, dict)
+                and payload.get("version") == 1
+                and payload.get("provider") == "upwork"
+            ):
+                return payload
+            if isinstance(payload, dict) and set(payload) == {
+                "browser_state", "contract_details",
+            }:
+                from upwork_readiness import snapshot_from_browser_state
+
+                try:
+                    return snapshot_from_browser_state(
+                        payload["browser_state"], account_id=self.account,
+                        contract_details=payload["contract_details"],
+                        required_evidence=("contracts", "transactions", "withdrawals"),
+                    )
+                except ValueError as exc:
+                    raise TransportConfigurationError("inventory_state_bundle_invalid") from exc
+            raise TransportConfigurationError("inventory_state_bundle_invalid")
 
         return read_authenticated_inventory(
             receipts,

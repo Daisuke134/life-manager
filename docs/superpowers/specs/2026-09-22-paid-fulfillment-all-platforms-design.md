@@ -5070,3 +5070,19 @@ owner, or an external submission.
   responses, then prove one funded project through this parser. Upwork still
   needs the equivalent live authenticated contract/payment normalization; its
   current OAuth/receipts remain absent/denied.
+
+## Runtime Status Refresh — 2026-09-25 01:26 JST (Upwork state-bundle attachment)
+
+- [x] Upwork's browser-state adapter now has an explicit evidence requirement
+  for the contract page plus transaction-history and withdrawal pages. The
+  transport accepts a browser bundle only in the exact
+  `{browser_state, contract_details}` shape, validates those three hashes, and
+  sends the result through `snapshot_from_browser_state` and the canonical
+  funded-milestone parser.
+- [x] Missing finance evidence is fail-closed; the legacy canonical inventory
+  path remains unchanged. Focused Upwork readiness/transport tests pass (`23`).
+- [ ] No live Upwork OAuth, approved action receipt, or funded milestone exists
+  on this host. This source boundary therefore does not register or enable an
+  owner and does not claim a provider effect. The next external step remains
+  fresh account authorization followed by a positive official contract and
+  funded-milestone readback.

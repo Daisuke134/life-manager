@@ -255,3 +255,47 @@ def test_inventory_readback_uses_official_pages_after_all_read_receipts(
         ("transactions", "https://www.upwork.com/nx/payments/reports/transaction-history"),
         ("withdrawals", "https://www.upwork.com/nx/payments/disbursement-methods"),
     ))]
+
+
+def test_inventory_readback_normalizes_browser_bundle_only_with_finance_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    root, profile = _profile(tmp_path)
+    selector = transport.UpworkTransport(
+        account=ACCOUNT, now=NOW, oauth_path=tmp_path / "missing.json",
+        profiles_root=root, browser_profile=profile,
+        matrix_path=GIG_ROOT / "config" / "upwork-actions.public.json",
+    )
+    bundle = {
+        "browser_state": {
+            "version": 1,
+            "provider": "upwork",
+            "observed_at": "2026-08-23T00:00:00Z",
+            "active_contracts": [],
+            "evidence_sha256": {
+                "contracts": "b" * 64,
+                "transactions": "c" * 64,
+                "withdrawals": "d" * 64,
+            },
+        },
+        "contract_details": {},
+    }
+
+    inventory = selector.read_inventory(
+        load_receipts(tmp_path / "authorizations.json"),
+        fetch=lambda _selection, _routes: bundle,
+    )
+
+    assert inventory.account_id == ACCOUNT
+    assert inventory.contracts == ()
+
+    bundle["browser_state"]["evidence_sha256"].pop("withdrawals")
+    with pytest.raises(transport.TransportConfigurationError, match="inventory_state_bundle_invalid"):
+        selector.read_inventory(
+            load_receipts(tmp_path / "authorizations.json"),
+            fetch=lambda _selection, _routes: bundle,
+        )

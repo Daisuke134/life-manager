@@ -109,8 +109,14 @@ class RegistrationReport:
 def snapshot_from_browser_state(
     state: Any, *, account_id: str,
     contract_details: dict[str, dict[str, Any]] | None = None,
+    required_evidence: tuple[str, ...] = ("contracts",),
 ) -> dict[str, Any]:
-    """Convert one official Upwork browser state into the canonical inventory."""
+    """Convert one official Upwork browser state into the canonical inventory.
+
+    ``required_evidence`` lets the transport require the finance-page hashes
+    in addition to the contract-page hash without weakening older callers that
+    only have a contract-state fixture.
+    """
     account_id = _text(account_id, "account_id_invalid")
     if not isinstance(state, dict) or state.get("version") != 1:
         raise ReadinessError("browser_state_invalid")
@@ -120,6 +126,14 @@ def snapshot_from_browser_state(
     evidence = state.get("evidence_sha256")
     if not isinstance(evidence, dict):
         raise ReadinessError("browser_state_evidence_invalid")
+    if (
+        not isinstance(required_evidence, tuple)
+        or not required_evidence
+        or any(not isinstance(key, str) or not key for key in required_evidence)
+    ):
+        raise ReadinessError("browser_state_evidence_invalid")
+    for key in required_evidence:
+        _hash(evidence.get(key), "browser_state_evidence_invalid")
     source_hash = _hash(evidence.get("contracts"), "inventory_source_hash_invalid")
     rows = state.get("active_contracts")
     if not isinstance(rows, list):
