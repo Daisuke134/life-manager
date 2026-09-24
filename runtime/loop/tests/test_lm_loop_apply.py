@@ -175,6 +175,127 @@ class LmLoopApplyTest(unittest.TestCase):
             {"affiliate-loop"},
         )
 
+    def test_rebind_guard_resolves_exact_pre_entrypoint_admission_fence(self):
+        from runtime.host import resource_admission
+
+        owner = "investment-live"
+        occurrence = f"{owner}:wake-fenced"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=f"{owner}:wake-next",
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='released',effect_unknown=1 "
+                "WHERE occurrence_id=?", (occurrence,),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+        state_root = self.root / "investment-live"
+        state_root.mkdir()
+        events = [
+            {
+                "version": 1, "event_id": "a" * 24, "loop_id": owner,
+                "domain": "financial", "phase": "execute", "status": "running",
+                "effect_class": "money", "effect_status": "started",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-fenced",
+                "timestamp": "2026-09-17T03:41:01.372695+00:00",
+                "blocker": None,
+                "evidence_refs": [f"lm-loop://{owner}/wake-fenced/summary.json"],
+            },
+            {
+                "version": 1, "event_id": "b" * 24, "loop_id": owner,
+                "domain": "financial", "phase": "report", "status": "blocked",
+                "effect_class": "money", "effect_status": "unknown",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-fenced",
+                "timestamp": "2026-09-17T03:41:01.655485+00:00",
+                "blocker": "host_admission_deferred:resource_capacity_busy",
+                "evidence_refs": [f"lm-loop://{owner}/wake-fenced/summary.json"],
+            },
+        ]
+        event_path = state_root / "events.jsonl"
+        event_path.write_text("".join(json.dumps(row) + "\n" for row in events))
+        event_path.chmod(0o600)
+        entry = {
+            "resource_class": "agent", "admission_class": "borrow",
+            "priority": "support", "effect_class": "money",
+            "state_root": str(state_root),
+        }
+        with patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None):
+            with lm_loop._admission_rebind_guard(
+                owner, True, entry=entry, item={}, release_sha=SHA,
+                launchctl_safe=self.root / "bin/launchctl-safe",
+            ) as decision:
+                self.assertIsNone(decision)
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("released", 0))
+            self.assertEqual(connection.execute(
+                "SELECT effect_unknown FROM priorities WHERE owner_id=?", (owner,),
+            ).fetchone(), (0,))
+        receipt = state_root / "reconciliation/pre-effect-wake-fenced.json"
+        self.assertEqual(json.loads(receipt.read_text())["resolution"], "RESOLVED")
+        self.assertEqual(stat.S_IMODE(receipt.stat().st_mode), 0o600)
+
+    def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
+        from runtime.host import resource_admission
+
+        owner = "investment-live"
+        occurrence = f"{owner}:wake-fenced"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=f"{owner}:wake-next",
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='released',effect_unknown=1 "
+                "WHERE occurrence_id=?", (occurrence,),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+        state_root = self.root / "investment-live"
+        state_root.mkdir()
+        event_path = state_root / "events.jsonl"
+        event_path.write_text(json.dumps({
+            "version": 1, "event_id": "c" * 24, "loop_id": owner,
+            "domain": "financial", "phase": "report", "status": "blocked",
+            "effect_class": "money", "effect_status": "unknown",
+            "provider": "shared-agent-runner", "profile_alias": None,
+            "release_sha": "b" * 40, "run_id": "wake-fenced",
+            "timestamp": "2026-09-17T03:41:01.655485+00:00",
+            "blocker": "entrypoint_exit_1",
+            "evidence_refs": ["lm-effect://investment-live/order-1"],
+        }) + "\n")
+        event_path.chmod(0o600)
+        entry = {
+            "resource_class": "agent", "admission_class": "borrow",
+            "priority": "support", "effect_class": "money",
+            "state_root": str(state_root),
+        }
+        with patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "effect_unknown"):
+                with lm_loop._admission_rebind_guard(
+                    owner, True, entry=entry, item={}, release_sha=SHA,
+                    launchctl_safe=self.root / "bin/launchctl-safe",
+                ):
+                    pass
+
     def test_admission_rebind_guard_defers_release_install_for_reserved_owner(self):
         entry = {
             "resource_class": "agent",

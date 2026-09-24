@@ -3274,12 +3274,32 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    complete diagnostics, clean failure layer and admission unknown false. `affiliate-composition` and
    `affiliate-source-refresh` are loaded-idle with complete typed `resource_capacity_busy`, retryable true,
    `retry_after_eligibility`, effect `not_applicable` and admission unknown false. The sixth owner,
-   `affiliate-loop`, is not interrupted merely to make the rollout look complete: its old-release child is still
-   actively updating funnel and receipt state, has no current admission/effect-unknown fence, and therefore must
-   reach its normal terminal before exact-release rebind. This is an in-flight effect-preservation boundary, not
-   a wait for revenue or a natural scheduler tick. Investment read-only diagnosis may overlap, but Affiliate is
-   not accepted until the base owner is rebound and the exact foundation projection passes twice with stable
-   PIDs/queues and no duplicate effect.
+   `affiliate-loop`, is not interrupted merely to make the rollout look complete. Its old-release child finishes
+   normally after about 35 minutes, but claim release reports `resource claim ownership mismatch` and leaves the
+   exact occurrence `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown. This is not a pre-effect
+   fence: the joined child receipt is `SUCCEEDED`/`AUTH_REQUIRED`, publication waits for a placement link, revenue
+   reports provider-not-authenticated, and its Telegram tool receipt confirms message send with provider message
+   ID `92843`. The generic pre-effect resolver must reject this occurrence. Affiliate stays unaccepted until the
+   confirmed effect is reconciled through exact official readback, the base owner is rebound, and the foundation
+   projection passes twice with stable PIDs/queues and no duplicate effect. This is an effect-preservation
+   boundary, not a wait for revenue or a natural scheduler tick.
+
+   Investment has one owner, `alpaca-investment-live`. Its stored last business snapshot is live mode, equity
+   USD 66.74, cash USD 0, no-trade decision and daily net P/L `-0.000227`, but it has not updated since
+   2026-09-17 and is not fresh official profit evidence. Runtime is loaded-idle on old installed SHA
+   `b271a670...`, with an older incomplete event SHA `61036e1e...`. Durable admission contains 16 known released,
+   64 known queued and one released/effect-unknown occurrence, with one queue row and no reservation. The sole
+   unknown occurrence `alpaca-investment-live:18d5feb0983a54b8-35815` has an exact two-event window from
+   `03:41:01.372695Z` to `03:41:01.655485Z`; it terminates at
+   `host_admission_deferred:resource_capacity_busy` before the entrypoint and has no effect reference.
+
+   The minimum shared candidate teaches the loaded-idle reconciler to resolve only one exact private runtime
+   journal occurrence with that pre-entrypoint capacity/FIFO tuple, retain every entrypoint/effect ambiguity, and
+   write a 0600 `HOST_PRE_EFFECT_RECONCILIATION` receipt. It also declares Investment's already-effective durable
+   policy (`agent/borrow/support`) and enables the existing queued/reserved-wake coalescing instead of replaying 64
+   old five-minute wakes. Focused proof/negative/registry tests pass 4/4; reconcile plus registry suites pass
+   206/206 with 174 subtests; the full runtime suite passes 624 tests plus 522 subtests, with the unrelated CEO
+   light-pass timeout passing on its isolated retry. Production admission remains unchanged until PR/main/release.
 10. Promote the accepted release/control contract to always-on tenant-isolated cloud workers with brokered
    credentials, browser/session isolation, scheduler ownership, cost caps and phone/web-only optional control.
 11. Resume CFO Task 4.2–4.9 and Tasks 5–6, then run economic self-improvement. Start with Affiliate, Mobile/
