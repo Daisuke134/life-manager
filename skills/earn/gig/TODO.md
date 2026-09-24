@@ -3040,3 +3040,35 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 3. Keep `63568785` buyer-material-gated; refresh Mercor through its admitted
    owner; handle the first funded Lancers ContractReceipt; finish fleet
    acceptance. All platforms remain incomplete.
+
+### Runtime checkpoint — 2026-09-24 14:19 JST (CI green; provider gates still open)
+
+- [x] PR #5820 head `b8667ff014037c96d8711d2695d07c10d18c0a97` is open with
+  `mergeStateStatus=CLEAN`; all required CI/security checks pass.
+- [ ] Four exact historical fences remain
+  `claimed/effect_unknown=1`: Lancers `18d81967220136f8-89928`, CrowdWorks
+  `18d62cf32eb0c678-48194`, Mercor Reply `18d6683223830368-49631`, and Mercor
+  Application `18d6f9cb5bdaef98-33812`. No DB edit, retry, or resend.
+- [x] Coconala's durable no-op readback remains `4/0/0/3/0/0`; Ryu is
+  manual-only with no new message, attachment, or formal delivery.
+- [ ] Coconala's current event SHA `07f76049...` differs from installed SHA
+  `188dcb53...`, so a new immutable-release canary is still required. CrowdWorks
+  and Lancers are safely unloaded after old-release stalls; their durable
+  snapshots remain `5/1/0/4/1` and `0/0/0/0/0`. Mercor Paid is pending and
+  Mercor Reply remains effect-fenced (`97/1/0/96/1`).
+- [ ] Data-volume free space is about `1.3GiB` at 100% reported capacity;
+  headroom/control stability remains a release precondition.
+
+### Remaining TODO (authoritative ordered cursor)
+
+1. Obtain exact provider/run no-effect evidence for all four historical fences;
+   keep them closed and never blind-retry or resend.
+2. Stabilize disk/control ownership and align installed/event SHA.
+3. Then merge the green PR through the external-effect gate, cut one immutable
+   release, and canary CrowdWorks first with loaded-SHA, natural-readback,
+   no-blank-regrowth, and replay-zero checks.
+4. Wait for admissible material for CrowdWorks `63568785`, then complete its
+   delivery chain exactly once; refresh Mercor only through its admitted owner.
+5. Handle the first funded Lancers ContractReceipt with official formal
+   delivery/readback/replay-zero, then run final fleet acceptance. Coconala/Ryu
+   remains manual-only; Upwork remains disabled. All platforms are incomplete.

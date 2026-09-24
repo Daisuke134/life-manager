@@ -3262,3 +3262,50 @@ not convert a transient pass or a no-op into client completion.
    admitted owner; handle the first funded Lancers ContractReceipt; then run
    final fleet acceptance. Coconala/Ryu remains manual-only and Upwork remains
    disabled.
+
+## Runtime Cursor — 2026-09-24 14:19 JST (CI green; provider gates still open)
+
+- **Source checks are green, but this is not a production completion gate.**
+  PR #5820 head `b8667ff014037c96d8711d2695d07c10d18c0a97` is open with
+  `mergeStateStatus=CLEAN`; all required checks pass. It is not merged because
+  provider-result and effect-fence evidence is still missing.
+- **Four historical fences remain closed and untouched.** The exact rows are
+  still `claimed/effect_unknown=1`: Lancers
+  `18d81967220136f8-89928`, CrowdWorks `18d62cf32eb0c678-48194`, Mercor Reply
+  `18d6683223830368-49631`, and Mercor Application
+  `18d6f9cb5bdaef98-33812`. No admission DB edit, blind retry, or resend is
+  allowed without exact provider/run proof.
+- **Coconala is client-safe but not release-verified.** Its durable receipt is
+  still `completed/observed=4/actionable=0/effect=0/readback=3/pending=0/failed=0`
+  (Ryu manual-only; no new seller message, attachment, or formal delivery).
+  The current loop readback is `loaded-idle`, but the event SHA is the old
+  `07f76049...` while the installed SHA is `188dcb53...`; therefore a fresh
+  canary on the intended immutable release is still required.
+- **Other platform state is not complete.** CrowdWorks and Lancers are safely
+  unloaded after the old-release browser stalls; their latest durable snapshots
+  remain `5/1/0/4/1` (only `63568785` pending buyer material) and `0/0/0/0/0`.
+  Mercor Paid remains pending on the stale official snapshot, while Mercor
+  Reply is deferred by its effect fence (`97/1/0/96/1`). Data-volume free space
+  is about `1.3GiB` at 100% reported capacity, so resource/control stability is
+  still a precondition.
+
+### Remaining TODO (authoritative ordered cursor)
+
+1. Obtain exact provider/run no-effect evidence for all four historical fences;
+   until then keep each fence closed and do not retry or resend.
+2. Stabilize disk headroom/control ownership and align the installed/event SHA
+   before treating any natural canary as a release canary.
+3. After (1) and (2), merge the green PR through the prescribed gate, cut one
+   immutable release, and start CrowdWorks first. Verify loaded SHA, natural
+   official readback, no blank-target regrowth, and replay-zero before advancing.
+4. Keep CrowdWorks `63568785` buyer-material-gated; when admissible material
+   arrives, complete delivery → acceptance → settlement → payout exactly once
+   with official readback and replay-zero.
+5. Refresh Mercor only through its admitted owner; keep Consultant calibration
+   human-owned and never invoke the deferred reply owner directly. On the first
+   funded Lancers `ContractReceipt`, discover the official completion surface,
+   implement idempotent formal delivery, and verify readback/replay-zero.
+6. Run final all-platform acceptance only after every Paid owner has a fresh
+   provider readback and replay-zero. Coconala/Ryu stays manual-only and Upwork
+   stays disabled until authorization, fresh authentication, and a funded
+   contract exist. **All gig platforms are not complete yet.**
