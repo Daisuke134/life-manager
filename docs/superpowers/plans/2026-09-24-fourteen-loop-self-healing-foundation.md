@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- Work only in `/private/tmp/lm-eab-v1-20260924` on `feat/lm-eab-v1-20260924`, rebased from the current `origin/main` baseline and protected by the `codex-root` worktree lease.
+- Tasks 1–8 are merged through PR #5821 at main SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`. The Task 9 follow-up works only in `/private/tmp/lm-recovery-owner-20260924` on `fix/lm-recovery-owner-20260924`, based on that exact main SHA and protected by the `codex-root` worktree lease.
 - Never modify or operate the separate Paid fulfillment worktree/branch, Paid source/tests/config/state/effect fences, Paid provider sessions/tabs, Coconala project `18211957`, or Paid runtime owners. Their health and receipts are read-only inputs.
 - Do not wait for Affiliate commission, application acceptance, contract, order, payout or any other natural business event. Foundation acceptance proves execution, diagnosis and recovery; commercial completion remains separate.
 - Do not create a second loop registry, scheduler, release mechanism, evaluator platform or browser owner. Extend the catalog, runtime event, `lm-loop`, recovery modules, completion projections and guarded self-build path already present.
@@ -144,7 +144,7 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 - Modify: `runtime/loop/__tests__/recovery-apply-plan.test.mjs`
 - Modify: `runtime/loop/__tests__/recovery-executor.test.mjs`
 - Modify: `runtime/loop/__tests__/recovery-supervisor.test.mjs`
-- Inspect only: the existing release-reconciler already invokes `lm-recovery-supervise`; no new launchd job or registry owner is required.
+- Inspect only at this task: the recovery consumer is implemented as `recovery-supervisor-cli.mjs`. Production ownership is verified separately in Task 9 instead of being inferred from a similarly named release reconciler.
 - Leave every Paid registry row unchanged.
 
 - [x] Write failing tests for attempt budget, cooldown, same-owner/same-release binding and duplicate-intent replay-zero.
@@ -192,15 +192,16 @@ runner bounds pass 83/83 and neighboring runtime tests pass 82/82.
 
 **Status:** Complete on the implementation branch. The canonical Product Loop catalog declares one sorted
 set drawn from six closed recovery classes while the runtime registry remains the single source for job
-attributes. The contract derives every job's class, maps 97 catalog jobs once across 14 loops, validates all
-167 registry jobs, and reports zero duplicate mappings or errors. Six retained fixtures exercise the shared
+attributes. After registering the shared recovery owner in Task 9, the contract derives every job's class,
+maps 98 catalog jobs once across 14 loops, validates all 168 registry jobs, and reports zero duplicate
+mappings or errors. Six retained fixtures exercise the shared
 classifier and intent policy. Paid owners derive to `read_only_external_owner` and are rejected before local
 queue selection or plan construction. Marked recovery PRs now carry their registry-derived class; the old
 boolean promotion bypass is removed. Every class remains explicitly `unbound` for production PR promotion
 until a separate loop-runtime path actually invokes immutable release, isolated canary, exact-health and
 rollback hooks; the Railway application deploy path is not reused. Recovery tests pass 36/36,
 foundation/guard/self-build/catalog tests pass 197/197, the real-installer rollback canary passes 1/1, and the
-live catalog contract reports 14 loops, 97 mapped jobs, 167 registry jobs, zero shared jobs and zero errors.
+current catalog contract reports 14 loops, 98 mapped jobs, 168 registry jobs, zero shared jobs and zero errors.
 
 **Files:**
 - Modify: `apps/life-manager/config/product-loop-catalog.json`
@@ -218,20 +219,26 @@ live catalog contract reports 14 loops, 97 mapped jobs, 167 registry jobs, zero 
 ### Task 9: Pass local foundation acceptance
 
 **Status:** Current cursor. Revenue, conversion, commission and natural-business-event waits are not gates.
-Host preflight passes for `gui/501`/Aqua, registry doctor reports 167 entries and zero errors, and available
-disk is above the prior floor. The production foundation baseline still blocks honestly: all 14 loops are
-observed, but 13 have release drift, Connector has an old incomplete diagnostic, all 97 mapped rows are
-diagnostically incomplete and 48 installed release SHAs are mixed. Candidate immutable release
-`02ae4f91a9da56baed6dd6bb6fcaa13a8d17c129` is complete/read-only and leaves `current` unchanged. From that
-release, recovery passes 36/36, foundation/guard/self-build/catalog passes 197/197, the catalog contract has
-zero errors and the real-installer canary passes 1/1 with unrelated global pytest plugins/cache disabled.
+Tasks 1–8 are merged by PR #5821 at `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`; complete immutable release
+`20260924T134241-60c1e93e` is active with `release_paths=ALL` and
+`provenance=ancestor-of-origin-main`. A fresh read-only caller audit then found zero registry owners and zero
+production callers for `recovery-supervisor-cli.mjs`: failures can emit durable intents, but no scheduled
+owner consumes them. This is an implementation gap, not a revenue wait and not permission to repair fourteen
+loops manually.
 
-**Execution-order correction:** The old order attempted production apply/readback before main integration.
-That cannot run: `cut-loop-release.sh` permits a non-main candidate only with `LOOPS_ACTIVATE_CURRENT=0`, while
-production activation requires an `origin/main` ancestor. The shortest safe order is now: validate a pushed,
-non-activated immutable candidate -> integrate the already accepted implementation once -> cut and activate
-the exact merged main release -> apply only shared non-Paid owners -> read back twice. Current cursor is the
-single PR/main integration gate; this does not authorize touching the separately owned Paid runtime.
+The follow-up adds exactly one shared owner, `life-manager-recovery-supervisor`, at a 60-second cadence. It is
+`effect_class=none`, deterministic, consumes at most one intent per wake, rejects every Paid fulfillment owner,
+and belongs once to the existing `self-build` Product Loop. RED reproduced the missing registry owner. GREEN
+passes 23 recovery tests, 200 registry/apply tests with 174 subtests, and the catalog contract at 14 loops,
+168 registry jobs, 98 mapped jobs, zero duplicate mappings and zero errors. It is not yet merged, released or
+loaded, so production self-healing remains incomplete.
+
+**Execution-order correction:** The previous text assumed the release reconciler already called the recovery
+consumer. Repository search and registry readback disprove that assumption. The shortest safe order is now:
+register and test one shared owner -> integrate it once -> cut and activate its exact main release -> load only
+that new owner -> kickstart one bounded wake -> verify one eligible non-Paid repair or idle receipt -> then
+reconcile the remaining non-Paid fleet and run the 14-loop foundation gate twice. Current cursor is shared
+owner PR/main integration; this does not authorize touching the separately owned Paid runtime.
 
 **Files:**
 - Modify: architecture spec current-state/TODO evidence
@@ -240,9 +247,15 @@ single PR/main integration gate; this does not authorize touching the separately
 - [x] Build a complete, read-only candidate immutable release from the pushed accepted branch with `LOOPS_ACTIVATE_CURRENT=0`; prove production `current` is unchanged.
 - [x] Run `bin/launchctl-safe preflight`; it passes for `gui/501`/Aqua. Registry doctor reports 167 entries with zero missing entrypoints, unmanaged labels or installed retired labels.
 - [x] Run the focused acceptance from the immutable candidate itself: recovery 36/36, foundation/guard/self-build/catalog 197/197, real-installer canary 1/1 and live contract 14 loops/zero errors.
-- [ ] Create the one final PR, require repository CI, merge the accepted implementation to main, and record the exact merge SHA. Do not deploy a branch SHA.
+- [x] Create the foundation PR, require repository CI, merge Tasks 1–8 to main, and record exact merge SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`.
+- [x] Cut and activate complete immutable release `20260924T134241-60c1e93e`; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
+- [x] Audit the live scheduling seam and reproduce the missing recovery consumer owner with a RED contract test; do not mistake intent emission for autonomous consumption.
+- [x] Add one shared recovery supervisor owner and map it once to `self-build`; keep Paid owners rejected and unchanged. Focused recovery, registry/apply and catalog contracts pass.
+- [ ] Push the shared-owner branch, require repository CI, merge it once, and record the exact main SHA. Do not deploy a branch SHA.
 - [ ] Cut and activate one complete immutable release from that exact main merge SHA; prove `release_paths=ALL` and `provenance=ancestor-of-origin-main`.
-- [ ] Apply only the shared non-Paid foundation/recovery owners through `launchctl-safe`; do not start/restart Paid owners.
+- [ ] Apply only `life-manager-recovery-supervisor` through `launchctl-safe`; do not start/restart Paid owners.
+- [ ] Kickstart one bounded supervisor wake. Require exact loaded SHA, one intent maximum, a typed outcome or `idle`, Paid selection zero and sibling mutation zero.
+- [ ] Apply/reconcile only the remaining shared non-Paid foundation owners through `launchctl-safe`; do not start/restart Paid owners.
 - [ ] Read `lm-loop doctor`, `lm-loop status all`, the foundation manifest and recovery journal.
 - [ ] Require 14/14 Product Loops observed, zero opaque states, zero uncovered failures, exact release for applicable owned jobs, bounded recovery evidence and sibling isolation.
 - [ ] Accept typed `setup_required`/`safely_fenced` without inventing revenue or clearing an effect fence.

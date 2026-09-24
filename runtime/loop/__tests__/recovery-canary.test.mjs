@@ -20,6 +20,34 @@ async function fixture() {
   return JSON.parse(await readFile(FIXTURE_PATH, 'utf8'));
 }
 
+test('one shared recovery supervisor owner continuously consumes non-Paid intents', async () => {
+  const registry = JSON.parse(await readFile(path.join(REPO_ROOT, 'config/loop-registry.json'), 'utf8'));
+  const catalog = JSON.parse(await readFile(
+    path.join(REPO_ROOT, 'apps/life-manager/config/product-loop-catalog.json'), 'utf8',
+  ));
+  const entry = registry.loops['life-manager-recovery-supervisor'];
+  const selfBuild = catalog.loops.find((loop) => loop.id === 'self-build');
+
+  assert.deepEqual(entry, {
+    adapter: 'exec',
+    cadence: { start_interval_seconds: 60 },
+    cleanup: { max_age_days: 14, max_runs: 100 },
+    command: [],
+    domain: 'system',
+    effect_class: 'none',
+    entrypoint: 'runtime/loop/recovery-supervisor-cli.mjs',
+    label: 'ai.anicca.life-manager-recovery-supervisor',
+    log_root: '~/.local/state/life-manager/recovery/logs',
+    provider_route: 'deterministic',
+    resource_class: 'deterministic',
+    state_root: '~/.local/state/life-manager/recovery',
+  });
+  assert.equal(catalog.loops.filter(
+    (loop) => loop.job_ids.includes('life-manager-recovery-supervisor'),
+  ).length, 1);
+  assert.ok(selfBuild.job_ids.includes('life-manager-recovery-supervisor'));
+});
+
 test('canary fixture is pinned to the canonical non-Paid Connector owner contract', async () => {
   const value = await fixture();
   const registry = JSON.parse(await readFile(path.join(REPO_ROOT, 'config/loop-registry.json'), 'utf8'));

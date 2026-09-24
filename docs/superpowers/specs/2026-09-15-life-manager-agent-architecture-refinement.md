@@ -3,6 +3,49 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
+## 現在の正本順序とcursor
+
+Life Managerの優先順は、個別loopをCodexが延々と直すことではなく、全loopが同じ観測・回復契約を
+使って自律復旧できる基盤を先に閉じることです。収益、commission、conversion、provider acceptanceの
+自然発生待ちはFoundationの完了条件にしません。Paid fulfillmentは別ownerの読み取り専用入力であり、
+このworkstreamはその実装、state、session、起動停止を変更しません。
+
+```mermaid
+flowchart LR
+  O[14 loopsの構造化Observability] --> H[共有・bounded Self-Healing]
+  H --> L[Local 14-loop Foundation PASS]
+  L --> C[同一immutable sourceをCloudへ]
+  C --> E[収益Evalと再帰的Self-Improvement]
+  E --> F[Self-Funding / verified net revenue]
+```
+
+現在の事実は次のとおりです。
+
+- Tasks 1–8はPR #5821、main SHA `60c1e93e6d1056fee9f2705f4a9cf25f0de52bc2`へ統合済みです。
+- complete immutable release `20260924T134241-60c1e93e`がactiveで、`release_paths=ALL`、
+  `provenance=ancestor-of-origin-main`です。
+- 14 Product Loopsは、共通diagnostic envelope、foundation/commercial gate分離、recovery intent、
+  owner/release-bound plan、budget/cooldown、exact readback、replay-zero、Paid拒否へ接続済みです。
+- ただしproduction caller auditでは`recovery-supervisor-cli.mjs`を周期実行するregistry ownerが0件でした。
+  したがって、intentは生成できても自動消費されず、self-healingはまだproductionで常時稼働していません。
+- follow-upは共有owner `life-manager-recovery-supervisor`を1件だけ追加します。60秒ごとに最大1 intentを
+  消費し、Paidを選択せず、self-buildへ一度だけ所属します。RED→GREEN後はrecovery 23件、
+  registry/apply 200件（subtest 174件）、catalog 14 loops / 168 jobs / 98 mapped / errors 0がPASSしています。
+  このfollow-upはまだmain未統合・未loadです。
+
+現在cursor以降の残りTODOは順番に次のとおりです。
+
+1. 共有recovery ownerをpushし、CI、main統合、main由来immutable releaseまで閉じる。
+2. `launchctl-safe`経由でそのownerだけをloadし、即時のbounded wakeで`idle`または1件のtyped outcome、
+   exact SHA、Paid選択0、兄弟mutation 0を確認する。
+3. non-Paid ownerだけを同じreleaseへ揃え、`lm-loop doctor/status`、foundation manifest、recovery journalを読む。
+4. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させる。
+   `uncovered_failure`、opaque state、release driftは0にするが、収益0や自然business event待ちは許容する。
+5. 同じfoundation gateを二回実行し、回復effectのreplay-zeroと兄弟isolationを確認する。
+6. その同一releaseをtenant-isolated cloudへpromoteし、phone-only control pathを検証する。
+7. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、costを含むverified net revenueで
+   self-improvementを判断する。最初のcommercial milestoneは全体verified net USD 10,000 MRRです。
+
 ## A15 Foundation completion record
 
 **A15 Foundation is Done; this does not declare that every provider loop
@@ -1729,8 +1772,10 @@ calendar wake前のためeventと自然terminalは未確認である。
 
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
-これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
-接続する小タスクです。各タスクは同じownerだけを対象にし、兄弟loopを再起動しません。
+回復policy、executor、journalは既存の共有部品を使います。ただしread-only caller auditで、回復queueを
+周期消費するproduction ownerが存在しないことを確認しました。別の回復frameworkは作らず、共有
+`life-manager-recovery-supervisor` ownerを1件だけregistryへ追加します。各wakeは同じowner一件だけを
+対象にし、兄弟loopを再起動せず、Paid fulfillmentを選択しません。
 
 | 順番 | atomic task | 変更/参照ファイル | 完了条件 |
 |---:|---|---|---|
@@ -1756,12 +1801,11 @@ brain-transport integration tests pass; the record still does not execute a
 retry, and supervisor consumption, natural wake, terminal repair receipt and
 duplicate-effect-zero remain open.
 
-The existing release-reconciler now consumes the shared private intent queue
-through `bin/lm-recovery-supervise`, one owner per wake, with a Git-external
-claim/terminal journal. `queued` reconciliation is bounded to three attempts;
-`held`, `blocked`, and `escalated` states are terminal. The code-level
-connection is covered by supervisor tests; real natural-wake repair receipt and
-provider replay-zero remain acceptance work.
+The recovery supervisor consumes the shared private intent queue, one owner per
+wake, with a Git-external claim/terminal journal. `queued` reconciliation is
+bounded to three attempts; `held`, `blocked`, and `escalated` states are terminal.
+The release reconciler does not call this consumer. The dedicated shared registry
+owner is therefore required and remains the current production activation cursor.
 
 **2026-09-17 foundation slice (S-04 candidate boundary):** existing
 `apps/life-manager/eval/agent-contract/gate.js` now exposes

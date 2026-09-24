@@ -142,7 +142,7 @@
     },
     {
       "id": "self-build",
-      "job_ids": ["life-manager-dev", "life-manager-selfbuild", "self-improve-evolve"],
+      "job_ids": ["life-manager-dev", "life-manager-recovery-supervisor", "life-manager-selfbuild", "self-improve-evolve"],
       "name": "Self-Build / Product Improvement",
       "description": "Turn verified user feedback and product evidence into reviewed Life Manager improvements.",
       "recovery_classes": ["deterministic", "model"],
