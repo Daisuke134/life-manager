@@ -4758,3 +4758,28 @@ leaves the provider effect closed.
   natural terminal result after the capacity condition is stable. Keep the
   provider effect closed until that result and the Coconala occurrence proof
   both pass.
+
+## Runtime Status Refresh — 2026-09-25 00:19 JST (Paid capacity recovery)
+
+- [x] The next natural Coconala Paid wake reached terminal `pass` at
+  `2026-09-25T00:19:19+09:00` under release
+  `1657972036bddc842682108334e5d30b5e48defe`. Host-admission readback is
+  `effect=0`, `effect_status=not_applicable`, with no blocker; the occurrence
+  is released and no external customer effect was attempted.
+- [ ] This verifies that Paid is currently a safe no-op after the capacity
+  failure. It does not resolve Apply's account-bound `5280157` fence or
+  Storefront's separate effect-unknown state, and it is not a delivery receipt.
+
+### Updated ordered cursor (00:19 JST)
+
+1. Keep Apply `5280157` and Storefront fenced; obtain their exact official
+   account-bound readbacks before any retry or external effect.
+2. Keep Ryu manual-only until the complete fix is assembled and verified;
+   do not treat the Paid pass as a Ryu delivery.
+3. Complete CrowdWorks' buyer-material gate, then Lancers and Mercor's own
+   provider readbacks.
+4. Build Freelancer's authenticated inventory/contract transport and Upwork's
+   fresh identity/contract transport; neither has a legal owner until its
+   funded-contract receipts are present.
+5. Run per-provider funded canaries, settlement/payout, crash recovery, and
+   replay-zero only after each provider gate opens.

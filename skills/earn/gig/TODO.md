@@ -4095,7 +4095,7 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   target on `9223`: pages 1–70 returned HTTP 200 with 1,326 unique request IDs;
   page 71 was the terminal empty page and pages 72–74 were empty probes.
   Request `5280157` was not present. Evidence:
-  `/Users/anicca/gig/apply-direct/evidence/coconala-applied-history-5280157-20260925.json`.
+  `~/gig/apply-direct/evidence/coconala-applied-history-5280157-20260925.json`.
 - [x] The 9222 failure is classified as an endpoint mismatch (HTTP 404), not
   a provider denial. The Gig launch configuration points to 9223. No provider
   mutation occurred during this readback.
@@ -4140,7 +4140,7 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `disk_headroom_low` (`effect=0`, `readback=0`, 512 MiB required), and
   Storefront recorded `Errno 28` while creating host-admission temporary
   files. No customer effect was created by these failures.
-- [x] The built-in evidence GC inspected `/Users/anicca/gig/apply-direct` at
+- [x] The built-in evidence GC inspected `~/gig/apply-direct` at
   374.3 MiB, below its 400 MiB high-water mark, and removed nothing. A current
   `df` readback shows 5.0 GiB free, but there is no successful post-failure
   Paid wake in the logs yet.
@@ -4173,3 +4173,14 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    replay-zero.
 7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
    payout attribution, and duplicate-zero acceptance.
+
+### Runtime checkpoint — 2026-09-25 00:19 JST (latest Coconala Paid readback)
+
+- [x] The natural Coconala Paid wake at `2026-09-25T00:19:19+09:00`
+  reached terminal `pass` with release
+  `1657972036bddc842682108334e5d30b5e48defe`; the host-admission readback
+  reports `effect=0`, `effect_status=not_applicable`, and no blocker. The
+  occurrence was released with `effect_unknown=0`.
+- [ ] This closes only the Paid capacity/no-op checkpoint. It does not close
+  Apply's `5280157` occurrence or Storefront's separate effect fence, and it
+  is not a customer-delivery receipt.
