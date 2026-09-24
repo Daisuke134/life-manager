@@ -1593,5 +1593,11 @@ None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue 
   reservations**, and **695 historical claimed effect-unknown occurrences**.
 - [x] Observe that capacity is occupied by independent revenue/support owners, including another Codex's Paid owner;
   Connector's `resource_capacity_busy` is not a provider failure and is not safe to release from this scope.
-- [ ] Leave leases/fences untouched; let their owners reconcile or expire under their own policies, then re-read one
-  exact Connector occurrence after capacity eligibility returns.
+- [x] Leave leases/fences untouched while their owners reconcile or expire under their own policies, then re-read one
+  exact Connector occurrence after capacity eligibility returned. The fresh occurrence
+  `life-manager-connector-native:18d86267c9103fb8-31760` reached the current immutable SHA and then failed at its own
+  entrypoint (`entrypoint_exit_1`, exit 1, retryable, effect none, admission unknown false, provider receipt absent).
+- [ ] Keep the Connector repair with its separately owned maintainer: add occurrence-bound nested entrypoint/error
+  evidence, repair the runner/report boundary that currently surfaces `circuit_open / wake_boundary_failed`, publish an
+  accepted main-derived immutable release, and prove one clean no-effect wake plus replay-zero. Do not infer a provider
+  failure from the reporting symptom and do not mutate the Connector session, admission state or effect fence here.

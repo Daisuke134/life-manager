@@ -5109,3 +5109,28 @@ the remaining reservations were independent support/revenue owners. Historical c
 numbered 695, which is not itself an instruction to clear any fence. Connector's `resource_capacity_busy` is therefore
 an admission result, not a provider send failure. Reservation leases are live state and can expire/rebind between
 reads, so no release, replay, Paid action, or admission mutation was performed.
+
+### Connector capacity eligibility followed by an entrypoint terminal (2026-09-25 JST)
+
+The next read-only event stream shows the transition that the previous capacity snapshot could not prove. After the
+shared admission boundary became eligible, Connector started a fresh occurrence
+`life-manager-connector-native:18d86267c9103fb8-31760` on the current immutable SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Its persisted terminal event is `status=fail`,
+`failure_layer=entrypoint`, `blocker=entrypoint_exit_1`, `error_class=entrypoint_exit_1`, `exit_code=1`,
+`retryable=true`, `effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, and
+`provider_receipt_id=null`. The event's only evidence reference is the occurrence summary URI; no provider receipt or
+external effect is recorded.
+
+This narrows the active Connector blocker: the earlier `resource_capacity_busy` was a real shared-admission wait, but
+it is not the explanation for this later failure. The later failure is at Connector's own entrypoint boundary after
+admission, so the separately owned Connector maintainer must reproduce it and publish structured nested error evidence
+before any retry or release promotion. The local `wake-reports.jsonl` row still says
+`circuit_open / wake_boundary_failed`; because it is not occurrence-bound and its report path can mask the underlying
+entrypoint result, it remains a secondary reporting symptom rather than a provider receipt.
+
+No Connector source, browser session, launchd job, admission reservation, effect fence, Paid state or external provider
+was changed by this readback. The candidate ENOSPC recovery remains branch-only; it has not been loaded into this
+production owner. The next safe proof is therefore: (1) the Connector owner adds occurrence-bound nested
+entrypoint/error fields and fixes its runner/report boundary, (2) an accepted main-derived immutable release is loaded,
+(3) one effect-free Connector wake persists a clean terminal event, and (4) an immediate replay proves zero duplicate
+effect before the two-pass foundation gate is reconsidered.
