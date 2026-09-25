@@ -35,9 +35,11 @@ from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
 from runtime.host.resource_admission import (
-    ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
-    cancel_effect_free_queued_owner, clear_no_effect_unknown, rebind_queued_owner, resume_durable,
-    resolve_pre_effect_occurrence, suspend_durable,
+    ADMISSION_CLASSES, ADMISSION_POLICY, BASE_PRIORITIES, EFFECT_SCOPES,
+    RESOURCE_CLASSES, activate_durable_v2, durable_protocol_version,
+    owner_deploy_lock, cancel_effect_free_queued_owner, clear_no_effect_unknown,
+    rebind_queued_owner, resume_durable, resolve_pre_effect_occurrence,
+    suspend_durable,
     state_root as admission_root,
 )
 
@@ -54,6 +56,50 @@ PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
 })
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
+MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
+ADMISSION_READ_RETRY_ATTEMPTS = 8
+ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
+
+
+def _sqlite_database_busy(error: sqlite3.Error) -> bool:
+    code = getattr(error, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return (code & 0xFF) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+    return str(error).lower() in {
+        "database is locked",
+        "database schema is locked: main",
+        "database table is locked",
+        "database table is locked: sqlite_master",
+    }
+
+
+def _read_admission_rows(
+    database: Path, query: str, parameters: tuple[object, ...] = (),
+) -> list[tuple]:
+    """Read admission state without treating transient contention as empty state."""
+    uri = f"{database.as_uri()}?mode=ro"
+    for attempt in range(ADMISSION_READ_RETRY_ATTEMPTS):
+        try:
+            with sqlite3.connect(uri, uri=True, timeout=1) as connection:
+                return connection.execute(query, parameters).fetchall()
+        except sqlite3.Error as error:
+            if (not _sqlite_database_busy(error)
+                    or attempt + 1 >= ADMISSION_READ_RETRY_ATTEMPTS):
+                raise
+            time.sleep(ADMISSION_READ_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise RuntimeError("admission read retry exhausted")
+
+
+def _admission_read_error(operation: str, error: sqlite3.Error) -> dict[str, object]:
+    busy = _sqlite_database_busy(error)
+    return {
+        "ok": False,
+        "error": operation,
+        "error_class": "admission_database_locked" if busy else "admission_database_read_error",
+        "retryable": busy,
+        "next_action": "retry_admission_read" if busy else "inspect_admission_database",
+        "detail": str(error)[:200],
+    }
 
 
 def _event_epoch(value: object) -> float:
@@ -109,6 +155,127 @@ def _is_pre_effect_terminal(entry: dict, row: dict) -> bool:
     )
 
 
+def _private_jsonl_rows(path: Path, *, max_rows: int = 50_000,
+                        max_bytes: int = MAX_HARNESS_FAILURE_BYTES) -> list[dict]:
+    """Read one private JSONL side channel without following links or trusting its mode.
+
+    Harness failures are diagnostic input, not runtime events, so they cannot use
+    ``_private_runtime_rows``'s strict event validator.  They still need the same
+    ownership, regular-file, link-count and 0600 checks before status consumes them.
+    """
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return []
+    try:
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > max_bytes):
+            return []
+        with os.fdopen(descriptor, "rb") as raw:
+            descriptor = -1
+            rows = []
+            for line in raw:
+                try:
+                    value = json.loads(line)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if isinstance(value, dict):
+                    rows.append(value)
+                    if len(rows) > max_rows:
+                        return []
+            return rows
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _harness_failure_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "harness-failures.jsonl",
+        root / "state" / "harness-failures.jsonl",
+        root / "harness-failures.jsonl",
+    ]
+
+
+def _ledger_paths(state_root: str) -> list[Path]:
+    root = Path(os.path.expanduser(state_root))
+    return [
+        root / "instance" / "state" / "ledger.jsonl",
+        root / "state" / "ledger.jsonl",
+        root / "ledger.jsonl",
+    ]
+
+
+def _latest_harness_failure(state_root: str, loop_id: str,
+                            event: dict | None) -> dict | None:
+    """Project the latest same-run harness failure for a continuous owner.
+
+    A running process is not sufficient evidence of health.  This projection is
+    deliberately read-only and owner/run/release bound.  A later clean ledger
+    wake marks the failure inactive while retaining it as diagnostic history.
+    """
+    if not isinstance(event, dict) or event.get("status") != "running":
+        return None
+    run_id = event.get("run_id")
+    release_sha = event.get("release_sha")
+    if not isinstance(run_id, str) or not isinstance(release_sha, str):
+        return None
+    failures: list[dict] = []
+    for path in _harness_failure_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            intent = row.get("recovery_intent")
+            if not isinstance(intent, dict):
+                continue
+            if (intent.get("loop_id") != loop_id or intent.get("run_id") != run_id
+                    or intent.get("release_sha") != release_sha):
+                continue
+            if not isinstance(row.get("ts"), (int, float)):
+                continue
+            failures.append(row)
+    if not failures:
+        return None
+    failure = max(failures, key=lambda row: row["ts"])
+    intent = failure.get("recovery_intent") or {}
+    layer = str(failure.get("layer") or "unknown")
+    detail = str(failure.get("detail") or "")
+    lowered = detail.lower()
+    if layer == "brain_transport" and ("429" in lowered or "rate" in lowered):
+        error_class = "provider_rate_limit"
+    elif layer == "tool_logic" and "enoent" in lowered:
+        error_class = "tool_missing"
+    else:
+        error_class = layer
+    clean_after = False
+    for path in _ledger_paths(state_root):
+        for row in _private_jsonl_rows(path):
+            if (isinstance(row.get("ts"), (int, float))
+                    and row["ts"] > failure["ts"]
+                    and row.get("kind") in {"wake", "narrate"}):
+                clean_after = True
+                break
+        if clean_after:
+            break
+    evidence_refs = intent.get("evidence_refs")
+    if not isinstance(evidence_refs, list):
+        evidence_refs = []
+    return {
+        "active": not clean_after,
+        "kind": failure.get("kind"),
+        "layer": layer,
+        "error_class": error_class,
+        "detail": detail[:4000],
+        "wake_id": failure.get("wake_id"),
+        "run_id": run_id,
+        "release_sha": release_sha,
+        "retryable": intent.get("retryable") is True,
+        "next_action": intent.get("action") or "reconcile_owner",
+        "blocker": f"harness_failure:{error_class}",
+        "evidence_refs": [ref for ref in evidence_refs if isinstance(ref, str)][:32],
+        "ts": failure["ts"],
+    }
 def _atomic_private_json(path: Path, value: dict) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -127,13 +294,18 @@ def _atomic_private_json(path: Path, value: dict) -> None:
 def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
     """Prove one exact old fence stopped in host admission before entrypoint."""
     database = admission_root() / "admission-v2.sqlite3"
-    with sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True) as connection:
-        rows = connection.execute(
+    try:
+        rows = _read_admission_rows(
+            database,
             """SELECT occurrence_id,state FROM occurrences
                  WHERE owner_id=? AND effect_unknown=1
                  ORDER BY queued_at,occurrence_id""",
             (loop_id,),
-        ).fetchall()
+        )
+    except sqlite3.Error:
+        # Proof failure is fail-closed: retain the effect fence and let the
+        # enclosing reconcile report a retryable admission-read boundary.
+        return None
     if len(rows) != 1:
         return None
     occurrence_id, expected_state = rows[0]
@@ -250,13 +422,15 @@ def _pending_admission_owners() -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        return {owner_id for (owner_id,) in connection.execute(
-            """SELECT owner_id FROM occurrences WHERE state='claimed'
-               UNION
-               SELECT o.owner_id FROM occurrences o
-                 JOIN queue q ON q.owner_id=o.owner_id
-               WHERE o.state='queued' AND o.effect_unknown=0""")}
+    rows = _read_admission_rows(
+        database,
+        """SELECT owner_id FROM occurrences WHERE state='claimed'
+           UNION
+           SELECT o.owner_id FROM occurrences o
+             JOIN queue q ON q.owner_id=o.owner_id
+           WHERE o.state='queued' AND o.effect_unknown=0""",
+    )
+    return {owner_id for (owner_id,) in rows}
 
 
 def _entry_effect_scope(entry: dict) -> str:
@@ -280,28 +454,28 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
         database.stat()
     except FileNotFoundError:
         return set()
-    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-        rows = connection.execute(
-            """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
-                      p.admission_policy,p.effect_scope,p.effect_unknown,
-                      EXISTS (
-                          SELECT 1 FROM occurrences claimed
-                          WHERE claimed.owner_id=q.owner_id
-                            AND claimed.state='claimed'
-                            AND claimed.effect_unknown=0
-                      ),
-                      EXISTS (
-                          SELECT 1 FROM occurrences uncertain
-                          WHERE uncertain.owner_id=q.owner_id
-                            AND uncertain.effect_unknown=1
-                      )
-               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
-               WHERE EXISTS (
-                   SELECT 1 FROM occurrences o
-                   WHERE o.owner_id=q.owner_id
-                     AND o.state='queued' AND o.effect_unknown=0
-               )"""
-        ).fetchall()
+    rows = _read_admission_rows(
+        database,
+        """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
+                  p.admission_policy,p.effect_scope,p.effect_unknown,
+                  EXISTS (
+                      SELECT 1 FROM occurrences claimed
+                      WHERE claimed.owner_id=q.owner_id
+                        AND claimed.state='claimed'
+                        AND claimed.effect_unknown=0
+                  ),
+                  EXISTS (
+                      SELECT 1 FROM occurrences uncertain
+                      WHERE uncertain.owner_id=q.owner_id
+                        AND uncertain.effect_unknown=1
+                  )
+           FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+           WHERE EXISTS (
+               SELECT 1 FROM occurrences o
+               WHERE o.owner_id=q.owner_id
+                 AND o.state='queued' AND o.effect_unknown=0
+           )""",
+    )
     mismatches = set()
     for (owner_id, resource_class, admission_class, priority, policy, effect_scope,
          priority_effect_unknown, claimed, occurrence_effect_unknown) in rows:
@@ -319,22 +493,98 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
     return mismatches
 
 
-def _admission_effect_unknown_owners() -> set[str]:
-    """Read current effect fences so status does not trust a stale terminal event."""
+def _admission_effect_unknown_occurrences() -> dict[str, tuple[str, ...]]:
+    """Read exact live effect fences so status does not trust stale events."""
     database = admission_root() / "admission-v2.sqlite3"
     try:
         database.stat()
     except FileNotFoundError:
-        return set()
+        return {}
+    rows = _read_admission_rows(
+        database,
+        """SELECT owner_id, occurrence_id FROM occurrences
+           WHERE effect_unknown=1
+           ORDER BY owner_id, queued_at, occurrence_id""",
+    )
+    grouped: dict[str, list[str]] = {}
+    for owner_id, occurrence_id in rows:
+        if isinstance(owner_id, str) and isinstance(occurrence_id, str):
+            grouped.setdefault(owner_id, []).append(occurrence_id)
+    return {owner_id: tuple(occurrences) for owner_id, occurrences in grouped.items()}
+
+
+def _admission_effect_unknown_owners() -> set[str]:
+    """Return owners with current effect fences for compatibility callers."""
+    return set(_admission_effect_unknown_occurrences())
+
+
+def _legacy_pending_admission_identity(loop_id: str) -> dict[str, str] | None:
+    """Read a complete durable identity for an effect-free legacy registry row.
+
+    Older registry rows predate the explicit admission fields.  The durable
+    queue is still authoritative for those owners, but only while it contains
+    one valid, unclaimed, effect-known identity.  Anything incomplete or
+    effectful remains on the old pending path.
+    """
+    database = admission_root() / "admission-v2.sqlite3"
     try:
-        with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
-            return {
-                owner_id for (owner_id,) in connection.execute(
-                    "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1"
-                )
-            }
-    except sqlite3.Error:
-        return set()
+        database.stat()
+    except FileNotFoundError:
+        return None
+    try:
+        rows = _read_admission_rows(
+            database,
+            """SELECT q.resource_class,p.admission_class,p.base_priority,
+                      p.admission_policy,p.effect_scope,p.effect_unknown,
+                      EXISTS (
+                          SELECT 1 FROM occurrences claimed
+                          WHERE claimed.owner_id=q.owner_id
+                            AND claimed.state='claimed'
+                      ),
+                      EXISTS (
+                          SELECT 1 FROM occurrences uncertain
+                          WHERE uncertain.owner_id=q.owner_id
+                            AND uncertain.effect_unknown=1
+                      )
+               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+               WHERE q.owner_id=?
+                 AND EXISTS (
+                     SELECT 1 FROM occurrences queued
+                     WHERE queued.owner_id=q.owner_id
+                       AND queued.state='queued'
+                       AND queued.effect_unknown=0
+                 )""",
+            (loop_id,),
+        )
+    except sqlite3.OperationalError as error:
+        # v1 admission stores have no priorities table.  They do not carry a
+        # typed identity, so retain the pending fence rather than guessing.
+        if "no such table" in str(error).lower():
+            return None
+        raise
+    if len(rows) != 1:
+        return None
+    (resource_class, admission_class, priority, policy, effect_scope,
+     priority_effect_unknown, claimed, occurrence_effect_unknown) = rows[0]
+    if (
+        resource_class not in set(RESOURCE_CLASSES)
+        or admission_class not in ADMISSION_CLASSES
+        or priority not in BASE_PRIORITIES
+        or effect_scope not in EFFECT_SCOPES
+        or policy != ADMISSION_POLICY
+        or priority_effect_unknown
+        or claimed
+        or occurrence_effect_unknown
+    ):
+        return None
+    if admission_class == "borrow" and priority in {"revenue", "critical_paid"}:
+        return None
+    return {
+        "resource_class": resource_class,
+        "admission_class": admission_class,
+        "priority": priority,
+        "effect_scope": effect_scope,
+    }
 
 
 @contextmanager
@@ -378,16 +628,29 @@ def _admission_rebind_guard(
         admission_class = entry.get("admission_class") if entry else None
         resource_class = entry.get("resource_class") if entry else None
         priority = entry.get("priority") if entry else None
-        if not all(isinstance(value, str) and value for value in (
+        legacy_identity = None
+        if (
+            entry is not None
+            and entry.get("effect_class") == "none"
+            and not all(isinstance(value, str) and value for value in (
+                admission_class, resource_class, priority
+            ))
+        ):
+            legacy_identity = _legacy_pending_admission_identity(loop_id)
+        if legacy_identity is not None:
+            rebind_kwargs = dict(legacy_identity)
+        elif not all(isinstance(value, str) and value for value in (
                 admission_class, resource_class, priority)):
-            # Legacy registry rows retain the old pending-admission skip contract.
+            # Legacy effectful or incomplete rows retain the pending-admission
+            # fence until a typed registry policy is available.
             yield "pending"
             return
-        rebind_kwargs = {
-            "resource_class": resource_class,
-            "admission_class": admission_class,
-            "priority": priority,
-        }
+        else:
+            rebind_kwargs = {
+                "resource_class": resource_class,
+                "admission_class": admission_class,
+                "priority": priority,
+            }
         if replace_reserved_policy_drift:
             rebind_kwargs["replace_reserved_policy_drift"] = True
         if _entry_effect_scope(entry) == "occurrence":
@@ -440,6 +703,7 @@ def _next_eligible(cadence: dict) -> str:
 def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
                 admission_effect_unknown: set[str] | None = None,
+                admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
                 product_by_job: dict[str, str] | None = None) -> list[dict]:
     validate_registry(registry)
     product_by_job = _product_loop_job_map() if product_by_job is None else product_by_job
@@ -477,7 +741,46 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         elif (catalog_product_loop_id is not None and event_product_loop_id is not None
               and event_product_loop_id != catalog_product_loop_id):
             diagnostic_error = "event_product_identity_mismatch"
+        legacy_runtime_event = (
+            bool(event)
+            and bool(missing_diagnostic_fields)
+            and entry.get("cadence", {}).get("keep_alive") is True
+            and launchd_state == "loaded-running"
+            and event.get("phase") == "execute"
+            and event.get("status") == "running"
+        )
+        if diagnostic_error is None and legacy_runtime_event:
+            # A live process with a pre-diagnostic envelope is not healthy
+            # evidence.  The only safe repair is to reload the owner through
+            # the immutable-release reconciler; never infer an effect result.
+            diagnostic_error = "legacy_runtime_event_schema"
         diagnostic_complete = not missing_diagnostic_fields and diagnostic_error is None
+        latest_harness_failure = _latest_harness_failure(entry["state_root"], loop_id, event)
+        active_harness_failure = (
+            latest_harness_failure if latest_harness_failure
+            and latest_harness_failure.get("active") is True else None
+        )
+        last_terminal_result = event.get("status")
+        failure_layer = event.get("failure_layer")
+        error_class = event.get("error_class")
+        retryable = event.get("retryable")
+        next_action = event.get("next_action")
+        if legacy_runtime_event:
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = "legacy_runtime_event_schema"
+            retryable = True
+            next_action = "reload_current_release"
+            blocker = "legacy_runtime_event_schema"
+        if active_harness_failure is not None:
+            # Keep launchd/process identity separate from health: a continuous
+            # process can be alive while its latest wake is failing.
+            last_terminal_result = "fail"
+            failure_layer = "runtime"
+            error_class = active_harness_failure["error_class"]
+            retryable = active_harness_failure["retryable"]
+            next_action = active_harness_failure["next_action"]
+            blocker = active_harness_failure["blocker"]
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
@@ -503,10 +806,10 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "loaded_argv_sha256": event.get("loaded_argv_sha256"),
             "loaded_env_sha256": event.get("loaded_env_sha256"),
             "exit_code": event.get("exit_code"),
-            "failure_layer": event.get("failure_layer"),
-            "error_class": event.get("error_class"),
-            "retryable": event.get("retryable"),
-            "next_action": event.get("next_action"),
+            "failure_layer": failure_layer,
+            "error_class": error_class,
+            "retryable": retryable,
+            "next_action": next_action,
             "provider_receipt_id": event.get("provider_receipt_id"),
             "official_readback_ref": event.get("official_readback_ref"),
             "evidence_refs": event.get("evidence_refs"),
@@ -514,21 +817,129 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "diagnostic_missing_fields": missing_diagnostic_fields,
             "diagnostic_error": diagnostic_error,
             "last_pass": event.get("timestamp"),
-            "last_terminal_result": event.get("status"),
+            "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
             "effect_status": event.get("effect_status", "unknown"),
             "event_release_sha": event.get("release_sha"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
+            "admission_effect_unknown_occurrences": list(
+                (admission_effect_unknown_occurrences or {}).get(loop_id, ())
+            ),
             "stale_event": stale_event,
+            "latest_harness_failure": latest_harness_failure,
         })
     return rows
 
 
+def explain_status_row(row: dict) -> dict:
+    """Project one status row into a bounded, occurrence-aware diagnostic.
+
+    This is deliberately a read-only projection.  Fields that the current
+    runtime does not emit (action history and admission counters) stay
+    explicitly ``not_reported`` rather than being inferred from a live PID,
+    a Telegram delivery, or a provider page.
+    """
+    failure_present = any(
+        row.get(name) is not None
+        for name in ("failure_layer", "error_class", "blocker")
+    )
+    cause_chain = [
+        {
+            "stage": "runtime",
+            "status": row.get("launchd_state"),
+            "pid": row.get("pid"),
+            "last_exit": row.get("last_exit"),
+        },
+        {
+            "stage": "failure",
+            "status": row.get("last_terminal_result"),
+            "present": failure_present,
+            "failure_layer": row.get("failure_layer"),
+            "error_class": row.get("error_class"),
+            "blocker": row.get("blocker"),
+            "retryable": row.get("retryable"),
+        },
+        {
+            "stage": "effect",
+            "status": row.get("effect_status", "unknown"),
+            "class": row.get("effect_class"),
+        },
+    ]
+    action_history_refs = row.get("action_history_refs")
+    if not isinstance(action_history_refs, list):
+        action_history_refs = []
+    return {
+        "schema_version": "lm-loop.status-explain.v1",
+        "loop_id": row.get("loop_id"),
+        "label": row.get("label"),
+        "next_action": row.get("next_action"),
+        "release_sha": row.get("event_release_sha") or row.get("installed_release_sha"),
+        "release": {
+            "installed_sha": row.get("installed_release_sha"),
+            "event_sha": row.get("event_release_sha"),
+            "drift": (
+                row.get("installed_release_sha") is not None
+                and row.get("event_release_sha") is not None
+                and row.get("installed_release_sha") != row.get("event_release_sha")
+            ),
+        },
+        "occurrence": {
+            "owner_id": row.get("owner_id"),
+            "run_id": row.get("run_id"),
+            "wake_id": row.get("wake_id"),
+            "occurrence_id": row.get("occurrence_id"),
+            "phase": row.get("phase"),
+        },
+        "cause_chain": cause_chain,
+        "effect": {
+            "class": row.get("effect_class"),
+            "status": row.get("effect_status", "unknown"),
+            "provider_receipt_id": row.get("provider_receipt_id"),
+            "official_readback_ref": row.get("official_readback_ref"),
+            "evidence_refs": row.get("evidence_refs"),
+        },
+        "diagnostic": {
+            "complete": row.get("diagnostic_complete"),
+            "missing_fields": row.get("diagnostic_missing_fields", []),
+            "error": row.get("diagnostic_error"),
+        },
+        "action_history_refs": action_history_refs,
+        "action_history_status": (
+            "reported" if action_history_refs else "not_reported"
+        ),
+        "counter_status": row.get("counter_status", "not_reported"),
+    }
+
+
+def _parse_status_args(values: list[str]) -> tuple[str, bool]:
+    target = "all"
+    positionals: list[str] = []
+    explain = False
+    for value in values:
+        if value == "--explain":
+            explain = True
+        elif value == "--json":
+            # JSON is the canonical status format and remains the default;
+            # accepting the flag makes the CLI contract explicit.
+            continue
+        elif value.startswith("--"):
+            raise ValueError(f"unknown status option: {value}")
+        else:
+            positionals.append(value)
+    if len(positionals) > 1:
+        raise ValueError("status accepts at most one <loop-id|all>")
+    if positionals:
+        target = positionals[0]
+    aliases = {"connector": "life-manager-connector-native"}
+    return aliases.get(target, target), explain
+
+
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
-                    admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                    admission_effect_unknown: set[str] | None = None,
+                    admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None) -> list[dict]:
     rows = status_rows(
         registry,
         loaded=loaded,
@@ -536,6 +947,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         events=events,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
+        admission_effect_unknown_occurrences=admission_effect_unknown_occurrences,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
@@ -628,12 +1040,12 @@ def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: 
 
 
 def _launchctl(*args: str) -> str:
-    with tempfile.TemporaryFile(mode="w+") as stdout, tempfile.TemporaryFile(mode="w+") as stderr:
-        result = subprocess.run(
-            ["launchctl", *args], stdout=stdout, stderr=stderr, text=True, timeout=15)
-        stdout.seek(0)
-        stderr.seek(0)
-        output, error = stdout.read(), stderr.read()
+    # Keep the read-only observability probe independent of the disk-backed
+    # loop scratch area.  Near an ENOSPC boundary, TemporaryFile() itself can
+    # fail before launchctl is queried, hiding the real control-plane state.
+    result = subprocess.run(
+        ["launchctl", *args], capture_output=True, text=True, timeout=15)
+    output, error = result.stdout, result.stderr
     if result.returncode:
         raise RuntimeError(error.strip() or "launchctl failed")
     return output
@@ -811,6 +1223,8 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
 
 
 def snapshot(registry: dict, target: str) -> list[dict]:
+    admission_unknown_occurrences = _admission_effect_unknown_occurrences()
+    admission_unknown_owners = set(admission_unknown_occurrences)
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         loaded, disabled, events, releases, _ = collect_live(
@@ -818,21 +1232,79 @@ def snapshot(registry: dict, target: str) -> list[dict]:
         return status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
-            admission_effect_unknown=_admission_effect_unknown_owners())
+            admission_effect_unknown=admission_unknown_owners,
+            admission_effect_unknown_occurrences=admission_unknown_occurrences)
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
-        admission_effect_unknown=_admission_effect_unknown_owners())
+        admission_effect_unknown=admission_unknown_owners,
+        admission_effect_unknown_occurrences=admission_unknown_occurrences)
     return _select(rows, target)
 
 
+def browser_resolution(registry: dict, target: str, *, browser_registry: str | None = None,
+                       resolver: Path | None = None, runner=subprocess.run) -> dict[str, object]:
+    """Read-only join of a loop's browser identity to its live resolver result."""
+    aliases = {
+        "connector": "life-manager-connector-native",
+    }
+    if target not in registry.get("loops", {}):
+        target = aliases.get(target, target)
+    entry = registry.get("loops", {}).get(target)
+    if not isinstance(entry, dict):
+        raise ValueError(f"unknown loop id: {target}")
+    identity = entry.get("browser_identity")
+    target_owner = entry.get("browser_target_owner")
+    if not isinstance(identity, str) or not isinstance(target_owner, str):
+        raise ValueError("browser_join_missing")
+    resolver_path = (resolver or ROOT / "skills/browser/resolve_cdp_endpoint.py").expanduser()
+    registry_path = Path(browser_registry or os.environ.get(
+        "AI_BROWSER_REGISTRY", "~/.config/ai/registry/browsers.toml",
+    )).expanduser()
+    command = [sys.executable, str(resolver_path), "--registry", str(registry_path),
+               "--identity", identity]
+    try:
+        completed = runner(command, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError("browser_resolver_unavailable") from error
+    try:
+        resolved = json.loads(completed.stdout)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("browser_resolver_invalid_output") from error
+    if completed.returncode != 0 or not isinstance(resolved, dict) or resolved.get("reachable") is not True:
+        error_class = resolved.get("error_class") if isinstance(resolved, dict) else None
+        raise RuntimeError(f"browser_resolution_failed:{error_class or 'unknown'}")
+    if (
+        resolved.get("identity") != identity
+        or not isinstance(resolved.get("endpoint"), str)
+        or not resolved.get("endpoint")
+        or not isinstance(resolved.get("uuid"), str)
+        or not resolved.get("uuid")
+        or resolved.get("http_status") != 200
+        or resolved.get("websocket_url_valid") is not True
+    ):
+        raise RuntimeError("browser_resolver_identity_mismatch")
+    return {
+        "browser_identity": identity,
+        "browser_uuid": resolved["uuid"],
+        "derived_endpoint": resolved["endpoint"],
+        "http_status": resolved["http_status"],
+        "lease_status": "not_checked",
+        "loop_id": target,
+        "profile": resolved.get("profile"),
+        "process_owner": resolved.get("pid"),
+        "target_owner": target_owner,
+        "websocket_url_valid": resolved["websocket_url_valid"],
+    }
+
+
 def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
-    with tempfile.TemporaryFile(mode="w+") as output:
-        result = subprocess.run(
-            [str(executable), *args], stdout=output, stderr=output, text=True, timeout=30)
-        output.seek(0)
-        return result.returncode, output.read()
+    # The targeted safe probe is also read-only and must remain observable
+    # when the host cannot create another temporary file.
+    result = subprocess.run(
+        [str(executable), *args], capture_output=True, text=True, timeout=30)
+    return result.returncode, f"{result.stdout}{result.stderr}"
 
 
 def targeted_snapshot(registry: dict, targets: set[str],
@@ -840,6 +1312,8 @@ def targeted_snapshot(registry: dict, targets: set[str],
     """Read only explicitly requested services; never list the whole fleet."""
     disabled = parse_disabled(_launchctl("print-disabled", f"gui/{os.getuid()}"))
     plist_dir = Path.home() / "Library/LaunchAgents"
+    admission_unknown_occurrences = _admission_effect_unknown_occurrences()
+    admission_unknown_owners = set(admission_unknown_occurrences)
     rows = []
     for loop_id in sorted(targets):
         entry = registry["loops"][loop_id]
@@ -871,7 +1345,8 @@ def targeted_snapshot(registry: dict, targets: set[str],
             disabled={label: disabled.get(label, False)},
             events={loop_id: event} if event else {},
             installed_releases={label: _release_from_plist(plist_path)},
-            admission_effect_unknown=_admission_effect_unknown_owners(),
+            admission_effect_unknown=admission_unknown_owners,
+            admission_effect_unknown_occurrences=admission_unknown_occurrences,
         ))
     return rows
 
@@ -1283,11 +1758,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
-        "admission-v2-enable", "apply", "doctor", "reconcile",
+        "admission-v2-enable", "apply", "browser", "doctor", "reconcile",
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -1340,6 +1815,20 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "browser":
+        if len(args) != 4 or args[1] != "resolve" or args[3] != "--json":
+            print(json.dumps({
+                "ok": False,
+                "error": "browser accepts only resolve <loop-id> --json",
+            }, sort_keys=True))
+            return 2
+        try:
+            result = browser_resolution(registry, args[2])
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 1
+        print(json.dumps({"ok": True, **result}, indent=2, sort_keys=True))
+        return 0
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
         max_owners = None
@@ -1473,7 +1962,20 @@ def main(argv: list[str] | None = None) -> int:
                 if automatic_release_reconciler else set()
             )
         except (OSError, sqlite3.Error) as exc:
-            print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
+            if isinstance(exc, sqlite3.Error):
+                print(json.dumps(
+                    _admission_read_error("admission_queue_read_failed", exc),
+                    sort_keys=True,
+                ))
+            else:
+                print(json.dumps({
+                    "ok": False,
+                    "error": "admission_queue_read_failed",
+                    "error_class": "admission_state_unavailable",
+                    "retryable": True,
+                    "next_action": "retry_admission_read",
+                    "detail": str(exc)[:200],
+                }, sort_keys=True))
             return 1
         if automatic_release_reconciler:
             for row in rows:
@@ -1585,7 +2087,15 @@ def main(argv: list[str] | None = None) -> int:
             ))
         print(json.dumps(results, indent=2, sort_keys=True))
         return 1 if any(row["return_code"] for row in results) else 0
-    target = args[1] if len(args) > 1 else "all"
+    status_explain = False
+    if command == "status":
+        try:
+            target, status_explain = _parse_status_args(args[1:])
+        except ValueError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 2
+    else:
+        target = args[1] if len(args) > 1 else "all"
     if command == "doctor":
         loaded, _, _, _, installed = collect_live(registry)
         existing = {entry["entrypoint"] for entry in registry["loops"].values()
@@ -1595,7 +2105,26 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
     while True:
-        print(json.dumps(snapshot(registry, target), indent=2, sort_keys=True), flush=True)
+        try:
+            observed = snapshot(registry, target)
+        except ValueError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), flush=True)
+            return 2
+        except sqlite3.Error as exc:
+            print(json.dumps(
+                _admission_read_error("admission_fence_read_failed", exc),
+                sort_keys=True,
+            ), flush=True)
+            return 1
+        if command == "status" and status_explain:
+            output = {
+                "schema_version": "lm-loop.status-explain.v1",
+                "target": target,
+                "rows": [explain_status_row(row) for row in observed],
+            }
+        else:
+            output = observed
+        print(json.dumps(output, indent=2, sort_keys=True), flush=True)
         if command == "status" or os.environ.get("LM_LOOP_WATCH_ONCE") == "1":
             return 0
         time.sleep(2)

@@ -447,7 +447,8 @@ allowed.
 - [x] Integrate the strict capacity-deferral-to-`safely_fenced` projection as PR #5829 at `9503276595fc778740c08b6938325e15e52b548d`; retain fail-closed behavior for mixed failures.
 - [x] Reproduce and fix the shared recovery-supervisor self-recursion in pushed candidate `5e2275d977`: the runner does not enqueue it, one old self-intent becomes terminal skipped per wake, and the plan compiler cannot reconcile it.
 - [x] Integrate the self-recursion fix through PR/CI/main as PR #5830 at `25cd0141f9b867cb15c3538d1d0ad9c78f010894`, activate complete release `20260924T161321-25cd0141`, apply only the loaded-idle supervisor, drain its pending self-intents 14 -> 0 with the unique total fixed at 22, and prove exact-SHA replay-zero in wake `9955a84a526f12f2091c451d`.
-- [ ] Immediately trigger one safely eligible non-self, non-Paid recovery and prove it reaches an authoritative exact-release terminal and replay-zero; do not wait for a natural schedule, and preserve the old Connector intent and every effect fence.
+- [x] Immediately trigger one safely eligible non-self, non-Paid recovery and prove it reaches an authoritative exact-release terminal and replay-zero; do not wait for a natural schedule, and preserve the old Connector intent and every effect fence. `capafy-goal-monitor` was the single selected effect-free owner: it was applied from old release state to exact current `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, its live wake first deferred at typed `resource_capacity_busy`/75, then reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics, `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile returned `eligible=0` and the same event/occurrence, proving replay-zero.
+- [x] Perform the 2026-09-25 JST eligibility audit before triggering that canary. The loaded recovery supervisor is exact-current `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`, but the durable queue initially had no non-self intent on that release that this workstream could safely execute: the current Connector intent is separately owned, while Agent Economy and the remaining candidates pointed to older releases. Read-only supervisor evidence recorded `healthy_readback_pending` for Connector and `release_sha_mismatch` for Agent Economy; no provider/browser/wallet effect was run. The later Capafy owner alignment created one eligible exact-release effect-free target, which was consumed by the canary above; no intent was forged and no revenue wait was used.
 - [ ] Consume the separately owned Connector CDP fix only after its owner publishes an accepted main commit; the current pushed `e96e8c422d` has no PR and is not merged/released/loaded/production-verified. Do not duplicate its branch or restart the shared browser from this worktree.
 - [x] Read the first post-supervisor `lm-loop doctor`, `lm-loop status all`, foundation manifest and recovery journal. The gate sees all 14 loops and zero missing mapped jobs, but blocks on 97 release mismatches, 90 incomplete diagnostics and 49 unknown-effect rows; no recovery journal is created by the idle wakes.
 - [x] Re-read `lm-loop doctor`, `lm-loop status all` and the foundation manifest after current-release wakes: 14/14 observed, missing 0, release mismatch 92, diagnostic incomplete 87, unknown 49. The candidate projects safely fenced 1 and uncovered failure 13; the overall gate correctly remains blocked on the other loops.
@@ -478,7 +479,19 @@ allowed.
 - [x] Reconcile the Affiliate base owner and run it twice on the exact release. Both wakes stop before entrypoint at typed retryable `resource_fifo_wait`; queued occurrences stay 48, reservations/unknown stay zero and no duplicate provider effect occurs.
 - [x] Reconcile the three continuous Affiliate browser owners to the exact release and diagnose the remaining drift as a shared status bug: live current-release running events exist, but status selects older terminal reports because healthy continuous services do not exit.
 - [x] Integrate the PID-bound continuous-running diagnostic and explicit pre-effect admission-deferral projection through PR #5849 at `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b`; cut complete immutable release `20260924T195546-ff11bb0a`. Exact PID-bound, complete running diagnostics pass for all three browser owners, and exact typed capacity deferral passes for composition/source-refresh. Five of six Affiliate owners are aligned without manufacturing exits.
-- [ ] Reconcile the final `affiliate-loop` base occurrence through exact official effect readback. Its old-release child finishes `SUCCEEDED`, but claim release fails with ownership mismatch and leaves `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown; Telegram send is confirmed as provider message `92843`, so the generic pre-effect resolver must not clear it. Then rebind the base owner and run the Affiliate foundation projection twice with exact current-release evidence, zero opaque diagnostics and replay-zero.
+- [x] Diagnose the final `affiliate-loop` base occurrence as a real Telegram effect fence. Its old-release child finishes
+  `SUCCEEDED`, claim release fails with ownership mismatch and leaves
+  `affiliate-loop:18d83ba82b14fb40-24990` claimed/effect-unknown. The local sender ledger says provider ID
+  `92843`, but that ID is not sufficient proof: the official user-MTProto readback with the same body hash is
+  message `94637` in `Local Life Manager` at `2026-09-24T11:15:43Z`. The branch-only
+  `telegram_effect_reconcile.py` proof requires exact outbox body hash, chat, sender and time window and records
+  the ID mismatch; its read-only proof returns `provider_receipt_id=telegram:8613473574:94637` and
+  `provider_message_id_mismatch=true`. No admission state or provider message was changed.
+- [ ] Promote the Affiliate official-body reconciler in an accepted immutable release, then resolve only
+  `affiliate-loop:18d83ba82b14fb40-24990` through that exact provider proof. Require a mode-0600 reconciliation
+  receipt, canonical loaded/event SHA, zero remaining Affiliate admission unknowns, base-owner rebind and two
+  exact current-release foundation projections with replay-zero. Never use the generic pre-effect resolver and never
+  resend the Telegram report.
 - [x] Diagnose Investment read-only: one old installed owner, 16 known released, 64 known queued, one released/effect-unknown occurrence, one queue row and no reservation. The sole unknown `alpaca-investment-live:18d5feb0983a54b8-35815` is an exact 0.28-second pre-entrypoint `resource_capacity_busy` terminal with no effect reference.
 - [x] Add the shared loaded-idle exact pre-effect reconciler with a private 0600 receipt, fail-closed negative coverage, and Investment's existing `agent/borrow/support` plus wake-coalescing contract. Reconcile/registry tests pass 206/206 with 174 subtests; runtime passes 624 plus 522 subtests and the unrelated CEO timeout passes alone. Production remains unchanged until integration.
 - [x] Integrate the shared Investment self-heal through PR #5851 at `209f879ec862a24fa0ed5cd954a7680422905c3a`, activate complete release `20260924T203525-209f879e`, resolve only the exact pre-effect occurrence with a 0600 `RESOLVED` receipt, and coalesce 64 stale effect-known wakes. The first current-release wake exits 0 with Alpaca account `ACTIVE`, equity USD 66.74, orders 4, `NO_TRADE`, unresolved orders 0 and Telegram message `92860`; the immediate replay makes no entrypoint/trade, remains unknown-free and stops safely at typed capacity backpressure.
@@ -487,9 +500,182 @@ allowed.
 - [x] Integrate the Fundraiser contract through PR #5852 at `2ff81f6eb1c0e9fb3160fd4bbe654a5810b8d167`, activate complete release `20260924T205828-2ff81f6e`, reconcile only `fundraiser`, and verify its 0600 `RESOLVED` receipt. The 652-row ledger remains byte-identical with 56 verified submissions; apply plus immediate replay both stop pre-entrypoint at typed capacity backpressure, unknown stays zero, and the exact-release foundation row is `safely_fenced` with no mismatch or diagnostic gap.
 - [x] Diagnose Writer read-only as seven independent owners sharing one private state root. All seven have historical `agent/borrow/support` policy but no registry declaration; known queued counts are 402/9/1622/8/89/123/78. Craft and discovery each have one safe effect-free stale claim; response has one exact pre-entrypoint FIFO fence in the rotated private journal; report has one real message effect backed by durable Telegram IDs 89203–89206 and therefore is not a pre-effect fence.
 - [x] Add only Writer's observed admission/coalescing contract to all seven owners. The RED test fails for every missing row, focused contract/fixture tests pass 2/2. Extend the shared exact proof to at most four private rotated gzip journals while retaining per-file 50,000-row, owner, mode, link, exact-two-event and no-effect-reference checks; production read-only proof selects response and rejects report. Focused archive/current/negative proof tests pass 3/3 and full apply/registry passes 209/209. Do not change Writer business code.
-- [x] Read back report occurrence `18d69e54e1050578-20866` from Telegram over the existing user MTProto session. Provider IDs 89203–89206 all exist in the same bot dialog with matching time/sender/content; the fourth exact payload matches after Telegram whitespace normalization. Preserve these effects and never resend them.
-- [ ] Merge and release the Writer contract/proof. Reconcile loaded-idle effect-free owners first, resolve response only through the archive proof and close report only through the exact Telegram provider proof; then align all seven owners and require exact-release complete diagnostics plus replay-zero.
+- [x] Preserve the historical readback for report occurrence `18d69e54e1050578-20866` from the existing user MTProto session. Provider IDs 89203–89206 were previously recorded in the same bot dialog with matching sender/content evidence; preserve those effects and never resend them.
+- [x] Re-prove the report effect against the current outbox. The stored IDs 89203–89206 were not the provider-side IDs, but a fresh isolated MTProto readback found exact payload hashes, send times and bot sender for provider messages 90905–90908 in the target dialog. Resolve only `writer-report:18d69e54e1050578-20866` through that proof, write a mode-0600 receipt preserving both ID sets, and never resend.
+- [x] Merge and release the Writer contract/proof into production. The source merge is complete in PR #5853 (`73270f2c`); all seven owners are now loaded on current `6e609eba` and one bounded wake per owner is complete with `diagnostic_complete=true`, `admission_effect_unknown=false`, typed pre-entrypoint capacity deferral and no new provider effect. The response archive proof and report official effect proof are both retained.
+- [x] Rebind all seven Writer owners to the latest immutable selector `1657972036bddc842682108334e5d30b5e48defe` while loaded-idle. No provider session was restarted; report's historical effect receipt remains preserved.
+- [x] Run the effect-free portion of the Writer immediate replay check one owner at a time. `writer-claim-loop`, `writer-money-sync`, `writer-opportunity-discovery` and `writer-sales-measure` stop before entrypoint at typed `resource_capacity_busy` with `effect_status=not_applicable`, `admission_effect_unknown=false` and complete diagnostics; `writer-craft-train` reaches a current-release terminal `pass` with the same no-effect contract. The response owner is also current-release and stops before its application effect at the same typed boundary.
+- [ ] Complete the Writer immediate replay check for the effectful owners only after the provider-specific effect fence proves no duplicate message/application can be emitted. `writer-report` remains held by its existing official Telegram readback (90905–90908) and its latest terminal evidence is still historical release `6e609eba`; do not start it merely to manufacture a current event. This remains separate from the final two-pass 14-loop replay-zero gate.
 - [ ] Continue the remaining independent non-Paid foundation slices in this order while Mobile remains owned: Agent Economy, CFO and Job Hunter. Do not wait for revenue; accept exact typed `setup_required` or `safely_fenced` states and move to the next slice. Affiliate remains an asynchronous official-readback reconciliation and does not block this cursor.
+- [x] Reconcile Agent Economy onto the then-current main-derived release `403e272eb615951b7a125006e2e5797cf28c4b7b` and record its provider boundary. The previous BlockRun HTTP 429s are durable `wake_error/brain_transport` evidence; the existing proxy brain retries three times and the new run is loaded with complete diagnostics on `gpt-5.6-terra`. No trade, payment, or revenue receipt is claimed.
+- [x] Add a read-only status projection for continuous-owner harness failures. A running PID no longer masks a same-run `harness-failures.jsonl` row: the status row projects `last_terminal_result=fail`, `failure_layer=runtime`, a normalized `error_class` (`tool_missing` for taskmarket `ENOENT`), typed `next_action`, and bounded `latest_harness_failure` evidence. A later clean `wake`/`narrate` deactivates the incident but retains its history. RED→GREEN focused tests pass 2/2; readonly status passes 22/22 and registry/apply passes 210/210. This is branch-only until main/release acceptance.
+- [x] Diagnose the first Agent Economy effect-free admission gap without waking it. `x402-acquisition-controller` has a large durable FIFO of known, effect-free occurrences, but its registry row omitted the already-observed `deterministic/borrow/support` policy and queued/reserved coalescing. The production reconciler therefore returned `skipped_pending`; no entrypoint, wallet, payment or provider effect was attempted.
+- [x] Add the smallest Agent Economy registry contract for `x402-acquisition-controller`: explicit `deterministic/borrow/support`, queued/reserved coalescing and `reconcile_queued_release=true`. The RED contract test fails before the declaration and passes after it; rendered registry tests pass 87/87 and the shared apply suite passes 124/124 (only pre-existing sqlite `ResourceWarning`s). This remains branch-only until main/release acceptance.
+- [x] Inspect `x402-experiment-franklin1` independently: its durable queue is `deterministic/borrow/support` with 1,427 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a typed capacity deferral. Add only its matching registry contract and queued-release reconcile flag. RED→GREEN contract/fixture tests pass 89/89 and the shared apply suite passes 124/124; no experiment entrypoint or financial effect was run.
+- [x] Inspect `x402-inflow-watch` independently: its durable queue is `deterministic/borrow/support` with 316 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a prior clean terminal. Add only its matching registry contract and queued-release reconcile flag. RED→GREEN contract/fixture tests pass 90/90; no inflow watcher or financial effect was run.
+- [x] Inspect `x402-inflow-watch-claude-p` independently: its shared-agent route uses `agent/borrow/support` with 343 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a typed capacity deferral. Add the agent-class contract and queued-release reconcile flag only. RED→GREEN contract/fixture tests pass 91/91 and the shared apply suite passes 124/124; no model wake or financial effect was run.
+- [x] Inspect `x402-inflow-watch-franklin1` independently: its deterministic route uses `deterministic/borrow/support` with 393 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a typed capacity deferral. Add only its matching contract and queued-release reconcile flag. RED→GREEN contract/fixture tests pass 92/92 and the shared apply suite passes 124/124; no watcher or financial effect was run.
+- [x] Inspect `x402-inflow-watch-franklin2` independently: its deterministic route uses `deterministic/borrow/support` with 391 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a typed capacity deferral. Add only its matching contract and queued-release reconcile flag. RED→GREEN contract/fixture tests pass 93/93 and the shared apply suite passes 124/124; no watcher or financial effect was run.
+- [x] Inspect `x402-sale-observer` independently: its deterministic route uses `deterministic/borrow/support` with 1,459 known effect-free occurrences, loaded-idle, no claimed or unknown occurrence, and a typed capacity deferral. Add only its matching contract and queued-release reconcile flag. RED→GREEN contract/fixture tests pass 94/94 and the shared apply suite passes 124/124; sale observation was not treated as a revenue effect.
+- [x] Inspect `citizen-refill` independently: its deterministic route had 144 known effect-free queued occurrences and no claimed/unknown occurrence, but the loaded `f7d4ff46afa42539a6def192774de66ff3317cec` launcher repeatedly exited before its entrypoint with `node executable not found`. The shared plist injects `LIFE_MANAGER_RUNTIME_NODE`, while this launcher only read `LIFE_MANAGER_NODE`; the launchd PATH has no usable Node. Add the smallest managed-runtime fallback and the existing `deterministic/borrow/support` coalescing/reconcile contract. RED→GREEN launcher/registry tests pass; registry/rendered-fixture 95/95 and shared apply 124/124 pass. No wallet, refill, payment or provider effect was run; the fix remains branch-only until exact main/release acceptance.
+- [x] Inspect `life-manager-x402-ledger` independently: its deterministic ledger route had 1,711 known effect-free queued occurrences, 600 released occurrences, no claimed/unknown occurrence and no reservation. The loaded owner is repeatedly typed `resource_admission_unavailable`/capacity-blocked before its ledger entrypoint; no trade, payment or provider effect was observed. Add only the existing `deterministic/borrow/support` coalescing/reconcile contract. RED→GREEN registry/fixture 97/97 and shared apply 124/124 pass; this remains branch-only until exact main/release acceptance.
+- [x] Inspect `life-manager-taskmarket-ledger` independently: its deterministic ledger route had 1,438 known effect-free queued occurrences, 424 released occurrences, and no admission unknown. It was loaded-idle with a typed capacity deferral before the entrypoint; no task-market payment or provider effect was run. Add only the existing `deterministic/borrow/support` coalescing/reconcile contract. RED→GREEN registry/fixture 97/97 and shared apply 124/124 pass; this remains branch-only until exact main/release acceptance.
+- [x] Inspect `life-manager-ugig-invoice-observer` independently: its deterministic invoice-observer route had 1,454 known effect-free queued occurrences, 421 released occurrences, no claimed/unknown occurrence and no reservation. It was loaded-idle with a typed capacity deferral before the observer entrypoint; no invoice submission, payment or provider effect was run. Add only the existing `deterministic/borrow/support` coalescing/reconcile contract. RED→GREEN registry/fixture 98/98 and shared apply 124/124 pass; this remains branch-only until exact main/release acceptance.
+- [x] Diagnose `life-manager-cfo-hourly` read-only: the message-effect owner has one claimed `effect_unknown` occurrence, eight queued occurrences and eleven released occurrences under durable `deterministic/borrow/support`; it is loaded-idle and blocked at `resource_effect_unknown`. Add only the observed admission/coalescing contract in branch source. RED→GREEN registry/fixture 99/99 and shared apply 124/124 pass. No CFO message was resent, no fence was cleared and no financial receipt was inferred.
+- [x] Diagnose `life-manager-financial-report` read-only: the message-effect owner has one claimed `effect_unknown` occurrence, 53 queued occurrences and two released occurrences under durable `deterministic/borrow/support`; it is loaded-idle and blocked at `resource_effect_unknown`. Add only the observed admission/coalescing contract in branch source. RED→GREEN registry/fixture 100/100 and shared apply 124/124 pass. No financial report message was resent, no fence was cleared and no receipt was inferred.
+- [x] Diagnose `life-manager-payout` read-only: the money-effect owner has 54 queued occurrences, five released occurrences (one released `effect_unknown`) and no claimed occurrence under durable `deterministic/borrow/support`; it is loaded-idle and blocked at `resource_effect_unknown`. Add only the observed admission/coalescing contract in branch source. RED→GREEN registry/fixture 101/101 and shared apply 124/124 pass. No payout or transfer was executed, no fence was cleared and no payment receipt was inferred.
+- [x] Diagnose `job-search-health` read-only: the application-effect owner has one claimed `effect_unknown` occurrence, 69 queued occurrences and two released occurrences under durable `deterministic/borrow/support`; it is loaded-idle and blocked at `resource_effect_unknown`. Add only the observed admission/coalescing contract in branch source. RED→GREEN registry/fixture 102/102 and shared apply 124/124 pass. No application was submitted, no fence was cleared and no provider proposal ID was inferred.
+- [x] Diagnose `job-search-learning` read-only: the calendar-scheduled application-effect owner has one claimed `effect_unknown` occurrence, two queued occurrences and eight released occurrences, with no durable `priorities` row. The existing `lm_loop_run` defaults are authoritative (`deterministic` resource, `borrow` admission and admission-default `support` priority), so make them explicit in the registry without changing the effect fence. RED→GREEN registry/fixture 103/103 and shared apply 124/124 pass. No application was submitted, no fence was cleared and no provider proposal ID was inferred.
+- [x] Diagnose Agent Economy's two durable money observers read-only: `sol-funding` has 234 known queued,
+  one known released and one released `effect_unknown` occurrence; `x402-settlement-recorder` has 50 known queued,
+  six known released and one released `effect_unknown` occurrence. Both priorities already read
+  `deterministic/borrow/support`; no money movement, wallet action or settlement receipt is inferred.
+- [x] Add only the existing `deterministic/borrow/support` admission, queued/reserved coalescing and queued-release
+  reconcile contract to `sol-funding` and `x402-settlement-recorder`. Registry/rendered-fixture tests pass 104/104
+  and shared apply passes 124/124. The released effect-unknown rows remain fenced; this is branch-only until an
+  accepted immutable release and official provider readback.
+- [x] Make the Lancers non-Paid `lancers-revenue-work-sync` resource contract explicit. Read-only registry evidence
+  already showed `admission_class=revenue`, `priority=revenue` and `provider_route=deterministic`; the missing
+  `resource_class=deterministic` was added with a RED `KeyError` regression and GREEN registry/fixture coverage.
+  The focused work-sync test passes and the combined macOS-registry/read-only suite passes 127 tests with 154
+  subtests. The generated byte-stable fixture is synchronized. This is branch-only; no Lancers provider session,
+  work-sync entrypoint, admission state or external effect was run.
+- [x] Make the existing Capafy `capafy-loop-healthcheck` control-plane contract explicit. Its observed
+  `provider_route=deterministic`, `effect_class=none` and `admission_class=revenue` imply the current runner
+  defaults `resource_class=deterministic` and `priority=revenue`; a RED missing-field assertion became GREEN after
+  those two registry fields and the byte-stable fixture were regenerated. The combined macOS-registry/read-only
+  suite passes 127 tests with 154 subtests. No Capafy provider, marketplace, admission state or external effect was
+  run; this remains branch-only until accepted-release promotion.
+- [x] Declare the observed Lancers non-Paid Telegram-report admission contract. Read-only durable admission shows
+  every occurrence as `deterministic/borrow/support` (194 queued, 53 released-known and one claimed
+  `effect_unknown`), with no reservation or queue row. Add only `resource_class=deterministic`,
+  `admission_class=borrow`, `priority=support`, queued/reserved coalescing and
+  `reconcile_queued_release=true`; RED→GREEN registry/fixture tests pass and the combined suite is 128 tests with
+  154 subtests. The claimed message effect remains fenced; no Telegram resend, provider session, admission state or
+  Lancers entrypoint was run. This is branch-only until exact-release promotion and official readback.
+- [x] Declare the observed CrowdWorks non-Paid report admission contract. Durable read-only admission shows
+  `deterministic/borrow/support` (69 queued, 41 released-known and one released `effect_unknown`), one durable queue
+  row and no reservation. Add only the same explicit resource/admission/priority, coalescing and queued-release
+  reconciliation fields. The RED assertion becomes GREEN; the combined registry/read-only suite passes 129 tests
+  with 154 subtests. The released unknown remains fenced; no report message, provider session, admission state or
+  Paid fulfillment was run. This is branch-only until accepted-release promotion and official readback.
+- [x] Declare the observed Gig non-Paid `hf-gig-apply-evidence-gc` contract. Durable read-only admission shows
+  `deterministic/borrow/support` (35 queued, 145 released-known, no claim, unknown or reservation, one queue row).
+  Add only the explicit resource/admission/priority, queued/reserved coalescing and queued-release reconciliation
+  fields. RED→GREEN registry/fixture coverage passes; the combined suite is 130 tests with 154 subtests. This
+  effect-free evidence cleanup was not run, no Paid source/state/session was touched, and no marketplace or revenue
+  effect is inferred; accepted immutable release and exact-SHA readback remain required.
+- [x] Declare the observed Gig non-Paid `hf-gig-daily-report` contract. Durable admission is
+  `deterministic/borrow/support` (68 queued, 149 released-known and one claimed `effect_unknown`, with no queue row
+  or reservation). Add only the explicit resource/admission/priority, coalescing and queued-release reconciliation
+  fields. RED→GREEN registry/fixture coverage passes; the combined suite is 131 tests with 154 subtests. The
+  historical unknown remains fenced; no report, provider, Paid or marketplace effect was run, and exact official
+  readback is still required.
+- [x] Classify the CrowdWorks continuous browser owner explicitly. Its registry has a unique CDP/profile
+  `browser_owner` (9228) and keep-alive cadence but no finite admission rows, so add only
+  `resource_class=browser`; do not invent admission/priority fields. The RED assertion becomes GREEN and the
+  combined registry/read-only suite passes 132 tests with 154 subtests. No browser session, provider state or
+  marketplace effect was started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the Lancers continuous browser owner explicitly. Its unique CDP/profile `browser_owner` (9227) and
+  keep-alive cadence identify a browser resource, while no finite admission rows justify admission/priority fields.
+  Add only `resource_class=browser`; RED→GREEN registry/fixture coverage passes and the combined suite is 133 tests
+  with 154 subtests. No Lancers browser session, provider state, Paid fulfillment or marketplace effect was started;
+  exact-release loaded-idle/readback remains pending.
+- [x] Classify the Gig continuous browser owner explicitly. Its unique CDP/profile `browser_owner` (9223) and
+  keep-alive cadence identify a browser resource with no finite admission rows. Add only
+  `resource_class=browser`; RED→GREEN registry/fixture coverage passes and the combined suite is 134 tests with
+  154 subtests. No Gig browser session, Paid source/state/session or marketplace effect was started; exact-release
+  loaded-idle/readback remains pending.
+- [x] Classify the Affiliate `affiliate-browser` continuous owner explicitly. Its unique CDP/profile
+  `browser_owner` (9324) and keep-alive cadence identify a browser resource; no finite admission rows justify
+  admission/priority fields. Add only `resource_class=browser`; RED→GREEN registry/fixture coverage passes and the
+  combined suite is 135 tests with 154 subtests. No Affiliate browser session, Telegram/provider effect or
+  admission state was started; exact-release loaded-idle/readback remains pending.
+- [x] Classify the Affiliate `affiliate-impact-browser` continuous owner explicitly. Its unique CDP/profile
+  `browser_owner` (9327) and keep-alive cadence identify a browser resource; no finite admission rows justify
+  admission/priority fields. Add only `resource_class=browser`; RED→GREEN registry/fixture coverage passes and the
+  combined suite is 136 tests with 154 subtests. No Impact/Affiliate browser session, provider effect, Telegram
+  send or admission state was started; exact-release loaded-idle/readback remains pending.
+- [x] Classify the Affiliate `affiliate-x-browser` continuous owner explicitly. Its unique CDP/profile
+  `browser_owner` (9326) and keep-alive cadence identify a browser resource; no finite admission rows justify
+  admission/priority fields. Add only `resource_class=browser`; RED→GREEN registry/fixture coverage passes and the
+  combined suite is 137 tests with 154 subtests. No X/Affiliate browser session, post, provider effect, Telegram
+  send or admission state was started; exact-release loaded-idle/readback remains pending.
+- [x] Classify the top-level `agent-economy-loop` continuous owner explicitly. Its
+  `provider_route=shared-agent-runner`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=agent`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage passes and
+  the combined suite is 138 tests with 154 subtests. No Agent Economy/x402 model, wallet, payment or provider
+  effect was started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `x402-claude-p` model owner explicitly. Its
+  `provider_route=shared-agent-runner`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=agent`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage passes and
+  the combined suite is 139 tests with 154 subtests. No x402 model wake, wallet, payment or provider effect was
+  started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `x402-franklin1` deterministic owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 140 tests with 154 subtests. No Franklin model, wallet, payment or provider
+  effect was started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `x402-franklin2` deterministic owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 141 tests with 154 subtests. No Franklin2 model, wallet, payment or provider
+  effect was started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `x402-research-serve` deterministic owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 142 tests with 154 subtests. No research service, wallet, payment or provider
+  effect was started; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `the402-provider` money owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 143 tests with 154 subtests. No x402 server, wallet, payment or provider effect
+  was started and no money receipt is claimed; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `the402-worker` money owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 144 tests with 154 subtests. No x402 worker, wallet, payment or provider effect
+  was started and no money receipt is claimed; accepted-release loaded-idle/readback remains pending.
+- [x] Classify the continuous `x402-seller-8404` money owner explicitly. Its
+  `provider_route=deterministic`, keep-alive cadence and no finite admission rows justify only
+  `resource_class=deterministic`; no admission/priority policy is invented. RED→GREEN registry/fixture coverage
+  passes and the combined suite is 145 tests with 154 subtests. No seller, wallet, payment or provider effect was
+  started and no money receipt is claimed; accepted-release loaded-idle/readback remains pending.
+- [ ] Promote the continuous harness-failure projection to an accepted main-derived release, then re-read Agent Economy. The current production owner is loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b`; its taskmarket `ENOENT` intent `f5a0b9a428ef34544c7471443819e585` is durable, while the recovery supervisor safely returns `release_sha_mismatch`/`escalate_owner`. Do not clear or replay the owner until exact release identity and a clean post-repair readback agree.
+- [x] Add the narrow legacy-continuous-event diagnosis on this branch. A loaded-running keep-alive owner whose PID-bound event is an old `execute/running` envelope now reports `legacy_runtime_event_schema`, retryable `true`, and `reload_current_release`; it never clears an effect fence or infers provider success. RED→GREEN read-only/status tests pass 23/23 and runtime-event/runner tests pass 19/19. This remains branch-only until an accepted main-derived immutable release is loaded.
+- [x] Preserve the typed diagnostic contract through recovery readback sanitization on this branch. `recovery-supervisor` and `recovery-executor` now retain `diagnostic_error`, `failure_layer`, `error_class`, `retryable` and `next_action` in before/after evidence, so the self-healer can choose a bounded repair from the observed failure instead of receiving an opaque status. RED reproduced two dropped-field failures; focused supervisor/executor tests are 16/16 and the complete recovery suite is 40/40. This is branch-only until an accepted main-derived immutable release is loaded; no provider effect, fence or production state changed.
+- [x] Classify a `reconcile` result that is `skipped_pending` for the requested owner as a typed admission boundary instead of a repair failure. When the loaded registry contains `reconcile_queued_release=true`, `recovery-executor` returns `queued / admission_pending / retry_after_eligibility` with `budget_consumed=false`; when that contract is missing, it returns terminal `blocked / admission_contract_missing / promote_release` with the same zero budget. Both paths preserve the exact before/after readback and reconcile payload. RED regressions reproduced the old `reconcile_target_not_applied` classification; the focused recovery suite is now 34/34 after GREEN. This prevents a durable FIFO backlog from either consuming the repair budget or retrying forever on a release that cannot reconcile it. No production/provider state changed.
+- [x] Type the immutable-release boundary in the recovery executor. A plan whose release manifest SHA does not match the intent now returns `blocked / release_sha_mismatch / promote_release` instead of an opaque next action; the existing no-command/no-effect behavior remains unchanged. The release-mismatch regression is covered in the 34/34 focused recovery suite. No release, launchd owner or provider state changed.
+- [x] Re-run the complete bounded canary/recovery contract after the admission and immutable-release boundaries. The canary plus recovery-intent, apply-plan, executor, intent-record and supervisor suites pass **38/38** with zero failures; the four additional canary cases remain test-owned and no production/provider state changes.
+- [x] Remove one static self-improvement guard false positive without changing runtime behavior: an existing comment containing the legacy launcher filename was being counted as a forbidden call site. The guard now passes 1/1 while the actual no-autoaction source rule remains unchanged.
+- [x] Refresh the registry classification fixture for the two live utility slots added after the original 13-slot table (`resource-resolver` and `x-repost`). All three classification checks now pass 3/3; no runtime behavior or external effect changed.
+- [x] Close the Claude brain infrastructure gap on this branch. When `ANICCA_BRAIN=claude-p` cannot spawn the configured executable, `think()` now falls back to the configured proxy; OAuth, timeout and non-zero Claude exits remain typed failures and never silently switch brains. A successful fallback is carried into the terminal ledger as `brain_fallback={from:claude-p,to:proxy,reason:claude_not_found}`, while a failed proxy recovery remains `brain_fallback_failed` with both boundaries in the typed error. The direct brain contract is now aligned with the implementation (5/5), and the missing-binary integration plus ledger-observability assertions pass. An earlier temporary-directory cleanup race did not reproduce in the latest full run.
+- [x] Re-run the complete runtime suite after the fallback and fixture updates: 304 tests, 301 pass. The only remaining three file-level failures are environment dependency gaps (`@solana/web3.js` and `fast-check` absent from this worktree), not failures in the self-healing changes; the focused recovery/harness suites remain green.
+- [ ] Promote the `x402-acquisition-controller` contract to an accepted immutable release, reconcile only this loaded-idle effect-free owner, and run one bounded wake. Require exact loaded/event SHA, complete diagnostics, `effect_status=not_applicable`, zero admission effect-unknown and replay-zero; retain the durable FIFO and do not touch x402 money/seller/settlement owners.
+- [ ] After the acquisition controller, promote and reconcile `x402-experiment-franklin1` separately with the same exact-SHA, complete-diagnostics, no-effect and replay-zero proof. Preserve its FIFO history and do not infer experiment revenue from a pass/no-op.
+- [ ] Promote and reconcile `x402-inflow-watch` separately after the preceding x402 owners; require exact loaded/event SHA, complete diagnostics, zero admission effect-unknown and replay-zero, without treating watcher pass as revenue.
+- [ ] Promote and reconcile `x402-inflow-watch-claude-p` separately with the `agent/borrow/support` contract; require exact SHA, complete diagnostics, zero unknown and replay-zero without treating a model no-op as revenue.
+- [ ] Promote and reconcile `x402-inflow-watch-franklin1` separately with exact SHA, complete diagnostics, zero unknown and replay-zero; preserve its FIFO and do not treat watcher health as revenue.
+- [ ] Promote and reconcile `x402-inflow-watch-franklin2` separately with exact SHA, complete diagnostics, zero unknown and replay-zero; preserve its FIFO and do not treat watcher health as revenue.
+- [ ] Promote and reconcile `x402-sale-observer` separately with exact SHA, complete diagnostics, zero unknown and replay-zero; preserve its FIFO and do not convert observation into a payment receipt.
+- [ ] Promote the `citizen-refill` launcher fallback and admission contract to an accepted immutable release, then reconcile only this loaded-idle effect-free owner. Require exact loaded/event SHA, complete diagnostics, `effect_status=not_applicable`, zero admission effect-unknown and replay-zero; do not infer a wallet refill or revenue receipt from a launcher pass.
+- [ ] Promote the `life-manager-x402-ledger` admission contract to an accepted immutable release, then reconcile only this loaded-idle effect-free ledger owner. Require exact loaded/event SHA, complete diagnostics, `effect_status=not_applicable`, zero admission effect-unknown and replay-zero; do not infer a trade, payment or revenue receipt from a ledger pass.
+- [ ] Promote the `life-manager-taskmarket-ledger` admission contract to an accepted immutable release, then reconcile only this loaded-idle effect-free ledger owner. Require exact loaded/event SHA, complete diagnostics, `effect_status=not_applicable`, zero admission effect-unknown and replay-zero; do not infer a task-market payment or revenue receipt from a ledger pass.
+- [ ] Promote the `life-manager-ugig-invoice-observer` admission contract to an accepted immutable release, then reconcile only this loaded-idle effect-free observer. Require exact loaded/event SHA, complete diagnostics, `effect_status=not_applicable`, zero admission effect-unknown and replay-zero; do not infer an invoice, payment or revenue receipt from an observer pass.
+- [ ] Promote the `sol-funding` admission contract to an accepted immutable release. Keep its released
+  effect-unknown occurrence fenced until the exact wallet/provider receipt is bound; then reconcile only the
+  occurrence that has an official readback, coalesce known queued wakes and prove replay-zero without inferring
+  funding or revenue from scheduler health.
+- [ ] Promote the `x402-settlement-recorder` admission contract to an accepted immutable release. Keep its released
+  effect-unknown occurrence fenced until the exact settlement/provider receipt is bound; then reconcile only the
+  occurrence with official readback, coalesce known queued wakes and prove replay-zero without inferring settlement
+  or revenue from a recorder pass.
+- [ ] After official readback resolves or explicitly preserves `life-manager-cfo-hourly`'s claimed message effect, promote its admission contract to an accepted immutable release and reconcile only its owner. Keep the effect fence closed until the exact provider receipt is bound; require exact SHA, complete diagnostics and replay-zero, and never infer a CFO message or payout from a scheduler pass.
+- [ ] After official readback resolves or explicitly preserves `life-manager-financial-report`'s claimed message effect, promote its admission contract to an accepted immutable release and reconcile only its owner. Keep the effect fence closed until the exact provider receipt is bound; require exact SHA, complete diagnostics and replay-zero, and never infer a report message or financial receipt from a scheduler pass.
+- [ ] After official readback resolves or explicitly preserves `life-manager-payout`'s released effect-unknown occurrence, promote its admission contract to an accepted immutable release and reconcile only its owner. Keep the money-effect fence closed until the exact payment receipt is bound; require exact SHA, complete diagnostics and replay-zero, and never infer a payout from a scheduler pass.
+- [ ] After official readback resolves or explicitly preserves `job-search-health`'s claimed application effect, promote its admission contract to an accepted immutable release and reconcile only its owner. Keep the application fence closed until the exact provider proposal/application receipt is bound; require exact SHA, complete diagnostics and replay-zero, and never infer an application from a scheduler pass.
+- [ ] Promote the explicit `job-search-learning` default contract to an accepted immutable release only after official readback resolves or preserves its claimed application effect. Keep the application fence closed until the exact provider proposal/application receipt is bound; require exact SHA, complete diagnostics and replay-zero, and never submit or replay an application from a scheduler pass.
+- [ ] Promote the Job Search effect-free admission declaration from this branch to an accepted main-derived release, then reconcile `job-search-daily` and `job-search-inbox`. The production attempt on loaded `403e272e` correctly skipped both pending owners because that loaded release predates the declaration; no external application was run.
 - [ ] Consume the Mobile owner's accepted main/production evidence before the final gate; require exact release, complete diagnostics, official effect readback and replay-zero without clearing historical unknowns by inference.
 - [ ] Consume the separately owned Connector fix only after an accepted main commit exists; current `e96e8c422d` has no PR and is absent from main/production. Continue other loops meanwhile.
 - [ ] Align Gig non-Paid owners without changing the separately leased Paid fulfillment source, state, sessions or runtime controls.
@@ -499,6 +685,400 @@ allowed.
 - [ ] Run the same foundation gate twice and require replay-zero/no duplicate recovery effects.
 - [ ] Record official local evidence, commit/push and retain the exact accepted release as the Cloud input.
 
+## Latest production cursor (read-only recheck)
+
+The following is the current control-plane state. It is evidence for the next bounded action, not a completion claim.
+
+- [x] Newest read-only recheck 2026-09-25 JST: `origin/main` and the `current` selector have advanced to
+  immutable release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+  `/Users/anicca/loops/releases/20260925T031007-d4fe0819` from the separately owned Coconala change. Most
+  loaded launchd entries, including `life-manager-recovery-supervisor`, still point to the prior immutable release
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`; the supervisor's latest row is `loaded-idle` but
+  `entrypoint_exit_1` on that old SHA (`18d8544a60d082f8-48064`), with `diagnostic_complete=true`,
+  `effect_status=not_applicable`, and no provider receipt. A fresh 271-row status against the new selector yields
+  `running=4`, `blocked=82`, `pass=41`, `fail=28`, `None=116`, eight event/installed SHA mismatches and 233
+  diagnostically incomplete rows; the local foundation gate remains `decision=block` for diagnostic/runtime
+  evidence incompleteness and uncovered failure. `launchctl-safe preflight --json` passes, but no launchd mutation,
+  provider effect, effect-fence change or revenue claim was made. This supersedes the earlier `2f809c86` readback;
+  the next safe cursor remains accepted-release alignment followed by one-owner non-Paid reconciliation.
+
+- [x] Read-only recheck 2026-09-25 JST: the `current` selector is
+  `/Users/anicca/loops/releases/20260925T005608-2f809c86`, whose exact SHA is
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. `launchctl-safe preflight --json` is `pass` with
+  `mutation_allowed=true` for `gui/501`/Aqua; no launchd mutation was performed. Running the local foundation
+  gate against this exact release and a fresh `lm-loop status all --json` readback returns
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block`, with reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. `investment` is the one exact-release
+  `runtime_admission_deferred`/`retry_after_eligibility` row; the remaining rows are release/diagnostic drift or
+  Connector's typed terminal failure. No loop is counted healthy merely because its status row exists. This is a
+  read-only release-alignment cursor, not a production repair or a revenue claim. Branch-only admission contracts
+  are not in this release. Next safe action is an accepted main-derived immutable release followed by one-owner
+  loaded-idle reconciliation, while all external-effect fences and the separately owned Paid/Connector/Mobile
+  owners remain untouched.
+
+- A fresh `lm-loop status all --json` readback contains 271 managed rows. The terminal projection is
+  `None=116`, `blocked=70`, `pass=51`, `fail=30`, `running=4`; the dominant blockers are missing terminal
+  result, `host_admission_deferred:resource_effect_unknown`, `entrypoint_exit_1`, capacity, exit 143 and FIFO.
+  These are runtime observations, not commercial revenue measurements.
+- [x] Later read-only recheck on the same current selector/SHAs: the fresh status still contains 271 rows and
+  maps 98 jobs to the 14 Product Loop catalog rows. The exact local foundation gate now projects
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`.
+  `investment` is the one exact-release `runtime_admission_deferred`/`retry_after_eligibility` row; the other
+  12 loops remain `runtime_release_drift`, and Connector is separately `runtime_terminal_not_pass`/`diagnose_failure`.
+  This is a read-only observation only: no launchd mutation, provider effect, fence clearing or revenue claim was
+  made. The status terminal projection at this later readback is `None=116`, `blocked=81`, `pass=42`, `fail=28`,
+  `running=4`; these are control-plane observations, not commercial completion.
+- [x] Re-run the branch catalog contract and exact-current local foundation gate after the registry slices above.
+  `bin/lm-loop-contract` returns `ok=true`, 14 catalog loops, 169 registry jobs, 98 mapped jobs, zero shared IDs and
+  zero errors. Against the fresh 271-row status and exact current release `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`,
+  the read-only gate remains `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+  `uncovered_failure=13`, `decision=block`; reasons are diagnostic incomplete, runtime evidence incomplete and
+  uncovered failure. The remaining missing explicit resource fields are owned Mobile jobs (`life-manager-daily` and
+  `life-manager-daily-driver`); continuous owners intentionally have no finite admission/priority policy. Do not
+  touch the Mobile owner. The next safe cursor is accepted main-derived immutable release promotion, then one-owner
+  loaded-idle reconciliation; no provider effect or revenue is inferred.
+- [x] Re-read the recovery supervisor after the gate. The exact-current owner
+  `life-manager-recovery-supervisor` is `loaded-idle` with matching installed/event SHA,
+  `last_terminal_result=pass`, `exit_code=0`, `blocker=null`, `diagnostic_complete=true`,
+  `effect_status=not_applicable` and `next_action=none` at occurrence
+  `life-manager-recovery-supervisor:18d8532572e108d0-20098`. The prior `entrypoint_exit_1`/`node` and
+  SQLite-lock lines remain historical log evidence; the latest wake is a clean supervisor terminal. This does
+  not repair sibling release drift or authorize an external effect, so no launchd/provider/fence mutation was
+  performed.
+- [x] Attempt the next one-owner non-Paid canary through the existing reconciler, targeting
+  `x402-acquisition-controller` on route `deterministic`. Read-only preconditions were safe
+  (`loaded-idle`, `effect_class=none`, `effect_status=not_applicable`, admission effect-unknown=false), but the
+  current main-derived release does not yet carry the branch's `reconcile_queued_release` contract. The bounded
+  command therefore returned `ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[x402-acquisition-controller]`
+  without reloading the job or entering its entrypoint. This is the expected fail-closed result: the next step is
+  accepted-release promotion of the explicit Agent Economy contract, not a blind retry or a manual admission
+  database edit. No wallet, payment, model, provider or revenue effect occurred.
+- [x] Probe the next independent effect-free Job Hunter owner, `job-search-daily`, against the same current
+  release. Its readback is loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission
+  effect-unknown=false, but the current release likewise lacks the branch's explicit queued-release contract.
+  The bounded command returned `ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[job-search-daily]`; no
+  launchd reload, job-search entrypoint or external application occurred. This confirms the blocker is shared
+  release promotion, not a provider/application failure, and the next action remains the accepted immutable
+  release containing the branch admission contracts.
+- [x] Re-run the complete `runtime/loop` Node suite at this branch boundary. It reports 304 tests, 301 pass and
+  three file-level failures, all environment dependency gaps: `@solana/web3.js` is absent for
+  `always-act-reroute` and `always-act-wire-seam`, and `fast-check` is absent for `always-act-router`. Focused
+  recovery/registry/read-only suites remain green; no dependency install is attempted under the low-capacity host
+  constraint, and these are not self-healing implementation regressions.
+- Read-only x402 acquisition recheck 2026-09-25 JST: `x402-acquisition-controller` is loaded-idle on old
+  installed/event SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with a typed pre-entrypoint
+  `host_admission_deferred:resource_capacity_busy`/exit 75. Durable admission has 1,727 queued and 595 released
+  effect-free occurrences, zero claimed, zero effect-unknown, one queue row and zero reservations under observed
+  `deterministic/borrow/support`. No entrypoint, wallet, payment or trade effect ran. Its old event is still
+  diagnostically incomplete, so this is not acceptance. The next safe action remains accepted-release promotion,
+  one-owner reconciliation, one bounded wake and replay-zero; no production mutation was performed.
+- Read-only x402 experiment recheck 2026-09-25 JST: `x402-experiment-franklin1` is loaded-idle on old
+  installed/event SHA `f885e963e4784af316855a2d390f8945899cd1a2`, with the same typed pre-entrypoint capacity
+  deferral/exit 75. Durable admission has 1,440 queued and 472 released effect-free occurrences, zero claimed,
+  zero effect-unknown, one queue row and zero reservations under `deterministic/borrow/support`. No experiment,
+  trade, payment or revenue effect ran. Its explicit branch contract is not production evidence until accepted
+  immutable release and exact-SHA replay-zero.
+- Read-only x402 inflow recheck 2026-09-25 JST: `x402-inflow-watch` is loaded-idle on old installed/event
+  SHA `f7d4ff46afa42539a6def192774de66ff3317cec`, with typed capacity deferral and no entrypoint effect. Durable
+  admission has 319 queued and 425 released effect-free occurrences, zero claimed, zero effect-unknown, one queue
+  row and zero reservations under `deterministic/borrow/support`. The observer remains branch-contract-only until
+  accepted release, exact-SHA wake and replay-zero.
+- Read-only x402 agent inflow recheck 2026-09-25 JST: `x402-inflow-watch-claude-p` is loaded-idle on old
+  installed/event SHA `e6cdef15b8d63c53ed91450e87feac54d481a5b1`, with typed control-busy deferral/exit 75.
+  Durable admission has 346 queued and 547 released effect-free occurrences, zero claimed, zero effect-unknown,
+  one queue row and zero reservations under the observed `agent/borrow/support` policy. No model wake or financial
+  effect ran; preserve the agent resource class through accepted-release promotion and replay-zero.
+- Read-only x402 Franklin1 inflow recheck 2026-09-25 JST: `x402-inflow-watch-franklin1` is loaded-idle on old
+  installed/event SHA `14ae9e04088f7839e8c2348fb9b1b5de3768d408`, typed capacity deferral/exit 75, and durable
+  admission 395 queued/532 released effect-free occurrences with zero claimed, zero effect-unknown, one queue row
+  and zero reservations under `deterministic/borrow/support`. No watcher or financial effect ran.
+- Read-only x402 Franklin2 inflow recheck 2026-09-25 JST: `x402-inflow-watch-franklin2` is loaded-idle on old
+  installed/event SHA `f86bacceaba2133ecf0568994bd2a48b2ad2c8cd`, typed admission-unavailable deferral/exit 75, and
+  durable admission 393 queued/541 released effect-free occurrences with zero claimed, zero effect-unknown, one
+  queue row and zero reservations under `deterministic/borrow/support`. No watcher or financial effect ran.
+- Read-only x402 sale-observer recheck 2026-09-25 JST: `x402-sale-observer` is loaded-idle on old installed/event
+  SHA `766ef884e5881e0752c268b91b6fdbbd9bd7ec71`, typed capacity deferral/exit 75, and durable admission 1,468
+  queued/464 released effect-free occurrences with zero claimed, zero effect-unknown, one queue row and zero
+  reservations under `deterministic/borrow/support`. Sale observation is not a payment or revenue receipt.
+- Read-only x402 money-observer recheck 2026-09-25 JST: `sol-funding` is loaded-idle on `a76c8931ea87644696017f6ef87c820bc3651425`,
+  blocked at `host_admission_deferred:resource_effect_unknown`, with 234 queued and one released unknown occurrence
+  (`sol-funding:18d60103c86ce420-74237`), zero claimed and zero reservations. `x402-settlement-recorder` is
+  loaded-idle on `93cb74594755f18f3e4e8fc08aaa9a8cd2cb9648`, with 50 queued, six released-known and one released
+  unknown occurrence (`x402-settlement-recorder:18d606127c37d290-73497`), zero claimed and zero reservations.
+  No official wallet/provider receipt is available, so both effect fences remain closed and no replay/clear/money
+  movement was performed.
+- Read-only CFO recheck 2026-09-25 JST: `life-manager-cfo-hourly` is loaded-idle on old
+  `135fa822be58bb40c038c8ee6bbdbfecceca80bf` with one claimed message `effect_unknown`
+  (`life-manager-cfo-hourly:18d679cb82869d48-98528`), eight queued, eleven released-known, one queue row and zero
+  reservations. `life-manager-financial-report` is loaded-idle on old `d2dca0d18bc6de03dd80b4fdb847b742620423bd`
+  with one claimed unknown (`life-manager-financial-report:18d601655af3e1c0-86661`), 53 queued, two released-known,
+  one queue row and zero reservations. `life-manager-payout` is loaded-idle on old
+  `5748aaf859173eb2532847c65c0982a30d024f5d` with one released money unknown
+  (`life-manager-payout:18d6026a3dc85558-829`), 54 queued, five released-known, one queue row and zero reservations.
+  All remain fenced at `resource_effect_unknown`; no message, payout or wallet effect was replayed.
+- Read-only Job Hunter recheck 2026-09-25 JST: `job-search-health` is loaded-idle on old
+  `37384185bcc36b7033154a6d321a84288b41b8aa` with one claimed application unknown
+  (`job-search-health:18d5fc3605f58c20-90948`), 69 queued, two released-known, one queue row and zero
+  reservations. `job-search-learning` is loaded-idle on old `f3e518681e8482be734d4e432badc05f33415412` with one
+  claimed unknown (`job-search-learning:18d6ff42778e8868-14131`), two queued, eight released-known, no queue row
+  and zero reservations. Both remain at `resource_effect_unknown`; no application/proposal replay or fence clear.
+- Read-only Job Hunter effect-free recheck 2026-09-25 JST: `job-search-daily` is loaded-running on old
+  `2fab674b28ddbc11f9a08e4cf5283a3650559304`, typed FIFO wait/exit 75, with one claimed, 305 queued and 439
+  released effect-free occurrences, zero unknown, no queue row and no reservation. `job-search-inbox` is
+  loaded-idle on old `3bf95b4787863f5cece5c084a481a6567bf9b307`, typed capacity deferral/exit 75, with 462 queued
+  and 499 released, zero claimed/unknown, one queue row and zero reservations. No application effect ran; the
+  branch-only contract still needs accepted-release readback.
+- Read-only Connector recheck 2026-09-25 JST: `life-manager-connector-native` is on current exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`, loaded-idle with complete diagnostics but typed
+  `entrypoint_exit_1`, retryable true, effect none and no provider receipt. This worktree does not touch the
+  separately owned browser/provider fix, session or state; accepted main-derived release evidence remains pending.
+- Read-only Gig non-Paid recheck 2026-09-25 JST: `hf-gig-apply-direct` is current exact and diagnostic-complete with
+  outer pass but application `effect_status=unknown` and no provider receipt (admission 5 queued/30 released/0
+  unknown). `hf-gig-apply-reconcile` is unloaded; evidence-gc is old-release diagnostic-incomplete (35 queued/144
+  released); the continuous browser is old-release `entrypoint_exit_1`; daily-report has one claimed
+  effect-unknown (68 queued/149 released); reply-detector is old-release pass with one reservation (635 queued/4,868
+  released); storefront has one publish effect-unknown (81 queued/22 released). This worktree does not touch
+  `hf-gig-paid-direct` or any Paid fulfillment state/session/source, and no marketplace success is inferred without
+  official receipt/readback.
+- The detailed 98-row and older-release bullets below are retained historical snapshots for provenance; they do not
+  override the 2026-09-25 selector/gate above.
+- Historical snapshot: an earlier `lm-loop status all --json` readback contained 98 mapped managed jobs: 33 complete diagnostics, 48 typed
+  admission-blocked rows, 17 terminal failures, 23 passes, 4 running rows and 6 rows without a terminal event. It
+  still exposes 57 effect-unknown rows and 5 installed/event release mismatches. This is why the 14/14 foundation
+  gate remains blocked; these numbers are not commercial revenue measurements.
+- At that historical snapshot, the `current` selector pointed to main-derived release `1657972036bddc842682108334e5d30b5e48defe`, while
+  Agent Economy remains loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b` and the seven Writer owners remain
+  loaded on the previously accepted `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` release. Source
+  merge, release cut, current selector and production loading are therefore not conflated.
+- `writer-opportunity-response` has a mode-0600 pre-effect reconciliation receipt and no remaining admission
+  unknown; its old status event is retained as history. No effectful response wake is replayed.
+- `writer-report` had a receipt-ID mismatch: stored IDs 89203–89206 mapped to unrelated provider messages, while
+  exact payload/time readback mapped the actual four effects to 90905–90908. The claimed occurrence is now
+  `released/effect_unknown=0` with a mode-0600 official-effect reconciliation receipt; no message was resent.
+- Agent Economy is loaded on `403e272eb615951b7a125006e2e5797cf28c4b7b` with complete diagnostics. Historical
+  BlockRun HTTP 429s are recorded as `wake_error/brain_transport`; the existing brain retry/backoff path is present,
+  and the fresh run uses `gpt-5.6-terra`. A later taskmarket wake records `ENOENT` for the release-local CLI and emits
+  recovery intent `f5a0b9a428ef34544c7471443819e585`; the supervisor refuses reconciliation on a release mismatch
+  rather than guessing. The branch-only status projection now preserves that failure as `latest_harness_failure` and
+  treats it as active until a later clean wake. No trading, payment, or revenue receipt is claimed. CFO remains
+  effect-unknown; Job Hunter has typed capacity, control, admission, entrypoint, and effect-unknown boundaries across
+  its owners. Effectful/unknown owners are not retried blindly.
+- Job Search's `daily` and `inbox` rows were missing the shared admission/coalescing declaration. A branch-only RED→GREEN
+  change adds `resource_class=deterministic`, `admission_class=borrow`, `priority=support`, and queued/reserved wake
+  coalescing; registry and rendered-fixture tests pass 86/86. It is not production evidence until an accepted
+  main-derived release loads it.
+- Release reconciliation continues to encounter `ENOSPC`/cut-lock pressure. Available bytes are above the nominal
+  floor, but release export and database/temp writes are not stable. No broad release/worktree/state deletion is
+  performed from this workstream.
+- The execution cursor is now: (1) promote the branch's shared observability/self-healing source only through the
+  accepted main-derived immutable release gate; (2) consume the Affiliate official-body reconciliation and Writer
+  effectful fence evidence without resending; (3) continue Agent Economy → CFO → Job Hunter one owner at a time with
+  typed `setup_required`/`safely_fenced` outcomes; (4) consume Mobile/Connector/Paid-owner evidence only from their
+  owning workstreams; (5) run the 14/14 foundation gate twice with replay-zero; then (6) promote the accepted control
+  plane to cloud and enable economic self-improvement. Revenue waits do not block this cursor, but unverifiable external
+  effects and release drift do.
+
+- [x] Diagnose the shared supervisor's latest `entrypoint_exit_1` boundary without mutating production. An exact
+  launchd-like run of the old immutable release with an empty queue exits `0`; the pending-owner path records the
+  typed `queued` outcome (`healthy_readback_pending`/bounded retry) but the CLI previously converted every
+  `result.ok=false` into exit `1`. That made a safe control-plane wait look like a supervisor entrypoint failure and
+  obscured the typed recovery reason. The branch-only fix exports a small `supervisorExitCode` contract, returns `0`
+  for `queued` while retaining non-zero for hard `blocked`/`escalated` outcomes, and guards direct CLI execution so
+  the helper is testable without side effects. RED→GREEN is recorded by the new regression; the focused recovery
+  suite is **39/39**. The full runtime suite is **307 tests, 304 pass, 3 file-level dependency failures** for missing
+  `@solana/web3.js`/`fast-check`; these are environment gaps, not failures from this fix. The branch is pushed, but
+  no main merge, release promotion, launchd mutation, provider effect, effect-fence change or revenue claim exists.
+- [ ] Promote this supervisor exit contract only through the accepted main-derived immutable release gate, then run
+  one bounded loaded-idle supervisor wake and verify the typed journal/readback. Do not clear or replay any external
+  effect fence while doing so.
+- [x] Fresh production read-only recheck after subsequent natural wakes: `/Users/anicca/loops/current` is now
+  exact release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, and the supervisor plist/installed/event SHA all match
+  that release with pinned `/opt/homebrew/bin/node`. The latest `entrypoint_exit_1` is not the safe queued case:
+  the recovery journal shows Connector's old intent rejected as `blocked / release_sha_mismatch / escalate_owner`.
+  That is a hard release-identity boundary and must remain non-zero. The earlier `healthy_readback_pending` queued
+  outcome is the separate false-failure case addressed by commit `8393380bb2`; no launchd/provider/fence mutation
+  or external effect occurred in this recheck.
+- [x] Fresh exact-current foundation gate after that read-only recheck remains closed: all 14 catalog loops are
+  observed, `healthy=0`, `setup_required=0`, `safely_fenced=1` (`investment`), `repairing=0`,
+  `uncovered_failure=13`, with reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The remaining 13 loop states are
+  `runtime_release_drift` with next action `load_exact_immutable_release`; this is a release-alignment cursor,
+  not a revenue wait. No mutation, provider action, fence clear or revenue claim was made.
+
+### Latest host-cleanup readback boundary (2026-09-25 JST)
+
+- [x] Diagnose and narrow the disk-cleanup host-governor readback boundary without mutating production. The current
+  exact release reports `entrypoint_exit_1`/`last_exit=78`; launchd logs show `ENOSPC` and the host governor can
+  emit no final JSON. Previously `central_cleanup.py` collapsed that missing stdout to `{}`, so the outer receipt
+  could not distinguish a valid empty result from a failed host cleanup. The branch-only `host_cleanup_readback`
+  helper now preserves typed `host_cleanup_result_missing`/`host_cleanup_result_invalid` outcomes and typed
+  timeout/invocation errors while retaining valid receipts. RED→GREEN readback tests pass and the complete cleanup
+  unittest file is **51/51**. The disk-cleanup pytest attempt reached 4 passes and 87 `tmp_path` errors because
+  the host had no usable temporary directory; this is recorded as the capacity blocker, not as a code failure.
+  No launchd/provider/effect-fence mutation or revenue claim exists.
+
+### Latest launchd preflight receipt boundary (2026-09-25 JST)
+
+- [x] Preserve a typed failure when the launchd preflight cannot persist its canonical receipt. The branch candidate's
+  real probe reads back UID/Directory Services/Aqua/GUI successfully, but the canonical state path fails with
+  `errno=28`; it now returns `blocked_control_plane`, `receipt_write_failed`, `receipt_written=false`, typed
+  `error_class`/`errno`, and exit 75 instead of a traceback. The same probe succeeds at a temporary path, separating
+  state-path capacity from the launchd owner probe. RED→GREEN preflight coverage is **7/7**. This is branch-only;
+  no launchctl mutation, loop restart, provider effect, fence change or revenue claim exists.
+- [ ] Promote this preflight receipt contract only through an accepted main-derived immutable release, then re-run the
+  canonical-path preflight and require a durable typed receipt before any non-Paid owner apply/reconcile. Do not use
+  the temporary-path success as permission to mutate production.
+
+### Latest non-Paid canaries (2026-09-25 JST)
+
+- [x] Align and verify `capafy-goal-monitor-daily-close` as the second independent effect-free canary. It moved from
+  old `05d235b46b7c76f27d2aec71e8f30d93b98b4728` to current d4, initially emitted typed capacity deferral, then
+  reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics,
+  `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
+  returned `eligible=0` with unchanged event/occurrence, proving replay-zero.
+- [x] Align and verify `affiliate-composition` as the next independent effect-free owner. It moved from old
+  `ff11bb0a2c2ae81af087c687fb6ba3eda049b87b` to current d4 and reached an exact current-release terminal
+  `loaded-idle`/`blocked`/exit 75 with typed `resource_capacity_busy`, `retryable=true`, complete diagnostics,
+  `effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile
+  returned `eligible=0` with unchanged event/occurrence, proving replay-zero. This proves runtime fencing only; it
+  is not affiliate traffic, conversion or commission revenue.
+- [x] Probe the next Agent Economy effect-free owner, `x402-acquisition-controller`, without breaking its FIFO:
+  `lm-loop reconcile` returned `eligible=1`/`skipped_pending`, so no old-release apply or entrypoint ran. Readback
+  remains `effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, loaded-idle and
+  typed `resource_capacity_busy`; its promotion/reconcile remains pending the accepted-release/capacity cursor.
+- [x] Probe `x402-experiment-franklin1` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-experiment-franklin1]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. The owner is
+  deterministic and `effect_class=none`, so no wallet, payment, seller, experiment or provider effect ran and no
+  revenue was inferred. The separate promotion/wake/replay-zero checkbox remains open until admission advances and
+  the exact current-release terminal readback has complete diagnostics.
+- [x] Probe `x402-inflow-watch` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. Readback remains
+  `effect_class=none`, `effect_status=not_applicable`, and `admission_effect_unknown=false`, so no watcher, wallet,
+  payment or provider effect ran and no revenue was inferred. Its exact-current wake/replay-zero checkbox remains
+  open until the durable admission cursor advances.
+- [x] Probe `x402-inflow-watch-franklin1` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin1]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+  effect-free deterministic watcher with no wallet/payment/provider effect or revenue claim. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `x402-inflow-watch-franklin2` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+  effect-free deterministic watcher with no wallet/payment/provider effect or revenue claim. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `x402-sale-observer` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. The typed
+  `resource_capacity_busy` observer remains effect-free, so no sale, wallet, payment or provider effect ran and no
+  revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `citizen-refill` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[citizen-refill]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; its old loaded/event release was not executed. The registry marks
+  this owner effect-free, so no wallet/refill/provider effect ran and no revenue was inferred. Exact-current
+  terminal/replay-zero acceptance remains open until admission advances.
+- [x] Probe `life-manager-x402-ledger` without breaking its FIFO. Two consecutive targeted reconciles both returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-x402-ledger]` against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. Its effect-free
+  ledger path caused no trade, payment, wallet/provider effect or revenue claim. Exact-current terminal/replay-zero
+  acceptance remains open until admission advances.
+- [x] Probe `life-manager-taskmarket-ledger` without breaking its FIFO. Two consecutive targeted reconciles both
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-taskmarket-ledger]` against current
+  release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No task-market
+  payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains
+  open until admission advances.
+- [x] Probe `life-manager-ugig-invoice-observer` without breaking its FIFO. Two consecutive targeted reconciles
+  both returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-ugig-invoice-observer]` against
+  current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No
+  invoice, payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance
+  remains open until admission advances.
+
+### Latest foundation gate re-read (2026-09-25 JST)
+
+- [x] Re-read the exact current local foundation gate after the x402 effect-free probes. `lm-loop status all` yielded
+  271 managed runtime rows; the catalog projection observed all 14 Product Loops and returned
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block`, with reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`,
+  and `uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
+  Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
+- [x] Expand the gate readback into the 14-loop cursor. `investment` is the sole acceptable
+  `safely_fenced` loop. The other 13 are still `uncovered_failure`: Coconala/Gig, Lancers, CrowdWorks, Writer,
+  Affiliate, Agent Economy, Job Hunter, Fundraiser, Self-build, Mobile Apps, Capafy and CFO are blocked by
+  exact-release/diagnostic drift (with effect-unknown rows retained), while Connector is blocked by its typed
+  terminal failure and `diagnose_failure` action. The next order remains accepted immutable release promotion,
+  one-owner alignment, current terminal/readback, and official effect reconciliation where a fence exists; no
+  effect-unknown row is cleared by scheduler health or a pass/no-op.
+- [x] Probe `job-search-daily` without touching application owners. It was loaded-idle with
+  `effect_class=none`; two targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`
+  returned `eligible=1`, `applied=[]`, and `skipped_pending=[job-search-daily]`. The old release was not executed,
+  no application/proposal effect ran, and the separate health/learning application fences were left unchanged.
+- [x] Probe `job-search-inbox` without restarting its loaded owner. Two targeted reconciles against current release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c` both returned `eligible=1`, `applied=[]`, and
+  `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The health/learning
+  application effect-unknown fences remain untouched.
+- [x] Rebind the non-Paid, effect-free `hf-gig-reply-detector` through its declared `shared-agent-runner` route.
+  The first deterministic-route attempt was rejected before any effect because the route was wrong; the correct
+  route then applied current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Readback is `loaded-idle`,
+  `effect_class=none`, `effect_status=not_applicable`, and admission unknown false, but the terminal event remains
+  old `fa4a8128…`, exit 78/pass and diagnostics incomplete. A second scoped reconcile returned `eligible=0`,
+  proving reconciler replay-zero without a reply/provider effect. This owner is not accepted healthy until a current
+  event and complete diagnostics are durable.
+- [x] Reconcile the three safe Writer internal owners without touching external report/response effects. `writer-craft-
+  train` applied current d4 and remained effect-free/diagnostically complete, but retained old event `1657972…`; its
+  second reconcile returned `eligible=0`. `writer-opportunity-discovery` applied d4 and reached exact current
+  event/installed SHA with typed `resource_capacity_busy`, complete diagnostics and unknown false; its second
+  reconcile returned `eligible=0`. `writer-sales-measure` was already installed on d4 but retained old event
+  `2f809c…`; its scoped reconcile returned `eligible=0`. No writer publication, application or report message ran;
+  the stale-event owners remain open until a current durable event exists.
+- [x] Re-read `writer-claim-loop` and `writer-money-sync` through the same shared-agent-runner route. Both returned
+  `eligible=0` without an external action and now show exact current d4 installed/event SHA, complete diagnostics,
+  typed `resource_capacity_busy`, `effect_class=none`, `effect_status=not_applicable` and admission unknown false.
+- [x] Re-read `capafy-goal-monitor-hourly` without touching Capafy account/marketing effect owners. It already shows
+  exact current d4 installed/event SHA, complete diagnostics, typed `resource_capacity_busy`,
+  `effect_class=none`, `effect_status=not_applicable` and admission unknown false; the scoped deterministic reconcile
+  returned `eligible=0`.
+- [x] Rebind the effect-free `life-manager-selfbuild` owner through its deterministic route. It applied current d4,
+  then reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+  `effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+  `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+  remains open until a current durable terminal is produced.
+- [x] Rebind the effect-free `life-manager-dev` owner through its deterministic route. It applied current d4, then
+  reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+  `effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+  `05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+  remains open until a current durable terminal is produced.
+- [x] Probe the remaining catalog effect-free Lancers candidate, `lancers-revenue-work-sync`. Its scoped
+  deterministic reconcile returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
+  because the scheduler moved it to running between the read-only status and reconcile. No restart or external
+  application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
+- [x] Align and verify the non-Paid, effect-free `affiliate-source-refresh` owner. It moved from old
+  `ff11bb0a…` to current d4 and reached `loaded-idle`, exact installed/event SHA, typed retryable
+  `resource_capacity_busy`, complete diagnostics, `effect_status=not_applicable` and admission unknown false. A
+  second targeted reconcile returned `eligible=0`; no affiliate click, commission or provider effect was run.
+- [x] Re-probe `citizen-refill` and `life-manager-x402-ledger` without breaking their FIFO. Each owner returned
+  `eligible=1`, `applied=[]`, and `skipped_pending=[owner]` twice against current d4; no old entrypoint, wallet,
+  refill, ledger, payment or provider effect ran. Their exact-current terminal/diagnostic acceptance remains open
+  until durable admission advances.
+- [x] Close this work slice with a registry/worktree readback. `lm-loop doctor` returns `ok=true`, zero missing
+  entrypoints and zero unmanaged labels; `git diff --check` passes and the dedicated branch is clean at
+  `d1ac5d166e`. This proves control-plane consistency only. Main merge, accepted release promotion, external
+  effect readback, 14-loop foundation pass and revenue remain open.
+- [x] Re-read the 14-loop foundation gate after the Writer, Capafy and Self-build safe rebinds. It remains
+  `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block` for `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and
+  `uncovered_failure`. The safe rebinds did not create an effect or clear a fence; the next executable cursor is
+  accepted main-derived release promotion plus stale-event/official-fence resolution.
+
+### Latest branch verification (2026-09-25 JST)
+
+- [x] Re-run the branch-only self-healing control-plane regressions after the FIFO-safe probes. Recovery intent,
+  apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
+  launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
+  recovery-intent/receipt paths but exits 0. These are source-contract results only; no main merge, production
+  release promotion, effect-fence change or revenue claim exists.
+
 ## Deferred until this plan passes
 
 1. Cloud/one-phone tenant isolation and promotion of the exact accepted control plane.
@@ -507,3 +1087,718 @@ allowed.
 4. Public LM-EAB benchmark product and verified net USD 10,000 MRR/self-funding proof.
 
 None of these deferred outcomes blocks Tasks 1–9. In particular, zero revenue is a valid foundation baseline, not a reason to wait.
+
+### Latest self-healing blocker diagnosis (2026-09-25 JST)
+
+- [x] Read the release-reconciler stderr and prove the control-plane failure boundary. The current immutable release
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c` repeatedly executes `lm-recovery-supervise` with bare `node`, while
+  launchd supplies no Node on PATH; it exits `127` before the recovery supervisor can reconcile owners.
+- [x] Add the smallest source fix: `bin/lm-recovery-supervise` now uses the plist-injected
+  `LIFE_MANAGER_RUNTIME_NODE` fallback, validates the executable, and returns typed `69` when unavailable. Add a
+  no-PATH fake-Node regression test; the macOS registry suite passes `123/123`.
+- [ ] Cut and promote a main-derived immutable release containing this launcher fix, then read back the supervisor
+  process and exact loaded/event SHA. Do not clear any effect fence or manually edit admission state.
+- [ ] After supervisor recovery is live, let its bounded FIFO reconciler advance one non-Paid effect-free owner at a
+  time. Require exact current release, complete diagnostic envelope, typed terminal result, and replay-zero before
+  marking that owner healthy. Paid, Connector and Mobile/Postiz remain outside this plan's mutation scope.
+
+### Shared portable-runtime follow-up (2026-09-25 JST)
+
+- [x] Trace `life-manager-taskmarket-ledger` and `life-manager-ugig-invoice-observer` setup failures to the shared
+  helper: both old production launchers report `missing=node` because `portable-runtime.sh` ignores the plist-injected
+  managed runtime under launchd's minimal PATH.
+- [x] Update `portable-runtime.sh` to resolve `NODE_BIN`/`PYTHON_BIN`, then `LIFE_MANAGER_RUNTIME_NODE`/
+  `LIFE_MANAGER_RUNTIME_PYTHON`, then `LIFE_MANAGER_NODE`/`LIFE_MANAGER_PYTHON`, then PATH. The no-PATH fake-runtime
+  regression is green and the three boot scripts pass `bash -n`.
+- [ ] Promote this helper with the supervisor fix in one accepted main-derived immutable release, then verify both
+  owners produce current diagnostic terminal events. No taskmarket/UGig provider or wallet effect is allowed during
+  this alignment step.
+- [ ] Restore the missing dependency bundle (`@noble/hashes/sha3.js`) in the release build and rerun the two
+  provider-specific test files; until then their import failures remain an explicit environment gap.
+- [x] Harden the non-platform-Paid CFO payout wrapper with the same managed Node/Python fallback. `bash -n` passes;
+  the JavaScript test remains blocked at import by the recorded `@noble/hashes/sha3.js` dependency gap. No payout,
+  wallet or transfer effect was executed.
+
+### Current fleet readback after source-only fixes (2026-09-25 JST)
+
+- [x] Re-read the bounded full status and local foundation gate. The 271-row projection completes in 15.8 seconds and
+  remains `healthy=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `setup_required=0`,
+  `decision=block`, with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+  `uncovered_failure`. No revenue or external effect was inferred.
+- [x] Correct the bootstrap cursor: the live release-reconciler is still installed/running at old release
+  `09a59ba1b899849ae7e3be8c67e239ec664dea22` with latest terminal `entrypoint_exit_1`; the selector points at
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, but the reconciler has not promoted itself. The branch launcher,
+  portable-runtime, and payout-wrapper fixes are source-ready only.
+- [ ] Promote one accepted main-derived immutable release containing these runtime fixes, then verify the
+  release-reconciler's loaded SHA, managed Node/Python path, current terminal event, and replay-zero before allowing
+  its FIFO reconciler to advance any owner. This is the next cursor; do not clear effect fences or mutate admission
+  state manually.
+
+### Observability ENOSPC hardening (2026-09-25 JST)
+
+- [x] Reproduce the read-only failure boundary from the old reconciler logs: disk-backed `TemporaryFile()` in
+  `lm-loop status`/`launchctl-safe` fails with `No usable temporary directory` under the host's ENOSPC pressure,
+  before launchd is queried.
+- [x] Replace those two read-only probes with bounded in-memory `capture_output` while preserving exit code and
+  stderr readback. No launchd mutation, admission state, effect fence, provider session or external effect changes.
+- [x] Add RED→GREEN regression coverage. Readonly tests pass **25/25**; apply passes **124 tests + 31 subtests**;
+  macOS registry passes **123 tests + 154 subtests**.
+- [x] Run the branch `lm-loop status all` against the current host boundary. It completed in 17.1 seconds and
+  returned all 271 rows, including the old reconciler's exact installed/event SHA and `entrypoint_exit_1`, without
+  failing in tempfile setup.
+- [ ] After main-derived immutable promotion, re-run full status under the host boundary and verify the reconciler
+  reports typed launchd/ENOSPC evidence instead of crashing in tempfile setup. This remains downstream of the
+  bootstrap cursor and does not authorize broad cleanup or manual admission mutation.
+
+### Admission-read fail-closed hardening (2026-09-25 JST)
+
+- [x] Reproduce the safe `writer-craft-train` targeted reconcile failure at the shared SQLite admission read. The
+  command stopped before any effect and exposed only a generic `OperationalError`.
+- [x] Add bounded retries for transient `SQLITE_BUSY`/`SQLITE_LOCKED` reads and typed fail-closed errors. A failed
+  fence read is no longer interpreted as an empty effect-fence set; retryable lock contention is explicitly marked
+  `admission_database_locked` with `next_action=retry_admission_read`.
+- [x] Add regression coverage: readonly 28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154
+  subtests; `py_compile` and `git diff --check` pass.
+- [x] Re-run one-owner `writer-craft-train` reconcile after the source fix was pushed. It returned `rc=0`,
+  `eligible=0`, `applied=[]`, and `failed=[]` against current d4; no plist reload or external effect occurred.
+  Two consecutive status readbacks were byte-identical: `loaded-idle`, `pid=null`, `effect_class=none`,
+  `admission_effect_unknown=false`, `diagnostic_complete=true`, terminal `pass`, exit `0`, and `next_action=none`.
+  This proves the lock-safe read path at the production boundary for this already-current owner only; it does not
+  clear any fence or promote the branch.
+
+### Post-probe fleet/registry readback (2026-09-25 JST)
+
+- [x] Re-read the full fleet after the admission probe. The selector d4 projection returned 271 rows and the local
+  foundation gate stayed `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`,
+  `decision=block`; no new external/provider failure was inferred.
+- [x] Run read-only `lm-loop doctor` against the same selector. It returned `rc=0`, `ok=true`, zero missing
+  entrypoints and zero unmanaged labels. The remaining blocker is accepted-release/owner evidence alignment, not
+  registry entrypoint loss.
+- [ ] Promote the accepted main-derived immutable release containing the pushed control-plane fixes before any
+  further owner rebind. Do not apply the branch's registry-only contracts to production, clear admission fences,
+  or infer provider/revenue success from scheduler health.
+
+### Natural release-reconciler wake readback (2026-09-25 JST)
+
+- [x] Observe the existing keep-alive reconciler without restarting it. Run `18d85a7bf85334e0-99067` reached
+  `report:fail:entrypoint_exit_1` and returned to `loaded-idle` with no PID; installed/event SHA stayed old
+  `09a59ba1...`.
+- [x] Reconfirm the production failure boundary from stderr: bare `node` is still missing for the old supervisor,
+  old d4 still uses disk-backed `TemporaryFile()` for launchctl readback, and shared admission contention still
+  logs `database is locked`. This is evidence that the pushed branch is not production-loaded, not permission to
+  retry or mutate owners.
+- [ ] Keep accepted immutable-release promotion as the next cursor. After promotion, verify the reconciler's
+  managed runtime, in-memory observability, typed admission errors, current terminal event and replay-zero before
+  allowing any further FIFO owner alignment.
+
+### Immutable-release inventory check (2026-09-25 JST)
+
+- [x] Inspect every local release for the managed supervisor fallback and in-memory launchctl probes. Main-derived d4
+  and `1f03abd4` still carry the old bare-`node`/`TemporaryFile()` code; the newest local c755 release is marked
+  `pushed-not-yet-on-main` and also lacks both fixes.
+- [x] Confirm there is no safe pre-existing immutable release to promote. Do not point the selector at c755 or any
+  other non-accepted release; the next cursor remains accepted main integration, immutable cut, and exact
+  reconciler readback.
+
+### Fundraiser pre-effect fence hardening and scoped integration analysis (2026-09-25 JST)
+
+- [x] Close the drained-queue gap in the shared rebind guard. When an effectful owner returns `not_queued`, invoke
+  the exact pre-effect resolver instead of treating the missing queue row as evidence that an external effect did not
+  occur. Effect-free owners retain the existing no-effect clear path.
+- [x] Accept fundraiser `entrypoint_exit_75` as a pre-effect terminal only for the exact fundraiser entrypoint and
+  `application` effect class. Generic exit 75 and all other effectful owners remain fenced.
+- [x] Add the drained-fundraiser regression with a durable claimed/effect-unknown occurrence and matching private
+  runtime journal. The test proves only the evidence-backed path resolves to `released/effect_unknown=0`; the existing
+  external-effect fence test remains green.
+- [x] Verify the change: apply **127/127** (including the exact-entrypoint negative proof and locked-read proof), readonly **28/28**, Python
+  compile, and `git diff --check`.
+- [x] Re-run the non-mutating main integration analysis. The only textual conflicts remain `lm_loop.py` and the
+  whole-array macOS fixture. Keep the conflict unresolved until field-by-field fixture merging can preserve current
+  branch resource classifications and latest main enrollment without touching the separate Paid/Gig/Connector/Mobile
+  workstreams.
+- [ ] Integrate the self-healing control-plane changes onto accepted latest main without merging or editing the
+  separate Paid fulfillment implementation. Resolve the lm-loop helper composition and fixture entries, rerun full
+  registry/apply acceptance, then cut an immutable release only after the user-level foundation gate passes.
+
+### Pre-effect proof lock handling (2026-09-25 JST)
+
+- [x] Route `_pre_effect_admission_proof` through the bounded admission-read helper. A persistent `SQLITE_BUSY`/
+  `SQLITE_LOCKED` now returns no proof and preserves `effect_unknown`; it cannot be mistaken for a clean fence.
+- [x] Add a locked-read fail-closed regression. Focused proof/rebind plus readonly verification passes **30/30**.
+- [ ] After accepted immutable promotion, re-read one real fundraiser fence under the production reconciler and verify
+  the typed retry/readback path before allowing any fence resolution.
+
+### Node recovery/control-plane verification (2026-09-25 JST)
+
+- [x] Run the focused Node recovery/control-plane subset: **50/50** pass across intent, apply-plan, executor,
+  intent-record, supervisor, integration, and registry-classification contracts.
+- [x] Hydrate the root lockfile dependencies in this dedicated worktree as a bounded verification probe. The complete
+  loop suite reached **348/362**: 11 failures are the explicitly-RED Phase-2a always-act scenarios, and 3 are
+  concurrent Node 25 `ENOTEMPTY` temp-cleanup races in integration tests. The recovery/control-plane subset remains
+  50/50; no source or lockfile changed.
+- [x] Remove the generated `node_modules` after the probe restored free space above the configured floor. This is
+  recoverable build output only; production and other worktrees were untouched.
+- [ ] In an accepted immutable release build with its full dependency bundle, rerun the app-specific provider tests
+  (`portable-runtime` and payout) and the separate always-act product slice. Their current failures are not evidence
+  against the shared self-healing control plane and must not be hidden by changing the acceptance gate.
+- [x] Probe the app-specific tests after root hydration: `portable-runtime` **2/2** passed; payout collection stopped
+  before tests at missing `canonicalize`. Do not hydrate the full nested app tree under the current capacity floor;
+  preserve this as a release-build dependency task with no payout/provider effect.
+
+### Latest-main self-healing control-plane candidate (2026-09-25 JST)
+
+- [x] Create a dedicated candidate from accepted latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`,
+  excluding the separate Paid/Gig/provider worktrees and state.
+- [x] Carry only generic recovery/control-plane fixes: managed runtime resolution, ENOSPC-safe launchctl probes,
+  admission read retry/fail-closed handling, typed harness/recovery readback, brain fallback evidence, and cleanup
+  preflight readback. Do not carry registry-only provider classifications or Paid fulfillment changes.
+- [x] Push candidate branch `fix/self-healing-control-plane-integration-20260925`, latest generic registry slice
+  `6ff4a5e73c`, then occurrence-level observability heads `2e759d41f3`, `1be7f402b2` and `6a424932dc`, and verify
+  Python **162 passed (31 subtests)**, Node **36/36**, macOS registry/cleanup/gateway
+  **241 passed (212 subtests)**, product-onboarding **48/48**, contract gate 14/169/98/zero-errors, shell syntax,
+  managed-runtime no-PATH probe, and `git diff --check`.
+- [x] Review the candidate diff for ownership boundaries. The clean candidate now contains 29 files: 25 generic
+  control-plane/runtime/test paths, two Affiliate receipt-identity files, and two x402 settlement-receipt identity
+  files. Its registry delta is limited to 31 non-Paid loop IDs; it contains no `skills/earn/gig`, Capafy catalog,
+  Affiliate provider session state, or Paid-fulfillment-spec path, and `git diff --check` is clean.
+- [ ] Integrate only this generic slice into main after the user-level foundation gate is green; do not merge the
+  separate Paid/Gig/provider implementation or mutate production state in this step.
+- [ ] After the single accepted main integration, cut one immutable release and read back exact loaded/event SHA,
+  managed Node/Python paths, typed recovery terminal result, and replay-zero. Only then allow the FIFO reconciler to
+  advance one non-Paid effect-free owner at a time.
+
+### Fresh read-only gate after candidate verification (2026-09-25 JST)
+
+- [x] Re-read `/Users/anicca/loops/current` without mutation. It still selects immutable `d4fe0819`; status returns
+  **271 rows** with `rc=0` and terminal projection `None=135`, `blocked=72`, `pass=37`, `fail=23`, `running=4`.
+- [x] Re-run the local foundation evaluator against that exact status. It remains `decision=block`, with
+  `13 uncovered_failure`, `1 safely_fenced`, and reasons `foundation_diagnostic_incomplete`,
+  `foundation_runtime_evidence_incomplete`, and `uncovered_failure`.
+- [ ] Do not merge or promote the candidate while this gate is blocked. The next safe cursor remains resolving the
+  generic foundation evidence/release alignment after the user-level gate becomes green; Paid/Gig/provider state and
+  external effects remain untouched.
+
+### Foundation-gate diagnostics projection (2026-09-25 JST)
+
+- [x] Add a private, typed diagnostics projection to the local foundation-gate output. It reports state/reason/
+  next-action counts and the exact actionable Product Loop rows without changing the existing gate decision.
+- [x] Verify against the current d4 readback: `13 runtime_release_drift`, `1 runtime_admission_deferred`, and
+  `1 runtime_terminal_not_pass`, with explicit next actions for release promotion, eligibility retry, and diagnosis.
+- [x] Run the full product-onboarding suite: **48/48**, including a release-drift regression that requires
+  `load_exact_immutable_release`. Output remains private mode `0600`; no production/provider/effect state changed.
+  Candidate commits: `e9145a094c`, `824b6b6f4b`.
+- [ ] Load this candidate only through the accepted main-derived immutable-release path after the foundation gate
+  permits integration; do not bypass the gate by selecting the branch or mutating launchd directly.
+
+### Main-derived integration dry run (2026-09-25 JST)
+
+- [x] Run a non-mutating `git merge-tree` against latest `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+  The only textual conflicts are `runtime/loop/lm_loop.py` and
+  `runtime/loop/tests/fixtures/macos-loop-jobs.json`; no merge was started.
+- [x] Record the ownership boundary before integration: the branch diff also contains files under Paid/Gig and other
+  provider workstreams. The eventual integration must resolve only the self-healing/control-plane source and fixture
+  conflicts, preserve the separate Paid/Connector/Mobile owners, then rerun the focused acceptance suites before
+  any PR or immutable promotion.
+
+### Affiliate fence identity and next cursor (2026-09-25 JST)
+
+- [x] Read the authoritative admission DB without mutation. `affiliate-loop` has 94 durable occurrences: 48
+  cancelled/effect-known and one claimed `effect_unknown` fence, `affiliate-loop:18d83ba82b14fb40-24990`,
+  `deterministic/revenue`, sequence `143954`; no queue, priority, deferred or reservation row remains for the
+  owner.
+- [x] Read the current production status without mutation. The owner is exact d4/PID 38327 with complete
+  diagnostics, while the latest event occurrence `affiliate-loop:18d85cdb10d5b3b0-30136` repeatedly stops at
+  `host_admission_deferred:resource_effect_unknown`/75; provider receipt and official readback are absent. The
+  event occurrence is not the durable fenced occurrence, so the resolver must bind by durable occurrence identity.
+- [x] Preserve the non-pre-effect classification. Historical child/Telegram evidence includes a provider message
+  ID (`92843`), so the generic pre-effect resolver is prohibited; no resend or fence clear is allowed without exact
+  official body/readback proof.
+- [x] Add occurrence-level fence projection to the branch-only status readback at candidate commit `2e759d41f3`,
+  then thread it through the full resolver path at `1be7f402b2` after a real `status all` probe caught the missing
+  call-site. Carry the same identity into foundation/actionable diagnostics at `6a424932dc`. Read-only tests pass
+  **30/30**, product-onboarding **48/48**, and combined read-only/apply/registry tests **243/243**.
+- [x] Run the candidate CLI against the live selector in read-only mode. It returns `rc=0` and exposes the latest
+  event occurrence separately from the durable fenced occurrence, with no provider receipt or official readback;
+  this is diagnostic evidence only.
+- [x] Re-read the full fleet after the resolver call-site fix. The candidate returns 271 rows and the gate remains
+  `block` with 13 `uncovered_failure`/1 `safely_fenced`; current terminal projection is
+  `running=4`, `blocked=71`, `pass=38`, `fail=23`, `None=135`. Natural movement here is not acceptance.
+- [ ] Integrate the candidate only after the user-level foundation gate is green, then promote one immutable
+  release and re-read this exact owner. The next Affiliate operation is official readback of the durable target,
+  followed by a mode-0600 receipt, exact owner rebind and two replay-zero foundation projections; never use the
+  generic pre-effect path or wait for commission as a foundation gate.
+
+### Agent Economy / CFO / Job Hunter read-only cursor (2026-09-25 JST)
+
+- [x] Read the next independent non-Paid slices from candidate status without waking providers. `agent-economy-loop`
+  is exact-release/diagnostic-complete/running; the other owners remain release-drift or legacy-diagnostic rows.
+- [x] Re-read admission once after a typed SQLite lock. Preserve released money-effect unknowns
+  `sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`; no claimed Agent
+  Economy fence was cleared or inferred as no-effect.
+- [x] Record CFO's two claimed message fences and one released payout fence, and Job Hunter's two claimed
+  application fences plus protected Mercor application/reply fences. No message/application/payout/provider effect
+  was run; official readback remains mandatory.
+- [ ] After the accepted immutable release is available, align only effect-free Agent Economy/CFO/Job Hunter owners
+  one at a time and retain every effect fence. Then run the two-pass foundation/replay-zero gate; do not wait for
+  revenue or use a natural wake as an acceptance condition.
+
+### Affiliate provider-identity cursor (2026-09-25 JST)
+
+- [x] Read the Affiliate business journals without exposing message bodies. The historical provider receipt
+  `92843` is real, but it lacks the host admission `occurrence_id`; the durable target remains
+  `affiliate-loop:18d83ba82b14fb40-24990`.
+- [x] Add branch-only identity propagation at candidate commit `e53a99adc0`: validate the runtime-provided
+  `LIFE_MANAGER_OCCURRENCE_ID`, include it in future Affiliate Telegram delivery receipts, and include it in the
+  receipt identity hash. Invalid or missing values fail closed.
+- [x] Verify the Affiliate local-loop suite **83/83**, `py_compile`, and `git diff --check`; push the candidate.
+- [ ] Do not resolve the existing fence from timestamp correlation or the historical message ID. Obtain an exact
+  official provider readback bound to `affiliate-loop:18d83ba82b14fb40-24990`, persist a private mode-0600
+  reconciliation receipt, then use the owner-specific resolver only if its proof includes the exact durable identity.
+- [ ] After accepted-main immutable promotion, run one read-only Affiliate status/reconciliation pass and confirm the
+  new receipt chain on a natural non-effectful wake. A missing chain is a self-healer diagnostic failure, not permission
+  to resend; replay-zero and the two-pass foundation gate remain required before promotion.
+- [x] Run the owner-specific read-only reconciler against the durable target. It returns `HELD /
+  predecessor_not_released` because the immediate predecessor is `cancelled` at the same queued timestamp; the
+  pre-effect window is therefore invalid and no resolver was called.
+- [ ] Restore an official Telegram history-readback path (the current session probe has no Telethon module), then bind
+  the provider body/message ID to the exact durable occurrence. Do not infer the binding from timestamps, local outbox
+  rows, or a different wake UUID.
+- [x] Run the bounded read-only Telegram probe in an isolated temporary environment. The configured Affiliate target
+  chat does not contain message `92843`; the same numeric ID appears only in another accessible dialog, with a
+  different timestamp and body hash, and no local outbox body matches it. Mark that ID as non-evidence for the durable
+  fence; do not resolve or resend.
+- [ ] Obtain a provider readback in the correct authenticated target context that returns chat identity, provider
+  message identity and body hash, then bind all three to the exact host occurrence before invoking any resolver.
+- [x] Rerun the branch acceptance subset after the receipt change: combined Python control-plane/read-only/apply/
+  registry/Affiliate **326/326** and product-onboarding **48/48**. Only pre-existing `ResourceWarning` diagnostics
+  remain; no production-load or main-integration condition changed.
+
+### Agent Economy / CFO exact-fence cursor (2026-09-25 JST)
+
+- [x] Re-read the canonical admission database for the next slice. Preserve five effect-unknown occurrences:
+  `sol-funding`, `x402-settlement-recorder`, two CFO message owners, and `life-manager-payout`; no row was edited.
+- [x] Inspect owner journals read-only. Sol-funding/x402/CFO/payout historical blocked rows expose no
+  `provider_receipt_id`, `official_readback_ref`, or host `occurrence_id`; local wallet/ledger/financial records are
+  not occurrence-bound provider proof.
+- [x] Implement and connect the owner-specific official readback adapters for x402 settlement, Sol-funding, both CFO
+  message owners and payout. Each adapter returns the exact durable occurrence, provider receipt and readback reference
+  only after its provider-specific fresh readback. Historical money/message fences remain closed until that proof exists;
+  no-effect is never inferred from an empty local journal or a successful unrelated RPC/ledger observation.
+- [ ] After the accepted immutable release is loaded, run the adapters one owner at a time, persist mode-0600
+  reconciliation receipts, verify replay-zero, then re-run the foundation gate. Do not start wallet, x402, payout or
+  message effects merely to clear these historical fences.
+
+### x402 settlement receipt identity (2026-09-25 JST)
+
+- [x] Add candidate commit `aed3314918`: `settlement-recorder.mjs` validates the runtime host occurrence and emits it
+  in the one-shot JSON result; null/malformed identity fails closed and no settlement or wallet mutation is added.
+- [x] Verify focused x402 identity/wiring tests **2/2**, `node --check`, and diff cleanliness.
+- [x] Probe the broad x402 suite: **154/165** pass; 11 failures are dependency/environment gaps (`viem`, `express`,
+  `@x402/fetch`) plus two server-port assertions that cannot reach the missing server dependencies. Do not hydrate
+  optional dependencies under the current capacity floor; preserve this as a release-build task.
+- [ ] After immutable promotion, bind the x402 output occurrence to a finalized Base receipt and persist the exact
+  reconciliation proof before touching the released `x402-settlement-recorder` fence.
+
+### CFO receipt identity hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `29aaccb0d8`: validate `LIFE_MANAGER_OCCURRENCE_ID` in the local CFO runner and persist
+  the exact occurrence beside the provider message ID in the private snapshot receipt.
+- [x] Preserve the original pending-snapshot occurrence across a later retry; malformed or absent values fail
+  closed instead of inventing identity.
+- [x] Verify focused CFO/financial-transition tests **18/18**, `node --check`, combined Python control-plane/
+  read-only/apply/registry/Affiliate **326/326**, and product-onboarding **48/48**; push the candidate branch.
+- [ ] Do not treat the new future-proofing chain as evidence for historical CFO fences. Obtain official message
+  readback for each exact durable occurrence, persist mode-0600 reconciliation receipts, then run the owner-specific
+  resolver only when the receipt and occurrence match.
+- [ ] Keep main integration, immutable release promotion, Telegram/payout effects and revenue claims closed while
+  the foundation gate remains blocked; the candidate now contains **31 files** and remains source-only.
+
+### Sol-funding receipt identity hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `4e9d7eed26`: validate `LIFE_MANAGER_OCCURRENCE_ID` in `sol-to-usdc.py` and emit a
+  secret-free structured result on no-op/configuration paths and after a transaction submission.
+- [x] Keep the submitted Solana signature separate from official readback: `provider_receipt_id` is populated only
+  after `sendTransaction`, while `official_readback_ref` remains null until Solana/Relay confirmation is read.
+- [x] Verify Sol-funding contract/readback tests **5/5**, `py_compile`, and the unconfigured occurrence fixture;
+  push the candidate branch. No quote/sign/send/RPC effect was started by verification.
+- [x] Build the owner-specific read-only adapter for exact Sol-funding occurrence -> Solana signature -> confirmed
+  signature -> Relay destination status. The candidate persists a mode-0600 future receipt and the adapter calls no
+  resolver; every identity must match before any future resolver is eligible. Never infer no-effect from the current
+  old journal.
+- [ ] Keep the historical `sol-funding:18d60103c86ce420-74237` fence held and keep main/immutable promotion closed;
+  the candidate now contains **33 files** and remains source-only.
+
+### x402 occurrence-bound Base readback adapter (2026-09-25 JST)
+
+- [x] Extend `settlement-recorder.mjs` so every newly verified sale row retains the validated host occurrence,
+  provider transaction ID, `base://tx/<hash>` reference and `base_finalized_usdc_transfer` proof kind.
+- [x] Add the read-only `settlement_reconcile.py` adapter. It accepts only the exact x402 owner/occurrence, reads
+  admission state without mutation, requires exactly one matching private ledger receipt, and checks a fresh Base
+  mainnet finalized receipt with the exact USDC sender, destination and atomic amount.
+- [x] Verify focused Python reconciler **4/4**, Node wiring/identity **3/3**, `py_compile` and `git diff --check`;
+  push candidate commit `e4b74a13f7`.
+- [x] Probe the historical target read-only: it returns `inconclusive / occurrence_receipt_missing` because old
+  ledger rows contain no host occurrence. Keep `x402-settlement-recorder:18d606127c37d290-73497` fenced.
+- [ ] After accepted immutable promotion, run this adapter once against a future occurrence and persist a private
+  mode-0600 reconciliation receipt. Invoke the resolver only if exact occurrence, tx and fresh finalized Base
+  readback all match; never infer no-effect from an empty ledger or a successful unrelated RPC query.
+
+### Sol-funding cross-chain readback adapter (2026-09-25 JST)
+
+- [x] Extend `sol-to-usdc.py` with a secret-free, mode-0600 future receipt journal containing occurrence,
+  Solana signature, Relay endpoint/status, destination tx hash, chain/currency and recipient; no quote/sign/submit
+  semantics or wallet destination changed.
+- [x] Add the read-only `sol_funding_reconcile.py` adapter. It requires exact occurrence identity and independently
+  verifies Solana confirmation, Relay success/destination hash, and finalized Base USDC delivery to the recipient.
+- [x] Verify adapter tests **3/3**, Sol-funding contract **5/5**, `py_compile`, and `git diff --check`; push
+  candidate commit `39e7579733`.
+- [x] Probe the historical target read-only: `inconclusive / occurrence_receipt_missing`; keep
+  `sol-funding:18d60103c86ce420-74237` fenced and do not start a swap to manufacture evidence.
+- [ ] After accepted immutable promotion, run the adapter against one future occurrence, persist the mode-0600
+  reconciliation proof, and invoke the resolver only when all three independent provider readbacks match exactly.
+
+### CFO Telegram occurrence-bound readback adapter (2026-09-25 JST)
+
+- [x] Persist the exact rendered CFO message SHA-256 in `last-delivered-snapshot.json` beside the host occurrence
+  and Telegram provider message ID; preserve it across same-day retry.
+- [x] Add the read-only `cfo-telegram-reconcile.py` adapter. It requires exact occurrence, private snapshot,
+  official target chat/message identity, delivered state and exact body hash; no provider or admission mutation.
+- [x] Verify adapter **3/3**, CFO local runner **11/11**, focused Node **14/14**, `py_compile` and `git diff --check`;
+  push candidate commit `98cf68949e`.
+- [x] Probe the historical CFO occurrence `life-manager-cfo-hourly:18d679cb82869d48-98528`; current snapshot
+  lacks occurrence/body hash and returns `snapshot_identity_mismatch`. Keep it fenced.
+- [ ] After accepted immutable promotion, obtain a fresh official Telegram readback in the correct target chat,
+  persist a mode-0600 proof, and invoke the resolver only on exact occurrence/message/body identity match. Do not
+  treat a missing legacy snapshot or an unrelated message ID as no-effect.
+
+### Payout occurrence-bound Base readback adapter (2026-09-25 JST)
+
+- [x] Add candidate commit `4e4e7b7ca6`: propagate a validated `LIFE_MANAGER_OCCURRENCE_ID` into the payout runtime
+  and append a private mode-0600 provider-settlement receipt after the existing exact Base settlement receipt.
+- [x] Keep the local payout row honest: it is `base_provider_settlement_receipt`; finality is not claimed until a
+  separate fresh Base readback proves the finalized block and exact USDC Transfer.
+- [x] Add the read-only `payout-reconcile.py` adapter. It requires the exact payout owner/occurrence, one unambiguous
+  local receipt, Base chain 8453, a finalized block, a successful transaction, and exactly one matching transfer.
+  It never sends funds or edits admission.
+- [x] Verify adapter tests **3/3**, `py_compile`, `node --check`, and `git diff --check`. Existing Node payout suites
+  remain environment-limited because `viem` and `@noble/hashes/sha3.js` are absent; do not hydrate dependencies
+  under the capacity floor.
+- [x] Probe `life-manager-payout:18d6026a3dc85558-829` read-only: `inconclusive / occurrence_receipt_missing`.
+  Keep the historical money fence held; this is not a no-effect proof.
+- [ ] After accepted immutable promotion, run one future payout occurrence, obtain the exact official Base readback,
+  persist the reconciliation proof, and invoke any resolver only when occurrence, transaction, amount, wallet and
+  finalized transfer all match. Then run replay-zero and the two-pass foundation gate.
+
+### Candidate gate and merge re-read (2026-09-25 JST)
+
+- [x] Re-read candidate `status all` without mutation: **271** rows; selected production immutable release remains
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+- [x] Re-run the local foundation gate against that exact release: `decision=block`, reasons
+  `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, `uncovered_failure`; manifest is
+  **13 `uncovered_failure` / 1 `safely_fenced`** with twelve release-load actions, one eligibility retry and one
+  diagnosis action.
+- [x] Re-run non-mutating `git merge-tree --write-tree` against `origin/main`; it is clean at tree
+  `846ee714d8d98ffed599c7463745532de7b3736f`. Candidate remains **44 files**, with no Paid fulfillment source or
+  provider-session state.
+- [ ] Do not interpret clean merge-tree as merge authorization. Keep main integration, immutable promotion and
+  production reload closed until the user-level foundation gate is green and the Paid ownership boundary remains
+  intact.
+
+### Readback null-safety hardening (2026-09-25 JST)
+
+- [x] Add candidate commit `04ec25045e`: payout, x402 and Sol-funding official readback adapters reject null or
+  non-object RPC responses as inconclusive instead of raising an untyped exception.
+- [x] Verify the three focused adapter suites **10/10**, `py_compile` and `git diff --check`; no provider, wallet,
+  admission or production state was changed.
+- [x] Re-run Node evidence through an existing read-only dependency tree via `NODE_PATH`: payout/Base settlement
+  **34/34**, x402 wiring **3/3**, CFO local runner **11/11**. A fresh `npm ci` still hit ENOSPC, its partial
+  candidate `node_modules` was removed, and no lockfile/source was modified.
+
+### Connector diagnostic readback (2026-09-25 JST)
+
+- [x] Read `life-manager-connector-native` status without waking it: current terminal is `entrypoint_exit_1`,
+  retryable, `effect_class=none`, no provider receipt and no effect-unknown admission row.
+- [x] Record the bounded failure clue from the available runner log: Playwright's dialog-dismiss race
+  (`Page.handleJavaScriptDialog: No dialog is showing`) is followed by an OpenClaw gateway timeout on
+  `ws://127.0.0.1:18789` while `reportWake` runs. The report failure can overwrite the underlying safe reason as
+  `wake_boundary_failed`; it must be retained as nested diagnostic evidence by the Connector owner.
+- [x] Keep the clue non-authoritative because the log excerpt is not bound to the current occurrence ID. No provider,
+  browser, admission or Connector source mutation was made; the active Connector-owned branch remains the repair
+  boundary.
+- [ ] After that owner publishes an accepted main-derived release, re-read the exact Connector occurrence with
+  structured nested error evidence, then require a clean no-effect wake and replay-zero before calling the Connector
+  loop healthy.
+
+### CFO second message owner probe (2026-09-25 JST)
+
+- [x] Run the read-only CFO adapter for `life-manager-financial-report:18d601655af3e1c0-86661`; it returns
+  `inconclusive / private_receipt_unavailable` because the exact occurrence-bound private snapshot/provider proof is
+  absent.
+- [ ] Obtain the correct report-owner snapshot and official Telegram chat/message/body readback after an accepted
+  immutable release. Do not treat the missing proof as no-effect or clear the message fence.
+
+### Shared control-plane Node verification (2026-09-25 JST)
+
+- [x] Run the shared control-plane Node suite through the same read-only dependency tree: catalog/foundation gate,
+  brain fallback, recovery executor/supervisor, integration and bounded runtime properties **84/84**.
+- [ ] Keep the production acceptance cursor separate: candidate tests do not replace exact immutable loading,
+  owner readback, replay-zero or the two-pass 14-loop foundation gate.
+
+### Effect-free scratch ENOSPC recovery (2026-09-25 JST)
+
+- [x] Trace the Connector `entrypoint_exit_1` to the host boundary: `lm-loop-run` failed before its start event while
+  creating `loop-tmp`, with `Errno 28 No space left on device`; the surface status therefore retained an older event.
+- [x] Add candidate commit `5d65810e4d`: effect-free owners may run the existing bounded `scratch_gc` once and retry
+  scratch creation under a fresh run ID; effectful owners remain fail-closed and never reclaim/replay at this boundary.
+- [x] Verify the affected scratch/cleanup/run-boundary tests: **149 passed + 4 subtests**, including red-then-green
+  ENOSPC coverage; push the candidate branch.
+- [ ] Restore the host capacity floor and rerun the full `runtime/loop/tests` collection. The current run is blocked
+  by fixture tar extraction at `Errno 28` after 26 prior tests passed, so this is an environment blocker, not a green
+  foundation gate.
+- [ ] Only after capacity recovery, load the exact immutable candidate, observe one effect-free Connector/no-op
+  occurrence with a persisted event, and rerun the two-pass foundation gate. Do not touch Paid fulfillment or clear
+  any external-effect fence from this cursor.
+
+### Capacity-owner readback (2026-09-25 JST)
+
+- [x] Run the designated disk-cleanup owner once with the normal allowlist. Receipt: `errors=0`,
+  `protected_deletions=0`, `evaluated=5`, `preserved=5` (`open=5`), `reclaimed=0`.
+- [x] Confirm the owner made no state/credential/session/source/provider deletion; free space remains roughly 296 MB
+  and the capacity floor is still unmet.
+- [ ] Do not rerun cleanup blindly or delete unknown artifacts. Re-read the receipt after the next owner-controlled
+  cleanup window, then rerun the full loop suite only after the host floor is actually restored.
+
+### Fresh gate readback after cleanup (2026-09-25 JST)
+
+- [x] Re-read 271 live rows: Connector is `blocked / host_admission_deferred:resource_capacity_busy` with exact
+  occurrence `life-manager-connector-native:18d8622f120b7978-29000`; `diagnostic_complete=true` and no admission
+  effect-unknown fence.
+- [x] Confirm disk-cleanup is itself `pass` (exit 0) while the capacity floor remains unmet.
+- [x] Re-run the local foundation projection: **12 uncovered_failure / 2 safely_fenced**, `decision=block`.
+- [ ] Restore the host floor, then rerun full tests and the two-pass gate; do not interpret this capacity block as a
+  provider failure or as permission to touch Paid state.
+
+### ENOSPC effect-fence regression follow-up (2026-09-25 JST)
+
+- [x] Add candidate follow-up `07193f3f61`: effectful scratch creation never invokes stale-scratch GC or retries after
+  `ENOSPC`; it propagates fail-closed. Scratch verification is **14 passed + 4 subtests**.
+- [x] Re-run the broader focused control-plane/read-only/apply/registry/recovery/scratch/cleanup set: **325 passed +
+  216 subtests**. The full collection remains host-capacity blocked at the tar fixture.
+- [ ] Keep the production cursor closed until capacity recovery, full collection completion, exact immutable loading,
+  and the two-pass foundation gate.
+
+### Admission-capacity diagnosis (2026-09-25 JST)
+
+- [x] Read the authoritative admission DB without opening a write transaction: **81 queued owners**, **8 active
+  reservations**, and **695 historical claimed effect-unknown occurrences**.
+- [x] Observe that capacity is occupied by independent revenue/support owners, including another Codex's Paid owner;
+  Connector's `resource_capacity_busy` is not a provider failure and is not safe to release from this scope.
+- [x] Leave leases/fences untouched while their owners reconcile or expire under their own policies, then re-read one
+  exact Connector occurrence after capacity eligibility returned. The fresh occurrence
+  `life-manager-connector-native:18d86267c9103fb8-31760` reached the current immutable SHA and then failed at its own
+  entrypoint (`entrypoint_exit_1`, exit 1, retryable, effect none, admission unknown false, provider receipt absent).
+- [ ] Keep the Connector repair with its separately owned maintainer: add occurrence-bound nested entrypoint/error
+  evidence, repair the runner/report boundary that currently surfaces `circuit_open / wake_boundary_failed`, publish an
+  accepted main-derived immutable release, and prove one clean no-effect wake plus replay-zero. Do not infer a provider
+  failure from the reporting symptom and do not mutate the Connector session, admission state or effect fence here.
+
+### Latest live foundation gate re-read (2026-09-25 JST)
+
+- [x] Re-read the complete live status snapshot against immutable release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+  The 14-loop projection is now **13 `uncovered_failure` / 1 `safely_fenced`**, with no healthy or repairing rows;
+  the gate remains `decision=block` for diagnostic incompleteness, runtime evidence incompleteness and uncovered
+  failure. Connector is the exact `runtime_terminal_not_pass / diagnose_failure` family; the other uncovered rows are
+  release-drift/diagnostic alignment failures.
+- [ ] Treat this fresh 13/1 projection as the current cursor, not the prior 12/2 snapshot. Restore capacity, accept
+  the candidate release, then reconcile owners one at a time and rerun the two-pass gate. Do not infer revenue loss,
+  replay an effect, or touch Paid fulfillment from this projection alone.
+- [x] Re-read host capacity after the focused candidate verification: **523,608,064 free bytes**, below the
+  **1,155,780,608-byte** floor by **632,172,544 bytes**. Keep the full-suite and immutable-promotion gates closed;
+  do not perform broad or unowned cleanup to manufacture headroom.
+- [x] Re-run candidate focused acceptance on `07193f3f61`: **277 tests + 216 subtests passed**, with diff-check and
+  Python compilation passing. Confirm the registry diff does not alter any Paid owner entry; this is branch evidence,
+  not production acceptance.
+- [x] Run the designated disk-cleanup owner once more through the immutable release: exit 0,
+  `errors=0`, `evaluated=5`, `preserved=5` (`open=5`), `protected_deletions=0`, `reclaimed=0`; command readback
+  `free_after=537,665,536` bytes and post-command probe `534,282,240` bytes. No unowned data was deleted and the
+  capacity floor remains unmet.
+
+### Release-reconciler self-healing boundary diagnosis (2026-09-25 JST)
+
+- [x] Poll the live release-reconciler PID without restarting it. Occurrence
+  `life-manager-release-reconciler:18d863638c8ed840-45065` ended `entrypoint_exit_1`; the owner log binds two causes:
+  ENOSPC removed every usable tempfile directory, then current d4 `lm-recovery-supervise` failed with `node: not
+  found` because it ignored `LIFE_MANAGER_RUNTIME_NODE`.
+- [x] Reconcile the release-retention census read-only: 65 release directories, 167 plist references, 162 loaded
+  labels and five unloaded labels. Old generations are still pinned by live launchd configuration; the unloaded Paid
+  plists remain preserved and untouched.
+- [x] Add candidate `c1fb26d0ae`, a fail-closed `/opt/homebrew/bin/node` fallback for launchd's minimal PATH, and
+  verify registry/apply tests **214 tests + 212 subtests** plus shell syntax/diff checks.
+- [x] Exercise that fallback with `PATH=/usr/bin:/bin`, no runtime-node env and an empty temporary queue: candidate
+  supervisor returned `ok=true / idle / no_pending_intent`; production state was untouched.
+- [ ] After capacity recovery and candidate immutable loading, re-read the reconciler itself first. It must produce an
+  occurrence-complete terminal result and reconcile only loaded-idle owners in bounded batches; no release directory may
+  be deleted until its launchd references are proven absent. Paid owners remain outside this cursor.
+- [x] Read the five cleanup candidates' open owners with `lsof`: Codex Service, ChatGPT runtime, Chromium Helpers,
+  Google Chrome Helper and Node each hold a candidate path. Preserve them; no process or cache was mutated.
+
+### Reconciler gate observability (2026-09-25 JST)
+
+- [x] Add `blocked_by_gate` (count plus at most ten sorted loop-ID examples) and
+  `eligible_before_max_owners` to the reconcile receipt. This is diagnostic-only; eligibility and apply behavior are
+  unchanged.
+- [x] Run a production shadow readback with `apply_live` replaced by a no-op: current d4 returns
+  `eligible=0`, with pending admission 76, event-release mismatch 20, launchd-state 24, running-not-reloadable 18,
+  missing release SHA 2 and already-current 19. The counts overlap and are not a failure total.
+- [x] Verify the change with two focused runs, each **174 tests + 181 subtests**, plus diff/compile checks; push with
+  candidate commit `ce1c53285f` (following the managed-Node fallback in `c1fb26d0ae`).
+- [ ] After capacity recovery and accepted immutable loading, require one real reconciler receipt containing the new
+  fields, then reconcile only bounded safe owners and prove replay-zero. Do not touch Paid fulfillment or use a
+  diagnostic receipt as permission to clear an effect fence.
+
+### Latest reconciler/capacity cursor (2026-09-25 JST)
+
+- [x] Re-read `life-manager-release-reconciler` without restart or mutation: the loaded plist is still the old
+  `09a59ba1b899849ae7e3be8c67e239ec664dea22`; the surface event remains `entrypoint_exit_1` at `phase=report`, with
+  `diagnostic_complete=false` and no occurrence-bound exit/readback fields. This is stale-surface retention, not a
+  fresh reconciliation proof.
+- [x] Re-read host capacity: only **398,644 KB** is available on `/System/Volumes/Data`, below the
+  **1,155,780,608-byte** floor. No process, cache, launchd job, admission row, provider session, effect fence or
+  Paid state was changed.
+- [ ] Keep the cursor at owner-controlled capacity recovery; after the floor is restored, rerun the full suite, load
+  the accepted immutable candidate, and require a fresh occurrence-complete reconciler receipt before any retention
+  cleanup or bounded owner reconciliation.
+
+### Candidate merge-tree recheck (2026-09-25 JST)
+
+- [x] Fetch and compare candidate `ce1c53285f38d73ccfdf23199edc9ab2f7443468` against `origin/main`
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; `git merge-tree --write-tree` is clean at
+  `85cd634f7899602e8d8655466b1d950d04d9dbca`, with diff-check and clean worktree.
+- [ ] Keep this as readiness evidence only. Do not merge or load production until capacity, full-suite,
+  occurrence-complete readback, replay-zero and the two-pass foundation gate are green.
+
+### Durable recovery-journal diagnostics (2026-09-25 JST)
+
+- [x] Add bounded `reconcile_diagnostics` persistence to the private recovery journal. It retains eligibility counts
+  and validated gate/sample data only; unknown fields are discarded and no retry/effect-fence semantics change.
+- [x] Add regression coverage and run recovery Node suites **44/44** plus focused Python control-plane
+  **331 tests + 212 subtests**; push candidate commit `9e37fa5712`.
+- [ ] After accepted immutable loading, read back this field from one real non-Paid recovery occurrence and verify
+  replay-zero. Do not use branch journal evidence as production evidence.
+
+- [x] Re-run read-only merge-tree after the journal commit: candidate `9e37fa5712162c44f308caefe2a1c4ac063a4bed`
+  against `origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c` is clean at
+  `d6bc25e8aeb81b288c6f847e963077f23cce01fb`.
+
+### Common launchd Node boundary follow-up (2026-09-25 JST)
+
+- [x] Re-read the live boundaries: old release-reconciler still logs `exec: node: not found`; recovery-supervisor
+  has a complete retryable terminal but logs database-lock/ENOSPC deferrals; disk-cleanup still exits 0 with no
+  reclaim. No production mutation was performed.
+- [x] Add candidate `e69cd97651`: shared `lm_loop_run._runtime_node()` now uses the managed `/opt/homebrew/bin/node`
+  fallback when both runtime env and PATH are unavailable, while an explicitly invalid configured path remains
+  fail-closed. Verify **332 tests + 212 subtests**, compile and diff checks; push the candidate.
+- [ ] Restore capacity, then load the candidate as immutable release and re-read the recovery supervisor and
+  release-reconciler occurrence. Do not use branch test evidence as production proof.
+- [x] Read-only merge-tree for candidate `e69cd976518fbe0bd996e507457badd1ba013b94` against `origin/main d4fe0819`
+  is clean at `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`; this does not authorize merge or production loading.
+
+### Admission lock/capacity readback (2026-09-25 JST)
+
+- [x] Read admission DB without a write transaction: `queue=83`, `reservations=7`, `claimed=709`,
+  `effect_unknown=735`, `deferred=0`, `journal_mode=delete`; live loop PIDs hold the file.
+- [x] Preserve the existing bounded retry/defer policy. Do not kill owners, change SQLite journal mode, or clear
+  reservations/fences from this cursor.
+- [ ] Re-read after owner-controlled capacity recovery; only then rerun the full suite and immutable candidate gate.
+
+### Natural reconciler wake after capacity improvement (2026-09-25 JST)
+
+- [x] Observe a natural release-reconciler wake `18d864d3270c74e8-69141`: both route passes returned
+  `ok=true / eligible=0 / applied=[] / failed=[]` on d4, so no owner reload or external effect occurred.
+- [x] Confirm the overall old shell owner still failed only at its final recovery-supervise call (`node: not found`);
+  this is the boundary addressed by candidate `e69cd97651`, not a provider failure.
+- [x] Read the canonical host-cleanup receipt: fresh `free_after=657,887,232`, `errors=0`, `reclaimed=0`,
+  `preserved=5/open`; capacity remains **497,893,376 bytes** below floor.
+- [ ] After the floor is restored, run full tests, load the candidate immutable release, and require a fresh
+  occurrence-complete reconciliation/recovery readback before the two-pass gate.
+
+### Natural wake remains in progress (2026-09-25 JST)
+
+- [x] Observe the next natural release-reconciler occurrence `18d865297aba2440-74128` read-only; after the
+  bounded poll it remains `running` and has no terminal receipt. Keep the prior terminal event separate from this
+  occurrence; do not call it healthy, failed, or effectful until its own terminal is persisted.
+- [x] Re-read the canonical disk-cleanup receipt: `free_after=362,483,712`, `errors=0`, `reclaimed=0`, and
+  five open candidates preserved. The capacity floor is short by `793,296,896` bytes, so the full-suite and
+  immutable-promotion gates remain closed.
+- [ ] Let this natural occurrence finish, then read its exact terminal/diagnostic fields once. If it reaches the
+  old `node: not found` boundary, use the already-tested candidate fallback after capacity recovery and accepted
+  immutable loading; do not restart this owner or mutate admission/provider/Paid state from the stale surface.
+
+### Natural occurrence terminal readback (2026-09-25 JST)
+
+- [x] Read the exact terminal for `18d865297aba2440-74128`: `status=fail`, `blocker=entrypoint_exit_1`,
+  `effect_status=not_applicable`, `launchd_state=loaded-idle`, `pid=null`, terminal timestamp
+  `2026-09-24T23:23:51.110570Z`. Its log binds the failure to old d4's bare `node` invocation; no provider receipt,
+  admission effect-unknown, browser/session mutation or external effect exists.
+- [x] Keep the production diagnosis separate from the candidate fix: `e69cd97651` is branch-only and adds the
+  managed Node fallback plus occurrence diagnostics, but has not been merged, sealed or loaded.
+- [ ] After capacity recovery, full-suite pass and accepted immutable loading, re-read one fresh reconciler
+  occurrence and require occurrence-complete diagnostics plus replay-zero before advancing the 14-loop gate.
+
+### Foundation gate after the terminal readback (2026-09-25 JST)
+
+- [x] Re-run the read-only current-release status and foundation evaluator: status `rc=0`, **271 rows**, all
+  **14 Product Loops** observed, `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+  `uncovered_failure=13`, `decision=block`. Reasons are diagnostic incompleteness, runtime evidence incompleteness
+  and uncovered failure; no revenue or provider effect was inferred.
+- [x] Re-read the canonical cleanup receipt: `free_before=348,270,592`, `free_after=345,677,824`, `errors=0`,
+  `reclaimed=0`, five open candidates preserved, inventory gaps 22. The floor shortfall is `810,102,784` bytes.
+- [ ] Keep the exact order: owner-controlled capacity recovery → full suite → accepted immutable candidate load →
+  fresh occurrence-complete recovery/reconciler readback → bounded non-Paid owner reconciliation → replay-zero →
+  two-pass 14-loop foundation gate. Do not promote from this read-only block.
+
+### Repeated natural wake confirms the old runtime boundary (2026-09-25 JST)
+
+- [x] Read two further natural terminals without restart: `18d8655abda5d520-77210` at `23:26:30.973767Z` and
+  `18d8657fdd013138-79228` at `23:29:47.020439Z`. Both are old-release `entrypoint_exit_1` with
+  `effect_status=not_applicable`, no provider receipt, and no admission effect-unknown.
+- [x] Bind both failures to the repeated `bin/lm-recovery-supervise: exec: node: not found` stderr. This confirms
+  the managed-Node fallback is the correct source boundary; it does not authorize a production restart or replay.
+- [ ] Keep waiting only for the next safe external state change: capacity floor recovery. Then run the full suite,
+  promote/load the accepted immutable candidate and verify one occurrence-complete managed-Node terminal.
+
+### Cleanup terminal at the lower-capacity cursor (2026-09-25 JST)
+
+- [x] Read the natural cleanup terminal `18d865a87f762748-81472`: `pass`, `exit_code=0`, `errors=0`,
+  `reclaimed=0`, five open candidates preserved. Receipt: `free_before=329,150,464`,
+  `free_after=329,150,464`, `inventory_gaps=18`.
+- [x] Record that the floor shortfall is now `826,630,144` bytes. The owner has no safe allowlisted reclaim, so no
+  process, cache, release, admission row, provider session or external effect was changed.
+- [ ] Keep the promotion cursor closed; only a future owner-controlled capacity recovery can unlock full-suite
+  execution and immutable candidate promotion.
+
+### Contract gate while production remains capacity-bound (2026-09-25 JST)
+
+- [x] Read the next release-reconciler terminal `18d865ada9b0c108-81964`: old-release `entrypoint_exit_1`,
+  repeated `node: not found`, no external effect or provider receipt.
+- [x] Run candidate `./bin/lm-loop-contract`: `ok=true`, `catalog_loops=14`, `registry_jobs=169`,
+  `mapped_jobs=98`, `shared_job_ids=[]`, `errors=[]`; `git diff --check` passes.
+- [x] Preserve the source-boundary result: the helper rejects the registered `/private/tmp` worktree because it
+  expects canonical checkout/`.worktrees`; do not bypass this check or promote from an unapproved path.
+- [ ] After capacity recovery, rerun the full suite from an allowed source worktree, then continue immutable
+  promotion and fresh self-healing readback.
+
+- [x] Audit the candidate worktree lease boundary read-only. The candidate is `unmanaged/unlocked`; the expired
+  managed lease belongs to the separate historical `lm-runtime-admission-marketplace-priority-20260916` worktree.
+  Do not steal, delete or rewrite that external lease. The remaining promotion blocker is the source-boundary path
+  plus capacity/full-suite acceptance, not a lock on this candidate.
+
+- [x] Read natural reconciler terminal `18d865db6184d2b0-84522` at `23:36:45.786559Z`: old-release
+  `entrypoint_exit_1`, no provider receipt/effect. Keep it distinct from earlier occurrences and do not replay it.
+
+- [x] Read cleanup terminal `18d86609e15eb3d8-86988`: `pass`, `exit_code=0`, `errors=0`, `reclaimed=0`,
+  five open candidates preserved. Receipt `free_after=333,537,280`, `inventory_gaps=22`; floor shortfall
+  `822,243,328` bytes remains.
+
+- [x] Read reconciler terminal `18d8660f24ff7078-87162` at `23:40:04.851144Z`: old-release
+  `entrypoint_exit_1`, no provider receipt/effect. Keep this occurrence fenced and do not replay it.

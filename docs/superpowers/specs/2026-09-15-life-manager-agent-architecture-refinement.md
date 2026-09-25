@@ -35,33 +35,317 @@ flowchart LR
 - Capafy external-effect ownersはadmission `effect_unknown=0`、reservation 0を維持します。最新queued countsは
   daily 168、outcome 8078、account manager 1643、IG marketing 72です。entrypointは実行されずprovider
   receiptも発生していないため、収益・publish・message・account mutation成功を捏造しません。
-- fresh local foundation gateは14 loopsを観測し、`safely_fenced=1`（Capafy）、
-  `uncovered_failure=13`、release mismatch 88、diagnostic incomplete 80、unknown-effect jobs 0です。
-  収益や自然provider eventを待たず、次のloop sliceへ進みます。
+- 直近のfoundation gateは履歴上のCapafy sliceを示すものと、現在のrelease-alignment readbackを分けて記録します。
+  2026-09-25 JSTのread-only再確認では、`current` selectorが
+  `20260925T005608-2f809c86`（SHA `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`）を指し、
+  `launchctl-safe preflight`は`pass`/`mutation_allowed=true`でした（本番mutationは実行していません）。
+  同じSHAを指定したlocal foundation gateは
+  `healthy=0`、`setup_required=0`、`safely_fenced=0`、`repairing=0`、`uncovered_failure=14`、
+  `decision=block`で、理由は`foundation_diagnostic_incomplete`、
+  `foundation_runtime_evidence_incomplete`、`uncovered_failure`です。14/14 Product Loopの分類は
+  `runtime_release_drift`で、status rowが存在するだけではhealthyと数えません。これはrelease昇格前の
+  read-onlyカーソルであり、収益や自然provider eventを待つ理由ではありません。次はaccepted main-derived
+  immutable release後に、外部effect fenceを閉じたままowner単位でloaded-idle reconciliationを行います。
+- 同じcurrent selectorに対する後続のread-only再確認では、statusは271行、14 Product Loopへ結び付くjobは98件を
+  観測し、local foundation gateは`healthy=0`、`setup_required=0`、`safely_fenced=1`、`repairing=0`、
+  `uncovered_failure=13`、`decision=block`を返します。`investment`だけがexact-releaseの
+  `runtime_admission_deferred`/`retry_after_eligibility`としてtyped fenceになり、12 loopはrelease drift、
+  Connectorは別owner由来の`runtime_terminal_not_pass`/`diagnose_failure`です。これはread-only観測であり、
+  launchd mutation、provider effect、fence clearing、revenue claimはありません。statusのterminal projectionは
+  `None=116`、`blocked=81`、`pass=42`、`fail=28`、`running=4`で、commercial completionとは別の制御面証拠です。
+- main-derived immutable `current` は自動更新されるため、source merge、release cut、loaded owner の
+  三つを別々に判定します。2026-09-25 JSTの最新readbackでは`current` selectorは
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`ですが、loaded ownerは旧releaseのままです。Agent Economyは
+  `403e272eb615951b7a125006e2e5797cf28c4b7b`、Writer、CFO、Job Hunterの一部は別の旧releaseのままで、
+  foundation acceptanceには数えません。
+- Writer contract/proof の source は PR #5853 の main merge `73270f2c2e959698f22d959010f1388a86db882e` に
+  入っています。`writer-opportunity-response` の pre-effect FIFO occurrence は archive proof で
+  resolved 済みです。`writer-report` は、保存済み ID 89203–89206 が provider 側の実 ID と一致しない
+  ことを検出した後、本文 hash・送信時刻・bot sender が一致する official Telegram readback
+  `90905–90908` を取得し、claimed occurrence を `released/effect_unknown=0` に解決しました。0600 receipt は
+  旧保存 ID と正しい provider ID の対応を保持し、再送はしていません。
+- Writer 7 owner は current `6e609eba3c7ae593c923621c919fbb2f3c5dc1af` に揃い、bounded wake は全て
+  `diagnostic_complete=true`、`admission_effect_unknown=false`、entrypoint 前の typed
+  `resource_capacity_busy` です。これは Writer slice の exact-release acceptance であり、全14 loop gateの
+  replay-zeroを代替しません。
+- Writerの最新selector再束縛では、7 ownerをloaded-idleのまま `1657972036bddc842682108334e5d30b5e48defe`へ
+  個別reconcileしました。effect-freeのclaim/money/discovery/salesはcapacity前で停止し、craftは同一release
+  でeffectなしのterminal `pass`、opportunity-responseはapplication effect前のtyped capacity停止です。
+  `admission_effect_unknown=false`とcomplete diagnosticsを確認しました。writer-reportはmessage effectを持つため
+  startせず、既存の公式Telegram readback `90905–90908`を保持しています。reportのcurrent-release replay-zeroは
+  provider effect fenceが揃うまで未完了であり、外部送信を推測で再実行しません。
+- Agent Economy は loaded `403e272eb615951b7a125006e2e5797cf28c4b7b` へ再バインドされ、diagnostic は
+  complete です。直前の BlockRun HTTP 429 は既存の3回 retry後に `wake_error/brain_transport` として
+  ledger/harness-failuresへ記録され、opaque successにはなっていません。fresh run は `gpt-5.6-terra` で
+  起動していますが、trade/payment/revenue receiptはありません。さらに同じownerのtaskmarket wakeで
+  release-local CLIの`ENOENT`が発生し、recovery intent
+  `f5a0b9a428ef34544c7471443819e585`が保存されています。Supervisorは`release_sha_mismatch`を理由に
+  `escalate_owner`へ安全に停止し、推測replayを行っていません。branch-only status candidateは連続PIDの
+  `running`を健康とみなさず、同一run/releaseのharness failureを`latest_harness_failure`へ投影します。
+  後続のclean `wake`/`narrate`でactiveを解除しますが、証跡は保持します。CFO と Job Hunter の
+  effectful/unknown ownerは同じくfenceを維持し、盲目的に再送しません。
+- 追加のread-only照合では、旧releaseで起動した連続ownerの一部（`the402-provider`、`the402-worker`、
+  `x402-seller-8404`、`image-claude-p`、`x402-research-serve`）に、PIDに対応する`execute/running`イベントは
+  残っているものの、diagnostic envelope（`job_id`、`owner_id`、`occurrence_id`、loaded argv/env hash、
+  failure/next-action等）が無いことを確認しました。これはプロセスがaliveであることをhealth/readbackと
+  誤認させるlegacy runtime-event schema driftです。branch-onlyのRED→GREEN修正では、
+  `keep_alive + loaded-running + execute/running + diagnostic fields欠落`を
+  `diagnostic_error=legacy_runtime_event_schema`、`error_class`/`blocker`同値、retryable、
+  `next_action=reload_current_release`として投影します。旧イベントを削除せず、effect/revenueを推測せず、
+  immutable releaseの再読込だけを次の修復境界にします。read-only/status 23 tests、runtime-event/runner
+  19 testsはPASSしました。これはまだmain/release/productionへ反映しておらず、現行の14-loop gateは
+  引き続き`runtime_release_drift`でblockです。
+- recovery supervisor/executorのbranch-only RED→GREEN修正では、sanitized before/after readbackから
+  `diagnostic_error`、`failure_layer`、`error_class`、`retryable`、`next_action`を落とさず、自己修復判断へ
+  そのまま引き渡します。欠落フィールドをopaqueな成功・失敗へ潰さないため、supervisor/executor focused
+  testsは16/16、recovery全体は40/40です。これはmain/release/productionへ未反映で、provider effect、
+  effect fence、外部stateは変更していません。
+- 2026-09-25 JSTのproduction read-only再確認では、`life-manager-recovery-supervisor`はcurrent exact
+  SHA `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でloaded-idle、diagnostic completeですが、直近terminalは
+  `entrypoint_exit_1`です。journalの実体は、別ownerのConnectorを`healthy_readback_pending`で保持し、旧releaseの
+  Agent Economyを`release_sha_mismatch`で停止したものです。`launchd.err.log`にはConnectorの旧実装由来の
+  `env: node`とadmission database lockが残ります。provider/browser/wallet effectは発生しておらず、Connectorの
+  source/session/stateはこのworkstreamで変更しません。current SHAのnon-self・non-Paid recovery intentは無いため、
+  canaryを捏造せず、accepted main-derived releaseまたはowner側の公式修正を次の外部境界とします。
+- branch runtime全suiteの最新再実測は304 tests中300 passです。recovery/harness focused suiteは38/38、brainは5/5、
+  PROP-023は2/2です。残る3件はworktreeにoptional dependency `@solana/web3.js` と `fast-check` が無いことによる
+  always-act file-level import failureで、self-healing変更のfailではありません。全suite greenをFoundation完了と
+  誤認せず、依存導入後に再実行する環境ゲートとproduction exact readbackを別に扱います。
+- 既存コメントの文字列を実装呼び出しとして拾っていたself-improvement static guardを、動作変更なしで修正しました。
+  `harness-health-no-autoaction`は1/1 PASSし、実際のauto-action source禁止は維持しています。
+- registry classificationの古い13-slot fixtureが、既にlive registryへ追加済みの`resource-resolver`と`x-repost`を
+  数え落としていたため、現在の15 live slotsへ同期しました。classification checksは3/3 PASSで、runtime behaviorと
+  外部effectは変更していません。
+- self-improvement brainの実装と契約の矛盾をbranchで解消しました。`ANICCA_BRAIN=claude-p`の実行ファイルが
+  不在のときだけ、設定済みproxyへfallbackします。成功したfallbackは terminal ledger に
+  `brain_fallback={from:claude-p,to:proxy,reason:claude_not_found}` として残し、proxy側も失敗した場合は
+  `brain_fallback_failed` へ元の欠損とproxy失敗の両境界を結合します。OAuth失効、timeout、非0終了はfallback
+  せず、typed `wake_error`として記録します。直接brain契約は5/5、missing-binary integration caseと
+  ledger-observability assertionもPASSしました。以前観測したtemporary-directory cleanup raceは最新full runで
+  再現していません。これはbranch-onlyで、main/release/productionへは未反映です。
+- Job Searchの `job-search-daily` と `job-search-inbox` は effect-free なのに admission contract が無く、
+  pending queueから current releaseへ再配置できない欠損がありました。branch-only candidateで
+  `resource_class=deterministic`、`admission_class=borrow`、`priority=support`、queued/reserved coalescingを
+  宣言し、registry/rendered-fixture 86 testsをPASSしました。main/currentへの反映と本番readbackは未完です。
+- Agent Economyの最初の安全sliceでは、`x402-acquisition-controller`も同じ欠損を持つことを確認しました。
+  durable FIFOには既知のeffect-free occurrenceが残っていますが、registryに
+  `deterministic/borrow/support`、queued/reserved coalescing、queued-release reconcileが無かったため、
+  production reconcilerは`skipped_pending`で停止しました。entrypoint、wallet、payment、tradeは実行していません。
+  branch-only candidateでこのownerだけに既存の`deterministic/borrow/support`を明示し、
+  `reconcile_queued_release=true`を加えました。RED→GREEN contract test、rendered registry 87/87、
+  apply 124/124（既存ResourceWarningのみ）はPASSしました。main/release/productionへの昇格と、
+  exact-SHAのeffect-free wake、zero unknown、replay-zeroは未完です。x402のmoney/seller/settlement ownerは
+  effect fence内のため変更しません。
+- 2026-09-25 JSTの同owner read-only再確認では、installed/event SHAは旧`f7d4ff46afa42539a6def192774de66ff3317cec`、
+  `launchd_state=loaded-idle`、直近イベントは`host_admission_deferred:resource_capacity_busy`（exit 75）で、
+  `effect_class=none`、`effect_status=not_applicable`、`admission_effect_unknown=false`です。durable admissionは
+  queued 1,727、released 595、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。entrypoint、wallet、payment、tradeは実行していません。
+  ただし旧eventはdiagnostic envelope欠落のためfoundation acceptedとは数えません。branchの
+  `legacy_runtime_event_schema → reload_current_release`投影とregistry契約を、accepted main-derived
+  immutable releaseで同時にreadbackするのが次の一件です。
+- 次のowner `x402-experiment-franklin1`も個別readbackで、loaded-idle、known effect-free FIFO 1,427件、claimed/unknown
+  0件、typed `resource_capacity_busy`を確認しました。durable policyは`deterministic/borrow/support`でしたが
+  registry宣言が無かったため、同じqueued/reserved coalescingと`reconcile_queued_release=true`だけをbranchへ追加しました。
+  RED→GREEN registry/fixture 89/89、apply 124/124をPASSし、experiment entrypoint・trade・payment・revenue effectは
+  実行していません。main/release昇格とproduction exact-SHA replay-zeroは未完です。
+- `x402-inflow-watch`も個別readbackで、loaded-idle、known effect-free FIFO 316件、claimed/unknown 0件、直近の
+  clean terminalを確認しました。durable policyは`deterministic/borrow/support`でしたがregistry宣言が無かったため、
+  同じcoalescingとqueued-release reconcileだけを追加し、RED→GREEN registry/fixture 90/90をPASSしました。
+  watcher entrypointやfinancial effectは実行していません。main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch`は旧installed/event SHA
+  `f7d4ff46afa42539a6def192774de66ff3317cec`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_capacity_busy`です。durable admissionはqueued 319、released 425、
+  claimed 0、effect_unknown 0、queue row 1、reservation 0、policy `deterministic/borrow/support`です。
+  Inflow watcherやfinancial effectは実行していません。accepted releaseのexact-SHA wakeとreplay-zeroが未完です。
+- `x402-inflow-watch-claude-p`は同じeffect-free watcherでもrouteが`shared-agent-runner`で、durable policyは
+  `agent/borrow/support`、known FIFO 343件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。
+  deterministic設定を流用せず、agent-classのcoalescingとqueued-release reconcileだけをbranchへ追加し、
+  RED→GREEN registry/fixture 91/91、apply 124/124をPASSしました。model wake・financial effectは実行しておらず、
+  main/release昇格とproduction exact-SHA replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-claude-p`は旧installed/event SHA
+  `e6cdef15b8d63c53ed91450e87feac54d481a5b1`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_control_busy`/exit 75です。durable admissionはqueued 346、released
+  547、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy `agent/borrow/support`です。
+  モデルwake・financial effectは実行していません。deterministic設定を流用せず、agent-class contractの
+  accepted release、exact-SHA wake、replay-zeroを待ちます。
+- 2026-09-25 JSTの再確認では、`x402-experiment-franklin1`は旧installed/event SHA
+  `f885e963e4784af316855a2d390f8945899cd1a2`、loaded-idle、直近はtyped
+  `host_admission_deferred:resource_capacity_busy`/exit 75です。durable admissionはqueued 1,440、released
+  472、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。experiment entrypoint、trade、payment、revenue effectは実行していません。
+  旧eventのdiagnostic欠落は、accepted releaseの一回のbounded wakeで更新するまでfoundation未受入です。
+- `x402-inflow-watch-franklin1`はdeterministic routeで、durable policy `deterministic/borrow/support`、known
+  effect-free FIFO 393件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry宣言が無かったため、
+  このownerだけにcoalescingとqueued-release reconcileを追加し、RED→GREEN registry/fixture 92/92、apply 124/124を
+  PASSしました。watcher・financial effectは実行しておらず、main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-franklin1`は旧installed/event SHA
+  `14ae9e04088f7839e8c2348fb9b1b5de3768d408`、loaded-idle、typed capacity deferral/exit 75です。durable
+  admissionはqueued 395、released 532、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。watcher・financial effectは実行していません。
+- `x402-inflow-watch-franklin2`もdeterministic routeで、durable policy `deterministic/borrow/support`、known
+  effect-free FIFO 391件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約をこのownerだけに
+  追加し、RED→GREEN registry/fixture 93/93、apply 124/124をPASSしました。watcher・financial effectは実行しておらず、
+  main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-inflow-watch-franklin2`は旧installed/event SHA
+  `f86bacceaba2133ecf0568994bd2a48b2ad2c8cd`、loaded-idle、typed
+  `host_admission_deferred:resource_admission_unavailable`/exit 75です。durable admissionはqueued 393、
+  released 541、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。watcher・financial effectは実行していません。
+- `x402-sale-observer`もdeterministic routeで、durable policy `deterministic/borrow/support`、known effect-free FIFO
+  1,459件、claimed/unknown 0件、loaded-idleのcapacity deferralでした。registry契約を追加し、RED→GREEN
+  registry/fixture 94/94、apply 124/124をPASSしました。sale observation・payment・revenue effectは実行しておらず、
+  main/release昇格とproduction replay-zeroは未完です。
+- 2026-09-25 JSTの再確認では、`x402-sale-observer`は旧installed/event SHA
+  `766ef884e5881e0752c268b91b6fdbbd9bd7ec71`、loaded-idle、typed capacity deferral/exit 75です。durable
+  admissionはqueued 1,468、released 464、claimed 0、effect_unknown 0、queue row 1、reservation 0、policy
+  `deterministic/borrow/support`です。sale observation・payment・revenue effectは実行していません。
+- Agent Economyの二つのdurable money observerもread-onlyで確認しました。`sol-funding`はknown queued 234件、
+  known released 1件、released `effect_unknown` 1件、`x402-settlement-recorder`はknown queued 50件、known
+  released 6件、released `effect_unknown` 1件です。両方のpriorityは既存ledger上で
+  `deterministic/borrow/support`でした。branch-only registry契約は既存coalescingとqueued-release reconcile
+  だけを明示し、registry/rendered-fixture 104/104、shared apply 124/124をPASSしました。money movement、
+  wallet action、settlement receiptは実行していません。released `effect_unknown`は公式wallet/provider
+  readbackとaccepted immutable releaseが揃うまでfence内に残します。
+- 2026-09-25 JSTの最新readbackでは、`sol-funding`はinstalled/event SHA
+  `a76c8931ea87644696017f6ef87c820bc3651425`、loaded-idle、typed
+  `host_admission_deferred:resource_effect_unknown`、`effect_class=money`です。durable admissionはqueued
+  234、released-known 0、released `effect_unknown` 1（`sol-funding:18d60103c86ce420-74237`）、claimed 0、
+  queue row 1、reservation 0です。`x402-settlement-recorder`はinstalled/event SHA
+  `93cb74594755f18f3e4e8fc08aaa9a8cd2cb9648`、loaded-idle、同じmoney/effect-unknown fenceで、queued 50、
+  released-known 6、released `effect_unknown` 1（`x402-settlement-recorder:18d606127c37d290-73497`）、
+  claimed 0、queue row 1、reservation 0です。両方とも公式wallet/provider receipt未取得のため、clear、
+  replay、money movement、settlementを実行しません。accepted releaseと正確な公式readbackが次の境界です。
+- `citizen-refill`はdeterministic routeで、durable admission上のknown effect-free FIFO 144件、claimed/unknown 0件、
+  loaded-idleでした。productionのrelease `f7d4ff46afa42539a6def192774de66ff3317cec`では、entrypoint前に
+  `citizen-refill: node executable not found`を繰り返していました。原因は、共有plistがmanaged Nodeを
+  `LIFE_MANAGER_RUNTIME_NODE`へ注入する一方、`bin/citizen-refill-launchd`が`LIFE_MANAGER_NODE`とlaunchd PATH
+  だけを参照していた変数名不一致です。branch-only candidateで`LIFE_MANAGER_NODE`→`LIFE_MANAGER_RUNTIME_NODE`
+  →PATHの順にfallbackし、同時に`deterministic/borrow/support`、queued/reserved coalescing、
+  `reconcile_queued_release=true`をregistryへ追加しました。fake managed-nodeのRED→GREEN回帰、registry/rendered-fixture
+  95/95、apply 124/124（既知のsqlite `ResourceWarning`のみ）はPASSしました。wallet/refill/payment/provider effectは
+  実行しておらず、main/release昇格、exact-SHA readback、replay-zeroは未完です。
+- `life-manager-x402-ledger`はdeterministic routeで、known effect-free FIFO 1,711件、released 600件、
+  claimed/unknown 0件、reservation 0件でした。loaded ownerの最新状態はentrypoint前の
+  `resource_admission_unavailable`/capacity deferralで、trade・payment・provider effectはありませんでした。
+  registryに既存の`deterministic/borrow/support`、queued/reserved coalescing、`reconcile_queued_release=true`だけを
+  branch-onlyで宣言し、RED→GREEN registry/fixture 97/97、apply 124/124（既知のsqlite `ResourceWarning`のみ）を
+  PASSしました。main/release昇格、exact-SHA readback、replay-zeroは未完です。
+- `life-manager-taskmarket-ledger`はdeterministic routeで、known effect-free FIFO 1,438件、released 424件、
+  admission unknown 0件でした。loaded-idleでtyped `resource_capacity_busy`がentrypoint前に発生し、task-market
+  payment/provider effectはありませんでした。registryに既存の`deterministic/borrow/support`、queued/reserved
+  coalescing、`reconcile_queued_release=true`だけをbranch-onlyで宣言し、RED→GREEN registry/fixture 97/97、
+  apply 124/124（既知のsqlite `ResourceWarning`のみ）をPASSしました。main/release昇格、exact-SHA readback、
+  replay-zeroは未完です。
+- `life-manager-ugig-invoice-observer`はdeterministic routeで、known effect-free FIFO 1,454件、released 421件、
+  claimed/unknown 0件、reservation 0件でした。loaded-idleでtyped `resource_capacity_busy`がobserver entrypoint前に
+  発生し、invoice submission・payment・provider effectはありませんでした。registryに既存の
+  `deterministic/borrow/support`、queued/reserved coalescing、`reconcile_queued_release=true`だけをbranch-onlyで宣言し、
+  RED→GREEN registry/fixture 98/98、apply 124/124（既知のsqlite `ResourceWarning`のみ）をPASSしました。
+  main/release昇格、exact-SHA readback、replay-zeroは未完です。
+- `life-manager-cfo-hourly`はmessage effect ownerで、durable policy `deterministic/borrow/support`のclaimed
+  `effect_unknown` 1件、queued 8件、released 11件、reservation 0件を持ち、loaded-idleの
+  `resource_effect_unknown`で停止しています。branch-onlyで観測済みpolicy、queued/reserved coalescing、
+  `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 99/99、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。messageを再送せず、effect fenceと公式receipt待ちを維持します。
+  main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `life-manager-financial-report`もmessage effect ownerで、durable policy `deterministic/borrow/support`のclaimed
+  `effect_unknown` 1件、queued 53件、released 2件、reservation 0件を持ち、loaded-idleの
+  `resource_effect_unknown`で停止しています。branch-onlyで観測済みpolicy、queued/reserved coalescing、
+  `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 100/100、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。messageを再送せず、effect fenceと公式receipt待ちを維持します。
+  main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `life-manager-payout`はmoney effect ownerで、durable policy `deterministic/borrow/support`のqueued 54件、
+  released 5件（うちeffect_unknown 1件）、claimed 0件、reservation 0件を持ち、loaded-idleの
+  `resource_effect_unknown`で停止しています。branch-onlyで観測済みpolicy、queued/reserved coalescing、
+  `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 101/101、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。payout/transferを実行せず、money fenceと公式receipt待ちを維持します。
+  main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `job-search-health`はapplication effect ownerで、durable policy `deterministic/borrow/support`のclaimed
+  `effect_unknown` 1件、queued 69件、released 2件、reservation 0件を持ち、loaded-idleの
+  `resource_effect_unknown`で停止しています。branch-onlyで観測済みpolicy、queued/reserved coalescing、
+  `reconcile_queued_release=true`を宣言し、RED→GREEN registry/fixture 102/102、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。応募を再送せず、application fenceと公式proposal/application receipt待ちを
+  維持します。main/release昇格、official readback、exact-SHA/replay-zeroは未完です。
+- `job-search-learning`は09:15 JST calendar ownerで、application effectのclaimed `effect_unknown` 1件、queued 2件、
+  released 8件、reservation 0件を持ち、loaded-idleの`resource_effect_unknown`で停止しています。durable `priorities`
+  行はありませんが、既存`lm_loop_run`のcanonical default（resource=`deterministic`、admission=`borrow`、未指定priorityは
+  `support`）を明示registryへ固定しました。RED→GREEN registry/fixture 103/103、apply 124/124（既知のsqlite
+  `ResourceWarning`のみ）をPASSしました。応募再送・fence解除・official proposal/application readback推測はせず、
+  main/release昇格、exact-SHA/replay-zeroは未完です。
+- 2026-09-25 JSTのCFO read-only再確認では、`life-manager-cfo-hourly`はold installed/event SHA
+  `135fa822be58bb40c038c8ee6bbdbfecceca80bf`、loaded-idle、message effect unknownで、claimed unknown
+  `life-manager-cfo-hourly:18d679cb82869d48-98528` 1件、queued 8、released-known 11、queue row 1、reservation
+  0です。`life-manager-financial-report`はold `d2dca0d18bc6de03dd80b4fdb847b742620423bd`、claimed unknown
+  `life-manager-financial-report:18d601655af3e1c0-86661` 1件、queued 53、released-known 2、queue row 1、
+  reservation 0です。`life-manager-payout`はold `5748aaf859173eb2532847c65c0982a30d024f5d`、money effect
+  unknownのreleased occurrence `life-manager-payout:18d6026a3dc85558-829` 1件、queued 54、released-known 5、
+  queue row 1、reservation 0です。3件とも直近は`host_admission_deferred:resource_effect_unknown`/exit 75、
+  diagnostic incompleteです。公式Telegram/payment/wallet receiptが無いので、message再送、payout、fence clearは
+  行いません。accepted releaseとoccurrence単位の公式readbackが次の境界です。
+- 同日のJob Hunter read-only再確認では、`job-search-health`はold installed/event SHA
+  `37384185bcc36b7033154a6d321a84288b41b8aa`、loaded-idle、application effect unknownのclaimed occurrence
+  `job-search-health:18d5fc3605f58c20-90948` 1件、queued 69、released-known 2、queue row 1、reservation 0です。
+  `job-search-learning`はold `f3e518681e8482be734d4e432badc05f33415412`、claimed unknown
+  `job-search-learning:18d6ff42778e8868-14131` 1件、queued 2、released-known 8、queue/reservation 0です。
+  直近は両方とも`host_admission_deferred:resource_effect_unknown`/exit 75でdiagnostic incompleteです。
+  応募送信、proposal ID再照合、fence clearは公式provider receiptが揃うまで行いません。
+- 同日、effect-freeの`job-search-daily`はold installed/event SHA `2fab674b28ddbc11f9a08e4cf5283a3650559304`で
+  loaded-running、typed `host_admission_deferred:resource_fifo_wait`/exit 75、claimed 1、queued 305、
+  released 439、unknown 0、queue row 0、reservation 0です。`job-search-inbox`はold
+  `3bf95b4787863f5cece5c084a481a6567bf9b307`でloaded-idle、typed capacity deferral/exit 75、queued 462、
+  released 499、claimed/unknown 0、queue row 1、reservation 0です。両方とも応募・proposal効果はなく、
+  branch-only admission contractをaccepted releaseでreadbackするまで外部送信を行いません。
+- Connectorの2026-09-25 JST read-only statusは、`life-manager-connector-native`がcurrent exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でloaded-idle、diagnostic complete、
+  `failure_layer=entrypoint`/`error_class=entrypoint_exit_1`、retryable、effect none、provider receiptなしです。
+  最新 occurrence `life-manager-connector-native:18d850f6939b4aa8-80280`、event `0425cdbd95542cc7e9dd59cc`
+  でも同じ typed readback です。Observabilityは成立していますが、browser/provider境界の実行は失敗中です。別ownerのendpoint/browser修正を
+  accepted main-derived releaseで消費するまで、このworkstreamはsource/session/provider stateを変更せず、
+  Connectorの成功やCalendar/Telegram receiptを推測しません。
+- Gig non-Paidの同日read-only statusは、`hf-gig-apply-direct`だけがcurrent exact
+  `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`でdiagnostic complete/outer passですが、applicationの
+  `effect_status=unknown`かつprovider receiptなしです（admission claimed 0、queued 5、released 30、unknown 0）。
+  `hf-gig-apply-reconcile`はunloadedでeventなし、`hf-gig-apply-evidence-gc`は旧`f7d4ff46…`でpassだが
+  diagnostic incomplete（queued 35、released 144、unknown 0）、`hf-gig-browser`は旧continuous eventの
+  `entrypoint_exit_1`/diagnostic incompleteです。`hf-gig-daily-report`は旧`f1dda2ad…`でclaimed
+  `effect_unknown` 1（queued 68、released 149）、`hf-gig-reply-detector`は旧`fa4a8128…`でouter passだが
+  diagnostic incomplete（queued 635、released 4,868、reservation 1）、`hf-gig-storefront-direct`は旧
+  `1c11bda3…`でpublish `effect_unknown` 1（queued 81、released 22）です。公式Coconala receipt、message、
+  listing readback、収益は未推測・未再送で、Paid-directとPaid fulfillmentのstate/session/sourceは別ownerのままです。
+- `lm-loop status`の連続owner診断candidateは、harness failureのprivate JSONLをowner/run/releaseへ束縛し、
+  `ENOENT`を`tool_missing`、rate-limit transportを`provider_rate_limit`として分類します。activeな失敗は
+  `last_terminal_result=fail`、`failure_layer=runtime`、typed `blocker`/`next_action`として表示し、後続clean
+  wakeは履歴だけを残してactiveを解除します。RED→GREEN 2 tests、readonly 22 tests、registry/apply 210
+  testsはPASSしましたが、sourceはbranch-onlyであり、main/release/production acceptanceは未完です。
+- release export/GC は履歴上 `ENOSPC` を継続しており、Data volume の空きは約 4.5 GB でも安定した cut の
+  headroom を証明できていません。保護された release、runtime state、他ownerの worktree を推測削除せず、
+  release/cleanup owner の診断を foundation blocker として記録します。
 - Connectorは別ownerのcandidate `e96e8c422d`がpush済みですが、PR 0、main未収載、release未反映です。
   productionはなお`entrypoint_exit_1`で、外向き表示が`circuit_open/wake_boundary_failed`です。
   このworkstreamはそのbranch、browser、runtimeを重複操作しません。
 
 現在cursor以降の残りTODOは順番に次のとおりです。
 
-1. Self-buildの残るrelease drift 3件をexact releaseへ揃え、共有supervisorのbounded wakeとreplay-zeroを
-   再確認します。Life Manager自身を直すloopを最初に閉じます。
-2. Mobile Apps、Affiliate、Investment、Fundraiser、Writer、Agent Economy、CFO、Job Hunterの順に、
-   non-Paid ownersだけを1 Product Loopずつ処理します。各sliceは「既存contract確認 → 不足宣言だけを
-   RED→GREEN → CI/main → complete immutable release → 対象限定reconcile → 即時safe wake → status/
-   receipt readback」で閉じ、収益や自然acceptanceを待たず次へ進みます。
-3. Gig platformは別ownerのPaid fulfillmentを変更せず、Application/Reply/Storefront/Reportなど非Paid
-   ownerだけを同じ基盤へ揃えます。Paid ownerのexact stateは別ownerの公式readbackを入力として受け取ります。
-4. Connectorは担当ownerがcandidateをPR/CI/main/releaseへ出した後だけconsumeし、exact SHA terminalと
-   replay-zeroを確認します。candidate未統合の間も他loopを止めません。
-5. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させ、
-   `uncovered_failure`、opaque state、release driftを0にします。同じfoundation gateを二回実行し、
-   recovery replay-zeroと兄弟isolationを確認します。
-6. 受理した同一release/control contractをtenant-isolated always-on cloudへpromoteし、phone/webだけで
-   onboardingと任意controlが完結することを検証します。
-7. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、compute/tool costを含むverified
-   net revenueで再帰的self-improvementを判断します。最初のcommercial milestoneは全体verified net
-   USD 10,000 MRRです。
+1. このbranchのshared observability/self-healing変更を、CIと全体成果条件が揃った後にaccepted main-derived
+   immutable releaseへ昇格します。branch test PASSやspec更新だけではproduction完了に数えません。
+2. Affiliateのofficial-body reconciliationをそのexact releaseへ載せ、`affiliate-loop`のTelegram effect fenceを
+   provider readbackだけで解決します。再送、generic pre-effect resolver、収益推測は禁止します。
+3. Writerはeffect-free ownersのreplay-zeroを維持し、report/applicationのeffectful ownerはprovider-specific
+   fenceと公式receiptが揃った後だけ一件ずつreadbackします。receiptが無いままwakeしません。
+4. Agent Economy → CFO → Job Hunterの順に、non-Paid ownerを一件ずつ「contract確認 → exact release load →
+   bounded wake → typed terminal/readback → replay-zero」で処理します。`setup_required`/`safely_fenced`は完了可能な
+   typed stateであり、revenueやnatural acceptanceを待ちません。
+5. Gig platformは別ownerのPaid fulfillmentを変更せず、Application/Reply/Storefront/Reportなどnon-Paid ownerだけを
+   同じ基盤へ揃えます。Mobile AppsとConnectorは各担当ownerのaccepted main/release/official evidenceをconsumeし、
+   source、session、runtime stateを重複操作しません。
+6. 14/14を`healthy`、理由付き`setup_required`、または理由付き`safely_fenced`へ収束させ、`uncovered_failure`、
+   opaque state、release driftを0にします。同じfoundation gateを二回実行し、recovery replay-zeroと兄弟isolationを
+   確認します。
+7. 受理した同一release/control contractをtenant-isolated always-on cloudへpromoteし、phone/webだけでonboardingと
+   任意controlが完結することを検証します。local成功をcloud成功と混同しません。
+8. その後にeconomic evalを有効化し、既存事業の収益改善、新規事業発見、compute/tool costを含むverified net
+   revenueで再帰的self-improvementを判断します。最初のcommercial milestoneは全体verified net USD 10,000 MRRです。
 
 ## A15 Foundation completion record
 
@@ -3284,6 +3568,17 @@ USD 10,000 MRR, a reproducible LM-EAB run, clear cost coverage and an honest pat
    projection passes twice with stable PIDs/queues and no duplicate effect. This is an effect-preservation
    boundary, not a wait for revenue or a natural scheduler tick.
 
+   The exact readback is now available read-only. The local sender ledger recorded message ID `92843`, but the
+   official user-MTProto history contains the exact outbox body hash
+   `aa6d760cbcb8fc6b9d5f2972045f4cda51ba6de4160e9e3393424689a8b4f8e5` as message `94637` in `Local Life Manager`
+   at `2026-09-24T11:15:43Z`, sender `8613473574`. The branch-only
+   `skills/affiliate/scripts/telegram_effect_reconcile.py` accepts the proof only when body hash, chat, sender and
+   a bounded timestamp window all match; it returns provider receipt `telegram:8613473574:94637` and explicitly
+   records `provider_message_id_mismatch=true`. This proof is not yet loaded in an accepted immutable release and
+   the canonical occurrence remains `claimed/effect_unknown=1`; no message was resent and no admission state was
+   changed. The remaining cursor is accepted-release promotion, one-occurrence official reconciliation, base-owner
+   rebind and two exact current-release replay-zero projections.
+
    Investment has one owner, `alpaca-investment-live`. Its stored last business snapshot is live mode, equity
    USD 66.74, cash USD 0, no-trade decision and daily net P/L `-0.000227`, but it has not updated since
    2026-09-17 and is not fresh official profit evidence. Runtime is loaded-idle on old installed SHA
@@ -3448,6 +3743,192 @@ role, allowed revenue classes and funnel/financial/cost source declarations. Mis
 Connector and CFO are explicitly non-source/aggregator rows; Fundraiser is fixed to financing/fundraising and
 cannot be classified as subscription MRR. Product Loop tests pass 39/39, catalog tests 19/19 and the structural
 loop contract remains 14 loops / 167 jobs / zero errors.
+
+#### 2026-09-25 branch-only registry contract slice
+
+`lancers-revenue-work-sync` now declares the observed `resource_class=deterministic` alongside its existing
+`admission_class=revenue`, `priority=revenue` and `provider_route=deterministic`. A RED registry regression
+(`KeyError` for the missing field) became GREEN after the declaration and regenerated byte-stable fixture; the
+focused work-sync check passes and the combined macOS-registry/read-only suite passes 127 tests with 154
+subtests. This is an observability/self-healing contract improvement only: it is not main, production, a Lancers
+provider receipt, a work-sync execution, or a revenue claim. Promotion still requires the accepted immutable
+release and one-owner exact-SHA readback in the foundation plan; Paid fulfillment remains owned by its separate
+workstream.
+
+The same contract is now explicit for the existing Capafy `capafy-loop-healthcheck` control-plane owner:
+`resource_class=deterministic` and `priority=revenue`, derived from its observed deterministic provider route,
+revenue admission and no-effect class. The same RED→GREEN registry/fixture check passes in the 127-test,
+154-subtest read-only suite. No Capafy provider effect, marketplace state or admission occurrence was changed;
+this branch-only declaration still needs an accepted immutable release and exact-SHA owner readback.
+
+The Lancers non-Paid Telegram-report owner is also now explicit from a read-only durable-admission audit:
+all observed occurrences use `deterministic/borrow/support` (194 queued, 53 released-known and one claimed
+`effect_unknown`), with no reservation or queue row. Its registry contract declares that tuple plus queued/reserved
+wake coalescing and queued-release reconciliation. This improves the self-healer's queue identity but does not
+resolve the claimed message effect: no Telegram resend, provider-session action or admission mutation is allowed
+until an exact official readback proves the occurrence. The change is branch-only and not a revenue claim.
+
+The CrowdWorks non-Paid report now has the same explicit contract after a read-only audit of its durable admission:
+`deterministic/borrow/support`, 69 queued, 41 released-known and one released `effect_unknown`, one queue row and
+no reservation. Coalescing and queued-release reconciliation are declared for future self-healing, but the released
+unknown remains fenced and no report message, provider session, admission state or Paid fulfillment was touched. The
+registry/fixture change is branch-only until an accepted immutable release and exact official readback.
+
+The Gig non-Paid `hf-gig-apply-evidence-gc` owner now declares its observed effect-free contract as
+`deterministic/borrow/support`, with 35 queued and 145 released-known occurrences, no claim/unknown/reservation and
+one durable queue row. Coalescing and queued-release reconciliation are explicit so the self-healer can manage its
+FIFO without guessing. The cleanup entrypoint was not run and no Paid source, state, session, marketplace effect or
+revenue was changed; this registry/fixture slice remains branch-only pending exact-release readback.
+
+The Gig non-Paid `hf-gig-daily-report` owner now declares the same deterministic/borrow/support contract from its
+durable read-only evidence: 68 queued, 149 released-known and one claimed `effect_unknown`, with no queue row or
+reservation. Coalescing and queued-release reconciliation are explicit, but the historical unknown remains fenced;
+the report/provider/Paid paths were not run and no effect or revenue is inferred. This is branch-only pending
+accepted-release and official readback.
+
+The CrowdWorks continuous browser owner now declares `resource_class=browser`, derived from its unique CDP/profile
+`browser_owner` (9228) and keep-alive service identity. It has no finite admission rows, so admission/priority fields
+are intentionally not invented. The browser session and provider state were not started or changed; only the
+branch registry/fixture contract is updated and still needs exact-release loaded-idle/readback evidence.
+
+The Lancers continuous browser owner is now classified the same way from its unique CDP/profile `browser_owner`
+(9227) and keep-alive identity: only `resource_class=browser` is declared. No finite admission/priority policy is
+inferred, and no Lancers browser session, provider state, Paid fulfillment or marketplace effect was started. This
+remains a branch-only exact-release/readback requirement.
+
+The Gig continuous browser owner is now classified `resource_class=browser` from its unique CDP/profile
+`browser_owner` (9223) and keep-alive identity. It has no finite admission rows, so no admission/priority fields are
+inferred. The Gig browser session and all Paid source/state/session/provider effects remain untouched; accepted
+release loaded-idle/readback is still required.
+
+The Affiliate `affiliate-browser` continuous owner is now classified `resource_class=browser` from its unique
+CDP/profile `browser_owner` (9324) and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No Affiliate browser session, Telegram/provider effect or admission state was changed; this is
+branch-only until exact-release loaded-idle/readback.
+
+The Affiliate `affiliate-impact-browser` continuous owner is now classified `resource_class=browser` from its unique
+CDP/profile `browser_owner` (9327) and keep-alive identity. No finite admission/priority policy is inferred, and no
+Impact/Affiliate browser session, provider effect, Telegram send or admission state was changed. This remains
+branch-only pending exact-release loaded-idle/readback.
+
+The Affiliate `affiliate-x-browser` continuous owner is now classified `resource_class=browser` from its unique
+CDP/profile `browser_owner` (9326) and keep-alive identity. No finite admission/priority policy is inferred, and no
+X/Affiliate browser session, post, provider effect, Telegram send or admission state was changed. This remains
+branch-only pending exact-release loaded-idle/readback.
+
+The top-level `agent-economy-loop` continuous owner now declares `resource_class=agent` from its
+`provider_route=shared-agent-runner` and keep-alive identity. It has no finite admission rows, so no
+admission/priority policy is inferred. No Agent Economy/x402 model, wallet, payment or provider effect was started;
+the declaration remains branch-only pending exact-release loaded-idle/readback.
+
+The continuous `x402-claude-p` model owner now declares `resource_class=agent` from its
+`provider_route=shared-agent-runner` and keep-alive identity. It has no finite admission rows, so no
+admission/priority policy is inferred. No x402 model wake, wallet, payment or provider effect was started; this
+remains branch-only pending exact-release loaded-idle/readback.
+
+The continuous `x402-franklin1` owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No Franklin model, wallet, payment or provider effect was started; this remains branch-only
+pending exact-release loaded-idle/readback.
+
+The continuous `x402-franklin2` owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No Franklin2 model, wallet, payment or provider effect was started; this remains branch-only
+pending exact-release loaded-idle/readback.
+
+The continuous `x402-research-serve` owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No research service, wallet, payment or provider effect was started; this remains branch-only
+pending exact-release loaded-idle/readback.
+
+The continuous `the402-provider` money owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No x402 server, wallet, payment or provider effect was started and no money receipt is claimed;
+this remains branch-only pending exact-release loaded-idle/readback.
+
+The continuous `the402-worker` money owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No x402 worker, wallet, payment or provider effect was started and no money receipt is claimed;
+this remains branch-only pending exact-release loaded-idle/readback.
+
+The continuous `x402-seller-8404` money owner now declares `resource_class=deterministic` from its
+`provider_route=deterministic` and keep-alive identity. It has no finite admission rows, so no admission/priority
+policy is inferred. No seller, wallet, payment or provider effect was started and no money receipt is claimed; this
+remains branch-only pending exact-release loaded-idle/readback.
+
+The post-slice read-only catalog/gate audit is explicit: `bin/lm-loop-contract` returns `ok=true` for 14 Product
+Loops, 169 registry jobs, 98 mapped jobs, zero shared IDs and zero errors. The exact current production selector
+`2f809c8621d9c6d92d96c68c01e2c99da8aea3eb` with a fresh 271-row status still yields
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`,
+because release/diagnostic evidence is not yet aligned. The only remaining missing explicit resource fields in the
+14-loop catalog are Mobile-owned `life-manager-daily` and `life-manager-daily-driver`; continuous owners
+intentionally lack finite admission/priority policy. Mobile remains out of scope for this workstream. Registry
+contract work is branch-only; accepted main-derived immutable release promotion and exact-SHA owner reconciliation
+remain the next steps, with no provider effect or revenue claim.
+
+The newest read-only recheck on 2026-09-25 JST supersedes that earlier selector: `origin/main` and
+`/Users/anicca/loops/current` now point to immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+`/Users/anicca/loops/releases/20260925T031007-d4fe0819`, from the separately owned Coconala change. Most loaded
+launchd entries, including `life-manager-recovery-supervisor`, still point to the prior immutable release
+`2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`. Its newest status row is `loaded-idle` but
+`entrypoint_exit_1` on that old SHA (`18d8544a60d082f8-48064`), while diagnostics are complete and
+`effect_status=not_applicable`; no provider receipt is present. The fresh 271-row status against the new selector
+contains `running=4`, `blocked=82`, `pass=41`, `fail=28`, `None=116`, eight event/installed SHA mismatches and
+233 diagnostically incomplete rows. The local foundation gate remains `decision=block` for diagnostic/runtime
+evidence incompleteness and uncovered failure. `launchctl-safe preflight --json` passes, but this workstream made
+no launchd mutation, provider effect, effect-fence change or revenue claim. The next cursor remains accepted-release
+alignment followed by one-owner non-Paid reconciliation.
+
+The complete Node runtime suite was re-run at this branch boundary: 304 tests, 301 pass and three file-level
+failures. All three fail before test execution because this low-capacity worktree lacks optional `@solana/web3.js`
+(two always-act harness files) and `fast-check` (one always-act router file). Focused recovery/registry/read-only
+suites remain green; no dependency install is attempted and these failures are environment gaps, not self-healing
+implementation regressions.
+
+A fresh production read-only recheck then confirmed that the recovery supervisor itself has recovered cleanly on
+the exact current release `2f809c8621d9c6d92d96c68c01e2c99da8aea3eb`: occurrence
+`life-manager-recovery-supervisor:18d8532572e108d0-20098` is `loaded-idle`, has matching installed/event SHA,
+`last_terminal_result=pass`, `exit_code=0`, `diagnostic_complete=true`, `effect_status=not_applicable`,
+`blocker=null` and `next_action=none`. Earlier `entrypoint_exit_1`/missing-`node` and SQLite-lock messages remain
+historical log evidence and are not reclassified as a current failure. The same fresh foundation gate remains
+blocked at `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13` because
+the other owners are not yet aligned to the accepted immutable release and some still lack complete diagnostics.
+No launchd mutation, provider effect, effect-fence clearing or revenue claim was made; the next cursor remains
+accepted main-derived release promotion followed by one-owner non-Paid reconciliation.
+
+The first bounded non-Paid reconciliation probe against that release targeted the loaded-idle,
+effect-free `x402-acquisition-controller`. The existing command returned `ok=true` with one eligible owner but
+`applied=[]` and `skipped_pending=[x402-acquisition-controller]`: the current release predates the branch's
+explicit `reconcile_queued_release` contract, so the runtime correctly refused to reload an owner with a durable
+FIFO backlog. This is a typed fail-closed admission result, not a failed provider action. No wallet, payment,
+model, provider or revenue effect occurred; accepted-release promotion of the branch contract is required before
+the one-owner wake can proceed.
+
+The recovery executor now preserves this boundary when it consumes a supervisor intent. A reconcile response that
+is successful at the command layer but returns `skipped_pending` for the requested owner is classified from the
+loaded release contract: with `reconcile_queued_release=true` it becomes `queued / admission_pending /
+retry_after_eligibility` and `budget_consumed=false`; without that contract it becomes terminal
+`blocked / admission_contract_missing / promote_release`, also with zero budget. Neither path is converted into
+`reconcile_target_not_applied`; both retain the exact before/after typed readback and reconcile payload. The
+focused recovery contract is 34/34; no production/provider state changed.
+
+The same executor now types the immutable-release boundary: when the release manifest SHA does not match the
+intent SHA, it returns `blocked / release_sha_mismatch / promote_release` without invoking `lm-loop`, launchd or a
+provider. This makes the required recovery action explicit—promote/load the exact immutable release—rather than
+falling through to an opaque owner escalation. The release-mismatch assertion remains part of the 34/34 focused
+recovery contract.
+
+The bounded canary plus recovery contract was re-run after those changes. The combined canary, intent, apply-plan,
+executor, intent-record and supervisor suites pass **38/38** with zero failures. The additional canary cases are
+test-owned; no production release, launchd owner, provider session, effect fence or revenue state changed.
+
+A second read-only one-owner probe targeted `job-search-daily`, an effect-free Job Hunter owner. Its current
+readback was loaded-idle with `effect_class=none`, `effect_status=not_applicable` and admission effect-unknown=false,
+but the current release also predates the branch's explicit queued-release contract. The reconciler returned
+`ok=true`, `eligible=1`, `applied=[]`, `skipped_pending=[job-search-daily]`; no launchd reload, job-search
+entrypoint or external application occurred. The shared boundary is therefore release promotion, not a provider
+submission failure.
 
 Task 2 is complete at `660c8072cd`. The shared immutable source/funnel record contract keeps
 `not_configured`, `unavailable`, `empty`, `observed_unverified`, `observed_verified` and `not_applicable`
@@ -3753,9 +4234,2989 @@ official-readback, and replay-zero rules.
     run one canary per supported resource class, prove official readback/replay-zero, and expose the
     phone-only notification/control path before enabling broader cloud capacity.
 
+### Latest branch-only supervisor boundary (2026-09-25 JST)
+
+An exact launchd-like empty-queue run of the old immutable release exits `0`; a pending-owner run persists a
+typed `queued` outcome such as `healthy_readback_pending` or bounded retry, but the CLI previously mapped every
+`result.ok=false` to `entrypoint_exit_1`. The outer event therefore reported a supervisor failure even though the
+control-plane operation safely retained the owner for a later bounded wake. The candidate exports and tests a small
+`supervisorExitCode` contract: `queued` returns `0` while hard `blocked` and `escalated` outcomes remain non-zero.
+Direct CLI execution is guarded so importing the helper has no side effect. RED→GREEN recovery regression is
+**39/39**. The full runtime suite is **307 tests, 304 pass, 3 file-level dependency failures** caused by missing
+`@solana/web3.js`/`fast-check`; no production/provider/effect state changed and no revenue is claimed. This
+candidate remains branch-only until accepted main-derived immutable release promotion and a fresh loaded-idle
+readback.
+
+A later production read-only wake now loads exact release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` with the pinned
+`/opt/homebrew/bin/node`; the latest `entrypoint_exit_1` is correctly explained by the journal as Connector's old
+intent being `blocked / release_sha_mismatch / escalate_owner`. That hard release-identity boundary remains
+non-zero under the candidate contract. It is distinct from the earlier `healthy_readback_pending` queued outcome,
+which is the safe-wait false failure fixed on the branch. No launchd/provider/effect-fence mutation occurred.
+
+The corresponding exact-current foundation gate remains closed: all 14 catalog loops are observed, with
+`healthy=0`, `setup_required=0`, `safely_fenced=1` (`investment`), `repairing=0`, and `uncovered_failure=13`.
+The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`; the other 13 loop states are `runtime_release_drift` with next action
+`load_exact_immutable_release`. This is a release-alignment cursor, not a revenue wait, and no mutation, provider
+action, fence clear, or revenue claim was made.
+
+### Latest host-cleanup readback boundary (2026-09-25 JST)
+
+The fresh read-only `life-manager-disk-cleanup` status is exact-current and diagnostically complete, but its latest
+terminal is `entrypoint_exit_1` with `last_exit=78` and no external effect. The launchd error log shows repeated
+`ENOSPC` while the host governor attempts its cleanup receipt, alongside older `database is locked` and
+`production apply is already owned` diagnostics. The important control-plane bug was that
+`central_cleanup.py` converted empty host-governor stdout into `host_cleanup={}`, losing the distinction between a
+valid empty result and a missing/failed readback. The branch now parses the final JSON through
+`host_cleanup_readback`: missing output is typed `host_cleanup_result_missing`, malformed/non-object output is
+`host_cleanup_result_invalid`, timeout is `host_cleanup_timeout`, and invocation failure is
+`host_cleanup_invocation_failed` with only a typed error class/errno. Existing valid receipts retain their exact
+payload and `host_cleanup_ok` decision. RED→GREEN tests cover missing and valid readback; the complete cleanup
+unittest file is **51/51**. The disk-cleanup pytest command could only run 4 tests before 87 `tmp_path` fixture
+errors because the host had no usable temporary directory under the same ENOSPC condition; this is an environment
+capacity observation, not a code-pass claim. The change is branch-only, with no production mutation, effect-fence
+clear, provider action, or revenue claim.
+
+The latest natural disk-governor receipt at `2026-09-25T05:25:55Z` (14:25:55
+JST) evaluated 5 allowlisted candidates, preserved all 5 because they were
+`open`, reclaimed `0` bytes, recorded `0` errors and `0` protected deletions,
+and reported `free_after=417280000` bytes. A fresh filesystem read after that
+receipt reported `386994176` free bytes. Both readings are below the required
+`1155780608`-byte producer floor. No unknown worktree, active browser process,
+or Paid-owned state was deleted. Consequently the next production operation
+is not waiting for permission: it is waiting for a safe, independently
+verified capacity recovery (or a recoverable external state change) before an
+immutable-release promotion can be attempted.
+
+The corresponding read-only `lsof` probe identified the five `open` paths as
+live owners rather than stale unknown data: Codex service PID 541 holds
+`~/Library/Caches/Codex`, ChatGPT PID 388 holds
+`~/.cache/codex-runtimes`, daily-driver Chromium PID 80942 holds
+`~/.cache/life-manager-daily-driver`, Google helper PID 587 holds
+`~/Library/Caches/Google`, and the active MCP PDF node PID 4325 holds
+`~/.npm/_npx`. No process was killed and no open file was unlinked. The next
+safe recovery is owner-aware natural close/release followed by a fresh
+governor receipt; force-stopping these owners would trade a measurable
+capacity problem for an unverified browser/session failure.
+
+A separate read-only launchd-safe reference audit found **65** immutable
+release directories. The newest one is the retention generation; the other
+**64** are named by LaunchAgent plists. **62** release names have at least one
+loaded plist, and **49** referenced generations have no currently running PID
+but remain `loaded-idle` scheduled owners. None is a disabled-only reference.
+Therefore release-retention cleanup correctly found no safe old-generation
+candidate: deleting a loaded-idle generation would leave a future scheduled
+wake pointing at missing source. The capacity cursor is consequently
+owner-by-owner rebind (or external capacity recovery), not blind release
+deletion.
+
+The first bounded capacity-recovery candidate was `effect-watch`: it is
+non-Paid, `effect_class=none`, loaded-idle, its old `c2c1486f…` release is the
+only plist reference, and that commit is an ancestor of current `d4fe0819…`.
+Both the normal deterministic reconcile and the explicitly targeted apply
+returned `skipped_pending` and left the plist unchanged. Read-only admission
+inspection shows one queued occurrence and a legacy priority row without the
+`resource_class`/`admission_class` fields needed for a safe rebind. This is a
+typed shared-kernel migration boundary, not permission denial and not license
+to bypass the admission fence by editing the plist directly.
+
+### Latest launchd preflight receipt boundary (2026-09-25 JST)
+
+The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
+UID 501, username `anicca`, Directory Services, `managername=Aqua`, `manageruid=501`, `managerpid=1`, and
+`gui/501` all read back successfully, but writing the canonical
+`~/.local/state/life-manager/launchd-control-plane-preflight.json` fails with `errno=28`. The candidate returns
+`blocked_control_plane`/exit 75 with `receipt_write_failed`, `receipt_written=false`, and typed `error_class`/`errno`
+instead of an unstructured traceback. The same probe succeeds when pointed at a temporary path, so this boundary is
+canonical state-path capacity/persistence, not an Aqua or GUI-owner failure. RED→GREEN preflight tests are **7/7**.
+This remains branch-only; no launchctl mutation, loop restart, provider effect, fence change, or revenue claim was
+made.
+
+### Latest non-Paid canary (2026-09-25 JST)
+
+The first safely eligible non-self, non-Paid owner after the read-only eligibility audit was
+`capafy-goal-monitor` (`effect_class=none`, provider route `deterministic`). It was aligned from its old loaded
+release to exact current `d4fe0819931c50caaf41f25e86f1052cd8a0359c` through the existing `lm-loop reconcile` path.
+Its live wake first stopped at typed shared-admission `resource_capacity_busy`/exit 75, then completed on the same
+loaded process as `loaded-idle`, `pass`, exit 0 with exact installed/event SHA, complete diagnostics,
+`effect_status=not_applicable`, `admission_effect_unknown=false`, no provider receipt and no external effect. A
+second targeted reconcile returned `eligible=0` and the exact same event/occurrence, providing the replay-zero proof.
+No Paid owner, Connector session, Mobile/Postiz state, provider effect or effect fence was touched. The broader
+14-loop foundation gate remains open because this proves only one owner; remaining non-Paid owners still require
+separate exact-release readback.
+
+The second bounded canary, `capafy-goal-monitor-daily-close`, followed the same contract. It moved from old
+`05d235b46b7c76f27d2aec71e8f30d93b98b4728` to current d4, initially returned typed `resource_capacity_busy`, then
+reached `loaded-idle`/`pass`/exit 0 with exact installed/event SHA, complete diagnostics,
+`effect_status=not_applicable`, admission unknown false and no provider receipt. A second targeted reconcile returned
+`eligible=0` and preserved the same event/occurrence, proving replay-zero. The remaining foundation work is still
+owner-by-owner release alignment; these two no-effect canaries do not prove the 14-loop gate or revenue.
+
+The next independent no-effect canary was `affiliate-composition`. It moved from old
+`ff11bb0a2c2ae81af087c687fb6ba3eda049b87b` to current d4 and reached exact-release `loaded-idle`/`blocked`/exit 75
+with typed `resource_capacity_busy`, `retryable=true`, complete diagnostics, `effect_status=not_applicable`,
+`admission_effect_unknown=false` and no provider receipt. A second targeted reconcile returned `eligible=0` with
+unchanged event/occurrence, proving replay-zero. This is an admission/runtime proof only; it is not affiliate
+traffic, conversion, commission or revenue evidence.
+
+The next Agent Economy probe, `x402-acquisition-controller`, is also effect-free (`effect_class=none`) but remains
+behind durable FIFO admission. Targeted reconcile returned `eligible=1` with `skipped_pending`; no old-release apply,
+entrypoint or external effect ran. Readback remains loaded-idle with typed `resource_capacity_busy`,
+`effect_status=not_applicable` and `admission_effect_unknown=false`; promotion/reconcile remains pending the accepted
+immutable release and capacity cursor. The queue was not edited and no x402 payment or revenue was inferred.
+
+The following effect-free Agent Economy probe, `x402-experiment-franklin1`, is behind the same durable FIFO boundary.
+Two consecutive targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` each returned
+`eligible=1`, `applied=[]`, and `skipped_pending=[x402-experiment-franklin1]`; the old loaded/event release was not
+executed. Its registry route is deterministic with `effect_class=none`, so no wallet, payment, seller, experiment or
+provider effect ran and no revenue was inferred. The separate exact-current terminal/replay-zero acceptance remains
+open until admission advances; the queue was not edited and no effect fence was changed.
+
+The next effect-free watcher, `x402-inflow-watch`, is also behind the durable FIFO. Two consecutive targeted
+reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` each returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[x402-inflow-watch]`; its old loaded/event release was not executed. Readback
+remains `effect_class=none`, `effect_status=not_applicable`, and `admission_effect_unknown=false`, so no watcher,
+wallet, payment or provider effect ran and no revenue was inferred. Exact-current terminal/replay-zero acceptance
+remains open until the admission cursor advances; the queue and all effect fences were left unchanged.
+
+`x402-inflow-watch-franklin1` was then probed twice under the same contract. Both targeted reconciles returned
+`eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin1]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+effect-free deterministic watcher, so no wallet, payment, provider effect or revenue was inferred. Exact-current
+terminal/replay-zero acceptance remains open until durable admission advances.
+
+The effect-free `citizen-refill` owner was then probed twice under the same FIFO-safe contract. Both targeted
+reconciles returned `eligible=1`, `applied=[]`, and `skipped_pending=[citizen-refill]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; its old loaded/event release was not executed. No wallet, refill,
+provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until durable
+admission advances.
+
+The effect-free `life-manager-x402-ledger` was probed twice without changing its FIFO. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-x402-ledger]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No trade, payment,
+wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until
+durable admission advances.
+
+The effect-free `life-manager-taskmarket-ledger` was probed twice under the same FIFO-safe contract. Both targeted
+reconciles returned `eligible=1`, `applied=[]`, and `skipped_pending=[life-manager-taskmarket-ledger]` against current
+release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No task-market
+payment, wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open
+until durable admission advances.
+
+The final effect-free observer in this slice, `life-manager-ugig-invoice-observer`, was probed twice without changing
+its FIFO. Both targeted reconciles returned `eligible=1`, `applied=[]`, and
+`skipped_pending=[life-manager-ugig-invoice-observer]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No invoice, payment,
+wallet/provider effect or revenue was inferred. Exact-current terminal/replay-zero acceptance remains open until
+durable admission advances.
+
+The `x402-sale-observer` was then probed twice without changing its typed capacity boundary. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-sale-observer]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. No sale observation,
+wallet, payment or provider effect ran and no revenue was inferred. Exact-current terminal/replay-zero acceptance
+remains open until durable admission advances.
+
+### Latest foundation gate re-read (2026-09-25 JST)
+
+The exact current local foundation gate was re-read after the effect-free x402 probes. `lm-loop status all` yielded
+271 managed runtime rows; the catalog projection observed all 14 Product Loops and returned `healthy=0`,
+`setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, and `decision=block`.
+The reasons are `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. This is a release/diagnostic alignment blocker, not a revenue wait. No Paid, Connector,
+Mobile/Postiz owner, effect fence, provider session or external effect was changed, and no revenue was claimed.
+
+The gate readback is now expanded into the 14-loop cursor. `investment` is the sole acceptable `safely_fenced` loop.
+The other 13 remain `uncovered_failure`: Coconala/Gig, Lancers, CrowdWorks, Writer, Affiliate, Agent Economy,
+Job Hunter, Fundraiser, Self-build, Mobile Apps, Capafy and CFO are blocked by exact-release/diagnostic drift with
+effect-unknown rows retained, while Connector is blocked by its typed terminal failure and `diagnose_failure` action.
+The next order is accepted immutable release promotion, one-owner alignment, current terminal/readback, and official
+effect reconciliation where a fence exists; no effect-unknown row is cleared by scheduler health or a pass/no-op.
+
+The effect-free `job-search-daily` owner was then probed without touching application owners. It was loaded-idle;
+two targeted reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[job-search-daily]`. The old release was not executed, no application/proposal
+effect ran, and the health/learning application fences were left unchanged.
+
+The effect-free `job-search-inbox` owner was also probed without restarting its loaded process. Two targeted
+reconciles against current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c` both returned `eligible=1`,
+`applied=[]`, and `skipped_pending=[job-search-inbox]`; no old-release inbox/application action ran. The
+health/learning application effect-unknown fences remain untouched.
+
+### Latest branch verification (2026-09-25 JST)
+
+The non-Paid, effect-free `hf-gig-reply-detector` was re-bound through its declared `shared-agent-runner` route.
+The first deterministic-route attempt was rejected before any effect because the route was wrong; the correct route
+then applied current release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Readback is `loaded-idle`,
+`effect_class=none`, `effect_status=not_applicable`, and admission unknown false, but the terminal event remains old
+`fa4a8128…`, exit 78/pass and diagnostics incomplete. A second scoped reconcile returned `eligible=0`, proving
+reconciler replay-zero without a reply/provider effect. This owner is not accepted healthy until a current event and
+complete diagnostics are durable.
+
+Three safe Writer internal owners were then reconciled without touching external report/response effects.
+`writer-craft-train` applied current d4 and remained effect-free/diagnostically complete, but retained old event
+`1657972…`; its second reconcile returned `eligible=0`. `writer-opportunity-discovery` applied d4 and reached exact
+current event/installed SHA with typed `resource_capacity_busy`, complete diagnostics and unknown false; its second
+reconcile returned `eligible=0`. `writer-sales-measure` was already installed on d4 but retained old event
+`2f809c…`; its scoped reconcile returned `eligible=0`. No writer publication, application or report message ran;
+the stale-event owners remain open until a current durable event exists.
+
+`writer-claim-loop` and `writer-money-sync` were then re-read through the same shared-agent-runner route. Both
+returned `eligible=0` without an external action and now show exact current d4 installed/event SHA, complete
+diagnostics, typed `resource_capacity_busy`, `effect_class=none`, `effect_status=not_applicable` and admission
+unknown false.
+
+`capafy-goal-monitor-hourly` was then re-read without touching Capafy account/marketing effect owners. It already
+shows exact current d4 installed/event SHA, complete diagnostics, typed `resource_capacity_busy`,
+`effect_class=none`, `effect_status=not_applicable` and admission unknown false; the scoped deterministic reconcile
+returned `eligible=0`.
+
+The effect-free `life-manager-selfbuild` owner was then re-bound through its deterministic route. It applied current
+d4, then reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+`effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+`05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+remains open until a current durable terminal is produced.
+
+The effect-free `life-manager-dev` owner was then re-bound through its deterministic route. It applied current d4,
+then reported typed retryable `host_admission_deferred:resource_control_busy`, complete diagnostics,
+`effect_class=none`, `effect_status=not_applicable` and admission unknown false; its terminal event remains old
+`05d235b4…`. A second scoped reconcile returned `eligible=0`; no self-build/provider effect ran. The stale event
+remains open until a current durable terminal is produced.
+
+The 14-loop foundation gate was re-read after the Writer, Capafy and Self-build safe rebinds and remains
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block` for
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The safe
+rebinds did not create an effect or clear a fence; the next executable cursor is accepted main-derived release
+promotion plus stale-event/official-fence resolution.
+
+The remaining catalog effect-free Lancers candidate, `lancers-revenue-work-sync`, was probed with the scoped
+deterministic reconcile. It returned `eligible=1`, `applied=[]`, and `skipped_running=[lancers-revenue-work-sync]`
+because the scheduler moved it to running between the read-only status and reconcile. No restart or external
+application/reply/Paid effect was attempted; the unknown Lancers owners remain fenced.
+
+The non-Paid, effect-free `affiliate-source-refresh` owner was then aligned and verified. It moved from old
+`ff11bb0a…` to current d4 and reached `loaded-idle`, exact installed/event SHA, typed retryable
+`resource_capacity_busy`, complete diagnostics, `effect_status=not_applicable` and admission unknown false. A
+second targeted reconcile returned `eligible=0`; no affiliate click, commission or provider effect was run.
+
+`citizen-refill` and `life-manager-x402-ledger` were re-probed without breaking their FIFO. Each owner returned
+`eligible=1`, `applied=[]`, and `skipped_pending=[owner]` twice against current d4; no old entrypoint, wallet,
+refill, ledger, payment or provider effect ran. Exact-current terminal/diagnostic acceptance remains open until
+durable admission advances.
+
+This work slice closes with a registry/worktree readback: `lm-loop doctor` returns `ok=true`, zero missing
+entrypoints and zero unmanaged labels; `git diff --check` passes and the dedicated branch is clean at
+`d1ac5d166e`. This proves control-plane consistency only. Main merge, accepted release promotion, external effect
+readback, 14-loop foundation pass and revenue remain open.
+
+The branch-only self-healing control-plane regressions were re-run after the FIFO-safe probes. Recovery intent,
+apply-plan, executor, intent-record and supervisor tests pass **35/35**; cleanup unittest passes **51/51**; and
+launchd preflight pytest passes **7/7** with no cache. Cleanup emits expected fixture stderr for unavailable
+recovery-intent/receipt paths but exits 0. These are source-contract results only; no main merge, production
+release promotion, effect-fence change or revenue claim exists.
+
+`x402-inflow-watch-franklin2` was also probed twice under the same FIFO-safe contract. Both targeted reconciles
+returned `eligible=1`, `applied=[]`, and `skipped_pending=[x402-inflow-watch-franklin2]` against current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the old loaded/event release was not executed. It remains an
+effect-free deterministic watcher, so no wallet, payment, provider effect or revenue was inferred. Exact-current
+terminal/replay-zero acceptance remains open until durable admission advances.
+
 ## E2E Judgment
 
 | Item | Value |
 |---|---|
 | UI変更 | なし |
 | 結論 | Maestro: 不要 — this specification changes runtime contracts and worker control, not iOS UI |
+
+### Recovery supervisor launchd-path diagnosis (2026-09-25 JST)
+
+The production release-reconciler log was read without changing any loop or provider state. Its latest repeated
+entrypoint failure was:
+
+```text
+/Users/anicca/loops/releases/20260925T031007-d4fe0819/bin/lm-recovery-supervise: line 4: exec: node: not found
+```
+
+This is a self-owned control-plane defect, not a provider or revenue blocker. The launchd plist already injects the
+absolute managed runtime as `LIFE_MANAGER_RUNTIME_NODE`, but `bin/lm-recovery-supervise` ignored that variable and
+called the bare `node` command. Because the release reconciler is the owner that promotes immutable releases and
+rebinds loaded-idle owners, this defect explains why old releases such as `citizen-refill` remained installed and why
+their old launcher errors (`node executable not found`) continued.
+
+The branch fix now selects `LIFE_MANAGER_RUNTIME_NODE`, then `LIFE_MANAGER_NODE`, then PATH, validates an executable,
+and exits typed `69` when no managed Node exists. A regression test runs the launcher with an empty PATH and a fake
+managed Node; `runtime.loop.tests.test_macos_loop_registry` passes 123/123 including this case. The fix is branch-only:
+the current production release still contains the old launcher until the accepted main-derived immutable release is
+cut and read back.
+
+At the same read-only admission snapshot, the canonical v2 database contained 79 queued owners, 4 live owner claim
+files, 2 reservations (one expired at the instant of observation), 637 claimed occurrences and 660 effect-unknown
+occurrences. No effect fence was cleared, no stale claim was deleted, and no Paid/Connector/Mobile owner was mutated.
+These numbers confirm that FIFO/admission pressure is real, but the release-reconciler Node-path defect must be fixed
+and promoted before the queue can self-heal through the intended immutable-release path.
+
+### Shared portable-runtime diagnosis (2026-09-25 JST)
+
+Two additional deterministic, effect-free owners were read from their production stderr: `life-manager-taskmarket-
+ledger` and `life-manager-ugig-invoice-observer` repeatedly exited with `{"status":"setup_required","missing":"node"}`.
+Their common `apps/life-manager/scripts/lib/portable-runtime.sh` selected only `NODE_BIN`/`PYTHON_BIN` or the
+interactive PATH, even though every managed plist injects `LIFE_MANAGER_RUNTIME_NODE` and
+`LIFE_MANAGER_RUNTIME_PYTHON`. Under launchd, PATH therefore made valid immutable-release runtimes look absent.
+
+The branch fix makes the helper resolve explicit overrides, then the injected managed runtimes, then PATH. The
+no-PATH fake-runtime regression passes, and all three affected boot scripts remain shell-syntax valid. The two
+provider-specific test files could not be imported in this checkout because the dependency bundle lacks
+`@noble/hashes/sha3.js`; this is an environment dependency gap, not a failure of the helper change. No taskmarket
+award, UGig observation, wallet, payment or provider effect was executed. Main/release promotion and exact
+current-event readback remain open.
+
+The CFO `life-manager-payout` boot wrapper had the same launchd-path gap in its money-adapter boundary: it selected
+only `LIFE_MANAGER_NODE`/`LIFE_MANAGER_PYTHON` or PATH. The branch now falls back to the plist-injected
+`LIFE_MANAGER_RUNTIME_NODE`/`LIFE_MANAGER_RUNTIME_PYTHON` before PATH. This changes no payout decision or transfer;
+it only prevents a valid managed runtime from being reported as absent. `bash -n` passes. Its JavaScript test file
+cannot be imported in this checkout because the dependency bundle is missing `@noble/hashes/sha3.js`; that import
+gap is recorded separately and no money effect was executed.
+
+### Current fleet readback after source-only fixes (2026-09-25 JST)
+
+The bounded full status read completed in 15.8 seconds and returned 271 managed rows. The local foundation gate
+still reports `healthy=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `setup_required=0`,
+`decision=block`, with reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. `investment` is the only safely fenced Product Loop; no revenue or external effect was inferred.
+
+The release-reconciler itself is not on the current selector: its live plist is installed/event release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, `loaded-running`, and its latest terminal evidence is
+`entrypoint_exit_1`. The selector remains current d4, but the reconciler has not promoted itself. This corrects the
+earlier shorthand that described the reconciler as d4-loaded. The branch fixes are therefore source-ready but not
+production-loaded; the accepted main-derived immutable release is the next bootstrap boundary.
+
+### Observability ENOSPC hardening (2026-09-25 JST)
+
+The old production reconciler also showed a second self-owned boundary: `lm-loop status` used disk-backed
+`TemporaryFile()` handles for both `launchctl` and `launchctl-safe` readbacks. When the host reached its full Data
+volume boundary, the status process failed before querying launchd with `FileNotFoundError: No usable temporary
+directory`, while the same wake also recorded `No space left on device`. This hid control-plane evidence and made
+self-healing look less observable exactly when capacity was under pressure.
+
+The branch now captures the bounded stdout/stderr streams in memory for these read-only probes. This does not
+change launchd mutation, admission, effect fences, provider sessions or external effects; it only ensures that
+observability can report the real launchd result without another disk write. The RED→GREEN read-only tests pass
+25/25, the apply suite passes 124 tests plus 31 subtests, and the macOS registry suite passes 123 tests plus 154
+subtests. The change remains branch-only; main integration and production immutable-release readback are still open.
+
+The branch version was then run against the current host in read-only mode under the same capacity boundary:
+`lm-loop status all` completed in 17.1 seconds, returned 271 rows, and successfully exposed the reconciler as
+`loaded-idle` with installed/event SHA `09a59ba1b899849ae7e3be8c67e239ec664dea22`, terminal
+`entrypoint_exit_1`, and diagnostic-incomplete fields. The probe did not crash in tempfile setup. This proves the
+observability repair only; it does not promote the reconciler, clear any fence, or claim self-healing/revenue.
+
+### Admission-read fail-closed hardening (2026-09-25 JST)
+
+A targeted, effect-free reconcile for `writer-craft-train` reached the shared admission boundary but returned only
+`{"ok":false,"error":"admission queue read failed: OperationalError"}` while another process held the SQLite
+database. This was an observability and safety defect: `_admission_effect_unknown_owners()` caught every SQLite read
+error and converted it to an empty set, which could make a live effect fence appear absent instead of preserving the
+unknown state.
+
+The branch now retries bounded `SQLITE_BUSY`/`SQLITE_LOCKED` reads, then fails closed with structured
+`error_class=admission_database_locked`, `retryable=true`, and `next_action=retry_admission_read`. Non-lock read
+errors are typed as `admission_database_read_error`; status, pending-owner, policy-mismatch, and effect-fence reads
+never convert a database failure into an empty admission/fence result. Regression coverage is green: readonly
+28/28, apply 124 tests plus 31 subtests, macOS registry 123 tests plus 154 subtests, Python compile, and diff
+check. This is branch-only source evidence; no admission row, effect fence, provider session, or external effect was
+changed, and production promotion remains downstream of the accepted main-derived immutable-release gate.
+
+After the fix was pushed, the same production-boundary probe was repeated for `writer-craft-train`. The targeted
+reconcile returned `rc=0`, `eligible=0`, `applied=[]`, and `failed=[]` on current release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; it did not reload a plist or create an external effect. Two consecutive
+status readbacks were byte-identical and reported `loaded-idle`, `pid=null`, `installed_release_sha=d4fe0819...`,
+`effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, `diagnostic_complete=true`,
+`last_terminal_result=pass`, `exit_code=0`, and `next_action=none`. This closes the read-contention probe for this
+already-current, effect-free owner. It does not promote the branch, clear any other fence, or make the 14-loop
+foundation gate healthy.
+
+### Post-probe fleet/registry readback (2026-09-25 JST)
+
+After the targeted probe, a fresh `lm-loop status all` against selector d4 returned 271 rows and the local
+foundation projection remained `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+`uncovered_failure=13`, `decision=block`. The 13 uncovered loops are still release/diagnostic alignment gaps or
+the separately owned Connector terminal failure; this is not evidence of new provider revenue failure. A read-only
+`lm-loop doctor` against the same selector returned `rc=0`, `ok=true`, zero missing entrypoints and zero unmanaged
+labels. Therefore the remaining boundary is release promotion/owner evidence, not a missing registry entrypoint.
+The branch remains pushed but production still runs the accepted main-derived selector; no manual admission edit,
+effect-fence clear, provider session change, or external effect was performed.
+
+### Natural release-reconciler wake after the probe (2026-09-25 JST)
+
+The existing keep-alive reconciler was observed without restart. Run
+`18d85a7bf85334e0-99067` ended with `report:fail:entrypoint_exit_1`; the owner returned to `loaded-idle` with no
+PID, but its installed/event SHA remained the old `09a59ba1b899849ae7e3be8c67e239ec664dea22`. The production
+stderr still contains the exact old boundaries: current d4's `lm-recovery-supervise` executes bare `node` and
+returns `node: not found`, the old d4 `lm-loop.py` allocates disk-backed `TemporaryFile()` during launchctl
+observation and can raise `No usable temporary directory`, and concurrent admission work logs `database is locked`.
+The source fixes on this branch are therefore not loaded by the production reconciler; no owner rebind, fence
+clear, provider action or revenue was inferred.
+
+### Immutable-release inventory check (2026-09-25 JST)
+
+The local release inventory was checked before considering any promotion shortcut. Main-derived releases such as d4
+and `1f03abd4` still contain the bare `node` supervisor and disk-backed `TemporaryFile()` probes. The newest local
+release, `c755377c9fd0fbb0d3dd5e11b232c33ba7a9c014`, is explicitly marked
+`provenance=pushed-not-yet-on-main` and also contains both old implementations. No existing immutable release
+contains the managed-runtime supervisor fallback plus in-memory observability fix. Therefore there is no safe
+pre-existing release to select; the next cursor is accepted main integration of the pushed branch, followed by
+immutable cut and readback. No selector, plist, admission row, effect fence, provider session or external effect was
+changed during this inventory check.
+
+### Fundraiser pre-effect fence hardening and scoped integration analysis (2026-09-25 JST)
+
+The shared rebind guard had one remaining unsafe gap after a queue row drained: for an effectful owner it could
+observe `not_queued` without attempting the exact pre-effect proof, while an `effect_unknown` occurrence remained
+durable. The branch now invokes the proof-only resolver for that path. It never clears an effect fence from scheduler
+health, a missing queue row, or a generic child exit.
+
+The proof accepts fundraiser's `entrypoint_exit_75` only when all boundaries match: the registry entrypoint is
+`skills/fundraiser-agent/runtime/run.sh`, the effect class is `application`, the runtime journal contains exactly
+one `execute/running` event with `effect_status=started` and one `report/fail` event with
+`effect_status=unknown`, both carry the same summary reference, no provider-effect evidence exists, and the durable
+occurrence is the sole exact fence. A generic exit 75 or any other effectful owner remains fenced. The regression
+proves a drained fundraiser fence resolves to `released/effect_unknown=0` only after this evidence gate; the existing
+external-effect fence test remains green.
+
+Branch verification is green: `runtime.loop.tests.test_lm_loop_apply` **127/127**, readonly **28/28**, Python
+compile, and `git diff --check`. This is source-only evidence; no admission row, selector, launchd job, provider
+session, Paid/Connector/Mobile state, external effect or revenue was changed.
+
+The non-mutating integration dry run against `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c` still has only
+two textual conflicts: `runtime/loop/lm_loop.py` and the macOS loop fixture. The lm-loop conflict is mechanically
+resolvable by retaining both the branch's ENOSPC/admission-read hardening and main's fundraiser pre-effect proof.
+The fixture is a whole-array JSON conflict because the branch's resource/admission classifications and main's newer
+loop enrollment changes both edit the same serialized row set. It is not safe to resolve by choosing one side: the
+eventual integration must merge entries field-by-field, preserve the separate Paid/Gig/Connector/Mobile owners, and
+rerun registry/apply acceptance before any PR or immutable release. No merge was started in this slice.
+
+The fixture conflict was then compared as structured JSON rather than text. All 169 loop IDs exist in base, branch,
+and latest main; the three-way comparison found no same-field divergent edits. The apparent conflict is therefore
+serialization/order noise plus independent field additions, not an irreconcilable semantic conflict. A future
+integration can merge each loop object field-by-field, then serialize once and run the registry/apply suites. This
+read-only result does not authorize merging the Paid workstream or selecting a non-main release.
+
+### Pre-effect proof under admission lock contention (2026-09-25 JST)
+
+The exact pre-effect proof now uses the same bounded admission-read retry boundary as status and pending-owner
+readers. If the database remains locked or cannot be read, the proof returns no proof and retains the durable
+`effect_unknown` fence; it never treats a failed read as an empty occurrence set or clears the fence. The enclosing
+reconcile therefore reports a retryable boundary instead of crashing in the proof reader. A regression confirms the
+locked-read path fails closed. Focused verification is green: the new proof/rebind cases plus readonly tests pass
+30/30. This is still branch-only and does not alter production admission state.
+
+The Node recovery/control-plane subset also passes **50/50** (`recovery-intent`, apply-plan, executor, intent-record,
+supervisor, integration, and registry-classification). A temporary lockfile-only dependency hydration then reached
+**348/362** in the complete `npm test` run. The 14 failures are not recovery-control-plane failures: 11 are the
+existing Phase-2a always-act RED scenarios (the test file explicitly expects them to fail before that product slice is
+implemented), and 3 are integration temp-directory cleanup races (`ENOTEMPTY`) under the concurrent Node 25 runner.
+The generated `node_modules` was removed after the probe because host free space fell below the configured safety
+floor; no package or lockfile changed and no production state was touched.
+
+The app-specific probe after hydration passed the two `portable-runtime` tests, while
+`run-agent-payout.test.js` stopped before collection on missing `canonicalize`. Hydrating the entire nested
+`apps/life-manager` dependency tree would consume the remaining headroom, so it was not attempted; the payout
+wrapper remains source-verified by shell syntax and its import test remains an explicit dependency-bundle item.
+
+### Latest-main self-healing control-plane candidate (2026-09-25 JST)
+
+A dedicated candidate worktree was created from `origin/main=d4fe0819931c50caaf41f25e86f1052cd8a0359c` at
+`/private/tmp/lm-self-heal-integration-20260925`, branch
+`fix/self-healing-control-plane-integration-20260925`. Only the generic control-plane slice was carried over:
+managed Node/Python resolution for recovery and portable launchers, in-memory launchctl observability under ENOSPC,
+typed admission-read failures and bounded retries, harness-failure projection, brain fallback evidence, queued
+recovery exit/readback typing, and cleanup/preflight readback. No Paid/Gig/provider implementation, provider session,
+effect fence, application state, Connector/Mobile state, or external effect was copied.
+
+The candidate was initially pushed at `bac2c00c50` (launcher-only first commit `36ec25c59d`) and now includes
+foundation-gate diagnostics/regression plus a selective registry-contract commit `6ff4a5e73c`. The later
+occurrence-level observability commits are `2e759d41f3`, `1be7f402b2` and `6a424932dc`; `6a424932dc` is the
+current candidate head. The registry change
+declares recovery contracts for **31 non-Paid loop IDs only**; Gig/CrowdWorks/Lancers/Mercor/Upwork/Paid/UGIG IDs
+remain unchanged. Verification is green: Python self-healing/readback tests **162 passed (31 subtests)**, Node
+recovery/brain/integration tests **36/36**, macOS registry/cleanup/gateway tests **241 passed (212 subtests)**,
+product-onboarding **48/48**, `lm-loop-contract` reports 14 catalog loops/169 registry jobs/98 mapped/zero errors,
+managed-runtime no-PATH probe passed, shell syntax passed, and `git diff --check` passed. The candidate is source-only;
+production still loads the existing immutable
+release and no main merge, selector change, launchd mutation, provider effect, fence resolution, or revenue claim was
+made. The next cursor is selective review of this candidate, then one main integration and an immutable-release
+cut/readback only after the user-level foundation acceptance gate remains green. That ownership review is now complete:
+the candidate diff contains 29 files: 25 generic control-plane/runtime/test paths, two Affiliate receipt-identity
+files, and two x402 settlement-receipt identity files, with no `skills/earn/gig`, Capafy catalog, Affiliate provider
+session state, or Paid-fulfillment-spec path.
+Its registry changes are limited to the 31 named non-Paid contracts above. The candidate worktree is clean and its
+diff check is clean. Main integration remains intentionally
+unopened until the user-level foundation gate is green.
+
+### Fresh read-only foundation recheck after candidate verification (2026-09-25 JST)
+
+The current selector still resolves to `/Users/anicca/loops/releases/20260925T031007-d4fe0819`. A fresh
+`lm-loop status all --json` read returned **271 rows** with `rc=0`; the terminal projection was
+`None=135`, `blocked=72`, `pass=37`, `fail=23`, `running=4`, and five installed/event SHA mismatches. The local
+foundation evaluator still returns `decision=block` with reasons
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and `uncovered_failure`; its state
+projection is **13 `uncovered_failure` and 1 `safely_fenced`**. This is read-only evidence: no launchd mutation,
+owner rebind, admission edit, effect-fence resolution, provider action, or revenue claim occurred. The candidate
+branch therefore remains the next code artifact, while main integration and immutable promotion remain closed by the
+foundation gate.
+
+The candidate then added a private foundation-gate diagnostics projection at `e9145a094c`. It preserves the
+existing pass/block contract while exposing state, reason, next-action and actionable-loop summaries. Against the
+fresh d4 status, it reports `13 runtime_release_drift`, `1 runtime_admission_deferred`, and `1
+runtime_terminal_not_pass`, with the corresponding next actions `load_exact_immutable_release`,
+`retry_after_eligibility`, and `diagnose_failure`. The full product-onboarding suite passes **47/47** and the
+blocked readback output remains mode `0600`; no production or provider state changed. A release-drift regression was
+then added at `824b6b6f4b`; the full product-onboarding suite is now **48/48**, proving the repair action is retained.
+
+### Affiliate occurrence-level fence readback (2026-09-25 JST)
+
+A fresh read-only query used the authoritative host-admission database
+`/Users/anicca/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`. It found 94 durable
+`affiliate-loop` occurrences: 48 cancelled/effect-known historical wakes and one live
+`claimed/effect_unknown=1` fence, `affiliate-loop:18d83ba82b14fb40-24990`, with
+`resource_class=deterministic`, `admission_class=revenue` and sequence `143954`. There is currently no
+Affiliate row in `queue`, `priorities`, `deferred` or `reservations`; the claimed occurrence itself remains the
+authoritative fence. This is a read-only observation; no SQL, resolver, provider session or effect state changed.
+
+The production status row is loaded on exact `d4fe0819931c50caaf41f25e86f1052cd8a0359c` with PID `38327` and
+complete diagnostics, but its latest runtime event occurrence is `affiliate-loop:18d85cdb10d5b3b0-30136` and it
+stops at `host_admission_deferred:resource_effect_unknown`/exit 75 with `retry_after_eligibility`, no
+`provider_receipt_id` and no `official_readback_ref`. Subsequent wakes repeat the same pre-entrypoint admission
+stop. The event occurrence and the durable fenced occurrence are therefore different identities; a self-healer
+must reconcile the durable target occurrence, never infer that the latest event cleared it and never resend.
+Historical joined-child evidence already records `SUCCEEDED/AUTH_REQUIRED` plus Telegram provider message ID
+`92843`, so this is not eligible for the generic pre-effect resolver. Only an exact official body/readback proof
+may resolve or preserve this fence.
+
+The branch-only observability improvement at candidate commit `6a424932dc` (after the initial
+`2e759d41f3` slice) keeps the boolean
+`admission_effect_unknown` field and adds `admission_effect_unknown_occurrences` with the exact occurrence ID,
+state, resource/admission classes, sequence and queue timestamp. The foundation manifest and private gate
+diagnostics now carry the same occurrence identity under `unknown_effect_occurrences`, so the actionable Affiliate
+row names the durable target directly. Read-only tests pass **30/30**, product-onboarding passes **48/48** and the
+combined read-only/apply/registry suite passes **243/243**. This improves the self-healer's diagnosis but is not a
+main integration, production release, fence resolution or revenue claim.
+
+The candidate CLI was then run against the live selector in read-only mode. It returned `rc=0` and showed the
+same owner-level fence together with both identities: the latest event occurrence was
+`affiliate-loop:18d85d697b701380-38327`, while `admission_effect_unknown_occurrences` named the durable target
+`affiliate-loop:18d83ba82b14fb40-24990` (`claimed`, sequence `143954`). The readback had no provider receipt or
+official readback reference. This is the intended diagnostic distinction; it does not authorize a resolver or
+external retry.
+
+### Candidate full-fleet readback after occurrence projection (2026-09-25 JST)
+
+The corrected candidate `lm-loop status all --json` completed with `rc=0` and returned 271 rows. Its current
+terminal projection is `running=4`, `blocked=71`, `pass=38`, `fail=23`, `None=135`; the local foundation gate
+still returns `decision=block` with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`
+and `uncovered_failure`, projecting 13 `uncovered_failure` loops and one `safely_fenced` loop. This small
+blocked/pass movement is natural runtime state, not a promotion or acceptance signal. Affiliate continues to show
+the latest event occurrence separately from durable target `affiliate-loop:18d83ba82b14fb40-24990`, with no
+provider receipt or official readback. No production mutation, fence resolution, provider action or revenue claim
+was made.
+
+### Next non-Paid foundation readback (2026-09-25 JST)
+
+The same candidate status projection was read without starting any entrypoint. `agent-economy-loop` is the only
+shown exact-release, diagnostic-complete continuous owner in this slice (`403e272e...`, running, effect
+`not_applicable`); the remaining Agent Economy owners are release-drift or legacy-diagnostic rows. Read-only
+admission shows no claimed Agent Economy fence, but preserves two released money-effect unknowns:
+`sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`. They require their
+owner-specific official readback and must not be cleared as no-effect.
+
+CFO remains three effect fences: claimed message occurrences
+`life-manager-cfo-hourly:18d679cb82869d48-98528` and `life-manager-financial-report:18d601655af3e1c0-86661`,
+plus released money occurrence `life-manager-payout:18d6026a3dc85558-829`. Job Hunter has claimed application
+fences for `job-search-health:18d5fc3605f58c20-90948`, `job-search-learning:18d6ff42778e8868-14131`, and the
+protected Mercor application/reply owners. These are read-only observations; no message, application, payout,
+wallet, provider session or external effect was touched. The admission read initially encountered SQLite lock
+contention, then succeeded on one bounded retry; a lock is never interpreted as an empty fence.
+
+The next safe order is therefore: integrate/promote the generic candidate only after the user-level foundation
+gate permits it; align effect-free owners one at a time; retain every money/message/application fence until exact
+official readback; then run the two-pass foundation/replay-zero gate. Revenue, commission and a natural wake are not
+acceptance gates for this foundation work.
+
+### Affiliate receipt identity hardening (2026-09-25 JST)
+
+The read-only Affiliate evidence pass found a durable host-admission fence at
+`affiliate-loop:18d83ba82b14fb40-24990` and a historical Telegram delivery receipt with provider message ID
+`92843`, but the delivery receipt had no host `occurrence_id`. The provider message therefore cannot be bound to the
+durable fenced occurrence from local timestamps or a different wake UUID. This remains a provider-readback problem,
+not permission to clear the fence or resend the report.
+
+The candidate now carries `e53a99adc0` on
+`fix/self-healing-control-plane-integration-20260925`. The already-present runtime environment variable
+`LIFE_MANAGER_OCCURRENCE_ID` is validated and copied into future Affiliate Telegram delivery receipts and into their
+event identity hash. This creates the durable chain required by self-healing:
+
+`host occurrence → Affiliate delivery receipt → Telegram provider message ID`.
+
+Malformed or absent occurrence values are omitted (fail closed); no receipt is fabricated. The Affiliate local-loop
+suite passes **83/83**, `py_compile` passes, and `git diff --check` passes. This is branch-only observability and
+identity hardening: no production process, provider session, Telegram message, admission row or effect fence was
+changed. Existing receipts without the identity remain unresolved until an exact official provider readback proves the
+same durable occurrence.
+
+The candidate diff is now **29 files**: generic control-plane/runtime/tests plus Affiliate and x402 receipt
+observability. It still contains no Paid fulfillment implementation or provider-session state. The foundation gate remains
+blocked on accepted-main immutable-release alignment and uncovered runtime evidence; Affiliate's next action is exact
+official readback of the durable target, never a generic pre-effect resolver and never a blind retry.
+
+The owner-specific read-only reconciler currently returns `HELD / predecessor_not_released`: the immediate predecessor
+has `state=cancelled` at the same queued timestamp, so the existing FIFO pre-effect proof window is not valid. A
+Telegram user-history readback was attempted through the existing session path but the current environment has no
+Telethon module; no provider body was claimed from local journals. This is an explicit missing-readback diagnostic,
+not an admission mutation or a revenue blocker to be bypassed. The durable target remains fenced until the provider
+readback path is available and binds the exact occurrence.
+
+The bounded read-only provider probe was then run in an isolated temporary environment. The configured Affiliate target
+chat did not contain message `92843`. Searching the 18 accessible dialogs found the same numeric message ID only in a
+different dialog and at a different timestamp; its body hash did not match the local Affiliate outbox body, and no
+local outbox row matched that provider hash. Therefore message `92843` is explicitly **not** an official receipt for
+`affiliate-loop:18d83ba82b14fb40-24990`. No Telegram message, admission row, provider session or effect was changed.
+The only safe next step is a provider readback in the correct authenticated target context that returns both the target
+chat and message identity, then binds that receipt to the durable host occurrence.
+
+After this identity change, the branch verification was rerun: the combined Python control-plane/read-only/apply/
+registry/Affiliate suite passed **326/326**, and `node --test apps/life-manager/lib/product-onboarding.test.js`
+passed **48/48**. The run emitted only the pre-existing Python `ResourceWarning` diagnostics and no test failure; it
+does not change the production-load or main-integration gate.
+
+### Agent Economy / CFO fence readback (2026-09-25 JST)
+
+The next read-only admission slice contains five effect-unknown occurrences: released money fences for
+`sol-funding:18d60103c86ce420-74237` and `x402-settlement-recorder:18d606127c37d290-73497`, claimed message fences
+for `life-manager-cfo-hourly:18d679cb82869d48-98528` and
+`life-manager-financial-report:18d601655af3e1c0-86661`, and a released money fence for
+`life-manager-payout:18d6026a3dc85558-829`. No row was edited.
+
+The owner journals are not sufficient to resolve these fences: the current Sol-funding and x402 settlement journals
+contain runtime `blocked / host_admission_deferred:resource_effect_unknown` rows but no `provider_receipt_id`,
+`official_readback_ref`, or host `occurrence_id`. The CFO and payout runtime journals have the same missing host
+identity on their historical blocked rows. Wallet ledgers, Base RPC observations, financial records, and message
+outboxes are not substituted for an exact occurrence-bound provider receipt. This is why self-healing must expose the
+fence and request the owner-specific official readback rather than marking a money or message effect safe.
+
+No wallet, x402 endpoint, Telegram message, payout, provider session, admission row or effect fence was changed. The
+next order is owner-specific readback for the two Agent Economy money fences, then CFO message/payout readback, with
+the exact durable occurrence carried through every receipt before any resolver is eligible.
+
+The branch adds a small future-proofing slice at `aed3314918` for `skills/earn/x402-sell/settlement-recorder.mjs`:
+the settlement recorder now validates `LIFE_MANAGER_OCCURRENCE_ID` and includes it in its one-shot JSON output. A
+missing or malformed value is emitted as `null`; no settlement, wallet write or RPC mutation is added. The focused
+wiring/identity tests pass **2/2** and `node --check` passes. The broad x402 suite remains environment-limited at
+**154/165**: 11 pre-existing tests stop at missing optional `viem`, `express`, or `@x402/fetch` dependencies (plus
+two port tests that cannot reach the intended server without those dependencies). This does not weaken the focused
+receipt contract or authorize dependency hydration under the current capacity floor.
+
+### CFO occurrence-bound snapshot receipt (2026-09-25 JST)
+
+The candidate now carries `29aaccb0d8` for the local CFO path. `apps/life-manager/scripts/cfo-hourly-local.js`
+validates the runtime-provided `LIFE_MANAGER_OCCURRENCE_ID` and persists it in the private
+`last-delivered-snapshot.json` receipt together with the Telegram provider message ID. The same identity is passed to
+the notifier boundary, and a pending same-day snapshot keeps its original occurrence when a later wake retries it;
+the retry's new runtime occurrence cannot silently replace the effect's original identity. Missing or malformed
+values are omitted, so no occurrence is fabricated.
+
+The focused CFO/financial-transition tests pass **18/18** and `node --check` passes. The broader candidate
+regression remains green at **326/326** Python control-plane/read-only/apply/registry/Affiliate tests and
+**48/48** product-onboarding tests, with only the pre-existing Python `ResourceWarning` diagnostics. This is a
+branch-only receipt-identity improvement: no Telegram message, CFO outbox row, payout, provider session, admission
+row or effect fence was changed. The candidate diff is now **31 files** (25 generic control-plane/runtime/test
+paths, two Affiliate receipt-identity files, two x402 settlement-identity files and two CFO receipt-identity files).
+
+The historical CFO fences remain unresolved because their old journals lack host occurrence identity and exact
+official readback. The new chain applies only to future wakes and does not authorize a resolver, replay, or revenue
+claim. Main integration and immutable production promotion remain blocked by the foundation gate.
+
+### Sol-funding future receipt identity (2026-09-25 JST)
+
+The candidate now carries `4e9d7eed26` for `skills/earn/sol-to-usdc.py`. The entrypoint validates the inherited
+`LIFE_MANAGER_OCCURRENCE_ID` and emits a secret-free `sol_funding_result` JSON boundary on every configuration/no-op
+path and after a submitted Solana transaction. The output carries `occurrence_id`, the Solana signature as
+`provider_receipt_id` only after `sendTransaction` returns, and leaves `official_readback_ref` null until a separate
+read-only Solana/Relay verification proves the exact transaction. This does not change quote, signing, submit,
+wallet, recipient or polling behavior.
+
+The Sol-funding contract/readback tests pass **5/5** and `py_compile` passes. The unconfigured fixture proves that a
+future no-effect wake retains the host occurrence without exposing a secret. The candidate is now **33 files**
+(25 generic control-plane/runtime/test paths, two Affiliate receipt-identity files, two x402 settlement-identity
+files, two CFO receipt-identity files and two Sol-funding receipt-identity files). No historical
+`sol-funding:18d60103c86ce420-74237` fence was resolved: its old release event still lacks the occurrence and both
+receipt/readback fields, so no wallet/RPC/Relay action, admission edit or revenue/cost claim occurred.
+
+The remaining Sol-funding cursor is an owner-specific read-only adapter that requires an exact occurrence-bound
+signature, Solana confirmation and Relay destination readback before any resolver is eligible. The new JSON output
+is future evidence only and is not itself official readback.
+
+### x402 occurrence-bound Base readback adapter (2026-09-25 JST)
+
+The candidate now carries `e4b74a13f7` on
+`fix/self-healing-control-plane-integration-20260925`. `settlement-recorder.mjs` attaches the validated host
+occurrence to each newly recorded verified sale row, together with the public Base transaction hash,
+`base://tx/<hash>` reference, and the `base_finalized_usdc_transfer` proof kind. Missing or malformed occurrence
+identity remains fail-closed and does not annotate a historical row.
+
+The new read-only `skills/earn/x402-sell/settlement_reconcile.py` adapter first checks the authoritative admission
+row, then requires exactly one occurrence-bound ledger receipt, and finally performs a fresh Base-mainnet readback:
+chain 8453, finalized block, successful transaction, and exactly one matching USDC Transfer to the owned wallet.
+It returns `ready` only with the exact owner, occurrence, transaction receipt and readback reference. It never sends
+transactions or edits admission state. Focused tests pass **4/4**, the Node wiring/identity suite passes **3/3**,
+`py_compile` and `git diff --check` pass.
+
+A live read-only probe of the released historical target
+`x402-settlement-recorder:18d606127c37d290-73497` returns
+`inconclusive / occurrence_receipt_missing`: every existing external-inflow ledger row lacks a host occurrence.
+This is not evidence of no effect and does not authorize clearing, replaying, or resending the fence. The adapter is
+future-proofing only until an accepted immutable release loads it and a future occurrence writes the complete chain.
+The candidate diff is now **35 files**; no wallet, Base RPC write, x402 endpoint, admission row, provider session,
+main branch, immutable release, or revenue value changed.
+
+### Sol-funding cross-chain readback adapter (2026-09-25 JST)
+
+The candidate now carries `39e7579733` on `fix/self-healing-control-plane-integration-20260925`. Future
+`sol-to-usdc.py` executions append only secret-free public identity to private
+`sol-funding/sol-funding-receipts.jsonl`: the host occurrence, Solana signature, Relay status endpoint, Relay
+destination transaction hash when exactly one exists, destination chain/currency, and recipient. The write is
+best-effort after the effect boundary, so a state-write failure cannot hide the submitted signature or create a
+false success claim. Existing quote/sign/submit behavior is unchanged.
+
+`skills/earn/sol_funding_reconcile.py` is read-only and fail-closed. It requires the exact `sol-funding` occurrence
+and one unambiguous receipt, then independently checks Solana `getSignatureStatuses`, Relay `status=success` with the
+same destination tx, and a finalized Base-mainnet USDC Transfer to the exact recipient. It returns `ready` only
+with the exact occurrence, provider signature and readback reference; it never sends funds or edits admission.
+Focused adapter tests pass **3/3**, the Sol-funding contract remains **5/5**, `py_compile` and `git diff --check`
+pass.
+
+A live read-only probe of `sol-funding:18d60103c86ce420-74237` returns
+`inconclusive / occurrence_receipt_missing`; the historical journal has no occurrence-bound receipt. This is not
+evidence that the swap did not happen and cannot clear the fence. The candidate is now **37 files** and remains
+source-only: no Solana RPC, Relay, Base RPC, wallet, admission row, main branch, immutable release or revenue value
+changed.
+
+### CFO Telegram occurrence-bound readback adapter (2026-09-25 JST)
+
+The candidate now carries `98cf68949e` on `fix/self-healing-control-plane-integration-20260925`.
+`cfo-hourly-local.js` now stores a SHA-256 hash of the exact rendered report beside the occurrence and Telegram
+provider message ID in its private snapshot. Pending same-day retries continue to preserve the original occurrence
+and message hash; legacy snapshots without either value remain unresolvable.
+
+The new read-only `apps/life-manager/scripts/cfo-telegram-reconcile.py` requires the exact CFO owner/occurrence,
+mode-0600 snapshot, and an official Telegram readback containing the target chat ID, provider message ID, delivered
+state and exact body hash. It returns `ready` only when all identities match and never sends Telegram or edits
+admission. Focused adapter tests pass **3/3**, CFO local tests **11/11**, combined focused Node tests **14/14**,
+`py_compile` and `git diff --check` pass.
+
+The current historical snapshot has `occurrence_id=null` and no `message_sha256`; a probe for
+`life-manager-cfo-hourly:18d679cb82869d48-98528` returns `inconclusive / snapshot_identity_mismatch`. It is not
+evidence that the message was absent and cannot clear the fence. The candidate is now **39 files**; no Telegram
+readback, message send, admission update, payout, main integration, immutable release or revenue claim occurred.
+
+### Payout occurrence-bound Base readback adapter (2026-09-25 JST)
+
+The candidate now carries `4e4e7b7ca6` on
+`fix/self-healing-control-plane-integration-20260925`. `run-agent-payout.js` validates the inherited
+`LIFE_MANAGER_OCCURRENCE_ID` and passes it through `payout-runtime.js`. After the existing exact settlement receipt is
+returned, the runtime appends a private mode-0600 `payout-receipts.jsonl` row containing the occurrence, transaction,
+wallet addresses, amount, provider receipt reference and payout identity. The local row is explicitly classified as a
+`base_provider_settlement_receipt`; it does not claim finality. Missing or malformed occurrence identity produces no
+receipt row, and a state-write failure cannot turn an unverified effect into success.
+
+The new read-only `apps/life-manager/scripts/payout-reconcile.py` adapter first checks the authoritative admission row,
+then requires exactly one occurrence-bound provider receipt, and finally performs a fresh Base-mainnet readback: chain
+8453, finalized block, successful transaction, and exactly one matching USDC Transfer from the recorded wallet to the
+recorded destination for the recorded atomic amount. Only this fresh readback is returned as
+`base_finalized_usdc_transfer`; the adapter never sends funds or edits admission state. The Python adapter tests pass
+**3/3**, `py_compile`, `node --check` and `git diff --check` pass. The existing Node payout suites cannot load in this
+worktree because optional dependencies `viem` and `@noble/hashes/sha3.js` are absent; no dependency hydration was
+performed under the capacity floor.
+
+A live read-only probe of `life-manager-payout:18d6026a3dc85558-829` returns
+`inconclusive / occurrence_receipt_missing`: the historical payout state has no occurrence-bound receipt. This is not
+evidence that no payout occurred and does not authorize clearing, replaying or sending funds. The candidate diff is now
+**44 files**. No wallet, Base RPC write, payout, Telegram message, admission row, main branch, immutable release or
+revenue value changed. After accepted immutable promotion, the next safe step is one future payout occurrence through
+the adapter, then an exact occurrence-bound official readback and replay-zero check before any historical resolver is
+considered.
+
+### Candidate gate and merge re-read (2026-09-25 JST)
+
+The candidate status read-only pass still returns **271** loop rows. Against the currently selected immutable release
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819` with SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, the local foundation gate remains `decision=block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The exact
+manifest projection is **13 `uncovered_failure` / 1 `safely_fenced`**; the actionable next actions are twelve
+`load_exact_immutable_release`, one `retry_after_eligibility` and one `diagnose_failure`.
+
+The candidate is based directly on that `origin/main` SHA. A non-mutating `git merge-tree --write-tree` re-read is
+clean (tree `846ee714d8d98ffed599c7463745532de7b3736f`), and the candidate diff is **44 files** with no Paid
+fulfillment source or provider-session state. A clean merge-tree is not permission to merge: main integration,
+immutable release promotion and production reload remain closed until the user-level foundation gate is green and the
+separate Paid owner is preserved.
+
+The readback adapters received a small fail-closed hardening at candidate commit `04ec25045e`: payout, x402 and
+Sol-funding now return a negative verification result when an RPC returns a null/non-object finalized block or
+transaction receipt instead of throwing through the reconciler. The three focused adapter suites pass **10/10** and
+`py_compile`/`git diff --check` pass. This changes no provider, wallet, admission or production state.
+
+After the host capacity check showed that a fresh install would still hit ENOSPC, the candidate's Node tests were run
+without writing dependencies by pointing `NODE_PATH` at an existing read-only dependency tree in another worktree.
+Payout runtime plus Base settlement passed **34/34**, x402 settlement wiring passed **3/3**, and CFO local runner
+passed **11/11**. The candidate `node_modules` directory was removed after the failed install attempt; no lockfile or
+tracked source changed.
+
+### Connector diagnostic readback (2026-09-25 JST)
+
+The current read-only status for `life-manager-connector-native` is `fail / entrypoint_exit_1`, with
+`next_action=reconcile_owner`, `effect_class=none`, `effect_status=not_applicable`, no provider receipt and no
+admission effect unknown. The user's `circuit_open / wake_boundary_failed` output is therefore a safe-stop report, not
+evidence that a Connector provider action succeeded or failed externally.
+
+The available Connector runner log shows two separate failure boundaries: Playwright raised
+`ProtocolError: Page.handleJavaScriptDialog: No dialog is showing` while the legacy `connector-native-completion`
+worktree was driving browser pages; then `reportWake` raised `GatewayTransportError: gateway timeout after 10000ms`
+against `ws://127.0.0.1:18789`. The reporting failure propagated from `finish()` and can mask the original safe
+reason as `wake_boundary_failed`. Because the log excerpt is not bound to the current occurrence ID, it is a diagnosis
+clue rather than an official occurrence receipt. No provider action, browser session, admission row or Connector code
+was changed here; the Connector-owned branch remains the only place to repair its runner/reporting boundary.
+
+The second CFO message owner, `life-manager-financial-report:18d601655af3e1c0-86661`, was also checked through the
+same read-only adapter. With the current private snapshot/proof surfaces, it returns
+`inconclusive / private_receipt_unavailable`. This is explicit missing evidence—not a no-effect result—and no
+Telegram, admission or report state was changed.
+
+The same read-only dependency reuse also allowed the shared self-healing control-plane suite to run: product-loop
+catalog/foundation gate, brain fallback/timeout contracts, recovery executor/supervisor, integration and bounded
+runtime properties passed **84/84**. This proves the candidate contracts, not production loading or the 14-loop gate.
+
+### Effect-free scratch recovery at the host-capacity boundary (2026-09-25 JST)
+
+The latest Connector status still reports `fail / entrypoint_exit_1`, but the host log identifies the lower-level
+failure boundary: `lm-loop-run` raised `Errno 28 No space left on device` while creating a per-run `loop-tmp` directory.
+Scratch creation occurs before the runtime start event is persisted, so this failure left no new occurrence/event and
+the status view retained the previous `entrypoint_exit_1`; it did not prove a Connector provider effect. The current
+host filesystem is still at **100% capacity** and a clean-install test independently failed while extracting a tar
+fixture with the same `Errno 28`.
+
+Candidate commit `5d65810e4d` adds `_create_loop_scratch_with_recovery` to the common runner. When, and only when,
+the registry marks the owner `effect_class=none`, an `ENOSPC` during scratch creation invokes the existing bounded
+`scratch_gc` for that owner, then retries exactly once with a fresh run ID. Effectful owners do not reclaim or retry;
+they remain fail-closed so no external effect can be replayed without an occurrence fence. This is a local
+self-healing boundary, not a disk-capacity claim and not a production promotion.
+
+The focused scratch/cleanup/run-boundary verification passes **149 tests + 4 subtests**, including a red-then-green
+ENOSPC regression. The complete `runtime/loop/tests` collection remains environment-blocked: after 26 tests passed,
+`test_clean_user_install` failed during repository tar extraction with `Errno 28`; no code failure was inferred. The
+next verification is to rerun that collection after the capacity floor is restored, then re-read the exact Connector
+occurrence and confirm a clean no-effect wake. No Paid source, Paid state, provider session, admission fence, main
+branch or immutable release was changed.
+
+The designated disk-cleanup owner was then run once with its normal allowlist. Its receipt reports `errors=0`,
+`protected_deletions=0`, `evaluated=5`, `preserved=5` (`open=5`) and `reclaimed=0`; free space remains only about
+296 MB. This is a safe no-op, not a cleanup failure: every discovered candidate was still open, and the owner did not
+delete state, credentials, sessions, source or provider data. The capacity floor therefore remains an external host
+blocker for the full suite and immutable promotion.
+
+### Fresh capacity/admission readback (2026-09-25 JST)
+
+After the cleanup-owner pass, a new read-only status snapshot still contains **271** rows. The exact Connector row is
+now `blocked / host_admission_deferred:resource_capacity_busy` with occurrence
+`life-manager-connector-native:18d8622f120b7978-29000`, exact installed/event SHA `d4fe0819931c50caaf41f25e86f1052cd8a0359c`,
+`diagnostic_complete=true`, and `admission_effect_unknown=false`. The disk-cleanup owner itself is `pass` with exit
+0. This confirms admission capacity—not an external Connector effect—as the current blocker.
+
+The fresh local foundation projection is **12 `uncovered_failure` / 2 `safely_fenced`**, still `decision=block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. The candidate
+branch has not been loaded into production; main integration and immutable promotion remain closed until capacity and
+the two-pass gate are green. No Paid state or provider session was touched.
+
+### ENOSPC safety regression follow-up (2026-09-25 JST)
+
+Candidate follow-up commit `07193f3f61` adds the complementary regression: an `ENOSPC` during scratch creation for
+an effectful owner does **not** invoke scratch GC and propagates the failure fail-closed. The scratch suite is now
+**14 passed + 4 subtests**. The broader focused control-plane/read-only/apply/registry/recovery/scratch/cleanup run
+reported **325 passed + 216 subtests**; the only incomplete collection remains the host-capacity tar-extraction
+fixture described above. This does not change the production gate or authorize Paid/provider actions.
+
+### Admission-capacity readback (2026-09-25 JST)
+
+A read-only query of the authoritative `host-admission/resources/admission-v2.sqlite3` snapshot observed **81 queued
+owners** and **8 active reservations** across agent/deterministic capacity. The reservations included another owner's
+`crowdworks-revenue-paid` (critical Paid occurrence) and a Lancers application occurrence with an effect-unknown fence;
+the remaining reservations were independent support/revenue owners. Historical claimed effect-unknown occurrences
+numbered 695, which is not itself an instruction to clear any fence. Connector's `resource_capacity_busy` is therefore
+an admission result, not a provider send failure. Reservation leases are live state and can expire/rebind between
+reads, so no release, replay, Paid action, or admission mutation was performed.
+
+### Connector capacity eligibility followed by an entrypoint terminal (2026-09-25 JST)
+
+The next read-only event stream shows the transition that the previous capacity snapshot could not prove. After the
+shared admission boundary became eligible, Connector started a fresh occurrence
+`life-manager-connector-native:18d86267c9103fb8-31760` on the current immutable SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`. Its persisted terminal event is `status=fail`,
+`failure_layer=entrypoint`, `blocker=entrypoint_exit_1`, `error_class=entrypoint_exit_1`, `exit_code=1`,
+`retryable=true`, `effect_class=none`, `effect_status=not_applicable`, `admission_effect_unknown=false`, and
+`provider_receipt_id=null`. The event's only evidence reference is the occurrence summary URI; no provider receipt or
+external effect is recorded.
+
+This narrows the active Connector blocker: the earlier `resource_capacity_busy` was a real shared-admission wait, but
+it is not the explanation for this later failure. The later failure is at Connector's own entrypoint boundary after
+admission, so the separately owned Connector maintainer must reproduce it and publish structured nested error evidence
+before any retry or release promotion. The local `wake-reports.jsonl` row still says
+`circuit_open / wake_boundary_failed`; because it is not occurrence-bound and its report path can mask the underlying
+entrypoint result, it remains a secondary reporting symptom rather than a provider receipt.
+
+No Connector source, browser session, launchd job, admission reservation, effect fence, Paid state or external provider
+was changed by this readback. The candidate ENOSPC recovery remains branch-only; it has not been loaded into this
+production owner. The next safe proof is therefore: (1) the Connector owner adds occurrence-bound nested
+entrypoint/error fields and fixes its runner/report boundary, (2) an accepted main-derived immutable release is loaded,
+(3) one effect-free Connector wake persists a clean terminal event, and (4) an immediate replay proves zero duplicate
+effect before the two-pass foundation gate is reconsidered.
+
+### Latest live foundation gate re-read (2026-09-25 JST)
+
+Using a fresh read-only `lm-loop status all --json` snapshot from immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, the 14-loop foundation projection currently contains **13
+`uncovered_failure`** rows and **1 `safely_fenced`** row; there are no healthy or repairing rows. The gate returns
+`decision=block` with `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`. The 13 uncovered rows are ten product/runtime-drift families plus Connector's
+`runtime_terminal_not_pass / diagnose_failure` (the exact family names remain in the generated manifest); they are not
+evidence of new revenue loss or permission to replay an effect.
+
+This replaces the earlier 12/2 readback as the current cursor. The difference is a fresh live projection observing
+additional release-drift/diagnostic gaps, not a new provider effect. Main integration, immutable promotion and the
+two-pass acceptance gate remain closed until the capacity floor is restored, the candidate is accepted, and each owner
+has exact loaded SHA, complete diagnostics, terminal outcome and replay-zero evidence. Paid fulfillment remains owned by
+the separate Codex and is excluded from this worktree's mutation scope.
+
+The host capacity probe at this same cursor reports **523,608,064 free bytes** (`df`/`disk_usage`), versus the
+required **1,155,780,608-byte** foundation floor. The shortfall is **632,172,544 bytes**, so the environment gate is
+still closed even though the focused candidate tests pass. This is a capacity fact, not evidence that any loop made or
+lost revenue; no broad deletion or unowned cleanup is authorized by this readback.
+
+The candidate branch `07193f3f61` was rechecked without production loading: the focused control-plane/read-only/apply/
+registry/recovery/scratch/runtime-event set passed **277 tests + 216 subtests**; `git diff --check` and Python
+compilation of the changed runtime/adapters also passed. Its registry diff does not change any Paid owner entry, and no
+Paid fulfillment path, Connector runner/source, provider session or effect fence was modified. This remains candidate
+evidence only; it does not replace full-suite completion or an accepted immutable release.
+
+The designated disk-cleanup owner was run again through the normal immutable release command. It exited 0 with
+`errors=0`, `evaluated=5`, `preserved=5` (`open=5`), `protected_deletions=0`, and `reclaimed=0`; the command's
+`free_after` was `537,665,536` bytes. A post-command filesystem probe reports `534,282,240` free bytes, still below
+the floor. This is a verified safe no-op: no unknown path, state, credential, session, source or provider data was
+deleted, and the capacity blocker remains genuine.
+
+### Release-reconciler self-healing boundary diagnosis (2026-09-25 JST)
+
+The live release-reconciler wake was observed without restart. Its old loaded plist still points to release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`; the latest occurrence
+`life-manager-release-reconciler:18d863638c8ed840-45065` terminated `entrypoint_exit_1`. The owner log gives the
+occurrence-bound failure chain: the old runner hit `FileNotFoundError: No usable temporary directory` under ENOSPC,
+and its call into the current d4 recovery supervisor then emitted `/bin/lm-recovery-supervise: line 4: exec: node:
+not found`. The latter is deterministic: the installed recovery-supervisor plist has
+`LIFE_MANAGER_RUNTIME_NODE=/opt/homebrew/bin/node`, but the d4 `lm-recovery-supervise` script ignored that variable and
+called bare `node`; the old release-reconciler plist has no runtime-node env key at all.
+
+Read-only reconciliation output from the same wake returned `ok=true` but `applied=[]`, `eligible=0`, with owners
+listed as `skipped_pending` or `skipped_running`; this is not proof of a fleet repair. A separate launchd readback found
+65 release directories, 167 plist release references, 162 referenced labels currently loaded and only five unloaded
+labels. The old release generations are therefore genuinely pinned by live launchd configuration, not safe cleanup
+candidates. The two unloaded Paid plists remain preserved and were not touched.
+
+Candidate commit `c1fb26d0ae` adds a fail-closed `/opt/homebrew/bin/node` fallback to `bin/lm-recovery-supervise`
+when launchd supplies neither the env key nor a PATH-visible Node, with a regression test. Registry/apply tests pass
+**214 tests + 212 subtests** and shell syntax/diff checks pass. This is a generic control-plane fix only; it is not
+loaded into production, and no Paid fulfillment, Connector source/session, browser session, provider effect or fence was
+changed. Production still requires capacity recovery, full-suite verification, accepted immutable loading and a
+reconciler owner readback before any release-retention deletion can be considered.
+
+The candidate fallback was also exercised in a clean environment with `PATH=/usr/bin:/bin` and no runtime-node env
+variable, using an empty temporary recovery queue and the candidate registry. It selected `/opt/homebrew/bin/node` and
+returned `ok=true`, `state=idle`, `reason=no_pending_intent`; no production queue, provider, browser or launchd state was
+read or mutated.
+
+### Cleanup candidate open-owner readback (2026-09-25 JST)
+
+The five allow-listed cache candidates are all genuinely open, so the cleanup owner's preservation is correct:
+Codex Service holds `~/Library/Caches/Codex`, ChatGPT holds a runtime archive under `~/.cache/codex-runtimes`, two
+Chromium Helper processes hold the daily-driver cache, Google Chrome Helper holds the Google cache, and a Node process
+holds an `@napi-rs/canvas` module under `~/.npm/_npx`. No process was stopped and no cache was deleted. Capacity
+recovery therefore requires those owners to close/release their files or an explicitly owned cleanup window; guessing
+that these are stale would violate the no-replay/no-data-loss boundary.
+
+### Reconciler gate diagnostics (2026-09-25 JST)
+
+The candidate control-plane change adds a read-only `blocked_by_gate` section to every reconciliation receipt. It
+does not change eligibility or apply behavior; it reports each failed gate as a count with at most ten sorted loop-ID
+examples, so a self-healing controller can choose a bounded next action without scraping logs. The receipt also
+reports `eligible_before_max_owners` separately from the bounded `eligible` count.
+
+A shadow invocation against the live d4 release (production `apply_live` replaced by a no-op in the test process)
+returned `eligible=0` and `eligible_before_max_owners=0`. The observed gates were: `pending_admission=76`,
+`event_release_mismatch=20`, `launchd_state=24`, `running_not_reloadable=18`, `missing_release_sha=2`, and
+`already_current=19`. This is a diagnostic readback only: no launchd plist, admission row, provider session, effect
+fence, browser session or external effect was changed. The counts overlap because one owner can fail more than one
+gate; they are not additive and do not imply 159 distinct failures.
+
+Candidate commit `c1fb26d0ae` contains the managed-Node fallback; follow-up commit `ce1c53285f` adds this
+observability contract. Each of the two targeted runs passes **174 tests + 181 subtests** (the suites overlap), and
+the candidate remains unpromoted. After capacity recovery and accepted immutable loading, the next proof is one real
+reconciler occurrence
+whose receipt
+contains these fields, followed by bounded owner readback and replay-zero. Paid fulfillment remains outside this
+cursor.
+
+### Durable recovery-journal diagnostics (2026-09-25 JST)
+
+The candidate recovery supervisor now persists a bounded `reconcile_diagnostics` object in its private recovery
+journal whenever an executor returns the reconcile receipt. It retains only non-negative safe-integer eligibility
+counts and at most 32 gate names with at most ten validated loop-ID samples per gate; untrusted fields are discarded.
+This lets the next self-healing wake distinguish admission pressure, release-evidence drift and launchd state without
+parsing log text, while preserving the existing fail-closed retry and effect-fence behavior.
+
+Candidate commit `9e37fa5712` adds the implementation and regression. The recovery Node suites pass **44/44** and the
+focused Python control-plane suite passes **331 tests + 212 subtests**. This is branch evidence only; no production
+journal, launchd state, admission row, provider session or external effect was changed. After accepted immutable
+loading, the durable journal field must be read back from one real non-Paid recovery occurrence and replay-zero must
+still pass before the foundation gate is reconsidered.
+
+### Latest release-reconciler read-only recheck (2026-09-25 JST)
+
+The current production status still points `ai.anicca.life-manager-release-reconciler` at the old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`. Its latest surface event remains `blocker=entrypoint_exit_1`,
+`phase=report`, `effect_status=not_applicable`, with `diagnostic_complete=false` and the occurrence-bound fields
+(`occurrence_id`, `wake_id`, `exit_code`, `retryable`, `next_action`, and provider/readback fields) absent. The
+readback therefore confirms stale-surface retention after an early failure; it does not prove a new reconciliation
+attempt or any provider effect. No restart, apply, reconcile, admission mutation, provider session change or Paid
+operation was performed.
+
+The same read-only probe now reports only **398,644 KB** available on `/System/Volumes/Data` (100% used), further
+below the **1,155,780,608-byte** foundation floor. The candidate fallback and gate-diagnostic commits remain branch
+only; the next safe cursor is still owner-controlled capacity recovery, then full-suite verification and an accepted
+immutable load before expecting a fresh reconciler occurrence.
+
+### Candidate merge-tree recheck (2026-09-25 JST)
+
+After the diagnostic follow-up, the candidate branch is `ce1c53285f38d73ccfdf23199edc9ab2f7443468` and
+`origin/main` is `d4fe0819931c50caaf41f25e86f1052cd8a0359c`. A read-only
+`git merge-tree --write-tree` is clean at tree `85cd634f7899602e8d8655466b1d950d04d9dbca`; `git diff --check`
+and the worktree are clean. This is only a merge-conflict/readiness fact. It is not main integration or production
+approval: capacity, full-suite, immutable-load, occurrence-complete readback and two-pass acceptance remain open.
+
+The subsequent durable-journal commit `9e37fa5712162c44f308caefe2a1c4ac063a4bed` was also compared read-only
+against the same `origin/main`; the clean merge tree is now `d6bc25e8aeb81b288c6f847e963077f23cce01fb`. No merge,
+release creation or production loading was performed.
+
+### Common launchd Node boundary follow-up (2026-09-25 JST)
+
+During a fresh read-only poll, the loaded old release-reconciler continued to emit `bin/lm-recovery-supervise:
+exec: node: not found` while its surface event remained occurrence-incomplete. The loaded recovery-supervisor had a
+complete retryable terminal (`entrypoint_exit_1`) but its owner log also showed repeated `database is locked` and
+ENOSPC deferrals. The disk-cleanup owner still exited 0 without reclaiming space. This confirms that the production
+release has not received the candidate Node boundary fixes.
+
+Candidate commit `e69cd97651` extends the managed Node fallback from the shell supervisor to the shared
+`lm_loop_run._runtime_node()` path used to invoke JavaScript entrypoints and recovery intent classification. A red/green
+regression proves that an empty launchd PATH and absent runtime-node env resolve to `/opt/homebrew/bin/node` only when
+that managed executable is present; an explicitly configured invalid path still fails closed. The focused Python set
+passes **332 tests + 212 subtests**, with compilation and diff checks clean. No production process was restarted and no
+admission, provider, Connector or Paid state was mutated.
+
+The current capacity probe is **399,544 KB free** at 100% filesystem use, still below the
+`1,155,780,608`-byte floor. After capacity recovery, the candidate must be loaded as an immutable release before
+re-reading these Node and recovery-supervisor boundaries.
+
+The follow-up candidate `e69cd976518fbe0bd996e507457badd1ba013b94` also has a clean read-only merge-tree against
+`origin/main d4fe0819931c50caaf41f25e86f1052cd8a0359c`, tree `b44a7cb8bcae3db6c0186ab1471dc23b7d41c065`. This is
+readiness evidence only, not merge or production authorization.
+
+### Admission lock/capacity readback (2026-09-25 JST)
+
+The authoritative admission database was read through a read-only connection while the live loops were running:
+`queue=83`, `reservations=7`, `claimed=709`, `effect_unknown=735`, `deferred=0`, with SQLite `journal_mode=delete`.
+`lsof` showed the database open by the release-reconciler and other loop processes; this is live contention, not a
+stale lock file. The existing bounded retry/defer behavior is therefore the safe response. No process was stopped, no
+transaction was interrupted, and no queue, reservation or effect-unknown row was changed. Switching journal mode or
+clearing rows would be an unverified production mutation and remains out of scope.
+
+### Natural reconciler wake after capacity improvement (2026-09-25 JST)
+
+The live release-reconciler completed a natural wake (`run_id=18d864d3270c74e8-69141`) without restart. Its two
+bounded route passes both returned `ok=true`, `eligible=0`, `applied=[]`, and `failed=[]` for immutable release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`; therefore no owner reload or external effect occurred. The overall shell
+owner still ended `entrypoint_exit_1` because its final call to the old `bin/lm-recovery-supervise` emitted
+`exec: node: not found`. This separates the reconciliation decision (no eligible owners under current gates) from
+the supervisor runtime failure that the candidate fallback addresses.
+
+The authoritative host-cleanup receipt at the same cursor is fresh (`observed_at=2026-09-24T23:14:14Z`):
+`free_after=657,887,232`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`). Capacity improved but remains below
+the `1,155,780,608`-byte floor by **497,893,376 bytes**. No process, cache, launchd job, admission row, provider
+session, effect fence or Paid state was mutated.
+
+### Natural wake still running under the old release (2026-09-25 JST)
+
+A subsequent read-only poll observed the next natural release-reconciler run
+`18d865297aba2440-74128` still `running` after the bounded observation window. The loaded launchd selector remains
+the old release `09a59ba1b899849ae7e3be8c67e239ec664dea22`, while the current selector remains d4. The event stream
+has a start event for this run but no occurrence-complete terminal yet; the status surface therefore still shows the
+previous `entrypoint_exit_1` event from run `18d864fc23610448-71944`. This is not evidence of a successful reconcile,
+a provider effect, or permission to interrupt the owner. The safe action is to let this natural run reach its own
+terminal and read that exact occurrence once; no restart, kill, apply, admission mutation, browser/session change or
+Paid operation was performed.
+
+The canonical cleanup receipt now reads `observed_at=2026-09-24T23:19:47Z`, `free_after=362,483,712`,
+`errors=0`, `reclaimed=0`, and `preserved=5` (`open=5`). The host is still at 100% filesystem use and is
+**793,296,896 bytes** below the `1,155,780,608`-byte floor. Cleanup remains healthy but has no safe reclaimable
+candidate; do not manufacture headroom by deleting open or unowned artifacts. The candidate source remains
+`e69cd976518fbe0bd996e507457badd1ba013b94` and is not loaded in production.
+
+The same occurrence then reached its own terminal at `2026-09-24T23:23:51.110570Z`: `status=fail`,
+`blocker=entrypoint_exit_1`, `effect_status=not_applicable`, `launchd_state=loaded-idle`, and `pid=null`. Its
+stderr again names the old d4 recovery-supervisor call to `bin/lm-recovery-supervise` failing with `exec: node: not
+found`; no provider receipt, admission effect-unknown, browser/session change or external effect was recorded.
+The status surface now binds this terminal to `18d865297aba2440-74128`, but remains diagnostic-incomplete because
+the old release does not persist the required occurrence/error/readback fields. This is a confirmed runtime-boundary
+failure, not a reason to retry an external effect. After the host floor is restored, the next promotion proof is to
+load the accepted candidate and confirm the same occurrence fields with the managed Node fallback.
+
+### Foundation gate after the terminal readback (2026-09-25 JST)
+
+The read-only `lm-loop status all --json` plus the current immutable d4 local foundation evaluator completed with
+`rc=0` for status and returned **271 rows**. The evaluator observed all **14 Product Loops** and still projects
+`healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`, `uncovered_failure=13`, `decision=block`.
+The reasons remain `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and
+`uncovered_failure`; the single accepted fence is `investment`, while the other loop rows remain release-drift or
+runtime-terminal evidence gaps. The reconciler terminal above does not make a loop healthy and does not change the
+commercial/revenue gate. No launchd mutation, admission write, provider effect, fence clearing or Paid operation was
+performed.
+
+The canonical cleanup receipt advanced to `observed_at=2026-09-24T23:25:19Z`: `free_before=348,270,592`,
+`free_after=345,677,824`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), `inventory_gaps=22`. The floor
+shortfall is now **810,102,784 bytes**. This is a safe cleanup result with no reclaimable candidate, not permission
+for unowned deletion; full-suite execution and candidate promotion remain closed.
+
+### Repeated natural wake confirms the old runtime boundary (2026-09-25 JST)
+
+Two subsequent natural release-reconciler occurrences, `18d8655abda5d520-77210` (terminal
+`2026-09-24T23:26:30.973767Z`) and `18d8657fdd013138-79228` (terminal
+`2026-09-24T23:29:47.020439Z`), independently ended `status=fail`, `blocker=entrypoint_exit_1`,
+`effect_status=not_applicable`, with the old loaded release `09a59ba1b899849ae7e3be8c67e239ec664dea22`. Both log
+tails contain the same `bin/lm-recovery-supervise: exec: node: not found` boundary; neither occurrence has a provider
+receipt or admission effect-unknown. This is now a reproducible old-release runtime defect, not a transient wake or
+external-effect ambiguity. The candidate managed-Node fallback remains the single source fix; it is still branch-only
+until capacity/full-suite/acceptance gates permit immutable promotion.
+
+### Cleanup terminal at the lower-capacity cursor (2026-09-25 JST)
+
+The next natural disk-cleanup occurrence `18d865a87f762748-81472` reached a complete terminal at
+`2026-09-24T23:32:21.582575Z`: `status=pass`, `exit_code=0`, `errors=0`, `reclaimed=0`, and five open candidates
+preserved. Its canonical receipt is `observed_at=2026-09-24T23:32:07Z`, `free_before=329,150,464`,
+`free_after=329,150,464`, `inventory_gaps=18`. The safe cleanup owner therefore has no reclaimable allowlisted item;
+capacity is now **826,630,144 bytes** below the `1,155,780,608`-byte floor. This is an environment/ownership
+boundary, not authorization to delete unowned data or stop live processes. Full-suite and immutable promotion remain
+closed until a later owner-controlled capacity recovery changes this receipt.
+
+The next release-reconciler occurrence `18d865ada9b0c108-81964` then ended at
+`2026-09-24T23:33:04.543801Z` with the same old-release `entrypoint_exit_1`/`node: not found` boundary and no
+external effect. On the source candidate, `bin/lm-loop-contract` independently passed with `catalog_loops=14`,
+`registry_jobs=169`, `mapped_jobs=98`, `shared_job_ids=[]`, and `errors=[]`; `git diff --check` also passed. The
+candidate remains source-only. The repository's source-boundary helper rejects this registered `/private/tmp`
+worktree path (it expects the canonical checkout or `.worktrees`), so promotion still requires the normal allowed
+worktree path and the capacity/full-suite gates; this tooling mismatch was not bypassed.
+
+A read-only worktree inspection corrected the earlier wording: the candidate worktree itself is registered
+`unmanaged` and `unlocked`. The expired managed lease belongs to a different historical worktree,
+`/private/tmp/lm-runtime-admission-marketplace-priority-20260916`, with owner
+`codex-root-marketplace-priority-20260916`; it is not a lease on this candidate. No lease was stolen, deleted or
+rewritten, and no duplicate worktree was created. The candidate remains source-only because the source-boundary
+helper rejects its `/private/tmp` path; promotion still requires an allowed canonical checkout/`.worktrees` path,
+capacity recovery and the full-suite gate. The stale historical lease remains an external owner boundary and is not
+used as a reason to mutate this candidate.
+
+### Worktree-boundary audit correction (2026-09-25 JST)
+
+`python3 scripts/worktree-lease.py audit --path /private/tmp/lm-self-heal-integration-20260925` reports the
+candidate as `state=unmanaged, locked=false`. The only relevant expired managed record is the separate historical
+`lm-runtime-admission-marketplace-priority-20260916` worktree. This read-only audit therefore closes the earlier
+diagnostic ambiguity without changing any lease, branch, worktree, release, launchd owner or provider state. The
+remaining cursor is: recover the owner-controlled capacity floor, run the full suite from an allowed worktree, then
+perform the accepted immutable-release and occurrence-complete self-healing readback sequence.
+
+The following natural release-reconciler occurrence `18d865db6184d2b0-84522` reached its own terminal at
+`2026-09-24T23:36:45.786559Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. This is another
+occurrence-bound confirmation of the same old-release bare-Node defect; it does not authorize restart or replay.
+
+The next natural cleanup occurrence `18d86609e15eb3d8-86988` reached `status=pass`, `exit_code=0` at
+`2026-09-24T23:38:22.455280Z`. Its canonical receipt is `observed_at=2026-09-24T23:37:56Z`,
+`free_before=333,656,064`, `free_after=333,537,280`, `errors=0`, `reclaimed=0`, `preserved=5` (`open=5`), and
+`inventory_gaps=22`. The safe owner still has no allowlisted reclaimable item; the floor shortfall is
+**822,243,328 bytes**. This small capacity movement does not unlock full-suite or immutable promotion.
+
+The next natural release-reconciler occurrence `18d8660f24ff7078-87162` reached its own terminal at
+`2026-09-24T23:40:04.851144Z`: `status=fail`, `blocker=entrypoint_exit_1`, old loaded release
+`09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. The repeated occurrence
+continues to prove the same old-release bare-Node runtime boundary; the candidate fallback remains unpromoted while
+capacity and worktree-lease gates are unresolved.
+
+### Product UX contract: one-shot bootstrap, then no recurring human loop
+
+This section is the product target. It is intentionally separate from the current implementation status. The
+target experience is that a person supplies the minimum facts and provider setup once, then Life Manager chooses
+and executes the best available work proactively. The person does not set a goal on every wake, choose among the
+fourteen loops, answer routine risk questions, approve ordinary actions, repair incidents, or manually submit
+deliverables. A notification is a report of what happened, not a request to babysit the system.
+
+#### Ideal user journey (TO-BE)
+
+1. The person opens the cloud Life Manager from a phone (Telegram or the hosted web surface). Local/self-hosted
+   mode exposes the same contract for users who choose to run it on their own machine.
+2. Life Manager creates or recovers the account and auto-fills facts already available from account context, such
+   as display name, locale and time zone. It does not ask the person to invent a mission statement or financial/
+   health goals.
+3. One bootstrap capsule collects only missing capability facts: an optional payout destination when a payout rail
+   needs one, provider connections when a loop needs them, and the provider's one-time KYC, CAPTCHA, OAuth, terms
+   or legal consent when that provider requires it. A connected wallet or bank is never silently inferred or copied
+   from another tenant.
+4. Life Manager records a versioned authorization envelope. The envelope permits autonomous operation inside the
+   system's immutable safety, legal, spend and evidence rules. The user is not asked to choose a risk maximum for
+   every loop or approve every transaction. Personal-wallet or bank actions still require provider-valid
+   authorization; the product cannot make an unauthorized transfer merely by hiding a permission prompt.
+5. The capability registry auto-enrols every eligible loop. A missing provider or one-time gate becomes a typed
+   `setup_required` or `safely_fenced` row; it does not stop unrelated loops and it never becomes a guessed success.
+6. After `bootstrap_ready`, ordinary wakes run without conversation. Life Manager observes, acts, evaluates, repairs
+   and reports. It asks again only for a new external gate that cannot be completed autonomously (for example a
+   fresh KYC/CAPTCHA, expired OAuth, a legal dispute, or an explicit user-requested policy change).
+7. The default cloud experience is phone-only and always-on. Local mode is an optional self-hosted equivalent, not a
+   second business implementation. Both modes use the same capsule, receipts, effect fences and recovery rules.
+
+The product promise is therefore **no recurring human loop after bootstrap**. “No human in the loop” is the
+long-term `agent_native` outcome for operations that do not require a human credential or legally required gate;
+KYC/CAPTCHA and provider-mandated one-time setup remain explicit exceptions rather than hidden automation.
+
+#### What the current code does (AS-IS)
+
+The current implementation does not yet satisfy this contract:
+
+- `apps/life-manager/lib/telegram-onboard.js` is the existing LM-6 onboarding for Calendar, home address,
+  notifications and optional phone/call (with Gmail as an optional integration). It is not a generic economic,
+  health and provider-capability bootstrap capsule.
+- `apps/life-manager/lib/product-onboarding.js` requires `host` and a non-empty `selected_loop_ids`, rejects the
+  special value `all`, and returns `starts_automatically: false`. It therefore does not auto-enrol all eligible
+  loops after one bootstrap.
+- There is no single persisted authorization/policy capsule that carries the user's available payout rails,
+  provider gates, immutable defaults, capability state and capsule version across every loop.
+- The foundation gate is still blocked (`healthy=0`, `safely_fenced=1`, `uncovered_failure=13` on the latest
+  read-only projection; another same-SHA projection recorded `uncovered_failure=14`). Neither projection proves
+  fourteen healthy loops, provider success or revenue.
+
+The earlier wording that described this one-shot capsule as already available was incorrect. The capsule and
+auto-enrolment are requirements to implement and verify, not evidence of a completed feature.
+
+#### UX acceptance contract
+
+The implementation may be considered TO-BE compliant only when all of the following are read back from the same
+immutable release:
+
+1. A new user reaches `bootstrap_ready` after only conditional missing-field prompts; no goal-setting question is
+   required.
+2. No ordinary wake emits a goal, per-action risk-limit or routine approval prompt.
+3. Every external effect is checked against the versioned authorization envelope and immutable system policy;
+   missing authority is a typed fence, never an implicit allow.
+4. Eligible loops auto-enrol, ineligible loops expose an exact setup action, and one blocked loop does not stop its
+   siblings.
+5. A KYC/CAPTCHA/OAuth expiry can be represented as one occurrence-scoped human gate and then resumes without
+   repeating the whole onboarding.
+6. Local and cloud runs produce the same capsule hash, effect/readback/receipt schema and replay-zero result.
+7. User-visible messages are outcome reports and concise exception instructions; they do not become a recurring
+   task queue for the person.
+
+#### Remaining implementation order for this UX and autonomy target
+
+The UX is specified now, but it must not be used to skip the foundation gates. The execution order is:
+
+1. Recover the owner-controlled capacity floor and run the full relevant suite from an allowed worktree.
+2. Promote the managed-Node/recovery candidate through the normal main-derived immutable-release path and read back
+   the exact loaded SHA, argv, diagnostic envelope and reconciler terminal.
+3. Prove one low-risk non-Paid self-heal occurrence end-to-end (detect, classify, repair, release, readback,
+   replay-zero) without Codex operating the live owner.
+4. Reconcile each non-Paid owner through the shared kernel and close the local 14-loop foundation gate. Paid
+   fulfillment remains the separate owner's workstream and is consumed read-only here.
+5. Implement the persisted bootstrap capsule, default policy/envelope and capability registry. Preserve one-time
+   provider/KYC/CAPTCHA gates, but remove recurring goal, loop-selection, per-action risk and routine approval
+   prompts from the normal path.
+6. Change onboarding to auto-enrol eligible loops, emit typed `setup_required`/`safely_fenced` states, and prove
+   that a blocked provider does not block unrelated loops.
+7. Promote the accepted local control plane to tenant-isolated cloud workers and prove phone-only operation with
+   the same capsule hash and receipts. Keep local/self-hosted mode as the same-contract option.
+8. Connect the economic evaluation to attributable funnels. Candidate changes may alter prompts, skills, tools,
+   models, offers or new-loop adapters, but may not alter identity, permissions, evidence rules, spend caps or the
+   evaluator itself.
+9. Run bounded live canaries, official provider/payment readback and rollback for Affiliate, Mobile Apps/Capafy,
+   Writer/Product, Gig non-Paid and Self-Funding/x402. Do not call activity or unrealized gains revenue.
+10. Prove self-funding from settled recurring contribution after all measured costs, then verify portfolio-wide
+    USD 10,000 MRR. Only after that should the `agent_native`/human-credential-free benchmark and larger revenue
+    targets be promoted.
+
+Until steps 1–4 pass, the system is a foundation candidate. Until steps 5–7 pass, the desired one-shot, phone-only
+experience is a design target. Until steps 8–10 pass, self-improvement and self-funding are not production claims.
+
+### General LM-EAB benchmark contract and evaluation best practices
+
+LM-EAB is intended to become a **general agent benchmark**, not a private score that only Life Manager can run.
+Its first domain slice is economic autonomy because money has auditable settlement and cost evidence. That slice
+must not be advertised as a general-AGI score: financial autonomy, physical-health outcomes, mental-health
+outcomes, software engineering and other domains require separate task families and separate safety gates. The
+benchmark is general at the protocol and comparison layer, while its tasks remain domain-specific and explicit.
+
+#### What “general” means
+
+An independent lab, model or harness must be able to submit a run without importing Life Manager's private control
+plane. The public contract therefore separates five layers:
+
+1. **Task:** versioned task ID, starting state/capital, environment, allowed tools and credential class,
+   objective, constraints, stop conditions and machine-checkable success/failure criteria.
+2. **Trial:** one attempt with a trial ID, random seed where applicable, model/harness/tool/release hashes,
+   wall time, token/model cost, cloud/browser/tool cost and the complete trajectory.
+3. **Grader:** deterministic checks and official outcome/receipt checks first; model-based or human graders only
+   for dimensions that cannot be checked mechanically, with calibration and agreement reports.
+4. **Scorecard:** primary outcome plus reliability, cost, latency, intervention, safety, drawdown and
+   credential/autonomy slices. No single helpfulness or raw-activity number is the benchmark.
+5. **Report:** frozen dataset/version, baseline, number of trials, uncertainty, failures, exclusions, exact
+   environment and reproducibility instructions. Public examples are separated from private held-out and challenge
+   cases so optimizing to the public set does not equal passing the benchmark.
+
+The real-world track has an additional evidence layer: external effects require occurrence-bound authoritative
+provider/payment readback. Simulation can compare candidates cheaply, but simulation cannot establish revenue,
+self-funding or a real customer outcome.
+
+#### Best-practice alignment
+
+The contract follows the converging practice of current evaluation work:
+
+| Best practice | LM-EAB implementation or required guard |
+|---|---|
+| Eval-driven development and production-grounded data | Runtime traces, previous failures, expert/domain cases and official receipts become versioned cases; candidates are evaluated before promotion. |
+| Multi-turn agent evaluation | A trial stores the full trajectory, tool calls, intermediate state and final outcome rather than grading one reply. |
+| Multiple grader types | Deterministic/schema/receipt graders are primary; model or human graders are limited to subjective dimensions and must be calibrated. |
+| Baseline, held-out data and contamination resistance | Frozen baseline and train/tuning/held-out/challenge partitions; held-out cases and receipt identifiers remain private until the evaluation window closes. |
+| Repeated trials and uncertainty | Report trial count, variance/confidence interval or other uncertainty; never promote on one lucky run. The current v1 deterministic fixtures are a contract test, not a statistical claim. |
+| Holistic reporting | Publish outcome, safety, reliability, latency, cost, human intervention, credential class and failure slices together. |
+| Reproducibility and transparency | Store task/version hashes, model/harness/tool/release hashes, seeds, grader versions and redacted trajectories; publish the runnable protocol and aggregate results. |
+| Anti-gaming and outcome validity | Official settlement/readback, duplicate-effect checks, effect fences and immutable graders; self-reported revenue and evaluator changes do not count. |
+| Interoperability | Export the task/trial/trajectory/score schema and provide adapters so another agent or harness can run the same task without Life Manager internals. |
+| Safety and privacy | Separate capability tracks, redact credentials/private paths, enforce spend and effect gates, and keep safety eligibility independent from profit ranking. |
+
+This is aligned with OpenAI's eval-driven-development guidance, which recommends early and frequent evaluation,
+production data plus expert-created datasets, and explicit graders ([OpenAI Evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)).
+It also follows Anthropic's agent-eval decomposition into task, trial, grader and transcript, and its recommendation
+to combine grader types ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
+Statistical reporting is a first-class requirement rather than an afterthought ([A statistical approach to model
+evaluations](https://www.anthropic.com/research/statistical-approach-to-model-evals?trk=public_post_comment-text)).
+Holistic slices and public raw-result transparency follow the HELM approach ([Stanford HELM](https://crfm.stanford.edu/helm/)),
+and the task interchange goal follows the METR Task Standard ([METR task-standard](https://github.com/METR/task-standard)).
+
+#### Internal eval, public benchmark and production gate are different artifacts
+
+They share schemas but answer different questions:
+
+| Artifact | Question | Pass consequence |
+|---|---|---|
+| Recovery eval | Can this release detect and repair a known failure without unsafe replay? | Allow recovery/canary progression; never proves business revenue. |
+| Product/economic eval | Does this candidate improve a frozen funnel after cost and safety gates? | Candidate may be promoted or rolled back. |
+| LM-EAB public benchmark | How does any agent/model/harness perform on the same versioned tasks? | Comparable scorecard/leaderboard; never directly mutates production. |
+| Commercial gate | Did this Life Manager loop produce the intended official effect and settled outcome exactly once? | Counts toward revenue/self-funding only when receipt evidence exists. |
+
+This separation prevents a benchmark win from being mistaken for production health, and prevents a healthy
+runtime from being mistaken for profitable work.
+
+#### Current maturity and missing general-benchmark work
+
+The repository currently has the lower-layer contracts: strict case/run/score schemas, deterministic arithmetic,
+held-out/cost/latency/live-readback gates, secret-free fixtures and Product Loop mappings. The current corpus is
+small and v1 intentionally avoids an uncalibrated semantic judge. Therefore the following are still open before
+claiming a public general benchmark:
+
+1. Expand task families beyond Life Manager's own traces and publish a task-authoring guide.
+2. Add independent agent/harness adapters and a versioned runner contract.
+3. Grow independent tuning/dev/held-out/challenge sets and run contamination audits.
+4. Add repeated-trial statistics, confidence intervals and a documented minimum trial count.
+5. Calibrate model-based and human graders on independently labeled samples; keep deterministic receipt graders
+   authoritative for money and external effects.
+6. Publish redacted trajectories, aggregate results, failure taxonomy and a reproducible leaderboard without
+   exposing credentials or private provider data.
+7. Complete the portfolio/CFO source join and real settlement coverage before reporting real-world net-profit
+   rankings.
+8. Reproduce the benchmark on cloud workers and the local/self-hosted adapter with the same task and score hashes.
+
+Until these items are complete, LM-EAB is a strong internal benchmark contract and a candidate public product, not
+yet a broadly validated industry benchmark. The benchmark itself never changes the evaluator, permissions,
+identity, evidence rules or spend caps in response to a candidate score.
+
+### Current verified implementation, 14-loop status, and handover snapshot
+
+This is the current handover source of truth. It separates source implementation from loaded production state,
+and both from verified business revenue. Evidence below is read-only and was captured at
+`2026-09-25T02:56:47Z` (`2026-09-25 11:56:47 JST`) from the recovery-owner worktree
+`/private/tmp/lm-recovery-owner-20260924`, branch
+`fix/writer-admission-self-heal-20260924`.
+
+#### Verification scope and immutable boundaries
+
+- The production selector readback is `/Users/anicca/loops/current ->
+  /Users/anicca/loops/releases/20260925T031007-d4fe0819`; `RELEASE.json` reports
+  `d4fe0819931c50caaf41f25e86f1052cd8a0359c`.
+- `./bin/lm-loop status all --json` returned **271** status rows.
+- `./bin/lm-loop-contract` returned `ok=true`, `catalog_loops=14`, `registry_jobs=169`,
+  `mapped_jobs=98`, `shared_job_ids=[]`, `errors=[]`.
+- `local-foundation-gate.js` was evaluated against those status rows and the exact release SHA. It returned
+  `decision=block`, reasons `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`,
+  `uncovered_failure`, and counts `healthy=0`, `setup_required=0`, `safely_fenced=1`, `repairing=0`,
+  `uncovered_failure=13`.
+- Focused evals passed: economic autonomy **41/41**, agent contract **13/13**. These are deterministic contract/
+  fixture checks; they do not prove provider effects, settled revenue, self-funding or AGI.
+- No production process, browser session, provider state, admission row, effect fence, credential or Paid state was
+  mutated during this verification.
+- Paid fulfillment remains owned by the separate Codex workstream. This document consumes its status read-only and
+  does not change Paid code, state, provider sessions, the Paid worktree or `hf-gig-paid-direct`.
+
+#### Implementation inventory: what exists and what does not
+
+| Capability | Implemented and verified | Not implemented, not loaded, or not proven |
+|---|---|---|
+| 14-loop catalog and registry identity | `apps/life-manager/config/product-loop-catalog.json` plus `bin/lm-loop-contract` prove 14 catalog loops, 169 registered jobs, 98 mapped jobs and zero structural errors | Structural identity is not runtime health, provider success or revenue |
+| Unified observability CLI | `bin/lm-loop status all --json` returns a machine-readable 271-row projection; the foundation evaluator reduces it to one row per loop and a gate decision | Several rows lack the required diagnostic/readback fields; the projection cannot be called healthy while the gate is blocked |
+| Foundation gate | `buildProductLoopFoundationManifest` and `evaluateLocalFoundationGate` exist and fail closed on missing evidence, release drift and uncovered failures | Current immutable release is blocked; no loop has a `healthy` decision |
+| Shared recovery/self-heal control plane | Recovery schemas, intents, supervisor and a managed-Node fix exist in source; candidate `e69cd976518fbe0bd996e507457badd1ba013b94` has focused evidence | Candidate is branch-only, not main, not an accepted immutable production release, and has no end-to-end live self-heal proof |
+| Local/cloud contract | Local and cloud fields, release/evidence schemas and cloud promotion requirements are specified | Cloud tenant isolation/always-on promotion and the same-capsule local adapter are not acceptance-complete |
+| One-shot bootstrap UX | The target contract is specified (conditional setup once, then autonomous wakes) | Current `telegram-onboard.js` is LM-6-specific; `product-onboarding.js` still requires selected loop IDs and returns `starts_automatically:false`; no persisted universal authorization capsule/auto-enrollment exists |
+| Economic autonomy eval | `apps/life-manager/eval/economic-autonomy` has strict cases, deterministic score arithmetic, held-out cases and live-readback fields; tests pass 41/41 | Only four cases exist (two tuning, two held-out); no production portfolio/CFO settlement join or statistically repeated profit result |
+| Agent contract eval | Strict multi-turn contract cases and tests pass 13/13 | This is not a general benchmark and has no independent lab adapters/leaderboard yet |
+| General LM-EAB benchmark | Protocol, task/trial/grader/score/report schema and safety/autonomy tracks are specified in this file | Public task families, independent adapters, contamination audit, repeated-trial uncertainty, grader calibration and reproducible leaderboard remain open |
+| Self-healing | Safe classification, effect fences, release binding and replay-zero requirements are implemented in source/contracts | A production occurrence has not yet completed detect → classify → repair → immutable load → official readback → replay-zero without Codex intervention |
+| Self-improvement for profit | Candidate/eval separation and economic score dimensions are specified | No candidate has passed a live attributable funnel, cost join and settled-profit comparison; no model/offer change may be claimed profitable yet |
+| Self-funding / x402 | x402 settlement schemas and self-funding loop direction exist in source/spec | No verified settled contribution currently covers compute, cloud, provider and payout costs; x402 is not a permission bypass |
+| Affiliate | Catalog/registry and an effect-fenced owner exist | Current gate is `uncovered_failure`; one effect-unknown is present, financial/cost fields are missing in the catalog, and no settled affiliate revenue is verified |
+| Mobile Apps / Capafy | Catalog, jobs and runtime adapters exist | Current gate is `uncovered_failure`; 20 effect-unknown jobs and 21 release mismatches are present in the projection, financial/cost fields are missing, and revenue is unverified |
+| Connector | One connector job and terminal-state reporting exist | Current gate is `uncovered_failure` with `runtime_terminal_not_pass`; `wake_boundary_failed`/circuit-open is not a successful connector run |
+| Investment | Admission deferral is represented safely | It is `safely_fenced` (`runtime_admission_deferred`), not healthy and not evidence of profitable trading |
+| Revenue/MRR | CFO/financial-report/payout job identities and receipts are modeled | No verified portfolio-wide settled net MRR of USD 10,000 exists; current evidence must be reported as unverified/zero until receipts and cost joins exist |
+| YC Winter 2027 | Application/evidence plan can be prepared | Acceptance/selection is external and not guaranteed; no selection claim is valid |
+| AGI | A measurable, domain-expanding benchmark target is specified | Life Manager is not objectively demonstrated as AGI; a financial score alone cannot establish general intelligence |
+
+#### Exact current situation of every Product Loop
+
+The following is the current readback, not an aspirational description. `jobs` is the catalog job count;
+`unknown` is an effect-unknown count; `diag` is the number of jobs lacking the required diagnostic envelope;
+`drift` is a release-mismatch count; `non-pass` is the number of jobs not terminally passing in this projection.
+
+| Loop | Gate state | Reason / next action | jobs | unknown | diag | drift | non-pass | Commercial conclusion |
+|---|---|---|---:|---:|---:|---:|---:|---|
+| `gig-coconala` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 7 | 0 | 2 | 3 | 4 | Not proven healthy or paid |
+| `gig-lancers` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 7 | 5 | 7 | 7 | 4 | Not proven healthy or paid |
+| `gig-crowdworks` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 5 | 4 | 4 | 5 | 5 | Paid-owned workstream; no claim here |
+| `writer` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 7 | 1 | 0 | 1 | 4 | Not proven healthy or profitable |
+| `affiliate` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 6 | 1 | 0 | 3 | 3 | No settled affiliate revenue verified |
+| `investment` | `safely_fenced` | `runtime_admission_deferred` → `retry_after_eligibility` | 1 | 0 | 0 | 0 | 1 | Safely stopped; no profit claim |
+| `agent-economy` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 19 | 2 | 18 | 19 | 17 | Not proven self-funding |
+| `job-hunter` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 7 | 4 | 6 | 6 | 6 | Not proven revenue |
+| `fundraiser` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 1 | 1 | 0 | 1 | 1 | No settled funding claim |
+| `connector` | `uncovered_failure` | `runtime_terminal_not_pass` → `diagnose_failure` | 1 | 0 | 0 | 0 | 1 | Circuit-open is a safe stop, not success |
+| `self-build` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 4 | 0 | 0 | 1 | 2 | Source improvement exists; no live self-improvement proof |
+| `mobile-apps` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 22 | 20 | 21 | 21 | 8 | Posting/installs/revenue not proven |
+| `capafy` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 8 | 2 | 1 | 3 | 6 | Inventory exists; settled earnings not proven |
+| `cfo` | `uncovered_failure` | `runtime_release_drift` → `load_exact_immutable_release` | 3 | 3 | 3 | 3 | 3 | Reporting jobs exist; revenue ledger not proven |
+
+**Answer to “are all fourteen working and making money?”: no.** The registry and observability plumbing work,
+but the current foundation gate says zero healthy, one safely fenced and thirteen uncovered failures. A status row
+means the system can observe a boundary; it does not mean the provider acted, a customer paid, or a loop made money.
+The only honest commercial status is “not verified” until an occurrence-bound official receipt, settlement record,
+cost attribution and replay-zero evidence are joined.
+
+#### Why the health CLI is powerful, and what it cannot do by itself
+
+The operator path is intentionally short:
+
+```text
+lm-loop status all --json
+        ↓
+buildProductLoopFoundationManifest
+        ↓
+evaluateLocalFoundationGate
+        ↓
+14 loop states + exact reason + next action
+        ↓
+recovery supervisor (only after release/effect gates pass)
+```
+
+This is the observability-to-self-healing boundary. Life Manager can read one structured projection instead of
+manually opening fourteen dashboards, classify a failure, select a bounded repair, bind it to the loaded release,
+and verify the occurrence. It must not jump from `unknown` or `circuit_open` directly to replay: first add the
+missing `run_id`, `owner_id`, `occurrence_id`, `release_sha`, argv/env, phase, exit code, effect, readback,
+receipt, error class, retryability and next action, then obtain official readback. The current gate is therefore
+the correct safe answer: it exposes the exact repair cursor, but it is not yet a self-healing completion proof.
+
+#### Revenue plan: a truthful path to USD 10,000 MRR
+
+USD 10,000 MRR this month is a target, not current evidence. The current foundation block means it cannot be
+promised. The fastest defensible path is to first make one recurring, auditable offer work and then scale its
+verified cohort; impressions, one-off gig work, unrealized investment gains and affiliate clicks are not MRR.
+
+1. **Close the foundation cursor:** recover the owner-controlled capacity floor, load the accepted managed-Node
+   release, run the relevant suite from an allowed worktree, prove one non-Paid self-heal occurrence, and close the
+   14-loop gate. Do not spend money or replay unknown effects while this is blocked.
+2. **Choose one recurring product wedge:** use the hosted Life Manager/agent-economy offer (or a Capafy
+   subscription/API offer) as the primary recurring product; keep gig, affiliate and investment loops as
+   acquisition or non-MRR supplements until their settlement is real. The illustrative revenue equations are
+   `10 customers × $1,000/month`, `20 × $500/month`, or `100 × $100/month`; they are planning math, not customers.
+3. **Instrument the funnel:** every tenant gets a versioned offer, exposure, activation, paid subscription,
+   renewal, refund, provider receipt, compute/cloud/tool cost and net contribution. CFO counts only settled
+   receipts and joins them to attributable costs.
+4. **Run bounded canaries:** one offer, one price, one acquisition channel and one cohort at a time; compare a
+   frozen baseline against held-out traffic, enforce spend caps and roll back candidates that lower conversion,
+   retention, reliability or net contribution. No candidate may alter identity, permission, evidence, effect-fence
+   or evaluator rules.
+5. **Scale only from verified economics:** after the first cohort has settled renewals and positive contribution,
+   add distribution, referrals and additional loops. Promote to USD 10,000 MRR only when the CFO ledger shows at
+   least USD 10,000 recurring settled revenue for the defined period and all measured costs, refunds and chargebacks
+   are included. Current portfolio MRR is therefore **not verified**, not “already 10K”.
+
+Self-funding is the next gate after attributable positive contribution: x402 may pay for permitted agent-to-agent
+services and compute, but it cannot authorize personal-wallet transfers, bypass provider KYC or turn an unknown
+effect into revenue. The self-funding loop must show settled inflow ≥ measured compute/cloud/provider/payout costs,
+with an independent CFO readback and replay-zero.
+
+#### YC Winter 2027 plan
+
+YC W27 is an application and evidence milestone, not a technical or revenue guarantee. The plan is:
+
+1. Submit before the official Winter 2027 deadline and keep the application claim narrow: a phone-first, cloud
+   Life Manager that autonomously executes auditable economic tasks after one-time setup, with self-healing and
+   self-improvement measured by LM-EAB.
+2. Attach only reproducible evidence: settled recurring revenue, cost coverage, self-heal canary transcript,
+   benchmark protocol/results, customer retention and a clear statement of what is still blocked.
+3. Do not claim selection, AGI, “no human credentials” or USD 10,000 MRR until the corresponding receipt/eval gate
+   passes. A reviewer must be able to reproduce the result from a release SHA without private credentials.
+
+The official application page is the authority for dates and process ([YC Apply](https://www.ycombinator.com/apply));
+selection remains an external human decision and cannot be automated or guaranteed by this repository.
+
+#### AGI and benchmark plan
+
+LM-EAB should become a general, interoperable benchmark for real-world agent impact, but the first economic slice
+must not be mislabeled as an AGI score. The benchmark measures more than activity: verified outcome, reliability,
+cost, latency, safety, intervention, credential class, recurrence and net contribution. Later task families can
+cover physical, mental, software, civic and societal domains, each with domain-specific consent and safety gates.
+
+The objective sequence is:
+
+1. Freeze the task/trial/grader/score/report protocol and publish a task-authoring guide.
+2. Add independent model/harness adapters so a lab can run the same task without Life Manager internals.
+3. Split public examples, tuning/dev, held-out and challenge sets; audit contamination and version every hash.
+4. Add repeated trials, minimum sample sizes, confidence intervals/uncertainty and failure slices.
+5. Calibrate model/human graders on independently labeled data; keep deterministic provider/payment receipt graders
+   authoritative for money and external effects.
+6. Publish redacted trajectories, aggregate scorecards and a reproducible leaderboard; never publish credentials or
+   private provider data.
+7. Reproduce the benchmark on cloud and local/self-hosted adapters, then compare models, prompts, tools and offers
+   against a frozen baseline.
+8. Only after agent/control-plane evidence is strong, consider distillation or training a Life Manager model. A
+   model is not “AGI” because it wins one economic score; the claim requires broad held-out generalization and
+   independent replication across domains and safety tracks.
+
+This follows current evaluation practice: eval-driven development and production data, multi-turn trajectories,
+multiple calibrated graders, held-out contamination-resistant data, repeated-trial statistics and reproducibility
+([OpenAI Evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices),
+[Anthropic agent evals](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents),
+[Anthropic statistical evaluation](https://www.anthropic.com/research/statistical-approach-to-model-evals?trk=public_post_comment-text),
+[Stanford HELM](https://crfm.stanford.edu/helm/),
+[METR task standard](https://github.com/METR/task-standard)).
+
+#### Remaining work in execution order
+
+1. Recover the owner-controlled capacity floor without deleting open/unowned artifacts; record a fresh cleanup
+   receipt.
+2. From an allowed main-derived worktree, run the relevant focused/full suite and diff/contract checks for the
+   managed-Node/recovery candidate `e69cd976518fbe0bd996e507457badd1ba013b94`.
+3. Merge only after the acceptance evidence is complete, cut an immutable release, and read back loaded SHA,
+   argv/env, diagnostic envelope and reconciler terminal. Keep the old release as rollback.
+4. Prove one low-risk non-Paid self-heal occurrence end-to-end with no Codex live babysitting: detect, classify,
+   repair, load exact release, official readback, and replay-zero.
+5. Reconcile every non-Paid owner through the shared kernel until the foundation projection is 14/14 `healthy` or
+   an exact typed setup/safety fence; no `uncovered_failure` and no missing diagnostic/readback fields.
+6. Implement the persisted one-shot bootstrap capsule, capability registry, default immutable policy and automatic
+   enrollment of eligible loops. Preserve only unavoidable one-time provider/KYC/CAPTCHA/legal gates.
+7. Promote the same contract to isolated always-on cloud workers and verify phone-only operation; keep local /
+   self-hosted as the same-code-path option.
+8. Complete the public LM-EAB protocol, independent adapters, held-out/challenge corpus, grader calibration and
+   repeated-trial statistics. Keep internal recovery/economic evals separate from the public benchmark.
+9. Connect Affiliate, Mobile Apps/Capafy, Writer/Product, Gig non-Paid and Self-Funding/x402 to attributable
+   funnels, official receipts and CFO cost joins; run one bounded canary per loop and roll back safely.
+10. Establish the first settled recurring cohort, prove positive net contribution, then scale to verified portfolio
+    USD 10,000 MRR. Only after this is self-funding a production claim.
+11. Prepare and submit the honest YC W27 application with reproducible evidence; do not claim selection.
+12. Expand LM-EAB across domains, independently replicate results, and only then evaluate a custom model/distillation
+    path toward a broad AGI claim.
+
+#### Copy/paste handover prompt
+
+```text
+You are continuing Life Manager from the verified handover snapshot in
+docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md.
+
+MISSION
+Build a cloud-first, phone-accessible Life Manager that autonomously manages a person's economic life after a
+minimal one-time bootstrap, then expands to physical/mental life. The engineering goals are: observable, self-healing,
+economically self-improving, eventually self-funding through permitted x402/agent-economy flows, and local/self-hosted
+compatible. “No recurring human loop” is the current product contract; one-time provider-mandated KYC/CAPTCHA/OAuth/
+legal gates remain explicit. Never invent permission, credentials, receipts or revenue.
+
+CURRENT VERIFIED CURSOR
+- Docs worktree: /private/tmp/lm-recovery-owner-20260924
+- Branch: fix/writer-admission-self-heal-20260924
+- Latest docs commit before this snapshot: 94c31cb159 (this update is the next docs cursor)
+- Production selector: /Users/anicca/loops/current
+- Loaded release SHA: d4fe0819931c50caaf41f25e86f1052cd8a0359c
+- Read-only status: 271 rows
+- Structural contract: 14 catalog loops / 169 registry jobs / 98 mapped / zero errors
+- Foundation gate: block; healthy 0, safely_fenced 1, uncovered_failure 13
+- Focused evals: economic autonomy 41/41, agent contract 13/13 (contract evidence only)
+- Connector source candidate: this worktree `/private/tmp/lm-recovery-owner-20260924`,
+  branch `fix/writer-admission-self-heal-20260924`, commit `769cdfc22dbc2b0721337551a712a63181e48bf5`;
+  source-only, not main or production. The separate self-heal integration candidate remains source-only as recorded
+  in its own handover.
+
+14-LOOP READBACK
+gig-coconala U; gig-lancers U; gig-crowdworks U (Paid owner); writer U; affiliate U; investment F;
+agent-economy U; job-hunter U; fundraiser U; connector U (runtime_terminal_not_pass); self-build U;
+mobile-apps U; capafy U; cfo U. U=uncovered_failure, F=safely_fenced. No loop is currently proven healthy
+or making money. Read the full table and counters in the snapshot before changing anything.
+
+EXECUTION ORDER
+1) capacity receipt; 2) candidate suite and contract checks from an allowed worktree; 3) main-derived immutable
+release/readback; 4) one low-risk non-Paid self-heal occurrence with replay-zero; 5) reconcile non-Paid owners and
+close 14-loop foundation; 6) implement one-shot capsule/auto-enrollment; 7) cloud promotion with local parity;
+8) general LM-EAB adapters/held-out/statistics; 9) bounded revenue canaries and CFO settlement joins;
+10) first positive recurring cohort then verified USD 10K MRR; 11) honest YC W27 application; 12) cross-domain
+benchmark replication and only then model/distillation/AGI research.
+
+OBSERVABILITY/SELF-HEAL RULE
+Use `./bin/lm-loop status all --json`, `./bin/lm-loop-contract` and the foundation evaluator. Unknown or circuit-open
+is a diagnostic cursor, never a replay permission. Every repair must preserve run_id, owner_id, occurrence_id,
+release_sha, argv/env, phase, exit code, effect, readback, receipt, error class, retryability and next action;
+obtain official readback and replay-zero before clearing a fence.
+
+REVENUE/EVAL RULE
+Activity, clicks, impressions, unrealized gains and mock receipts are not revenue. Count only official effect,
+settlement, cost attribution and replay-zero. Benchmark score never changes identity, permissions, evidence rules,
+spend caps or its own evaluator. Economic autonomy is the first domain slice, not an AGI claim.
+
+CONFLICT BOUNDARY
+Do not touch the separate Paid fulfillment Codex's worktree/branch/spec/plan, Paid modules, Paid state/effect
+fences, provider sessions/browser tabs, Coconala project 18211957, or hf-gig-paid-direct. Consume Paid status
+read-only and report the exact boundary if a change would overlap it. Do not alter the CloakBrowser foundation;
+Tencent BrowserSkill is diagnostic/learning material only.
+
+DELIVERY
+Use the canonical main-derived worktree and a dedicated branch. Make the smallest safe change, run focused tests,
+`git diff --check`, relevant contract/eval gates, commit and push. Do not merge or load production until the complete
+acceptance evidence is present. Final report must list implemented, unimplemented, evidence, blocker, next cursor,
+and distinguish target claims (USD 10K MRR, YC W27, AGI) from measured facts.
+```
+
+### Connector root-cause readback: endpoint mismatch and collapsed error reporting
+
+This section supersedes the generic `wake_boundary_failed` description for the current Connector occurrence. It is a
+read-only diagnosis captured on `2026-09-25` from the recovery-owner worktree. No browser process, launchd job,
+provider session, Connector state or external effect was changed.
+
+#### What actually happened
+
+The latest occurrence is `run_id=18d8705788bf24d0-14310`,
+`occurrence_id=life-manager-connector-native:18d8705788bf24d0-14310`,
+`release_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c`. The terminal status is:
+
+```text
+failure_layer=entrypoint
+blocker=entrypoint_exit_1
+error_class=entrypoint_exit_1
+exit_code=1
+retryable=true
+effect_class=none
+effect_status=not_applicable
+provider_receipt_id=null
+official_readback_ref=null
+diagnostic_complete=true
+```
+
+The occurrence therefore failed before a provider action. It is not evidence that a provider rejected a submission,
+and it is not an `effect_unknown` case. The precise action history for the same wake is:
+
+```text
+calendar_busy: success (3354 ms)
+browser_open: failed (528 ms, safe_reason=browser_open_failed)
+```
+
+The actual stage chain is:
+
+```text
+launchd wake
+  -> Connector runner
+  -> browser rail open
+  -> Playwright connectOverCDP(http://127.0.0.1:9222)
+  -> browser_open_failed
+  -> outer catch maps it to circuit_open / wake_boundary_failed
+  -> wake report emits only the generic safe-stop message
+```
+
+The high-confidence current root cause is a CDP endpoint/owner collision:
+
+| Probe | Observed result | Interpretation |
+|---|---|---|
+| `http://127.0.0.1:9222/json/version` | HTTP 404, zero body; listener is Google Chrome PID 465 | Connector's hard-coded IPv4 endpoint is not the Cloak daily-driver endpoint |
+| `http://localhost:9222/json/version` | HTTP 200 with Chrome 145 JSON and a DevTools websocket URL; listener is Cloak Chromium PID 1592 on `::1` | The expected daily-driver is reachable through the local hostname/IPv6 listener |
+| port receipt | owner `life-manager-daily-driver`, profile `daily-driver` | The intended owner exists, but the Connector does not verify this identity before connecting |
+
+`skills/connector/run.sh` and `connector-browser-target-controller.js` both default to
+`http://127.0.0.1:9222`. The Connector production rail consequently reaches an unrelated listener and exits before
+browser discovery. The historical `Page.handleJavaScriptDialog` and `gateway timeout` lines in the old error log are
+not occurrence-bound evidence for this wake and must not be reported as its current cause.
+
+#### Why the user only sees “circuit open / wake boundary failed / consecutive failure 0”
+
+This is a confirmed observability defect in addition to the endpoint defect:
+
+1. `connector-minimal-runner.js` records `browser_open_failed` in action history, but its outer catch translates the
+   nested error into the generic `wake_boundary_failed` safe reason.
+2. `consecutiveFailures` is not incremented on this early browser-open path, so `0` means “the counter was never
+   advanced at this layer,” not “the connector is healthy” and not “there were no failures.”
+3. `reportWake` writes only `wake_id`, `status`, `safe_reason`, `consecutive_failure_count` and `created_at`; it
+   omits the occurrence ID, stage, nested error class, endpoint, release SHA and the action-history evidence link.
+4. Telegram delivery itself succeeds, but the delivered text is a lossy projection of a more precise local record. A
+   successful report delivery is not a successful Connector wake.
+
+The correct diagnostic sentence for this occurrence is:
+
+> `browser_open_failed`: Connector attempted the wrong CDP listener (`127.0.0.1:9222`, HTTP 404) instead of the
+> Cloak daily-driver listener; no external provider effect occurred; the wake was safely fenced.
+
+#### Safe repair contract (not executed in this read-only turn)
+
+The Connector owner must repair and test the following, without changing the CloakBrowser foundation or switching to
+Tencent BrowserSkill:
+
+1. Resolve the endpoint from the browser-port owner receipt and verify HTTP 2xx, valid `/json/version` JSON, websocket
+   reachability and expected owner/profile identity. A 404 or wrong owner must be `browser_endpoint_unhealthy`, not
+   `browser_open_failed` with an opaque exit code.
+2. Fix the health probe to require HTTP success (`curl --fail` or equivalent) and to reject an identity mismatch; an
+   HTTP 404 must never count as an “alive” browser.
+3. Preserve a nested, occurrence-bound error envelope through the runner catch: `run_id`, `wake_id`,
+   `occurrence_id`, `release_sha`, endpoint, phase, command, exit code, error class, retryability, effect status,
+   evidence refs and next action.
+4. Make the wake report include the nested failure and action-history reference, while keeping `circuit_open` as the
+   safety state. `consecutive_failure_count` must be incremented consistently or explicitly labeled as
+   `not_counted_at_stage`.
+5. Add focused regression cases for (a) 404 wrong listener, (b) valid Cloak listener, (c) wrong browser owner,
+   (d) Playwright open failure, (e) provider/action failure and (f) report-delivery failure. Verify the failed case
+   has `effect=none`, no receipt, and replay-zero before any fence is cleared.
+
+The current Connector is therefore **not fixed**: the safe stop works, but the endpoint identity and report fidelity
+do not. No browser foundation was changed in this diagnosis.
+
+### Connector repair implementation readback (2026-09-25 JST)
+
+The endpoint-identity and diagnostic portions of the repair are now implemented on the dedicated branch
+`fix/writer-admission-self-heal-20260924`; it is not yet loaded into the immutable production selector. The
+implementation deliberately reuses the existing CloakBrowser foundation and does not install or switch to Tencent
+BrowserSkill.
+
+Implemented in this cursor:
+
+- `config/loop-registry.json` now joins `life-manager-connector-native` to browser identity
+  `interactive:dais` and target owner `life-manager-connector-native`. The macOS loop registry/schema and launchd
+  environment projection validate and carry both fields.
+- `skills/browser/resolve_cdp_endpoint.py` is the profile-owned resolver. It checks the registered profile's
+  `DevToolsActivePort` (with declared-port fallback), probes both local IPv4/IPv6 listeners, requires HTTP 200 and a
+  valid `/json/version` websocket UUID, and verifies that the listening process command owns the registered profile.
+  Ambiguous, unreachable, wrong-owner and duplicate-UUID states remain observable and fail closed.
+- `skills/browser/browser-guard.sh` now acquires/releases the resolver-selected endpoint and reports the resolved
+  endpoint, UUID, process and lease holder. Connector `run.sh`, `discover.js`, `healthcheck.sh` and `install.sh`
+  consume the resolved endpoint instead of assuming IPv4 `127.0.0.1`.
+- The browser target controller accepts only a validated loopback endpoint supplied by the resolver. It supports the
+  live Cloak endpoint `http://[::1]:9222` while retaining the safe local default for isolated fixtures.
+- Focused tests are present for the wrong-listener/404 case, IPv6 profile-owned resolution, unreachable identity,
+  duplicate UUID observability, endpoint validation, registry projection and the native entrypoint contract.
+- `runtime/loop/lm_loop.py` exposes a read-only JSON join through
+  `./bin/lm-loop browser resolve connector --json` (the canonical loop id is
+  `life-manager-connector-native`). It resolves the registry identity and reports the derived endpoint, UUID,
+  PID, HTTP status, websocket-URL validity and target owner without acquiring a lease or opening a provider page.
+- `connector-minimal-runner.js` now carries bounded `run_id`, `occurrence_id`, `release_sha` and browser endpoint
+  context into a nested diagnostic for browser-open and wake-boundary failures. `reportWake` persists one diagnostic
+  per wake, rejects drift on replay, and keeps raw exception messages/stacks out of the Telegram projection.
+
+The live read-only probe that motivated this fix found two listeners on the same numeric port: Google Chrome owned
+`127.0.0.1:9222` and returned HTTP 404, while the registered Cloak daily-driver owned `[::1]:9222` and returned a
+valid DevTools websocket UUID. The resolver selected `http://[::1]:9222`; a temporary acquire/release canary held
+the Connector identity lease and released it with no provider page or external effect.
+
+The source/test repair now also includes the occurrence-bound nested error envelope and the read-only
+`lm-loop browser resolve <loop-id>|connector --json` projection. The resolver result carries `reachable`,
+`http_status=200` and `websocket_url_valid=true`; the CLI deliberately reports `lease_status=not_checked` rather
+than pretending that a lease was acquired. `reportWake` persists bounded diagnostics in
+`wake-report-diagnostics.jsonl` and renders stage, error class, endpoint, effect, occurrence, release, next action
+and counter status in the Telegram summary. This remains source/test evidence only: the candidate has not been
+merged or loaded, and one effect-free natural canary with official event/report readback and replay-zero is still
+open. Until those production gates pass, the old production row may still show `entrypoint_exit_1` or the lossy
+`circuit_open / wake_boundary_failed` notification.
+
+The latest endpoint/diagnostic candidate commit is `769cdfc22dbc2b0721337551a712a63181e48bf5`. This is still source/test evidence only:
+the old production selector remains loaded, and an accepted main-derived immutable release, one effect-free natural
+canary with official event/report readback, and replay-zero are still open.
+
+The read-only status projection is now implemented in candidate commit `2c5dd7eb2a`:
+`./bin/lm-loop status <loop-id>|connector --explain --json` returns
+`schema_version=lm-loop.status-explain.v1`, an occurrence identity tuple, installed/event release SHAs and drift,
+an ordered runtime/failure/effect cause chain, effect/receipt/readback/evidence fields, the typed next action and
+diagnostic completeness. Action-history references and admission-counter status are explicitly
+`not_reported` when the current runtime has not emitted them; the projection never infers them from a PID,
+Telegram delivery or provider page. The candidate CLI's live Connector readback currently shows
+`launchd_state=loaded-idle`, `last_exit=1`, `error_class=entrypoint_exit_1`, `next_action=reconcile_owner` and
+`effect_status=not_applicable`; this is a source-branch diagnosis, not a production success claim. Focused readonly
+Python tests are now **37 passed** including the three status-explain cases.
+
+### Connector host blockers after the endpoint diagnosis (read-only)
+
+A fresh read-only host probe on `2026-09-25 JST` found only **391,950,336 bytes** free (`df` reports 382,764 KB),
+below the foundation floor of `1,155,780,608` bytes. The loaded production selector remains
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819`, SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`. The launchd error log contains `Errno 28 No space left on device`
+while creating Connector runtime scratch/start events, plus `database is locked`/`control_busy` admission errors.
+These failures can prevent a wake from reaching the browser rail even after CDP resolution is correct. They are a
+separate typed host/admission blocker, not proof of a provider rejection and not permission to retry an unknown
+external effect. Capacity must be restored before the immutable release can be loaded.
+
+### Current foundation re-read after the Connector candidate (2026-09-25 13:57 JST)
+
+The read-only command `./bin/lm-loop status all --json` returned **271** managed rows. Feeding those exact rows and
+the loaded SHA `d4fe0819931c50caaf41f25e86f1052cd8a0359c` into `local-foundation-gate.js` produced:
+
+```text
+decision=block
+reasons=foundation_diagnostic_incomplete, foundation_runtime_evidence_incomplete, uncovered_failure
+counts=healthy:0, setup_required:0, safely_fenced:0, repairing:0, uncovered_failure:14
+```
+
+Thirteen rows are release-drift classifications whose next action is `load_exact_immutable_release`; Investment and
+Connector are `runtime_terminal_not_pass` with next action `diagnose_failure`. This is a current readback, not an
+assertion that all loops work or earn money. The loaded production binary also rejects the new
+`browser resolve connector --json` command with its old usage text (`rc=2`), while the candidate binary returns the
+profile-owned Cloak endpoint and UUID. An expired, clean benchmark worktree (`lm-eab-v1-20260924`) was removed while
+retaining its branch; the host still reports only **386,129,920 bytes** free, so the capacity floor remains unmet.
+
+A subsequent read-only `df` probe at `2026-09-25 14:03 JST` reports **377,831,424 bytes** free. This is lower than
+the earlier sample and still below the `1,155,780,608`-byte floor; no production loop was restarted or promoted
+because of this probe.
+
+The owner-controlled cleanup cursor then added the checksum-pinned Camofox fallback to the disk governor's exact
+regenerable-cache allowlist (candidate commit `5d2d782a4c`, focused RED→GREEN and disk-cleanup suite **114 passed**).
+With no Camofox process and no `:9377` listener, the governor evaluated exactly one path,
+`~/.cache/life-manager/camofox-browser`, reclaimed **106,937,460 bytes**, wrote the normal cleanup receipt at
+`~/.openclaw/state/last-receipt.json`, and reported `errors=0`, `protected_deletions=0`, `preserved=0`. The
+post-sweep readback was **450,572,288 bytes** free (later `df` sample: **446,582,784 bytes**); the foundation floor
+is still unmet, so this is progress toward capacity recovery, not permission to promote production.
+
+The Connector recovery-control contract was also executed read-only in the candidate: Node recovery intent/plan/
+executor/supervisor/canary suites **39/39 passed**, and the related Python recovery/run-bound suite **88 passed**.
+These tests prove owner-scoped intent creation, immutable-release matching, Paid-owner refusal, bounded retry,
+unknown-effect fencing, exact readback, and replay-zero in a test-owned fixture. They do not prove that the old
+production release has self-healed; that still requires capacity recovery, immutable promotion and a natural canary.
+
+The existing LM-EAB v1 fixture runner was then executed unchanged: economic-autonomy tests **41/41 passed**, and
+`run.js --cases cases.jsonl` emitted a completed run with four validated scores. The agent-native x402 fixture
+reported `eligible=true`, settled customer revenue `10,000,000` minor units, total cost `315,000`, settled net
+profit `9,685,000`, `self_funded=true`, zero human interventions and zero unknown/duplicate effects. The human-
+credential and duplicate-receipt fixtures were rejected with stable reason codes, while fundraising remained
+excluded from MRR. This proves the internal deterministic score contract only; it is not settled production revenue,
+cloud parity, or a public benchmark leaderboard.
+
+After that cleanup, a fresh `status all` plus foundation-gate readback at `2026-09-25 14:14 JST` still returned
+`decision=block`, but one classification improved from an uncovered failure to a safe admission fence:
+`healthy=0`, `safely_fenced=1` (`investment: runtime_admission_deferred`), `uncovered_failure=13`. The remaining
+uncovered rows are release drift for the managed fleet plus Connector's terminal failure. Gate reasons remain
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and `uncovered_failure`; the latest
+`df` sample reports **457,269,248 bytes** free, still below the floor.
+
+### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
+
+The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
+is a versioned, shared examination system that lets independent agents or models take many such checks under the same
+rules and compare reproducible results.
+
+| Term | Five-year-old explanation | Life Manager example |
+|---|---|---|
+| Eval | “Did this one thing work?” | Did the Connector turn a 404 into a typed, safe, occurrence-bound failure without replay? |
+| Benchmark | “How do many players perform on the same whole exam?” | Can different agents run the same economic-autonomy tasks, with the same credential class, receipt rules, costs and held-out cases? |
+| Production gate | “Is it safe and real enough to count?” | Did an official provider/payment receipt and cost join prove one effect exactly once? |
+
+An eval may be private, small, deterministic and run on every commit. A benchmark adds a frozen task protocol,
+trial/trajectory schema, independent runners, calibrated graders, public/dev/held-out/challenge partitions, repeated
+trials and uncertainty, reproducibility instructions, anti-contamination rules and a report/leaderboard. In short:
+
+```text
+benchmark = versioned eval suite + shared protocol + independent comparison + reproducible statistics
+```
+
+LM-EAB's economic-autonomy slice is valuable because official settlement is auditable, but it is not by itself a
+definition or proof of AGI. A leading general benchmark must include multiple domains and report capability together
+with reliability, safety, cost, latency, intervention, credential class, recurrence and net contribution. “No
+recurring human loop” and “no human credentials” are an explicit autonomy track and a strong product moat; they are
+not permission to hide one-time KYC/CAPTCHA/legal requirements, and they are not sufficient evidence of general
+intelligence on their own.
+
+#### What the existing repository already implements
+
+- Recovery evals and economic/agent-contract evals have strict schemas, deterministic graders and held-out fields;
+  the current focused fixtures pass **41/41** economic cases and **13/13** agent-contract cases.
+- Observability and self-healing evals can test classification, effect fences, release binding and replay-zero.
+- The benchmark protocol already separates task, trial, grader, scorecard and report, and keeps production receipts
+  authoritative for real-world effects.
+- This is an internal contract and a candidate public protocol. It is **not yet** a broadly validated benchmark:
+  the corpus is small, independent adapters are absent, repeated-trial confidence intervals and grader calibration
+  are incomplete, and no public leaderboard exists.
+
+#### How to become a leading benchmark rather than just claim it
+
+1. Publish a task-authoring and runner specification that an external lab can use without Life Manager internals.
+2. Define explicit tracks: simulation, real-world effect, no-recurring-human-loop, no-human-credential, safety and
+   cost. Keep each credential class and intervention count visible in every scorecard.
+3. Version public examples, tuning/dev, private held-out and challenge sets; hash environments, tools, prompts and
+   graders; run contamination audits.
+4. Require repeated trials, minimum sample sizes, uncertainty intervals and failure slices. One lucky profitable run
+   is never a benchmark result.
+5. Use deterministic receipt/settlement graders for money and external effects; calibrate model/human graders only
+   for subjective dimensions and publish agreement/error rates.
+6. Publish redacted trajectories, raw aggregate results, baselines, cost and safety metrics, exclusions and a
+   reproducible leaderboard. Never publish credentials or private provider data.
+7. Accept independent adapters and reproduce results on cloud and local/self-hosted workers with the same task and
+   score hashes.
+8. Keep the evaluator immutable and separate from the agent being scored. A candidate score must never alter its
+   identity, permissions, spend caps, evidence rules or grader.
+9. Expand from economic autonomy to physical, mental, software, civic and other domains only with domain-specific
+   safety/consent gates. Independent replication is required before an AGI claim.
+
+#### What to learn from existing primary projects
+
+These are reference implementations and design inputs, not dependencies or claims that Life Manager already passes
+their benchmarks:
+
+- [OpenAI Evals](https://github.com/openai/evals) demonstrates an open registry/framework and a completion-function
+  contract; the useful lesson is a standard eval interface plus private evals for leakage resistance.
+- [OpenAI Simple Evals](https://github.com/openai/simple-evals) demonstrates small, readable reference evaluators;
+  its own README includes a deprecation notice, so it is a teaching reference rather than a production dependency.
+- [Stanford HELM](https://github.com/stanford-crfm/helm) demonstrates standardized scenarios, holistic metrics,
+  reproducibility and public reporting rather than a single accuracy number.
+- [METR Task Standard](https://github.com/METR/task-standard) demonstrates an agent-independent task format with
+  explicit environments, instructions and optional automatic scoring.
+- [BrowserGym](https://github.com/ServiceNow/BrowserGym) and [OSWorld](https://github.com/xlang-ai/OSWorld)
+  demonstrate extensible browser/desktop task environments and versioned reproducibility; they are useful adapters
+  for future LM-EAB interaction tracks, not replacements for the Life Manager control plane.
+- [Andon Labs Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2) demonstrates a long-horizon simulated
+  business, multiple runs, final balance and a public leaderboard. It is a strong model for economic trajectory
+  scoring, but its score is a simulation outcome and must not be presented as proof of real-world revenue or AGI.
+
+The correct strategy is to learn/borrow the interfaces and reporting discipline, then add the differentiator that
+the benchmark explicitly measures: attributable real-world outcomes under a declared no-recurring-human-loop and
+no-human-credential track. Do not clone a repository into production or replace the existing CloakBrowser foundation
+merely because a reference project is popular; first add an isolated adapter and prove it with the same contract.
+
+#### Current benchmark/eval remaining work
+
+1. Keep the Connector production promotion gate open until the endpoint-owner and nested-report fixes pass an
+   accepted immutable-release load, a non-effect natural canary and official event/report readback with replay-zero.
+2. Expand economic task families and independent adapters; retain separate internal recovery/product evals.
+3. Add repeated-trial statistics, grader calibration, contamination audit and held-out/challenge governance.
+4. Publish the versioned LM-EAB protocol and reproducible scorecard/leaderboard only after an independent adapter
+   reproduces it.
+5. Join official receipts, settlement, compute/cloud/provider costs and intervention/credential metadata before
+   ranking “profit” or “self-funding.”
+6. Replicate across cloud and local/self-hosted execution, then across domains; only after that consider training or
+   distilling a Life Manager model. A custom model is a later optimization, not a substitute for a sound eval.
+
+### Browser registry and Life Manager CLI contract: prevent endpoint guessing
+
+The current incident is not caused by the absence of all registries. It is caused by a broken join between them.
+There are currently several legitimate sources of truth, each with a different job:
+
+| Registry / record | What it owns | Current evidence | Current gap |
+|---|---|---|---|
+| `config/loop-registry.json` | Product loop/job ID, entrypoint, cadence, state/log roots, resource/effect class | `life-manager-daily-driver` declares profile `~/.cloak/profiles/daily-driver` and port `9222`; the Connector source candidate now declares `browser_identity=interactive:dais` and `browser_target_owner=life-manager-connector-native` | The join is implemented on the candidate branch but not yet projected by the loaded production release |
+| `~/.config/ai/registry/browsers.toml` | Host browser identity: profile, account scope, owner, launcher and declared port | `interactive:dais` declares the daily-driver profile and port; the resolver readback selects `[::1]:9222` and PID `1592` | The host registry is read-only; production must load the candidate resolver rather than relying on its old hard-coded endpoint |
+| `DevToolsActivePort` and browser-port receipt | Live endpoint selected by the running profile | The current Cloak listener answers on `localhost`/IPv6 while an unrelated Chrome answers on `127.0.0.1` | A static `127.0.0.1:9222` bypasses the live resolver |
+| `events.jsonl`, action history and receipts | What one occurrence actually did | `browser_open_failed` is recorded with `effect=none` | Wake report drops the nested cause and endpoint evidence |
+
+Before this cursor, the product registry knew that a daily-driver existed and the browser registry knew which profile
+owned it, but the loaded Connector rail did not join them. `run.sh`, the target controller and the health path used a
+static `http://127.0.0.1:9222`, while `ensure_browser.sh`'s fast `alive()` probe did not require HTTP success. The
+candidate now performs the join and rejects that 404; the immutable production selector still contains the old
+behavior until the capacity, release and natural-canary gates pass.
+
+#### Required canonical join for every new loop
+
+Every browser-using loop must have two different owners recorded explicitly:
+
+```json
+{
+  "loop_id": "connector",
+  "browser_identity": "interactive:dais",
+  "browser_target_owner": "life-manager-connector-native",
+  "browser_resolution": "devtools_active_port_plus_uuid",
+  "profile_ref": "registry://browser/interactive:dais",
+  "endpoint": "derived_at_runtime",
+  "credential_class": "one_time_provider_session"
+}
+```
+
+`browser_identity` answers “which browser/account/process may be used?”; `browser_target_owner` answers “which tabs
+and target leases may this loop touch?” They must never be conflated. Ports are audit/fallback data only, not identity.
+The live endpoint must be derived from the registered profile's `DevToolsActivePort`, then checked for HTTP 2xx,
+valid `/json/version`, websocket reachability, expected browser UUID and expected process/profile owner. A missing
+mapping, stale profile, 404, wrong UUID or wrong owner must fail closed before any provider page is opened.
+
+Onboarding a new loop must be a registry transaction, not a new hard-coded script:
+
+1. Add the product-loop/job entry, entrypoint, cadence, resource/effect class, state root and log root.
+2. Reference an existing browser identity or register a new isolated profile/account identity; never silently reuse
+   another identity's profile.
+3. Assign a distinct target owner and lease namespace for the loop's tabs.
+4. Register the launchd/cloud supervisor label and immutable release binding.
+5. Add status/receipt/effect mappings and at least one boundary and one prior-failure eval case.
+6. Run `lm-loop-contract` and the browser identity contract; installation must refuse a missing or ambiguous join.
+
+#### Life Manager CLI as the observability backbone
+
+The repository is public (`https://github.com/Daisuke134/life-manager`) and `bin/lm-loop` is the canonical open-source
+operator entrypoint. It delegates to the runtime loop manager and already provides the important layers:
+
+```text
+./bin/lm-loop-contract
+  -> catalog/registry mapping and structural errors
+./bin/lm-loop doctor
+  -> installed/loaded labels, entrypoints and registry drift
+./bin/lm-loop status all --json
+  -> per-job terminal state, release, diagnostics, effect and next action
+local-foundation-gate.js
+  -> one typed decision for the 14 Product Loops
+```
+
+The latest read-only snapshot returned 271 status rows; the contract returned 14 catalog loops, 169 registry jobs,
+98 mapped jobs and zero structural errors. That is why the CLI is powerful: it turns many launchd logs into a
+machine-readable failure cursor. The Connector resolver projection closes the former browser-identity gap, and
+candidate commit `2c5dd7eb2a` now adds the richer `status --explain` cause-chain projection. It remains a candidate
+until the immutable-release and natural-canary gates pass.
+
+The next CLI contract is therefore:
+
+```text
+./bin/lm-loop browser resolve connector --json
+  -> loop_id, browser_identity, target_owner, profile, derived_endpoint,
+     browser_uuid, process_owner, http_status, websocket_url_valid, lease_status
+./bin/lm-loop status connector --explain --json
+  -> occurrence-bound cause chain, action-history refs, effect/receipt/readback,
+     release SHA, next action and whether the counter was counted at that stage
+```
+
+The JSON projection is canonical; human output is only a rendering. A successful Telegram delivery or a loaded
+launchd process must never override the JSON health/effect decision. The CLI itself must remain read-only by default;
+repair/apply commands require a typed recovery intent, exact owner/release match and the existing effect-fence rules.
+
+### Eval-driven development: the concrete LM-EAB benchmark design
+
+LM-EAB should be a family of interoperable tracks, not one attractive profit number. Every task uses the same
+versioned `task -> trial -> trajectory -> grader -> scorecard -> report` contract:
+
+```text
+Task: task_id/version, initial state/capital, allowed tools and credential class,
+      objective, constraints, stop conditions, expected evidence and safety tripwires
+Trial: trial_id, model/prompt/harness/tool/release hashes, seed, timestamps, cost and full events
+Trajectory: observations, decisions, tool calls, state transitions, receipts and intervention events
+Grader: deterministic state/receipt/safety checks first; calibrated semantic grader only where necessary
+Scorecard: outcome, reliability, cost, latency, intervention, credential class, safety, recurrence and net value
+Report: split/version, baseline, trial count, uncertainty, failures, exclusions and reproducibility instructions
+```
+
+The benchmark tracks are:
+
+1. **Recovery/self-healing:** detect, classify and repair a known failure without unsafe replay; Connector 404 is a
+   canonical case. This proves control-plane recovery, not revenue.
+2. **Economic simulation:** long-horizon opportunity, offer, work, pricing and cost decisions in a sealed world;
+   useful for rapid candidate comparison, never counted as settled revenue.
+3. **Real-world effect:** official provider/payment receipt, readback, duplicate-zero and CFO cost join. This is the
+   only track that can count self-funding or commercial revenue.
+4. **No-recurring-human-loop:** no human intervention after declared one-time onboarding; intervention count and the
+   exact one-time credential class remain visible.
+5. **No-human-credential:** agent-owned or provider-native credentials only, where the provider permits it; a failed
+   KYC/CAPTCHA/legal prerequisite is a typed eligibility result, not a hidden human step.
+6. **Long-horizon continuity:** repeated wakes over weeks/months, state continuity, recovery rate and no performance
+   degradation.
+7. **Later domain tracks:** physical, mental, software, civic and other domains, each with its own safety and consent
+   contract. Economic autonomy is the first slice, not the whole AGI definition.
+
+Self-improvement is measured by a promotion loop, not by a model saying “I am better”:
+
+```text
+production failure/business observation
+  -> versioned eval case
+  -> frozen baseline
+  -> candidate in isolated fixture
+  -> deterministic + calibrated grading
+  -> held-out repeated trials and uncertainty
+  -> bounded live canary
+  -> official receipt + cost/CFO join
+  -> promote only if net contribution improves without safety/reliability regression
+```
+
+The primary score is not impressions or activity. For an economic task it is attributable realized net contribution;
+the scorecard must also expose success rate, intervention count, credential class, compute/provider cost, latency,
+drawdown, safety violations, duplicate effects and recurrence. A candidate that makes more gross revenue while
+increasing cost, human work or unsafe effects is not an improvement.
+
+The existing repository already has the lower-level eval contract and focused fixtures (economic **41/41** and agent
+contract **13/13**), but the public benchmark remains incomplete. The remaining work is independent adapters,
+larger task families, public/dev/held-out/challenge partitions, contamination audits, repeated-trial confidence
+intervals, grader calibration, redacted trajectory publication, cloud/local reproduction and an independent
+leaderboard. The evaluator must remain immutable and separate from the candidate; a benchmark score can never change
+permissions, credentials, spend caps, effect fences or the evaluator itself.
+
+The six repositories above were used only as read-only study material. Their temporary shallow checkouts were removed
+after inspection when the host approached the existing ENOSPC floor; no repository was copied into Life Manager,
+installed as a production dependency, or allowed to mutate a provider/browser. The pinned commits and extracted
+lessons are the reproducibility record. Cloning a repository is not a substitute for a stable task schema, official
+evidence or independent reproduction.
+
+### Eval/benchmark repository study and Connector-first execution cursor
+
+On `2026-09-25`, the following primary repositories were cloned read-only into a temporary reference directory and
+their README, task/runner, scorer/metric, trajectory and reporting code was inspected. None was copied into the Life
+Manager checkout, installed as a production dependency, or allowed to mutate a provider/browser. The temporary HELM
+and Inspect AI clones hit the host's existing ENOSPC floor during checkout; the complete shallow references below
+were sufficient for this design study.
+
+| Reference | Read commit | What it teaches Life Manager |
+|---|---|---|
+| [OpenAI Evals](https://github.com/openai/evals) | `8eac7a7de5215c907fbddc30efdaf316913eccdd` | A registry of evals and completion functions; deterministic sample IDs/seeds; per-sample event recording; solver state isolation; local/remote recorders |
+| [OpenAI Simple Evals](https://github.com/openai/simple-evals) | `652c89d0ca9df547706735883097e9537d40dc47` | Small model samplers, explicit eval selection, repeats and simple aggregate statistics; useful reference, not a new production dependency (the README says new benchmark updates are deprecated) |
+| [Stanford HELM](https://github.com/stanford-crfm/helm) | `63754d05db6f874e41a395880fb573890a13e791` | Scenario/RunSpec/Adapter/Metric separation, train/valid/test splits, per-instance and aggregate stats, perturbation/robustness views, cached run artifacts and public leaderboards |
+| [METR Task Standard](https://github.com/METR/task-standard) | `03236e9a1a0d3c9f9d63f6c9e60a9278a59d22ff` | Versioned agent-independent task families; explicit environment, permissions, instructions, resource manifest, start hook and deterministic/intermediate/end scoring; interchangeable drivers |
+| [BrowserGym](https://github.com/ServiceNow/BrowserGym) | `9e779f087de9a65668b6974d11f9ce9816026e96` | Seeded `AbstractBrowserTask` with setup/validate/teardown, Gym environment IDs, action/observation loops, task metadata and experiment traces |
+| [OSWorld](https://github.com/xlang-ai/OSWorld) | `b138d348256078fa634fc3b73567a7337c793e6b` | Snapshot-backed desktop tasks, provider/VM isolation, task JSON, screenshots/video/`traj.jsonl`, evaluator-owned final state and reproducible result directories |
+
+#### Concrete lessons extracted from the code
+
+1. **The solver is not the evaluator.** OpenAI's completion-function protocol lets one task run any compatible
+   model/agent/tool harness; Life Manager must likewise evaluate the same loop task against different models, prompts,
+   browser adapters and cloud/local drivers without changing the grader.
+2. **A score without a trajectory is not useful.** OpenAI's `Recorder` records typed events per `run_id`/`sample_id`,
+   HELM stores per-instance statistics, and BrowserGym/OSWorld keep step observations/actions. LM-EAB must preserve the
+   full occurrence chain, not just a final `pass` or a Telegram sentence.
+3. **Environment and permissions are part of the task.** METR explicitly exposes permissions, environment resources,
+   network access and task setup. LM-EAB must expose browser identity, credential class, spend cap, provider access,
+   external-effect policy and one-time KYC/CAPTCHA status in every trial.
+4. **Drivers must be replaceable.** METR separates task definitions from Docker/VM/cloud drivers; OSWorld supports
+   several environment providers. LM-EAB should run the same task on local Mac, isolated cloud worker and simulation
+   driver, then report infrastructure differences instead of hiding them inside the agent score.
+5. **Metrics must be plural and per-instance.** HELM's metric interface produces per-instance and aggregate stats;
+   Simple Evals computes explicit mean/std/bootstrap-style summaries. LM-EAB must show success, failure class,
+   intervention, credential, cost, latency, safety, receipt and net contribution per trial before aggregation.
+6. **Long-horizon claims need repeated trials and immutable artifacts.** BrowserGym records seeds and experiment state;
+   HELM writes run specifications, scenario state, stats and per-instance stats and can skip only complete runs. LM-EAB
+   must reject incomplete/overwritten result directories and must report trial count and uncertainty.
+7. **Task standards deliberately do not define the agent or safety policy.** METR leaves agent implementation and
+   safety/oversight outside the task standard. LM-EAB must add those as explicit orthogonal tracks—especially
+   no-recurring-human-loop and no-human-credential—rather than pretending one task score proves AGI.
+
+The resulting LM-EAB v1 contract is therefore:
+
+```text
+Task family (versioned, driver-neutral)
+  -> Environment/permissions/capability manifest
+  -> Agent adapter (model + prompt + tools)
+  -> Trial (seed, hashes, full trajectory, cost and intervention events)
+  -> Deterministic receipt/state/safety graders
+  -> Optional calibrated semantic graders
+  -> Per-trial score vector and aggregate uncertainty
+  -> Reproducible report / held-out leaderboard
+```
+
+The primary Life Manager difference is that a real-world score cannot be awarded from the agent trajectory alone:
+provider receipt, official readback, settlement, cost attribution and replay-zero are mandatory evidence. Simulation
+is useful for iteration, but it cannot declare paid work, self-funding or real MRR.
+
+#### Connector readback: why the Telegram line is only a safety summary
+
+The latest read-only host evidence explains the apparently opaque message `circuit_open / wake_boundary_failed`:
+
+| Boundary | Evidence | Meaning |
+|---|---|---|
+| Loaded production release | launchd plist points to `/Users/anicca/loops/releases/20260925T031007-d4fe0819` and contains no resolved CDP endpoint | Production is still running the pre-registry-join Connector code |
+| Static endpoint probe | `curl http://127.0.0.1:9222/json/version` returns HTTP **404** | The old hard-coded IPv4 listener is not the registered daily-driver browser |
+| Registry resolver | `./bin/lm-loop browser resolve connector --json` returns `http://[::1]:9222`, HTTP **200**, valid WebSocket, UUID `decca3a1-5040-4657-b2a0-794891b52e29`, profile-owned PID `1592` | The canonical browser identity and endpoint are healthy in read-only mode |
+| Natural wake history | 21 wakes from `2026-09-24T18:00Z` onward: `calendar_busy` **21/21 success**, `browser_open` **21/21 failed**, `effect=none` | Failure begins at browser acquisition; no provider effect was attempted |
+| Outer report | every recent wake report says `status=circuit_open`, `safe_reason=wake_boundary_failed`, while Telegram delivery has a provider ID | The runner safely collapses the nested browser failure into a bounded public summary; it is not the root cause |
+| Candidate fix | `ff4bf7348b` makes `skills/connector/run.sh` lease `interactive:dais` through `browser-guard`, derive the live endpoint and export it before provider work; entrypoint tests pass **18/18** | Fix is present on the candidate branch, not in the loaded immutable release |
+
+Therefore the Connector is not currently “fixed in production.” The repair is source-complete and test-verified, but
+promotion still requires the capacity floor, the normal immutable-release gate, one effect-free natural canary, exact
+action/report readback and replay-zero. No Paid fulfillment code or provider session is part of this cursor.
+
+### Connector-first remaining TODO and promotion order
+
+The execution cursor is now **Connector**, because it has an occurrence-bound, effect-free failure with a high-confidence
+endpoint/ownership cause and it exercises the shared browser/observability foundation. This order does not touch the
+separate Paid fulfillment workstream or its provider sessions/state.
+
+#### Read-only cursor refresh (2026-09-25 14:32 JST)
+
+The candidate was rechecked without a production mutation. Connector entrypoint
+and contract tests are **18/18**; the candidate resolver returns
+`http://[::1]:9222`, HTTP 200, a valid WebSocket, browser UUID
+`decca3a1-5040-4657-b2a0-794891b52e29`, and profile-owner PID `1592`. The
+production `status connector --explain --json` still reports loaded/event SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, `entrypoint_exit_1`, effect
+`not_applicable`, and next action `reconcile_owner`; this is evidence of the
+old loaded release, not evidence that the candidate is live. The full
+read-only status projection returned 271 managed rows and
+`lm-loop-contract` returned `14` catalog loops, `169` registry jobs, `98`
+mapped jobs and `0` structural errors. No provider effect, Paid state,
+effect-fence change or production selector change occurred.
+
+#### Completed in the current Connector cursor
+
+- The six primary eval/benchmark repositories were cloned read-only at pinned commits and their runner, task,
+  trajectory, grader and reporting patterns were recorded above. No repository was installed as a production
+  dependency.
+- The Connector registry join, profile-owned CDP resolver, identity lease, IPv4/IPv6 collision check, dynamic endpoint
+  projection, read-only resolver CLI and occurrence-bound diagnostic envelope are implemented on the dedicated branch.
+  The live read-only canary selected `http://[::1]:9222` and released the lease with no provider effect.
+- The read-only `status --explain --json` projection is implemented in candidate commit `2c5dd7eb2a`; its focused
+  tests cover cause-chain ordering, Connector alias resolution, release/effect/readback fields, and rejection of
+  unknown options. It reports missing action-history/counter data as `not_reported` instead of guessing.
+- The loaded production release remains `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the endpoint-join repair is
+- candidate commit `ff4bf7348b`. The candidate Connector entrypoint tests pass **18/18** and the current full
+  `node --test skills/connector/test/*.test.js` suite passes **59/59**, but neither result is a production load.
+- Contract and focused source tests pass on this branch: Connector Node **59/59**, current `test_lm_loop_readonly.py` **34 passed**
+  (the prior foundation run also recorded **256 passed + 193 subtests**), `lm-loop-contract` **14 catalog / 169
+  registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
+  `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
+
+#### Bounded legacy-admission repair (branch-only, 2026-09-25)
+
+The first capacity-recovery attempt showed that `effect-watch` was not blocked by a missing queue row: its v2 durable
+store still contained one complete identity (`deterministic / borrow / support / revenue-floor-v1 / owner`) and queued,
+effect-known occurrences. The old registry row simply lacks the newer explicit admission fields, so the shared rebind
+guard previously treated every such row as `pending` and could not move its loaded-idle plist to the current immutable
+release. The candidate now reads that durable identity only for an `effect_class=none` owner, requires the v2 `priorities`
+schema, valid classes/policy/scope, no claimed occurrence, no effect-unknown fence and no invalid priority pairing, then
+calls the existing `rebind_queued_owner` under the existing owner/control locks. It preserves FIFO sequence and queued
+occurrence IDs; it never cancels a queue, edits a plist directly, or applies this fallback to an effectful owner. v1 stores
+without a `priorities` table, malformed rows, reservations, claimed rows and unknown effects remain safely pending.
+
+The focused regression set now covers both the legacy effect-free migration and the effectful fail-closed path; the full
+`runtime.loop.tests.test_lm_loop_apply` suite is **130/130 PASS**, and the read-only suite is **34/34 PASS**. The
+candidate is pushed as `b5edac04c3` on `fix/writer-admission-self-heal-20260924`; `lm-loop-contract` remains
+**14 catalog / 169 registry / 98 mapped / 0 errors**. This is source/test evidence only. It is not loaded into
+production, does not change the admission DB or effect fences, and does not lower the capacity floor. The next safe
+production step remains one owner-aware rebind after the floor gate and normal main-derived immutable-release
+acceptance.
+
+### Connector Healer dependency-bundle compatibility repair (2026-09-25 15:09 JST)
+
+The Connector suite exposed a second, independent failure boundary after the latest-main merge. All six Healer-shadow
+cases failed before the bounded Codex invocation with `Connector Healer shadow invalid` at
+`prepareWorktreeDependencies`: the implementation required `apps/life-manager/node_modules` to be a real directory.
+That assumption is obsolete. The loaded immutable release uses a symlink to a content-addressed bundle:
+`/Users/anicca/loops/releases/20260925T031007-d4fe0819/apps/life-manager/node_modules` resolves to
+`/Users/anicca/loops/dependency-bundles/npm-ed19e0c4b5b66f173b035233e7936533af9454cfbed08e3d3d6fb7a3ca94a438/node_modules`,
+which contains both `.package-lock.json` and the parent `.complete` seal.
+
+Candidate commit `f2c2091806` now accepts either a regular dependency directory or a symlink whose resolved target is
+exactly one `npm-* / node_modules` below the release's sibling `dependency-bundles` root and has both immutable-bundle
+markers. The worktree link is still required to resolve to the same target; a bundle-external or malformed symlink
+fails closed before Codex starts. The tests no longer depend on an accidentally installed checkout dependency tree:
+they construct a production-shaped sealed bundle fixture and include an explicit outside-bundle rejection case.
+Focused Healer tests pass **7/7** and the full Connector Node suite passes **59/59**. This is source/test evidence only;
+it has not been merged to main, cut into an immutable release, loaded, or natural-canary verified.
+
+### Capacity-floor clarification (2026-09-25 15:09 JST)
+
+“Capacity-floor wait” means a storage safety gate, not a permission gate. A release cut or rollback is deferred when
+free bytes are below **1,155,780,608** because the operation needs room for an immutable release, dependency-bundle
+links, logs and rollback state. Dais's authorization is already present; it does not override this mechanical safety
+condition. The latest read-only host probe observed **2,559,688,704 bytes** free (**1,403,908,096** above the floor),
+but no production mutation was made because the separate foundation acceptance gate still reports thirteen uncovered
+failures and the loaded Connector is the old release. Capacity can therefore be rechecked immediately; it is not a
+reason to pause source diagnosis or tests.
+
+### Ownership readback (2026-09-25 15:11 JST)
+
+The owner has explicitly delegated the remaining technical work. The current boundary is therefore not an authorization
+wait: `lm-loop doctor --json` is **OK** (`169` registry entries, missing `0`, unmanaged `0`), and the latest host probe
+observes `2,609,774,592` free bytes, **1,453,993,984** above the floor. The production selector is still
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819`, and the loaded Connector
+status remains `entrypoint_exit_1` on that old release with next action `reconcile_owner`; the candidate Healer fix is
+not loaded. A fresh `status all --json` plus `local-foundation-gate.js` still returns
+`healthy=0 / safely_fenced=1 / uncovered_failure=13` and decision `block` for `runtime_release_drift`,
+`runtime_terminal_not_pass` and incomplete diagnostics. The next cursor is to keep repairing and proving the candidate
+from the dedicated branch, then satisfy the foundation acceptance before any main merge or immutable production load;
+permission is not the blocker.
+
+### Release reconciler bootstrap failure (2026-09-25 15:16 JST)
+
+The next self-healing boundary was narrowed with a read-only production log and plist readback. The loaded
+`ai.anicca.life-manager-release-reconciler` plist still points to the stale release
+`20260919T100204-09a59ba1` and has neither `LIFE_MANAGER_RUNTIME_NODE` nor a Node-bearing `PATH`. Its stderr repeats
+`bin/lm-recovery-supervise: exec: node: not found`; the loop therefore exits before consuming the recovery queue. The
+queue currently contains **168** recovery intents, including repeated effect-free Connector and self-build intents, so
+the system is producing recovery evidence but its release reconciler cannot execute the final supervisor boundary.
+
+The candidate already contains the bounded fix (`bin/lm-recovery-supervise` selects the absolute
+`LIFE_MANAGER_RUNTIME_NODE`/`LIFE_MANAGER_NODE` before PATH fallback), and the focused no-PATH regression test passes.
+This proves the source repair, not production repair: the loaded release remains old and must be replaced by a
+main-derived immutable release before the reconciler can consume the queue. No intent, launchd plist, provider state or
+Paid state was changed during this diagnosis.
+
+#### Fresh capacity and foundation reread after the external host change (2026-09-25 15:01 JST)
+
+The owner-controlled disk governor was run once after the read-only probe observed the host's free space rise. Its
+receipt (`observed_at=2026-09-25T06:00:59Z`) reports `free_before=2,576,179,200` and
+`free_after=2,576,179,200` bytes, above the `1,155,780,608`-byte floor by `1,420,398,592` bytes. It evaluated five
+allowlisted cache roots, preserved all five because they were `open`, reclaimed `0` bytes, recorded `0` errors and
+`0` protected deletions, and did not kill a process or remove a release/state/credential/session. The cause of the
+preceding free-space increase is not attributed to this workstream; only the receipt is evidence.
+
+With the floor restored, a fresh read-only `status all --json` plus `local-foundation-gate.js` against loaded release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c` still returns `healthy=0`, `setup_required=0`, `safely_fenced=1`,
+`repairing=0`, `uncovered_failure=13`, and gate decision `block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. Thirteen
+loops remain on exact-release drift and Connector remains on `runtime_terminal_not_pass`; this is a separate acceptance
+gate from disk capacity. No production selector, admission DB, effect fence, browser or Paid state was changed by this
+reread. The candidate branch is now latest-main based (`origin/main` is an ancestor) at head
+`01dce23080`; it is still not main-integrated or loaded as an immutable production release.
+
+#### Remaining TODO (strict order)
+
+1. **Restore the owner-controlled capacity floor — complete for this cursor.** The fresh governor receipt at
+   `2026-09-25T15:00:59+09:00` reports **2,576,179,200 bytes** free, above the required
+   **1,155,780,608-byte** floor by **1,420,398,592 bytes**. It evaluated five allowlisted caches, preserved all five
+   as open, reclaimed **0** bytes and recorded **0** errors/protected deletions. The exact cause of the preceding
+   increase remains unclaimed; no unknown path was deleted. The branch-only legacy-admission repair above is now the
+   implementation path for a complete v2 identity. The next cursor is foundation acceptance and main-derived
+   promotion; do not clone additional repositories or use a non-main release.
+2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
+   capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
+   main-derived immutable-release process. Do not change the production selector before that gate is green.
+3. **Promote an accepted immutable release and run one non-effect natural canary.** Load only a main-derived immutable
+   release, run one bounded wake, read the exact occurrence/action history/Telegram report, and prove replay-zero. Do
+   not clear a fence or claim Connector health from a unit test alone.
+4. **Re-read the shared foundation gate.** Run `lm-loop status all --json`, `lm-loop-contract` and the foundation
+   evaluator twice with exact loaded SHA, complete diagnostics, terminal outcome and replay-zero for Connector. Keep
+   `uncovered_failure` honest if another owner is still incomplete.
+5. **Reconcile every non-Paid Product Loop.** For each uncovered row, preserve the same occurrence/fence, repair only
+   through the shared recovery intent, load the exact immutable release, obtain official readback and replay-zero, and
+   isolate sibling failures. The Paid-owned Coconala/CrowdWorks/Lancers/Upwork workstream remains read-only here.
+6. **Prove shared self-healing once without Codex live babysitting.** A managed Life Manager wake must detect,
+   classify, select a bounded repair, apply/load, verify official readback and close replay-zero. This is the first
+   self-healing acceptance, not a claim that all 14 loops are healed.
+7. **Expand eval-driven development from the current fixtures.** Convert every real failure into a versioned case;
+   freeze a baseline; run deterministic policy/receipt/safety graders first; add held-out/challenge splits, repeated
+   trials and uncertainty; keep the evaluator immutable.
+8. **Build LM-EAB v1 adapters.** Implement one METR-like task-family adapter, one BrowserGym-like interaction adapter,
+   one OSWorld-like isolated desktop adapter and one real-provider receipt adapter. Run the same task contract on
+   local and cloud drivers without importing Life Manager private control-plane code.
+9. **Publish only after independent reproduction.** Add contamination audit, grader calibration, redacted trajectories,
+   score vectors, cost/intervention/credential slices and a reproducible leaderboard. A private 41/41 or 13/13 fixture
+   result is not a public benchmark claim.
+10. **Enable self-improvement for profit.** Candidate changes may alter prompts, skills, offers or routing only inside
+   the candidate boundary; promote only when held-out reliability and live attributable net contribution improve with
+   no safety/evidence regression. Activity, clicks and unrealized gains do not count.
+11. **Enable self-funding.** Join settled revenue to compute/cloud/provider/payout costs; x402 may pay permitted
+   agent-to-agent services but cannot bypass KYC, identity, spend caps or unknown-effect fences. Count self-funding
+   only when settled inflow covers measured cost with CFO readback.
+12. **Scale verified recurring revenue and cloud parity.** After a positive settled cohort, promote the same capsule to
+   isolated always-on cloud workers and retain local/self-hosted parity. USD 10K MRR remains a measured receipt/cost
+   target, not a benchmark score or current fact.
+13. **Expand across domains and models.** Add physical/mental/software/civic tracks with domain safety contracts and
+   independent replication; only then consider training/distilling a Life Manager model. AGI is a future empirical
+   claim, not an assertion derived from economic simulation or one leaderboard.
+
+### Commercial-loop readback and investment/mobile priority (2026-09-25 JST)
+
+This section is a read-only evidence refresh. It does not touch the separate Paid fulfillment worktree, provider
+sessions, effect fences, or external money. “Published” is not “revenue”; only an official settlement or store
+financial record can close a revenue claim.
+
+#### Investment and agent economy
+
+- `alpaca-investment-live` is registered as a 300-second shared-agent loop with `effect_class=money`. Its latest
+  status is `loaded-idle`, last exit `75`, and `host_admission_deferred:resource_capacity_busy`; that wake did not
+  enter the investment entrypoint. The registry contains no Hyperliquid, meme-coin, or standalone public-stock loop.
+- The existing allocator observes BTC/USDC and ETH/USDC crypto quotes, QQQ and SPY option data, but its approval gate
+  permits only bounded crypto and option-spread candidates; QQQ is observation-only in the current gate. The source is
+  therefore not a general multi-venue investment system.
+- The local official Alpaca evidence is live (not paper) with account equity `66.6`, a `USDCUSD` position valued at
+  about `66.598687`, and unrealized P/L `-0.048729`. The receipt ledger has `223` rows: `205` `no_trade`, one verified
+  live canary, one verified close, and two broker-reconciled outcomes. The measured performance snapshot reports
+  realized P/L `-0.01`, unrealized P/L `-0.03`, net P/L `-0.04`, and `statistically_supported=false`; the frozen BTC
+  close reports realized net `-0.006970681885` USDC. This is a small bounded experiment, not profit or USD 10K MRR.
+- `agent-economy-loop` is alive with a clean runtime status, but its economic evidence is only one settled x402 revenue
+  receipt for `0.003` USDC. Its earn ledger sums to zero and its sole compute receipt paid `0.002` USDC for a failed
+  output (`429`, stale model). Self-funding is not proven.
+- Hyperliquid and meme-coin expansion is a future candidate only. A public reference implementation demonstrates
+  indicators, hard risk guards, stop-losses, exposure caps, and an agent signer, but it still requires an authorized
+  wallet signer and explicitly says it is unaudited and offers no return guarantee. Life Manager must first define a
+  venue-specific risk/effect/receipt contract, shadow-run it, and prove broker settlement before any live expansion.
+
+#### Mobile apps and distribution
+
+- The product catalog has one `mobile-apps` product with 18 publisher jobs plus metrics jobs. Recent Postiz/marketing
+  receipts (published at or after `2026-09-20`) contain `102` published records, `68` distinct creative IDs and only
+  `28` distinct caption hashes. The most reused caption hashes occur `17`, `15`, and `11` times. Thus the current
+  failure is not “no post at all”: publication is occurring, but distribution is repetitive and not yet tied to an
+  install-to-payment learning loop.
+- The older cadence summary remains an honest historical warning: on `2026-08-27` it recorded 13 published, 24 missed
+  and 2 pending slots; on `2026-08-28` it recorded 39 pending slots. Several registry rows still expose stale
+  `effect=unknown`/incomplete diagnostics even though newer marketing receipts exist. These two surfaces must be
+  reconciled by one occurrence-bound readback rather than treated as interchangeable success.
+- App Store business evidence currently covers only `Daily Affirmations - Anicca` (`6755129214`) and `Honne`
+  (`6759667221`). After de-duplicating repeated report rows, the observed window contains 12 downloads (9 first-time)
+  for Daily Affirmations and 2 first-time downloads for Honne. Discovery rows contain 192 and 154 impressions,
+  respectively. The unique purchase report for Daily Affirmations totals historical proceeds `USD 169.97` (dates
+  January–July 2026); Honne has no observed purchase row. This is not current monthly recurring revenue, and the other
+  app catalog entries have no official store financial record in the local evidence.
+- RevenueCat snapshots mark product observations unavailable (`product_pack_observation_missing`), and the product
+  catalog still marks mobile financial and cost adapters as `missing`. The source project is `MARKETING_VERSION 1.9.5`
+  / build 365 while the latest captured store report is version 1.9.4. A release, install, subscription, proceeds and
+  cost-attribution readback is still required before calling the app factory healthy or profitable.
+
+#### Capafy and affiliate
+
+- Capafy has 57 company receipts. The newest skill-level receipt (`2026-09-24`) is **Academic Abstract Claim
+  Calibrator** with gross `USD 80.82`, creator earnings `USD 60.54`, observed subscription earnings `USD 52.54` (not
+  MRR), one-time revenue `USD 9.99`, pending `USD 14.40`, and `paid_out_usd=0.00`. `settled_mrr_usd` and active
+  subscription status are unknown. Inventory is 40 listed, 5 occupied, 0 free. Healthcheck passes, but marketing and
+  account-mutation rows still show admission/effect fences; no bank-settled Capafy revenue is proven.
+- Affiliate's latest revenue-cycle state is `NO_TRANSACTIONS`; the linked provider artifact failed with a non-retryable
+  `PROVIDER_SCHEMA_ERROR` at the links stage. The latest X-growth baseline has 1,307 impressions and zero likes,
+  replies, reposts and bookmarks. Composition artifacts exist, but no commission/conversion receipt exists. Affiliate
+  is therefore not fixed economically even if its process rows can run.
+
+#### Product surface and no-human-loop boundary
+
+The public `/lm` surface is currently a Telegram deep-link handoff, and `apps/landing/README.md` explicitly excludes
+the income/UBI surface. The page metadata describes a proactive body/mind/money manager, but the implementation still
+depends on Telegram onboarding and provider credentials; a bank-only, no-install, no-human-credential experience is a
+vision, not a shipped capability. The no-recurring-human-loop target remains valid, but KYC, CAPTCHA, OAuth/provider
+authorization, App Store accounts, marketplace accounts and wallet authorization are still real capability boundaries.
+They must be listed honestly in the capability manifest and cannot be silently removed from the evaluator.
+
+#### Read-only study of adjacent open source
+
+- [every-app/open-seo](https://github.com/every-app/open-seo) (MIT) combines MCP and reusable agent skills with
+  Docker/Cloudflare self-hosting and pay-as-you-go upstream data. Reuse the pattern—versioned skill contract,
+  self-host option, usage/cost receipt—not its provider keys or code as a production dependency.
+- [milind-soni/OpenMausBot](https://github.com/milind-soni/OpenMausBot) (Apache-2.0) shows persistent chat-shaped
+  agents, per-agent workspaces, cloud/local computers and connected apps. It still exposes approval cards and local
+  credentials, so it is not evidence of zero-human operation.
+- [nightly-labs/openbot](https://github.com/nightly-labs/openbot) (PolyForm Noncommercial) shows durable queues,
+  embedded browser, local/cloud drivers and agent-to-agent messaging. The license and its explicit `danger-full-access`
+  preview mean it is study material only, not a drop-in Life Manager dependency.
+- [unreallabsai/unreal-agent](https://github.com/unreallabsai/unreal-agent) separates sessions, idempotent inboxes,
+  tool translation and durable asynchronous operations. The lesson is to keep coordinator validation synchronous and
+  make effects serializable/recoverable; it does not provide our provider receipts or financial proof.
+- [sanketagarwal/hyperliquid-trading-agent](https://github.com/sanketagarwal/hyperliquid-trading-agent) demonstrates
+  indicator computation and code-enforced leverage/exposure/drawdown guards, but requires an authorized agent wallet
+  signer and is explicitly unaudited. It is a risk-policy reference, not permission to start live trading.
+
+### Updated remaining work cursor after commercial readback
+
+The previous 13-step foundation order remains the canonical dependency order. The following concrete subcursor is
+inserted after the immutable-release/Connector canary gate and before claims of self-improvement or 10K MRR:
+
+1. Promote the absolute-Node recovery-supervisor fix through a main-derived accepted immutable release; re-read the
+   reconciler until `node: not found` disappears and the queue has an occurrence-bound terminal outcome. Capacity is
+   currently above floor; immutable-release acceptance, not authorization or storage, is the blocker.
+2. Run the Connector effect-free natural canary and exact readback, then refresh `status all`, contract gate and the
+   foundation evaluator. Keep the 13 uncovered failures visible.
+3. Close every non-Paid loop one owner at a time: Affiliate provider-schema/readback, Writer, Investment, Agent Economy,
+   Job Hunter, Fundraiser, Self-Build, Mobile/Metrics, Capafy and CFO. The separate Paid workstream remains untouched.
+4. Reconcile publication telemetry: bind each mobile/Capafy/affiliate occurrence to provider receipt, creative/caption
+   identity, metrics window, install, purchase, refund and cost records; reject repeated captions beyond the configured
+   diversity policy and prove replay-zero.
+5. Make the app factory economically measurable: finish App Store financial/cost adapters, update the store release,
+   instrument install → onboarding → paywall → purchase → retention, and run content/offer experiments whose promotion
+   gate is verified net contribution—not impressions alone.
+6. Make Capafy per-skill settlement measurable: official seller earnings, pending versus paid-out balance, active
+   subscription state, refunds and cost attribution; only then rank and clone profitable skills.
+7. Establish investment baseline and risk policy: reconcile all Alpaca positions/orders/fees, close or explicitly fence
+   the current small live experiment, and run paper/shadow cohorts. Add Hyperliquid, meme coins or additional equities
+   only as separately registered, bounded, receipt-backed venues after this gate; never infer profitability from a model
+   decision or an unrealized mark.
+8. Prove one managed Life Manager self-heal without Codex performing the repair, then run held-out LM-EAB trials where
+   success includes official effect, safety, intervention count, cost and settled net contribution.
+9. Enable self-improvement only through candidate isolation, evaluator-owned promotion and rollback. Its objective is
+   attributable settled net contribution and reliability; it may improve marketing, offers, routing, skills and new-loop
+   proposals, but may not rewrite identity, permissions, receipts or safety gates.
+10. Enable self-funding after settled revenue covers measured model/browser/cloud/provider cost; x402 can settle permitted
+    agent-to-agent work but cannot bypass human-credential, spend-cap, KYC or unknown-effect boundaries.
+11. Align `/en`, `/income` and `/lm` to the actual Life Manager product, then ship hosted cloud parity and an explicit
+    self-hosted local option. Bank-only/no-install onboarding is a later product milestone and must not be advertised as
+    implemented before a real end-to-end receipt exists.
+12. Only after these receipts are stable, pursue verified portfolio USD 10K MRR, YC evidence and broader model training;
+    AGI/UBI remain empirical future goals, not current status claims.
+
+### Deep readback: why mobile content repeats (2026-09-25 JST)
+
+This is a code-and-receipt diagnosis, not a claim that the provider UI was guessed from a local hash.
+
+#### What is actually repeating
+
+- The native carousel lane is static. `apps/life-manager/scripts/anicca-larry-ja-canary.js` reads one approved
+  `pack_ref`, six `media_refs` and one `caption_ref` from the lane environment on every due slot and sends those exact
+  refs to `buildMarketingNativeCarouselPublicationJob`; it does not call a content generator or choose a new pack from
+  history. `slotScopedEffect=true` makes the same content legal as a new effect at each schedule slot, so the effect
+  fence prevents duplicate jobs but does not prevent creative fatigue.
+- The read-only receipt ledger confirms the symptom. From `2026-09-01` onward, `@anicca_slideshow` has 24 published
+  native-carousel receipts with one creative, one pack, one media order and one caption hash. The other native lanes
+  show the same pattern: `@anicca.affirmation` 32/32, `@aniccaaffirmation` 32/32, `@anicca.jp` 31/31,
+  `@anicca.jp1` 30/30 and `@ani.cca1234` 29/29 use one unchanged creative/pack/media/caption tuple.
+- The six images inside the current English slideshow pack are not identical: the object pack contains six different
+  slide texts (`PROCRASTINATION ISN'T LAZINESS`, `YOUR BRAIN...`, `MAKE THE TASK...`, etc.) and the corresponding
+  JPEGs render different text. Therefore the proven failure is **post-to-post reuse of the same six-slide set**, not
+  evidence that the local pack has the same text on every slide. If a live provider page shows one text duplicated on
+  every slide, a fresh provider visual readback must capture that separate rendering defect before changing the pack.
+- The generated video lanes have a second, independent bottleneck. `marketing-video-generation-adapter.js` selects one
+  hook and writes publication copy as exactly `hook.text + hashtags`. The Anicca card/widget packs contain only
+  3–4 active hooks, and the YouTube affirmation pack contains one preferred hook. Recent receipts contain 68 artifacts
+  but only 30 copy hashes; several copy hashes recur 5–7 times, and the Japanese card lanes repeatedly reuse four
+  caption hashes. A new media hash or creative ID does not make the words new.
+
+#### Why the current implementation permits it
+
+1. Carousel publication has no generation/history stage; approved assets are immutable and reused indefinitely.
+2. Video generation varies only the hook and one selected media object. It has no topic, body, evidence/source, CTA,
+   slide-copy or visual-treatment variant dimensions.
+3. Hook history is scoped by tenant/product/format/locale, not account, platform or topic. It can therefore rotate a
+   small global hook set across several accounts without enforcing per-account fatigue or cross-account novelty.
+4. The ledger has a provider-lineage collision quarantine for a caption reused with a different video, but it is not a
+   planned content-diversity gate. It does not reject a deliberately scheduled identical pack/caption before publish.
+5. The metrics surface stores publication/hash evidence, while the current financial adapter cannot join each creative
+   to install, onboarding, paywall, purchase, retention and cost. The system can prove that it posted, but cannot yet
+   learn which content makes money.
+
+#### Search readback and design consequence
+
+- [TikTok Creative Impact Report](https://ads.tiktok.com/business/creativecenter/quicktok/online/return-on-influence-tiktok-creative-impact/pad/en)
+  explicitly recommends varied creative assets, weekly refreshes and a 5–7 creative performance cohort; its reported
+  internal analyses associate creative diversification with higher conversion. This supports a testable diversity policy,
+  not a guarantee for our account.
+- [Apple product page guidance](https://developer.apple.com/app-store/product-page/) says product-page elements drive
+  downloads, and [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/) supports
+  up to three treatments with App Analytics comparison and a 90%-confidence application recommendation. We currently
+  have no verified treatment cohort for either app.
+- [PostHog product analytics](https://posthog.com/docs/product-analytics) describes event/person/property-based funnels,
+  retention, paths and regression alerts. Our missing adapter/event lineage is why impressions cannot yet be promoted
+  to install or payment evidence.
+
+#### Required content-loop contract
+
+Before a mobile post is admitted, the candidate must include `account_id`, `platform`, `topic_id`, `source_ref`,
+`hook_id`, `body_variant_id`, `cta_variant_id`, `visual_variant_id`, `slide_text_sha256[]`, `caption_sha256`,
+`creative_id` and the prior-window exclusion set. The admission gate must fail closed when any slide text is duplicated
+within a carousel, when the same media order/caption tuple is inside the configured account cooldown, or when the
+creative has no attributable metric window. A provider receipt is still required after publication; a novelty pass is
+not a revenue pass.
+
+The next mobile content implementation order is therefore: (a) generate a fresh six-slide pack per bounded cohort rather
+than reuse one immutable pack forever, (b) enforce per-slide and per-account novelty before the provider call, (c) add
+topic/body/CTA/source lineage to the receipt, (d) read provider post metrics and App Store install/purchase cohorts, and
+(e) promote or kill variants only on verified net contribution. Do not solve this by increasing posting frequency.
+
+### Cross-workstream integration contract: Foundation/Connector + Paid fulfillment (2026-09-25 JST)
+
+The separate Paid owner is the canonical source for marketplace fulfillment and must not be overwritten by this
+foundation workstream. Its read-only handoff was inspected at:
+
+- repo/worktree: `/private/tmp/lm-paid-main-20260924`
+- branch: `fix/coconala-history-retry-20260924`
+- HEAD: `5a28bfb762`
+- Paid spec: `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md`
+- Paid TODO SSOT: `skills/earn/gig/TODO.md`
+
+The Paid snapshot says that Ryu/Coconala room `18211957` is a permanent manual exception. Release `v705`, the one
+final seller message `222360163`, official HTTP 200 and DOM readback are complete; the loop must not resend Ryu or
+click formal delivery. The next Paid cursor is loop hardening/release, capacity-floor recovery, a no-effect Coconala
+Paid readback, Storefront readback, occurrence-level CrowdWorks reconciliation, current funded Lancers inventory,
+account-bound Freelancer/Upwork inventory, Mercor inventory, crash recovery and replay-zero. This is evidence of the
+Paid cursor, not evidence that all paid contracts are delivered or paid.
+
+#### Why a blind merge is unsafe
+
+Both branches descend from the same current-main boundary `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, but they
+modify the same eight files:
+
+```text
+config/loop-registry.json
+runtime/loop/lm_loop.py
+runtime/loop/tests/fixtures/macos-loop-jobs.json
+runtime/loop/tests/test_lm_loop_apply.py
+runtime/loop/tests/test_lm_loop_readonly.py
+runtime/loop/tests/test_macos_loop_registry.py
+docs/superpowers/plans/2026-09-24-fourteen-loop-self-healing-foundation.md
+docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md
+```
+
+The Paid branch also changes 37 non-overlapping Paid/application files. Therefore `git merge` with an automatic
+`ours`/`theirs` choice is forbidden: it can silently drop either occurrence-fence hardening or Paid inventory and
+freshness gates. The correct integration is a reviewed union, not a rewrite of either branch.
+
+#### Single-agent integration order
+
+1. Freeze both branch heads and provider state; do not restart a browser, clear a fence or send a Paid effect during
+   conflict resolution. Preserve `555d05b9dd` and `5a28bfb762` as the exact inputs.
+2. Accept and merge the Foundation/Connector candidate only after its CI and immutable-release acceptance are green.
+   The Connector candidate must prove profile-owned CDP resolution, nested diagnostics, one effect-free natural wake,
+   exact release readback and replay-zero; `circuit_open/wake_boundary_failed` alone is not acceptance.
+3. Rebase the Paid branch onto the resulting latest `main`, then resolve the eight shared files explicitly:
+   preserve the Foundation status/diagnostic/recovery contracts, preserve Paid heartbeat/effect-fence/fresh-inventory
+   behavior, union registry identities, and union tests. Paid spec/TODO keeps the newest Paid cursor; this architecture
+   spec keeps the cross-workstream contract and links to it rather than copying its full history.
+4. Run both focused suites and the shared contract gate on the integration branch. A green test suite does not count as
+   provider completion; record exact loaded SHA, occurrence, effect, official readback and replay-zero separately.
+5. Cut one complete main-derived immutable release from the integrated main. Apply only owner-by-owner and only while
+   loaded-idle. First restore the capacity floor, then run the Coconala Paid no-effect wake/readback and Storefront
+   readback, followed by occurrence-level CrowdWorks, funded Lancers, account-bound Freelancer/Upwork, Mercor,
+   crash-recovery and replay-zero in the Paid TODO order.
+6. After the integrated release is read back, hand the single agent one ownership map: Foundation/Connector owns shared
+   diagnostics and browser identity; Paid owns marketplace effect, provider sessions and Paid fences; Mobile/Affiliate/
+   Investment/CFO retain their existing owners. No second agent may mutate the same owner, browser lease, state or
+   occurrence.
+
+This ordering allows both workstreams to reach one main and one immutable release without discarding Paid progress,
+but it does not claim that either branch is ready for production merge today. The merge gate remains empirical:
+reviewed union -> CI -> main -> complete immutable release -> exact owner load -> official readback -> replay-zero.
+
+### Latest Connector CLI readback after integration review (2026-09-25 JST)
+
+Read-only `./bin/lm-loop status connector --explain --json` currently returns one complete occurrence:
+
+```text
+occurrence_id=life-manager-connector-native:18d87e081f908030-4247
+installed_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c
+event_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c
+launchd_state=loaded-idle
+last_exit=1
+error_class=entrypoint_exit_1
+next_action=reconcile_owner
+effect_class=none
+effect_status=not_applicable
+provider_receipt_id=null
+official_readback_ref=null
+diagnostic_complete=true
+release_drift=false
+```
+
+This confirms that the currently loaded old release is internally aligned but still fails before any provider effect.
+The earlier endpoint/owner diagnosis remains the actionable cause: the old rail assumes `127.0.0.1:9222`, while the
+registered Cloak daily-driver is the profile-owned IPv6 listener. The endpoint-identity and nested-diagnostic repair
+exists only on the pushed Connector candidate; it is not loaded in this occurrence. `circuit_open /
+wake_boundary_failed` therefore remains a lossy safe-stop projection, not a successful registration and not a revenue
+event. No browser, provider session, effect fence or Paid state was changed by this readback.
+
+### Current 14-loop status aggregation (read-only, 2026-09-25 JST)
+
+`./bin/lm-loop status all --json` returned 271 managed rows. Joining the rows to the 14 Product Loop catalog yielded
+98 managed jobs. The following counts are lifecycle projections only; `pass` means an owner terminal passed, not that a
+provider effect, accepted work, settlement or profit exists.
+
+| Product Loop | Jobs | Pass | Blocked | Fail | No terminal | Main boundary | Economic readback |
+|---|---:|---:|---:|---:|---:|---|---|
+| Affiliate | 6 | 1 | 2 | 0 | 0 | effect fence/FIFO; browser and source lanes still running | no conversion/settled commission |
+| Investment | 1 | 0 | 1 | 0 | 0 | capacity admission before entrypoint | Alpaca experiment net about `-$0.04`; no multi-venue loop |
+| Agent Economy | 19 | 1 | 9 | 4 | 4 | capacity/effect fences plus legacy entrypoint failures | settled x402 evidence is only `0.003 USDC`; net funding unproven |
+| Job Hunter | 7 | 1 | 5 | 1 | 0 | effect fences; inbox/runner failures | no new funded contract; Mercor official contracts empty |
+| Fundraiser | 1 | 0 | 1 | 0 | 0 | effect fence | no new funding receipt |
+| Connector | 1 | 0 | 0 | 1 | 0 | old CDP/browser entrypoint | registration is not revenue; current provider receipt absent |
+| Self-Build | 4 | 1 | 3 | 0 | 0 | recovery/dev owner entrypoint failures | control-plane work, not revenue evidence |
+| Mobile Apps | 22 | 13 | 6 | 1 | 2 | effect fences, one entrypoint failure, metrics lanes | posts exist; install/payment/MRR attribution incomplete |
+| Capafy | 8 | 2 | 5 | 0 | 1 | effect fences/capacity | creator earnings observed, but settled recurring MRR unknown and paid-out is zero |
+| CFO | 3 | 0 | 3 | 0 | 0 | message/payout effect-unknown fences | no verified financial snapshot |
+| Writer | 7 | 2 | 5 | 0 | 0 | capacity/effect/FIFO fences | official message readback exists for a slice; attributable payment absent |
+| Coconala | 7 | 3 | 1 | 3 | 0 | browser/Paid/Storefront failures and fences | Ryu manual message is complete; loop-wide paid revenue unproven |
+| CrowdWorks | 5 | 0 | 1 | 4 | 0 | entrypoint 143/1 and effect-unknown occurrences | no official Paid delivery/payment receipt |
+| Lancers | 7 | 2 | 3 | 2 | 0 | effect fences, timeout and storefront/work-sync failures | current inventory is zero-funded; no Paid receipt |
+
+The common pattern is not fourteen unrelated business failures. It is four layers that compound:
+
+1. **Control-plane layer:** many owners are on an older immutable release or wait in typed capacity/FIFO admission;
+   they do not reach the provider entrypoint.
+2. **Effect-safety layer:** `effect_unknown` occurrences intentionally stop retries until an occurrence-bound official
+   receipt or admissible no-effect proof exists. This protects against duplicate sends, but it also means no new money
+   can be claimed while the fence is open.
+3. **Provider/account layer:** several platforms have no current account-bound authorization, source-complete inventory or
+   funded contract. A browser page, historical job, public watcher or local “pass” cannot create a contract.
+4. **Economic-evidence layer:** posts, applications, model decisions and unrealized marks are activity. Revenue requires
+   a provider/store/broker settlement joined to cost, refund and payout evidence. Missing adapters make profit `unknown`,
+   not zero and not success.
+
+Connector belongs primarily to layers 1–2. It is a registration/event loop, not a revenue loop. Its current failure is
+before the provider action because the old rail connects to the wrong CDP listener; even a successful event registration
+would only be a Connector receipt, not proof of income. Paid fulfillment belongs to the separate Paid owner and follows
+the canonical marketplace cursor recorded above.
+
+### Whole-ship handover and AGI architecture addendum (2026-09-25 JST)
+
+This section is the newest whole-ship handover index. It supersedes any earlier short prompt that described only
+Connector or only the Foundation slice. The target is one logical Life Manager entity that proactively manages
+economic, physical and mental life, while the implementation remains strongly isolated per person, account,
+credential, provider session and external-effect occurrence. “One entity” is a product/control-plane concept; a
+shared unscoped database, browser, wallet or credential is not an acceptable architecture.
+
+#### Evidence versus target
+
+**Verified now:** the repository has a 14-loop catalog, registry contract, machine-readable health CLI, recovery
+schemas/supervisor, typed effect fences, release binding, deterministic economic/agent contract fixtures, and a
+source-only Connector diagnostic candidate. The latest read-only aggregation is 98 mapped jobs across 14 loops;
+the foundation gate is blocked (`healthy=0`, `safely_fenced=1`, `uncovered_failure=13`). The loaded Connector is
+old release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, exits with `entrypoint_exit_1`, and has no provider receipt.
+No loop is currently proven to be both continuously healthy and profitable. `pass` is a lifecycle projection, not
+settled revenue.
+
+**Not verified:** all-loop production health, Connector registration, a no-Codex self-heal, cloud parity, universal
+one-shot auto-enrollment, any USD 10,000 MRR, self-funding, YC selection, AGI, UBI, or a fully human-credential-free
+bank payout. These remain acceptance gates, not marketing claims.
+
+#### Ideal architecture (TO-BE)
+
+```mermaid
+flowchart TB
+  U[Phone / web / optional Telegram] --> C[One-shot capability capsule]
+  C --> P[Policy + identity + credential broker]
+  P --> O[Life Manager control plane]
+  O --> R[14-loop registry and scheduler]
+  R --> T[Tools: browser, API, code, finance, content]
+  T --> E[Effect fence + provider receipt/readback]
+  E --> L[Evidence ledger / CFO cost and settlement join]
+  L --> H[Observability + recovery supervisor]
+  H --> O
+  L --> V[LM-EAB eval / profit optimizer]
+  V --> K[Candidate isolation, promotion and rollback]
+  K --> O
+  L --> F[Self-funding ledger: settled inflow minus measured cost]
+  F --> X[x402 / agent economy, only within policy]
+  O --> W[Cloud durable workers]
+  O --> S[Local self-hosted adapter]
+```
+
+The control plane is model-agnostic and uses the same task, tool, receipt and recovery contracts in cloud and local
+mode. The model proposes plans and tool calls; deterministic code owns identity, arithmetic, deduplication,
+spend/effect policy, receipt joins and rollback. A single logical manager can therefore coordinate many people
+without a dangerous global credential or cross-tenant state leak.
+
+The user experience is: one minimal bootstrap, conditional provider KYC/OAuth/CAPTCHA/legal consent only when a
+provider requires it, then autonomous wakes and outcome reports. The system never asks the person to invent goals,
+select loops, approve routine actions or set a per-action risk limit. It must still refuse an unauthorized bank or
+wallet transfer; hiding a required authorization prompt is not “no human in the loop,” it is an unsafe claim. The
+long-term product target is no recurring human operations and, where provider-native credentials and lawful rails
+permit it, no human credential. Bank-only/no-install proactive payout is a future milestone and is not shipped.
+
+#### Current public-surface mismatch
+
+The live pages were crawled on 2026-09-25 JST:
+
+- `/en` describes a proactive body/mind/money Life Manager and links to `/lm`.
+- `/lm` still sells a Calendar × Telegram travel manager ($29/mo), requires Calendar connection and a base/home
+  location, and treats calls as optional. It does not describe the whole economic/physical/mental manager.
+- `/income` asks for email/wallet onboarding and says bank/PayPay is rolling out. It is a queue/benefit surface,
+  not proof of proactive bank payout or zero-human onboarding.
+
+The product surface must be rewritten only after the real bootstrap/cloud path exists: `/en` becomes the canonical
+Life Manager explanation, `/lm` becomes the same product entry (or redirects), and `/income` states only the
+receipts that actually exist. Do not advertise “no human at all,” UBI or AGI as implemented before an end-to-end
+identity, authorization, payout and readback path proves it.
+
+#### What the external research teaches us
+
+These are primary-source findings, with confidence limited to what the sources actually claim:
+
+| Source | Verified approach | What Life Manager adopts | What it does **not** prove for us |
+|---|---|---|---|
+| [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) and [tool design](https://www.anthropic.com/engineering/writing-tools-for-agents) | Start with simple composable workflows; use agents only where model-directed flexibility is needed; make the agent-computer interface explicit and tested | Keep the shared kernel small, document tools, expose plans/diagnostics, add complexity only when an eval shows a need | A good agent pattern is not a revenue or AGI result |
+| [Google DeepMind SIMA](https://deepmind.google/blog/sima-generalist-ai-agent-for-3d-virtual-environments/) | Train across many worlds; map vision/language to actions; evaluate seen and unseen environments | Build adapters and held-out provider tasks so one manager generalizes across platforms; use replay-safe action interfaces | Game-world generalization is not real-world financial autonomy |
+| [Google DeepMind Genie 2](https://deepmind.google/discover/blog/genie-2-a-large-scale-foundation-world-model/) | A learned world model can generate interactive environments for safe agent training | Add simulators/counterfactual “what-if” environments for offers, workflows and recovery before live effects | Synthetic worlds cannot establish official provider settlement |
+| [Simile](https://www.simile.com/) | Builds behavior models from real people, validates weekly against thousands of evaluations, and reports uncertainty | Model user/customer response and marketing experiments; require calibration and uncertainty, not just a generated persona | Simulated people are not a permission to act on real accounts, and the company’s claims are not our benchmark result |
+| [Listen Labs](https://listenlabs.ai/) | AI-moderated interviews, large participant reach, traceable insights and compounding research memory | Use for product/offer discovery and creative testing; join findings to actual install/payment cohorts | It still relies on research participants and does not provide a no-human Life Manager |
+| [Andon Labs Vending-Bench](https://andonlabs.com/evals/vending-bench-2) / [paper](https://arxiv.org/abs/2502.15840) | Long-horizon business simulation scored by ending bank balance; exposes coherence failures over months | Make long-horizon economic autonomy a first LM-EAB track, with costs, interventions and failure recovery | It is simulated; its dollar score is not real MRR, self-funding or AGI |
+| [DigitalOcean Managed Agents](https://www.digitalocean.com/products/managed-agents) | Durable cloud sessions, pause/resume, microVM isolation, credential brokering, governed tools and structured logs | Use durable workers, per-session isolation, brokered credentials, cost attribution and resumable state in our cloud design | A managed runtime does not make the agent autonomous or profitable |
+| [Sakana AI Scientist](https://sakana.ai/ai-scientist/) | Idea → code → experiment → review → iterative archive; warns that sandboxing is essential | Copy the evaluator-optimizer/research loop for self-improvement candidates, with isolated branches and rollback | Its automated papers still have correctness/safety failures and human scientific context |
+| [OpenBot](https://github.com/nightly-labs/openbot) | Persistent agents, FIFO queues, workspaces, browser and agent-to-agent messaging; local-first and explicitly dangerous permissions | Borrow durable queue/session/workspace concepts; keep our effect fences and receipt ledger | Its preview is local-first and `danger-full-access`; it is not our cloud or safety boundary |
+| [Unreal Agent](https://github.com/unreallabsai/unreal-agent) | Async coordinator, durable sessions, idempotent input inbox, serializable operations and crash recovery | Use stable occurrence IDs, inbox dedupe, serializable operations and recovery/fork semantics | A harness alone does not provide domain adapters or financial settlement |
+| [BrowserGym](https://github.com/ServiceNow/BrowserGym) / [OSWorld](https://github.com/xlang-ai/OSWorld) | Reproducible browser/desktop environments and task suites for agent evaluation | Add browser/desktop task families and held-out environments to LM-EAB; keep provider effects separate | Sandbox task success is not a live provider receipt |
+| [METR Task Standard](https://github.com/METR/task-standard) and [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Versioned task families, environment setup and objective scoring; error discovery before writing more evals | Publish task/trial/grader schemas, sample production failures, calibrate graders and maintain held-out sets | Generic task standards do not encode our identity, payout or no-recurring-human-loop rules |
+
+The names “Similie” and “Aaru” from the request are not sufficiently identified by a first-party source in this
+readback. `SIMA` is the verified DeepMind project; `Simile` is the verified behavior-simulation company. Aaru was
+only found in an independent API-Evangelist stub, not a verified official technical artifact, so it is not used as
+an architectural authority until an official source is identified.
+
+#### Own-model strategy
+
+Do not train a foundation model first. The sequence that minimizes time and preserves evidence is:
+
+1. Keep a model-agnostic Life Manager brain behind the existing tools/receipt/recovery contract; compare providers
+   and small models on the same LM-EAB tasks.
+2. Capture redacted trajectories, tool outcomes, failure classes, official receipts, cost and settled contribution.
+   Never train on secrets or unverified success.
+3. Improve prompts, tool schemas, retrieval, routing, memory compaction and candidate policies before weight training.
+4. Distill/rerank a smaller model only when held-out evals show a stable cost/latency bottleneck and enough diverse
+   data exists; promote by evaluator-owned canary and rollback.
+5. Train a domain/world model only when it improves held-out cross-provider generalization, recovery or economic
+   outcome beyond the control-plane baseline. A model score alone never changes permissions or proves AGI.
+6. Treat “AGI” as an empirical claim requiring independent replication across economic, physical, mental, software
+   and unseen task families, plus safety and no-recurring-human-loop tracks. LM-EAB can become a public standard by
+   being reproducible and useful to outsiders, not by declaring our own score to be the definition of AGI.
+
+#### Whole-ship remaining TODO (strict order)
+
+1. **Freeze and route ownership.** Preserve this spec as the architecture SSOT; preserve the separate Paid branch and
+   its provider/session/effect boundaries; create and push the durable handover index. Do not run two owners against
+   one browser, account, occurrence or branch.
+2. **Restore host capacity and release prerequisites.** Recover the owner-controlled disk/admission floor, retain
+   protected state, run the relevant suite from an allowed main-derived worktree, and record a fresh receipt.
+3. **Finish Foundation/Connector promotion.** Verify the managed-Node/recovery candidate, merge through main only
+   after CI/contract evidence, cut one immutable release, load it, read back exact SHA/argv/env/diagnostics, and run
+   one effect-free Connector natural canary. `circuit_open/wake_boundary_failed` is not accepted until nested class,
+   occurrence, release and readback are present.
+4. **Prove one autonomous self-heal.** Life Manager itself must detect, classify, repair, reload and verify one
+   low-risk non-Paid occurrence with Codex absent from the live repair path; capture official readback and replay-zero.
+5. **Close the 14-loop foundation.** Reconcile each non-Paid owner through the shared kernel until every row is
+   `healthy` or an exact typed setup/safety fence with complete diagnostics; no `uncovered_failure`, release drift or
+   missing readback fields. Then integrate the separate Paid branch by reviewed union, not blind merge, and execute its
+   canonical Coconala → CrowdWorks → Lancers → Freelancer/Upwork → Mercor cursor.
+6. **Ship the one-shot capsule.** Persist identity/capability/credential references, immutable policy, onboarding
+   version and auto-enrollment. No goal-setting or routine approval prompts; one-time provider gates remain explicit.
+7. **Ship cloud parity.** Run durable isolated cloud workers with brokered credentials, pause/resume, scheduled wakes,
+   structured logs, cost attribution and tenant/account isolation. Prove the same capsule/evidence hashes in local and
+   cloud modes; keep self-hosted local as an adapter, not a fork.
+8. **Complete LM-EAB.** Separate recovery eval, economic eval, public benchmark and production gate. Add independent
+   adapters, task authoring, production-failure sampling, public/dev/held-out/challenge splits, contamination audit,
+   repeated-trial uncertainty, grader calibration, redacted trajectories and reproducible reports.
+9. **Make commercial loops learn profit.** For Affiliate, Mobile Apps/Capafy, Writer/Product, Gig non-Paid,
+   Investment and Self-Funding/x402, join every occurrence to exposure, action, official receipt, settlement, refund,
+   payout and compute/provider cost. For mobile, rotate topic/body/CTA/visual variants per account; never treat repeated
+   posts, clicks, unrealized marks or model decisions as money.
+10. **Enable evaluator-owned self-improvement.** Candidate changes may improve prompts, tools, routing, offers,
+    marketing, pricing and new-loop proposals. A frozen evaluator and policy kernel decide promote/rollback; a
+    candidate cannot rewrite identity, permissions, receipt logic, effect fences, spend caps or its own score.
+11. **Enable self-funding.** Only after settled attributable inflow covers measured model, browser, cloud, provider and
+    payout costs. x402 may settle permitted agent-to-agent services inside caps; it cannot bypass KYC, authorization or
+    unknown-effect fences. CFO must independently read back the net ledger.
+12. **Align product and distribution.** Rewrite `/en`, `/lm` and `/income` to the real shipped capability; build the
+    marketing factory with diverse creative and App Store/website funnel telemetry; prove install → activation → paid
+    retention and settled contribution before scaling.
+13. **Reach the first economic milestone.** Establish a settled recurring cohort, then verify portfolio net MRR ≥
+    USD 10,000 with refunds, costs and payout included. This is a target, not current evidence.
+14. **Prepare YC evidence.** Submit an honest Winter 2027 application with reproducible receipts, self-heal proof,
+    LM-EAB results and customer economics; never claim selection.
+15. **Pursue broad AGI/UBI.** Expand held-out LM-EAB to physical, mental, software, civic and societal tasks; run
+    independent replication; only then train/distill a Life Manager model or claim broad AGI. Proactive universal
+    payouts to people without signup/bank/internet require lawful rails, identity/consent and operational evidence;
+    they are a long-horizon UBI objective, not a current feature.
+
+#### Whole-ship done definition
+
+The ship is complete only when one main-derived immutable release passes: 14-loop structural/diagnostic gate; one
+Codex-free self-heal; cloud/local parity; Paid reviewed integration; official effects/readbacks and replay-zero;
+attributable settled revenue and cost joins; evaluator-owned promotion/rollback; self-funding net-positive ledger;
+and public LM-EAB reproducibility with held-out results. USD 10K MRR, YC selection, AGI and UBI are separately
+reported outcomes, never inferred from tests, lifecycle `pass`, simulated dollars or aspiration.
+
+#### Full-ship handover prompt
+
+```text
+You are taking over the entire Life Manager ship, not only Connector.
+
+READ FIRST (mandatory)
+1. /private/tmp/lm-recovery-owner-20260924/docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md
+   Read this newest “Whole-ship handover and AGI architecture addendum,” the current 14-loop table, the Connector
+   readback, and the remaining-work section. This document is the architecture/sequence SSOT.
+2. Paid is a separate owner. Read, read-only, /private/tmp/lm-paid-main-20260924/docs/superpowers/specs/
+   2026-09-22-paid-fulfillment-all-platforms-design.md and skills/earn/gig/TODO.md. Do not edit or execute its
+   provider/session/state work.
+3. Read the durable handover index under .claude/handovers/ and verify git HEAD, upstream, dirty state, release
+   selector, owner lease and live provider/browser state before editing.
+
+MISSION
+Build one cloud-first Life Manager entity that manages economic, physical and mental life proactively after a
+minimal one-time bootstrap. It must be observable, self-healing without Codex babysitting, economically self-improving
+through evaluator-owned candidates, and eventually self-funding through permitted x402/agent-economy flows. Local
+self-hosting remains the same-contract adapter. The product target is no recurring human operations; one-time
+provider KYC/CAPTCHA/OAuth/legal gates and lawful authorization must remain explicit. Never fake no-human credentials,
+receipts, settlement, MRR, AGI, YC selection or UBI.
+
+CURRENT FACTS (do not overwrite with old chat memory)
+- Docs worktree: /private/tmp/lm-recovery-owner-20260924
+- Branch: fix/writer-admission-self-heal-20260924
+- Latest docs HEAD: 585c07856a (source-only; not main/production)
+- Loaded production release: d4fe0819931c50caaf41f25e86f1052cd8a0359c
+- `lm-loop status all --json`: 271 rows; 98 mapped jobs; 14 catalog loops; contract has zero structural errors
+- Foundation gate: block; healthy=0, safely_fenced=1, uncovered_failure=13
+- Connector: loaded old release, `entrypoint_exit_1`, no provider receipt/readback. Root cause is old hard-coded
+  127.0.0.1:9222 versus the profile-owned Cloak daily-driver IPv6 endpoint; source candidate adds identity resolution
+  and nested diagnostics but is not loaded.
+- Commercial truth: no loop is proven continuously healthy and profitable. Lifecycle `pass` is not revenue.
+- Paid worktree/branch: /private/tmp/lm-paid-main-20260924, fix/coconala-history-retry-20260924, HEAD 5a28bfb762.
+  Ryu/Coconala room 18211957 is a permanent manual exception; never resend or press formal delivery.
+
+ORDER OF WORK
+1. Freeze ownership; restore disk/admission floor without deleting protected/open state.
+2. Verify candidate suites and contract gates; merge only via latest main-derived dedicated worktree.
+3. Cut/load one immutable release; read back exact SHA, argv/env, diagnostic envelope and Connector natural canary.
+4. Prove one low-risk Codex-free self-heal with official readback and replay-zero.
+5. Close the non-Paid 14-loop foundation; then reviewed-union integrate Paid and follow its canonical platform cursor.
+6. Implement one-shot capability capsule, automatic enrollment and typed setup fences; do not ask goals or routine approvals.
+7. Promote identical contract to isolated durable cloud workers and prove local/cloud parity.
+8. Finish LM-EAB: independent adapters, held-out/challenge data, contamination audit, repeated trials, grader
+   calibration and public reproducible reports.
+9. Connect each commercial loop to official effect, settlement, refund, payout and measured cost; rotate mobile creative.
+10. Enable candidate self-improvement with immutable policy/evaluator, promotion, rollback and audit trail.
+11. Enable self-funding only when settled inflow exceeds all measured costs; x402 cannot bypass authorization/KYC/fences.
+12. Align `/en`, `/lm`, `/income`; prove distribution funnel and settled recurring cohort; then target verified USD 10K MRR.
+13. Submit honest YC W27 evidence; expand cross-domain benchmark; only then consider distillation/training and AGI/UBI.
+
+OBSERVABILITY RULE
+Use `./bin/lm-loop status all --json`, `./bin/lm-loop-contract` and the foundation evaluator. `unknown`,
+`effect_unknown`, `circuit_open` and `wake_boundary_failed` are diagnostic cursors, never replay permission. Preserve
+run_id, owner_id, occurrence_id, release_sha, loaded argv/env, phase, command, exit code, effect, receipt, official
+readback, evidence refs, error class, retryability and next action. Clear a fence only with occurrence-bound official
+readback or admissible no-effect proof, then verify replay-zero.
+
+MODEL/EVAL RULE
+Keep deterministic code responsible for identity, arithmetic, dedupe, permissions, receipts and rollback. Models may
+plan and propose. Evaluate first on frozen traces and held-out tasks; promote only when attributable settled net
+contribution, reliability, intervention count, cost and safety improve. Do not train a foundation model first.
+
+BOUNDARIES
+Do not touch Paid source/state/provider session/browser tab, project 18211957, hf-gig-paid-direct, or the Paid branch.
+Do not replace the existing CloakBrowser foundation with Tencent BrowserSkill; BrowserSkill is research/diagnostic only.
+Do not claim production, revenue, self-funding, zero-human credentials, AGI, YC selection or UBI without the exact evidence.
+
+DELIVERY
+Use a dedicated main-derived worktree/branch. Read current state before editing. Make the smallest change, run focused
+tests plus contract/eval checks, inspect diff, commit and push. Main merge and immutable production load happen only
+after the whole acceptance gate is met. At every handover update the spec and durable index with facts, evidence,
+blockers and the first safe resume action. Final report must separate implemented, loaded, verified, unverified and blocked.
+```

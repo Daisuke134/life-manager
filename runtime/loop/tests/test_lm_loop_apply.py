@@ -104,6 +104,40 @@ class LmLoopApplyTest(unittest.TestCase):
                 ("revenue", "revenue"),
             )
 
+    def test_admission_rebind_guard_migrates_legacy_effect_free_owner_from_durable_identity(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "deterministic", "legacy-observer", admission_class="borrow",
+            priority="support", occurrence_id="legacy-observer:wake",
+        )
+        entry = {"effect_class": "none"}
+        with lm_loop._admission_rebind_guard(
+            "legacy-observer", True, entry=entry
+        ) as decision:
+            self.assertIsNone(decision)
+        with sqlite3.connect(self.root / "admission" / "admission-v2.sqlite3") as connection:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT resource_class,admission_class,base_priority,effect_scope "
+                    "FROM queue JOIN priorities USING(owner_id) "
+                    "WHERE owner_id='legacy-observer'"
+                ).fetchone(),
+                ("deterministic", "borrow", "support", "owner"),
+            )
+
+    def test_admission_rebind_guard_keeps_legacy_effectful_owner_pending(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "deterministic", "legacy-publisher", admission_class="borrow",
+            priority="support", occurrence_id="legacy-publisher:wake",
+        )
+        with lm_loop._admission_rebind_guard(
+            "legacy-publisher", True, entry={"effect_class": "publish"}
+        ) as decision:
+            self.assertEqual(decision, "pending")
+
     def test_pending_admission_policy_mismatches_detects_only_registry_drift(self):
         from runtime.host import resource_admission
 
@@ -306,65 +340,16 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(proof[2]["proof_type"], "pre_effect")
         self.assertEqual(proof[2]["blocker"], "host_admission_deferred:resource_fifo_wait")
 
-    def test_fundraiser_preflight_exit_75_is_proven_pre_effect(self):
-        from runtime.host import resource_admission
-
-        owner = "fundraiser"
-        occurrence = f"{owner}:wake-preflight"
-        resource_admission.enqueue_durable(
-            "agent", owner, admission_class="borrow", priority="support",
-            occurrence_id=occurrence,
-        )
-        database = self.root / "admission" / "admission-v2.sqlite3"
-        with sqlite3.connect(database) as connection:
-            connection.execute(
-                "UPDATE occurrences SET state='claimed',effect_unknown=1 "
-                "WHERE occurrence_id=?", (occurrence,),
-            )
-            connection.execute(
-                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
-            )
-        state_root = self.root / owner
-        state_root.mkdir()
-        event_path = state_root / "events.jsonl"
-        events = [
-            {
-                "version": 1, "event_id": "c" * 24, "loop_id": owner,
-                "domain": "earn", "phase": "execute", "status": "running",
-                "effect_class": "application", "effect_status": "started",
-                "provider": "shared-agent-runner", "profile_alias": None,
-                "release_sha": "d" * 40, "run_id": "wake-preflight",
-                "timestamp": "2026-09-24T12:03:46.793510+00:00",
-                "blocker": None,
-                "evidence_refs": [f"lm-loop://{owner}/wake-preflight/summary.json"],
-            },
-            {
-                "version": 1, "event_id": "e" * 24, "loop_id": owner,
-                "domain": "earn", "phase": "report", "status": "fail",
-                "effect_class": "application", "effect_status": "unknown",
-                "provider": "shared-agent-runner", "profile_alias": None,
-                "release_sha": "d" * 40, "run_id": "wake-preflight",
-                "timestamp": "2026-09-24T12:04:53.266302+00:00",
-                "blocker": "entrypoint_exit_75",
-                "evidence_refs": [f"lm-loop://{owner}/wake-preflight/summary.json"],
-            },
-        ]
-        event_path.write_text("".join(json.dumps(row) + "\n" for row in events))
-        event_path.chmod(0o600)
-
-        proof = lm_loop._pre_effect_admission_proof(owner, {
-            "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
-            "effect_class": "application", "state_root": str(state_root),
-        })
-
-        self.assertEqual(proof[0:2], (occurrence, "claimed"))
-        self.assertEqual(proof[2]["proof_type"], "pre_effect")
-        self.assertEqual(proof[2]["blocker"], "entrypoint_exit_75")
-        self.assertIsNone(lm_loop._pre_effect_admission_proof(owner, {
-            "entrypoint": "skills/example.sh",
-            "effect_class": "application", "state_root": str(state_root),
-        }))
-
+    def test_pre_effect_proof_fails_closed_when_admission_read_is_locked(self):
+        with patch.object(
+            lm_loop, "_read_admission_rows",
+            side_effect=sqlite3.OperationalError("database is locked"),
+        ):
+            self.assertIsNone(lm_loop._pre_effect_admission_proof("fundraiser", {
+                "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+                "effect_class": "application",
+                "state_root": str(self.root / "fundraiser"),
+            }))
     def test_rebind_guard_resolves_pre_effect_fence_after_queue_drains(self):
         from runtime.host import resource_admission
 
@@ -435,6 +420,65 @@ class LmLoopApplyTest(unittest.TestCase):
                 "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
                 (occurrence,),
             ).fetchone(), ("released", 0))
+
+    def test_fundraiser_preflight_exit_75_is_proven_pre_effect(self):
+        from runtime.host import resource_admission
+
+        owner = "fundraiser"
+        occurrence = f"{owner}:wake-preflight"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='claimed',effect_unknown=1 "
+                "WHERE occurrence_id=?", (occurrence,),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+        state_root = self.root / owner
+        state_root.mkdir()
+        event_path = state_root / "events.jsonl"
+        events = [
+            {
+                "version": 1, "event_id": "c" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "execute", "status": "running",
+                "effect_class": "application", "effect_status": "started",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "d" * 40, "run_id": "wake-preflight",
+                "timestamp": "2026-09-24T12:03:46.793510+00:00",
+                "blocker": None,
+                "evidence_refs": [f"lm-loop://{owner}/wake-preflight/summary.json"],
+            },
+            {
+                "version": 1, "event_id": "e" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "report", "status": "fail",
+                "effect_class": "application", "effect_status": "unknown",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "d" * 40, "run_id": "wake-preflight",
+                "timestamp": "2026-09-24T12:04:53.266302+00:00",
+                "blocker": "entrypoint_exit_75",
+                "evidence_refs": [f"lm-loop://{owner}/wake-preflight/summary.json"],
+            },
+        ]
+        event_path.write_text("".join(json.dumps(row) + "\n" for row in events))
+        event_path.chmod(0o600)
+
+        proof = lm_loop._pre_effect_admission_proof(owner, {
+            "entrypoint": "skills/fundraiser-agent/runtime/run.sh",
+            "effect_class": "application", "state_root": str(state_root),
+        })
+
+        self.assertEqual(proof[0:2], (occurrence, "claimed"))
+        self.assertEqual(proof[2]["proof_type"], "pre_effect")
+        self.assertEqual(proof[2]["blocker"], "entrypoint_exit_75")
+        self.assertIsNone(lm_loop._pre_effect_admission_proof(owner, {
+            "entrypoint": "skills/example.sh",
+            "effect_class": "application", "state_root": str(state_root),
+        }))
 
     def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
         from runtime.host import resource_admission
@@ -1278,6 +1322,16 @@ class LmLoopApplyTest(unittest.TestCase):
             environment["LIFE_MANAGER_BROWSER_PROFILE"],
             str(Path.home() / ".cloak/profiles/affiliate/impact-en"),
         )
+
+    def test_browser_identity_is_projected_without_claiming_a_static_endpoint(self):
+        value = registry()
+        value["loops"]["example"]["browser_identity"] = "interactive:dais"
+        value["loops"]["example"]["browser_target_owner"] = "connector-native"
+        rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        environment = rendered["EnvironmentVariables"]
+        self.assertEqual(environment["LIFE_MANAGER_BROWSER_IDENTITY"], "interactive:dais")
+        self.assertEqual(environment["LIFE_MANAGER_BROWSER_TARGET_OWNER"], "connector-native")
+        self.assertNotIn("LIFE_MANAGER_BROWSER_CDP_PORT", environment)
 
     def test_gig_effect_lanes_use_the_gig_browser_and_auth_vault(self):
         for loop_id in (

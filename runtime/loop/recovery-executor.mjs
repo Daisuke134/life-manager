@@ -57,7 +57,8 @@ async function runLmLoop({ executable, args, env }) {
 const READBACK_FIELDS = [
   'event_id', 'loop_id', 'job_id', 'owner_id', 'occurrence_id', 'launchd_state',
   'installed_release_sha', 'event_release_sha', 'last_terminal_result',
-  'diagnostic_complete', 'effect_status', 'blocker', 'evidence_refs',
+  'diagnostic_complete', 'diagnostic_error', 'effect_status', 'blocker',
+  'failure_layer', 'error_class', 'retryable', 'next_action', 'evidence_refs',
 ];
 
 function sanitizedReadback(row) {
@@ -177,7 +178,10 @@ export async function executeRecoveryPlan({
     return resultBase(plan, 'blocked', false, { reason: 'release_manifest_unreadable' });
   }
   if (manifest?.sha !== plan.release_sha) {
-    return resultBase(plan, 'blocked', false, { reason: 'release_sha_mismatch' });
+    return resultBase(plan, 'blocked', false, {
+      reason: 'release_sha_mismatch',
+      next_action: 'promote_release',
+    });
   }
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');
@@ -304,6 +308,23 @@ export async function executeRecoveryPlan({
       command_exit_code: Number.isInteger(commandResult?.code) ? commandResult.code : null,
       evidence_refs: evidence,
       next_action: 'retry_after_cooldown',
+      command: { executable, args: command.args },
+      reconcile: parsed,
+    });
+  }
+  const skippedPending = Array.isArray(parsed?.skipped_pending)
+    && parsed.skipped_pending.includes(plan.loop_id);
+  if (skippedPending && !after.healthy) {
+    const queueContractMissing = command.entry.reconcile_queued_release !== true;
+    return resultBase(plan, queueContractMissing ? 'blocked' : 'queued', false, {
+      reason: queueContractMissing ? 'admission_contract_missing' : 'admission_pending',
+      executed: false,
+      budget_consumed: false,
+      before_readback: before.readback,
+      after_readback: after.readback,
+      command_exit_code: commandResult.code,
+      evidence_refs: evidence,
+      next_action: queueContractMissing ? 'promote_release' : 'retry_after_eligibility',
       command: { executable, args: command.args },
       reconcile: parsed,
     });

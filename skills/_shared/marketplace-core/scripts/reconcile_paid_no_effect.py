@@ -98,9 +98,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolve", action="store_true",
                         help="release the exact claimed occurrence after proof")
     args = parser.parse_args(argv)
-    result = reconcile(state_root=args.state_root.expanduser().resolve(),
-                       owner=args.owner, occurrence=args.occurrence,
-                       resolve=args.resolve)
+    state_root = args.state_root.expanduser().resolve()
+    try:
+        result = reconcile(state_root=state_root, owner=args.owner,
+                           occurrence=args.occurrence, resolve=args.resolve)
+    except RuntimeError as exc:
+        if str(exc) != "exact_paid_zero_effect_proof_unavailable":
+            raise
+        # Missing occurrence-bound evidence is an expected safety stop, not a
+        # Python failure. Emit the same fields the admission/readback owners
+        # need to keep the fence closed and choose the next probe.
+        event = {
+            "version": 1,
+            "owner_id": args.owner,
+            "occurrence_id": args.occurrence,
+            "phase": "reconcile",
+            "command": "reconcile_paid_no_effect",
+            "state_root": str(state_root),
+            "exit_code": 75,
+            "effect": "unknown",
+            "effect_status": "unknown",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "evidence_refs": [],
+            "error_class": str(exc),
+            "retryable": False,
+            "next_action": "obtain_occurrence_bound_readback",
+            "resolved": False,
+        }
+        print(json.dumps(event, ensure_ascii=False, sort_keys=True))
+        return 75
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if not args.resolve or result["resolved"] else 1
 

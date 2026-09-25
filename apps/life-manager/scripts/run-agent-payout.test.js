@@ -40,6 +40,9 @@ test("--uid is mandatory and parsed without accepting a dangling option", () => 
 
 test("managed payout boot injects configured tenant or exits as an explicit safe no-op", () => {
   const boot = require.resolve("./payout-boot.sh");
+  const bootSource = readFileSync(boot, "utf8");
+  assert.match(bootSource, /LIFE_MANAGER_RUNTIME_NODE/);
+  assert.match(bootSource, /LIFE_MANAGER_RUNTIME_PYTHON/);
   const root = mkdtempSync(join(tmpdir(), "lm-payout-boot-"));
   const envFile = join(root, ".env");
   const fakeNode = join(root, "node");

@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "gig_release.py"
 SPEC = importlib.util.spec_from_file_location("gig_release_gc_test", SCRIPT)
@@ -36,6 +38,32 @@ def test_shared_launchd_path_resolves_user_installed_agent_tools(monkeypatch):
     environment = gig_release.plist_for(job, table)["EnvironmentVariables"]
 
     assert environment["PATH"].split(":")[0] == f'{table["HOME"]}/.local/bin'
+
+
+def test_retired_upwork_labels_cannot_be_explicitly_activated():
+    with pytest.raises(ValueError, match="retired provider label"):
+        gig_release.activation_labels({"ai.anicca.life-manager-upwork-free-loop"})
+
+
+def test_main_reports_retired_upwork_activation_without_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(gig_release, "git", lambda *args: "a" * 40)
+    monkeypatch.setattr(gig_release, "build", lambda sha: Path("/release"))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "gig_release.py",
+            "activate",
+            "--jobs",
+            "ai.anicca.life-manager-upwork-free-loop",
+            "--dry-run",
+        ],
+    )
+
+    result = gig_release.main()
+
+    assert result == 2
+    assert "retired provider label" in capsys.readouterr().err
 
 
 def test_gc_preserves_release_referenced_by_loaded_launchd_job(tmp_path, monkeypatch):

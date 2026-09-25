@@ -12,11 +12,23 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd -P)"
 }
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
-SHARED_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
 # shellcheck source=/dev/null
 source "$REPO_ROOT/apps/life-manager/scripts/lib/load-env-file.sh"
 LM_CONNECTOR_ENV_FILE="${LM_CONNECTOR_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
 lm_load_env_file "$LM_CONNECTOR_ENV_FILE" || exit 2
+BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-interactive:dais}"
+BROWSER_RESOLVER="$REPO_ROOT/skills/browser/resolve_cdp_endpoint.py"
+BROWSER_REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
+[ -f "$BROWSER_RESOLVER" ] || {
+  printf 'Connector native health browser resolver unavailable\n' >&2
+  exit 2
+}
+SHARED_CDP_BASE_URL="$(python3 "$BROWSER_RESOLVER" --registry "$BROWSER_REGISTRY" \
+  --identity "$BROWSER_IDENTITY" 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["endpoint"])')" || {
+  printf 'Connector native health browser endpoint unavailable\n' >&2
+  exit 1
+}
 export CLOAK_CDP_BASE_URL="$SHARED_CDP_BASE_URL"
 
 STATE_DIR="${LM_CONNECTOR_STATE_DIR:-$HOME/.local/state/life-manager/connector-native}"

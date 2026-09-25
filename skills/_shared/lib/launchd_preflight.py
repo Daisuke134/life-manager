@@ -117,7 +117,20 @@ def main() -> int:
     )
     args = parser.parse_args()
     payload = probe()
-    write_atomic(args.receipt, payload)
+    try:
+        write_atomic(args.receipt, payload)
+    except OSError as exc:
+        failure = dict(payload)
+        failure["status"] = "blocked_control_plane"
+        failure["mutation_allowed"] = False
+        failure["receipt_written"] = False
+        failure["errors"] = [*payload.get("errors", []), "receipt_write_failed"]
+        receipt_error = {"error_class": type(exc).__name__}
+        if isinstance(exc.errno, int):
+            receipt_error["errno"] = exc.errno
+        failure["receipt_write_error"] = receipt_error
+        print(json.dumps(failure, ensure_ascii=False))
+        return 75
     print(json.dumps(payload, ensure_ascii=False))
     return 0 if payload["mutation_allowed"] else 75
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import errno
 import importlib.util
 import json
 import os
+import stat
 import threading
 import zipfile
 from contextlib import contextmanager
@@ -27,6 +29,38 @@ def test_paid_browser_diagnostics_use_private_data_redactor():
     paid = _load_paid()
 
     assert paid.redact_prompt_text("password:secret-value") == "password:[REDACTED]"
+
+
+def test_paid_output_write_consumes_owner_receipt_reserve_once_on_enospc(
+    tmp_path, monkeypatch,
+):
+    paid = _load_paid()
+    output = tmp_path / "evidence" / "result.json"
+    reserve = output.parent / ".receipt-reserve"
+    reserve.parent.mkdir(parents=True)
+    reserve.write_bytes(b"\0" * paid.RECEIPT_RESERVE_BYTES)
+    reserve.chmod(0o600)
+    real_replace = paid.os.replace
+    calls = []
+
+    def replace(source, destination):
+        calls.append((Path(source), Path(destination)))
+        if len(calls) == 1:
+            raise OSError(errno.ENOSPC, "injected receipt pressure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(paid.os, "replace", replace)
+
+    paid._write(output, {"status": "pass", "effect": 0})
+
+    assert json.loads(output.read_text()) == {"status": "pass", "effect": 0}
+    assert len(calls) >= 2
+    info = reserve.lstat()
+    assert stat.S_ISREG(info.st_mode)
+    assert stat.S_IMODE(info.st_mode) == 0o600
+    assert info.st_size == paid.RECEIPT_RESERVE_BYTES
+    assert info.st_blocks * 512 >= paid.RECEIPT_RESERVE_BYTES
+    assert not list(output.parent.glob(".result.json.*.tmp"))
 
 
 def test_audio_only_zip_does_not_require_visual_review_images(tmp_path):

@@ -185,6 +185,40 @@ test("browser open failure keeps a bounded transport reason in action history", 
   });
 });
 
+test("browser open failure carries an occurrence-bound diagnostic to the wake reporter", async () => {
+  const reports = [];
+  const state = fixture({
+    async reportWake(report) {
+      reports.push(report);
+      return Object.freeze({ telegram_provider_id: "9002" });
+    },
+  });
+  state.dependencies.browserRail.open = async () => { throw new Error("private CDP detail"); };
+
+  await runMinimalConnectorWake({
+    ownerToken: "owner-token-browser-diagnostic",
+    providers: ["connpass"],
+    runId: "run-connector-diagnostic",
+    occurrenceId: "life-manager-connector-native:occurrence-diagnostic",
+    releaseSha: "a".repeat(40),
+    browserEndpoint: "http://[::1]:9222",
+  }, state.dependencies);
+
+  assert.deepEqual(reports[0].diagnostic, {
+    browser_endpoint: "http://[::1]:9222",
+    counter_status: "not_counted_at_stage",
+    effect_status: "not_applicable",
+    error_class: "Error",
+    next_action: "resolve_browser_identity",
+    occurrence_id: "life-manager-connector-native:occurrence-diagnostic",
+    release_sha: "a".repeat(40),
+    retryable: true,
+    run_id: "run-connector-diagnostic",
+    safe_reason: "browser_open_failed",
+    stage: "browser_open",
+  });
+});
+
 test("runner records the candidates it actually dispatches", async () => {
   const audits = [];
   const state = fixture({

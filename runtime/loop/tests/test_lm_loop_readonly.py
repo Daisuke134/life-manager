@@ -1,14 +1,23 @@
 import unittest
+import io
 import json
+import os
+import sqlite3
 import subprocess
+import sys
 import tempfile
 import plistlib
+import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import (
-    _last_event, _release_from_plist, _state_root_from_plist,
-    doctor_report, snapshot, status_rows,
+    _admission_effect_unknown_owners, _last_event, _launchctl,
+    _pending_admission_owners, _release_from_plist, _safe_launchctl,
+    _state_root_from_plist,
+    doctor_report, explain_status_row, main as lm_loop_main, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
 from runtime.loop.runtime_event import build_runtime_start_event
@@ -25,6 +34,185 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_browser_resolution_joins_loop_registry_to_resolver_readback(self):
+        registry = {"schema_version": 2, "loops": {"connector": {
+            "label": "ai.anicca.connector", "domain": "system", "entrypoint": "bin/connector.sh",
+            "cadence": {"start_interval_seconds": 60}, "effect_class": "none",
+            "state_root": "~/.local/state/life-manager/connector",
+            "log_root": "~/.local/state/life-manager/connector/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "deterministic",
+            "browser_identity": "interactive:dais",
+            "browser_target_owner": "connector-native",
+        }}}
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(
+                command, 0,
+                stdout=json.dumps({
+                    "identity": "interactive:dais",
+                    "profile": "/tmp/daily-driver",
+                    "endpoint": "http://[::1]:9222",
+                    "uuid": "browser-uuid",
+                    "pid": 1592,
+                    "reachable": True,
+                    "http_status": 200,
+                    "websocket_url_valid": True,
+                }), stderr="",
+            )
+
+        result = lm_loop.browser_resolution(
+            registry, "connector", browser_registry="/tmp/browsers.toml", runner=run,
+        )
+        self.assertEqual(result, {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "connector",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "connector-native",
+            "websocket_url_valid": True,
+        })
+        self.assertEqual(calls[0][0][0:3], [sys.executable, str(Path(__file__).resolve().parents[3] / "skills/browser/resolve_cdp_endpoint.py"), "--registry"])
+        self.assertEqual(calls[0][0][-2:], ["--identity", "interactive:dais"])
+        self.assertEqual(calls[0][1]["capture_output"], True)
+        self.assertEqual(calls[0][1]["text"], True)
+
+    def test_browser_resolve_cli_returns_json_only(self):
+        output = io.StringIO()
+        value = {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "life-manager-connector-native",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "life-manager-connector-native",
+            "websocket_url_valid": True,
+        }
+        with (patch("runtime.loop.lm_loop.browser_resolution", return_value=value),
+              redirect_stdout(output)):
+            result = lm_loop_main(["browser", "resolve", "life-manager-connector-native", "--json"])
+        self.assertEqual(result, 0)
+        self.assertEqual(json.loads(output.getvalue()), {"ok": True, **value})
+
+    def test_browser_resolve_cli_accepts_connector_alias(self):
+        output = io.StringIO()
+        value = {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "life-manager-connector-native",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "life-manager-connector-native",
+            "websocket_url_valid": True,
+        }
+        with (patch("runtime.loop.lm_loop.browser_resolution", return_value=value) as resolve,
+              redirect_stdout(output)):
+            result = lm_loop_main(["browser", "resolve", "connector", "--json"])
+        self.assertEqual(result, 0)
+        resolve.assert_called_once()
+        self.assertEqual(resolve.call_args.args[1], "connector")
+        self.assertEqual(json.loads(output.getvalue()), {"ok": True, **value})
+
+    def test_status_reports_typed_admission_read_failure(self):
+        output = io.StringIO()
+        with (patch(
+                "runtime.loop.lm_loop.snapshot",
+                side_effect=sqlite3.OperationalError("database is locked"),
+             ),
+             redirect_stdout(output)):
+            self.assertEqual(lm_loop_main(["status", "example"]), 1)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["error"], "admission_fence_read_failed")
+        self.assertEqual(payload["error_class"], "admission_database_locked")
+        self.assertTrue(payload["retryable"])
+        self.assertEqual(payload["next_action"], "retry_admission_read")
+
+    def test_pending_admission_read_retries_transient_sqlite_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            calls = []
+
+            class Connection:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_):
+                    return False
+
+                def execute(self, *_):
+                    class Cursor:
+                        def fetchall(self):
+                            return [("queued-owner",)]
+
+                    return Cursor()
+
+            def connect(*_args, **_kwargs):
+                calls.append(True)
+                if len(calls) == 1:
+                    raise sqlite3.OperationalError("database is locked")
+                return Connection()
+
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch("runtime.loop.lm_loop.sqlite3.connect", side_effect=connect),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                self.assertEqual(_pending_admission_owners(), {"queued-owner"})
+            self.assertEqual(len(calls), 2)
+
+    def test_effect_fence_read_does_not_turn_sqlite_lock_into_empty_fence_set(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "admission-v2.sqlite3"
+            database.touch()
+            with (patch("runtime.loop.lm_loop.admission_root", return_value=Path(directory)),
+                  patch(
+                      "runtime.loop.lm_loop.sqlite3.connect",
+                      side_effect=sqlite3.OperationalError("database is locked"),
+                  ),
+                  patch("runtime.loop.lm_loop.time.sleep")):
+                with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
+                    _admission_effect_unknown_owners()
+
+    def test_launchctl_readback_does_not_require_disk_tempfiles(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl", "list"], 0, stdout="loaded\n", stderr="",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            self.assertEqual(_launchctl("list"), "loaded\n")
+        self.assertEqual(run.call_args.args[0], ["launchctl", "list"])
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
+
+    def test_safe_launchctl_keeps_stdout_and_stderr_in_memory(self):
+        completed = subprocess.CompletedProcess(
+            ["launchctl-safe", "print", "gui/501/example"], 7,
+            stdout="stdout\n", stderr="stderr\n",
+        )
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            code, output = _safe_launchctl(
+                Path("/tmp/launchctl-safe"), ["print", "gui/501/example"],
+            )
+        self.assertEqual((code, output), (7, "stdout\nstderr\n"))
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/tmp/launchctl-safe", "print", "gui/501/example"],
+        )
+        self.assertTrue(run.call_args.kwargs["capture_output"])
+        self.assertTrue(run.call_args.kwargs["text"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 30)
+
     def test_status_exposes_complete_diagnostic_contract_and_catalog_product(self):
         event = build_runtime_event(
             loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
@@ -56,6 +244,83 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(row["next_action"], "official_readback_required")
         self.assertEqual(row["evidence_refs"], event["evidence_refs"])
 
+    def test_status_explain_projects_cause_effect_and_honest_gaps(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="application",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+            product_loop_id=None, job_id="example", owner_id="example",
+            wake_id="wake-1", claimed_occurrence_id="example:occurrence-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        explained = explain_status_row(row)
+        self.assertEqual(explained["schema_version"], "lm-loop.status-explain.v1")
+        self.assertEqual(explained["loop_id"], "example")
+        self.assertEqual(explained["release_sha"], "b" * 40)
+        self.assertEqual(explained["occurrence"]["occurrence_id"], "example:occurrence-1")
+        self.assertEqual(explained["cause_chain"][0]["stage"], "runtime")
+        self.assertEqual(explained["cause_chain"][1]["stage"], "failure")
+        self.assertEqual(explained["cause_chain"][1]["error_class"], "entrypoint_exit_1")
+        self.assertEqual(explained["effect"]["status"], "unknown")
+        self.assertEqual(explained["effect"]["provider_receipt_id"], None)
+        self.assertEqual(explained["effect"]["evidence_refs"], event["evidence_refs"])
+        self.assertEqual(explained["action_history_status"], "not_reported")
+        self.assertEqual(explained["counter_status"], "not_reported")
+
+    def test_status_explain_cli_accepts_connector_alias_and_json(self):
+        output = io.StringIO()
+        row = {
+            "loop_id": "life-manager-connector-native",
+            "label": "ai.anicca.life-manager-connector-native",
+            "launchd_state": "loaded-idle",
+            "pid": None,
+            "last_exit": "0",
+            "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40,
+            "owner_id": "connector-owner",
+            "run_id": "run-1",
+            "wake_id": "wake-1",
+            "occurrence_id": "occurrence-1",
+            "phase": "report",
+            "last_terminal_result": "blocked",
+            "failure_layer": "browser",
+            "error_class": "browser_open_failed",
+            "retryable": True,
+            "next_action": "resolve_browser_endpoint",
+            "blocker": "browser_endpoint_unavailable",
+            "effect_class": "none",
+            "effect_status": "not_applicable",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "evidence_refs": ["lm-loop://connector/run-1/summary.json"],
+            "diagnostic_complete": True,
+            "diagnostic_missing_fields": [],
+            "diagnostic_error": None,
+        }
+        with (patch("runtime.loop.lm_loop.snapshot", return_value=[row]) as observe,
+              redirect_stdout(output)):
+            result = lm_loop_main(["status", "connector", "--explain", "--json"])
+        self.assertEqual(result, 0)
+        observe.assert_called_once()
+        self.assertEqual(observe.call_args.args[1], "life-manager-connector-native")
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["schema_version"], "lm-loop.status-explain.v1")
+        self.assertEqual(payload["target"], "life-manager-connector-native")
+        self.assertEqual(payload["rows"][0]["next_action"], "resolve_browser_endpoint")
+
+    def test_status_rejects_unknown_option_before_reading_state(self):
+        output = io.StringIO()
+        with (patch("runtime.loop.lm_loop.snapshot") as observe,
+              redirect_stdout(output)):
+            result = lm_loop_main(["status", "connector", "--bogus"])
+        self.assertEqual(result, 2)
+        observe.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue())["error"], "unknown status option: --bogus")
+
     def test_old_event_remains_visible_but_diagnostic_is_incomplete(self):
         event = {
             "timestamp": "2026-08-28T00:00:00Z", "status": "pass",
@@ -73,6 +338,31 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(row["product_loop_id"], "connector")
         self.assertEqual(row["job_id"], "example")
         self.assertEqual(row["run_id"], "old-run")
+
+    def test_running_legacy_event_exposes_reload_action(self):
+        event = {
+            "timestamp": "2026-08-28T00:00:00Z", "status": "running",
+            "release_sha": "b" * 40, "effect_status": "not_applicable",
+            "blocker": None, "run_id": "old-run-123", "phase": "execute",
+            "evidence_refs": ["lm-loop://example/old-run-123/summary.json"],
+        }
+        registry = {"schema_version": 2, "loops": {"example": {
+            **REGISTRY["loops"]["example"],
+            "cadence": {"keep_alive": True},
+        }}}
+        row = status_rows(
+            registry,
+            loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+            disabled={},
+            events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        self.assertFalse(row["diagnostic_complete"])
+        self.assertEqual(row["diagnostic_error"], "legacy_runtime_event_schema")
+        self.assertEqual(row["error_class"], "legacy_runtime_event_schema")
+        self.assertTrue(row["retryable"])
+        self.assertEqual(row["next_action"], "reload_current_release")
+        self.assertEqual(row["blocker"], "legacy_runtime_event_schema")
 
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
@@ -125,6 +415,24 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(row["blocker"], "host_admission_deferred:resource_effect_unknown")
         self.assertTrue(row["admission_effect_unknown"])
         self.assertIsNone(row["stale_event"])
+
+    def test_status_exposes_exact_live_admission_occurrences(self):
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events={},
+            installed_releases={},
+            admission_effect_unknown={"example"},
+            admission_effect_unknown_occurrences={
+                "example": ("example:current-fence",),
+            },
+        )[0]
+        self.assertTrue(row["admission_effect_unknown"])
+        self.assertEqual(
+            row["admission_effect_unknown_occurrences"],
+            ["example:current-fence"],
+        )
 
     def test_doctor_lists_unmanaged_and_missing(self):
         report = doctor_report(REGISTRY,
@@ -305,6 +613,97 @@ class LmLoopReadonlyTest(unittest.TestCase):
             event = _last_event(str(root), "browser", running_pid="123")
 
             self.assertEqual(event, running)
+
+    def test_status_projects_active_continuous_harness_failure(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            harness = {
+                "ts": int(time.time()), "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1,
+                "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner",
+                    "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "fail")
+            self.assertEqual(row["failure_layer"], "runtime")
+            self.assertEqual(row["error_class"], "tool_missing")
+            self.assertTrue(row["retryable"])
+            self.assertEqual(row["next_action"], "reconcile_owner")
+            self.assertEqual(row["blocker"], "harness_failure:tool_missing")
+            self.assertTrue(row["latest_harness_failure"]["active"])
+
+    def test_status_keeps_harness_failure_as_history_after_clean_wake(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as directory:
+            root = Path(directory)
+            state = root / "instance" / "state"
+            state.mkdir(parents=True, mode=0o700)
+            running = build_runtime_start_event(
+                loop_id="example", domain="earn", run_id="current-123",
+                release_sha="b" * 40, provider="shared-agent-runner",
+                profile_alias=None, effect_class="none", product_loop_id="connector",
+                job_id="example", owner_id="example", wake_id="current-123",
+                occurrence_id="example:current-123", loaded_argv_sha256="c" * 64,
+                loaded_env_sha256="d" * 64,
+            )
+            now = int(time.time())
+            harness = {
+                "ts": now - 2, "wake_id": "wake-error", "kind": "skill_error",
+                "layer": "tool_logic", "exit_code": 1, "detail": "spawn taskmarket ENOENT",
+                "recovery_intent": {
+                    "loop_id": "example", "run_id": "current-123",
+                    "release_sha": "b" * 40, "retryable": True,
+                    "action": "reconcile_owner", "occurrence_id": "example:current-123",
+                    "evidence_refs": ["lm-loop://example/current-123/failure"],
+                },
+            }
+            ledger = {"ts": now, "wake_id": "wake-success", "kind": "wake"}
+            path = state / "harness-failures.jsonl"
+            path.write_text(json.dumps(harness) + "\n", encoding="utf-8")
+            os.chmod(path, 0o600)
+            ledger_path = state / "ledger.jsonl"
+            ledger_path.write_text(json.dumps(ledger) + "\n", encoding="utf-8")
+            os.chmod(ledger_path, 0o600)
+            registry = {"schema_version": 2, "loops": {"example": {
+                **REGISTRY["loops"]["example"],
+                "cadence": {"keep_alive": True},
+                "state_root": f"~/{root.name}",
+            }}}
+            row = status_rows(
+                registry, loaded={"ai.anicca.example": {"pid": "123", "last_exit": "0"}},
+                disabled={}, events={"example": running},
+                installed_releases={"ai.anicca.example": "b" * 40},
+            )[0]
+            self.assertEqual(row["last_terminal_result"], "running")
+            self.assertEqual(row["failure_layer"], "clean")
+            self.assertFalse(row["latest_harness_failure"]["active"])
 
     def test_last_event_rejects_running_event_for_different_process(self):
         with tempfile.TemporaryDirectory() as directory:

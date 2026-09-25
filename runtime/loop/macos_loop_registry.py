@@ -19,7 +19,8 @@ OPTIONAL_FIELDS = {
     "adapter", "admission_class", "browser_owner", "coalesce_reserved_wakes",
     "coalesce_queued_wakes", "command",
     "admission_effect_scope", "priority", "reconcile_queued_release",
-    "runtime_timeout_seconds", "resource_class",
+    "runtime_timeout_seconds", "resource_class", "browser_identity",
+    "browser_target_owner",
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
@@ -104,6 +105,16 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: occurrence admission scope is not proven for entrypoint")
         if row.get("resource_class") not in {None, "agent", "browser", "deterministic"}:
             _fail(f"{loop_id}: invalid resource_class")
+        if "browser_identity" in row and (
+            not isinstance(row["browser_identity"], str)
+            or not re.fullmatch(r"[a-z0-9][a-z0-9:_-]{1,127}", row["browser_identity"])
+        ):
+            _fail(f"{loop_id}: invalid browser_identity")
+        if "browser_target_owner" in row and (
+            not isinstance(row["browser_target_owner"], str)
+            or not re.fullmatch(r"[a-z0-9][a-z0-9:_-]{1,127}", row["browser_target_owner"])
+        ):
+            _fail(f"{loop_id}: invalid browser_target_owner")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
             _fail(f"{loop_id}: invalid admission_class")
         if "coalesce_reserved_wakes" in row and type(row["coalesce_reserved_wakes"]) is not bool:
@@ -282,6 +293,14 @@ def loop_json_schema() -> dict:
                     },
                 },
                 "additionalProperties": False,
+            },
+            "browser_identity": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9:_-]{1,127}$",
+            },
+            "browser_target_owner": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9:_-]{1,127}$",
             },
         },
         "dependentRequired": {

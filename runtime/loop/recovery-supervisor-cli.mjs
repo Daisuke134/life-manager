@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { buildRecoveryApplyPlan } from './recovery-apply-plan.mjs';
 import { executeRecoveryPlan } from './recovery-executor.mjs';
 import { consumeRecoveryIntentQueue } from './recovery-supervisor.mjs';
@@ -25,6 +26,15 @@ function parseArgs(args) {
     index += 1;
   }
   return values;
+}
+
+/**
+ * A queued result is a safe bounded wait, not a failed supervisor entrypoint.
+ * Keep hard terminal failures non-zero so launchd still surfaces them.
+ */
+export function supervisorExitCode(result) {
+  if (result?.ok === true || result?.state === 'queued') return 0;
+  return 1;
 }
 
 async function main(args = process.argv.slice(2)) {
@@ -63,12 +73,14 @@ async function main(args = process.argv.slice(2)) {
     },
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  return result.ok ? 0 : 1;
+  return supervisorExitCode(result);
 }
 
-try {
-  process.exitCode = await main();
-} catch (error) {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    process.exitCode = await main();
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  }
 }

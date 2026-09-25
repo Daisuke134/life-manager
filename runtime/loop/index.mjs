@@ -31,7 +31,7 @@ import { fetchUsdcBalance } from './balance.mjs';
 import { fetchNetWorth, resolveInstanceWallets } from '../../skills/earn/lib/net-worth.mjs';
 import { assembleContext } from './context.mjs';
 import { selfEval } from './self-eval.mjs';
-import { think } from './brain.mjs';
+import { getBrainFallback, think } from './brain.mjs';
 import { parseToolCall } from './parse-tool-call.mjs';
 import { resolveSkillPath } from './run-skill.mjs';
 import { isEarnSlot, earnStrategyFor } from './earn-slot.mjs';
@@ -631,6 +631,10 @@ async function runOneWake() {
   }
   await writeAlwaysActNotEngagedIfNeeded();
 
+  // A successful infrastructure fallback must remain visible to the next wake and the
+  // self-healing evaluator; otherwise a missing brain binary disappears behind a normal result.
+  const brainFallback = getBrainFallback(rawResponse);
+
   // 7. Parse tool call
   const toolCall = parseToolCall(rawResponse);
 
@@ -643,6 +647,7 @@ async function runOneWake() {
       kind: 'narrate',
       sleep_s: sleepS,
       model: currentTier.model,
+      ...(brainFallback ? { brain_fallback: brainFallback } : {}),
     });
     await safeAppend(LEDGER_PATH, record);
     await sleepSecs(sleepS);
@@ -661,6 +666,7 @@ async function runOneWake() {
       sleep_s: sleepS,
       model: currentTier.model,
       note: args.reason || 'agent chose to sleep',
+      ...(brainFallback ? { brain_fallback: brainFallback } : {}),
     });
     await safeAppend(LEDGER_PATH, record);
     await sleepSecs(sleepS);
@@ -739,6 +745,7 @@ async function runOneWake() {
     sleep_s: sleepS,
     model: currentTier.model,
     slot,
+    ...(brainFallback ? { brain_fallback: brainFallback } : {}),
     // OBSERVABILITY: log the model's decided args (strategy + params) so we can SEE what it chose each
     // wake — without this the wake line had no `args`, which read as "the model decided nothing" when it
     // actually did. Empty object when the model passed none.
@@ -786,6 +793,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
   let attemptsUsed = 0;
   let currentOfferedSlots = alwaysActMenu; // baseline attempt: the FULL always-act menu
   let reinforcement = null; // set only ahead of a REQ-505 reprompt attempt
+  const brainFallbacks = [];
 
   for (;;) {
     const attemptCtx = reinforcement
@@ -802,13 +810,16 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
       return;
     }
 
+    const brainFallback = getBrainFallback(rawResponse);
+    if (brainFallback) brainFallbacks.push(brainFallback);
+
     const toolCall = parseToolCall(rawResponse);
 
     // Case A (REQ-505): no tool call at all this attempt.
     if (!toolCall) {
       const state = nextRerouteState({ attemptsUsed, maxAttempts: 1 });
       if (state.exhausted) {
-        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed });
+        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, brainFallbacks });
         await sleepSecs(sleepS);
         return;
       }
@@ -824,7 +835,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
     if (isRejectableSleepOrOffMenu(slot, currentOfferedSlots)) {
       const state = nextRerouteState({ attemptsUsed, maxAttempts: 1 });
       if (state.exhausted) {
-        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed });
+        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, brainFallbacks });
         await sleepSecs(sleepS);
         return;
       }
@@ -914,6 +925,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
         kind: 'router_reroute_skip',
         slot: skipFields.slot,
         ...(args && Object.keys(args).length ? { args } : {}),
+        ...(brainFallback ? { brain_fallback: brainFallback } : {}),
         attemptsUsed: skipFields.attemptsUsed,
         ...(skillResult.exitCode != null ? { exit_code: skillResult.exitCode } : {}),
         skip_reason: skillResult.output || '',
@@ -922,7 +934,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
 
       const state = nextRerouteState({ attemptsUsed, maxAttempts: 1 });
       if (state.exhausted) {
-        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed });
+        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, brainFallbacks });
         await sleepSecs(sleepS);
         return;
       }
@@ -932,7 +944,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
       if (rerouteTargets.length === 0) {
         // REQ-506 edge case: the risk-free-filtered reroute set is empty -> zero additional think()
         // calls, immediate escalation — NEVER a fallback into a risk:"capital" reroute target.
-        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed });
+        await writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, brainFallbacks });
         await sleepSecs(sleepS);
         return;
       }
@@ -954,6 +966,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
       slot: ledgerFields.slot,
       attemptsUsed: ledgerFields.attemptsUsed,
       ...(args && Object.keys(args).length ? { args } : {}),
+      ...(brainFallbacks.length ? { brain_fallbacks: brainFallbacks } : {}),
       ...(kind === 'wake' ? { profitable } : {}),
       ...(skillResult.exitCode != null ? { exit_code: skillResult.exitCode } : {}),
       ...(safeObservation ? { result: safeObservation.replace(/\s+/g, ' ').slice(0, 900) } : {}),
@@ -1011,7 +1024,7 @@ async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
  * site (bounds-exhausted, empty-reroute-target-set) is unaffected; only the REQ-502 empty-menu call
  * site passes the distinct kind explicitly.
  */
-async function writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, kind = 'router_no_realized_action' }) {
+async function writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, kind = 'router_no_realized_action', brainFallbacks = [] }) {
   const ledgerFields = buildAlwaysActLedgerFields({ wakeId, slot: null, args: {}, attemptsUsed, realized: false });
   const recordFields = {
     ts,
@@ -1021,6 +1034,7 @@ async function writeAlwaysActEscalation({ wakeId, ts, sleepS, attemptsUsed, kind
     model: currentTier.model,
     slot: ledgerFields.slot,
     attemptsUsed: ledgerFields.attemptsUsed,
+    ...(brainFallbacks.length ? { brain_fallbacks: brainFallbacks } : {}),
     profitable: false,
   };
   const recordStr = formatRecord(recordFields);

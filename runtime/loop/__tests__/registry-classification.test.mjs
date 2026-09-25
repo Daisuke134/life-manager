@@ -4,9 +4,8 @@
 // skills/registry.json must carry an explicit `"risk": "safe"` / `"risk": "capital"` field, OR an
 // `"alwaysAvailable": true` field, matching behavioral-spec.md REQ-201's classification table exactly.
 //
-// As of this Phase 2a commit, ZERO of the 17 currently-live slots in skills/registry.json carry any
-// risk/alwaysAvailable field yet (confirmed by reading the file directly) — every assertion below is
-// EXPECTED TO FAIL until Phase 2b writes the classification table's fields into registry.json.
+// Historical Phase 2a context: the original live slots lacked these fields. The current fixture is
+// intentionally read from the live registry so additions cannot silently bypass the classification gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
@@ -16,8 +15,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REGISTRY_PATH = path.resolve(__dirname, "../../../skills/registry.json");
 
-// behavioral-spec.md REQ-201's classification table (verbatim assignment for all 17 currently-live slots).
+// behavioral-spec.md REQ-201's classification table plus the two subsequently-added live utility slots.
 const EXPECTED_CLASSIFICATION = {
+  "resource-resolver": { alwaysAvailable: true },
+  "x-repost": { risk: "safe" },
   "report": { alwaysAvailable: true },
   "cook": { alwaysAvailable: true },
   "self/spawn": { risk: "safe" },
@@ -44,10 +45,10 @@ function liveSlotNamesOf(registry) {
   return Object.keys(slots).filter((name) => slots[name] && slots[name].status === "live");
 }
 
-test("PROP-201g: every currently-live registry.json slot matches the current classification table (13)", async () => {
+test("PROP-201g: every currently-live registry.json slot matches the current classification table (15)", async () => {
   const registry = await loadRegistry();
   const live = liveSlotNamesOf(registry);
-  assert.equal(live.length, 13, `expected exactly 13 live slots per the current classification table, found ${live.length}: ${JSON.stringify(live)}`);
+  assert.equal(live.length, 15, `expected exactly 15 live slots per the current classification table, found ${live.length}: ${JSON.stringify(live)}`);
 });
 
 test("★PROP-201g★ every currently-live registry.json slot carries an explicit risk/alwaysAvailable field matching the classification table", async () => {

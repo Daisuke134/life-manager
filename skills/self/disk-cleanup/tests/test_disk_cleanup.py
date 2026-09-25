@@ -1311,7 +1311,12 @@ def test_open_codex_sparkle_installation_generation_is_preserved(tmp_path: Path)
 
 
 def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path: Path) -> None:
-    for relative in (".cache/codex-runtimes", ".cache/whisper", "Library/Caches/org.swift.swiftpm"):
+    for relative in (
+        ".cache/codex-runtimes",
+        ".cache/whisper",
+        ".cache/life-manager/camofox-browser",
+        "Library/Caches/org.swift.swiftpm",
+    ):
         (tmp_path / relative).mkdir(parents=True)
     governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
 
@@ -1319,7 +1324,28 @@ def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path:
 
     assert owners["codex-runtime-cache"] == tmp_path / ".cache/codex-runtimes"
     assert owners["whisper-model-cache"] == tmp_path / ".cache/whisper"
+    assert owners["camofox-browser-cache"] == tmp_path / ".cache/life-manager/camofox-browser"
     assert owners["swiftpm-cache"] == tmp_path / "Library/Caches/org.swift.swiftpm"
+
+
+def test_closed_camofox_fallback_cache_with_source_is_reclaimed(tmp_path: Path) -> None:
+    cache = tmp_path / ".cache/life-manager/camofox-browser"
+    source = cache / "pinned/source"
+    source.mkdir(parents=True)
+    (source / "server.js").write_bytes(b"x" * 32)
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [item for item in governor.discover_candidates()
+                  if item["owner"] == "camofox-browser-cache"]
+    result = governor.sweep(candidates)
+
+    assert not cache.exists()
+    assert result["reclaimed"] == 32
 
 
 def test_open_whisper_cache_is_preserved(tmp_path: Path) -> None:

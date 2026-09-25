@@ -40,8 +40,14 @@ test("foreground entrypoint invokes the shared browser foundation before provide
   const nativePass = source.indexOf('"$NODE_BIN" "$HERE/native-pass.js"');
   assert.ok(browserGuard >= 0, "Connector must use the shared browser guard");
   assert.ok(tabGc >= 0, "Connector must run owner-scoped tab GC");
-  assert.ok(source.includes('CLOAK_BROWSER_OWNER="life-manager-connector-native"'),
-    "Connector must identify its browser owner");
+  assert.match(source, /CLOAK_BROWSER_OWNER=.*LIFE_MANAGER_BROWSER_TARGET_OWNER/,
+    "Connector must identify its browser target owner from the registry join");
+  assert.match(source, /config\/loop-registry\.json/,
+    "Connector must join its runtime to the canonical loop registry");
+  assert.match(source, /acquire \"\$BROWSER_IDENTITY\"/,
+    "Connector must lease the registry-resolved browser identity");
+  assert.match(source, /export CLOAK_CDP_BASE_URL=\"\$BROWSER_ENDPOINT\"/,
+    "Connector must pass the resolved endpoint to the production rail");
   assert.ok(browserGuard < nativePass, "browser guard must run before provider work");
   assert.ok(tabGc < nativePass, "tab GC must run before provider work");
 });

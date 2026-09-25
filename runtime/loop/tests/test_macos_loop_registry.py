@@ -1,6 +1,9 @@
 import json
 import copy
+import os
 import re
+import subprocess
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -122,6 +125,253 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row.get("priority"), "support")
                 self.assertTrue(row.get("coalesce_reserved_wakes"))
                 self.assertTrue(row.get("coalesce_queued_wakes"))
+
+    def test_job_search_effect_free_jobs_declare_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("job-search-daily", "job-search-inbox"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+                self.assertTrue(row.get("coalesce_reserved_wakes"))
+                self.assertTrue(row.get("coalesce_queued_wakes"))
+
+    def test_x402_acquisition_controller_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-acquisition-controller"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_experiment_franklin1_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-experiment-franklin1"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_inflow_watch_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-inflow-watch"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_inflow_watch_claude_p_declares_agent_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-inflow-watch-claude-p"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_inflow_watch_franklin1_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-inflow-watch-franklin1"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_inflow_watch_franklin2_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-inflow-watch-franklin2"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_x402_sale_observer_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-sale-observer"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_citizen_refill_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["citizen-refill"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_x402_ledger_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-x402-ledger"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_taskmarket_ledger_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-taskmarket-ledger"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_ugig_invoice_observer_declares_effect_free_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-ugig-invoice-observer"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_cfo_hourly_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-cfo-hourly"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_financial_report_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-financial-report"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_life_manager_payout_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["life-manager-payout"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_job_search_health_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["job-search-health"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_job_search_learning_declares_effect_rebind_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["job-search-learning"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_citizen_refill_launchd_uses_managed_runtime_node_without_path(self):
+        launcher = ROOT / "bin/citizen-refill-launchd"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            empty_bin = root / "empty-bin"
+            empty_bin.mkdir()
+            (empty_bin / "dirname").symlink_to("/usr/bin/dirname")
+            fake_node = root / "managed-node"
+            fake_node.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" > \"$FAKE_NODE_ARGS\"\n"
+                "exit 0\n"
+            )
+            fake_node.chmod(0o700)
+            args_path = root / "node-args"
+            env = os.environ.copy()
+            env.update({
+                "PATH": str(empty_bin),
+                "LIFE_MANAGER_NODE": "",
+                "LIFE_MANAGER_RUNTIME_NODE": str(fake_node),
+                "LIFE_MANAGER_STATE_HOME": str(root / "state"),
+                "LIFE_MANAGER_ENV_FILE": str(root / "missing-env"),
+                "FAKE_NODE_ARGS": str(args_path),
+            })
+            result = subprocess.run(
+                [str(launcher)],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                args_path.read_text().splitlines(),
+                [str(ROOT / "bin/citizen-refill"), "--live"],
+            )
+
+    def test_recovery_supervisor_uses_managed_runtime_node_without_path(self):
+        launcher = ROOT / "bin/lm-recovery-supervise"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            empty_bin = root / "empty-bin"
+            empty_bin.mkdir()
+            (empty_bin / "bash").symlink_to("/bin/bash")
+            (empty_bin / "dirname").symlink_to("/usr/bin/dirname")
+            fake_node = root / "managed-node"
+            fake_node.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$@\" > \"$FAKE_NODE_ARGS\"\n"
+                "exit 0\n"
+            )
+            fake_node.chmod(0o700)
+            args_path = root / "node-args"
+            queue_path = root / "recovery-intents.jsonl"
+            env = os.environ.copy()
+            env.update({
+                "PATH": str(empty_bin),
+                "LIFE_MANAGER_RUNTIME_NODE": str(fake_node),
+                "FAKE_NODE_ARGS": str(args_path),
+            })
+            result = subprocess.run(
+                [str(launcher), "--queue", str(queue_path)],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            node_args = args_path.read_text().splitlines()
+            node_args[0] = str(Path(node_args[0]).resolve())
+            self.assertEqual(
+                node_args,
+                [str((ROOT / "runtime/loop/recovery-supervisor-cli.mjs").resolve()),
+                 "--queue", str(queue_path)],
+            )
 
     def test_migrated_system_loops_keep_runtime_metadata_out_of_openclaw(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -374,6 +624,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
         daily = registry["loops"]["life-manager-daily"]
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")
+        capafy_healthcheck = registry["loops"]["capafy-loop-healthcheck"]
+        self.assertEqual(capafy_healthcheck.get("resource_class"), "deterministic")
+        self.assertEqual(capafy_healthcheck.get("admission_class"), "revenue")
+        self.assertEqual(capafy_healthcheck.get("priority"), "revenue")
 
     def test_marketplace_item_lanes_declare_occurrence_scoped_admission(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -394,12 +648,44 @@ class MacosLoopRegistryTest(unittest.TestCase):
             with self.subTest(loop_id=loop_id):
                 self.assertIsNone(registry["loops"][loop_id].get("admission_effect_scope"))
 
+    def test_lancers_report_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["lancers-revenue-telegram-report"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_crowdworks_report_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["crowdworks-revenue-report"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
     def test_affiliate_loop_opts_into_queued_release_reconcile(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertIs(
             registry["loops"]["affiliate-loop"].get("reconcile_queued_release"),
             True,
         )
+
+    def test_x402_money_observers_declare_existing_admission_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("sol-funding", "x402-settlement-recorder"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+                self.assertTrue(row.get("coalesce_queued_wakes"))
+                self.assertTrue(row.get("coalesce_reserved_wakes"))
+                self.assertTrue(row.get("reconcile_queued_release"))
 
     def test_honne_ja_is_the_only_mobile_queued_release_canary(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -612,6 +898,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             row["entrypoint"],
             "skills/earn/lancers/scripts/work-sync-owner",
         )
+        self.assertEqual(row["resource_class"], "deterministic")
 
     def test_lancers_negotiate_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -742,6 +1029,128 @@ class MacosLoopRegistryTest(unittest.TestCase):
         row = registry["loops"]["hf-gig-paid-direct"]
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("coalesce_reserved_wakes"))
+
+    def test_hf_gig_evidence_gc_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-apply-evidence-gc"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_hf_gig_daily_report_declares_observed_deterministic_borrow_contract(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-daily-report"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("admission_class"), "borrow")
+        self.assertEqual(row.get("priority"), "support")
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+        self.assertTrue(row.get("reconcile_queued_release"))
+
+    def test_crowdworks_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["crowdworks-revenue-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9228,
+            "profile": "~/.local/state/anicca/crowdworks/browser-profile",
+        })
+
+    def test_lancers_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["lancers-revenue-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9227,
+            "profile": "~/.local/state/anicca/lancers/browser-profile",
+        })
+
+    def test_hf_gig_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9223,
+            "profile": "~/.cloak/profiles/gig-daily-driver",
+        })
+
+    def test_affiliate_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["affiliate-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9324,
+            "profile": "~/.cloak/profiles/affiliate/en",
+        })
+
+    def test_affiliate_impact_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["affiliate-impact-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9327,
+            "profile": "~/.cloak/profiles/affiliate/impact-en",
+        })
+
+    def test_affiliate_x_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["affiliate-x-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9326,
+            "profile": "~/.cloak/profiles/affiliate/x-en",
+        })
+
+    def test_agent_economy_loop_declares_agent_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["agent-economy-loop"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("provider_route"), "shared-agent-runner")
+
+    def test_x402_claude_p_declares_agent_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-claude-p"]
+        self.assertEqual(row.get("resource_class"), "agent")
+        self.assertEqual(row.get("provider_route"), "shared-agent-runner")
+
+    def test_x402_franklin1_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-franklin1"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
+    def test_x402_franklin2_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-franklin2"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
+    def test_x402_research_serve_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-research-serve"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
+    def test_the402_provider_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["the402-provider"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
+    def test_the402_worker_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["the402-worker"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
+
+    def test_x402_seller_declares_deterministic_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["x402-seller-8404"]
+        self.assertEqual(row.get("resource_class"), "deterministic")
+        self.assertEqual(row.get("provider_route"), "deterministic")
 
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -908,6 +1317,27 @@ class MacosLoopRegistryTest(unittest.TestCase):
         }
         with self.assertRaisesRegex(ValueError, "duplicate browser CDP port"):
             validate_registry(duplicate_port)
+
+    def test_browser_identity_is_a_registry_join_without_claiming_a_profile_or_port(self):
+        value = {"schema_version": 2, "loops": {"example": entry()}}
+        value["loops"]["example"]["browser_identity"] = "interactive:dais"
+        value["loops"]["example"]["browser_target_owner"] = "connector-native"
+        self.assertEqual(validate_registry(value), value)
+        schema = loop_json_schema()
+        self.assertEqual(schema["properties"]["browser_identity"]["pattern"],
+                         "^[a-z0-9][a-z0-9:_-]{1,127}$")
+        self.assertEqual(schema["properties"]["browser_target_owner"]["pattern"],
+                         "^[a-z0-9][a-z0-9:_-]{1,127}$")
+        for field in ("browser_identity", "browser_target_owner"):
+            for invalid in (None, "Interactive:Dais", "../dais", ""):
+                value["loops"]["example"][field] = invalid
+                with self.subTest(field=field, invalid=invalid), self.assertRaisesRegex(
+                    ValueError, f"invalid {field}",
+                ):
+                    validate_registry(value)
+            value["loops"]["example"][field] = (
+                "interactive:dais" if field == "browser_identity" else "connector-native"
+            )
 
     def test_render_is_byte_stable_for_loop_insertion_order(self):
         left = {"schema_version": 2, "loops": {"b": entry("ai.anicca.b"), "a": entry("ai.anicca.a")}}

@@ -8,12 +8,62 @@ const test = require("node:test");
 
 const { runHealerShadow } = require("../lib/healer-shadow.js");
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+function fixtureRepo(root) {
+  const repoRoot = path.join(root, "loops", "releases", "candidate");
+  const bundle = path.join(root, "loops", "dependency-bundles", "npm-test", "node_modules");
+  fs.mkdirSync(path.join(repoRoot, "apps/life-manager"), { recursive: true });
+  fs.mkdirSync(bundle, { recursive: true });
+  fs.writeFileSync(path.join(bundle, ".package-lock.json"), "{}\n", { mode: 0o600 });
+  fs.writeFileSync(path.join(bundle, "..", ".complete"), "test\n", { mode: 0o600 });
+  fs.symlinkSync(bundle, path.join(repoRoot, "apps/life-manager/node_modules"), "dir");
+  return repoRoot;
+}
+
+test("Healer rejects a dependency symlink outside the immutable bundle root", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-unsafe-deps-"));
+  const stateDir = path.join(root, "state");
+  const repoRoot = path.join(root, "loops", "releases", "candidate");
+  const target = path.join(repoRoot, "apps/life-manager/node_modules");
+  const unsafe = path.join(root, "unsafe-node_modules");
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.mkdirSync(unsafe, { recursive: true });
+  fs.symlinkSync(unsafe, target, "dir");
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.writeFileSync(path.join(stateDir, "observer-incidents.jsonl"), `${JSON.stringify({
+    schema_version: 1, wake_id: "wake:unsafe-deps", run_id: "run:unsafe-deps",
+    stage: "native_pass", safe_action: "runtime_execute", expected_effect: "applied_bundle",
+    observed_effect: "tool_failure", incident_class: "tool_failure", owner_generation: 1,
+    code_commit: "52dfb3f2e", cursor: "connpass:2026-08-07:0:2",
+    observed_at: "2026-08-07T01:00:00.000Z", fingerprint: `sha256:${"u".repeat(64)}`,
+  })}\n`, { mode: 0o600 });
+  const calls = [];
+  try {
+    await assert.rejects(
+      runHealerShadow({
+        repoRoot, stateDir, worktreeRoot: path.join(root, "worktrees"),
+        now: () => new Date("2026-08-07T01:05:00.000Z"),
+        env: { PATH: process.env.PATH, HOME: root },
+        execute: async (command, args) => {
+          calls.push({ command, args });
+          if (command === "git" && args.includes("worktree") && args.includes("add")) {
+            fs.mkdirSync(args[6], { recursive: true });
+          }
+          return { status: 0, stdout: "" };
+        },
+      }),
+      /Connector Healer shadow invalid/,
+    );
+    assert.equal(calls.some((call) => call.command === "codex"), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("Healer converts one privacy-safe incident into one isolated Terra Superpowers revision without external-effect credentials", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-shadow-"));
   const stateDir = path.join(root, "state");
   const worktreeRoot = path.join(root, "worktrees");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, "observer-incidents.jsonl"), `${JSON.stringify({
     schema_version: 1,
@@ -33,7 +83,7 @@ test("Healer converts one privacy-safe incident into one isolated Terra Superpow
   const calls = [];
   try {
     const result = await runHealerShadow({
-      repoRoot: REPO_ROOT,
+      repoRoot,
       stateDir,
       worktreeRoot,
       now: () => new Date("2026-08-06T16:05:00.000Z"),
@@ -87,7 +137,7 @@ test("Healer converts one privacy-safe incident into one isolated Terra Superpow
     assert.equal(revisions[0].status, "revision_created");
 
     const duplicate = await runHealerShadow({
-      repoRoot: REPO_ROOT, stateDir, worktreeRoot,
+      repoRoot, stateDir, worktreeRoot,
       now: () => new Date("2026-08-06T16:06:00.000Z"), env: { PATH: process.env.PATH, HOME: root },
       execute: async () => { throw new Error("duplicate must execute nothing"); },
     });
@@ -101,6 +151,7 @@ test("Healer records a failed Codex revision and stops at three revisions per 24
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-cap-"));
   const stateDir = path.join(root, "state");
   const worktreeRoot = path.join(root, "worktrees");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   const incidents = ["a", "b", "c", "d"].map((suffix, index) => ({
     schema_version: 1,
@@ -124,7 +175,7 @@ test("Healer records a failed Codex revision and stops at three revisions per 24
   );
   let codexCalls = 0;
   const options = {
-    repoRoot: REPO_ROOT, stateDir, worktreeRoot,
+    repoRoot, stateDir, worktreeRoot,
     now: () => new Date("2026-08-06T16:05:00.000Z"),
     env: { PATH: process.env.PATH, HOME: root },
     execute: async (command) => {
@@ -157,6 +208,7 @@ test("Healer parent commits and pushes a Terra change while excluding only the d
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-parent-vcs-"));
   const stateDir = path.join(root, "state");
   const worktreeRoot = path.join(root, "worktrees");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   const fingerprint = `sha256:${"9".repeat(64)}`;
   const baseCommit = "8".repeat(40);
@@ -172,7 +224,7 @@ test("Healer parent commits and pushes a Terra change while excluding only the d
   let statusCalls = 0;
   try {
     const result = await runHealerShadow({
-      repoRoot: REPO_ROOT, stateDir, worktreeRoot,
+      repoRoot, stateDir, worktreeRoot,
       now: () => new Date("2026-08-07T01:35:00.000Z"),
       env: { PATH: process.env.PATH, HOME: root },
       execute: async (command, args) => {
@@ -211,6 +263,7 @@ test("Healer parent commits and pushes a Terra change while excluding only the d
 test("Healer records a bounded Codex timeout instead of losing the revision", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-timeout-"));
   const stateDir = path.join(root, "state");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, "observer-incidents.jsonl"), `${JSON.stringify({
     schema_version: 1, wake_id: "wake:timeout", run_id: "run:timeout",
@@ -221,7 +274,7 @@ test("Healer records a bounded Codex timeout instead of losing the revision", as
   })}\n`, { mode: 0o600 });
   try {
     const result = await runHealerShadow({
-      repoRoot: REPO_ROOT, stateDir, worktreeRoot: path.join(root, "worktrees"),
+      repoRoot, stateDir, worktreeRoot: path.join(root, "worktrees"),
       now: () => new Date("2026-08-07T01:05:00.000Z"),
       env: { PATH: process.env.PATH, HOME: root }, codexTimeoutMs: 1234,
       execute: async (command, _args, options) => {
@@ -243,6 +296,7 @@ test("Healer records a bounded Codex timeout instead of losing the revision", as
 test("Healer recovers once from an orphaned branch or worktree collision", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-collision-"));
   const stateDir = path.join(root, "state");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, "observer-incidents.jsonl"), `${JSON.stringify({
     schema_version: 1, wake_id: "wake:collision", run_id: "run:collision",
@@ -254,7 +308,7 @@ test("Healer recovers once from an orphaned branch or worktree collision", async
   const worktreeAdds = [];
   try {
     const result = await runHealerShadow({
-      repoRoot: REPO_ROOT, stateDir, worktreeRoot: path.join(root, "worktrees"),
+      repoRoot, stateDir, worktreeRoot: path.join(root, "worktrees"),
       now: () => new Date("2026-08-07T01:15:00.000Z"), env: { PATH: process.env.PATH, HOME: root },
       execute: async (command, args) => {
         if (command === "git" && args.includes("worktree") && args.includes("add")) {
@@ -278,6 +332,7 @@ test("Healer recovers once from an orphaned branch or worktree collision", async
 test("Healer resolves only an unknown incident commit to the parent verified HEAD", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "connector-healer-base-"));
   const stateDir = path.join(root, "state");
+  const repoRoot = fixtureRepo(root);
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, "observer-incidents.jsonl"), `${JSON.stringify({
     schema_version: 1, wake_id: "wake:base", run_id: "run:base", stage: "native_pass",
@@ -289,7 +344,7 @@ test("Healer resolves only an unknown incident commit to the parent verified HEA
   const calls = [];
   try {
     const result = await runHealerShadow({
-      repoRoot: REPO_ROOT, stateDir, worktreeRoot: path.join(root, "worktrees"),
+      repoRoot, stateDir, worktreeRoot: path.join(root, "worktrees"),
       now: () => new Date("2026-08-07T01:25:00.000Z"), env: { PATH: process.env.PATH, HOME: root },
       execute: async (command, args) => {
         calls.push({ command, args });

@@ -87,6 +87,58 @@ test("operations persist safe history and a positive every-wake Telegram receipt
   }
 });
 
+test("reportWake persists an occurrence-bound diagnostic and includes only bounded fields in Telegram", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-diagnostic-"));
+  const sent = [];
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-20260925-diagnostic",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-09-25T08:30:00.000Z"),
+      async sendMessage(message, options) {
+        sent.push({ message, options });
+        return { ok: true, result: { message_id: 7003 } };
+      },
+    });
+    await operations.reportWake({
+      status: "circuit_open",
+      safe_reason: "wake_boundary_failed",
+      consecutive_failure_count: 0,
+      diagnostic: {
+        browser_endpoint: "http://[::1]:9222",
+        counter_status: "not_counted_at_stage",
+        effect_status: "not_applicable",
+        error_class: "Error",
+        next_action: "resolve_browser_identity",
+        occurrence_id: "life-manager-connector-native:occurrence-diagnostic",
+        release_sha: "a".repeat(40),
+        retryable: true,
+        run_id: "run-connector-diagnostic",
+        safe_reason: "browser_open_failed",
+        stage: "browser_open",
+      },
+    });
+    const diagnosticFile = path.join(stateDir, "wake-report-diagnostics.jsonl");
+    const diagnostic = JSON.parse(fs.readFileSync(diagnosticFile, "utf8").trim());
+    assert.deepEqual(Object.keys(diagnostic).sort(), [
+      "browser_endpoint", "counter_status", "created_at", "effect_status", "error_class",
+      "next_action", "occurrence_id", "release_sha", "retryable", "run_id", "safe_reason",
+      "schema_version", "stage", "wake_id",
+    ]);
+    assert.equal(diagnostic.wake_id, "wake-20260925-diagnostic");
+    assert.match(sent[0].message, /stage: browser_open/);
+    assert.match(sent[0].message, /error class: Error/);
+    assert.match(sent[0].message, /endpoint: http:\/\/\[::1\]:9222/);
+    assert.match(sent[0].message, /effect: not_applicable/);
+    assert.match(sent[0].message, /release: a{40}/);
+    assert.match(sent[0].message, /next action: resolve_browser_identity/);
+    assert.doesNotMatch(sent[0].message, /private-target|private raw/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test("recordAction persists provider and stage safe_reason for a failed discovery action", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-action-context-"));
   try {

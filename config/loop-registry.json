@@ -84,19 +84,26 @@
       "label": "ai.anicca.crowdworks-revenue-browser",
       "log_root": "~/.local/state/life-manager/crowdworks-revenue-browser/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/crowdworks-revenue-browser"
     },
     "crowdworks-revenue-report": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [],
       "domain": "earn",
       "effect_class": "message",
       "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
       "label": "ai.anicca.crowdworks-revenue-report",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
     "crowdworks-revenue-paid": {
@@ -156,6 +163,7 @@
       "label": "ai.anicca.affiliate-browser",
       "log_root": "~/.local/state/life-manager/affiliate-browser/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/affiliate-browser"
     },
     "affiliate-composition": {
@@ -202,6 +210,7 @@
       "label": "ai.anicca.affiliate-impact-browser",
       "log_root": "~/.local/state/life-manager/affiliate-impact-browser/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/affiliate-impact-browser"
     },
     "affiliate-loop": {
@@ -276,6 +285,7 @@
       "label": "ai.anicca.affiliate-x-browser",
       "log_root": "~/.local/state/life-manager/affiliate-x-browser/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/affiliate-x-browser"
     },
     "agent-economy-loop": {
@@ -292,6 +302,7 @@
       "label": "ai.anicca.agent-economy-loop",
       "log_root": "~/.local/state/life-manager/agent-economy/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/agent-economy"
     },
     "agentmail-nudge": {
@@ -712,7 +723,9 @@
       "entrypoint": "skills/self/capafy-loop/capafy-loop-healthcheck.sh",
       "label": "ai.anicca.capafy-loop-healthcheck",
       "log_root": "~/.local/state/life-manager/logs",
+      "priority": "revenue",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-outcome-monitor": {
@@ -765,6 +778,12 @@
       "entrypoint": "bin/citizen-refill-launchd",
       "label": "ai.anicca.citizen-refill",
       "log_root": "~/.local/state/life-manager/agent-economy/instance/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/agent-economy/instance"
     },
@@ -997,6 +1016,7 @@
     },
     "hf-gig-apply-evidence-gc": {
       "adapter": "python",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 21600
       },
@@ -1004,6 +1024,8 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "command": [
         "--state-dir",
         "~/gig",
@@ -1020,7 +1042,10 @@
       "entrypoint": "skills/earn/gig/scripts/evidence_gc.py",
       "label": "ai.anicca.hf-gig-apply-evidence-gc",
       "log_root": "~/.local/state/life-manager/coconala/apply-evidence-gc/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "runtime_timeout_seconds": 3600,
       "state_root": "~/.local/state/life-manager/coconala/apply-evidence-gc"
     },
@@ -1080,9 +1105,11 @@
       "label": "ai.anicca.hf-gig-browser",
       "log_root": "~/.openclaw/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.openclaw"
     },
     "hf-gig-daily-report": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": {
           "Hour": 9,
@@ -1093,12 +1120,17 @@
         "max_age_days": 14,
         "max_runs": 100
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "earn",
       "effect_class": "none",
       "entrypoint": "skills/earn/gig/gig_daily_report.sh",
       "label": "ai.anicca.hf-gig-daily-report",
       "log_root": "~/.openclaw/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.openclaw"
     },
     "hf-gig-paid-direct": {
@@ -1248,9 +1280,12 @@
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "job-search-daily": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 1800
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -1260,7 +1295,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-daily.sh",
       "label": "ai.anicca.job-search-daily",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-health": {
@@ -1276,13 +1313,22 @@
       "entrypoint": "apps/job-search-loop/scripts/run-health.sh",
       "label": "ai.anicca.job-search-health",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-inbox": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 900
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -1292,7 +1338,9 @@
       "entrypoint": "apps/job-search-loop/scripts/run-inbox.sh",
       "label": "ai.anicca.job-search-inbox",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
     "job-search-learning": {
@@ -1311,6 +1359,12 @@
       "entrypoint": "apps/job-search-loop/scripts/run-learning.sh",
       "label": "ai.anicca.job-search-learning",
       "log_root": "~/.local/state/anicca/job-search/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/anicca/job-search"
     },
@@ -1357,6 +1411,7 @@
       "label": "ai.anicca.lancers-revenue-browser",
       "log_root": "~/.local/state/life-manager/lancers-revenue-browser/logs",
       "provider_route": "deterministic",
+      "resource_class": "browser",
       "state_root": "~/.local/state/life-manager/lancers-revenue-browser"
     },
     "lancers-revenue-storefront": {
@@ -1383,9 +1438,12 @@
     },
     "lancers-revenue-telegram-report": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "cleanup": {
         "max_age_days": 14,
         "max_runs": 100
@@ -1397,7 +1455,10 @@
       "entrypoint": "skills/earn/lancers/scripts/telegram-report-owner",
       "label": "ai.anicca.lancers-revenue-telegram-report",
       "log_root": "~/.local/state/anicca/lancers/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lancers-revenue-negotiate": {
@@ -1467,6 +1528,7 @@
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
       "priority": "revenue",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lateness-heartbeat": {
@@ -2014,6 +2076,12 @@
       "entrypoint": "skills/cfo/run.sh",
       "label": "ai.anicca.life-manager-cfo-hourly",
       "log_root": "~/.local/state/life-manager/life-manager-cfo-hourly/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-cfo-hourly"
     },
@@ -2033,6 +2101,8 @@
       "domain": "system",
       "effect_class": "none",
       "entrypoint": "skills/connector/run.sh",
+      "browser_identity": "interactive:dais",
+      "browser_target_owner": "life-manager-connector-native",
       "label": "ai.anicca.life-manager-connector-native",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
@@ -2135,6 +2205,12 @@
       "entrypoint": "apps/life-manager/scripts/financial-report-boot.sh",
       "label": "ai.anicca.life-manager-financial-report",
       "log_root": "~/.anicca/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.anicca"
     },
@@ -2239,6 +2315,12 @@
       "entrypoint": "apps/life-manager/scripts/payout-boot.sh",
       "label": "ai.anicca.life-manager-payout",
       "log_root": "~/.local/state/life-manager/life-manager-payout/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-payout"
     },
@@ -2318,6 +2400,12 @@
       "entrypoint": "apps/life-manager/scripts/taskmarket-work-ledger-boot.sh",
       "label": "ai.anicca.life-manager-taskmarket-ledger",
       "log_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger"
     },
@@ -2355,6 +2443,12 @@
       "entrypoint": "apps/life-manager/scripts/ugig-invoice-observer-boot.sh",
       "label": "ai.anicca.life-manager-ugig-invoice-observer",
       "log_root": "~/.local/state/life-manager/life-manager-ugig-invoice-observer/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-ugig-invoice-observer"
     },
@@ -2371,6 +2465,12 @@
       "entrypoint": "apps/life-manager/scripts/x402-sale-ledger-boot.sh",
       "label": "ai.anicca.life-manager-x402-ledger",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
+      "priority": "support",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "reconcile_queued_release": true,
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
@@ -2776,6 +2876,7 @@
       "state_root": "~/.local/state/life-manager/session-vault"
     },
     "sol-funding": {
+      "admission_class": "borrow",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 60
@@ -2785,13 +2886,18 @@
         "max_runs": 100
       },
       "command": [],
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "domain": "financial",
       "effect_class": "money",
       "entrypoint": "skills/earn/sol-funding-owner",
       "label": "ai.anicca.sol-funding",
       "log_root": "~/.local/state/life-manager/sol-funding/logs",
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/sol-funding"
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/sol-funding",
+      "priority": "support"
     },
     "ubi-watcher": {
       "adapter": "exec",
@@ -2857,6 +2963,7 @@
       "label": "ai.anicca.the402-provider",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "the402-worker": {
@@ -2873,6 +2980,7 @@
       "label": "ai.anicca.the402-worker",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "token-daily-report": {
@@ -3224,6 +3332,7 @@
       "state_root": "~/.local/state/life-manager/social-x/x-tweeter"
     },
     "x402-acquisition-controller": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -3236,7 +3345,12 @@
       "entrypoint": "skills/earn/x402-sell/acquisition-controller-boot.sh",
       "label": "ai.anicca.x402-acquisition-controller",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-claude-p": {
@@ -3253,9 +3367,11 @@
       "label": "ai.anicca.x402-claude-p",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-experiment-franklin1": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -3268,7 +3384,12 @@
       "entrypoint": "skills/earn/x402-sell/experiment-tick.mjs",
       "label": "ai.anicca.x402-experiment-franklin1",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-franklin1": {
@@ -3285,6 +3406,7 @@
       "label": "ai.anicca.x402-franklin1",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-franklin2": {
@@ -3301,9 +3423,11 @@
       "label": "ai.anicca.x402-franklin2",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3323,10 +3447,16 @@
       "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
       "label": "ai.anicca.x402-inflow-watch",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch-claude-p": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3346,10 +3476,16 @@
       "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
       "label": "ai.anicca.x402-inflow-watch-claude-p",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "shared-agent-runner",
+      "reconcile_queued_release": true,
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch-franklin1": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3369,10 +3505,16 @@
       "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
       "label": "ai.anicca.x402-inflow-watch-franklin1",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-inflow-watch-franklin2": {
+      "admission_class": "borrow",
       "cadence": {
         "calendar_interval": [
           {
@@ -3392,7 +3534,12 @@
       "entrypoint": "skills/earn/x402-sell/watch-inflow.sh",
       "label": "ai.anicca.x402-inflow-watch-franklin2",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-research-serve": {
@@ -3409,9 +3556,11 @@
       "label": "ai.anicca.x402-research-serve",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-sale-observer": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -3424,7 +3573,12 @@
       "entrypoint": "skills/earn/x402-sell/sale-observer-boot.sh",
       "label": "ai.anicca.x402-sale-observer",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "priority": "support",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-seller-8404": {
@@ -3441,9 +3595,11 @@
       "label": "ai.anicca.x402-seller-8404",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
     },
     "x402-settlement-recorder": {
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -3453,11 +3609,16 @@
       },
       "domain": "financial",
       "effect_class": "money",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "entrypoint": "skills/earn/x402-sell/settlement-recorder-boot.sh",
       "label": "ai.anicca.x402-settlement-recorder",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager/x402-sell"
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "state_root": "~/.local/state/life-manager/x402-sell",
+      "priority": "support"
     }
   },
   "retired_labels": [

@@ -15,7 +15,7 @@ from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
 from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
-from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok
+from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok, host_cleanup_readback
 
 
 def completed(root: Path, name: str, size: int = 1) -> Path:
@@ -53,6 +53,21 @@ class LoopCleanupTest(unittest.TestCase):
         self.assertFalse(host_cleanup_ok(0, {"errors": 1, "protected_deletions": 0}))
         self.assertFalse(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 1}))
         self.assertTrue(host_cleanup_ok(0, {"errors": 0, "protected_deletions": 0}))
+
+    def test_host_cleanup_missing_readback_preserves_typed_failure(self):
+        ok, result = host_cleanup_readback(1, "")
+        self.assertFalse(ok)
+        self.assertEqual(result, {
+            "error": "host_cleanup_result_missing",
+            "returncode": 1,
+        })
+
+    def test_host_cleanup_valid_readback_keeps_existing_result(self):
+        ok, result = host_cleanup_readback(
+            0, '{"errors":0,"protected_deletions":0}\n'
+        )
+        self.assertTrue(ok)
+        self.assertEqual(result, {"errors": 0, "protected_deletions": 0})
     def test_loop_cleanup_preserves_active_unmarked_and_receipts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); old = completed(root, "old"); active = completed(root, "active")

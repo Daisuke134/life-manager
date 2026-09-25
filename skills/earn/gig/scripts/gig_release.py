@@ -62,6 +62,14 @@ COCONALA_BUSINESS_LANES = {
     "ai.anicca.hf-gig-storefront-direct",
     "ai.anicca.hf-gig-reply-detector",
 }
+# These legacy Upwork jobs are retired until account-bound authorization and a
+# funded-contract readback open the managed Paid-owner gate. Keeping them in
+# the historical manifest preserves source compatibility, but explicit release
+# activation must fail closed rather than resurrecting a pre-gate loop.
+RETIRED_PROVIDER_LABELS = frozenset({
+    "ai.anicca.life-manager-upwork-browser",
+    "ai.anicca.life-manager-upwork-free-loop",
+})
 # These long-lived owners are excluded from release garbage collection unless
 # their loaded argv is inspected explicitly.
 DEFAULT_EXCLUDED = {
@@ -92,7 +100,14 @@ JOB_PROCESS_MARKERS = {
 
 
 def activation_labels(requested_jobs: set[str] | None) -> set[str]:
-    return set(requested_jobs) if requested_jobs is not None else set(COCONALA_BUSINESS_LANES)
+    labels = set(requested_jobs) if requested_jobs is not None else set(COCONALA_BUSINESS_LANES)
+    retired = labels & RETIRED_PROVIDER_LABELS
+    if retired:
+        raise ValueError(
+            "retired provider label cannot be activated before account-bound funded gate: "
+            + ", ".join(sorted(retired))
+        )
+    return labels
 
 
 def git(*args: str, cwd: Path = REPO_ROOT) -> str:
@@ -558,7 +573,11 @@ def main() -> int:
     requested_jobs = (
         {label.strip() for label in args.jobs.split(",")} if args.jobs else None
     )
-    wanted = activation_labels(requested_jobs)
+    try:
+        wanted = activation_labels(requested_jobs)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
     _, table = settings(CURRENT_RELEASE)
     if not args.dry_run and not require_control_plane():
         return 75

@@ -26,7 +26,25 @@ const CODEX_BRAIN_TASK_CLASS = 'codex-brain-agent';
 const CODEX_BRAIN_TIMEOUT_MS = 180_000;
 const CODEX_BRAIN_SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CODEX_BRAIN_RESULT_REASON = /^[a-z][a-z0-9_:-]{1,99}$/;
+const BRAIN_FALLBACK_FIELD = '__anicca_brain_fallback';
 const LOOP_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+function markBrainFallback(response, fallback) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) return response;
+  return { ...response, [BRAIN_FALLBACK_FIELD]: Object.freeze({ ...fallback }) };
+}
+
+/**
+ * Return the typed fallback evidence attached by think(), or null for a normal brain response.
+ * The private response field is consumed by the loop before ledger serialization and is never sent
+ * back to a provider or treated as an OpenAI response field.
+ */
+export function getBrainFallback(response) {
+  const fallback = response && typeof response === 'object' ? response[BRAIN_FALLBACK_FIELD] : null;
+  if (!fallback || typeof fallback !== 'object' || Array.isArray(fallback)) return null;
+  if (fallback.from !== 'claude-p' || fallback.to !== 'proxy' || fallback.reason !== 'claude_not_found') return null;
+  return { from: fallback.from, to: fallback.to, reason: fallback.reason };
+}
 
 /**
  * Execute the THINK step for the current wake.
@@ -40,17 +58,30 @@ export async function think(ctx, config) {
   const brain = config.ANICCA_BRAIN || 'proxy';
 
   if (brain === 'claude-p') {
-    // NO FALLBACK TO THE PROXY. claude-p is human-funded: its brain is an Anthropic subscription
-    // that is already paid for, and its crypto wallet exists to TRADE, not to buy inference.
-    // Falling back to ClawRouter silently put a free model in charge of the money — and measured
-    // 2026-07-12 that model could not even issue the tool call correctly ("run_skill skill not
-    // found"), so a wake that fell back was worse than a wake that never happened. Failing loudly
-    // is right: the ledger records a wake_error and the next wake retries with the real brain.
-    //
-    // Franklin and the other SELF-funded instances still take the proxy path below, and that is
-    // correct for them: they buy inference out of the very wallet they trade with, so a free model
-    // is the only way they stay net-positive.
-    return thinkClaudeP(ctx, config);
+    try {
+      return await thinkClaudeP(ctx, config);
+    } catch (error) {
+      // A missing executable is an infrastructure gap, not a model decision. Recover through the
+      // configured proxy so one broken local binary cannot stop the always-on loop. Do not broaden
+      // this to OAuth, timeout, or non-zero Claude exits: those remain typed wake errors and must
+      // not silently hand a different brain control of a funded loop.
+      if (error instanceof Error && error.message.startsWith('claude_not_found:')) {
+        try {
+          const response = await thinkProxy(ctx, config);
+          return markBrainFallback(response, {
+            from: 'claude-p',
+            to: 'proxy',
+            reason: 'claude_not_found',
+          });
+        } catch (proxyError) {
+          const message = proxyError instanceof Error ? proxyError.message : String(proxyError);
+          const combined = new Error(`brain_fallback_failed: claude_not_found -> ${message}`);
+          combined.cause = proxyError;
+          throw combined;
+        }
+      }
+      throw error;
+    }
   }
 
   if (brain === 'codex') {
@@ -511,7 +542,8 @@ export async function thinkClaudeP(ctx, config) {
     // settings.json/allowedTools instead of the wake's decision -- observed verbatim 2026-07-12,
     // and it is why every claude-p wake fell through parseToolCall into `narrate` while looking
     // perfectly healthy (zero errors, no fallback). The loops that already run on Sonnet
-    // (claude-p-mainloop.sh:78, self-fix.sh) all pass this flag; this one simply never did.
+    // (claude-p-mainloop.sh:78 and the legacy self-repair launcher) all pass this flag;
+    // this one simply never did.
     '--dangerously-skip-permissions',
   ], {
     env: childEnv,

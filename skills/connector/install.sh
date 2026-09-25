@@ -21,8 +21,15 @@ for command in git node npm python3 gog; do
 done
 [ -f "$ENV_FILE" ] || { printf 'Connector configuration unavailable: %s\n' "$ENV_FILE" >&2; exit 2; }
 [ "$(stat -f '%Lp' "$ENV_FILE")" = 600 ] || { printf 'Connector configuration must use mode 600\n' >&2; exit 2; }
-curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null || {
-  printf 'Connector daily-driver unavailable on 127.0.0.1:9222\n' >&2
+RESOLVER="$ROOT/skills/browser/resolve_cdp_endpoint.py"
+REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
+BROWSER_ENDPOINT="$(python3 "$RESOLVER" --registry "$REGISTRY" --identity interactive:dais 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["endpoint"])')" || {
+  printf 'Connector daily-driver identity unavailable\n' >&2
+  exit 2
+}
+curl -fsS --max-time 2 "$BROWSER_ENDPOINT/json/version" >/dev/null || {
+  printf 'Connector daily-driver unavailable on %s\n' "$BROWSER_ENDPOINT" >&2
   exit 2
 }
 

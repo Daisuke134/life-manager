@@ -14,6 +14,6 @@ export LIFE_MANAGER_ENV_FILE
 export ANICCA_HOME="${LIFE_MANAGER_WALLET_HOME:-${REFILL_ANICCA_HOME:-$LIFE_MANAGER_STATE_HOME/agent-economy/instance}}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-NODE_BIN="${LIFE_MANAGER_NODE:-$(command -v node || true)}"
+NODE_BIN="${LIFE_MANAGER_NODE:-${LIFE_MANAGER_RUNTIME_NODE:-$(command -v node || true)}}"
 [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || { echo "citizen-refill: node executable not found" >&2; exit 1; }
 exec "$NODE_BIN" "$REPO_ROOT/bin/citizen-refill" --live

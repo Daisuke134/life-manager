@@ -16,11 +16,23 @@ const { createConnpassScriptFirstWorkflow } = require("../../apps/life-manager/l
 const { createProductionCalendarReader } = require("../../apps/life-manager/lib/connector-minimal-production.js");
 
 const TOKYO_TZ = "Asia/Tokyo";
-const BROWSER_GUARD_BIN = path.join(os.homedir(), ".config", "ai", "bin", "browser-guard.sh");
+const BROWSER_GUARD_BIN = path.resolve(__dirname, "../browser/browser-guard.sh");
 const BROWSER_IDENTITY = "interactive:dais";
 
 function invalid(message) {
   throw new Error(message || "Connector discover unavailable");
+}
+
+function validBrowserBaseUrl(value) {
+  let parsed;
+  try { parsed = new URL(String(value || "")); } catch { invalid("browser endpoint invalid"); }
+  if (
+    parsed.protocol !== "http:"
+    || !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname)
+    || !parsed.port || parsed.pathname !== "/"
+    || parsed.username || parsed.password || parsed.search || parsed.hash
+  ) invalid("browser endpoint invalid");
+  return parsed.origin;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,9 +171,7 @@ function renderOutput({ provider, rows, totals, json }) {
 function acquireBrowserLease(guardBin) {
   try {
     const stdout = execFileSync(guardBin, ["acquire", BROWSER_IDENTITY], { encoding: "utf8" });
-    const baseUrl = stdout.trim();
-    if (!/^https?:\/\/127\.0\.0\.1:\d+$/.test(baseUrl)) invalid(`browser-guard acquire returned an unexpected base URL: ${baseUrl || "(empty)"}`);
-    return baseUrl;
+    return validBrowserBaseUrl(stdout.trim());
   } catch (error) {
     const status = error && typeof error.status === "number" ? error.status : null;
     if (status === 9) {
@@ -267,4 +277,5 @@ module.exports = {
   buildRows,
   buildTotals,
   renderOutput,
+  validBrowserBaseUrl,
 };

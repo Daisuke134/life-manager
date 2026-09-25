@@ -167,12 +167,25 @@ class FreelancerTransport:
         if action not in _listed_actions(self.matrix_path):
             return None
         api_auth = authorize("freelancer", self.account, action, "official_api", self.now)
-        if api_auth.state is AuthorizationState.APPROVED_API:
+        from freelancer_readiness import FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+
+        # Freelancer's public API docs prohibit automatic bidders unless an
+        # explicit provider exception exists. A generic action receipt is not
+        # enough to select a proposal transport.
+        policy_ok = (
+            action != "propose"
+            or api_auth.terms_version == FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+        )
+        if policy_ok and api_auth.state is AuthorizationState.APPROVED_API:
             token = load_oauth2_token(self.oauth_path, self.now)
             if token is not None:
                 return TransportSelection("official_api", self.oauth_path, api_auth)
         browser_auth = authorize("freelancer", self.account, action, "cloak_browser", self.now)
-        if browser_auth.state is AuthorizationState.APPROVED_BROWSER:
+        policy_ok = (
+            action != "propose"
+            or browser_auth.terms_version == FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+        )
+        if policy_ok and browser_auth.state is AuthorizationState.APPROVED_BROWSER:
             profile = _private_profile(self.browser_profile, self.profiles_root)
             if profile is not None:
                 return TransportSelection("cloak_browser", profile, browser_auth)
@@ -223,6 +236,8 @@ class FreelancerTransport:
         """
         if not callable(fetch):
             raise TransportConfigurationError("inventory_fetch_not_callable")
+        if account_id != self.account:
+            raise TransportConfigurationError("inventory_account_mismatch")
         plan = self.inventory_route_plan(project_ids=project_ids)
         from freelancer_readiness import read_authenticated_inventory
 

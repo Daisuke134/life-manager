@@ -10,6 +10,7 @@ const {
   buildRows,
   buildTotals,
   renderOutput,
+  validBrowserBaseUrl,
 } = require("../discover.js");
 
 test("parseArgs accepts --provider luma and --provider connpass, with optional --json", () => {
@@ -22,6 +23,12 @@ test("parseArgs fails closed on unknown provider, missing provider, and unknown 
   assert.throws(() => parseArgs([]), /Usage: discover\.js/);
   assert.throws(() => parseArgs(["--provider", "meetup"]), /Usage: discover\.js/);
   assert.throws(() => parseArgs(["--provider", "luma", "--rsvp"]), /Unknown argument: --rsvp/);
+});
+
+test("browser endpoint validation accepts the registry-resolved IPv6 endpoint and rejects public hosts", () => {
+  assert.equal(validBrowserBaseUrl("http://[::1]:9222"), "http://[::1]:9222");
+  assert.equal(validBrowserBaseUrl("http://localhost:9222"), "http://localhost:9222");
+  assert.throws(() => validBrowserBaseUrl("http://example.com:9222"), /browser endpoint invalid/);
 });
 
 test("formatTokyoRange converts UTC instants to Asia/Tokyo date and HH:mm", () => {

@@ -1,7 +1,24 @@
 "use strict";
 
-const CONNECTOR_CDP_ENDPOINT = "http://127.0.0.1:9222";
-const CONNECTOR_CDP_WEBSOCKET_ORIGIN = "ws://127.0.0.1:9222";
+const DEFAULT_CONNECTOR_CDP_ENDPOINT = "http://127.0.0.1:9222";
+
+function normalizeConnectorCdpEndpoint(value) {
+  let parsed;
+  try { parsed = new URL(String(value || "")); } catch { throw new Error("Connector browser endpoint invalid"); }
+  if (
+    parsed.protocol !== "http:"
+    || !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname)
+    || !parsed.port
+    || parsed.username || parsed.password || parsed.pathname !== "/"
+    || parsed.search || parsed.hash
+  ) throw new Error("Connector browser endpoint invalid");
+  return parsed.origin;
+}
+
+const CONNECTOR_CDP_ENDPOINT = normalizeConnectorCdpEndpoint(
+  process.env.CLOAK_CDP_BASE_URL || DEFAULT_CONNECTOR_CDP_ENDPOINT,
+);
+const CONNECTOR_CDP_WEBSOCKET_ORIGIN = CONNECTOR_CDP_ENDPOINT.replace(/^http:/, "ws:");
 
 function unavailable(message) {
   throw new Error(message || "Connector browser target controller unavailable");

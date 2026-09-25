@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const {
@@ -21,6 +22,16 @@ test("uses only the reachable IPv4 daily-driver endpoint and exact page websocke
     () => connectorPageWebsocketTargetId("ws://[::1]:9222/devtools/page/TARGET123"),
     /websocket invalid/i,
   );
+});
+
+test("derives the exact IPv6 endpoint and websocket origin from the resolved browser env", () => {
+  const result = spawnSync(process.execPath, ["-e", `
+    const target = require(${JSON.stringify(require.resolve("./connector-browser-target-controller.js"))});
+    if (target.CONNECTOR_CDP_ENDPOINT !== "http://[::1]:9222") process.exit(1);
+    if (target.CONNECTOR_CDP_WEBSOCKET_ORIGIN !== "ws://[::1]:9222") process.exit(2);
+    if (target.connectorPageWebsocketTargetId("ws://[::1]:9222/devtools/page/TARGET123") !== "TARGET123") process.exit(3);
+  `], { env: { ...process.env, CLOAK_CDP_BASE_URL: "http://[::1]:9222" } });
+  assert.equal(result.status, 0, result.stderr.toString());
 });
 
 function fixture({ baselineCount = 1, delayedOwnedInsertion = false } = {}) {

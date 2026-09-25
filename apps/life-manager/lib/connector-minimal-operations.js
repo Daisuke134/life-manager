@@ -26,12 +26,18 @@ const ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS = "duration_ms,error_class,method,p
 const ACTION_CANDIDATE_FAILURE_KEYS = "candidate_ref,duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_CANDIDATE_FAILURE_WITH_CLASS_KEYS = "candidate_ref,duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
 const REPORT_KEYS = "consecutive_failure_count,created_at,safe_reason,schema_version,status,wake_id";
+const DIAGNOSTIC_INPUT_KEYS = "browser_endpoint,counter_status,effect_status,error_class,next_action,occurrence_id,release_sha,retryable,run_id,safe_reason,stage";
+const DIAGNOSTIC_KEYS = "browser_endpoint,counter_status,created_at,effect_status,error_class,next_action,occurrence_id,release_sha,retryable,run_id,safe_reason,schema_version,stage,wake_id";
 const DELIVERY_KEYS = "delivered_at,schema_version,telegram_provider_id,wake_id";
 const CLAIM_KEYS = "claimed_at,schema_version,wake_id";
 const UNCERTAIN_KEYS = "quarantined_at,reason,schema_version,wake_id";
 const POSITIVE_PROVIDER_ID = /^[1-9][0-9]*$/;
 const UNCERTAIN_REASONS = new Set(["delivery_unknown", "missing_message_id", "provider_rejection", "transport"]);
 const STATUSES = new Set(["applied_bundle", "completed_no_effect", "circuit_open"]);
+const DIAGNOSTIC_COUNTER_STATUSES = new Set(["counted", "not_counted_at_stage"]);
+const DIAGNOSTIC_EFFECT_STATUSES = new Set(["none", "not_applicable", "unknown", "started", "verified", "reconciled"]);
+const SAFE_DIAGNOSTIC_ENDPOINT = /^(?:unknown|https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):[1-9][0-9]{0,4})$/;
+const SAFE_RELEASE_SHA = /^(?:unknown|[0-9a-f]{40})$/;
 // Ceiling for observed/normalized/window/free_open/calendar_free counts: matches the
 // `rows.length > 5_000` per-page guard in connector-connpass-workflow.js, the real limit
 // on how many rows discovery can ever observe (measured live: connpass can legitimately
@@ -151,6 +157,30 @@ function safeReport(input, wakeId, createdAt) {
   });
 }
 
+function safeDiagnostic(input, wakeId, createdAt) {
+  if (
+    !input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== DIAGNOSTIC_INPUT_KEYS
+    || !SAFE_DIAGNOSTIC_ENDPOINT.test(String(input.browser_endpoint || ""))
+    || !DIAGNOSTIC_COUNTER_STATUSES.has(String(input.counter_status || ""))
+    || !DIAGNOSTIC_EFFECT_STATUSES.has(String(input.effect_status || ""))
+    || !ERROR_CLASS.test(String(input.error_class || ""))
+    || !SAFE_REASON.test(String(input.next_action || ""))
+    || !SAFE_ID.test(String(input.occurrence_id || ""))
+    || !SAFE_RELEASE_SHA.test(String(input.release_sha || ""))
+    || typeof input.retryable !== "boolean"
+    || !SAFE_ID.test(String(input.run_id || ""))
+    || !SAFE_REASON.test(String(input.safe_reason || ""))
+    || !SAFE_METHOD.test(String(input.stage || ""))
+  ) invalid();
+  return Object.freeze({
+    schema_version: 1,
+    wake_id: wakeId,
+    created_at: createdAt,
+    ...input,
+  });
+}
+
 function safeDelivery(input) {
   if (
     !input || typeof input !== "object" || Array.isArray(input)
@@ -203,6 +233,16 @@ function safeStoredReport(input) {
     || typeof input.wake_id !== "string" || !SAFE_ID.test(input.wake_id)
     || typeof input.created_at !== "string") invalid();
   return safeReport(input, input.wake_id, exactInstant(input.created_at));
+}
+
+function safeStoredDiagnostic(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== DIAGNOSTIC_KEYS
+    || input.schema_version !== 1
+    || typeof input.wake_id !== "string" || !SAFE_ID.test(input.wake_id)
+    || typeof input.created_at !== "string") invalid();
+  const { schema_version, wake_id, created_at, ...diagnostic } = input;
+  return safeDiagnostic(diagnostic, wake_id, exactInstant(created_at));
 }
 
 function uniqueByWake(rows) {
@@ -345,15 +385,28 @@ function safeTechPlayDiscoveryAudit(input, wakeId, recordedAt) {
     rss_count: input.rss_count, saturated_count: input.saturated_count });
 }
 
-function reportMessage(row) {
+function reportMessage(row, diagnostic = null) {
   const label = row.status === "applied_bundle" ? "申込と証拠保存が完了"
     : row.status === "circuit_open" ? "安全停止" : "今回の新規申込なし";
-  return [
+  const lines = [
     `Connector::: ${label}`,
     `status: ${row.status}`,
     `safe reason: ${row.safe_reason}`,
     `consecutive failures: ${row.consecutive_failure_count}`,
-  ].join("\n");
+  ];
+  if (diagnostic) {
+    lines.push(
+      `stage: ${diagnostic.stage}`,
+      `error class: ${diagnostic.error_class}`,
+      `endpoint: ${diagnostic.browser_endpoint}`,
+      `effect: ${diagnostic.effect_status}`,
+      `occurrence: ${diagnostic.occurrence_id}`,
+      `release: ${diagnostic.release_sha}`,
+      `next action: ${diagnostic.next_action}`,
+      `counter: ${diagnostic.counter_status}`,
+    );
+  }
+  return lines.join("\n");
 }
 
 function createMinimalProductionOperations(options = {}) {
@@ -371,6 +424,7 @@ function createMinimalProductionOperations(options = {}) {
   ) invalid();
   const historyFile = path.join(stateDir, "action-history.jsonl");
   const reportFile = path.join(stateDir, "wake-reports.jsonl");
+  const diagnosticFile = path.join(stateDir, "wake-report-diagnostics.jsonl");
   const deliveryFile = path.join(stateDir, "wake-report-deliveries.jsonl");
   const claimFile = path.join(stateDir, "wake-report-send-claims.jsonl");
   const uncertainFile = path.join(stateDir, "wake-report-uncertain.jsonl");
@@ -452,7 +506,22 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   async function reportWake(input) {
-    let report = safeReport(input, wakeId, exactInstant(now()));
+    const createdAt = exactInstant(now());
+    const diagnostic = input && input.diagnostic != null
+      ? safeDiagnostic(input.diagnostic, wakeId, createdAt) : null;
+    const diagnostics = uniqueByWake(readRows(diagnosticFile).map(safeStoredDiagnostic));
+    const diagnosticByWake = new Map(diagnostics.map((row) => [row.wake_id, row]));
+    const existingDiagnostic = diagnosticByWake.get(wakeId);
+    if (existingDiagnostic && diagnostic) {
+      const comparable = (value) => JSON.stringify(Object.fromEntries(
+        DIAGNOSTIC_INPUT_KEYS.split(",").map((key) => [key, value[key]]),
+      ));
+      if (comparable(existingDiagnostic) !== comparable(diagnostic)) invalid();
+    } else if (!existingDiagnostic && diagnostic) {
+      append(diagnosticFile, diagnostic);
+      diagnosticByWake.set(wakeId, diagnostic);
+    }
+    let report = safeReport(input, wakeId, createdAt);
     const reports = uniqueByWake(readRows(reportFile).map(safeStoredReport));
     const existing = reports.find((row) => row && row.wake_id === wakeId);
     if (existing) {
@@ -478,7 +547,7 @@ function createMinimalProductionOperations(options = {}) {
       let response;
       let reason;
       try {
-        response = await sendMessage(reportMessage(current), { telegramTarget, idempotencyKey: current.wake_id });
+        response = await sendMessage(reportMessage(current, diagnosticByWake.get(current.wake_id)), { telegramTarget, idempotencyKey: current.wake_id });
       } catch {
         reason = "transport";
       }
