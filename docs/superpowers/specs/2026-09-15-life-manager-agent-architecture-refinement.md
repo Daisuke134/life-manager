@@ -5836,16 +5836,17 @@ legal gates remain explicit. Never invent permission, credentials, receipts or r
 CURRENT VERIFIED CURSOR
 - Docs worktree: /private/tmp/lm-recovery-owner-20260924
 - Branch: fix/writer-admission-self-heal-20260924
-- Latest docs commit before this snapshot: c25bccefa748a2a31c8d6806f9aea1aedff7961f
+- Latest docs commit before this snapshot: 94c31cb159 (this update is the next docs cursor)
 - Production selector: /Users/anicca/loops/current
 - Loaded release SHA: d4fe0819931c50caaf41f25e86f1052cd8a0359c
 - Read-only status: 271 rows
 - Structural contract: 14 catalog loops / 169 registry jobs / 98 mapped / zero errors
 - Foundation gate: block; healthy 0, safely_fenced 1, uncovered_failure 13
 - Focused evals: economic autonomy 41/41, agent contract 13/13 (contract evidence only)
-- Source candidate: /private/tmp/lm-self-heal-integration-20260925,
-  branch fix/self-healing-control-plane-integration-20260925,
-  commit e69cd976518fbe0bd996e507457badd1ba013b94; source-only, not main or production.
+- Connector source candidate: this worktree `/private/tmp/lm-recovery-owner-20260924`,
+  branch `fix/writer-admission-self-heal-20260924`, commit `769cdfc22dbc2b0721337551a712a63181e48bf5`;
+  source-only, not main or production. The separate self-heal integration candidate remains source-only as recorded
+  in its own handover.
 
 14-LOOP READBACK
 gig-coconala U; gig-lancers U; gig-crowdworks U (Paid owner); writer U; affiliate U; investment F;
@@ -5986,7 +5987,7 @@ do not. No browser foundation was changed in this diagnosis.
 
 ### Connector repair implementation readback (2026-09-25 JST)
 
-The endpoint-identity portion of the repair is now implemented on the dedicated branch
+The endpoint-identity and diagnostic portions of the repair are now implemented on the dedicated branch
 `fix/writer-admission-self-heal-20260924`; it is not yet loaded into the immutable production selector. The
 implementation deliberately reuses the existing CloakBrowser foundation and does not install or switch to Tencent
 BrowserSkill.
@@ -6007,17 +6008,43 @@ Implemented in this cursor:
   live Cloak endpoint `http://[::1]:9222` while retaining the safe local default for isolated fixtures.
 - Focused tests are present for the wrong-listener/404 case, IPv6 profile-owned resolution, unreachable identity,
   duplicate UUID observability, endpoint validation, registry projection and the native entrypoint contract.
+- `runtime/loop/lm_loop.py` exposes a read-only JSON join through
+  `./bin/lm-loop browser resolve connector --json` (the canonical loop id is
+  `life-manager-connector-native`). It resolves the registry identity and reports the derived endpoint, UUID,
+  PID, HTTP status, websocket-URL validity and target owner without acquiring a lease or opening a provider page.
+- `connector-minimal-runner.js` now carries bounded `run_id`, `occurrence_id`, `release_sha` and browser endpoint
+  context into a nested diagnostic for browser-open and wake-boundary failures. `reportWake` persists one diagnostic
+  per wake, rejects drift on replay, and keeps raw exception messages/stacks out of the Telegram projection.
 
 The live read-only probe that motivated this fix found two listeners on the same numeric port: Google Chrome owned
 `127.0.0.1:9222` and returned HTTP 404, while the registered Cloak daily-driver owned `[::1]:9222` and returned a
 valid DevTools websocket UUID. The resolver selected `http://[::1]:9222`; a temporary acquire/release canary held
 the Connector identity lease and released it with no provider page or external effect.
 
-This is source/test evidence only. The following Connector work is still open: occurrence-bound nested error fields
-through `connector-minimal-runner.js`/`reportWake`, a read-only `lm-loop browser resolve connector --json` command,
-an accepted main-derived immutable release, one effect-free natural canary with official event/report readback, and
-replay-zero. Until those gates pass, the old production row may still show `entrypoint_exit_1` or the lossy
+The source/test repair now also includes the occurrence-bound nested error envelope and the read-only
+`lm-loop browser resolve <loop-id>|connector --json` projection. The resolver result carries `reachable`,
+`http_status=200` and `websocket_url_valid=true`; the CLI deliberately reports `lease_status=not_checked` rather
+than pretending that a lease was acquired. `reportWake` persists bounded diagnostics in
+`wake-report-diagnostics.jsonl` and renders stage, error class, endpoint, effect, occurrence, release, next action
+and counter status in the Telegram summary. This remains source/test evidence only: the candidate has not been
+merged or loaded, and one effect-free natural canary with official event/report readback and replay-zero is still
+open. Until those production gates pass, the old production row may still show `entrypoint_exit_1` or the lossy
 `circuit_open / wake_boundary_failed` notification.
+
+The latest candidate commit is `769cdfc22dbc2b0721337551a712a63181e48bf5`. This is still source/test evidence only:
+the old production selector remains loaded, and an accepted main-derived immutable release, one effect-free natural
+canary with official event/report readback, and replay-zero are still open.
+
+### Connector host blockers after the endpoint diagnosis (read-only)
+
+A fresh read-only host probe on `2026-09-25 JST` found only **391,950,336 bytes** free (`df` reports 382,764 KB),
+below the foundation floor of `1,155,780,608` bytes. The loaded production selector remains
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819`, SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`. The launchd error log contains `Errno 28 No space left on device`
+while creating Connector runtime scratch/start events, plus `database is locked`/`control_busy` admission errors.
+These failures can prevent a wake from reaching the browser rail even after CDP resolution is correct. They are a
+separate typed host/admission blocker, not proof of a provider rejection and not permission to retry an unknown
+external effect. Capacity must be restored before the immutable release can be loaded.
 
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
@@ -6183,15 +6210,15 @@ local-foundation-gate.js
 
 The latest read-only snapshot returned 271 status rows; the contract returned 14 catalog loops, 169 registry jobs,
 98 mapped jobs and zero structural errors. That is why the CLI is powerful: it turns many launchd logs into a
-machine-readable failure cursor. It is not yet sufficient when a loop's browser identity is absent or when a nested
-cause is thrown away.
+machine-readable failure cursor. The Connector resolver projection now also closes the former browser-identity gap;
+the richer `status --explain` cause-chain projection remains future work.
 
 The next CLI contract is therefore:
 
 ```text
 ./bin/lm-loop browser resolve connector --json
   -> loop_id, browser_identity, target_owner, profile, derived_endpoint,
-     browser_uuid, process_owner, http_status, websocket_ok, lease_status
+     browser_uuid, process_owner, http_status, websocket_url_valid, lease_status
 ./bin/lm-loop status connector --explain --json
   -> occurrence-bound cause chain, action-history refs, effect/receipt/readback,
      release SHA, next action and whether the counter was counted at that stage
@@ -6334,11 +6361,11 @@ separate Paid fulfillment workstream or its provider sessions/state.
   trajectory, grader and reporting patterns were recorded above. No repository was installed as a production
   dependency.
 - The Connector registry join, profile-owned CDP resolver, identity lease, IPv4/IPv6 collision check, dynamic endpoint
-  projection and resolver-focused tests are implemented on the dedicated branch. The live read-only canary selected
-  `http://[::1]:9222` and released the lease with no provider effect.
-- Contract and focused source tests pass on this branch: Node **39/39**, Python **256 passed + 193 subtests**,
-  `lm-loop-contract` **14 catalog / 169 registry / 98 mapped / 0 errors**, shell syntax/diff checks clean, and the
-  live resolver lease canary acquired `http://[::1]:9222` then released it. Commit `ff4bf7348b` is pushed to
+  projection, read-only resolver CLI and occurrence-bound diagnostic envelope are implemented on the dedicated branch.
+  The live read-only canary selected `http://[::1]:9222` and released the lease with no provider effect.
+- Contract and focused source tests pass on this branch: Node **157/157**, latest resolver/readonly Python **35 passed**
+  (the prior foundation run also recorded **256 passed + 193 subtests**), `lm-loop-contract` **14 catalog / 169
+  registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
   `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
 
 #### Remaining TODO (strict order)
@@ -6350,46 +6377,36 @@ separate Paid fulfillment workstream or its provider sessions/state.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.
-3. **Expose the resolver as a read-only CLI contract.** Implement `lm-loop browser resolve connector --json` and
-   make `lm-loop-contract` validate every browser loop's identity, target owner, effect and readback mapping. Human
-   output must be a rendering of the JSON, not a second source of truth.
-4. **Complete the failure envelope.** Thread occurrence-bound `run_id`, `wake_id`, `occurrence_id`, release SHA,
-   endpoint, phase, command, exit code, nested error class, effect, receipt/readback, evidence refs, retryability and
-   next action through `connector-minimal-runner.js` and `reportWake`. Reject 404 as alive and distinguish
-   `browser_endpoint_unhealthy`/`browser_open_failed` from the outer `wake_boundary_failed` safety state.
-5. **Add the remaining focused Connector regression evals.** Cover wrong listener/404, valid Cloak listener, wrong
-   UUID/owner, Playwright open failure, provider/action failure, report-delivery failure and `not_counted_at_stage`.
-   Assert `effect=none`, no provider receipt and no unsafe retry for pre-effect failures.
-6. **Promote an accepted immutable release and run one non-effect natural canary.** Load only a main-derived immutable
+3. **Promote an accepted immutable release and run one non-effect natural canary.** Load only a main-derived immutable
    release, run one bounded wake, read the exact occurrence/action history/Telegram report, and prove replay-zero. Do
    not clear a fence or claim Connector health from a unit test alone.
-7. **Re-read the shared foundation gate.** Run `lm-loop status all --json`, `lm-loop-contract` and the foundation
+4. **Re-read the shared foundation gate.** Run `lm-loop status all --json`, `lm-loop-contract` and the foundation
    evaluator twice with exact loaded SHA, complete diagnostics, terminal outcome and replay-zero for Connector. Keep
    `uncovered_failure` honest if another owner is still incomplete.
-8. **Reconcile every non-Paid Product Loop.** For each uncovered row, preserve the same occurrence/fence, repair only
+5. **Reconcile every non-Paid Product Loop.** For each uncovered row, preserve the same occurrence/fence, repair only
    through the shared recovery intent, load the exact immutable release, obtain official readback and replay-zero, and
    isolate sibling failures. The Paid-owned Coconala/CrowdWorks/Lancers/Upwork workstream remains read-only here.
-9. **Prove shared self-healing once without Codex live babysitting.** A managed Life Manager wake must detect,
+6. **Prove shared self-healing once without Codex live babysitting.** A managed Life Manager wake must detect,
    classify, select a bounded repair, apply/load, verify official readback and close replay-zero. This is the first
    self-healing acceptance, not a claim that all 14 loops are healed.
-10. **Expand eval-driven development from the current fixtures.** Convert every real failure into a versioned case;
-    freeze a baseline; run deterministic policy/receipt/safety graders first; add held-out/challenge splits, repeated
-    trials and uncertainty; keep the evaluator immutable.
-11. **Build LM-EAB v1 adapters.** Implement one METR-like task-family adapter, one BrowserGym-like interaction adapter,
-    one OSWorld-like isolated desktop adapter and one real-provider receipt adapter. Run the same task contract on
-    local and cloud drivers without importing Life Manager private control-plane code.
-12. **Publish only after independent reproduction.** Add contamination audit, grader calibration, redacted trajectories,
-    score vectors, cost/intervention/credential slices and a reproducible leaderboard. A private 41/41 or 13/13 fixture
-    result is not a public benchmark claim.
-13. **Enable self-improvement for profit.** Candidate changes may alter prompts, skills, offers or routing only inside
-    the candidate boundary; promote only when held-out reliability and live attributable net contribution improve with
-    no safety/evidence regression. Activity, clicks and unrealized gains do not count.
-14. **Enable self-funding.** Join settled revenue to compute/cloud/provider/payout costs; x402 may pay permitted
-    agent-to-agent services but cannot bypass KYC, identity, spend caps or unknown-effect fences. Count self-funding
-    only when settled inflow covers measured cost with CFO readback.
-15. **Scale verified recurring revenue and cloud parity.** After a positive settled cohort, promote the same capsule to
-    isolated always-on cloud workers and retain local/self-hosted parity. USD 10K MRR remains a measured receipt/cost
-    target, not a benchmark score or current fact.
-16. **Expand across domains and models.** Add physical/mental/software/civic tracks with domain safety contracts and
-    independent replication; only then consider training/distilling a Life Manager model. AGI is a future empirical
-    claim, not an assertion derived from economic simulation or one leaderboard.
+7. **Expand eval-driven development from the current fixtures.** Convert every real failure into a versioned case;
+   freeze a baseline; run deterministic policy/receipt/safety graders first; add held-out/challenge splits, repeated
+   trials and uncertainty; keep the evaluator immutable.
+8. **Build LM-EAB v1 adapters.** Implement one METR-like task-family adapter, one BrowserGym-like interaction adapter,
+   one OSWorld-like isolated desktop adapter and one real-provider receipt adapter. Run the same task contract on
+   local and cloud drivers without importing Life Manager private control-plane code.
+9. **Publish only after independent reproduction.** Add contamination audit, grader calibration, redacted trajectories,
+   score vectors, cost/intervention/credential slices and a reproducible leaderboard. A private 41/41 or 13/13 fixture
+   result is not a public benchmark claim.
+10. **Enable self-improvement for profit.** Candidate changes may alter prompts, skills, offers or routing only inside
+   the candidate boundary; promote only when held-out reliability and live attributable net contribution improve with
+   no safety/evidence regression. Activity, clicks and unrealized gains do not count.
+11. **Enable self-funding.** Join settled revenue to compute/cloud/provider/payout costs; x402 may pay permitted
+   agent-to-agent services but cannot bypass KYC, identity, spend caps or unknown-effect fences. Count self-funding
+   only when settled inflow covers measured cost with CFO readback.
+12. **Scale verified recurring revenue and cloud parity.** After a positive settled cohort, promote the same capsule to
+   isolated always-on cloud workers and retain local/self-hosted parity. USD 10K MRR remains a measured receipt/cost
+   target, not a benchmark score or current fact.
+13. **Expand across domains and models.** Add physical/mental/software/civic tracks with domain safety contracts and
+   independent replication; only then consider training/distilling a Life Manager model. AGI is a future empirical
+   claim, not an assertion derived from economic simulation or one leaderboard.
