@@ -4277,6 +4277,17 @@ errors because the host had no usable temporary directory under the same ENOSPC 
 capacity observation, not a code-pass claim. The change is branch-only, with no production mutation, effect-fence
 clear, provider action, or revenue claim.
 
+The latest natural disk-governor receipt at `2026-09-25T05:25:55Z` (14:25:55
+JST) evaluated 5 allowlisted candidates, preserved all 5 because they were
+`open`, reclaimed `0` bytes, recorded `0` errors and `0` protected deletions,
+and reported `free_after=417280000` bytes. A fresh filesystem read after that
+receipt reported `386994176` free bytes. Both readings are below the required
+`1155780608`-byte producer floor. No unknown worktree, active browser process,
+or Paid-owned state was deleted. Consequently the next production operation
+is not waiting for permission: it is waiting for a safe, independently
+verified capacity recovery (or a recoverable external state change) before an
+immutable-release promotion can be attempted.
+
 ### Latest launchd preflight receipt boundary (2026-09-25 JST)
 
 The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
