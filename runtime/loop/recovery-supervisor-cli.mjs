@@ -30,10 +30,12 @@ function parseArgs(args) {
 
 /**
  * A queued result is a safe bounded wait, not a failed supervisor entrypoint.
+ * An intent from an older release is superseded by that promotion, not a failure.
  * Keep hard terminal failures non-zero so launchd still surfaces them.
  */
 export function supervisorExitCode(result) {
   if (result?.ok === true || result?.state === 'queued') return 0;
+  if (result?.state === 'blocked' && result?.reason === 'release_sha_mismatch') return 0;
   return 1;
 }
 
