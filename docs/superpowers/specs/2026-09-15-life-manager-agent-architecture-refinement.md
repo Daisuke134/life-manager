@@ -6561,6 +6561,19 @@ but no production mutation was made because the separate foundation acceptance g
 failures and the loaded Connector is the old release. Capacity can therefore be rechecked immediately; it is not a
 reason to pause source diagnosis or tests.
 
+### Ownership readback (2026-09-25 15:11 JST)
+
+The owner has explicitly delegated the remaining technical work. The current boundary is therefore not an authorization
+wait: `lm-loop doctor --json` is **OK** (`169` registry entries, missing `0`, unmanaged `0`), and the latest host probe
+observes `2,609,774,592` free bytes, **1,453,993,984** above the floor. The production selector is still
+`/Users/anicca/loops/current -> /Users/anicca/loops/releases/20260925T031007-d4fe0819`, and the loaded Connector
+status remains `entrypoint_exit_1` on that old release with next action `reconcile_owner`; the candidate Healer fix is
+not loaded. A fresh `status all --json` plus `local-foundation-gate.js` still returns
+`healthy=0 / safely_fenced=1 / uncovered_failure=13` and decision `block` for `runtime_release_drift`,
+`runtime_terminal_not_pass` and incomplete diagnostics. The next cursor is to keep repairing and proving the candidate
+from the dedicated branch, then satisfy the foundation acceptance before any main merge or immutable production load;
+permission is not the blocker.
+
 #### Fresh capacity and foundation reread after the external host change (2026-09-25 15:01 JST)
 
 The owner-controlled disk governor was run once after the read-only probe observed the host's free space rise. Its
