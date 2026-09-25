@@ -6533,6 +6533,34 @@ production, does not change the admission DB or effect fences, and does not lowe
 production step remains one owner-aware rebind after the floor gate and normal main-derived immutable-release
 acceptance.
 
+### Connector Healer dependency-bundle compatibility repair (2026-09-25 15:09 JST)
+
+The Connector suite exposed a second, independent failure boundary after the latest-main merge. All six Healer-shadow
+cases failed before the bounded Codex invocation with `Connector Healer shadow invalid` at
+`prepareWorktreeDependencies`: the implementation required `apps/life-manager/node_modules` to be a real directory.
+That assumption is obsolete. The loaded immutable release uses a symlink to a content-addressed bundle:
+`/Users/anicca/loops/releases/20260925T031007-d4fe0819/apps/life-manager/node_modules` resolves to
+`/Users/anicca/loops/dependency-bundles/npm-ed19e0c4b5b66f173b035233e7936533af9454cfbed08e3d3d6fb7a3ca94a438/node_modules`,
+which contains both `.package-lock.json` and the parent `.complete` seal.
+
+Candidate commit `f2c2091806` now accepts either a regular dependency directory or a symlink whose resolved target is
+exactly one `npm-* / node_modules` below the release's sibling `dependency-bundles` root and has both immutable-bundle
+markers. The worktree link is still required to resolve to the same target; a bundle-external or malformed symlink
+fails closed before Codex starts. The tests no longer depend on an accidentally installed checkout dependency tree:
+they construct a production-shaped sealed bundle fixture and include an explicit outside-bundle rejection case.
+Focused Healer tests pass **7/7** and the full Connector Node suite passes **59/59**. This is source/test evidence only;
+it has not been merged to main, cut into an immutable release, loaded, or natural-canary verified.
+
+### Capacity-floor clarification (2026-09-25 15:09 JST)
+
+“Capacity-floor wait” means a storage safety gate, not a permission gate. A release cut or rollback is deferred when
+free bytes are below **1,155,780,608** because the operation needs room for an immutable release, dependency-bundle
+links, logs and rollback state. Dais's authorization is already present; it does not override this mechanical safety
+condition. The latest read-only host probe observed **2,559,688,704 bytes** free (**1,403,908,096** above the floor),
+but no production mutation was made because the separate foundation acceptance gate still reports thirteen uncovered
+failures and the loaded Connector is the old release. Capacity can therefore be rechecked immediately; it is not a
+reason to pause source diagnosis or tests.
+
 #### Fresh capacity and foundation reread after the external host change (2026-09-25 15:01 JST)
 
 The owner-controlled disk governor was run once after the read-only probe observed the host's free space rise. Its
