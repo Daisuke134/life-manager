@@ -4310,6 +4310,16 @@ wake pointing at missing source. The capacity cursor is consequently
 owner-by-owner rebind (or external capacity recovery), not blind release
 deletion.
 
+The first bounded capacity-recovery candidate was `effect-watch`: it is
+non-Paid, `effect_class=none`, loaded-idle, its old `c2c1486f…` release is the
+only plist reference, and that commit is an ancestor of current `d4fe0819…`.
+Both the normal deterministic reconcile and the explicitly targeted apply
+returned `skipped_pending` and left the plist unchanged. Read-only admission
+inspection shows one queued occurrence and a legacy priority row without the
+`resource_class`/`admission_class` fields needed for a safe rebind. This is a
+typed shared-kernel migration boundary, not permission denial and not license
+to bypass the admission fence by editing the plist directly.
+
 ### Latest launchd preflight receipt boundary (2026-09-25 JST)
 
 The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
