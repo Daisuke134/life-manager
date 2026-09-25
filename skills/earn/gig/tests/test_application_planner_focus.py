@@ -98,6 +98,96 @@ def test_hard_prohibited_evidence_still_rejects_unrelated_visible_text():
     assert "decision[0]_hard_prohibited_evidence_not_in_visible_text" in errors
 
 
+def test_boundary_only_hard_prohibited_evidence_repair_uses_exact_page_text():
+    planner = load_planner()
+    snapshot = _hard_prohibited_snapshot(
+        "募集内容\nCodexを前提としてレクチャー可能な方を希望しています。\n"
+        "・画面共有をしながらレクチャー可能な方"
+    )
+    decision = {
+        "request_id": "5268696",
+        "business_class": "hard_prohibited",
+        "reason_codes": [
+            "mandatory_human_presence",
+            "画面共有をしながらレクチャー可能な方を希望しています。",
+        ],
+        "proposal_text": None,
+        "price_jpy": None,
+        "deliver_date": None,
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }
+
+    repaired, repairs = planner.repair_hard_prohibited_evidence(
+        snapshot, {"decisions": [decision]}
+    )
+
+    assert repaired["decisions"][0]["business_class"] == "hard_prohibited"
+    assert repaired["decisions"][0]["reason_codes"][1] == (
+        "画面共有をしながらレクチャー可能な方"
+    )
+    assert repairs[0]["method"] == "visible_line_common_substring"
+    assert planner.validate_decisions(snapshot, repaired, require_complete=True) == []
+
+
+def test_boundary_only_repair_keeps_specific_model_line_over_a_shared_suffix():
+    planner = load_planner()
+    snapshot = _hard_prohibited_snapshot(
+        "募集内容\nLive2D Cubism Editor 5.3を使用した、Live2Dモデルのリギングをお願いしたいです。"
+    )
+    decision = {
+        "request_id": "5268696",
+        "business_class": "hard_prohibited",
+        "reason_codes": [
+            "original_illustration_or_modelling",
+            "Live2Dモデルのリギング（モデリング）をお願いしたいです。",
+        ],
+        "proposal_text": None,
+        "price_jpy": None,
+        "deliver_date": None,
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }
+
+    repaired, repairs = planner.repair_hard_prohibited_evidence(
+        snapshot, {"decisions": [decision]}
+    )
+
+    assert repaired["decisions"][0]["reason_codes"][1] == "Live2Dモデルのリギング"
+    assert repairs[0]["method"] == "visible_line_common_substring"
+
+
+def test_hard_prohibited_evidence_repair_rejects_a_paraphrase():
+    planner = load_planner()
+    snapshot = _hard_prohibited_snapshot("募集内容\n画面共有で説明できます")
+    decision = {
+        "request_id": "5268696",
+        "business_class": "hard_prohibited",
+        "reason_codes": [
+            "mandatory_human_presence",
+            "画面共有をしながらレクチャー可能な方を希望しています。",
+        ],
+        "proposal_text": None,
+        "price_jpy": None,
+        "deliver_date": None,
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }
+
+    repaired, repairs = planner.repair_hard_prohibited_evidence(
+        snapshot, {"decisions": [decision]}
+    )
+
+    assert repaired["decisions"][0]["reason_codes"][1] == decision["reason_codes"][1]
+    assert repairs == []
+
+
 def test_prompt_prioritizes_async_strengths_and_rejects_operational_labor():
     planner = load_planner()
 
@@ -146,7 +236,7 @@ def test_policy_change_invalidates_coconala_decision_caches():
         encoding="utf-8"
     )
     assert "INELIGIBLE_CACHE_VERSION = 3" in source
-    assert "PLANNER_CACHE_VERSION = 4" in source
+    assert "PLANNER_CACHE_VERSION = 5" in source
 
 
 def test_coconala_prompt_scopes_music_boundary_and_preserves_other_prohibitions():

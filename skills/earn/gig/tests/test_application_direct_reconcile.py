@@ -303,6 +303,57 @@ def test_official_readback_has_authenticated_detail_fetch_fallback():
     assert "_valid_applied_history_fetch" in source
 
 
+def test_official_readback_recycles_once_after_access_denied(tmp_path, monkeypatch):
+    effects = application_parent.CdpParentEffects(
+        ws_url="ws://initial",
+        evidence_dir=tmp_path / "evidence",
+        ledger_path=tmp_path / "applied.jsonl",
+        pass_id="pass",
+    )
+    calls = []
+
+    async def fake_readback(*args, **kwargs):
+        calls.append((effects.ws_url, kwargs.get("start_url")))
+        if len(calls) == 1:
+            error = application_parent.ParentContractError("official_readback_access_denied")
+            error.readback_resume_url = (
+                "https://www.coconala.com/mypage/job_matching/applied/offers?page=22"
+            )
+            error.readback_observed_ids = ["111"]
+            raise error
+        return (
+            {
+                "source": "code_owned_cdp_readback",
+                "request_ids": ["5280157"],
+                "expected_ids": ["111", "5280157"],
+                "observed": True,
+                "not_found": False,
+            },
+            b"screenshot",
+        )
+
+    monkeypatch.setattr(effects, "_official_readback_async", fake_readback)
+
+    effects.ws_recycler = lambda: "ws://fresh"
+
+    observed = effects._official_readback(
+        {"111", "5280157"}, tmp_path / "evidence" / "readback.json"
+    )
+
+    assert observed == {"111", "5280157"}
+    assert calls == [
+        ("ws://initial", None),
+        (
+            "ws://fresh",
+            "https://www.coconala.com/mypage/job_matching/applied/offers?page=22",
+        ),
+    ]
+    payload = json.loads(
+        (tmp_path / "evidence" / "readback.json").read_text(encoding="utf-8")
+    )
+    assert payload["request_ids"] == ["111", "5280157"]
+
+
 def test_official_history_403_has_same_origin_fetch_fallback():
     expression = application_parent._applied_history_fetch_expression(
         "https://www.coconala.com/mypage/job_matching/applied/offers?page=21"

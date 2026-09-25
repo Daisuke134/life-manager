@@ -33,7 +33,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import application_effect_fence as fence
 import gig_disk_guard
 import application_snapshot as snapshot_contract
-from application_planner import bind_retainer_terms_from_snapshot, validate_decisions
+from application_planner import (
+    bind_retainer_terms_from_snapshot,
+    repair_hard_prohibited_evidence,
+    validate_decisions,
+)
 from coconala_applied_readback import (
     RETAINER_APPLIED_URL,
     _wait_for_retainer_page,
@@ -643,6 +647,8 @@ class ParentEffects(Protocol):
 
     def preflight_submit(self, request_id: str) -> None: ...
 
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]: ...
+
     def click_submit(self, request_id: str) -> None: ...
 
     def authoritative_exact_id_readback(self, request_id: str) -> bool: ...
@@ -669,6 +675,54 @@ def _page_index(url: str) -> int:
     if len(pages) != 1 or re.fullmatch(r"[1-9][0-9]*", pages[0]) is None:
         raise ParentContractError("source_page_index_invalid")
     return int(pages[0])
+
+
+_COCONALA_USER_PATH = re.compile(r"^/users/(\d+)$")
+
+
+def _validated_authenticated_identity(
+    request_id: str, raw: object,
+) -> dict[str, object]:
+    """Validate the seller identity read from the authenticated Coconala page.
+
+    This is deliberately a small, local proof.  It does not infer an account from an
+    avatar or a display name: the provider-owned profile URL must be present in the
+    authenticated page DOM and must contain one numeric user id.
+    """
+    if not isinstance(raw, dict):
+        raise ParentContractError("authenticated_identity_readback_invalid")
+    path = str(raw.get("own_user_path") or "")
+    match = _COCONALA_USER_PATH.fullmatch(path)
+    if match is None:
+        error = ParentContractError("authenticated_identity_readback_missing")
+        error.observed = {
+            "url": str(raw.get("url") or "")[:300],
+            "title": str(raw.get("title") or "")[:150],
+            "own_user_path": path[:200],
+            "candidate_user_paths": raw.get("candidate_user_paths"),
+        }
+        raise error
+    page_url = str(raw.get("url") or "")
+    if not page_url.startswith("https://coconala.com/") and not page_url.startswith(
+        "https://www.coconala.com/"
+    ):
+        raise ParentContractError("authenticated_identity_provider_route_invalid")
+    return {
+        "source": "code_owned_cdp_authenticated_identity",
+        "provider": "coconala",
+        "request_id": str(request_id),
+        "account_id": match.group(1),
+        "profile_url": f"https://coconala.com{path}",
+        "profile_path": path,
+        "page_url": page_url[:300],
+        "page_title": str(raw.get("title") or "")[:150],
+        "selection": str(raw.get("selection") or "")[:80],
+        "candidate_user_paths": [
+            str(value)[:100] for value in (raw.get("candidate_user_paths") or [])
+            if isinstance(value, str)
+        ][:32],
+        "observed_at": _utc_now(),
+    }
 
 
 def _is_expected_offer_form_url(request_id: str, url: object) -> bool:
@@ -1063,9 +1117,12 @@ class CdpParentEffects:
         """
         if not callable(self.ws_recycler):
             return False
-        self._release_target_lock()
+        had_target_lock = self._target_lock_handle is not None
+        if had_target_lock:
+            self._release_target_lock()
         self.ws_url = str(self.ws_recycler())
-        self._acquire_target_lock()
+        if had_target_lock:
+            self._acquire_target_lock()
         return True
 
     @contextlib.contextmanager
@@ -1521,6 +1578,41 @@ class CdpParentEffects:
         self._fresh_details[request_id] = detail
         self._persist_retainer_title(request_id, detail)
         return detail
+
+    async def _authenticated_identity_async(self) -> dict[str, object]:
+        """Read the authenticated seller profile link without navigating or mutating."""
+        expression = r'''JSON.stringify((()=>{
+          const path=a=>{try{
+            const u=new URL(a.href,location.origin);
+            return u.origin==='https://coconala.com'&&/^\/users\/\d+$/.test(u.pathname)
+              ?u.pathname:null;
+          }catch(_){return null}};
+          const links=[...document.querySelectorAll('a[href]')]
+            .map(a=>({node:a,path:path(a)})).filter(x=>x.path);
+          const sidebar=links.find(x=>x.node.closest('.sidebar-profile'));
+          const header=links.find(x=>x.node.closest('header,nav,[class*="header"],[class*="Header"]'));
+          const selected=sidebar||header;
+          return {
+            url:location.href,title:document.title,
+            own_user_path:selected?.path||null,
+            selection:sidebar?'sidebar-profile':(header?'header':'none'),
+            candidate_user_paths:[...new Set(links.map(x=>x.path))].slice(0,32)
+          };
+        })())'''
+        async with await _cdp_connect(self.ws_url) as ws:
+            call_id = 1
+            await self._call(ws, "Page.enable", {}, call_id)
+            state, _ = await self._eval_json(ws, expression, call_id + 1)
+        return state
+
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
+        """Persist the seller identity before the irreversible submit marker."""
+        identity = _validated_authenticated_identity(
+            request_id, asyncio.run(self._authenticated_identity_async())
+        )
+        path = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-identity.json"
+        _atomic_json(path, {**identity, "evidence_path": str(path.resolve())})
+        return {**identity, "evidence_path": str(path.resolve())}
 
     async def _form_state_async(
         self, request_id: str, *, navigate: bool
@@ -2265,7 +2357,10 @@ class CdpParentEffects:
                         resumable_access_denied = pages_walked == 0
                         break
                     if page.get("access_denied") is True:
-                        raise ParentContractError("official_readback_access_denied")
+                        error = ParentContractError("official_readback_access_denied")
+                        error.readback_resume_url = str(page.get("url") or "")
+                        error.readback_observed_ids = sorted(observed)
+                        raise error
                     raise ParentContractError("official_readback_route_invalid")
                 if first_page is None:
                     first_screenshot, call_id = await self._screenshot(ws, call_id)
@@ -2310,7 +2405,10 @@ class CdpParentEffects:
                                 raise
                             raise ReadbackScanTimeout(str(fetch_error)) from fetch_error
                         if detail.get("access_denied") is True:
-                            raise ParentContractError("official_readback_access_denied")
+                            error = ParentContractError("official_readback_access_denied")
+                            error.readback_resume_url = str(page.get("url") or "")
+                            error.readback_observed_ids = sorted(observed)
+                            raise error
                         if detail.get("not_found") is True:
                             raise ParentContractError("official_readback_offer_detail_not_found")
                         if detail.get("status") != 200:
@@ -2427,15 +2525,52 @@ class CdpParentEffects:
         *, include_retainer_history: bool = False,
         start_url: str | None = None, allow_truncated: bool = False,
     ) -> set[str]:
-        payload, screenshot = asyncio.run(
-            self._official_readback_async(
+        async def readback(readback_start_url: str | None) -> tuple[dict[str, object], bytes]:
+            return await self._official_readback_async(
                 expected_ids,
                 max_pages=max_pages,
                 include_retainer_history=include_retainer_history,
-                start_url=start_url,
+                start_url=readback_start_url,
                 allow_truncated=allow_truncated,
             )
-        )
+
+        try:
+            payload, screenshot = asyncio.run(readback(start_url))
+        except ParentContractError as error:
+            # A later history page can be denied by the provider while a fresh leased
+            # context succeeds. Recycle only the readback target, once; never retry a
+            # submission or resolve an effect fence from this transport recovery.
+            if str(error) != "official_readback_access_denied":
+                raise
+            if not self.recover_wedged_target():
+                raise
+            resume_url = getattr(error, "readback_resume_url", None)
+            retry_start_url = (
+                str(resume_url)
+                if isinstance(resume_url, str) and _valid_applied_history_start_url(resume_url)
+                else start_url
+            )
+            payload, screenshot = asyncio.run(readback(retry_start_url))
+            prefix_ids = {
+                str(value) for value in (getattr(error, "readback_observed_ids", []) or [])
+                if str(value).isdigit() or _is_retainer_request(value)
+            }
+            if prefix_ids:
+                observed_ids = {
+                    str(value) for value in (payload.get("request_ids") or [])
+                    if str(value).isdigit() or _is_retainer_request(value)
+                }
+                combined_ids = prefix_ids | observed_ids
+                sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
+                payload["request_ids"] = sorted(combined_ids, key=sort_key)
+                expected_payload_ids = {
+                    str(value) for value in (payload.get("expected_ids") or expected_ids)
+                    if str(value).isdigit() or _is_retainer_request(value)
+                }
+                payload["applied_page_absent_request_ids"] = sorted(
+                    expected_payload_ids - combined_ids, key=sort_key
+                )
+                payload["missing_count"] = len(expected_payload_ids - combined_ids)
         screenshot_path = path.with_suffix(".png")
         _atomic_bytes(screenshot_path, screenshot)
         payload["screenshot_path"] = str(screenshot_path.resolve())
@@ -3647,6 +3782,15 @@ def commit_decisions(
                         submit_attempts += 1
                     phase = "submit_preflight"
                     effects.preflight_submit(request_id)
+                    phase = "authenticated_identity_capture"
+                    capture_identity = getattr(effects, "capture_authenticated_identity", None)
+                    if not callable(capture_identity):
+                        raise ParentContractError("authenticated_identity_capture_unavailable")
+                    # This is read-only provider identity evidence.  It is persisted before
+                    # the irreversible marker so a later complete-history absence can be
+                    # bound to the exact authenticated account rather than to an avatar,
+                    # display name, or whichever account happens to be logged in later.
+                    capture_identity(request_id)
                     phase = "irreversible_attempt_marker"
                     intent = store.mark_irreversible_attempt_started_locked(
                         request_id, expected_cas=intent["cas"]
@@ -3975,6 +4119,18 @@ class FixtureEffects:
     def preflight_submit(self, request_id: str) -> None:
         return None
 
+    def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
+        raw = self.fixture.get("authenticated_identity")
+        if not isinstance(raw, dict):
+            raw = {
+                "url": "https://coconala.com/offers/add/" + str(request_id),
+                "title": "応募する",
+                "own_user_path": "/users/12345",
+                "selection": "fixture",
+                "candidate_user_paths": ["/users/12345"],
+            }
+        return _validated_authenticated_identity(request_id, raw)
+
     def click_submit(self, request_id: str) -> None:
         self.click_count += 1
 
@@ -4069,7 +4225,7 @@ def default_planner_cache_path() -> Path:
 # answers were available to the planner. Keeping version 1 would suppress a
 # corrected request for seven days after the planner policy changed.
 INELIGIBLE_CACHE_VERSION = 3
-PLANNER_CACHE_VERSION = 4
+PLANNER_CACHE_VERSION = 5
 INELIGIBLE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 def default_ineligible_cache_path() -> Path:
@@ -4374,7 +4530,8 @@ def _planner_subsnapshot(
 
 
 def _degrade_id_mismatch(
-    snapshot: dict[str, object], decisions: dict[str, object], *, allow_empty: bool = False
+    snapshot: dict[str, object], decisions: dict[str, object], *, allow_empty: bool = False,
+    evidence_dir: Path | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     """Keep only independently valid rows; report every other expected ID as missing.
 
@@ -4387,6 +4544,17 @@ def _degrade_id_mismatch(
     """
     if not isinstance(decisions, dict) or not isinstance(decisions.get("decisions"), list):
         raise ParentContractError("application_intent_planner_contract:decisions_must_be_array")
+    decisions, evidence_repairs = repair_hard_prohibited_evidence(snapshot, decisions)
+    if evidence_dir is not None:
+        _atomic_json(
+            evidence_dir / "planner-evidence-repairs.json",
+            {
+                "version": 1,
+                "pass_id": snapshot.get("pass_id"),
+                "snapshot_sha256": snapshot.get("snapshot_sha256"),
+                "repairs": evidence_repairs,
+            },
+        )
     expected_ids = {str(item["request_id"]) for item in snapshot["request_details"]}
     rows = decisions["decisions"]
     id_counts: dict[str, int] = {}
@@ -4492,7 +4660,9 @@ def _invoke_isolated_planner_once(
     decisions = bind_retainer_terms_from_snapshot(
         snapshot, _read_json_object(result_path, "planner_decisions")
     )
-    return _degrade_id_mismatch(snapshot, decisions, allow_empty=True)
+    return _degrade_id_mismatch(
+        snapshot, decisions, allow_empty=True, evidence_dir=evidence_dir,
+    )
 
 
 def invoke_isolated_planner(

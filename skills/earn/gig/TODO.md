@@ -1,14 +1,151 @@
 # Gig revenue program — current execution SSOT
 
-## Current cursor — 2026-09-24 19:28 JST
+## Current cursor — 2026-09-25 02:55 JST (live platform-by-platform gate)
 
-- [ ] **Coconala Apply/Storefront are not complete.** The installed owners are
-  still on older immutable releases and the Apply occurrence
-  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` for request `5280157` remains
-  `claimed/effect_unknown=1`. A fresh official readback on release
-  `86bd68bf7b9c3819c0a44f848e861372af9eff54` reached page 22 and received
-  `403 Forbidden` from both navigation and same-origin fetch, so absence is
-  still unproven.
+This section supersedes earlier summaries that described a registered owner as
+"running" without a current launchd readback. A source registry row is not a
+live loop. The required order for Freelancer and Upwork is now explicit:
+authenticated account → official funded-work readback → owner registration →
+zero-effect canary → funded canary → official settlement/readback → replay-zero.
+No provider send is allowed before all preceding gates pass.
+
+| Platform | Authentication/readback | Funded work | Actual loop state | Immediate TODO |
+|---|---|---|---|---|
+| Coconala | Authenticated public inventory readback: 20 live listings. Paid wake `effect=0`, `exit=0`; Ryu is manual-only and already read back. | Client work is split by room; no new Ryu event is eligible. | Paid owner is loaded-idle and safe. Apply still carries the historical `5280157` effect-unknown/durable fence. Storefront is loaded-idle but blocked by `resource_effect_unknown`; its old production release is `1c11bda3`. | Resolve the exact Storefront occurrence from provider/no-dispatch proof, then natural wake, official readback, replay-zero. Keep Ryu closed and do not resend. |
+| CrowdWorks (CloudWorks) | Existing provider state is readable. | `63568785` is pending buyer lesson/answer material; four rows are completed with official readback. | `paid-latest.json`: `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `pending=1`; however `ai.anicca.crowdworks-revenue-paid` is actually **unloaded**, with an old `entrypoint_exit_143` effect-unknown fence. | Reconcile that exact paid occurrence only with an admissible pre-effect marker/readback; then load one owner and prove a natural no-op. Do not send the pending item without buyer material. |
+| Lancers | Authenticated preflight passes; source-complete inventory has no contract candidate and zero balance. | `paid-latest.json` is `observed=0/actionable=0/effect=0`; job `5606124` was fail-closed as `unsupported_claim`, with no application. | `ai.anicca.lancers-revenue-paid` is **unloaded** and fenced by old `entrypoint_exit_143`; the application owner is loaded-idle. | Reconcile the exact paid occurrence, refresh official inventory, and only then load Paid. A real funded ContractReceipt is required before formal delivery. |
+| Mercor | Official browser readback is authenticated; earnings readback is `$0.00`/empty. | Saved assessment is incomplete/stale; no current funded work is proven. | Paid owner is loaded-idle but blocked by `host_admission_deferred:resource_effect_unknown`. | Refresh official work inventory and resolve the exact application/Paid/Reply fences before any effect. |
+| Freelancer.com | No OAuth file, no approved account-bound receipts, and no authenticated inventory. Bid watcher only sees four `closed_expired` projects (`40620700`, `40620877`, `40620839`, `40620523`). | None proven. | Registry labels are disabled/external labels; no managed owner is loaded. | Obtain fresh account-bound authorization and official identity/projects/milestones/payments/payouts readback. Only a positive funded project can open owner registration. |
+| Upwork | Read-only authenticated account readback exists. Current official contract snapshot is source-complete but `contracts=[]`; transactions/withdrawals are empty. There are 3 invites, 1 active proposal, and 7 submitted proposals, but no funded contract. Read-only receipts are time-limited; mutation actions remain denied. | `funded_contract_count=0`. | Retired browser/free-loop labels are disabled; no current Upwork Paid owner is registered or loaded. | Renew the effect authorization for search/propose/message/offer/delivery, obtain a real funded contract and official milestone readback, then register and verify the owner. |
+
+Host note: the disk guard has repeatedly hit `ENOSPC` while writing receipts/SQLite
+(`free_before` reached 308–473 MiB). The allowlisted cleanup ran without protected
+deletions but reclaimed 0 bytes because its five candidates were open. Current free
+space is about 1.3 GiB; this is a host-health blocker, not proof of any provider
+effect.
+
+### Remaining TODO from this cursor
+
+1. Keep all provider effect fences closed; reconcile only exact occurrences with
+   provider-owned evidence.
+2. Coconala: resolve Storefront and the separate Apply historical fence; then
+   natural wake/readback/replay-zero and close the four-room system gate.
+3. CrowdWorks and Lancers: reconcile their stale `entrypoint_exit_143` Paid
+   occurrences, verify the exact loaded SHA/argv, and run a no-effect natural
+   wake. Their existing pending/zero-funded items do not authorize a send.
+4. Mercor: refresh the stale authenticated inventory and reconcile every exact
+   `resource_effect_unknown` occurrence before any new action.
+5. Freelancer: complete authentication and source-complete funded-project
+   readback; then add the managed owner and canaries.
+6. Upwork: renew the expired/denied mutation authorization, obtain a funded
+   milestone, register the Paid owner, and prove delivery/payment/payout and
+   replay-zero.
+7. Run fleet acceptance only after each platform has its own live owner,
+   authorization, funded-work proof where applicable, official receipt/readback,
+   settlement evidence, and duplicate-zero proof.
+
+## Current cursor — 2026-09-25 01:41 JST (all-platform live-gate detail)
+
+- [x] Re-read the current paid-owner state for every platform without issuing a
+  provider effect. Source readiness, loop registration, authentication, and
+  funded-work evidence are recorded separately below.
+- [x] Coconala Ryu request `5280157` is locally converged as
+  `released/effect_unknown=0` with its intent archived `retired_absent`; this
+  proves no-dispatch, not delivery. Ryu remains manual-only for any genuinely
+  newer buyer event. Apply and Storefront still have separate acceptance gates.
+- [x] CrowdWorks Paid is registered and running safely: `observed=5`,
+  `actionable=1`, `effect=0`, `readback=4`, `pending=1`. Only work `63568785`
+  remains, waiting for admissible buyer lesson/answer material; the four
+  completed rows need no resend.
+- [x] Lancers Paid is registered and returns a verified zero-funded no-op:
+  `observed=0`, no actionable ContractReceipt, and no effect. Public listing
+  `5606124` was recorded as `unsupported_claim`; it does not authorize apply.
+- [x] Mercor Paid is registered but pending: the official work inventory is
+  stale, and the saved assessment is `2/3` with final submission unobserved.
+- [x] Freelancer is source-ready only. The registry contains the three
+  `ai.anicca.freelancer-*` labels as external labels, not managed owners; no
+  OAuth, approved receipts, authenticated inventory, funded project, or loop
+  registration exists.
+- [x] Upwork is source-ready only. The old
+  `ai.anicca.life-manager-upwork-browser` and `...-free-loop` labels are
+  retired; no current Paid owner is registered. OAuth is absent, all eight
+  stored action receipts are denied, and the historical inventory has zero
+  active contracts/funded milestones.
+- [ ] Next cursor: keep source gates in place, then obtain fresh account-bound
+  Freelancer/Upwork authorization and official funded-work readback. Only
+  after that evidence may the corresponding managed owner be registered,
+  followed by zero-spend and funded canaries with official receipts and
+  replay-zero. No provider send is authorized before those gates.
+- [x] PR `#5854` source verification is green: Python syntax/unit tests, loop
+  control contracts, gitleaks/TruffleHog, shell syntax, and repository-boundary
+  checks all passed. This validates the branch only; it does not create live
+  Freelancer/Upwork authentication or a funded contract.
+- [x] Added the first official-response normalization boundary for Freelancer:
+  complete success envelopes, numeric account identity, project/milestone/IP
+  coverage, hourly/payment/payout presence, bidder binding, explicit currency
+  precision, and milestone-to-canonical-contract mapping are all fail-closed.
+  The transport accepts this bundle only with explicit observation metadata and
+  a caller-supplied currency minor-unit policy; focused readiness/transport
+  tests pass (`50`). This remains source/readback work, not live auth or owner
+  registration.
+
+## Current cursor — 2026-09-24 23:20 JST
+
+- [x] Complete the same-process Coconala Apply natural wake without a restart.
+  Occurrence `hf-gig-apply-direct:18d847143eeffb48-86093` reached the terminal
+  report at `2026-09-24T14:18:53Z`. The official run observed 129 postings,
+  judged 11, selected 0, sent 0, and read back 0; 85 were hard-prohibited,
+  42 were already applied, and 75 were cached ineligible. The provider
+  mutation surface stayed untouched.
+- [x] Verify the terminal safety artifacts for that wake: `b2-gate-result-refresh`
+  is `ok=true`, the parent commit contains no submit decision, and the
+  official applied-history page contains no `5280157` in the observed page.
+  This is a terminal safe no-op, not customer-delivery acceptance.
+- [ ] Keep Apply acceptance open because the run still reports
+  `failed=1` (`5266371=planner_missing_request_id`) and one durable prepared
+  intent (`5280157=prepared_unconfirmed`). The branch now repairs only a
+  boundary-safe exact visible-text substring for the planner evidence and
+  persists a secret-free repair artifact; production has not loaded it yet.
+  Reconcile the old intent and run a fresh natural wake after promotion.
+- [x] Add the first Freelancer onboarding gate. The new provider-neutral
+  capability entry and `freelancer_readiness.py` require fresh approved
+  receipts for search/inspect/propose/message/offer/deliver/payments/payouts,
+  a source-complete authenticated inventory, and at least one official
+  `state=funded` contract before an effect intent can be built. The gate is
+  read-only and does not register a loop or contact Freelancer.
+- [ ] Connect the gate to a real authenticated Freelancer inventory adapter;
+  the branch now has an account-bound readback seam that refuses to call its
+  injected transport without fresh `inspect`, `read_payments`, and
+  `read_payouts` receipts; only then add the disabled-by-default
+  Apply/Reply/Paid/work-sync owners.
+- [x] Add the equivalent Upwork Paid-owner gate around the existing provider
+  modules. It requires fresh approved receipts for all eight Upwork actions,
+  a source-complete authenticated contract snapshot, and a positive funded
+  milestone before any contract-bound effect intent is created; it also has a
+  duplicate-zero check and never opens CDP or sends a provider action.
+- [ ] Refresh Upwork identity/authorization and build the live contract
+  snapshot adapter; the branch now has the same account-bound readback seam,
+  but current private receipts remain denied and the stored inventory has zero
+  active contracts, so no owner registration is allowed.
+
+- [x] Perform the historical-session continuity audit without touching the
+  provider or admission DB. The production launch configuration points to the
+  Gig vault `gig-daily-driver`; its retained
+  `auth-state` backups begin on 2026-09-23, so no 2026-09-20 account binding
+  exists. The current cookie/session continuity is only a candidate signal,
+  not provider proof, and cannot resolve the old `5280157` fence.
+- [x] Reconfirm the cross-platform wait boundary: CrowdWorks remains
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`, with `63568785`
+  waiting for admissible buyer lesson/answer material after the existing
+  on-platform request; no external-form or LINE action is allowed.
+
+- [x] **Coconala Apply's stale zero-effect fence was reconciled.** A read-only
+  official-history check confirmed request `5280157` is absent from the complete
+  roster, and the exact admission row now reads `released/effect_unknown=0`.
+  The recovery runner did not submit or retry the provider. Its recovered
+  `application_parent.py` remained nonterminal with no qualifying action, so
+  Apply is not yet accepted as a clean natural wake; issue `#5855` records that
+  boundary. Storefront remains a separate `claimed/effect_unknown=1` blocker.
 - [x] Add the branch-only page-20 resumable readback path and the bounded,
   same-origin detail-fetch fallback. Both paths are read-only and keep the
   fence closed on denied, incomplete, or non-200 history.
@@ -19,9 +156,35 @@
 - [x] Build and register the occurrence-scoped Coconala reconciler. It selects
   only one unambiguous target and cannot clear the admission DB, infer no-effect
   from exit status, or release a fence without exact official proof.
-- [ ] Load the current release only after the occurrence fence is resolved;
-  then verify natural Apply/Storefront wakes, complete official readback, and
-  replay-zero. The targeted apply is currently refused by the safety guard.
+- [x] Add the separate historical-account-bound no-dispatch resolver. It
+  requires the same-pass sibling receipt, exact historical account identity,
+  complete target roster, and explicit absence; provider positive receipts and
+  pre-effect proofs remain separate proof types. Focused recovery/admission
+  tests and the full runtime-loop suite pass.
+- [x] Add a bounded readback-only fresh-lease recovery for the sequential-session
+  WAF/403 boundary. Source commit `eb28f8df24` retries only
+  `official_readback_access_denied` once, wires the occurrence reconciler to the
+  lease recycler, and leaves provider-send/effect-fence logic unchanged.
+- [x] Extend the recovery to resume at the denied history page and retain the
+  verified prefix. Live read-only reconcile with `17b8794d15` produced two
+  official `page=22 / 403 Forbidden` artifacts (initial attempt and fresh-lease
+  resume); the result stayed unresolved without touching the fence.
+- [x] Re-read the official request detail for `5280157` and expand its complete
+  applicant roster: 9 rows, 0 contracts, and no current authenticated account
+  `2564121`. This is a strong no-dispatch candidate, but the old attempt did not
+  durably record its account ID; the evidence is therefore retained without
+  clearing `effect_unknown`. Artifact:
+  `~/gig/apply-direct/evidence/detail-readback-5280157-latest/no-dispatch-candidate.json`.
+- [x] Fix the future-submit evidence gap: immediately before the irreversible
+  marker, the Coconala form now reads the authenticated seller profile path
+  (`/users/<numeric-id>`) from the provider DOM and durably stores an
+  occurrence-bound identity artifact. Missing or non-Coconala identity aborts
+  before the marker and before the final submit click. Focused application tests:
+  `58 passed`.
+- [ ] After PR `#5854` is promoted, cut/install the immutable source release and
+  verify a clean natural Apply wake, official readback, and replay-zero. The
+  stale fence is clear, but the recovered parent was nonterminal with no action;
+  do not call Apply complete from the scheduler `pass` alone.
 - [ ] Finish the four-room Coconala system gate. Ryu is already handled for the
   latest buyer cycle and remains a permanent manual-only exception; do not
   resend unless a genuinely newer buyer event appears.
@@ -33,25 +196,147 @@
   send. It is a later policy-review item and does not change the current
   Coconala cursor.
 
-### Current remaining TODO (authoritative, 2026-09-24 19:28 JST)
+### Current remaining TODO (authoritative, 2026-09-24 23:28 JST)
 
-1. Obtain a complete official Coconala history/readback for request `5280157`;
-   resolve the exact occurrence only on positive provider proof or separately
-   verified pre-effect proof.
-2. After the proof, target-apply the current immutable release to Apply, then
-   Storefront, and verify loaded SHA, natural wakes, official readback, and
-   replay-zero. Do not bypass the `effect_unknown` guard.
+1. Promote the pushed source release and obtain a clean Coconala Apply
+   acceptance. The latest natural wake is terminal and safe (`effect=0`, no
+   provider submit), but it is not accepted because the report still has
+   `failed=1` (`5266371`) and `durable_pending_ids=[5280157]`. The branch now
+   repairs `5266371` only when an exact page substring can be proven and writes
+   `planner-evidence-repairs.json`; after promotion, reconcile `5280157`, then
+   obtain official readback and replay-zero.
+2. Reconcile Coconala Storefront's independent
+   `claimed/effect_unknown=1` occurrence, then run Storefront natural wake,
+   official readback, and replay-zero. Never bypass the effect fence.
 3. Re-read all four open Coconala rooms and confirm the client/system split;
    Ryu remains manual-only and must not receive a duplicate reply.
 4. CrowdWorks: reread the pending `63568785` artifact and wait for admissible
    lesson/answer material; do not perform LINE or external-form actions.
 5. Lancers: keep the zero-funded inventory no-op and finish the formal-delivery
    contract only when a real funded ContractReceipt appears.
-6. Obtain approved Upwork authorization and a funded contract, then register
-   Freelancer/Upwork owners and run the cross-platform cadence, crash-recovery,
-   settlement, payout, and duplicate-zero acceptance.
+6. Mercor: refresh authenticated inventory and resolve the existing
+   `resource_effect_unknown` application/Paid/Reply fences before any effect.
+7. Freelancer.com (implementation work is required now, but no provider send is
+   allowed yet):
+   - [x] add the fail-closed authorization + source-complete inventory gate and
+     shared effect-intent/replay-zero contract;
+   - [x] add the injected authenticated readback seam; it calls no transport
+     without exact account-bound inspect/payment/payout receipts;
+   - replace the retired application/work-sync labels with an authenticated,
+     policy-qualified account owner and a source-complete opportunity/contract
+     snapshot;
+   - extend the existing read-only bid watcher into Apply→Reply→contract→Paid→
+     settlement/payout adapters with shared effect fencing, provider receipts,
+     official readback, and replay-zero;
+   - register/enable the owners only after a valid authenticated account and an
+     admissible funded project/contract are visible.
+8. Upwork (implementation work is required now, but no provider send is allowed
+   yet):
+   - [x] add the fail-closed Paid-owner gate and provider capability declaration
+     requiring all eight current action receipts plus a funded milestone
+     readback;
+   - [x] add the injected authenticated contract-readback seam; it calls no
+     transport without exact account-bound inspect/payment/payout receipts;
+   - refresh the current account identity, policy authorization, browser/API
+     transport, and source-complete job/contract inventory; the installed
+     `cloak_browser` authorization entries are currently `denied` for search,
+     propose, message, accept_offer, delivery, payments, and payouts;
+   - restore a fresh authenticated readback and obtain a real funded contract;
+     the historical snapshot is stale/zero-effect and the old browser/free-loop
+     labels are retired;
+   - reuse the existing Upwork proposal/message/offer/delivery/finance modules,
+     register one Paid owner only after those gates, then prove a zero-spend
+     canary followed by one funded-contract canary with official proposal,
+     contract, delivery, payment, payout, crash-recovery, and replay-zero
+     receipts.
+9. Run final fleet acceptance only after each platform has its own owner,
+   authorization, funded work item (where a mutation is applicable), official
+   receipt/readback, settlement/payout evidence, and duplicate-zero proof.
 
-## Runtime Status Refresh — 2026-09-24 19:28 JST (release86bd official readback)
+### Coconala planner evidence boundary — 2026-09-24 23:42 JST
+
+- [x] Added a fail-closed repair for model hard-prohibition evidence that is
+  almost verbatim but contains a boundary-only addition or omission. The repair
+  selects only one contiguous, page-exact substring at the model-excerpt
+  boundary, rejects paraphrases, preserves the original business class, and
+  persists hashes plus the snapshot content hash in
+  `planner-evidence-repairs.json`.
+- [x] Added regression coverage for the actual failure shapes: the
+  `5266371` screen-sharing line and the `5278894` Live2D rigging line, including
+  a shared-suffix case and an unrelated paraphrase. Focused parent/planner and
+  provider suites pass (`116` tests); `compileall`, `git diff --check`, and
+  `./bin/lm-loop-contract` pass.
+- [ ] This source fix is branch-only until PR `#5854` is promoted. No provider
+  form, intent fence, Ryu room, or external application was touched by the fix.
+
+### Freelancer/Upwork authenticated inventory seam — 2026-09-24 23:46 JST
+
+- [x] Added `read_authenticated_inventory` to both readiness modules. Each
+  requires fresh approved receipts for `inspect`, `read_payments`, and
+  `read_payouts` on the exact account before invoking an injected provider
+  readback callback; the callback receives the complete receipt map, and the
+  result is parsed by the existing strict source-complete inventory contract.
+- [x] Added regression coverage that proves denied/missing receipts do not call
+  the callback and that an account mismatch is rejected. The adapter is
+  readback-only: it cannot register a loop, send a proposal/message, accept an
+  offer, deliver, or mutate launchd/provider state.
+- [ ] Provider-specific transport wiring remains pending. Freelancer still has
+  no approved account receipt; Upwork's eight stored receipts remain denied,
+  OAuth is absent, and the historical snapshot has zero active contracts.
+
+### Coconala readback checkpoint — 2026-09-24 20:21 JST
+
+- [x] Read-only direct-page probe used a fresh authenticated browser lease for
+  each page, avoiding the sequential-session WAF boundary that produced the
+  earlier page-22 403. Pages 1–26 all returned the official
+  `応募・スカウト管理 | ココナラ` route; every enumerated offer detail returned
+  HTTP 200 and exposed its official `OfferRequestId`; request `5280157` was not
+  present.
+- [x] No provider submit, form edit, retry, admission mutation, or Ryu message
+  was performed during this probe.
+- [ ] This is a negative provider observation only. The durable target intent
+  still has `effect_phase=irreversible_attempt_started`; the target has a filled
+  form screenshot but no saved non-landing submit-attempt receipt. Therefore
+  the system cannot safely classify it as pre-effect and cannot release the
+  `claimed/effect_unknown=1` row yet.
+- [ ] Production Apply/Storefront are still not promoted. Source fixes are
+  merged and tested, but the safety guard correctly refuses a target Apply wake
+  while this exact occurrence remains unresolved.
+- [x] Source commit `eb28f8df24` adds one bounded fresh-lease retry for an
+  `official_readback_access_denied` boundary and wires the standalone reconciler
+  to recycle its lease. Coconala/application tests pass; production has not
+  loaded this branch.
+- [x] Source commit `17b8794d15` resumes a fresh readback from the denied page
+  and merges the verified prefix. Live reconcile recorded `page=22` as
+  `403 Forbidden` on both attempts; the admission row remains exactly
+  `claimed/effect_unknown=1` and no provider effect was issued.
+- [x] The current authenticated identity readback is `Kosuke｜教育研修PPT×AI活用`
+  / user `2564121`. The expanded official applicant roster for `5280157`
+  contains `Kayamori Daisuke` / user `3406932` as its last row, not user
+  `2564121`; this narrows the unresolved question to historical session identity
+  binding, not a new provider submission.
+
+### Cross-platform read-only checkpoint — 2026-09-24 20:25 JST
+
+- [x] Lancers public discovery returned 20 normalized/detail-enriched projects
+  with zero provider errors. Authenticated contract inventory remains
+  `source_complete=true`, `contract_candidate_count=0`,
+  `monthly_contract_count=0`, `storefront_contract_candidate_count=0`,
+  balance `0` JPY; the paid owner result is `observed=0/effect=0/readback=0`.
+  No Lancers application or reply was sent.
+- [x] CrowdWorks already has one independently verified application for
+  project `13470618`: provider proposal `306927137`, occurrence
+  `crowdworks-revenue-application:18d7f9a39024d948-79467`,
+  `submitted=true`, `application_verified=true`, observed at
+  `2026-09-24T11:04:13Z`. Do not resend this application.
+- [ ] CrowdWorks paid inventory remains `observed=5/actionable=1/effect=0/
+  readback=4/pending=1`; work `63568785` still requires buyer lesson/answer
+  material. No LINE or external-form action is admissible.
+- [ ] Mercor paid inventory remains pending with
+  `official_work_inventory_stale`; no application or provider effect is
+  authorized from that state.
+
+## Historical Runtime Status — 2026-09-24 19:28 JST (release86bd official readback)
 
 - [x] PR `#5845` merged as `6022ddc01f`; PR `#5846` merged as
   `86bd68bf7b`; current immutable release is `86bd68bf7b9c3819c0a44f848e861372af9eff54`.
@@ -3845,3 +4130,534 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
    register Paid owners only after authorized funded contracts exist.
 5. [ ] Run final cross-platform cadence, settlement, payout, crash-recovery,
    and duplicate-zero acceptance after provider-specific gates pass.
+
+### Runtime checkpoint — 2026-09-24 23:52 JST (all-platform execution matrix)
+
+- [x] Reconciled platform state into separate source/owner/auth/funded/effect
+  fields. A registry entry or passing test is not provider delivery; each
+  mutation remains behind authenticated readback, funded contract, official
+  receipt, and replay-zero gates.
+- [x] Coconala is still a branch-promotion/reconciliation task, not a completed
+  customer lane: Apply's latest natural wake was safe (`effect=0`) but failed
+  acceptance at the planner/intent boundary; the historical admission row for
+  `5280157` was separately released while its durable prepared intent remains
+  unresolved. Storefront has its own unknown fence, and Ryu's latest reply is
+  already handled manually once.
+- [x] CrowdWorks remains blocked by buyer-provided lesson/answer material for
+  `63568785`; no LINE or external Google Form action is permitted. Lancers has
+  authenticated inventory but zero funded contracts and a Paid no-op. Mercor
+  has stale human-gated/`resource_effect_unknown` state, not a paid receipt.
+- [x] Freelancer has no approved account receipt and no active owner; Upwork
+  has no OAuth file, eight denied receipts, a stale zero-contract snapshot,
+  and retired browser/free-loop labels. Neither platform may be registered or
+  sent to yet.
+
+### Remaining TODO (authoritative cursor, 23:52 JST)
+
+1. **Coconala:** promote PR `#5854` only after its checks, run the repaired
+   natural Apply wake, reconcile `5280157` exactly, then clear Storefront's
+   separate fence and prove four-room official readback/replay-zero.
+2. **CrowdWorks:** reread `63568785`'s linked source, wait for admissible buyer
+   lesson/answer material, finish the existing on-platform delivery once, and
+   prove official readback/replay-zero; do not use LINE or the external form.
+3. **Lancers:** keep the zero-funded inventory no-op; monitor for a real funded
+   `ContractReceipt`, then add/test formal delivery, settlement, and payout
+   readback before an effect.
+4. **Mercor:** refresh authenticated inventory and reconcile each
+   `resource_effect_unknown` occurrence; keep human assessment gates grounded.
+5. **Freelancer:** implement the authenticated account/opportunity/contract
+   adapter behind `read_authenticated_inventory`, obtain all fresh lifecycle
+   receipts plus one official funded project, then add disabled owners and a
+   zero-spend canary. Do not revive the public bid watcher as Paid.
+6. **Upwork:** obtain fresh identity/authorization (the current eight receipts
+   are denied and OAuth is absent), adapt official contracts/detail pages into a
+   source-complete funded-milestone snapshot, then register one Paid owner and
+   verify zero-spend → funded canary → contract/delivery/payment/payout/replay-
+   zero. Reuse existing modules; do not guess an API or send.
+7. **Fleet:** after each provider's own gate opens, run crash recovery,
+   settlement/payout attribution, and duplicate-zero acceptance. Until then,
+   “loop exists” must not be reported as “client work submitted.”
+
+### Runtime checkpoint — 2026-09-25 00:10 JST (Coconala official history + next platforms)
+
+- [x] Coconala official authenticated history was read through the Gig CDP
+  target on `9223`: pages 1–70 returned HTTP 200 with 1,326 unique request IDs;
+  page 71 was the terminal empty page and pages 72–74 were empty probes.
+  Request `5280157` was not present. Evidence:
+  `~/gig/apply-direct/evidence/coconala-applied-history-5280157-20260925.json`.
+- [x] The 9222 failure is classified as an endpoint mismatch (HTTP 404), not
+  a provider denial. The Gig launch configuration points to 9223. No provider
+  mutation occurred during this readback.
+- [ ] The absence result cannot close the current
+  `hf-gig-apply-direct:18d8467a4b057b28-79451` fence because its prepared
+  intent has no durable historical account binding. The prior accepted
+  no-dispatch proof is for another occurrence. Do not retry or call the
+  positive-ID resolver from this absence-only artifact.
+- [x] Freelancer/Upwork status was rechecked: no Freelancer OAuth/approved
+  lifecycle receipt exists; Upwork OAuth is absent and all eight stored Upwork
+  action receipts are `denied`. No Freelancer/Upwork owner is registered.
+
+### Remaining TODO (authoritative cursor, 00:10 JST)
+
+1. **Coconala:** obtain admissible account-bound proof for the current
+   `5280157` occurrence or a new official receipt; then promote `#5854`, run
+   Apply/Storefront and four-room/Ryu manual-only replay-zero. Keep the fence
+   closed meanwhile.
+2. **CrowdWorks:** receive admissible buyer lesson/answer material for
+   `63568785`, then complete the existing on-platform delivery once and prove
+   official readback/replay-zero; no LINE or external form.
+3. **Lancers:** keep Paid a safe no-op while inventory has zero funded
+   contracts; when a real `ContractReceipt` appears, implement and verify
+   formal delivery, settlement, and payout readback.
+4. **Mercor:** refresh authenticated inventory and reconcile each exact
+   `resource_effect_unknown` occurrence; preserve human assessment gates.
+5. **Freelancer:** attach an authenticated official transport to
+   `read_authenticated_inventory`; collect account-bound inspect/project/
+   contract/payment/payout receipts, prove one funded project, then register a
+   disabled owner, run a zero-spend canary, and only then a funded canary.
+6. **Upwork:** obtain fresh account-bound identity/authorization/contract/
+   payment/payout receipts (the current eight are denied), prove one funded
+   milestone, then register one disabled owner and run zero-spend → funded
+   canary → official contract/delivery/payment/payout/replay-zero.
+7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
+   payout attribution, and duplicate-zero acceptance. Never equate source code,
+   a registry entry, or a loop wake with a client submission.
+
+### Runtime checkpoint — 2026-09-25 00:18 JST (capacity failure is separate)
+
+- [x] The latest recorded Coconala Paid wake failed closed at
+  `disk_headroom_low` (`effect=0`, `readback=0`, 512 MiB required), and
+  Storefront recorded `Errno 28` while creating host-admission temporary
+  files. No customer effect was created by these failures.
+- [x] The built-in evidence GC inspected `~/gig/apply-direct` at
+  374.3 MiB, below its 400 MiB high-water mark, and removed nothing. A current
+  `df` readback shows 5.0 GiB free, but there is no successful post-failure
+  Paid wake in the logs yet.
+- [ ] Do not report Coconala Paid as healthy until a read-only owner/status
+  readback and one natural terminal wake after the capacity recovery are
+  recorded. Keep Apply/Storefront effects fenced while the branch is not
+  promoted and `5280157` remains unresolved.
+
+### Updated remaining TODO (capacity-aware order)
+
+1. **Coconala:** preserve the `5280157` effect fence; verify capacity-stable
+   owner/status plus one natural terminal wake; obtain current occurrence
+   account-bound proof or a new official receipt; then promote `#5854` and
+   prove Apply/Storefront/four-room replay-zero.
+2. **CrowdWorks:** receive admissible buyer lesson/answer material for
+   `63568785`, then complete the existing on-platform delivery once and prove
+   official readback/replay-zero; no LINE or external form.
+3. **Lancers:** keep Paid a safe no-op while inventory has zero funded
+   contracts; on the first real `ContractReceipt`, implement and verify
+   formal delivery, settlement, and payout readback.
+4. **Mercor:** refresh authenticated inventory and reconcile each exact old
+   `resource_effect_unknown` occurrence; preserve human assessment gates.
+5. **Freelancer:** attach the authenticated official transport to
+   `read_authenticated_inventory`; obtain account-bound inspect/project/
+   contract/payment/payout receipts and one funded project; then disabled owner
+   → zero-spend canary → funded canary.
+6. **Upwork:** replace the eight denied receipts with fresh identity/
+   authorization/contract/payment/payout receipts; prove one funded milestone;
+   then disabled owner → zero-spend canary → official delivery/payment/payout/
+   replay-zero.
+7. **Fleet:** after each provider gate opens, run crash recovery, settlement,
+   payout attribution, and duplicate-zero acceptance.
+
+### Runtime checkpoint — 2026-09-25 00:19 JST (latest Coconala Paid readback)
+
+- [x] The natural Coconala Paid wake at `2026-09-25T00:19:19+09:00`
+  reached terminal `pass` with release
+  `1657972036bddc842682108334e5d30b5e48defe`; the host-admission readback
+  reports `effect=0`, `effect_status=not_applicable`, and no blocker. The
+  occurrence was released with `effect_unknown=0`.
+- [ ] This closes only the Paid capacity/no-op checkpoint. It does not close
+  Apply's `5280157` occurrence or Storefront's separate effect fence, and it
+  is not a customer-delivery receipt.
+
+### Runtime checkpoint — 2026-09-25 00:24 JST (Apply target separation)
+
+- [x] The latest natural Apply result confirmed a different request,
+  `5284750`, with `effect=1` and `readback=1`. This is a general Coconala
+  application result, not Ryu's `5280157` occurrence.
+- [ ] Ryu's `5280157` remains the only durable pending Apply target in the
+  result (`durable_uncertain_count=1`). Do not reuse the `5284750` receipt or
+  release the Ryu fence from it.
+
+### Runtime checkpoint — 2026-09-25 00:30 JST (CrowdWorks buyer gate)
+
+- [x] The authenticated CrowdWorks Paid snapshot remains
+  `observed=5/effect=0/readback=4/pending=1`. The four completed work IDs have
+  official readbacks; `63568785` remains `status=pending` with
+  `reason=buyer_task_detail_required`.
+- [x] The prepared answer for `63568785` is still
+  `prepared_buyer_input_required`, bound to buyer event `426855154`, with
+  `external_effect=0`. The linked lesson document has not become admissible
+  merely because a draft exists; no formal delivery or buyer-visible send was
+  performed.
+- [x] The latest local CrowdWorks application events continue to be
+  read-only/pass or admission-deferred; report/reply effect-unknown fences
+  remain closed. The legacy Paid pre-effect reconciler tests pass (`7`).
+- [ ] Keep `63568785` waiting for permission or pasted lesson content. Do not
+  use the external Google Form/LINE, invent lesson answers, or retry the
+  pending effect.
+
+### Runtime checkpoint — 2026-09-25 00:34 JST (Lancers funded gate)
+
+- [x] The latest persisted Lancers Paid snapshot is
+  `observed=0/actionable=0/effect=0/readback=0/pending=0`; it contains no
+  funded contract candidate and no provider effect.
+- [x] Lancers Paid/readback focused tests pass (`17`). The existing adapter
+  still requires source-complete inventory, funded provider state, buyer event,
+  quality verification, and official delivery readback before mutation.
+- [ ] Keep Lancers as a no-op monitor. A public listing or approved browser
+  receipt is not a funded `ContractReceipt`; do not invent a delivery target.
+
+### Runtime checkpoint — 2026-09-25 00:36 JST (Mercor inventory gate)
+
+- [x] Mercor's saved live-auth readback is `authenticated`, but the latest
+  Paid snapshot is `status=pending`, `observed=0/effect=0/readback=0`, with
+  `reason=official_work_inventory_stale` and one pending provider-inventory
+  item. No Mercor Paid effect was created.
+- [x] The saved application remains `in_progress_2_of_3`; the Assessment
+  stage is incomplete and `final_submission=not_observed`. The persisted gap
+  says the Summary field is cleared after reload, so completion cannot be
+  claimed from the old browser evidence.
+- [x] Mercor Paid/Reply/Application focused tests pass (`31`).
+- [ ] Refresh the shared authenticated Reply inventory and reconcile every
+  exact old effect-unknown occurrence before any assessment, contract, or
+  payout action. Do not submit an ungrounded assessment.
+
+### Runtime checkpoint — 2026-09-25 00:40 JST (Freelancer/Upwork implementation gate)
+
+- [x] Freelancer and Upwork now have strict readiness/readback gates in source:
+  current approved account-bound receipts + source-complete official inventory
+  + funded contract (positive funded milestone for Upwork) are required before
+  registration or any effect intent. Effect intents are account/contract/action
+  bound and replay-zero is checked.
+- [x] The focused Freelancer/Upwork/readiness/authorization run passes (`39`);
+  this is a source-level safety result, not live login, funded inventory, or
+  provider delivery evidence.
+- [x] Live prerequisites remain absent: Freelancer has no OAuth or approved
+  lifecycle receipt; Upwork has no OAuth, eight stored action receipts are
+  denied, and no funded milestone inventory exists. No Paid owner is
+  registered for either provider.
+- [ ] Build and attach each provider's authenticated inventory transport behind
+  `read_authenticated_inventory`; record official identity/project/contract/
+  payment/payout receipts and one funded contract/milestone.
+- [ ] Only after that evidence exists: register one disabled owner, run a
+  zero-spend canary, then a funded canary with official delivery/payment/
+  payout/replay-zero readback. Do not revive retired browser/free-loop labels.
+
+### Runtime checkpoint — 2026-09-25 00:46 JST (Upwork readback adapter slice)
+
+- [x] The Upwork readiness module now converts official browser contract state
+  into the canonical inventory. Empty official contracts remain source-complete
+  but have no funded target; every non-empty contract requires an exact detail
+  readback with funding amount, URL, source hash, and observation time.
+- [x] Missing/orphan/duplicate contract details and malformed official evidence
+  fail closed. The focused Upwork readiness/browser/transport/authorization
+  suite passes (`63`).
+- [ ] OAuth and approved account-bound receipts are still absent/denied, so
+  this adapter is not a live transport and no Upwork Paid owner is registered.
+  Next: attach it to the authenticated readback callback, then perform the
+  disabled-owner → zero-spend → funded canary sequence only after a positive
+  funded milestone exists.
+
+### Runtime checkpoint — 2026-09-25 00:54 JST (concrete all-platform state)
+
+- [x] Ryu `5280157` is still unresolved, not sent: the prepared intent has no
+  historical account binding; the old run is `failed/effect=0/readback=0` with
+  one durable pending ID. Complete official history omits the request and the
+  detail roster omits account `2564121`, but this remains absence-only evidence
+  and cannot release the current fence. The accepted no-dispatch proof is for
+  another occurrence. Do not retry or release from this artifact.
+- [x] Coconala Paid is only a safe no-op (`effect=0`,
+  `effect_status=not_applicable`); it is not Ryu delivery. Apply and Storefront
+  remain fenced. Ryu's requested option/UI changes still lack management-screen
+  readback and are not claimed complete.
+- [x] CrowdWorks is `5/1/0/4/1` (observed/actionable/effect/readback/pending),
+  with `63568785` waiting for buyer material `426855154`; Lancers is a
+  zero-funded no-op; Mercor is authenticated but stale and still at assessment
+  `2/3` with no observed final submission.
+- [x] Freelancer has no OAuth, approved receipts, inventory, funded project,
+  or owner. Its fail-closed gate and effect/replay binding are implemented, but
+  the official API transport and project/milestone/payment/payout adapter are
+  not wired.
+- [x] Upwork has no OAuth, eight denied action receipts, zero active contracts,
+  and no owner. Its strict browser-state adapter is tested but is not a live
+  transport until fresh approved receipts and a positive funded milestone are
+  present.
+- [ ] Next cursor is Ryu fence proof → CrowdWorks buyer material → Mercor
+  refresh → Freelancer transport → Upwork transport. Only after each provider
+  has official funded evidence may its single disabled owner run zero-spend,
+  funded, delivery/payment/payout, and replay-zero canaries. PR `#5854`
+  (`96a2b317ea`) is CI-green/mergeable but remains unmerged pending these
+  external gates.
+
+### Runtime checkpoint — 2026-09-25 00:59 JST (Freelancer transport slice)
+
+- [x] Added the fail-closed Freelancer transport selector and public action
+  matrix. It requires a fresh account-bound approved API receipt plus a
+  mode-600 OAuth record, or an approved browser receipt plus a private Cloak
+  profile; denied/expired/malformed/unlisted actions produce no transport.
+- [x] Added the exact documented read-only inventory route plan: users,
+  authenticated projects, project milestones, hourly contracts, and IP
+  contracts. No route is called and no owner/effect is created by this slice.
+- [x] The focused Freelancer/Upwork/readiness/transport suite passes (`82`).
+- [ ] Still absent: live Freelancer OAuth, approved receipts, provider
+  response readback, source-complete funded project, and owner. Next is to
+  wire the route responses into `read_authenticated_inventory`, then prove
+  funded inventory before any disabled owner or canary.
+
+### Runtime checkpoint — 2026-09-25 01:01 JST (Freelancer readback attachment)
+
+- [x] `FreelancerTransport.read_inventory` is attached to the strict readiness
+  boundary. The provider fetch is not called until account-bound `inspect`,
+  `read_payments`, and `read_payouts` receipts are all fresh and approved;
+  the validated official route plan is then the only input passed to fetch.
+- [x] Focused Freelancer/Upwork/readiness/transport tests pass (`84`),
+  including zero calls before authorization and canonical account binding.
+- [ ] Live OAuth, official API/CDP response parsing, funded project, and owner
+  are still absent. Do not register or send until the callback produces a
+  source-complete funded inventory and its official readbacks.
+
+### Runtime checkpoint — 2026-09-25 01:02 JST (Upwork readback attachment)
+
+- [x] `UpworkTransport.read_inventory` is attached to the strict readiness
+  gate and supplies the official contracts, transaction-history, and
+  withdrawals routes only after all three account-bound inventory receipts
+  pass. The returned object still must satisfy the canonical inventory parser.
+- [x] Focused Freelancer/Upwork/readiness/transport tests pass (`86`),
+  including no fetch before authorization and exact route binding.
+- [ ] Upwork remains closed: no OAuth, no approved receipts, no funded
+  milestone, and no owner. Next is fresh authorization and official positive
+  contract readback; do not revive retired browser/free-loop labels.
+
+### Runtime checkpoint — 2026-09-25 01:09 JST (full Gig regression)
+
+- [x] Full `skills/earn/gig/tests` regression passes (`1461 passed`). The two
+  stale expectation checks now match the existing identity-capture and current
+  reply-semantic runner behavior; no external provider action occurred.
+- [ ] Tests do not substitute for the still-missing Ryu receipt, CrowdWorks
+  buyer material, Mercor inventory, Freelancer OAuth/funded project, or
+  Upwork OAuth/funded milestone.
+
+### Runtime checkpoint — 2026-09-25 01:12 JST (Freelancer API boundary)
+
+- [x] Freelancer now has an allow-listed official API GET boundary using the
+  documented `Freelancer-OAuth-V1` header. It requires a live mode-600 OAuth
+  record and an approved API selection, and fails closed on unsafe routes,
+  non-200 responses, oversized bodies, or invalid JSON.
+- [x] Focused Freelancer/Upwork/readiness/transport tests pass (`90`), with
+  header and provider-boundary coverage.
+- [ ] No live Freelancer OAuth or API response exists yet. Do not register a
+  loop until its payload is normalized into source-complete funded inventory
+  and official payment/payout readback.
+
+### Runtime checkpoint — 2026-09-25 01:14 JST (regression after API boundary)
+
+- [x] Full Gig regression passes (`1465 passed`) after the Freelancer API
+  boundary addition. No provider request, submission, or resend occurred.
+
+### Runtime checkpoint — 2026-09-25 01:26 JST (Upwork state-bundle attachment)
+
+- [x] `snapshot_from_browser_state` now supports a stricter evidence list, and
+  `UpworkTransport.read_inventory` accepts the provider's browser bundle only
+  when contract, transaction-history, and withdrawal evidence hashes are all
+  present. It then routes the bundle through the canonical contract parser;
+  missing finance evidence is rejected.
+- [x] Focused Upwork readiness/transport tests pass (`23`), and the existing
+  canonical-inventory path remains unchanged.
+- [ ] This is still source/readback plumbing, not live Upwork readiness. The
+  OAuth file is absent, the eight stored action receipts remain denied, and no
+  positive funded milestone has been read back. No owner registration or
+  provider effect is allowed.
+
+### Runtime checkpoint — 2026-09-25 01:31 JST (Coconala no-dispatch convergence)
+
+- [x] The current exact Apply occurrence for Ryu request `5280157` now reads
+  `released/effect_unknown=0` in the admission store after the dedicated
+  historical account-bound no-dispatch proof. The durable intent is archived
+  as `retired_absent` under `application-intents/recovery-history`; the
+  parent-level uncertain-intent map is empty. No Coconala submit or resend
+  occurred.
+- [x] Fixed the reconciler so a successful historical no-dispatch resolution
+  also archives the matching durable intent, preventing the next wake from
+  reporting the same stale `prepared_unconfirmed` item forever. Focused
+  cross-platform/reconcile tests pass (`81`).
+- [ ] This closes only the old Ryu Apply fence. It does not verify a new Ryu
+  buyer reply, does not complete Storefront, and does not authorize a Ryu
+  duplicate send. The four-room management-screen readback remains separate.
+
+### Runtime checkpoint — 2026-09-25 02:08 JST (Ryu manual delivery readback)
+
+- [x] Ryu's latest three buyer requests were applied to the Colors admin data
+  and verified on the public site: the WEB reservation links route to the
+  reservation form, all twelve profile catch copies render within the
+  platform's mobile-safe limit, and the official LINE URL persists in the
+  recruitment data and public link.
+- [x] The response message was sent manually in talkroom `18211957`; the
+  post-send readback shows the complete message as `自分` at 02:08 JST. The
+  formal-delivery control was not pressed; this is a buyer update, not a
+  Coconala formal-delivery receipt.
+- [x] The current Coconala Paid wake remains a safe no-op and the old Ryu Apply
+  fence is already converged. Do not duplicate-send this buyer event or claim
+  formal delivery from the message receipt.
+- [x] Current platform gates are concrete: CrowdWorks is `5/1/0/4/1` with
+  work `63568785` waiting for buyer material; Lancers has no funded inventory;
+  Mercor's official inventory is stale; Freelancer has no OAuth/readback/
+  funded project; Upwork has no OAuth, all eight stored action receipts are
+  denied, and no funded milestone.
+- [ ] Next cursor: reconcile the remaining Coconala Storefront/management
+  readbacks, then refresh Mercor and process the CrowdWorks buyer-material
+  gate. For Freelancer, obtain fresh account authorization, collect the seven
+  official readbacks and a funded project, then register a disabled owner and
+  run zero-spend → funded → delivery/payment/payout → crash/replay-zero
+  canaries. For Upwork, obtain fresh account authorization, collect contract,
+  transaction, withdrawal, and funded-milestone readbacks, then run the same
+  disabled-owner/canary sequence. No Freelancer/Upwork loop registration or
+  external effect is allowed before those gates.
+
+### Runtime checkpoint — 2026-09-25 02:15 JST (four-room and buyer-artifact readback)
+
+- [x] A fresh authenticated Coconala readback covered all four open rooms:
+  Ryu `18211957` now has the 02:08 JST seller update; Chii `18180857` remains
+  seller-last at the 9/22 final reconciliation; room `18223833` is seller-last
+  after the 9/23 15:15 acknowledgement and its deadline is 9/30; room
+  `18250352` is seller-last after the 9/22 09:06 confirmation request. No newer
+  buyer event requiring a send was observed in any room. Formal delivery was
+  not pressed in this readback.
+- [x] CrowdWorks contract `63568785` was reread through the authenticated
+  `gog` CLI. The linked Google Doc is accessible and contains only LINE/Google
+  Form onboarding instructions; it does not contain the lesson body or the
+  per-lesson answer material required for quality-gated fulfillment. The
+  existing buyer clarification receipt remains the only admissible effect;
+  formal delivery stays blocked on buyer-provided material.
+- [x] Coconala Storefront's latest durable result remains `effect=0,
+  readback=0`, `status=failed`, reason `server rejected WebSocket connection:
+  HTTP 500`, with its lease released. This is a transport/admission failure,
+  not a provider listing receipt; no blind retry or fence release was made.
+- [ ] Next cursor is now the supported Storefront diagnosis/reconciliation,
+  then Mercor inventory refresh. CrowdWorks remains waiting for buyer material;
+  do not use the LINE/Form instructions as a substitute for permitted work
+  content or formal delivery.
+
+### Runtime checkpoint — 2026-09-25 02:19 JST (Storefront connection diagnosis)
+
+- [x] A read-only `listing_inventory.py collect` probe reached the authenticated
+  Coconala browser after the built-in CDP retry path and completed 20 official
+  public-listing readbacks. The ledger comparison saw 10 ledger-published rows,
+  20 live rows, two ledger rows not currently live, and twelve live rows not
+  previously recorded as `shuppin_published`; this is a reconciliation item,
+  not proof of a failed current listing effect. Probe evidence was saved under
+  `/tmp/coconala-inventory.BNkShc/` and no listing mutation or resend occurred.
+- [x] The old Storefront result (`effect=0/readback=0`, HTTP 500) is therefore
+  classified as a stale/contended wake transport failure rather than a current
+  public-page outage. The existing retry/one-context code path is the supported
+  diagnosis; do not blindly replay the mutating wake.
+- [ ] Storefront still needs a clean natural effect/readback reconciliation on
+  the managed release before Coconala can be called complete. Next cursor is
+  Mercor official-inventory refresh, then the CrowdWorks buyer-material gate.
+
+### Runtime checkpoint — 2026-09-25 02:21 JST (Mercor refresh boundary)
+
+- [x] A read-only runtime probe found no live Mercor CDP endpoint (the known
+  `9334` endpoint is not listening) and the shared browser-control readback is
+  `browsers=[]/sessions=[]`. No login, navigation, assessment, contract, or
+  payment action was attempted.
+- [x] The newest persisted official Mercor snapshot remains the 2026-09-20
+  readback: `contracts=[]`, assessment still `2/3`, and
+  `final_submission=not_observed`. The Paid state remains
+  `pending/official_work_inventory_stale`; this is an evidence-age boundary,
+  not a funded-work rejection or a completed contract.
+- [ ] Mercor requires a fresh authenticated official inventory before any
+  assessment/contract/payment transition can be processed. Keep its effect
+  fence closed and continue with the CrowdWorks buyer-material gate while the
+  browser/auth owner is unavailable.
+
+### Runtime checkpoint — 2026-09-25 02:27 JST (CI and source-boundary verification)
+
+- [x] PR `#5854` latest security run `36033688801` completed successfully,
+  including Loop control contracts, Python syntax/unit tests, secret scans,
+  PII, shell, startup-drift, and OSS-boundary checks.
+- [x] Freelancer/Upwork readiness and transport focused tests pass (`52`), and
+  `./bin/lm-loop-contract` passes (`catalog_loops=14`, `registry_jobs=169`,
+  `mapped_jobs=98`, no shared job IDs or errors).
+- [ ] These are source/registry proofs only. Coconala managed owners remain
+  unloaded, and Freelancer/Upwork still have no fresh account-bound official
+  readback or funded project/milestone; no provider effect was created.
+
+### Runtime checkpoint — 2026-09-25 02:32 JST (Upwork authenticated zero-contract readback)
+
+- [x] The dedicated Upwork browser profile was started on CDP `9233` and the
+  official login succeeded. Hidden, read-only snapshots of Contracts,
+  Transactions, and Withdrawals were captured under
+  `~/gig/trajectory/upwork-auth-20260925/`; the pages read `$0.00`, no active
+  contracts, no pending transactions, no withdrawal method, and no withdrawals.
+- [x] Only account-bound read permissions (`inspect`, `read_payments`,
+  `read_payouts`) were refreshed with the exact page evidence hashes. Proposal,
+  message, offer-accept, milestone-delivery, and search authorizations remain
+  denied; no Connects or external message/effect was used.
+- [x] The strict Upwork transport normalized the official browser bundle into
+  `~/gig/state/upwork/official-readback-20260925.json` with
+  `source_complete=true`, `contract_count=0`, and `funded_contract_count=0`.
+  Registration evaluation is correctly `ready=false` with
+  `authorization_missing` and `funded_contract_missing`.
+- [ ] Upwork still needs an actual funded contract/milestone and explicit
+  write-action authorization before any Paid owner can be registered. Keep the
+  loop disabled; the next safe step is read-only opportunity/offer monitoring,
+  not proposal submission.
+
+### Runtime checkpoint — 2026-09-25 02:33 JST (Upwork invite/proposal readback)
+
+- [x] A fresh authenticated Proposals and offers readback shows `Offers (0)`,
+  `Invites from clients (3)`, `Active proposal (1)`, and `Submitted proposals
+  (7)`. No proposal, invite acceptance, Connects spend, or message effect was
+  performed; the evidence is under the same private Upwork trajectory.
+- [x] The official job-search URL returned a Cloudflare challenge page rather
+  than a job inventory. No bypass, retry loop, or candidate submission was
+  attempted; the challenge is recorded as an inventory-readback boundary.
+- [ ] Upwork therefore remains authenticated/readable but has no Offer or
+  funded ContractReceipt. Keep all write actions denied and do not register the
+  Paid loop until a real funded milestone is officially read back.
+
+### Runtime checkpoint — 2026-09-25 02:36 JST (Freelancer boundary)
+
+- [x] The read-only public Freelancer watcher refreshed all four historical bids
+  without authentication or provider mutation. Every project now reads
+  `status=closed`, `sub_status=closed_expired`, `frontend_status=complete`,
+  `active=0`, and the request returned no errors. No bid was awarded and no
+  funded project was observed.
+- [x] The existing Freelancer CloakBrowser profile was probed read-only at
+  `/dashboard`; the official site redirected to `/login`, proving that this
+  profile has no authenticated session. There is no
+  `~/.config/anicca/gig/freelancer-oauth2.json` and no Freelancer authorization
+  receipt on this host.
+- [ ] Freelancer is therefore not ready for loop registration: the required
+  order remains (1) account-bound authentication/official inventory, (2) a
+  positive funded project/award readback, (3) explicit lifecycle authorization,
+  (4) Paid owner registration, and (5) natural effect/readback/replay-zero.
+  Keep bid/message/delivery actions closed; the next safe cursor is obtaining a
+  real authenticated account-bound inventory, not replaying expired bids.
+
+### Runtime checkpoint — 2026-09-25 02:38 JST (launchd loaded-state readback)
+
+- [x] `bin/launchctl-safe preflight` passed for the Aqua user domain, and the
+  direct `gui/501` readback was captured. Coconala Paid
+  (`ai.anicca.hf-gig-paid-direct`) is installed and scheduled every 300s;
+  its latest run exited `0` (one-shot jobs show `state=not running` between
+  wakes). Coconala Storefront is installed on a 60s schedule but its latest
+  exit is `75/EX_TEMPFAIL`; its durable result remains the old HTTP 500
+  `effect=0/readback=0` boundary.
+- [x] Mercor Paid is installed on a 300s schedule but is not running after
+  `last exit code=75/EX_TEMPFAIL`, matching its stale official-inventory
+  state. CrowdWorks Paid and Lancers Paid labels are not present in the
+  `gui/501` domain even though their source registry entries exist; they are
+  not live LaunchAgents. Freelancer application/work-sync/bid-watch and both
+  Upwork browser/free labels are disabled in `print-disabled` and have no live
+  LaunchAgent.
+- [ ] This is the current loop truth: Coconala's paid wake is installed but
+  storefront remains unproven, Mercor is installed but stale/failed, and
+  CrowdWorks/Lancers/Freelancer/Upwork have no active Paid loop that can be
+  called complete. Do not claim platform completion from registry presence;
+  require a loaded owner plus official effect/readback/replay-zero.

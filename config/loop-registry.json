@@ -959,7 +959,7 @@
     "fundraiser": {
       "admission_class": "borrow",
       "cadence": {
-        "start_interval_seconds": 1800
+        "start_interval_seconds": 3600
       },
       "cleanup": {
         "max_age_days": 14,

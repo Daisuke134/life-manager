@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import re
 import sys
@@ -124,6 +125,114 @@ def _evidence_excerpt_in_visible_text(excerpt: str, visible_text: str) -> bool:
     return SequenceMatcher(
         None, excerpt, visible_text[start:end], autojunk=False,
     ).ratio() >= 0.88
+
+
+def _repairable_visible_evidence_excerpt(excerpt: str, visible_text: str) -> str | None:
+    """Return a conservative exact page substring for a boundary-only model edit.
+
+    The planner is allowed to add polite wording or to omit a Japanese list marker even
+    after being told to copy the evidence verbatim.  That output must not be used as a
+    provider-facing reason because it is not page text.  A repair is therefore allowed
+    only when a single contiguous block is shared by the model excerpt and one visible
+    line, starts or ends at the model excerpt boundary, is at least 12 characters and
+    40% of the excerpt, and is meaningful text.  Paraphrases and disjoint fragments
+    return ``None`` and remain fail-closed.
+    """
+    excerpt = stable_request_text(excerpt)
+    visible_text = stable_request_text(visible_text)
+    if not excerpt or not visible_text or excerpt in visible_text:
+        return excerpt if excerpt and excerpt in visible_text else None
+    model_text = excerpt.lstrip("・•*-—– \t")
+    if not model_text:
+        return None
+    minimum = max(12, int(len(model_text) * 0.4))
+    candidates: list[tuple[int, int, int, str]] = []
+    for raw_line in visible_text.splitlines():
+        line = raw_line.strip().lstrip("・•*-—– \t")
+        if not line:
+            continue
+        matcher = SequenceMatcher(None, model_text, line, autojunk=False)
+        for block in matcher.get_matching_blocks():
+            if block.size < minimum:
+                continue
+            at_boundary = block.a == 0 or block.a + block.size == len(model_text)
+            if not at_boundary:
+                continue
+            candidate = line[block.b:block.b + block.size].strip()
+            if (
+                len(candidate) < minimum
+                or sum(character.isalnum() for character in candidate) < 8
+                or candidate not in visible_text
+            ):
+                continue
+            # Prefer a match at the beginning of the model's excerpt.  This prevents a
+            # generic suffix such as "レクチャー可能な方を希望しています。" from
+            # stealing a more specific page line that starts with "画面共有".
+            candidates.append((block.size, int(block.a == 0), int(block.b == 0), candidate))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: (item[0], item[1], item[2], len(item[3])))[3]
+
+
+def repair_hard_prohibited_evidence(
+    snapshot: object, decisions: object,
+) -> tuple[dict[str, object], list[dict[str, object]]]:
+    """Repair only exact, boundary-safe evidence; never change a business judgment.
+
+    The returned rows retain the model's class and all fields except a reason excerpt
+    that was not page text.  The repair metadata is secret-free and can be persisted by
+    the parent as an audit artifact.
+    """
+    if not isinstance(snapshot, dict) or not isinstance(decisions, dict):
+        return decisions if isinstance(decisions, dict) else {"decisions": []}, []
+    raw_rows = decisions.get("decisions")
+    details = snapshot.get("request_details")
+    if not isinstance(raw_rows, list) or not isinstance(details, list):
+        return decisions, []
+    detail_by_id = {
+        str(detail.get("request_id")): detail
+        for detail in details if isinstance(detail, dict)
+    }
+    repaired_rows: list[object] = []
+    repairs: list[dict[str, object]] = []
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            repaired_rows.append(raw_row)
+            continue
+        row = dict(raw_row)
+        reasons = row.get("reason_codes")
+        detail = detail_by_id.get(str(row.get("request_id")))
+        if (
+            row.get("business_class") != "hard_prohibited"
+            or not isinstance(reasons, list)
+            or len(reasons) < 2
+            or not isinstance(reasons[1], str)
+            or not isinstance(detail, dict)
+        ):
+            repaired_rows.append(row)
+            continue
+        original = reasons[1]
+        if _evidence_excerpt_in_visible_text(original, str(detail.get("visible_text") or "")):
+            repaired_rows.append(row)
+            continue
+        candidate = _repairable_visible_evidence_excerpt(
+            original, str(detail.get("visible_text") or "")
+        )
+        if candidate is None:
+            repaired_rows.append(row)
+            continue
+        updated_reasons = list(reasons)
+        updated_reasons[1] = candidate
+        row["reason_codes"] = updated_reasons
+        repaired_rows.append(row)
+        repairs.append({
+            "request_id": str(row.get("request_id")),
+            "method": "visible_line_common_substring",
+            "original_sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            "repaired_sha256": hashlib.sha256(candidate.encode("utf-8")).hexdigest(),
+            "content_sha256": detail.get("content_sha256"),
+        })
+    return {**decisions, "decisions": repaired_rows}, repairs
 
 
 def common_marketplace_feasibility_policy() -> str:

@@ -276,8 +276,6 @@ def _latest_harness_failure(state_root: str, loop_id: str,
         "evidence_refs": [ref for ref in evidence_refs if isinstance(ref, str)][:32],
         "ts": failure["ts"],
     }
-
-
 def _atomic_private_json(path: Path, value: dict) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)

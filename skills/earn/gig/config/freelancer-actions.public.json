@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "provider": "freelancer",
+  "default_state": "unknown",
+  "actions": {
+    "search": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "inspect": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "propose": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "message": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "accept_offer": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "deliver": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "read_payments": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
+    "read_payouts": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]}
+  }
+}

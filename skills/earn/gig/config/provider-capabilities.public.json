@@ -8,7 +8,13 @@
     },
     "upwork": {
       "state": "unknown",
-      "actions": ["discover", "inspect", "submit_proposal", "message", "accept_offer", "deliver_milestone", "read_payments", "read_payouts"]
+      "actions": ["search", "inspect", "propose", "message", "accept_offer", "deliver_milestone", "read_payments", "read_payouts"],
+      "capability": {
+        "id": "marketplace.lifecycle",
+        "authorization": {"receipt_required": true, "required_state": "approved_browser_or_api"},
+        "funded_contract": {"required": true, "readback": "official_contract_receipt"},
+        "effect": {"unknown_state": "reconcile_without_resend", "replay": "zero"}
+      }
     },
     "lancers": {
       "state": "unknown",
@@ -23,6 +29,16 @@
         },
         "human_only_when_required": ["captcha", "identity", "tax", "payout"],
         "readback": {"record_type": "application_receipt"}
+      }
+    },
+    "freelancer": {
+      "state": "unknown",
+      "actions": ["search", "inspect", "propose", "message", "accept_offer", "deliver", "read_payments", "read_payouts"],
+      "capability": {
+        "id": "marketplace.lifecycle",
+        "authorization": {"receipt_required": true, "required_state": "approved_browser_or_api"},
+        "funded_contract": {"required": true, "readback": "official_contract_receipt"},
+        "effect": {"unknown_state": "reconcile_without_resend", "replay": "zero"}
       }
     },
     "fiverr": {

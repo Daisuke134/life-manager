@@ -350,7 +350,6 @@ class LmLoopApplyTest(unittest.TestCase):
                 "effect_class": "application",
                 "state_root": str(self.root / "fundraiser"),
             }))
-
     def test_rebind_guard_resolves_pre_effect_fence_after_queue_drains(self):
         from runtime.host import resource_admission
 
