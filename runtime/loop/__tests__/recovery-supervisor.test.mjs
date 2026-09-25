@@ -288,3 +288,20 @@ test('safe queued recovery waits exit successfully instead of becoming an entryp
   assert.equal(supervisorExitCode({ ok: false, state: 'blocked', reason: 'command_contract_invalid' }), 1);
   assert.equal(supervisorExitCode({ ok: false, state: 'escalated' }), 1);
 });
+
+test('closes every superseded-release intent in one wake, then executes one current intent', async () => {
+  const stale = (id) => ({ ...intent(id), release_sha: 'b'.repeat(40) });
+  const { queue, journal } = await files([stale('old-1'), stale('old-2'), intent('current')]);
+  const calls = [];
+  const result = await consumeRecoveryIntentQueue({
+    queuePath: queue, journalPath: journal, currentReleaseSha: SHA,
+    executeIntent: async (value) => { calls.push(value.intent_id); return { ok: true, state: 'repaired' }; },
+    now: '2026-09-24T00:00:00.000Z',
+  });
+  assert.deepEqual(calls, ['current']);
+  assert.equal(result.intent_id, 'current');
+  const outcomes = (await journalRows(journal)).filter((row) => row.record_type === 'recovery_outcome');
+  const superseded = outcomes.filter((row) => row.reason === 'release_sha_mismatch');
+  assert.deepEqual(superseded.map((row) => [row.intent_id, row.state, row.next_action]),
+    [['old-1', 'blocked', 'none'], ['old-2', 'blocked', 'none']]);
+});
