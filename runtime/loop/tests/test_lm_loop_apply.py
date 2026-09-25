@@ -3,6 +3,7 @@ import gzip
 import hashlib
 import io
 import json
+from contextlib import contextmanager
 import os
 import plistlib
 import shutil
@@ -2605,6 +2606,35 @@ class LmLoopApplyTest(unittest.TestCase):
                 "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
             ]), 0)
             self.assertEqual(applied, ["example", "example"])
+
+    def test_fleet_apply_skips_owner_with_unresolved_effect_fence(self):
+        release = self._release("release-effect-fence").resolve()
+        current = self.root / "current-effect-fence"
+        current.symlink_to(release)
+        values = self._apply_kwargs(current, self.root / "apply-effect-fence.lock")
+
+        @contextmanager
+        def refused(*_args, **_kwargs):
+            raise RuntimeError("admission rebind refused: effect_unknown")
+            yield
+
+        with (
+            patch.object(lm_loop, "_admission_rebind_guard", refused),
+            patch.object(lm_loop, "install_one", side_effect=AssertionError("fenced owner reloaded")),
+        ):
+            result = apply_live(
+                release, values["agents_dir"], values["launchctl_safe"],
+                current=current, lock_path=values["lock_path"], event_writer=lambda *_: None,
+            )
+            with self.assertRaisesRegex(RuntimeError, "effect_unknown"):
+                apply_live(
+                    release, values["agents_dir"], values["launchctl_safe"],
+                    target="example", current=current, lock_path=values["lock_path"],
+                    event_writer=lambda *_: None,
+                )
+        fenced = [row for row in result if row.get("skipped") == "effect-unknown-fence"]
+        self.assertTrue(fenced)
+        self.assertTrue(all(row["changed"] is False for row in fenced))
 
     def test_reconcile_apply_rechecks_queue_under_owner_lock(self):
         release = self._release("release-atomic-admission").resolve()

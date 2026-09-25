@@ -1746,6 +1746,13 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 result["install_event_id"] = event["event_id"]
                 results.append(result)
         except RuntimeError as exc:
+            if target is None and str(exc) == "admission rebind refused: effect_unknown":
+                # One owner's unresolved external-effect fence keeps that owner on
+                # its old release; it must not abort the rest of a fleet apply.
+                results.append({"ok": True, "label": item["label"],
+                                "release_sha": release_sha, "changed": False,
+                                "skipped": "effect-unknown-fence"})
+                continue
             if not (skip_busy and str(exc) == "production apply is already owned"):
                 raise
             skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
