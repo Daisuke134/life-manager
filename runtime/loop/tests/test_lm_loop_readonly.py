@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import plistlib
 import time
@@ -11,6 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import (
     _admission_effect_unknown_owners, _last_event, _launchctl,
     _pending_admission_owners, _release_from_plist, _safe_launchctl,
@@ -32,6 +34,97 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_browser_resolution_joins_loop_registry_to_resolver_readback(self):
+        registry = {"schema_version": 2, "loops": {"connector": {
+            "label": "ai.anicca.connector", "domain": "system", "entrypoint": "bin/connector.sh",
+            "cadence": {"start_interval_seconds": 60}, "effect_class": "none",
+            "state_root": "~/.local/state/life-manager/connector",
+            "log_root": "~/.local/state/life-manager/connector/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "deterministic",
+            "browser_identity": "interactive:dais",
+            "browser_target_owner": "connector-native",
+        }}}
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(
+                command, 0,
+                stdout=json.dumps({
+                    "identity": "interactive:dais",
+                    "profile": "/tmp/daily-driver",
+                    "endpoint": "http://[::1]:9222",
+                    "uuid": "browser-uuid",
+                    "pid": 1592,
+                    "reachable": True,
+                    "http_status": 200,
+                    "websocket_url_valid": True,
+                }), stderr="",
+            )
+
+        result = lm_loop.browser_resolution(
+            registry, "connector", browser_registry="/tmp/browsers.toml", runner=run,
+        )
+        self.assertEqual(result, {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "connector",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "connector-native",
+            "websocket_url_valid": True,
+        })
+        self.assertEqual(calls[0][0][0:3], [sys.executable, str(Path(__file__).resolve().parents[3] / "skills/browser/resolve_cdp_endpoint.py"), "--registry"])
+        self.assertEqual(calls[0][0][-2:], ["--identity", "interactive:dais"])
+        self.assertEqual(calls[0][1]["capture_output"], True)
+        self.assertEqual(calls[0][1]["text"], True)
+
+    def test_browser_resolve_cli_returns_json_only(self):
+        output = io.StringIO()
+        value = {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "life-manager-connector-native",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "life-manager-connector-native",
+            "websocket_url_valid": True,
+        }
+        with (patch("runtime.loop.lm_loop.browser_resolution", return_value=value),
+              redirect_stdout(output)):
+            result = lm_loop_main(["browser", "resolve", "life-manager-connector-native", "--json"])
+        self.assertEqual(result, 0)
+        self.assertEqual(json.loads(output.getvalue()), {"ok": True, **value})
+
+    def test_browser_resolve_cli_accepts_connector_alias(self):
+        output = io.StringIO()
+        value = {
+            "browser_identity": "interactive:dais",
+            "browser_uuid": "browser-uuid",
+            "derived_endpoint": "http://[::1]:9222",
+            "http_status": 200,
+            "lease_status": "not_checked",
+            "loop_id": "life-manager-connector-native",
+            "profile": "/tmp/daily-driver",
+            "process_owner": 1592,
+            "target_owner": "life-manager-connector-native",
+            "websocket_url_valid": True,
+        }
+        with (patch("runtime.loop.lm_loop.browser_resolution", return_value=value) as resolve,
+              redirect_stdout(output)):
+            result = lm_loop_main(["browser", "resolve", "connector", "--json"])
+        self.assertEqual(result, 0)
+        resolve.assert_called_once()
+        self.assertEqual(resolve.call_args.args[1], "connector")
+        self.assertEqual(json.loads(output.getvalue()), {"ok": True, **value})
+
     def test_status_reports_typed_admission_read_failure(self):
         output = io.StringIO()
         with (patch(

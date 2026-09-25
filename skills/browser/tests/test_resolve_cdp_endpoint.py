@@ -59,6 +59,9 @@ def test_resolver_selects_ipv6_endpoint_when_profile_process_owns_it():
     assert result["endpoint"] == "http://[::1]:9222"
     assert result["uuid"] == "daily-uuid"
     assert result["pid"] == 1592
+    assert result["reachable"] is True
+    assert result["http_status"] == 200
+    assert result["websocket_url_valid"] is True
 
 
 def test_resolve_all_keeps_unreachable_identities_observable():

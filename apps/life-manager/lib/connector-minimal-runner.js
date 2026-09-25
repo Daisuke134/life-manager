@@ -5,6 +5,9 @@ const { connectorPageWebsocketTargetId } = require("./connector-browser-target-c
 const PURPOSE = /^(?:navigate|observe|fill|submit|readback)$/;
 const METHOD = /^[a-z][a-z0-9_]{1,63}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
+const SAFE_TRACE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,255}$/;
+const SAFE_RELEASE_SHA = /^[0-9a-f]{40}$/;
+const SAFE_BROWSER_ENDPOINT = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):[1-9][0-9]{0,4}$/;
 // Bounded, non-sensitive: a JS class/constructor name only, never a message,
 // stack, URL, or env value.
 const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
@@ -59,12 +62,21 @@ function config(input) {
     || input.providers.length > 20
     || input.providers.some((provider) => !/^[a-z][a-z0-9_-]{1,31}$/.test(String(provider)))
   ) invalid();
+  const traceId = (value, fallback) => SAFE_TRACE_ID.test(String(value || "")) ? String(value) : fallback;
+  const releaseSha = String(input.releaseSha || process.env.LIFE_MANAGER_RELEASE_SHA || "");
+  const browserEndpoint = String(input.browserEndpoint || process.env.CLOAK_CDP_BASE_URL || "");
   return Object.freeze({
     ownerToken,
     providers: Object.freeze(input.providers.map(String)),
     maxConsecutiveFailures: positiveInteger(input.maxConsecutiveFailures, 3),
     maxWakeMs: positiveInteger(input.maxWakeMs, 600_000),
     maxAgentSteps: positiveInteger(input.maxAgentSteps, 10),
+    trace: Object.freeze({
+      browserEndpoint: SAFE_BROWSER_ENDPOINT.test(browserEndpoint) ? browserEndpoint : "unknown",
+      occurrenceId: traceId(input.occurrenceId || process.env.LIFE_MANAGER_OCCURRENCE_ID, "unknown-occurrence"),
+      releaseSha: SAFE_RELEASE_SHA.test(releaseSha) ? releaseSha : "unknown",
+      runId: traceId(input.runId || process.env.LIFE_MANAGER_RUN_ID, "unknown-run"),
+    }),
   });
 }
 
@@ -214,6 +226,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
   let discoveryFailureReason = "provider_discovery_failed";
   let lastSafeReason = "provider_discovery_failed";
   let reusedBundleObserved = false;
+  let lastFailureDiagnostic = null;
   const knownNoEffectProviders = new Set();
 
   const elapsed = () => Date.parse(exactInstant(deps.now())) - startedAt;
@@ -248,6 +261,21 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         throw unknownEffect;
       }
       const context = typeof onFailure === "function" ? onFailure(error) : null;
+      if (method === "browser_open") {
+        lastFailureDiagnostic = Object.freeze({
+          browser_endpoint: settings.trace.browserEndpoint,
+          counter_status: "not_counted_at_stage",
+          effect_status: "not_applicable",
+          error_class: safeErrorClass(error) || "unknown",
+          next_action: "resolve_browser_identity",
+          occurrence_id: settings.trace.occurrenceId,
+          release_sha: settings.trace.releaseSha,
+          retryable: true,
+          run_id: settings.trace.runId,
+          safe_reason: operationSafeReason(context, "browser_open_failed"),
+          stage: method,
+        });
+      }
       try {
         await deps.recordAction(Object.freeze({
           purpose,
@@ -270,6 +298,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
       status,
       safe_reason: safeReason,
       consecutive_failure_count: consecutiveFailures,
+      ...(extra.diagnostic || lastFailureDiagnostic
+        ? { diagnostic: extra.diagnostic || lastFailureDiagnostic } : {}),
     }));
     const telegramProviderId = String(delivery && delivery.telegram_provider_id || "").trim();
     if (!telegramProviderId) invalid();
@@ -681,7 +711,23 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           : sessionExpiredReason || knownNoEffectReason || "providers_exhausted");
   } catch (error) {
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
-    return finish("circuit_open", error && error.unknownEffect === true ? "effect_unknown" : "wake_boundary_failed");
+    const safeReason = error && error.unknownEffect === true ? "effect_unknown" : "wake_boundary_failed";
+    if (!lastFailureDiagnostic) {
+      lastFailureDiagnostic = Object.freeze({
+        browser_endpoint: settings.trace.browserEndpoint,
+        counter_status: "not_counted_at_stage",
+        effect_status: error && error.unknownEffect === true ? "unknown" : "not_applicable",
+        error_class: safeErrorClass(error) || "unknown",
+        next_action: "inspect_occurrence",
+        occurrence_id: settings.trace.occurrenceId,
+        release_sha: settings.trace.releaseSha,
+        retryable: safeReason !== "effect_unknown",
+        run_id: settings.trace.runId,
+        safe_reason: safeReason,
+        stage: "wake_boundary",
+      });
+    }
+    return finish("circuit_open", safeReason);
   } finally {
     if (owned) await deps.browserRail.close(owned);
   }

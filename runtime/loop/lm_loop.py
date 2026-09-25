@@ -1037,6 +1037,62 @@ def snapshot(registry: dict, target: str) -> list[dict]:
     return _select(rows, target)
 
 
+def browser_resolution(registry: dict, target: str, *, browser_registry: str | None = None,
+                       resolver: Path | None = None, runner=subprocess.run) -> dict[str, object]:
+    """Read-only join of a loop's browser identity to its live resolver result."""
+    aliases = {
+        "connector": "life-manager-connector-native",
+    }
+    if target not in registry.get("loops", {}):
+        target = aliases.get(target, target)
+    entry = registry.get("loops", {}).get(target)
+    if not isinstance(entry, dict):
+        raise ValueError(f"unknown loop id: {target}")
+    identity = entry.get("browser_identity")
+    target_owner = entry.get("browser_target_owner")
+    if not isinstance(identity, str) or not isinstance(target_owner, str):
+        raise ValueError("browser_join_missing")
+    resolver_path = (resolver or ROOT / "skills/browser/resolve_cdp_endpoint.py").expanduser()
+    registry_path = Path(browser_registry or os.environ.get(
+        "AI_BROWSER_REGISTRY", "~/.config/ai/registry/browsers.toml",
+    )).expanduser()
+    command = [sys.executable, str(resolver_path), "--registry", str(registry_path),
+               "--identity", identity]
+    try:
+        completed = runner(command, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError("browser_resolver_unavailable") from error
+    try:
+        resolved = json.loads(completed.stdout)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError("browser_resolver_invalid_output") from error
+    if completed.returncode != 0 or not isinstance(resolved, dict) or resolved.get("reachable") is not True:
+        error_class = resolved.get("error_class") if isinstance(resolved, dict) else None
+        raise RuntimeError(f"browser_resolution_failed:{error_class or 'unknown'}")
+    if (
+        resolved.get("identity") != identity
+        or not isinstance(resolved.get("endpoint"), str)
+        or not resolved.get("endpoint")
+        or not isinstance(resolved.get("uuid"), str)
+        or not resolved.get("uuid")
+        or resolved.get("http_status") != 200
+        or resolved.get("websocket_url_valid") is not True
+    ):
+        raise RuntimeError("browser_resolver_identity_mismatch")
+    return {
+        "browser_identity": identity,
+        "browser_uuid": resolved["uuid"],
+        "derived_endpoint": resolved["endpoint"],
+        "http_status": resolved["http_status"],
+        "lease_status": "not_checked",
+        "loop_id": target,
+        "profile": resolved.get("profile"),
+        "process_owner": resolved.get("pid"),
+        "target_owner": target_owner,
+        "websocket_url_valid": resolved["websocket_url_valid"],
+    }
+
+
 def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
     # The targeted safe probe is also read-only and must remain observable
     # when the host cannot create another temporary file.
@@ -1493,11 +1549,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
-        "admission-v2-enable", "apply", "doctor", "reconcile",
+        "admission-v2-enable", "apply", "browser", "doctor", "reconcile",
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -1550,6 +1606,20 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "browser":
+        if len(args) != 4 or args[1] != "resolve" or args[3] != "--json":
+            print(json.dumps({
+                "ok": False,
+                "error": "browser accepts only resolve <loop-id> --json",
+            }, sort_keys=True))
+            return 2
+        try:
+            result = browser_resolution(registry, args[2])
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 1
+        print(json.dumps({"ok": True, **result}, indent=2, sort_keys=True))
+        return 0
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
         max_owners = None

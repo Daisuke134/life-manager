@@ -154,6 +154,9 @@ def resolve_identity(
             "endpoint": endpoint(host, port),
             "uuid": str(live["uuid"]),
             "pid": pid,
+            "reachable": True,
+            "http_status": 200,
+            "websocket_url_valid": True,
         })
     if len(candidates) != 1:
         raise ValueError("endpoint_ambiguous" if candidates else (
