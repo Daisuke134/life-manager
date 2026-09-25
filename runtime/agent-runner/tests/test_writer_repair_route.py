@@ -51,6 +51,25 @@ class WriterRepairRouteTest(unittest.TestCase):
             self.assertIn("sandbox_workspace_write.network_access=false", command)
             self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
 
+    def test_self_heal_claude_route_is_edit_only_without_shell_or_network(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); schema = root / "schema.json"; schema.write_text("{}")
+            args = argparse.Namespace(
+                task_class="self-heal-code-agent", schema=schema, workdir=root,
+                image=[], read_only=False, codex_resume_session_id=None,
+            )
+            command = command_for(
+                "claude-direct", "claude", {},
+                {"provider": "claude-direct", "model": "claude-sonnet-5"},
+                args, "repair", {}, root / "result.json",
+                prompt_via_stdin=True,
+            )
+            self.assertNotIn("--dangerously-skip-permissions", command)
+            mode = command.index("--permission-mode")
+            self.assertEqual(command[mode:mode + 2], ["--permission-mode", "acceptEdits"])
+            denied = command.index("--disallowedTools")
+            self.assertEqual(command[denied + 1], "Bash,WebFetch,WebSearch")
+
 
 if __name__ == "__main__":
     unittest.main()

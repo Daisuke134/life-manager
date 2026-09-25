@@ -1221,6 +1221,13 @@ def command_for(provider: str, executable: str, provider_config: dict[str, Any],
         ]
         if args.task_class in TOOLLESS_TASK_CLASSES:
             command.extend(["--tools", ""])
+        elif args.task_class == "self-heal-code-agent":
+            # Match the old Codex workspace-write sandbox: edits inside the
+            # worktree only, no shell and no network. The caller runs the tests.
+            command.extend([
+                "--permission-mode", "acceptEdits",
+                "--disallowedTools", "Bash,WebFetch,WebSearch",
+            ])
         elif not getattr(args, "read_only", False):
             command.append("--dangerously-skip-permissions")
         command.append("-p")
