@@ -118,11 +118,30 @@ function prepareWorktreeDependencies(repoRoot, worktree) {
   const link = path.join(worktree, "apps/life-manager/node_modules");
   let targetStat;
   try { targetStat = fs.lstatSync(target); } catch { invalid(); }
-  if (!targetStat.isDirectory() || targetStat.isSymbolicLink()) invalid();
+  if (!targetStat.isDirectory() && !targetStat.isSymbolicLink()) invalid();
+  let resolvedTarget;
+  try {
+    resolvedTarget = fs.realpathSync(target);
+    if (!fs.statSync(resolvedTarget).isDirectory()) invalid();
+  } catch {
+    invalid();
+  }
+  if (targetStat.isSymbolicLink()) {
+    const bundleRoot = path.resolve(fs.realpathSync(repoRoot), "../..", "dependency-bundles");
+    const relative = path.relative(bundleRoot, resolvedTarget);
+    const parts = relative.split(path.sep);
+    if (
+      parts.length !== 2
+      || !/^npm-[A-Za-z0-9._-]{1,160}$/.test(parts[0])
+      || parts[1] !== "node_modules"
+      || !fs.statSync(path.join(bundleRoot, parts[0], ".complete"), { throwIfNoEntry: false })?.isFile()
+      || !fs.statSync(path.join(resolvedTarget, ".package-lock.json"), { throwIfNoEntry: false })?.isFile()
+    ) invalid();
+  }
   fs.mkdirSync(path.dirname(link), { recursive: true, mode: 0o700 });
   try {
     const linkStat = fs.lstatSync(link);
-    if (!linkStat.isSymbolicLink() || fs.realpathSync(link) !== fs.realpathSync(target)) invalid();
+    if (!linkStat.isSymbolicLink() || fs.realpathSync(link) !== resolvedTarget) invalid();
   } catch (error) {
     if (!error || error.code !== "ENOENT") throw error;
     fs.symlinkSync(target, link, "dir");
