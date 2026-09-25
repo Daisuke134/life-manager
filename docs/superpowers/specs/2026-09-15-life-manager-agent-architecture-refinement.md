@@ -6574,6 +6574,21 @@ not loaded. A fresh `status all --json` plus `local-foundation-gate.js` still re
 from the dedicated branch, then satisfy the foundation acceptance before any main merge or immutable production load;
 permission is not the blocker.
 
+### Release reconciler bootstrap failure (2026-09-25 15:16 JST)
+
+The next self-healing boundary was narrowed with a read-only production log and plist readback. The loaded
+`ai.anicca.life-manager-release-reconciler` plist still points to the stale release
+`20260919T100204-09a59ba1` and has neither `LIFE_MANAGER_RUNTIME_NODE` nor a Node-bearing `PATH`. Its stderr repeats
+`bin/lm-recovery-supervise: exec: node: not found`; the loop therefore exits before consuming the recovery queue. The
+queue currently contains **168** recovery intents, including repeated effect-free Connector and self-build intents, so
+the system is producing recovery evidence but its release reconciler cannot execute the final supervisor boundary.
+
+The candidate already contains the bounded fix (`bin/lm-recovery-supervise` selects the absolute
+`LIFE_MANAGER_RUNTIME_NODE`/`LIFE_MANAGER_NODE` before PATH fallback), and the focused no-PATH regression test passes.
+This proves the source repair, not production repair: the loaded release remains old and must be replaced by a
+main-derived immutable release before the reconciler can consume the queue. No intent, launchd plist, provider state or
+Paid state was changed during this diagnosis.
+
 #### Fresh capacity and foundation reread after the external host change (2026-09-25 15:01 JST)
 
 The owner-controlled disk governor was run once after the read-only probe observed the host's free space rise. Its
