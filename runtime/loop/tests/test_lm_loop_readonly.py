@@ -17,7 +17,7 @@ from runtime.loop.lm_loop import (
     _admission_effect_unknown_owners, _last_event, _launchctl,
     _pending_admission_owners, _release_from_plist, _safe_launchctl,
     _state_root_from_plist,
-    doctor_report, main as lm_loop_main, snapshot, status_rows,
+    doctor_report, explain_status_row, main as lm_loop_main, snapshot, status_rows,
 )
 from runtime.loop.runtime_event import build_runtime_event
 from runtime.loop.runtime_event import build_runtime_start_event
@@ -243,6 +243,83 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertFalse(row["retryable"])
         self.assertEqual(row["next_action"], "official_readback_required")
         self.assertEqual(row["evidence_refs"], event["evidence_refs"])
+
+    def test_status_explain_projects_cause_effect_and_honest_gaps(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="application",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+            product_loop_id=None, job_id="example", owner_id="example",
+            wake_id="wake-1", claimed_occurrence_id="example:occurrence-1",
+            loaded_argv_sha256="c" * 64, loaded_env_sha256="d" * 64,
+        )
+        row = status_rows(
+            REGISTRY, loaded={}, disabled={}, events={"example": event},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        explained = explain_status_row(row)
+        self.assertEqual(explained["schema_version"], "lm-loop.status-explain.v1")
+        self.assertEqual(explained["loop_id"], "example")
+        self.assertEqual(explained["release_sha"], "b" * 40)
+        self.assertEqual(explained["occurrence"]["occurrence_id"], "example:occurrence-1")
+        self.assertEqual(explained["cause_chain"][0]["stage"], "runtime")
+        self.assertEqual(explained["cause_chain"][1]["stage"], "failure")
+        self.assertEqual(explained["cause_chain"][1]["error_class"], "entrypoint_exit_1")
+        self.assertEqual(explained["effect"]["status"], "unknown")
+        self.assertEqual(explained["effect"]["provider_receipt_id"], None)
+        self.assertEqual(explained["effect"]["evidence_refs"], event["evidence_refs"])
+        self.assertEqual(explained["action_history_status"], "not_reported")
+        self.assertEqual(explained["counter_status"], "not_reported")
+
+    def test_status_explain_cli_accepts_connector_alias_and_json(self):
+        output = io.StringIO()
+        row = {
+            "loop_id": "life-manager-connector-native",
+            "label": "ai.anicca.life-manager-connector-native",
+            "launchd_state": "loaded-idle",
+            "pid": None,
+            "last_exit": "0",
+            "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40,
+            "owner_id": "connector-owner",
+            "run_id": "run-1",
+            "wake_id": "wake-1",
+            "occurrence_id": "occurrence-1",
+            "phase": "report",
+            "last_terminal_result": "blocked",
+            "failure_layer": "browser",
+            "error_class": "browser_open_failed",
+            "retryable": True,
+            "next_action": "resolve_browser_endpoint",
+            "blocker": "browser_endpoint_unavailable",
+            "effect_class": "none",
+            "effect_status": "not_applicable",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "evidence_refs": ["lm-loop://connector/run-1/summary.json"],
+            "diagnostic_complete": True,
+            "diagnostic_missing_fields": [],
+            "diagnostic_error": None,
+        }
+        with (patch("runtime.loop.lm_loop.snapshot", return_value=[row]) as observe,
+              redirect_stdout(output)):
+            result = lm_loop_main(["status", "connector", "--explain", "--json"])
+        self.assertEqual(result, 0)
+        observe.assert_called_once()
+        self.assertEqual(observe.call_args.args[1], "life-manager-connector-native")
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["schema_version"], "lm-loop.status-explain.v1")
+        self.assertEqual(payload["target"], "life-manager-connector-native")
+        self.assertEqual(payload["rows"][0]["next_action"], "resolve_browser_endpoint")
+
+    def test_status_rejects_unknown_option_before_reading_state(self):
+        output = io.StringIO()
+        with (patch("runtime.loop.lm_loop.snapshot") as observe,
+              redirect_stdout(output)):
+            result = lm_loop_main(["status", "connector", "--bogus"])
+        self.assertEqual(result, 2)
+        observe.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue())["error"], "unknown status option: --bogus")
 
     def test_old_event_remains_visible_but_diagnostic_is_incomplete(self):
         event = {

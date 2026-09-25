@@ -736,6 +736,109 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
     return rows
 
 
+def explain_status_row(row: dict) -> dict:
+    """Project one status row into a bounded, occurrence-aware diagnostic.
+
+    This is deliberately a read-only projection.  Fields that the current
+    runtime does not emit (action history and admission counters) stay
+    explicitly ``not_reported`` rather than being inferred from a live PID,
+    a Telegram delivery, or a provider page.
+    """
+    failure_present = any(
+        row.get(name) is not None
+        for name in ("failure_layer", "error_class", "blocker")
+    )
+    cause_chain = [
+        {
+            "stage": "runtime",
+            "status": row.get("launchd_state"),
+            "pid": row.get("pid"),
+            "last_exit": row.get("last_exit"),
+        },
+        {
+            "stage": "failure",
+            "status": row.get("last_terminal_result"),
+            "present": failure_present,
+            "failure_layer": row.get("failure_layer"),
+            "error_class": row.get("error_class"),
+            "blocker": row.get("blocker"),
+            "retryable": row.get("retryable"),
+        },
+        {
+            "stage": "effect",
+            "status": row.get("effect_status", "unknown"),
+            "class": row.get("effect_class"),
+        },
+    ]
+    action_history_refs = row.get("action_history_refs")
+    if not isinstance(action_history_refs, list):
+        action_history_refs = []
+    return {
+        "schema_version": "lm-loop.status-explain.v1",
+        "loop_id": row.get("loop_id"),
+        "label": row.get("label"),
+        "next_action": row.get("next_action"),
+        "release_sha": row.get("event_release_sha") or row.get("installed_release_sha"),
+        "release": {
+            "installed_sha": row.get("installed_release_sha"),
+            "event_sha": row.get("event_release_sha"),
+            "drift": (
+                row.get("installed_release_sha") is not None
+                and row.get("event_release_sha") is not None
+                and row.get("installed_release_sha") != row.get("event_release_sha")
+            ),
+        },
+        "occurrence": {
+            "owner_id": row.get("owner_id"),
+            "run_id": row.get("run_id"),
+            "wake_id": row.get("wake_id"),
+            "occurrence_id": row.get("occurrence_id"),
+            "phase": row.get("phase"),
+        },
+        "cause_chain": cause_chain,
+        "effect": {
+            "class": row.get("effect_class"),
+            "status": row.get("effect_status", "unknown"),
+            "provider_receipt_id": row.get("provider_receipt_id"),
+            "official_readback_ref": row.get("official_readback_ref"),
+            "evidence_refs": row.get("evidence_refs"),
+        },
+        "diagnostic": {
+            "complete": row.get("diagnostic_complete"),
+            "missing_fields": row.get("diagnostic_missing_fields", []),
+            "error": row.get("diagnostic_error"),
+        },
+        "action_history_refs": action_history_refs,
+        "action_history_status": (
+            "reported" if action_history_refs else "not_reported"
+        ),
+        "counter_status": row.get("counter_status", "not_reported"),
+    }
+
+
+def _parse_status_args(values: list[str]) -> tuple[str, bool]:
+    target = "all"
+    positionals: list[str] = []
+    explain = False
+    for value in values:
+        if value == "--explain":
+            explain = True
+        elif value == "--json":
+            # JSON is the canonical status format and remains the default;
+            # accepting the flag makes the CLI contract explicit.
+            continue
+        elif value.startswith("--"):
+            raise ValueError(f"unknown status option: {value}")
+        else:
+            positionals.append(value)
+    if len(positionals) > 1:
+        raise ValueError("status accepts at most one <loop-id|all>")
+    if positionals:
+        target = positionals[0]
+    aliases = {"connector": "life-manager-connector-native"}
+    return aliases.get(target, target), explain
+
+
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
                     admission_effect_unknown: set[str] | None = None) -> list[dict]:
@@ -1878,7 +1981,15 @@ def main(argv: list[str] | None = None) -> int:
             ))
         print(json.dumps(results, indent=2, sort_keys=True))
         return 1 if any(row["return_code"] for row in results) else 0
-    target = args[1] if len(args) > 1 else "all"
+    status_explain = False
+    if command == "status":
+        try:
+            target, status_explain = _parse_status_args(args[1:])
+        except ValueError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 2
+    else:
+        target = args[1] if len(args) > 1 else "all"
     if command == "doctor":
         loaded, _, _, _, installed = collect_live(registry)
         existing = {entry["entrypoint"] for entry in registry["loops"].values()
@@ -1890,13 +2001,24 @@ def main(argv: list[str] | None = None) -> int:
     while True:
         try:
             observed = snapshot(registry, target)
+        except ValueError as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), flush=True)
+            return 2
         except sqlite3.Error as exc:
             print(json.dumps(
                 _admission_read_error("admission_fence_read_failed", exc),
                 sort_keys=True,
             ), flush=True)
             return 1
-        print(json.dumps(observed, indent=2, sort_keys=True), flush=True)
+        if command == "status" and status_explain:
+            output = {
+                "schema_version": "lm-loop.status-explain.v1",
+                "target": target,
+                "rows": [explain_status_row(row) for row in observed],
+            }
+        else:
+            output = observed
+        print(json.dumps(output, indent=2, sort_keys=True), flush=True)
         if command == "status" or os.environ.get("LM_LOOP_WATCH_ONCE") == "1":
             return 0
         time.sleep(2)
