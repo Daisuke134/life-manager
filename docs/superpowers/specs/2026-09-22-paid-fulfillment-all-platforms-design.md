@@ -1,5 +1,20 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
+
+The local Coconala talkroom source for Ryu `18211957` records buyer events
+`222273388` (external integration), `222273444` (concept rankings), and
+`222273899` (aligned paid-option rows) on 2026-09-24. Seller-side records
+`222277933` and `222278017` exist in that source snapshot, but the independent
+official manual-send readback still ends at `222245383`; the later records are
+not treated as proven external sends. BrowserSkill has no connected browser or
+session, so no fresh authenticated readback or duplicate message was issued.
+
+The Ryu fence remains manual-only. Before any new send, attach an authenticated
+BrowserSkill session, reread the live room, require a genuinely newer buyer
+message, send the corrected response once, and capture the official message
+receipt. Formal delivery remains disabled/untouched.
+
 ### Live gate cursor — 2026-09-25 08:43 JST (post-push boundary recheck)
 
 Receipt-reserve hardening and the platform-gate evidence are now committed and

@@ -1,5 +1,22 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
+
+The local Coconala talkroom source for Ryu `18211957` contains three buyer
+events observed on 2026-09-24: the external-integration question
+(`222273388`), the concept-ranking question (`222273444`), and the paid-option
+layout request (`222273899`). It also contains seller-side records
+`222277933` and `222278017`, but the separately stored official manual-send
+readback still ends at `222245383`; those later records are not independently
+proven as sent. BrowserSkill is currently healthy but has `0 browsers` and
+`0 sessions`, so no fresh authenticated Coconala readback or duplicate send was
+performed. Keep Ryu manual-only and do not claim the later response was sent.
+
+Next admissible action is to use an authenticated BrowserSkill session to read
+the live room, compare the latest buyer identity, then send one corrected reply
+only if it is genuinely newer and capture its official message receipt. The
+formal-delivery control remains untouched.
+
 ## Current cursor — 2026-09-25 08:43 JST (post-push boundary recheck)
 
 The receipt-reserve hardening and the refreshed platform gate evidence are
