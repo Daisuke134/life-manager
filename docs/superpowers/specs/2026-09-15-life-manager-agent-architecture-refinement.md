@@ -6935,3 +6935,44 @@ registered Cloak daily-driver is the profile-owned IPv6 listener. The endpoint-i
 exists only on the pushed Connector candidate; it is not loaded in this occurrence. `circuit_open /
 wake_boundary_failed` therefore remains a lossy safe-stop projection, not a successful registration and not a revenue
 event. No browser, provider session, effect fence or Paid state was changed by this readback.
+
+### Current 14-loop status aggregation (read-only, 2026-09-25 JST)
+
+`./bin/lm-loop status all --json` returned 271 managed rows. Joining the rows to the 14 Product Loop catalog yielded
+98 managed jobs. The following counts are lifecycle projections only; `pass` means an owner terminal passed, not that a
+provider effect, accepted work, settlement or profit exists.
+
+| Product Loop | Jobs | Pass | Blocked | Fail | No terminal | Main boundary | Economic readback |
+|---|---:|---:|---:|---:|---:|---|---|
+| Affiliate | 6 | 1 | 2 | 0 | 0 | effect fence/FIFO; browser and source lanes still running | no conversion/settled commission |
+| Investment | 1 | 0 | 1 | 0 | 0 | capacity admission before entrypoint | Alpaca experiment net about `-$0.04`; no multi-venue loop |
+| Agent Economy | 19 | 1 | 9 | 4 | 4 | capacity/effect fences plus legacy entrypoint failures | settled x402 evidence is only `0.003 USDC`; net funding unproven |
+| Job Hunter | 7 | 1 | 5 | 1 | 0 | effect fences; inbox/runner failures | no new funded contract; Mercor official contracts empty |
+| Fundraiser | 1 | 0 | 1 | 0 | 0 | effect fence | no new funding receipt |
+| Connector | 1 | 0 | 0 | 1 | 0 | old CDP/browser entrypoint | registration is not revenue; current provider receipt absent |
+| Self-Build | 4 | 1 | 3 | 0 | 0 | recovery/dev owner entrypoint failures | control-plane work, not revenue evidence |
+| Mobile Apps | 22 | 13 | 6 | 1 | 2 | effect fences, one entrypoint failure, metrics lanes | posts exist; install/payment/MRR attribution incomplete |
+| Capafy | 8 | 2 | 5 | 0 | 1 | effect fences/capacity | creator earnings observed, but settled recurring MRR unknown and paid-out is zero |
+| CFO | 3 | 0 | 3 | 0 | 0 | message/payout effect-unknown fences | no verified financial snapshot |
+| Writer | 7 | 2 | 5 | 0 | 0 | capacity/effect/FIFO fences | official message readback exists for a slice; attributable payment absent |
+| Coconala | 7 | 3 | 1 | 3 | 0 | browser/Paid/Storefront failures and fences | Ryu manual message is complete; loop-wide paid revenue unproven |
+| CrowdWorks | 5 | 0 | 1 | 4 | 0 | entrypoint 143/1 and effect-unknown occurrences | no official Paid delivery/payment receipt |
+| Lancers | 7 | 2 | 3 | 2 | 0 | effect fences, timeout and storefront/work-sync failures | current inventory is zero-funded; no Paid receipt |
+
+The common pattern is not fourteen unrelated business failures. It is four layers that compound:
+
+1. **Control-plane layer:** many owners are on an older immutable release or wait in typed capacity/FIFO admission;
+   they do not reach the provider entrypoint.
+2. **Effect-safety layer:** `effect_unknown` occurrences intentionally stop retries until an occurrence-bound official
+   receipt or admissible no-effect proof exists. This protects against duplicate sends, but it also means no new money
+   can be claimed while the fence is open.
+3. **Provider/account layer:** several platforms have no current account-bound authorization, source-complete inventory or
+   funded contract. A browser page, historical job, public watcher or local “pass” cannot create a contract.
+4. **Economic-evidence layer:** posts, applications, model decisions and unrealized marks are activity. Revenue requires
+   a provider/store/broker settlement joined to cost, refund and payout evidence. Missing adapters make profit `unknown`,
+   not zero and not success.
+
+Connector belongs primarily to layers 1–2. It is a registration/event loop, not a revenue loop. Its current failure is
+before the provider action because the old rail connects to the wrong CDP listener; even a successful event registration
+would only be a Connector receipt, not proof of income. Paid fulfillment belongs to the separate Paid owner and follows
+the canonical marketplace cursor recorded above.
