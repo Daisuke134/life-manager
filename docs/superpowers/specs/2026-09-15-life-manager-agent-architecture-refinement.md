@@ -6349,10 +6349,11 @@ intervals, grader calibration, redacted trajectory publication, cloud/local repr
 leaderboard. The evaluator must remain immutable and separate from the candidate; a benchmark score can never change
 permissions, credentials, spend caps, effect fences or the evaluator itself.
 
-No external GitHub repository was cloned into Life Manager or installed as a production dependency in this turn. The
-primary repositories were inspected as design references; their interfaces and reporting practices can be adopted
-through isolated adapters after the contract is fixed. Cloning a benchmark repository is not a substitute for a
-stable task schema, official evidence or independent reproduction.
+The six repositories above were used only as read-only study material. Their temporary shallow checkouts were removed
+after inspection when the host approached the existing ENOSPC floor; no repository was copied into Life Manager,
+installed as a production dependency, or allowed to mutate a provider/browser. The pinned commits and extracted
+lessons are the reproducibility record. Cloning a repository is not a substitute for a stable task schema, official
+evidence or independent reproduction.
 
 ### Eval/benchmark repository study and Connector-first execution cursor
 
@@ -6412,6 +6413,23 @@ The primary Life Manager difference is that a real-world score cannot be awarded
 provider receipt, official readback, settlement, cost attribution and replay-zero are mandatory evidence. Simulation
 is useful for iteration, but it cannot declare paid work, self-funding or real MRR.
 
+#### Connector readback: why the Telegram line is only a safety summary
+
+The latest read-only host evidence explains the apparently opaque message `circuit_open / wake_boundary_failed`:
+
+| Boundary | Evidence | Meaning |
+|---|---|---|
+| Loaded production release | launchd plist points to `/Users/anicca/loops/releases/20260925T031007-d4fe0819` and contains no resolved CDP endpoint | Production is still running the pre-registry-join Connector code |
+| Static endpoint probe | `curl http://127.0.0.1:9222/json/version` returns HTTP **404** | The old hard-coded IPv4 listener is not the registered daily-driver browser |
+| Registry resolver | `./bin/lm-loop browser resolve connector --json` returns `http://[::1]:9222`, HTTP **200**, valid WebSocket, UUID `decca3a1-5040-4657-b2a0-794891b52e29`, profile-owned PID `1592` | The canonical browser identity and endpoint are healthy in read-only mode |
+| Natural wake history | 21 wakes from `2026-09-24T18:00Z` onward: `calendar_busy` **21/21 success**, `browser_open` **21/21 failed**, `effect=none` | Failure begins at browser acquisition; no provider effect was attempted |
+| Outer report | every recent wake report says `status=circuit_open`, `safe_reason=wake_boundary_failed`, while Telegram delivery has a provider ID | The runner safely collapses the nested browser failure into a bounded public summary; it is not the root cause |
+| Candidate fix | `ff4bf7348b` makes `skills/connector/run.sh` lease `interactive:dais` through `browser-guard`, derive the live endpoint and export it before provider work; entrypoint tests pass **18/18** | Fix is present on the candidate branch, not in the loaded immutable release |
+
+Therefore the Connector is not currently “fixed in production.” The repair is source-complete and test-verified, but
+promotion still requires the capacity floor, the normal immutable-release gate, one effect-free natural canary, exact
+action/report readback and replay-zero. No Paid fulfillment code or provider session is part of this cursor.
+
 ### Connector-first remaining TODO and promotion order
 
 The execution cursor is now **Connector**, because it has an occurrence-bound, effect-free failure with a high-confidence
@@ -6429,6 +6447,9 @@ separate Paid fulfillment workstream or its provider sessions/state.
 - The read-only `status --explain --json` projection is implemented in candidate commit `2c5dd7eb2a`; its focused
   tests cover cause-chain ordering, Connector alias resolution, release/effect/readback fields, and rejection of
   unknown options. It reports missing action-history/counter data as `not_reported` instead of guessing.
+- The loaded production release remains `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the endpoint-join repair is
+  candidate commit `ff4bf7348b`. The candidate Connector entrypoint tests pass **18/18** and the broader Connector
+  Node suite passes **157/157**, but neither result is a production load.
 - Contract and focused source tests pass on this branch: Node **157/157**, current `test_lm_loop_readonly.py` **34 passed**
   (the prior foundation run also recorded **256 passed + 193 subtests**), `lm-loop-contract` **14 catalog / 169
   registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
@@ -6438,8 +6459,9 @@ separate Paid fulfillment workstream or its provider sessions/state.
 
 1. **Restore the owner-controlled capacity floor.** Record free bytes and a
    cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
-   Paid worktree. The current free space remains below the required foundation floor, so ENOSPC is still an active
-   host risk.
+   Paid worktree. At the latest probe (`2026-09-25T14:23:40+09:00`) free space was **424,779,776 bytes**, below the
+   required **1,155,780,608-byte** foundation floor, so ENOSPC is still an active host risk. Do not clone additional
+   repositories or perform a release mutation until this floor is restored.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.
