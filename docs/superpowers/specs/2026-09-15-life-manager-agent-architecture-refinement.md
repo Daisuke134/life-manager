@@ -6533,18 +6533,32 @@ production, does not change the admission DB or effect fences, and does not lowe
 production step remains one owner-aware rebind after the floor gate and normal main-derived immutable-release
 acceptance.
 
+#### Fresh capacity and foundation reread after the external host change (2026-09-25 15:01 JST)
+
+The owner-controlled disk governor was run once after the read-only probe observed the host's free space rise. Its
+receipt (`observed_at=2026-09-25T06:00:59Z`) reports `free_before=2,576,179,200` and
+`free_after=2,576,179,200` bytes, above the `1,155,780,608`-byte floor by `1,420,398,592` bytes. It evaluated five
+allowlisted cache roots, preserved all five because they were `open`, reclaimed `0` bytes, recorded `0` errors and
+`0` protected deletions, and did not kill a process or remove a release/state/credential/session. The cause of the
+preceding free-space increase is not attributed to this workstream; only the receipt is evidence.
+
+With the floor restored, a fresh read-only `status all --json` plus `local-foundation-gate.js` against loaded release
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c` still returns `healthy=0`, `setup_required=0`, `safely_fenced=1`,
+`repairing=0`, `uncovered_failure=13`, and gate decision `block` with
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. Thirteen
+loops remain on exact-release drift and Connector remains on `runtime_terminal_not_pass`; this is a separate acceptance
+gate from disk capacity. No production selector, admission DB, effect fence, browser or Paid state was changed by this
+reread.
+
 #### Remaining TODO (strict order)
 
-1. **Restore the owner-controlled capacity floor.** Record free bytes and a
-   cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
-   Paid worktree. At the latest probe (`2026-09-25T14:31:43+09:00`) free space was **387,596,288 bytes**, below the
-   required **1,155,780,608-byte** foundation floor, so ENOSPC is still an active host risk. The latest governor
-   receipt evaluated five allowlisted caches, preserved all five as open, reclaimed **0** bytes and recorded **0**
-   errors. Do not clone additional repositories or perform an external-effect release mutation until this floor is
-   restored. The only allowed capacity-recovery mutation is a single owner-aware rebind of a non-Paid,
-   `effect_class=none`, loaded-idle owner whose old release is an ancestor of the already loaded current immutable
-   release. The branch-only legacy-admission repair above is now the implementation path for a complete v2 identity;
-   production must still read back the owner and cleanup receipt before selecting another owner.
+1. **Restore the owner-controlled capacity floor — complete for this cursor.** The fresh governor receipt at
+   `2026-09-25T15:00:59+09:00` reports **2,576,179,200 bytes** free, above the required
+   **1,155,780,608-byte** floor by **1,420,398,592 bytes**. It evaluated five allowlisted caches, preserved all five
+   as open, reclaimed **0** bytes and recorded **0** errors/protected deletions. The exact cause of the preceding
+   increase remains unclaimed; no unknown path was deleted. The branch-only legacy-admission repair above is now the
+   implementation path for a complete v2 identity. The next cursor is foundation acceptance and main-derived
+   promotion; do not clone additional repositories or use a non-main release.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.
