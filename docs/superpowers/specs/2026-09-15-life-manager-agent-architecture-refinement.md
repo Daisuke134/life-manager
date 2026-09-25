@@ -6976,3 +6976,247 @@ Connector belongs primarily to layers 1–2. It is a registration/event loop, no
 before the provider action because the old rail connects to the wrong CDP listener; even a successful event registration
 would only be a Connector receipt, not proof of income. Paid fulfillment belongs to the separate Paid owner and follows
 the canonical marketplace cursor recorded above.
+
+### Whole-ship handover and AGI architecture addendum (2026-09-25 JST)
+
+This section is the newest whole-ship handover index. It supersedes any earlier short prompt that described only
+Connector or only the Foundation slice. The target is one logical Life Manager entity that proactively manages
+economic, physical and mental life, while the implementation remains strongly isolated per person, account,
+credential, provider session and external-effect occurrence. “One entity” is a product/control-plane concept; a
+shared unscoped database, browser, wallet or credential is not an acceptable architecture.
+
+#### Evidence versus target
+
+**Verified now:** the repository has a 14-loop catalog, registry contract, machine-readable health CLI, recovery
+schemas/supervisor, typed effect fences, release binding, deterministic economic/agent contract fixtures, and a
+source-only Connector diagnostic candidate. The latest read-only aggregation is 98 mapped jobs across 14 loops;
+the foundation gate is blocked (`healthy=0`, `safely_fenced=1`, `uncovered_failure=13`). The loaded Connector is
+old release `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, exits with `entrypoint_exit_1`, and has no provider receipt.
+No loop is currently proven to be both continuously healthy and profitable. `pass` is a lifecycle projection, not
+settled revenue.
+
+**Not verified:** all-loop production health, Connector registration, a no-Codex self-heal, cloud parity, universal
+one-shot auto-enrollment, any USD 10,000 MRR, self-funding, YC selection, AGI, UBI, or a fully human-credential-free
+bank payout. These remain acceptance gates, not marketing claims.
+
+#### Ideal architecture (TO-BE)
+
+```mermaid
+flowchart TB
+  U[Phone / web / optional Telegram] --> C[One-shot capability capsule]
+  C --> P[Policy + identity + credential broker]
+  P --> O[Life Manager control plane]
+  O --> R[14-loop registry and scheduler]
+  R --> T[Tools: browser, API, code, finance, content]
+  T --> E[Effect fence + provider receipt/readback]
+  E --> L[Evidence ledger / CFO cost and settlement join]
+  L --> H[Observability + recovery supervisor]
+  H --> O
+  L --> V[LM-EAB eval / profit optimizer]
+  V --> K[Candidate isolation, promotion and rollback]
+  K --> O
+  L --> F[Self-funding ledger: settled inflow minus measured cost]
+  F --> X[x402 / agent economy, only within policy]
+  O --> W[Cloud durable workers]
+  O --> S[Local self-hosted adapter]
+```
+
+The control plane is model-agnostic and uses the same task, tool, receipt and recovery contracts in cloud and local
+mode. The model proposes plans and tool calls; deterministic code owns identity, arithmetic, deduplication,
+spend/effect policy, receipt joins and rollback. A single logical manager can therefore coordinate many people
+without a dangerous global credential or cross-tenant state leak.
+
+The user experience is: one minimal bootstrap, conditional provider KYC/OAuth/CAPTCHA/legal consent only when a
+provider requires it, then autonomous wakes and outcome reports. The system never asks the person to invent goals,
+select loops, approve routine actions or set a per-action risk limit. It must still refuse an unauthorized bank or
+wallet transfer; hiding a required authorization prompt is not “no human in the loop,” it is an unsafe claim. The
+long-term product target is no recurring human operations and, where provider-native credentials and lawful rails
+permit it, no human credential. Bank-only/no-install proactive payout is a future milestone and is not shipped.
+
+#### Current public-surface mismatch
+
+The live pages were crawled on 2026-09-25 JST:
+
+- `/en` describes a proactive body/mind/money Life Manager and links to `/lm`.
+- `/lm` still sells a Calendar × Telegram travel manager ($29/mo), requires Calendar connection and a base/home
+  location, and treats calls as optional. It does not describe the whole economic/physical/mental manager.
+- `/income` asks for email/wallet onboarding and says bank/PayPay is rolling out. It is a queue/benefit surface,
+  not proof of proactive bank payout or zero-human onboarding.
+
+The product surface must be rewritten only after the real bootstrap/cloud path exists: `/en` becomes the canonical
+Life Manager explanation, `/lm` becomes the same product entry (or redirects), and `/income` states only the
+receipts that actually exist. Do not advertise “no human at all,” UBI or AGI as implemented before an end-to-end
+identity, authorization, payout and readback path proves it.
+
+#### What the external research teaches us
+
+These are primary-source findings, with confidence limited to what the sources actually claim:
+
+| Source | Verified approach | What Life Manager adopts | What it does **not** prove for us |
+|---|---|---|---|
+| [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) and [tool design](https://www.anthropic.com/engineering/writing-tools-for-agents) | Start with simple composable workflows; use agents only where model-directed flexibility is needed; make the agent-computer interface explicit and tested | Keep the shared kernel small, document tools, expose plans/diagnostics, add complexity only when an eval shows a need | A good agent pattern is not a revenue or AGI result |
+| [Google DeepMind SIMA](https://deepmind.google/blog/sima-generalist-ai-agent-for-3d-virtual-environments/) | Train across many worlds; map vision/language to actions; evaluate seen and unseen environments | Build adapters and held-out provider tasks so one manager generalizes across platforms; use replay-safe action interfaces | Game-world generalization is not real-world financial autonomy |
+| [Google DeepMind Genie 2](https://deepmind.google/discover/blog/genie-2-a-large-scale-foundation-world-model/) | A learned world model can generate interactive environments for safe agent training | Add simulators/counterfactual “what-if” environments for offers, workflows and recovery before live effects | Synthetic worlds cannot establish official provider settlement |
+| [Simile](https://www.simile.com/) | Builds behavior models from real people, validates weekly against thousands of evaluations, and reports uncertainty | Model user/customer response and marketing experiments; require calibration and uncertainty, not just a generated persona | Simulated people are not a permission to act on real accounts, and the company’s claims are not our benchmark result |
+| [Listen Labs](https://listenlabs.ai/) | AI-moderated interviews, large participant reach, traceable insights and compounding research memory | Use for product/offer discovery and creative testing; join findings to actual install/payment cohorts | It still relies on research participants and does not provide a no-human Life Manager |
+| [Andon Labs Vending-Bench](https://andonlabs.com/evals/vending-bench-2) / [paper](https://arxiv.org/abs/2502.15840) | Long-horizon business simulation scored by ending bank balance; exposes coherence failures over months | Make long-horizon economic autonomy a first LM-EAB track, with costs, interventions and failure recovery | It is simulated; its dollar score is not real MRR, self-funding or AGI |
+| [DigitalOcean Managed Agents](https://www.digitalocean.com/products/managed-agents) | Durable cloud sessions, pause/resume, microVM isolation, credential brokering, governed tools and structured logs | Use durable workers, per-session isolation, brokered credentials, cost attribution and resumable state in our cloud design | A managed runtime does not make the agent autonomous or profitable |
+| [Sakana AI Scientist](https://sakana.ai/ai-scientist/) | Idea → code → experiment → review → iterative archive; warns that sandboxing is essential | Copy the evaluator-optimizer/research loop for self-improvement candidates, with isolated branches and rollback | Its automated papers still have correctness/safety failures and human scientific context |
+| [OpenBot](https://github.com/nightly-labs/openbot) | Persistent agents, FIFO queues, workspaces, browser and agent-to-agent messaging; local-first and explicitly dangerous permissions | Borrow durable queue/session/workspace concepts; keep our effect fences and receipt ledger | Its preview is local-first and `danger-full-access`; it is not our cloud or safety boundary |
+| [Unreal Agent](https://github.com/unreallabsai/unreal-agent) | Async coordinator, durable sessions, idempotent input inbox, serializable operations and crash recovery | Use stable occurrence IDs, inbox dedupe, serializable operations and recovery/fork semantics | A harness alone does not provide domain adapters or financial settlement |
+| [BrowserGym](https://github.com/ServiceNow/BrowserGym) / [OSWorld](https://github.com/xlang-ai/OSWorld) | Reproducible browser/desktop environments and task suites for agent evaluation | Add browser/desktop task families and held-out environments to LM-EAB; keep provider effects separate | Sandbox task success is not a live provider receipt |
+| [METR Task Standard](https://github.com/METR/task-standard) and [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Versioned task families, environment setup and objective scoring; error discovery before writing more evals | Publish task/trial/grader schemas, sample production failures, calibrate graders and maintain held-out sets | Generic task standards do not encode our identity, payout or no-recurring-human-loop rules |
+
+The names “Similie” and “Aaru” from the request are not sufficiently identified by a first-party source in this
+readback. `SIMA` is the verified DeepMind project; `Simile` is the verified behavior-simulation company. Aaru was
+only found in an independent API-Evangelist stub, not a verified official technical artifact, so it is not used as
+an architectural authority until an official source is identified.
+
+#### Own-model strategy
+
+Do not train a foundation model first. The sequence that minimizes time and preserves evidence is:
+
+1. Keep a model-agnostic Life Manager brain behind the existing tools/receipt/recovery contract; compare providers
+   and small models on the same LM-EAB tasks.
+2. Capture redacted trajectories, tool outcomes, failure classes, official receipts, cost and settled contribution.
+   Never train on secrets or unverified success.
+3. Improve prompts, tool schemas, retrieval, routing, memory compaction and candidate policies before weight training.
+4. Distill/rerank a smaller model only when held-out evals show a stable cost/latency bottleneck and enough diverse
+   data exists; promote by evaluator-owned canary and rollback.
+5. Train a domain/world model only when it improves held-out cross-provider generalization, recovery or economic
+   outcome beyond the control-plane baseline. A model score alone never changes permissions or proves AGI.
+6. Treat “AGI” as an empirical claim requiring independent replication across economic, physical, mental, software
+   and unseen task families, plus safety and no-recurring-human-loop tracks. LM-EAB can become a public standard by
+   being reproducible and useful to outsiders, not by declaring our own score to be the definition of AGI.
+
+#### Whole-ship remaining TODO (strict order)
+
+1. **Freeze and route ownership.** Preserve this spec as the architecture SSOT; preserve the separate Paid branch and
+   its provider/session/effect boundaries; create and push the durable handover index. Do not run two owners against
+   one browser, account, occurrence or branch.
+2. **Restore host capacity and release prerequisites.** Recover the owner-controlled disk/admission floor, retain
+   protected state, run the relevant suite from an allowed main-derived worktree, and record a fresh receipt.
+3. **Finish Foundation/Connector promotion.** Verify the managed-Node/recovery candidate, merge through main only
+   after CI/contract evidence, cut one immutable release, load it, read back exact SHA/argv/env/diagnostics, and run
+   one effect-free Connector natural canary. `circuit_open/wake_boundary_failed` is not accepted until nested class,
+   occurrence, release and readback are present.
+4. **Prove one autonomous self-heal.** Life Manager itself must detect, classify, repair, reload and verify one
+   low-risk non-Paid occurrence with Codex absent from the live repair path; capture official readback and replay-zero.
+5. **Close the 14-loop foundation.** Reconcile each non-Paid owner through the shared kernel until every row is
+   `healthy` or an exact typed setup/safety fence with complete diagnostics; no `uncovered_failure`, release drift or
+   missing readback fields. Then integrate the separate Paid branch by reviewed union, not blind merge, and execute its
+   canonical Coconala → CrowdWorks → Lancers → Freelancer/Upwork → Mercor cursor.
+6. **Ship the one-shot capsule.** Persist identity/capability/credential references, immutable policy, onboarding
+   version and auto-enrollment. No goal-setting or routine approval prompts; one-time provider gates remain explicit.
+7. **Ship cloud parity.** Run durable isolated cloud workers with brokered credentials, pause/resume, scheduled wakes,
+   structured logs, cost attribution and tenant/account isolation. Prove the same capsule/evidence hashes in local and
+   cloud modes; keep self-hosted local as an adapter, not a fork.
+8. **Complete LM-EAB.** Separate recovery eval, economic eval, public benchmark and production gate. Add independent
+   adapters, task authoring, production-failure sampling, public/dev/held-out/challenge splits, contamination audit,
+   repeated-trial uncertainty, grader calibration, redacted trajectories and reproducible reports.
+9. **Make commercial loops learn profit.** For Affiliate, Mobile Apps/Capafy, Writer/Product, Gig non-Paid,
+   Investment and Self-Funding/x402, join every occurrence to exposure, action, official receipt, settlement, refund,
+   payout and compute/provider cost. For mobile, rotate topic/body/CTA/visual variants per account; never treat repeated
+   posts, clicks, unrealized marks or model decisions as money.
+10. **Enable evaluator-owned self-improvement.** Candidate changes may improve prompts, tools, routing, offers,
+    marketing, pricing and new-loop proposals. A frozen evaluator and policy kernel decide promote/rollback; a
+    candidate cannot rewrite identity, permissions, receipt logic, effect fences, spend caps or its own score.
+11. **Enable self-funding.** Only after settled attributable inflow covers measured model, browser, cloud, provider and
+    payout costs. x402 may settle permitted agent-to-agent services inside caps; it cannot bypass KYC, authorization or
+    unknown-effect fences. CFO must independently read back the net ledger.
+12. **Align product and distribution.** Rewrite `/en`, `/lm` and `/income` to the real shipped capability; build the
+    marketing factory with diverse creative and App Store/website funnel telemetry; prove install → activation → paid
+    retention and settled contribution before scaling.
+13. **Reach the first economic milestone.** Establish a settled recurring cohort, then verify portfolio net MRR ≥
+    USD 10,000 with refunds, costs and payout included. This is a target, not current evidence.
+14. **Prepare YC evidence.** Submit an honest Winter 2027 application with reproducible receipts, self-heal proof,
+    LM-EAB results and customer economics; never claim selection.
+15. **Pursue broad AGI/UBI.** Expand held-out LM-EAB to physical, mental, software, civic and societal tasks; run
+    independent replication; only then train/distill a Life Manager model or claim broad AGI. Proactive universal
+    payouts to people without signup/bank/internet require lawful rails, identity/consent and operational evidence;
+    they are a long-horizon UBI objective, not a current feature.
+
+#### Whole-ship done definition
+
+The ship is complete only when one main-derived immutable release passes: 14-loop structural/diagnostic gate; one
+Codex-free self-heal; cloud/local parity; Paid reviewed integration; official effects/readbacks and replay-zero;
+attributable settled revenue and cost joins; evaluator-owned promotion/rollback; self-funding net-positive ledger;
+and public LM-EAB reproducibility with held-out results. USD 10K MRR, YC selection, AGI and UBI are separately
+reported outcomes, never inferred from tests, lifecycle `pass`, simulated dollars or aspiration.
+
+#### Full-ship handover prompt
+
+```text
+You are taking over the entire Life Manager ship, not only Connector.
+
+READ FIRST (mandatory)
+1. /private/tmp/lm-recovery-owner-20260924/docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md
+   Read this newest “Whole-ship handover and AGI architecture addendum,” the current 14-loop table, the Connector
+   readback, and the remaining-work section. This document is the architecture/sequence SSOT.
+2. Paid is a separate owner. Read, read-only, /private/tmp/lm-paid-main-20260924/docs/superpowers/specs/
+   2026-09-22-paid-fulfillment-all-platforms-design.md and skills/earn/gig/TODO.md. Do not edit or execute its
+   provider/session/state work.
+3. Read the durable handover index under .claude/handovers/ and verify git HEAD, upstream, dirty state, release
+   selector, owner lease and live provider/browser state before editing.
+
+MISSION
+Build one cloud-first Life Manager entity that manages economic, physical and mental life proactively after a
+minimal one-time bootstrap. It must be observable, self-healing without Codex babysitting, economically self-improving
+through evaluator-owned candidates, and eventually self-funding through permitted x402/agent-economy flows. Local
+self-hosting remains the same-contract adapter. The product target is no recurring human operations; one-time
+provider KYC/CAPTCHA/OAuth/legal gates and lawful authorization must remain explicit. Never fake no-human credentials,
+receipts, settlement, MRR, AGI, YC selection or UBI.
+
+CURRENT FACTS (do not overwrite with old chat memory)
+- Docs worktree: /private/tmp/lm-recovery-owner-20260924
+- Branch: fix/writer-admission-self-heal-20260924
+- Latest docs HEAD: 585c07856a (source-only; not main/production)
+- Loaded production release: d4fe0819931c50caaf41f25e86f1052cd8a0359c
+- `lm-loop status all --json`: 271 rows; 98 mapped jobs; 14 catalog loops; contract has zero structural errors
+- Foundation gate: block; healthy=0, safely_fenced=1, uncovered_failure=13
+- Connector: loaded old release, `entrypoint_exit_1`, no provider receipt/readback. Root cause is old hard-coded
+  127.0.0.1:9222 versus the profile-owned Cloak daily-driver IPv6 endpoint; source candidate adds identity resolution
+  and nested diagnostics but is not loaded.
+- Commercial truth: no loop is proven continuously healthy and profitable. Lifecycle `pass` is not revenue.
+- Paid worktree/branch: /private/tmp/lm-paid-main-20260924, fix/coconala-history-retry-20260924, HEAD 5a28bfb762.
+  Ryu/Coconala room 18211957 is a permanent manual exception; never resend or press formal delivery.
+
+ORDER OF WORK
+1. Freeze ownership; restore disk/admission floor without deleting protected/open state.
+2. Verify candidate suites and contract gates; merge only via latest main-derived dedicated worktree.
+3. Cut/load one immutable release; read back exact SHA, argv/env, diagnostic envelope and Connector natural canary.
+4. Prove one low-risk Codex-free self-heal with official readback and replay-zero.
+5. Close the non-Paid 14-loop foundation; then reviewed-union integrate Paid and follow its canonical platform cursor.
+6. Implement one-shot capability capsule, automatic enrollment and typed setup fences; do not ask goals or routine approvals.
+7. Promote identical contract to isolated durable cloud workers and prove local/cloud parity.
+8. Finish LM-EAB: independent adapters, held-out/challenge data, contamination audit, repeated trials, grader
+   calibration and public reproducible reports.
+9. Connect each commercial loop to official effect, settlement, refund, payout and measured cost; rotate mobile creative.
+10. Enable candidate self-improvement with immutable policy/evaluator, promotion, rollback and audit trail.
+11. Enable self-funding only when settled inflow exceeds all measured costs; x402 cannot bypass authorization/KYC/fences.
+12. Align `/en`, `/lm`, `/income`; prove distribution funnel and settled recurring cohort; then target verified USD 10K MRR.
+13. Submit honest YC W27 evidence; expand cross-domain benchmark; only then consider distillation/training and AGI/UBI.
+
+OBSERVABILITY RULE
+Use `./bin/lm-loop status all --json`, `./bin/lm-loop-contract` and the foundation evaluator. `unknown`,
+`effect_unknown`, `circuit_open` and `wake_boundary_failed` are diagnostic cursors, never replay permission. Preserve
+run_id, owner_id, occurrence_id, release_sha, loaded argv/env, phase, command, exit code, effect, receipt, official
+readback, evidence refs, error class, retryability and next action. Clear a fence only with occurrence-bound official
+readback or admissible no-effect proof, then verify replay-zero.
+
+MODEL/EVAL RULE
+Keep deterministic code responsible for identity, arithmetic, dedupe, permissions, receipts and rollback. Models may
+plan and propose. Evaluate first on frozen traces and held-out tasks; promote only when attributable settled net
+contribution, reliability, intervention count, cost and safety improve. Do not train a foundation model first.
+
+BOUNDARIES
+Do not touch Paid source/state/provider session/browser tab, project 18211957, hf-gig-paid-direct, or the Paid branch.
+Do not replace the existing CloakBrowser foundation with Tencent BrowserSkill; BrowserSkill is research/diagnostic only.
+Do not claim production, revenue, self-funding, zero-human credentials, AGI, YC selection or UBI without the exact evidence.
+
+DELIVERY
+Use a dedicated main-derived worktree/branch. Read current state before editing. Make the smallest change, run focused
+tests plus contract/eval checks, inspect diff, commit and push. Main merge and immutable production load happen only
+after the whole acceptance gate is met. At every handover update the spec and durable index with facts, evidence,
+blockers and the first safe resume action. Final report must separate implemented, loaded, verified, unverified and blocked.
+```
