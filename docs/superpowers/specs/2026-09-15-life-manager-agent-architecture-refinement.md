@@ -6079,6 +6079,14 @@ A subsequent read-only `df` probe at `2026-09-25 14:03 JST` reports **377,831,42
 the earlier sample and still below the `1,155,780,608`-byte floor; no production loop was restarted or promoted
 because of this probe.
 
+The owner-controlled cleanup cursor then added the checksum-pinned Camofox fallback to the disk governor's exact
+regenerable-cache allowlist (candidate commit `5d2d782a4c`, focused RED→GREEN and disk-cleanup suite **114 passed**).
+With no Camofox process and no `:9377` listener, the governor evaluated exactly one path,
+`~/.cache/life-manager/camofox-browser`, reclaimed **106,937,460 bytes**, wrote the normal cleanup receipt at
+`~/.openclaw/state/last-receipt.json`, and reported `errors=0`, `protected_deletions=0`, `preserved=0`. The
+post-sweep readback was **450,572,288 bytes** free (later `df` sample: **446,582,784 bytes**); the foundation floor
+is still unmet, so this is progress toward capacity recovery, not permission to promote production.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
