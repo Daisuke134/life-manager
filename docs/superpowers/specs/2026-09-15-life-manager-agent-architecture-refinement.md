@@ -4299,6 +4299,17 @@ safe recovery is owner-aware natural close/release followed by a fresh
 governor receipt; force-stopping these owners would trade a measurable
 capacity problem for an unverified browser/session failure.
 
+A separate read-only launchd-safe reference audit found **65** immutable
+release directories. The newest one is the retention generation; the other
+**64** are named by LaunchAgent plists. **62** release names have at least one
+loaded plist, and **49** referenced generations have no currently running PID
+but remain `loaded-idle` scheduled owners. None is a disabled-only reference.
+Therefore release-retention cleanup correctly found no safe old-generation
+candidate: deleting a loaded-idle generation would leave a future scheduled
+wake pointing at missing source. The capacity cursor is consequently
+owner-by-owner rebind (or external capacity recovery), not blind release
+deletion.
+
 ### Latest launchd preflight receipt boundary (2026-09-25 JST)
 
 The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
