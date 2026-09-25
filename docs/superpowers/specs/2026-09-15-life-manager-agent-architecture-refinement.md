@@ -6231,3 +6231,117 @@ No external GitHub repository was cloned into Life Manager or installed as a pro
 primary repositories were inspected as design references; their interfaces and reporting practices can be adopted
 through isolated adapters after the contract is fixed. Cloning a benchmark repository is not a substitute for a
 stable task schema, official evidence or independent reproduction.
+
+### Eval/benchmark repository study and Connector-first execution cursor
+
+On `2026-09-25`, the following primary repositories were cloned read-only into a temporary reference directory and
+their README, task/runner, scorer/metric, trajectory and reporting code was inspected. None was copied into the Life
+Manager checkout, installed as a production dependency, or allowed to mutate a provider/browser. The temporary HELM
+and Inspect AI clones hit the host's existing ENOSPC floor during checkout; the complete shallow references below
+were sufficient for this design study.
+
+| Reference | Read commit | What it teaches Life Manager |
+|---|---|---|
+| [OpenAI Evals](https://github.com/openai/evals) | `8eac7a7de5215c907fbddc30efdaf316913eccdd` | A registry of evals and completion functions; deterministic sample IDs/seeds; per-sample event recording; solver state isolation; local/remote recorders |
+| [OpenAI Simple Evals](https://github.com/openai/simple-evals) | `652c89d0ca9df547706735883097e9537d40dc47` | Small model samplers, explicit eval selection, repeats and simple aggregate statistics; useful reference, not a new production dependency (the README says new benchmark updates are deprecated) |
+| [Stanford HELM](https://github.com/stanford-crfm/helm) | `63754d05db6f874e41a395880fb573890a13e791` | Scenario/RunSpec/Adapter/Metric separation, train/valid/test splits, per-instance and aggregate stats, perturbation/robustness views, cached run artifacts and public leaderboards |
+| [METR Task Standard](https://github.com/METR/task-standard) | `03236e9a1a0d3c9f9d63f6c9e60a9278a59d22ff` | Versioned agent-independent task families; explicit environment, permissions, instructions, resource manifest, start hook and deterministic/intermediate/end scoring; interchangeable drivers |
+| [BrowserGym](https://github.com/ServiceNow/BrowserGym) | `9e779f087de9a65668b6974d11f9ce9816026e96` | Seeded `AbstractBrowserTask` with setup/validate/teardown, Gym environment IDs, action/observation loops, task metadata and experiment traces |
+| [OSWorld](https://github.com/xlang-ai/OSWorld) | `b138d348256078fa634fc3b73567a7337c793e6b` | Snapshot-backed desktop tasks, provider/VM isolation, task JSON, screenshots/video/`traj.jsonl`, evaluator-owned final state and reproducible result directories |
+
+#### Concrete lessons extracted from the code
+
+1. **The solver is not the evaluator.** OpenAI's completion-function protocol lets one task run any compatible
+   model/agent/tool harness; Life Manager must likewise evaluate the same loop task against different models, prompts,
+   browser adapters and cloud/local drivers without changing the grader.
+2. **A score without a trajectory is not useful.** OpenAI's `Recorder` records typed events per `run_id`/`sample_id`,
+   HELM stores per-instance statistics, and BrowserGym/OSWorld keep step observations/actions. LM-EAB must preserve the
+   full occurrence chain, not just a final `pass` or a Telegram sentence.
+3. **Environment and permissions are part of the task.** METR explicitly exposes permissions, environment resources,
+   network access and task setup. LM-EAB must expose browser identity, credential class, spend cap, provider access,
+   external-effect policy and one-time KYC/CAPTCHA status in every trial.
+4. **Drivers must be replaceable.** METR separates task definitions from Docker/VM/cloud drivers; OSWorld supports
+   several environment providers. LM-EAB should run the same task on local Mac, isolated cloud worker and simulation
+   driver, then report infrastructure differences instead of hiding them inside the agent score.
+5. **Metrics must be plural and per-instance.** HELM's metric interface produces per-instance and aggregate stats;
+   Simple Evals computes explicit mean/std/bootstrap-style summaries. LM-EAB must show success, failure class,
+   intervention, credential, cost, latency, safety, receipt and net contribution per trial before aggregation.
+6. **Long-horizon claims need repeated trials and immutable artifacts.** BrowserGym records seeds and experiment state;
+   HELM writes run specifications, scenario state, stats and per-instance stats and can skip only complete runs. LM-EAB
+   must reject incomplete/overwritten result directories and must report trial count and uncertainty.
+7. **Task standards deliberately do not define the agent or safety policy.** METR leaves agent implementation and
+   safety/oversight outside the task standard. LM-EAB must add those as explicit orthogonal tracks—especially
+   no-recurring-human-loop and no-human-credential—rather than pretending one task score proves AGI.
+
+The resulting LM-EAB v1 contract is therefore:
+
+```text
+Task family (versioned, driver-neutral)
+  -> Environment/permissions/capability manifest
+  -> Agent adapter (model + prompt + tools)
+  -> Trial (seed, hashes, full trajectory, cost and intervention events)
+  -> Deterministic receipt/state/safety graders
+  -> Optional calibrated semantic graders
+  -> Per-trial score vector and aggregate uncertainty
+  -> Reproducible report / held-out leaderboard
+```
+
+The primary Life Manager difference is that a real-world score cannot be awarded from the agent trajectory alone:
+provider receipt, official readback, settlement, cost attribution and replay-zero are mandatory evidence. Simulation
+is useful for iteration, but it cannot declare paid work, self-funding or real MRR.
+
+### Connector-first remaining TODO and promotion order
+
+The execution cursor is now **Connector**, because it has an occurrence-bound, effect-free failure with a high-confidence
+endpoint/ownership cause and it exercises the shared browser/observability foundation. This order does not touch the
+separate Paid fulfillment workstream or its provider sessions/state.
+
+1. **Restore the owner-controlled capacity floor before more clones or runtime mutation.** Record free bytes and a
+   cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
+   Paid worktree. The recent reference clone checkout already demonstrated that ENOSPC is still an active host risk.
+2. **Add the Connector registry join.** Add a `browser_identity` reference and distinct `browser_target_owner` to the
+   Connector job contract. Validate the join against `browsers.toml`; do not duplicate a static profile or treat a
+   port number as identity.
+3. **Implement one canonical browser resolver.** Resolve the profile's `DevToolsActivePort`, call `/json/version`,
+   require HTTP 2xx and valid JSON, verify websocket reachability, browser UUID, process/profile owner and target lease.
+   Expose this read-only as `lm-loop browser resolve <loop> --json` and make Connector consume its output.
+4. **Fix the health probe and failure envelope.** Reject 404 as alive; preserve `run_id`, `wake_id`, `occurrence_id`,
+   release SHA, endpoint, phase, command, exit code, nested error class, effect, receipt/readback, evidence refs,
+   retryability and next action through the runner catch. Report `browser_endpoint_unhealthy` or
+   `browser_open_failed` distinctly instead of only `wake_boundary_failed`.
+5. **Add focused Connector regression evals.** Cover wrong listener/404, valid Cloak listener, wrong UUID/owner,
+   Playwright open failure, provider action failure, report-delivery failure and counter-not-counted-at-stage. Assert
+   `effect=none`, no provider receipt and no unsafe retry for pre-effect failures.
+6. **Run one non-effect Connector natural canary.** Load an accepted immutable release from main-derived source, run
+   one bounded wake, read back the exact event/action history/Telegram report, and prove replay-zero. Do not clear a
+   fence or claim Connector health from a unit test alone.
+7. **Promote the resolver/CLI contract into the shared foundation.** Make `lm-loop-contract` reject any browser loop
+   without identity/target-owner/effect/readback mappings; make `status --explain` render the nested cause and exact
+   next action. Re-run the 14-loop foundation projection.
+8. **Reconcile every non-Paid Product Loop.** For each uncovered row, preserve the same occurrence/fence, repair only
+   through the shared recovery intent, load the exact immutable release, obtain official readback and replay-zero, and
+   isolate sibling failures. The Paid-owned Coconala/CrowdWorks/Lancers/Upwork workstream remains read-only here.
+9. **Prove shared self-healing once without Codex live babysitting.** A managed Life Manager wake must detect,
+   classify, select a bounded repair, apply/load, verify official readback and close replay-zero. This is the first
+   self-healing acceptance, not a claim that all 14 loops are healed.
+10. **Expand eval-driven development from the current fixtures.** Convert every real failure into a versioned case;
+    freeze a baseline; run deterministic policy/receipt/safety graders first; add held-out/challenge splits, repeated
+    trials and uncertainty; keep the evaluator immutable.
+11. **Build LM-EAB v1 adapters.** Implement one METR-like task-family adapter, one BrowserGym-like interaction adapter,
+    one OSWorld-like isolated desktop adapter and one real-provider receipt adapter. Run the same task contract on
+    local and cloud drivers without importing Life Manager private control-plane code.
+12. **Publish only after independent reproduction.** Add contamination audit, grader calibration, redacted trajectories,
+    score vectors, cost/intervention/credential slices and a reproducible leaderboard. A private 41/41 or 13/13 fixture
+    result is not a public benchmark claim.
+13. **Enable self-improvement for profit.** Candidate changes may alter prompts, skills, offers or routing only inside
+    the candidate boundary; promote only when held-out reliability and live attributable net contribution improve with
+    no safety/evidence regression. Activity, clicks and unrealized gains do not count.
+14. **Enable self-funding.** Join settled revenue to compute/cloud/provider/payout costs; x402 may pay permitted
+    agent-to-agent services but cannot bypass KYC, identity, spend caps or unknown-effect fences. Count self-funding
+    only when settled inflow covers measured cost with CFO readback.
+15. **Scale verified recurring revenue and cloud parity.** After a positive settled cohort, promote the same capsule to
+    isolated always-on cloud workers and retain local/self-hosted parity. USD 10K MRR remains a measured receipt/cost
+    target, not a benchmark score or current fact.
+16. **Expand across domains and models.** Add physical/mental/software/civic tracks with domain safety contracts and
+    independent replication; only then consider training/distilling a Life Manager model. AGI is a future empirical
+    claim, not an assertion derived from economic simulation or one leaderboard.
