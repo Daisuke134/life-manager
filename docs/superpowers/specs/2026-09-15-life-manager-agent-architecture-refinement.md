@@ -6548,7 +6548,8 @@ With the floor restored, a fresh read-only `status all --json` plus `local-found
 `foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete` and `uncovered_failure`. Thirteen
 loops remain on exact-release drift and Connector remains on `runtime_terminal_not_pass`; this is a separate acceptance
 gate from disk capacity. No production selector, admission DB, effect fence, browser or Paid state was changed by this
-reread.
+reread. The candidate branch is now latest-main based (`origin/main` is an ancestor) at head
+`5c1b525685`; it is still not main-integrated or loaded as an immutable production release.
 
 #### Remaining TODO (strict order)
 
