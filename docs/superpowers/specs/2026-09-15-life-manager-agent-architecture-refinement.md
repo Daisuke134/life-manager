@@ -6652,3 +6652,128 @@ reread. The candidate branch is now latest-main based (`origin/main` is an ances
 13. **Expand across domains and models.** Add physical/mental/software/civic tracks with domain safety contracts and
    independent replication; only then consider training/distilling a Life Manager model. AGI is a future empirical
    claim, not an assertion derived from economic simulation or one leaderboard.
+
+### Commercial-loop readback and investment/mobile priority (2026-09-25 JST)
+
+This section is a read-only evidence refresh. It does not touch the separate Paid fulfillment worktree, provider
+sessions, effect fences, or external money. “Published” is not “revenue”; only an official settlement or store
+financial record can close a revenue claim.
+
+#### Investment and agent economy
+
+- `alpaca-investment-live` is registered as a 300-second shared-agent loop with `effect_class=money`. Its latest
+  status is `loaded-idle`, last exit `75`, and `host_admission_deferred:resource_capacity_busy`; that wake did not
+  enter the investment entrypoint. The registry contains no Hyperliquid, meme-coin, or standalone public-stock loop.
+- The existing allocator observes BTC/USDC and ETH/USDC crypto quotes, QQQ and SPY option data, but its approval gate
+  permits only bounded crypto and option-spread candidates; QQQ is observation-only in the current gate. The source is
+  therefore not a general multi-venue investment system.
+- The local official Alpaca evidence is live (not paper) with account equity `66.6`, a `USDCUSD` position valued at
+  about `66.598687`, and unrealized P/L `-0.048729`. The receipt ledger has `223` rows: `205` `no_trade`, one verified
+  live canary, one verified close, and two broker-reconciled outcomes. The measured performance snapshot reports
+  realized P/L `-0.01`, unrealized P/L `-0.03`, net P/L `-0.04`, and `statistically_supported=false`; the frozen BTC
+  close reports realized net `-0.006970681885` USDC. This is a small bounded experiment, not profit or USD 10K MRR.
+- `agent-economy-loop` is alive with a clean runtime status, but its economic evidence is only one settled x402 revenue
+  receipt for `0.003` USDC. Its earn ledger sums to zero and its sole compute receipt paid `0.002` USDC for a failed
+  output (`429`, stale model). Self-funding is not proven.
+- Hyperliquid and meme-coin expansion is a future candidate only. A public reference implementation demonstrates
+  indicators, hard risk guards, stop-losses, exposure caps, and an agent signer, but it still requires an authorized
+  wallet signer and explicitly says it is unaudited and offers no return guarantee. Life Manager must first define a
+  venue-specific risk/effect/receipt contract, shadow-run it, and prove broker settlement before any live expansion.
+
+#### Mobile apps and distribution
+
+- The product catalog has one `mobile-apps` product with 18 publisher jobs plus metrics jobs. Recent Postiz/marketing
+  receipts (published at or after `2026-09-20`) contain `102` published records, `68` distinct creative IDs and only
+  `28` distinct caption hashes. The most reused caption hashes occur `17`, `15`, and `11` times. Thus the current
+  failure is not “no post at all”: publication is occurring, but distribution is repetitive and not yet tied to an
+  install-to-payment learning loop.
+- The older cadence summary remains an honest historical warning: on `2026-08-27` it recorded 13 published, 24 missed
+  and 2 pending slots; on `2026-08-28` it recorded 39 pending slots. Several registry rows still expose stale
+  `effect=unknown`/incomplete diagnostics even though newer marketing receipts exist. These two surfaces must be
+  reconciled by one occurrence-bound readback rather than treated as interchangeable success.
+- App Store business evidence currently covers only `Daily Affirmations - Anicca` (`6755129214`) and `Honne`
+  (`6759667221`). After de-duplicating repeated report rows, the observed window contains 12 downloads (9 first-time)
+  for Daily Affirmations and 2 first-time downloads for Honne. Discovery rows contain 192 and 154 impressions,
+  respectively. The unique purchase report for Daily Affirmations totals historical proceeds `USD 169.97` (dates
+  January–July 2026); Honne has no observed purchase row. This is not current monthly recurring revenue, and the other
+  app catalog entries have no official store financial record in the local evidence.
+- RevenueCat snapshots mark product observations unavailable (`product_pack_observation_missing`), and the product
+  catalog still marks mobile financial and cost adapters as `missing`. The source project is `MARKETING_VERSION 1.9.5`
+  / build 365 while the latest captured store report is version 1.9.4. A release, install, subscription, proceeds and
+  cost-attribution readback is still required before calling the app factory healthy or profitable.
+
+#### Capafy and affiliate
+
+- Capafy has 57 company receipts. The newest skill-level receipt (`2026-09-24`) is **Academic Abstract Claim
+  Calibrator** with gross `USD 80.82`, creator earnings `USD 60.54`, observed subscription earnings `USD 52.54` (not
+  MRR), one-time revenue `USD 9.99`, pending `USD 14.40`, and `paid_out_usd=0.00`. `settled_mrr_usd` and active
+  subscription status are unknown. Inventory is 40 listed, 5 occupied, 0 free. Healthcheck passes, but marketing and
+  account-mutation rows still show admission/effect fences; no bank-settled Capafy revenue is proven.
+- Affiliate's latest revenue-cycle state is `NO_TRANSACTIONS`; the linked provider artifact failed with a non-retryable
+  `PROVIDER_SCHEMA_ERROR` at the links stage. The latest X-growth baseline has 1,307 impressions and zero likes,
+  replies, reposts and bookmarks. Composition artifacts exist, but no commission/conversion receipt exists. Affiliate
+  is therefore not fixed economically even if its process rows can run.
+
+#### Product surface and no-human-loop boundary
+
+The public `/lm` surface is currently a Telegram deep-link handoff, and `apps/landing/README.md` explicitly excludes
+the income/UBI surface. The page metadata describes a proactive body/mind/money manager, but the implementation still
+depends on Telegram onboarding and provider credentials; a bank-only, no-install, no-human-credential experience is a
+vision, not a shipped capability. The no-recurring-human-loop target remains valid, but KYC, CAPTCHA, OAuth/provider
+authorization, App Store accounts, marketplace accounts and wallet authorization are still real capability boundaries.
+They must be listed honestly in the capability manifest and cannot be silently removed from the evaluator.
+
+#### Read-only study of adjacent open source
+
+- [every-app/open-seo](https://github.com/every-app/open-seo) (MIT) combines MCP and reusable agent skills with
+  Docker/Cloudflare self-hosting and pay-as-you-go upstream data. Reuse the pattern—versioned skill contract,
+  self-host option, usage/cost receipt—not its provider keys or code as a production dependency.
+- [milind-soni/OpenMausBot](https://github.com/milind-soni/OpenMausBot) (Apache-2.0) shows persistent chat-shaped
+  agents, per-agent workspaces, cloud/local computers and connected apps. It still exposes approval cards and local
+  credentials, so it is not evidence of zero-human operation.
+- [nightly-labs/openbot](https://github.com/nightly-labs/openbot) (PolyForm Noncommercial) shows durable queues,
+  embedded browser, local/cloud drivers and agent-to-agent messaging. The license and its explicit `danger-full-access`
+  preview mean it is study material only, not a drop-in Life Manager dependency.
+- [unreallabsai/unreal-agent](https://github.com/unreallabsai/unreal-agent) separates sessions, idempotent inboxes,
+  tool translation and durable asynchronous operations. The lesson is to keep coordinator validation synchronous and
+  make effects serializable/recoverable; it does not provide our provider receipts or financial proof.
+- [sanketagarwal/hyperliquid-trading-agent](https://github.com/sanketagarwal/hyperliquid-trading-agent) demonstrates
+  indicator computation and code-enforced leverage/exposure/drawdown guards, but requires an authorized agent wallet
+  signer and is explicitly unaudited. It is a risk-policy reference, not permission to start live trading.
+
+### Updated remaining work cursor after commercial readback
+
+The previous 13-step foundation order remains the canonical dependency order. The following concrete subcursor is
+inserted after the immutable-release/Connector canary gate and before claims of self-improvement or 10K MRR:
+
+1. Promote the absolute-Node recovery-supervisor fix through a main-derived accepted immutable release; re-read the
+   reconciler until `node: not found` disappears and the queue has an occurrence-bound terminal outcome. Capacity is
+   currently above floor; immutable-release acceptance, not authorization or storage, is the blocker.
+2. Run the Connector effect-free natural canary and exact readback, then refresh `status all`, contract gate and the
+   foundation evaluator. Keep the 13 uncovered failures visible.
+3. Close every non-Paid loop one owner at a time: Affiliate provider-schema/readback, Writer, Investment, Agent Economy,
+   Job Hunter, Fundraiser, Self-Build, Mobile/Metrics, Capafy and CFO. The separate Paid workstream remains untouched.
+4. Reconcile publication telemetry: bind each mobile/Capafy/affiliate occurrence to provider receipt, creative/caption
+   identity, metrics window, install, purchase, refund and cost records; reject repeated captions beyond the configured
+   diversity policy and prove replay-zero.
+5. Make the app factory economically measurable: finish App Store financial/cost adapters, update the store release,
+   instrument install → onboarding → paywall → purchase → retention, and run content/offer experiments whose promotion
+   gate is verified net contribution—not impressions alone.
+6. Make Capafy per-skill settlement measurable: official seller earnings, pending versus paid-out balance, active
+   subscription state, refunds and cost attribution; only then rank and clone profitable skills.
+7. Establish investment baseline and risk policy: reconcile all Alpaca positions/orders/fees, close or explicitly fence
+   the current small live experiment, and run paper/shadow cohorts. Add Hyperliquid, meme coins or additional equities
+   only as separately registered, bounded, receipt-backed venues after this gate; never infer profitability from a model
+   decision or an unrealized mark.
+8. Prove one managed Life Manager self-heal without Codex performing the repair, then run held-out LM-EAB trials where
+   success includes official effect, safety, intervention count, cost and settled net contribution.
+9. Enable self-improvement only through candidate isolation, evaluator-owned promotion and rollback. Its objective is
+   attributable settled net contribution and reliability; it may improve marketing, offers, routing, skills and new-loop
+   proposals, but may not rewrite identity, permissions, receipts or safety gates.
+10. Enable self-funding after settled revenue covers measured model/browser/cloud/provider cost; x402 can settle permitted
+    agent-to-agent work but cannot bypass human-credential, spend-cap, KYC or unknown-effect boundaries.
+11. Align `/en`, `/income` and `/lm` to the actual Life Manager product, then ship hosted cloud parity and an explicit
+    self-hosted local option. Bank-only/no-install onboarding is a later product milestone and must not be advertised as
+    implemented before a real end-to-end receipt exists.
+12. Only after these receipts are stable, pursue verified portfolio USD 10K MRR, YC evidence and broader model training;
+    AGI/UBI remain empirical future goals, not current status claims.
