@@ -6481,9 +6481,10 @@ separate Paid fulfillment workstream or its provider sessions/state.
 
 1. **Restore the owner-controlled capacity floor.** Record free bytes and a
    cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
-   Paid worktree. At the latest probe (`2026-09-25T14:23:40+09:00`) free space was **424,779,776 bytes**, below the
-   required **1,155,780,608-byte** foundation floor, so ENOSPC is still an active host risk. Do not clone additional
-   repositories or perform a release mutation until this floor is restored.
+   Paid worktree. At the latest probe (`2026-09-25T14:31:43+09:00`) free space was **387,596,288 bytes**, below the
+   required **1,155,780,608-byte** foundation floor, so ENOSPC is still an active host risk. The latest governor
+   receipt evaluated five allowlisted caches, preserved all five as open, reclaimed **0** bytes and recorded **0**
+   errors. Do not clone additional repositories or perform a release mutation until this floor is restored.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.
