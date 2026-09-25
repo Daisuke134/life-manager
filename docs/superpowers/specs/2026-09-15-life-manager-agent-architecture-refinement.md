@@ -6510,7 +6510,10 @@ effect-fence change or production selector change occurred.
    Paid worktree. At the latest probe (`2026-09-25T14:31:43+09:00`) free space was **387,596,288 bytes**, below the
    required **1,155,780,608-byte** foundation floor, so ENOSPC is still an active host risk. The latest governor
    receipt evaluated five allowlisted caches, preserved all five as open, reclaimed **0** bytes and recorded **0**
-   errors. Do not clone additional repositories or perform a release mutation until this floor is restored.
+   errors. Do not clone additional repositories or perform an external-effect release mutation until this floor is
+   restored. The only allowed capacity-recovery mutation is a single owner-aware rebind of a non-Paid,
+   `effect_class=none`, loaded-idle owner whose old release is an ancestor of the already loaded current immutable
+   release; read back the owner and cleanup receipt before selecting another owner.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.
