@@ -1,5 +1,32 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+### Live gate cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
+
+Ryu's live Coconala room is `18211957`. The latest buyer feedback boundary was
+`222343832`, `222343844`, `222343861`, `222345571`, and `222345575`; no newer
+buyer message was present at the final preflight. Production release `v705`
+was applied through authenticated XServer FTPS and passed exact FTPS plus
+public HTTPS/API readback. The release removes the normal 2,000-yen option
+fieldset, leaves only the five per-cast paid options, makes the official LINE
+banner and recruitment button resolve to `https://lin.ee/RhnPYfJ`, preserves
+banner aspect ratios, and applies the six supplied genre images to the six
+genre groups and all 12 cast cards without changing names. Public DOM readback
+confirmed the paid fieldset appears immediately after the course field, the
+normal fieldset is absent, all five paid labels are present, and the LINE link
+is clickable.
+
+One and only one final comprehensive manual message was sent through the
+existing authenticated CloakBrowser/CDP session (not BrowserSkill). The
+official `SaveTalkroomMessage` response was HTTP 200 and the official DOM
+readback contains exactly one new final seller row, message ID `222360163`.
+Earlier partial/duplicate seller rows `222359053` and `222359295` remain
+historical; do not send another Ryu reply. Formal delivery was not clicked and
+remains untouched. BrowserSkill is not a Coconala gate; its empty session only
+blocks account-bound Freelancer/Upwork work.
+
+Ryu's manual delivery cursor is now closed. The next cursor is the platform
+loop/release gates below, not another Coconala message.
+
 ### Live gate cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
 
 The local Coconala talkroom source for Ryu `18211957` records buyer events

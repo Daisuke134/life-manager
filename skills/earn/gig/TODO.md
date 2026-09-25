@@ -1,5 +1,39 @@
 # Gig revenue program — current execution SSOT
 
+## Current cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
+
+- **Ryu/Coconala:** closed for messaging. Buyer boundary is
+  `222343832, 222343844, 222343861, 222345571, 222345575`; v705 production
+  readback passed (normal 2,000-yen field removed, five paid options remain,
+  LINE/banner/genre-image fixes verified). Exactly one final manual CDP send
+  succeeded with provider HTTP 200 and official seller message ID
+  `222360163`. Never resend this room; formal delivery remains untouched.
+- **Coconala loop:** still a separate system task. Paid has a local
+  `entrypoint_exit_1` result-write boundary and must receive a fresh no-effect
+  wake/readback only after disk headroom and release gates pass. Storefront still
+  needs its official provider readback; Apply remains unloaded after
+  effect-free cancellation. Do not treat Ryu's manual completion as loop proof.
+- **CrowdWorks/CloudWorks:** reconcile each exact occurrence-level
+  `effect_unknown` fence with its own provider receipt or admissible no-effect
+  proof; no blanket retry/resend.
+- **Lancers:** refresh the official source-complete inventory; current state is
+  zero-funded and historical `5606124/27965342` is not a funded contract.
+  Keep Paid closed until a current funded `ContractReceipt` and delivery
+  surface exist.
+- **Freelancer.com:** obtain account-bound auth and a fresh official inventory,
+  then a funded project and the provider-approved automatic-bid exception
+  before registering one owner. Public watcher data is insufficient.
+- **Upwork:** obtain account-bound auth, a fresh official contract/milestone,
+  and current mutation authorization; the latest official snapshot was
+  `contracts=[]`, so no owner is registered.
+- **Mercor:** preserve old fences; latest official readback has `contracts=[]`.
+- **Shared release work:** merge/release the already-pushed loop hardening,
+  recover the disk-headroom admission floor, then run the bounded no-effect
+  natural wake, official readback, crash recovery, and replay-zero. The
+  activation order remains `account-bound auth → source-complete inventory →
+  funded contract/milestone → current mutation/policy receipts → one owner →
+  canary/readback → payment/payout readback → crash recovery → replay-zero`.
+
 ## Current cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
 
 The local Coconala talkroom source for Ryu `18211957` contains three buyer
