@@ -6777,3 +6777,70 @@ inserted after the immutable-release/Connector canary gate and before claims of 
     implemented before a real end-to-end receipt exists.
 12. Only after these receipts are stable, pursue verified portfolio USD 10K MRR, YC evidence and broader model training;
     AGI/UBI remain empirical future goals, not current status claims.
+
+### Deep readback: why mobile content repeats (2026-09-25 JST)
+
+This is a code-and-receipt diagnosis, not a claim that the provider UI was guessed from a local hash.
+
+#### What is actually repeating
+
+- The native carousel lane is static. `apps/life-manager/scripts/anicca-larry-ja-canary.js` reads one approved
+  `pack_ref`, six `media_refs` and one `caption_ref` from the lane environment on every due slot and sends those exact
+  refs to `buildMarketingNativeCarouselPublicationJob`; it does not call a content generator or choose a new pack from
+  history. `slotScopedEffect=true` makes the same content legal as a new effect at each schedule slot, so the effect
+  fence prevents duplicate jobs but does not prevent creative fatigue.
+- The read-only receipt ledger confirms the symptom. From `2026-09-01` onward, `@anicca_slideshow` has 24 published
+  native-carousel receipts with one creative, one pack, one media order and one caption hash. The other native lanes
+  show the same pattern: `@anicca.affirmation` 32/32, `@aniccaaffirmation` 32/32, `@anicca.jp` 31/31,
+  `@anicca.jp1` 30/30 and `@ani.cca1234` 29/29 use one unchanged creative/pack/media/caption tuple.
+- The six images inside the current English slideshow pack are not identical: the object pack contains six different
+  slide texts (`PROCRASTINATION ISN'T LAZINESS`, `YOUR BRAIN...`, `MAKE THE TASK...`, etc.) and the corresponding
+  JPEGs render different text. Therefore the proven failure is **post-to-post reuse of the same six-slide set**, not
+  evidence that the local pack has the same text on every slide. If a live provider page shows one text duplicated on
+  every slide, a fresh provider visual readback must capture that separate rendering defect before changing the pack.
+- The generated video lanes have a second, independent bottleneck. `marketing-video-generation-adapter.js` selects one
+  hook and writes publication copy as exactly `hook.text + hashtags`. The Anicca card/widget packs contain only
+  3–4 active hooks, and the YouTube affirmation pack contains one preferred hook. Recent receipts contain 68 artifacts
+  but only 30 copy hashes; several copy hashes recur 5–7 times, and the Japanese card lanes repeatedly reuse four
+  caption hashes. A new media hash or creative ID does not make the words new.
+
+#### Why the current implementation permits it
+
+1. Carousel publication has no generation/history stage; approved assets are immutable and reused indefinitely.
+2. Video generation varies only the hook and one selected media object. It has no topic, body, evidence/source, CTA,
+   slide-copy or visual-treatment variant dimensions.
+3. Hook history is scoped by tenant/product/format/locale, not account, platform or topic. It can therefore rotate a
+   small global hook set across several accounts without enforcing per-account fatigue or cross-account novelty.
+4. The ledger has a provider-lineage collision quarantine for a caption reused with a different video, but it is not a
+   planned content-diversity gate. It does not reject a deliberately scheduled identical pack/caption before publish.
+5. The metrics surface stores publication/hash evidence, while the current financial adapter cannot join each creative
+   to install, onboarding, paywall, purchase, retention and cost. The system can prove that it posted, but cannot yet
+   learn which content makes money.
+
+#### Search readback and design consequence
+
+- [TikTok Creative Impact Report](https://ads.tiktok.com/business/creativecenter/quicktok/online/return-on-influence-tiktok-creative-impact/pad/en)
+  explicitly recommends varied creative assets, weekly refreshes and a 5–7 creative performance cohort; its reported
+  internal analyses associate creative diversification with higher conversion. This supports a testable diversity policy,
+  not a guarantee for our account.
+- [Apple product page guidance](https://developer.apple.com/app-store/product-page/) says product-page elements drive
+  downloads, and [Product Page Optimization](https://developer.apple.com/app-store/product-page-optimization/) supports
+  up to three treatments with App Analytics comparison and a 90%-confidence application recommendation. We currently
+  have no verified treatment cohort for either app.
+- [PostHog product analytics](https://posthog.com/docs/product-analytics) describes event/person/property-based funnels,
+  retention, paths and regression alerts. Our missing adapter/event lineage is why impressions cannot yet be promoted
+  to install or payment evidence.
+
+#### Required content-loop contract
+
+Before a mobile post is admitted, the candidate must include `account_id`, `platform`, `topic_id`, `source_ref`,
+`hook_id`, `body_variant_id`, `cta_variant_id`, `visual_variant_id`, `slide_text_sha256[]`, `caption_sha256`,
+`creative_id` and the prior-window exclusion set. The admission gate must fail closed when any slide text is duplicated
+within a carousel, when the same media order/caption tuple is inside the configured account cooldown, or when the
+creative has no attributable metric window. A provider receipt is still required after publication; a novelty pass is
+not a revenue pass.
+
+The next mobile content implementation order is therefore: (a) generate a fresh six-slide pack per bounded cohort rather
+than reuse one immutable pack forever, (b) enforce per-slide and per-account novelty before the provider call, (c) add
+topic/body/CTA/source lineage to the receipt, (d) read provider post metrics and App Store install/purchase cohorts, and
+(e) promote or kill variants only on verified net contribution. Do not solve this by increasing posting frequency.
