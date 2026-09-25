@@ -6031,9 +6031,20 @@ merged or loaded, and one effect-free natural canary with official event/report 
 open. Until those production gates pass, the old production row may still show `entrypoint_exit_1` or the lossy
 `circuit_open / wake_boundary_failed` notification.
 
-The latest candidate commit is `769cdfc22dbc2b0721337551a712a63181e48bf5`. This is still source/test evidence only:
+The latest endpoint/diagnostic candidate commit is `769cdfc22dbc2b0721337551a712a63181e48bf5`. This is still source/test evidence only:
 the old production selector remains loaded, and an accepted main-derived immutable release, one effect-free natural
 canary with official event/report readback, and replay-zero are still open.
+
+The read-only status projection is now implemented in candidate commit `2c5dd7eb2a`:
+`./bin/lm-loop status <loop-id>|connector --explain --json` returns
+`schema_version=lm-loop.status-explain.v1`, an occurrence identity tuple, installed/event release SHAs and drift,
+an ordered runtime/failure/effect cause chain, effect/receipt/readback/evidence fields, the typed next action and
+diagnostic completeness. Action-history references and admission-counter status are explicitly
+`not_reported` when the current runtime has not emitted them; the projection never infers them from a PID,
+Telegram delivery or provider page. The candidate CLI's live Connector readback currently shows
+`launchd_state=loaded-idle`, `last_exit=1`, `error_class=entrypoint_exit_1`, `next_action=reconcile_owner` and
+`effect_status=not_applicable`; this is a source-branch diagnosis, not a production success claim. Focused readonly
+Python tests are now **37 passed** including the three status-explain cases.
 
 ### Connector host blockers after the endpoint diagnosis (read-only)
 
@@ -6149,8 +6160,8 @@ merely because a reference project is popular; first add an isolated adapter and
 
 #### Current benchmark/eval remaining work
 
-1. Keep the Connector recovery eval red until the endpoint-owner and nested-report fixes pass focused tests and a
-   non-effect natural canary.
+1. Keep the Connector production promotion gate open until the endpoint-owner and nested-report fixes pass an
+   accepted immutable-release load, a non-effect natural canary and official event/report readback with replay-zero.
 2. Expand economic task families and independent adapters; retain separate internal recovery/product evals.
 3. Add repeated-trial statistics, grader calibration, contamination audit and held-out/challenge governance.
 4. Publish the versioned LM-EAB protocol and reproducible scorecard/leaderboard only after an independent adapter
@@ -6228,8 +6239,9 @@ local-foundation-gate.js
 
 The latest read-only snapshot returned 271 status rows; the contract returned 14 catalog loops, 169 registry jobs,
 98 mapped jobs and zero structural errors. That is why the CLI is powerful: it turns many launchd logs into a
-machine-readable failure cursor. The Connector resolver projection now also closes the former browser-identity gap;
-the richer `status --explain` cause-chain projection remains future work.
+machine-readable failure cursor. The Connector resolver projection closes the former browser-identity gap, and
+candidate commit `2c5dd7eb2a` now adds the richer `status --explain` cause-chain projection. It remains a candidate
+until the immutable-release and natural-canary gates pass.
 
 The next CLI contract is therefore:
 
@@ -6381,7 +6393,10 @@ separate Paid fulfillment workstream or its provider sessions/state.
 - The Connector registry join, profile-owned CDP resolver, identity lease, IPv4/IPv6 collision check, dynamic endpoint
   projection, read-only resolver CLI and occurrence-bound diagnostic envelope are implemented on the dedicated branch.
   The live read-only canary selected `http://[::1]:9222` and released the lease with no provider effect.
-- Contract and focused source tests pass on this branch: Node **157/157**, latest resolver/readonly Python **35 passed**
+- The read-only `status --explain --json` projection is implemented in candidate commit `2c5dd7eb2a`; its focused
+  tests cover cause-chain ordering, Connector alias resolution, release/effect/readback fields, and rejection of
+  unknown options. It reports missing action-history/counter data as `not_reported` instead of guessing.
+- Contract and focused source tests pass on this branch: Node **157/157**, current `test_lm_loop_readonly.py` **34 passed**
   (the prior foundation run also recorded **256 passed + 193 subtests**), `lm-loop-contract` **14 catalog / 169
   registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
   `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
