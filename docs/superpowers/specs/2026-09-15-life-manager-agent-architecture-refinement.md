@@ -6079,3 +6079,155 @@ merely because a reference project is popular; first add an isolated adapter and
    ranking “profit” or “self-funding.”
 6. Replicate across cloud and local/self-hosted execution, then across domains; only after that consider training or
    distilling a Life Manager model. A custom model is a later optimization, not a substitute for a sound eval.
+
+### Browser registry and Life Manager CLI contract: prevent endpoint guessing
+
+The current incident is not caused by the absence of all registries. It is caused by a broken join between them.
+There are currently several legitimate sources of truth, each with a different job:
+
+| Registry / record | What it owns | Current evidence | Current gap |
+|---|---|---|---|
+| `config/loop-registry.json` | Product loop/job ID, entrypoint, cadence, state/log roots, resource/effect class | `life-manager-daily-driver` declares profile `~/.cloak/profiles/daily-driver` and port `9222`; `life-manager-connector-native` declares only `skills/connector/run.sh` | Connector has no `browser_identity`/browser-profile reference that binds it to the daily-driver record |
+| `~/.config/ai/registry/browsers.toml` | Host browser identity: profile, account scope, owner, launcher and declared port | `interactive:dais` declares the same daily-driver profile and port | Connector does not resolve this identity through the supported browser guard |
+| `DevToolsActivePort` and browser-port receipt | Live endpoint selected by the running profile | The current Cloak listener answers on `localhost`/IPv6 while an unrelated Chrome answers on `127.0.0.1` | A static `127.0.0.1:9222` bypasses the live resolver |
+| `events.jsonl`, action history and receipts | What one occurrence actually did | `browser_open_failed` is recorded with `effect=none` | Wake report drops the nested cause and endpoint evidence |
+
+The product registry therefore knows that a daily-driver exists, and the browser registry knows which profile owns
+it, but the Connector production rail does not ask either registry for the endpoint. `skills/connector/run.sh`
+defaults `CLOAK_CDP_BASE_URL` to `http://127.0.0.1:9222`; `connector-browser-target-controller.js` and
+`connector-minimal-production.js` repeat the same hard-coded endpoint. `skills/browser/browser-guard.sh` already
+contains the better pattern—resolve `DevToolsActivePort`, verify the browser UUID and enforce identity leases—but
+the Connector path reaches `ensure_browser.sh` directly instead of using that identity resolver. In addition,
+`ensure_browser.sh`'s fast `alive()` probe does not require HTTP success, so a 404 response can be mistaken for a
+live browser. This is why a written registry did not prevent this collision.
+
+#### Required canonical join for every new loop
+
+Every browser-using loop must have two different owners recorded explicitly:
+
+```json
+{
+  "loop_id": "connector",
+  "browser_identity": "interactive:dais",
+  "browser_target_owner": "life-manager-connector-native",
+  "browser_resolution": "devtools_active_port_plus_uuid",
+  "profile_ref": "registry://browser/interactive:dais",
+  "endpoint": "derived_at_runtime",
+  "credential_class": "one_time_provider_session"
+}
+```
+
+`browser_identity` answers “which browser/account/process may be used?”; `browser_target_owner` answers “which tabs
+and target leases may this loop touch?” They must never be conflated. Ports are audit/fallback data only, not identity.
+The live endpoint must be derived from the registered profile's `DevToolsActivePort`, then checked for HTTP 2xx,
+valid `/json/version`, websocket reachability, expected browser UUID and expected process/profile owner. A missing
+mapping, stale profile, 404, wrong UUID or wrong owner must fail closed before any provider page is opened.
+
+Onboarding a new loop must be a registry transaction, not a new hard-coded script:
+
+1. Add the product-loop/job entry, entrypoint, cadence, resource/effect class, state root and log root.
+2. Reference an existing browser identity or register a new isolated profile/account identity; never silently reuse
+   another identity's profile.
+3. Assign a distinct target owner and lease namespace for the loop's tabs.
+4. Register the launchd/cloud supervisor label and immutable release binding.
+5. Add status/receipt/effect mappings and at least one boundary and one prior-failure eval case.
+6. Run `lm-loop-contract` and the browser identity contract; installation must refuse a missing or ambiguous join.
+
+#### Life Manager CLI as the observability backbone
+
+The repository is public (`https://github.com/Daisuke134/life-manager`) and `bin/lm-loop` is the canonical open-source
+operator entrypoint. It delegates to the runtime loop manager and already provides the important layers:
+
+```text
+./bin/lm-loop-contract
+  -> catalog/registry mapping and structural errors
+./bin/lm-loop doctor
+  -> installed/loaded labels, entrypoints and registry drift
+./bin/lm-loop status all --json
+  -> per-job terminal state, release, diagnostics, effect and next action
+local-foundation-gate.js
+  -> one typed decision for the 14 Product Loops
+```
+
+The latest read-only snapshot returned 271 status rows; the contract returned 14 catalog loops, 169 registry jobs,
+98 mapped jobs and zero structural errors. That is why the CLI is powerful: it turns many launchd logs into a
+machine-readable failure cursor. It is not yet sufficient when a loop's browser identity is absent or when a nested
+cause is thrown away.
+
+The next CLI contract is therefore:
+
+```text
+./bin/lm-loop browser resolve connector --json
+  -> loop_id, browser_identity, target_owner, profile, derived_endpoint,
+     browser_uuid, process_owner, http_status, websocket_ok, lease_status
+./bin/lm-loop status connector --explain --json
+  -> occurrence-bound cause chain, action-history refs, effect/receipt/readback,
+     release SHA, next action and whether the counter was counted at that stage
+```
+
+The JSON projection is canonical; human output is only a rendering. A successful Telegram delivery or a loaded
+launchd process must never override the JSON health/effect decision. The CLI itself must remain read-only by default;
+repair/apply commands require a typed recovery intent, exact owner/release match and the existing effect-fence rules.
+
+### Eval-driven development: the concrete LM-EAB benchmark design
+
+LM-EAB should be a family of interoperable tracks, not one attractive profit number. Every task uses the same
+versioned `task -> trial -> trajectory -> grader -> scorecard -> report` contract:
+
+```text
+Task: task_id/version, initial state/capital, allowed tools and credential class,
+      objective, constraints, stop conditions, expected evidence and safety tripwires
+Trial: trial_id, model/prompt/harness/tool/release hashes, seed, timestamps, cost and full events
+Trajectory: observations, decisions, tool calls, state transitions, receipts and intervention events
+Grader: deterministic state/receipt/safety checks first; calibrated semantic grader only where necessary
+Scorecard: outcome, reliability, cost, latency, intervention, credential class, safety, recurrence and net value
+Report: split/version, baseline, trial count, uncertainty, failures, exclusions and reproducibility instructions
+```
+
+The benchmark tracks are:
+
+1. **Recovery/self-healing:** detect, classify and repair a known failure without unsafe replay; Connector 404 is a
+   canonical case. This proves control-plane recovery, not revenue.
+2. **Economic simulation:** long-horizon opportunity, offer, work, pricing and cost decisions in a sealed world;
+   useful for rapid candidate comparison, never counted as settled revenue.
+3. **Real-world effect:** official provider/payment receipt, readback, duplicate-zero and CFO cost join. This is the
+   only track that can count self-funding or commercial revenue.
+4. **No-recurring-human-loop:** no human intervention after declared one-time onboarding; intervention count and the
+   exact one-time credential class remain visible.
+5. **No-human-credential:** agent-owned or provider-native credentials only, where the provider permits it; a failed
+   KYC/CAPTCHA/legal prerequisite is a typed eligibility result, not a hidden human step.
+6. **Long-horizon continuity:** repeated wakes over weeks/months, state continuity, recovery rate and no performance
+   degradation.
+7. **Later domain tracks:** physical, mental, software, civic and other domains, each with its own safety and consent
+   contract. Economic autonomy is the first slice, not the whole AGI definition.
+
+Self-improvement is measured by a promotion loop, not by a model saying “I am better”:
+
+```text
+production failure/business observation
+  -> versioned eval case
+  -> frozen baseline
+  -> candidate in isolated fixture
+  -> deterministic + calibrated grading
+  -> held-out repeated trials and uncertainty
+  -> bounded live canary
+  -> official receipt + cost/CFO join
+  -> promote only if net contribution improves without safety/reliability regression
+```
+
+The primary score is not impressions or activity. For an economic task it is attributable realized net contribution;
+the scorecard must also expose success rate, intervention count, credential class, compute/provider cost, latency,
+drawdown, safety violations, duplicate effects and recurrence. A candidate that makes more gross revenue while
+increasing cost, human work or unsafe effects is not an improvement.
+
+The existing repository already has the lower-level eval contract and focused fixtures (economic **41/41** and agent
+contract **13/13**), but the public benchmark remains incomplete. The remaining work is independent adapters,
+larger task families, public/dev/held-out/challenge partitions, contamination audits, repeated-trial confidence
+intervals, grader calibration, redacted trajectory publication, cloud/local reproduction and an independent
+leaderboard. The evaluator must remain immutable and separate from the candidate; a benchmark score can never change
+permissions, credentials, spend caps, effect fences or the evaluator itself.
+
+No external GitHub repository was cloned into Life Manager or installed as a production dependency in this turn. The
+primary repositories were inspected as design references; their interfaces and reporting practices can be adopted
+through isolated adapters after the contract is fixed. Cloning a benchmark repository is not a substitute for a
+stable task schema, official evidence or independent reproduction.
