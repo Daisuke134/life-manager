@@ -248,6 +248,32 @@ def test_exact_positive_readback_resolves_matching_occurrence(tmp_path):
     assert captured[0][3] == "claimed"
 
 
+def test_confirmed_intent_with_exact_provider_readback_resolves_stale_occurrence(tmp_path):
+    """A successful intent may outlive the admission event that fenced it."""
+    intent_root = tmp_path / "intents"
+    _intent(intent_root / f"{REQUEST_ID}.json", state="confirmed")
+    captured = []
+
+    def resolver(owner_id, occurrence_id, *, official_readback, expected_state=None):
+        captured.append((owner_id, occurrence_id, official_readback(), expected_state))
+        return True
+
+    result = reconcile.reconcile_confirmed_occurrence(
+        owner_id=OWNER,
+        occurrence_id=OCCURRENCE,
+        request_id=REQUEST_ID,
+        intent_root=intent_root,
+        evidence_path=tmp_path / "readback.json",
+        readback=lambda: _readback(),
+        resolver=resolver,
+    )
+
+    assert result["status"] == "resolved"
+    assert result["reason"] == "confirmed_intent_provider_readback_confirmed"
+    assert captured[0][2]["request_id"] == REQUEST_ID
+    assert captured[0][3] == "claimed"
+
+
 @pytest.mark.parametrize(
     ("state", "phase"),
     [("confirmed", "irreversible_attempt_started"),

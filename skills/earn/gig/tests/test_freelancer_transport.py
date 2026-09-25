@@ -30,16 +30,23 @@ def _load_module():
 
 transport = _load_module()
 from provider_authorization import load_receipts  # noqa: E402
+from freelancer_readiness import FREELANCER_AUTOMATED_BID_APPROVAL_TERMS  # noqa: E402
 NOW = datetime(2026, 9, 25, 1, 0, tzinfo=timezone.utc)
 ACCOUNT = "freelancer-owner:v1:" + "1" * 64
 
 
-def _receipt(action: str, mode: str, *, expired: bool = False) -> dict[str, object]:
+def _receipt(
+    action: str,
+    mode: str,
+    *,
+    expired: bool = False,
+    terms_version: str = "freelancer-v1",
+) -> dict[str, object]:
     state = "approved_api" if mode == "official_api" else "approved_browser"
     return {
         "provider": "freelancer", "account": ACCOUNT, "action": action,
         "transport": mode, "state": state, "jurisdiction": "JP",
-        "terms_version": "freelancer-v1", "evidence_hash": "a" * 64,
+        "terms_version": terms_version, "evidence_hash": "a" * 64,
         "issued_at": "2026-09-01T00:00:00+00:00",
         "expires_at": "2026-09-24T00:00:00+00:00" if expired else "2026-10-01T00:00:00+00:00",
     }
@@ -127,6 +134,38 @@ def test_approved_api_with_live_token_is_preferred_over_browser(
     assert selected.mode == "official_api"
     assert selected.credential_path == oauth_path
     assert "access-token" not in repr(selected)
+
+
+def test_automatic_bid_requires_explicit_provider_policy_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _authorization_store(
+        tmp_path, monkeypatch, [_receipt("propose", "official_api")]
+    )
+    oauth_path = tmp_path / "freelancer-oauth2.json"
+    _oauth(oauth_path)
+
+    assert _selector(tmp_path, oauth_path=oauth_path).for_action("propose") is None
+
+
+def test_automatic_bid_policy_receipt_allows_explicit_provider_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _authorization_store(
+        tmp_path,
+        monkeypatch,
+        [_receipt(
+            "propose", "official_api",
+            terms_version=FREELANCER_AUTOMATED_BID_APPROVAL_TERMS,
+        )],
+    )
+    oauth_path = tmp_path / "freelancer-oauth2.json"
+    _oauth(oauth_path)
+
+    selected = _selector(tmp_path, oauth_path=oauth_path).for_action("propose")
+
+    assert selected is not None
+    assert selected.mode == "official_api"
 
 
 def test_browser_fallback_requires_private_profile_and_approved_receipt(
@@ -248,6 +287,27 @@ def test_inventory_readback_fetches_only_after_all_read_receipts(
         ("hourly_contracts", "/projects/0.1/hourly_contracts/"),
         ("ip_contract:123", "/projects/0.1/projects/123/ip_contracts/"),
     ))]
+
+
+def test_inventory_readback_rejects_account_mismatch_before_provider_fetch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    selector = _selector(tmp_path)
+    calls: list[object] = []
+
+    with pytest.raises(transport.TransportConfigurationError, match="inventory_account_mismatch"):
+        selector.read_inventory(
+            load_receipts(tmp_path / "authorizations.json"),
+            account_id="freelancer-owner:v1:" + "2" * 64,
+            project_ids=("123",),
+            fetch=lambda selection, plan: calls.append((selection, plan)) or _inventory(),
+        )
+
+    assert calls == []
 
 
 def test_inventory_readback_does_not_admit_unannotated_raw_bundle(

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Iterable
 from urllib.parse import urlsplit
@@ -35,6 +35,12 @@ _OFFICIAL_READBACK_KEYS = frozenset({
 })
 _MILESTONE_FUNDED_STATES = frozenset({"pending", "requested_release", "frozen", "disputed"})
 _MILESTONE_STATES = _MILESTONE_FUNDED_STATES | {"cleared", "canceled"}
+_MAX_INVENTORY_AGE = timedelta(hours=24)
+_MAX_INVENTORY_FUTURE_SKEW = timedelta(minutes=5)
+# Freelancer's public API documentation prohibits automatic bidders unless
+# the provider has explicitly approved an internal tool exception. A normal
+# action receipt is not that exception; it needs this separate terms version.
+FREELANCER_AUTOMATED_BID_APPROVAL_TERMS = "freelancer-internal-automation-approved-v1"
 REQUIRED_ACTIONS = frozenset({
     "search", "inspect", "propose", "message", "accept_offer", "deliver",
     "read_payments", "read_payouts",
@@ -73,6 +79,12 @@ def _time(value: Any, reason: str) -> str:
 def _now(value: datetime) -> None:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ReadinessError("now_requires_timezone")
+
+
+def _inventory_is_fresh(observed_at: str, now: datetime) -> bool:
+    observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    age = now - observed
+    return -_MAX_INVENTORY_FUTURE_SKEW <= age <= _MAX_INVENTORY_AGE
 
 
 def _official_url(value: Any, label: str, identity: str) -> str:
@@ -379,6 +391,8 @@ def read_authenticated_inventory(
     inventory = parse_inventory(readback(dict(approved)))
     if inventory.account_id != account_id:
         raise ReadinessError("inventory_account_mismatch")
+    if not _inventory_is_fresh(inventory.observed_at, now):
+        raise ReadinessError("inventory_stale")
     return inventory
 
 
@@ -412,8 +426,15 @@ def evaluate_registration(
     reasons: list[str] = []
     if missing:
         reasons.append("authorization_missing")
+    if (
+        approved.get("propose") is None
+        or approved["propose"].terms_version != FREELANCER_AUTOMATED_BID_APPROVAL_TERMS
+    ):
+        reasons.append("provider_policy_missing")
     if not inventory.source_complete:
         reasons.append("inventory_incomplete")
+    if not _inventory_is_fresh(inventory.observed_at, now):
+        reasons.append("inventory_stale")
     funded_ids = tuple(
         contract.contract_id for contract in inventory.contracts if contract.state == "funded"
     )
@@ -437,6 +458,7 @@ def _decision(receipt: AuthorizationReceipt) -> AuthorizationDecision:
         reason="matching_receipt",
         evidence_hash=receipt.evidence_hash,
         receipt_hash=receipt.receipt_hash,
+        terms_version=receipt.terms_version,
     )
 
 

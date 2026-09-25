@@ -416,6 +416,24 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertTrue(row["admission_effect_unknown"])
         self.assertIsNone(row["stale_event"])
 
+    def test_status_exposes_exact_live_admission_occurrences(self):
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events={},
+            installed_releases={},
+            admission_effect_unknown={"example"},
+            admission_effect_unknown_occurrences={
+                "example": ("example:current-fence",),
+            },
+        )[0]
+        self.assertTrue(row["admission_effect_unknown"])
+        self.assertEqual(
+            row["admission_effect_unknown_occurrences"],
+            ["example:current-fence"],
+        )
+
     def test_doctor_lists_unmanaged_and_missing(self):
         report = doctor_report(REGISTRY,
             installed_labels={"ai.anicca.example", "ai.anicca.unmanaged"},

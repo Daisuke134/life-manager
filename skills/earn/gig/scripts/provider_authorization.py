@@ -60,6 +60,7 @@ class AuthorizationDecision:
     reason: str
     evidence_hash: str | None = None
     receipt_hash: str | None = None
+    terms_version: str | None = None
 
 
 def _reject_constant(value: str) -> None:
@@ -175,4 +176,5 @@ def authorize(
         "matching_receipt",
         evidence_hash=receipt.evidence_hash,
         receipt_hash=receipt.receipt_hash,
+        terms_version=receipt.terms_version,
     )

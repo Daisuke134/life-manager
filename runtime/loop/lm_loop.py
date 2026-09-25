@@ -493,18 +493,29 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
     return mismatches
 
 
-def _admission_effect_unknown_owners() -> set[str]:
-    """Read current effect fences so status does not trust a stale terminal event."""
+def _admission_effect_unknown_occurrences() -> dict[str, tuple[str, ...]]:
+    """Read exact live effect fences so status does not trust stale events."""
     database = admission_root() / "admission-v2.sqlite3"
     try:
         database.stat()
     except FileNotFoundError:
-        return set()
+        return {}
     rows = _read_admission_rows(
         database,
-        "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1",
+        """SELECT owner_id, occurrence_id FROM occurrences
+           WHERE effect_unknown=1
+           ORDER BY owner_id, queued_at, occurrence_id""",
     )
-    return {owner_id for (owner_id,) in rows}
+    grouped: dict[str, list[str]] = {}
+    for owner_id, occurrence_id in rows:
+        if isinstance(owner_id, str) and isinstance(occurrence_id, str):
+            grouped.setdefault(owner_id, []).append(occurrence_id)
+    return {owner_id: tuple(occurrences) for owner_id, occurrences in grouped.items()}
+
+
+def _admission_effect_unknown_owners() -> set[str]:
+    """Return owners with current effect fences for compatibility callers."""
+    return set(_admission_effect_unknown_occurrences())
 
 
 def _legacy_pending_admission_identity(loop_id: str) -> dict[str, str] | None:
@@ -692,6 +703,7 @@ def _next_eligible(cadence: dict) -> str:
 def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
                 admission_effect_unknown: set[str] | None = None,
+                admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
                 product_by_job: dict[str, str] | None = None) -> list[dict]:
     validate_registry(registry)
     product_by_job = _product_loop_job_map() if product_by_job is None else product_by_job
@@ -812,6 +824,9 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "next_eligible_run": _next_eligible(entry["cadence"]),
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
+            "admission_effect_unknown_occurrences": list(
+                (admission_effect_unknown_occurrences or {}).get(loop_id, ())
+            ),
             "stale_event": stale_event,
             "latest_harness_failure": latest_harness_failure,
         })
@@ -923,7 +938,8 @@ def _parse_status_args(values: list[str]) -> tuple[str, bool]:
 
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
-                    admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                    admission_effect_unknown: set[str] | None = None,
+                    admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None) -> list[dict]:
     rows = status_rows(
         registry,
         loaded=loaded,
@@ -931,6 +947,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         events=events,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
+        admission_effect_unknown_occurrences=admission_effect_unknown_occurrences,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
@@ -1206,6 +1223,8 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
 
 
 def snapshot(registry: dict, target: str) -> list[dict]:
+    admission_unknown_occurrences = _admission_effect_unknown_occurrences()
+    admission_unknown_owners = set(admission_unknown_occurrences)
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         loaded, disabled, events, releases, _ = collect_live(
@@ -1213,12 +1232,14 @@ def snapshot(registry: dict, target: str) -> list[dict]:
         return status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
-            admission_effect_unknown=_admission_effect_unknown_owners())
+            admission_effect_unknown=admission_unknown_owners,
+            admission_effect_unknown_occurrences=admission_unknown_occurrences)
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
-        admission_effect_unknown=_admission_effect_unknown_owners())
+        admission_effect_unknown=admission_unknown_owners,
+        admission_effect_unknown_occurrences=admission_unknown_occurrences)
     return _select(rows, target)
 
 
@@ -1291,6 +1312,8 @@ def targeted_snapshot(registry: dict, targets: set[str],
     """Read only explicitly requested services; never list the whole fleet."""
     disabled = parse_disabled(_launchctl("print-disabled", f"gui/{os.getuid()}"))
     plist_dir = Path.home() / "Library/LaunchAgents"
+    admission_unknown_occurrences = _admission_effect_unknown_occurrences()
+    admission_unknown_owners = set(admission_unknown_occurrences)
     rows = []
     for loop_id in sorted(targets):
         entry = registry["loops"][loop_id]
@@ -1322,7 +1345,8 @@ def targeted_snapshot(registry: dict, targets: set[str],
             disabled={label: disabled.get(label, False)},
             events={loop_id: event} if event else {},
             installed_releases={label: _release_from_plist(plist_path)},
-            admission_effect_unknown=_admission_effect_unknown_owners(),
+            admission_effect_unknown=admission_unknown_owners,
+            admission_effect_unknown_occurrences=admission_unknown_occurrences,
         ))
     return rows
 

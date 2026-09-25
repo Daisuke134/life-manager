@@ -2,6 +2,13 @@
   "version": 1,
   "provider": "freelancer",
   "default_state": "unknown",
+  "policy": {
+    "automatic_bidding": {
+      "state": "prohibited_without_provider_approval",
+      "approval_terms_version": "freelancer-internal-automation-approved-v1",
+      "source_url": "https://developers.freelancer.com/docs/api-overview/types-of-integrations"
+    }
+  },
   "actions": {
     "search": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},
     "inspect": {"state": "unknown", "candidate_transports": ["official_api", "cloak_browser"]},

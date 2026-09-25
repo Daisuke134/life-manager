@@ -111,6 +111,18 @@ def test_inventory_readback_rejects_provider_account_mismatch():
         )
 
 
+def test_inventory_readback_rejects_stale_snapshot():
+    receipts = [_receipt(action) for action in sorted(INVENTORY_READ_ACTIONS)]
+    stale = _inventory()
+    stale["observed_at"] = "2026-09-22T13:55:00Z"
+
+    with pytest.raises(ReadinessError, match="inventory_stale"):
+        read_authenticated_inventory(
+            receipts, account_id="upwork-account-1", now=NOW,
+            readback=lambda _receipts: stale,
+        )
+
+
 def test_upwork_owner_gate_requires_all_current_authorizations():
     snapshot = parse_inventory(_inventory())
     receipts = [_receipt(action) for action in sorted(REQUIRED_ACTIONS - {"deliver_milestone"})]
@@ -125,6 +137,18 @@ def test_upwork_owner_gate_opens_only_for_fresh_funded_readback():
     report = evaluate_registration(receipts, snapshot, now=NOW)
     assert report.ready is True
     assert report.funded_contract_ids == ("contract-1",)
+
+
+def test_upwork_owner_gate_rejects_stale_funded_snapshot():
+    stale = _inventory()
+    stale["observed_at"] = "2026-09-22T13:55:00Z"
+    snapshot = parse_inventory(stale)
+    receipts = [_receipt(action) for action in sorted(REQUIRED_ACTIONS)]
+
+    report = evaluate_registration(receipts, snapshot, now=NOW)
+
+    assert report.ready is False
+    assert report.reasons == ("inventory_stale",)
 
 
 def test_upwork_effect_is_contract_bound_and_replay_safe():
