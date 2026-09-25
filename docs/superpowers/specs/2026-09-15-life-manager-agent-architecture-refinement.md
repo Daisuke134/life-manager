@@ -5884,3 +5884,198 @@ Use the canonical main-derived worktree and a dedicated branch. Make the smalles
 acceptance evidence is present. Final report must list implemented, unimplemented, evidence, blocker, next cursor,
 and distinguish target claims (USD 10K MRR, YC W27, AGI) from measured facts.
 ```
+
+### Connector root-cause readback: endpoint mismatch and collapsed error reporting
+
+This section supersedes the generic `wake_boundary_failed` description for the current Connector occurrence. It is a
+read-only diagnosis captured on `2026-09-25` from the recovery-owner worktree. No browser process, launchd job,
+provider session, Connector state or external effect was changed.
+
+#### What actually happened
+
+The latest occurrence is `run_id=18d8705788bf24d0-14310`,
+`occurrence_id=life-manager-connector-native:18d8705788bf24d0-14310`,
+`release_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c`. The terminal status is:
+
+```text
+failure_layer=entrypoint
+blocker=entrypoint_exit_1
+error_class=entrypoint_exit_1
+exit_code=1
+retryable=true
+effect_class=none
+effect_status=not_applicable
+provider_receipt_id=null
+official_readback_ref=null
+diagnostic_complete=true
+```
+
+The occurrence therefore failed before a provider action. It is not evidence that a provider rejected a submission,
+and it is not an `effect_unknown` case. The precise action history for the same wake is:
+
+```text
+calendar_busy: success (3354 ms)
+browser_open: failed (528 ms, safe_reason=browser_open_failed)
+```
+
+The actual stage chain is:
+
+```text
+launchd wake
+  -> Connector runner
+  -> browser rail open
+  -> Playwright connectOverCDP(http://127.0.0.1:9222)
+  -> browser_open_failed
+  -> outer catch maps it to circuit_open / wake_boundary_failed
+  -> wake report emits only the generic safe-stop message
+```
+
+The high-confidence current root cause is a CDP endpoint/owner collision:
+
+| Probe | Observed result | Interpretation |
+|---|---|---|
+| `http://127.0.0.1:9222/json/version` | HTTP 404, zero body; listener is Google Chrome PID 465 | Connector's hard-coded IPv4 endpoint is not the Cloak daily-driver endpoint |
+| `http://localhost:9222/json/version` | HTTP 200 with Chrome 145 JSON and a DevTools websocket URL; listener is Cloak Chromium PID 1592 on `::1` | The expected daily-driver is reachable through the local hostname/IPv6 listener |
+| port receipt | owner `life-manager-daily-driver`, profile `daily-driver` | The intended owner exists, but the Connector does not verify this identity before connecting |
+
+`skills/connector/run.sh` and `connector-browser-target-controller.js` both default to
+`http://127.0.0.1:9222`. The Connector production rail consequently reaches an unrelated listener and exits before
+browser discovery. The historical `Page.handleJavaScriptDialog` and `gateway timeout` lines in the old error log are
+not occurrence-bound evidence for this wake and must not be reported as its current cause.
+
+#### Why the user only sees “circuit open / wake boundary failed / consecutive failure 0”
+
+This is a confirmed observability defect in addition to the endpoint defect:
+
+1. `connector-minimal-runner.js` records `browser_open_failed` in action history, but its outer catch translates the
+   nested error into the generic `wake_boundary_failed` safe reason.
+2. `consecutiveFailures` is not incremented on this early browser-open path, so `0` means “the counter was never
+   advanced at this layer,” not “the connector is healthy” and not “there were no failures.”
+3. `reportWake` writes only `wake_id`, `status`, `safe_reason`, `consecutive_failure_count` and `created_at`; it
+   omits the occurrence ID, stage, nested error class, endpoint, release SHA and the action-history evidence link.
+4. Telegram delivery itself succeeds, but the delivered text is a lossy projection of a more precise local record. A
+   successful report delivery is not a successful Connector wake.
+
+The correct diagnostic sentence for this occurrence is:
+
+> `browser_open_failed`: Connector attempted the wrong CDP listener (`127.0.0.1:9222`, HTTP 404) instead of the
+> Cloak daily-driver listener; no external provider effect occurred; the wake was safely fenced.
+
+#### Safe repair contract (not executed in this read-only turn)
+
+The Connector owner must repair and test the following, without changing the CloakBrowser foundation or switching to
+Tencent BrowserSkill:
+
+1. Resolve the endpoint from the browser-port owner receipt and verify HTTP 2xx, valid `/json/version` JSON, websocket
+   reachability and expected owner/profile identity. A 404 or wrong owner must be `browser_endpoint_unhealthy`, not
+   `browser_open_failed` with an opaque exit code.
+2. Fix the health probe to require HTTP success (`curl --fail` or equivalent) and to reject an identity mismatch; an
+   HTTP 404 must never count as an “alive” browser.
+3. Preserve a nested, occurrence-bound error envelope through the runner catch: `run_id`, `wake_id`,
+   `occurrence_id`, `release_sha`, endpoint, phase, command, exit code, error class, retryability, effect status,
+   evidence refs and next action.
+4. Make the wake report include the nested failure and action-history reference, while keeping `circuit_open` as the
+   safety state. `consecutive_failure_count` must be incremented consistently or explicitly labeled as
+   `not_counted_at_stage`.
+5. Add focused regression cases for (a) 404 wrong listener, (b) valid Cloak listener, (c) wrong browser owner,
+   (d) Playwright open failure, (e) provider/action failure and (f) report-delivery failure. Verify the failed case
+   has `effect=none`, no receipt, and replay-zero before any fence is cleared.
+
+The current Connector is therefore **not fixed**: the safe stop works, but the endpoint identity and report fidelity
+do not. No browser foundation was changed in this diagnosis.
+
+### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
+
+The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
+is a versioned, shared examination system that lets independent agents or models take many such checks under the same
+rules and compare reproducible results.
+
+| Term | Five-year-old explanation | Life Manager example |
+|---|---|---|
+| Eval | “Did this one thing work?” | Did the Connector turn a 404 into a typed, safe, occurrence-bound failure without replay? |
+| Benchmark | “How do many players perform on the same whole exam?” | Can different agents run the same economic-autonomy tasks, with the same credential class, receipt rules, costs and held-out cases? |
+| Production gate | “Is it safe and real enough to count?” | Did an official provider/payment receipt and cost join prove one effect exactly once? |
+
+An eval may be private, small, deterministic and run on every commit. A benchmark adds a frozen task protocol,
+trial/trajectory schema, independent runners, calibrated graders, public/dev/held-out/challenge partitions, repeated
+trials and uncertainty, reproducibility instructions, anti-contamination rules and a report/leaderboard. In short:
+
+```text
+benchmark = versioned eval suite + shared protocol + independent comparison + reproducible statistics
+```
+
+LM-EAB's economic-autonomy slice is valuable because official settlement is auditable, but it is not by itself a
+definition or proof of AGI. A leading general benchmark must include multiple domains and report capability together
+with reliability, safety, cost, latency, intervention, credential class, recurrence and net contribution. “No
+recurring human loop” and “no human credentials” are an explicit autonomy track and a strong product moat; they are
+not permission to hide one-time KYC/CAPTCHA/legal requirements, and they are not sufficient evidence of general
+intelligence on their own.
+
+#### What the existing repository already implements
+
+- Recovery evals and economic/agent-contract evals have strict schemas, deterministic graders and held-out fields;
+  the current focused fixtures pass **41/41** economic cases and **13/13** agent-contract cases.
+- Observability and self-healing evals can test classification, effect fences, release binding and replay-zero.
+- The benchmark protocol already separates task, trial, grader, scorecard and report, and keeps production receipts
+  authoritative for real-world effects.
+- This is an internal contract and a candidate public protocol. It is **not yet** a broadly validated benchmark:
+  the corpus is small, independent adapters are absent, repeated-trial confidence intervals and grader calibration
+  are incomplete, and no public leaderboard exists.
+
+#### How to become a leading benchmark rather than just claim it
+
+1. Publish a task-authoring and runner specification that an external lab can use without Life Manager internals.
+2. Define explicit tracks: simulation, real-world effect, no-recurring-human-loop, no-human-credential, safety and
+   cost. Keep each credential class and intervention count visible in every scorecard.
+3. Version public examples, tuning/dev, private held-out and challenge sets; hash environments, tools, prompts and
+   graders; run contamination audits.
+4. Require repeated trials, minimum sample sizes, uncertainty intervals and failure slices. One lucky profitable run
+   is never a benchmark result.
+5. Use deterministic receipt/settlement graders for money and external effects; calibrate model/human graders only
+   for subjective dimensions and publish agreement/error rates.
+6. Publish redacted trajectories, raw aggregate results, baselines, cost and safety metrics, exclusions and a
+   reproducible leaderboard. Never publish credentials or private provider data.
+7. Accept independent adapters and reproduce results on cloud and local/self-hosted workers with the same task and
+   score hashes.
+8. Keep the evaluator immutable and separate from the agent being scored. A candidate score must never alter its
+   identity, permissions, spend caps, evidence rules or grader.
+9. Expand from economic autonomy to physical, mental, software, civic and other domains only with domain-specific
+   safety/consent gates. Independent replication is required before an AGI claim.
+
+#### What to learn from existing primary projects
+
+These are reference implementations and design inputs, not dependencies or claims that Life Manager already passes
+their benchmarks:
+
+- [OpenAI Evals](https://github.com/openai/evals) demonstrates an open registry/framework and a completion-function
+  contract; the useful lesson is a standard eval interface plus private evals for leakage resistance.
+- [OpenAI Simple Evals](https://github.com/openai/simple-evals) demonstrates small, readable reference evaluators;
+  its own README includes a deprecation notice, so it is a teaching reference rather than a production dependency.
+- [Stanford HELM](https://github.com/stanford-crfm/helm) demonstrates standardized scenarios, holistic metrics,
+  reproducibility and public reporting rather than a single accuracy number.
+- [METR Task Standard](https://github.com/METR/task-standard) demonstrates an agent-independent task format with
+  explicit environments, instructions and optional automatic scoring.
+- [BrowserGym](https://github.com/ServiceNow/BrowserGym) and [OSWorld](https://github.com/xlang-ai/OSWorld)
+  demonstrate extensible browser/desktop task environments and versioned reproducibility; they are useful adapters
+  for future LM-EAB interaction tracks, not replacements for the Life Manager control plane.
+- [Andon Labs Vending-Bench 2](https://andonlabs.com/evals/vending-bench-2) demonstrates a long-horizon simulated
+  business, multiple runs, final balance and a public leaderboard. It is a strong model for economic trajectory
+  scoring, but its score is a simulation outcome and must not be presented as proof of real-world revenue or AGI.
+
+The correct strategy is to learn/borrow the interfaces and reporting discipline, then add the differentiator that
+the benchmark explicitly measures: attributable real-world outcomes under a declared no-recurring-human-loop and
+no-human-credential track. Do not clone a repository into production or replace the existing CloakBrowser foundation
+merely because a reference project is popular; first add an isolated adapter and prove it with the same contract.
+
+#### Current benchmark/eval remaining work
+
+1. Keep the Connector recovery eval red until the endpoint-owner and nested-report fixes pass focused tests and a
+   non-effect natural canary.
+2. Expand economic task families and independent adapters; retain separate internal recovery/product evals.
+3. Add repeated-trial statistics, grader calibration, contamination audit and held-out/challenge governance.
+4. Publish the versioned LM-EAB protocol and reproducible scorecard/leaderboard only after an independent adapter
+   reproduces it.
+5. Join official receipts, settlement, compute/cloud/provider costs and intervention/credential metadata before
+   ranking “profit” or “self-funding.”
+6. Replicate across cloud and local/self-hosted execution, then across domains; only after that consider training or
+   distilling a Life Manager model. A custom model is a later optimization, not a substitute for a sound eval.
