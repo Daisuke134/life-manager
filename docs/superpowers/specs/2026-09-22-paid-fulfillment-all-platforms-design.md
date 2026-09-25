@@ -27,6 +27,56 @@ blocks account-bound Freelancer/Upwork work.
 Ryu's manual delivery cursor is now closed. The next cursor is the platform
 loop/release gates below, not another Coconala message.
 
+## Canonical As-Is / To-Be snapshot — 2026-09-25 11:54 JST
+
+This section is the current summary of the whole system. Older runtime
+checkpoints below are historical evidence; when they disagree with this
+section, this section and the newest cursor above are authoritative.
+
+### As-Is (verified boundary)
+
+| Surface | Current state | Owner/effect boundary |
+|---|---|---|
+| Coconala — Ryu `18211957` | v705 is live and publicly read back. The latest buyer boundary is `222343832`, `222343844`, `222343861`, `222345571`, `222345575`; final seller message is `222360163`. | Permanent manual exception. Use the existing authenticated CloakBrowser/CDP session for one response to one genuinely newer buyer cycle. Never resend the current cycle and never click formal delivery from the loop. |
+| Coconala — other rooms/system | Ryu's client work is closed, but this does not prove the Paid system layer. Paid still needs the release/disk gate and a fresh no-effect wake/readback; Storefront needs an official readback; Apply remains unloaded after effect-free cancellation. | Loop-owned only after occurrence-level effect proof, official provider readback, crash recovery, and replay-zero. |
+| CrowdWorks / CloudWorks | Exact application/Paid/reply/report `effect_unknown` occurrences remain in the admission DB; some owners are unloaded or resource-blocked. | Reconcile each occurrence with its own provider receipt or admissible no-effect proof. No blanket retry or resend. |
+| Lancers | Current source-complete inventory is zero-funded (`contract_candidate_count=0`, balance `¥0`); historical `5606124/27965342` is not funded. | Paid owner stays closed until a current funded `ContractReceipt` and delivery surface are read back. |
+| Freelancer.com | No account-bound OAuth/authorization receipt, official inventory, or funded project is proven. | No owner. Public watcher data is not account evidence; provider automatic-bid exception is also required. |
+| Upwork | Latest official source-complete snapshot has `contracts=[]`; only read-only receipts are available and no Paid owner exists. | No mutation or owner registration until fresh account-bound auth, funded contract/milestone, and current mutation authorization. |
+| Mercor | Latest official readback has `contracts=[]`; no funded work is proven. | Preserve old fences; no revenue owner without a funded contract. |
+
+Ryu's production URLs are `https://colors-hachioji.com/` and
+`https://colors-hachioji.com/admin.php`. v705 also proves the five paid
+options, six genre images across all 12 profiles, natural banner ratios, and
+the clickable `https://lin.ee/RhnPYfJ` link. BrowserSkill is not a Coconala
+requirement; Ryu uses the existing CDP session. An empty BrowserSkill session
+is relevant only to the account-bound Freelancer/Upwork workstreams.
+
+### To-Be (completion contract)
+
+Every eligible paid item follows this sequence:
+
+`account-bound authentication → source-complete official inventory → funded
+contract/milestone → current mutation/policy receipt → exactly one immutable
+owner → correct work/artifact → one effect attempt per occurrence fence →
+official provider receipt/readback → payment/payout readback → crash recovery →
+replay-zero`.
+
+The Ryu exception is intentionally different: direct manual correction is
+allowed, but the final message is sent once only after reading the live room,
+incorporating every newer buyer instruction, and verifying the official seller
+receipt. The Paid loop must permanently exclude Ryu and must not infer client
+completion from a local pass, loaded service, or code-only test.
+
+### Current execution cursor
+
+The next work item is not another Ryu message. It is: (1) merge/release the
+loop hardening, (2) recover the disk admission floor, (3) obtain the bounded
+Coconala Paid no-effect wake/readback and Storefront official readback, (4)
+reconcile CloudWorks and Lancers occurrence fences, and (5) perform the
+account-bound Freelancer/Upwork/Mercor inventory gates before any new owner or
+external mutation.
+
 ### Live gate cursor — 2026-09-25 10:52 JST (Ryu latest-reply/send boundary)
 
 The local Coconala talkroom source for Ryu `18211957` records buyer events
