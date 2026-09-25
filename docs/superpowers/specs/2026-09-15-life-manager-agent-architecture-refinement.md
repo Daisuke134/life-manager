@@ -6336,7 +6336,10 @@ separate Paid fulfillment workstream or its provider sessions/state.
 - The Connector registry join, profile-owned CDP resolver, identity lease, IPv4/IPv6 collision check, dynamic endpoint
   projection and resolver-focused tests are implemented on the dedicated branch. The live read-only canary selected
   `http://[::1]:9222` and released the lease with no provider effect.
-- Contract and focused source tests pass on this branch; this evidence is not a production load or a natural wake.
+- Contract and focused source tests pass on this branch: Node **39/39**, Python **256 passed + 193 subtests**,
+  `lm-loop-contract` **14 catalog / 169 registry / 98 mapped / 0 errors**, shell syntax/diff checks clean, and the
+  live resolver lease canary acquired `http://[::1]:9222` then released it. Commit `ff4bf7348b` is pushed to
+  `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
 
 #### Remaining TODO (strict order)
 
@@ -6344,9 +6347,9 @@ separate Paid fulfillment workstream or its provider sessions/state.
    cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
    Paid worktree. The current free space remains below the required foundation floor, so ENOSPC is still an active
    host risk.
-2. **Run the complete branch verification and publish the candidate.** Re-run focused Connector, registry/apply,
-   contract and diff checks after the final source/spec diff; commit and push the dedicated branch. Do not merge main
-   or change the production selector in this step.
+2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
+   capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
+   main-derived immutable-release process. Do not change the production selector before that gate is green.
 3. **Expose the resolver as a read-only CLI contract.** Implement `lm-loop browser resolve connector --json` and
    make `lm-loop-contract` validate every browser loop's identity, target owner, effect and readback mapping. Human
    output must be a rendering of the JSON, not a second source of truth.
