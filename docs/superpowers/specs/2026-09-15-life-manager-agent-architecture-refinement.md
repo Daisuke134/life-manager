@@ -6458,6 +6458,21 @@ The execution cursor is now **Connector**, because it has an occurrence-bound, e
 endpoint/ownership cause and it exercises the shared browser/observability foundation. This order does not touch the
 separate Paid fulfillment workstream or its provider sessions/state.
 
+#### Read-only cursor refresh (2026-09-25 14:32 JST)
+
+The candidate was rechecked without a production mutation. Connector entrypoint
+and contract tests are **18/18**; the candidate resolver returns
+`http://[::1]:9222`, HTTP 200, a valid WebSocket, browser UUID
+`decca3a1-5040-4657-b2a0-794891b52e29`, and profile-owner PID `1592`. The
+production `status connector --explain --json` still reports loaded/event SHA
+`d4fe0819931c50caaf41f25e86f1052cd8a0359c`, `entrypoint_exit_1`, effect
+`not_applicable`, and next action `reconcile_owner`; this is evidence of the
+old loaded release, not evidence that the candidate is live. The full
+read-only status projection returned 271 managed rows and
+`lm-loop-contract` returned `14` catalog loops, `169` registry jobs, `98`
+mapped jobs and `0` structural errors. No provider effect, Paid state,
+effect-fence change or production selector change occurred.
+
 #### Completed in the current Connector cursor
 
 - The six primary eval/benchmark repositories were cloned read-only at pinned commits and their runner, task,
