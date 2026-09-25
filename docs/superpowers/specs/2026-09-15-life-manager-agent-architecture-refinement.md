@@ -6513,6 +6513,24 @@ effect-fence change or production selector change occurred.
   registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
   `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
 
+#### Bounded legacy-admission repair (branch-only, 2026-09-25)
+
+The first capacity-recovery attempt showed that `effect-watch` was not blocked by a missing queue row: its v2 durable
+store still contained one complete identity (`deterministic / borrow / support / revenue-floor-v1 / owner`) and queued,
+effect-known occurrences. The old registry row simply lacks the newer explicit admission fields, so the shared rebind
+guard previously treated every such row as `pending` and could not move its loaded-idle plist to the current immutable
+release. The candidate now reads that durable identity only for an `effect_class=none` owner, requires the v2 `priorities`
+schema, valid classes/policy/scope, no claimed occurrence, no effect-unknown fence and no invalid priority pairing, then
+calls the existing `rebind_queued_owner` under the existing owner/control locks. It preserves FIFO sequence and queued
+occurrence IDs; it never cancels a queue, edits a plist directly, or applies this fallback to an effectful owner. v1 stores
+without a `priorities` table, malformed rows, reservations, claimed rows and unknown effects remain safely pending.
+
+The focused regression set now covers both the legacy effect-free migration and the effectful fail-closed path; the full
+`runtime.loop.tests.test_lm_loop_apply` suite is **129/129 PASS**. This is source/test evidence on
+`fix/writer-admission-self-heal-20260924` only. It is not loaded into production, does not change the admission DB or
+effect fences, and does not lower the capacity floor. The next safe production step remains one owner-aware rebind after
+the floor gate and normal main-derived immutable-release acceptance.
+
 #### Remaining TODO (strict order)
 
 1. **Restore the owner-controlled capacity floor.** Record free bytes and a
@@ -6523,7 +6541,8 @@ effect-fence change or production selector change occurred.
    errors. Do not clone additional repositories or perform an external-effect release mutation until this floor is
    restored. The only allowed capacity-recovery mutation is a single owner-aware rebind of a non-Paid,
    `effect_class=none`, loaded-idle owner whose old release is an ancestor of the already loaded current immutable
-   release; read back the owner and cleanup receipt before selecting another owner.
+   release. The branch-only legacy-admission repair above is now the implementation path for a complete v2 identity;
+   production must still read back the owner and cleanup receipt before selecting another owner.
 2. **Promote only after capacity and acceptance gates.** The candidate is already verified and pushed; after the
    capacity floor is restored, obtain the complete foundation acceptance, then merge the candidate through the normal
    main-derived immutable-release process. Do not change the production selector before that gate is green.

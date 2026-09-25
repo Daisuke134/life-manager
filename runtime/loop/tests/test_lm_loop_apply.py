@@ -104,6 +104,40 @@ class LmLoopApplyTest(unittest.TestCase):
                 ("revenue", "revenue"),
             )
 
+    def test_admission_rebind_guard_migrates_legacy_effect_free_owner_from_durable_identity(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "deterministic", "legacy-observer", admission_class="borrow",
+            priority="support", occurrence_id="legacy-observer:wake",
+        )
+        entry = {"effect_class": "none"}
+        with lm_loop._admission_rebind_guard(
+            "legacy-observer", True, entry=entry
+        ) as decision:
+            self.assertIsNone(decision)
+        with sqlite3.connect(self.root / "admission" / "admission-v2.sqlite3") as connection:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT resource_class,admission_class,base_priority,effect_scope "
+                    "FROM queue JOIN priorities USING(owner_id) "
+                    "WHERE owner_id='legacy-observer'"
+                ).fetchone(),
+                ("deterministic", "borrow", "support", "owner"),
+            )
+
+    def test_admission_rebind_guard_keeps_legacy_effectful_owner_pending(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "deterministic", "legacy-publisher", admission_class="borrow",
+            priority="support", occurrence_id="legacy-publisher:wake",
+        )
+        with lm_loop._admission_rebind_guard(
+            "legacy-publisher", True, entry={"effect_class": "publish"}
+        ) as decision:
+            self.assertEqual(decision, "pending")
+
     def test_pending_admission_policy_mismatches_detects_only_registry_drift(self):
         from runtime.host import resource_admission
 

@@ -35,9 +35,11 @@ from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
 from runtime.host.resource_admission import (
-    ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
-    cancel_effect_free_queued_owner, clear_no_effect_unknown, rebind_queued_owner, resume_durable,
-    resolve_pre_effect_occurrence, suspend_durable,
+    ADMISSION_CLASSES, ADMISSION_POLICY, BASE_PRIORITIES, EFFECT_SCOPES,
+    RESOURCE_CLASSES, activate_durable_v2, durable_protocol_version,
+    owner_deploy_lock, cancel_effect_free_queued_owner, clear_no_effect_unknown,
+    rebind_queued_owner, resume_durable, resolve_pre_effect_occurrence,
+    suspend_durable,
     state_root as admission_root,
 )
 
@@ -507,6 +509,75 @@ def _admission_effect_unknown_owners() -> set[str]:
     return {owner_id for (owner_id,) in rows}
 
 
+def _legacy_pending_admission_identity(loop_id: str) -> dict[str, str] | None:
+    """Read a complete durable identity for an effect-free legacy registry row.
+
+    Older registry rows predate the explicit admission fields.  The durable
+    queue is still authoritative for those owners, but only while it contains
+    one valid, unclaimed, effect-known identity.  Anything incomplete or
+    effectful remains on the old pending path.
+    """
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return None
+    try:
+        rows = _read_admission_rows(
+            database,
+            """SELECT q.resource_class,p.admission_class,p.base_priority,
+                      p.admission_policy,p.effect_scope,p.effect_unknown,
+                      EXISTS (
+                          SELECT 1 FROM occurrences claimed
+                          WHERE claimed.owner_id=q.owner_id
+                            AND claimed.state='claimed'
+                      ),
+                      EXISTS (
+                          SELECT 1 FROM occurrences uncertain
+                          WHERE uncertain.owner_id=q.owner_id
+                            AND uncertain.effect_unknown=1
+                      )
+               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+               WHERE q.owner_id=?
+                 AND EXISTS (
+                     SELECT 1 FROM occurrences queued
+                     WHERE queued.owner_id=q.owner_id
+                       AND queued.state='queued'
+                       AND queued.effect_unknown=0
+                 )""",
+            (loop_id,),
+        )
+    except sqlite3.OperationalError as error:
+        # v1 admission stores have no priorities table.  They do not carry a
+        # typed identity, so retain the pending fence rather than guessing.
+        if "no such table" in str(error).lower():
+            return None
+        raise
+    if len(rows) != 1:
+        return None
+    (resource_class, admission_class, priority, policy, effect_scope,
+     priority_effect_unknown, claimed, occurrence_effect_unknown) = rows[0]
+    if (
+        resource_class not in set(RESOURCE_CLASSES)
+        or admission_class not in ADMISSION_CLASSES
+        or priority not in BASE_PRIORITIES
+        or effect_scope not in EFFECT_SCOPES
+        or policy != ADMISSION_POLICY
+        or priority_effect_unknown
+        or claimed
+        or occurrence_effect_unknown
+    ):
+        return None
+    if admission_class == "borrow" and priority in {"revenue", "critical_paid"}:
+        return None
+    return {
+        "resource_class": resource_class,
+        "admission_class": admission_class,
+        "priority": priority,
+        "effect_scope": effect_scope,
+    }
+
+
 @contextmanager
 def _admission_rebind_guard(
     loop_id: str,
@@ -548,16 +619,29 @@ def _admission_rebind_guard(
         admission_class = entry.get("admission_class") if entry else None
         resource_class = entry.get("resource_class") if entry else None
         priority = entry.get("priority") if entry else None
-        if not all(isinstance(value, str) and value for value in (
+        legacy_identity = None
+        if (
+            entry is not None
+            and entry.get("effect_class") == "none"
+            and not all(isinstance(value, str) and value for value in (
+                admission_class, resource_class, priority
+            ))
+        ):
+            legacy_identity = _legacy_pending_admission_identity(loop_id)
+        if legacy_identity is not None:
+            rebind_kwargs = dict(legacy_identity)
+        elif not all(isinstance(value, str) and value for value in (
                 admission_class, resource_class, priority)):
-            # Legacy registry rows retain the old pending-admission skip contract.
+            # Legacy effectful or incomplete rows retain the pending-admission
+            # fence until a typed registry policy is available.
             yield "pending"
             return
-        rebind_kwargs = {
-            "resource_class": resource_class,
-            "admission_class": admission_class,
-            "priority": priority,
-        }
+        else:
+            rebind_kwargs = {
+                "resource_class": resource_class,
+                "admission_class": admission_class,
+                "priority": priority,
+            }
         if replace_reserved_policy_drift:
             rebind_kwargs["replace_reserved_policy_drift"] = True
         if _entry_effect_scope(entry) == "occurrence":
