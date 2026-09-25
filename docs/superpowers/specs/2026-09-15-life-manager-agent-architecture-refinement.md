@@ -6908,3 +6908,30 @@ freshness gates. The correct integration is a reviewed union, not a rewrite of e
 This ordering allows both workstreams to reach one main and one immutable release without discarding Paid progress,
 but it does not claim that either branch is ready for production merge today. The merge gate remains empirical:
 reviewed union -> CI -> main -> complete immutable release -> exact owner load -> official readback -> replay-zero.
+
+### Latest Connector CLI readback after integration review (2026-09-25 JST)
+
+Read-only `./bin/lm-loop status connector --explain --json` currently returns one complete occurrence:
+
+```text
+occurrence_id=life-manager-connector-native:18d87e081f908030-4247
+installed_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c
+event_sha=d4fe0819931c50caaf41f25e86f1052cd8a0359c
+launchd_state=loaded-idle
+last_exit=1
+error_class=entrypoint_exit_1
+next_action=reconcile_owner
+effect_class=none
+effect_status=not_applicable
+provider_receipt_id=null
+official_readback_ref=null
+diagnostic_complete=true
+release_drift=false
+```
+
+This confirms that the currently loaded old release is internally aligned but still fails before any provider effect.
+The earlier endpoint/owner diagnosis remains the actionable cause: the old rail assumes `127.0.0.1:9222`, while the
+registered Cloak daily-driver is the profile-owned IPv6 listener. The endpoint-identity and nested-diagnostic repair
+exists only on the pushed Connector candidate; it is not loaded in this occurrence. `circuit_open /
+wake_boundary_failed` therefore remains a lossy safe-stop projection, not a successful registration and not a revenue
+event. No browser, provider session, effect fence or Paid state was changed by this readback.
