@@ -4288,6 +4288,17 @@ is not waiting for permission: it is waiting for a safe, independently
 verified capacity recovery (or a recoverable external state change) before an
 immutable-release promotion can be attempted.
 
+The corresponding read-only `lsof` probe identified the five `open` paths as
+live owners rather than stale unknown data: Codex service PID 541 holds
+`~/Library/Caches/Codex`, ChatGPT PID 388 holds
+`~/.cache/codex-runtimes`, daily-driver Chromium PID 80942 holds
+`~/.cache/life-manager-daily-driver`, Google helper PID 587 holds
+`~/Library/Caches/Google`, and the active MCP PDF node PID 4325 holds
+`~/.npm/_npx`. No process was killed and no open file was unlinked. The next
+safe recovery is owner-aware natural close/release followed by a fresh
+governor receipt; force-stopping these owners would trade a measurable
+capacity problem for an unverified browser/session failure.
+
 ### Latest launchd preflight receipt boundary (2026-09-25 JST)
 
 The branch candidate's real `launchctl-safe preflight` now separates control-plane health from receipt persistence:
