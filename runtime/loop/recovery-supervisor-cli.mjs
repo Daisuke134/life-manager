@@ -64,11 +64,18 @@ async function main(args = process.argv.slice(2)) {
     return Boolean(entry)
       && classifyRecoveryJob(entry) !== 'read_only_external_owner';
   };
+  let currentReleaseSha = null;
+  try {
+    currentReleaseSha = JSON.parse(fs.readFileSync(path.join(releaseRoot, 'RELEASE.json'), 'utf8'))?.sha || null;
+  } catch {
+    currentReleaseSha = null;
+  }
   const result = await consumeRecoveryIntentQueue({
     queuePath,
     journalPath,
     allowIntent,
     supervisorOwnerId,
+    currentReleaseSha,
     executeIntent: async (intent) => {
       const plan = buildRecoveryApplyPlan({ intent, registry });
       return executeRecoveryPlan({ plan, registry, releaseRoot });

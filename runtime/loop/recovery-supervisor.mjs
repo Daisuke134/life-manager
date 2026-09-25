@@ -146,6 +146,7 @@ export async function consumeRecoveryIntentQueue({
   executeIntent,
   allowIntent = () => true,
   supervisorOwnerId = null,
+  currentReleaseSha = null,
   maxAttempts = 3,
   now = new Date().toISOString(),
   cooldownSeconds = 300,
@@ -181,6 +182,15 @@ export async function consumeRecoveryIntentQueue({
       attempts: 0, terminal: false, nextEligibleAt: null,
     };
     if (state.terminal) continue;
+    if (currentReleaseSha !== null && intent.release_sha !== currentReleaseSha) {
+      // A promotion supersedes intents recorded under an older release. Close
+      // them all in this wake so they cannot starve current-release intents.
+      await appendJsonLine(journalPath, recoveryOutcome(intent, {
+        state: 'blocked', budget_consumed: false, next_action: 'none',
+        reason: 'release_sha_mismatch',
+      }, { attempt: state.attempts, now, nextEligibleAt: null }));
+      continue;
+    }
     if (supervisorOwnerId !== null
         && (intent.loop_id === supervisorOwnerId || intent.owner_id === supervisorOwnerId)) {
       const reason = 'supervisor_self_recovery_excluded';
