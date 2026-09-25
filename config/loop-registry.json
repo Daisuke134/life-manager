@@ -2101,6 +2101,8 @@
       "domain": "system",
       "effect_class": "none",
       "entrypoint": "skills/connector/run.sh",
+      "browser_identity": "interactive:dais",
+      "browser_target_owner": "life-manager-connector-native",
       "label": "ai.anicca.life-manager-connector-native",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",

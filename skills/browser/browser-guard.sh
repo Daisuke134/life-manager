@@ -32,6 +32,8 @@ REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
 LEASE_DIR="${AI_BROWSER_LEASE_DIR:-$HOME/.cloak/leases}"
 PY="${PY:-/opt/homebrew/bin/python3}"
 [ -x "$PY" ] || PY=python3
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+RESOLVER="${AI_BROWSER_ENDPOINT_RESOLVER:-$HERE/resolve_cdp_endpoint.py}"
 
 # Matches gig_single_instance.sh: a holder that neither released nor refreshed within
 # this window is presumed crashed. Long jobs call `beat` to stay owner.
@@ -76,73 +78,21 @@ print(json.dumps({"error": "unknown_identity"}))
 PYEOF
 }
 
-# Resolve the live debugging port from the profile, falling back to the declared one.
-# DevToolsActivePort is written by Chromium into the user-data-dir and is authoritative
-# (chromedevtools: "the browser endpoint is written to ... the DevToolsActivePort file
-# in browser profile folder"), which is why we can stop hardcoding ports.
-resolve_port() {
-  local profile="$1" declared="$2" f="$1/DevToolsActivePort"
-  if [ -r "$f" ]; then
-    local p; p="$(head -1 "$f" 2>/dev/null)"
-    case "$p" in ''|*[!0-9]*) ;; *) echo "$p"; return 0 ;; esac
-  fi
-  [ -n "$declared" ] && [ "$declared" != "null" ] && { echo "$declared"; return 0; }
-  return 1
-}
-
-browser_uuid() {  # empty when unreachable
-  curl -s --max-time 5 "http://127.0.0.1:$1/json/version" 2>/dev/null \
-    | "$PY" -c 'import json,sys
-try:
-    ws = json.load(sys.stdin).get("webSocketDebuggerUrl","")
-except Exception:
-    ws = ""
-print(ws.rsplit("/",1)[-1] if ws else "")' 2>/dev/null
-}
-
-# Who actually serves this port: the browser process itself, or something in front of
-# it? Measured during the incident: :9223 was Chromium (pid 1366) while :9222 was a
-# Python proxy forwarding to the very same browser. The process behind the socket is
-# therefore the ownership signal — the real browser owns the identity, a proxy does not.
-port_served_by_browser() {
-  local listener
-  listener="$(lsof -nP -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | awk 'NR>1{print $1; exit}')"
-  case "$listener" in
-    Chromium|Google*|chrome|Chrome|chromium) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 # Fail closed when this port is really another identity's browser AND we are the one
-# piggybacking. The legitimate owner is still allowed through, otherwise a misconfigured
-# second entry would take production down with it.
+# piggybacking. Duplicate UUIDs are never allowed: registry identities must be one-to-one
+# with browser processes, even when one of them is the legitimate process.
 assert_not_piggybacked() {
-  local want_id="$1" port="$2" uuid="$3"
+  local want_id="$1" uuid="$2"
   [ -n "$uuid" ] || return 0
-  "$PY" - "$REGISTRY" "$want_id" "$port" "$uuid" <<'PYEOF'
-import json, os, re, subprocess, sys
-registry, want_id, want_port, want_uuid = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-text = open(os.path.expanduser(registry), encoding="utf-8").read()
-for block in text.split("[[identity]]")[1:]:
-    m = re.search(r'^id\s*=\s*"([^"]*)"', block, re.M)
-    p = re.search(r'^declared_port\s*=\s*(\d+)', block, re.M)
-    if not m or not p or m.group(1) == want_id:
-        continue
-    other_port = p.group(1)
-    if other_port == want_port:
-        continue
-    try:
-        out = subprocess.run(
-            ["curl", "-s", "--max-time", "3", f"http://127.0.0.1:{other_port}/json/version"],
-            capture_output=True, text=True, timeout=6).stdout
-        ws = json.loads(out).get("webSocketDebuggerUrl", "") if out else ""
-    except Exception:
-        continue
-    if ws and ws.rsplit("/", 1)[-1] == want_uuid:
-        print(f"PIGGYBACK {m.group(1)}@{other_port}")
+  all_json="$($PY "$RESOLVER" --registry "$REGISTRY" --all 2>/dev/null)" || return 0
+  "$PY" -c 'import json,sys
+rows=json.loads(sys.argv[1]).get("identities") or []
+want_id,want_uuid=sys.argv[2],sys.argv[3]
+for row in rows:
+    if row.get("identity") != want_id and row.get("uuid") == want_uuid:
+        print("PIGGYBACK {}@{}".format(row.get("identity"), row.get("endpoint")))
         raise SystemExit(1)
-raise SystemExit(0)
-PYEOF
+raise SystemExit(0)' "$all_json" "$want_id" "$uuid"
 }
 
 case "$CMD" in
@@ -152,23 +102,16 @@ case "$CMD" in
     case "$info" in *unknown_identity*|*registry_unreadable*)
       echo "guard: $info" >&2; exit "$EXIT_IDENTITY" ;;
     esac
-    profile="$($PY -c 'import json,sys;print(json.loads(sys.argv[1])["profile"])' "$info")"
-    declared="$($PY -c 'import json,sys;print(json.loads(sys.argv[1])["declared_port"])' "$info")"
+    resolved="$($PY "$RESOLVER" --registry "$REGISTRY" --identity "$IDENTITY" 2>/dev/null)" || {
+      echo "guard: CDP endpoint unavailable for $IDENTITY" >&2; exit "$EXIT_IDENTITY"; }
+    endpoint_url="$($PY -c 'import json,sys; print(json.loads(sys.argv[1])["endpoint"])' "$resolved")"
+    port="$($PY -c 'import json,sys; print(json.loads(sys.argv[1])["port"])' "$resolved")"
+    uuid="$($PY -c 'import json,sys; print(json.loads(sys.argv[1])["uuid"])' "$resolved")"
+    [ -n "$uuid" ] || { echo "guard: CDP endpoint has no browser UUID for $IDENTITY" >&2; exit "$EXIT_IDENTITY"; }
 
-    port="$(resolve_port "$profile" "$declared")" || {
-      echo "guard: no port for $IDENTITY (profile not running?)" >&2; exit "$EXIT_IDENTITY"; }
-
-    uuid="$(browser_uuid "$port")"
-    [ -n "$uuid" ] || { echo "guard: CDP unreachable on $port for $IDENTITY" >&2; exit "$EXIT_IDENTITY"; }
-
-    if msg="$(assert_not_piggybacked "$IDENTITY" "$port" "$uuid")"; then :; else
-      if port_served_by_browser "$port"; then
-        # We are the real browser for this UUID; the other entry is the impostor.
-        echo "guard: WARNING $IDENTITY owns :$port but $msg resolves to the same browser — fix that entry" >&2
-      else
-        echo "guard: $IDENTITY at :$port is NOT a browser (proxy) and resolves to $msg — refusing (identity collision)" >&2
-        exit "$EXIT_IDENTITY"
-      fi
+    if msg="$(assert_not_piggybacked "$IDENTITY" "$uuid")"; then :; else
+      echo "guard: $IDENTITY at :$port resolves to $msg — refusing (identity collision)" >&2
+      exit "$EXIT_IDENTITY"
     fi
 
     lease="$LEASE_DIR/$(printf '%s' "$IDENTITY" | tr '/:' '__').lease"
@@ -237,7 +180,7 @@ PYEOF
       echo "guard: BUSY — $IDENTITY held by $(tail -1 "$lease" 2>/dev/null)" >&2
       exit "$EXIT_BUSY"
     fi
-    echo "http://127.0.0.1:$port"
+    echo "$endpoint_url"
     exit 0 ;;
 
   beat)
@@ -265,51 +208,26 @@ PYEOF
     exit 0 ;;
 
   status)
-    "$PY" - "$REGISTRY" "$LEASE_DIR" "${IDENTITY:-}" <<'PYEOF'
-import json, os, re, subprocess, sys
-registry, lease_dir, only = sys.argv[1], sys.argv[2], sys.argv[3]
-text = open(os.path.expanduser(registry), encoding="utf-8").read()
-rows, by_uuid = [], {}
-for block in text.split("[[identity]]")[1:]:
-    def f(name):
-        m = re.search(rf'^{name}\s*=\s*"([^"]*)"', block, re.M)
-        return m.group(1) if m else None
-    def n(name):
-        m = re.search(rf'^{name}\s*=\s*(\d+)', block, re.M)
-        return int(m.group(1)) if m else None
-    ident = f("id")
-    if not ident or (only and ident != only):
-        continue
-    profile = os.path.expanduser(f("profile") or "")
-    port = n("declared_port")
-    active = os.path.join(profile, "DevToolsActivePort")
-    if os.path.exists(active):
-        try:
-            live = int(open(active).read().splitlines()[0])
-            port = live
-        except Exception:
-            pass
-    uuid = ""
-    if port:
-        try:
-            out = subprocess.run(["curl", "-s", "--max-time", "3",
-                                  f"http://127.0.0.1:{port}/json/version"],
-                                 capture_output=True, text=True, timeout=6).stdout
-            uuid = json.loads(out).get("webSocketDebuggerUrl", "").rsplit("/", 1)[-1] if out else ""
-        except Exception:
-            uuid = ""
-    lease = os.path.join(os.path.expanduser(lease_dir),
-                         ident.replace("/", "_").replace(":", "_") + ".lease")
-    holder = ""
-    if os.path.exists(lease):
-        holder = (open(lease).read().strip().splitlines() or [""])[-1]
-    rows.append({"identity": ident, "port": port, "uuid": uuid,
-                 "reachable": bool(uuid), "holder": holder})
-    if uuid:
-        by_uuid.setdefault(uuid, []).append(ident)
-collisions = {u: ids for u, ids in by_uuid.items() if len(ids) > 1}
-print(json.dumps({"identities": rows, "collisions": collisions}, ensure_ascii=False))
-PYEOF
+    all_json="$($PY "$RESOLVER" --registry "$REGISTRY" --all 2>/dev/null)" || {
+      echo '{"identities":[],"collisions":{}}'; exit 0;
+    }
+    "$PY" -c 'import json,os,sys
+rows=json.loads(sys.argv[1]).get("identities") or []
+lease_dir,only=sys.argv[2],sys.argv[3]
+selected=[]
+for row in rows:
+    identity=row.get("identity")
+    if not identity or (only and identity != only): continue
+    lease=os.path.join(os.path.expanduser(lease_dir),identity.replace("/","_").replace(":","_")+".lease")
+    holder=""
+    if os.path.exists(lease): holder=(open(lease,encoding="utf-8").read().strip().splitlines() or [""])[-1]
+    row=dict(row); row["holder"]=holder; selected.append(row)
+by_uuid={}
+for row in selected:
+    if row.get("uuid"): by_uuid.setdefault(row["uuid"],[]).append(row["identity"])
+collisions={uuid:ids for uuid,ids in by_uuid.items() if len(ids)>1}
+print(json.dumps({"identities":selected,"collisions":collisions},ensure_ascii=False))' \
+      "$all_json" "$LEASE_DIR" "${IDENTITY:-}"
     exit 0 ;;
 
   *) usage ;;

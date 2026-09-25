@@ -1290,6 +1290,16 @@ class LmLoopApplyTest(unittest.TestCase):
             str(Path.home() / ".cloak/profiles/affiliate/impact-en"),
         )
 
+    def test_browser_identity_is_projected_without_claiming_a_static_endpoint(self):
+        value = registry()
+        value["loops"]["example"]["browser_identity"] = "interactive:dais"
+        value["loops"]["example"]["browser_target_owner"] = "connector-native"
+        rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        environment = rendered["EnvironmentVariables"]
+        self.assertEqual(environment["LIFE_MANAGER_BROWSER_IDENTITY"], "interactive:dais")
+        self.assertEqual(environment["LIFE_MANAGER_BROWSER_TARGET_OWNER"], "connector-native")
+        self.assertNotIn("LIFE_MANAGER_BROWSER_CDP_PORT", environment)
+
     def test_gig_effect_lanes_use_the_gig_browser_and_auth_vault(self):
         for loop_id in (
             "hf-gig-apply-direct", "hf-gig-storefront-direct", "hf-gig-paid-direct",

@@ -12,8 +12,8 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd -P)"
 }
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
-export CLOAK_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
-export CLOAK_BROWSER_OWNER="life-manager-connector-native"
+export CLOAK_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-}"
+export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-}"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}"
 LM_CONNECTOR_SHARED_ENV_FILE="${LM_CONNECTOR_SHARED_ENV_FILE:-$LIFE_MANAGER_STATE_HOME/.env}"
 export LM_CONNECTOR_SHARED_ENV_FILE
@@ -39,6 +39,44 @@ release_lock() {
   "$NODE_BIN" "$HERE/lib/native-state.js" release "$STATE_DIR" "$OWNER_TOKEN" >/dev/null 2>&1 || true
 }
 
+BROWSER_GUARD="$REPO_ROOT/skills/browser/browser-guard.sh"
+BROWSER_FOUNDATION="$REPO_ROOT/skills/browser/ensure_browser.sh"
+BROWSER_TAB_GC="$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py"
+BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-}"
+if [ -z "$BROWSER_IDENTITY" ] || [ -z "$CLOAK_BROWSER_OWNER" ]; then
+  BROWSER_JOIN="$(python3 - "$REPO_ROOT/config/loop-registry.json" <<'PY'
+import json, sys
+try:
+    value = json.load(open(sys.argv[1], encoding="utf-8"))
+    row = value["loops"]["life-manager-connector-native"]
+    print(row["browser_identity"], row["browser_target_owner"])
+except (OSError, KeyError, TypeError, ValueError):
+    raise SystemExit(1)
+PY
+)" || {
+  printf 'Connector browser identity unavailable\n' >&2
+  exit 2
+}
+  if [ -z "$BROWSER_IDENTITY" ]; then BROWSER_IDENTITY="${BROWSER_JOIN%% *}"; fi
+  if [ -z "$CLOAK_BROWSER_OWNER" ]; then CLOAK_BROWSER_OWNER="${BROWSER_JOIN#* }"; fi
+fi
+[ -n "$BROWSER_IDENTITY" ] && [ -n "$CLOAK_BROWSER_OWNER" ] || {
+  printf 'Connector browser join unavailable\n' >&2
+  exit 2
+}
+export CLOAK_BROWSER_OWNER
+
+BROWSER_LEASED=0
+release_browser() {
+  [ "$BROWSER_LEASED" -eq 1 ] || return 0
+  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+  BROWSER_LEASED=0
+}
+release_all() {
+  release_browser
+  release_lock
+}
+
 LOCK_RESULT="$($NODE_BIN "$HERE/lib/native-state.js" acquire "$STATE_DIR" "$OWNER_TOKEN" "$$" "$LOCK_STALE_MS")" || {
   printf 'Connector native lock unavailable\n' >&2
   exit 2
@@ -48,34 +86,58 @@ case "$LOCK_RESULT" in
   '{"status":"busy"}') exit 75 ;;
   *) printf 'Connector native lock unavailable\n' >&2; exit 2 ;;
 esac
-trap release_lock EXIT
+trap release_all EXIT
 
 "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" native_started >/dev/null || exit 2
 
-# Use the shared Chromium/Cloak Browser foundation before any provider page work.  The
-# guard is idempotent when the browser is alive, restores the session vault after recovery,
-# and only the Connector-owned targets are eligible for this pass's tab cleanup.
-BROWSER_GUARD="$REPO_ROOT/skills/browser/ensure_browser.sh"
-BROWSER_TAB_GC="$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py"
+# Resolve the browser identity from the canonical browser registry before any provider
+# page work. The guard selects the live host/port by profile ownership, so a proxy or an
+# IPv4/IPv6 port collision cannot be mistaken for the daily-driver.
 [ -x "$BROWSER_GUARD" ] || {
   printf 'Connector browser foundation unavailable: %s\n' "$BROWSER_GUARD" >&2
   "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_missing >/dev/null 2>&1 || true
   exit 2
 }
-BROWSER_STATUS="$(
-  CLOAK_CDP_BASE_URL="$CLOAK_CDP_BASE_URL" \
-  CDP_DAILY_DRIVER_PORT="${CDP_DAILY_DRIVER_PORT:-9222}" \
-  CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" \
-  bash "$BROWSER_GUARD" 2>&1 | tail -n 1
-)" || BROWSER_STATUS="FAILED"
-case "$BROWSER_STATUS" in
-  ALIVE|RECOVERED) ;;
+BROWSER_ENDPOINT=""
+if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
+  BROWSER_LEASED=1
+else
+  BROWSER_RC=$?
+  if [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
+    # Recovery is still owned by the existing daily-driver supervisor. Its probe is
+    # forced to IPv6 because this host currently has an unrelated IPv4 :9222 listener.
+    BROWSER_PORT="${CDP_DAILY_DRIVER_PORT:-9222}"
+    BROWSER_BASE="http://[::1]:$BROWSER_PORT"
+    BROWSER_STATUS="$(CLOAK_CDP_BASE_URL="$BROWSER_BASE" CDP_DAILY_DRIVER_PORT="$BROWSER_PORT" \
+      CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" bash "$BROWSER_FOUNDATION" 2>&1 | tail -n 1)" || BROWSER_STATUS="FAILED"
+    case "$BROWSER_STATUS" in
+      ALIVE|RECOVERED) ;;
+      *)
+        printf 'Connector browser foundation unavailable: %s\n' "${BROWSER_STATUS:-EMPTY}" >&2
+        "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_failed >/dev/null 2>&1 || true
+        exit 75
+        ;;
+    esac
+    BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)" || {
+      printf 'Connector browser lease unavailable after recovery: %s\n' "$BROWSER_ENDPOINT" >&2
+      "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+      exit 75
+    }
+    BROWSER_LEASED=1
+  else
+    printf 'Connector browser lease unavailable: %s\n' "$BROWSER_ENDPOINT" >&2
+    "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_lease_failed >/dev/null 2>&1 || true
+    exit 75
+  fi
+fi
+case "$BROWSER_ENDPOINT" in
+  http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;;
   *)
-    printf 'Connector browser foundation unavailable: %s\n' "${BROWSER_STATUS:-EMPTY}" >&2
-    "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_failed >/dev/null 2>&1 || true
+    printf 'Connector browser endpoint invalid: %s\n' "$BROWSER_ENDPOINT" >&2
     exit 75
     ;;
 esac
+export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
 if ! python3 "$BROWSER_TAB_GC" --owner "$CLOAK_BROWSER_OWNER" >/dev/null 2>&1; then
   printf 'Connector browser tab GC failed; continuing with provider readback fence\n' >&2
 fi

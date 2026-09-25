@@ -1317,6 +1317,27 @@ class MacosLoopRegistryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate browser CDP port"):
             validate_registry(duplicate_port)
 
+    def test_browser_identity_is_a_registry_join_without_claiming_a_profile_or_port(self):
+        value = {"schema_version": 2, "loops": {"example": entry()}}
+        value["loops"]["example"]["browser_identity"] = "interactive:dais"
+        value["loops"]["example"]["browser_target_owner"] = "connector-native"
+        self.assertEqual(validate_registry(value), value)
+        schema = loop_json_schema()
+        self.assertEqual(schema["properties"]["browser_identity"]["pattern"],
+                         "^[a-z0-9][a-z0-9:_-]{1,127}$")
+        self.assertEqual(schema["properties"]["browser_target_owner"]["pattern"],
+                         "^[a-z0-9][a-z0-9:_-]{1,127}$")
+        for field in ("browser_identity", "browser_target_owner"):
+            for invalid in (None, "Interactive:Dais", "../dais", ""):
+                value["loops"]["example"][field] = invalid
+                with self.subTest(field=field, invalid=invalid), self.assertRaisesRegex(
+                    ValueError, f"invalid {field}",
+                ):
+                    validate_registry(value)
+            value["loops"]["example"][field] = (
+                "interactive:dais" if field == "browser_identity" else "connector-native"
+            )
+
     def test_render_is_byte_stable_for_loop_insertion_order(self):
         left = {"schema_version": 2, "loops": {"b": entry("ai.anicca.b"), "a": entry("ai.anicca.a")}}
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}

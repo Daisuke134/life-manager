@@ -5984,6 +5984,41 @@ Tencent BrowserSkill:
 The current Connector is therefore **not fixed**: the safe stop works, but the endpoint identity and report fidelity
 do not. No browser foundation was changed in this diagnosis.
 
+### Connector repair implementation readback (2026-09-25 JST)
+
+The endpoint-identity portion of the repair is now implemented on the dedicated branch
+`fix/writer-admission-self-heal-20260924`; it is not yet loaded into the immutable production selector. The
+implementation deliberately reuses the existing CloakBrowser foundation and does not install or switch to Tencent
+BrowserSkill.
+
+Implemented in this cursor:
+
+- `config/loop-registry.json` now joins `life-manager-connector-native` to browser identity
+  `interactive:dais` and target owner `life-manager-connector-native`. The macOS loop registry/schema and launchd
+  environment projection validate and carry both fields.
+- `skills/browser/resolve_cdp_endpoint.py` is the profile-owned resolver. It checks the registered profile's
+  `DevToolsActivePort` (with declared-port fallback), probes both local IPv4/IPv6 listeners, requires HTTP 200 and a
+  valid `/json/version` websocket UUID, and verifies that the listening process command owns the registered profile.
+  Ambiguous, unreachable, wrong-owner and duplicate-UUID states remain observable and fail closed.
+- `skills/browser/browser-guard.sh` now acquires/releases the resolver-selected endpoint and reports the resolved
+  endpoint, UUID, process and lease holder. Connector `run.sh`, `discover.js`, `healthcheck.sh` and `install.sh`
+  consume the resolved endpoint instead of assuming IPv4 `127.0.0.1`.
+- The browser target controller accepts only a validated loopback endpoint supplied by the resolver. It supports the
+  live Cloak endpoint `http://[::1]:9222` while retaining the safe local default for isolated fixtures.
+- Focused tests are present for the wrong-listener/404 case, IPv6 profile-owned resolution, unreachable identity,
+  duplicate UUID observability, endpoint validation, registry projection and the native entrypoint contract.
+
+The live read-only probe that motivated this fix found two listeners on the same numeric port: Google Chrome owned
+`127.0.0.1:9222` and returned HTTP 404, while the registered Cloak daily-driver owned `[::1]:9222` and returned a
+valid DevTools websocket UUID. The resolver selected `http://[::1]:9222`; a temporary acquire/release canary held
+the Connector identity lease and released it with no provider page or external effect.
+
+This is source/test evidence only. The following Connector work is still open: occurrence-bound nested error fields
+through `connector-minimal-runner.js`/`reportWake`, a read-only `lm-loop browser resolve connector --json` command,
+an accepted main-derived immutable release, one effect-free natural canary with official event/report readback, and
+replay-zero. Until those gates pass, the old production row may still show `entrypoint_exit_1` or the lossy
+`circuit_open / wake_boundary_failed` notification.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
@@ -6087,19 +6122,16 @@ There are currently several legitimate sources of truth, each with a different j
 
 | Registry / record | What it owns | Current evidence | Current gap |
 |---|---|---|---|
-| `config/loop-registry.json` | Product loop/job ID, entrypoint, cadence, state/log roots, resource/effect class | `life-manager-daily-driver` declares profile `~/.cloak/profiles/daily-driver` and port `9222`; `life-manager-connector-native` declares only `skills/connector/run.sh` | Connector has no `browser_identity`/browser-profile reference that binds it to the daily-driver record |
-| `~/.config/ai/registry/browsers.toml` | Host browser identity: profile, account scope, owner, launcher and declared port | `interactive:dais` declares the same daily-driver profile and port | Connector does not resolve this identity through the supported browser guard |
+| `config/loop-registry.json` | Product loop/job ID, entrypoint, cadence, state/log roots, resource/effect class | `life-manager-daily-driver` declares profile `~/.cloak/profiles/daily-driver` and port `9222`; the Connector source candidate now declares `browser_identity=interactive:dais` and `browser_target_owner=life-manager-connector-native` | The join is implemented on the candidate branch but not yet projected by the loaded production release |
+| `~/.config/ai/registry/browsers.toml` | Host browser identity: profile, account scope, owner, launcher and declared port | `interactive:dais` declares the daily-driver profile and port; the resolver readback selects `[::1]:9222` and PID `1592` | The host registry is read-only; production must load the candidate resolver rather than relying on its old hard-coded endpoint |
 | `DevToolsActivePort` and browser-port receipt | Live endpoint selected by the running profile | The current Cloak listener answers on `localhost`/IPv6 while an unrelated Chrome answers on `127.0.0.1` | A static `127.0.0.1:9222` bypasses the live resolver |
 | `events.jsonl`, action history and receipts | What one occurrence actually did | `browser_open_failed` is recorded with `effect=none` | Wake report drops the nested cause and endpoint evidence |
 
-The product registry therefore knows that a daily-driver exists, and the browser registry knows which profile owns
-it, but the Connector production rail does not ask either registry for the endpoint. `skills/connector/run.sh`
-defaults `CLOAK_CDP_BASE_URL` to `http://127.0.0.1:9222`; `connector-browser-target-controller.js` and
-`connector-minimal-production.js` repeat the same hard-coded endpoint. `skills/browser/browser-guard.sh` already
-contains the better pattern—resolve `DevToolsActivePort`, verify the browser UUID and enforce identity leases—but
-the Connector path reaches `ensure_browser.sh` directly instead of using that identity resolver. In addition,
-`ensure_browser.sh`'s fast `alive()` probe does not require HTTP success, so a 404 response can be mistaken for a
-live browser. This is why a written registry did not prevent this collision.
+Before this cursor, the product registry knew that a daily-driver existed and the browser registry knew which profile
+owned it, but the loaded Connector rail did not join them. `run.sh`, the target controller and the health path used a
+static `http://127.0.0.1:9222`, while `ensure_browser.sh`'s fast `alive()` probe did not require HTTP success. The
+candidate now performs the join and rejects that 404; the immutable production selector still contains the old
+behavior until the capacity, release and natural-canary gates pass.
 
 #### Required canonical join for every new loop
 
@@ -6296,28 +6328,41 @@ The execution cursor is now **Connector**, because it has an occurrence-bound, e
 endpoint/ownership cause and it exercises the shared browser/observability foundation. This order does not touch the
 separate Paid fulfillment workstream or its provider sessions/state.
 
-1. **Restore the owner-controlled capacity floor before more clones or runtime mutation.** Record free bytes and a
+#### Completed in the current Connector cursor
+
+- The six primary eval/benchmark repositories were cloned read-only at pinned commits and their runner, task,
+  trajectory, grader and reporting patterns were recorded above. No repository was installed as a production
+  dependency.
+- The Connector registry join, profile-owned CDP resolver, identity lease, IPv4/IPv6 collision check, dynamic endpoint
+  projection and resolver-focused tests are implemented on the dedicated branch. The live read-only canary selected
+  `http://[::1]:9222` and released the lease with no provider effect.
+- Contract and focused source tests pass on this branch; this evidence is not a production load or a natural wake.
+
+#### Remaining TODO (strict order)
+
+1. **Restore the owner-controlled capacity floor.** Record free bytes and a
    cleanup receipt; remove only explicitly recoverable temporary reference artifacts, never open/unowned state or the
-   Paid worktree. The recent reference clone checkout already demonstrated that ENOSPC is still an active host risk.
-2. **Add the Connector registry join.** Add a `browser_identity` reference and distinct `browser_target_owner` to the
-   Connector job contract. Validate the join against `browsers.toml`; do not duplicate a static profile or treat a
-   port number as identity.
-3. **Implement one canonical browser resolver.** Resolve the profile's `DevToolsActivePort`, call `/json/version`,
-   require HTTP 2xx and valid JSON, verify websocket reachability, browser UUID, process/profile owner and target lease.
-   Expose this read-only as `lm-loop browser resolve <loop> --json` and make Connector consume its output.
-4. **Fix the health probe and failure envelope.** Reject 404 as alive; preserve `run_id`, `wake_id`, `occurrence_id`,
-   release SHA, endpoint, phase, command, exit code, nested error class, effect, receipt/readback, evidence refs,
-   retryability and next action through the runner catch. Report `browser_endpoint_unhealthy` or
-   `browser_open_failed` distinctly instead of only `wake_boundary_failed`.
-5. **Add focused Connector regression evals.** Cover wrong listener/404, valid Cloak listener, wrong UUID/owner,
-   Playwright open failure, provider action failure, report-delivery failure and counter-not-counted-at-stage. Assert
-   `effect=none`, no provider receipt and no unsafe retry for pre-effect failures.
-6. **Run one non-effect Connector natural canary.** Load an accepted immutable release from main-derived source, run
-   one bounded wake, read back the exact event/action history/Telegram report, and prove replay-zero. Do not clear a
-   fence or claim Connector health from a unit test alone.
-7. **Promote the resolver/CLI contract into the shared foundation.** Make `lm-loop-contract` reject any browser loop
-   without identity/target-owner/effect/readback mappings; make `status --explain` render the nested cause and exact
-   next action. Re-run the 14-loop foundation projection.
+   Paid worktree. The current free space remains below the required foundation floor, so ENOSPC is still an active
+   host risk.
+2. **Run the complete branch verification and publish the candidate.** Re-run focused Connector, registry/apply,
+   contract and diff checks after the final source/spec diff; commit and push the dedicated branch. Do not merge main
+   or change the production selector in this step.
+3. **Expose the resolver as a read-only CLI contract.** Implement `lm-loop browser resolve connector --json` and
+   make `lm-loop-contract` validate every browser loop's identity, target owner, effect and readback mapping. Human
+   output must be a rendering of the JSON, not a second source of truth.
+4. **Complete the failure envelope.** Thread occurrence-bound `run_id`, `wake_id`, `occurrence_id`, release SHA,
+   endpoint, phase, command, exit code, nested error class, effect, receipt/readback, evidence refs, retryability and
+   next action through `connector-minimal-runner.js` and `reportWake`. Reject 404 as alive and distinguish
+   `browser_endpoint_unhealthy`/`browser_open_failed` from the outer `wake_boundary_failed` safety state.
+5. **Add the remaining focused Connector regression evals.** Cover wrong listener/404, valid Cloak listener, wrong
+   UUID/owner, Playwright open failure, provider/action failure, report-delivery failure and `not_counted_at_stage`.
+   Assert `effect=none`, no provider receipt and no unsafe retry for pre-effect failures.
+6. **Promote an accepted immutable release and run one non-effect natural canary.** Load only a main-derived immutable
+   release, run one bounded wake, read the exact occurrence/action history/Telegram report, and prove replay-zero. Do
+   not clear a fence or claim Connector health from a unit test alone.
+7. **Re-read the shared foundation gate.** Run `lm-loop status all --json`, `lm-loop-contract` and the foundation
+   evaluator twice with exact loaded SHA, complete diagnostics, terminal outcome and replay-zero for Connector. Keep
+   `uncovered_failure` honest if another owner is still incomplete.
 8. **Reconcile every non-Paid Product Loop.** For each uncovered row, preserve the same occurrence/fence, repair only
    through the shared recovery intent, load the exact immutable release, obtain official readback and replay-zero, and
    isolate sibling failures. The Paid-owned Coconala/CrowdWorks/Lancers/Upwork workstream remains read-only here.

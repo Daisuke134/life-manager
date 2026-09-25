@@ -53,6 +53,10 @@
       ],
       "type": "string"
     },
+    "browser_identity": {
+      "pattern": "^[a-z0-9][a-z0-9:_-]{1,127}$",
+      "type": "string"
+    },
     "browser_owner": {
       "additionalProperties": false,
       "properties": {
@@ -71,6 +75,10 @@
         "profile"
       ],
       "type": "object"
+    },
+    "browser_target_owner": {
+      "pattern": "^[a-z0-9][a-z0-9:_-]{1,127}$",
+      "type": "string"
     },
     "cadence": {
       "oneOf": [
