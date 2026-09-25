@@ -6506,9 +6506,9 @@ effect-fence change or production selector change occurred.
   tests cover cause-chain ordering, Connector alias resolution, release/effect/readback fields, and rejection of
   unknown options. It reports missing action-history/counter data as `not_reported` instead of guessing.
 - The loaded production release remains `d4fe0819931c50caaf41f25e86f1052cd8a0359c`; the endpoint-join repair is
-  candidate commit `ff4bf7348b`. The candidate Connector entrypoint tests pass **18/18** and the broader Connector
-  Node suite passes **157/157**, but neither result is a production load.
-- Contract and focused source tests pass on this branch: Node **157/157**, current `test_lm_loop_readonly.py` **34 passed**
+- candidate commit `ff4bf7348b`. The candidate Connector entrypoint tests pass **18/18** and the current full
+  `node --test skills/connector/test/*.test.js` suite passes **59/59**, but neither result is a production load.
+- Contract and focused source tests pass on this branch: Connector Node **59/59**, current `test_lm_loop_readonly.py` **34 passed**
   (the prior foundation run also recorded **256 passed + 193 subtests**), `lm-loop-contract` **14 catalog / 169
   registry / 98 mapped / 0 errors**, shell syntax/diff checks clean. Commit `769cdfc22d` is pushed to
   `origin/fix/writer-admission-self-heal-20260924`. This evidence is not a production load or a natural wake.
@@ -6590,7 +6590,7 @@ With the floor restored, a fresh read-only `status all --json` plus `local-found
 loops remain on exact-release drift and Connector remains on `runtime_terminal_not_pass`; this is a separate acceptance
 gate from disk capacity. No production selector, admission DB, effect fence, browser or Paid state was changed by this
 reread. The candidate branch is now latest-main based (`origin/main` is an ancestor) at head
-`5c1b525685`; it is still not main-integrated or loaded as an immutable production release.
+`01dce23080`; it is still not main-integrated or loaded as an immutable production release.
 
 #### Remaining TODO (strict order)
 
