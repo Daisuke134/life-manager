@@ -283,5 +283,8 @@ test('safe queued recovery waits exit successfully instead of becoming an entryp
   assert.equal(supervisorExitCode({ ok: true, state: 'repaired' }), 0);
   assert.equal(supervisorExitCode({ ok: false, state: 'queued' }), 0);
   assert.equal(supervisorExitCode({ ok: false, state: 'blocked' }), 1);
+  // An intent recorded under an older release is superseded by the promotion itself.
+  assert.equal(supervisorExitCode({ ok: false, state: 'blocked', reason: 'release_sha_mismatch' }), 0);
+  assert.equal(supervisorExitCode({ ok: false, state: 'blocked', reason: 'command_contract_invalid' }), 1);
   assert.equal(supervisorExitCode({ ok: false, state: 'escalated' }), 1);
 });
