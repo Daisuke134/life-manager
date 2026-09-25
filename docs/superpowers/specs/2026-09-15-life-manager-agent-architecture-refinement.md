@@ -6046,6 +6046,24 @@ These failures can prevent a wake from reaching the browser rail even after CDP 
 separate typed host/admission blocker, not proof of a provider rejection and not permission to retry an unknown
 external effect. Capacity must be restored before the immutable release can be loaded.
 
+### Current foundation re-read after the Connector candidate (2026-09-25 13:57 JST)
+
+The read-only command `./bin/lm-loop status all --json` returned **271** managed rows. Feeding those exact rows and
+the loaded SHA `d4fe0819931c50caaf41f25e86f1052cd8a0359c` into `local-foundation-gate.js` produced:
+
+```text
+decision=block
+reasons=foundation_diagnostic_incomplete, foundation_runtime_evidence_incomplete, uncovered_failure
+counts=healthy:0, setup_required:0, safely_fenced:0, repairing:0, uncovered_failure:14
+```
+
+Thirteen rows are release-drift classifications whose next action is `load_exact_immutable_release`; Investment and
+Connector are `runtime_terminal_not_pass` with next action `diagnose_failure`. This is a current readback, not an
+assertion that all loops work or earn money. The loaded production binary also rejects the new
+`browser resolve connector --json` command with its old usage text (`rc=2`), while the candidate binary returns the
+profile-owned Cloak endpoint and UUID. An expired, clean benchmark worktree (`lm-eab-v1-20260924`) was removed while
+retaining its branch; the host still reports only **386,129,920 bytes** free, so the capacity floor remains unmet.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
