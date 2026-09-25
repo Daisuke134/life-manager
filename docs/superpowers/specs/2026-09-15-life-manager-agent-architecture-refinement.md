@@ -6101,6 +6101,13 @@ credential and duplicate-receipt fixtures were rejected with stable reason codes
 excluded from MRR. This proves the internal deterministic score contract only; it is not settled production revenue,
 cloud parity, or a public benchmark leaderboard.
 
+After that cleanup, a fresh `status all` plus foundation-gate readback at `2026-09-25 14:14 JST` still returned
+`decision=block`, but one classification improved from an uncovered failure to a safe admission fence:
+`healthy=0`, `safely_fenced=1` (`investment: runtime_admission_deferred`), `uncovered_failure=13`. The remaining
+uncovered rows are release drift for the managed fleet plus Connector's terminal failure. Gate reasons remain
+`foundation_diagnostic_incomplete`, `foundation_runtime_evidence_incomplete`, and `uncovered_failure`; the latest
+`df` sample reports **457,269,248 bytes** free, still below the floor.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
