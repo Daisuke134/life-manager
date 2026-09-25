@@ -6526,10 +6526,12 @@ occurrence IDs; it never cancels a queue, edits a plist directly, or applies thi
 without a `priorities` table, malformed rows, reservations, claimed rows and unknown effects remain safely pending.
 
 The focused regression set now covers both the legacy effect-free migration and the effectful fail-closed path; the full
-`runtime.loop.tests.test_lm_loop_apply` suite is **129/129 PASS**. This is source/test evidence on
-`fix/writer-admission-self-heal-20260924` only. It is not loaded into production, does not change the admission DB or
-effect fences, and does not lower the capacity floor. The next safe production step remains one owner-aware rebind after
-the floor gate and normal main-derived immutable-release acceptance.
+`runtime.loop.tests.test_lm_loop_apply` suite is **130/130 PASS**, and the read-only suite is **34/34 PASS**. The
+candidate is pushed as `b5edac04c3` on `fix/writer-admission-self-heal-20260924`; `lm-loop-contract` remains
+**14 catalog / 169 registry / 98 mapped / 0 errors**. This is source/test evidence only. It is not loaded into
+production, does not change the admission DB or effect fences, and does not lower the capacity floor. The next safe
+production step remains one owner-aware rebind after the floor gate and normal main-derived immutable-release
+acceptance.
 
 #### Remaining TODO (strict order)
 
