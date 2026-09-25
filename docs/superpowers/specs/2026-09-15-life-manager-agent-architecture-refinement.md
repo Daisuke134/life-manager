@@ -6087,6 +6087,12 @@ With no Camofox process and no `:9377` listener, the governor evaluated exactly 
 post-sweep readback was **450,572,288 bytes** free (later `df` sample: **446,582,784 bytes**); the foundation floor
 is still unmet, so this is progress toward capacity recovery, not permission to promote production.
 
+The Connector recovery-control contract was also executed read-only in the candidate: Node recovery intent/plan/
+executor/supervisor/canary suites **39/39 passed**, and the related Python recovery/run-bound suite **88 passed**.
+These tests prove owner-scoped intent creation, immutable-release matching, Paid-owner refusal, bounded retry,
+unknown-effect fencing, exact readback, and replay-zero in a test-owned fixture. They do not prove that the old
+production release has self-healed; that still requires capacity recovery, immutable promotion and a natural canary.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
