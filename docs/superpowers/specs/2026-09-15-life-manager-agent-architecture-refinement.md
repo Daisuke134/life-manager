@@ -6075,6 +6075,10 @@ assertion that all loops work or earn money. The loaded production binary also r
 profile-owned Cloak endpoint and UUID. An expired, clean benchmark worktree (`lm-eab-v1-20260924`) was removed while
 retaining its branch; the host still reports only **386,129,920 bytes** free, so the capacity floor remains unmet.
 
+A subsequent read-only `df` probe at `2026-09-25 14:03 JST` reports **377,831,424 bytes** free. This is lower than
+the earlier sample and still below the `1,155,780,608`-byte floor; no production loop was restarted or promoted
+because of this probe.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
