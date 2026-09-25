@@ -6844,3 +6844,67 @@ The next mobile content implementation order is therefore: (a) generate a fresh 
 than reuse one immutable pack forever, (b) enforce per-slide and per-account novelty before the provider call, (c) add
 topic/body/CTA/source lineage to the receipt, (d) read provider post metrics and App Store install/purchase cohorts, and
 (e) promote or kill variants only on verified net contribution. Do not solve this by increasing posting frequency.
+
+### Cross-workstream integration contract: Foundation/Connector + Paid fulfillment (2026-09-25 JST)
+
+The separate Paid owner is the canonical source for marketplace fulfillment and must not be overwritten by this
+foundation workstream. Its read-only handoff was inspected at:
+
+- repo/worktree: `/private/tmp/lm-paid-main-20260924`
+- branch: `fix/coconala-history-retry-20260924`
+- HEAD: `5a28bfb762`
+- Paid spec: `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md`
+- Paid TODO SSOT: `skills/earn/gig/TODO.md`
+
+The Paid snapshot says that Ryu/Coconala room `18211957` is a permanent manual exception. Release `v705`, the one
+final seller message `222360163`, official HTTP 200 and DOM readback are complete; the loop must not resend Ryu or
+click formal delivery. The next Paid cursor is loop hardening/release, capacity-floor recovery, a no-effect Coconala
+Paid readback, Storefront readback, occurrence-level CrowdWorks reconciliation, current funded Lancers inventory,
+account-bound Freelancer/Upwork inventory, Mercor inventory, crash recovery and replay-zero. This is evidence of the
+Paid cursor, not evidence that all paid contracts are delivered or paid.
+
+#### Why a blind merge is unsafe
+
+Both branches descend from the same current-main boundary `d4fe0819931c50caaf41f25e86f1052cd8a0359c`, but they
+modify the same eight files:
+
+```text
+config/loop-registry.json
+runtime/loop/lm_loop.py
+runtime/loop/tests/fixtures/macos-loop-jobs.json
+runtime/loop/tests/test_lm_loop_apply.py
+runtime/loop/tests/test_lm_loop_readonly.py
+runtime/loop/tests/test_macos_loop_registry.py
+docs/superpowers/plans/2026-09-24-fourteen-loop-self-healing-foundation.md
+docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md
+```
+
+The Paid branch also changes 37 non-overlapping Paid/application files. Therefore `git merge` with an automatic
+`ours`/`theirs` choice is forbidden: it can silently drop either occurrence-fence hardening or Paid inventory and
+freshness gates. The correct integration is a reviewed union, not a rewrite of either branch.
+
+#### Single-agent integration order
+
+1. Freeze both branch heads and provider state; do not restart a browser, clear a fence or send a Paid effect during
+   conflict resolution. Preserve `555d05b9dd` and `5a28bfb762` as the exact inputs.
+2. Accept and merge the Foundation/Connector candidate only after its CI and immutable-release acceptance are green.
+   The Connector candidate must prove profile-owned CDP resolution, nested diagnostics, one effect-free natural wake,
+   exact release readback and replay-zero; `circuit_open/wake_boundary_failed` alone is not acceptance.
+3. Rebase the Paid branch onto the resulting latest `main`, then resolve the eight shared files explicitly:
+   preserve the Foundation status/diagnostic/recovery contracts, preserve Paid heartbeat/effect-fence/fresh-inventory
+   behavior, union registry identities, and union tests. Paid spec/TODO keeps the newest Paid cursor; this architecture
+   spec keeps the cross-workstream contract and links to it rather than copying its full history.
+4. Run both focused suites and the shared contract gate on the integration branch. A green test suite does not count as
+   provider completion; record exact loaded SHA, occurrence, effect, official readback and replay-zero separately.
+5. Cut one complete main-derived immutable release from the integrated main. Apply only owner-by-owner and only while
+   loaded-idle. First restore the capacity floor, then run the Coconala Paid no-effect wake/readback and Storefront
+   readback, followed by occurrence-level CrowdWorks, funded Lancers, account-bound Freelancer/Upwork, Mercor,
+   crash-recovery and replay-zero in the Paid TODO order.
+6. After the integrated release is read back, hand the single agent one ownership map: Foundation/Connector owns shared
+   diagnostics and browser identity; Paid owns marketplace effect, provider sessions and Paid fences; Mobile/Affiliate/
+   Investment/CFO retain their existing owners. No second agent may mutate the same owner, browser lease, state or
+   occurrence.
+
+This ordering allows both workstreams to reach one main and one immutable release without discarding Paid progress,
+but it does not claim that either branch is ready for production merge today. The merge gate remains empirical:
+reviewed union -> CI -> main -> complete immutable release -> exact owner load -> official readback -> replay-zero.
