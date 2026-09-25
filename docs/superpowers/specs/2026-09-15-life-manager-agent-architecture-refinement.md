@@ -5522,3 +5522,95 @@ The UX is specified now, but it must not be used to skip the foundation gates. T
 
 Until steps 1–4 pass, the system is a foundation candidate. Until steps 5–7 pass, the desired one-shot, phone-only
 experience is a design target. Until steps 8–10 pass, self-improvement and self-funding are not production claims.
+
+### General LM-EAB benchmark contract and evaluation best practices
+
+LM-EAB is intended to become a **general agent benchmark**, not a private score that only Life Manager can run.
+Its first domain slice is economic autonomy because money has auditable settlement and cost evidence. That slice
+must not be advertised as a general-AGI score: financial autonomy, physical-health outcomes, mental-health
+outcomes, software engineering and other domains require separate task families and separate safety gates. The
+benchmark is general at the protocol and comparison layer, while its tasks remain domain-specific and explicit.
+
+#### What “general” means
+
+An independent lab, model or harness must be able to submit a run without importing Life Manager's private control
+plane. The public contract therefore separates five layers:
+
+1. **Task:** versioned task ID, starting state/capital, environment, allowed tools and credential class,
+   objective, constraints, stop conditions and machine-checkable success/failure criteria.
+2. **Trial:** one attempt with a trial ID, random seed where applicable, model/harness/tool/release hashes,
+   wall time, token/model cost, cloud/browser/tool cost and the complete trajectory.
+3. **Grader:** deterministic checks and official outcome/receipt checks first; model-based or human graders only
+   for dimensions that cannot be checked mechanically, with calibration and agreement reports.
+4. **Scorecard:** primary outcome plus reliability, cost, latency, intervention, safety, drawdown and
+   credential/autonomy slices. No single helpfulness or raw-activity number is the benchmark.
+5. **Report:** frozen dataset/version, baseline, number of trials, uncertainty, failures, exclusions, exact
+   environment and reproducibility instructions. Public examples are separated from private held-out and challenge
+   cases so optimizing to the public set does not equal passing the benchmark.
+
+The real-world track has an additional evidence layer: external effects require occurrence-bound authoritative
+provider/payment readback. Simulation can compare candidates cheaply, but simulation cannot establish revenue,
+self-funding or a real customer outcome.
+
+#### Best-practice alignment
+
+The contract follows the converging practice of current evaluation work:
+
+| Best practice | LM-EAB implementation or required guard |
+|---|---|
+| Eval-driven development and production-grounded data | Runtime traces, previous failures, expert/domain cases and official receipts become versioned cases; candidates are evaluated before promotion. |
+| Multi-turn agent evaluation | A trial stores the full trajectory, tool calls, intermediate state and final outcome rather than grading one reply. |
+| Multiple grader types | Deterministic/schema/receipt graders are primary; model or human graders are limited to subjective dimensions and must be calibrated. |
+| Baseline, held-out data and contamination resistance | Frozen baseline and train/tuning/held-out/challenge partitions; held-out cases and receipt identifiers remain private until the evaluation window closes. |
+| Repeated trials and uncertainty | Report trial count, variance/confidence interval or other uncertainty; never promote on one lucky run. The current v1 deterministic fixtures are a contract test, not a statistical claim. |
+| Holistic reporting | Publish outcome, safety, reliability, latency, cost, human intervention, credential class and failure slices together. |
+| Reproducibility and transparency | Store task/version hashes, model/harness/tool/release hashes, seeds, grader versions and redacted trajectories; publish the runnable protocol and aggregate results. |
+| Anti-gaming and outcome validity | Official settlement/readback, duplicate-effect checks, effect fences and immutable graders; self-reported revenue and evaluator changes do not count. |
+| Interoperability | Export the task/trial/trajectory/score schema and provide adapters so another agent or harness can run the same task without Life Manager internals. |
+| Safety and privacy | Separate capability tracks, redact credentials/private paths, enforce spend and effect gates, and keep safety eligibility independent from profit ranking. |
+
+This is aligned with OpenAI's eval-driven-development guidance, which recommends early and frequent evaluation,
+production data plus expert-created datasets, and explicit graders ([OpenAI Evaluation best practices](https://developers.openai.com/api/docs/guides/evaluation-best-practices)).
+It also follows Anthropic's agent-eval decomposition into task, trial, grader and transcript, and its recommendation
+to combine grader types ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
+Statistical reporting is a first-class requirement rather than an afterthought ([A statistical approach to model
+evaluations](https://www.anthropic.com/research/statistical-approach-to-model-evals?trk=public_post_comment-text)).
+Holistic slices and public raw-result transparency follow the HELM approach ([Stanford HELM](https://crfm.stanford.edu/helm/)),
+and the task interchange goal follows the METR Task Standard ([METR task-standard](https://github.com/METR/task-standard)).
+
+#### Internal eval, public benchmark and production gate are different artifacts
+
+They share schemas but answer different questions:
+
+| Artifact | Question | Pass consequence |
+|---|---|---|
+| Recovery eval | Can this release detect and repair a known failure without unsafe replay? | Allow recovery/canary progression; never proves business revenue. |
+| Product/economic eval | Does this candidate improve a frozen funnel after cost and safety gates? | Candidate may be promoted or rolled back. |
+| LM-EAB public benchmark | How does any agent/model/harness perform on the same versioned tasks? | Comparable scorecard/leaderboard; never directly mutates production. |
+| Commercial gate | Did this Life Manager loop produce the intended official effect and settled outcome exactly once? | Counts toward revenue/self-funding only when receipt evidence exists. |
+
+This separation prevents a benchmark win from being mistaken for production health, and prevents a healthy
+runtime from being mistaken for profitable work.
+
+#### Current maturity and missing general-benchmark work
+
+The repository currently has the lower-layer contracts: strict case/run/score schemas, deterministic arithmetic,
+held-out/cost/latency/live-readback gates, secret-free fixtures and Product Loop mappings. The current corpus is
+small and v1 intentionally avoids an uncalibrated semantic judge. Therefore the following are still open before
+claiming a public general benchmark:
+
+1. Expand task families beyond Life Manager's own traces and publish a task-authoring guide.
+2. Add independent agent/harness adapters and a versioned runner contract.
+3. Grow independent tuning/dev/held-out/challenge sets and run contamination audits.
+4. Add repeated-trial statistics, confidence intervals and a documented minimum trial count.
+5. Calibrate model-based and human graders on independently labeled samples; keep deterministic receipt graders
+   authoritative for money and external effects.
+6. Publish redacted trajectories, aggregate results, failure taxonomy and a reproducible leaderboard without
+   exposing credentials or private provider data.
+7. Complete the portfolio/CFO source join and real settlement coverage before reporting real-world net-profit
+   rankings.
+8. Reproduce the benchmark on cloud workers and the local/self-hosted adapter with the same task and score hashes.
+
+Until these items are complete, LM-EAB is a strong internal benchmark contract and a candidate public product, not
+yet a broadly validated industry benchmark. The benchmark itself never changes the evaluator, permissions,
+identity, evidence rules or spend caps in response to a candidate score.
