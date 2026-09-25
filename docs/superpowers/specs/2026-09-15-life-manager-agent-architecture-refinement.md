@@ -6093,6 +6093,14 @@ These tests prove owner-scoped intent creation, immutable-release matching, Paid
 unknown-effect fencing, exact readback, and replay-zero in a test-owned fixture. They do not prove that the old
 production release has self-healed; that still requires capacity recovery, immutable promotion and a natural canary.
 
+The existing LM-EAB v1 fixture runner was then executed unchanged: economic-autonomy tests **41/41 passed**, and
+`run.js --cases cases.jsonl` emitted a completed run with four validated scores. The agent-native x402 fixture
+reported `eligible=true`, settled customer revenue `10,000,000` minor units, total cost `315,000`, settled net
+profit `9,685,000`, `self_funded=true`, zero human interventions and zero unknown/duplicate effects. The human-
+credential and duplicate-receipt fixtures were rejected with stable reason codes, while fundraising remained
+excluded from MRR. This proves the internal deterministic score contract only; it is not settled production revenue,
+cloud parity, or a public benchmark leaderboard.
+
 ### Eval versus benchmark: beginner contract and the no-recurring-human-loop track
 
 The words are related but not interchangeable. An **eval** is one examination/check for one question. A **benchmark**
