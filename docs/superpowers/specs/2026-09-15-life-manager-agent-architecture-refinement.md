@@ -5420,3 +5420,105 @@ The next natural release-reconciler occurrence `18d8660f24ff7078-87162` reached 
 `09a59ba1b899849ae7e3be8c67e239ec664dea22`, and no provider receipt or external effect. The repeated occurrence
 continues to prove the same old-release bare-Node runtime boundary; the candidate fallback remains unpromoted while
 capacity and worktree-lease gates are unresolved.
+
+### Product UX contract: one-shot bootstrap, then no recurring human loop
+
+This section is the product target. It is intentionally separate from the current implementation status. The
+target experience is that a person supplies the minimum facts and provider setup once, then Life Manager chooses
+and executes the best available work proactively. The person does not set a goal on every wake, choose among the
+fourteen loops, answer routine risk questions, approve ordinary actions, repair incidents, or manually submit
+deliverables. A notification is a report of what happened, not a request to babysit the system.
+
+#### Ideal user journey (TO-BE)
+
+1. The person opens the cloud Life Manager from a phone (Telegram or the hosted web surface). Local/self-hosted
+   mode exposes the same contract for users who choose to run it on their own machine.
+2. Life Manager creates or recovers the account and auto-fills facts already available from account context, such
+   as display name, locale and time zone. It does not ask the person to invent a mission statement or financial/
+   health goals.
+3. One bootstrap capsule collects only missing capability facts: an optional payout destination when a payout rail
+   needs one, provider connections when a loop needs them, and the provider's one-time KYC, CAPTCHA, OAuth, terms
+   or legal consent when that provider requires it. A connected wallet or bank is never silently inferred or copied
+   from another tenant.
+4. Life Manager records a versioned authorization envelope. The envelope permits autonomous operation inside the
+   system's immutable safety, legal, spend and evidence rules. The user is not asked to choose a risk maximum for
+   every loop or approve every transaction. Personal-wallet or bank actions still require provider-valid
+   authorization; the product cannot make an unauthorized transfer merely by hiding a permission prompt.
+5. The capability registry auto-enrols every eligible loop. A missing provider or one-time gate becomes a typed
+   `setup_required` or `safely_fenced` row; it does not stop unrelated loops and it never becomes a guessed success.
+6. After `bootstrap_ready`, ordinary wakes run without conversation. Life Manager observes, acts, evaluates, repairs
+   and reports. It asks again only for a new external gate that cannot be completed autonomously (for example a
+   fresh KYC/CAPTCHA, expired OAuth, a legal dispute, or an explicit user-requested policy change).
+7. The default cloud experience is phone-only and always-on. Local mode is an optional self-hosted equivalent, not a
+   second business implementation. Both modes use the same capsule, receipts, effect fences and recovery rules.
+
+The product promise is therefore **no recurring human loop after bootstrap**. “No human in the loop” is the
+long-term `agent_native` outcome for operations that do not require a human credential or legally required gate;
+KYC/CAPTCHA and provider-mandated one-time setup remain explicit exceptions rather than hidden automation.
+
+#### What the current code does (AS-IS)
+
+The current implementation does not yet satisfy this contract:
+
+- `apps/life-manager/lib/telegram-onboard.js` is the existing LM-6 onboarding for Calendar, home address,
+  notifications and optional phone/call (with Gmail as an optional integration). It is not a generic economic,
+  health and provider-capability bootstrap capsule.
+- `apps/life-manager/lib/product-onboarding.js` requires `host` and a non-empty `selected_loop_ids`, rejects the
+  special value `all`, and returns `starts_automatically: false`. It therefore does not auto-enrol all eligible
+  loops after one bootstrap.
+- There is no single persisted authorization/policy capsule that carries the user's available payout rails,
+  provider gates, immutable defaults, capability state and capsule version across every loop.
+- The foundation gate is still blocked (`healthy=0`, `safely_fenced=1`, `uncovered_failure=13` on the latest
+  read-only projection; another same-SHA projection recorded `uncovered_failure=14`). Neither projection proves
+  fourteen healthy loops, provider success or revenue.
+
+The earlier wording that described this one-shot capsule as already available was incorrect. The capsule and
+auto-enrolment are requirements to implement and verify, not evidence of a completed feature.
+
+#### UX acceptance contract
+
+The implementation may be considered TO-BE compliant only when all of the following are read back from the same
+immutable release:
+
+1. A new user reaches `bootstrap_ready` after only conditional missing-field prompts; no goal-setting question is
+   required.
+2. No ordinary wake emits a goal, per-action risk-limit or routine approval prompt.
+3. Every external effect is checked against the versioned authorization envelope and immutable system policy;
+   missing authority is a typed fence, never an implicit allow.
+4. Eligible loops auto-enrol, ineligible loops expose an exact setup action, and one blocked loop does not stop its
+   siblings.
+5. A KYC/CAPTCHA/OAuth expiry can be represented as one occurrence-scoped human gate and then resumes without
+   repeating the whole onboarding.
+6. Local and cloud runs produce the same capsule hash, effect/readback/receipt schema and replay-zero result.
+7. User-visible messages are outcome reports and concise exception instructions; they do not become a recurring
+   task queue for the person.
+
+#### Remaining implementation order for this UX and autonomy target
+
+The UX is specified now, but it must not be used to skip the foundation gates. The execution order is:
+
+1. Recover the owner-controlled capacity floor and run the full relevant suite from an allowed worktree.
+2. Promote the managed-Node/recovery candidate through the normal main-derived immutable-release path and read back
+   the exact loaded SHA, argv, diagnostic envelope and reconciler terminal.
+3. Prove one low-risk non-Paid self-heal occurrence end-to-end (detect, classify, repair, release, readback,
+   replay-zero) without Codex operating the live owner.
+4. Reconcile each non-Paid owner through the shared kernel and close the local 14-loop foundation gate. Paid
+   fulfillment remains the separate owner's workstream and is consumed read-only here.
+5. Implement the persisted bootstrap capsule, default policy/envelope and capability registry. Preserve one-time
+   provider/KYC/CAPTCHA gates, but remove recurring goal, loop-selection, per-action risk and routine approval
+   prompts from the normal path.
+6. Change onboarding to auto-enrol eligible loops, emit typed `setup_required`/`safely_fenced` states, and prove
+   that a blocked provider does not block unrelated loops.
+7. Promote the accepted local control plane to tenant-isolated cloud workers and prove phone-only operation with
+   the same capsule hash and receipts. Keep local/self-hosted mode as the same-contract option.
+8. Connect the economic evaluation to attributable funnels. Candidate changes may alter prompts, skills, tools,
+   models, offers or new-loop adapters, but may not alter identity, permissions, evidence rules, spend caps or the
+   evaluator itself.
+9. Run bounded live canaries, official provider/payment readback and rollback for Affiliate, Mobile Apps/Capafy,
+   Writer/Product, Gig non-Paid and Self-Funding/x402. Do not call activity or unrealized gains revenue.
+10. Prove self-funding from settled recurring contribution after all measured costs, then verify portfolio-wide
+    USD 10,000 MRR. Only after that should the `agent_native`/human-credential-free benchmark and larger revenue
+    targets be promoted.
+
+Until steps 1–4 pass, the system is a foundation candidate. Until steps 5–7 pass, the desired one-shot, phone-only
+experience is a design target. Until steps 8–10 pass, self-improvement and self-funding are not production claims.
