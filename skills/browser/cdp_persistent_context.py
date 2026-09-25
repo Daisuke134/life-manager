@@ -71,6 +71,39 @@ def _disk_preflight(home: Path | None = None, guard: Path | None = None) -> bool
     return getattr(result, "returncode", 1) == 0
 
 
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _command_line(pid: int) -> str:
+    try:
+        result = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                                capture_output=True, text=True, check=False, timeout=3)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout
+
+
+def _live_profile_owner(profile: str) -> int | None:
+    """Return the live Chromium pid that already holds this profile, if any."""
+    try:
+        target = os.readlink(Path(profile) / "SingletonLock")
+    except OSError:
+        return None
+    pid_text = target.rpartition("-")[2]
+    if not pid_text.isdigit():
+        return None
+    pid = int(pid_text)
+    if not _pid_alive(pid):
+        return None
+    marker = f"--user-data-dir={os.path.realpath(profile)}"
+    return pid if marker in _command_line(pid) else None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", required=True)
@@ -87,6 +120,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if args.preflight_only:
         return 0
+    owner = _live_profile_owner(args.profile)
+    if owner is not None:
+        # A second launch on a held profile exits 0 immediately and looks like a
+        # launch failure. Adopt the live browser; exit non-zero when it dies so
+        # launchd KeepAlive relaunches a fresh owned context.
+        print(f"adopted live profile owner pid={owner}", flush=True)
+        while _pid_alive(owner):
+            time.sleep(5)
+        return 1
     from cloakbrowser import launch_persistent_context
 
     context = launch_persistent_context(

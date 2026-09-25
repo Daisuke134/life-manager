@@ -349,3 +349,38 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveProfileOwnerTests(unittest.TestCase):
+    def _profile(self, root: Path, target: str) -> Path:
+        profile = root / "daily-driver"
+        profile.mkdir()
+        os.symlink(target, profile / "SingletonLock")
+        return profile
+
+    def test_live_chromium_on_same_profile_is_the_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            profile = self._profile(Path(directory), "host-4242")
+            command = f"Chromium --user-data-dir={os.path.realpath(profile)} --x"
+            with (patch.object(MODULE.os, "kill", return_value=None),
+                  patch.object(MODULE, "_command_line", return_value=command)):
+                self.assertEqual(MODULE._live_profile_owner(str(profile)), 4242)
+
+    def test_dead_or_unrelated_pid_or_missing_lock_is_not_an_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            profile = self._profile(Path(directory), "host-4242")
+            with patch.object(MODULE.os, "kill", side_effect=ProcessLookupError):
+                self.assertIsNone(MODULE._live_profile_owner(str(profile)))
+            with (patch.object(MODULE.os, "kill", return_value=None),
+                  patch.object(MODULE, "_command_line", return_value="Chromium --user-data-dir=/other")):
+                self.assertIsNone(MODULE._live_profile_owner(str(profile)))
+            self.assertIsNone(MODULE._live_profile_owner(str(Path(directory) / "missing")))
+
+    def test_adopts_live_owner_instead_of_launching_and_exits_nonzero_when_it_dies(self) -> None:
+        alive = iter([True, True, False])
+        with (patch.object(MODULE, "_disk_preflight", return_value=True),
+              patch.object(MODULE, "_live_profile_owner", return_value=4242),
+              patch.object(MODULE, "_pid_alive", side_effect=lambda _pid: next(alive)),
+              patch.object(MODULE.time, "sleep"),
+              patch.dict("sys.modules", {"cloakbrowser": None})):
+            self.assertEqual(MODULE.main(["--profile", "/p", "--port", "9222"]), 1)
