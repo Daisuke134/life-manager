@@ -54,7 +54,7 @@ def _epoch(value: Any) -> float | None:
     return parsed.timestamp() if parsed.tzinfo is not None else None
 
 
-def _events(state_root: Path) -> list[dict[str, Any]]:
+def _events(state_root: Path, owner: str = OWNER) -> list[dict[str, Any]]:
     rows = []
     for path in [state_root / "events.jsonl", *sorted(state_root.glob("events-*.jsonl.gz"))]:
         try:
@@ -65,21 +65,21 @@ def _events(state_root: Path) -> list[dict[str, Any]]:
                         value = json.loads(line)
                     except ValueError:
                         continue
-                    if isinstance(value, dict) and value.get("loop_id") == OWNER:
+                    if isinstance(value, dict) and value.get("loop_id") == owner:
                         rows.append(value)
         except OSError:
             continue
     return rows
 
 
-def _window(rows: list[dict[str, Any]], run_id: str,
-            marker_written: float) -> tuple[tuple[float, float] | None, str]:
+def _window(rows: list[dict[str, Any]], run_id: str, marker_written: float | None,
+            owner: str = OWNER) -> tuple[tuple[float, float] | None, str]:
     """Bound the run that executed the occurrence, not the run that queued it.
 
     Admission often lets a later run claim an older queued occurrence; only that
     run's terminal carries ``lm-occurrence://<owner>/<run_id>/claim``.
     """
-    claim_ref = f"lm-occurrence://{OWNER}/{run_id}/claim"
+    claim_ref = f"lm-occurrence://{owner}/{run_id}/claim"
     terminals = [r for r in rows if r.get("phase") == "report"
                  and claim_ref in (r.get("evidence_refs") or [])]
     if len(terminals) != 1:
@@ -91,7 +91,7 @@ def _window(rows: list[dict[str, Any]], run_id: str,
     if len(starts) != 1 or None in (starts[0], end) or not starts[0] <= end:
         return None, "claim_run_unavailable"
     # The kernel writes the marker inside the executing child, before its terminal.
-    if not starts[0] - SLACK <= marker_written <= end + SLACK:
+    if marker_written is not None and not starts[0] - SLACK <= marker_written <= end + SLACK:
         return None, "marker_outside_claim_run"
     return (starts[0], end), "ok"
 
