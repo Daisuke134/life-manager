@@ -75,3 +75,10 @@ def test_unclaimed_occurrence_keeps_fence(tmp_path):
     setup(tmp_path)
     other = f"{OWNER}:run-2"
     assert module.evaluate(tmp_path, [other], BEFORE)[other] == (None, "claim_run_unavailable")
+
+
+def test_recorded_proposals_are_read_even_when_unlisted(tmp_path):
+    module = load()
+    setup(tmp_path, receipts=[{"occurrence_id": "other", "application_external_id": "305"},
+                              {"occurrence_id": "other", "application_external_id": "x"}])
+    assert module.recorded_proposals(tmp_path) == {305}

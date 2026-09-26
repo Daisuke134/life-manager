@@ -3,7 +3,9 @@
 
 An Application run's only provider effect is submitting a proposal. The run
 that claimed the occurrence (``lm-occurrence://<owner>/<run>/claim``) bounds
-the window. CrowdWorks lists every proposal we sent; each proposal page opens
+the window. CrowdWorks' proposal list plus every receipted proposal id cover
+the proposals we sent (the pending marker is written before the submit click,
+so an unreceipted submission stays pending); each proposal page opens
 with our proposal message, whose minute is the submission time. Proposal ids
 are issued in time order, so reading newest first until one predates the window
 covers it. A proposal minute in the window, a receipt bound to the occurrence,
@@ -86,9 +88,25 @@ def _prove(occurrence, rows, receipts, pending, timeline, ordered):
     }, "ok"
 
 
-def read_proposals(page: Any, oldest_needed: float) -> list[tuple[int, str]] | None:
-    """Newest-first proposals with their first-message minute, or None if unreadable."""
-    ids: set[int] = set()
+def recorded_proposals(state_root: Path) -> set[int]:
+    """Proposal ids our own receipts recorded; the provider list can drop some."""
+    ids = set()
+    for line in (state_root / "application-receipts.jsonl").read_text(encoding="utf-8").splitlines():
+        value = json.loads(line) if line.strip() else {}
+        if str(value.get("application_external_id", "")).isdigit():
+            ids.add(int(value["application_external_id"]))
+    return ids
+
+
+def read_proposals(page: Any, oldest_needed: float,
+                   recorded: set[int] = frozenset()) -> list[tuple[int, str]] | None:
+    """Newest-first proposals with their first-message minute, or None if unreadable.
+
+    CrowdWorks' list omits some proposals (5 of 224 receipted ones were absent on
+    2026-09-26), so every receipted id is read as well. A submission that never
+    got a receipt still holds application-transaction pending, which _prove checks.
+    """
+    ids: set[int] = set(recorded)
     for number in range(1, 51):
         page.goto(f"https://crowdworks.jp/e/proposals?page={number}",
                   wait_until="domcontentloaded", timeout=30_000)
@@ -137,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
             adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
             try:
                 adapter._open()
-                proposals = read_proposals(adapter.page, min(starts) - 3600)
+                proposals = read_proposals(adapter.page, min(starts) - 3600,
+                                           recorded_proposals(state_root))
             except Exception:
                 proposals = None
             finally:
