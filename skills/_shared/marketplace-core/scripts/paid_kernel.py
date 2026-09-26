@@ -22,7 +22,7 @@ import tempfile
 from typing import Any, Callable, Mapping, Protocol
 
 
-MUTATIONS = frozenset({"answer", "submit", "formal_delivery", "cancel"})
+MUTATIONS = frozenset({"answer", "submit", "formal_delivery", "cancel", "accept"})
 NO_EFFECT_CLASSIFICATIONS = frozenset({
     "completed", "awaiting_buyer", "reserved_for_owner", "satisfied_noop", "noop",
 })

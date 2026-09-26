@@ -91,11 +91,8 @@ def _write_state(path: Path, value: Mapping[str, Any]) -> None:
         except FileNotFoundError: pass
 
 
-def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: set[str]) -> Optional[Mapping[str, Any]]:
-    with_value = detail.get("with")
-    if not isinstance(with_value, Mapping) or not isinstance(with_value.get("proposal"), Mapping): return None
-    proposal_id = _id(with_value["proposal"].get("id"))
-    if proposal_id not in verified_proposals: raise SourceFailure("proposal_receipt_unverified")
+def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional[str] = None) -> Mapping[str, Any]:
+    """Official terms of a verified proposal, read fresh from ``/work/proposal/<id>``."""
     page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
     value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
     if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
@@ -103,9 +100,106 @@ def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: 
     amount_digits = "".join(character for character in str(amount_text) if character.isdigit())
     due = str(due_text).replace("/", "-")
     if not amount_digits or int(amount_digits) <= 0 or len(due) != 10 or not isinstance(text, str) or not text.strip() or len(text) > 10000: raise SourceFailure("proposal_terms_unavailable")
+    project_id = value.get("project_id")
+    if not isinstance(project_id, str) or re.fullmatch(r"[0-9]+", project_id) is None: raise SourceFailure("proposal_terms_unavailable")
+    if expected_project is not None and project_id != expected_project: raise SourceFailure("proposal_terms_conflict")
+    return {"proposal_id": proposal_id, "project_id": project_id, "price_jpy": int(amount_digits), "delivery_due_on": due, "proposal_text": text.strip()}
+
+
+def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: set[str]) -> Optional[Mapping[str, Any]]:
+    with_value = detail.get("with")
+    if not isinstance(with_value, Mapping) or not isinstance(with_value.get("proposal"), Mapping): return None
+    proposal_id = _id(with_value["proposal"].get("id"))
+    if proposal_id not in verified_proposals: raise SourceFailure("proposal_receipt_unverified")
     job = with_value.get("job"); expected_project = _id(job.get("id")) if isinstance(job, Mapping) and job.get("id") is not None else None
-    if expected_project is not None and str(value.get("project_id")) != expected_project: raise SourceFailure("proposal_terms_conflict")
-    return {"proposal_id": proposal_id, "project_id": value.get("project_id"), "price_jpy": int(amount_digits), "delivery_due_on": due, "proposal_text": text.strip()}
+    return _read_proposal_terms(page, proposal_id, expected_project)
+
+
+def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
+    """Official承諾 order terms from the approval page, or ``None`` if not awaiting acceptance.
+
+    Reads the live accept/decline form at ``/project/approval/start/<project_id>``: the
+    milestone plan (amount + due date per row) and the exact hidden fields the "規約に同意し
+    て、承諾する" button submits. Never submits anything itself.
+    """
+    path = f"/project/approval/start/{project_id}"
+    response = page.goto(f"https://www.lancers.jp{path}?purpose=lancer", wait_until="domcontentloaded", timeout=20_000)
+    if response is None or response.status != 200: raise SourceFailure("acceptance_source_unavailable")
+    if urlsplit(str(page.url)).path != path: return None
+    value = page.evaluate(
+        """(projectId) => {
+            const form = document.querySelector(`form[action="/project/approval/finish_yes/${projectId}"]`);
+            if (!form) return null;
+            const accept = [...form.querySelectorAll('input[type=submit]')].some(i => i.value === '規約に同意して、承諾する');
+            if (!accept) return null;
+            const table = document.querySelector('table.p-milestone-form');
+            if (!table) return null;
+            const rows = [...table.querySelectorAll('tbody tr')].map(tr => {
+                const cells = [...tr.querySelectorAll('td')];
+                return {due: cells[2]?.innerText?.trim(), amount: cells[3]?.innerText?.trim()};
+            });
+            const fields = {};
+            for (const input of form.querySelectorAll('input[type=hidden]')) {
+                if (input.name) fields[input.name] = input.value;
+            }
+            return {action: form.getAttribute('action'), rows, fields};
+        }""",
+        project_id,
+    )
+    if value is None: return None
+    action = value.get("action") if isinstance(value, Mapping) else None
+    if action != f"/project/approval/finish_yes/{project_id}": raise SourceFailure("acceptance_form_invalid")
+    rows = value.get("rows")
+    if not isinstance(rows, list) or not rows: raise SourceFailure("acceptance_form_invalid")
+    total, max_due = 0, None
+    for row in rows:
+        if not isinstance(row, Mapping): raise SourceFailure("acceptance_form_invalid")
+        digits = "".join(character for character in str(row.get("amount")) if character.isdigit())
+        due_match = re.fullmatch(r"([0-9]{4})年([0-9]{2})月([0-9]{2})日", str(row.get("due") or ""))
+        if not digits or due_match is None: raise SourceFailure("acceptance_form_invalid")
+        total += int(digits)
+        due = "-".join(due_match.groups())
+        if max_due is None or due > max_due: max_due = due
+    fields = value.get("fields")
+    required_fields = {"_method", "data[_Token][key]", "data[Work][agree]", "data[_Token][fields]", "data[_Token][unlocked]"}
+    if (not isinstance(fields, Mapping) or not required_fields.issubset(fields.keys())
+            or not all(isinstance(k, str) and isinstance(v, str) for k, v in fields.items())
+            or fields.get("_method") != "POST" or fields.get("data[Work][agree]") != "1"):
+        raise SourceFailure("acceptance_form_invalid")
+    return {"action": action, "total_amount_jpy": total, "max_due_on": max_due,
+            "milestone_count": len(rows), "fields": dict(fields)}
+
+
+def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
+    """True only when the official working list already shows this project as 進行中."""
+    path = "/mypage/proposals/all/working"
+    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
+    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a.c-link.c-link--black')?.getAttribute('href'), status: card.querySelector('.c-media-job__status--active')?.innerText?.trim()}))""")
+    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+    for row in projects:
+        if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
+            return row.get("status") == "進行中"
+    return False
+
+
+def _acceptance_candidates(page: Any, verified_proposals: set[str]) -> list[dict[str, Any]]:
+    """Every verified-won proposal, as a Paid candidate awaiting client acceptance.
+
+    ponytail: rescans every verified proposal each wake (bounded by the account's total
+    application volume, same cost class as ``_proposal_pipeline``); add a settled-cursor
+    cache if that volume ever makes this the slow path.
+    """
+    candidates = []
+    for proposal_id in sorted(verified_proposals):
+        terms = _read_proposal_terms(page, proposal_id)
+        candidates.append({
+            "source_kind": "project_acceptance", "provider_id": terms["project_id"],
+            "proposal_id": proposal_id, "board_id": None,
+            "detail_path": f"/project/approval/start/{terms['project_id']}",
+            "funding_status": "awaiting_acceptance",
+        })
+    return candidates
 
 
 def _compose_reply(board: Mapping[str, Any], messages: Sequence[Mapping[str, Any]], state_path: Path, grounding: Optional[Mapping[str, Any]] = None) -> Optional[str]:
@@ -380,11 +474,12 @@ def _read_surfaces(page: Any, verified_proposals: set[str], private_boards: list
     return result
 
 
-def _read_paid_surfaces(page: Any) -> dict[str, Any]:
+def _read_paid_surfaces(page: Any, verified_proposals: set[str]) -> dict[str, Any]:
     """Read only the official sources that can create or settle Paid work."""
     result = _snapshot(lambda path: _fetch(page, path), set())
     result.update(_contract_sources(page))
     result["contract_candidates"] += result.pop("storefront_contract_candidates")
+    result["contract_candidates"] += _acceptance_candidates(page, verified_proposals)
     result["contract_candidates"].sort(
         key=lambda row: (row["source_kind"], row["provider_id"])
     )
@@ -431,12 +526,13 @@ def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
     logged_in = False
     result = _failed("observer_unavailable")
     try:
+        verified_proposals = _verified_proposals(Path(state_path))
         with application_tick.account_lock(Path(state_path).with_name("paid-preflight.json")):
             browser, page = application_tick._open_owned_page(browser_factory)
             if not application_tick._production_account_ready(page):
                 raise SourceFailure("account_unavailable")
             logged_in = True
-            result = _read_paid_surfaces(page)
+            result = _read_paid_surfaces(page, verified_proposals)
             result["logged_in"] = True
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
