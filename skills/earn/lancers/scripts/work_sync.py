@@ -159,15 +159,17 @@ def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional
     proposal side never needs tax-basis detection -- only the order side (read separately)
     can be 税込 and needs a rate to normalize.
     """
-    page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
+    response = page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
+    if getattr(response, "status", None) == 404: raise SourceFailure("proposal_page_not_found")
     try:
         # The proposal body is client-rendered after DOMContentLoaded; reading immediately saw
         # only footer <dt> nodes in production (2026-09-26). Wait for the contract label.
         page.wait_for_function("() => document.body && document.body.innerText.includes('契約金額')", timeout=15_000)
     except Exception:
         pass
-    value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
+    value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, notFound:document.body.innerText.includes("お探しのページへたどり着く事ができませんでした"), amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
     if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
+    if value.get("notFound") is True: raise SourceFailure("proposal_page_not_found")
     amount_text, due_text, text = value.get("amount"), value.get("due"), value.get("proposal_text")
     if not str(amount_text or "").strip():
         # Observation probe: the proposal page's dt labels (UI text only).
@@ -284,7 +286,13 @@ def _acceptance_candidates(page: Any, verified_proposals: set[str]) -> list[dict
     """
     candidates = []
     for proposal_id in sorted(verified_proposals):
-        terms = _read_proposal_terms(page, proposal_id)
+        try:
+            terms = _read_proposal_terms(page, proposal_id)
+        except SourceFailure as error:
+            # A withdrawn/expired proposal page is gone; it must not hide the live ones.
+            if str(error) != "proposal_page_not_found": raise
+            print(f"lancers_acceptance_skip:{proposal_id}:proposal_page_not_found", file=sys.stderr)
+            continue
         candidates.append({
             "source_kind": "project_acceptance", "provider_id": terms["project_id"],
             "proposal_id": proposal_id, "board_id": None,

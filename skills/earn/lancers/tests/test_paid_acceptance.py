@@ -345,3 +345,31 @@ def test_proposal_terms_wait_for_client_rendered_contract_amount():
     assert kinds.index("wait") < kinds.index("evaluate")
     assert "契約金額" in [c for c in calls if c[0] == "wait"][0][1]
     assert terms["price"] == {"kind": "fixed", "amount_jpy": 2000}
+
+
+def test_acceptance_candidates_skip_a_proposal_page_that_is_404():
+    class Response:
+        def __init__(self, status):
+            self.status = status
+
+    class Page:
+        def __init__(self):
+            self.current = None
+
+        def goto(self, url, **_):
+            self.current = url
+            return Response(404 if url.endswith("/27810811") else 200)
+
+        def wait_for_function(self, *_args, **_kwargs):
+            if self.current.endswith("/27810811"):
+                raise TimeoutError("never rendered")
+
+        def evaluate(self, script, *args):
+            if self.current.endswith("/27810811"):
+                return {"path": "/work/proposal/27810811", "amount": None, "due": None,
+                        "project_id": None, "proposal_text": None, "notFound": True}
+            return {"path": "/work/proposal/27969614", "amount": "2,000円", "due": "2026/10/10",
+                    "project_id": "5605912", "proposal_text": "提案本文", "notFound": False}
+
+    candidates = work_sync._acceptance_candidates(Page(), {"27810811", "27969614"})
+    assert [c["provider_id"] for c in candidates] == ["5605912"]
