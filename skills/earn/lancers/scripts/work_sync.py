@@ -265,16 +265,18 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
 
 
 def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
-    """True when the official working list shows this project as accepted.
+    """True when the official proposal list shows this project as accepted.
 
-    Right after the seller accepts, Lancers lists the project as 仮払い待ち (awaiting the
-    client's escrow), not 進行中; the 2026-09-26 acceptance of 5605912 (confirmed by the
-    official 「プロジェクトの承諾を受け付けました」 email) stayed reconcile_unknown for that reason.
+    Right after the seller accepts, Lancers shows the project as 仮払い待ち (awaiting the
+    client's escrow) and does not list it on the working tab: on 2026-09-27 the working tab
+    was empty while 5605912 was accepted (official 「プロジェクトの承諾を受け付けました」 email).
+    The newest-first all-proposals list (same source as _proposal_pipeline) does list it.
     """
-    path = "/mypage/proposals/all/working"
+    path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
     page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
     if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a.c-link.c-link--black')?.getAttribute('href'), status: (card.querySelector('.c-media-job__status--active') || card.querySelector('[class*="c-media-job__status"]'))?.innerText?.trim()}))""")
+    page.wait_for_function("() => document.querySelector('li.p-mypage-work__media.c-media-job')", timeout=15_000)
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"), status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()}))""")
     if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
     for row in projects:
         if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":

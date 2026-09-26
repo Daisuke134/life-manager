@@ -407,16 +407,30 @@ def test_read_paid_inventory_reuses_a_given_page_without_reconnecting(tmp_path, 
     assert calls == []
 
 
-def test_acceptance_readback_counts_escrow_pending_as_accepted():
-    class Page:
-        url = "https://www.lancers.jp/mypage/proposals/all/working"
+def test_acceptance_readback_counts_escrow_pending_as_accepted(capsys):
+    """仮払い待ち projects are absent from the working tab (2026-09-27: working=0 while
+    5605912 was accepted), so readback reads the all-proposals list."""
+    visited = []
 
-        def goto(self, *_a, **_k):
+    class Page:
+        url = ""
+
+        def goto(self, url, **_k):
+            visited.append(url)
+            self.url = url
+
+        def wait_for_function(self, *_a, **_k):
             return None
 
         def evaluate(self, _script):
             return [{"href": "/work/detail/5605912", "status": "仮払い待ち"},
-                    {"href": "/work/detail/1", "status": "進行中"}]
+                    {"href": "/work/detail/1", "status": "進行中"},
+                    {"href": "/work/detail/2", "status": "選定中"}]
 
     assert work_sync._read_acceptance_confirmed(Page(), "5605912") is True
     assert work_sync._read_acceptance_confirmed(Page(), "1") is True
+    assert work_sync._read_acceptance_confirmed(Page(), "2") is False
+    assert work_sync._read_acceptance_confirmed(Page(), "3") is False
+    assert all(url.endswith("/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC") for url in visited)
+    err = capsys.readouterr().err
+    assert "2:status='選定中'" in err and "3:not_listed:rows=3" in err
