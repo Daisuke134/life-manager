@@ -219,10 +219,25 @@ markets (top volume per UTC day, one per event), net of each market's taker `fee
 (`fee = C x feeRate x p x (1-p)`, https://docs.polymarket.com/trading/fees) and 1c slippage.
 GET-only, no key, no order. Test: `python3 -m unittest test_historical_eval`.
 
-Measured 2026-09-26 (60 days, 1200 fetched, 148 trades): net mean -10.4%/trade,
-ci95 [-19.7%, -1.1%] — statistically supported **negative**; win rate 72.3% vs mean
-entry price 78.9% (favorites were overpriced in this sample). Do not promote to paper.
-Next gate: a candidate whose net ci95 lower bound is > 0 on a held-out window.
+Correction 2026-09-27: the first run anchored entry to `closedTime`, which leaks the outcome for
+"will X happen by D" markets (they close early exactly when X happens). Entry is now anchored to the
+scheduled `endDate`; markets already closed by then are skipped (`closed_before_entry`).
+`--offset-days N` skips the most recent N days so a hypothesis can be tested on unseen data.
+
+Measured 2026-09-27, scheduled-end anchor, H=24h, 60-day windows (net per trade; CI is a
+day-clustered bootstrap; "-top2" drops the two best trades):
+| window | side (band) | n / days | net mean | ci95 (day-clustered) | ci95 -top2 |
+|---|---|---|---|---|---|
+| days 61-120 | underdog (0.05-0.30) | 97 / 47 | +61.1% | [+3.3%, +116.1%] | [-12.7%, +99.0%] |
+| days 1-60 | underdog (0.05-0.30) | 97 / 48 | +31.9% | [-20.9%, +99.7%] | [-29.7%, +57.0%] |
+| days 61-120 | favorite (0.70-0.95) | 97 / 47 | -12.2% | [-24.8%, +0.5%] | [-26.0%, -0.4%] |
+| days 1-60 | favorite (0.70-0.95) | 98 / 48 | -10.1% | [-21.8%, +0.8%] | [-22.6%, -0.3%] |
+Verdict: **no robust edge.** The underdog idea (derived after seeing the favorite loss; band fixed
+before the older window was run, recorded locally only) clears zero on one window and fails once the
+single best trade is removed; about half its winners and its five largest returns are esports
+match-winner markets, and without esports it is not supported. Favorites lose a little in both windows.
+`robustness.robustly_supported` must be true (clustered CI and every drop-top-k CI above zero)
+before any band is proposed for a forward paper test.
 
 ## Run
 
