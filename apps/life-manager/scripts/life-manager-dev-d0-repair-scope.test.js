@@ -22,6 +22,12 @@ const SCRIPT_PATH = path.join(__dirname, "life-manager-dev-d0.sh");
 const SCRIPT_TEXT = fs.readFileSync(SCRIPT_PATH, "utf8");
 const GUARD_SRC = path.join(__dirname, "../lib/dev-merge-guard.js");
 const RECOVERY_CLASS_SRC = path.join(__dirname, "../../../runtime/loop/recovery-class.cjs");
+// repairScopeForOwner (see dev-merge-guard.js) also cross-checks runtime/loop/entry_dispatch.py's
+// own dispatch table and fails closed (null) if that file cannot be read. The fixture worktree
+// needs a real, parseable one with an empty `fixed` table so a well-formed non-earn owner can still
+// be granted a scope in these tests.
+const ENTRY_DISPATCH_STUB = "def command_for(loop_id, root, home):\n    fixed = {\n    }\n"
+  + "    if loop_id not in fixed:\n        raise ValueError(loop_id)\n    return fixed[loop_id]\n";
 
 function extractHeredoc(scriptText, marker) {
   const re = new RegExp(`<<'${marker}'\\n([\\s\\S]*?)\\n${marker}\\n`);
@@ -37,6 +43,7 @@ function tempWorktree(registry) {
   fs.mkdirSync(path.join(dir, "config"), { recursive: true });
   fs.copyFileSync(GUARD_SRC, path.join(dir, "apps/life-manager/lib/dev-merge-guard.js"));
   fs.copyFileSync(RECOVERY_CLASS_SRC, path.join(dir, "runtime/loop/recovery-class.cjs"));
+  fs.writeFileSync(path.join(dir, "runtime/loop/entry_dispatch.py"), ENTRY_DISPATCH_STUB);
   fs.writeFileSync(path.join(dir, "config/loop-registry.json"), JSON.stringify(registry));
   return dir;
 }
@@ -60,21 +67,30 @@ test("d0's REPAIR_SCOPE_NODE heredoc derives the scope from the worktree's own r
       label: "ai.anicca.fake-owner",
       effect_class: "none",
       provider_route: "deterministic",
-      entrypoint: "skills/earn/fake-owner/scripts/browser-owner",
+      entrypoint: "skills/gadget/fake-owner/scripts/browser-owner",
       cadence: { start_interval_seconds: 30 },
     },
     "effectful-owner": {
       label: "ai.anicca.effectful-owner",
       effect_class: "publish",
       provider_route: "deterministic",
-      entrypoint: "skills/earn/effectful-owner/scripts/paid-owner",
+      entrypoint: "skills/gadget/effectful-owner/scripts/paid-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "earn-owner": {
+      label: "ai.anicca.earn-owner",
+      effect_class: "none",
+      provider_route: "deterministic",
+      entrypoint: "skills/earn/earn-owner/scripts/browser-owner",
       cadence: { start_interval_seconds: 30 },
     },
   } });
   try {
-    assert.equal(runRepairScopeNode(dir, "fake-owner"), "skills/earn/fake-owner/");
+    assert.equal(runRepairScopeNode(dir, "fake-owner"), "skills/gadget/fake-owner/scripts/");
     // An effect-bearing owner never gets a scope, even though it is otherwise well-formed.
     assert.equal(runRepairScopeNode(dir, "effectful-owner"), "");
+    // skills/earn/ is refused unconditionally, whatever the owner's own effect class.
+    assert.equal(runRepairScopeNode(dir, "earn-owner"), "");
     // Unknown owner id (e.g. a PR body that named something not actually in the registry).
     assert.equal(runRepairScopeNode(dir, "no-such-owner"), "");
   } finally {

@@ -433,7 +433,7 @@ test("recoveryPromotionHooksFor refuses a PR body class that lies about the regi
 });
 
 
-test("repairScopeForOwner derives the owning skill directory for a registry-verified deterministic/effect-none owner", () => {
+test("repairScopeForOwner derives the entrypoint's own directory for a registry-verified deterministic/effect-none owner, and refuses skills/earn/ unconditionally", () => {
   const registry = { loops: {
     "crowdworks-browser": {
       effect_class: "none", provider_route: "deterministic",
@@ -490,13 +490,26 @@ test("repairScopeForOwner derives the owning skill directory for a registry-veri
       entrypoint: "skills/earn/bare-file.sh",
       cadence: { start_interval_seconds: 30 },
     },
+    // Same directory as a real external-effect owner: the effect-none owner must NOT get a scope
+    // that also reaches the effectful sibling's own entrypoint.
+    "sibling-none-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/mixed/scripts/none-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "sibling-effect-owner": {
+      effect_class: "message", provider_route: "deterministic",
+      entrypoint: "skills/mixed/scripts/effect-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
   } };
 
-  // Bound, non-grouped: the owning skill directory is the first segment after skills/.
+  // Bound, non-grouped: the owning scope is the entrypoint FILE's own directory.
   assert.equal(repairScopeForOwner(registry, "affiliate-owner"), "skills/affiliate/");
-  // Bound, grouped (earn/self): the owning directory is skills/<group>/<name>/, not skills/<group>/.
-  assert.equal(repairScopeForOwner(registry, "crowdworks-browser"), "skills/earn/crowdworks/");
-  assert.equal(repairScopeForOwner(registry, "self-owner"), "skills/self/reflection/");
+  assert.equal(repairScopeForOwner(registry, "self-owner"), "skills/self/reflection/scripts/");
+  // skills/earn/ is refused unconditionally, whatever the owner's own effect class -- the tree
+  // holds money/message/application/publish code in sibling files this guard cannot see per-owner.
+  assert.equal(repairScopeForOwner(registry, "crowdworks-browser"), null);
   // Any external effect, any non-deterministic provider route, an unclassifiable/unknown owner, and
   // an entrypoint outside skills/ (already covered by the static allowlist) all get no scope.
   assert.equal(repairScopeForOwner(registry, "effectful-owner"), null);
@@ -511,6 +524,74 @@ test("repairScopeForOwner derives the owning skill directory for a registry-veri
   // under skills/earn/) never widens to the whole skills/ or skills/earn/ tree.
   assert.equal(repairScopeForOwner(registry, "shallow-owner"), null);
   assert.equal(repairScopeForOwner(registry, "shallow-group-owner"), null);
+  // A different registered owner with a real effect, entrypoint in the SAME directory: refused.
+  assert.equal(repairScopeForOwner(registry, "sibling-none-owner"), null);
+});
+
+test("repairScopeForOwner refuses a scope reachable through entry_dispatch.py's own dispatch table", () => {
+  const registry = { loops: {
+    "dispatch-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "runtime/loop/entry_dispatch.py",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "shared-scope-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/foo/scripts/gc-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  // dispatch-owner itself has no skills/ entrypoint, so it never gets a scope directly. But
+  // shared-scope-owner's directory is also where entry_dispatch.py dispatches an effectful script
+  // for dispatch-owner's loop id -- that must close the scope too.
+  const entryDispatchMap = { "dispatch-owner": ["skills/foo/scripts/effect-script.py"] };
+  assert.equal(repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap }), null);
+  // A dispatch table with no entry for this loop id, or a directory the dispatch table never
+  // touches, is unaffected.
+  assert.equal(
+    repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap: { "dispatch-owner": ["skills/other/x.py"] } }),
+    "skills/foo/scripts/",
+  );
+  // entry_dispatch.py unreadable: fail closed (null), not "no dispatch found".
+  assert.equal(repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap: null }), null);
+});
+
+test("repairScopeForOwner against the real loop registry: every granted scope is free of effectful entrypoints and dispatch targets", () => {
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "..", "..", "config", "loop-registry.json"), "utf8"),
+  );
+  const loops = registry.loops || {};
+  // The exact effect-none browser/report/gc owners the independent review flagged: none may get a
+  // scope, because they all sit inside skills/earn/.
+  for (const ownerId of [
+    "crowdworks-revenue-browser",
+    "lancers-revenue-browser",
+    "lancers-revenue-work-sync",
+    "hf-gig-browser",
+    "hf-gig-daily-report",
+    "hf-gig-apply-evidence-gc",
+    "hf-gig-paid-direct",
+    "hf-gig-reply-detector",
+  ]) {
+    if (!(ownerId in loops)) continue;
+    assert.equal(repairScopeForOwner(registry, ownerId), null, ownerId);
+  }
+  const granted = {};
+  for (const ownerId of Object.keys(loops)) {
+    const scope = repairScopeForOwner(registry, ownerId);
+    if (scope) granted[ownerId] = scope;
+  }
+  for (const [ownerId, scope] of Object.entries(granted)) {
+    assert.ok(!scope.startsWith("skills/earn/"), `${ownerId} scope ${scope} is under skills/earn/`);
+    for (const [otherId, otherEntry] of Object.entries(loops)) {
+      if (otherId === ownerId) continue;
+      if (!otherEntry || otherEntry.effect_class === "none" || !otherEntry.effect_class) continue;
+      assert.ok(
+        !String(otherEntry.entrypoint || "").startsWith(scope),
+        `${ownerId} scope ${scope} also reaches effectful owner ${otherId}`,
+      );
+    }
+  }
 });
 
 

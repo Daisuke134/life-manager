@@ -392,19 +392,74 @@ function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
 // Forbidden however classified: the shared kernel, the shared browser adapter, and the
 // loop-development skill itself are never a single owner's editable scope, whatever the registry
 // says (a registry row that pointed its entrypoint at one of these would be a registry bug, not a
-// grant). Every returned scope also has at least two path segments (skills/<name>/), never bare
-// "skills/".
+// grant).
 const FORBIDDEN_SKILL_ROOTS = new Set(["_shared", "browser", "loop-development"]);
-// Entrypoints nested one level deeper by convention: skills/earn/<name>/... and
-// skills/self/<name>/... own skills/<group>/<name>/, not skills/<group>/.
-const GROUPED_SKILL_ROOTS = new Set(["earn", "self"]);
 
-// Derives the ONE directory a registry-verified deterministic/effect-none owner may repair,
-// straight from its own entrypoint — never from anything the PR body claims. Returns null for
-// every other owner (unclassified, non-deterministic, any external effect) and for any owner whose
-// entrypoint does not live under skills/ at all (runtime/loop and apps/life-manager are already on
-// the static allowlist and need no scope).
-function repairScopeForOwner(registry, ownerId) {
+// skills/earn/ is revenue code end to end (crowdworks, lancers, gig, affiliate payouts, ...). Real
+// examples in that tree today: an owner registered effect_class:none for the browser half of a job
+// (crowdworks-revenue-browser, lancers-revenue-browser) sits in the SAME skill directory as sibling
+// owners that send messages, submit applications, or move money (paid_direct.py,
+// storefront_direct.py, application_loop.py, telegram_report.py, ...). A truthful "this one owner
+// is effect_class:none" claim must never unlock unattended merge+promotion of that sibling code, and
+// this guard has no effect-aware promotion path for revenue at all -- so the whole tree is refused
+// up front, before the per-directory effect cross-check below even runs.
+const REVENUE_SKILL_ROOT = "earn";
+
+const ENTRY_DISPATCH_RELATIVE = "runtime/loop/entry_dispatch.py";
+
+// Statically parses entry_dispatch.py's own `fixed` loop_id -> argv mapping (see that file's
+// command_for) into { loop_id: [repo-relative script paths] }. This reads the ACTUAL committed
+// file rather than hand-duplicating its table: a hand-copied map would silently drift the moment
+// a dispatch target changes, and drift here is exactly the class of bug that could let a dispatched
+// effectful script back into an unattended repair scope.
+function parseEntryDispatchScriptMap(source) {
+  const map = {};
+  const bodyMatch = String(source || "").match(
+    /fixed\s*=\s*\{([\s\S]*?)\n\s*\}\n\s*if loop_id not in fixed/,
+  );
+  if (!bodyMatch) return map;
+  const entryPattern = /"([a-zA-Z0-9_-]+)"\s*:\s*\[([\s\S]*?)\]\s*,\s*(?="[a-zA-Z0-9_-]+"\s*:|$)/g;
+  let entryMatch;
+  while ((entryMatch = entryPattern.exec(bodyMatch[1]))) {
+    const loopId = entryMatch[1];
+    const paths = [];
+    const pathPattern = /"([^"]+)"/g;
+    let pathMatch;
+    while ((pathMatch = pathPattern.exec(entryMatch[2]))) {
+      if (/\.(?:py|js|mjs|sh)$/.test(pathMatch[1])) paths.push(pathMatch[1]);
+    }
+    map[loopId] = paths;
+  }
+  return map;
+}
+
+// Returns null (unknown) if entry_dispatch.py cannot be read at all. A repair scope can only be
+// proven free of dispatched effectful code by actually reading what every entry_dispatch owner can
+// execute; an unreadable mapping is not evidence of an empty one.
+function readEntryDispatchScriptMap(io = {}) {
+  const readFileSync = io.readFileSync || fs.readFileSync;
+  const repoDir = io.repoDir || REPO_DIR;
+  try {
+    return parseEntryDispatchScriptMap(readFileSync(path.join(repoDir, ENTRY_DISPATCH_RELATIVE), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// Derives the ONE narrow directory a registry-verified deterministic/effect-none owner may repair
+// -- the entrypoint FILE's own directory (e.g. skills/foo/scripts/browser-owner ->
+// skills/foo/scripts/), never the whole skill directory -- and returns null the instant that
+// directory could also reach any owner with a real external effect. Three independent refusals,
+// all checked before anything is granted:
+//   1. the directory is (or is under) skills/earn/: refused unconditionally, see REVENUE_SKILL_ROOT.
+//   2. some OTHER registered owner with effect_class != "none" has its OWN entrypoint inside the
+//      same directory (a browser-owner script sitting next to a paid-owner script).
+//   3. some registered owner dispatches, through runtime/loop/entry_dispatch.py, into a script
+//      inside the same directory -- read fresh from that file's own mapping every call.
+// `io` is test-only dependency injection (repoDir / readFileSync / a pre-parsed entryDispatchMap);
+// every real caller (the guard's own eligibility path, self-build-daily's dry precheck, and d0.sh's
+// worktree-scoped node snippet) calls this with just (registry, ownerId).
+function repairScopeForOwner(registry, ownerId, io = {}) {
   const { bound, entry } = registryDeterministicNoEffectOwner(ownerId, registry);
   if (!bound) return null;
   const entrypoint = String(entry.entrypoint || "");
@@ -413,15 +468,39 @@ function repairScopeForOwner(registry, ownerId) {
   // ["skills", name, ...rest] requires at least one path segment after the name to prove the
   // entrypoint actually lives inside a subdirectory, not directly as skills/<file>.
   if (segments.length < 3) return null;
-  const first = segments[1];
-  if (!first || FORBIDDEN_SKILL_ROOTS.has(first)) return null;
-  if (GROUPED_SKILL_ROOTS.has(first)) {
-    if (segments.length < 4) return null;
-    const name = segments[2];
-    if (!name) return null;
-    return `skills/${first}/${name}/`;
+  const skillRoot = segments[1];
+  if (!skillRoot || skillRoot === REVENUE_SKILL_ROOT || FORBIDDEN_SKILL_ROOTS.has(skillRoot)) {
+    return null;
   }
-  return `skills/${first}/`;
+  // The entrypoint FILE's own directory, never the whole skill directory.
+  const prefix = `${segments.slice(0, -1).join("/")}/`;
+  if (
+    prefix.includes("skills/_shared/")
+    || prefix.includes("skills/browser/")
+    || prefix.includes("skills/loop-development/")
+  ) {
+    return null;
+  }
+
+  const loops = registry && typeof registry.loops === "object" && registry.loops ? registry.loops : {};
+
+  for (const otherEntry of Object.values(loops)) {
+    if (!otherEntry || typeof otherEntry !== "object") continue;
+    if (!otherEntry.effect_class || otherEntry.effect_class === "none") continue;
+    if (String(otherEntry.entrypoint || "").startsWith(prefix)) return null;
+  }
+
+  const dispatchMap = "entryDispatchMap" in io ? io.entryDispatchMap : readEntryDispatchScriptMap(io);
+  if (dispatchMap === null) return null;
+  for (const [loopId, otherEntry] of Object.entries(loops)) {
+    if (!otherEntry || typeof otherEntry !== "object") continue;
+    if (String(otherEntry.entrypoint || "") !== ENTRY_DISPATCH_RELATIVE) continue;
+    const dispatchedPaths = dispatchMap[loopId];
+    if (!Array.isArray(dispatchedPaths)) continue;
+    if (dispatchedPaths.some((scriptPath) => String(scriptPath).startsWith(prefix))) return null;
+  }
+
+  return prefix;
 }
 
 function readRegistry(registryPath) {
@@ -2023,6 +2102,8 @@ module.exports = {
   recoveryOwnerFromBody,
   recoveryPromotionHooksFor,
   repairScopeForOwner,
+  parseEntryDispatchScriptMap,
+  readEntryDispatchScriptMap,
   DEFAULT_PROMOTION_HOLD_TTL_MS,
   promotionHoldPath,
   readPromotionHold,
