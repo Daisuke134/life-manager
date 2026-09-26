@@ -60,6 +60,11 @@ class ReplySemanticUncertain(SourceFailure):
 def _runtime_failure_code(error: Exception) -> str:
     if type(error).__name__ == "_AccountLockBusy":
         return "account_lock_busy"
+    if type(error).__name__ == "BrowserAttachBusy":
+        # The shared CDP attach lock (one per port, across all four Lancers
+        # loops) timed out; no attach happened, so this is transient/no-effect,
+        # never a hard failure. main() maps this to exit 75.
+        return "browser_attach_busy"
     value = str(error).strip()
     return value if value in _SAFE_RUNTIME_FAILURES else "observer_unavailable"
 
@@ -701,6 +706,15 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
     return result
 
 
+def _worker_exit_code(result: Mapping[str, Any]) -> int:
+    if not result.get("ok") and result.get("error") == "browser_attach_busy":
+        # Transient, no-effect: the shared CDP attach lock timed out. exit 75
+        # (not 1) tells the runtime this is a retryable admission condition,
+        # not a hard failure.
+        return 75
+    return 0 if result.get("ok") else 1
+
+
 def _watchdog(command: Sequence[str], timeout: float) -> dict[str, Any]:
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
     try:
@@ -722,7 +736,7 @@ def _watchdog(command: Sequence[str], timeout: float) -> dict[str, Any]:
     except (TypeError, ValueError): return _failed("worker_failed")
     if not isinstance(result, Mapping) or type(result.get("ok")) is not bool:
         return _failed("worker_failed")
-    if process.returncode != (0 if result["ok"] else 1):
+    if process.returncode != _worker_exit_code(result):
         return _failed("worker_failed")
     return result
 
@@ -752,7 +766,7 @@ def main(argv: Optional[Sequence[str]] = None, *, output_stream: Any = None, bro
     output = output_stream or sys.stdout
     output.write(json.dumps(result, ensure_ascii=False, separators=(",", ":")) + "\n")
     output.flush()
-    return 0 if result["ok"] else 1
+    return _worker_exit_code(result)
 
 
 if __name__ == "__main__":

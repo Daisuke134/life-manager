@@ -362,3 +362,13 @@ def test_booked_action_without_calendar_requests_resume(monkeypatch, tmp_path):
                           "slot": slot, "completion_body": "予約しました。"}}
 
     assert adapter.readback(intent) == {"resume_required": True}
+
+
+def test_classify_observation_error_recognizes_browser_attach_busy(tmp_path):
+    adapter = adapter_module.LancersReplyAdapter(tmp_path / "state.json")
+    busy = adapter_module.work_sync.application_tick.BrowserAttachBusy(
+        "browser_attach_lock_timeout"
+    )
+
+    assert adapter.classify_observation_error(busy) == {"reason": "browser_attach_busy"}
+    assert adapter.classify_observation_error(RuntimeError("network_timeout")) is None

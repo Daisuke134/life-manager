@@ -215,6 +215,17 @@ class LancersReplyAdapter:
             row["decision_version"] = BOOKING_ACTION_VERSION
         return row
 
+    @staticmethod
+    def classify_observation_error(error: Exception) -> dict[str, str] | None:
+        # The shared CDP attach lock (one per port, across all four Lancers
+        # loops) can time out under concurrent ticks. No attach happened, so
+        # this is a provider-observation wait, never a hard failure: it keeps
+        # reply_kernel from raising an unhandled exception for a condition
+        # that carries no effect at all.
+        if type(error).__name__ == "BrowserAttachBusy":
+            return {"reason": "browser_attach_busy"}
+        return None
+
     def context(self, thread_id: str) -> dict[str, Any]:
         board, detail, messages = self._boards[thread_id]
         conversation = []

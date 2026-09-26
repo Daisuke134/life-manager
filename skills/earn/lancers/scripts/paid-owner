@@ -22,6 +22,17 @@ set +e
 KERNEL_RC=$?
 set -e
 
+if (( KERNEL_RC == 1 )) \
+   && grep -Eq '"error_detail"[[:space:]]*:[[:space:]]*"lancers_paid_inventory_browser_attach_busy"' \
+        "$PAID_OUTPUT" 2>/dev/null; then
+  # The shared CDP attach lock (one per port, across all four Lancers loops)
+  # can time out under concurrent ticks; paid_adapter._inventory() surfaces
+  # that as error_detail=lancers_paid_inventory_browser_attach_busy with
+  # effect=0 (no provider mutation happened). Report it as exit 75 (transient,
+  # retry) instead of a hard failure, without touching the shared kernel.
+  KERNEL_RC=75
+fi
+
 if (( KERNEL_RC != 0 )); then
   exit "$KERNEL_RC"
 fi
