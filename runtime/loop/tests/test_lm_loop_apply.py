@@ -481,6 +481,341 @@ class LmLoopApplyTest(unittest.TestCase):
             "effect_class": "application", "state_root": str(state_root),
         }))
 
+    def _mark_effect_unknown(self, database, owner, occurrence, state="claimed"):
+        self._mark_effect_unknown_rows(database, owner, [occurrence], state=state)
+
+    def _mark_effect_unknown_rows(self, database, owner, occurrences, state="claimed"):
+        from runtime.host import resource_admission
+
+        # Enqueue every occurrence first: once one is marked effect_unknown,
+        # a later enqueue_durable call for the same owner is refused.
+        for occurrence in occurrences:
+            resource_admission.enqueue_durable(
+                "agent", owner, admission_class="borrow", priority="support",
+                occurrence_id=occurrence,
+            )
+        with sqlite3.connect(database) as connection:
+            connection.executemany(
+                f"UPDATE occurrences SET state='{state}',effect_unknown=1 "
+                "WHERE occurrence_id=?", [(occurrence,) for occurrence in occurrences],
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+
+    def _write_events(self, state_root, events):
+        state_root.mkdir(exist_ok=True)
+        path = state_root / "events.jsonl"
+        path.write_text("".join(json.dumps(row) + "\n" for row in events))
+        path.chmod(0o600)
+
+    def _start_event(self, owner, run_id, event_id, ts, summary_ref):
+        return {
+            "version": 1, "event_id": event_id, "loop_id": owner,
+            "domain": "financial", "phase": "execute", "status": "running",
+            "effect_class": "money", "effect_status": "started",
+            "provider": "shared-agent-runner", "profile_alias": None,
+            "release_sha": "b" * 40, "run_id": run_id,
+            "timestamp": ts, "blocker": None, "evidence_refs": [summary_ref],
+        }
+
+    def _terminal_event(self, owner, run_id, event_id, ts, summary_ref, *, extra_refs=()):
+        return {
+            "version": 1, "event_id": event_id, "loop_id": owner,
+            "domain": "financial", "phase": "report", "status": "blocked",
+            "effect_class": "money", "effect_status": "unknown",
+            "provider": "shared-agent-runner", "profile_alias": None,
+            "release_sha": "b" * 40, "run_id": run_id,
+            "timestamp": ts,
+            "blocker": "host_admission_deferred:resource_capacity_busy",
+            "evidence_refs": [summary_ref, *extra_refs],
+        }
+
+    def test_pre_effect_resolve_closes_two_provable_rows_independently(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occ_a, occ_b = f"{owner}:wake-a", f"{owner}:wake-b"
+        self._mark_effect_unknown_rows(database, owner, [occ_a, occ_b])
+        state_root = self.root / owner
+        events = [
+            self._start_event(owner, "wake-a", "a" * 24, "2026-09-20T00:00:00+00:00",
+                               f"lm-loop://{owner}/wake-a/summary.json"),
+            self._terminal_event(owner, "wake-a", "b" * 24, "2026-09-20T00:00:01+00:00",
+                                  f"lm-loop://{owner}/wake-a/summary.json"),
+            self._start_event(owner, "wake-b", "c" * 24, "2026-09-21T00:00:00+00:00",
+                               f"lm-loop://{owner}/wake-b/summary.json"),
+            self._terminal_event(owner, "wake-b", "d" * 24, "2026-09-21T00:00:01+00:00",
+                                  f"lm-loop://{owner}/wake-b/summary.json"),
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved = lm_loop._resolve_pre_effect_admission_unknown(owner, entry)
+
+        self.assertTrue(resolved)
+        with sqlite3.connect(database) as connection:
+            rows = connection.execute(
+                "SELECT occurrence_id,state,effect_unknown FROM occurrences "
+                "WHERE owner_id=? ORDER BY occurrence_id", (owner,),
+            ).fetchall()
+        self.assertEqual(rows, [
+            (occ_a, "released", 0), (occ_b, "released", 0),
+        ])
+
+    def test_pre_effect_resolve_closes_terminal_only_run_with_no_start_event(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrence = f"{owner}:wake-solo"
+        self._mark_effect_unknown(database, owner, occurrence)
+        state_root = self.root / owner
+        events = [
+            self._terminal_event(owner, "wake-solo", "e" * 24, "2026-09-22T00:00:00+00:00",
+                                  f"lm-loop://{owner}/wake-solo/summary.json"),
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved = lm_loop._resolve_pre_effect_admission_unknown(owner, entry)
+
+        self.assertTrue(resolved)
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("released", 0))
+
+    def test_pre_effect_proof_rejects_run_with_effect_ref(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrence = f"{owner}:wake-effect"
+        self._mark_effect_unknown(database, owner, occurrence)
+        state_root = self.root / owner
+        summary_ref = f"lm-loop://{owner}/wake-effect/summary.json"
+        events = [
+            self._start_event(owner, "wake-effect", "f" * 24, "2026-09-23T00:00:00+00:00",
+                               summary_ref),
+            self._terminal_event(
+                owner, "wake-effect", "1" * 24, "2026-09-23T00:00:01+00:00", summary_ref,
+                extra_refs=[f"lm-effect://{owner}/wake-effect/receipt.json"],
+            ),
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved = lm_loop._resolve_pre_effect_admission_unknown(owner, entry)
+
+        self.assertFalse(resolved)
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("claimed", 1))
+
+    def test_pre_effect_proof_rejects_run_with_extra_event(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrence = f"{owner}:wake-extra"
+        self._mark_effect_unknown(database, owner, occurrence)
+        state_root = self.root / owner
+        summary_ref = f"lm-loop://{owner}/wake-extra/summary.json"
+        events = [
+            self._start_event(owner, "wake-extra", "2" * 24, "2026-09-24T00:00:00+00:00",
+                               summary_ref),
+            self._terminal_event(owner, "wake-extra", "3" * 24, "2026-09-24T00:00:01+00:00",
+                                  summary_ref),
+            {
+                "version": 1, "event_id": "4" * 24, "loop_id": owner,
+                "domain": "financial", "phase": "verify", "status": "pass",
+                "effect_class": "money", "effect_status": "not_applicable",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-extra",
+                "timestamp": "2026-09-24T00:00:02+00:00", "blocker": None,
+                "evidence_refs": [summary_ref],
+            },
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved = lm_loop._resolve_pre_effect_admission_unknown(owner, entry)
+
+        self.assertFalse(resolved)
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("claimed", 1))
+
+    def test_pre_effect_resolve_mixed_rows_resolves_provable_and_returns_false(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occ_good, occ_bad = f"{owner}:wake-good", f"{owner}:wake-bad"
+        self._mark_effect_unknown_rows(database, owner, [occ_good, occ_bad])
+        state_root = self.root / owner
+        good_ref = f"lm-loop://{owner}/wake-good/summary.json"
+        events = [
+            self._start_event(owner, "wake-good", "5" * 24, "2026-09-25T00:00:00+00:00",
+                               good_ref),
+            self._terminal_event(owner, "wake-good", "6" * 24, "2026-09-25T00:00:01+00:00",
+                                  good_ref),
+            # wake-bad has only a start event: no pre-effect terminal to prove it.
+            self._start_event(owner, "wake-bad", "7" * 24, "2026-09-25T00:00:00+00:00",
+                               f"lm-loop://{owner}/wake-bad/summary.json"),
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved = lm_loop._resolve_pre_effect_admission_unknown(owner, entry)
+
+        self.assertFalse(resolved)
+        with sqlite3.connect(database) as connection:
+            rows = dict(connection.execute(
+                "SELECT occurrence_id,effect_unknown FROM occurrences WHERE owner_id=?",
+                (owner,),
+            ).fetchall())
+        self.assertEqual(rows, {occ_good: 0, occ_bad: 1})
+
+    def test_pre_effect_reconcile_cli_dry_run_resolves_nothing(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrence = f"{owner}:wake-dry"
+        self._mark_effect_unknown(database, owner, occurrence)
+        state_root = self.root / owner
+        summary_ref = f"lm-loop://{owner}/wake-dry/summary.json"
+        events = [
+            self._terminal_event(owner, "wake-dry", "8" * 24, "2026-09-26T00:00:00+00:00",
+                                  summary_ref),
+        ]
+        self._write_events(state_root, events)
+        registry_value = registry()
+        registry_value["loops"][owner] = {
+            **registry_value["loops"].pop("example"),
+            "label": "ai.anicca.lancers-revenue-paid",
+            "effect_class": "money", "state_root": str(state_root),
+        }
+        with patch.object(lm_loop, "validate_registry", return_value=registry_value), \
+                redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(
+                lm_loop.main(["pre-effect-reconcile", owner, "--dry-run"]), 0)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["resolved"], [])
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("claimed", 1))
+
+    def test_pre_effect_reconcile_cli_live_resolves_and_reports_unprovable(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occ_good, occ_bad = f"{owner}:wake-live-good", f"{owner}:wake-live-bad"
+        self._mark_effect_unknown_rows(database, owner, [occ_good, occ_bad])
+        state_root = self.root / owner
+        good_ref = f"lm-loop://{owner}/wake-live-good/summary.json"
+        events = [
+            self._terminal_event(owner, "wake-live-good", "9" * 24, "2026-09-26T00:00:00+00:00",
+                                  good_ref),
+        ]
+        self._write_events(state_root, events)
+        registry_value = registry()
+        registry_value["loops"][owner] = {
+            **registry_value["loops"].pop("example"),
+            "label": "ai.anicca.lancers-revenue-paid",
+            "effect_class": "money", "state_root": str(state_root),
+        }
+        with patch.object(lm_loop, "validate_registry", return_value=registry_value), \
+                redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(lm_loop.main(["pre-effect-reconcile", owner]), 0)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["resolved"], [occ_good])
+        self.assertEqual(
+            [row["occurrence_id"] for row in result["unprovable"]], [occ_bad])
+        with sqlite3.connect(database) as connection:
+            rows = dict(connection.execute(
+                "SELECT occurrence_id,effect_unknown FROM occurrences WHERE owner_id=?",
+                (owner,),
+            ).fetchall())
+        self.assertEqual(rows, {occ_good: 0, occ_bad: 1})
+
+    def test_reconcile_cycle_resolves_pre_effect_rows_bounded(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrence = f"{owner}:wake-cycle"
+        self._mark_effect_unknown(database, owner, occurrence)
+        state_root = self.root / owner
+        summary_ref = f"lm-loop://{owner}/wake-cycle/summary.json"
+        events = [
+            self._terminal_event(owner, "wake-cycle", "0" * 24, "2026-09-26T00:00:00+00:00",
+                                  summary_ref),
+        ]
+        self._write_events(state_root, events)
+        value = registry()
+        base = value["loops"].pop("example")
+        value["loops"][owner] = {
+            **base, "label": "ai.anicca.lancers-revenue-paid",
+            "effect_class": "money", "state_root": str(state_root),
+            "provider_route": "deterministic",
+        }
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **base, "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        with patch.dict(os.environ, {
+                    "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+                    "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                }), \
+                patch.object(lm_loop, "validate_registry", return_value=value), \
+                patch.object(lm_loop, "snapshot", return_value=[]), \
+                redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic"]), 0)
+        result = json.loads(output.getvalue())
+        reconciled = {row["loop_id"]: row for row in result["pre_effect_reconciled"]}
+        self.assertEqual(reconciled[owner]["resolved"], [occurrence])
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occurrence,),
+            ).fetchone(), ("released", 0))
+
+    def test_reconcile_cycle_respects_pre_effect_row_bound(self):
+        first, second = "aaa-owner", "bbb-owner"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occ_first, occ_second = f"{first}:wake-1", f"{second}:wake-1"
+        self._mark_effect_unknown(database, first, occ_first)
+        self._mark_effect_unknown(database, second, occ_second)
+        value = registry()
+        base = value["loops"].pop("example")
+        for owner in (first, second):
+            state_root = self.root / owner
+            self._write_events(state_root, [
+                self._terminal_event(
+                    owner, "wake-1", ("1" if owner == first else "2") * 24,
+                    "2026-09-26T00:00:00+00:00",
+                    f"lm-loop://{owner}/wake-1/summary.json"),
+            ])
+            value["loops"][owner] = {
+                **base, "label": f"ai.anicca.{owner}", "effect_class": "money",
+                "state_root": str(state_root), "provider_route": "deterministic",
+            }
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **base, "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        with patch.dict(os.environ, {
+                    "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+                    "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                }), \
+                patch.object(lm_loop, "validate_registry", return_value=value), \
+                patch.object(lm_loop, "snapshot", return_value=[]), \
+                patch.object(lm_loop, "PRE_EFFECT_RECONCILE_MAX_ROWS", 1), \
+                redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic"]), 0)
+        result = json.loads(output.getvalue())
+        reconciled_owners = {row["loop_id"] for row in result["pre_effect_reconciled"]}
+        self.assertEqual(reconciled_owners, {first})
+        with sqlite3.connect(database) as connection:
+            self.assertEqual(connection.execute(
+                "SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
+                (occ_second,),
+            ).fetchone(), (1,))
+
     def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
         from runtime.host import resource_admission
 
