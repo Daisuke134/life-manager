@@ -22,9 +22,10 @@
 > (#25 adversary fix #2 — it hardcoded a TID and was a standalone-runnable footgun); the same
 > proven recipe now lives, generalized (TOKEN_ID/SIDE/AMOUNT as inputs), in `place_order.py`
 > (see "AUTONOMOUS PICK→PLACE PATH" below). Steps, all from the AI's OWN key:
-> 1. **SIWE mint** (no browser): GET `gamma-api/nonce` → EIP-4361 `personal_sign`
->    ("Welcome to Polymarket! Sign to connect.") → GET `gamma-api/login`
->    `Authorization: Bearer base64(JSON(fields):::0xsig)` → cookies →
+> 1. **SIWE mint** (no browser, `relayer_auth.siwe_login`): POST `gamma-api/v1/challenge
+>    {"siwe":{"address"}}` → `personal_sign` the server's `message` → POST `gamma-api/v1/login`
+>    `Authorization: Bearer base64(JSON(fields):::0xsig)` → `polymarketsession` cookie →
+>    (the old client-built GET `/nonce` + GET `/login` answers 401 `invalid siwe token` since ≤2026-09-09)
 >    POST `relayer-v2/relayer/api/auth {}` → **RelayerApiKey {apiKey,address}**.
 > 2. **Deploy deposit wallet** (gasless via relayer, EOA only signs):
 >    `SecureClient.create(private_key, credentials=creds, api_key=RelayerApiKey(...))`
