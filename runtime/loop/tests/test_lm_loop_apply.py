@@ -2361,6 +2361,96 @@ class LmLoopApplyTest(unittest.TestCase):
             rendered["expected_arguments"],
         )
 
+    def test_loaded_bootstrap_resumes_admission_for_loop_id(self):
+        target = self.root / "installed.plist"
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+        resumed = []
+
+        def launchctl(args):
+            if args[0] == "print":
+                return 0, "arguments = {\n" + "\n".join(rendered["expected_arguments"]) + "\n}\n"
+            return 0, ""
+
+        def admission_resume(loop_id):
+            resumed.append(loop_id)
+            return True
+
+        result = install_one(
+            rendered, target, launchctl, attempts=1, sleeper=lambda _: None,
+            admission_resume=admission_resume,
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(resumed, ["example"])
+        self.assertTrue(result["admission_resumed"])
+
+    def test_preserve_unloaded_path_does_not_resume_admission(self):
+        target = self.root / "installed.plist"
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+        resumed = []
+
+        def launchctl(args):
+            return (1, "not loaded") if args[0] == "print" else (0, "")
+
+        result = install_one(
+            rendered, target, launchctl, preserve_unloaded=True,
+            admission_resume=resumed.append,
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["loaded"])
+        self.assertEqual(resumed, [])
+
+    def test_failed_bootstrap_does_not_resume_admission(self):
+        target = self.root / "installed.plist"
+        old = plistlib.dumps({"Label": "ai.anicca.example", "ProgramArguments": ["/old/run.sh"]})
+        target.write_bytes(old)
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+        resumed = []
+
+        def launchctl(args):
+            if args[0] == "print":
+                return 0, "arguments = {\n/old/run.sh\n}\n"
+            if args[0] == "bootstrap" and target.read_bytes() != old:
+                return 5, "new bootstrap failed"
+            return 0, ""
+
+        with self.assertRaisesRegex(RuntimeError, "restored previous job"):
+            install_one(
+                rendered, target, launchctl, attempts=1, sleeper=lambda _: None,
+                admission_resume=resumed.append,
+            )
+        self.assertEqual(resumed, [])
+
+    def test_admission_resume_failure_does_not_fail_apply(self):
+        target = self.root / "installed.plist"
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+
+        def launchctl(args):
+            if args[0] == "print":
+                return 0, "arguments = {\n" + "\n".join(rendered["expected_arguments"]) + "\n}\n"
+            return 0, ""
+
+        def raising_resume(loop_id):
+            raise RuntimeError("control.lock busy")
+
+        result = install_one(
+            rendered, target, launchctl, attempts=1, sleeper=lambda _: None,
+            admission_resume=raising_resume,
+        )
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["admission_resumed"])
+
+        def false_resume(loop_id):
+            return False
+
+        result = install_one(
+            rendered, target, launchctl, attempts=1, sleeper=lambda _: None,
+            admission_resume=false_resume,
+        )
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["admission_resumed"])
+
     def test_swap_increases_settle_time_before_retry(self):
         target = self.root / "installed.plist"
         target.write_bytes(plistlib.dumps({
