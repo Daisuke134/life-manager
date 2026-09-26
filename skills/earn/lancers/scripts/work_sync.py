@@ -646,8 +646,26 @@ def read_only_inventory(*, state_path: Path = DEFAULT_STATE_PATH, browser_factor
 
 
 def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
-                        browser_factory: Optional[Callable[[str], Any]] = None) -> dict[str, Any]:
-    """Paid-only inventory; Apply proposal completeness cannot suppress contracts."""
+                        browser_factory: Optional[Callable[[str], Any]] = None,
+                        page: Any = None) -> dict[str, Any]:
+    """Paid-only inventory; Apply proposal completeness cannot suppress contracts.
+
+    When ``page`` is given, the caller owns the connection (and its account lock) and this
+    reads through it without reconnecting: a second Playwright attach in the same process
+    after the first was torn down failed every detail read with browser_connect_failed.
+    """
+    if page is not None:
+        try:
+            _verified_proposals(Path(state_path))
+            if not application_tick._production_account_ready(page):
+                raise SourceFailure("account_unavailable")
+            result = _read_paid_surfaces(page, _recent_verified_proposals(Path(state_path)))
+            result["logged_in"] = True
+            return result
+        except SourceFailure as error:
+            return _failed(str(error), True)
+        except Exception as error:
+            return _failed(_runtime_failure_code(error), True)
     browser = page = None
     logged_in = False
     result = _failed("observer_unavailable")

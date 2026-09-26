@@ -388,3 +388,20 @@ def test_recent_verified_proposals_are_newest_first_bounded_and_windowed(tmp_pat
         state, now="2026-09-26T00:00:00Z", days=30, limit=10)
     assert recent == [str(1000 + i) for i in range(14, 4, -1)]
     assert "27810811" not in recent
+
+
+def test_read_paid_inventory_reuses_a_given_page_without_reconnecting(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(work_sync, "_verified_proposals", lambda _path: set())
+    monkeypatch.setattr(work_sync, "_recent_verified_proposals", lambda _path: [])
+    monkeypatch.setattr(work_sync.application_tick, "_open_owned_page",
+                        lambda *_a, **_k: calls.append("open") or (None, None))
+    monkeypatch.setattr(work_sync, "_cleanup", lambda *_a: calls.append("cleanup") or True)
+    monkeypatch.setattr(work_sync.application_tick, "_production_account_ready", lambda _page: True)
+    monkeypatch.setattr(work_sync, "_read_paid_surfaces",
+                        lambda page, proposals: {"ok": True, "source_complete": True,
+                                                 "contract_candidates": [], "page": page})
+    page = object()
+    result = work_sync.read_paid_inventory(state_path=tmp_path / "application.json", page=page)
+    assert result["page"] is page and result["ok"] is True
+    assert calls == []

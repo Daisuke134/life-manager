@@ -275,6 +275,11 @@ class _LiveLancersProvider:
                         "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
         return {"verified": False, "authoritative_absent": True}
 
+    def read_inventory(self) -> Mapping[str, Any]:
+        """Paid inventory through this provider's single owned page (reused for details)."""
+        self._open()
+        return self._work_sync().read_paid_inventory(state_path=self.state_path, page=self.page)
+
     def close(self) -> None:
         work_sync = self._work_sync()
         if self.page is not None:
@@ -657,14 +662,11 @@ def build(argv: list[str]):
     parser.add_argument("--candidate-profile", type=Path, default=DEFAULT_CANDIDATE_PROFILE)
     parser.add_argument("--provider-profile", type=Path, default=DEFAULT_PROVIDER_PROFILE)
     args = parser.parse_args(argv)
-    work_sync = _load_work_sync()
-    reader = lambda: work_sync.read_paid_inventory(
-        state_path=args.state_path.expanduser().resolve()
-    )
+    provider = _LiveLancersProvider(state_path=args.state_path.expanduser().resolve())
     adapter = LancersPaidAdapter(
         account_id=args.account_id,
-        inventory_reader=reader,
-        provider=_LiveLancersProvider(state_path=args.state_path.expanduser().resolve()),
+        inventory_reader=provider.read_inventory,
+        provider=provider,
         state_path=args.state_path.expanduser().resolve(),
         candidate_profile=args.candidate_profile.expanduser().resolve(),
         provider_profile=args.provider_profile.expanduser().resolve(),
