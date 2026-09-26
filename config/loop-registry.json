@@ -103,7 +103,7 @@
     },
     "crowdworks-revenue-report": {
       "adapter": "exec",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "coalesce_queued_wakes": true,
@@ -114,7 +114,7 @@
       "entrypoint": "skills/earn/crowdworks/scripts/report-owner",
       "label": "ai.anicca.crowdworks-revenue-report",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
-      "priority": "support",
+      "priority": "revenue",
       "provider_route": "deterministic",
       "reconcile_queued_release": true,
       "resource_class": "deterministic",

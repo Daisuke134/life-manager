@@ -658,12 +658,14 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
 
-    def test_crowdworks_report_declares_observed_deterministic_borrow_contract(self):
+    def test_crowdworks_report_declares_deterministic_revenue_contract(self):
+        # Borrow never ran once revenue owners filled the host (11/11 wakes
+        # capacity_busy on 2026-09-26, 46 reports undelivered to the owner).
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["crowdworks-revenue-report"]
         self.assertEqual(row.get("resource_class"), "deterministic")
-        self.assertEqual(row.get("admission_class"), "borrow")
-        self.assertEqual(row.get("priority"), "support")
+        self.assertEqual(row.get("admission_class"), "revenue")
+        self.assertEqual(row.get("priority"), "revenue")
         self.assertTrue(row.get("coalesce_queued_wakes"))
         self.assertTrue(row.get("coalesce_reserved_wakes"))
         self.assertTrue(row.get("reconcile_queued_release"))
