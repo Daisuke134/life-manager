@@ -28,6 +28,13 @@ CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
 PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
 SHARED_BROWSER_LOCK_TIMEOUT_SECONDS = 60.0
+# One lock per CDP port: four Lancers loop processes (revenue-application,
+# negotiate, paid, work-sync) share this single Chromium and must never race
+# a connect_over_cdp handshake against it.
+BROWSER_ATTACH_LOCK_TIMEOUT_SECONDS = 45.0
+DEFAULT_BROWSER_ATTACH_LOCK_PATH = (
+    Path.home() / ".local" / "state" / "anicca" / "lancers" / "browser-attach-9227"
+)
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
@@ -519,18 +526,47 @@ def _close_failed_browser(browser: Any) -> None:
     _stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
 
 
-def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> tuple[Any, Any]:
-    for attempt in range(2):
-        browser = None
-        try:
-            browser = (browser_factory or _default_browser_factory)(CDP_URL)
-            return browser, _new_owned_page(browser)
-        except Exception as error:
-            _close_failed_browser(browser)
-            if attempt:
-                print(f"application_tick:browser_open_failed:{type(error).__name__}:{error}", file=sys.stderr)
-                raise
-            time.sleep(1)
+class BrowserAttachBusy(RuntimeError):
+    """The shared CDP attach lock could not be acquired within its bound.
+
+    Distinct from ``browser_connect_failed``/``browser_unavailable``: no attach
+    was even attempted, so no provider effect is possible. Callers should treat
+    this as a transient, no-effect condition (owner scripts map it to exit 75),
+    never as a hard failure.
+    """
+
+
+def _cdp_attach_lock(lock_path: Optional[Path], timeout_seconds: Optional[float]):
+    target = lock_path if lock_path is not None else DEFAULT_BROWSER_ATTACH_LOCK_PATH
+    bound = BROWSER_ATTACH_LOCK_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    return shared.account_lock(Path(target), timeout_seconds=bound)
+
+
+def _open_owned_page(
+    browser_factory: Optional[Callable[[str], Any]] = None,
+    *,
+    lock_path: Optional[Path] = None,
+    lock_timeout_seconds: Optional[float] = None,
+) -> tuple[Any, Any]:
+    # Four Lancers loop processes share one Chromium on CDP_URL; a concurrent
+    # connect_over_cdp handshake from two processes at once fails with a
+    # websocket/timeout error on both sides. This lock serializes only the
+    # attach + owned-page creation (not the rest of the tick) across processes.
+    try:
+        with _cdp_attach_lock(lock_path, lock_timeout_seconds):
+            for attempt in range(2):
+                browser = None
+                try:
+                    browser = (browser_factory or _default_browser_factory)(CDP_URL)
+                    return browser, _new_owned_page(browser)
+                except Exception as error:
+                    _close_failed_browser(browser)
+                    if attempt:
+                        print(f"application_tick:browser_open_failed:{type(error).__name__}:{error}", file=sys.stderr)
+                        raise
+                    time.sleep(1)
+    except shared._AccountLockBusy:
+        raise BrowserAttachBusy("browser_attach_lock_timeout") from None
     raise RuntimeError("browser_unavailable")
 
 
@@ -1382,7 +1418,7 @@ def main(
     return 0 if result.ok else 1
 
 
-__all__ = ["CDP_URL", "DEFAULT_STATE_PATH", "SubmissionNotStarted", "TickResult", "account_lock", "load_marketplace_contracts", "read_pending_descriptor", "state_has_claim", "run_tick", "run_live_tick", "adopt_pending", "main", "_default_browser_factory", "_new_owned_page", "_close_owned_page", "_production_account_ready", "_production_prepare", "_production_submitter", "_production_readback", "_default_explicit_proposal_reader"]
+__all__ = ["CDP_URL", "DEFAULT_STATE_PATH", "SubmissionNotStarted", "TickResult", "account_lock", "load_marketplace_contracts", "read_pending_descriptor", "state_has_claim", "run_tick", "run_live_tick", "adopt_pending", "main", "_default_browser_factory", "_new_owned_page", "_close_owned_page", "_open_owned_page", "_production_account_ready", "_production_prepare", "_production_submitter", "_production_readback", "_default_explicit_proposal_reader", "BrowserAttachBusy", "BROWSER_ATTACH_LOCK_TIMEOUT_SECONDS", "DEFAULT_BROWSER_ATTACH_LOCK_PATH"]
 
 
 if __name__ == "__main__":

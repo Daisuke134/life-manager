@@ -4,16 +4,33 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
+REPLY_OUTPUT="$STATE_ROOT/reply/latest.json"
 
 if [[ ! -x "$PYTHON" ]]; then
   echo "negotiate-owner: managed Python is unavailable: $PYTHON" >&2
   exit 69
 fi
 
-exec "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
+set +e
+"$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
   --provider-adapter "$ROOT/skills/earn/lancers/scripts/reply_adapter.py" \
   --state-root "$STATE_ROOT/reply" \
-  --output "$STATE_ROOT/reply/latest.json" \
+  --output "$REPLY_OUTPUT" \
   --max-workers 1 \
   -- --state-path "$STATE_ROOT/work-sync.json" \
   "$@"
+KERNEL_RC=$?
+set -e
+
+if (( KERNEL_RC == 0 )) \
+   && grep -Eq '"status"[[:space:]]*:[[:space:]]*"blocked"' "$REPLY_OUTPUT" 2>/dev/null \
+   && grep -Eq '"blocker"[[:space:]]*:[[:space:]]*"browser_attach_busy"' "$REPLY_OUTPUT" 2>/dev/null; then
+  # LancersReplyAdapter.classify_observation_error() turns a shared CDP
+  # attach-lock timeout into a "blocked"/effect=0 kernel result (no unhandled
+  # exception, no provider mutation) so reply_kernel exits 0. Re-report it as
+  # exit 75 (transient, retry) instead of a false success, without touching
+  # the shared kernel.
+  KERNEL_RC=75
+fi
+
+exit "$KERNEL_RC"
