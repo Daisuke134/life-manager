@@ -1,0 +1,5 @@
+[
+ {"platform": "lancers", "event_type": "payment_received", "receipt_id": "lancers-pay-1", "amount_minor": 45000, "currency": "JPY", "occurred_at": "2026-09-26T03:00:00Z"},
+ {"platform": "lancers", "event_type": "payment_received", "receipt_id": "lancers-pay-0", "amount_minor": 9000, "currency": "JPY", "occurred_at": "2026-09-25T14:59:59Z"},
+ {"platform": "lancers", "event_type": "application_verified", "receipt_id": "app-1", "amount_minor": null, "currency": null, "occurred_at": "2026-09-26T03:00:00Z"}
+]

@@ -25,3 +25,22 @@ This skill runs one repository-owned CFO pass and exits. It is the operator-faci
 
 The pass is single-writer: do not run another CFO, `cfo-daily`, or financial-report loop against the
 same snapshot/delivery tables.
+
+## Per-loop daily P&L (read-only)
+
+`python3 skills/cfo/loop_pnl.py [--date YYYY-MM-DD] [--json]` prints revenue, refunds, cost and net
+for each of the 14 Product Loops in `apps/life-manager/config/product-loop-catalog.json` for one
+Asia/Tokyo day. It only reads; it never sends, pays or writes state.
+
+- Every number is a sum of entries carrying an official id (`alpaca:activity:*`, `stripe:txn_*`,
+  `base:<tx>:<logIndex>`, `lancers:<receipt_id>`, `agent-usage:<event_id>`). `0` means the owning
+  source was read for that day and had no entries. `unverified` means no source, a missing
+  credential, or a failed read; its reason is printed and net becomes `unverified`.
+- Sources: Alpaca live account activities (FIFO realized P&L + fees), Stripe live balance
+  transactions (`self-build`; needs an `sk_live_`/`rk_live_` key in the credential SSOT), USDC
+  `transferWithAuthorization` transfers on Base for the x402 wallets named by `x402-sell` state
+  (own-to-own excluded), marketplace-core `payment_received` ledger rows, and agent-runner
+  `agent-usage.jsonl` `provider_cost_usd`.
+- `USD_API_EQUIV` is the runner's API-price estimate, not a provider bill. Currencies are never
+  converted. `*` marks a cost that excludes usage events lacking a cost value.
+- Tests: `python3 -m unittest skills/cfo/test_loop_pnl.py` (fixtures in `fixtures/loop_pnl/`).
