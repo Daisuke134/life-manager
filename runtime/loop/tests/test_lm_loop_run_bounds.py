@@ -1559,15 +1559,27 @@ def test_unknown_effect_identity_moves_from_scratch_to_private_state(tmp_path):
     sidecar.chmod(0o600)
     state_root = tmp_path / "state"
 
-    ref = _persist_effect_identity(
+    result = _persist_effect_identity(
         sidecar, state_root, "life-manager-honne-ja", "run-1",
         "life-manager-honne-ja:run-1",
     )
 
-    assert ref == "lm-effect://life-manager-honne-ja/run-1/identity.jsonl"
+    assert result.status == "persisted"
+    assert result.ref == "lm-effect://life-manager-honne-ja/run-1/identity.jsonl"
     persisted = state_root / "effect-identities" / "run-1.jsonl"
     assert json.loads(persisted.read_text(encoding="utf-8"))["job_id"] == "job-1"
     assert persisted.stat().st_mode & 0o777 == 0o600
+
+
+def test_unknown_effect_identity_missing_sidecar_reports_not_written(tmp_path):
+    state_root = tmp_path / "state"
+    missing = tmp_path / "absent.jsonl"
+    result = _persist_effect_identity(
+        missing, state_root, "life-manager-honne-ja", "run-0",
+        "life-manager-honne-ja:run-0",
+    )
+    assert result.status == "not_written"
+    assert result.ref is None
 
 
 def test_unknown_effect_identity_rejects_symlink_and_malformed_sidecars(tmp_path):
@@ -1577,19 +1589,23 @@ def test_unknown_effect_identity_rejects_symlink_and_malformed_sidecars(tmp_path
     outside.chmod(0o600)
     symlink = tmp_path / "symlink.jsonl"
     symlink.symlink_to(outside)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         symlink, state_root, "life-manager-honne-ja", "run-1",
         "life-manager-honne-ja:run-1",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
     assert not (state_root / "effect-identities" / "run-1.jsonl").exists()
 
     malformed = tmp_path / "malformed.jsonl"
     malformed.write_text('{"job_id":"missing-schema"}\n', encoding="utf-8")
     malformed.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         malformed, state_root, "life-manager-honne-ja", "run-2",
         "life-manager-honne-ja:run-2",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
 
 
 def test_unknown_effect_identity_rejects_cross_field_mismatch_and_destination_symlink(tmp_path):
@@ -1621,17 +1637,21 @@ def test_unknown_effect_identity_rejects_cross_field_mismatch_and_destination_sy
     mismatch = tmp_path / "mismatch.jsonl"
     mismatch.write_text(json.dumps(row(video_sha256="c" * 64)) + "\n", encoding="utf-8")
     mismatch.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         mismatch, state_root, "life-manager-honne-ja", "run-3",
         "life-manager-honne-ja:run-3",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
 
     mismatch.write_text(json.dumps(row(integration_ref="integration://postiz/instagram/honne-ai-ja")) + "\n", encoding="utf-8")
     mismatch.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         mismatch, state_root, "life-manager-honne-ja", "run-3",
         "life-manager-honne-ja:run-3",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
 
     state_root.mkdir()
     destination = state_root / "effect-identities"
@@ -1641,10 +1661,12 @@ def test_unknown_effect_identity_rejects_cross_field_mismatch_and_destination_sy
     valid = tmp_path / "valid.jsonl"
     valid.write_text(json.dumps(row()) + "\n", encoding="utf-8")
     valid.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         valid, state_root, "life-manager-honne-ja", "run-3",
         "life-manager-honne-ja:run-3",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
     assert not (outside / "run-3.jsonl").exists()
 
     media = [f"{chr(97 + i)}" * 64 for i in range(6)]
@@ -1666,19 +1688,23 @@ def test_unknown_effect_identity_rejects_cross_field_mismatch_and_destination_sy
     carousel_path = tmp_path / "carousel.jsonl"
     carousel_path.write_text(json.dumps(carousel) + "\n", encoding="utf-8")
     carousel_path.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         carousel_path, tmp_path / "carousel-state", "life-manager-honne-ja", "run-3",
         "life-manager-honne-ja:run-3",
-    ) == "lm-effect://life-manager-honne-ja/run-3/identity.jsonl"
+    )
+    assert result.status == "persisted"
+    assert result.ref == "lm-effect://life-manager-honne-ja/run-3/identity.jsonl"
     carousel["product_id"] = "anicca-ios"
     carousel["effect_key"] = "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + media_order + ":" + "e" * 64
     carousel["media_sha256"] = None
     carousel_path.write_text(json.dumps(carousel) + "\n", encoding="utf-8")
     carousel_path.chmod(0o600)
-    assert _persist_effect_identity(
+    result = _persist_effect_identity(
         carousel_path, tmp_path / "carousel-state", "life-manager-honne-ja", "run-3",
         "life-manager-honne-ja:run-3",
-    ) is None
+    )
+    assert result.status == "rejected"
+    assert result.ref is None
 
 
 def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):

@@ -140,6 +140,10 @@ class CommonContractTests(unittest.TestCase):
         self.assertEqual(set(definition["effect_class"]["enum"]), runtime_event.EFFECTS)
         self.assertEqual(set(definition["effect_status"]["enum"]), runtime_event.EFFECT_STATUSES)
         self.assertEqual(set(definition["failure_layer"]["enum"]), runtime_event.FAILURE_LAYERS)
+        self.assertEqual(
+            set(definition["effect_identity_status"]["enum"]),
+            runtime_event.EFFECT_IDENTITY_STATUSES,
+        )
         self.assertTrue({
             "product_loop_id", "job_id", "owner_id", "wake_id", "occurrence_id",
             "loaded_argv_sha256", "loaded_env_sha256", "exit_code", "failure_layer",
@@ -159,6 +163,14 @@ class CommonContractTests(unittest.TestCase):
         )
         validate(diagnostic)
         runtime_event.validate_runtime_event(diagnostic)
+        with_identity_status = runtime_event.build_runtime_event(
+            loop_id="example", domain="earn", run_id="run-2",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1, effect_identity_status="not_written",
+        )
+        validate(with_identity_status)
+        runtime_event.validate_runtime_event(with_identity_status)
         partial_diagnostic = {**event, "job_id": "example"}
         with self.assertRaises(AssertionError):
             validate(partial_diagnostic)
