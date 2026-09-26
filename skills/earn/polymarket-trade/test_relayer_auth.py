@@ -96,5 +96,14 @@ class LiveGateTest(unittest.TestCase):
 ORIGINAL_SIWE_LOGIN = ra.siwe_login
 
 
+class GateOrderTest(unittest.TestCase):
+    def test_live_gate_runs_before_credential_derivation(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        for name in ("bundle_arb.py", "market_maker.py"):
+            with open(os.path.join(here, name)) as f:
+                body = f.read().split("def main():", 1)[1]
+            self.assertLess(body.index("mint()"), body.index("SecureClient._create"), name)
+
+
 if __name__ == "__main__":
     unittest.main()
