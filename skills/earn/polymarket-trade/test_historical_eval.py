@@ -8,9 +8,9 @@ import historical_eval as he  # noqa: E402
 
 
 def market(mid, event, prices='["1", "0"]', start="2026-07-01T00:00:00Z",
-           closed="2026-07-03 00:00:00+00", fees=True, sched=None):
+           closed="2026-07-03 00:00:00+00", fees=True, sched=None, end="2026-07-03T00:00:00Z"):
     return {"id": mid, "question": mid, "outcomes": '["Yes", "No"]', "outcomePrices": prices,
-            "clobTokenIds": '["111", "222"]', "startDate": start, "closedTime": closed,
+            "clobTokenIds": '["111", "222"]', "startDate": start, "closedTime": closed, "endDate": end,
             "feesEnabled": fees, "feeSchedule": sched or {"exponent": 1, "rate": 0.05},
             "events": [{"id": event}]}
 
@@ -30,6 +30,7 @@ class HistoricalEvalTest(unittest.TestCase):
             market("e", "e4", sched={"exponent": 2, "rate": 0.05}),  # unknown fee curve
             market("f", "e5", prices='["0", "1"]', fees=False),
             {**market("g", "e6"), "feeSchedule": "broken"},  # malformed: skipped, not fatal
+            market("h", "e7", end="2026-08-01T00:00:00Z"),  # resolved early: would leak outcome
         ]
         keep, funnel = he.select_markets(raw, horizon_h=24)
         self.assertEqual([m["id"] for m in keep], ["a", "f"])
@@ -37,9 +38,9 @@ class HistoricalEvalTest(unittest.TestCase):
         self.assertFalse(keep[1]["yes_won"])
         self.assertEqual(keep[0]["fee_rate"], 0.05)
         self.assertEqual(keep[1]["fee_rate"], 0.0)
-        self.assertEqual(funnel, {"fetched": 7, "not_binary_resolved": 1, "fee_unknown": 1,
-                                  "too_young": 1, "duplicate_event": 1, "malformed": 1,
-                                  "eligible": 2})
+        self.assertEqual(funnel, {"fetched": 8, "not_binary_resolved": 1, "fee_unknown": 1,
+                                  "too_young": 1, "closed_before_entry": 1,
+                                  "duplicate_event": 1, "malformed": 1, "eligible": 2})
 
     def test_price_at_uses_last_point_and_rejects_stale(self):
         hist = [{"t": 100, "p": 0.4}, {"t": 200, "p": 0.8}, {"t": 400, "p": 0.1}]
@@ -69,6 +70,18 @@ class HistoricalEvalTest(unittest.TestCase):
         self.assertFalse(flat["statistically_supported"])
         self.assertAlmostEqual(flat["mean"], 0.0)
         self.assertFalse(he.summarize([0.5], seed=1)["statistically_supported"])
+
+    def test_fetch_markets_offset_skips_recent_days(self):
+        import datetime as dt
+        seen = []
+        orig_get, orig_sleep = he._get, he.time.sleep
+        he._get = lambda url, params: seen.append(params["end_date_min"][:10]) or []
+        he.time.sleep = lambda s: None
+        try:
+            he.fetch_markets(2, 5, 0, dt.date(2026, 9, 27), offset_days=60)
+        finally:
+            he._get, he.time.sleep = orig_get, orig_sleep
+        self.assertEqual(seen, ["2026-07-28", "2026-07-27"])
 
     def test_module_is_read_only(self):
         src = open(he.__file__).read()

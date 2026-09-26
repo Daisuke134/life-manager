@@ -7,7 +7,8 @@ order: no wallet, no key, no signing, no CLOB client. It only GETs two public en
   Gamma  https://gamma-api.polymarket.com/markets        resolved markets + fee schedule
   CLOB   https://clob.polymarket.com/prices-history      historical token prices
 
-Strategy replayed ("favorite at horizon"): H hours before a binary market closed, if either
+Strategy replayed ("favorite at horizon"): H hours before a binary market's scheduled end
+(markets already closed by then are skipped), if either
 side's price is inside [band_lo, band_hi], buy that side as a taker and hold to resolution.
 Per-trade net return per USDC spent = payout / (fill + fee) - 1, where
   fill = price + slippage            (history is last-trade/mid, not the ask we would pay)
@@ -72,9 +73,10 @@ def parse_ts(value: str | None) -> float | None:
     return t.timestamp()
 
 
-def fetch_markets(days: int, per_day: int, min_volume: float, today: dt.date) -> list[dict]:
+def fetch_markets(days: int, per_day: int, min_volume: float, today: dt.date,
+                  offset_days: int = 0) -> list[dict]:
     out = []
-    for back in range(1, days + 1):
+    for back in range(offset_days + 1, offset_days + days + 1):
         day = today - dt.timedelta(days=back)
         out += _get(GAMMA, {
             "closed": "true", "limit": per_day, "order": "volumeNum", "ascending": "false",
@@ -89,7 +91,8 @@ def fetch_markets(days: int, per_day: int, min_volume: float, today: dt.date) ->
 def select_markets(raw: list[dict], horizon_h: float) -> tuple[list[dict], dict]:
     """Binary, cleanly resolved (1/0), fee schedule understood, open before entry, 1 per event."""
     funnel = {"fetched": len(raw), "not_binary_resolved": 0, "fee_unknown": 0,
-              "too_young": 0, "duplicate_event": 0, "malformed": 0, "eligible": 0}
+              "too_young": 0, "closed_before_entry": 0, "duplicate_event": 0, "malformed": 0,
+              "eligible": 0}
     seen, keep = set(), []
     for m in raw:
         try:
@@ -115,11 +118,18 @@ def _select_one(m: dict, horizon_h: float, funnel: dict, seen: set, keep: list) 
     if m.get("feesEnabled") and (sched.get("exponent", 1) != 1 or sched.get("rate") is None):
         funnel["fee_unknown"] += 1
         return
-    close = parse_ts(m.get("closedTime")) or parse_ts(m.get("endDate"))
+    # Anchor entry to the SCHEDULED end, never to the actual close: a "will X happen by D"
+    # market closes early exactly when X happens, so closedTime - H leaks the outcome.
+    end = parse_ts(m.get("endDate"))
+    closed = parse_ts(m.get("closedTime")) or end
     start = parse_ts(m.get("startDate"))
-    if close is None or start is None or start > close - horizon_h * 3600 - 3600:
+    if end is None or start is None or start > end - horizon_h * 3600 - 3600:
         funnel["too_young"] += 1
         return
+    if closed < end - horizon_h * 3600:
+        funnel["closed_before_entry"] += 1  # not tradeable at the scheduled entry time
+        return
+    close = end
     events = m.get("events") or [{}]
     key = events[0].get("id") or m.get("conditionId") or m.get("id")
     if key in seen:
@@ -176,7 +186,8 @@ def summarize(returns: list[float], seed: int, n_boot: int = 2000) -> dict:
 
 def run(args) -> dict:
     band = tuple(float(x) for x in args.band.split(","))
-    raw = fetch_markets(args.days, args.per_day, args.min_volume, dt.datetime.now(dt.timezone.utc).date())
+    raw = fetch_markets(args.days, args.per_day, args.min_volume, dt.datetime.now(dt.timezone.utc).date(),
+                        args.offset_days)
     markets, funnel = select_markets(raw, args.horizon_hours)
     funnel.update(no_price_at_entry=0, out_of_band=0, trades=0)
     trades = []
@@ -193,13 +204,13 @@ def run(args) -> dict:
         if t is None:
             funnel["out_of_band"] += 1
             continue
-        trades.append({"market_id": m["id"], "question": m["question"], "fee_rate": m["fee_rate"], **t})
+        trades.append({"market_id": m["id"], "question": m["question"], "close_ts": m["close_ts"], "fee_rate": m["fee_rate"], **t})
     funnel["trades"] = len(trades)
     net = [t["net_return"] for t in trades]
     return {
         "venue": "polymarket", "rung": "historical_eval", "strategy": "favorite_at_horizon",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "params": {"days": args.days, "per_day": args.per_day, "horizon_hours": args.horizon_hours,
+        "params": {"days": args.days, "offset_days": args.offset_days, "per_day": args.per_day, "horizon_hours": args.horizon_hours,
                    "band": list(band), "slippage": args.slippage, "min_volume": args.min_volume,
                    "seed": args.seed},
         "funnel": funnel,
@@ -223,6 +234,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--days", type=int, default=60)
     ap.add_argument("--per-day", type=int, default=20)
+    ap.add_argument("--offset-days", type=int, default=0,
+                    help="skip the most recent N days (held-out windows)")
     ap.add_argument("--horizon-hours", type=float, default=24)
     ap.add_argument("--band", default="0.70,0.95")
     ap.add_argument("--slippage", type=float, default=0.01)
