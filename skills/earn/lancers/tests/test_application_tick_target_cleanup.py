@@ -346,3 +346,46 @@ def test_page_cleanup_watchdog_terminates_stalled_client(monkeypatch):
     monkeypatch.setattr(module, "PLAYWRIGHT_STOP_TIMEOUT_SECONDS", 0.01)
     assert module._close_owned_page(Page()) is True
     assert process.terminated is True
+
+
+def test_new_owned_page_claims_foreign_dialogs_and_handles_own_safely():
+    tick = _module()
+
+    class Page:
+        def __init__(self):
+            self.handlers = []
+
+        def on(self, event, handler):
+            assert event == "dialog"
+            self.handlers.append(handler)
+
+    class Context:
+        def __init__(self, pages):
+            self.pages = pages
+            self.page_hooks = []
+
+        def on(self, event, handler):
+            assert event == "page"
+            self.page_hooks.append(handler)
+
+        def new_page(self):
+            page = Page()
+            self.pages.append(page)
+            return page
+
+    foreign = Page()
+    context = Context([foreign])
+    owned = tick._new_owned_page(type("B", (), {"contexts": [context]})())
+
+    assert foreign.handlers and owned.handlers
+    later = Page()
+    for hook in context.page_hooks:
+        hook(later)
+    assert later.handlers
+
+    class Dialog:
+        def dismiss(self):
+            raise RuntimeError("No dialog is showing")
+
+    for handler in owned.handlers:
+        handler(Dialog())  # must not raise
