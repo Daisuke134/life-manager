@@ -163,6 +163,10 @@ def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional
     value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
     if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
     amount_text, due_text, text = value.get("amount"), value.get("due"), value.get("proposal_text")
+    if not str(amount_text or "").strip():
+        # Observation probe: the proposal page's dt labels (UI text only).
+        labels = page.evaluate("() => [...document.querySelectorAll('dt')].map(n => n.innerText.trim().slice(0, 30))")
+        print(f"lancers_proposal_labels_probe:{json.dumps(labels, ensure_ascii=False)[:600]}", file=sys.stderr)
     price = _parse_amount_text(amount_text)
     due = str(due_text).replace("/", "-")
     if len(due) != 10 or not isinstance(text, str) or not text.strip() or len(text) > 10000: raise SourceFailure("proposal_terms_unavailable")
@@ -204,13 +208,18 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
             if (!table) return null;
             const rows = [...table.querySelectorAll('tbody tr')].map(tr => {
                 const cells = [...tr.querySelectorAll('td')];
-                return {due: cells[2]?.innerText?.trim(), amount: cells[3]?.innerText?.trim()};
+                return {due: cells[2]?.innerText?.trim(), amount: cells[3]?.innerText?.trim(),
+                        probe: cells.map(c => ({text: c.innerText.trim().slice(0, 40),
+                            inputs: [...c.querySelectorAll('input,select,textarea')]
+                                .filter(i => i.type !== 'hidden' || !/_Token/.test(i.name))
+                                .map(i => `${i.name}=${String(i.value).slice(0, 20)}`)}))};
             });
+            const headers = [...table.querySelectorAll('th')].map(th => th.innerText.trim().slice(0, 20));
             const fields = {};
             for (const input of form.querySelectorAll('input[type=hidden]')) {
                 if (input.name) fields[input.name] = input.value;
             }
-            return {action: form.getAttribute('action'), rows, fields, formText: form.innerText};
+            return {action: form.getAttribute('action'), rows, headers, fields, formText: form.innerText};
         }""",
         project_id,
     )
@@ -222,6 +231,9 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
     parsed_rows, max_due = [], None
     for row in rows:
         if not isinstance(row, Mapping): raise SourceFailure("acceptance_form_invalid")
+        if not str(row.get("amount") or "").strip():
+            # Observation probe: table structure only (UI labels, amount/date inputs; no tokens).
+            print(f"lancers_order_table_probe:{json.dumps({'headers': value.get('headers'), 'row': row.get('probe')}, ensure_ascii=False)[:600]}", file=sys.stderr)
         parsed_rows.append(_parse_amount_text(row.get("amount")))
         due_match = re.fullmatch(r"([0-9]{4})年([0-9]{2})月([0-9]{2})日", str(row.get("due") or ""))
         if due_match is None: raise SourceFailure("acceptance_form_invalid")
