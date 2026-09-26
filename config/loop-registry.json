@@ -23,6 +23,11 @@
       },
       "domain": "financial",
       "effect_class": "money",
+      "effect_reconcile": {
+        "argv": ["skills/alpaca-investment/effect_reconcile.py"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": null
+      },
       "entrypoint": "skills/alpaca-investment/run.py",
       "label": "ai.anicca.alpaca-investment-live",
       "log_root": "~/.local/state/life-manager/alpaca-investment-live/logs",
@@ -54,6 +59,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/crowdworks/scripts/reconcile_application_no_submit.py",
+          "--state-root", "~/.local/state/anicca/crowdworks"
+        ],
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "resource_class": "agent",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
@@ -116,6 +130,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "money",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
+          "--state-root", "~/.local/state/anicca/crowdworks",
+          "--owner", "crowdworks-revenue-paid"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve"
+      },
       "resource_class": "agent",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
@@ -133,6 +156,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/crowdworks/scripts/reconcile_reply_no_send.py",
+          "--state-root", "~/.local/state/anicca/crowdworks", "--all-fenced"
+        ],
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "resource_class": "agent",
       "admission_class": "revenue",
       "admission_effect_scope": "occurrence",
@@ -229,6 +261,11 @@
       ],
       "domain": "growth",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": ["skills/affiliate/scripts/host_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve"
+      },
       "entrypoint": "skills/affiliate/affiliate",
       "label": "ai.anicca.affiliate-loop",
       "log_root": "~/.local/state/life-manager/affiliate-loop/logs",
@@ -1088,6 +1125,25 @@
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/apply-reconcile"
     },
+    "lm-fence-reconciler": {
+      "cadence": {
+        "start_interval_seconds": 600
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "runtime/loop/fence_reconcile.py",
+      "label": "ai.anicca.lm-fence-reconciler",
+      "log_root": "~/.local/state/life-manager/lm-fence-reconciler/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 1200,
+      "state_root": "~/.local/state/life-manager/lm-fence-reconciler"
+    },
     "hf-gig-browser": {
       "browser_owner": {
         "cdp_port": 9223,
@@ -1500,6 +1556,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "money",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-paid"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve"
+      },
       "runtime_timeout_seconds": 300,
       "resource_class": "agent",
       "admission_class": "revenue",

@@ -20,8 +20,9 @@ OPTIONAL_FIELDS = {
     "coalesce_queued_wakes", "command",
     "admission_effect_scope", "priority", "reconcile_queued_release",
     "runtime_timeout_seconds", "resource_class", "browser_identity",
-    "browser_target_owner",
+    "browser_target_owner", "effect_reconcile",
 }
+EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag", "timeout_seconds"}
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
@@ -117,6 +118,30 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid browser_target_owner")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
             _fail(f"{loop_id}: invalid admission_class")
+        if "effect_reconcile" in row:
+            reconcile = row["effect_reconcile"]
+            if (not isinstance(reconcile, dict) or "argv" not in reconcile
+                    or set(reconcile) - EFFECT_RECONCILE_FIELDS):
+                _fail(f"{loop_id}: invalid effect_reconcile")
+            reconcile_argv = reconcile["argv"]
+            if (not isinstance(reconcile_argv, list) or not reconcile_argv
+                    or any(not isinstance(part, str) or not part for part in reconcile_argv)):
+                _fail(f"{loop_id}: effect_reconcile.argv must be non-empty strings")
+            reconcile_path = PurePosixPath(reconcile_argv[0])
+            if (reconcile_path.is_absolute() or ".." in reconcile_path.parts
+                    or str(reconcile_path) in {"", "."}):
+                _fail(f"{loop_id}: effect_reconcile.argv[0] must be repository-relative")
+            for flag_key in ("occurrence_flag", "resolve_flag"):
+                flag_value = reconcile.get(flag_key)
+                if flag_value is not None and (
+                    not isinstance(flag_value, str) or not flag_value.startswith("--")
+                ):
+                    _fail(f"{loop_id}: invalid effect_reconcile.{flag_key}")
+            timeout_value = reconcile.get("timeout_seconds")
+            if timeout_value is not None and (
+                type(timeout_value) is not int or not 1 <= timeout_value <= 1000
+            ):
+                _fail(f"{loop_id}: invalid effect_reconcile.timeout_seconds")
         if "coalesce_reserved_wakes" in row and type(row["coalesce_reserved_wakes"]) is not bool:
             _fail(f"{loop_id}: invalid coalesce_reserved_wakes")
         if "coalesce_queued_wakes" in row and (type(row["coalesce_queued_wakes"]) is not bool
@@ -301,6 +326,21 @@ def loop_json_schema() -> dict:
             "browser_target_owner": {
                 "type": "string",
                 "pattern": "^[a-z0-9][a-z0-9:_-]{1,127}$",
+            },
+            "effect_reconcile": {
+                "type": "object",
+                "required": ["argv"],
+                "properties": {
+                    "argv": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                    "occurrence_flag": {"type": ["string", "null"]},
+                    "resolve_flag": {"type": ["string", "null"]},
+                    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1000},
+                },
+                "additionalProperties": False,
             },
         },
         "dependentRequired": {
