@@ -692,3 +692,18 @@ def test_no_effect_preserves_shared_lifecycle_classification(tmp_path: Path) -> 
     assert result["observed"] == 2
     assert result["actionable"] == result["effect"] == result["failed"] == 0
     assert result["readback"] == 2
+
+
+def test_single_worker_runs_items_on_the_calling_thread(tmp_path: Path) -> None:
+    # Sync Playwright pages cannot cross threads; a 1-worker pool still used a new thread.
+    seen: list[int] = []
+
+    class ThreadAware(Adapter):
+        def observe_one(self, work_id: str) -> dict:
+            seen.append(threading.get_ident())
+            return super().observe_one(work_id)
+
+    adapter = ThreadAware([observation("a"), observation("b")])
+    paid.run_wake(adapter=adapter, decide=lambda _row: {"action": "noop"},
+                  state_root=tmp_path / "inline", max_workers=1)
+    assert seen and set(seen) == {threading.get_ident()}

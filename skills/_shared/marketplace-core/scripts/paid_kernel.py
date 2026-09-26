@@ -454,20 +454,32 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
     workers = max(1, min(max_workers, len(normalized) or 1))
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
     run_marker = run_marker or _prepare_run_marker(Path(state_root), occurrence_id)
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row, occurrence_id,
-                                pre_effect_hint, run_marker)
-                   for row in normalized]
-        items = []
-        for row, future in zip(normalized, futures):
+    def _failed_item(row: Mapping[str, Any], error: Exception) -> dict[str, Any]:
+        error_detail = str(error).strip() or type(error).__name__
+        return {"work_id": row["work_id"], "status": "failed",
+                "reason": type(error).__name__, "error_detail": error_detail,
+                "effect": 0, "readback": 0, "failed": 1}
+
+    items = []
+    if workers == 1:
+        # Run on the calling thread: sync Playwright pages owned by the adapter
+        # cannot be used from a pool thread, even a one-worker pool.
+        for row in normalized:
             try:
-                items.append(future.result())
+                items.append(_run_one(adapter, decide, Path(state_root), row, occurrence_id,
+                                      pre_effect_hint, run_marker))
             except Exception as error:
-                error_detail = str(error).strip() or type(error).__name__
-                items.append({"work_id": row["work_id"], "status": "failed",
-                              "reason": type(error).__name__, "error_detail": error_detail,
-                              "effect": 0,
-                              "readback": 0, "failed": 1})
+                items.append(_failed_item(row, error))
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row, occurrence_id,
+                                    pre_effect_hint, run_marker)
+                       for row in normalized]
+            for row, future in zip(normalized, futures):
+                try:
+                    items.append(future.result())
+                except Exception as error:
+                    items.append(_failed_item(row, error))
     result = {
         "status": "ok",
         "observed": len(items),
