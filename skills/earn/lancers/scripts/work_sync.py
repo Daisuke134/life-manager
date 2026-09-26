@@ -121,12 +121,16 @@ def _parse_amount_text(text: Any) -> dict[str, Any]:
     source = str(text or "")
     numbers = [int(match.replace(",", "")) for match in _AMOUNT_TOKEN.findall(source)]
     if not numbers:
+        # Observation probe: the unparsed official amount text (no personal data) so the
+        # next wake shows the real Lancers wording instead of a bare error code.
+        print(f"lancers_amount_unparsed:{source[:80]!r}", file=sys.stderr)
         raise SourceFailure("amount_terms_unavailable")
     active_kinds = [kind for kind, markers in _AMOUNT_KIND_MARKERS.items() if any(marker in source for marker in markers)]
     if not active_kinds and len(numbers) == 1:
         return {"kind": "fixed", "amount_jpy": numbers[0]}
     if len(active_kinds) == 1 and len(numbers) == 1:
         return {"kind": active_kinds[0], "amount_jpy": numbers[0]}
+    print(f"lancers_amount_unparsed:{source[:80]!r}", file=sys.stderr)
     return {"kind": "unparsed", "raw_text": source}
 
 
