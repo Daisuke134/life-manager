@@ -266,7 +266,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - `lm-cfo`（`skills/cfo/loop_pnl.py`）: 14行のループ別損益を出力できた。Stripe は本番用の key が無く未検証。**Coconala と CrowdWorks には入金の ledger が無い**（`marketplace-ledger.sqlite3` は 0 byte、入金の readback はどこにも無い）
 - `lm-crowdworks`: 公式の readback で、固定報酬の契約が10件（どれも12円のテスト用）、未出金 10円、**出金先の銀行口座が未登録**
 - [ ] 7-13 各プラットフォームの入金・出金の公式 readback を、CFO の ledger に書き込む（今まで一度も存在しなかった）
-- [ ] 10-0 出金先の銀行口座の登録（CrowdWorks ほか）。本人手続きなので、T10 の「最初の1回だけ人が行う設定」として扱う
+- [ ] 10-0 出金先の銀行口座の登録（CrowdWorks ほか）。**Life Manager が credential SSOT の情報を使って自分で登録する**（人は関与しない）。稼ぎが出た後でよく、今の blocker ではない
 - [ ] 8-4f Alpaca の effect_unknown fence を閉じる（`lm-loop pre-effect-reconcile alpaca-investment-live --dry-run` から始める）
 
 **T8 以降**（着手時に、この粒度まで分解してから進める）
