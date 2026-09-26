@@ -38,6 +38,13 @@ class AlpacaTest(unittest.TestCase):
         })
         self.assertTrue(all(e.receipt_id.startswith("alpaca:activity:") for e in entries))
 
+    def test_date_only_fee_uses_us_eastern_trade_date(self):
+        fee = {"id": "f", "activity_type": "FEE", "date": "2026-09-25", "net_amount": "-0.03"}
+        # 2026-09-25 00:00 EDT = 13:00 JST on 09-25; not on 09-26.
+        self.assertEqual(list(m.alpaca_entries([fee], DAY)), [])
+        self.assertEqual(sums(m.alpaca_entries([fee], date(2026, 9, 25))),
+                         {("investment", "cost", "USD"): Decimal("0.03")})
+
     def test_sell_without_lot_fails_closed(self):
         rows = [{"id": "s", "activity_type": "FILL", "symbol": "X", "side": "sell", "qty": "1",
                  "price": "1", "transaction_time": "2026-09-26T01:00:00Z"}]
@@ -70,6 +77,11 @@ class StripeTest(unittest.TestCase):
             ("self-build", "cost", "USD"): Decimal("0.88"),
             ("self-build", "cost", "JPY"): Decimal("108"),
         })
+
+    def test_unhandled_type_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "stripe_unhandled_txn_type:adjustment"):
+            list(m.stripe_entries([{"id": "txn_d", "type": "adjustment", "amount": -1999,
+                                    "fee": 1500, "currency": "usd"}]))
 
     def test_test_mode_key_is_not_a_live_source(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -168,6 +180,7 @@ class UsageTest(unittest.TestCase):
         })
         self.assertEqual(notes["missing_cost_events"], {"job-hunter": 1})
         self.assertEqual(notes["unattributed"]["codex-brain"]["events"], 1)
+        self.assertEqual(notes["unparsed_lines"], 1)
 
 
 class TableTest(unittest.TestCase):

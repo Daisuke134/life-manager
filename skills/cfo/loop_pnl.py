@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "apps/life-manager/config/product-loop-catalog.json"
@@ -173,6 +174,8 @@ def render(table: dict) -> str:
         for label, bucket in sorted(source["notes"].get("unattributed", {}).items()):
             out.append(f"  unattributed usage '{label}': {bucket['events']} events, "
                        f"{USAGE_CURRENCY} {bucket[USAGE_CURRENCY].normalize():f} (no Product Loop)")
+        if source["notes"].get("unparsed_lines"):
+            out.append(f"  {source['name']}: {source['notes']['unparsed_lines']} unparseable lines skipped")
     out.append(f"{USAGE_CURRENCY} = runner-reported API-price estimate, not a provider bill. "
                "Currencies are never converted; net is per currency.")
     out.append("sources: " + ", ".join(
@@ -189,6 +192,7 @@ def _jsonable(value):
 # ---------------------------------------------------------------- Alpaca (investment)
 
 ALPACA_API = "https://api.alpaca.markets"
+NEW_YORK = ZoneInfo("America/New_York")  # Alpaca date-only activities are US Eastern trade dates
 
 
 def alpaca_activities(get=http_json, cred_path: Path = CREDENTIALS) -> list[dict]:
@@ -235,7 +239,8 @@ def alpaca_entries(activities: list[dict], day: date, loop_id: str = "investment
                 yield Entry(loop_id, "revenue" if pnl > 0 else "cost", abs(pnl), quote, receipt)
         elif kind == "CFEE" and in_day(act["created_at"], day):
             yield Entry(loop_id, "cost", -Decimal(act["qty"]) * Decimal(act["price"]), "USD", receipt)
-        elif kind == "FEE" and in_day(act.get("created_at") or f"{act['date']}T00:00:00-04:00", day):
+        elif kind == "FEE" and in_day(act.get("created_at") or datetime.fromisoformat(act["date"])
+                                      .replace(tzinfo=NEW_YORK).isoformat(), day):
             yield Entry(loop_id, "cost", -Decimal(act["net_amount"]), "USD", receipt)
 
 
@@ -275,8 +280,16 @@ def stripe_transactions(day: date, get=http_json, cred_path: Path = CREDENTIALS)
         after = page["data"][-1]["id"]
 
 
+STRIPE_MOVEMENTS = {"payout", "payout_cancel", "payout_failure", "transfer", "transfer_cancel",
+                    "transfer_failure", "topup", "topup_reversal"}  # balance moves, not P&L
+
+
 def stripe_entries(transactions: list[dict], loop_id: str = "self-build"):
     for txn in transactions:
+        if txn["type"] in STRIPE_MOVEMENTS:
+            continue
+        if txn["type"] not in ("charge", "payment", "refund", "payment_refund"):
+            raise ValueError(f"stripe_unhandled_txn_type:{txn['type']}")  # e.g. dispute adjustment
         currency = txn["currency"].upper()
         scale = Decimal(1) if currency in ZERO_DECIMAL else Decimal(100)
         receipt = f"stripe:{txn['id']}"
@@ -462,6 +475,7 @@ def usage_entries(files: list[Path], day: date, job_map: dict[str, str], notes: 
                     if not in_day(event["timestamp"], day):
                         continue
                 except (ValueError, KeyError, TypeError):
+                    notes["unparsed_lines"] = notes.get("unparsed_lines", 0) + 1
                     continue
                 if event.get("event_id") in seen:
                     continue
