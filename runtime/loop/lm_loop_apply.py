@@ -486,7 +486,8 @@ def install_one(item: dict, target: Path,
                 sleeper: Callable[[float], None] = time.sleep,
                 preserve_unloaded: bool = False,
                 retired_environment_keys: tuple[str, ...] = (),
-                retired_operational_keys: tuple[str, ...] = ()) -> dict:
+                retired_operational_keys: tuple[str, ...] = (),
+                admission_resume: Callable[[str], object] | None = None) -> dict:
     label = item["label"]
     domain = f"gui/{os.getuid()}"
     service = f"{domain}/{label}"
@@ -558,8 +559,15 @@ def install_one(item: dict, target: Path,
                 for key, value in required_environment.items()
             ) if environment_observable else True
             if loaded == item["expected_arguments"] and environment_ok:
+                admission_resumed = False
+                if admission_resume is not None:
+                    try:
+                        admission_resumed = bool(admission_resume(item["loop_id"]))
+                    except Exception:
+                        admission_resumed = False
                 return {"ok": True, "label": label, "loaded_arguments": loaded,
-                        "release_sha": item["release_sha"]}
+                        "release_sha": item["release_sha"],
+                        "admission_resumed": admission_resumed}
             if loaded == item["expected_arguments"] and not environment_ok:
                 last_detail = "loaded browser environment disagrees"
         launchctl(["bootout", service])

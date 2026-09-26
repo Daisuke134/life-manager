@@ -1692,6 +1692,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
                event_writer=append_runtime_event,
+               admission_resume: Callable[[str], object] | None = resume_durable,
                _protocol_guarded: bool = False) -> list[dict]:
     current = Path(current or "~/loops/current").expanduser()
     if not _protocol_guarded:
@@ -1705,7 +1706,8 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 allow_reserved_release_rebind=allow_reserved_release_rebind,
                 reload_running=reload_running, require_current=require_current,
                 protocol_reader=protocol_reader,
-                event_writer=event_writer, _protocol_guarded=True,
+                event_writer=event_writer, admission_resume=admission_resume,
+                _protocol_guarded=True,
             )
     release_root = release_root.resolve()
     if require_current and current.resolve(strict=True) != release_root:
@@ -1862,7 +1864,8 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                         item, target_path, lambda args: _safe_launchctl(launchctl_safe, args),
                         preserve_unloaded=preserve_unloaded,
                         retired_environment_keys=retired_environment_keys,
-                        retired_operational_keys=retired_operational_keys)
+                        retired_operational_keys=retired_operational_keys,
+                        admission_resume=admission_resume)
                     result["changed"] = True
                 entry = registry["loops"][item["loop_id"]]
                 event = build_install_event(
