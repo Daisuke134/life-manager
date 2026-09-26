@@ -76,6 +76,16 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
 EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
     "apps/life-manager/scripts/mobile-app",
 })
+# Loop IDs allowed to use the pre-effect hint when their registry entrypoint is
+# shared (e.g. runtime/loop/entry_dispatch.py dispatches several owners from one
+# entrypoint string). Entrypoint membership above is not enough to scope trust
+# in that case, since siblings dispatched from the same entrypoint may not
+# implement the no-mutation-attempted tracking this hint requires. Only add a
+# loop_id here once its entrypoint script provably tracks mutation attempts and
+# never writes the hint after one starts.
+PRE_EFFECT_HINT_LOOP_IDS = frozenset({
+    "hf-gig-storefront-direct",
+})
 JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})
 
 
@@ -949,7 +959,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     interrupted = False
     return_code: int | None = None
     previous = {}
-    pre_effect_hint_allowed = entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
+    pre_effect_hint_allowed = (entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
+                                or loop_id in PRE_EFFECT_HINT_LOOP_IDS)
     effect_result_hint_allowed = entry.get("entrypoint") in EFFECT_RESULT_HINT_ENTRYPOINTS
     hint_allowed = pre_effect_hint_allowed or effect_result_hint_allowed
 

@@ -15,10 +15,15 @@ from types import SimpleNamespace
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import storefront_direct as direct  # noqa: E402
+import storefront_bootstrap  # noqa: E402
+import storefront_draft  # noqa: E402
 import listing_inventory  # noqa: E402
 import coconala_reply_browser as reply_browser  # noqa: E402
 import reply_transcript  # noqa: E402
 from test_storefront_root import _bundle as _storefront_bundle  # noqa: E402
+from test_storefront_rejection_feedback import (  # noqa: E402
+    CLAIMED_DRAFT_ID, CREATE_SERVICE_ID, _args_for_full_wake, _official_source,
+)
 
 
 def test_lease_command_budget_includes_bounded_batch_recovery(monkeypatch, tmp_path):
@@ -295,6 +300,395 @@ def test_invalid_official_contract_fails_before_downstream_work_and_releases_lea
     assert row["reason"] == "official_service_contract_invalid"
     assert events == ["acquire", "release"]
     assert downstream == []
+
+
+def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatch):
+    """A failure before any provider mutation must let the host release the owner cleanly.
+
+    lm_loop_run.py only trusts this hint from an allowlisted loop_id/entrypoint pair (see
+    runtime/loop/lm_loop_run.py PRE_EFFECT_HINT_LOOP_IDS); this test only proves the owner's
+    half of that contract: it writes the hint file whenever LIFE_MANAGER_RESULT_HINT_PATH is
+    set and the wake failed before reaching a mutation call site.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 2,
+             "context_id": "c", "target_id": "p"}
+
+    def lease_call(_script, command, task, value=None):
+        if command == "release":
+            return {"ok": True, "released": task}
+        return lease
+
+    def observe(*, output_path, ws_url, include_contract_sources=False):
+        # A listed service with no matching contract source is the exact shape that raises
+        # official_service_contract_invalid before any mutation is possible (same "missing"
+        # case as test_invalid_official_contract_fails_before_downstream_work_and_releases_lease).
+        return {"service_count": 1, "services": [{"service_id": "99000001"}],
+                "content_sha256": "a" * 64, "observed_at": "2026-08-15T00:00:00+00:00",
+                "_contract_sources": [] if include_contract_sources else []}
+
+    monkeypatch.setattr(direct, "_lease", lease_call)
+    monkeypatch.setattr(direct, "_dashboard_says_signed_out", lambda *_args: False)
+    monkeypatch.setattr(direct, "_preflight_storefront_bundle", lambda: None)
+    monkeypatch.setattr(direct.time, "sleep", lambda *_args: None)
+    monkeypatch.setattr(
+        direct.subprocess, "run",
+        lambda argv, **_kwargs: direct.subprocess.CompletedProcess(argv, 0, "ALIVE\n", ""),
+    )
+    import listing_inventory
+    monkeypatch.setattr(listing_inventory, "observe_storefront", observe)
+
+    args = _args(tmp_path)
+    args.effect = True
+    code, row = direct.run_once(args)
+
+    assert code == 1
+    assert row["reason"] == "official_service_contract_invalid"
+    assert hint_path.is_file()
+    assert json.loads(hint_path.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
+    }
+
+
+def test_failure_after_mutation_attempt_does_not_write_pre_effect_hint(tmp_path, monkeypatch):
+    """Once a provider mutation is attempted, a later failure must NOT claim no-effect.
+
+    Mirrors test_read_phase_contract_failure_writes_pre_effect_hint but drives the wake past
+    a valid catalog read to the first real mutation call site
+    (_reopen_suspended_listings, unconditionally attempted whenever args.effect is set --
+    see run_once) and fails there instead.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    # A real bundle root routes run_once() past the from-scratch public_bootstrap import path
+    # (see test_incremental_storefront_wake_validates_inventory_releases_lease_and_persists),
+    # which would otherwise try to invoke a real proposal agent for a brand-new listing.
+    storefront_root = tmp_path / "storefront-bundle"
+    _storefront_bundle(storefront_root)
+    monkeypatch.setenv("GIG_STOREFRONT_ROOT", str(storefront_root))
+    lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 2,
+             "context_id": "c", "target_id": "p"}
+
+    def lease_call(_script, command, task, value=None):
+        if command == "release":
+            return {"ok": True, "released": task}
+        return lease
+
+    service_id = "90000001"
+    public_text = "サービス内容\nsynthetic scope\n購入にあたってのお願い"
+    source = {
+        "service_id": service_id, "public_url": f"https://coconala.com/services/{service_id}",
+        "title": "synthetic listing", "state": "公開中", "price_jpy": 1000,
+        "category": "IT相談/プログラミング", "public_text": public_text,
+        "public_content_sha256": direct.hashlib.sha256(public_text.encode()).hexdigest(),
+    }
+
+    def browser(argv, **_kwargs):
+        if argv[-1] == "close-owned":
+            return direct.subprocess.CompletedProcess(argv, 0, '{"ok":true}\n', "")
+        return direct.subprocess.CompletedProcess(argv, 0, "ALIVE\n", "")
+
+    def observe(*, output_path, ws_url, include_contract_sources=False):
+        return {"service_count": 1, "services": [{"service_id": service_id}],
+                "content_sha256": "a" * 64, "observed_at": "2026-08-15T00:00:00+00:00",
+                "_contract_sources": [source] if include_contract_sources else []}
+
+    monkeypatch.setattr(direct, "_preflight_storefront_bundle", lambda: None)
+    monkeypatch.setattr(direct.subprocess, "run", browser)
+    monkeypatch.setattr(direct, "_lease", lease_call)
+    monkeypatch.setattr(direct, "disk_headroom_ok", lambda: True)
+    import listing_inventory
+    monkeypatch.setattr(listing_inventory, "observe_storefront", observe)
+
+    def failing_reopen(*_args, **_kwargs):
+        raise RuntimeError("reopen_suspended_listings_failed")
+
+    monkeypatch.setattr(direct, "_reopen_suspended_listings", failing_reopen)
+
+    args = _args(tmp_path)
+    args.effect = True
+
+    code, row = direct.run_once(args)
+
+    assert code != 0
+    assert row["reason"] == "reopen_suspended_listings_failed"
+    assert not hint_path.exists()
+
+
+# Every one of these is a real Coconala provider mutation reachable from run_once():
+# create/claim a blank draft, fill and save a draft, publish a draft, reopen a suspended
+# listing, delete an abandoned draft, or execute a text/image/package/FAQ/listing-state
+# effect. A failure anywhere later in the same wake must not be reported as
+# pre-effect (see test_read_phase_contract_failure_writes_pre_effect_hint and
+# test_failure_after_mutation_attempt_does_not_write_pre_effect_hint above), which requires
+# `mutation_attempted = True` to be set before every one of these call sites -- including
+# ones reached only via a cache-hit branch that skips an earlier mutation call in the same
+# wake (e.g. a cached bootstrap category/contract still reaches prepare_draft/publish_draft
+# without ever calling create_or_claim_blank_draft in that wake).
+_RUN_ONCE_MUTATION_CALL_PATTERNS = (
+    "storefront_draft.create_or_claim_blank_draft(",
+    "storefront_draft.prepare_draft(",
+    "storefront_draft.publish_draft(",
+    "_reopen_suspended_listings(",
+    "_delete_one_draft(",
+    "_execute_image_effect(",
+    "_execute_package_effect(",
+    "_execute_text_effect(",
+    "_execute_faq_effect(",
+    "_execute_listing_state_effect_async(",
+)
+
+
+_RUN_ONCE_SOURCE = None
+
+
+def _run_once_source() -> str:
+    global _RUN_ONCE_SOURCE
+    if _RUN_ONCE_SOURCE is None:
+        text = SCRIPTS.joinpath("storefront_direct.py").read_text(encoding="utf-8")
+        start = text.index("\ndef run_once(")
+        end = text.index("\ndef build_parser(", start)
+        _RUN_ONCE_SOURCE = text[start:end]
+    return _RUN_ONCE_SOURCE
+
+
+@pytest.mark.parametrize("call_pattern", _RUN_ONCE_MUTATION_CALL_PATTERNS)
+def test_run_once_mutation_call_site_is_preceded_by_mutation_attempted_true(call_pattern):
+    """Structural regression guard: catches a new/moved mutation call with no flag.
+
+    This cannot instrument the call at runtime (mutation_attempted is a plain local
+    variable inside run_once, not an object method), so it scans run_once()'s source
+    instead. A naive whole-function linear scan is unsound here: run_once has many
+    mutually-exclusive branches (the bootstrap draft path, the normal new-listing path,
+    the reopen/delete/retire/text-effect paths), and an earlier branch's flag-set would
+    wrongly satisfy a "some True appears before this line" check for a call site in a
+    completely different, later branch that has none of its own -- confirmed by
+    deliberately deleting one real flag-set and finding the whole-function version kept
+    passing. Instead this looks at a bounded window immediately before each call site
+    (every flag-set in this file sits within ~25 lines of its call), which is far
+    smaller than the distance between unrelated branches (well over 1000 lines apart).
+    """
+    body = _run_once_source()
+    positions = [index for index in range(len(body)) if body.startswith(call_pattern, index)]
+    assert positions, f"{call_pattern!r} has no call site in run_once (test is stale)"
+    for position in positions:
+        window = body[max(0, position - 2000):position]
+        last_true = window.rfind("mutation_attempted = True")
+        last_false = window.rfind("mutation_attempted = False")
+        line_number = body.count("\n", 0, position) + 1
+        assert last_true != -1 and last_true > last_false, (
+            f"run_once line {line_number}: {call_pattern!r} has no near-preceding "
+            "mutation_attempted = True (a later failure in this wake could wrongly be "
+            "reported as pre-effect)"
+        )
+
+
+def _full_create_wake_args(tmp_path, monkeypatch):
+    """Drive the real normal (non-bootstrap) CREATE path all the way to a claimed draft.
+
+    Adapted from test_storefront_rejection_feedback.test_a_seal_create_contract_runtime_error
+    ..._completes_the_wake_instead_of_failing_it, the only existing fixture that reaches
+    `storefront_draft.create_or_claim_blank_draft` through the real `run_once`. That test uses
+    a title_stem ending in a particle to exercise the rejection path; this one uses a valid
+    continuative ending (see TITLE_STEM_CONTINUATIVE_ENDINGS) so `_seal_create_contract`
+    actually succeeds and the wake reaches `prepare_draft`/`publish_draft`.
+    """
+    args = _args_for_full_wake(tmp_path)
+    monkeypatch.setenv("GIG_STOREFRONT_ROOT", str(tmp_path / "fake-root-not-read"))
+    observed_at = "2026-08-15T00:00:00+00:00"
+
+    create_source_dict = _official_source(CREATE_SERVICE_ID)
+    gallery_source_dict = _official_source(direct.GALLERY_SERVICE_ID)
+    expected_create_contract = direct._service_contract(create_source_dict, observed_at)
+    required_refs = {
+        f"official:offer-contract:{CREATE_SERVICE_ID}:{expected_create_contract['service_version_sha256']}",
+        "owned:capability-family:fam",
+        str((tmp_path / "new-listing.json").resolve()),
+    }
+    create_proposal = {
+        "decision": "create", "source_service_id": CREATE_SERVICE_ID,
+        "success_metric": "inquiries", "delivery_kind": "content",
+        "recurring_support_included": False, "observation_window_days": 7,
+        "no_op_reason": None, "evidence": sorted(required_refs),
+        "title_stem": "サービス開発を効率化し",  # ends in continuative "し", not a particle
+        "catchphrase": "初心者にもわかりやすい内容です",
+        "head": "対応内容の詳細説明です。", "body": "納品物と対応範囲の説明です。",
+        "paid_option_title": "追加オプション", "paid_option_price_jpy": 5000,
+        "display_price_jpy": 10000, "delivery_days": 7,
+        "image_copy": "見出しです\nサポート内容です\nバッジ1｜バッジ2",
+    }
+
+    def observe(*, output_path, ws_url, include_contract_sources=False):
+        return {
+            "service_count": 2,
+            "services": [{"service_id": CREATE_SERVICE_ID}, {"service_id": direct.GALLERY_SERVICE_ID}],
+            "content_sha256": "a" * 64, "observed_at": observed_at,
+            "_contract_sources": [create_source_dict, gallery_source_dict] if include_contract_sources else [],
+        }
+
+    lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 1,
+              "context_id": "c", "target_id": "p"}
+
+    def lease_call(_script, command, task, value=None):
+        if command == "release":
+            return {"ok": True, "released": task}
+        return lease
+
+    def subprocess_stub(argv, **_kwargs):
+        return direct.subprocess.CompletedProcess(argv, 0, "ALIVE\n", "")
+
+    # `_seal_create_contract` reads `category`/`category_specific`/`subscription`/
+    # `publication_gate` straight off this "template" blueprint (loaded via
+    # `storefront_draft.load_contract`, mocked below) and copies them verbatim into the sealed
+    # contract; unlike the particle-ending-title regression this fixture is based on, this test
+    # drives a *valid* title_stem all the way through `_seal_create_contract`'s body, so those
+    # keys must actually be present or the seal raises a bare KeyError before ever reaching
+    # `create_or_claim_blank_draft`/`prepare_draft`/`publish_draft`.
+    synthetic_contract = {
+        "draft_service_id": CREATE_SERVICE_ID, "demand_evidence": {},
+        "category": {"master": {"value": "1", "label": "master"},
+                     "sub": {"value": "2", "label": "sub"}, "type": None},
+        "category_specific": {"facets": {}, "provision_format": "1"},
+        "subscription": {"enabled": False, "discount_ratio": "0"},
+        "publication_gate": {},
+    }
+
+    monkeypatch.setattr(direct, "_preflight_storefront_bundle", lambda: None)
+    monkeypatch.setattr(direct, "disk_headroom_ok", lambda: True)
+    monkeypatch.setattr(direct, "_lease", lease_call)
+    monkeypatch.setattr(direct.subprocess, "run", subprocess_stub)
+    monkeypatch.setattr(listing_inventory, "observe_storefront", observe)
+    monkeypatch.setattr(direct, "_load_listing_contracts", lambda *_a, **_k: [])
+    monkeypatch.setattr(direct, "_load_capability_families", lambda *_a, **_k: ({}, {}))
+    monkeypatch.setattr(storefront_bootstrap, "inventory",
+                         lambda: {"inventory_sha256": "a" * 64, "skills": []})
+    monkeypatch.setattr(direct, "_market_capability_templates", lambda *_a, **_k: {})
+    monkeypatch.setattr(direct, "_catalog_capability_templates", lambda *_a, **_k: {})
+    monkeypatch.setattr(direct, "_load_catalog_entries", lambda *_a, **_k: {})
+    monkeypatch.setattr(direct, "_seller_snapshot_for", lambda *_a, **_k: {})
+    monkeypatch.setattr(direct, "_render_prepared_mutation", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_render_text_mutation", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_load_image_contract", lambda *_a, **_k: {})
+    monkeypatch.setattr(direct, "_render_image_mutation", lambda *_a, **_k: None)
+    # `_seal_create_contract` renders a real hero PNG via `_hero_font_path`, which shells out
+    # to `fc-match`. The blanket `subprocess_stub` below answers every subprocess.run call with
+    # "ALIVE\n" (the ensure-browser-script contract), so an unstubbed fc-match call would get
+    # that same string back as a bogus font path and fail the wake with
+    # storefront_generated_image_font_missing before it ever reaches create_or_claim_blank_draft
+    # -- these tests need a real create_proposal->contract seal, not real PIL/font rendering.
+    monkeypatch.setattr(direct, "_render_generated_image_asset", lambda *_a, **_k: {
+        "asset_sha256": "d" * 64, "asset_path": str(tmp_path / "generated-hero.png"),
+    })
+    monkeypatch.setattr(direct, "_load_gallery_contract", lambda *_a, **_k: {
+        "kept_image_ids": [], "replacements": [], "before_image_ids": [],
+    })
+    monkeypatch.setattr(direct, "_render_gallery_mutation", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_render_published_gallery_mutation", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_collect_competitors", lambda *_a, **_k: {"sources": []})
+    monkeypatch.setattr(direct, "_observe_own_page", lambda *_a, **_k: {
+        "service_image_ids": [], "service_image_count": 0, "body": "x",
+    })
+    monkeypatch.setattr(direct, "_collect_analytics", lambda *_a, **_k: {
+        "snapshot_key": "k", "catalog_metrics": {},
+    })
+    monkeypatch.setattr(direct, "_observe_draft_controls", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_deletable_drafts", lambda *_a, **_k: [])
+    monkeypatch.setattr(direct, "_traffic_without_inquiries", lambda *_a, **_k: [])
+    monkeypatch.setattr(direct, "_scan_public_copy", lambda *_a, **_k: ([], []))
+    monkeypatch.setattr(direct, "_join_funnel", lambda *_a, **_k: {"version": 1})
+    monkeypatch.setattr(direct, "_allocate_portfolio", lambda *_a, **_k: {"version": 1})
+    monkeypatch.setattr(direct, "_prepare_next_hypothesis", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_pending_recovery", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_reopen_suspended_listings", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_resolve_create_capability",
+                         lambda *_a, **_k: ("fam", {"tmpl": True}, set()))
+    monkeypatch.setattr(direct, "_proposal_capability_evidence", lambda *_a, **_k: set())
+    monkeypatch.setattr(direct, "_recover_prepared_create_contract", lambda *_a, **_k: None)
+    monkeypatch.setattr(direct, "_seller_snapshot_from_fresh_tab", lambda *_a, **_k: {
+        "select_options": {
+            "data[Service][price]": [{"label": "10,000円", "value": "10000"}],
+            "data[Option][0][price]": [{"label": "5,000円", "value": "5000"}],
+        },
+    })
+    monkeypatch.setattr(direct, "_observed_deleted_draft_ids", lambda *_a, **_k: set())
+    monkeypatch.setattr(storefront_draft, "load_contract", lambda _path: synthetic_contract)
+    monkeypatch.setattr(storefront_draft, "create_or_claim_blank_draft", lambda *_a, **_k: {
+        "draft_service_id": CLAIMED_DRAFT_ID, "effect": 1, "recovered": False, "abandoned_drafts": [],
+    })
+    monkeypatch.setattr(direct, "_invoke_create_proposal",
+                         lambda *_a, **_k: (create_proposal, {"status": "synthetic"}, set(required_refs)))
+    monkeypatch.setattr(direct, "_dispatch_report", lambda *_a, **_k: {"status": "suppressed"})
+    return args
+
+
+def test_normal_path_failure_after_create_or_claim_blank_draft_does_not_write_pre_effect_hint(
+    tmp_path, monkeypatch,
+):
+    """The blank draft was really created/claimed on Coconala before prepare_draft crashes.
+
+    Regression for the reviewer-flagged gap: create_or_claim_blank_draft succeeded (a real
+    mutation -- see storefront_draft.create_or_claim_blank_draft, which creates a brand-new
+    draft whenever no existing one can be claimed), then the very next mutation attempt
+    (prepare_draft) fails. The pre-effect hint must not be written, or the host would clear
+    the effect fence on a wake that already put a new blank draft on the account.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    args = _full_create_wake_args(tmp_path, monkeypatch)
+
+    def failing_prepare(*_args, **_kwargs):
+        raise RuntimeError("prepare_draft_failed")
+
+    monkeypatch.setattr(storefront_draft, "prepare_draft", failing_prepare)
+
+    code, row = direct.run_once(args)
+
+    assert code != 0
+    assert row["reason"] == "prepare_draft_failed"
+    assert not hint_path.exists()
+
+
+def test_normal_path_failure_after_publish_draft_succeeds_does_not_write_pre_effect_hint(
+    tmp_path, monkeypatch,
+):
+    """The listing was really published before a later ledger write fails.
+
+    Regression for the reviewer-flagged gap: prepare_draft and publish_draft both succeeded
+    (the listing is live on Coconala), then a later statement in the same try block
+    (`_append_contract_once`, writing the offer-contracts ledger) raises. The pre-effect hint
+    must not be written, or the host would clear the effect fence and a later retry would
+    publish the same listing a second time.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    args = _full_create_wake_args(tmp_path, monkeypatch)
+
+    monkeypatch.setattr(storefront_draft, "prepare_draft", lambda *_a, **_k: {
+        "version": 1, "candidate_key": "k", "contract_sha256": "c" * 64,
+        "draft_service_id": CLAIMED_DRAFT_ID, "status": "prepared",
+        "effect": 1, "readback": 1, "public_effect": 0, "image_count": 1,
+        "asset_sha256": "a" * 64, "evidence_path": str(tmp_path / "prep-evidence.json"),
+    })
+    monkeypatch.setattr(storefront_draft, "publish_draft", lambda *_a, **_k: {
+        "version": 1, "candidate_key": "k", "contract_sha256": "c" * 64,
+        "draft_service_id": CLAIMED_DRAFT_ID, "status": "published",
+        "effect": 1, "readback": 1, "image_count": 1, "public_effect": 1,
+        "public_url": "https://coconala.com/services/" + CLAIMED_DRAFT_ID,
+        "public_image_identity": "img", "public_readback_error": None,
+        "asset_sha256": "a" * 64, "evidence_path": str(tmp_path / "pub-evidence.json"),
+    })
+
+    def failing_append_contract_once(*_args, **_kwargs):
+        raise RuntimeError("ledger_append_contract_failed")
+
+    monkeypatch.setattr(direct, "_append_contract_once", failing_append_contract_once)
+
+    code, row = direct.run_once(args)
+
+    assert code != 0
+    assert row["reason"] == "ledger_append_contract_failed"
+    assert not hint_path.exists()
 
 
 def test_storefront_brake_prevents_lease_and_observation(tmp_path, monkeypatch):

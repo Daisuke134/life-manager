@@ -262,6 +262,23 @@ def _atomic_write(path: Path, value: dict) -> None:
             pass
 
 
+def _write_pre_effect_hint() -> None:
+    """Record that this wake failed before any provider mutation was attempted.
+
+    lm_loop_run.py reads this hint (LIFE_MANAGER_RESULT_HINT_PATH) to avoid
+    fencing the occurrence as an unknown external effect when nothing was
+    ever attempted against the live listing. Never call this after a
+    mutation attempt has started -- see `mutation_attempted` in run_once.
+    """
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if not hint_path:
+        return
+    try:
+        _atomic_write(Path(hint_path), {"status": "pre_effect_failure", "effect": 0})
+    except OSError:
+        pass
+
+
 def _append(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
@@ -6178,6 +6195,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
     output = args.output or args.state_dir / "current.json"
     brake_status = _operator_brake_status(args.operator_brake)
     if brake_status == "failed":
+        _write_pre_effect_hint()
         row = _receipt(pass_id, status="failed", reason="operator_brake_check_failed")
         row = _persist_receipt(args, output, row)
         return 1, row
@@ -6191,6 +6209,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
         try:
             _preflight_storefront_bundle()
         except RuntimeError as error:
+            _write_pre_effect_hint()
             row = _receipt(pass_id, status="failed", reason=str(error).strip() or type(error).__name__)
             row = _persist_receipt(args, output, row)
             return 1, row
@@ -6200,6 +6219,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 args.state_dir, minimum_epoch, int(args.full_interval_seconds),
             )
         except RuntimeError as error:
+            _write_pre_effect_hint()
             row = _receipt(pass_id, status="failed", reason=str(error).strip() or type(error).__name__)
             row = _persist_receipt(args, output, row)
             return 1, row
@@ -6215,6 +6235,9 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
 
         lease = None
         released = False
+        # Set immediately before the first provider mutation attempt (publish/edit/
+        # create/delete/reopen). Never write the pre-effect hint once this is True.
+        mutation_attempted = False
         try:
             _collect_storefront_evidence(
                 args.state_dir, args.state_dir / "evidence" / pass_id,
@@ -6473,6 +6496,11 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                             pass
                     if category_record is None:
                         import storefront_draft
+                        # create_or_claim_blank_draft may create a brand-new blank draft on
+                        # Coconala (a real provider mutation) rather than only claiming an
+                        # existing one; it decides which internally, so the flag is set before
+                        # the call regardless of which branch it takes.
+                        mutation_attempted = True
                         draft = storefront_draft.create_or_claim_blank_draft(
                             getattr(args, "default_tab_script", DEFAULT_TAB)
                         )
@@ -6609,11 +6637,13 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                 inventory_path.parent / "bootstrap-public-readback",
                             )
                         except RuntimeError:
+                            mutation_attempted = True
                             storefront_draft.prepare_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
                                 inventory_path.parent / "bootstrap-draft",
                             )
+                            mutation_attempted = True
                             bootstrap_result = storefront_draft.publish_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -6787,6 +6817,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 blocked = _persist_effect_block(args, output, pass_id, "before_reopen_effect")
                 if blocked is not None:
                     return 0, blocked
+                mutation_attempted = True
                 _reopen_suspended_listings(
                     inventory["services"],
                     default_tab_script=getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -6949,6 +6980,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
             deletable = _deletable_drafts(args.state_dir / "new-listing-drafts.jsonl", draft_ids)
             if args.effect and deletable:
                 try:
+                    mutation_attempted = True
                     _delete_one_draft(inventory_path.parent, deletable[0],
                                       getattr(args, "default_tab_script", DEFAULT_TAB))
                 except Exception as error:  # cleanup never ends a wake
@@ -7336,6 +7368,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                         )
                         if blocked is not None:
                             return 0, blocked
+                        mutation_attempted = True
                         if judgement["changed_field"] == "image":
                             seller_before, _, intent_path = _execute_image_effect(
                                 ws_url=ws_url, contract=mutation_contract, judgement=judgement,
@@ -7455,6 +7488,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                         raise RuntimeError("storefront_retire_tab_open_failed")
                     try:
                         retire_attempted_this_wake = True
+                        mutation_attempted = True
                         retire_attempt = args.state_dir / f"retire-intent-{retire_service_id}.json"
                         _atomic_write(retire_attempt, {
                             "version": 1, "status": "attempted", "effect": 0,
@@ -7878,6 +7912,9 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                     and int(row.get("public_effect") or 0) == 0
                                     and row.get("status") in {"draft_created", "prepared"}):
                                 preferred_draft_ids.append(draft_id)
+                    # See the bootstrap path's identical comment: this may create a brand-new
+                    # blank draft on Coconala rather than only claim an existing one.
+                    mutation_attempted = True
                     create_draft_claim = storefront_draft.create_or_claim_blank_draft(
                         getattr(args, "default_tab_script", DEFAULT_TAB),
                         preferred_draft_ids=preferred_draft_ids,
@@ -8072,6 +8109,20 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 )
                 if blocked is not None:
                     return 0, blocked
+
+            def _prepare_new_listing_draft():
+                # This branch of the expression below is the only one that actually fills
+                # and saves the draft on Coconala (a real mutation); the flag must be set
+                # here, immediately before the call, not at the top of the expression that
+                # also covers the two read-only/no-op branches.
+                nonlocal mutation_attempted
+                mutation_attempted = True
+                return storefront_draft.prepare_draft(
+                    new_listing_contract,
+                    getattr(args, "default_tab_script", DEFAULT_TAB),
+                    inventory_path.parent,
+                )
+
             draft_result = ({
                 "version": 1, "candidate_key": new_listing_contract["candidate_key"],
                 "contract_sha256": new_listing_contract["contract_sha256"],
@@ -8084,11 +8135,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 inventory_path.parent,
                 known_image_identity=known_draft_image_identity,
             ) if candidate_public else (
-                storefront_draft.prepare_draft(
-                    new_listing_contract,
-                    getattr(args, "default_tab_script", DEFAULT_TAB),
-                    inventory_path.parent,
-                )
+                _prepare_new_listing_draft()
                 if (args.effect and not platform_withdrawn
                         and pending_effect is None and not retire_attempted_this_wake) else {
                     "version": 1,
@@ -8141,6 +8188,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 )
                 if blocked is not None:
                     return 0, blocked
+                mutation_attempted = True
                 draft_result = storefront_draft.publish_draft(
                     new_listing_contract,
                     getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -8337,6 +8385,8 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                     released = release.get("released") == task
                 except (OSError, RuntimeError, TypeError, ValueError, subprocess.SubprocessError):
                     pass
+            if not mutation_attempted:
+                _write_pre_effect_hint()
             reason = str(error).strip() or type(error).__name__
             status, returncode = _storefront_failure_disposition(reason)
             row = _receipt(pass_id, status=status, reason=reason,
