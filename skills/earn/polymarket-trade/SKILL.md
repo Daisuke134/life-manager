@@ -210,6 +210,19 @@ vs the old stub which bet on everything.
 This skill is otherwise a thin harness: run for real, record the trace, let the AI self-improve the knobs.
 (SSOT: colony spec §0.25 + ROLE v3 "I create the baseline alpha, they self-improve from there".)
 
+## Historical eval (read-only ladder rung, `historical_eval.py`)
+
+`python3 historical_eval.py --days 60 --per-day 20 --horizon-hours 24 --band 0.70,0.95 --out /tmp/pm-eval.json`
+replays "buy the favorite H hours before close, hold to resolution" on resolved binary
+markets (top volume per UTC day, one per event), net of each market's taker `feeSchedule`
+(`fee = C x feeRate x p x (1-p)`, https://docs.polymarket.com/trading/fees) and 1c slippage.
+GET-only, no key, no order. Test: `python3 -m unittest test_historical_eval`.
+
+Measured 2026-09-26 (60 days, 1200 fetched, 148 trades): net mean -10.4%/trade,
+ci95 [-19.7%, -1.1%] — statistically supported **negative**; win rate 72.3% vs mean
+entry price 78.9% (favorites were overpriced in this sample). Do not promote to paper.
+Next gate: a candidate whose net ci95 lower bound is > 0 on a held-out window.
+
 ## Run
 
 ```bash

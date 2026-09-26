@@ -1,0 +1,80 @@
+import json
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import historical_eval as he  # noqa: E402
+
+
+def market(mid, event, prices='["1", "0"]', start="2026-07-01T00:00:00Z",
+           closed="2026-07-03 00:00:00+00", fees=True, sched=None):
+    return {"id": mid, "question": mid, "outcomes": '["Yes", "No"]', "outcomePrices": prices,
+            "clobTokenIds": '["111", "222"]', "startDate": start, "closedTime": closed,
+            "feesEnabled": fees, "feeSchedule": sched or {"exponent": 1, "rate": 0.05},
+            "events": [{"id": event}]}
+
+
+class HistoricalEvalTest(unittest.TestCase):
+    def test_parse_ts_gamma_formats(self):
+        self.assertEqual(he.parse_ts("2026-07-03 00:00:00+00"), he.parse_ts("2026-07-03T00:00:00Z"))
+        self.assertEqual(he.parse_ts("2026-09-26 10:21:52.235331+00") // 1, he.parse_ts("2026-09-26T10:21:52Z"))
+        self.assertIsNone(he.parse_ts(None))
+
+    def test_select_markets_filters_and_dedupes(self):
+        raw = [
+            market("a", "e1"),
+            market("b", "e1"),  # same event
+            market("c", "e2", prices='["0.5", "0.5"]'),  # not cleanly resolved
+            market("d", "e3", start="2026-07-02T12:00:00Z"),  # opened after entry
+            market("e", "e4", sched={"exponent": 2, "rate": 0.05}),  # unknown fee curve
+            market("f", "e5", prices='["0", "1"]', fees=False),
+        ]
+        keep, funnel = he.select_markets(raw, horizon_h=24)
+        self.assertEqual([m["id"] for m in keep], ["a", "f"])
+        self.assertTrue(keep[0]["yes_won"])
+        self.assertFalse(keep[1]["yes_won"])
+        self.assertEqual(keep[0]["fee_rate"], 0.05)
+        self.assertEqual(keep[1]["fee_rate"], 0.0)
+        self.assertEqual(funnel, {"fetched": 6, "not_binary_resolved": 1, "fee_unknown": 1,
+                                  "too_young": 1, "duplicate_event": 1, "eligible": 2})
+
+    def test_price_at_uses_last_point_and_rejects_stale(self):
+        hist = [{"t": 100, "p": 0.4}, {"t": 200, "p": 0.8}, {"t": 400, "p": 0.1}]
+        self.assertEqual(he.price_at(hist, 300), 0.8)
+        self.assertIsNone(he.price_at(hist, 50))
+        self.assertIsNone(he.price_at(hist, 400 + he.MAX_STALENESS_S + 1))
+
+    def test_favorite_trade_fee_and_slippage(self):
+        t = he.favorite_trade(0.80, True, (0.7, 0.95), fee_rate=0.05, slippage=0.01)
+        fill = 0.81
+        fee = 0.05 * fill * (1 - fill)
+        self.assertEqual(t["side"], "YES")
+        self.assertAlmostEqual(t["net_return"], 1 / (fill + fee) - 1)
+        self.assertAlmostEqual(t["gross_return"], 1 / 0.80 - 1)
+        self.assertLess(t["net_return"], t["gross_return"])
+
+    def test_favorite_trade_no_side_and_loss(self):
+        t = he.favorite_trade(0.10, True, (0.7, 0.95), fee_rate=0.0, slippage=0.0)
+        self.assertEqual(t["side"], "NO")
+        self.assertFalse(t["won"])
+        self.assertEqual(t["net_return"], -1.0)
+        self.assertIsNone(he.favorite_trade(0.5, True, (0.7, 0.95), 0.0, 0.0))
+
+    def test_summarize_support(self):
+        self.assertTrue(he.summarize([0.01] * 50, seed=1)["statistically_supported"])
+        flat = he.summarize([1.0, -1.0] * 50, seed=1)
+        self.assertFalse(flat["statistically_supported"])
+        self.assertAlmostEqual(flat["mean"], 0.0)
+        self.assertFalse(he.summarize([0.5], seed=1)["statistically_supported"])
+
+    def test_module_is_read_only(self):
+        src = open(he.__file__).read()
+        for banned in ("post_order", "create_market_order", "PRIVATE_KEY", "private_key",
+                       "SecureClient", "requests.post"):
+            self.assertNotIn(banned, src)
+        json.dumps({})
+
+
+if __name__ == "__main__":
+    unittest.main()
