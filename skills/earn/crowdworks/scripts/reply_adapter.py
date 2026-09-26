@@ -261,9 +261,18 @@ class CrowdWorksReplyAdapter:
         if self._post_contract_owned_by_paid(thread_id):
             return True
         if self.rows[thread_id].get("proposal_status") == "proposed":
-            if self.page is None or self._contract_action(thread_id) is None:
+            # "proposed" is the ordinary applied-not-offered state. Only an offer
+            # that is shown but cannot be read leaves ownership ambiguous.
+            if self.page is None or (self._contract_action(thread_id) is None
+                                     and self._contract_offer_shown()):
                 raise RuntimeError("crowdworks_contract_ownership_unknown")
         return False
+
+    def _contract_offer_shown(self) -> bool:
+        return any(self.page.locator(selector).count() for selector in (
+            'a.intro-employer_proposed_project',
+            'form[action^="/proposal_conditions/"]',
+        ))
 
     def _external_form_action(self, thread_id: str) -> dict[str, Any] | None:
         if self._post_contract_owned_by_paid(thread_id):

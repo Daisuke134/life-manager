@@ -486,7 +486,17 @@ def test_external_intent_without_current_thread_inventory_fails_closed():
         raise AssertionError("external intent ran without current thread inventory")
 
 
-def test_proposed_row_without_current_contract_or_acceptance_control_fails_closed():
+class _OfferPage:
+    def __init__(self, offer_nodes):
+        self.offer_nodes = offer_nodes
+        self.url = "https://crowdworks.jp/proposals/1"
+
+    def locator(self, selector):
+        count = self.offer_nodes if "proposal" in selector else 0
+        return type("L", (), {"count": lambda _self: count})()
+
+
+def _proposed_adapter(page):
     adapter = adapter_module.CrowdWorksReplyAdapter({})
     adapter.rows = {"thread-1": {
         "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
@@ -496,16 +506,26 @@ def test_proposed_row_without_current_contract_or_acceptance_control_fails_close
         "sent_at": "2026-09-10T00:00:00Z", "body": "回答してください", "links": [],
     }]
     adapter._contract_action = lambda _thread: None
-    intent = {"action": "reply", "thread_id": "thread-1", "payload": {
-        "body": "確認しました。",
-    }}
+    adapter.page = page
+    return adapter
 
-    try:
-        adapter.mutate(intent)
-    except RuntimeError as error:
-        assert str(error) == "crowdworks_contract_ownership_unknown"
-    else:
-        raise AssertionError("unproven proposed ownership allowed a reply effect")
+
+def test_proposed_row_without_any_contract_offer_is_reply_owned():
+    # Measured 2026-09-26: "proposed" is the ordinary applied-not-offered state;
+    # failing closed there made every pre-contract reply raise on every wake.
+    adapter = _proposed_adapter(_OfferPage(0))
+    assert adapter._refresh_post_contract_ownership("thread-1") is False
+
+
+def test_proposed_row_with_unparsed_offer_or_no_page_fails_closed():
+    for page in (_OfferPage(1), None):
+        adapter = _proposed_adapter(page)
+        try:
+            adapter._refresh_post_contract_ownership("thread-1")
+        except RuntimeError as error:
+            assert str(error) == "crowdworks_contract_ownership_unknown"
+        else:
+            raise AssertionError("an unreadable contract offer allowed a reply effect")
 
 
 def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path):
