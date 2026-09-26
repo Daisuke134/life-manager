@@ -42,8 +42,9 @@ def best_bid_price(ob):
     return max(float(getattr(b,'price',None) or b['price']) for b in bids)
 
 def main():
+    rk=mint()  # live gate first: in dry mode this exits 0 before any credential derivation
     tmp=SecureClient._create(private_key=KEY,validate_credentials=True); creds=tmp._ctx.credentials; tmp.close()
-    c=SecureClient.create(private_key=KEY,credentials=creds,api_key=RelayerApiKey(key=mint(),address=ADDR))
+    c=SecureClient.create(private_key=KEY,credentials=creds,api_key=RelayerApiKey(key=rk,address=ADDR))
     ba=c.get_balance_allowance(asset_type="COLLATERAL"); avail=int(ba.balance)/1e6
     print("deposit wallet:",c._ctx.wallet,"| pUSD:",avail)
     for sp in SPENDERS:

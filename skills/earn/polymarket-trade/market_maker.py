@@ -109,8 +109,9 @@ def _flatten_naked(c):
     return True
 
 def main():
+    rk=mint()  # live gate first: in dry mode this exits 0 before any credential derivation
     tmp=SecureClient._create(private_key=KEY,validate_credentials=True); creds=tmp._ctx.credentials; tmp.close()
-    c=SecureClient.create(private_key=KEY,credentials=creds,api_key=RelayerApiKey(key=mint(),address=ADDR))
+    c=SecureClient.create(private_key=KEY,credentials=creds,api_key=RelayerApiKey(key=rk,address=ADDR))
     try: c.cancel_all(); print("  cancel-and-replace: cleared old quotes")
     except Exception as e: print("  cancel_all:", str(e)[:60])
     # SPEC-no-naked-fills R3: neutralize any naked single-leg position BEFORE quoting. If one was
