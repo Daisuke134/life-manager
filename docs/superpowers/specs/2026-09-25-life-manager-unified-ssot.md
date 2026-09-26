@@ -108,9 +108,7 @@ T5 の途中経過（2026-09-25 19:00 JST）:
   - それでも、60分間の監視で本物の `repaired` は0件だった（修復後の PASS 待ち 2412回、古い依頼の close 118件）。
   - 理由は設計上の穴。自己修復の操作は reconcile（owner を現行 release へ付け直す）だけで、全体へ適用した後の失敗はコードや環境が原因なので、付け直しでは直らない。release ずれの owner（30件）は admission 待ちで付け直しが拒否される。長時間動く loop は終了の時点が来ない。
   - T5 の次の手: escalate → `guarded_code_repair`（Life Manager 自身の開発 loop）で1件をコード修復させる。最初の候補は `hf-gig-apply-reconcile` の exit 1（effect なし）。
-  - 22:30 JST: コード修復 agent の設定（`runtime/agent-runner/config.json` の `self-heal-code-agent`）が Codex 専用（gpt-5.6-terra）だった。これでは構造上 Codex-free にならない。
-    - #5886 で `claude-direct` / `claude-sonnet-5` に変更した。sandbox は `--permission-mode acceptEdits --disallowedTools Bash,WebFetch,WebSearch`（worktree 内の編集だけ、shell とネットワークは無し）。commit と test/eval の gate は、もともと d0 が行う。
-    - release `20260925T222136-fe096540` を全体へ適用した（適用137、失敗0）。
+  - 22:30 JST の #5886（self-heal の agent を Claude に変更）は T5 の誤読で、revert した。Life Manager の内部モデルは GPT（terra/luna/sol）のまま使う。§5.1 を参照。
   - 11:25 の dev 実行の失敗原因: Codex の agent が tests を回して `lm-test-tmp.*` を worktree 内に残し、preflight が許可リスト外の変更として RED にした。Claude に切り替えて Bash を無くしたので、agent は tests を回さず、この問題は起きない。
   - 解消済みの self-heal issue 11件を close した（connector: 5872/5870/5836、supervisor: 5869/5867/5866/5864/5863/5860/5856/5850）。
   - T5 の残り: 04:10 JST の `life-manager-dev` の自然起動で、Claude agent が open な self-heal issue を修正する。その後 PR → merge guard → release → 対象 owner の次の実行が PASS、となることを readback で確認する。
@@ -142,7 +140,7 @@ T1 完了記録（2026-09-25）: 空き 561,643,520 → 5,430,202,368 bytes（fl
 | T2 ✅ | §2 の手順で統合PRを作り、両tests を PASS させて main へ merge、#5868 を close | merge commit、tests の出力 |
 | T3 ✅ | main 由来の immutable release を1つ切り、全labelへ apply して readback | label ごとの loaded sha = release sha |
 | T4 ✅ | Connector の natural canary（Cloak endpoint の解決）を effect なしで1回 | 公式receipt、`entrypoint_exit` 0 |
-| T5 | Codex なしの self-heal を1回実証 | 修復経路に Codex がないこと、readback、replay-zero |
+| T5 | 自己修復を1回実証する（外部の coding agent なしで、Life Manager が自分の問題を見つけて自分で直す。定義は §5.1） | §5.1 の完了証拠 |
 | T6 | 14行の reconcile: 全行を healthy か型付き fence にする。effect_unknown は occurrence ごとに公式receiptで閉じ、一括retryはしない | gate `uncovered_failure=0` |
 
 T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`）:
@@ -162,6 +160,34 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 | T13 | settled cost で裏付けた x402 自己資金化 | inflow ≥ cost の CFO readback |
 | T14 | LM-EAB（held-out、較正、再現可能） | 独立した再実行で同じ結果 |
 | T15 | 検証済み USD 10K MRR → YC W27 の証拠 → cross-domain / AGI / UBI | receipt の集計 |
+
+
+### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
+
+**目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
+
+**使うもの / 使わないもの**
+- 使う: Life Manager 自身のモデル（GPT-5.6 terra / luna / sol。`runtime/agent-runner/config.json` の route）。これは Life Manager の脳なので変えない。
+- 使わない: Life Manager の外にいる coding agent のセッション。今 Claude Code がやっている「問題を見つけて直す」作業を、Life Manager 自身が行う。
+
+**自己修復の流れ**（すべて Life Manager の内部で完結する）
+1. 検知: loop の terminal event（`fail` / `entrypoint_exit_*`）が出る。
+2. 分類: `lm-loop-run` が recovery intent を作る（`runtime/loop/recovery-intent-cli.mjs`）。
+3. 軽い修復: supervisor（`life-manager-recovery-supervisor`）が `lm-loop reconcile` で owner を現行 release に付け直す。
+4. コード修復: 3 で直らなければ escalate し、bridge が `lm:type:self-heal` の issue を作る。Life Manager の開発 loop（`life-manager-dev`）が、自分のモデルで修正を書く。
+5. 検証: d0 の preflight → tests/evals → PR → merge guard → merge。
+6. 反映: main から immutable release を切り、対象 owner に apply する。
+7. 確認: 対象 owner の次の自然実行が PASS し、同じ occurrence の replay が0件であることを readback で確かめる。
+
+**T5 の完了証拠**: 1件の実際の失敗について、上の 1〜7 がすべて Life Manager の内部だけで完了したこと。run_id、intent_id、issue、PR、release_sha、PASS した run_id を記録する。この間、外部 agent による編集や手動 apply が1回もないこと。
+
+**自己改善（T12）**: 同じ流れを、失敗ではなく成果指標（ループ別の settled 利益、T8）の悪化や改善の余地をきっかけに回す。評価器と rollback は Life Manager の内部に置き、候補の変更は evaluator・権限・fence・spend cap を変えられない。
+
+**今わかっている穴**（2026-09-26 時点）
+- 4 の修復範囲が狭い: dev agent は `apps/life-manager` と `runtime/loop` しか編集できない。修復対象の多くは `skills/` 配下にある（issue #5130）。
+- 4 の agent が route の制限時間（900秒）で timeout している（issue #5900、#5902）。
+- 06:29 の run では、agent が編集禁止の recovery 制御系を編集し、preflight に拒否された（issue #5897）。
+- 5→6 の release 切りと apply が自動で連結しているか、未確認。
 
 ## 6. 不変の制約
 
