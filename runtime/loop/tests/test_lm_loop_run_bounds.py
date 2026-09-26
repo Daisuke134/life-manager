@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
+from runtime.loop.lm_loop import PRE_EFFECT_ADMISSION_BLOCKERS
 from runtime.loop.lm_loop_run import (
     ADMISSION_CONTROL_RETRY_DELAY_SECONDS,
     EFFECT_RESULT_HINT_ENTRYPOINTS,
@@ -145,6 +146,76 @@ def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
         priority="critical_paid",
     )
     run.assert_not_called()
+
+
+def test_capacity_busy_blocker_is_only_emitted_before_any_claim_or_child_start(tmp_path):
+    """Regression: PRE_EFFECT_ADMISSION_BLOCKERS proves no effect could have
+    started, which is only true while the enqueue/claim step failed before a
+    child was ever spawned. Pin that the enqueue-side capacity_busy reason
+    never reaches claim_durable_resource, transfer_durable_resource, or
+    _run_entrypoint.
+    """
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          # A None ticket is what actually short-circuits _run_admitted before
+          # any claim attempt; a truthy ticket falls through to claim_durable_resource
+          # regardless of the paired reason string.
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(None, "capacity_busy")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim,
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource") as transfer,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        return_code = _run_admitted(["/bin/true"], entry, "paid", {}, receipt)
+
+    assert return_code == 75
+    assert json.loads(receipt.read_text())["reason"] == "resource_capacity_busy"
+    claim.assert_not_called()
+    transfer.assert_not_called()
+    run.assert_not_called()
+
+    host_deferred = _host_admission_deferred(receipt, 0)
+    _, _, blocker = _terminal_outcome(return_code, host_deferred=host_deferred)
+    assert blocker in PRE_EFFECT_ADMISSION_BLOCKERS
+
+
+def test_fifo_wait_blocker_is_only_emitted_before_any_child_start(tmp_path):
+    """Regression sibling to the capacity_busy case: the claim-side fifo_wait
+    reason is only reachable when claim_durable_resource itself failed to
+    hand back a claim, so transfer_durable_resource/_run_entrypoint (which
+    would start the child) must never run for this outcome.
+    """
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "fifo_wait")),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource") as transfer,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        return_code = _run_admitted(["/bin/true"], entry, "paid", {}, receipt)
+
+    assert return_code == 75
+    assert json.loads(receipt.read_text())["reason"] == "resource_fifo_wait"
+    transfer.assert_not_called()
+    run.assert_not_called()
+
+    host_deferred = _host_admission_deferred(receipt, 0)
+    _, _, blocker = _terminal_outcome(return_code, host_deferred=host_deferred)
+    assert blocker in PRE_EFFECT_ADMISSION_BLOCKERS
 
 
 def test_mobile_publish_entrypoint_uses_occurrence_scoped_admission(tmp_path):

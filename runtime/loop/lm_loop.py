@@ -444,15 +444,27 @@ def _effect_unknown_owners() -> list[str]:
 
 
 def _resolve_pre_effect_admission_rows(
-    loop_id: str, entry: dict,
+    loop_id: str, entry: dict, *, max_rows: int | None = None,
 ) -> tuple[list[str], list[tuple[str, str]]]:
     """Resolve every provable effect_unknown row of the owner independently.
 
     Returns ``(resolved_occurrence_ids, unprovable_with_reason)``. Each row is
     proved and closed on its own; one unprovable row never blocks closing a
     sibling row that does carry proof.
+
+    ``max_rows``, when given, caps how many rows of this one owner's batch are
+    processed this call (provable rows first). A busy owner with more
+    effect_unknown rows than the remaining reconcile-cycle budget is only
+    partly closed here; the untouched rows stay effect_unknown for the next
+    cycle instead of silently spending the whole fleet-wide bound on one owner.
     """
     provable, unprovable = _pre_effect_admission_evaluate(loop_id, entry)
+    if max_rows is not None:
+        if max_rows <= 0:
+            return [], []
+        kept_provable = min(len(provable), max_rows)
+        provable = provable[:kept_provable]
+        unprovable = unprovable[:max(0, max_rows - kept_provable)]
     resolved: list[str] = []
     if provable:
         state_root = Path(os.path.expanduser(entry["state_root"]))
@@ -2185,7 +2197,7 @@ def main(argv: list[str] | None = None) -> int:
                 if not isinstance(owner_entry, dict) or owner_id in loaded_running:
                     continue
                 resolved_ids, unprovable_rows = _resolve_pre_effect_admission_rows(
-                    owner_id, owner_entry)
+                    owner_id, owner_entry, max_rows=budget)
                 budget -= len(resolved_ids) + len(unprovable_rows)
                 if resolved_ids or unprovable_rows:
                     pre_effect_reconciled.append({
