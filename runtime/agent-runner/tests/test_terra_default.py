@@ -64,7 +64,8 @@ class TerraDefaultTest(unittest.TestCase):
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "profile_alias": "acct1"}]
                 if name == "self-heal-code-agent":
-                    expected = [{"provider": "claude-direct", "model": "claude-sonnet-5"}]
+                    expected = [{"provider": "codex", "model": "gpt-5.6-terra",
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "affiliate-marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "high", "profile_alias": "acct2"}]
@@ -93,13 +94,13 @@ class TerraDefaultTest(unittest.TestCase):
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
-    def test_self_heal_code_route_is_claude_only(self):
-        # Self-heal must be Codex-free; a single sandboxed Claude candidate, no fallback.
+    def test_self_heal_code_route_is_codex_only(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(
             config["task_classes"]["self-heal-code-agent"]["candidates"],
-            [{"provider": "claude-direct", "model": "claude-sonnet-5"}],
+            [{"provider": "codex", "model": "gpt-5.6-terra",
+              "effort": "medium", "profile_alias": "acct1"}],
         )
 
     def test_paid_route_resolves_each_codex_account_once(self):
