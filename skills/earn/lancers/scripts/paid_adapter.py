@@ -177,9 +177,10 @@ class _LiveLancersProvider:
             return {
                 "provider_state": "awaiting_acceptance",
                 "project_id": project_id, "proposal_id": proposal_id,
-                "verified_price_jpy": verified["price_jpy"],
+                "verified_price": verified["price"],
                 "verified_delivery_due_on": verified["delivery_due_on"],
-                "order_amount_jpy": order["total_amount_jpy"],
+                "order_amount": order["amount"],
+                "order_tax_basis": order["tax_basis"],
                 "order_delivery_due_on": order["max_due_on"],
                 "order_milestone_count": order["milestone_count"],
                 "accept_form_action": order["action"],
@@ -463,7 +464,7 @@ class LancersPaidAdapter:
             if detail.get("provider_state") != "awaiting_acceptance":
                 raise RuntimeError("lancers_paid_context_changed")
             if (payload.get("project_id") != detail.get("project_id")
-                    or payload.get("order_amount_jpy") != detail.get("order_amount_jpy")
+                    or payload.get("order_amount") != detail.get("order_amount")
                     or payload.get("order_delivery_due_on") != detail.get("order_delivery_due_on")):
                 raise RuntimeError("lancers_paid_context_changed")
             sender = getattr(self.provider, "accept_order", None)
@@ -514,21 +515,55 @@ class LancersPaidAdapter:
         return dict(value)
 
 
+def _amount_status(verified: Mapping[str, Any], order: Mapping[str, Any],
+                    tax_basis: Any) -> tuple[str, list[str]]:
+    """Compare a verified-proposal amount to an order amount, kind and value together.
+
+    Never treats an ambiguous text (per-unit/recurring/range wording, or more than one
+    amount) as a plain number, and never assumes a tax basis it did not read on the page.
+    """
+    if verified.get("kind") == "unparsed" or order.get("kind") == "unparsed":
+        return "unparsed", []
+    if verified.get("kind") != order.get("kind"):
+        return "mismatch", [f"amount kind mismatch: order={order.get('kind')} verified_proposal={verified.get('kind')}"]
+    v_amount, o_amount = verified.get("amount_jpy"), order.get("amount_jpy")
+    if not isinstance(v_amount, int) or not isinstance(o_amount, int):
+        return "unparsed", []
+    if not isinstance(tax_basis, Mapping) or tax_basis.get("basis") not in {"inclusive", "exclusive"}:
+        return "tax_unknown", []
+    if tax_basis["basis"] == "exclusive":
+        expected = v_amount
+    else:
+        rate = tax_basis.get("rate_percent")
+        if not isinstance(rate, int):
+            return "tax_unknown", []
+        expected = round(v_amount * (100 + rate) / 100)
+    if o_amount != expected:
+        return "mismatch", [f"amount mismatch: order={o_amount} ({tax_basis['basis']}) verified_proposal={v_amount}"]
+    return "match", []
+
+
 def _decide_acceptance(contract: Mapping[str, Any]) -> dict[str, Any]:
     project_id = contract.get("project_id")
     proposal_id = contract.get("proposal_id")
-    verified_price = contract.get("verified_price_jpy")
+    verified_price = contract.get("verified_price")
     verified_due = contract.get("verified_delivery_due_on")
-    order_amount = contract.get("order_amount_jpy")
+    order_amount = contract.get("order_amount")
+    order_tax_basis = contract.get("order_tax_basis")
     order_due = contract.get("order_delivery_due_on")
     milestone_count = contract.get("order_milestone_count")
     required = (project_id, proposal_id, verified_price, verified_due, order_amount, order_due, milestone_count)
-    if any(value is None for value in required):
+    if any(value is None for value in required) or not isinstance(verified_price, Mapping) or not isinstance(order_amount, Mapping):
         return {"action": "wait", "reason": "acceptance_terms_unavailable",
                 "remaining_work": ["read official order and verified proposal terms"]}
-    diffs: list[str] = []
-    if order_amount != verified_price:
-        diffs.append(f"amount mismatch: order={order_amount} verified_proposal={verified_price}")
+    status, amount_diffs = _amount_status(verified_price, order_amount, order_tax_basis)
+    if status == "unparsed":
+        return {"action": "wait", "reason": "acceptance_terms_unparsed",
+                "remaining_work": ["re-read an unambiguous fixed amount for the proposal and the order"]}
+    if status == "tax_unknown":
+        return {"action": "wait", "reason": "acceptance_tax_basis_unknown",
+                "remaining_work": ["read the official 税込/税抜 label and tax rate on the order page"]}
+    diffs = list(amount_diffs)
     if order_due != verified_due:
         diffs.append(f"deadline mismatch: order={order_due} verified_proposal={verified_due}")
     if milestone_count != 1:
@@ -537,7 +572,7 @@ def _decide_acceptance(contract: Mapping[str, Any]) -> dict[str, Any]:
         return {"action": "wait", "reason": "acceptance_terms_mismatch", "remaining_work": diffs}
     return {"action": "accept", "payload": {
         "project_id": project_id, "proposal_id": proposal_id,
-        "order_amount_jpy": order_amount, "order_delivery_due_on": order_due,
+        "order_amount": dict(order_amount), "order_delivery_due_on": order_due,
     }}
 
 
