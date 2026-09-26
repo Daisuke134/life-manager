@@ -249,6 +249,12 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [ ] 8-1 ループごとの settlement adapter（Stripe / x402 / Coconala / Lancers の payout readback）
 - [ ] 8-2 cost adapter（モデルの token、cloud、tool のコスト）
 - [ ] 8-3 receipt id 付きのループ別 P&L を毎日出す
+- [ ] 8-4 投資アダプタの段階的な追加（Foundation spec 3186-3212 行の ladder: read-only scout → 過去データでの評価 → paper → 本番口座での shadow → 最小額の live canary → 公式の決済確認 → 再現性の確認 → 上限付きの拡大、または rollback）。現状は `alpaca-investment-live`（株と24時間の crypto）だけが live で、net -$0.05、拡大は禁止（`net_negative_and_statistically_unsupported`）
+  - [ ] 8-4a Alpaca: 損益を T8 の P&L に接続し、手数料・スプレッド・モデル/cloud のコストを差し引いた net で評価する
+  - [ ] 8-4b Polymarket（`pm-decision-loop` / `pm-live-trade`）: admission 待ちを解消し、同じ ladder の現在の段を readback する
+  - [ ] 8-4c Hyperliquid: read-only scout → paper → shadow。signing key は credential SSOT で管理する。`hyperliquid-trading-agent` のリポジトリはライセンスが無く監査もされていないので、参考にするだけでコードは使わない
+  - [ ] 8-4d 株（Alpaca 以外の venue を含む）: 同じ ladder
+  - [ ] 8-4e ミームコイン: 最後の段階。read-only scout とリスク検証だけ。live は、他の venue で再現性のある正の net が出た後に限る
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）
