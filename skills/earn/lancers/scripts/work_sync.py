@@ -91,21 +91,180 @@ def _write_state(path: Path, value: Mapping[str, Any]) -> None:
         except FileNotFoundError: pass
 
 
+# A price string is trusted only when it holds exactly one unambiguous ``円`` amount and no
+# per-unit/recurring/range wording. Anything else (e.g. "1件2,000円〜") is classified, never
+# collapsed to a bare integer, so a matching-looking total elsewhere can never pass a numeric
+# equality check by accident (wrongful-accept guard).
+_AMOUNT_TOKEN = re.compile(r"([0-9][0-9,]*)\s*円")
+_AMOUNT_KIND_MARKERS: dict[str, tuple[str, ...]] = {
+    "recurring": ("/月", "毎月"),
+    "range": ("〜", "～", "から"),
+    "per_unit": ("件", "単価"),
+}
+_TAX_RATE_TOKEN = re.compile(r"消費税[^0-9%]{0,10}?([0-9]{1,2})\s*%")
+
+
+def _parse_amount_text(text: Any) -> dict[str, Any]:
+    """Classify one official amount string; never guesses across an ambiguous shape.
+
+    Returns ``{"kind": "fixed", "amount_jpy": N}`` only for a single plain amount with no
+    per-unit/recurring/range wording and no second amount in the same string. Any other
+    shape (a per-unit/recurring/range marker, or more than one amount) is returned as a
+    structured, explicitly non-``fixed`` kind so a naive numeric comparison can never treat
+    it as equal to an unrelated fixed total.
+    """
+    source = str(text or "")
+    numbers = [int(match.replace(",", "")) for match in _AMOUNT_TOKEN.findall(source)]
+    if not numbers:
+        raise SourceFailure("amount_terms_unavailable")
+    active_kinds = [kind for kind, markers in _AMOUNT_KIND_MARKERS.items() if any(marker in source for marker in markers)]
+    if not active_kinds and len(numbers) == 1:
+        return {"kind": "fixed", "amount_jpy": numbers[0]}
+    if len(active_kinds) == 1 and len(numbers) == 1:
+        return {"kind": active_kinds[0], "amount_jpy": numbers[0]}
+    return {"kind": "unparsed", "raw_text": source}
+
+
+def _parse_tax_basis(text: Any) -> Optional[dict[str, Any]]:
+    """Official tax basis (税込/税抜) of an amount, read from the surrounding page text.
+
+    Returns ``None`` when the basis cannot be determined without guessing: neither label is
+    present, both are present (ambiguous), or the amount is 税込 but no tax rate is shown.
+    """
+    source = str(text or "")
+    has_inclusive, has_exclusive = "税込" in source, "税抜" in source
+    if has_inclusive == has_exclusive:
+        return None
+    if has_exclusive:
+        return {"basis": "exclusive"}
+    rate_match = _TAX_RATE_TOKEN.search(source)
+    if rate_match is None:
+        return None
+    return {"basis": "inclusive", "rate_percent": int(rate_match.group(1))}
+
+
+def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional[str] = None) -> Mapping[str, Any]:
+    """Official terms of a verified proposal, read fresh from ``/work/proposal/<id>``.
+
+    ``契約金額 (税抜)`` is always tax-exclusive by construction of that label, so the
+    proposal side never needs tax-basis detection -- only the order side (read separately)
+    can be 税込 and needs a rate to normalize.
+    """
+    page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
+    value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
+    if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
+    amount_text, due_text, text = value.get("amount"), value.get("due"), value.get("proposal_text")
+    price = _parse_amount_text(amount_text)
+    due = str(due_text).replace("/", "-")
+    if len(due) != 10 or not isinstance(text, str) or not text.strip() or len(text) > 10000: raise SourceFailure("proposal_terms_unavailable")
+    project_id = value.get("project_id")
+    if not isinstance(project_id, str) or re.fullmatch(r"[0-9]+", project_id) is None: raise SourceFailure("proposal_terms_unavailable")
+    if expected_project is not None and project_id != expected_project: raise SourceFailure("proposal_terms_conflict")
+    return {"proposal_id": proposal_id, "project_id": project_id, "price": price,
+            "price_jpy": price["amount_jpy"] if price["kind"] == "fixed" else None,
+            "delivery_due_on": due, "proposal_text": text.strip()}
+
+
 def _proposal_context(page: Any, detail: Mapping[str, Any], verified_proposals: set[str]) -> Optional[Mapping[str, Any]]:
     with_value = detail.get("with")
     if not isinstance(with_value, Mapping) or not isinstance(with_value.get("proposal"), Mapping): return None
     proposal_id = _id(with_value["proposal"].get("id"))
     if proposal_id not in verified_proposals: raise SourceFailure("proposal_receipt_unverified")
-    page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
-    value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
-    if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
-    amount_text, due_text, text = value.get("amount"), value.get("due"), value.get("proposal_text")
-    amount_digits = "".join(character for character in str(amount_text) if character.isdigit())
-    due = str(due_text).replace("/", "-")
-    if not amount_digits or int(amount_digits) <= 0 or len(due) != 10 or not isinstance(text, str) or not text.strip() or len(text) > 10000: raise SourceFailure("proposal_terms_unavailable")
     job = with_value.get("job"); expected_project = _id(job.get("id")) if isinstance(job, Mapping) and job.get("id") is not None else None
-    if expected_project is not None and str(value.get("project_id")) != expected_project: raise SourceFailure("proposal_terms_conflict")
-    return {"proposal_id": proposal_id, "project_id": value.get("project_id"), "price_jpy": int(amount_digits), "delivery_due_on": due, "proposal_text": text.strip()}
+    return _read_proposal_terms(page, proposal_id, expected_project)
+
+
+def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
+    """Official承諾 order terms from the approval page, or ``None`` if not awaiting acceptance.
+
+    Reads the live accept/decline form at ``/project/approval/start/<project_id>``: the
+    milestone plan (amount + due date per row) and the exact hidden fields the "規約に同意し
+    て、承諾する" button submits. Never submits anything itself.
+    """
+    path = f"/project/approval/start/{project_id}"
+    response = page.goto(f"https://www.lancers.jp{path}?purpose=lancer", wait_until="domcontentloaded", timeout=20_000)
+    if response is None or response.status != 200: raise SourceFailure("acceptance_source_unavailable")
+    if urlsplit(str(page.url)).path != path: return None
+    value = page.evaluate(
+        """(projectId) => {
+            const form = document.querySelector(`form[action="/project/approval/finish_yes/${projectId}"]`);
+            if (!form) return null;
+            const accept = [...form.querySelectorAll('input[type=submit]')].some(i => i.value === '規約に同意して、承諾する');
+            if (!accept) return null;
+            const table = document.querySelector('table.p-milestone-form');
+            if (!table) return null;
+            const rows = [...table.querySelectorAll('tbody tr')].map(tr => {
+                const cells = [...tr.querySelectorAll('td')];
+                return {due: cells[2]?.innerText?.trim(), amount: cells[3]?.innerText?.trim()};
+            });
+            const fields = {};
+            for (const input of form.querySelectorAll('input[type=hidden]')) {
+                if (input.name) fields[input.name] = input.value;
+            }
+            return {action: form.getAttribute('action'), rows, fields, formText: form.innerText};
+        }""",
+        project_id,
+    )
+    if value is None: return None
+    action = value.get("action") if isinstance(value, Mapping) else None
+    if action != f"/project/approval/finish_yes/{project_id}": raise SourceFailure("acceptance_form_invalid")
+    rows = value.get("rows")
+    if not isinstance(rows, list) or not rows: raise SourceFailure("acceptance_form_invalid")
+    parsed_rows, max_due = [], None
+    for row in rows:
+        if not isinstance(row, Mapping): raise SourceFailure("acceptance_form_invalid")
+        parsed_rows.append(_parse_amount_text(row.get("amount")))
+        due_match = re.fullmatch(r"([0-9]{4})年([0-9]{2})月([0-9]{2})日", str(row.get("due") or ""))
+        if due_match is None: raise SourceFailure("acceptance_form_invalid")
+        due = "-".join(due_match.groups())
+        if max_due is None or due > max_due: max_due = due
+    if len(parsed_rows) == 1:
+        amount = parsed_rows[0]
+    elif all(row["kind"] == "fixed" for row in parsed_rows):
+        amount = {"kind": "fixed", "amount_jpy": sum(row["amount_jpy"] for row in parsed_rows)}
+    else:
+        amount = {"kind": "unparsed", "raw_text": " | ".join(str(row.get("amount")) for row in rows)}
+    tax_basis = _parse_tax_basis(value.get("formText"))
+    fields = value.get("fields")
+    required_fields = {"_method", "data[_Token][key]", "data[Work][agree]", "data[_Token][fields]", "data[_Token][unlocked]"}
+    if (not isinstance(fields, Mapping) or not required_fields.issubset(fields.keys())
+            or not all(isinstance(k, str) and isinstance(v, str) for k, v in fields.items())
+            or fields.get("_method") != "POST" or fields.get("data[Work][agree]") != "1"):
+        raise SourceFailure("acceptance_form_invalid")
+    return {"action": action, "amount": amount, "tax_basis": tax_basis, "max_due_on": max_due,
+            "milestone_count": len(rows), "fields": dict(fields)}
+
+
+def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
+    """True only when the official working list already shows this project as 進行中."""
+    path = "/mypage/proposals/all/working"
+    page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
+    if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a.c-link.c-link--black')?.getAttribute('href'), status: card.querySelector('.c-media-job__status--active')?.innerText?.trim()}))""")
+    if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
+    for row in projects:
+        if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
+            return row.get("status") == "進行中"
+    return False
+
+
+def _acceptance_candidates(page: Any, verified_proposals: set[str]) -> list[dict[str, Any]]:
+    """Every verified-won proposal, as a Paid candidate awaiting client acceptance.
+
+    ponytail: rescans every verified proposal each wake (bounded by the account's total
+    application volume, same cost class as ``_proposal_pipeline``); add a settled-cursor
+    cache if that volume ever makes this the slow path.
+    """
+    candidates = []
+    for proposal_id in sorted(verified_proposals):
+        terms = _read_proposal_terms(page, proposal_id)
+        candidates.append({
+            "source_kind": "project_acceptance", "provider_id": terms["project_id"],
+            "proposal_id": proposal_id, "board_id": None,
+            "detail_path": f"/project/approval/start/{terms['project_id']}",
+            "funding_status": "awaiting_acceptance",
+        })
+    return candidates
 
 
 def _compose_reply(board: Mapping[str, Any], messages: Sequence[Mapping[str, Any]], state_path: Path, grounding: Optional[Mapping[str, Any]] = None) -> Optional[str]:
@@ -380,11 +539,12 @@ def _read_surfaces(page: Any, verified_proposals: set[str], private_boards: list
     return result
 
 
-def _read_paid_surfaces(page: Any) -> dict[str, Any]:
+def _read_paid_surfaces(page: Any, verified_proposals: set[str]) -> dict[str, Any]:
     """Read only the official sources that can create or settle Paid work."""
     result = _snapshot(lambda path: _fetch(page, path), set())
     result.update(_contract_sources(page))
     result["contract_candidates"] += result.pop("storefront_contract_candidates")
+    result["contract_candidates"] += _acceptance_candidates(page, verified_proposals)
     result["contract_candidates"].sort(
         key=lambda row: (row["source_kind"], row["provider_id"])
     )
@@ -431,12 +591,13 @@ def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
     logged_in = False
     result = _failed("observer_unavailable")
     try:
+        verified_proposals = _verified_proposals(Path(state_path))
         with application_tick.account_lock(Path(state_path).with_name("paid-preflight.json")):
             browser, page = application_tick._open_owned_page(browser_factory)
             if not application_tick._production_account_ready(page):
                 raise SourceFailure("account_unavailable")
             logged_in = True
-            result = _read_paid_surfaces(page)
+            result = _read_paid_surfaces(page, verified_proposals)
             result["logged_in"] = True
     except SourceFailure as error:
         result = _failed(str(error), logged_in)

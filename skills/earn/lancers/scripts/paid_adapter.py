@@ -139,6 +139,8 @@ class _LiveLancersProvider:
                 or "エスクロー済み" in compact)
 
     def read_detail(self, candidate: Mapping[str, Any]) -> dict[str, Any]:
+        if candidate.get("source_kind") == "project_acceptance":
+            return self._read_acceptance_detail(candidate)
         detail_path = candidate.get("detail_path")
         body = self._goto_detail(detail_path)
         board_id, private = self._board_for(candidate)
@@ -160,6 +162,54 @@ class _LiveLancersProvider:
                                              for row in buyer[-20:]),
             "formal_delivery_required": True,
         }
+
+    def _read_acceptance_detail(self, candidate: Mapping[str, Any]) -> dict[str, Any]:
+        project_id = candidate.get("provider_id")
+        proposal_id = candidate.get("proposal_id")
+        if (not isinstance(project_id, str) or re.fullmatch(r"[0-9]+", project_id) is None
+                or not isinstance(proposal_id, str) or not proposal_id):
+            raise RuntimeError("lancers_paid_acceptance_candidate_invalid")
+        self._open()
+        work_sync = self._work_sync()
+        verified = work_sync._read_proposal_terms(self.page, proposal_id, expected_project=project_id)
+        order = work_sync._read_order_terms(self.page, project_id)
+        if order is not None:
+            return {
+                "provider_state": "awaiting_acceptance",
+                "project_id": project_id, "proposal_id": proposal_id,
+                "verified_price": verified["price"],
+                "verified_delivery_due_on": verified["delivery_due_on"],
+                "order_amount": order["amount"],
+                "order_tax_basis": order["tax_basis"],
+                "order_delivery_due_on": order["max_due_on"],
+                "order_milestone_count": order["milestone_count"],
+                "accept_form_action": order["action"],
+                "accept_fields": dict(order["fields"]),
+            }
+        if work_sync._read_acceptance_confirmed(self.page, project_id):
+            return {"provider_state": "accepted_confirmed",
+                    "project_id": project_id, "proposal_id": proposal_id}
+        return {"provider_state": "acceptance_state_unknown",
+                "project_id": project_id, "proposal_id": proposal_id}
+
+    def accept_order(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> None:
+        project_id = detail.get("project_id")
+        action = detail.get("accept_form_action")
+        fields = detail.get("accept_fields")
+        if (not isinstance(project_id, str) or re.fullmatch(r"[0-9]+", project_id) is None
+                or action != f"/project/approval/finish_yes/{project_id}"
+                or not isinstance(fields, Mapping) or not fields):
+            raise RuntimeError("lancers_paid_acceptance_context_invalid")
+        self._open()
+        value = self.page.evaluate(
+            """async ({path, fields}) => { const form = new FormData();
+            for (const key in fields) form.append(key, fields[key]);
+            const response = await fetch(path, {method:'POST', credentials:'same-origin', body:form});
+            return {status: response.status}; }""",
+            {"path": f"https://www.lancers.jp{action}", "fields": dict(fields)},
+        )
+        if not isinstance(value, Mapping) or value.get("status") not in {200, 201, 302}:
+            raise RuntimeError("lancers_paid_acceptance_submission_uncertain")
 
     def send_message(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> None:
         board_id = detail.get("board_id")
@@ -187,7 +237,23 @@ class _LiveLancersProvider:
             raise RuntimeError("lancers_paid_message_submission_uncertain")
         self._posted[str(intent.get("effect_key"))] = str(message_id)
 
+    def _accept_readback(self, detail: Mapping[str, Any]) -> dict[str, Any]:
+        project_id = detail.get("project_id")
+        if not isinstance(project_id, str) or not project_id:
+            return {"verified": False, "authoritative_absent": False}
+        self._open()
+        work_sync = self._work_sync()
+        order = work_sync._read_order_terms(self.page, project_id)
+        if order is not None:
+            return {"verified": False, "authoritative_absent": False}
+        if work_sync._read_acceptance_confirmed(self.page, project_id):
+            return {"verified": True, "provider_receipt_id": f"lancers-project-approval-{project_id}",
+                    "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+        return {"verified": False, "authoritative_absent": False}
+
     def readback(self, intent: Mapping[str, Any], detail: Mapping[str, Any]) -> dict[str, Any]:
+        if intent.get("action") == "accept":
+            return self._accept_readback(detail)
         if intent.get("action") != "answer":
             return {"verified": False, "authoritative_absent": False}
         board_id = detail.get("board_id")
@@ -328,7 +394,8 @@ class LancersPaidAdapter:
             kind = candidate.get("source_kind")
             provider_id = candidate.get("provider_id")
             funding = candidate.get("funding_status")
-            if kind not in {"project", "monthly", "storefront"} or not isinstance(provider_id, str) or not provider_id:
+            if (kind not in {"project", "monthly", "storefront", "project_acceptance"}
+                    or not isinstance(provider_id, str) or not provider_id):
                 raise RuntimeError("lancers_paid_inventory_unavailable")
             if not isinstance(funding, str) or not funding:
                 raise RuntimeError("lancers_paid_inventory_unavailable")
@@ -389,10 +456,22 @@ class LancersPaidAdapter:
         action = intent.get("action")
         payload = intent.get("payload")
         if (not isinstance(work_id, str) or not work_id.strip()
-                or action not in {"answer", "formal_delivery"}
+                or action not in {"answer", "formal_delivery", "accept"}
                 or not isinstance(payload, Mapping)):
             raise RuntimeError("lancers_paid_effect_unsupported")
         detail = self._current_detail(work_id)
+        if action == "accept":
+            if detail.get("provider_state") != "awaiting_acceptance":
+                raise RuntimeError("lancers_paid_context_changed")
+            if (payload.get("project_id") != detail.get("project_id")
+                    or payload.get("order_amount") != detail.get("order_amount")
+                    or payload.get("order_delivery_due_on") != detail.get("order_delivery_due_on")):
+                raise RuntimeError("lancers_paid_context_changed")
+            sender = getattr(self.provider, "accept_order", None)
+            if not callable(sender):
+                raise RuntimeError("lancers_paid_accept_effect_unavailable")
+            sender(dict(intent), detail)
+            return
         if detail.get("provider_state") != "funded":
             raise RuntimeError("lancers_paid_context_changed")
         event_id = payload.get("buyer_event_id")
@@ -436,6 +515,67 @@ class LancersPaidAdapter:
         return dict(value)
 
 
+def _amount_status(verified: Mapping[str, Any], order: Mapping[str, Any],
+                    tax_basis: Any) -> tuple[str, list[str]]:
+    """Compare a verified-proposal amount to an order amount, kind and value together.
+
+    Never treats an ambiguous text (per-unit/recurring/range wording, or more than one
+    amount) as a plain number, and never assumes a tax basis it did not read on the page.
+    """
+    if verified.get("kind") == "unparsed" or order.get("kind") == "unparsed":
+        return "unparsed", []
+    if verified.get("kind") != order.get("kind"):
+        return "mismatch", [f"amount kind mismatch: order={order.get('kind')} verified_proposal={verified.get('kind')}"]
+    v_amount, o_amount = verified.get("amount_jpy"), order.get("amount_jpy")
+    if not isinstance(v_amount, int) or not isinstance(o_amount, int):
+        return "unparsed", []
+    if not isinstance(tax_basis, Mapping) or tax_basis.get("basis") not in {"inclusive", "exclusive"}:
+        return "tax_unknown", []
+    if tax_basis["basis"] == "exclusive":
+        expected = v_amount
+    else:
+        rate = tax_basis.get("rate_percent")
+        if not isinstance(rate, int):
+            return "tax_unknown", []
+        expected = round(v_amount * (100 + rate) / 100)
+    if o_amount != expected:
+        return "mismatch", [f"amount mismatch: order={o_amount} ({tax_basis['basis']}) verified_proposal={v_amount}"]
+    return "match", []
+
+
+def _decide_acceptance(contract: Mapping[str, Any]) -> dict[str, Any]:
+    project_id = contract.get("project_id")
+    proposal_id = contract.get("proposal_id")
+    verified_price = contract.get("verified_price")
+    verified_due = contract.get("verified_delivery_due_on")
+    order_amount = contract.get("order_amount")
+    order_tax_basis = contract.get("order_tax_basis")
+    order_due = contract.get("order_delivery_due_on")
+    milestone_count = contract.get("order_milestone_count")
+    required = (project_id, proposal_id, verified_price, verified_due, order_amount, order_due, milestone_count)
+    if any(value is None for value in required) or not isinstance(verified_price, Mapping) or not isinstance(order_amount, Mapping):
+        return {"action": "wait", "reason": "acceptance_terms_unavailable",
+                "remaining_work": ["read official order and verified proposal terms"]}
+    status, amount_diffs = _amount_status(verified_price, order_amount, order_tax_basis)
+    if status == "unparsed":
+        return {"action": "wait", "reason": "acceptance_terms_unparsed",
+                "remaining_work": ["re-read an unambiguous fixed amount for the proposal and the order"]}
+    if status == "tax_unknown":
+        return {"action": "wait", "reason": "acceptance_tax_basis_unknown",
+                "remaining_work": ["read the official 税込/税抜 label and tax rate on the order page"]}
+    diffs = list(amount_diffs)
+    if order_due != verified_due:
+        diffs.append(f"deadline mismatch: order={order_due} verified_proposal={verified_due}")
+    if milestone_count != 1:
+        diffs.append(f"order has {milestone_count} milestone(s), verified proposal covers one deliverable")
+    if diffs:
+        return {"action": "wait", "reason": "acceptance_terms_mismatch", "remaining_work": diffs}
+    return {"action": "accept", "payload": {
+        "project_id": project_id, "proposal_id": proposal_id,
+        "order_amount": dict(order_amount), "order_delivery_due_on": order_due,
+    }}
+
+
 def decide(row: Mapping[str, Any], *,
            answer_selector: Callable[[Mapping[str, Any]], str | None] | None = None,
            quality_selector: Callable[[Mapping[str, Any], str], str | None] | None = None) -> dict[str, Any]:
@@ -450,6 +590,13 @@ def decide(row: Mapping[str, Any], *,
             }
         raise RuntimeError("lancers_paid_context_unavailable")
     provider_state = contract.get("provider_state")
+    if provider_state == "awaiting_acceptance":
+        return _decide_acceptance(contract)
+    if provider_state == "accepted_confirmed":
+        return {"action": "noop", "classification": "completed"}
+    if provider_state == "acceptance_state_unknown":
+        return {"action": "wait", "reason": "acceptance_state_unknown",
+                "remaining_work": ["reconfirm official acceptance/working state for this project"]}
     if provider_state == "delivered":
         return {"action": "noop", "classification": "completed"}
     if provider_state != "funded":
