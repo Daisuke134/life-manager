@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import subprocess
+import time
 import sys
 from pathlib import Path
 from typing import Callable, Mapping
@@ -37,17 +38,20 @@ from runtime.loop.macos_loop_registry import validate_registry  # noqa: E402
 DEFAULT_REGISTRY = ROOT / "config/loop-registry.json"
 CALL_TIMEOUT_SECONDS = 60
 MAX_CALLS_PER_WAKE = 20
+# Stays under the loop's runtime_timeout_seconds (1200): a call whose own timeout would
+# overrun this budget is deferred to the next wake instead of being killed mid-proof.
+WAKE_BUDGET_SECONDS = 1000
 STDOUT_TAIL_LIMIT = 300
 DEFAULT_LOG = Path(
     "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"
 ).expanduser()
 
 
-def run_call(argv: list[str]) -> tuple[int, str]:
+def run_call(argv: list[str], timeout: float = CALL_TIMEOUT_SECONDS) -> tuple[int, str]:
     """Run one owner reconcile script; never raises, always (exit_code, stdout_tail)."""
     try:
         result = subprocess.run(
-            argv, capture_output=True, text=True, timeout=CALL_TIMEOUT_SECONDS, check=False,
+            argv, capture_output=True, text=True, timeout=timeout, check=False,
         )
         return result.returncode, (result.stdout or "")[-STDOUT_TAIL_LIMIT:]
     except subprocess.TimeoutExpired:
@@ -134,7 +138,9 @@ def reconcile(
     registry: Mapping[str, object],
     root: Path,
     cap: int = MAX_CALLS_PER_WAKE,
-    run_call: Callable[[list[str]], tuple[int, str]] = run_call,
+    budget_seconds: float = WAKE_BUDGET_SECONDS,
+    clock: Callable[[], float] = time.monotonic,
+    run_call: Callable[..., tuple[int, str]] = run_call,
     read_fenced: Callable[[], dict[str, tuple[str, ...]]] = _admission_effect_unknown_occurrences,
     log_path: Path | None = DEFAULT_LOG,
 ) -> dict:
@@ -145,11 +151,17 @@ def reconcile(
     targets, needs_adapter = plan_targets(fenced, loops)
     calls = round_robin(targets, cap)
     closed = 0
+    deferred = 0
     records: list[dict] = []
+    started = clock()
     for owner_id, occurrence in calls:
         reconcile_cfg = loops[owner_id]["effect_reconcile"]
+        timeout = reconcile_cfg.get("timeout_seconds") or CALL_TIMEOUT_SECONDS
+        if clock() - started + timeout > budget_seconds:
+            deferred += 1
+            continue
         argv = build_argv(reconcile_cfg, root, occurrence)
-        exit_code, tail = run_call(argv)
+        exit_code, tail = run_call(argv, timeout=timeout)
         after = read_fenced()
         still_open = set(after.get(owner_id, ()))
         if occurrence is None:
@@ -176,6 +188,7 @@ def reconcile(
         "checked": checked,
         "closed": closed,
         "still_fenced": checked - closed,
+        "deferred_calls": deferred,
         "needs_readback_adapter": needs_adapter,
     }
 

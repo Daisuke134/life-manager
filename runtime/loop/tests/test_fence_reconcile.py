@@ -105,7 +105,7 @@ class ReconcileTest(unittest.TestCase):
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
 
-        def run_call(argv):
+        def run_call(argv, **_k):
             occ = argv[argv.index("--occurrence") + 1]
             state["owner-a"] = [o for o in state["owner-a"] if o != occ]
             return 0, "resolved"
@@ -118,7 +118,7 @@ class ReconcileTest(unittest.TestCase):
             run_call=run_call, read_fenced=read_fenced, log_path=None,
         )
         self.assertEqual(summary, {
-            "checked": 1, "closed": 1, "still_fenced": 0, "needs_readback_adapter": [],
+            "checked": 1, "closed": 1, "still_fenced": 0, "deferred_calls": 0, "needs_readback_adapter": [],
         })
 
     def test_owner_script_nonzero_exit_leaves_it_fenced_and_is_never_retried(self):
@@ -128,7 +128,7 @@ class ReconcileTest(unittest.TestCase):
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
 
-        def run_call(argv):
+        def run_call(argv, **_k):
             calls.append(argv)
             return 1, "held"
 
@@ -152,7 +152,7 @@ class ReconcileTest(unittest.TestCase):
             run_call=lambda argv: (0, ""), read_fenced=read_fenced, log_path=None,
         )
         self.assertEqual(summary, {
-            "checked": 1, "closed": 0, "still_fenced": 1,
+            "checked": 1, "closed": 0, "still_fenced": 1, "deferred_calls": 0,
             "needs_readback_adapter": ["owner-c"],
         })
 
@@ -163,7 +163,7 @@ class ReconcileTest(unittest.TestCase):
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
 
-        def run_call(argv):
+        def run_call(argv, **_k):
             calls.append(argv)
             state["owner-d"] = []  # the script's own internal enumeration closed both
             return 0, "resolved"
@@ -189,7 +189,7 @@ class ReconcileTest(unittest.TestCase):
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
 
-        def run_call(argv):
+        def run_call(argv, **_k):
             calls.append(argv)
             occ = argv[argv.index("--occurrence") + 1]
             owner = occ.split(":")[0]
@@ -217,7 +217,7 @@ class ReconcileTest(unittest.TestCase):
         def read_fenced():
             return {k: tuple(v) for k, v in state.items() if v}
 
-        def run_call(argv):
+        def run_call(argv, **_k):
             state["owner-a"] = []
             return 0, "resolved output"
 
@@ -237,6 +237,39 @@ class ReconcileTest(unittest.TestCase):
         self.assertTrue(rows[0]["closed"])
         self.assertEqual(rows[0]["exit_code"], 0)
         self.assertLessEqual(len(rows[0]["stdout_tail"]), 300)
+
+
+
+
+class WakeBudgetTest(unittest.TestCase):
+    def test_per_owner_timeout_is_passed_and_overrunning_calls_are_deferred(self):
+        state = {"slow": ["slow:1"], "fast": ["fast:1", "fast:2"]}
+        calls = []
+        now = [0.0]
+
+        def read_fenced():
+            return {k: tuple(v) for k, v in state.items() if v}
+
+        def run_call(argv, timeout):
+            calls.append((argv[1], timeout))
+            now[0] += timeout
+            return 1, "inconclusive"
+
+        loops = {
+            "slow": {"effect_reconcile": {"argv": ["skills/slow.py"], "occurrence_flag": None,
+                                          "resolve_flag": "--resolve", "timeout_seconds": 900}},
+            "fast": {"effect_reconcile": {"argv": ["skills/fast.py"], "occurrence_flag": "--occurrence",
+                                          "resolve_flag": "--resolve"}},
+        }
+        summary = reconcile(
+            registry=_registry(loops), root=Path("/release"), budget_seconds=1000,
+            clock=lambda: now[0], run_call=run_call, read_fenced=read_fenced, log_path=None,
+        )
+        # fast (60s default) runs first, then slow (900s) fits (60+900<=1000); the second
+        # fast call would overrun the budget and is deferred, never killed mid-proof.
+        self.assertEqual(calls, [("/release/skills/fast.py", 60), ("/release/skills/slow.py", 900)])
+        self.assertEqual(summary["deferred_calls"], 1)
+        self.assertEqual(summary["closed"], 0)
 
 
 if __name__ == "__main__":

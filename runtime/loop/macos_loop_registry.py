@@ -22,7 +22,7 @@ OPTIONAL_FIELDS = {
     "runtime_timeout_seconds", "resource_class", "browser_identity",
     "browser_target_owner", "effect_reconcile",
 }
-EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag"}
+EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag", "timeout_seconds"}
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
@@ -137,6 +137,11 @@ def validate_registry(registry: dict) -> dict:
                     not isinstance(flag_value, str) or not flag_value.startswith("--")
                 ):
                     _fail(f"{loop_id}: invalid effect_reconcile.{flag_key}")
+            timeout_value = reconcile.get("timeout_seconds")
+            if timeout_value is not None and (
+                type(timeout_value) is not int or not 1 <= timeout_value <= 1000
+            ):
+                _fail(f"{loop_id}: invalid effect_reconcile.timeout_seconds")
         if "coalesce_reserved_wakes" in row and type(row["coalesce_reserved_wakes"]) is not bool:
             _fail(f"{loop_id}: invalid coalesce_reserved_wakes")
         if "coalesce_queued_wakes" in row and (type(row["coalesce_queued_wakes"]) is not bool
@@ -333,6 +338,7 @@ def loop_json_schema() -> dict:
                     },
                     "occurrence_flag": {"type": ["string", "null"]},
                     "resolve_flag": {"type": ["string", "null"]},
+                    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1000},
                 },
                 "additionalProperties": False,
             },

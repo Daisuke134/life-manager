@@ -65,7 +65,8 @@
           "--state-root", "~/.local/state/anicca/crowdworks"
         ],
         "occurrence_flag": null,
-        "resolve_flag": "--resolve"
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
       },
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -158,10 +159,11 @@
       "effect_reconcile": {
         "argv": [
           "skills/earn/crowdworks/scripts/reconcile_reply_no_send.py",
-          "--state-root", "~/.local/state/anicca/crowdworks"
+          "--state-root", "~/.local/state/anicca/crowdworks", "--all-fenced"
         ],
-        "occurrence_flag": "--occurrence",
-        "resolve_flag": "--resolve"
+        "occurrence_flag": null,
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
       },
       "resource_class": "agent",
       "admission_class": "revenue",

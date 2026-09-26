@@ -93,7 +93,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--occurrence-id", required=True)
     parser.add_argument("--credentials", type=Path,
-                        default=os.environ.get("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE"))
+                        default=os.environ.get("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE")
+                        or os.environ.get("ANICCA_CREDENTIALS_FILE")
+                        or Path("~/.local/share/anicca/credentials.json").expanduser())
     parser.add_argument("--readback-only", action="store_true",
                         help="print the proof without closing the fence")
     args = parser.parse_args(argv)

@@ -212,6 +212,11 @@
             "string",
             "null"
           ]
+        },
+        "timeout_seconds": {
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
         }
       },
       "required": [
