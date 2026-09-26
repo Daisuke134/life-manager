@@ -101,9 +101,24 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             "LIFE_MANAGER_RECONCILE_TIMEOUT_SECONDS": "30",
             "LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS": "10",
             "LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS": "100000",
+            "LIFE_MANAGER_FLEET_APPLY_MIN_INTERVAL_SECONDS": "1800",
             "FAKE_LM_LOOP_CALLS_LOG": str(calls_log),
             "FAKE_APPLY_MODE": apply_mode,
         }
+
+    def _advance_repo(self, repo):
+        marker = f"v-{os.urandom(4).hex()}\n"
+        (repo / "payload.txt").write_text(marker)
+        subprocess.run(["git", "commit", "-am", marker.strip()], cwd=repo, check=True,
+                       capture_output=True)
+        subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+
+    def _backdate_last_ok(self, root, seconds_ago):
+        state_path = root / "reconciler-state" / "fleet-apply-state.json"
+        state = json.loads(state_path.read_text())
+        state["last_ok_epoch"] = state["last_ok_epoch"] - seconds_ago
+        state_path.write_text(json.dumps(state))
 
     def _run(self, env):
         return subprocess.run(["/bin/bash", str(SCRIPT)], env=env,
@@ -221,6 +236,72 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             second = self._run(env)
             self.assertEqual(self._apply_call_count(calls_log), 2,
                              "lock contention is not a failure and must retry next tick")
+
+    def test_second_new_release_within_min_interval_is_not_applied(self):
+        # Releases are cut on every merge -- roughly every 20 minutes on a busy night -- and each
+        # apply re-bootstraps ~150 idle launchd owners, which loads the host (measured cause of
+        # the Mac mini's WindowServer kernel panics under load). A second release activated soon
+        # after a successful apply must be coalesced, not applied immediately.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(root, sha1)
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            first = self._run(env)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            self._activate(root, release2)
+
+            second = self._run(env)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 1,
+                             "a release within the min interval since the last success "
+                             "must be coalesced, not applied")
+            state = self._state(root)
+            self.assertEqual(state["sha"], sha1, "state must still reflect the last applied sha")
+
+    def test_after_min_interval_elapses_applies_once_to_latest_sha(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha1 = self._make_repo(root)
+            release1 = self._make_release(root, sha1)
+            self._activate(root, release1)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            first = self._run(env)
+            self.assertEqual(self._apply_call_count(calls_log), 1)
+
+            # An intermediate release (sha2) is cut and activated inside the min interval and is
+            # never observed applying by itself -- it is superseded by sha3 before the interval
+            # elapses, which is exactly the coalescing this feature exists for.
+            sha2 = self._advance_repo(repo)
+            release2 = self._make_release(root, sha2)
+            self._activate(root, release2)
+            unattended_tick = self._run(env)
+            self.assertEqual(self._apply_call_count(calls_log), 1,
+                             "sha2 must be coalesced while still inside the min interval")
+
+            sha3 = self._advance_repo(repo)
+            release3 = self._make_release(root, sha3)
+            self._activate(root, release3)
+
+            # Simulate the min interval having elapsed since the last successful apply.
+            self._backdate_last_ok(root, seconds_ago=3600)
+
+            final = self._run(env)
+            self.assertEqual(final.returncode, 0, final.stderr)
+            self.assertEqual(self._apply_call_count(calls_log), 2,
+                             "exactly one apply once the interval elapses")
+            state = self._state(root)
+            self.assertEqual(state["sha"], sha3,
+                             "must apply only the current release, never the coalesced sha2")
 
 
 if __name__ == "__main__":

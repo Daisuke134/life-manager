@@ -158,8 +158,8 @@ run_fleet_apply() {
   local log_path="$state_dir/fleet-apply.jsonl"
   mkdir -p "$state_dir"
 
-  local last_sha last_status last_next_retry
-  IFS=$'\t' read -r last_sha last_status last_next_retry < <(
+  local last_sha last_status last_next_retry last_ok_epoch
+  IFS=$'\t' read -r last_sha last_status last_next_retry last_ok_epoch < <(
     FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
 import json, os
 path = os.environ["FLEET_APPLY_STATE_PATH"]
@@ -176,15 +176,32 @@ try:
     next_retry = int(data.get("next_retry_epoch", 0) or 0)
 except (TypeError, ValueError):
     next_retry = 0
-print(f"{sha}\t{status}\t{next_retry}")
+try:
+    last_ok_epoch = int(data.get("last_ok_epoch", 0) or 0)
+except (TypeError, ValueError):
+    last_ok_epoch = 0
+print(f"{sha}\t{status}\t{next_retry}\t{last_ok_epoch}")
 PY
   )
 
   local now_epoch
   now_epoch="$(date -u +%s)"
-  if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "ok" ]; then
-    printf 'agent-runner fleet-apply: release %s already applied; skipping\n' "$release_sha" >&2
-    return 0
+  local min_interval_seconds="${LIFE_MANAGER_FLEET_APPLY_MIN_INTERVAL_SECONDS:-1800}"
+  if [ "$last_status" = "ok" ]; then
+    if [ "$last_sha" = "$release_sha" ]; then
+      printf 'agent-runner fleet-apply: release %s already applied; skipping\n' "$release_sha" >&2
+      return 0
+    fi
+    # Releases are cut on every merge -- one every ~20 minutes during a busy night -- and each
+    # apply re-bootstraps ~150 idle launchd owners, which loads the host (measured cause of the
+    # Mac mini's WindowServer kernel panics under load). Coalesce: a new sha within the min
+    # interval since the last *successful* apply is not applied yet; once the interval elapses,
+    # apply once against whatever is current then, never an intermediate sha from the gap.
+    if [ -n "${last_ok_epoch:-}" ] && [ "$now_epoch" -lt "$((last_ok_epoch + min_interval_seconds))" ]; then
+      printf 'agent-runner fleet-apply: release %s coalesced; last success at epoch %s, min interval %ss\n' \
+        "$release_sha" "$last_ok_epoch" "$min_interval_seconds" >&2
+      return 0
+    fi
   fi
   if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "error" ] \
     && [ "$now_epoch" -lt "${last_next_retry:-0}" ]; then
@@ -232,11 +249,14 @@ print(changed, skipped, errors)
 
   local next_retry_epoch=0
   [ "$status" = "error" ] && next_retry_epoch=$((now_epoch + backoff_seconds))
+  local new_last_ok_epoch="${last_ok_epoch:-0}"
+  [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
 
   FLEET_APPLY_STATE_PATH="$state_path" FLEET_APPLY_LOG_PATH="$log_path" \
     FLEET_APPLY_SHA="$release_sha" FLEET_APPLY_STATUS="$status" \
     FLEET_APPLY_CHANGED="$changed" FLEET_APPLY_SKIPPED="$skipped" FLEET_APPLY_ERRORS="$errors" \
     FLEET_APPLY_MESSAGE="$message" FLEET_APPLY_NEXT_RETRY="$next_retry_epoch" \
+    FLEET_APPLY_LAST_OK_EPOCH="$new_last_ok_epoch" \
     "$runtime_python" - <<'PY'
 import json, os, time
 record = {
@@ -248,6 +268,7 @@ record = {
     "message": os.environ["FLEET_APPLY_MESSAGE"],
     "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "next_retry_epoch": int(os.environ["FLEET_APPLY_NEXT_RETRY"]),
+    "last_ok_epoch": int(os.environ["FLEET_APPLY_LAST_OK_EPOCH"]),
 }
 state_path = os.environ["FLEET_APPLY_STATE_PATH"]
 tmp = state_path + ".tmp"
