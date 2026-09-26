@@ -58,5 +58,43 @@ class SiweLoginTest(unittest.TestCase):
             ra.siwe_login(FakeSession(ch), acct)
 
 
+class LiveGateTest(unittest.TestCase):
+    def setUp(self):
+        self._env = {k: os.environ.pop(k, None) for k in ("PM_DRY_RUN", "PM_LIVE_CONFIRM")}
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+    def _mint_without_network(self):
+        called = []
+        ra.siwe_login = lambda *a: called.append("login") or "x"
+        try:
+            ra.mint_relayer_api_key(Account.create(), cache_path="/tmp/never-used-relayer-cache", force=True)
+        finally:
+            ra.siwe_login = ORIGINAL_SIWE_LOGIN
+        return called
+
+    def test_dry_by_default_exits_zero_before_any_auth(self):
+        with self.assertRaises(SystemExit) as cm:
+            self._mint_without_network()
+        self.assertEqual(cm.exception.code, 0)
+
+    def test_single_opt_in_is_not_enough(self):
+        os.environ["PM_DRY_RUN"] = "0"
+        with self.assertRaises(SystemExit):
+            self._mint_without_network()
+
+    def test_double_opt_in_reaches_login(self):
+        os.environ["PM_DRY_RUN"] = "0"
+        os.environ["PM_LIVE_CONFIRM"] = "I_UNDERSTAND_THE_RISK"
+        self.assertTrue(ra.live_confirmed())
+
+
+ORIGINAL_SIWE_LOGIN = ra.siwe_login
+
+
 if __name__ == "__main__":
     unittest.main()

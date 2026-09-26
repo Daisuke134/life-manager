@@ -72,6 +72,15 @@ def _pick_existing_key(list_response_json, address: str):
     return None
 
 
+LIVE_CONFIRM_VALUE = "I_UNDERSTAND_THE_RISK"
+
+
+def live_confirmed() -> bool:
+    """Same double opt-in as decision_loop._live_confirmed: both set by the caller, or dry."""
+    return (os.environ.get("PM_DRY_RUN") == "0"
+            and os.environ.get("PM_LIVE_CONFIRM") == LIVE_CONFIRM_VALUE)
+
+
 def siwe_login(s: requests.Session, acct) -> str:
     """Gamma SIWE login; returns the bearer and leaves the session cookie on `s`.
 
@@ -119,6 +128,13 @@ def mint_relayer_api_key(acct, cache_path: str | None = None, force: bool = Fals
 
     Raises RuntimeError if all 4 attempts fail.
     """
+    # Every script that can approve, trade, redeem, merge or bridge needs this relayer key, so
+    # this is the one fail-closed live gate. Before 2026-09-26 bundle_arb/market_maker ignored
+    # PM_DRY_RUN and only a broken SIWE login kept "dry" cycles from placing real orders.
+    if not live_confirmed():
+        print("HOLD: dry mode (PM_DRY_RUN=0 and PM_LIVE_CONFIRM not both set) — "
+              "no relayer auth, no approval, no order, no fund movement.", flush=True)
+        raise SystemExit(0)
     cache_path = external_state_path(
         cache_path or default_cache_path(), Path(__file__).resolve().parents[3],
         "LIFE_MANAGER_RELAYER_CACHE",
