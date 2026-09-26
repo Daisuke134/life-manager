@@ -6496,6 +6496,11 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                             pass
                     if category_record is None:
                         import storefront_draft
+                        # create_or_claim_blank_draft may create a brand-new blank draft on
+                        # Coconala (a real provider mutation) rather than only claiming an
+                        # existing one; it decides which internally, so the flag is set before
+                        # the call regardless of which branch it takes.
+                        mutation_attempted = True
                         draft = storefront_draft.create_or_claim_blank_draft(
                             getattr(args, "default_tab_script", DEFAULT_TAB)
                         )
@@ -6632,11 +6637,13 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                 inventory_path.parent / "bootstrap-public-readback",
                             )
                         except RuntimeError:
+                            mutation_attempted = True
                             storefront_draft.prepare_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
                                 inventory_path.parent / "bootstrap-draft",
                             )
+                            mutation_attempted = True
                             bootstrap_result = storefront_draft.publish_draft(
                                 bootstrap_contract,
                                 getattr(args, "default_tab_script", DEFAULT_TAB),
@@ -7905,6 +7912,9 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                                     and int(row.get("public_effect") or 0) == 0
                                     and row.get("status") in {"draft_created", "prepared"}):
                                 preferred_draft_ids.append(draft_id)
+                    # See the bootstrap path's identical comment: this may create a brand-new
+                    # blank draft on Coconala rather than only claim an existing one.
+                    mutation_attempted = True
                     create_draft_claim = storefront_draft.create_or_claim_blank_draft(
                         getattr(args, "default_tab_script", DEFAULT_TAB),
                         preferred_draft_ids=preferred_draft_ids,
@@ -8099,6 +8109,20 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 )
                 if blocked is not None:
                     return 0, blocked
+
+            def _prepare_new_listing_draft():
+                # This branch of the expression below is the only one that actually fills
+                # and saves the draft on Coconala (a real mutation); the flag must be set
+                # here, immediately before the call, not at the top of the expression that
+                # also covers the two read-only/no-op branches.
+                nonlocal mutation_attempted
+                mutation_attempted = True
+                return storefront_draft.prepare_draft(
+                    new_listing_contract,
+                    getattr(args, "default_tab_script", DEFAULT_TAB),
+                    inventory_path.parent,
+                )
+
             draft_result = ({
                 "version": 1, "candidate_key": new_listing_contract["candidate_key"],
                 "contract_sha256": new_listing_contract["contract_sha256"],
@@ -8111,11 +8135,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 inventory_path.parent,
                 known_image_identity=known_draft_image_identity,
             ) if candidate_public else (
-                storefront_draft.prepare_draft(
-                    new_listing_contract,
-                    getattr(args, "default_tab_script", DEFAULT_TAB),
-                    inventory_path.parent,
-                )
+                _prepare_new_listing_draft()
                 if (args.effect and not platform_withdrawn
                         and pending_effect is None and not retire_attempted_this_wake) else {
                     "version": 1,
@@ -8168,6 +8188,7 @@ def run_once(args: argparse.Namespace) -> tuple[int, dict]:
                 )
                 if blocked is not None:
                     return 0, blocked
+                mutation_attempted = True
                 draft_result = storefront_draft.publish_draft(
                     new_listing_contract,
                     getattr(args, "default_tab_script", DEFAULT_TAB),
