@@ -14,8 +14,8 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
-from typing import Any, Callable, Mapping, Optional, Sequence
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
 from urllib.parse import quote, urlencode, urlsplit
 
 HERE = Path(__file__).resolve().parent
@@ -277,7 +277,33 @@ def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
     return False
 
 
-def _acceptance_candidates(page: Any, verified_proposals: set[str]) -> list[dict[str, Any]]:
+def _recent_verified_proposals(state_path: Path, *, now: Optional[str] = None,
+                               days: int = 30, limit: int = 10) -> list[str]:
+    """Newest verified proposals worth checking for client acceptance.
+
+    Rescanning all verified proposals (255 on 2026-09-26) at ~35s each exceeded the Paid
+    runtime limit (exit 124). Awards arrive on recent proposals; old ones are mostly 404.
+    """
+    ledger = Path(state_path).with_name("marketplace-ledger.sqlite3")
+    if not ledger.is_file(): raise SourceFailure("application_receipts_unavailable")
+    moment = datetime.fromisoformat((now or datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
+    cutoff = (moment - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    connection = None
+    try:
+        connection = sqlite3.connect(ledger.resolve().as_uri() + "?mode=ro", uri=True)
+        rows = connection.execute(
+            "SELECT external_id FROM marketplace_events WHERE platform=? AND event_type=? AND occurred_at>=? "
+            "ORDER BY occurred_at DESC LIMIT ?", ("lancers", "application_verified", cutoff, limit)).fetchall()
+        return [_id(row[0]) for row in rows]
+    except (IndexError, TypeError, SourceFailure, sqlite3.Error, OSError):
+        raise SourceFailure("application_receipts_unavailable") from None
+    finally:
+        if connection is not None:
+            try: connection.close()
+            except sqlite3.Error: pass
+
+
+def _acceptance_candidates(page: Any, verified_proposals: Iterable[str]) -> list[dict[str, Any]]:
     """Every verified-won proposal, as a Paid candidate awaiting client acceptance.
 
     ponytail: rescans every verified proposal each wake (bounded by the account's total
@@ -285,7 +311,7 @@ def _acceptance_candidates(page: Any, verified_proposals: set[str]) -> list[dict
     cache if that volume ever makes this the slow path.
     """
     candidates = []
-    for proposal_id in sorted(verified_proposals):
+    for proposal_id in (sorted(verified_proposals) if isinstance(verified_proposals, set) else verified_proposals):
         try:
             terms = _read_proposal_terms(page, proposal_id)
         except SourceFailure as error:
@@ -574,7 +600,7 @@ def _read_surfaces(page: Any, verified_proposals: set[str], private_boards: list
     return result
 
 
-def _read_paid_surfaces(page: Any, verified_proposals: set[str]) -> dict[str, Any]:
+def _read_paid_surfaces(page: Any, verified_proposals: Iterable[str]) -> dict[str, Any]:
     """Read only the official sources that can create or settle Paid work."""
     result = _snapshot(lambda path: _fetch(page, path), set())
     result.update(_contract_sources(page))
@@ -632,7 +658,7 @@ def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
             if not application_tick._production_account_ready(page):
                 raise SourceFailure("account_unavailable")
             logged_in = True
-            result = _read_paid_surfaces(page, verified_proposals)
+            result = _read_paid_surfaces(page, _recent_verified_proposals(Path(state_path)))
             result["logged_in"] = True
     except SourceFailure as error:
         result = _failed(str(error), logged_in)

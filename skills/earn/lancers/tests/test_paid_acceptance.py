@@ -373,3 +373,18 @@ def test_acceptance_candidates_skip_a_proposal_page_that_is_404():
 
     candidates = work_sync._acceptance_candidates(Page(), {"27810811", "27969614"})
     assert [c["provider_id"] for c in candidates] == ["5605912"]
+
+
+def test_recent_verified_proposals_are_newest_first_bounded_and_windowed(tmp_path):
+    import sqlite3
+    state = tmp_path / "state.json"
+    db = tmp_path / "marketplace-ledger.sqlite3"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE marketplace_events (platform TEXT, event_type TEXT, external_id TEXT, occurred_at TEXT)")
+        rows = [("lancers", "application_verified", str(1000 + i), f"2026-09-{10 + i:02d}T00:00:00Z") for i in range(15)]
+        rows.append(("lancers", "application_verified", "27810811", "2026-07-01T00:00:00Z"))
+        c.executemany("INSERT INTO marketplace_events VALUES (?,?,?,?)", rows)
+    recent = work_sync._recent_verified_proposals(
+        state, now="2026-09-26T00:00:00Z", days=30, limit=10)
+    assert recent == [str(1000 + i) for i in range(14, 4, -1)]
+    assert "27810811" not in recent
