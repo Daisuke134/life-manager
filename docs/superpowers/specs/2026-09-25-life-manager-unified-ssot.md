@@ -96,7 +96,7 @@ flowchart LR
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
-現在の cursor: **T5（進行中）**
+現在の cursor: **T5（進行中）→ §5.2 の 5-6**
 
 T5 の途中経過（2026-09-25 19:00 JST）:
 - 観測1: `life-manager-recovery-supervisor` は release 287d で毎 wake exit 1 になっていた。原因は、旧 release の intent を正しく `blocked: release_sha_mismatch` にした結果まで失敗として数えていたこと。#5879 で、この理由の blocked は exit 0 にした。他の理由の blocked は今までどおり exit 1。
@@ -188,6 +188,69 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 4 の agent が route の制限時間（900秒）で timeout している（issue #5900、#5902）。
 - 06:29 の run では、agent が編集禁止の recovery 制御系を編集し、preflight に拒否された（issue #5897）。
 - 5→6 の release 切りと apply が自動で連結しているか、未確認。
+
+
+### 5.2 Atomic TODO（実行順の正本。1行 = 1つの検証可能な作業）
+
+2026-09-26 時点。[x] は完了証拠あり、[ ] は未完了。
+
+**統合（旧 Codex 2セッション）**
+- [x] Foundation `fix/writer-admission-self-heal-20260924`（`4bef60765c`）は main に含まれている（#5875）
+- [x] Paid `fix/coconala-history-retry-20260924`（`5a28bfb762`）は main に含まれている（#5875。#5868 は merged 扱い）
+- [x] handover docs `docs/full-ship-handover-20260925` は main に含まれている
+
+**T5 自己修復（§5.1）**
+- [x] 5-1 supervisor: 旧 release の intent を blocked にしても exit 0（#5879）
+- [x] 5-2 fleet apply: effect fence のある owner だけ skip して続行（#5880）
+- [x] 5-3 supervisor: 旧 release の intent を1 wake でまとめて close（#5883）
+- [x] 5-4 `.py` の entrypoint を runtime Python 3.14 で起動（#5904）
+- [x] 5-5 #5886 を revert し、self-heal のモデルを GPT に戻す（#5905）
+- [ ] 5-6 #5904 と #5905 を含む release を全体に apply し、readback する
+- [ ] 5-7 `hf-gig-apply-reconcile` の次の自然実行が PASS したことを readback する（StrEnum の ImportError が消えたか）
+- [ ] 5-8 dev agent の編集範囲を「失敗した owner の registry entrypoint のディレクトリ」まで広げる。recovery 制御系・evaluator・merge guard・policy は引き続き拒否する（#5130）。merge guard の test 付き
+- [ ] 5-9 d0 の prompt と preflight で、編集禁止のパスを最初に agent へ渡す（#5897 の拒否を防ぐ）
+- [ ] 5-10 dev agent の timeout（900秒）を実測に基づいて見直す（#5900、#5902）
+- [ ] 5-11 d0 の PR → merge guard → merge → release → apply が、人の手なしで連結するかを確認する。欠けていれば、欠けている1箇所だけを足す
+- [ ] 5-12 自然発生した1件の失敗で、§5.1 の 1〜7 を完走させ、run_id / intent_id / issue / PR / release_sha / PASS run_id を記録する
+
+**T6 14ループ**
+- [x] 6-1 daily-driver: 生きている Chromium を引き取る（#5889、22:52 に readback 済み）
+- [ ] 6-2 Lancers negotiate / paid: daily-driver 修正後の次の実行を readback する
+- [ ] 6-3 CrowdWorks reply: 同じく readback する
+- [ ] 6-4 Instagram obou: `ebook_account_out_of_mobile_scope` なので registry で退役させる
+- [ ] 6-5 Instagram en-card: `LM_DATA_DIR is required` と ledger の job id 衝突を run 単位で切り分けて直す
+- [ ] 6-6 honne-ja: ENOSPC の後の次の実行を readback する
+- [ ] 6-7 job-search-inbox: 意図された fail-closed。typed fence として分類し、次の実行を readback する
+- [ ] 6-8 pending-admission の owner 約26件: admission が空いた後に apply し、readback する
+- [ ] 6-9 loop が終了時に自分の loop-tmp を掃除する（central sweeper の allowlist 問題）
+- [ ] 6-10 release を約24時間凍結し、drift が消えた状態で gate を測り直す（目標 `uncovered_failure=0`）
+
+**T7 Paid（Paid spec の順番。Ryu room 18211957 には触らない）**
+- [x] 7-1 loop hardening の merge / release（#5875 → 以後の release）
+- [x] 7-2 disk admission floor の回復（T1）
+- [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
+- [ ] 7-4 Coconala Storefront の公式 readback で、occurrence `hf-gig-storefront-direct:18d8852fe62527e0-18841`（effect_unknown）を閉じる
+- [ ] 7-5 Coconala Apply の occurrence `hf-gig-apply-direct:18d88651ee0bf088-46308`（effect_unknown）を公式 readback で閉じる
+- [ ] 7-6 CrowdWorks の occurrence fence を1件ずつ reconcile する（application 44、Paid 1、reply 201、report 1）
+- [ ] 7-7 Lancers の funded inventory を確認する（現状は残高 ¥0、funded 0件）
+- [ ] 7-8 Freelancer: account-bound auth → inventory → funded project
+- [ ] 7-9 Upwork: account-bound auth → inventory → funded contract
+- [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）
+- [ ] 7-11 crash recovery を確認する
+- [ ] 7-12 replay-zero を確認する
+
+**T8 以降**（着手時に、この粒度まで分解してから進める）
+- [ ] 8-1 ループごとの settlement adapter（Stripe / x402 / Coconala / Lancers の payout readback）
+- [ ] 8-2 cost adapter（モデルの token、cloud、tool のコスト）
+- [ ] 8-3 receipt id 付きのループ別 P&L を毎日出す
+- [ ] 9-1 install → activation → 課金の attribution
+- [ ] 9-2 `/en` `/lm` `/income` の整合
+- [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）
+- [ ] 11-1 cloud の durable worker で、local と同じ task から同じ receipt が出ること
+- [ ] 12-1 frozen evaluator、候補の編集範囲の境界、canary、rollback（§5.1 の自己改善）
+- [ ] 13-1 settled な inflow ≥ cost を CFO が readback した後だけ、x402 の自己資金化を有効にする
+- [ ] 14-1 LM-EAB: adapter、held-out split、contamination audit、較正、再現性
+- [ ] 15-1 検証済み USD 10K MRR → YC W27 の証拠 → cross-domain の評価
 
 ## 6. 不変の制約
 
