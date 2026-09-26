@@ -1126,6 +1126,7 @@
       "state_root": "~/.local/state/life-manager/coconala/apply-reconcile"
     },
     "lm-fence-reconciler": {
+      "queue_priority": "critical_paid",
       "resource_class": "deterministic",
       "admission_class": "revenue",
       "cadence": {
