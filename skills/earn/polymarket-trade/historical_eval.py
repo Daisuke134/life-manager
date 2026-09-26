@@ -40,18 +40,21 @@ FEE_SOURCE = "https://docs.polymarket.com/trading/fees"
 MAX_STALENESS_S = 6 * 3600
 
 
-def _get(url: str, params: dict):
-    for attempt in range(3):
+def _get(url: str, params: dict, attempts: int = 6):
+    """GET with exponential backoff on 429/5xx/network errors; a 4xx other than 429 fails at once."""
+    for attempt in range(attempts):
         try:
             r = requests.get(url, params=params, timeout=20)
             if r.status_code < 500 and r.status_code != 429:
                 r.raise_for_status()
                 return r.json()
+        except requests.HTTPError:
+            raise
         except requests.RequestException:
-            if attempt == 2:
+            if attempt == attempts - 1:
                 raise
-        time.sleep(1.5 * (attempt + 1))
-    raise RuntimeError(f"GET {url} failed after retries")
+        time.sleep(min(2 ** attempt, 30))
+    raise RuntimeError(f"GET {url} failed after {attempts} attempts")
 
 
 def parse_ts(value: str | None) -> float | None:
@@ -86,41 +89,48 @@ def fetch_markets(days: int, per_day: int, min_volume: float, today: dt.date) ->
 def select_markets(raw: list[dict], horizon_h: float) -> tuple[list[dict], dict]:
     """Binary, cleanly resolved (1/0), fee schedule understood, open before entry, 1 per event."""
     funnel = {"fetched": len(raw), "not_binary_resolved": 0, "fee_unknown": 0,
-              "too_young": 0, "duplicate_event": 0, "eligible": 0}
+              "too_young": 0, "duplicate_event": 0, "malformed": 0, "eligible": 0}
     seen, keep = set(), []
     for m in raw:
         try:
-            outcomes = json.loads(m.get("outcomes") or "[]")
-            prices = json.loads(m.get("outcomePrices") or "[]")
-            tokens = json.loads(m.get("clobTokenIds") or "[]")
-        except (TypeError, ValueError):
-            funnel["not_binary_resolved"] += 1
-            continue
-        if len(outcomes) != 2 or len(tokens) != 2 or sorted(prices) != ["0", "1"]:
-            funnel["not_binary_resolved"] += 1
-            continue
-        sched = m.get("feeSchedule") or {}
-        if m.get("feesEnabled") and (sched.get("exponent", 1) != 1 or sched.get("rate") is None):
-            funnel["fee_unknown"] += 1
-            continue
-        close = parse_ts(m.get("closedTime")) or parse_ts(m.get("endDate"))
-        start = parse_ts(m.get("startDate"))
-        if close is None or start is None or start > close - horizon_h * 3600 - 3600:
-            funnel["too_young"] += 1
-            continue
-        events = m.get("events") or [{}]
-        key = events[0].get("id") or m.get("conditionId") or m.get("id")
-        if key in seen:
-            funnel["duplicate_event"] += 1
-            continue
-        seen.add(key)
-        keep.append({
-            "id": m.get("id"), "question": m.get("question"), "close_ts": close,
-            "yes_token": tokens[0], "yes_won": prices[0] == "1",
-            "fee_rate": float(sched.get("rate") or 0) if m.get("feesEnabled") else 0.0,
-        })
+            _select_one(m, horizon_h, funnel, seen, keep)
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+            funnel["malformed"] += 1
     funnel["eligible"] = len(keep)
     return keep, funnel
+
+
+def _select_one(m: dict, horizon_h: float, funnel: dict, seen: set, keep: list) -> None:
+    try:
+        outcomes = json.loads(m.get("outcomes") or "[]")
+        prices = json.loads(m.get("outcomePrices") or "[]")
+        tokens = json.loads(m.get("clobTokenIds") or "[]")
+    except (TypeError, ValueError):
+        funnel["not_binary_resolved"] += 1
+        return
+    if len(outcomes) != 2 or len(tokens) != 2 or sorted(prices) != ["0", "1"]:
+        funnel["not_binary_resolved"] += 1
+        return
+    sched = m.get("feeSchedule") or {}
+    if m.get("feesEnabled") and (sched.get("exponent", 1) != 1 or sched.get("rate") is None):
+        funnel["fee_unknown"] += 1
+        return
+    close = parse_ts(m.get("closedTime")) or parse_ts(m.get("endDate"))
+    start = parse_ts(m.get("startDate"))
+    if close is None or start is None or start > close - horizon_h * 3600 - 3600:
+        funnel["too_young"] += 1
+        return
+    events = m.get("events") or [{}]
+    key = events[0].get("id") or m.get("conditionId") or m.get("id")
+    if key in seen:
+        funnel["duplicate_event"] += 1
+        return
+    seen.add(key)
+    keep.append({
+        "id": m.get("id"), "question": m.get("question"), "close_ts": close,
+        "yes_token": tokens[0], "yes_won": prices[0] == "1",
+        "fee_rate": float(sched.get("rate") or 0) if m.get("feesEnabled") else 0.0,
+    })
 
 
 def price_at(history: list[dict], ts: float) -> float | None:

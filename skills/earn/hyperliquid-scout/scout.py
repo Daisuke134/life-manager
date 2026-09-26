@@ -13,7 +13,8 @@ import urllib.request
 INFO_URL = "https://api.hyperliquid.xyz/info"
 
 
-def post_info(body, retries=3):
+def post_info(body, retries=6):
+    """POST /info; retries 429/5xx/network errors with exponential backoff, other 4xx fail at once."""
     data = json.dumps(body).encode()
     req = urllib.request.Request(
         INFO_URL, data=data, headers={"Content-Type": "application/json"}
@@ -23,9 +24,13 @@ def post_info(body, retries=3):
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500:
+                raise
+            last_err = e
         except (urllib.error.URLError, TimeoutError) as e:
             last_err = e
-            time.sleep(0.5 * (attempt + 1))
+        time.sleep(min(2 ** attempt, 30))
     raise last_err
 
 

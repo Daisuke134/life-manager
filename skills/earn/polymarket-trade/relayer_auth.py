@@ -36,7 +36,6 @@ chmod 600 and contains ONLY the relayer api key string, never the wallet key.
 from __future__ import annotations
 
 import base64
-import datetime as _dt
 import json
 import os
 import time as _time
@@ -73,6 +72,45 @@ def _pick_existing_key(list_response_json, address: str):
     return None
 
 
+LIVE_CONFIRM_VALUE = "I_UNDERSTAND_THE_RISK"
+
+
+def live_confirmed() -> bool:
+    """Same double opt-in as decision_loop._live_confirmed: both set by the caller, or dry."""
+    return (os.environ.get("PM_DRY_RUN") == "0"
+            and os.environ.get("PM_LIVE_CONFIRM") == LIVE_CONFIRM_VALUE)
+
+
+def siwe_login(s: requests.Session, acct) -> str:
+    """Gamma SIWE login; returns the bearer and leaves the session cookie on `s`.
+
+    Gamma rejects client-built SIWE messages (GET /nonce + GET /login answers
+    401 "invalid siwe token", reproduced 2026-09-26 with a throwaway key). The
+    current polymarket.com flow asks the server for the message: POST
+    /v1/challenge -> sign its `message` -> POST /v1/login with
+    Bearer base64(JSON(fields):::sig). The relayer then authenticates by the
+    `polymarketsession` cookie, so relayer calls must reuse the same session.
+    """
+    ch = s.post(f"{GAMMA}/v1/challenge", json={"siwe": {"address": acct.address}}, timeout=20)
+    if ch.status_code != 200:
+        raise RuntimeError(f"gamma /v1/challenge {ch.status_code}: {ch.text[:150]}")
+    data = ch.json()
+    fields, message = data["fields"], data["message"]
+    if str(fields.get("address", "")).lower() != acct.address.lower():
+        raise RuntimeError("gamma challenge is for a different address")
+    expected_head = f"polymarket.com wants you to sign in with your Ethereum account:\n{fields['address']}\n"
+    if not message.startswith(expected_head) or f"Nonce: {fields.get('nonce')}\n" not in message:
+        raise RuntimeError("gamma challenge message is not the expected SIWE login")
+    sig_hex = "0x" + acct.sign_message(encode_defunct(text=message)).signature.hex()
+    bearer = base64.b64encode(
+        (json.dumps(fields, separators=(",", ":")) + ":::" + sig_hex).encode()
+    ).decode()
+    login = s.post(f"{GAMMA}/v1/login", headers={"Authorization": "Bearer " + bearer}, timeout=20)
+    if login.status_code != 200:
+        raise RuntimeError(f"gamma /v1/login {login.status_code}: {login.text[:150]}")
+    return bearer
+
+
 def mint_relayer_api_key(acct, cache_path: str | None = None, force: bool = False) -> str:
     """Return a usable Polymarket relayer API key for `acct` (an eth_account
     LocalAccount), REUSING a cached/existing key whenever possible so this
@@ -90,6 +128,13 @@ def mint_relayer_api_key(acct, cache_path: str | None = None, force: bool = Fals
 
     Raises RuntimeError if all 4 attempts fail.
     """
+    # Every script that can approve, trade, redeem, merge or bridge needs this relayer key, so
+    # this is the one fail-closed live gate. Before 2026-09-26 bundle_arb/market_maker ignored
+    # PM_DRY_RUN and only a broken SIWE login kept "dry" cycles from placing real orders.
+    if not live_confirmed():
+        print("HOLD: dry mode (PM_DRY_RUN=0 and PM_LIVE_CONFIRM not both set) — "
+              "no relayer auth, no approval, no order, no fund movement.", flush=True)
+        raise SystemExit(0)
     cache_path = external_state_path(
         cache_path or default_cache_path(), Path(__file__).resolve().parents[3],
         "LIFE_MANAGER_RELAYER_CACHE",
@@ -113,30 +158,7 @@ def mint_relayer_api_key(acct, cache_path: str | None = None, force: bool = Fals
     last_err = None
     for attempt in range(4):
         try:
-            nonce = s.get(f"{GAMMA}/nonce", timeout=20).json().get("nonce")
-            now = _dt.datetime.now(_dt.timezone.utc)
-            issued = now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
-            fields = {
-                "domain": "polymarket.com", "address": acct.address,
-                "statement": "Welcome to Polymarket! Sign to connect.",
-                "uri": "https://polymarket.com", "version": "1", "chainId": 137,
-                "nonce": nonce, "issuedAt": issued,
-            }
-            plaintext = (
-                f"{fields['domain']} wants you to sign in with your Ethereum account:\n"
-                f"{acct.address}\n\n{fields['statement']}\n\n"
-                f"URI: {fields['uri']}\nVersion: {fields['version']}\n"
-                f"Chain ID: {fields['chainId']}\nNonce: {nonce}\nIssued At: {issued}"
-            )
-            sig_hex = "0x" + acct.sign_message(encode_defunct(text=plaintext)).signature.hex()
-            combined = json.dumps(fields, separators=(",", ":")) + ":::" + sig_hex
-            bearer = base64.b64encode(combined.encode()).decode()
-
-            login = s.get(f"{GAMMA}/login", headers={"Authorization": "Bearer " + bearer}, timeout=20)
-            if login.status_code != 200:
-                raise RuntimeError(f"gamma /login {login.status_code}: {login.text[:150]}")
-
-            auth = {"Authorization": "Bearer " + bearer}
+            auth = {"Authorization": "Bearer " + siwe_login(s, acct)}
             # LIST-BEFORE-MINT (the actual fix): the relayer key registry caps at
             # 100/address with no delete endpoint, so reuse before ever minting.
             lst = s.get(f"{RELAYER}/relayer/api/keys", headers=auth, timeout=20)

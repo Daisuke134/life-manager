@@ -29,6 +29,7 @@ class HistoricalEvalTest(unittest.TestCase):
             market("d", "e3", start="2026-07-02T12:00:00Z"),  # opened after entry
             market("e", "e4", sched={"exponent": 2, "rate": 0.05}),  # unknown fee curve
             market("f", "e5", prices='["0", "1"]', fees=False),
+            {**market("g", "e6"), "feeSchedule": "broken"},  # malformed: skipped, not fatal
         ]
         keep, funnel = he.select_markets(raw, horizon_h=24)
         self.assertEqual([m["id"] for m in keep], ["a", "f"])
@@ -36,8 +37,9 @@ class HistoricalEvalTest(unittest.TestCase):
         self.assertFalse(keep[1]["yes_won"])
         self.assertEqual(keep[0]["fee_rate"], 0.05)
         self.assertEqual(keep[1]["fee_rate"], 0.0)
-        self.assertEqual(funnel, {"fetched": 6, "not_binary_resolved": 1, "fee_unknown": 1,
-                                  "too_young": 1, "duplicate_event": 1, "eligible": 2})
+        self.assertEqual(funnel, {"fetched": 7, "not_binary_resolved": 1, "fee_unknown": 1,
+                                  "too_young": 1, "duplicate_event": 1, "malformed": 1,
+                                  "eligible": 2})
 
     def test_price_at_uses_last_point_and_rejects_stale(self):
         hist = [{"t": 100, "p": 0.4}, {"t": 200, "p": 0.8}, {"t": 400, "p": 0.1}]
