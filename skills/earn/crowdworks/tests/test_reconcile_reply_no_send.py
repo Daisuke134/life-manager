@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from datetime import datetime
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -22,22 +23,32 @@ def load():
     return module
 
 
-def events(tmp_path, run="run-1"):
+def events(tmp_path, run="run-1", executor="exec-9"):
+    """``run`` queued the occurrence; ``executor`` later claimed and ran it."""
     rows = [
-        {"loop_id": OWNER, "run_id": run, "event_id": "s", "timestamp": START,
+        {"loop_id": OWNER, "run_id": run, "event_id": "q", "timestamp": "2026-09-19T00:00:00+00:00",
+         "phase": "report", "status": "blocked", "effect_status": "unknown",
+         "blocker": "host_admission_deferred:resource_capacity_busy",
+         "evidence_refs": [f"lm-loop://{OWNER}/{run}/summary.json"]},
+        {"loop_id": OWNER, "run_id": executor, "event_id": "s", "timestamp": START,
          "phase": "execute", "status": "running", "effect_status": "started"},
-        {"loop_id": OWNER, "run_id": run, "event_id": "t", "timestamp": END,
+        {"loop_id": OWNER, "run_id": executor, "event_id": "t", "timestamp": END,
          "phase": "report", "status": "fail", "effect_status": "unknown",
-         "blocker": "entrypoint_exit_1"},
+         "blocker": "entrypoint_exit_1",
+         "evidence_refs": [f"lm-loop://{OWNER}/{executor}/summary.json",
+                           f"lm-occurrence://{OWNER}/{run}/claim"]},
     ]
     (tmp_path / "events.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
 
 
-def marker(tmp_path, items, occurrence=OCC):
+def marker(tmp_path, items, occurrence=OCC, written="2026-09-20T03:03:00+00:00"):
+    import os
     path = tmp_path / "reply/runs" / (hashlib.sha256(occurrence.encode()).hexdigest() + ".json")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"version": 1, "occurrence_id": occurrence,
                                 "status": "effect_unknown", "items": items}))
+    stamp = datetime.fromisoformat(written).timestamp()
+    os.utime(path, (stamp, stamp))
 
 
 SAFE = {"thread_id": "a", "status": "no_reply", "reason": "replay_zero",
@@ -93,31 +104,23 @@ def test_effect_marked_or_missing_marker_keeps_fence(tmp_path):
 def test_missing_window_keeps_fence(tmp_path):
     module = load()
     marker(tmp_path, [FAILED])
-    assert prove(module, tmp_path, {"b": conversation()}) == (None, "run_window_unavailable")
+    assert prove(module, tmp_path, {"b": conversation()}) == (None, "claim_run_unavailable")
 
 
-def test_killed_run_is_bounded_by_marker_write(tmp_path):
-    import os
+def test_queueing_run_is_not_the_executing_run(tmp_path):
     module = load()
     events(tmp_path)
     lines = (tmp_path / "events.jsonl").read_text().splitlines()
-    (tmp_path / "events.jsonl").write_text(lines[0] + "\n")  # start only
+    (tmp_path / "events.jsonl").write_text("\n".join(lines[:2]) + "\n")  # executor killed
     marker(tmp_path, [FAILED])
-    written = module._epoch("2026-09-20T03:10:00+00:00")
-    os.utime(module._marker_path(tmp_path, OCC), (written, written))
-    assert prove(module, tmp_path, {"b": conversation("2026年09月20日 11:57")})[1] == "ok"
-    assert prove(module, tmp_path, {"b": conversation("2026年09月20日 12:09")}) == (
-        None, "seller_message_in_window:b")
+    assert prove(module, tmp_path, {"b": conversation()}) == (None, "claim_run_unavailable")
 
 
-def test_form_fence_written_in_window_keeps_fence(tmp_path):
+def test_marker_written_outside_claim_run_keeps_fence(tmp_path):
     module = load()
     events(tmp_path)
-    marker(tmp_path, [FAILED])
-    fence = tmp_path / "reply/external-actions/x.json"
-    fence.parent.mkdir(parents=True)
-    fence.write_text(json.dumps({"status": "prepared", "prepared_at": "2026-09-20T03:02:00Z"}))
-    assert prove(module, tmp_path, {"b": conversation()}) == (None, "form_fence_in_window")
+    marker(tmp_path, [FAILED], written="2026-09-20T05:00:00+00:00")
+    assert prove(module, tmp_path, {"b": conversation()}) == (None, "marker_outside_claim_run")
 
 
 class FakeLocator:
