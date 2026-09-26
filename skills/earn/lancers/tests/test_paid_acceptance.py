@@ -323,3 +323,25 @@ def test_unparsed_amount_text_is_written_to_stderr_as_a_probe(capsys):
     with pytest.raises(work_sync.SourceFailure):
         work_sync._parse_amount_text("¥2,000")
     assert "lancers_amount_unparsed:'¥2,000'" in capsys.readouterr().err
+
+
+def test_proposal_terms_wait_for_client_rendered_contract_amount():
+    calls = []
+
+    class Page:
+        def goto(self, url, **_):
+            calls.append(("goto", url))
+
+        def wait_for_function(self, expression, **kwargs):
+            calls.append(("wait", expression))
+
+        def evaluate(self, script, *args):
+            calls.append(("evaluate",))
+            return {"path": "/work/proposal/27969614", "amount": "2,000円",
+                    "due": "2026/10/10", "project_id": "5605912", "proposal_text": "提案本文"}
+
+    terms = work_sync._read_proposal_terms(Page(), "27969614", "5605912")
+    kinds = [c[0] for c in calls]
+    assert kinds.index("wait") < kinds.index("evaluate")
+    assert "契約金額" in [c for c in calls if c[0] == "wait"][0][1]
+    assert terms["price"] == {"kind": "fixed", "amount_jpy": 2000}

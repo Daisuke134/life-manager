@@ -160,13 +160,19 @@ def _read_proposal_terms(page: Any, proposal_id: str, expected_project: Optional
     can be 税込 and needs a rate to normalize.
     """
     page.goto(f"https://www.lancers.jp/work/proposal/{quote(proposal_id, safe='')}", wait_until="domcontentloaded", timeout=20_000)
+    try:
+        # The proposal body is client-rendered after DOMContentLoaded; reading immediately saw
+        # only footer <dt> nodes in production (2026-09-26). Wait for the contract label.
+        page.wait_for_function("() => document.body && document.body.innerText.includes('契約金額')", timeout=15_000)
+    except Exception:
+        pass
     value = page.evaluate("""() => { const terms={}; for (const node of document.querySelectorAll("dt")) terms[node.innerText.trim()]=node.nextElementSibling?.innerText?.trim(); const label=[...document.querySelectorAll("em")].find(node=>node.innerText.trim()==="提案文 :"); return {path:location.pathname, amount:terms["契約金額 (税抜) :"], due:terms["予定納期 :"], project_id:terms["依頼番号:"], proposal_text:label?.parentElement?.nextElementSibling?.innerText?.trim()}; }""")
     if not isinstance(value, Mapping) or value.get("path") != f"/work/proposal/{proposal_id}": raise SourceFailure("proposal_terms_unavailable")
     amount_text, due_text, text = value.get("amount"), value.get("due"), value.get("proposal_text")
     if not str(amount_text or "").strip():
         # Observation probe: the proposal page's dt labels (UI text only).
-        labels = page.evaluate("() => [...document.querySelectorAll('dt')].map(n => n.innerText.trim().slice(0, 30))")
-        print(f"lancers_proposal_labels_probe:{json.dumps(labels, ensure_ascii=False)[:600]}", file=sys.stderr)
+        labels = page.evaluate("() => ({url: location.pathname, title: document.title.slice(0, 60), dt: [...document.querySelectorAll('dt')].map(n => n.innerText.trim().slice(0, 30)), near: (() => { const t = document.body ? document.body.innerText : ''; const i = t.indexOf('契約'); return i < 0 ? t.slice(0, 200) : t.slice(Math.max(0, i - 40), i + 160); })()})")
+        print(f"lancers_proposal_labels_probe:{json.dumps(labels, ensure_ascii=False)[:800]}", file=sys.stderr)
     price = _parse_amount_text(amount_text)
     due = str(due_text).replace("/", "-")
     if len(due) != 10 or not isinstance(text, str) or not text.strip() or len(text) > 10000: raise SourceFailure("proposal_terms_unavailable")
