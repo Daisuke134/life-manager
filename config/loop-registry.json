@@ -2011,40 +2011,6 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
-    "life-manager-anicca-obou-instagram": {
-      "priority": "revenue",
-      "resource_class": "agent",
-      "admission_class": "revenue",
-      "cadence": {
-        "calendar_interval": [
-          {
-            "Hour": 7,
-            "Minute": 0
-          },
-          {
-            "Hour": 14,
-            "Minute": 0
-          },
-          {
-            "Hour": 20,
-            "Minute": 0
-          }
-        ]
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "growth",
-      "effect_class": "publish",
-      "adapter": "exec",
-      "command": ["life-manager-anicca-obou-instagram"],
-      "entrypoint": "apps/life-manager/scripts/mobile-app",
-      "label": "ai.anicca.life-manager-anicca-obou-instagram",
-      "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager"
-    },
     "life-manager-browser-capacity-probe": {
       "resource_class": "browser",
       "coalesce_reserved_wakes": true,
@@ -3634,23 +3600,20 @@
     "ai.anicca.clawrouter",
     "ai.anicca.clip-core-healthcheck",
     "ai.anicca.clip-loop",
-    "ai.anicca.clip-promote-core-healthcheck",
     "ai.anicca.clip-producer",
     "ai.anicca.clip-producer-clawrouter",
+    "ai.anicca.clip-promote-core-healthcheck",
     "ai.anicca.dd-keepalive-healthcheck",
     "ai.anicca.fleet-daily",
     "ai.anicca.freelancer-bid-watch",
     "ai.anicca.freelancer-revenue-application",
     "ai.anicca.freelancer-revenue-work-sync",
-    "ai.anicca.x402-monitor",
-    "ai.anicca.x402-tunnel",
     "ai.anicca.hf-gig-release-watch",
     "ai.anicca.job-search-browser",
     "ai.anicca.job-search-camofox",
     "ai.anicca.job-search-mercor",
     "ai.anicca.job-search-mercor-browser",
     "ai.anicca.job-search-observability",
-    "ai.anicca.tier2-agent-diagnose",
     "ai.anicca.larry-anicca-en-v1",
     "ai.anicca.larry-anicca-en-v2",
     "ai.anicca.larry-anicca-en-v3",
@@ -3664,6 +3627,7 @@
     "ai.anicca.larry-jp-sunset-reel-replace-1",
     "ai.anicca.larry-library-filler",
     "ai.anicca.larry-strategy-updater",
+    "ai.anicca.life-manager-anicca-obou-instagram",
     "ai.anicca.life-manager-connector-healer-shadow",
     "ai.anicca.life-manager-connector-host-bridge",
     "ai.anicca.life-manager-connector-native-healthcheck",
@@ -3681,10 +3645,10 @@
     "ai.anicca.openclaw-conformity-monkey",
     "ai.anicca.openclaw-core-backup",
     "ai.anicca.openclaw-janitor-monkey",
-    "ai.anicca.pipecat-phone",
     "ai.anicca.phone-conversation",
     "ai.anicca.phone-tunnel",
     "ai.anicca.phone-tunnel-watcher",
+    "ai.anicca.pipecat-phone",
     "ai.anicca.probe-rollback-1782857566-85245-proactive",
     "ai.anicca.provision-browser.tiktok.anicca",
     "ai.anicca.reelclaw-en-card-1",
@@ -3706,11 +3670,14 @@
     "ai.anicca.sync-memory",
     "ai.anicca.telegram-bot",
     "ai.anicca.tier1-remediate",
+    "ai.anicca.tier2-agent-diagnose",
     "ai.anicca.watchdog",
     "ai.anicca.watercolor-jp-evening",
     "ai.anicca.watercolor-jp-morning",
     "ai.anicca.watercolor-jp-noon",
+    "ai.anicca.x402-monitor",
     "ai.anicca.x402-seller-8412",
+    "ai.anicca.x402-tunnel",
     "ai.openclaw.gateway",
     "com.anicca.peer-api",
     "com.anicca.sol-funding",

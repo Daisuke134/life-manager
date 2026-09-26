@@ -14,7 +14,7 @@ const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
-  assert.equal(Object.keys(manifest.loops).length, 18);
+  assert.equal(Object.keys(manifest.loops).length, 17); // obou-instagram retired (ebook account, out of mobile scope)
   assert.deepEqual(
     new Set(products.products.map((item) => item.product_id)),
     new Set(Object.values(manifest.loops).map((item) => item.product_id)),
