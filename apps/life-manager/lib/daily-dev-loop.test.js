@@ -217,3 +217,19 @@ test("runDailyPass refuses to run while unmigrated legacy state exists", async (
   );
   assert.equal(fs.existsSync(fresh), false, "the guard must fire before state creation");
 });
+
+test("appendLedgerEntry keeps every failure reason the D0 script writes", () => {
+  const d0 = fs.readFileSync(path.join(__dirname, "../scripts/life-manager-dev-d0.sh"), "utf8");
+  const written = [...d0.matchAll(/write_result "[a-z_]+" "([a-z0-9_]+)"/g)].map((m) => m[1]);
+  assert.ok(written.includes("recovery_class_unresolved") && written.includes("candidate_preflight_red"));
+  const dir = tempDir();
+  for (const reason of new Set(written)) {
+    const row = appendLedgerEntry(path.join(dir, "daily-ledger.jsonl"), {
+      run_id: "20260927T000000-1", day: "2026-09-27",
+      started_at: "2026-09-27T00:00:00.000Z", finished_at: "2026-09-27T00:00:01.000Z",
+      outcome: "failed", reason, issue_number: 1, pr_url: null,
+      duration_ms: 1000, recovered_stale_lock: false,
+    });
+    assert.equal(row.reason, reason, `${reason} was masked as ${row.reason}`);
+  }
+});

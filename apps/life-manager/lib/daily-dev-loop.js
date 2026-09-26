@@ -19,6 +19,8 @@ const REASONS = new Set([
   "hard_timeout",
   "child_exit_without_result",
   "invalid_machine_result",
+  "recovery_class_unresolved",
+  "candidate_preflight_red",
 ]);
 
 function isPidAlive(pid) {
