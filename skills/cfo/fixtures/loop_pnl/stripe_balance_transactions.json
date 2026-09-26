@@ -1,0 +1,6 @@
+[
+ {"id": "txn_charge_usd", "type": "charge", "amount": 1999, "fee": 88, "currency": "usd"},
+ {"id": "txn_refund_usd", "type": "refund", "amount": -500, "fee": 0, "currency": "usd"},
+ {"id": "txn_charge_jpy", "type": "charge", "amount": 3000, "fee": 108, "currency": "jpy"},
+ {"id": "txn_payout", "type": "payout", "amount": -10000, "fee": 0, "currency": "usd"}
+]

@@ -1,0 +1,17 @@
+{
+ "note": "Blocks are 2s apart from genesis_time; wallets: 0xaa..=payTo (owned), 0xbb..=owned buyer, 0xcc..=external",
+ "genesis_time": 1790348400,
+ "head": 50000,
+ "logs": [
+  {"transactionHash": "0xpay", "logIndex": "0x1", "topics": ["T", "0x000000000000000000000000cccccccccccccccccccccccccccccccccccccccc", "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"], "data": "0x2710"},
+  {"transactionHash": "0xself", "logIndex": "0x2", "topics": ["T", "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"], "data": "0x2710"},
+  {"transactionHash": "0xrefill", "logIndex": "0x3", "topics": ["T", "0x000000000000000000000000cccccccccccccccccccccccccccccccccccccccc", "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"], "data": "0xf4240"},
+  {"transactionHash": "0xbuy", "logIndex": "0x4", "topics": ["T", "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "0x000000000000000000000000cccccccccccccccccccccccccccccccccccccccc"], "data": "0xbb8"}
+ ],
+ "transactions": {
+  "0xpay": {"input": "0xe3ee160e00", "status": "0x1"},
+  "0xself": {"input": "0xe3ee160e00", "status": "0x1"},
+  "0xrefill": {"input": "0xa9059cbb00", "status": "0x1"},
+  "0xbuy": {"input": "0xe3ee160e00", "status": "0x1"}
+ }
+}
