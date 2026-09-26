@@ -501,11 +501,46 @@ def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
         raise RuntimeError("browser_connect_failed") from None
 
 
+def _leave_foreign_dialog(_dialog: Any) -> None:
+    """Another Lancers process owns this page's dialogs; do not auto-dismiss them."""
+
+
+def _dismiss_own_dialog(dialog: Any) -> None:
+    try:
+        dialog.dismiss()
+    except Exception:
+        pass
+
+
+def _claim_foreign_page(page: Any) -> None:
+    try:
+        page.on("dialog", _leave_foreign_dialog)
+    except Exception:
+        pass
+
+
 def _new_owned_page(browser: Any) -> Any:
     contexts = getattr(browser, "contexts", ())
     if not contexts or not callable(getattr(contexts[0], "new_page", None)):
         raise RuntimeError("browser_page_unavailable")
-    return contexts[0].new_page()
+    # Playwright auto-dismisses dialogs on every page of a CDP-attached context,
+    # including pages owned by the other Lancers processes. Two clients dismissing
+    # one dialog crashed the Node driver ("No dialog is showing", 188 times in
+    # launchd.err.log by 2026-09-26). Register a no-op handler on foreign pages so
+    # only the owning process handles them, and dismiss our own safely.
+    for context in contexts:
+        for existing in list(getattr(context, "pages", ()) or ()):
+            _claim_foreign_page(existing)
+        try:
+            context.on("page", _claim_foreign_page)
+        except Exception:
+            pass
+    page = contexts[0].new_page()
+    try:
+        page.on("dialog", _dismiss_own_dialog)
+    except Exception:
+        pass
+    return page
 
 
 def _close_failed_browser(browser: Any) -> None:
