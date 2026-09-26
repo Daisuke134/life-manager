@@ -554,6 +554,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ROOT": str(loops),
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(root / "recovery-intents.jsonl"),
+                    "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "reconciler-state"),
                 },
                 capture_output=True,
                 text=True,
@@ -564,7 +565,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(cutter_arg.read_text().strip(), captured_sha)
             self.assertEqual((root / "origin.sha").read_text().strip(), "c" * 40)
             reconciles = calls.read_text().splitlines()
-            self.assertEqual(len(reconciles), 3)
+            self.assertEqual(len(reconciles), 4)
             self.assertTrue(
                 all(line.startswith(f"{new_release.resolve()}|") for line in reconciles),
                 reconciles,
@@ -575,6 +576,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "reconcile shared-agent-runner --loaded-idle-only --max-owners 4",
                     "reconcile deterministic --loaded-idle-only --max-owners 4",
                     "admission-v2-enable",
+                    "apply --all",
                 ],
             )
 
@@ -629,6 +631,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ROOT": str(loops),
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
                     "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(root / "recovery-intents.jsonl"),
+                    "LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT": str(root / "reconciler-state"),
                 },
                 capture_output=True,
                 text=True,
@@ -637,7 +640,7 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 2)
+            self.assertEqual(len(calls.read_text().splitlines()), 3)
 
 
 if __name__ == "__main__":
