@@ -118,3 +118,46 @@ def test_form_fence_written_in_window_keeps_fence(tmp_path):
     fence.parent.mkdir(parents=True)
     fence.write_text(json.dumps({"status": "prepared", "prepared_at": "2026-09-20T03:02:00Z"}))
     assert prove(module, tmp_path, {"b": conversation()}) == (None, "form_fence_in_window")
+
+
+class FakeLocator:
+    def __init__(self, text):
+        self.text = text
+
+    def count(self):
+        return 1 if self.text is not None else 0
+
+    def inner_text(self):
+        return self.text
+
+
+class FakePage:
+    def __init__(self, progress=None):
+        self.progress = progress
+
+    def locator(self, selector):
+        assert selector == "div.progress_detail"
+        return FakeLocator(self.progress)
+
+
+def test_contract_acceptance_trace_keeps_fence(tmp_path):
+    module = load()
+    proposed = {"proposal_status": "proposed"}
+    assert module.contract_blocker(FakePage(), proposed) is None
+    assert module.contract_blocker(FakePage(), {"proposal_status": "contracted"}) == "contract_accepted"
+    assert module.contract_blocker(FakePage(), None) == "official_thread_unavailable"
+    awaiting = FakePage("まだクライアントが契約に同意していません。クライアントが契約に同意すると契約成立")
+    assert module.contract_blocker(awaiting, proposed) == "contract_acceptance_awaiting_client"
+    events(tmp_path)
+    marker(tmp_path, [FAILED])
+    assert prove(module, tmp_path, {"b": "contract_acceptance_awaiting_client"}) == (
+        None, "contract_acceptance_awaiting_client:b")
+
+
+def test_accept_contract_intent_threads_are_found(tmp_path):
+    module = load()
+    for name, action in (("x", "accept_contract"), ("y", "reply")):
+        path = tmp_path / "reply/threads" / name / "state.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"version": 1, "intent": {"action": action, "thread_id": name}}))
+    assert module.accept_intent_threads(tmp_path) == {"x"}

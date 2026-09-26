@@ -6,8 +6,9 @@ failed=0 returned before ``adapter.mutate`` (CrowdWorks has no classified
 mutation errors). A failed item may have crashed after ``mutate``, so each such
 thread must show, on the live CrowdWorks conversation, no seller message whose
 minute overlaps the run window, and no Google Form fence may be written in it.
-Contracted threads (conversation unavailable), effect=1 items, missing markers
-or windows all stay fenced.
+accept_contract posts no message, so a contracted thread or a visible
+"awaiting client" acceptance also keeps the fence, as do effect=1 items and
+missing markers or windows.
 """
 from __future__ import annotations
 
@@ -131,7 +132,7 @@ def risky_threads(state_root: Path, occurrence: str) -> list[str]:
 
 
 def evaluate(state_root: Path, occurrences: list[str],
-             read_conversation: Callable[[str], list[dict[str, Any]] | None]
+             read_conversation: Callable[[str], list[dict[str, Any]] | str | None]
              ) -> dict[str, tuple[dict[str, Any] | None, str]]:
     rows = _events(state_root)
     fences = _form_fence_times(state_root)
@@ -162,6 +163,8 @@ def _prove(state_root, occurrence, rows, fences, read_conversation):
     evidence = {}
     for thread_id in sorted(set(risky)):
         conversation = read_conversation(thread_id)
+        if isinstance(conversation, str):
+            return None, f"{conversation}:{thread_id}"
         minutes = _seller_minutes(conversation) if conversation else None
         if minutes is None:
             return None, f"official_conversation_unavailable:{thread_id}"
@@ -177,6 +180,31 @@ def _prove(state_root, occurrence, rows, fences, read_conversation):
         "window": list(window), "risky_threads": sorted(evidence),
         "latest_seller_minute": evidence,
     }, "ok"
+
+
+AWAITING_CLIENT = ("まだクライアントが契約に同意していません", "クライアントが契約に同意すると契約成立")
+
+
+def contract_blocker(page: Any, row: dict[str, Any] | None) -> str | None:
+    """accept_contract posts no message; any trace of an acceptance keeps the fence."""
+    if row is None:
+        return "official_thread_unavailable"
+    if row.get("proposal_status") == "contracted":
+        return "contract_accepted"
+    progress = page.locator("div.progress_detail")
+    text = progress.inner_text() if progress.count() else ""
+    if any(marker in text for marker in AWAITING_CLIENT):
+        return "contract_acceptance_awaiting_client"
+    return None
+
+
+def accept_intent_threads(state_root: Path) -> set[str]:
+    threads = set()
+    for path in (state_root / "reply/threads").glob("*/state.json"):
+        intent = (_json(path) or {}).get("intent")
+        if isinstance(intent, dict) and intent.get("action") == "accept_contract":
+            threads.add(str(intent.get("thread_id")))
+    return threads
 
 
 def fenced_occurrences(database: Path) -> list[str]:
@@ -212,7 +240,10 @@ def main(argv: list[str] | None = None) -> int:
         occurrences += fenced_occurrences(args.admission_db)
     occurrences = sorted(set(occurrences))
     threads = sorted({t for o in occurrences for t in risky_threads(state_root, o)})
-    conversations: dict[str, list[dict[str, Any]] | None] = {}
+    accepts = accept_intent_threads(state_root)
+    conversations: dict[str, list[dict[str, Any]] | str | None] = {
+        thread_id: "accept_contract_intent" for thread_id in threads if thread_id in accepts}
+    threads = [thread_id for thread_id in threads if thread_id not in accepts]
     with _provider_lease(state_root):
         import reply_adapter
         adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
@@ -221,7 +252,9 @@ def main(argv: list[str] | None = None) -> int:
                 adapter.observe_threads()
             for thread_id in threads:
                 try:
-                    conversations[thread_id] = adapter._detail(thread_id)
+                    rows = adapter._detail(thread_id)
+                    blocker = contract_blocker(adapter.page, adapter.rows.get(thread_id))
+                    conversations[thread_id] = blocker or rows
                 except Exception:
                     conversations[thread_id] = None
         finally:
