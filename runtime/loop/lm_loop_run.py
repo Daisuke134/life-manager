@@ -98,7 +98,8 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError(f"entrypoint missing or not executable: {entry['entrypoint']}")
     command = [str(executable)]
-    if entry.get("adapter") == "python":
+    if entry.get("adapter") == "python" or executable.suffix == ".py":
+        # Never let a shebang pick launchd's system python.
         command.insert(0, sys.executable)
     elif executable.suffix in JAVASCRIPT_ENTRYPOINT_SUFFIXES:
         command.insert(0, _runtime_node())

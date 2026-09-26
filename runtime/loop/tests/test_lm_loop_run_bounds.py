@@ -73,6 +73,25 @@ def test_javascript_entrypoint_uses_pinned_runtime_node(tmp_path):
         ]
 
 
+def test_python_entrypoint_runs_under_the_runtime_interpreter_not_its_shebang(tmp_path):
+    # launchd PATH resolves `#!/usr/bin/env python3` to the system 3.9, which
+    # lacks StrEnum; hf-gig-apply-reconcile failed that way on 2026-09-26.
+    executable = tmp_path / "worker.py"
+    executable.write_text("#!/usr/bin/env python3\n")
+    executable.chmod(0o755)
+    registry = {"schema_version": 2, "loops": {"example": {
+        "label": "ai.anicca.example", "domain": "system",
+        "entrypoint": "worker.py", "cadence": {"start_interval_seconds": 60},
+        "effect_class": "none", "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }}}
+    assert build_loop_command(registry, "example", tmp_path) == [
+        sys.executable, str(executable),
+    ]
+
+
 def test_crowdworks_paid_owner_declares_a_bounded_runtime():
     registry = json.loads(
         (Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text()
