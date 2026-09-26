@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 from pathlib import Path
 import re
@@ -27,18 +28,21 @@ PRE_CHILD_REASONS = frozenset({"resource_capacity_busy", "resource_fifo_wait"})
 
 def _events(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    try:
-        handle = path.open(encoding="utf-8")
-    except OSError:
-        return rows
-    with handle:
-        for line in handle:
-            try:
-                value = json.loads(line)
-            except (UnicodeDecodeError, ValueError, json.JSONDecodeError):
-                continue
-            if isinstance(value, dict):
-                rows.append(value)
+    # Rotated archives may hold the later run that claimed the occurrence.
+    for source in [path, *sorted(path.parent.glob("events-*.jsonl.gz"))]:
+        try:
+            handle = (gzip.open(source, "rt", encoding="utf-8") if source.suffix == ".gz"
+                      else source.open(encoding="utf-8"))
+        except OSError:
+            continue
+        with handle:
+            for line in handle:
+                try:
+                    value = json.loads(line)
+                except (UnicodeDecodeError, ValueError, json.JSONDecodeError):
+                    continue
+                if isinstance(value, dict):
+                    rows.append(value)
     return rows
 
 
