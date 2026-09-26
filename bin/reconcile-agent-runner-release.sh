@@ -7,6 +7,47 @@ LOOPS_ROOT="${LOOPS_ROOT:-$HOME/loops}"
 CURRENT="$LOOPS_ROOT/current"
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+# The unattended merge guard freezes this reconciler on a bound recovery PR (see
+# apps/life-manager/lib/dev-merge-guard.js's acquirePromotionHold): from the moment such a PR
+# merges until its loop-runtime promotion has a verdict, this reconciler cutting+activating
+# whatever is on origin/main every 60s would fleet-activate an unvalidated merge in under a
+# minute, regardless of what the promotion's own canary/health/rollback decide. A non-expired hold
+# means "do nothing this cycle"; an expired or unreadable one is logged and ignored so a crashed
+# guard can never wedge the fleet on an old release forever.
+PROMOTION_HOLD_PATH="${LIFE_MANAGER_PROMOTION_HOLD_PATH:-$LOOPS_ROOT/.promotion-hold}"
+if [ -f "$PROMOTION_HOLD_PATH" ]; then
+  hold_expires_at="$(python3 -c '
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        value = json.load(handle)
+    expires = value.get("expires_at", "")
+    print(expires if isinstance(expires, str) else "")
+except (OSError, ValueError, TypeError, AttributeError):
+    print("")
+' "$PROMOTION_HOLD_PATH" 2>/dev/null || true)"
+  hold_active=0
+  if [ -n "$hold_expires_at" ]; then
+    if python3 -c '
+import datetime, sys
+try:
+    expires = datetime.datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+except ValueError:
+    sys.exit(1)
+sys.exit(0 if expires > datetime.datetime.now(datetime.timezone.utc) else 1)
+' "$hold_expires_at" 2>/dev/null; then
+      hold_active=1
+    fi
+  fi
+  if [ "$hold_active" -eq 1 ]; then
+    printf 'agent-runner reconcile: promotion hold active at %s (expires %s); skipping cut/advance of current this cycle\n' \
+      "$PROMOTION_HOLD_PATH" "$hold_expires_at" >&2
+    exit 0
+  fi
+  printf 'agent-runner reconcile: promotion hold at %s is expired or unreadable (expires_at=%s); ignoring\n' \
+    "$PROMOTION_HOLD_PATH" "${hold_expires_at:-<unreadable>}" >&2
+fi
+
 fetch_timeout_seconds="${LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS:-600}"
 case "$fetch_timeout_seconds" in
   ''|*[!0-9]*)

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile as readFileFs, readlink as readlinkFs } from 'node:fs/promises';
+import { mkdir, readdir as readdirFs, readFile as readFileFs, readlink as readlinkFs } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -9,6 +9,7 @@ import { classifyRecoveryJob } from './recovery-class.cjs';
 const execFileAsync = promisify(execFile);
 const SHA256 = /^[a-f0-9]{40}$/u;
 const TERMINAL_RESULTS = new Set(['pass', 'fail', 'blocked']);
+const LOCK_BUSY_MARKER = 'another release build owns';
 
 async function runCommandDefault({ executable, args, env }) {
   try {
@@ -52,6 +53,25 @@ async function readManifestSha(releasePath, readFileFn) {
   }
 }
 
+// `LOOPS_ACTIVATE_CURRENT=0` cuts a release without repointing the fleet-wide `current` symlink
+// (see bin/cut-loop-release.sh), so the candidate cannot be found by reading `current` at all --
+// it has to be located by its own manifest under `<loopsRoot>/releases/`.
+async function findReleaseBySha(loopsRoot, mergedSha, readdirFn, readFileFn) {
+  const releasesDir = path.join(loopsRoot, 'releases');
+  let entries;
+  try {
+    entries = await readdirFn(releasesDir);
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    const candidate = path.join(releasesDir, entry);
+    // eslint-disable-next-line no-await-in-loop -- a handful of release directories at most
+    if (await readManifestSha(candidate, readFileFn) === mergedSha) return candidate;
+  }
+  return null;
+}
+
 /**
  * Promote a merged recovery PR's commit into a real, isolated loop-runtime deployment for one
  * `deterministic`/`effect_class: none` owner: cut an immutable release, apply only that owner as a
@@ -69,6 +89,7 @@ export async function promoteLoopRuntimeRepair({
   const runCommand = deps.runCommand || runCommandDefault;
   const readFileFn = deps.readFile || ((file) => readFileFs(file, 'utf8'));
   const readlinkFn = deps.readlink || ((file) => readlinkFs(file));
+  const readdirFn = deps.readdir || ((dir) => readdirFs(dir));
   const sleep = deps.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const now = deps.now || (() => Date.now());
   const appendLedger = deps.appendLedger || defaultAppendLedger;
@@ -77,6 +98,8 @@ export async function promoteLoopRuntimeRepair({
     || path.join(os.homedir(), '.local/state/life-manager/recovery/promotions.jsonl');
   const healthDeadlineMs = deps.healthDeadlineMs ?? 45 * 60 * 1000;
   const healthIntervalMs = deps.healthIntervalMs ?? 10_000;
+  const cutRetryAttempts = deps.cutRetryAttempts ?? 3;
+  const cutRetryDelayMs = deps.cutRetryDelayMs ?? 10_000;
 
   const base = { owner_id: ownerId, merged_sha: mergedSha };
 
@@ -107,36 +130,64 @@ export async function promoteLoopRuntimeRepair({
       previous_release_path: null, hooks: [], rolled_back: false };
   }
 
+  // The candidate is cut WITHOUT moving `current` (LOOPS_ACTIVATE_CURRENT=0): only this one owner's
+  // canary points at it below. The fleet-wide symlink stays exactly where the promotion hold froze
+  // it until this function returns a verdict.
   const previousReleasePath = await resolveCurrentTarget(loopsRoot, readlinkFn);
   const hooks = [];
 
   let releasePath = null;
   let immutableOk = false;
-  try {
-    const cut = await runCommand({
-      executable: 'bash',
-      args: [path.join(repoRoot, 'bin/cut-loop-release.sh'), mergedSha],
-      env: { ...process.env, LOOPS_ROOT: loopsRoot },
-    });
-    if (cut?.code === 0) {
-      releasePath = await resolveCurrentTarget(loopsRoot, readlinkFn);
-      const releaseSha = releasePath ? await readManifestSha(releasePath, readFileFn) : null;
-      immutableOk = releaseSha === mergedSha;
-      hooks.push(hook('immutable_release', immutableOk, {
-        release_path: releasePath, release_sha: releaseSha, exit_code: cut.code,
-      }));
-    } else {
-      hooks.push(hook('immutable_release', false, {
-        exit_code: cut?.code ?? null, stderr: tail(cut?.stderr),
-      }));
+  let lockBusyAttempts = 0;
+  let lastCutResult = null;
+  for (let attempt = 1; attempt <= cutRetryAttempts; attempt += 1) {
+    let cut;
+    try {
+      cut = await runCommand({
+        executable: 'bash',
+        args: [path.join(repoRoot, 'bin/cut-loop-release.sh'), mergedSha],
+        env: { ...process.env, LOOPS_ROOT: loopsRoot, LOOPS_ACTIVATE_CURRENT: '0' },
+      });
+    } catch (error) {
+      cut = { code: 1, stdout: '', stderr: String(error?.message || error) };
     }
-  } catch (error) {
-    hooks.push(hook('immutable_release', false, { error: String(error?.message || error) }));
+    lastCutResult = cut;
+    if (cut?.code === 0) {
+      releasePath = await findReleaseBySha(loopsRoot, mergedSha, readdirFn, readFileFn);
+      immutableOk = releasePath != null;
+      hooks.push(hook('immutable_release', immutableOk, {
+        release_path: releasePath, exit_code: cut.code, attempts: attempt,
+      }));
+      break;
+    }
+    const lockBusy = String(cut?.stderr || '').includes(LOCK_BUSY_MARKER);
+    if (!lockBusy) {
+      hooks.push(hook('immutable_release', false, {
+        exit_code: cut?.code ?? null, stderr: tail(cut?.stderr), attempts: attempt,
+      }));
+      break;
+    }
+    lockBusyAttempts = attempt;
+    if (attempt < cutRetryAttempts) await sleep(cutRetryDelayMs);
   }
 
   if (!immutableOk) {
+    // A lock held by ANOTHER release build through every retry means nothing was ever cut or
+    // applied for this owner -- distinct from every other failure, where at least the cut itself
+    // succeeded. The guard maps this to its own `promotion_never_started` verdict, never
+    // `rollback_failed`, because there is nothing to roll back.
+    const lockExhausted = lockBusyAttempts >= cutRetryAttempts
+      && String(lastCutResult?.stderr || '').includes(LOCK_BUSY_MARKER);
+    if (lockExhausted && hooks.length === 0) {
+      hooks.push(hook('immutable_release', false, {
+        exit_code: lastCutResult?.code ?? null, stderr: tail(lastCutResult?.stderr),
+        attempts: lockBusyAttempts,
+      }));
+    }
     return finalize({
-      ...base, ok: false, release_path: releasePath, previous_release_path: previousReleasePath,
+      ...base, ok: false,
+      reason: lockExhausted ? 'promotion_never_started' : 'immutable_release_failed',
+      release_path: releasePath, previous_release_path: previousReleasePath,
       hooks, rolled_back: false,
     }, ledgerPath, appendLedger, deps);
   }
@@ -227,8 +278,9 @@ export async function promoteLoopRuntimeRepair({
   }
 
   const ok = immutableOk && canaryOk && healthOk;
+  const reason = ok ? null : (!canaryOk ? 'isolated_canary_failed' : 'exact_health_failed');
   return finalize({
-    ...base, ok, release_path: releasePath, previous_release_path: previousReleasePath,
+    ...base, ok, reason, release_path: releasePath, previous_release_path: previousReleasePath,
     hooks, rolled_back: rolledBack,
   }, ledgerPath, appendLedger, deps);
 }

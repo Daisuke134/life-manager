@@ -8,8 +8,8 @@ const OWNER = 'test-deterministic-owner';
 const LABEL = 'ai.anicca.test-deterministic-owner';
 const REPO_ROOT = '/repo';
 const LOOPS_ROOT = '/loops';
-const NEW_RELEASE = '/loops/releases/new-sha';
-const PREVIOUS_RELEASE = '/loops/releases/previous-sha';
+const NEW_RELEASE = '/loops/releases/20260926T000000-new-sha';
+const PREVIOUS_RELEASE = '/loops/releases/20260901T000000-previous-sha';
 
 function deterministicRegistry() {
   return JSON.stringify({
@@ -22,42 +22,60 @@ function deterministicRegistry() {
   });
 }
 
-function baseDeps({ registry = deterministicRegistry(), readlinkTarget = PREVIOUS_RELEASE } = {}) {
+// The candidate is cut with LOOPS_ACTIVATE_CURRENT=0 (see recovery-promotion.mjs), so it is never
+// found by reading `current` -- it has to be located by scanning `<loopsRoot>/releases/*` for the
+// manifest whose sha matches. `current` itself never advances during a successful run: it still
+// points at PREVIOUS_RELEASE throughout every test below, exactly as it would with a live promotion
+// hold in front of the release-reconciler.
+function baseDeps({ registry = deterministicRegistry(), releaseDirs = [PREVIOUS_RELEASE] } = {}) {
   const calls = [];
+  const releaseNames = () => releaseDirs.map((full) => full.split('/').pop());
   return {
     calls,
+    releaseDirs,
     deps: {
       registryPath: `${REPO_ROOT}/config/loop-registry.json`,
       ledgerPath: '/state/promotions.jsonl',
       readFile: async (file) => {
         if (file === `${REPO_ROOT}/config/loop-registry.json`) return registry;
-        if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+        if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) {
+          return JSON.stringify({ sha: 'c'.repeat(40) });
+        }
         throw new Error(`unexpected readFile ${file}`);
       },
       readlink: async (file) => {
-        if (file === `${LOOPS_ROOT}/current`) return readlinkTarget;
+        if (file === `${LOOPS_ROOT}/current`) return PREVIOUS_RELEASE;
         throw new Error(`unexpected readlink ${file}`);
+      },
+      readdir: async (dir) => {
+        if (dir === `${LOOPS_ROOT}/releases`) return releaseNames();
+        throw new Error(`unexpected readdir ${dir}`);
       },
       appendLedger: async () => {},
       sleep: async () => {},
       now: () => 0,
+      cutRetryDelayMs: 0,
     },
   };
 }
 
-test('success path: cut, canary apply, healthy readback, no rollback', async () => {
+test('success path: candidate cut with LOOPS_ACTIVATE_CURRENT=0, canary apply, healthy readback, no rollback', async () => {
   const { deps, calls } = baseDeps();
-  let readlinkTarget = PREVIOUS_RELEASE;
-  deps.readlink = async (file) => {
-    if (file !== `${LOOPS_ROOT}/current`) throw new Error('unexpected readlink');
-    return readlinkTarget;
+  deps.readFile = async (file) => {
+    if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
+    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+    throw new Error(`unexpected readFile ${file}`);
+  };
+  deps.readdir = async (dir) => {
+    if (dir === `${LOOPS_ROOT}/releases`) {
+      return [PREVIOUS_RELEASE, NEW_RELEASE].map((full) => full.split('/').pop());
+    }
+    throw new Error(`unexpected readdir ${dir}`);
   };
   deps.runCommand = async (request) => {
     calls.push(request);
-    if (request.executable === 'bash') {
-      readlinkTarget = NEW_RELEASE;
-      return { code: 0, stdout: '', stderr: '' };
-    }
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply') {
       return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
     }
@@ -88,18 +106,24 @@ test('success path: cut, canary apply, healthy readback, no rollback', async () 
   assert.equal(byHook.rollback.ok, true);
   assert.equal(byHook.rollback.detail.executed, false);
   assert.equal(calls.filter((c) => c.args?.[0] === 'apply').length, 1);
+
+  const cutCall = calls.find((c) => c.executable === 'bash');
+  assert.equal(cutCall.env.LOOPS_ACTIVATE_CURRENT, '0');
+  assert.deepEqual(cutCall.args, [`${REPO_ROOT}/bin/cut-loop-release.sh`, MERGED_SHA]);
 });
 
 test('canary apply failure triggers rollback to the previous release', async () => {
   const { deps, calls } = baseDeps();
-  let readlinkTarget = PREVIOUS_RELEASE;
-  deps.readlink = async () => readlinkTarget;
+  deps.readFile = async (file) => {
+    if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
+    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+    throw new Error(`unexpected readFile ${file}`);
+  };
+  deps.readdir = async () => [PREVIOUS_RELEASE, NEW_RELEASE].map((full) => full.split('/').pop());
   deps.runCommand = async (request) => {
     calls.push(request);
-    if (request.executable === 'bash') {
-      readlinkTarget = NEW_RELEASE;
-      return { code: 0, stdout: '', stderr: '' };
-    }
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
       return { code: 1, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: false }]), stderr: '' };
     }
@@ -126,15 +150,16 @@ test('canary apply failure triggers rollback to the previous release', async () 
 });
 
 test('health failure (terminal fail) triggers rollback', async () => {
-  const { deps, calls } = baseDeps();
-  let readlinkTarget = PREVIOUS_RELEASE;
-  deps.readlink = async () => readlinkTarget;
+  const { deps } = baseDeps();
+  deps.readFile = async (file) => {
+    if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
+    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+    throw new Error(`unexpected readFile ${file}`);
+  };
+  deps.readdir = async () => [PREVIOUS_RELEASE, NEW_RELEASE].map((full) => full.split('/').pop());
   deps.runCommand = async (request) => {
-    calls.push(request);
-    if (request.executable === 'bash') {
-      readlinkTarget = NEW_RELEASE;
-      return { code: 0, stdout: '', stderr: '' };
-    }
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
       return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
     }
@@ -166,8 +191,13 @@ test('health failure (terminal fail) triggers rollback', async () => {
 
 test('health timeout with no terminal result triggers rollback', async () => {
   const { deps } = baseDeps();
-  let readlinkTarget = PREVIOUS_RELEASE;
-  deps.readlink = async () => readlinkTarget;
+  deps.readFile = async (file) => {
+    if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
+    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+    throw new Error(`unexpected readFile ${file}`);
+  };
+  deps.readdir = async () => [PREVIOUS_RELEASE, NEW_RELEASE].map((full) => full.split('/').pop());
   let ticks = 0;
   deps.now = () => {
     ticks += 1;
@@ -178,10 +208,7 @@ test('health timeout with no terminal result triggers rollback', async () => {
   deps.healthDeadlineMs = 1;
   let statusCalls = 0;
   deps.runCommand = async (request) => {
-    if (request.executable === 'bash') {
-      readlinkTarget = NEW_RELEASE;
-      return { code: 0, stdout: '', stderr: '' };
-    }
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     if (request.args[0] === 'apply' && request.env.LIFE_MANAGER_RELEASE_ROOT === NEW_RELEASE) {
       return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
     }
@@ -237,21 +264,19 @@ test('non-deterministic owner is refused with no dependency calls', async () => 
   assert.equal(calls.length, 0);
 });
 
-test('RELEASE.json sha mismatch fails the immutable_release hook and refuses further hooks', async () => {
+test('RELEASE.json sha mismatch: cut succeeds but no release directory matches, immutable_release fails', async () => {
   const { deps, calls } = baseDeps();
-  let readlinkTarget = PREVIOUS_RELEASE;
-  deps.readlink = async () => readlinkTarget;
   deps.readFile = async (file) => {
     if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
-    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'b'.repeat(40) });
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
     throw new Error(`unexpected readFile ${file}`);
   };
+  // No release directory carries mergedSha's manifest -- the same real-world shape as a cut that
+  // succeeded but wrote a different sha (a stale symlink resolution, a race with another build).
+  deps.readdir = async () => [PREVIOUS_RELEASE].map((full) => full.split('/').pop());
   deps.runCommand = async (request) => {
     calls.push(request);
-    if (request.executable === 'bash') {
-      readlinkTarget = NEW_RELEASE;
-      return { code: 0, stdout: '', stderr: '' };
-    }
+    if (request.executable === 'bash') return { code: 0, stdout: '', stderr: '' };
     throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
   };
 
@@ -265,4 +290,76 @@ test('RELEASE.json sha mismatch fails the immutable_release hook and refuses fur
   assert.equal(result.hooks[0].hook, 'immutable_release');
   assert.equal(result.hooks[0].ok, false);
   assert.equal(calls.length, 1);
+});
+
+test('cut fails because another release build owns the lock: retries with backoff, then promotion_never_started with no apply/status calls', async () => {
+  const { deps, calls } = baseDeps();
+  const sleeps = [];
+  deps.sleep = async (ms) => { sleeps.push(ms); };
+  deps.cutRetryDelayMs = 5000;
+  deps.runCommand = async (request) => {
+    calls.push(request);
+    if (request.executable === 'bash') {
+      return { code: 1, stdout: '', stderr: 'cut-loop-release: another release build owns /loops/.release-cut.lock' };
+    }
+    throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
+  };
+
+  const result = await promoteLoopRuntimeRepair({
+    ownerId: OWNER, mergedSha: MERGED_SHA, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT, deps,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'promotion_never_started');
+  assert.equal(result.rolled_back, false);
+  assert.equal(result.release_path, null);
+  assert.equal(result.hooks.length, 1);
+  assert.equal(result.hooks[0].hook, 'immutable_release');
+  assert.equal(result.hooks[0].ok, false);
+  // Exactly 3 cut attempts (the default), no apply and no status -- nothing was ever cut or applied.
+  assert.equal(calls.filter((c) => c.executable === 'bash').length, 3);
+  assert.equal(calls.filter((c) => c.args?.[0] === 'apply').length, 0);
+  assert.equal(calls.filter((c) => c.args?.[0] === 'status').length, 0);
+  assert.deepEqual(sleeps, [5000, 5000]);
+});
+
+test('cut succeeds on a later retry after the lock frees up', async () => {
+  const { deps, calls } = baseDeps();
+  deps.readFile = async (file) => {
+    if (file === `${REPO_ROOT}/config/loop-registry.json`) return deterministicRegistry();
+    if (file === `${PREVIOUS_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: 'c'.repeat(40) });
+    if (file === `${NEW_RELEASE}/RELEASE.json`) return JSON.stringify({ sha: MERGED_SHA });
+    throw new Error(`unexpected readFile ${file}`);
+  };
+  deps.readdir = async () => [PREVIOUS_RELEASE, NEW_RELEASE].map((full) => full.split('/').pop());
+  deps.cutRetryDelayMs = 0;
+  let cutAttempts = 0;
+  deps.runCommand = async (request) => {
+    calls.push(request);
+    if (request.executable === 'bash') {
+      cutAttempts += 1;
+      if (cutAttempts < 2) {
+        return { code: 1, stdout: '', stderr: 'cut-loop-release: another release build owns /loops/.release-cut.lock' };
+      }
+      return { code: 0, stdout: '', stderr: '' };
+    }
+    if (request.args[0] === 'apply') {
+      return { code: 0, stdout: JSON.stringify([{ loop_id: OWNER, label: LABEL, ok: true }]), stderr: '' };
+    }
+    if (request.args[0] === 'status') {
+      return {
+        code: 0,
+        stdout: JSON.stringify([{ event_release_sha: MERGED_SHA, last_terminal_result: 'pass' }]),
+        stderr: '',
+      };
+    }
+    throw new Error(`unexpected command ${JSON.stringify(request.args)}`);
+  };
+
+  const result = await promoteLoopRuntimeRepair({
+    ownerId: OWNER, mergedSha: MERGED_SHA, repoRoot: REPO_ROOT, loopsRoot: LOOPS_ROOT, deps,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(cutAttempts, 2);
 });

@@ -107,6 +107,11 @@ const GUARD_VERDICTS = Object.freeze([
   "merged_unverified",
   "rolled_back",
   "rollback_failed",
+  // A bound recovery PR's candidate release could not even be cut (another release build held
+  // bin/cut-loop-release.sh's lock through every retry). Distinct from rollback_failed: nothing
+  // was ever applied to the owner, so nothing was rolled back — the merged commit sits on main
+  // with the promotion hold still in place until the guard's own main-revert lands.
+  "promotion_never_started",
   "stopped",
   "errored",
   "locked",
@@ -133,13 +138,19 @@ const NO_OP_REASONS = Object.freeze([
 
 const SEVEN_DAYS = 7;
 
-// 45 minutes, and the arithmetic is the whole point. The guard's own post-merge bounds are a 10 min
-// health poll AND a 15 min deploy-freshness poll — 25 minutes AFTER the merge, before which sit
-// review (12 min budget) and the full test suite. The previous 20 minutes was therefore not a
-// generous bound but an impossible one: every successfully merging day would have been killed
-// mid-deploy and filed as a timeout, and the loop's only good outcome was the one it could never
-// reach. 45 leaves the guard's worst case room and still refuses to hold the lock into the next
-// day's pass. It is also NOT the merge safety mechanism — that is the merge-aware kill below.
+// 45 minutes, and the arithmetic bounds only the PRE-merge stages (review, blocked actions, the
+// full test suite) — see the merge-aware kill below, which never signals once the guard has begun
+// "merge" or anything after it. Post-merge itself has two different worst cases depending on the
+// PR: the app's Railway path polls health for up to 10 min plus deploy-freshness for up to 15 min
+// (25 minutes after the merge); a bound recovery PR's loop-runtime promotion instead polls its own
+// owner's next terminal readback for up to 45 min (recovery-promotion.mjs's exact_health hook),
+// plus whatever a failure's owner-reapply and main-revert take. Neither worst case is bounded by
+// DEFAULT_BUDGET_MS — an overrun there only sets `budget_exceeded` on the ledger row so a run that
+// took 90 minutes never looks like one that took 9. The previous 20 minutes was not a generous
+// pre-merge bound but an impossible one: every successfully merging day would have been killed
+// mid-review/test and filed as a timeout, and the loop's only good outcome was the one it could
+// never reach. 45 leaves the pre-merge worst case room and still refuses to hold the lock into the
+// next day's pass. It is also NOT the merge safety mechanism — that is the merge-aware kill below.
 const DEFAULT_BUDGET_MS = 45 * 60 * 1000;
 
 // Once the guard announces this stage it has begun doing irreversible things, and the budget stops
