@@ -67,6 +67,25 @@ fi
 
 cd "$CAMOFOX_DIR"
 
+# Node native modules are ABI-specific.  A Node upgrade can leave the cached
+# Camofox source intact while making better-sqlite3 impossible to load, which
+# makes the HTTP wrapper look alive but keeps browserConnected:false forever.
+# Rebuild the one native dependency before launching rather than sending every
+# caller through an unproductive restart loop.
+NODE_BIN="$(command -v node)"
+if ! "$NODE_BIN" -e "require('better-sqlite3')" >/dev/null 2>&1; then
+  echo "better-sqlite3 binding is incompatible with the current Node; rebuilding..." >&2
+  if ! npm rebuild better-sqlite3 --build-from-source >>"$LOG" 2>&1; then
+    echo "ERROR: better-sqlite3 rebuild failed; see $LOG" >&2
+    tail -30 "$LOG" >&2
+    exit 1
+  fi
+  if ! "$NODE_BIN" -e "require('better-sqlite3')" >/dev/null 2>&1; then
+    echo "ERROR: better-sqlite3 remains unavailable after rebuild; see $LOG" >&2
+    exit 1
+  fi
+fi
+
 # A healthy HTTP wrapper can still be unable to create tabs when the Camoufox
 # payload was removed from the local cache.  Install it before starting the
 # server so callers never receive a misleading browserConnected=true state.
@@ -83,7 +102,6 @@ fi
 # Launch the node process directly.  `npm start` leaves an npm wrapper in the
 # process group; automation runners may reap that group when this script
 # exits, taking the otherwise-healthy server with it.
-NODE_BIN="$(command -v node)"
 nohup "$NODE_BIN" "$CAMOFOX_DIR/server.js" </dev/null >"$LOG" 2>&1 &
 PID=$!
 echo "started camofox pid=$PID, waiting..."
