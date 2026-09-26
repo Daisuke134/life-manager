@@ -690,3 +690,15 @@ def test_google_form_confirmation_rejects_unrelated_and_negated_buyer_messages(t
             "event_id": "buyer-2", "role": "buyer", "body": body,
         }]
         assert adapter.readback(intent) == {}
+
+
+def test_only_pre_dispatch_mutation_errors_become_waiting():
+    classify = adapter_module.CrowdWorksReplyAdapter.classify_mutation_error
+    for message in ("google_form_required_answer_missing:氏名（ひらがな）",
+                    "google_form_profile_incomplete",
+                    "crowdworks_contract_ownership_unknown"):
+        result = classify(RuntimeError(message))
+        assert result["reason"] and result["remaining_work"]
+    for message in ("crowdworks_contract_submit_unavailable", "Timeout 20000ms exceeded",
+                    "crowdworks_post_contract_owned_by_paid"):
+        assert classify(RuntimeError(message)) is None

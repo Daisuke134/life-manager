@@ -636,6 +636,24 @@ class CrowdWorksReplyAdapter:
                 return {"verified": True, "provider_receipt_id": receipt_id, "observed_at": _now()}
         return {"authoritative_absent": True}
 
+    @staticmethod
+    def classify_mutation_error(error: Exception) -> dict[str, Any] | None:
+        """Turn errors raised before any click, message or form POST into waiting.
+
+        Unclassified, they exit the wake 1 and leave an effect_unknown fence on
+        every wake (measured 2026-09-26: thread 305321876). Anything that can
+        follow a provider effect stays unclassified.
+        """
+        message = str(error)
+        if message.startswith("google_form_required_answer_missing:") or \
+                message == "google_form_profile_incomplete":
+            return {"reason": "google_form_answer_unavailable",
+                    "remaining_work": [f"Ground an answer for the required form item ({message})"]}
+        if message == "crowdworks_contract_ownership_unknown":
+            return {"reason": "contract_ownership_ambiguous",
+                    "remaining_work": ["Wait until the thread shows a readable contract state"]}
+        return None
+
     def close(self) -> None:
         if self.page is not None:
             try:
