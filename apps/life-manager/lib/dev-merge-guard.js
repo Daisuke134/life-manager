@@ -31,10 +31,12 @@
 // This file contains no schedule wiring on purpose — re-enabling launchd is 10f's job.
 
 const crypto = require("node:crypto");
+const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const {
+  classifyRecoveryJob,
   evaluateRecoveryPromotion,
 } = require("../../../runtime/loop/recovery-class.cjs");
 
@@ -74,6 +76,10 @@ const GUARD_STAGES = Object.freeze([
 const DEFAULT_AUTHORS = Object.freeze(["Daisuke134"]);
 const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
 const RECOVERY_CLASS_MARKER = /\[lm-recovery-class:([a-z_]+)\]/g;
+// Written only by scripts/life-manager-dev-d0.sh from the self-heal issue's `owner_id:` line (see
+// RECOVERY_CLASS_MARKER above for the matching provenance argument). Exactly one match is required;
+// a missing or duplicate marker leaves the PR without a bound owner and it stays fail-closed.
+const RECOVERY_OWNER_MARKER = /\[lm-recovery-owner:([A-Za-z0-9][A-Za-z0-9._:-]{0,127})\]/g;
 
 // The loop names its branches `feature/lm-dev-<issue>` (real: PR #1094 -> feature/lm-dev-1090,
 // PR #1095 -> feature/lm-dev-1089). `fix/...` is accepted for hand-shaped error fixes.
@@ -331,6 +337,295 @@ function recoveryClassFromBody(body) {
   return found[0];
 }
 
+function recoveryOwnerFromBody(body) {
+  const found = [...String(body || "").matchAll(RECOVERY_OWNER_MARKER)].map((match) => match[1]);
+  if (found.length !== 1) return null;
+  return found[0];
+}
+
+// The PR body's `[lm-recovery-class:...]` marker is provenance, not proof — a rewritten PR body
+// could claim `deterministic` for any owner. This is the only place that trusts a class claim: it
+// is accepted ONLY when the repo's own loop registry (never the PR's changed files, which cannot
+// touch config/loop-registry.json under ALLOWED_DIRECTORIES) classifies the exact same owner the
+// same way, with effect_class none. Any other combination returns every hook false, which fails
+// evaluateRecoveryPromotion's required_hooks check closed.
+function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
+  const entry = ownerId ? registry?.loops?.[ownerId] : null;
+  let registryClass = null;
+  try {
+    registryClass = entry ? classifyRecoveryJob(entry) : null;
+  } catch {
+    registryClass = null;
+  }
+  const bound = Boolean(entry)
+    && recoveryClass === "deterministic"
+    && registryClass === "deterministic"
+    && entry.effect_class === "none";
+  return bound
+    ? { immutable_release: true, isolated_canary: true, exact_health: true, rollback: true }
+    : {};
+}
+
+function readRegistry(registryPath) {
+  try {
+    return JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// A bound recovery PR merges real code into main before any owner ever runs it — the loop-runtime
+// promotion (canary + health) happens AFTER the merge, not before. `bin/reconcile-agent-runner-release.sh`
+// runs every 60s and cuts+activates whatever is on origin/main independently of this guard, so an
+// unheld window between "merged" and "promotion verdict known" would let a bad merge reach the
+// whole fleet in under a minute regardless of what the canary or its rollback do. This file is that
+// missing mutex: the guard acquires it before merging and only releases it once the promotion has
+// either succeeded or been fully remedied (owner reapplied AND main reverted), so the reconciler
+// stays frozen on the exact release it already trusts for the whole window in between.
+const DEFAULT_PROMOTION_HOLD_TTL_MS = 90 * 60 * 1000;
+
+function promotionHoldPath(options = {}, env = process.env) {
+  if (options.promotionHoldPath) return options.promotionHoldPath;
+  const loopsRoot = env.LOOPS_ROOT || path.join(os.homedir(), "loops");
+  return path.join(loopsRoot, ".promotion-hold");
+}
+
+function readPromotionHold(holdPath) {
+  try {
+    return JSON.parse(fs.readFileSync(holdPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function isPromotionHoldActive(content, now) {
+  if (!content || typeof content !== "object") return false;
+  const expiresAt = Date.parse(content.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+}
+
+function writePromotionHoldContent(holdPath, content) {
+  fs.mkdirSync(path.dirname(holdPath), { recursive: true, mode: 0o700 });
+  const tmp = `${holdPath}.${process.pid}.${crypto.randomBytes(4).toString("hex")}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(content)}\n`, { mode: 0o600 });
+  fs.renameSync(tmp, holdPath);
+}
+
+// Fail closed: a hold that cannot be proven written is treated as "not acquired", and the caller
+// must refuse to merge. A pre-existing, still-active hold for a DIFFERENT PR also refuses — one
+// bound promotion in flight at a time, matching the reconciler's own single global freeze.
+//
+// `sha` is deliberately null at acquisition time: the PR has not merged yet, so there is no
+// merged commit to record. `pid` is the guard's own process — recorded so a later self-build pass
+// can tell a genuinely crashed guard (pid dead) from one that is still working past its own TTL.
+function acquirePromotionHold({
+  holdPath, ownerId, prNumber, sha = null, ttlMs = DEFAULT_PROMOTION_HOLD_TTL_MS,
+  now = () => new Date(), pid = process.pid,
+}) {
+  const nowDate = now();
+  try {
+    const existing = readPromotionHold(holdPath);
+    if (isPromotionHoldActive(existing, nowDate) && existing.pr !== prNumber) {
+      return { ok: false, reason: "hold_busy", existing };
+    }
+    const content = {
+      sha: sha || null,
+      owner_id: ownerId,
+      pr: prNumber,
+      pid,
+      previous_release_path: null,
+      created_at: nowDate.toISOString(),
+      expires_at: new Date(nowDate.getTime() + ttlMs).toISOString(),
+    };
+    writePromotionHoldContent(holdPath, content);
+    return { ok: true, content };
+  } catch (error) {
+    return { ok: false, reason: "hold_write_failed", error: String(error?.message || error) };
+  }
+}
+
+// Called once, right after merge succeeds and before the promotion itself runs: from this moment a
+// crash actually has a merged commit that needs reverting, so the hold has to say so. Patches onto
+// the EXISTING hold content rather than replacing it, so pid/owner/pr/expiry survive untouched.
+function updatePromotionHold({ holdPath, sha, previousReleasePath = null }) {
+  try {
+    const existing = readPromotionHold(holdPath);
+    if (!existing) return { ok: false, reason: "hold_missing" };
+    const content = { ...existing, sha, previous_release_path: previousReleasePath };
+    writePromotionHoldContent(holdPath, content);
+    return { ok: true, content };
+  } catch (error) {
+    return { ok: false, reason: "hold_update_failed", error: String(error?.message || error) };
+  }
+}
+
+function releasePromotionHold({ holdPath }) {
+  try {
+    fs.unlinkSync(holdPath);
+    return { ok: true };
+  } catch (error) {
+    if (error?.code === "ENOENT") return { ok: true };
+    return { ok: false, reason: "hold_unlink_failed", error: String(error?.message || error) };
+  }
+}
+
+function defaultPromotionsLedgerPath(options = {}) {
+  return options.promotionsLedgerPath
+    || path.join(os.homedir(), ".local/state/life-manager/recovery/promotions.jsonl");
+}
+
+// One row shape, appended by the guard (never by recovery-promotion.mjs's own internal audit
+// lines, which lack `record_type` and mean something narrower — see promoteLoopRuntimeRepair's own
+// ledger). This is the ONLY row the reconciler and the self-build orphan recovery below trust to
+// mean "this exact merged sha's promotion is truly finished": `ok: true` (outright success) or
+// `rolled_back: true` (owner reapplied AND main reverted — never owner-only or main-only).
+function appendPromotionTerminalRow(ledgerPath, row) {
+  try {
+    fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
+    fs.appendFileSync(ledgerPath, `${JSON.stringify({ record_type: "recovery_promotion_terminal", ...row })}\n`, { mode: 0o600 });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
+  }
+}
+
+function readPromotionTerminalRow(ledgerPath, sha) {
+  try {
+    const lines = fs.readFileSync(ledgerPath, "utf8").split("\n").filter(Boolean);
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      let row;
+      try {
+        row = JSON.parse(lines[index]);
+      } catch {
+        continue;
+      }
+      if (row?.record_type === "recovery_promotion_terminal" && row?.merged_sha === sha) return row;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// `kill -0` never signals; it only asks whether a signal COULD be delivered. ESRCH means the pid is
+// gone. EPERM means it exists but is owned by someone else — still alive, just not ours to see.
+function defaultIsPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function resolveCurrentReleasePath(loopsRoot) {
+  try {
+    const target = fs.readlinkSync(path.join(loopsRoot, "current"));
+    return path.isAbsolute(target) ? target : path.resolve(loopsRoot, target);
+  } catch {
+    return null;
+  }
+}
+
+function defaultApplyOwnerToRelease({ releaseRoot, ownerId }) {
+  try {
+    const stdout = execFileSync(path.join(releaseRoot, "bin/lm-loop"), ["apply"], {
+      encoding: "utf8",
+      env: { ...process.env, LIFE_MANAGER_APPLY_TARGET: ownerId, LIFE_MANAGER_RELEASE_ROOT: releaseRoot },
+    });
+    return { ok: true, stdout };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error?.message || error),
+      stderr: error?.stderr ? String(error.stderr) : null,
+    };
+  }
+}
+
+// Crash recovery for an orphaned hold, run once per self-build pass BEFORE it picks a PR (see
+// self-build-daily.js). A hold only reaches here when it is either expired or its recording pid is
+// no longer alive — a live guard within its TTL is still legitimately working and must not be
+// touched. Three distinct outcomes, matching the three ways a guard can die:
+//   * a terminal row already exists for its sha -> the guard actually finished, it just crashed
+//     before deleting the hold file itself. Nothing to remedy; release it.
+//   * no sha at all -> the guard died before the merge stage ever recorded one. Main was never
+//     touched. Release it.
+//   * a sha with no terminal row -> the guard died mid-promotion with a real merged commit in
+//     flight. Revert it on main, reapply the owner to its previous release if one was recorded,
+//     record a terminal row, and release the hold only if the revert actually landed.
+async function recoverOrphanedPromotionHold({
+  holdPath,
+  promotionsLedgerPath,
+  now = () => new Date(),
+  isPidAlive = defaultIsPidAlive,
+  readTerminalRow = readPromotionTerminalRow,
+  revertMainMerge,
+  applyOwnerToRelease = defaultApplyOwnerToRelease,
+  releaseHold = releasePromotionHold,
+  appendTerminalRow = appendPromotionTerminalRow,
+  alert = async () => {},
+} = {}) {
+  const hold = readPromotionHold(holdPath);
+  if (!hold) return { attempted: false, reason: "no_hold" };
+  const nowDate = now();
+  const expired = !isPromotionHoldActive(hold, nowDate);
+  const pidAlive = isPidAlive(hold.pid);
+  if (!expired && pidAlive) return { attempted: false, reason: "hold_active_and_owned" };
+
+  const sha = hold.sha || null;
+  if (sha) {
+    const terminal = readTerminalRow(promotionsLedgerPath, sha);
+    if (terminal) {
+      const released = releaseHold({ holdPath });
+      return {
+        attempted: true, ok: true, verdict: "recovered_orphan", reason: "terminal_row_found",
+        sha, pr: hold.pr, released,
+      };
+    }
+  }
+  if (!sha) {
+    const released = releaseHold({ holdPath });
+    return { attempted: true, ok: true, verdict: "orphan_pre_merge", pr: hold.pr, released };
+  }
+
+  if (typeof revertMainMerge !== "function") {
+    throw new Error("recoverOrphanedPromotionHold requires revertMainMerge for a sha-bearing hold");
+  }
+  const revert = await revertMainMerge({ mergedSha: sha, prNumber: hold.pr });
+  let ownerReapplyResult = null;
+  let ownerReapplied = true;
+  if (hold.previous_release_path) {
+    ownerReapplyResult = await applyOwnerToRelease({
+      releaseRoot: hold.previous_release_path, ownerId: hold.owner_id,
+    });
+    ownerReapplied = ownerReapplyResult?.ok === true;
+  }
+  const fullyRemedied = revert?.ok === true && ownerReapplied;
+  appendTerminalRow(promotionsLedgerPath, {
+    merged_sha: sha, pr: hold.pr, ok: false, rolled_back: fullyRemedied,
+    recovered_orphan: true, ts: nowDate.toISOString(),
+  });
+  if (revert?.ok === true) {
+    const released = releaseHold({ holdPath });
+    return {
+      attempted: true, ok: fullyRemedied,
+      verdict: fullyRemedied ? "recovered_orphan" : "rollback_failed",
+      sha, pr: hold.pr, revert, ownerReapplyResult, released,
+    };
+  }
+  await alert(
+    `orphaned promotion hold for PR #${hold.pr} (sha ${sha}): the guard that held it is gone`
+    + ` (pid ${hold.pid}) and the main revert failed (${revert?.error || "unknown error"}). The`
+    + ` hold stays in place; a human must land the revert of ${sha} on main.`,
+  );
+  return {
+    attempted: true, ok: false, verdict: "rollback_failed", sha, pr: hold.pr, revert,
+    ownerReapplyResult, released: false,
+  };
+}
+
 
 function evaluateEligibility(pr, options = {}) {
   const authors = options.allowedAuthors || DEFAULT_AUTHORS;
@@ -370,7 +665,10 @@ function evaluateEligibility(pr, options = {}) {
     // immutable-release/canary/exact-health/rollback hook. A boolean cannot waive this boundary.
     const recoveryClass = recoveryClassFromBody(value.body);
     if (!recoveryClass) reasons.push("recovery_class_missing");
-    else {
+    // A missing or duplicate `[lm-recovery-owner:...]` marker leaves no bound owner for the loop
+    // runtime promotion path, independent of whatever hooks the caller supplies below.
+    if (!recoveryOwnerFromBody(value.body)) reasons.push("recovery_owner_missing");
+    if (recoveryClass) {
       const promotion = evaluateRecoveryPromotion(recoveryClass, options.recoveryPromotionHooks);
       if (!promotion.eligible) reasons.push(promotion.reason);
     }
@@ -737,6 +1035,14 @@ function createReviewCommandHook(command, options = {}) {
 }
 
 
+// Real production wiring for a recovery PR's post-merge promotion. `dev-merge-guard.js` is CJS
+// and `recovery-promotion.mjs` is ESM, so this is a dynamic import; every test instead injects
+// `deps.promoteLoopRuntimeRepair` directly and never touches a real release or `lm-loop`.
+async function defaultPromoteLoopRuntimeRepair(args) {
+  const { promoteLoopRuntimeRepair } = await import("../../../runtime/loop/recovery-promotion.mjs");
+  return promoteLoopRuntimeRepair(args);
+}
+
 async function pollUntil(probe, { now, sleep, timeoutMs, intervalMs }) {
   const deadline = now().getTime() + timeoutMs;
   for (;;) {
@@ -996,6 +1302,53 @@ function createGuardDeps(io = {}) {
       }
     },
 
+    // A bound recovery PR's failure has no human waiting to merge a rollback: the reconciler is
+    // only frozen by the promotion hold, which has a finite TTL, so the revert must actually land
+    // on origin/main by itself. Same mechanism as `merge()` above (gh pr merge --squash
+    // --match-head-commit) applied to a freshly opened revert branch, so it inherits the exact
+    // credentials and TOCTOU protection the guard already trusts for merging in the first place.
+    async revertMainMerge({ mergedSha, prNumber }) {
+      const branch = `revert/lm-recovery-${prNumber}-${String(mergedSha).slice(0, 12)}`;
+      const worktree = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-recovery-revert-"));
+      try {
+        execImpl("git", ["fetch", "origin", "main"], { cwd: repoDir, encoding: "utf8" });
+        execImpl("git", ["worktree", "add", "-b", branch, worktree, "origin/main"], { cwd: repoDir, encoding: "utf8" });
+        execImpl("git", ["revert", "--no-edit", "-m", "1", String(mergedSha)], { cwd: worktree, encoding: "utf8" });
+        const revertSha = String(execImpl("git", ["rev-parse", "HEAD"], { cwd: worktree, encoding: "utf8" })).trim();
+        execImpl("git", ["push", "-u", "origin", branch], { cwd: worktree, encoding: "utf8" });
+        const prUrl = gh([
+          "pr", "create", "-R", repo, "--base", "main", "--head", branch,
+          "--title", `revert: automatic self-heal rollback of PR #${prNumber}`,
+          "--body", [
+            `Automatic revert of \`${mergedSha}\` (merged from #${prNumber}).`,
+            "",
+            "The loop-runtime promotion for this recovery PR failed its canary or health readback.",
+            "The unattended merge guard reverts it on main immediately: this owner class has no",
+            "human in the loop waiting to merge a rollback PR before the release-reconciler's own",
+            "promotion hold expires.",
+          ].join("\n"),
+        ]).trim();
+        const prNumberMatch = prUrl.match(/\/pull\/(\d+)$/);
+        const revertPrNumber = prNumberMatch ? prNumberMatch[1] : null;
+        if (!revertPrNumber) return { ok: false, prUrl, error: "revert_pr_number_unresolved" };
+        gh([
+          "pr", "merge", revertPrNumber, "-R", repo,
+          "--squash", "--delete-branch", "--match-head-commit", revertSha,
+        ]);
+        const readback = ghJson(["pr", "view", revertPrNumber, "-R", repo, "--json", "state,mergeCommit"]);
+        const revertMergeSha = readback?.mergeCommit?.oid || null;
+        if (readback?.state !== "MERGED" || !/^[a-f0-9]{40}$/.test(String(revertMergeSha))) {
+          return { ok: false, prUrl, revertPrNumber, error: "revert_merge_readback_failed" };
+        }
+        return { ok: true, prUrl, revertPrNumber, revertMergeSha };
+      } catch (error) {
+        return { ok: false, error: String(error.message || error) };
+      } finally {
+        try { execImpl("git", ["worktree", "remove", "--force", worktree], { cwd: repoDir, encoding: "utf8" }); } catch {}
+        try { fs.rmSync(worktree, { recursive: true, force: true }); } catch {}
+      }
+    },
+
     // An alert nobody reads is not an alert. This guard runs unattended, so stderr on a launchd
     // runner is functionally /dev/null — the cases that reach here (production red, a revert PR
     // waiting for a human, a broken ledger chain) all need Dais's phone to buzz. Telegram first,
@@ -1144,12 +1497,28 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
         changedFilesError = String(error?.message || error);
       }
 
+      // A recovery PR's body class marker is provenance, not proof (see recoveryPromotionHooksFor).
+      // The registry read only happens for a marked recovery PR, against THIS checkout's own
+      // config/loop-registry.json -- never the PR's changed files, which the path allowlist already
+      // keeps away from that file.
+      const isRecoveryPr = String(pr?.body || "").includes(RECOVERY_PR_MARKER);
+      const recoveryClass = isRecoveryPr ? recoveryClassFromBody(pr.body) : null;
+      const recoveryOwnerId = isRecoveryPr ? recoveryOwnerFromBody(pr.body) : null;
+      const recoveryRegistry = isRecoveryPr
+        ? await (deps.getLoopRegistry ? deps.getLoopRegistry() : readRegistry(
+          path.join(REPO_DIR, "config/loop-registry.json"),
+        ))
+        : null;
+      const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
+        ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
+        : {};
+
       const eligibility = evaluateEligibility(pr, {
         allowedAuthors: options.allowedAuthors,
         protectedPaths: options.protectedPaths,
         expectHead: options.expectHead,
         changedFiles,
-        recoveryPromotionEnabled: options.recoveryPromotionEnabled,
+        recoveryPromotionHooks,
       });
       const reasons = [...eligibility.reasons];
       if (changedFiles === null) reasons.push("changed_files_unreadable");
@@ -1220,6 +1589,23 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       // interrupted between `git merge` and the ledger append leaves main changed, unrecorded and
       // un-rolled-back, which is strictly worse than a run that simply took too long.
       beginStage("merge");
+      // Blocker: the release-reconciler cuts+activates whatever is on origin/main every 60s,
+      // independent of this guard. A bound recovery PR must hold that reconciler off BEFORE the
+      // merge exists on main, or a bad merge reaches the whole fleet before the canary even starts.
+      // Fail closed: a hold that cannot be proven written means the PR is not merged at all.
+      const holdPath = promotionHoldPath(options);
+      const promotionsLedgerPath = defaultPromotionsLedgerPath(options);
+      let promotionHold = null;
+      if (isRecoveryPr) {
+        promotionHold = await (deps.acquirePromotionHold || acquirePromotionHold)({
+          holdPath, ownerId: recoveryOwnerId, prNumber,
+          ttlMs: options.promotionHoldTtlMs,
+        });
+        if (!promotionHold?.ok) {
+          record("merge", false, "promotion_hold_unavailable", { hold: promotionHold, holdPath });
+          break run;
+        }
+      }
       const previous = await deps.getPreviousSuccessfulDeployment();
       const merged = await deps.merge({ prNumber, headOid: pr.headRefOid });
       const mergeOk = merged?.ok === true && /^[a-f0-9]{40}$/.test(String(merged.mergeSha || ""));
@@ -1228,7 +1614,35 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
         merge_sha: state.mergeSha,
         previous_deployment_id: previous?.id ?? null,
         previous_deployment_can_rollback: previous?.canRollback ?? null,
-      })) break run;
+        promotion_hold: promotionHold,
+      })) {
+        // The merge itself never happened, so nothing needs to be reverted — but a hold acquired
+        // above must not linger and freeze the reconciler for up to 90 minutes over nothing.
+        if (promotionHold?.ok) await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
+        break run;
+      }
+
+      // The merge just happened: from this exact instant, a crash has a real merged commit that
+      // would need reverting. Write it into the hold BEFORE the promotion itself runs (which can
+      // take up to 45 minutes polling health) so a later self-build pass can tell "crashed before
+      // merge" (sha still null -> nothing to revert) from "crashed after merge" (sha present, no
+      // terminal ledger row -> revert it). `previous_release_path` is resolved here too, the same
+      // way promoteLoopRuntimeRepair resolves it, so the owner can be reapplied to it even if the
+      // guard never lives long enough to return that path itself.
+      if (isRecoveryPr) {
+        const loopsRoot = process.env.LOOPS_ROOT || path.join(os.homedir(), "loops");
+        const previousReleasePath = resolveCurrentReleasePath(loopsRoot);
+        const holdUpdate = await (deps.updatePromotionHold || updatePromotionHold)({
+          holdPath, sha: state.mergeSha, previousReleasePath,
+        });
+        if (!holdUpdate?.ok) {
+          await deps.alert(
+            `recovery PR #${prNumber} merged as ${state.mergeSha} but its promotion hold at`
+            + ` ${holdPath} could not be updated with the merged sha (${holdUpdate?.reason || "unknown"}).`
+            + " A crash during the promotion that follows would not be recoverable from the hold alone.",
+          );
+        }
+      }
 
       // 6. Deploy + health + deploy freshness.
       //
@@ -1238,6 +1652,72 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       // that put code into production and then stopped being able to describe it.
       beginStage("deploy_health");
       try {
+        if (isRecoveryPr) {
+          // Runtime-loop repairs never touch the app's Railway deploy path: they get their own
+          // immutable-release/canary/exact-health/rollback promotion, gated at eligibility on the
+          // registry-verified deterministic/effect-none owner resolved above.
+          const promote = deps.promoteLoopRuntimeRepair || defaultPromoteLoopRuntimeRepair;
+          const promotion = await promote({
+            ownerId: recoveryOwnerId, mergedSha: state.mergeSha, repoRoot: REPO_DIR,
+          });
+          state.promotion = promotion;
+          if (!promotion?.ok) {
+            // The merged commit sits on main regardless of what the promotion achieved, and the
+            // reconciler will act on it the moment the hold expires — so every failure path reverts
+            // main, not just the ones where a canary was actually applied.
+            const revertMainMerge = deps.revertMainMerge || (async () => (
+              { ok: false, error: "revert_main_merge_not_configured" }
+            ));
+            const revert = await revertMainMerge({ mergedSha: state.mergeSha, prNumber });
+            state.mainRevert = revert;
+            // Verdict is what actually happened, never what was merely attempted (same rule the
+            // Railway rollback below already follows). `promotion_never_started` is distinct from
+            // rollback_failed: nothing was ever applied to any owner, so nothing was "rolled back".
+            const ownerRolledBack = promotion?.rolled_back === true;
+            // A never-started promotion never touched any owner, so there is nothing to check at
+            // the owner level; the main revert alone decides whether it counts as remedied.
+            const fullyRemedied = revert?.ok === true
+              && (promotion?.reason === "promotion_never_started" || ownerRolledBack);
+            // This row, not recovery-promotion.mjs's own (owner-only) ledger line, is what the
+            // reconciler and the next self-build pass's orphan recovery trust as "truly finished"
+            // for this sha — see appendPromotionTerminalRow's contract.
+            (deps.appendPromotionTerminalRow || appendPromotionTerminalRow)(
+              promotionsLedgerPath, {
+                merged_sha: state.mergeSha, pr: prNumber, ok: false, rolled_back: fullyRemedied,
+                ts: new Date().toISOString(),
+              },
+            );
+            if (revert?.ok === true) {
+              // Only release the hold once the bad commit is actually off main — releasing it any
+              // earlier would let the reconciler cut and fleet-activate the still-merged bad sha.
+              await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
+            }
+            record("deploy_health", false, "recovery_promotion_failed", {
+              promotion, main_revert: revert, hold_released: revert?.ok === true,
+            });
+            verdict = promotion?.reason === "promotion_never_started"
+              ? "promotion_never_started"
+              : (fullyRemedied ? "rolled_back" : "rollback_failed");
+            await deps.alert(
+              `recovery PR #${prNumber} merged as ${state.mergeSha} but loop-runtime promotion`
+              + ` failed for owner ${recoveryOwnerId} (${promotion?.reason || "hook_failed"}).`
+              + ` owner_rolled_back=${ownerRolledBack} main_reverted=${revert?.ok === true}.`
+              + (revert?.ok === true ? "" : " The promotion hold stays in place; a human must land"
+                + ` the revert of ${state.mergeSha} on main before the reconciler can resume.`),
+            );
+            break run;
+          }
+          // Success: release the hold so the reconciler advances current normally from main on its
+          // next 60s cycle, the same as it would for any other merged commit.
+          (deps.appendPromotionTerminalRow || appendPromotionTerminalRow)(promotionsLedgerPath, {
+            merged_sha: state.mergeSha, pr: prNumber, ok: true, rolled_back: false,
+            ts: new Date().toISOString(),
+          });
+          await (deps.releasePromotionHold || releasePromotionHold)({ holdPath });
+          record("deploy_health", true, null, { promotion, hold_released: true });
+          verdict = "merged_deployed";
+          break run;
+        }
         const redeploy = await deps.triggerRedeploy();
         const healthy = await pollUntil(() => deps.checkHealth(), {
           now, sleep, timeoutMs: healthTimeoutMs, intervalMs: healthIntervalMs,
@@ -1455,6 +1935,7 @@ module.exports = {
   BLOCKED_ACTIONS,
   RECOVERY_PR_MARKER,
   RECOVERY_CLASS_MARKER,
+  RECOVERY_OWNER_MARKER,
   BRANCH_PATTERNS,
   ROLLBACK_MUTATION,
   GUARD_SELF_PATHS,
@@ -1466,6 +1947,22 @@ module.exports = {
   evaluateEligibility,
   isRetainedRegressionFixture,
   recoveryClassFromBody,
+  recoveryOwnerFromBody,
+  recoveryPromotionHooksFor,
+  DEFAULT_PROMOTION_HOLD_TTL_MS,
+  promotionHoldPath,
+  readPromotionHold,
+  isPromotionHoldActive,
+  acquirePromotionHold,
+  updatePromotionHold,
+  releasePromotionHold,
+  defaultPromotionsLedgerPath,
+  appendPromotionTerminalRow,
+  readPromotionTerminalRow,
+  defaultIsPidAlive,
+  resolveCurrentReleasePath,
+  defaultApplyOwnerToRelease,
+  recoverOrphanedPromotionHold,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,

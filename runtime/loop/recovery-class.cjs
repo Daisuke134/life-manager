@@ -16,15 +16,16 @@ const RECOVERY_PROMOTION_HOOKS = Object.freeze([
   "rollback",
 ]);
 
-// Task 7 proves these primitives in an isolated test-owned installation.  It
-// does not create a production promotion path for any whole recovery class.
-// Keep that distinction machine-readable: a marked recovery PR cannot inherit
-// the app guard's Railway deployment path, and no class becomes promotable
-// until a separate runtime path invokes every hook below.
+// `deterministic` is the only recovery class bound to a real runtime promotion path:
+// `runtime/loop/recovery-promotion.mjs` invokes every hook below (immutable_release,
+// isolated_canary, exact_health, rollback) against a registry-verified
+// `deterministic`/`effect_class: none` owner. Every other class stays `unbound` until its own
+// runtime path exists; a marked recovery PR for those classes cannot inherit the app guard's
+// Railway deployment path, and a boolean cannot waive that boundary.
 const RECOVERY_PROMOTION_POLICY = Object.freeze(Object.fromEntries(
   RECOVERY_CLASSES.map((recoveryClass) => [recoveryClass, Object.freeze({
     recovery_class: recoveryClass,
-    runtime_path: "unbound",
+    runtime_path: recoveryClass === "deterministic" ? "loop_runtime" : "unbound",
     required_hooks: RECOVERY_PROMOTION_HOOKS,
   })]),
 ));

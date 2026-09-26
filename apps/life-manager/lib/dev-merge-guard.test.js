@@ -15,6 +15,12 @@ const {
   classifyChangedPath,
   evaluatePackageJsonChange,
   evaluateEligibility,
+  recoveryPromotionHooksFor,
+  acquirePromotionHold,
+  updatePromotionHold,
+  readPromotionHold,
+  appendPromotionTerminalRow,
+  recoverOrphanedPromotionHold,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,
@@ -72,6 +78,23 @@ const CLEAN_DIFF = [
 function tempLedger() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-ledger-"));
   return path.join(dir, "dev-guard-runs.jsonl");
+}
+
+// Every recovery-promotion test MUST inject this. The real default writes to
+// `<LOOPS_ROOT>/.promotion-hold`, which on an unset env resolves to the real, shared
+// `~/loops/.promotion-hold` this very machine's release-reconciler reads — a test that forgets to
+// inject it does not fail loudly, it silently freezes production reconciliation.
+function tempHoldPath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-hold-"));
+  return path.join(dir, ".promotion-hold");
+}
+
+// Every recovery-promotion test MUST inject this too, for the exact same reason as tempHoldPath:
+// the real default is `~/.local/state/life-manager/recovery/promotions.jsonl`, the actual shared
+// production ledger this host's release-reconciler and self-build orphan recovery both read.
+function tempPromotionsLedgerPath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-promotions-"));
+  return path.join(dir, "promotions.jsonl");
 }
 
 
@@ -320,14 +343,13 @@ test("a recovery PR must retain a regression fixture before it can reach review 
   assert.ok(withoutFixture.reasons.includes("recovery_class_missing"));
 
   const withFixture = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]\n\n[lm-recovery-owner:some-owner]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
     ],
   }), {
     changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
-    recoveryPromotionEnabled: true,
   });
   assert.equal(withFixture.ok, false);
   assert.deepEqual(withFixture.reasons, ["recovery_promotion_hooks_incomplete"]);
@@ -335,7 +357,7 @@ test("a recovery PR must retain a regression fixture before it can reach review 
 
 test("a recovery candidate stays closed even with hook claims until a loop runtime path is bound", () => {
   const verdict = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]\n\n[lm-recovery-owner:some-owner]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
@@ -351,6 +373,397 @@ test("a recovery candidate stays closed even with hook claims until a loop runti
   });
   assert.equal(verdict.ok, false);
   assert.deepEqual(verdict.reasons, ["recovery_runtime_promotion_unbound"]);
+});
+
+
+test("a recovery PR with a missing or duplicate owner marker is ineligible", () => {
+  const missing = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`,
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+  });
+  assert.ok(missing.reasons.includes("recovery_owner_missing"));
+
+  const duplicate = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+      + "\n\n[lm-recovery-owner:owner-a]\n\n[lm-recovery-owner:owner-b]",
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+  });
+  assert.ok(duplicate.reasons.includes("recovery_owner_missing"));
+});
+
+test("recoveryPromotionHooksFor refuses a PR body class that lies about the registry", () => {
+  const deterministicEntry = {
+    label: "ai.anicca.deterministic-owner", effect_class: "none", provider_route: "deterministic",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const modelEntry = {
+    label: "ai.anicca.model-owner", effect_class: "none", provider_route: "shared-agent-runner",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const effectfulEntry = {
+    label: "ai.anicca.effectful-owner", effect_class: "publish", provider_route: "deterministic",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const registry = { loops: {
+    "deterministic-owner": deterministicEntry, "model-owner": modelEntry, "effectful-owner": effectfulEntry,
+  } };
+
+  // Registry agrees: all four hooks are bound.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "deterministic-owner", registry), {
+    immutable_release: true, isolated_canary: true, exact_health: true, rollback: true,
+  });
+  // PR body claims deterministic, but the registry says this owner is a model job: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "model-owner", registry), {});
+  // PR body claims deterministic, but the registry says this owner is effectful: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "effectful-owner", registry), {});
+  // Unknown owner: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "no-such-owner", registry), {});
+});
+
+
+const RECOVERY_REGISTRY = { loops: {
+  "deterministic-owner": {
+    label: "ai.anicca.deterministic-owner", effect_class: "none", provider_route: "deterministic",
+    cadence: { start_interval_seconds: 30 },
+  },
+} };
+
+function recoveryDeps(overrides = {}) {
+  return stubDeps({
+    ledgerPath: tempLedger(),
+    pr: {
+      body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+        + "\n\n[lm-recovery-owner:deterministic-owner]",
+    },
+    changedFiles: [
+      "runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py",
+    ],
+    deps: {
+      getLoopRegistry: async () => RECOVERY_REGISTRY,
+      ...overrides,
+    },
+  });
+}
+
+test("a deterministic recovery PR with a registry-verified owner becomes eligible and its post-merge promotion is invoked", async () => {
+  const promotionCalls = [];
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async (args) => {
+      promotionCalls.push(args);
+      assert.ok(fs.existsSync(holdPath), "the hold must still be held while promotion runs");
+      return {
+        ok: true, owner_id: args.ownerId, merged_sha: args.mergedSha,
+        release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
+        hooks: [], rolled_back: false,
+      };
+    },
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "merged_deployed");
+  assert.equal(deps.calls.merge, 1);
+  assert.equal(deps.calls.redeploy, 0, "a recovery PR must never take the Railway deploy path");
+  assert.equal(promotionCalls.length, 1);
+  assert.equal(promotionCalls[0].ownerId, "deterministic-owner");
+  assert.equal(promotionCalls[0].mergedSha, "b".repeat(40));
+  assert.equal(fs.existsSync(holdPath), false, "a successful promotion releases the hold");
+  const stage = result.stages.find((entry) => entry.stage === "deploy_health");
+  assert.equal(stage.ok, true);
+  assert.equal(stage.evidence.promotion.ok, true);
+});
+
+test("the promotion hold is acquired before deps.merge is ever called", async () => {
+  const order = [];
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    acquirePromotionHold: async (args) => {
+      order.push("hold");
+      return acquirePromotionHold(args);
+    },
+    promoteLoopRuntimeRepair: async () => ({
+      ok: true, owner_id: "deterministic-owner", merged_sha: "b".repeat(40),
+      release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
+      hooks: [], rolled_back: false,
+    }),
+  });
+  const originalMerge = deps.merge;
+  deps.merge = async (args) => { order.push("merge"); return originalMerge(args); };
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "merged_deployed");
+  assert.deepEqual(order, ["hold", "merge"]);
+});
+
+test("a hold that cannot be written refuses to merge at all (fail closed)", async () => {
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    acquirePromotionHold: async () => ({ ok: false, reason: "hold_write_failed" }),
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "stopped");
+  assert.equal(result.stoppedAtStage, "merge");
+  assert.equal(result.stopReason, "promotion_hold_unavailable");
+  assert.equal(deps.calls.merge, 0, "the PR must never be merged without a held promotion hold");
+});
+
+test("a merge that fails after the hold was acquired releases the hold immediately", async () => {
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({ merge: async () => ({ ok: false, reason: "merge_conflict" }) });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.stoppedAtStage, "merge");
+  assert.equal(fs.existsSync(holdPath), false, "an unmerged PR must not leave the reconciler frozen");
+});
+
+test("a failed canary/health promotion re-applies the owner AND reverts main before releasing the hold: rolled_back only when both succeed", async () => {
+  const holdPath = tempHoldPath();
+  const revertCalls = [];
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async () => ({
+      ok: false, reason: "exact_health_failed", release_path: "/loops/releases/new",
+      previous_release_path: "/loops/releases/old", hooks: [], rolled_back: true,
+    }),
+    revertMainMerge: async (args) => { revertCalls.push(args); return { ok: true, revertMergeSha: "d".repeat(40) }; },
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "rolled_back");
+  assert.equal(revertCalls.length, 1);
+  assert.equal(revertCalls[0].mergedSha, "b".repeat(40));
+  assert.equal(revertCalls[0].prNumber, 1094);
+  assert.equal(fs.existsSync(holdPath), false, "the hold releases only once the revert lands");
+  assert.ok(deps.calls.alerts.some((message) => message.includes("loop-runtime promotion")));
+  assert.equal(deps.calls.redeploy, 0);
+});
+
+test("a failed promotion whose owner rollback succeeded but whose main revert fails stays rollback_failed and KEEPS the hold", async () => {
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async () => ({
+      ok: false, reason: "exact_health_failed", release_path: "/loops/releases/new",
+      previous_release_path: "/loops/releases/old", hooks: [], rolled_back: true,
+    }),
+    revertMainMerge: async () => ({ ok: false, error: "gh_pr_merge_failed" }),
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "rollback_failed");
+  assert.equal(fs.existsSync(holdPath), true, "a failed revert must keep the reconciler frozen");
+  assert.ok(deps.calls.alerts.some((message) => message.includes("must land")));
+});
+
+test("a promotion whose owner rollback failed but whose main revert succeeded is still rollback_failed, never rolled_back", async () => {
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async () => ({
+      ok: false, reason: "exact_health_failed", release_path: "/loops/releases/new",
+      previous_release_path: "/loops/releases/old", hooks: [], rolled_back: false,
+    }),
+    revertMainMerge: async () => ({ ok: true, revertMergeSha: "d".repeat(40) }),
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "rollback_failed");
+  // The hold DOES still release here: main is clean (the revert landed) even though this owner's
+  // OWN reapply failed, so there is no fleet-wide risk left for the reconciler to freeze against.
+  assert.equal(fs.existsSync(holdPath), false);
+});
+
+test("a lock-busy promotion that never started gets its own verdict, distinct from rollback_failed", async () => {
+  const holdPath = tempHoldPath();
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async () => ({
+      ok: false, reason: "promotion_never_started", release_path: null,
+      previous_release_path: "/loops/releases/old", hooks: [], rolled_back: false,
+    }),
+    revertMainMerge: async () => ({ ok: true, revertMergeSha: "d".repeat(40) }),
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  assert.equal(result.verdict, "promotion_never_started");
+  assert.notEqual(result.verdict, "rollback_failed");
+  assert.equal(fs.existsSync(holdPath), false, "main was still reverted, so the hold still releases");
+});
+
+test("the hold records the guard's own pid at acquisition, then the merged sha and previous release right after merge", async () => {
+  const holdPath = tempHoldPath();
+  let sawShaBeforePromotion = null;
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async (args) => {
+      sawShaBeforePromotion = readPromotionHold(holdPath);
+      return {
+        ok: true, owner_id: args.ownerId, merged_sha: args.mergedSha,
+        release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
+        hooks: [], rolled_back: false,
+      };
+    },
+  });
+  await runMergeGuard({ prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath: tempPromotionsLedgerPath() } });
+  // The hold is gone by the time the run returns (success releases it) -- the assertion that
+  // matters is what promoteLoopRuntimeRepair itself observed WHILE the hold was still held.
+  assert.equal(sawShaBeforePromotion.pid, process.pid);
+  assert.equal(sawShaBeforePromotion.sha, "b".repeat(40));
+  assert.equal(sawShaBeforePromotion.owner_id, "deterministic-owner");
+  assert.equal(sawShaBeforePromotion.pr, 1094);
+});
+
+test("a successful promotion appends an ok:true terminal ledger row before releasing the hold", async () => {
+  const holdPath = tempHoldPath();
+  const ledgerDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-promotions-"));
+  const promotionsLedgerPath = path.join(ledgerDir, "promotions.jsonl");
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async (args) => ({
+      ok: true, owner_id: args.ownerId, merged_sha: args.mergedSha,
+      release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
+      hooks: [], rolled_back: false,
+    }),
+  });
+  await runMergeGuard({
+    prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath },
+  });
+  const rows = fs.readFileSync(promotionsLedgerPath, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+  const terminal = rows.find((row) => row.record_type === "recovery_promotion_terminal");
+  assert.ok(terminal, "the guard must append its own terminal row, not rely on recovery-promotion.mjs's");
+  assert.equal(terminal.merged_sha, "b".repeat(40));
+  assert.equal(terminal.pr, 1094);
+  assert.equal(terminal.ok, true);
+  assert.equal(terminal.rolled_back, false);
+});
+
+test("a failed promotion appends an ok:false terminal row whose rolled_back reflects owner-reapply AND main-revert together", async () => {
+  const holdPath = tempHoldPath();
+  const ledgerDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-guard-promotions-"));
+  const promotionsLedgerPath = path.join(ledgerDir, "promotions.jsonl");
+  const deps = recoveryDeps({
+    promoteLoopRuntimeRepair: async () => ({
+      ok: false, reason: "exact_health_failed", release_path: "/loops/releases/new",
+      previous_release_path: "/loops/releases/old", hooks: [], rolled_back: true,
+    }),
+    revertMainMerge: async () => ({ ok: true, revertMergeSha: "d".repeat(40) }),
+  });
+  await runMergeGuard({
+    prNumber: 1094, deps, options: { promotionHoldPath: holdPath, promotionsLedgerPath },
+  });
+  const rows = fs.readFileSync(promotionsLedgerPath, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+  const terminal = rows.find((row) => row.record_type === "recovery_promotion_terminal");
+  assert.equal(terminal.ok, false);
+  assert.equal(terminal.rolled_back, true);
+});
+
+// -----------------------------------------------------------------------------------------------
+// recoverOrphanedPromotionHold: the crash-recovery path self-build-daily.js runs before it picks a
+// PR. A hold only reaches here already known to be either expired or pid-dead (that liveness gate
+// is the caller's job, exercised in self-build-daily.test.js); these tests drive it directly.
+// -----------------------------------------------------------------------------------------------
+
+function orphanHoldFixture(overrides = {}) {
+  const holdPath = tempHoldPath();
+  const ledgerDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-orphan-promotions-"));
+  const promotionsLedgerPath = path.join(ledgerDir, "promotions.jsonl");
+  fs.mkdirSync(path.dirname(holdPath), { recursive: true });
+  fs.writeFileSync(holdPath, JSON.stringify({
+    sha: null, owner_id: "deterministic-owner", pr: 1094, pid: 999999999,
+    previous_release_path: null,
+    created_at: "2026-09-26T00:00:00.000Z", expires_at: "2026-09-26T01:30:00.000Z",
+    ...overrides,
+  }));
+  return { holdPath, promotionsLedgerPath };
+}
+
+test("orphan recovery with a terminal row already on the ledger just releases the hold", async () => {
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha: "e".repeat(40) });
+  appendPromotionTerminalRow(promotionsLedgerPath, {
+    merged_sha: "e".repeat(40), pr: 1094, ok: true, rolled_back: false, ts: "2026-09-26T01:00:00.000Z",
+  });
+  const revertCalls = [];
+  const result = await recoverOrphanedPromotionHold({
+    holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async (args) => { revertCalls.push(args); return { ok: true }; },
+  });
+  assert.equal(result.attempted, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "recovered_orphan");
+  assert.equal(revertCalls.length, 0, "already-terminal means nothing left to revert");
+  assert.equal(fs.existsSync(holdPath), false);
+});
+
+test("orphan recovery with no sha recorded (crash before merge) just releases the hold", async () => {
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha: null });
+  const revertCalls = [];
+  const result = await recoverOrphanedPromotionHold({
+    holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async (args) => { revertCalls.push(args); return { ok: true }; },
+  });
+  assert.equal(result.attempted, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "orphan_pre_merge");
+  assert.equal(revertCalls.length, 0, "nothing was ever merged, so nothing to revert");
+  assert.equal(fs.existsSync(holdPath), false);
+});
+
+test("orphan recovery with a sha and no terminal row reverts main, reapplies the owner, appends a terminal row, and releases the hold", async () => {
+  const sha = "f".repeat(40);
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({
+    sha, previous_release_path: "/loops/releases/old",
+  });
+  const revertCalls = [];
+  const applyCalls = [];
+  const result = await recoverOrphanedPromotionHold({
+    holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async (args) => { revertCalls.push(args); return { ok: true, revertMergeSha: "9".repeat(40) }; },
+    applyOwnerToRelease: async (args) => { applyCalls.push(args); return { ok: true }; },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "recovered_orphan");
+  assert.equal(revertCalls.length, 1);
+  assert.equal(revertCalls[0].mergedSha, sha);
+  assert.equal(revertCalls[0].prNumber, 1094);
+  assert.equal(applyCalls.length, 1);
+  assert.equal(applyCalls[0].releaseRoot, "/loops/releases/old");
+  assert.equal(applyCalls[0].ownerId, "deterministic-owner");
+  assert.equal(fs.existsSync(holdPath), false);
+  const rows = fs.readFileSync(promotionsLedgerPath, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+  const terminal = rows.find((row) => row.record_type === "recovery_promotion_terminal");
+  assert.equal(terminal.merged_sha, sha);
+  assert.equal(terminal.ok, false);
+  assert.equal(terminal.rolled_back, true);
+  assert.equal(terminal.recovered_orphan, true);
+});
+
+test("orphan recovery whose main revert fails keeps the hold, alerts, and never claims rolled_back", async () => {
+  const sha = "1".repeat(40);
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({ sha });
+  const alerts = [];
+  const result = await recoverOrphanedPromotionHold({
+    holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async () => ({ ok: false, error: "gh_pr_merge_failed" }),
+    alert: async (message) => { alerts.push(message); },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, "rollback_failed");
+  assert.equal(fs.existsSync(holdPath), true, "a failed revert must keep the reconciler frozen");
+  assert.equal(alerts.length, 1);
+  assert.ok(alerts[0].includes(sha));
+  const rows = fs.readFileSync(promotionsLedgerPath, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+  const terminal = rows.find((row) => row.record_type === "recovery_promotion_terminal");
+  assert.equal(terminal.ok, false);
+  assert.equal(terminal.rolled_back, false);
+});
+
+test("orphan recovery does nothing when the hold is still active and its pid is alive", async () => {
+  const { holdPath, promotionsLedgerPath } = orphanHoldFixture({
+    pid: process.pid, expires_at: "2026-09-26T05:00:00.000Z",
+  });
+  const result = await recoverOrphanedPromotionHold({
+    holdPath, promotionsLedgerPath, now: () => new Date("2026-09-26T02:00:00.000Z"),
+    revertMainMerge: async () => { throw new Error("must not be called"); },
+  });
+  assert.equal(result.attempted, false);
+  assert.equal(fs.existsSync(holdPath), true);
 });
 
 

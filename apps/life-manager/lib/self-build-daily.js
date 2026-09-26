@@ -52,13 +52,32 @@ const path = require("node:path");
 
 const {
   GUARD_LOCK_STALE_MS,
+  RECOVERY_PR_MARKER,
   appendGuardRun,
   evaluateEligibility,
   guardLedgerPath,
   guardLockPath,
   readGuardProgress,
   readLedgerRows,
+  recoveryClassFromBody,
+  recoveryOwnerFromBody,
+  recoveryPromotionHooksFor,
+  promotionHoldPath,
+  defaultPromotionsLedgerPath,
+  recoverOrphanedPromotionHold,
 } = require("./dev-merge-guard.js");
+
+const REPO_DIR = path.resolve(__dirname, "../../..");
+
+// Read fresh every call: this loop runs once a day, so the cost of re-reading a small JSON file is
+// nothing next to the cost of a stale registry silently waving a repointed owner through.
+function readLoopRegistry() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(REPO_DIR, "config/loop-registry.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 
 // The three files that, between them, choose the PR and choose the judge. Handed to the guard as
@@ -91,6 +110,11 @@ const GUARD_VERDICTS = Object.freeze([
   "merged_unverified",
   "rolled_back",
   "rollback_failed",
+  // A bound recovery PR's candidate release could not even be cut (another release build held
+  // bin/cut-loop-release.sh's lock through every retry). Distinct from rollback_failed: nothing
+  // was ever applied to the owner, so nothing was rolled back — the merged commit sits on main
+  // with the promotion hold still in place until the guard's own main-revert lands.
+  "promotion_never_started",
   "stopped",
   "errored",
   "locked",
@@ -101,6 +125,13 @@ const SELF_BUILD_VERDICTS = Object.freeze([
   "no_op",
   "timeout",
   "unrecognized_guard_verdict",
+  // This pass's own crash recovery (recoverOrphanedPromotionHold, run before a PR is even picked),
+  // not a guard verdict: the PREVIOUS pass's guard died holding the promotion hold, and this one
+  // found a real merged sha with no terminal ledger row, reverted it, and released the hold.
+  "recovered_orphan",
+  // Same crash recovery, but the previous guard died before its merge stage ever recorded a sha --
+  // nothing reached main, so there was nothing to revert. The hold is released with no side effect.
+  "orphan_pre_merge",
 ]);
 
 const NO_OP_REASONS = Object.freeze([
@@ -117,13 +148,19 @@ const NO_OP_REASONS = Object.freeze([
 
 const SEVEN_DAYS = 7;
 
-// 45 minutes, and the arithmetic is the whole point. The guard's own post-merge bounds are a 10 min
-// health poll AND a 15 min deploy-freshness poll — 25 minutes AFTER the merge, before which sit
-// review (12 min budget) and the full test suite. The previous 20 minutes was therefore not a
-// generous bound but an impossible one: every successfully merging day would have been killed
-// mid-deploy and filed as a timeout, and the loop's only good outcome was the one it could never
-// reach. 45 leaves the guard's worst case room and still refuses to hold the lock into the next
-// day's pass. It is also NOT the merge safety mechanism — that is the merge-aware kill below.
+// 45 minutes, and the arithmetic bounds only the PRE-merge stages (review, blocked actions, the
+// full test suite) — see the merge-aware kill below, which never signals once the guard has begun
+// "merge" or anything after it. Post-merge itself has two different worst cases depending on the
+// PR: the app's Railway path polls health for up to 10 min plus deploy-freshness for up to 15 min
+// (25 minutes after the merge); a bound recovery PR's loop-runtime promotion instead polls its own
+// owner's next terminal readback for up to 45 min (recovery-promotion.mjs's exact_health hook),
+// plus whatever a failure's owner-reapply and main-revert take. Neither worst case is bounded by
+// DEFAULT_BUDGET_MS — an overrun there only sets `budget_exceeded` on the ledger row so a run that
+// took 90 minutes never looks like one that took 9. The previous 20 minutes was not a generous
+// pre-merge bound but an impossible one: every successfully merging day would have been killed
+// mid-review/test and filed as a timeout, and the loop's only good outcome was the one it could
+// never reach. 45 leaves the pre-merge worst case room and still refuses to hold the lock into the
+// next day's pass. It is also NOT the merge safety mechanism — that is the merge-aware kill below.
 const DEFAULT_BUDGET_MS = 45 * 60 * 1000;
 
 // Once the guard announces this stage it has begun doing irreversible things, and the budget stops
@@ -275,10 +312,23 @@ async function pickEligiblePr({ deps, options = {} }) {
       continue;
     }
 
+    // Same class-cannot-lie computation the guard's own main flow performs before merge (see
+    // dev-merge-guard.js's runMergeGuardLocked): only a registry-verified deterministic/effect-none
+    // owner gets all four promotion hooks here too, so this dry precheck cannot pick a candidate the
+    // real guard run would then refuse for a different reason.
+    const isRecoveryPr = String(pr?.body || "").includes(RECOVERY_PR_MARKER);
+    const recoveryClass = isRecoveryPr ? recoveryClassFromBody(pr.body) : null;
+    const recoveryOwnerId = isRecoveryPr ? recoveryOwnerFromBody(pr.body) : null;
+    const recoveryRegistry = isRecoveryPr ? readLoopRegistry() : null;
+    const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
+      ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
+      : {};
+
     const eligibility = evaluateEligibility(pr, {
       allowedAuthors: options.allowedAuthors,
       protectedPaths,
       changedFiles,
+      recoveryPromotionHooks,
     });
     // An unreadable file list is not an empty one — the guard says so at stage one and so does this.
     if (eligibility.ok && changedFiles !== null) {
@@ -445,6 +495,30 @@ async function runSelfBuildDay({ deps, options = {} }) {
     // recorded as locked — a real, honest day, not a skipped one.
     day.verdict = "locked";
     day.no_op_reason = "guard_lock_held";
+    return close();
+  }
+
+  // Orphaned-promotion-hold crash recovery, before anything else picks a PR. If the PREVIOUS
+  // pass's guard died holding `~/loops/.promotion-hold` (see dev-merge-guard.js's
+  // acquirePromotionHold), the reconciler stays frozen forever on its own (it never mutates the
+  // hold) -- this is the only place that clears an orphan. A hold that is still active AND whose
+  // recording pid is alive belongs to a guard genuinely still working; recoverOrphanedPromotionHold
+  // itself checks both and returns `attempted: false` for that case, so this call is always safe to
+  // make unconditionally.
+  const orphanHoldPath = options.promotionHoldPath || promotionHoldPath(options);
+  const orphanLedgerPath = options.promotionsLedgerPath || defaultPromotionsLedgerPath(options);
+  const orphanRecover = deps.recoverOrphanedPromotionHold || recoverOrphanedPromotionHold;
+  const orphan = await orphanRecover({
+    holdPath: orphanHoldPath,
+    promotionsLedgerPath: orphanLedgerPath,
+    now,
+    revertMainMerge: deps.revertMainMerge,
+    alert: deps.alert,
+  });
+  if (orphan.attempted) {
+    day.verdict = orphan.verdict;
+    day.pr = orphan.pr ?? null;
+    day.orphan_recovery = orphan;
     return close();
   }
 
