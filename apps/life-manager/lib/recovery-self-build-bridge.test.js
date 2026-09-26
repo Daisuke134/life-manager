@@ -224,3 +224,30 @@ test("an in-scope deterministic owner is filed as a code-repair issue as before"
   assert.equal(result.status, "issued");
   assert.equal(result.intent_id, value.intent_id);
 });
+
+test("an open issue for the same owner covers a new intent instead of filing a duplicate", async () => {
+  const first = outcome();
+  const second = outcome({ intent_id: `${first.intent_id}-again` });
+  const { journalPath, cursorPath } = tempFiles([first, second]);
+  const asked = [];
+  let created = 0;
+  const issueClient = {
+    async ensureLabel() {},
+    async findByMarker() { return null; },
+    async findOpenByMarker(marker) {
+      asked.push(marker);
+      return created ? { url: "https://github.com/Daisuke134/life-manager/issues/6001" } : null;
+    },
+    async create(issue) {
+      created += 1;
+      assert.match(issue.body, new RegExp(`<!-- lm-recovery-owner:${first.owner_id} -->`));
+      return { url: "https://github.com/Daisuke134/life-manager/issues/6001" };
+    },
+  };
+  const a = await processRecoveryOutcomeJournal({ journalPath, cursorPath, issueClient });
+  const b = await processRecoveryOutcomeJournal({ journalPath, cursorPath, issueClient });
+  assert.equal(a.status, "issued");
+  assert.equal(b.status, "covered_by_open_owner_issue");
+  assert.equal(created, 1);
+  assert.deepEqual(asked, [`lm-recovery-owner:${first.owner_id}`, `lm-recovery-owner:${first.owner_id}`]);
+});

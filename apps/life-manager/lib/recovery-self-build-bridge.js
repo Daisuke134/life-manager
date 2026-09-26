@@ -80,6 +80,10 @@ function markerForRecoveryOutcome(value) {
   return `lm-recovery:${outcome.intent_id}`;
 }
 
+function ownerMarkerForRecoveryOutcome(value) {
+  return `lm-recovery-owner:${normalizeRecoveryOutcome(value).owner_id}`;
+}
+
 function buildRecoverySelfBuildIssue(value) {
   const outcome = normalizeRecoveryOutcome(value);
   const marker = markerForRecoveryOutcome(value);
@@ -117,6 +121,7 @@ function buildRecoverySelfBuildIssue(value) {
       "- Preserve immutable release binding and prove the repaired owner with authoritative status readback.",
       "",
       `<!-- ${marker} -->`,
+      `<!-- ${ownerMarkerForRecoveryOutcome(value)} -->`,
     ].join("\n"),
     labels: Object.freeze([DEV_LOOP_LABEL]),
   });
@@ -197,6 +202,22 @@ async function processRecoveryOutcomeJournal({
       intent_id: normalized.intent_id,
       outcome: OUT_OF_SCOPE_OUTCOME,
     };
+  }
+
+  // One open code-repair issue per owner: a failing owner mints a new intent every
+  // streak, and the dev loop can only work one issue a day.
+  if (typeof issueClient.findOpenByMarker === "function") {
+    const open = await issueClient.findOpenByMarker(ownerMarkerForRecoveryOutcome(selected));
+    if (open) {
+      appendIssued(cursorPath, {
+        schema_version: 1,
+        intent_id: normalized.intent_id,
+        issue_url: String(open.url || "") || null,
+        created: false,
+        outcome: "covered_by_open_owner_issue",
+      });
+      return { status: "covered_by_open_owner_issue", intent_id: normalized.intent_id };
+    }
   }
 
   const marker = markerForRecoveryOutcome(selected);
