@@ -2,8 +2,10 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { classifyChangedPath, repairScopeForOwner } = require("./dev-merge-guard.js");
 
 const DEV_LOOP_LABEL = "lm:type:self-heal";
+const OUT_OF_SCOPE_OUTCOME = "escalate_owner_out_of_scope";
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const RELEASE_SHA = /^[0-9a-f]{40}$/;
 const SAFE_REF = /^[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9._:/-]{1,512}$/;
@@ -57,9 +59,29 @@ function normalizeRecoveryOutcome(value) {
   });
 }
 
+// Reuses the exact file-scope decision the merge guard itself applies to a recovery PR
+// (dev-merge-guard.js classifyChangedPath + repairScopeForOwner) rather than re-deriving it: an
+// owner whose entrypoint the dev agent cannot touch (outside apps/life-manager, runtime/loop, or a
+// registry-granted deterministic/effect-none scope) must never receive an `lm:type:self-heal`
+// code-repair issue, because no merge the dev agent could open would ever be eligible to fix it.
+// Returns null (unknown, never treated as in-scope) when the registry is missing or the owner has
+// no entrypoint on record.
+function ownerRepairScopeEligible(registry, ownerId) {
+  if (!registry || typeof registry !== "object" || !registry.loops) return null;
+  const entry = registry.loops[ownerId];
+  const entrypoint = typeof entry?.entrypoint === "string" ? entry.entrypoint : "";
+  if (!entrypoint) return null;
+  const repairScope = repairScopeForOwner(registry, ownerId);
+  return classifyChangedPath(entrypoint, { repairScope }).allowed === true;
+}
+
 function markerForRecoveryOutcome(value) {
   const outcome = normalizeRecoveryOutcome(value);
   return `lm-recovery:${outcome.intent_id}`;
+}
+
+function ownerMarkerForRecoveryOutcome(value) {
+  return `lm-recovery-owner:${normalizeRecoveryOutcome(value).owner_id}`;
 }
 
 function buildRecoverySelfBuildIssue(value) {
@@ -99,6 +121,7 @@ function buildRecoverySelfBuildIssue(value) {
       "- Preserve immutable release binding and prove the repaired owner with authoritative status readback.",
       "",
       `<!-- ${marker} -->`,
+      `<!-- ${ownerMarkerForRecoveryOutcome(value)} -->`,
     ].join("\n"),
     labels: Object.freeze([DEV_LOOP_LABEL]),
   });
@@ -142,7 +165,9 @@ function appendIssued(cursorPath, value) {
   }
 }
 
-async function processRecoveryOutcomeJournal({ journalPath, cursorPath, issueClient, maxBytes } = {}) {
+async function processRecoveryOutcomeJournal({
+  journalPath, cursorPath, issueClient, maxBytes, registry,
+} = {}) {
   if (!journalPath || !cursorPath || !issueClient
       || typeof issueClient.ensureLabel !== "function"
       || typeof issueClient.findByMarker !== "function"
@@ -163,6 +188,38 @@ async function processRecoveryOutcomeJournal({ journalPath, cursorPath, issueCli
   if (!selected) return { status: "no-op", reason: "no_unissued_terminal_outcome" };
 
   const normalized = normalizeRecoveryOutcome(selected);
+
+  if (registry !== undefined && ownerRepairScopeEligible(registry, normalized.owner_id) === false) {
+    appendIssued(cursorPath, {
+      schema_version: 1,
+      intent_id: normalized.intent_id,
+      issue_url: null,
+      created: false,
+      outcome: OUT_OF_SCOPE_OUTCOME,
+    });
+    return {
+      status: "skipped_out_of_scope",
+      intent_id: normalized.intent_id,
+      outcome: OUT_OF_SCOPE_OUTCOME,
+    };
+  }
+
+  // One open code-repair issue per owner: a failing owner mints a new intent every
+  // streak, and the dev loop can only work one issue a day.
+  if (typeof issueClient.findOpenByMarker === "function") {
+    const open = await issueClient.findOpenByMarker(ownerMarkerForRecoveryOutcome(selected));
+    if (open) {
+      appendIssued(cursorPath, {
+        schema_version: 1,
+        intent_id: normalized.intent_id,
+        issue_url: String(open.url || "") || null,
+        created: false,
+        outcome: "covered_by_open_owner_issue",
+      });
+      return { status: "covered_by_open_owner_issue", intent_id: normalized.intent_id };
+    }
+  }
+
   const marker = markerForRecoveryOutcome(selected);
   const issue = buildRecoverySelfBuildIssue(selected);
   await issueClient.ensureLabel(DEV_LOOP_LABEL);
@@ -188,9 +245,11 @@ async function processRecoveryOutcomeJournal({ journalPath, cursorPath, issueCli
 
 module.exports = {
   DEV_LOOP_LABEL,
+  OUT_OF_SCOPE_OUTCOME,
   buildRecoverySelfBuildIssue,
   markerForRecoveryOutcome,
   normalizeRecoveryOutcome,
+  ownerRepairScopeEligible,
   processRecoveryOutcomeJournal,
   readJsonLinesTail,
 };

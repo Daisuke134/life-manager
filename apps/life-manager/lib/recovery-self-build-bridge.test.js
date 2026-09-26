@@ -149,3 +149,105 @@ test("malformed, nonterminal and effect-held rows never become code repair issue
   assert.deepEqual(result, { status: "no-op", reason: "no_unissued_terminal_outcome" });
   assert.equal(called, false);
 });
+
+test("an owner outside the dev agent's repair scope is never filed as a code-repair issue", async () => {
+  // life-manager-anicca-* mobile publish owners live under skills/ with no registry-granted repair
+  // scope (see dev-merge-guard.js repairScopeForOwner / classifyChangedPath): the dev agent cannot
+  // edit them, so escalating to lm:type:self-heal would be a code-repair issue nobody can act on.
+  const value = outcome({
+    loop_id: "life-manager-anicca-post",
+    owner_id: "life-manager-anicca-post",
+    occurrence_id: "life-manager-anicca-post:run-1",
+  });
+  const registry = { loops: {
+    "life-manager-anicca-post": {
+      effect_class: "publish", provider_route: "deterministic",
+      entrypoint: "skills/earn/mobile-publish/scripts/post-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  const { journalPath, cursorPath } = tempFiles([value]);
+  let called = false;
+  const result = await processRecoveryOutcomeJournal({
+    journalPath, cursorPath, registry,
+    issueClient: {
+      async ensureLabel() { called = true; },
+      async findByMarker() { called = true; },
+      async create() { called = true; },
+    },
+  });
+
+  assert.equal(result.status, "skipped_out_of_scope");
+  assert.equal(result.intent_id, value.intent_id);
+  assert.equal(result.outcome, "escalate_owner_out_of_scope");
+  assert.equal(called, false);
+
+  const cursorRows = fs.readFileSync(cursorPath, "utf8").trim().split("\n").map(JSON.parse);
+  assert.equal(cursorRows.length, 1);
+  assert.equal(cursorRows[0].intent_id, value.intent_id);
+  assert.equal(cursorRows[0].outcome, "escalate_owner_out_of_scope");
+
+  // Replay is zero: a second pass over the same journal must not re-attempt filing.
+  const second = await processRecoveryOutcomeJournal({
+    journalPath, cursorPath, registry,
+    issueClient: {
+      async ensureLabel() { called = true; },
+      async findByMarker() { called = true; },
+      async create() { called = true; },
+    },
+  });
+  assert.equal(second.status, "no-op");
+  assert.equal(called, false);
+});
+
+test("an in-scope deterministic owner is filed as a code-repair issue as before", async () => {
+  const value = outcome();
+  const registry = { loops: {
+    "affiliate-browser": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/affiliate/affiliate",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  const { journalPath, cursorPath } = tempFiles([value]);
+  const result = await processRecoveryOutcomeJournal({
+    journalPath,
+    cursorPath,
+    registry,
+    issueClient: {
+      async ensureLabel() {},
+      async findByMarker() { return null; },
+      async create() { return { url: "https://github.com/Daisuke134/life-manager/issues/6001" }; },
+    },
+  });
+
+  assert.equal(result.status, "issued");
+  assert.equal(result.intent_id, value.intent_id);
+});
+
+test("an open issue for the same owner covers a new intent instead of filing a duplicate", async () => {
+  const first = outcome();
+  const second = outcome({ intent_id: `${first.intent_id}-again` });
+  const { journalPath, cursorPath } = tempFiles([first, second]);
+  const asked = [];
+  let created = 0;
+  const issueClient = {
+    async ensureLabel() {},
+    async findByMarker() { return null; },
+    async findOpenByMarker(marker) {
+      asked.push(marker);
+      return created ? { url: "https://github.com/Daisuke134/life-manager/issues/6001" } : null;
+    },
+    async create(issue) {
+      created += 1;
+      assert.match(issue.body, new RegExp(`<!-- lm-recovery-owner:${first.owner_id} -->`));
+      return { url: "https://github.com/Daisuke134/life-manager/issues/6001" };
+    },
+  };
+  const a = await processRecoveryOutcomeJournal({ journalPath, cursorPath, issueClient });
+  const b = await processRecoveryOutcomeJournal({ journalPath, cursorPath, issueClient });
+  assert.equal(a.status, "issued");
+  assert.equal(b.status, "covered_by_open_owner_issue");
+  assert.equal(created, 1);
+  assert.deepEqual(asked, [`lm-recovery-owner:${first.owner_id}`, `lm-recovery-owner:${first.owner_id}`]);
+});

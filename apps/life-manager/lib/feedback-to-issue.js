@@ -171,6 +171,17 @@ function createGhIssueClient(options = {}) {
       const issues = JSON.parse(raw || "[]");
       return issues.find((issue) => String(issue.body || "").includes(`<!-- ${marker} -->`)) || null;
     },
+    findOpenByMarker(marker) {
+      const raw = run([
+        "issue", "list",
+        "-R", repo,
+        "--state", "open",
+        "--limit", "100",
+        "--json", "url,body",
+      ]);
+      const issues = JSON.parse(raw || "[]");
+      return issues.find((issue) => String(issue.body || "").includes(`<!-- ${marker} -->`)) || null;
+    },
     create(issue) {
       const url = run([
         "issue", "create",
