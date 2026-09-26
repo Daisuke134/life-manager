@@ -190,6 +190,35 @@
       ],
       "type": "string"
     },
+    "effect_reconcile": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "occurrence_flag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolve_flag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "argv"
+      ],
+      "type": "object"
+    },
     "entrypoint": {
       "minLength": 1,
       "pattern": "^(?!/)(?!(?:\\./)*\\.?$)(?!.*(?:^|/)\\.\\.(?:/|$)).+$",
