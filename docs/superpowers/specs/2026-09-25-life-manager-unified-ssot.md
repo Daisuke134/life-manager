@@ -8,6 +8,14 @@
 
 所有: Claude が Foundation・Paid 両方の唯一の開発owner（2026-09-25 Dais指示）。旧2つのCodexセッションの保護境界は解除。Life Manager 自身のloopは引き続き本番stateのownerであり、Ryu room `18211957` への再送禁止と正式納品ボタン非押下は維持する。
 
+## 0. 原則: No human in loop
+
+Life Manager はアシスタントではなくマネージャー。Grok bot、Muse、Instinct と同じく、自分でコンピュータとブラウザを使い、仕事を最後まで完結させる。**人（Dais を含む）に作業や判断を頼むことは、設計違反として扱う。**
+- 応募・承諾・制作・納品・入金確認・修復・改善は、すべて Life Manager の loop が行う。
+- 人に頼るのは、法律上どうしても本人が必要なものだけ（初回の KYC、本人確認など）。それも最初の1回に限る（T10）。
+- 判断は model が提案し、決定的な policy（金額、契約条件の一致、上限、重複防止、rollback）が確定させる。
+- 外部の coding agent（Claude Code、Codex のセッション）も同じく「人」の側。Life Manager が自分で直せるようになること（§5.1）が目標。
+
 ## 1. 観測事実（2026-09-25 JST 実測）
 
 | 項目 | 値 | 出所 |
@@ -236,11 +244,11 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
 - [ ] **7-0 Lancers 案件 5605912（順序変更で最優先）**。Life Manager の応募 loop が自力で応募し（proposal `27969614`、`application_verified: true`）、2026-09-25 にクライアントに採用された。題名は「【継続1件2,000円〜】観光・お出かけのお得術に関する Instagram 用フィード画像作成」。現在は Lancers の段階 (4) 発注者決定。
-  - [ ] 7-0a 発注内容の承諾（`https://www.lancers.jp/project/approval/start/5605912`）。どの loop にも実装がないので、今回は Dais の手動例外として行う。金額・件数・納期を確認してから承諾する
+  - [ ] 7-0a 発注内容の承諾を **Life Manager が自分で行う**（`https://www.lancers.jp/project/approval/start/<project_id>`）。Lancers の Paid owner に実装する。承諾するのは、発注内容の金額・納期・作業範囲が、採用された検証済み提案（proposal `27969614`）と一致する時だけ（決定的な policy）。一致しなければ承諾せず、差分をクライアントに確認するメッセージを返す。承諾は1 occurrence につき1回だけ、公式画面の readback で確認する
   - [ ] 7-0b 仮払い（funded）を公式画面で readback する
   - [ ] 7-0c 制作と納品: Instagram 用フィード画像。Life Manager のどの loop が制作できるかを確認する
   - [ ] 7-0d 検収と入金（payout）を公式に readback する
-  - [ ] 7-0e 承諾 → 仮払い確認 → 制作 → 納品 → 入金確認を、Lancers の Paid owner（`skills/earn/lancers/scripts/paid-owner`）に実装する。2件目以降は Life Manager が自分で完走できるようにする
+  - [ ] 7-0e 承諾 → 仮払い確認 → 制作 → 納品 → 入金確認を、Lancers の Paid owner（`skills/earn/lancers/scripts/paid-owner`）で1本につなぐ。この案件から Life Manager が自分で完走する
 順序変更の記録（2026-09-26）: T7 の旧順序は 7-4 Coconala Storefront が先頭だった。新順序は 7-0 Lancers 5605912 を先頭にする。理由: 採用済みで、入金に最も近いため。
 - [ ] 7-4 Coconala Storefront の公式 readback で、occurrence `hf-gig-storefront-direct:18d8852fe62527e0-18841`（effect_unknown）を閉じる
 - [ ] 7-5 Coconala Apply の occurrence `hf-gig-apply-direct:18d88651ee0bf088-46308`（effect_unknown）を公式 readback で閉じる
