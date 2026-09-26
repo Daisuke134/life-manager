@@ -112,6 +112,26 @@ def _seller_minutes(conversation: list[dict[str, Any]]) -> list[float] | None:
     return minutes
 
 
+SENDER_HREFS = """nodes => nodes.map(node => {
+  const full=[...node.querySelectorAll('div[class*="_messageBody_"]')].find(i => i.querySelector('p'));
+  return [full?.querySelector('a[class*="_senderName_"]')?.getAttribute('href') || null,
+          full?.querySelector('time')?.getAttribute('datetime') || null];})"""
+
+
+def own_rows(rows: list[dict[str, Any]], hrefs: list[Any],
+             account_id: str) -> list[dict[str, Any]] | None:
+    """Re-derive seller rows from our stable profile link, not the display name."""
+    # Each href carries its row's minute: a re-render between the two DOM reads
+    # cannot pair a sender with another message.
+    if (not isinstance(hrefs, list) or len(hrefs) != len(rows)
+            or any(not isinstance(h, list) or len(h) != 2 or h[1] != row.get("sent_at")
+                   for h, row in zip(hrefs, rows))):
+        return None
+    own = f"/public/employees/{account_id}"
+    return [{**row, "role": "seller" if str(h[0] or "").split("crowdworks.jp")[-1] == own
+             else "buyer"} for row, h in zip(rows, hrefs)]
+
+
 def _form_fence_times(state_root: Path) -> list[float]:
     times = []
     for path in (state_root / "reply/external-actions").glob("*.json"):
@@ -180,6 +200,10 @@ def _prove(state_root, occurrence, rows, fences, read_conversation):
         minutes = _seller_minutes(conversation) if conversation else None
         if minutes is None:
             return None, f"official_conversation_unavailable:{thread_id}"
+        if not minutes:
+            # Every inbox thread opens with our proposal; zero seller rows means
+            # our identity was not recognised, not that we never wrote.
+            return None, f"seller_identity_unverified:{thread_id}"
         if any(_overlaps(m, window) for m in minutes):
             return None, f"seller_message_in_window:{thread_id}"
         evidence[thread_id] = max(minutes, default=None)
@@ -264,10 +288,15 @@ def main(argv: list[str] | None = None) -> int:
                 adapter.observe_threads()
             for thread_id in threads:
                 try:
-                    rows = adapter._detail(thread_id)
+                    rows = own_rows(
+                        adapter._detail(thread_id),
+                        adapter.page.locator('div[class*="_messageItem_"]').evaluate_all(SENDER_HREFS),
+                        adapter._observation({"thread_id": thread_id, "id": "0"})["account_id"])
                     blocker = contract_blocker(adapter.page, adapter.rows.get(thread_id))
                     conversations[thread_id] = blocker or rows
-                except Exception:
+                except Exception as error:
+                    print(f"conversation_unavailable {thread_id} {type(error).__name__}: "
+                          f"{str(error)[:200]}", file=sys.stderr)
                     conversations[thread_id] = None
         finally:
             adapter.close()

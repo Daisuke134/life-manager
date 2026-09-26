@@ -164,3 +164,18 @@ def test_accept_contract_intent_threads_are_found(tmp_path):
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"version": 1, "intent": {"action": action, "thread_id": name}}))
     assert module.accept_intent_threads(tmp_path) == {"x"}
+
+
+def test_seller_is_our_profile_link_and_zero_sellers_fail_closed(tmp_path):
+    module = load()
+    rows = [{"role": "seller", "sent_at": "2026年09月20日 11:00"},
+            {"role": "seller", "sent_at": "2026年09月20日 12:02"}]
+    hrefs = [["/public/employers/1", "2026年09月20日 11:00"],
+             ["https://crowdworks.jp/public/employees/7", "2026年09月20日 12:02"]]
+    assert [r["role"] for r in module.own_rows(rows, hrefs, "7")] == ["buyer", "seller"]
+    assert module.own_rows(rows, hrefs[:1], "7") is None
+    assert module.own_rows(rows, [hrefs[1], hrefs[0]], "7") is None  # re-rendered DOM
+    events(tmp_path)
+    marker(tmp_path, [FAILED])
+    buyer_only = [{"role": "buyer", "sent_at": "2026年09月20日 11:00"}]
+    assert prove(module, tmp_path, {"b": buyer_only}) == (None, "seller_identity_unverified:b")
