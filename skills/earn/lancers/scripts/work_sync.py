@@ -265,15 +265,24 @@ def _read_order_terms(page: Any, project_id: str) -> Optional[dict[str, Any]]:
 
 
 def _read_acceptance_confirmed(page: Any, project_id: str) -> bool:
-    """True only when the official working list already shows this project as 進行中."""
+    """True when the official working list shows this project as accepted.
+
+    Right after the seller accepts, Lancers lists the project as 仮払い待ち (awaiting the
+    client's escrow), not 進行中; the 2026-09-26 acceptance of 5605912 (confirmed by the
+    official 「プロジェクトの承諾を受け付けました」 email) stayed reconcile_unknown for that reason.
+    """
     path = "/mypage/proposals/all/working"
     page.goto(f"https://www.lancers.jp{path}", wait_until="domcontentloaded", timeout=20_000)
     if urlsplit(str(page.url)).path != path: raise SourceFailure("acceptance_readback_unavailable")
-    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a.c-link.c-link--black')?.getAttribute('href'), status: card.querySelector('.c-media-job__status--active')?.innerText?.trim()}))""")
+    projects = page.evaluate("""() => [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({href: card.querySelector('a.c-link.c-link--black')?.getAttribute('href'), status: (card.querySelector('.c-media-job__status--active') || card.querySelector('[class*="c-media-job__status"]'))?.innerText?.trim()}))""")
     if not isinstance(projects, list): raise SourceFailure("acceptance_readback_unavailable")
     for row in projects:
         if isinstance(row, Mapping) and row.get("href") == f"/work/detail/{project_id}":
-            return row.get("status") == "進行中"
+            if row.get("status") in {"進行中", "仮払い待ち"}:
+                return True
+            print(f"lancers_acceptance_readback_probe:{project_id}:status={row.get('status')!r}", file=sys.stderr)
+            return False
+    print(f"lancers_acceptance_readback_probe:{project_id}:not_listed:rows={len(projects)}", file=sys.stderr)
     return False
 
 

@@ -405,3 +405,18 @@ def test_read_paid_inventory_reuses_a_given_page_without_reconnecting(tmp_path, 
     result = work_sync.read_paid_inventory(state_path=tmp_path / "application.json", page=page)
     assert result["page"] is page and result["ok"] is True
     assert calls == []
+
+
+def test_acceptance_readback_counts_escrow_pending_as_accepted():
+    class Page:
+        url = "https://www.lancers.jp/mypage/proposals/all/working"
+
+        def goto(self, *_a, **_k):
+            return None
+
+        def evaluate(self, _script):
+            return [{"href": "/work/detail/5605912", "status": "仮払い待ち"},
+                    {"href": "/work/detail/1", "status": "進行中"}]
+
+    assert work_sync._read_acceptance_confirmed(Page(), "5605912") is True
+    assert work_sync._read_acceptance_confirmed(Page(), "1") is True
