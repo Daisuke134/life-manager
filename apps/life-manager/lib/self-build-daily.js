@@ -62,6 +62,9 @@ const {
   recoveryClassFromBody,
   recoveryOwnerFromBody,
   recoveryPromotionHooksFor,
+  promotionHoldPath,
+  defaultPromotionsLedgerPath,
+  recoverOrphanedPromotionHold,
 } = require("./dev-merge-guard.js");
 
 const REPO_DIR = path.resolve(__dirname, "../../..");
@@ -122,6 +125,13 @@ const SELF_BUILD_VERDICTS = Object.freeze([
   "no_op",
   "timeout",
   "unrecognized_guard_verdict",
+  // This pass's own crash recovery (recoverOrphanedPromotionHold, run before a PR is even picked),
+  // not a guard verdict: the PREVIOUS pass's guard died holding the promotion hold, and this one
+  // found a real merged sha with no terminal ledger row, reverted it, and released the hold.
+  "recovered_orphan",
+  // Same crash recovery, but the previous guard died before its merge stage ever recorded a sha --
+  // nothing reached main, so there was nothing to revert. The hold is released with no side effect.
+  "orphan_pre_merge",
 ]);
 
 const NO_OP_REASONS = Object.freeze([
@@ -485,6 +495,30 @@ async function runSelfBuildDay({ deps, options = {} }) {
     // recorded as locked — a real, honest day, not a skipped one.
     day.verdict = "locked";
     day.no_op_reason = "guard_lock_held";
+    return close();
+  }
+
+  // Orphaned-promotion-hold crash recovery, before anything else picks a PR. If the PREVIOUS
+  // pass's guard died holding `~/loops/.promotion-hold` (see dev-merge-guard.js's
+  // acquirePromotionHold), the reconciler stays frozen forever on its own (it never mutates the
+  // hold) -- this is the only place that clears an orphan. A hold that is still active AND whose
+  // recording pid is alive belongs to a guard genuinely still working; recoverOrphanedPromotionHold
+  // itself checks both and returns `attempted: false` for that case, so this call is always safe to
+  // make unconditionally.
+  const orphanHoldPath = options.promotionHoldPath || promotionHoldPath(options);
+  const orphanLedgerPath = options.promotionsLedgerPath || defaultPromotionsLedgerPath(options);
+  const orphanRecover = deps.recoverOrphanedPromotionHold || recoverOrphanedPromotionHold;
+  const orphan = await orphanRecover({
+    holdPath: orphanHoldPath,
+    promotionsLedgerPath: orphanLedgerPath,
+    now,
+    revertMainMerge: deps.revertMainMerge,
+    alert: deps.alert,
+  });
+  if (orphan.attempted) {
+    day.verdict = orphan.verdict;
+    day.pr = orphan.pr ?? null;
+    day.orphan_recovery = orphan;
     return close();
   }
 

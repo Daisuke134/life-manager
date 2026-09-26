@@ -178,6 +178,10 @@ function createSelfBuildDeps(io = {}) {
     getPullRequest: guardIo.getPullRequest,
     listChangedFiles: guardIo.listChangedFiles,
     alert: guardIo.alert,
+    // Orphaned-promotion-hold crash recovery (runSelfBuildDay, before it picks a PR) reverts main
+    // through the exact same mechanism the guard itself uses to merge and to revert -- see
+    // dev-merge-guard.js's revertMainMerge.
+    revertMainMerge: guardIo.revertMainMerge,
     readGuardLedger: () => readLedgerRows(guardLedgerPath()),
     // Only ever called after a pre-merge kill. `git worktree prune` deregisters worktrees whose
     // directories the group kill left behind; it never removes a live one, so it is safe to run

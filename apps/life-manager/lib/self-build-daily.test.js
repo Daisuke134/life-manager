@@ -614,3 +614,78 @@ test("an unrecognised no_op_reason becomes a loud sentinel, never a plausible on
   assert.equal(row.no_op_reason_raw, "something_nobody_declared");
   assert.notEqual(row.no_op_reason, "no_eligible_pr");
 });
+
+
+// Independent re-review, medium finding: if the guard crashes mid-promotion, `.promotion-hold` is
+// never released, and once its TTL passes the release-reconciler would (absent this fix) resume
+// cutting+activating an unverified merge. This pass's own crash recovery runs BEFORE it ever picks
+// a PR, so these tests assert it wins that race and that the guard/picker path is never reached
+// while an orphan is outstanding.
+test("orphan recovery with a recorded sha reverts main, releases the hold, and never picks a PR", async () => {
+  const dir = tempDir();
+  const orphanCalls = [];
+  const deps = depsFor([eligiblePr(1094, "2026-07-24T09:00:00Z")], {
+    listErrorFixPrs: async () => { throw new Error("must not be called while an orphan is outstanding"); },
+  });
+  deps.recoverOrphanedPromotionHold = async (args) => {
+    orphanCalls.push(args);
+    return { attempted: true, ok: true, verdict: "recovered_orphan", sha: "e".repeat(40), pr: 1094, released: { ok: true } };
+  };
+  const row = await runSelfBuildDay({
+    deps, options: { ledgerPath: path.join(dir, "days.jsonl"), guardLockPath: path.join(dir, "guard.lock") },
+  });
+  assert.equal(row.verdict, "recovered_orphan");
+  assert.equal(row.pr, 1094);
+  assert.equal(deps.calls.guard.length, 0, "the guard must never run over an outstanding orphan");
+  assert.equal(orphanCalls.length, 1);
+  assert.equal(typeof orphanCalls[0].holdPath, "string");
+  assert.equal(typeof orphanCalls[0].promotionsLedgerPath, "string");
+});
+
+test("orphan recovery with no recorded sha releases the hold with no revert attempted", async () => {
+  const dir = tempDir();
+  const deps = depsFor([]);
+  deps.recoverOrphanedPromotionHold = async () => (
+    { attempted: true, ok: true, verdict: "orphan_pre_merge", pr: 1200, released: { ok: true } }
+  );
+  const row = await runSelfBuildDay({
+    deps, options: { ledgerPath: path.join(dir, "days.jsonl"), guardLockPath: path.join(dir, "guard.lock") },
+  });
+  assert.equal(row.verdict, "orphan_pre_merge");
+  assert.equal(row.pr, 1200);
+});
+
+test("orphan recovery whose main revert fails is recorded rollback_failed and alerts", async () => {
+  const dir = tempDir();
+  const alerts = [];
+  const deps = depsFor([]);
+  deps.alert = async (message) => { alerts.push(message); return { delivered: true }; };
+  deps.recoverOrphanedPromotionHold = async (args) => {
+    await args.alert("orphaned promotion hold: main revert failed");
+    return { attempted: true, ok: false, verdict: "rollback_failed", sha: "f".repeat(40), pr: 1300, released: false };
+  };
+  const row = await runSelfBuildDay({
+    deps, options: { ledgerPath: path.join(dir, "days.jsonl"), guardLockPath: path.join(dir, "guard.lock") },
+  });
+  assert.equal(row.verdict, "rollback_failed");
+  assert.equal(row.pr, 1300);
+  assert.equal(alerts.length, 1);
+});
+
+test("with no orphan outstanding, recovery reports attempted:false and the normal picker still runs", async () => {
+  const dir = tempDir();
+  const listCalls = [];
+  const prs = [eligiblePr(100, "2026-07-20T09:00:00Z")];
+  const deps = depsFor(prs, {
+    listErrorFixPrs: async () => {
+      listCalls.push(1);
+      return prs.map((pr) => ({ number: pr.number, createdAt: pr.createdAt }));
+    },
+  });
+  deps.recoverOrphanedPromotionHold = async () => ({ attempted: false, reason: "no_hold" });
+  const row = await runSelfBuildDay({
+    deps, options: { ledgerPath: path.join(dir, "days.jsonl"), guardLockPath: path.join(dir, "guard.lock") },
+  });
+  assert.equal(listCalls.length, 1, "the normal picker must still run when there is no orphan");
+  assert.equal(row.pr, 100);
+});

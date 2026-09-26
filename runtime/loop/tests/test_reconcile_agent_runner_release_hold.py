@@ -54,26 +54,110 @@ class ReconcileAgentRunnerReleaseHoldTest(unittest.TestCase):
             self.assertIn("promotion hold active", result.stderr)
             self.assertIn("skipping cut/advance of current", result.stderr)
 
-    def test_b_an_expired_hold_is_logged_and_ignored_so_reconciliation_proceeds(self):
+    def test_b_an_expired_hold_with_no_terminal_ledger_row_stays_frozen(self):
+        # Medium finding from independent re-review: if the guard crashes mid-promotion, nothing
+        # ever clears the hold. Once its TTL passes, "ignoring" it here would fleet-activate the
+        # unverified merged commit -- exactly the blocker this hold exists to prevent, just on a
+        # delay. An expired hold with no proof of resolution must stay frozen, not proceed.
         with tempfile.TemporaryDirectory() as directory:
             loops_root = Path(directory) / "loops"
             loops_root.mkdir()
             hold_path = loops_root / ".promotion-hold"
+            sha = "a" * 40
             hold_path.write_text(json.dumps({
-                "sha": "a" * 40, "owner_id": "test-owner", "pr": 1234,
+                "sha": sha, "owner_id": "test-owner", "pr": 1234, "pid": 999999999,
                 "created_at": _iso(-7200), "expires_at": _iso(-60),
             }))
+            missing_repo = Path(directory) / "does-not-exist"
+            empty_ledger = Path(directory) / "promotions.jsonl"
+            result = self._run({
+                "LOOPS_ROOT": str(loops_root),
+                "SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_PROMOTIONS_LEDGER_PATH": str(empty_ledger),
+            })
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"promotion_hold_orphaned sha={sha} pr=1234", result.stderr)
+            self.assertNotIn("skipping cut/advance of current", result.stderr)
+
+    def test_an_expired_hold_with_a_terminal_ok_row_is_treated_as_released(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops_root = Path(directory) / "loops"
+            loops_root.mkdir()
+            hold_path = loops_root / ".promotion-hold"
+            sha = "b" * 40
+            hold_path.write_text(json.dumps({
+                "sha": sha, "owner_id": "test-owner", "pr": 5555, "pid": 999999999,
+                "created_at": _iso(-7200), "expires_at": _iso(-60),
+            }))
+            ledger_path = Path(directory) / "promotions.jsonl"
+            ledger_path.write_text(json.dumps({
+                "record_type": "recovery_promotion_terminal", "merged_sha": sha, "pr": 5555,
+                "ok": True, "rolled_back": False, "ts": _iso(-30),
+            }) + "\n")
             missing_repo = Path(directory) / "does-not-exist"
             result = self._run({
                 "LOOPS_ROOT": str(loops_root),
                 "SOURCE_REPO": str(missing_repo),
                 "LIFE_MANAGER_SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_PROMOTIONS_LEDGER_PATH": str(ledger_path),
             })
-            # The expired hold must not short-circuit: the script proceeds into `git fetch` against
-            # a repo that does not exist and fails loudly there, never at "exit 0" for the hold.
+            # A terminal row means the promotion genuinely finished -- the reconciler proceeds into
+            # `git fetch` against a repo that does not exist and fails loudly there, not at the hold.
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("expired or unreadable", result.stderr)
-            self.assertNotIn("skipping cut/advance of current", result.stderr)
+            self.assertIn("terminal ledger row; treating as released", result.stderr)
+            self.assertNotIn("promotion_hold_orphaned", result.stderr)
+
+    def test_an_expired_hold_with_a_terminal_rolled_back_row_is_treated_as_released(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops_root = Path(directory) / "loops"
+            loops_root.mkdir()
+            hold_path = loops_root / ".promotion-hold"
+            sha = "c" * 40
+            hold_path.write_text(json.dumps({
+                "sha": sha, "owner_id": "test-owner", "pr": 7777, "pid": 999999999,
+                "created_at": _iso(-7200), "expires_at": _iso(-60),
+            }))
+            ledger_path = Path(directory) / "promotions.jsonl"
+            ledger_path.write_text(json.dumps({
+                "record_type": "recovery_promotion_terminal", "merged_sha": sha, "pr": 7777,
+                "ok": False, "rolled_back": True, "ts": _iso(-30),
+            }) + "\n")
+            missing_repo = Path(directory) / "does-not-exist"
+            result = self._run({
+                "LOOPS_ROOT": str(loops_root),
+                "SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_PROMOTIONS_LEDGER_PATH": str(ledger_path),
+            })
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("terminal ledger row; treating as released", result.stderr)
+
+    def test_an_expired_hold_with_only_a_non_terminal_row_for_the_sha_stays_frozen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops_root = Path(directory) / "loops"
+            loops_root.mkdir()
+            hold_path = loops_root / ".promotion-hold"
+            sha = "d" * 40
+            hold_path.write_text(json.dumps({
+                "sha": sha, "owner_id": "test-owner", "pr": 8888, "pid": 999999999,
+                "created_at": _iso(-7200), "expires_at": _iso(-60),
+            }))
+            ledger_path = Path(directory) / "promotions.jsonl"
+            # ok:false and rolled_back:false -- the promotion failed and remediation never landed.
+            ledger_path.write_text(json.dumps({
+                "record_type": "recovery_promotion_terminal", "merged_sha": sha, "pr": 8888,
+                "ok": False, "rolled_back": False, "ts": _iso(-30),
+            }) + "\n")
+            missing_repo = Path(directory) / "does-not-exist"
+            result = self._run({
+                "LOOPS_ROOT": str(loops_root),
+                "SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_SOURCE_REPO": str(missing_repo),
+                "LIFE_MANAGER_PROMOTIONS_LEDGER_PATH": str(ledger_path),
+            })
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"promotion_hold_orphaned sha={sha} pr=8888", result.stderr)
 
     def test_c_a_missing_hold_file_is_silent_and_reconciliation_proceeds(self):
         with tempfile.TemporaryDirectory() as directory:
