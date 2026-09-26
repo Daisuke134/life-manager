@@ -221,11 +221,11 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **T6 14ループ**
 - [x] 6-1 daily-driver: 生きている Chromium を引き取る（#5889、22:52 に readback 済み）
-- [ ] 6-2 Lancers negotiate / paid: daily-driver 修正後の次の実行を readback する
-- [ ] 6-3 CrowdWorks reply: 同じく readback する
-- [ ] 6-4 Instagram obou: `ebook_account_out_of_mobile_scope` なので registry で退役させる
+- [~] 6-2 Lancers paid は release `387c0689` で pass（11:41）。negotiate は旧 release `287d913c` のまま fail で、`admission_effect_unknown` のため `official_readback_required`。7-7 で扱う
+- [~] 6-3 CrowdWorks reply は失敗ではなく typed fence（`blocked`、exit 75、`host_admission_deferred:resource_heartbeat_unavailable`、`admission_effect_unknown`）。7-6 で扱う
+- [x] 6-4 Instagram obou を退役させた（#5913）
 - [ ] 6-5 Instagram en-card: `LM_DATA_DIR is required` と ledger の job id 衝突を run 単位で切り分けて直す
-- [ ] 6-6 honne-ja: ENOSPC の後の次の実行を readback する
+- [x] 6-6 honne-ja は release `beae3e37` で pass（exit 0）
 - [ ] 6-7 job-search-inbox: 意図された fail-closed。typed fence として分類し、次の実行を readback する
 - [ ] 6-8 pending-admission の owner 約26件: admission が空いた後に apply し、readback する
 - [ ] 6-9 loop が終了時に自分の loop-tmp を掃除する（central sweeper の allowlist 問題）
