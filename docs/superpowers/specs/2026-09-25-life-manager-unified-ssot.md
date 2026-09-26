@@ -245,7 +245,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
 - [ ] **7-0 Lancers 案件 5605912（順序変更で最優先）**。Life Manager の応募 loop が自力で応募し（proposal `27969614`、`application_verified: true`）、2026-09-25 にクライアントに採用された。題名は「【継続1件2,000円〜】観光・お出かけのお得術に関する Instagram 用フィード画像作成」。現在は Lancers の段階 (4) 発注者決定。
-  - [ ] 7-0a 発注内容の承諾を **Life Manager が自分で行う**（`https://www.lancers.jp/project/approval/start/<project_id>`）。Lancers の Paid owner に実装する。承諾するのは、発注内容の金額・納期・作業範囲が、採用された検証済み提案（proposal `27969614`）と一致する時だけ（決定的な policy）。一致しなければ承諾せず、差分をクライアントに確認するメッセージを返す。承諾は1 occurrence につき1回だけ、公式画面の readback で確認する
+  - [x] 7-0a **Life Manager が自分で承諾した**（2026-09-26 23:42 JST）。公式の証拠は Lancers のメール「プロジェクトの承諾を受け付けました」（Gmail thread 1a0de2ac486336de）。承諾した条件は ¥300（固定）・納期 2026-09-30・proposal 27969614 で、提案と一致した。ここまでに外した壁: fence（#5930/#5951）、CDP 接続の競合（#5932）、heartbeat（#5941）、描画待ち（#5937）、404 の提案（#5938）、全件スキャン（#5943）、ダイアログの競合（#5953）、スレッドの競合（#5956/#5961）、二重の接続（#5958）、readback の仮払い待ち（#5963）
+  - [ ] 7-0a' 応募 loop の価格設定の見直し。案件名は「1件2000円〜」なのに、提案は ¥300 だった
   - [ ] 7-0b 仮払い（funded）を公式画面で readback する
   - [ ] 7-0c 制作と納品: Instagram 用フィード画像。Life Manager のどの loop が制作できるかを確認する
   - [ ] 7-0d 検収と入金（payout）を公式に readback する
