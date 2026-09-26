@@ -2524,3 +2524,41 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
                 os.killpg(child_pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
+
+
+def test_heartbeat_loop_tolerates_transient_control_busy(tmp_path, monkeypatch):
+    stopped = threading.Event()
+    failed = threading.Event()
+    results = iter([RuntimeError("control_busy"), RuntimeError("control_busy"), True])
+
+    def heartbeat(_claim):
+        value = next(results)
+        if isinstance(value, Exception):
+            raise value
+        stopped.set()
+        return value
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource", side_effect=heartbeat):
+        _heartbeat_loop(tmp_path / "claim", stopped, failed)
+    assert not failed.is_set()
+
+
+def test_heartbeat_loop_fails_when_busy_outlasts_tolerance(tmp_path, monkeypatch):
+    stopped = threading.Event()
+    failed = threading.Event()
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_BUSY_TOLERANCE_SECONDS", 0.05)
+    with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+               side_effect=RuntimeError("control_busy")):
+        _heartbeat_loop(tmp_path / "claim", stopped, failed)
+    assert failed.is_set()
+
+
+def test_heartbeat_loop_fails_immediately_when_ownership_is_lost(tmp_path, monkeypatch):
+    stopped = threading.Event()
+    failed = threading.Event()
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with patch("runtime.loop.lm_loop_run.heartbeat_durable_resource", return_value=False) as beat:
+        _heartbeat_loop(tmp_path / "claim", stopped, failed)
+    assert failed.is_set() and beat.call_count == 1
