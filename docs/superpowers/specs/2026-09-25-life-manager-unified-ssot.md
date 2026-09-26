@@ -235,6 +235,13 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [x] 7-1 loop hardening の merge / release（#5875 → 以後の release）
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
+- [ ] **7-0 Lancers 案件 5605912（順序変更で最優先）**。Life Manager の応募 loop が自力で応募し（proposal `27969614`、`application_verified: true`）、2026-09-25 にクライアントに採用された。題名は「【継続1件2,000円〜】観光・お出かけのお得術に関する Instagram 用フィード画像作成」。現在は Lancers の段階 (4) 発注者決定。
+  - [ ] 7-0a 発注内容の承諾（`https://www.lancers.jp/project/approval/start/5605912`）。どの loop にも実装がないので、今回は Dais の手動例外として行う。金額・件数・納期を確認してから承諾する
+  - [ ] 7-0b 仮払い（funded）を公式画面で readback する
+  - [ ] 7-0c 制作と納品: Instagram 用フィード画像。Life Manager のどの loop が制作できるかを確認する
+  - [ ] 7-0d 検収と入金（payout）を公式に readback する
+  - [ ] 7-0e 承諾 → 仮払い確認 → 制作 → 納品 → 入金確認を、Lancers の Paid owner（`skills/earn/lancers/scripts/paid-owner`）に実装する。2件目以降は Life Manager が自分で完走できるようにする
+順序変更の記録（2026-09-26）: T7 の旧順序は 7-4 Coconala Storefront が先頭だった。新順序は 7-0 Lancers 5605912 を先頭にする。理由: 採用済みで、入金に最も近いため。
 - [ ] 7-4 Coconala Storefront の公式 readback で、occurrence `hf-gig-storefront-direct:18d8852fe62527e0-18841`（effect_unknown）を閉じる
 - [ ] 7-5 Coconala Apply の occurrence `hf-gig-apply-direct:18d88651ee0bf088-46308`（effect_unknown）を公式 readback で閉じる
 - [ ] 7-6 CrowdWorks の occurrence fence を1件ずつ reconcile する（application 44、Paid 1、reply 201、report 1）
