@@ -195,6 +195,11 @@ function classifyChangedPath(file, options = {}) {
   const value = String(file || "");
   const basename = value.split("/").pop() || "";
   const protectedPaths = Array.isArray(options.protectedPaths) ? options.protectedPaths : [];
+  // A directory prefix (e.g. "skills/earn/crowdworks/") the caller has already proven, via
+  // repairScopeForOwner, belongs to a registry-verified deterministic/effect-none owner for THIS
+  // recovery PR. Everything above still runs first: the self-deny, workflow, migration, env and
+  // spec rules are absolute and a scoped owner cannot buy its way past any of them.
+  const repairScope = typeof options.repairScope === "string" && options.repairScope ? options.repairScope : null;
   // Self-deny first: it must not be possible to reach an allow rule by any spelling.
   if (GUARD_SELF_PATHS.some((pattern) => pattern.test(value))) {
     return { allowed: false, rule: "deny:guard-self" };
@@ -204,6 +209,7 @@ function classifyChangedPath(file, options = {}) {
   if (/(^|\/)migrations?(\/|$)/i.test(value)) return { allowed: false, rule: "deny:migration" };
   if (/^\.env($|\.)/.test(basename)) return { allowed: false, rule: "deny:env" };
   if (/^docs\/superpowers\/specs\//.test(value)) return { allowed: false, rule: "deny:spec" };
+  if (repairScope && value.startsWith(repairScope)) return { allowed: true, rule: "allow:registry-scope" };
   if (/^skills\//.test(value)) return { allowed: false, rule: "deny:skill" };
   if (value === CONDITIONAL_MANIFEST) {
     return { allowed: false, conditional: true, rule: "conditional:package-json" };
@@ -323,12 +329,22 @@ function evaluatePackageJsonChange(before, after) {
   return { allowed: reasons.length === 0, reasons };
 }
 
-function isRetainedRegressionFixture(file) {
+function isRetainedRegressionFixture(file, options = {}) {
   const value = String(file || "");
-  return /^runtime\/loop\/tests\/test_[^/]+\.py$/.test(value)
-    || /^runtime\/loop\/__tests__\/[^/]+\.test\.mjs$/.test(value)
-    || /^apps\/life-manager\/test\/[^/]+\.test\.js$/.test(value)
-    || /^apps\/life-manager\/(?:lib|scripts)\/[^/]+\.test\.js$/.test(value);
+  if (/^runtime\/loop\/tests\/test_[^/]+\.py$/.test(value)) return true;
+  if (/^runtime\/loop\/__tests__\/[^/]+\.test\.mjs$/.test(value)) return true;
+  if (/^apps\/life-manager\/test\/[^/]+\.test\.js$/.test(value)) return true;
+  if (/^apps\/life-manager\/(?:lib|scripts)\/[^/]+\.test\.js$/.test(value)) return true;
+  // A registry-scoped recovery PR (see repairScopeForOwner) may retain its fixture under the
+  // scoped skill's own tests/ directory instead of apps/life-manager or runtime/loop — that
+  // directory does not exist for a skills/ owner.
+  const repairScope = typeof options.repairScope === "string" && options.repairScope ? options.repairScope : null;
+  if (repairScope && value.startsWith(`${repairScope}tests/`)) {
+    const rest = value.slice(`${repairScope}tests/`.length);
+    if (/^test_[^/]+\.py$/.test(rest)) return true;
+    if (/^[^/]+\.test\.(?:js|mjs)$/.test(rest)) return true;
+  }
+  return false;
 }
 
 function recoveryClassFromBody(body) {
@@ -349,7 +365,11 @@ function recoveryOwnerFromBody(body) {
 // touch config/loop-registry.json under ALLOWED_DIRECTORIES) classifies the exact same owner the
 // same way, with effect_class none. Any other combination returns every hook false, which fails
 // evaluateRecoveryPromotion's required_hooks check closed.
-function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
+// The registry-only half of the "deterministic and effect-none" check, shared by
+// recoveryPromotionHooksFor (which additionally requires the PR body's OWN class claim to agree)
+// and repairScopeForOwner (which never looks at the PR body at all, since a PR could lie about its
+// class but not about what the registry itself says for that owner id).
+function registryDeterministicNoEffectOwner(ownerId, registry) {
   const entry = ownerId ? registry?.loops?.[ownerId] : null;
   let registryClass = null;
   try {
@@ -357,13 +377,51 @@ function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
   } catch {
     registryClass = null;
   }
-  const bound = Boolean(entry)
-    && recoveryClass === "deterministic"
-    && registryClass === "deterministic"
-    && entry.effect_class === "none";
-  return bound
+  const bound = Boolean(entry) && registryClass === "deterministic" && entry.effect_class === "none";
+  return { bound, entry: bound ? entry : null };
+}
+
+function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
+  const { bound } = registryDeterministicNoEffectOwner(ownerId, registry);
+  const fullyBound = bound && recoveryClass === "deterministic";
+  return fullyBound
     ? { immutable_release: true, isolated_canary: true, exact_health: true, rollback: true }
     : {};
+}
+
+// Forbidden however classified: the shared kernel, the shared browser adapter, and the
+// loop-development skill itself are never a single owner's editable scope, whatever the registry
+// says (a registry row that pointed its entrypoint at one of these would be a registry bug, not a
+// grant). Every returned scope also has at least two path segments (skills/<name>/), never bare
+// "skills/".
+const FORBIDDEN_SKILL_ROOTS = new Set(["_shared", "browser", "loop-development"]);
+// Entrypoints nested one level deeper by convention: skills/earn/<name>/... and
+// skills/self/<name>/... own skills/<group>/<name>/, not skills/<group>/.
+const GROUPED_SKILL_ROOTS = new Set(["earn", "self"]);
+
+// Derives the ONE directory a registry-verified deterministic/effect-none owner may repair,
+// straight from its own entrypoint — never from anything the PR body claims. Returns null for
+// every other owner (unclassified, non-deterministic, any external effect) and for any owner whose
+// entrypoint does not live under skills/ at all (runtime/loop and apps/life-manager are already on
+// the static allowlist and need no scope).
+function repairScopeForOwner(registry, ownerId) {
+  const { bound, entry } = registryDeterministicNoEffectOwner(ownerId, registry);
+  if (!bound) return null;
+  const entrypoint = String(entry.entrypoint || "");
+  if (!entrypoint.startsWith("skills/")) return null;
+  const segments = entrypoint.split("/").filter(Boolean);
+  // ["skills", name, ...rest] requires at least one path segment after the name to prove the
+  // entrypoint actually lives inside a subdirectory, not directly as skills/<file>.
+  if (segments.length < 3) return null;
+  const first = segments[1];
+  if (!first || FORBIDDEN_SKILL_ROOTS.has(first)) return null;
+  if (GROUPED_SKILL_ROOTS.has(first)) {
+    if (segments.length < 4) return null;
+    const name = segments[2];
+    if (!name) return null;
+    return `skills/${first}/${name}/`;
+  }
+  return `skills/${first}/`;
 }
 
 function readRegistry(registryPath) {
@@ -658,8 +716,16 @@ function evaluateEligibility(pr, options = {}) {
   const gitFiles = Array.isArray(options.changedFiles) ? options.changedFiles.map(String) : null;
   const files = gitFiles ?? ghFiles;
   if (files.length === 0) reasons.push("no_changed_files");
-  if (String(value.body || "").includes(RECOVERY_PR_MARKER)) {
-    if (!files.some(isRetainedRegressionFixture)) reasons.push("regression_fixture_missing");
+  const isRecoveryPr = String(value.body || "").includes(RECOVERY_PR_MARKER);
+  // A non-recovery PR never gets a scope, whatever the caller passed in: repairScopeForOwner is
+  // only ever meaningful next to the recovery marker and owner it was derived from.
+  const repairScope = isRecoveryPr && typeof options.repairScope === "string" && options.repairScope
+    ? options.repairScope
+    : null;
+  if (isRecoveryPr) {
+    if (!files.some((file) => isRetainedRegressionFixture(file, { repairScope }))) {
+      reasons.push("regression_fixture_missing");
+    }
     // runtime/loop repairs cannot inherit the app guard's Railway-only deploy check. The class
     // policy stays fail-closed until a separate runtime promotion path actually invokes every
     // immutable-release/canary/exact-health/rollback hook. A boolean cannot waive this boundary.
@@ -685,7 +751,7 @@ function evaluateEligibility(pr, options = {}) {
   const deniedPaths = [];
   const conditionalPaths = [];
   for (const file of files) {
-    const verdict = classifyChangedPath(file, { protectedPaths: options.protectedPaths });
+    const verdict = classifyChangedPath(file, { protectedPaths: options.protectedPaths, repairScope });
     if (verdict.allowed) continue;
     if (verdict.conditional) conditionalPaths.push(file);
     else deniedPaths.push({ path: file, rule: verdict.rule });
@@ -1512,6 +1578,12 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
         ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
         : {};
+      // Same owner marker, same registry read, one more derived fact: the exact directory (if any)
+      // this bound owner may repair. repairScopeForOwner re-derives it from the registry entry's own
+      // entrypoint, never from the PR body, so a rewritten body cannot widen it.
+      const repairScope = recoveryOwnerId && recoveryRegistry
+        ? repairScopeForOwner(recoveryRegistry, recoveryOwnerId)
+        : null;
 
       const eligibility = evaluateEligibility(pr, {
         allowedAuthors: options.allowedAuthors,
@@ -1519,6 +1591,7 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
         expectHead: options.expectHead,
         changedFiles,
         recoveryPromotionHooks,
+        repairScope,
       });
       const reasons = [...eligibility.reasons];
       if (changedFiles === null) reasons.push("changed_files_unreadable");
@@ -1949,6 +2022,7 @@ module.exports = {
   recoveryClassFromBody,
   recoveryOwnerFromBody,
   recoveryPromotionHooksFor,
+  repairScopeForOwner,
   DEFAULT_PROMOTION_HOLD_TTL_MS,
   promotionHoldPath,
   readPromotionHold,

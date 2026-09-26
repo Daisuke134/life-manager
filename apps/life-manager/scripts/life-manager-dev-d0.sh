@@ -191,8 +191,32 @@ else
   fi
 fi
 
+# The one skills/ directory (if any) this issue's owner may touch, derived from the WORKTREE's own
+# registry entrypoint by the guard's own repairScopeForOwner -- never guessed here and never trusted
+# from anything but the owner id already parsed from the issue's `owner_id:` line above. Only a
+# registry-verified deterministic/effect-none owner gets a non-empty scope; every other owner keeps
+# the existing apps/life-manager + runtime/loop boundary untouched.
+REPAIR_SCOPE=""
+if [ -n "$RECOVERY_OWNER_MARKER" ]; then
+  OWNER_ID="$(printf '%s\n' "$RECOVERY_OWNER_MARKER" | sed -n 's/^\[lm-recovery-owner:\(.*\)\]$/\1/p')"
+  if [ -n "$OWNER_ID" ]; then
+    REPAIR_SCOPE="$(node - "$WT/apps/life-manager/lib/dev-merge-guard.js" "$WT/config/loop-registry.json" "$OWNER_ID" <<'REPAIR_SCOPE_NODE'
+const fs = require("node:fs");
+const [guardPath, registryPath, ownerId] = process.argv.slice(2);
+const { repairScopeForOwner } = require(guardPath);
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+process.stdout.write(repairScopeForOwner(registry, ownerId) || "");
+REPAIR_SCOPE_NODE
+)" || true
+  fi
+fi
+
 DENIED_PATHS="$(node -e 'const g=require(process.argv[1]); console.log(g.GUARD_SELF_PATHS.map((r) => r.source).join(" , "))' "$APP_DIR/lib/dev-merge-guard.js" 2>/dev/null || true)"
-PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Current production funnel focus: $METRIC_FOCUS. Work only inside apps/life-manager and runtime/loop. Use test-driven development: add a failing retained regression fixture first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, policy, external-effect owners, the recovery control plane, the foundation evaluator, this producer, the reviewer, or the merge guard. Never edit these guard-denied paths (regex; any diff touching them is rejected before test): ${DENIED_PATHS:-unavailable}. Editable: apps/life-manager/lib/, apps/life-manager/test/, apps/life-manager/scripts/ and runtime/loop/ outside those. If the fix needs a denied path, make no change and say so. Commit the complete allowed change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, deploy, or change production; the guarded caller performs promotion after independent review, test, canary, health and rollback gates."
+SCOPE_SENTENCE=""
+if [ -n "$REPAIR_SCOPE" ]; then
+  SCOPE_SENTENCE=" This issue's owner is registry-verified deterministic with no external effect, so ${REPAIR_SCOPE} is also editable for this fix, including a retained regression fixture under ${REPAIR_SCOPE}tests/."
+fi
+PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Current production funnel focus: $METRIC_FOCUS. Work only inside apps/life-manager and runtime/loop. Use test-driven development: add a failing retained regression fixture first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, policy, external-effect owners, the recovery control plane, the foundation evaluator, this producer, the reviewer, or the merge guard. Never edit these guard-denied paths (regex; any diff touching them is rejected before test): ${DENIED_PATHS:-unavailable}. Editable: apps/life-manager/lib/, apps/life-manager/test/, apps/life-manager/scripts/ and runtime/loop/ outside those.${SCOPE_SENTENCE} If the fix needs a denied path, make no change and say so. Commit the complete allowed change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, deploy, or change production; the guarded caller performs promotion after independent review, test, canary, health and rollback gates."
 AGENT_OUT="$LOG_DIR/life-manager-dev-agent-last.out"
 EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/life-manager-dev-$NUM/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | "$RUN_AGENT" \
@@ -211,11 +235,12 @@ if [ "$AGENT_RC" -ne 0 ]; then
   exit 1
 fi
 
-PREFLIGHT_JSON="$(node - "$APP_DIR/lib/dev-merge-guard.js" "$APP_DIR/lib/self-build-daily.js" "$WT" <<'NODE'
+PREFLIGHT_JSON="$(node - "$APP_DIR/lib/dev-merge-guard.js" "$APP_DIR/lib/self-build-daily.js" "$WT" "$REPAIR_SCOPE" <<'PREFLIGHT_NODE'
 const { execFileSync } = require("node:child_process");
-const [guardPath, selfBuildPath, worktree] = process.argv.slice(2);
+const [guardPath, selfBuildPath, worktree, repairScopeArg] = process.argv.slice(2);
 const { classifyChangedPath, isRetainedRegressionFixture, parseNameStatus } = require(guardPath);
 const { SELF_BUILD_PROTECTED_PATHS } = require(selfBuildPath);
+const repairScope = repairScopeArg || null;
 const git = (args) => String(execFileSync("git", ["-C", worktree, ...args], { encoding: "utf8" }) || "");
 const files = new Set();
 for (const args of [
@@ -232,16 +257,18 @@ for (const file of untracked.toString("utf8").split("\0").filter(Boolean)) files
 const changed = [...files];
 const denied = changed.map((file) => ({ file, verdict: classifyChangedPath(file, {
   protectedPaths: SELF_BUILD_PROTECTED_PATHS,
+  repairScope,
 }) })).filter(({ verdict }) => !verdict.allowed && !verdict.conditional);
-if (!changed.length || denied.length || !changed.some(isRetainedRegressionFixture)) {
-  process.stderr.write(JSON.stringify({ changed, denied, regression_fixture: changed.some(isRetainedRegressionFixture) }));
+const hasFixture = changed.some((file) => isRetainedRegressionFixture(file, { repairScope }));
+if (!changed.length || denied.length || !hasFixture) {
+  process.stderr.write(JSON.stringify({ changed, denied, regression_fixture: hasFixture }));
   process.exit(1);
 }
 process.stdout.write(JSON.stringify({
   changed,
   runtime_changed: changed.some((file) => file.startsWith("runtime/loop/")),
 }));
-NODE
+PREFLIGHT_NODE
 )" || {
   log "candidate path/regression preflight RED; no test execution or PR"
   record "$NUM" "" "candidate_preflight_red"
@@ -271,7 +298,9 @@ if ! (
 fi
 log "test/eval gate GREEN"
 
-git -C "$WT" add apps/life-manager runtime/loop
+ADD_PATHS=(apps/life-manager runtime/loop)
+[ -n "$REPAIR_SCOPE" ] && ADD_PATHS+=("$REPAIR_SCOPE")
+git -C "$WT" add "${ADD_PATHS[@]}"
 if ! git -C "$WT" diff --cached --quiet; then
   git -C "$WT" commit -m "fix(life-manager): resolve feedback issue #$NUM"
 fi

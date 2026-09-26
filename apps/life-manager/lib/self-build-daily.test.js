@@ -165,6 +165,33 @@ test("the eligibility precheck is dry: nothing is merged, deployed or written by
 });
 
 
+// pickEligiblePr reads the REAL config/loop-registry.json (see self-build-daily.js's
+// readLoopRegistry) rather than an injected one -- the same choice the guard's own recovery-hooks
+// wiring already makes here. So this test uses a real, currently-registered deterministic,
+// effect_class:none, non-keep_alive owner ("affiliate-composition", entrypoint
+// skills/affiliate/affiliate) to prove the dry precheck grants the same skills/affiliate/ repair
+// scope the real guard run would. If that registry row's class or entrypoint ever changes this test
+// will fail loudly, which is the correct outcome for a class-boundary regression.
+test("the dry precheck grants a registry-verified recovery owner its repair scope, same as the guard", async () => {
+  const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
+  const body = `Fixes #9000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+    + "\n\n[lm-recovery-owner:affiliate-composition]";
+  const prs = [eligiblePr(100, "2026-07-20T09:00:00Z", {
+    body,
+    files: [
+      { path: "skills/affiliate/affiliate" },
+      { path: "skills/affiliate/tests/test_affiliate.py" },
+    ],
+  })];
+  const deps = depsFor(prs, {
+    listErrorFixPrs: async () => prs.map((pr) => ({ number: pr.number, createdAt: pr.createdAt, body: pr.body })),
+  });
+  const picked = await pickEligiblePr({ deps });
+  assert.equal(picked.prNumber, 100, JSON.stringify(picked.skipped));
+  assert.equal(picked.skipped.length, 0);
+});
+
+
 test("a day with no eligible PR still accrues a ledger day, with an honest no-op reason", async () => {
   const dir = tempDir();
   const ledgerPath = path.join(dir, "self-build-days.jsonl");
