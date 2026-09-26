@@ -531,6 +531,19 @@ class LmLoopApplyTest(unittest.TestCase):
             "evidence_refs": [summary_ref, *extra_refs],
         }
 
+    def test_pre_effect_admission_blockers_are_pinned_to_a_reviewed_list(self):
+        # PRE_EFFECT_ADMISSION_BLOCKERS proves "no provider effect could have
+        # started"; that is only true for the two host-admission blockers
+        # emitted before claim_durable_resource/transfer_claim (see
+        # runtime/loop/tests/test_lm_loop_run_bounds.py's
+        # test_capacity_busy_blocker_is_only_emitted_before_any_claim_or_child_start
+        # and its fifo_wait sibling). Adding a new value here silently widens
+        # what counts as pre-effect-safe, so this pins the exact reviewed set.
+        self.assertEqual(lm_loop.PRE_EFFECT_ADMISSION_BLOCKERS, frozenset({
+            "host_admission_deferred:resource_capacity_busy",
+            "host_admission_deferred:resource_fifo_wait",
+        }))
+
     def test_pre_effect_resolve_closes_two_provable_rows_independently(self):
         owner = "lancers-revenue-paid"
         database = self.root / "admission" / "admission-v2.sqlite3"
@@ -815,6 +828,84 @@ class LmLoopApplyTest(unittest.TestCase):
                 "SELECT effect_unknown FROM occurrences WHERE occurrence_id=?",
                 (occ_second,),
             ).fetchone(), (1,))
+
+    def test_resolve_pre_effect_admission_rows_stops_mid_owner_at_max_rows(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        occurrences = [f"{owner}:wake-{index:02d}" for index in range(5)]
+        self._mark_effect_unknown_rows(database, owner, occurrences)
+        state_root = self.root / owner
+        events = [
+            self._terminal_event(
+                owner, f"wake-{index:02d}", f"{index:02d}" * 12,
+                f"2026-09-26T00:00:{index:02d}+00:00",
+                f"lm-loop://{owner}/wake-{index:02d}/summary.json")
+            for index in range(5)
+        ]
+        self._write_events(state_root, events)
+        entry = {"effect_class": "money", "state_root": str(state_root)}
+
+        resolved, unprovable = lm_loop._resolve_pre_effect_admission_rows(
+            owner, entry, max_rows=3)
+
+        self.assertEqual(len(resolved) + len(unprovable), 3)
+        self.assertEqual(resolved, occurrences[:3])
+        with sqlite3.connect(database) as connection:
+            rows = dict(connection.execute(
+                "SELECT occurrence_id,effect_unknown FROM occurrences WHERE owner_id=?",
+                (owner,),
+            ).fetchall())
+        # The first 3 rows (within budget) are closed; the last 2 are left
+        # untouched for a later cycle, not reported as unprovable.
+        self.assertEqual(rows, {
+            occurrences[0]: 0, occurrences[1]: 0, occurrences[2]: 0,
+            occurrences[3]: 1, occurrences[4]: 1,
+        })
+
+    def test_reconcile_cycle_stops_within_a_single_owners_batch_at_the_bound(self):
+        owner = "lancers-revenue-paid"
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        row_count = 25
+        occurrences = [f"{owner}:wake-{index:02d}" for index in range(row_count)]
+        self._mark_effect_unknown_rows(database, owner, occurrences)
+        state_root = self.root / owner
+        events = [
+            self._terminal_event(
+                owner, f"wake-{index:02d}", f"{index:02d}" * 12,
+                f"2026-09-26T00:{index:02d}:00+00:00",
+                f"lm-loop://{owner}/wake-{index:02d}/summary.json")
+            for index in range(row_count)
+        ]
+        self._write_events(state_root, events)
+        value = registry()
+        base = value["loops"].pop("example")
+        value["loops"][owner] = {
+            **base, "label": "ai.anicca.lancers-revenue-paid",
+            "effect_class": "money", "state_root": str(state_root),
+            "provider_route": "deterministic",
+        }
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **base, "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        with patch.dict(os.environ, {
+                    "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+                    "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                }), \
+                patch.object(lm_loop, "validate_registry", return_value=value), \
+                patch.object(lm_loop, "snapshot", return_value=[]), \
+                redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(lm_loop.main(["reconcile", "deterministic"]), 0)
+        result = json.loads(output.getvalue())
+        reconciled = {row["loop_id"]: row for row in result["pre_effect_reconciled"]}
+        self.assertEqual(len(reconciled[owner]["resolved"]), lm_loop.PRE_EFFECT_RECONCILE_MAX_ROWS)
+        self.assertEqual(
+            reconciled[owner]["resolved"], occurrences[:lm_loop.PRE_EFFECT_RECONCILE_MAX_ROWS])
+        with sqlite3.connect(database) as connection:
+            remaining = connection.execute(
+                "SELECT COUNT(*) FROM occurrences WHERE owner_id=? AND effect_unknown=1",
+                (owner,),
+            ).fetchone()[0]
+        self.assertEqual(remaining, row_count - lm_loop.PRE_EFFECT_RECONCILE_MAX_ROWS)
 
     def test_rebind_guard_keeps_external_effect_fence_without_host_deferral(self):
         from runtime.host import resource_admission
