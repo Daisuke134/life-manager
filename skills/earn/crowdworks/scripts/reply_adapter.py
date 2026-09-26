@@ -254,6 +254,9 @@ class CrowdWorksReplyAdapter:
                         return True
         return False
 
+    AWAITING_CLIENT = ("まだクライアントが契約に同意していません",
+                       "クライアントが契約に同意すると契約成立")
+
     def _refresh_post_contract_ownership(self, thread_id: str) -> bool:
         if thread_id not in self.rows:
             raise RuntimeError("crowdworks_contract_ownership_unknown")
@@ -269,10 +272,16 @@ class CrowdWorksReplyAdapter:
         return False
 
     def _contract_offer_shown(self) -> bool:
-        return any(self.page.locator(selector).count() for selector in (
+        if any(self.page.locator(selector).count() for selector in (
             'a.intro-employer_proposed_project',
             'form[action^="/proposal_conditions/"]',
-        ))
+        )):
+            return True
+        # After our acceptance the offer disappears but the status stays
+        # "proposed" until the client agrees; that thread is mid-handoff.
+        progress = self.page.locator("div.progress_detail")
+        return bool(progress.count()) and any(
+            marker in progress.inner_text() for marker in self.AWAITING_CLIENT)
 
     def _external_form_action(self, thread_id: str) -> dict[str, Any] | None:
         if self._post_contract_owned_by_paid(thread_id):

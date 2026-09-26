@@ -487,11 +487,16 @@ def test_external_intent_without_current_thread_inventory_fails_closed():
 
 
 class _OfferPage:
-    def __init__(self, offer_nodes):
+    def __init__(self, offer_nodes, progress=None):
         self.offer_nodes = offer_nodes
+        self.progress = progress
         self.url = "https://crowdworks.jp/proposals/1"
 
     def locator(self, selector):
+        if selector == "div.progress_detail":
+            text = self.progress
+            return type("L", (), {"count": lambda _self: int(text is not None),
+                                  "inner_text": lambda _self: text or ""})()
         count = self.offer_nodes if "proposal" in selector else 0
         return type("L", (), {"count": lambda _self: count})()
 
@@ -518,7 +523,8 @@ def test_proposed_row_without_any_contract_offer_is_reply_owned():
 
 
 def test_proposed_row_with_unparsed_offer_or_no_page_fails_closed():
-    for page in (_OfferPage(1), None):
+    awaiting = _OfferPage(0, "まだクライアントが契約に同意していません")
+    for page in (_OfferPage(1), None, awaiting):
         adapter = _proposed_adapter(page)
         try:
             adapter._refresh_post_contract_ownership("thread-1")
