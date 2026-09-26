@@ -30,6 +30,8 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO_ROOT))
 
 LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
+# Readback uses the LIVE account only, so the only fence it may prove is the live owner's.
+OWNER_ID = "alpaca-investment-live"
 PAGE_LIMIT = 500
 
 
@@ -89,7 +91,6 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--owner-id", default="alpaca-investment-live")
     parser.add_argument("--occurrence-id", required=True)
     parser.add_argument("--credentials", type=Path,
                         default=os.environ.get("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE"))
@@ -99,8 +100,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if not args.credentials:
             raise ValueError("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE is not set")
-        state, queued_at = fenced_row(args.owner_id, args.occurrence_id)
-        proof = build_proof(args.owner_id, args.occurrence_id, queued_at,
+        state, queued_at = fenced_row(OWNER_ID, args.occurrence_id)
+        proof = build_proof(OWNER_ID, args.occurrence_id, queued_at,
                             alpaca_get(Path(args.credentials)))
         print(json.dumps({**proof, "admission_state": state}, sort_keys=True))
         if not proof["verified"]:
@@ -110,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             print("ALPACA_EFFECT_RECONCILE=PROOF_READY")
             return 0
         from runtime.host.resource_admission import resolve_unknown_occurrence
-        if not resolve_unknown_occurrence(args.owner_id, args.occurrence_id,
+        if not resolve_unknown_occurrence(OWNER_ID, args.occurrence_id,
                                           official_readback=lambda: proof,
                                           expected_state=state):
             raise ValueError("admission refused to close the occurrence")

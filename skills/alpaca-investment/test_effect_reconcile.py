@@ -52,12 +52,18 @@ class BuildProofTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             er.build_proof(OWNER, "other-owner:1", QUEUED, fake_get([], []))
 
+    def test_cli_only_proves_the_live_owner(self):
+        self.assertEqual(er.OWNER_ID, "alpaca-investment-live")
+        with self.assertRaises(SystemExit):
+            er.main(["--owner-id", "alpaca-investment-paper", "--occurrence-id", "x:1"])
+
     def test_page_limit_hit_is_inconclusive(self):
         proof = er.build_proof(OWNER, OCC, QUEUED, fake_get([], [{}] * er.PAGE_LIMIT))
         self.assertIs(proof["verified"], False)
 
     def test_module_never_writes_to_alpaca(self):
-        src = open(er.__file__).read()
+        with open(er.__file__) as f:
+            src = f.read()
         for banned in ('method="POST"', "method='POST'", '"DELETE"', '"PATCH"', "data="):
             self.assertNotIn(banned, src)
 
