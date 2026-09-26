@@ -2,8 +2,8 @@
 """Close Reply fences only when official CrowdWorks readback shows no send in the run.
 
 A Reply run marker lists every thread the run touched. Items with effect=0 and
-failed=0 returned before ``adapter.mutate`` (CrowdWorks has no classified
-mutation errors). A failed item may have crashed after ``mutate``, so each such
+failed=0 never dispatched: they returned before ``adapter.mutate`` or hit an
+error ``classify_mutation_error`` only accepts before any click/POST. A failed item may have crashed after ``mutate``, so each such
 thread must show, on the live CrowdWorks conversation, no seller message whose
 minute overlaps the run window, and no Google Form fence may be written in it.
 The window is the run whose terminal claims the occurrence (admission often
