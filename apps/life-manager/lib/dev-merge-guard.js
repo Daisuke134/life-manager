@@ -35,6 +35,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const {
+  classifyRecoveryJob,
   evaluateRecoveryPromotion,
 } = require("../../../runtime/loop/recovery-class.cjs");
 
@@ -74,6 +75,10 @@ const GUARD_STAGES = Object.freeze([
 const DEFAULT_AUTHORS = Object.freeze(["Daisuke134"]);
 const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
 const RECOVERY_CLASS_MARKER = /\[lm-recovery-class:([a-z_]+)\]/g;
+// Written only by scripts/life-manager-dev-d0.sh from the self-heal issue's `owner_id:` line (see
+// RECOVERY_CLASS_MARKER above for the matching provenance argument). Exactly one match is required;
+// a missing or duplicate marker leaves the PR without a bound owner and it stays fail-closed.
+const RECOVERY_OWNER_MARKER = /\[lm-recovery-owner:([A-Za-z0-9][A-Za-z0-9._:-]{0,127})\]/g;
 
 // The loop names its branches `feature/lm-dev-<issue>` (real: PR #1094 -> feature/lm-dev-1090,
 // PR #1095 -> feature/lm-dev-1089). `fix/...` is accepted for hand-shaped error fixes.
@@ -331,6 +336,43 @@ function recoveryClassFromBody(body) {
   return found[0];
 }
 
+function recoveryOwnerFromBody(body) {
+  const found = [...String(body || "").matchAll(RECOVERY_OWNER_MARKER)].map((match) => match[1]);
+  if (found.length !== 1) return null;
+  return found[0];
+}
+
+// The PR body's `[lm-recovery-class:...]` marker is provenance, not proof — a rewritten PR body
+// could claim `deterministic` for any owner. This is the only place that trusts a class claim: it
+// is accepted ONLY when the repo's own loop registry (never the PR's changed files, which cannot
+// touch config/loop-registry.json under ALLOWED_DIRECTORIES) classifies the exact same owner the
+// same way, with effect_class none. Any other combination returns every hook false, which fails
+// evaluateRecoveryPromotion's required_hooks check closed.
+function recoveryPromotionHooksFor(recoveryClass, ownerId, registry) {
+  const entry = ownerId ? registry?.loops?.[ownerId] : null;
+  let registryClass = null;
+  try {
+    registryClass = entry ? classifyRecoveryJob(entry) : null;
+  } catch {
+    registryClass = null;
+  }
+  const bound = Boolean(entry)
+    && recoveryClass === "deterministic"
+    && registryClass === "deterministic"
+    && entry.effect_class === "none";
+  return bound
+    ? { immutable_release: true, isolated_canary: true, exact_health: true, rollback: true }
+    : {};
+}
+
+function readRegistry(registryPath) {
+  try {
+    return JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 
 function evaluateEligibility(pr, options = {}) {
   const authors = options.allowedAuthors || DEFAULT_AUTHORS;
@@ -370,7 +412,10 @@ function evaluateEligibility(pr, options = {}) {
     // immutable-release/canary/exact-health/rollback hook. A boolean cannot waive this boundary.
     const recoveryClass = recoveryClassFromBody(value.body);
     if (!recoveryClass) reasons.push("recovery_class_missing");
-    else {
+    // A missing or duplicate `[lm-recovery-owner:...]` marker leaves no bound owner for the loop
+    // runtime promotion path, independent of whatever hooks the caller supplies below.
+    if (!recoveryOwnerFromBody(value.body)) reasons.push("recovery_owner_missing");
+    if (recoveryClass) {
       const promotion = evaluateRecoveryPromotion(recoveryClass, options.recoveryPromotionHooks);
       if (!promotion.eligible) reasons.push(promotion.reason);
     }
@@ -736,6 +781,14 @@ function createReviewCommandHook(command, options = {}) {
   };
 }
 
+
+// Real production wiring for a recovery PR's post-merge promotion. `dev-merge-guard.js` is CJS
+// and `recovery-promotion.mjs` is ESM, so this is a dynamic import; every test instead injects
+// `deps.promoteLoopRuntimeRepair` directly and never touches a real release or `lm-loop`.
+async function defaultPromoteLoopRuntimeRepair(args) {
+  const { promoteLoopRuntimeRepair } = await import("../../../runtime/loop/recovery-promotion.mjs");
+  return promoteLoopRuntimeRepair(args);
+}
 
 async function pollUntil(probe, { now, sleep, timeoutMs, intervalMs }) {
   const deadline = now().getTime() + timeoutMs;
@@ -1144,12 +1197,28 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
         changedFilesError = String(error?.message || error);
       }
 
+      // A recovery PR's body class marker is provenance, not proof (see recoveryPromotionHooksFor).
+      // The registry read only happens for a marked recovery PR, against THIS checkout's own
+      // config/loop-registry.json -- never the PR's changed files, which the path allowlist already
+      // keeps away from that file.
+      const isRecoveryPr = String(pr?.body || "").includes(RECOVERY_PR_MARKER);
+      const recoveryClass = isRecoveryPr ? recoveryClassFromBody(pr.body) : null;
+      const recoveryOwnerId = isRecoveryPr ? recoveryOwnerFromBody(pr.body) : null;
+      const recoveryRegistry = isRecoveryPr
+        ? await (deps.getLoopRegistry ? deps.getLoopRegistry() : readRegistry(
+          path.join(REPO_DIR, "config/loop-registry.json"),
+        ))
+        : null;
+      const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
+        ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
+        : {};
+
       const eligibility = evaluateEligibility(pr, {
         allowedAuthors: options.allowedAuthors,
         protectedPaths: options.protectedPaths,
         expectHead: options.expectHead,
         changedFiles,
-        recoveryPromotionEnabled: options.recoveryPromotionEnabled,
+        recoveryPromotionHooks,
       });
       const reasons = [...eligibility.reasons];
       if (changedFiles === null) reasons.push("changed_files_unreadable");
@@ -1238,6 +1307,31 @@ async function runMergeGuardLocked({ prNumber, deps, options, now, sleep, starte
       // that put code into production and then stopped being able to describe it.
       beginStage("deploy_health");
       try {
+        if (isRecoveryPr) {
+          // Runtime-loop repairs never touch the app's Railway deploy path: they get their own
+          // immutable-release/canary/exact-health/rollback promotion, gated at eligibility on the
+          // registry-verified deterministic/effect-none owner resolved above.
+          const promote = deps.promoteLoopRuntimeRepair || defaultPromoteLoopRuntimeRepair;
+          const promotion = await promote({
+            ownerId: recoveryOwnerId, mergedSha: state.mergeSha, repoRoot: REPO_DIR,
+          });
+          state.promotion = promotion;
+          if (!promotion?.ok) {
+            record("deploy_health", false, "recovery_promotion_failed", { promotion });
+            // Same honesty rule as the Railway rollback below: the verdict is what the promotion
+            // ACTUALLY achieved, not what was attempted.
+            verdict = promotion?.rolled_back === true ? "rolled_back" : "rollback_failed";
+            await deps.alert(
+              `recovery PR #${prNumber} merged as ${state.mergeSha} but loop-runtime promotion`
+              + ` failed for owner ${recoveryOwnerId} (${promotion?.reason || "hook_failed"}).`
+              + ` rolled_back=${promotion?.rolled_back === true}.`,
+            );
+            break run;
+          }
+          record("deploy_health", true, null, { promotion });
+          verdict = "merged_deployed";
+          break run;
+        }
         const redeploy = await deps.triggerRedeploy();
         const healthy = await pollUntil(() => deps.checkHealth(), {
           now, sleep, timeoutMs: healthTimeoutMs, intervalMs: healthIntervalMs,
@@ -1455,6 +1549,7 @@ module.exports = {
   BLOCKED_ACTIONS,
   RECOVERY_PR_MARKER,
   RECOVERY_CLASS_MARKER,
+  RECOVERY_OWNER_MARKER,
   BRANCH_PATTERNS,
   ROLLBACK_MUTATION,
   GUARD_SELF_PATHS,
@@ -1466,6 +1561,8 @@ module.exports = {
   evaluateEligibility,
   isRetainedRegressionFixture,
   recoveryClassFromBody,
+  recoveryOwnerFromBody,
+  recoveryPromotionHooksFor,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,

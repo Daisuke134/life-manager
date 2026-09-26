@@ -141,10 +141,11 @@ TITLE="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).title 
 BODY="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).body || ""))' "$CHOSEN")"
 RECOVERY_PR_MARKER=""
 RECOVERY_CLASS_MARKER=""
+RECOVERY_OWNER_MARKER=""
 case "$BODY" in
   *"<!-- lm-recovery:"*)
     RECOVERY_PR_MARKER="[lm-recovery-self-heal]"
-    RECOVERY_CLASS_MARKER="$(node - "$BODY" "$LIFE_MANAGER_REPO/config/loop-registry.json" "$LIFE_MANAGER_REPO/runtime/loop/recovery-class.cjs" <<'NODE'
+    RECOVERY_MARKERS="$(node - "$BODY" "$LIFE_MANAGER_REPO/config/loop-registry.json" "$LIFE_MANAGER_REPO/runtime/loop/recovery-class.cjs" <<'NODE'
 const fs = require("node:fs");
 const [body, registryPath, classifierPath] = process.argv.slice(2);
 const owner = String(body || "").match(/^owner_id: ([A-Za-z0-9][A-Za-z0-9._:-]{0,127})$/m)?.[1];
@@ -152,7 +153,10 @@ const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
 const entry = owner && registry?.loops?.[owner];
 if (!entry) process.exit(2);
 const { classifyRecoveryJob } = require(classifierPath);
-process.stdout.write(`[lm-recovery-class:${classifyRecoveryJob(entry)}]`);
+// The class marker is machine-computed provenance; the owner marker travels alongside it so the
+// merge guard can independently re-classify the SAME owner against its own registry and refuse a
+// PR body that lies about the class. Emitted only when the owner was found and classified above.
+process.stdout.write(`[lm-recovery-class:${classifyRecoveryJob(entry)}]\n[lm-recovery-owner:${owner}]`);
 NODE
 )" || {
       log "recovery owner cannot be classified; no candidate will be produced"
@@ -160,6 +164,8 @@ NODE
       write_result "failed" "recovery_class_unresolved" "$NUM"
       exit 1
     }
+    RECOVERY_CLASS_MARKER="$(printf '%s\n' "$RECOVERY_MARKERS" | sed -n '1p')"
+    RECOVERY_OWNER_MARKER="$(printf '%s\n' "$RECOVERY_MARKERS" | sed -n '2p')"
     ;;
 esac
 log "picked issue #$NUM: $TITLE"
@@ -291,6 +297,8 @@ Unattended canonical Life Manager D0 pass. Full app tests and every eval passed 
 $RECOVERY_PR_MARKER
 
 $RECOVERY_CLASS_MARKER
+
+$RECOVERY_OWNER_MARKER
 
 That marker is machine-readable provenance, not decoration. The daily self-build pass
 (apps/life-manager/scripts/self-build-daily.js, LOOP_PR_MARKER) hands a PR to the unattended merge

@@ -15,6 +15,7 @@ const {
   classifyChangedPath,
   evaluatePackageJsonChange,
   evaluateEligibility,
+  recoveryPromotionHooksFor,
   parseAddedLines,
   parseNameStatus,
   detectBlockedActions,
@@ -320,14 +321,13 @@ test("a recovery PR must retain a regression fixture before it can reach review 
   assert.ok(withoutFixture.reasons.includes("recovery_class_missing"));
 
   const withFixture = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]\n\n[lm-recovery-owner:some-owner]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
     ],
   }), {
     changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
-    recoveryPromotionEnabled: true,
   });
   assert.equal(withFixture.ok, false);
   assert.deepEqual(withFixture.reasons, ["recovery_promotion_hooks_incomplete"]);
@@ -335,7 +335,7 @@ test("a recovery PR must retain a regression fixture before it can reach review 
 
 test("a recovery candidate stays closed even with hook claims until a loop runtime path is bound", () => {
   const verdict = evaluateEligibility(loopPullRequest({
-    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]`,
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:browser]\n\n[lm-recovery-owner:some-owner]`,
     files: [
       { path: "runtime/loop/provider_adapter.py" },
       { path: "runtime/loop/tests/test_provider_adapter.py" },
@@ -351,6 +351,136 @@ test("a recovery candidate stays closed even with hook claims until a loop runti
   });
   assert.equal(verdict.ok, false);
   assert.deepEqual(verdict.reasons, ["recovery_runtime_promotion_unbound"]);
+});
+
+
+test("a recovery PR with a missing or duplicate owner marker is ineligible", () => {
+  const missing = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`,
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+  });
+  assert.ok(missing.reasons.includes("recovery_owner_missing"));
+
+  const duplicate = evaluateEligibility(loopPullRequest({
+    body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+      + "\n\n[lm-recovery-owner:owner-a]\n\n[lm-recovery-owner:owner-b]",
+    files: [
+      { path: "runtime/loop/provider_adapter.py" },
+      { path: "runtime/loop/tests/test_provider_adapter.py" },
+    ],
+  }), {
+    changedFiles: ["runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py"],
+  });
+  assert.ok(duplicate.reasons.includes("recovery_owner_missing"));
+});
+
+test("recoveryPromotionHooksFor refuses a PR body class that lies about the registry", () => {
+  const deterministicEntry = {
+    label: "ai.anicca.deterministic-owner", effect_class: "none", provider_route: "deterministic",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const modelEntry = {
+    label: "ai.anicca.model-owner", effect_class: "none", provider_route: "shared-agent-runner",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const effectfulEntry = {
+    label: "ai.anicca.effectful-owner", effect_class: "publish", provider_route: "deterministic",
+    cadence: { start_interval_seconds: 30 },
+  };
+  const registry = { loops: {
+    "deterministic-owner": deterministicEntry, "model-owner": modelEntry, "effectful-owner": effectfulEntry,
+  } };
+
+  // Registry agrees: all four hooks are bound.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "deterministic-owner", registry), {
+    immutable_release: true, isolated_canary: true, exact_health: true, rollback: true,
+  });
+  // PR body claims deterministic, but the registry says this owner is a model job: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "model-owner", registry), {});
+  // PR body claims deterministic, but the registry says this owner is effectful: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "effectful-owner", registry), {});
+  // Unknown owner: no hooks.
+  assert.deepEqual(recoveryPromotionHooksFor("deterministic", "no-such-owner", registry), {});
+});
+
+
+test("a deterministic recovery PR with a registry-verified owner becomes eligible and its post-merge promotion is invoked", async () => {
+  const registry = { loops: {
+    "deterministic-owner": {
+      label: "ai.anicca.deterministic-owner", effect_class: "none", provider_route: "deterministic",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  const ledgerPath = tempLedger();
+  const promotionCalls = [];
+  const deps = stubDeps({
+    ledgerPath,
+    pr: {
+      body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+        + "\n\n[lm-recovery-owner:deterministic-owner]",
+    },
+    changedFiles: [
+      "runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py",
+    ],
+    deps: {
+      getLoopRegistry: async () => registry,
+      promoteLoopRuntimeRepair: async (args) => {
+        promotionCalls.push(args);
+        return {
+          ok: true, owner_id: args.ownerId, merged_sha: args.mergedSha,
+          release_path: "/loops/releases/new", previous_release_path: "/loops/releases/old",
+          hooks: [], rolled_back: false,
+        };
+      },
+    },
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps });
+  assert.equal(result.verdict, "merged_deployed");
+  assert.equal(deps.calls.merge, 1);
+  assert.equal(deps.calls.redeploy, 0, "a recovery PR must never take the Railway deploy path");
+  assert.equal(promotionCalls.length, 1);
+  assert.equal(promotionCalls[0].ownerId, "deterministic-owner");
+  assert.equal(promotionCalls[0].mergedSha, "b".repeat(40));
+  const [row] = readLedger(ledgerPath);
+  assert.equal(row.verdict, "merged_deployed");
+  const stage = row.stages.find((entry) => entry.stage === "deploy_health");
+  assert.equal(stage.ok, true);
+  assert.equal(stage.evidence.promotion.ok, true);
+});
+
+test("a failed loop-runtime promotion is recorded as rolled_back or rollback_failed, never merged_deployed", async () => {
+  const registry = { loops: {
+    "deterministic-owner": {
+      label: "ai.anicca.deterministic-owner", effect_class: "none", provider_route: "deterministic",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  const deps = stubDeps({
+    ledgerPath: tempLedger(),
+    pr: {
+      body: `Fixes #6000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+        + "\n\n[lm-recovery-owner:deterministic-owner]",
+    },
+    changedFiles: [
+      "runtime/loop/provider_adapter.py", "runtime/loop/tests/test_provider_adapter.py",
+    ],
+    deps: {
+      getLoopRegistry: async () => registry,
+      promoteLoopRuntimeRepair: async () => ({
+        ok: false, reason: "recovery_promotion_health_failed", release_path: "/loops/releases/new",
+        previous_release_path: "/loops/releases/old", hooks: [], rolled_back: true,
+      }),
+    },
+  });
+  const result = await runMergeGuard({ prNumber: 1094, deps });
+  assert.equal(result.verdict, "rolled_back");
+  assert.ok(deps.calls.alerts.some((message) => message.includes("loop-runtime promotion")));
+  assert.equal(deps.calls.redeploy, 0);
 });
 
 

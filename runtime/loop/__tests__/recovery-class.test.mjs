@@ -27,7 +27,7 @@ test('recovery class set is closed and stable', () => {
   ]);
 });
 
-test('production recovery PR promotion remains class-bound and fail-closed without a loop runtime path', () => {
+test('only the deterministic recovery class is bound to a loop runtime promotion path', () => {
   assert.deepEqual([...RECOVERY_PROMOTION_HOOKS], [
     'immutable_release',
     'isolated_canary',
@@ -35,18 +35,25 @@ test('production recovery PR promotion remains class-bound and fail-closed witho
     'rollback',
   ]);
   assert.deepEqual(Object.keys(RECOVERY_PROMOTION_POLICY), [...RECOVERY_CLASSES]);
+  const allHooksTrue = {
+    immutable_release: true, isolated_canary: true, exact_health: true, rollback: true,
+  };
   for (const recoveryClass of RECOVERY_CLASSES) {
-    assert.equal(RECOVERY_PROMOTION_POLICY[recoveryClass].runtime_path, 'unbound');
     assert.deepEqual(
       evaluateRecoveryPromotion(recoveryClass, {}).missing_hooks,
       [...RECOVERY_PROMOTION_HOOKS],
     );
-    assert.deepEqual(evaluateRecoveryPromotion(recoveryClass, {
-      immutable_release: true,
-      isolated_canary: true,
-      exact_health: true,
-      rollback: true,
-    }), {
+    if (recoveryClass === 'deterministic') {
+      assert.equal(RECOVERY_PROMOTION_POLICY[recoveryClass].runtime_path, 'loop_runtime');
+      assert.deepEqual(evaluateRecoveryPromotion(recoveryClass, allHooksTrue), {
+        eligible: true,
+        reason: null,
+        missing_hooks: [],
+      });
+      continue;
+    }
+    assert.equal(RECOVERY_PROMOTION_POLICY[recoveryClass].runtime_path, 'unbound');
+    assert.deepEqual(evaluateRecoveryPromotion(recoveryClass, allHooksTrue), {
       eligible: false,
       reason: 'recovery_runtime_promotion_unbound',
       missing_hooks: [],

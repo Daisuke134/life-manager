@@ -52,13 +52,29 @@ const path = require("node:path");
 
 const {
   GUARD_LOCK_STALE_MS,
+  RECOVERY_PR_MARKER,
   appendGuardRun,
   evaluateEligibility,
   guardLedgerPath,
   guardLockPath,
   readGuardProgress,
   readLedgerRows,
+  recoveryClassFromBody,
+  recoveryOwnerFromBody,
+  recoveryPromotionHooksFor,
 } = require("./dev-merge-guard.js");
+
+const REPO_DIR = path.resolve(__dirname, "../../..");
+
+// Read fresh every call: this loop runs once a day, so the cost of re-reading a small JSON file is
+// nothing next to the cost of a stale registry silently waving a repointed owner through.
+function readLoopRegistry() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(REPO_DIR, "config/loop-registry.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 
 // The three files that, between them, choose the PR and choose the judge. Handed to the guard as
@@ -275,10 +291,23 @@ async function pickEligiblePr({ deps, options = {} }) {
       continue;
     }
 
+    // Same class-cannot-lie computation the guard's own main flow performs before merge (see
+    // dev-merge-guard.js's runMergeGuardLocked): only a registry-verified deterministic/effect-none
+    // owner gets all four promotion hooks here too, so this dry precheck cannot pick a candidate the
+    // real guard run would then refuse for a different reason.
+    const isRecoveryPr = String(pr?.body || "").includes(RECOVERY_PR_MARKER);
+    const recoveryClass = isRecoveryPr ? recoveryClassFromBody(pr.body) : null;
+    const recoveryOwnerId = isRecoveryPr ? recoveryOwnerFromBody(pr.body) : null;
+    const recoveryRegistry = isRecoveryPr ? readLoopRegistry() : null;
+    const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
+      ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
+      : {};
+
     const eligibility = evaluateEligibility(pr, {
       allowedAuthors: options.allowedAuthors,
       protectedPaths,
       changedFiles,
+      recoveryPromotionHooks,
     });
     // An unreadable file list is not an empty one — the guard says so at stage one and so does this.
     if (eligibility.ok && changedFiles !== null) {
