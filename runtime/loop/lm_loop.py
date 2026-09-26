@@ -57,6 +57,9 @@ PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
 PRE_EFFECT_RECONCILE_MAX_ROWS = 20
+# Disabled 2026-09-26: an occurrence queued by run A is often claimed and executed
+# by a later run B, so run-A-only proofs cleared effectful fences.
+AUTO_PRE_EFFECT_RECONCILE_ENABLED = False
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
 ADMISSION_READ_RETRY_ATTEMPTS = 8
 ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
@@ -294,7 +297,8 @@ def _atomic_private_json(path: Path, value: dict) -> None:
 
 def _pre_effect_occurrence_proof(
     loop_id: str, entry: dict, occurrence_id: object, expected_state: object,
-    runtime_rows: list[dict],
+    runtime_rows: list[dict], *, queued_at: float | None = None,
+    history_start: float | None = None,
 ) -> tuple[dict | None, str]:
     """Prove one exact occurrence stopped in host admission before entrypoint.
 
@@ -311,6 +315,15 @@ def _pre_effect_occurrence_proof(
             or not occurrence_id.startswith(prefix)):
         return None, "invalid_occurrence"
     run_id = occurrence_id[len(prefix):]
+    claim_ref = f"lm-occurrence://{loop_id}/{occurrence_id}/claim"
+    if any(row.get("run_id") != run_id and claim_ref in (row.get("evidence_refs") or [])
+           for row in runtime_rows):
+        # A later wake claimed and executed this occurrence; the queuing run's
+        # admission-deferred terminal proves nothing about that execution.
+        return None, "claimed_by_other_run"
+    if queued_at is not None and (history_start is None or history_start > queued_at):
+        # Rotated-out journals could hide a foreign claim; fail closed.
+        return None, "history_incomplete"
     exact = [row for row in runtime_rows
              if row.get("loop_id") == loop_id and row.get("run_id") == run_id]
     starts = [row for row in exact
@@ -369,7 +382,7 @@ def _pre_effect_admission_evaluate(
     try:
         rows = _read_admission_rows(
             database,
-            """SELECT occurrence_id,state FROM occurrences
+            """SELECT occurrence_id,state,queued_at FROM occurrences
                  WHERE owner_id=? AND effect_unknown=1
                  ORDER BY queued_at,occurrence_id""",
             (loop_id,),
@@ -382,8 +395,7 @@ def _pre_effect_admission_evaluate(
         return [], []
     state_root = entry.get("state_root")
     if not isinstance(state_root, str) or not state_root:
-        return [], [(occurrence_id, "state_root_unavailable")
-                    for occurrence_id, _state in rows]
+        return [], [(row[0], "state_root_unavailable") for row in rows]
     try:
         root = Path(os.path.expanduser(state_root))
         journals = [root / "events.jsonl", *sorted(
@@ -393,12 +405,21 @@ def _pre_effect_admission_evaluate(
             row for journal in journals for row in _private_runtime_rows(journal)
         ]
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
-        return [], [(occurrence_id, "journal_unavailable") for occurrence_id, _state in rows]
+        return [], [(row[0], "journal_unavailable") for row in rows]
     provable: list[tuple[str, str, dict]] = []
     unprovable: list[tuple[str, str]] = []
-    for occurrence_id, expected_state in rows:
+    stamps = []
+    for row in runtime_rows:
+        try:
+            stamps.append(_event_epoch(row.get("timestamp")))
+        except ValueError:
+            continue
+    history_start = min(stamps) if stamps else None
+    for occurrence_id, expected_state, queued_at in rows:
         proof, reason = _pre_effect_occurrence_proof(
-            loop_id, entry, occurrence_id, expected_state, runtime_rows)
+            loop_id, entry, occurrence_id, expected_state, runtime_rows,
+            queued_at=float(queued_at) if queued_at is not None else float("inf"),
+            history_start=history_start)
         if proof is not None:
             provable.append((occurrence_id, expected_state, proof))
         else:
@@ -2186,7 +2207,7 @@ def main(argv: list[str] | None = None) -> int:
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         pre_effect_reconciled: list[dict] = []
-        if automatic_release_reconciler:
+        if automatic_release_reconciler and AUTO_PRE_EFFECT_RECONCILE_ENABLED:
             loaded_running = {row["loop_id"] for row in rows
                                if row.get("launchd_state") == "loaded-running"}
             budget = PRE_EFFECT_RECONCILE_MAX_ROWS

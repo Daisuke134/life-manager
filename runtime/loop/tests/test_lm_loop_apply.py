@@ -750,6 +750,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(rows, {occ_good: 0, occ_bad: 1})
 
     def test_reconcile_cycle_resolves_pre_effect_rows_bounded(self):
+        self.enterContext(patch.object(lm_loop, "AUTO_PRE_EFFECT_RECONCILE_ENABLED", True))
         owner = "lancers-revenue-paid"
         database = self.root / "admission" / "admission-v2.sqlite3"
         occurrence = f"{owner}:wake-cycle"
@@ -789,6 +790,7 @@ class LmLoopApplyTest(unittest.TestCase):
             ).fetchone(), ("released", 0))
 
     def test_reconcile_cycle_respects_pre_effect_row_bound(self):
+        self.enterContext(patch.object(lm_loop, "AUTO_PRE_EFFECT_RECONCILE_ENABLED", True))
         first, second = "aaa-owner", "bbb-owner"
         database = self.root / "admission" / "admission-v2.sqlite3"
         occ_first, occ_second = f"{first}:wake-1", f"{second}:wake-1"
@@ -863,6 +865,7 @@ class LmLoopApplyTest(unittest.TestCase):
         })
 
     def test_reconcile_cycle_stops_within_a_single_owners_batch_at_the_bound(self):
+        self.enterContext(patch.object(lm_loop, "AUTO_PRE_EFFECT_RECONCILE_ENABLED", True))
         owner = "lancers-revenue-paid"
         database = self.root / "admission" / "admission-v2.sqlite3"
         row_count = 25
@@ -4643,3 +4646,39 @@ class LmLoopApplyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PreEffectForeignClaimTests(unittest.TestCase):
+    ENTRY = {"effect_class": "message", "entrypoint": "x"}
+    OWNER = "owner-a"
+
+    def _rows(self, extra=()):
+        run = "runA"
+        base = [{
+            "loop_id": self.OWNER, "run_id": run, "phase": "report", "status": "blocked",
+            "blocker": "host_admission_deferred:resource_capacity_busy", "effect_status": "unknown",
+            "evidence_refs": [f"lm-loop://{self.OWNER}/{run}/summary.json"],
+            "event_id": "e1", "timestamp": "2026-09-20T00:00:10+00:00",
+        }]
+        return base + list(extra)
+
+    def test_rejects_when_another_run_claimed_the_occurrence(self):
+        occurrence = f"{self.OWNER}:runA"
+        foreign = {"loop_id": self.OWNER, "run_id": "runB", "phase": "report", "status": "fail",
+                   "evidence_refs": [f"lm-occurrence://{self.OWNER}/{occurrence}/claim"],
+                   "event_id": "e2", "timestamp": "2026-09-20T00:05:00+00:00"}
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            self.OWNER, self.ENTRY, occurrence, "released", self._rows([foreign]))
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "claimed_by_other_run")
+
+    def test_rejects_when_history_does_not_reach_queued_at(self):
+        occurrence = f"{self.OWNER}:runA"
+        proof, reason = lm_loop._pre_effect_occurrence_proof(
+            self.OWNER, self.ENTRY, occurrence, "released", self._rows(),
+            queued_at=1.0, history_start=1_000_000_000.0)
+        self.assertIsNone(proof)
+        self.assertEqual(reason, "history_incomplete")
+
+    def test_auto_reconcile_is_disabled_by_default(self):
+        self.assertFalse(lm_loop.AUTO_PRE_EFFECT_RECONCILE_ENABLED)
