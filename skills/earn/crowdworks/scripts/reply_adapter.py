@@ -334,7 +334,8 @@ class CrowdWorksReplyAdapter:
             raise RuntimeError("google_form_profile_invalid")
         return candidate, provider
 
-    def _question_answers(self, items: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    def _question_answers(self, items: list[dict[str, Any]],
+                          source: str = "") -> list[tuple[str, str]]:
         candidate, provider = self._private_profiles()
         facts = " ".join(str(row.get("claim") or "") for row in
                          json.loads(self.candidate_profile.read_text(encoding="utf-8")).get("facts", []))
@@ -375,6 +376,8 @@ class CrowdWorksReplyAdapter:
             if answer is None and title.startswith("いずれかの職種の実務経験が2年以上"):
                 answer = ("いずれかの職種で実務経験が2年以上ある"
                           if "エンジニア" in title else "実務経験がない")
+            if answer is None and item["type"] != 9:
+                answer = self._grounded_form_answer(title, item["entries"][0]["choices"], source)
             if answer is None:
                 raise RuntimeError(f"google_form_required_answer_missing:{title[:40]}")
             answers = answer if isinstance(answer, list) else [answer]
@@ -391,6 +394,51 @@ class CrowdWorksReplyAdapter:
             result.extend((f"entry.{entry}", str(value)) for value in answers)
         result.append(("emailAddress", email))
         return result
+
+    def _private_placeholders(self) -> dict[str, str]:
+        candidate, _provider = self._private_profiles()
+        def joined(key: str, sep: str) -> str:
+            parts = candidate.get(key)
+            return sep.join(_text(parts.get(k)) for k in ("family", "given")) \
+                if isinstance(parts, Mapping) else ""
+        kana = joined("name_kana", " ")
+        hiragana = "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in kana)
+        katakana = "".join(chr(ord(c) + 0x60) if "ぁ" <= c <= "ゖ" else c for c in kana)
+        values = {"name_ja": joined("name_ja_parts", " "), "name_kana_hiragana": hiragana,
+                  "name_kana_katakana": katakana, "name_romaji": joined("name_romaji_parts", " "),
+                  "email": str(candidate.get("application_email") or "")}
+        return {key: value for key, value in values.items() if value.strip()}
+
+    def _grounded_form_answer(self, question: str, choices: list[str], source: str) -> str:
+        """Let the model answer a selection-form item from the verified grounding.
+
+        Identity values never reach the model: it may write {placeholder} tokens,
+        which are filled here from the private candidate profile.
+        """
+        if self.state_path is None:
+            raise RuntimeError("google_form_state_unavailable")
+        private = self._private_placeholders()
+        public = {k: v for k, v in dict(self.grounding).items() if k != "private_identity_values"}
+        body = composer.compose({
+            "board": {"title": "選考フォーム"}, "grounding": public,
+            "private_placeholders": sorted(private),
+            "conversation": [{"role": "buyer", "body":
+                              "選考用Googleフォームの必須設問に回答してください。設問: " + question
+                              + "\n本人の氏名やメールが必要なら値を書かず private_placeholders の名前を"
+                              "{name_kana_hiragana} のように波括弧で囲んで書いてください。"
+                              "電話番号・生年月日などそれ以外の本人情報は推測せずuncertaintyにしてください。"
+                              + "\nフォーム本文: " + source[:4000]}],
+            "action_contract": {"kind": "required_form_field", "question": question,
+                                "allowed_choices": list(choices)},
+            "provider_rules": {"outside_contact_before_approval": "forbidden"},
+        }, state_root=self.state_path.parent / "compose", task_label="crowdworks-reply-form")
+        if not isinstance(body, str) or not body.strip():
+            raise RuntimeError("reply_composer_failed")
+        def fill(match: re.Match[str]) -> str:
+            if match.group(1) not in private:
+                raise RuntimeError("reply_contract_invalid")
+            return private[match.group(1)]
+        return re.sub(r"\{([a-z_]+)\}", fill, body.strip())
 
     def _form_receipt_path(self, url_sha256: str) -> Path:
         if self.state_path is None:
@@ -411,7 +459,8 @@ class CrowdWorksReplyAdapter:
         return google_form.submit_once(
             context=self.browser.contexts[0], state_root=self.state_path.parent, url=url, url_sha256=url_sha256,
             answer_fields=lambda form: self._question_answers(
-                self._form_items(form.evaluate("window.FB_PUBLIC_LOAD_DATA_ && window.FB_PUBLIC_LOAD_DATA_[1][1]"))),
+                self._form_items(form.evaluate("window.FB_PUBLIC_LOAD_DATA_ && window.FB_PUBLIC_LOAD_DATA_[1][1]")),
+                source=form.locator("body").inner_text()),
         )
 
     def _send_reply_once(self, thread_id: str, body: str) -> None:
@@ -645,8 +694,11 @@ class CrowdWorksReplyAdapter:
         follow a provider effect stays unclassified.
         """
         message = str(error)
-        if message.startswith("google_form_required_answer_missing:") or \
-                message == "google_form_profile_incomplete":
+        # Form answers are composed inside answer_fields, before the prepared
+        # fence and the POST, so a composer refusal or failure is pre-dispatch.
+        if message.startswith("google_form_required_answer_missing:") or message in {
+                "google_form_profile_incomplete", "reply_facts_required",
+                "reply_composer_failed", "reply_contract_invalid"}:
             return {"reason": "google_form_answer_unavailable",
                     "remaining_work": [f"Ground an answer for the required form item ({message})"]}
         if message == "crowdworks_contract_ownership_unknown":

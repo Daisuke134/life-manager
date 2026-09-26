@@ -702,3 +702,70 @@ def test_only_pre_dispatch_mutation_errors_become_waiting():
     for message in ("crowdworks_contract_submit_unavailable", "Timeout 20000ms exceeded",
                     "crowdworks_post_contract_owned_by_paid"):
         assert classify(RuntimeError(message)) is None
+
+
+def _grounded_adapter(tmp_path, composed):
+    candidate = tmp_path / "candidate.json"
+    candidate.write_text(__import__("json").dumps({
+        "candidate": {"application_email": "private@example.com",
+                      "name_romaji_parts": {"family": "Narita", "given": "Daisuke"},
+                      "name_kana": {"family": "ナリタ", "given": "ダイスケ"}},
+        "facts": [{"claim": "Nara Institute graduate"}, {"claim": "Mitsubishi UFJ employment"}],
+    }), encoding="utf-8")
+    adapter = adapter_module.CrowdWorksReplyAdapter(
+        {"candidate": {"name": "grounded"}, "private_identity_values": ["Narita"]},
+        candidate_profile=candidate,
+        provider_profile={"display_name": "Public Seller", "provider_employee_id": "7145638"},
+        state_path=tmp_path / "reply" / "state.json")
+    calls = []
+
+    def compose(context, *, state_root, task_label):
+        calls.append(context)
+        return composed(context)
+    adapter_module.composer.compose = compose
+    return adapter, calls
+
+
+def test_unmatched_required_form_item_is_answered_by_grounded_model(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapter_module.composer, "compose", adapter_module.composer.compose)
+    adapter, calls = _grounded_adapter(tmp_path, lambda c: "{name_kana_hiragana}")
+    items = [{"title": "氏名（ひらがな）", "type": 0,
+              "entries": [{"id": 20, "choices": [], "required": True}]}]
+    assert adapter._question_answers(items, source="選考フォーム") == [
+        ("entry.20", "なりた だいすけ"), ("emailAddress", "private@example.com")]
+    contract = calls[0]["action_contract"]
+    assert contract == {"kind": "required_form_field", "question": "氏名（ひらがな）",
+                        "allowed_choices": []}
+    assert calls[0]["grounding"] == {"candidate": {"name": "grounded"}}
+    assert "Narita" not in __import__("json").dumps(calls[0], ensure_ascii=False)
+    adapter, _ = _grounded_adapter(tmp_path, lambda c: "{phone}")
+    try:
+        adapter._question_answers(items, source="")
+    except RuntimeError as error:
+        assert str(error) == "reply_contract_invalid"
+    else:
+        raise AssertionError("an unknown private placeholder was filled")
+
+
+def test_grounded_choice_must_be_offered_and_dates_wait(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapter_module.composer, "compose", adapter_module.composer.compose)
+    adapter, _ = _grounded_adapter(tmp_path, lambda c: "どれでもない")
+    choice = [{"title": "希望の稼働形態", "type": 2,
+               "entries": [{"id": 21, "choices": ["副業", "専業"], "required": True}]}]
+    date = [{"title": "稼働開始可能日", "type": 9,
+             "entries": [{"id": 22, "choices": [], "required": True}]}]
+    for items, expected in ((choice, "google_form_answer_not_offered"),
+                            (date, "google_form_required_answer_missing:稼働開始可能日")):
+        try:
+            adapter._question_answers(items, source="")
+        except RuntimeError as error:
+            assert str(error) == expected
+        else:
+            raise AssertionError("an ungrounded form answer was accepted")
+
+
+def test_model_uncertainty_and_composer_failure_wait_before_post():
+    classify = adapter_module.CrowdWorksReplyAdapter.classify_mutation_error
+    for error in (adapter_module.composer.ReplyFactsRequired(["本人確認が必要"]),
+                  RuntimeError("reply_composer_failed"), RuntimeError("reply_contract_invalid")):
+        assert classify(error)["reason"] == "google_form_answer_unavailable"
