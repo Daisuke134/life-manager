@@ -440,6 +440,7 @@ class CleanUserInstallTest(unittest.TestCase):
             f"{ROOT}/skills/_shared/marketplace-core/scripts/paid_kernel.py "
             f"--provider-adapter {ROOT}/skills/earn/lancers/scripts/paid_adapter.py "
             f"--state-root {state_root}/paid --output {state_root}/paid-latest.json "
+            f"--max-workers 1 "
             f"-- --account-id keiodaisuke --state-path {state_root}/application.json",
             f"{ROOT}/skills/earn/lancers/scripts/lane_report.py "
             f"--lane paid --state-path {state_root}/contracts.json",
