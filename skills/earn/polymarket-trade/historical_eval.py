@@ -171,17 +171,51 @@ def favorite_trade(p_yes: float, yes_won: bool, band: tuple[float, float],
             "gross_return": payout / p - 1, "net_return": payout / (fill + fee) - 1}
 
 
-def summarize(returns: list[float], seed: int, n_boot: int = 2000) -> dict:
+def summarize(returns: list[float], seed: int, n_boot: int = 2000,
+              clusters: list | None = None) -> dict:
+    """Mean, t-stat and percentile-bootstrap CI of the mean.
+
+    With `clusters` (one key per return, e.g. the UTC close day) whole clusters are
+    resampled, so same-day correlated trades do not narrow the CI.
+    """
     n = len(returns)
     if n < 2:
         return {"n": n, "statistically_supported": False, "reason": "n<2"}
     mean, sd = statistics.fmean(returns), statistics.stdev(returns)
     rng = random.Random(seed)
-    boots = sorted(statistics.fmean(rng.choices(returns, k=n)) for _ in range(n_boot))
+    if clusters is None:
+        groups = [[r] for r in returns]
+    else:
+        by_key: dict = {}
+        for key, r in zip(clusters, returns):
+            by_key.setdefault(key, []).append(r)
+        groups = list(by_key.values())
+    boots = []
+    for _ in range(n_boot):
+        sample = [r for g in rng.choices(groups, k=len(groups)) for r in g]
+        boots.append(statistics.fmean(sample))
+    boots.sort()
     lo, hi = boots[int(0.025 * n_boot)], boots[int(0.975 * n_boot) - 1]
-    return {"n": n, "mean": mean, "stdev": sd, "t_stat": mean / (sd / n ** 0.5) if sd else None,
+    return {"n": n, "clusters": len(groups), "mean": mean, "stdev": sd,
+            "t_stat": mean / (sd / n ** 0.5) if sd else None,
             "win_rate": sum(r > 0 for r in returns) / n, "sum": sum(returns),
             "ci95": [lo, hi], "statistically_supported": lo > 0}
+
+
+def robustness(trades: list[dict], seed: int) -> dict:
+    """Day-clustered CI and leave-top-k-winners-out CIs: an edge that vanishes when
+    two trades are removed is not an edge."""
+    net = [t["net_return"] for t in trades]
+    days = [dt.datetime.fromtimestamp(t["close_ts"], dt.timezone.utc).date().isoformat()
+            for t in trades]
+    order = sorted(range(len(net)), key=lambda i: net[i], reverse=True)
+    out = {"day_clustered": summarize(net, seed, clusters=days)}
+    for k in (1, 2, 3):
+        keep = sorted(order[k:])
+        out[f"drop_top_{k}"] = summarize([net[i] for i in keep], seed,
+                                         clusters=[days[i] for i in keep])
+    out["robustly_supported"] = all(v["statistically_supported"] for v in out.values())
+    return out
 
 
 def run(args) -> dict:
@@ -216,6 +250,7 @@ def run(args) -> dict:
         "funnel": funnel,
         "net": summarize(net, args.seed),
         "gross": summarize([t["gross_return"] for t in trades], args.seed),
+        "robustness": robustness(trades, args.seed) if len(trades) > 4 else None,
         "calibration": {"mean_entry_price": statistics.fmean(t["entry_price"] for t in trades) if trades else None,
                         "realized_win_rate": sum(t["won"] for t in trades) / len(trades) if trades else None},
         "fee_source": FEE_SOURCE,

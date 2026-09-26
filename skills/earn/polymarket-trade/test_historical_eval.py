@@ -83,6 +83,19 @@ class HistoricalEvalTest(unittest.TestCase):
             he._get, he.time.sleep = orig_get, orig_sleep
         self.assertEqual(seen, ["2026-07-28", "2026-07-27"])
 
+    def test_clustered_bootstrap_resamples_whole_days(self):
+        rets = [1.0, 1.0, 1.0, -1.0]
+        s = he.summarize(rets, seed=1, clusters=["d1", "d1", "d1", "d2"])
+        self.assertEqual(s["clusters"], 2)
+        self.assertFalse(s["statistically_supported"])
+
+    def test_robustness_rejects_edge_carried_by_one_trade(self):
+        trades = [{"net_return": r, "close_ts": 1790000000 + i * 86400}
+                  for i, r in enumerate([9.0] + [-0.05] * 30)]
+        r = he.robustness(trades, seed=1)
+        self.assertFalse(r["drop_top_1"]["statistically_supported"])
+        self.assertFalse(r["robustly_supported"])
+
     def test_module_is_read_only(self):
         src = open(he.__file__).read()
         for banned in ("post_order", "create_market_order", "PRIVATE_KEY", "private_key",

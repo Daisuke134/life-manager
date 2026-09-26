@@ -224,16 +224,20 @@ Correction 2026-09-27: the first run anchored entry to `closedTime`, which leaks
 scheduled `endDate`; markets already closed by then are skipped (`closed_before_entry`).
 `--offset-days N` skips the most recent N days so a hypothesis can be tested on unseen data.
 
-Measured 2026-09-27, scheduled-end anchor, H=24h, 60-day windows (net per trade, 95% bootstrap CI):
-| window | side (band) | n | net mean | ci95 |
-|---|---|---|---|---|
-| days 61-120 (held-out, pre-registered) | underdog (0.05-0.30) | 97 | +61.1% | [+9.5%, +125.1%] supported |
-| days 1-60 | underdog (0.05-0.30) | 97 | +31.9% | [-14.6%, +88.5%] not supported |
-| days 61-120 | favorite (0.70-0.95) | 97 | -12.2% | [-23.7%, -2.3%] negative |
-| days 1-60 | favorite (0.70-0.95) | 98 | -10.1% | [-21.3%, +0.9%] not supported |
-Underdogs won more often than priced (win 27.8% vs entry 18.5% held-out). Not promotion evidence yet:
-history prices are last trades (real asks may be worse) and `endDate` may be edited after the fact.
-Next gate: forward paper test recording real CLOB asks at entry, settled on resolution.
+Measured 2026-09-27, scheduled-end anchor, H=24h, 60-day windows (net per trade; CI is a
+day-clustered bootstrap; "-top2" drops the two best trades):
+| window | side (band) | n / days | net mean | ci95 (day-clustered) | ci95 -top2 |
+|---|---|---|---|---|---|
+| days 61-120 | underdog (0.05-0.30) | 97 / 47 | +61.1% | [+3.3%, +116.1%] | [-12.7%, +99.0%] |
+| days 1-60 | underdog (0.05-0.30) | 97 / 48 | +31.9% | [-20.9%, +99.7%] | [-29.7%, +57.0%] |
+| days 61-120 | favorite (0.70-0.95) | 97 / 47 | -12.2% | [-24.8%, +0.5%] | [-26.0%, -0.4%] |
+| days 1-60 | favorite (0.70-0.95) | 98 / 48 | -10.1% | [-21.8%, +0.8%] | [-22.6%, -0.3%] |
+Verdict: **no robust edge.** The underdog idea (derived after seeing the favorite loss; band fixed
+before the older window was run, recorded locally only) clears zero on one window and fails once the
+single best trade is removed; about half its winners and its five largest returns are esports
+match-winner markets, and without esports it is not supported. Favorites lose a little in both windows.
+`robustness.robustly_supported` must be true (clustered CI and every drop-top-k CI above zero)
+before any band is proposed for a forward paper test.
 
 ## Run
 
