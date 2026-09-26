@@ -16,6 +16,8 @@ const {
   evaluatePackageJsonChange,
   evaluateEligibility,
   recoveryPromotionHooksFor,
+  repairScopeForOwner,
+  isRetainedRegressionFixture,
   acquirePromotionHold,
   updatePromotionHold,
   readPromotionHold,
@@ -428,6 +430,291 @@ test("recoveryPromotionHooksFor refuses a PR body class that lies about the regi
   assert.deepEqual(recoveryPromotionHooksFor("deterministic", "effectful-owner", registry), {});
   // Unknown owner: no hooks.
   assert.deepEqual(recoveryPromotionHooksFor("deterministic", "no-such-owner", registry), {});
+});
+
+
+test("repairScopeForOwner derives the entrypoint's own directory for a registry-verified deterministic/effect-none owner, and refuses skills/earn/ unconditionally", () => {
+  const registry = { loops: {
+    "crowdworks-browser": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/earn/crowdworks/scripts/browser-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "self-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/self/reflection/scripts/owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "affiliate-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/affiliate/affiliate",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "effectful-owner": {
+      effect_class: "publish", provider_route: "deterministic",
+      entrypoint: "skills/earn/effectful/scripts/paid-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "model-owner": {
+      effect_class: "none", provider_route: "shared-agent-runner",
+      entrypoint: "skills/earn/modeljob/run.py",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "runtime-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "runtime/loop/some_owner.py",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "shared-kernel-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/_shared/publishing/scripts/owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "browser-adapter-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/browser/scripts/owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "loop-dev-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/loop-development/scripts/owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "shallow-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/bare-file.sh",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "shallow-group-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/earn/bare-file.sh",
+      cadence: { start_interval_seconds: 30 },
+    },
+    // Same directory as a real external-effect owner: the effect-none owner must NOT get a scope
+    // that also reaches the effectful sibling's own entrypoint.
+    "sibling-none-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/mixed/scripts/none-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "sibling-effect-owner": {
+      effect_class: "message", provider_route: "deterministic",
+      entrypoint: "skills/mixed/scripts/effect-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+
+  // Bound, non-grouped: the owning scope is the entrypoint FILE's own directory.
+  assert.equal(repairScopeForOwner(registry, "affiliate-owner"), "skills/affiliate/");
+  assert.equal(repairScopeForOwner(registry, "self-owner"), "skills/self/reflection/scripts/");
+  // skills/earn/ is refused unconditionally, whatever the owner's own effect class -- the tree
+  // holds money/message/application/publish code in sibling files this guard cannot see per-owner.
+  assert.equal(repairScopeForOwner(registry, "crowdworks-browser"), null);
+  // Any external effect, any non-deterministic provider route, an unclassifiable/unknown owner, and
+  // an entrypoint outside skills/ (already covered by the static allowlist) all get no scope.
+  assert.equal(repairScopeForOwner(registry, "effectful-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "model-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "runtime-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "no-such-owner"), null);
+  // Forbidden roots stay forbidden even for an otherwise perfectly bound owner.
+  assert.equal(repairScopeForOwner(registry, "shared-kernel-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "browser-adapter-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "loop-dev-owner"), null);
+  // An entrypoint with no real owning subdirectory (bare file directly under skills/, or directly
+  // under skills/earn/) never widens to the whole skills/ or skills/earn/ tree.
+  assert.equal(repairScopeForOwner(registry, "shallow-owner"), null);
+  assert.equal(repairScopeForOwner(registry, "shallow-group-owner"), null);
+  // A different registered owner with a real effect, entrypoint in the SAME directory: refused.
+  assert.equal(repairScopeForOwner(registry, "sibling-none-owner"), null);
+});
+
+test("repairScopeForOwner refuses a scope reachable through entry_dispatch.py's own dispatch table", () => {
+  const registry = { loops: {
+    "dispatch-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "runtime/loop/entry_dispatch.py",
+      cadence: { start_interval_seconds: 30 },
+    },
+    "shared-scope-owner": {
+      effect_class: "none", provider_route: "deterministic",
+      entrypoint: "skills/foo/scripts/gc-owner",
+      cadence: { start_interval_seconds: 30 },
+    },
+  } };
+  // dispatch-owner itself has no skills/ entrypoint, so it never gets a scope directly. But
+  // shared-scope-owner's directory is also where entry_dispatch.py dispatches an effectful script
+  // for dispatch-owner's loop id -- that must close the scope too.
+  const entryDispatchMap = { "dispatch-owner": ["skills/foo/scripts/effect-script.py"] };
+  assert.equal(repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap }), null);
+  // A dispatch table with no entry for this loop id, or a directory the dispatch table never
+  // touches, is unaffected.
+  assert.equal(
+    repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap: { "dispatch-owner": ["skills/other/x.py"] } }),
+    "skills/foo/scripts/",
+  );
+  // entry_dispatch.py unreadable: fail closed (null), not "no dispatch found".
+  assert.equal(repairScopeForOwner(registry, "shared-scope-owner", { entryDispatchMap: null }), null);
+});
+
+test("repairScopeForOwner against the real loop registry: every granted scope is free of effectful entrypoints and dispatch targets", () => {
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "..", "..", "config", "loop-registry.json"), "utf8"),
+  );
+  const loops = registry.loops || {};
+  // The exact effect-none browser/report/gc owners the independent review flagged: none may get a
+  // scope, because they all sit inside skills/earn/.
+  for (const ownerId of [
+    "crowdworks-revenue-browser",
+    "lancers-revenue-browser",
+    "lancers-revenue-work-sync",
+    "hf-gig-browser",
+    "hf-gig-daily-report",
+    "hf-gig-apply-evidence-gc",
+    "hf-gig-paid-direct",
+    "hf-gig-reply-detector",
+  ]) {
+    if (!(ownerId in loops)) continue;
+    assert.equal(repairScopeForOwner(registry, ownerId), null, ownerId);
+  }
+  const granted = {};
+  for (const ownerId of Object.keys(loops)) {
+    const scope = repairScopeForOwner(registry, ownerId);
+    if (scope) granted[ownerId] = scope;
+  }
+  for (const [ownerId, scope] of Object.entries(granted)) {
+    assert.ok(!scope.startsWith("skills/earn/"), `${ownerId} scope ${scope} is under skills/earn/`);
+    for (const [otherId, otherEntry] of Object.entries(loops)) {
+      if (otherId === ownerId) continue;
+      if (!otherEntry || otherEntry.effect_class === "none" || !otherEntry.effect_class) continue;
+      assert.ok(
+        !String(otherEntry.entrypoint || "").startsWith(scope),
+        `${ownerId} scope ${scope} also reaches effectful owner ${otherId}`,
+      );
+    }
+  }
+});
+
+
+test("classifyChangedPath admits a file inside the repair scope and still refuses one outside it", () => {
+  const scope = "skills/earn/crowdworks/";
+  assert.deepEqual(
+    classifyChangedPath("skills/earn/crowdworks/scripts/browser-owner", { repairScope: scope }),
+    { allowed: true, rule: "allow:registry-scope" },
+  );
+  assert.deepEqual(
+    classifyChangedPath("skills/earn/crowdworks/tests/test_browser_owner.py", { repairScope: scope }),
+    { allowed: true, rule: "allow:registry-scope" },
+  );
+  // A PR body could claim any owner id it likes, but the scope it is actually handed is always
+  // derived from the registry for ONE owner: a sibling skill directory is still deny:skill.
+  assert.deepEqual(
+    classifyChangedPath("skills/earn/paid-owner/scripts/owner", { repairScope: scope }),
+    { allowed: false, rule: "deny:skill" },
+  );
+  assert.deepEqual(
+    classifyChangedPath("skills/affiliate/affiliate", { repairScope: scope }),
+    { allowed: false, rule: "deny:skill" },
+  );
+  // No scope at all (a non-recovery PR, or an owner that never got one): unchanged deny:skill.
+  assert.deepEqual(
+    classifyChangedPath("skills/earn/crowdworks/scripts/browser-owner", { repairScope: null }),
+    { allowed: false, rule: "deny:skill" },
+  );
+});
+
+
+test("the absolute deny rules outrank the repair scope, whatever directory it names", () => {
+  // These are static, real GUARD_SELF_PATHS / workflow / env / spec entries; the scope argument
+  // below is deliberately a directory wide enough that, if scope were checked first, every one of
+  // these would be wrongly admitted.
+  const wideScope = "apps/life-manager/";
+  for (const [file, rule] of [
+    ["apps/life-manager/lib/dev-merge-guard.js", "deny:guard-self"],
+    ["apps/life-manager/scripts/self-build-daily.js", "deny:guard-self"],
+    [".github/workflows/deploy.yml", "deny:workflow"],
+    ["apps/life-manager/lib/migrations/003-add-column.sql", "deny:migration"],
+    ["apps/life-manager/.env.production", "deny:env"],
+    ["docs/superpowers/specs/2026-07-19-anicca-one-repo-consolidation-spec.md", "deny:spec"],
+  ]) {
+    const verdict = classifyChangedPath(file, { repairScope: wideScope });
+    assert.equal(verdict.allowed, false, file);
+    assert.equal(verdict.rule, rule, file);
+  }
+  // A protected path (dynamically supplied, e.g. the resolved --review-cmd) also outranks scope.
+  const protectedVerdict = classifyChangedPath("skills/earn/crowdworks/scripts/reviewer.js", {
+    repairScope: "skills/earn/crowdworks/",
+    protectedPaths: ["skills/earn/crowdworks/scripts/reviewer.js"],
+  });
+  assert.deepEqual(protectedVerdict, { allowed: false, rule: "deny:guard-self" });
+});
+
+
+test("isRetainedRegressionFixture accepts a scoped test file under the scope's own tests/ directory", () => {
+  const scope = "skills/earn/crowdworks/";
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/crowdworks/tests/test_browser_owner.py", { repairScope: scope }),
+    true,
+  );
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/crowdworks/tests/browser-owner.test.mjs", { repairScope: scope }),
+    true,
+  );
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/crowdworks/tests/browser-owner.test.js", { repairScope: scope }),
+    true,
+  );
+  // Wrong directory (a sibling skill's tests/), no scope at all, and a file that is not actually a
+  // test under the scope's tests/ directory are all refused exactly as before this feature existed.
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/paid-owner/tests/test_x.py", { repairScope: scope }),
+    false,
+  );
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/crowdworks/tests/test_browser_owner.py"),
+    false,
+  );
+  assert.equal(
+    isRetainedRegressionFixture("skills/earn/crowdworks/scripts/browser-owner", { repairScope: scope }),
+    false,
+  );
+  // The existing, non-scoped fixture shapes still work unchanged.
+  assert.equal(isRetainedRegressionFixture("runtime/loop/tests/test_provider_adapter.py"), true);
+});
+
+
+test("evaluateEligibility's repairScope only ever comes from a marked recovery PR, and a claimed owner cannot widen it to another owner's directory", () => {
+  const files = [
+    "skills/earn/paid-owner/scripts/owner",
+    "runtime/loop/tests/test_provider_adapter.py",
+  ];
+  // A non-recovery PR body: even if the caller (a bug, or a hostile caller) passed a repairScope in,
+  // evaluateEligibility must not apply it, because the isRecoveryPr gate comes first.
+  const nonRecovery = evaluateEligibility(loopPullRequest({
+    body: "Fixes #7000. Not a recovery PR.",
+    files: files.map((path) => ({ path })),
+  }), { changedFiles: files, repairScope: "skills/earn/paid-owner/" });
+  assert.ok(nonRecovery.deniedPaths.some((entry) => entry.path === "skills/earn/paid-owner/scripts/owner" && entry.rule === "deny:skill"));
+
+  // A recovery PR whose owner marker names "crowdworks-browser" (bound to skills/earn/crowdworks/)
+  // still cannot touch skills/earn/paid-owner/ just because the caller mistakenly (or maliciously)
+  // handed evaluateEligibility a scope for a different directory than the owner it verified.
+  const wrongScopeFiles = [
+    "skills/earn/crowdworks/scripts/browser-owner",
+    "skills/earn/crowdworks/tests/test_browser_owner.py",
+  ];
+  const recovery = evaluateEligibility(loopPullRequest({
+    body: `Fixes #7000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+      + "\n\n[lm-recovery-owner:crowdworks-browser]",
+    files: wrongScopeFiles.map((path) => ({ path })),
+  }), {
+    changedFiles: wrongScopeFiles,
+    repairScope: "skills/earn/crowdworks/",
+    recoveryPromotionHooks: {
+      immutable_release: true, isolated_canary: true, exact_health: true, rollback: true,
+    },
+  });
+  assert.equal(recovery.deniedPaths.length, 0);
+  assert.ok(recovery.changedPaths.every((file) => file.startsWith("skills/earn/crowdworks/")));
 });
 
 

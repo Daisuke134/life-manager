@@ -62,6 +62,7 @@ const {
   recoveryClassFromBody,
   recoveryOwnerFromBody,
   recoveryPromotionHooksFor,
+  repairScopeForOwner,
   promotionHoldPath,
   defaultPromotionsLedgerPath,
   recoverOrphanedPromotionHold,
@@ -323,12 +324,19 @@ async function pickEligiblePr({ deps, options = {} }) {
     const recoveryPromotionHooks = recoveryClass && recoveryOwnerId && recoveryRegistry
       ? recoveryPromotionHooksFor(recoveryClass, recoveryOwnerId, recoveryRegistry)
       : {};
+    // Same derivation the guard's own run performs (see dev-merge-guard.js's runMergeGuardLocked):
+    // this dry precheck must apply the identical registry-scope allowance, or it could pick a
+    // candidate the real guard then refuses for touching its own skill directory.
+    const repairScope = recoveryOwnerId && recoveryRegistry
+      ? repairScopeForOwner(recoveryRegistry, recoveryOwnerId)
+      : null;
 
     const eligibility = evaluateEligibility(pr, {
       allowedAuthors: options.allowedAuthors,
       protectedPaths,
       changedFiles,
       recoveryPromotionHooks,
+      repairScope,
     });
     // An unreadable file list is not an empty one — the guard says so at stage one and so does this.
     if (eligibility.ok && changedFiles !== null) {

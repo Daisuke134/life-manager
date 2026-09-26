@@ -165,6 +165,38 @@ test("the eligibility precheck is dry: nothing is merged, deployed or written by
 });
 
 
+// pickEligiblePr reads the REAL config/loop-registry.json (see self-build-daily.js's
+// readLoopRegistry) rather than an injected one -- the same choice the guard's own recovery-hooks
+// wiring already makes here. So this test uses a real, currently-registered deterministic,
+// effect_class:none, non-keep_alive owner ("founder-loop-cadence", entrypoint
+// skills/self/founder-loop/founder-loop.sh) to prove the dry precheck grants the same
+// skills/self/founder-loop/ repair scope the real guard run would. (affiliate-composition was used
+// here previously, but its entrypoint skills/affiliate/affiliate is shared byte-for-byte with the
+// registered effectful owner affiliate-loop (effect_class:publish) -- repairScopeForOwner correctly
+// refuses that scope now, see dev-merge-guard.js, so it can no longer stand in for "the scope a
+// deterministic/effect-none owner actually gets".) If founder-loop-cadence's registry row class or
+// entrypoint ever changes, or gains an effectful sibling in the same directory, this test will fail
+// loudly, which is the correct outcome for a class-boundary regression.
+test("the dry precheck grants a registry-verified recovery owner its repair scope, same as the guard", async () => {
+  const RECOVERY_PR_MARKER = "[lm-recovery-self-heal]";
+  const body = `Fixes #9000.\n\n${RECOVERY_PR_MARKER}\n\n[lm-recovery-class:deterministic]`
+    + "\n\n[lm-recovery-owner:founder-loop-cadence]";
+  const prs = [eligiblePr(100, "2026-07-20T09:00:00Z", {
+    body,
+    files: [
+      { path: "skills/self/founder-loop/founder-loop.sh" },
+      { path: "skills/self/founder-loop/tests/test_founder_loop.py" },
+    ],
+  })];
+  const deps = depsFor(prs, {
+    listErrorFixPrs: async () => prs.map((pr) => ({ number: pr.number, createdAt: pr.createdAt, body: pr.body })),
+  });
+  const picked = await pickEligiblePr({ deps });
+  assert.equal(picked.prNumber, 100, JSON.stringify(picked.skipped));
+  assert.equal(picked.skipped.length, 0);
+});
+
+
 test("a day with no eligible PR still accrues a ledger day, with an honest no-op reason", async () => {
   const dir = tempDir();
   const ledgerPath = path.join(dir, "self-build-days.jsonl");

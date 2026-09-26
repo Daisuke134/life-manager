@@ -653,7 +653,10 @@ test("the producer stamps its PR body with the loop marker the consumer matches 
   assert.ok(d0.includes("[lm-recovery-self-heal]"));
   assert.ok(d0.includes("[lm-recovery-class:"));
   assert.match(d0, /candidate path\/regression preflight RED/);
-  assert.match(d0, /git -C "\$WT" add apps\/life-manager runtime\/loop/);
+  // The staged paths are an array (apps/life-manager, runtime/loop, and the owner's repair scope
+  // when the registry grants one -- see repairScopeForOwner), not a hardcoded two-path git add.
+  assert.match(d0, /ADD_PATHS=\(apps\/life-manager runtime\/loop\)/);
+  assert.match(d0, /git -C "\$WT" add "\$\{ADD_PATHS\[@\]\}"/);
   assert.match(d0, /--task-class self-heal-code-agent/);
   // The agent must see the guard-denied paths before editing (issue #5897 was a denied control-plane edit).
   assert.match(d0, /GUARD_SELF_PATHS/);
