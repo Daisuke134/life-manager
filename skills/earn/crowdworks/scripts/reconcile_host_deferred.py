@@ -51,7 +51,12 @@ def find_host_deferred_proof(events_path: Path, owner: str,
     if not occurrence.startswith(prefix):
         return None
     run_id = occurrence[len(prefix):]
-    rows = [row for row in _events(events_path)
+    events = _events(events_path)
+    # A deferred occurrence stays queued; a later run may claim and execute it.
+    claim_ref = f"lm-occurrence://{owner}/{run_id}/claim"
+    if any(claim_ref in (row.get("evidence_refs") or []) for row in events):
+        return None
+    rows = [row for row in events
             if row.get("loop_id") == owner and row.get("run_id") == run_id]
     starts = [row for row in rows
               if row.get("phase") == "execute"
