@@ -194,3 +194,41 @@ class ReconcileAgentRunnerReleaseHoldTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PromotionHoldOrphanAlertTest(unittest.TestCase):
+    def test_orphaned_hold_alerts_once_per_hold(self):
+        # A frozen fleet must not stay silent until the next daily self-build pass.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops_root = root / "loops"
+            loops_root.mkdir()
+            sha = "b" * 40
+            (loops_root / ".promotion-hold").write_text(json.dumps({
+                "sha": sha, "owner_id": "test-owner", "pr": 77, "pid": 999999999,
+                "created_at": _iso(-7200), "expires_at": _iso(-60),
+            }))
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            calls = root / "curl-calls"
+            curl = bin_dir / "curl"
+            curl.write_text(f"#!/bin/sh\necho \"$@\" >> {calls}\necho '{{\"ok\":true}}'\n")
+            curl.chmod(0o755)
+            env = {
+                "PATH": f"{bin_dir}:/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin",
+                "HOME": str(root),
+                "LOOPS_ROOT": str(loops_root),
+                "SOURCE_REPO": str(root / "missing"),
+                "LIFE_MANAGER_SOURCE_REPO": str(root / "missing"),
+                "LIFE_MANAGER_PROMOTIONS_LEDGER_PATH": str(root / "promotions.jsonl"),
+                "LM_TELEGRAM_BOT_TOKEN": "test-token",
+                "LM_ADMIN_TELEGRAM_CHAT_ID": "123",
+            }
+            for _ in range(2):
+                result = subprocess.run(["/bin/bash", str(SCRIPT)], env=env,
+                                        capture_output=True, text=True, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f"promotion_hold_orphaned sha={sha} pr=77", result.stderr)
+            sent = calls.read_text().splitlines() if calls.exists() else []
+            self.assertEqual(len(sent), 1, sent)
+            self.assertIn("promotion_hold_orphaned", sent[0])

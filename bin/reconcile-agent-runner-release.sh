@@ -88,7 +88,18 @@ sys.exit(1)
     printf 'agent-runner reconcile: promotion hold at %s is expired but sha=%s has a terminal ledger row; treating as released\n' \
       "$PROMOTION_HOLD_PATH" "$hold_sha" >&2
   else
-    printf 'promotion_hold_orphaned sha=%s pr=%s\n' "${hold_sha:-<none>}" "${hold_pr:-<none>}" >&2
+    orphan_line="promotion_hold_orphaned sha=${hold_sha:-<none>} pr=${hold_pr:-<none>}"
+    printf '%s\n' "$orphan_line" >&2
+    # Alert once per hold so a frozen fleet is not silent until the next self-build pass.
+    alerted_marker="$PROMOTION_HOLD_PATH.alerted"
+    if [ "$(cat "$alerted_marker" 2>/dev/null)" != "${hold_sha:-none}:${hold_pr:-none}" ] \
+      && [ -n "${LM_TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${LM_ADMIN_TELEGRAM_CHAT_ID:-}" ]; then
+      if curl -sS -m 15 -o /dev/null "https://api.telegram.org/bot${LM_TELEGRAM_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${LM_ADMIN_TELEGRAM_CHAT_ID}" \
+        --data-urlencode "text=⚠️ release-reconciler frozen: ${orphan_line}" >/dev/null 2>&1; then
+        printf '%s' "${hold_sha:-none}:${hold_pr:-none}" > "$alerted_marker"
+      fi
+    fi
     exit 0
   fi
 fi
