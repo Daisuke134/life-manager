@@ -655,6 +655,9 @@ test("the producer stamps its PR body with the loop marker the consumer matches 
   assert.match(d0, /candidate path\/regression preflight RED/);
   assert.match(d0, /git -C "\$WT" add apps\/life-manager runtime\/loop/);
   assert.match(d0, /--task-class self-heal-code-agent/);
+  // The agent must see the guard-denied paths before editing (issue #5897 was a denied control-plane edit).
+  assert.match(d0, /GUARD_SELF_PATHS/);
+  assert.match(d0, /Never edit these guard-denied paths/);
   assert.match(d0, /ls-files[\s\S]*--others[\s\S]*--exclude-standard/);
   assert.match(runAgent, /(?:^|\|)self-heal-code-agent(?:\||\))/);
 });
