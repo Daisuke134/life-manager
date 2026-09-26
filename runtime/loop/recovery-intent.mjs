@@ -65,10 +65,19 @@ export function buildRecoveryIntent(input = {}) {
     reason = 'healthy_terminal';
     retryable = false;
   } else if (EFFECT_BEARING.has(effectClass) && effectStatus === 'unknown') {
-    action = 'hold_effect_unknown';
-    reason = 'official_readback_required_before_retry';
-    retryable = false;
-    effectFence = 'required';
+    // A held effect-unknown owner that keeps failing every wake must still never retry or
+    // replay the effect. Escalating only files a code-repair issue; the fence stays required.
+    if (streak >= threshold) {
+      action = 'escalate_repeated_failure';
+      reason = 'bounded_retry_budget_exhausted_effect_unknown';
+      retryable = false;
+      effectFence = 'required';
+    } else {
+      action = 'hold_effect_unknown';
+      reason = 'official_readback_required_before_retry';
+      retryable = false;
+      effectFence = 'required';
+    }
   } else if (failureLayer === 'unknown') {
     action = 'escalate_owner';
     reason = 'failure_boundary_unclassified';

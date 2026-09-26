@@ -32,6 +32,25 @@ test('repeated failures escalate instead of retrying forever', () => {
   assert.equal(intent.retryable, false);
 });
 
+test('effect-bearing unknown held below the repeated-failure threshold still holds', () => {
+  const intent = buildRecoveryIntent(base({
+    effect_class: 'publish', effect_status: 'unknown', consecutive_failure_streak: 2, threshold: 3,
+  }));
+  assert.equal(intent.action, 'hold_effect_unknown');
+  assert.equal(intent.retryable, false);
+  assert.equal(intent.effect_fence, 'required');
+});
+
+test('effect-bearing unknown that keeps failing every wake escalates without releasing the fence', () => {
+  const intent = buildRecoveryIntent(base({
+    effect_class: 'publish', effect_status: 'unknown', consecutive_failure_streak: 3, threshold: 3,
+  }));
+  assert.equal(intent.action, 'escalate_repeated_failure');
+  assert.equal(intent.retryable, false);
+  assert.equal(intent.effect_fence, 'required');
+  assert.equal(intent.mutates_external_effect, false);
+});
+
 test('healthy terminal emits no action', () => {
   const intent = buildRecoveryIntent(base({ status: 'pass', failure_layer: 'clean' }));
   assert.equal(intent.action, 'no_action');
