@@ -316,3 +316,10 @@ def test_uncertain_readback_after_the_click_never_replays_until_confirmed(
     assert third["effect"] == 0
     assert third["readback"] == 1
     assert third["items"][0]["status"] == "completed"
+
+
+def test_unparsed_amount_text_is_written_to_stderr_as_a_probe(capsys):
+    import pytest
+    with pytest.raises(work_sync.SourceFailure):
+        work_sync._parse_amount_text("¥2,000")
+    assert "lancers_amount_unparsed:'¥2,000'" in capsys.readouterr().err
