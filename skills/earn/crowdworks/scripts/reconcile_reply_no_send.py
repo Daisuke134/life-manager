@@ -6,9 +6,11 @@ failed=0 returned before ``adapter.mutate`` (CrowdWorks has no classified
 mutation errors). A failed item may have crashed after ``mutate``, so each such
 thread must show, on the live CrowdWorks conversation, no seller message whose
 minute overlaps the run window, and no Google Form fence may be written in it.
-accept_contract posts no message, so a contracted thread or a visible
-"awaiting client" acceptance also keeps the fence, as do effect=1 items and
-missing markers or windows.
+The window is the run whose terminal claims the occurrence (admission often
+runs an older queued occurrence in a later run). accept_contract posts no
+message, so a contracted thread or a visible "awaiting client" acceptance also
+keeps the fence, as do effect=1 items, killed or ambiguous claim runs and
+missing markers.
 """
 from __future__ import annotations
 
@@ -71,17 +73,27 @@ def _events(state_root: Path) -> list[dict[str, Any]]:
 
 
 def _window(rows: list[dict[str, Any]], run_id: str,
-            marker_written: float) -> tuple[float, float] | None:
-    exact = [row for row in rows if row.get("run_id") == run_id]
-    starts = [_epoch(r.get("timestamp")) for r in exact
-              if r.get("phase") == "execute" and r.get("status") == "running"]
-    ends = [_epoch(r.get("timestamp")) for r in exact if r.get("phase") == "report"]
-    # The kernel writes the marker after its last item, so every mutate precedes
-    # it; a killed child that left no terminal event is still bounded.
-    ends = ends or [marker_written]
-    if len(starts) != 1 or len(ends) != 1 or None in starts + ends or starts[0] > ends[0]:
-        return None
-    return starts[0], max(ends[0], marker_written)
+            marker_written: float) -> tuple[tuple[float, float] | None, str]:
+    """Bound the run that executed the occurrence, not the run that queued it.
+
+    Admission often lets a later run claim an older queued occurrence; only that
+    run's terminal carries ``lm-occurrence://<owner>/<run_id>/claim``.
+    """
+    claim_ref = f"lm-occurrence://{OWNER}/{run_id}/claim"
+    terminals = [r for r in rows if r.get("phase") == "report"
+                 and claim_ref in (r.get("evidence_refs") or [])]
+    if len(terminals) != 1:
+        return None, "claim_run_unavailable" if not terminals else "claim_run_ambiguous"
+    executor = terminals[0].get("run_id")
+    starts = [_epoch(r.get("timestamp")) for r in rows if r.get("run_id") == executor
+              and r.get("phase") == "execute" and r.get("status") == "running"]
+    end = _epoch(terminals[0].get("timestamp"))
+    if len(starts) != 1 or None in (starts[0], end) or not starts[0] <= end:
+        return None, "claim_run_unavailable"
+    # The kernel writes the marker inside the executing child, before its terminal.
+    if not starts[0] - SLACK <= marker_written <= end + SLACK:
+        return None, "marker_outside_claim_run"
+    return (starts[0], end), "ok"
 
 
 def _overlaps(minute: float, window: tuple[float, float]) -> bool:
@@ -155,9 +167,9 @@ def _prove(state_root, occurrence, rows, fences, read_conversation):
             return None, f"effect_marked:{item['thread_id']}"
         if item.get("failed") != 0:
             risky.append(item["thread_id"])
-    window = _window(rows, run_id, _marker_path(state_root, occurrence).stat().st_mtime)
+    window, reason = _window(rows, run_id, _marker_path(state_root, occurrence).stat().st_mtime)
     if window is None:
-        return None, "run_window_unavailable"
+        return None, reason
     if any(_overlaps(t - 60, window) for t in fences):
         return None, "form_fence_in_window"
     evidence = {}

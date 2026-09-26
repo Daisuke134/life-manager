@@ -107,3 +107,39 @@ def test_reconcile_does_not_mutate_without_resolve_flag(tmp_path, monkeypatch):
 
     assert result["resolved"] is False
     assert result["proof_type"] == "pre_effect"
+
+
+def test_host_deferred_proof_rejects_occurrence_claimed_by_later_run(tmp_path):
+    module = load()
+    owner = "crowdworks-revenue-reply"
+    run = "run-3"
+    events = tmp_path / "events.jsonl"
+    write_events(events, [
+        event(owner=owner, run=run, status="running", effect_status="started"),
+        event(owner=owner, run=run, status="blocked", effect_status="unknown",
+              blocker="host_admission_deferred:resource_capacity_busy"),
+        event(owner=owner, run="run-9", status="fail", effect_status="unknown",
+              blocker="entrypoint_exit_1",
+              refs=[f"lm-loop://{owner}/run-9/summary.json",
+                    f"lm-occurrence://{owner}/{run}/claim"]),
+    ])
+    assert module.find_host_deferred_proof(events, owner, f"{owner}:{run}") is None
+
+
+def test_host_deferred_proof_sees_claim_in_rotated_archive(tmp_path):
+    import gzip
+    module = load()
+    owner = "crowdworks-revenue-reply"
+    run = "run-4"
+    events = tmp_path / "events.jsonl"
+    write_events(events, [
+        event(owner=owner, run=run, status="running", effect_status="started"),
+        event(owner=owner, run=run, status="blocked", effect_status="unknown",
+              blocker="host_admission_deferred:resource_capacity_busy"),
+    ])
+    claim = event(owner=owner, run="run-9", status="fail", effect_status="unknown",
+                  blocker="entrypoint_exit_1",
+                  refs=[f"lm-occurrence://{owner}/{run}/claim"])
+    with gzip.open(tmp_path / "events-20260920T000000Z.jsonl.gz", "wt") as handle:
+        handle.write(json.dumps(claim) + "\n")
+    assert module.find_host_deferred_proof(events, owner, f"{owner}:{run}") is None
