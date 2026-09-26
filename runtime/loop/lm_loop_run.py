@@ -59,6 +59,8 @@ SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
+# Stay under resource_admission.DEFAULT_HEARTBEAT_TIMEOUT_SECONDS (300s).
+HEARTBEAT_BUSY_TOLERANCE_SECONDS = 240.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/affiliate/affiliate",
     "skills/earn/crowdworks/scripts/application-owner",
@@ -601,15 +603,23 @@ def _release_with_retry(operation: Callable[[], list[str]]) -> list[str]:
 
 def _heartbeat_loop(claim: Path, stop: threading.Event,
                     failed: threading.Event) -> None:
+    last_ok = time.monotonic()
     while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
         try:
             healthy = heartbeat_durable_resource(claim)
-        except (OSError, RuntimeError, sqlite3.Error):
+        except RuntimeError as error:
+            if (str(error) == "control_busy"
+                    and time.monotonic() - last_ok < HEARTBEAT_BUSY_TOLERANCE_SECONDS):
+                continue
+            failed.set()
+            return
+        except (OSError, sqlite3.Error):
             failed.set()
             return
         if not healthy:
             failed.set()
             return
+        last_ok = time.monotonic()
 
 
 def _host_admission_deferred(path: Path, started_ns: int) -> str | None:

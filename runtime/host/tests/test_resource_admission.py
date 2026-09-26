@@ -2884,3 +2884,14 @@ def test_simultaneous_durable_waiters_all_persist(tmp_path, monkeypatch):
             if process.is_alive():
                 process.terminate()
                 process.join(timeout=5)
+
+
+def test_heartbeat_durable_reports_busy_control_lock_as_transient(monkeypatch, tmp_path):
+    import pytest
+    monkeypatch.setattr(admission, "_row", lambda _claim: {"phase": "running"})
+    monkeypatch.setattr(admission, "process_start", lambda _pid: "start")
+    monkeypatch.setattr(admission, "_controlled_by", lambda *_: True)
+    monkeypatch.setattr(admission, "_durable_paths", lambda: (tmp_path, None, None, None))
+    monkeypatch.setattr(admission, "_acquire_bounded", lambda *_a, **_k: False)
+    with pytest.raises(RuntimeError, match="control_busy"):
+        admission.heartbeat_durable(tmp_path / "claim", now=1)

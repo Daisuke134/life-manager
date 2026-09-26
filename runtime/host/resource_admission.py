@@ -1275,8 +1275,9 @@ def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
     root, _, _, _ = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
-            return False
+        if not _acquire_bounded(descriptor, timeout_seconds=5.0):
+            # Lock contention is transient; only lost ownership or expiry is fatal.
+            raise RuntimeError("control_busy")
         current = _row(claim)
         if (not current or not _controlled_by(current, os.getpid(), started)
                 or _heartbeat_expired(current, instant)):
