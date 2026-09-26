@@ -241,6 +241,15 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [ ] 6-9b ディスクが再び満杯になった。2026-09-27 に `hf-gig-apply-reconcile` の stderr で `[Errno 28] No space left on device` が連続し、空きは0〜4.1GB で上下している。何が書き込んでいるかを測り、floor を守る
 - [ ] 6-10 release を約24時間凍結し、drift が消えた状態で gate を測り直す（目標 `uncovered_failure=0`）
 
+**T5-G 汎用の fence 自己解除（順序変更で T7 より先に行う）**
+
+順序変更の記録（2026-09-27）: 旧順序は T7 の Paid owner を1件ずつ人間側（Claude/Codex）が直す。新順序は T5-G を先に行い、その後の T7 は T5-G の上で進める。理由: 失敗の大半は effect_unknown の fence で、今は Claude が owner ごとに解除スクリプトを手で書いている（capafy、alpaca #5966、crowdworks、storefront #5928）。これは自己修復ではない。現在の cursor: T5-G-1。
+- [ ] T5-G-1 各 provider adapter に共通の `official_readback(occurrence)` を1つ持たせる規約を決める。既存の `resolve_unknown_occurrence`（`runtime/host/resource_admission.py`）を使う。返り値は verified / provider_receipt_id / absent / inconclusive
+- [ ] T5-G-2 Life Manager 自身の汎用 reconciler loop を1本作る。全 owner の effect_unknown fence を定期的に列挙し、adapter の readback で「effect なし」または「effect あり（receipt 付き）」が証明できたものだけを閉じる。inconclusive は閉じず、typed fence のまま次回へ回す。retry はしない
+- [ ] T5-G-3 既存の手書きスクリプト（capafy、alpaca、crowdworks reply/application、storefront、lancers paid）を T5-G-1 の adapter に移し、汎用 loop から呼ぶ
+- [ ] T5-G-4 readback を持たない owner を一覧にし、それを自己修復の issue（§5.1 の 4）として Life Manager の dev loop に渡す
+- [ ] T5-G-5 実証: 自然発生した fence が、人も外部 agent も関与せずに閉じ、次の自然実行が PASS したことを readback する
+
 **T7 Paid（Paid spec の順番。Ryu room 18211957 には触らない）**
 - [x] 7-1 loop hardening の merge / release（#5875 → 以後の release）
 - [x] 7-2 disk admission floor の回復（T1）
