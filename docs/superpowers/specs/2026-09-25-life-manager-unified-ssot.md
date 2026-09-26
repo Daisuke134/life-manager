@@ -96,7 +96,7 @@ flowchart LR
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
-現在の cursor: **T5（進行中）→ §5.2 の 5-6**
+現在の cursor: **T5（進行中）→ §5.2 の 5-8**
 
 T5 の途中経過（2026-09-25 19:00 JST）:
 - 観測1: `life-manager-recovery-supervisor` は release 287d で毎 wake exit 1 になっていた。原因は、旧 release の intent を正しく `blocked: release_sha_mismatch` にした結果まで失敗として数えていたこと。#5879 で、この理由の blocked は exit 0 にした。他の理由の blocked は今までどおり exit 1。
@@ -205,12 +205,12 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [x] 5-3 supervisor: 旧 release の intent を1 wake でまとめて close（#5883）
 - [x] 5-4 `.py` の entrypoint を runtime Python 3.14 で起動（#5904）
 - [x] 5-5 #5886 を revert し、self-heal のモデルを GPT に戻す（#5905）
-- [ ] 5-6 #5904 と #5905 を含む release を全体に apply し、readback する
-- [ ] 5-7 `hf-gig-apply-reconcile` の次の自然実行が PASS したことを readback する（StrEnum の ImportError が消えたか）
+- [x] 5-6 #5904 と #5905 を含む release を全体に apply し、readback した（release `387c0689`、適用139、失敗0、self-heal のモデルは `gpt-5.6-terra`）。`hf-gig-apply-reconcile` は、queue に effect なしの予約が22件あって付け替えが永遠に保留されるデッドロックだったので、#5908 で `reconcile_queued_release` を付けた。10:52 に reconciler が release `d5367f57` へ付け替えた
+- [x] 5-7 `hf-gig-apply-reconcile` が release `d5367f57` で PASS した（run `18d8bc08bdb98b10-58940`、exit 0）。StrEnum の ImportError は解消。※ 外部 agent が直した結果なので、T5 の完了証拠にはしない
 - [ ] 5-8 dev agent の編集範囲を「失敗した owner の registry entrypoint のディレクトリ」まで広げる。recovery 制御系・evaluator・merge guard・policy は引き続き拒否する（#5130）。merge guard の test 付き
 - [ ] 5-9 d0 の prompt と preflight で、編集禁止のパスを最初に agent へ渡す（#5897 の拒否を防ぐ）
 - [ ] 5-10 dev agent の timeout（900秒）を実測に基づいて見直す（#5900、#5902）
-- [ ] 5-11 d0 の PR → merge guard → merge → release → apply が、人の手なしで連結するかを確認する。欠けていれば、欠けている1箇所だけを足す
+- [ ] 5-11 d0 の PR → merge guard → merge → release → apply が、人の手なしで連結するかを確認する。欠けていれば、欠けている1箇所だけを足す。既知の穴: supervisor は旧 release で作られた intent を「無効」として閉じるので、release がずれた owner は supervisor では付け替わらない。付け替えは release-reconciler の担当で、queue に予約のある owner は `reconcile_queued_release` の opt-in が必要
 - [ ] 5-12 自然発生した1件の失敗で、§5.1 の 1〜7 を完走させ、run_id / intent_id / issue / PR / release_sha / PASS run_id を記録する
 
 **T6 14ループ**
