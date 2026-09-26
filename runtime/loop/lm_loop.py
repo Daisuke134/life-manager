@@ -56,6 +56,7 @@ PRE_EFFECT_TERMINAL_BLOCKERS = PRE_EFFECT_ADMISSION_BLOCKERS | frozenset({
 })
 SAFE_OCCURRENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}\Z")
 MAX_PRE_EFFECT_ARCHIVES = 4
+PRE_EFFECT_RECONCILE_MAX_ROWS = 20
 MAX_HARNESS_FAILURE_BYTES = 16 * 1024 * 1024
 ADMISSION_READ_RETRY_ATTEMPTS = 8
 ADMISSION_READ_RETRY_DELAY_SECONDS = 0.25
@@ -291,8 +292,79 @@ def _atomic_private_json(path: Path, value: dict) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
-def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
-    """Prove one exact old fence stopped in host admission before entrypoint."""
+def _pre_effect_occurrence_proof(
+    loop_id: str, entry: dict, occurrence_id: object, expected_state: object,
+    runtime_rows: list[dict],
+) -> tuple[dict | None, str]:
+    """Prove one exact occurrence stopped in host admission before entrypoint.
+
+    Accepts either a start execute/running/started event plus one pre-effect
+    terminal event (start before terminal), or exactly one pre-effect terminal
+    event with no start event and no other events for that run_id. Any other
+    shape, or any ``lm-effect://`` evidence ref, is rejected. Returns
+    ``(proof, "ok")`` on success or ``(None, reason)`` otherwise.
+    """
+    prefix = f"{loop_id}:"
+    if (expected_state not in {"claimed", "released"}
+            or not isinstance(occurrence_id, str)
+            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(prefix)):
+        return None, "invalid_occurrence"
+    run_id = occurrence_id[len(prefix):]
+    exact = [row for row in runtime_rows
+             if row.get("loop_id") == loop_id and row.get("run_id") == run_id]
+    starts = [row for row in exact
+              if row.get("phase") == "execute" and row.get("status") == "running"
+              and row.get("effect_status") == "started"]
+    terminals = [row for row in exact
+                 if row.get("phase") == "report"
+                 and _is_pre_effect_terminal(entry, row)]
+    if len(terminals) != 1:
+        return None, "no_pre_effect_terminal"
+    terminal = terminals[0]
+    if len(starts) == 1 and len(exact) == 2:
+        start = starts[0]
+    elif len(starts) == 0 and len(exact) == 1:
+        start = None
+    else:
+        return None, "unexpected_events"
+    summary_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
+    evidence_refs = terminal.get("evidence_refs", [])
+    if any(isinstance(ref, str) and ref.startswith("lm-effect://") for ref in evidence_refs):
+        return None, "effect_ref_present"
+    if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
+            or terminal.get("effect_status") != "unknown"
+            or summary_ref not in evidence_refs):
+        return None, "terminal_not_pre_effect"
+    if start is not None:
+        if summary_ref not in start.get("evidence_refs", []):
+            return None, "terminal_not_pre_effect"
+        try:
+            if _event_epoch(start.get("timestamp")) > _event_epoch(terminal.get("timestamp")):
+                return None, "start_after_terminal"
+        except ValueError:
+            return None, "invalid_timestamp"
+    proof = {
+        "owner_id": loop_id,
+        "occurrence_id": occurrence_id,
+        "verified": True,
+        "proof_type": "pre_effect",
+        "evidence_ref": f"lm-event://{loop_id}/{run_id}/{terminal['event_id']}",
+        "blocker": terminal["blocker"],
+    }
+    return proof, "ok"
+
+
+def _pre_effect_admission_evaluate(
+    loop_id: str, entry: dict,
+) -> tuple[list[tuple[str, str, dict]], list[tuple[str, str]]]:
+    """Evaluate every effect_unknown row of the owner independently.
+
+    Returns ``(provable, unprovable)`` where ``provable`` is a list of
+    ``(occurrence_id, expected_state, proof)`` and ``unprovable`` is a list of
+    ``(occurrence_id, reason)``. A read failure fails closed with both lists
+    empty; the caller's own admission read retains the effect fence.
+    """
     database = admission_root() / "admission-v2.sqlite3"
     try:
         rows = _read_admission_rows(
@@ -305,20 +377,13 @@ def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, di
     except sqlite3.Error:
         # Proof failure is fail-closed: retain the effect fence and let the
         # enclosing reconcile report a retryable admission-read boundary.
-        return None
-    if len(rows) != 1:
-        return None
-    occurrence_id, expected_state = rows[0]
-    prefix = f"{loop_id}:"
-    if (expected_state not in {"claimed", "released"}
-            or not isinstance(occurrence_id, str)
-            or not SAFE_OCCURRENCE.fullmatch(occurrence_id)
-            or not occurrence_id.startswith(prefix)):
-        return None
-    run_id = occurrence_id[len(prefix):]
+        return [], []
+    if not rows:
+        return [], []
     state_root = entry.get("state_root")
     if not isinstance(state_root, str) or not state_root:
-        return None
+        return [], [(occurrence_id, "state_root_unavailable")
+                    for occurrence_id, _state in rows]
     try:
         root = Path(os.path.expanduser(state_root))
         journals = [root / "events.jsonl", *sorted(
@@ -328,65 +393,95 @@ def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, di
             row for journal in journals for row in _private_runtime_rows(journal)
         ]
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+        return [], [(occurrence_id, "journal_unavailable") for occurrence_id, _state in rows]
+    provable: list[tuple[str, str, dict]] = []
+    unprovable: list[tuple[str, str]] = []
+    for occurrence_id, expected_state in rows:
+        proof, reason = _pre_effect_occurrence_proof(
+            loop_id, entry, occurrence_id, expected_state, runtime_rows)
+        if proof is not None:
+            provable.append((occurrence_id, expected_state, proof))
+        else:
+            unprovable.append((occurrence_id, reason))
+    return provable, unprovable
+
+
+def _pre_effect_admission_proof(loop_id: str, entry: dict) -> tuple[str, str, dict] | None:
+    """Prove one exact old fence stopped in host admission before entrypoint.
+
+    Single-row convenience wrapper over `_pre_effect_admission_evaluate`,
+    preserved for callers that require exactly one effect_unknown row.
+    """
+    provable, unprovable = _pre_effect_admission_evaluate(loop_id, entry)
+    if len(provable) + len(unprovable) != 1 or not provable:
         return None
-    exact = [row for row in runtime_rows
-             if row.get("loop_id") == loop_id and row.get("run_id") == run_id]
-    starts = [row for row in exact
-              if row.get("phase") == "execute" and row.get("status") == "running"
-              and row.get("effect_status") == "started"]
-    terminals = [row for row in exact
-                 if row.get("phase") == "report"
-                 and _is_pre_effect_terminal(entry, row)]
-    if len(exact) != 2 or len(starts) != 1 or len(terminals) != 1:
-        return None
-    start, terminal = starts[0], terminals[0]
-    summary_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
-    evidence_refs = terminal.get("evidence_refs", [])
-    if (terminal.get("blocker") not in PRE_EFFECT_TERMINAL_BLOCKERS
-            or terminal.get("effect_status") != "unknown"
-            or summary_ref not in start.get("evidence_refs", [])
-            or summary_ref not in evidence_refs
-            or any(isinstance(ref, str) and ref.startswith("lm-effect://")
-                   for ref in evidence_refs)):
-        return None
+    return provable[0]
+
+
+def _owner_effect_unknown_count(loop_id: str) -> int | None:
+    database = admission_root() / "admission-v2.sqlite3"
     try:
-        if _event_epoch(start.get("timestamp")) > _event_epoch(terminal.get("timestamp")):
-            return None
-    except ValueError:
+        rows = _read_admission_rows(
+            database,
+            "SELECT COUNT(*) FROM occurrences WHERE owner_id=? AND effect_unknown=1",
+            (loop_id,),
+        )
+    except sqlite3.Error:
         return None
-    proof = {
-        "owner_id": loop_id,
-        "occurrence_id": occurrence_id,
-        "verified": True,
-        "proof_type": "pre_effect",
-        "evidence_ref": f"lm-event://{loop_id}/{run_id}/{terminal['event_id']}",
-        "blocker": terminal["blocker"],
-    }
-    return occurrence_id, expected_state, proof
+    return rows[0][0] if rows else 0
+
+
+def _effect_unknown_owners() -> list[str]:
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        rows = _read_admission_rows(
+            database,
+            "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1 ORDER BY owner_id",
+        )
+    except sqlite3.Error:
+        return []
+    return [row[0] for row in rows if isinstance(row[0], str)]
+
+
+def _resolve_pre_effect_admission_rows(
+    loop_id: str, entry: dict,
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """Resolve every provable effect_unknown row of the owner independently.
+
+    Returns ``(resolved_occurrence_ids, unprovable_with_reason)``. Each row is
+    proved and closed on its own; one unprovable row never blocks closing a
+    sibling row that does carry proof.
+    """
+    provable, unprovable = _pre_effect_admission_evaluate(loop_id, entry)
+    resolved: list[str] = []
+    if provable:
+        state_root = Path(os.path.expanduser(entry["state_root"]))
+        for occurrence_id, expected_state, proof in provable:
+            run_id = occurrence_id[len(loop_id) + 1:]
+            receipt_path = state_root / "reconciliation" / f"pre-effect-{run_id}.json"
+            receipt = {
+                "schema_version": 1,
+                "receipt_type": "HOST_PRE_EFFECT_RECONCILIATION",
+                "resolution": "PROOF_READY",
+                **proof,
+            }
+            _atomic_private_json(receipt_path, receipt)
+            closed = resolve_pre_effect_occurrence(
+                loop_id, occurrence_id, pre_effect_readback=lambda proof=proof: proof,
+                expected_state=expected_state,
+            )
+            if closed:
+                _atomic_private_json(receipt_path, {**receipt, "resolution": "RESOLVED"})
+                resolved.append(occurrence_id)
+            else:
+                unprovable.append((occurrence_id, "close_rejected"))
+    return resolved, unprovable
 
 
 def _resolve_pre_effect_admission_unknown(loop_id: str, entry: dict) -> bool:
-    proof_row = _pre_effect_admission_proof(loop_id, entry)
-    if proof_row is None:
-        return False
-    occurrence_id, expected_state, proof = proof_row
-    state_root = Path(os.path.expanduser(entry["state_root"]))
-    run_id = occurrence_id[len(loop_id) + 1:]
-    receipt_path = state_root / "reconciliation" / f"pre-effect-{run_id}.json"
-    receipt = {
-        "schema_version": 1,
-        "receipt_type": "HOST_PRE_EFFECT_RECONCILIATION",
-        "resolution": "PROOF_READY",
-        **proof,
-    }
-    _atomic_private_json(receipt_path, receipt)
-    resolved = resolve_pre_effect_occurrence(
-        loop_id, occurrence_id, pre_effect_readback=lambda: proof,
-        expected_state=expected_state,
-    )
-    if resolved:
-        _atomic_private_json(receipt_path, {**receipt, "resolution": "RESOLVED"})
-    return resolved
+    """Resolve every provable row and report whether none remain effect_unknown."""
+    _resolve_pre_effect_admission_rows(loop_id, entry)
+    return _owner_effect_unknown_count(loop_id) == 0
 
 
 def _product_loop_job_map(catalog_path: Path | None = None) -> dict[str, str]:
@@ -1765,11 +1860,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
-        "admission-v2-enable", "apply", "browser", "doctor", "reconcile",
-        "start", "stop", "restart", "status", "watch",
+        "admission-v2-enable", "apply", "browser", "doctor", "pre-effect-reconcile",
+        "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -1835,6 +1930,30 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1
         print(json.dumps({"ok": True, **result}, indent=2, sort_keys=True))
+        return 0
+    if command == "pre-effect-reconcile":
+        if len(args) not in (2, 3) or (len(args) == 3 and args[2] != "--dry-run"):
+            print(json.dumps({
+                "ok": False,
+                "error": "pre-effect-reconcile requires <loop-id> [--dry-run]",
+            }, sort_keys=True))
+            return 2
+        loop_id = args[1]
+        entry = registry["loops"].get(loop_id)
+        if not isinstance(entry, dict):
+            print(json.dumps({"ok": False, "error": f"unknown loop id: {loop_id}"}))
+            return 2
+        if len(args) == 3:
+            # --dry-run never mutates admission state or writes a receipt.
+            _provable, unprovable = _pre_effect_admission_evaluate(loop_id, entry)
+            resolved: list[str] = []
+        else:
+            resolved, unprovable = _resolve_pre_effect_admission_rows(loop_id, entry)
+        print(json.dumps({
+            "ok": True, "resolved": resolved,
+            "unprovable": [{"occurrence_id": occurrence_id, "reason": reason}
+                           for occurrence_id, reason in unprovable],
+        }, indent=2, sort_keys=True))
         return 0
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
@@ -2054,11 +2173,32 @@ def main(argv: list[str] | None = None) -> int:
                         applied.append(result)
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
+        pre_effect_reconciled: list[dict] = []
+        if automatic_release_reconciler:
+            loaded_running = {row["loop_id"] for row in rows
+                               if row.get("launchd_state") == "loaded-running"}
+            budget = PRE_EFFECT_RECONCILE_MAX_ROWS
+            for owner_id in _effect_unknown_owners():
+                if budget <= 0:
+                    break
+                owner_entry = registry["loops"].get(owner_id)
+                if not isinstance(owner_entry, dict) or owner_id in loaded_running:
+                    continue
+                resolved_ids, unprovable_rows = _resolve_pre_effect_admission_rows(
+                    owner_id, owner_entry)
+                budget -= len(resolved_ids) + len(unprovable_rows)
+                if resolved_ids or unprovable_rows:
+                    pre_effect_reconciled.append({
+                        "loop_id": owner_id, "resolved": resolved_ids,
+                        "unprovable": [{"occurrence_id": occurrence_id, "reason": reason}
+                                       for occurrence_id, reason in unprovable_rows],
+                    })
         print(json.dumps({
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
             "skipped_pending": sorted(set(skipped_pending)),
             "eligible": len(eligible), "applied": applied, "failed": failed,
+            "pre_effect_reconciled": pre_effect_reconciled,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"
                 and row["provider_route"] == route
