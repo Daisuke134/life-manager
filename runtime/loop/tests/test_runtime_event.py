@@ -238,6 +238,23 @@ class RuntimeEventTest(unittest.TestCase):
         self.assertEqual(event["next_action"], "monitor_running")
         self.assertEqual(validate_runtime_event(event), event)
 
+    def test_effect_identity_status_is_optional_and_carried_when_provided(self):
+        common = dict(
+            loop_id="connector", domain="earn", run_id="run-1", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="publish",
+            succeeded=False, blocker="entrypoint_exit_1", exit_code=1,
+        )
+        event_without_status = build_runtime_event(**common)
+        self.assertNotIn("effect_identity_status", event_without_status)
+
+        event_with_status = build_runtime_event(
+            **common, effect_identity_status="not_written")
+        self.assertEqual(event_with_status["effect_identity_status"], "not_written")
+        self.assertEqual(validate_runtime_event(event_with_status), event_with_status)
+
+        with self.assertRaisesRegex(ValueError, "effect_identity_status"):
+            build_runtime_event(**common, effect_identity_status="bogus")
+
 
 if __name__ == "__main__":
     unittest.main()

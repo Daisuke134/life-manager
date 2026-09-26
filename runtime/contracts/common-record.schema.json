@@ -71,7 +71,8 @@
         "official_readback_ref": {"oneOf": [
           {"type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}$"},
           {"type": "null"}
-        ]}
+        ]},
+        "effect_identity_status": {"enum": ["not_written", "rejected", "persisted"]}
       },
       "allOf": [{
         "if": {"anyOf": [

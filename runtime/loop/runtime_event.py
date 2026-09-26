@@ -24,7 +24,11 @@ DIAGNOSTIC_FIELDS = {
     "error_class", "retryable", "next_action", "provider_receipt_id",
     "official_readback_ref",
 }
-FIELDS = REQUIRED_FIELDS | DIAGNOSTIC_FIELDS
+# Present only when the effect-identity persistence step actually ran
+# (see lm_loop_run._persist_effect_identity); absent otherwise.
+OPTIONAL_FIELDS = {"effect_identity_status"}
+FIELDS = REQUIRED_FIELDS | DIAGNOSTIC_FIELDS | OPTIONAL_FIELDS
+EFFECT_IDENTITY_STATUSES = {"not_written", "rejected", "persisted"}
 DOMAINS = {"physical", "mental", "financial", "earn", "growth", "system"}
 PHASES = {"plan", "execute", "reconcile", "verify", "report"}
 STATUSES = {"running", "pass", "fail", "blocked"}
@@ -163,6 +167,8 @@ def validate_runtime_event(event: dict) -> dict:
         if readback is not None and (
                 not isinstance(readback, str) or not SAFE_REF.fullmatch(readback)):
             raise ValueError("invalid official_readback_ref")
+    if "effect_identity_status" in event and event["effect_identity_status"] not in EFFECT_IDENTITY_STATUSES:
+        raise ValueError("invalid effect_identity_status")
     return event
 
 
@@ -185,7 +191,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         retryable: bool | None = None,
                         next_action: str | None = None,
                         provider_receipt_id: str | None = None,
-                        official_readback_ref: str | None = None) -> dict:
+                        official_readback_ref: str | None = None,
+                        effect_identity_status: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -253,6 +260,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         if not isinstance(effect_identity_ref, str) or not SAFE_REF.fullmatch(effect_identity_ref):
             raise ValueError("invalid effect identity reference")
         event["evidence_refs"].append(effect_identity_ref)
+    if effect_identity_status is not None:
+        event["effect_identity_status"] = effect_identity_status
     return validate_runtime_event(event)
 
 

@@ -19,7 +19,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, NamedTuple
 
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
@@ -342,9 +342,23 @@ def _atomic_json(path: Path, value: dict) -> None:
         except FileNotFoundError: pass
 
 
+class EffectIdentityResult(NamedTuple):
+    """Outcome of an effect-identity persistence attempt.
+
+    status is one of:
+      - "not_written": the sidecar was never created by the entrypoint.
+      - "rejected": the sidecar existed but failed validation, or an
+        OSError other than "not found" occurred while reading/moving it.
+      - "persisted": the sidecar was valid and moved into state_root.
+    """
+    status: str
+    ref: str | None
+
+
 def _persist_effect_identity(sidecar: Path, state_root: Path,
                              loop_id: str, run_id: str,
-                             claimed_occurrence_id: str | None = None) -> str | None:
+                             claimed_occurrence_id: str | None = None,
+                             ) -> EffectIdentityResult:
     """Move a validated run identity out of scratch before unknown-effect cleanup."""
     if (not SAFE_RUN_ID.fullmatch(loop_id) or not SAFE_RUN_ID.fullmatch(run_id)
             or loop_id in {".", ".."} or run_id in {".", ".."}):
@@ -359,18 +373,20 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
             info = os.fstat(descriptor)
             if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
                     or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600):
-                return None
+                return EffectIdentityResult("rejected", None)
             with os.fdopen(descriptor, "rb") as handle:
                 descriptor = -1
                 data = handle.read(1024 * 1024 + 1)
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
-    except (FileNotFoundError, OSError):
-        return None
+    except FileNotFoundError:
+        return EffectIdentityResult("not_written", None)
+    except OSError:
+        return EffectIdentityResult("rejected", None)
     home_prefix = str(Path.home()).encode()
     if not data.strip() or len(data) > 1024 * 1024 or (home_prefix and home_prefix in data):
-        return None
+        return EffectIdentityResult("rejected", None)
 
     identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$")
     job_identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
@@ -391,7 +407,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
         try:
             value = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            return None
+            return EffectIdentityResult("rejected", None)
         if (not isinstance(value, dict) or value.get("schema_version") != 1
                 or value.get("kind") != "life_manager_effect_identity"
                 or set(value) - allowed
@@ -412,18 +428,18 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
                 or (value.get("video_sha256") is not None
                     and not hash_value.fullmatch(str(value.get("video_sha256"))))
                 or not hash_value.fullmatch(str(value.get("caption_sha256", "")))):
-            return None
+            return EffectIdentityResult("rejected", None)
         if "media_sha256" in value and (
                 not isinstance(value["media_sha256"], list)
                 or not value["media_sha256"]
                 or any(not hash_value.fullmatch(str(item)) for item in value["media_sha256"])):
-            return None
+            return EffectIdentityResult("rejected", None)
         for key in ("pack_sha256", "media_order_sha256"):
             if key in value and not hash_value.fullmatch(str(value[key])):
-                return None
+                return EffectIdentityResult("rejected", None)
         integration_match = integration.fullmatch(str(value["integration_ref"]))
         if integration_match is None or integration_match.group(1).lower() != value["platform"]:
-            return None
+            return EffectIdentityResult("rejected", None)
         video_key = re.fullmatch(
             r"marketing:video:([^:]+):(instagram|tiktok|youtube):([^:]+):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
             str(value["effect_key"]),
@@ -440,7 +456,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
                     or value["caption_sha256"] != video_key.group(5)
                     or (video_key.group(6) is not None
                         and video_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
-                return None
+                return EffectIdentityResult("rejected", None)
         elif carousel_key:
             media_hashes = value.get("media_sha256")
             expected_media_order = (
@@ -460,9 +476,9 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
                     or value["caption_sha256"] != carousel_key.group(5)
                     or (carousel_key.group(6) is not None
                         and carousel_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
-                return None
+                return EffectIdentityResult("rejected", None)
         else:
-            return None
+            return EffectIdentityResult("rejected", None)
 
     root_fd = identity_fd = descriptor = -1
     temporary_name = None
@@ -474,7 +490,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
         root_info = os.fstat(root_fd)
         if (not stat.S_ISDIR(root_info.st_mode) or root_info.st_uid != os.getuid()
                 or root_info.st_mode & 0o777 != 0o700):
-            return None
+            return EffectIdentityResult("rejected", None)
         try:
             os.mkdir("effect-identities", mode=0o700, dir_fd=root_fd)
         except FileExistsError:
@@ -483,7 +499,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
         identity_info = os.fstat(identity_fd)
         if (not stat.S_ISDIR(identity_info.st_mode) or identity_info.st_uid != os.getuid()
                 or identity_info.st_mode & 0o777 != 0o700):
-            return None
+            return EffectIdentityResult("rejected", None)
         write_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         for attempt in range(8):
             temporary_name = f".{run_id}.{os.getpid()}.{time.time_ns()}.{attempt}.tmp"
@@ -495,7 +511,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
             except FileExistsError:
                 continue
         if descriptor < 0:
-            return None
+            return EffectIdentityResult("rejected", None)
         with os.fdopen(descriptor, "wb") as handle:
             descriptor = -1
             handle.write(data)
@@ -509,7 +525,7 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
         os.fsync(identity_fd)
         sidecar.unlink()
     except OSError:
-        return None
+        return EffectIdentityResult("rejected", None)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -522,7 +538,8 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
             os.close(identity_fd)
         if root_fd >= 0:
             os.close(root_fd)
-    return f"lm-effect://{loop_id}/{run_id}/identity.jsonl"
+    return EffectIdentityResult(
+        "persisted", f"lm-effect://{loop_id}/{run_id}/identity.jsonl")
 
 
 def _runtime_limit(entry: dict) -> int | None:
@@ -1237,12 +1254,15 @@ def main(argv: list[str] | None = None) -> int:
             effect_result = _verified_effect_result(
                 scratch / "entrypoint-result.json", loop_id, claimed_occurrence_id)
         effect_identity_ref = None
+        effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:
             try:
-                effect_identity_ref = _persist_effect_identity(
+                identity_result = _persist_effect_identity(
                     scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
                     claimed_occurrence_id,
                 )
+                effect_identity_status = identity_result.status
+                effect_identity_ref = identity_result.ref
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
         terminal_saved = False
@@ -1258,6 +1278,7 @@ def main(argv: list[str] | None = None) -> int:
                 evidence_scheme="lm-loop",
                 claimed_occurrence_id=claimed_occurrence_id,
                 effect_identity_ref=effect_identity_ref,
+                effect_identity_status=effect_identity_status,
                 product_loop_id=product_loop_id,
                 job_id=loop_id,
                 owner_id=loop_id,
