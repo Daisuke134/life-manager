@@ -140,6 +140,132 @@ run_reconcile() {
     --grace-seconds 15 "$reconcile_timeout_seconds" "$release_root/bin/lm-loop" "$@"
 }
 
+# `reconcile_release` above only ever touches loaded-and-idle owners on the shared-agent-runner and
+# deterministic provider routes, four at a time. It never installs a brand-new label or repoints a
+# loaded owner that never idles long enough to be picked up: measured 2026-09-27, only 53/172 loaded
+# owners were on the current release (81 sat on a 10h-old one) until a human ran
+# `lm-loop apply --all` by hand. This runs that same fleet apply automatically, but only once per
+# newly *activated* release sha (never every 60s tick) and never while a release was cut as a
+# non-activated candidate (RELEASE_ROOT below is only ever the `current` symlink target, and
+# `cut-loop-release.sh` refuses to activate `current` for anything but a complete origin/main
+# ancestor -- see its LOOPS_ACTIVATE_CURRENT handling), and never while the promotion hold above is
+# active (this function is only reached after the hold's early `exit 0`).
+run_fleet_apply() {
+  local release_root="$1"
+  local release_sha="$2"
+  local state_dir="${LIFE_MANAGER_RELEASE_RECONCILER_STATE_ROOT:-$HOME/.local/state/life-manager/release-reconciler}"
+  local state_path="$state_dir/fleet-apply-state.json"
+  local log_path="$state_dir/fleet-apply.jsonl"
+  mkdir -p "$state_dir"
+
+  local last_sha last_status last_next_retry
+  IFS=$'\t' read -r last_sha last_status last_next_retry < <(
+    FLEET_APPLY_STATE_PATH="$state_path" "$runtime_python" - <<'PY'
+import json, os
+path = os.environ["FLEET_APPLY_STATE_PATH"]
+try:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+except (OSError, ValueError):
+    data = {}
+sha = data.get("sha", "")
+status = data.get("status", "")
+sha = sha if isinstance(sha, str) else ""
+status = status if isinstance(status, str) else ""
+try:
+    next_retry = int(data.get("next_retry_epoch", 0) or 0)
+except (TypeError, ValueError):
+    next_retry = 0
+print(f"{sha}\t{status}\t{next_retry}")
+PY
+  )
+
+  local now_epoch
+  now_epoch="$(date -u +%s)"
+  if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "ok" ]; then
+    printf 'agent-runner fleet-apply: release %s already applied; skipping\n' "$release_sha" >&2
+    return 0
+  fi
+  if [ "$last_sha" = "$release_sha" ] && [ "$last_status" = "error" ] \
+    && [ "$now_epoch" -lt "${last_next_retry:-0}" ]; then
+    printf 'agent-runner fleet-apply: release %s failed previously; backoff until epoch %s\n' \
+      "$release_sha" "$last_next_retry" >&2
+    return 0
+  fi
+
+  local apply_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS:-1200}"
+  local backoff_seconds="${LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS:-1800}"
+  local apply_output apply_rc=0
+  apply_output="$(LIFE_MANAGER_RELEASE_ROOT="$release_root" "$runtime_python" "$timeout_runner" \
+    --grace-seconds 15 "$apply_timeout_seconds" "$release_root/bin/lm-loop" apply --all 2>&1)" \
+    || apply_rc=$?
+
+  local status changed=0 skipped=0 errors=0 message=""
+  if [ "$apply_rc" -eq 0 ]; then
+    status="ok"
+    read -r changed skipped errors < <(printf '%s' "$apply_output" | "$runtime_python" -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+    if not isinstance(rows, list):
+        rows = []
+except ValueError:
+    rows = []
+changed = sum(1 for r in rows if isinstance(r, dict) and r.get("changed"))
+skipped = sum(1 for r in rows if isinstance(r, dict) and r.get("skipped"))
+errors = sum(1 for r in rows if isinstance(r, dict) and r.get("ok") is False)
+print(changed, skipped, errors)
+' 2>/dev/null || printf '0 0 0')
+  elif printf '%s' "$apply_output" | grep -q "production apply is already owned"; then
+    # Another apply (a human running `lm-loop apply --all`, or this reconciler's own next-tick
+    # retry racing a slow prior run) already owns the fleet apply lock. This is lock contention,
+    # not a broken release -- retry on the very next tick instead of the error backoff.
+    status="skip"
+    message="production apply is already owned"
+  elif [ "$apply_rc" -eq 124 ]; then
+    status="error"
+    message="apply --all timed out after ${apply_timeout_seconds}s"
+  else
+    status="error"
+    message="apply --all exited ${apply_rc}"
+  fi
+
+  local next_retry_epoch=0
+  [ "$status" = "error" ] && next_retry_epoch=$((now_epoch + backoff_seconds))
+
+  FLEET_APPLY_STATE_PATH="$state_path" FLEET_APPLY_LOG_PATH="$log_path" \
+    FLEET_APPLY_SHA="$release_sha" FLEET_APPLY_STATUS="$status" \
+    FLEET_APPLY_CHANGED="$changed" FLEET_APPLY_SKIPPED="$skipped" FLEET_APPLY_ERRORS="$errors" \
+    FLEET_APPLY_MESSAGE="$message" FLEET_APPLY_NEXT_RETRY="$next_retry_epoch" \
+    "$runtime_python" - <<'PY'
+import json, os, time
+record = {
+    "sha": os.environ["FLEET_APPLY_SHA"],
+    "status": os.environ["FLEET_APPLY_STATUS"],
+    "changed": int(os.environ["FLEET_APPLY_CHANGED"]),
+    "skipped": int(os.environ["FLEET_APPLY_SKIPPED"]),
+    "errors": int(os.environ["FLEET_APPLY_ERRORS"]),
+    "message": os.environ["FLEET_APPLY_MESSAGE"],
+    "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    "next_retry_epoch": int(os.environ["FLEET_APPLY_NEXT_RETRY"]),
+}
+state_path = os.environ["FLEET_APPLY_STATE_PATH"]
+tmp = state_path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as handle:
+    json.dump(record, handle, sort_keys=True)
+os.replace(tmp, state_path)
+with open(os.environ["FLEET_APPLY_LOG_PATH"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(record, sort_keys=True) + "\n")
+PY
+
+  printf 'agent-runner fleet-apply: release %s status=%s changed=%s skipped=%s errors=%s%s\n' \
+    "$release_sha" "$status" "$changed" "$skipped" "$errors" \
+    "${message:+ message=\"$message\"}" >&2
+
+  [ "$status" = "error" ] && return 1
+  return 0
+}
+
 reconcile_release() {
   local release_root="$1"
   local status=0
@@ -212,4 +338,11 @@ if [ "$release_sha" != "$release_sha_target" ] || [ "$release_paths" != "ALL" ];
   exit 1
 fi
 
-reconcile_release "$RELEASE_ROOT"
+reconcile_status=0
+reconcile_release "$RELEASE_ROOT" || reconcile_status=1
+fleet_apply_status=0
+run_fleet_apply "$RELEASE_ROOT" "$release_sha" || fleet_apply_status=1
+if [ "$reconcile_status" -ne 0 ] || [ "$fleet_apply_status" -ne 0 ]; then
+  exit 1
+fi
+exit 0
