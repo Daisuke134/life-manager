@@ -297,6 +297,120 @@ def test_invalid_official_contract_fails_before_downstream_work_and_releases_lea
     assert downstream == []
 
 
+def test_read_phase_contract_failure_writes_pre_effect_hint(tmp_path, monkeypatch):
+    """A failure before any provider mutation must let the host release the owner cleanly.
+
+    lm_loop_run.py only trusts this hint from an allowlisted loop_id/entrypoint pair (see
+    runtime/loop/lm_loop_run.py PRE_EFFECT_HINT_LOOP_IDS); this test only proves the owner's
+    half of that contract: it writes the hint file whenever LIFE_MANAGER_RESULT_HINT_PATH is
+    set and the wake failed before reaching a mutation call site.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 2,
+             "context_id": "c", "target_id": "p"}
+
+    def lease_call(_script, command, task, value=None):
+        if command == "release":
+            return {"ok": True, "released": task}
+        return lease
+
+    def observe(*, output_path, ws_url, include_contract_sources=False):
+        # A listed service with no matching contract source is the exact shape that raises
+        # official_service_contract_invalid before any mutation is possible (same "missing"
+        # case as test_invalid_official_contract_fails_before_downstream_work_and_releases_lease).
+        return {"service_count": 1, "services": [{"service_id": "99000001"}],
+                "content_sha256": "a" * 64, "observed_at": "2026-08-15T00:00:00+00:00",
+                "_contract_sources": [] if include_contract_sources else []}
+
+    monkeypatch.setattr(direct, "_lease", lease_call)
+    monkeypatch.setattr(direct, "_dashboard_says_signed_out", lambda *_args: False)
+    monkeypatch.setattr(direct, "_preflight_storefront_bundle", lambda: None)
+    monkeypatch.setattr(direct.time, "sleep", lambda *_args: None)
+    monkeypatch.setattr(
+        direct.subprocess, "run",
+        lambda argv, **_kwargs: direct.subprocess.CompletedProcess(argv, 0, "ALIVE\n", ""),
+    )
+    import listing_inventory
+    monkeypatch.setattr(listing_inventory, "observe_storefront", observe)
+
+    args = _args(tmp_path)
+    args.effect = True
+    code, row = direct.run_once(args)
+
+    assert code == 1
+    assert row["reason"] == "official_service_contract_invalid"
+    assert hint_path.is_file()
+    assert json.loads(hint_path.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
+    }
+
+
+def test_failure_after_mutation_attempt_does_not_write_pre_effect_hint(tmp_path, monkeypatch):
+    """Once a provider mutation is attempted, a later failure must NOT claim no-effect.
+
+    Mirrors test_read_phase_contract_failure_writes_pre_effect_hint but drives the wake past
+    a valid catalog read to the first real mutation call site
+    (_reopen_suspended_listings, unconditionally attempted whenever args.effect is set --
+    see run_once) and fails there instead.
+    """
+    hint_path = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint_path))
+    # A real bundle root routes run_once() past the from-scratch public_bootstrap import path
+    # (see test_incremental_storefront_wake_validates_inventory_releases_lease_and_persists),
+    # which would otherwise try to invoke a real proposal agent for a brand-new listing.
+    storefront_root = tmp_path / "storefront-bundle"
+    _storefront_bundle(storefront_root)
+    monkeypatch.setenv("GIG_STOREFRONT_ROOT", str(storefront_root))
+    lease = {"ok": True, "ws": "ws://127.0.0.1/page/1", "token": "t", "generation": 2,
+             "context_id": "c", "target_id": "p"}
+
+    def lease_call(_script, command, task, value=None):
+        if command == "release":
+            return {"ok": True, "released": task}
+        return lease
+
+    service_id = "90000001"
+    public_text = "サービス内容\nsynthetic scope\n購入にあたってのお願い"
+    source = {
+        "service_id": service_id, "public_url": f"https://coconala.com/services/{service_id}",
+        "title": "synthetic listing", "state": "公開中", "price_jpy": 1000,
+        "category": "IT相談/プログラミング", "public_text": public_text,
+        "public_content_sha256": direct.hashlib.sha256(public_text.encode()).hexdigest(),
+    }
+
+    def browser(argv, **_kwargs):
+        if argv[-1] == "close-owned":
+            return direct.subprocess.CompletedProcess(argv, 0, '{"ok":true}\n', "")
+        return direct.subprocess.CompletedProcess(argv, 0, "ALIVE\n", "")
+
+    def observe(*, output_path, ws_url, include_contract_sources=False):
+        return {"service_count": 1, "services": [{"service_id": service_id}],
+                "content_sha256": "a" * 64, "observed_at": "2026-08-15T00:00:00+00:00",
+                "_contract_sources": [source] if include_contract_sources else []}
+
+    monkeypatch.setattr(direct, "_preflight_storefront_bundle", lambda: None)
+    monkeypatch.setattr(direct.subprocess, "run", browser)
+    monkeypatch.setattr(direct, "_lease", lease_call)
+    monkeypatch.setattr(direct, "disk_headroom_ok", lambda: True)
+    import listing_inventory
+    monkeypatch.setattr(listing_inventory, "observe_storefront", observe)
+
+    def failing_reopen(*_args, **_kwargs):
+        raise RuntimeError("reopen_suspended_listings_failed")
+
+    monkeypatch.setattr(direct, "_reopen_suspended_listings", failing_reopen)
+
+    args = _args(tmp_path)
+    args.effect = True
+
+    code, row = direct.run_once(args)
+
+    assert code != 0
+    assert row["reason"] == "reopen_suspended_listings_failed"
+    assert not hint_path.exists()
+
+
 def test_storefront_brake_prevents_lease_and_observation(tmp_path, monkeypatch):
     args = _args(tmp_path)
     args.operator_brake.write_text("held")
