@@ -261,6 +261,14 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - [ ] 7-11 crash recovery を確認する
 - [ ] 7-12 replay-zero を確認する
 
+**並行 session の発見（2026-09-26、agmsg team `lm`）**
+- `lm-invest`（#5944）: 手数料込みの net で評価した。Polymarket の「本命に賭ける 24h」は n=148、1取引あたり平均 -10.4%、95%CI [-19.7%, -1.1%]（統計的にマイナス）。Hyperliquid の tsmom_24h は n=895、平均 -0.21%、CI [-0.48%, +0.06%]（有意差なし）。どちらも paper の段階へは進めない。Alpaca は 2026-09-25T15:31Z 以降、exit 75（`resource_effect_unknown`）で止まっている。Polymarket の bundle_arb と market_maker は 607/607 回が認証エラー（gamma /login 401）
+- `lm-cfo`（`skills/cfo/loop_pnl.py`）: 14行のループ別損益を出力できた。Stripe は本番用の key が無く未検証。**Coconala と CrowdWorks には入金の ledger が無い**（`marketplace-ledger.sqlite3` は 0 byte、入金の readback はどこにも無い）
+- `lm-crowdworks`: 公式の readback で、固定報酬の契約が10件（どれも12円のテスト用）、未出金 10円、**出金先の銀行口座が未登録**
+- [ ] 7-13 各プラットフォームの入金・出金の公式 readback を、CFO の ledger に書き込む（今まで一度も存在しなかった）
+- [ ] 10-0 出金先の銀行口座の登録（CrowdWorks ほか）。本人手続きなので、T10 の「最初の1回だけ人が行う設定」として扱う
+- [ ] 8-4f Alpaca の effect_unknown fence を閉じる（`lm-loop pre-effect-reconcile alpaca-investment-live --dry-run` から始める）
+
 **T8 以降**（着手時に、この粒度まで分解してから進める）
 - [ ] 8-1 ループごとの settlement adapter（Stripe / x402 / Coconala / Lancers の payout readback）
 - [ ] 8-2 cost adapter（モデルの token、cloud、tool のコスト）
