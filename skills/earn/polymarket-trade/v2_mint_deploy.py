@@ -4,6 +4,12 @@ import os
 import requests
 from eth_account import Account
 
+from relayer_auth import live_confirmed, siwe_login
+
+if not live_confirmed():  # this script deploys a deposit wallet on-chain
+    print("HOLD: dry mode (PM_DRY_RUN=0 and PM_LIVE_CONFIRM not both set) — no login, no deploy.")
+    raise SystemExit(0)
+
 KEY = os.getenv("POLYGON_WALLET_PRIVATE_KEY"); KEY = KEY if KEY.startswith("0x") else "0x"+KEY
 acct = Account.from_key(KEY)
 ADDR = acct.address
@@ -14,7 +20,6 @@ s = requests.Session()
 s.headers.update({"User-Agent": "Mozilla/5.0", "Origin": "https://polymarket.com", "Referer": "https://polymarket.com/"})
 
 # 1-5. SIWE login (server challenge; shared with every relayer caller)
-from relayer_auth import siwe_login
 siwe_login(s, acct)
 print("cookies:", [c.name for c in s.cookies])
 

@@ -76,7 +76,7 @@ def fail(reason):
 # address cap (the same cap that killed market_maker.py/bundle_arb.py for 3 days, see
 # relayer_auth.py docstring). Now reuses the SAME list-before-mint + cached
 # implementation redeem.py already proved live, instead of a third drifting copy.
-from relayer_auth import mint_relayer_api_key
+from relayer_auth import live_confirmed, mint_relayer_api_key
 
 
 def mint_relayer_key(acct):
@@ -185,6 +185,10 @@ def main():
     (SDK import, mint, approve, order-book, post_order) so stdout stays
     clean; _emit()/fail() write to _REAL_STDOUT directly, so they're
     unaffected by the redirect."""
+    if not live_confirmed():  # before the redirect so the typed dry result reaches real stdout
+        _emit({"ok": False, "dry_run": True,
+               "hold": "dry mode: PM_DRY_RUN=0 and PM_LIVE_CONFIRM not both set; no order placed"})
+        return
     with contextlib.redirect_stdout(sys.stderr):
         _run()
 

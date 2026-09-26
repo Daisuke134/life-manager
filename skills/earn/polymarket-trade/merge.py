@@ -55,8 +55,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from redeem import (  # noqa: E402  (reuse proven infra, don't reinvent)
-    DEPOSIT_WALLET,
-    EXPECT_WALLET,
+    configured_deposit_wallet,
     LEDGER_PATH,
     build_client,
     ensure_ctf_operator_approval,
@@ -100,7 +99,7 @@ def compute_merge_cost_basis(legs: list[dict], merged_amount: float) -> float:
 def main() -> int:
     condition_id_arg = sys.argv[1] if len(sys.argv) > 1 else None
 
-    client = build_client()
+    client = build_client(configured_deposit_wallet())
     wallet = str(client.wallet)
 
     try:
