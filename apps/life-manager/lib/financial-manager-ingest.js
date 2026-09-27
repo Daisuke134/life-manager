@@ -10,6 +10,8 @@ const {
 const { buildMoneytreeObservation } = require("./moneytree-observation-store.js");
 const { buildEconomicSourceCoverage } = require("./economic-source-contract.js");
 const { readProductLoopCatalog } = require("./product-onboarding.js");
+const { capafyRowsToFinancialRecords } = require("./financial-record-capafy.js");
+const { mobileAppsRowsToFinancialRecords } = require("./financial-record-mobile-apps.js");
 
 async function readJsonl(file) {
   if (!file) return [];
@@ -151,6 +153,41 @@ async function ingestFinancialRecords(options) {
     }
   } catch {
     sources.marketplace = "unavailable";
+  }
+
+  try {
+    const readCapafyAnalytics = options.readCapafyAnalytics
+      || (options.capafyAnalyticsPath
+        ? async () => JSON.parse(await fs.readFile(options.capafyAnalyticsPath, "utf8"))
+        : null);
+    if (!readCapafyAnalytics) {
+      sources.capafy = "not_configured";
+    } else {
+      const analytics = await readCapafyAnalytics();
+      const rows = (analytics && analytics.daily_revenue_trend_last_30d) || [];
+      const capafyRecords = capafyRowsToFinancialRecords(rows, { subjectId, observedAt: recordedAt });
+      records.push(...capafyRecords);
+      sources.capafy = capafyRecords.length ? "observed_verified" : "empty";
+    }
+  } catch {
+    sources.capafy = "unavailable";
+  }
+
+  try {
+    const readMobileAppsRows = options.readMobileAppsRows
+      || (options.mobileAppsBusinessOutcomesPath
+        ? async () => readJsonl(options.mobileAppsBusinessOutcomesPath)
+        : null);
+    if (!readMobileAppsRows) {
+      sources.mobileApps = "not_configured";
+    } else {
+      const rows = await readMobileAppsRows();
+      const mobileAppsRecords = mobileAppsRowsToFinancialRecords(rows, { subjectId, observedAt: recordedAt });
+      records.push(...mobileAppsRecords);
+      sources.mobileApps = mobileAppsRecords.length ? "observed_verified" : "empty";
+    }
+  } catch {
+    sources.mobileApps = "unavailable";
   }
 
   let created = 0;

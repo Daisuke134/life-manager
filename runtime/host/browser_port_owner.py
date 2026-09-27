@@ -33,14 +33,21 @@ def _process_group_exists(pgid: int) -> bool:
 
 
 def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
+    """Best-effort: make sure the process group we spawned is gone.
+
+    macOS can raise EPERM signalling a process group whose session leader has
+    already exited -- an orphaned group -- even though every member is
+    already dead. That observed EPERM is evidence the group is gone from
+    under us, not a real permission conflict, so it ends cleanup here instead
+    of crashing the supervisor. A group we still cannot verify as dead is
+    left alone rather than force-killed, since it may not be ours to kill.
+    """
     if not _process_group_exists(pgid):
         return
     try:
         os.killpg(pgid, signal.SIGTERM)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         return
-    except PermissionError as exc:
-        raise RuntimeError(f"cannot terminate owned process group {pgid}") from exc
     deadline = time.monotonic() + grace_seconds
     while time.monotonic() < deadline:
         if not _process_group_exists(pgid):
@@ -48,10 +55,8 @@ def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
         time.sleep(0.02)
     try:
         os.killpg(pgid, signal.SIGKILL)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         return
-    except PermissionError as exc:
-        raise RuntimeError(f"cannot kill owned process group {pgid}") from exc
     deadline = time.monotonic() + grace_seconds
     while time.monotonic() < deadline:
         if not _process_group_exists(pgid):
@@ -61,9 +66,18 @@ def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
 
 
 def _port_answers(port: int, timeout: float = 3.0) -> bool:
-    """True when something is serving CDP on the port right now."""
+    """True when something is serving CDP on the port right now.
+
+    Probes "localhost", not the literal 127.0.0.1: on this host an unrelated
+    process can (and did, 2026-09-27) occupy 127.0.0.1:<port> and 404 every
+    request, while the browser this owner spawned only binds the IPv6 loopback
+    (::1) on the same numeric port. browser-guard.sh already probes via
+    "localhost" for the same reason (commit de022c0); a probe hardcoded to the
+    IPv4 literal here saw only the unrelated occupant, always failed, and
+    killed a healthy browser every ~90s.
+    """
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=timeout):
+        with urllib.request.urlopen(f"http://localhost:{port}/json/version", timeout=timeout):
             return True
     except Exception:
         return False
@@ -100,6 +114,40 @@ def _wait_for_browser(
                 "consecutive_failures": consecutive_failures,
             }, sort_keys=True), file=sys.stderr)
             return 75
+
+
+def _clear_stale_singleton_lock(profile: Path) -> None:
+    """Remove a profile's SingletonLock left behind by a browser that died.
+
+    Chromium's SingletonLock is a symlink named "<hostname>-<pid>". A browser
+    that dies without cleaning up leaves it in place, and every later launch
+    against that profile treats it as already open and refuses to start (or
+    exits immediately with a wedged, unreachable CDP). This is called only
+    while we hold the profile's own flock exclusively, so no supervised
+    launch can be racing us for it -- a lock still pointing at a live pid is
+    a real external conflict and is left untouched.
+    """
+    lock = profile / "SingletonLock"
+    try:
+        target = os.readlink(lock)
+    except OSError:
+        return
+    pid_text = target.rpartition("-")[2]
+    if not pid_text.isdigit():
+        return
+    pid = int(pid_text)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        return
+    else:
+        return
+    try:
+        lock.unlink()
+    except OSError:
+        pass
 
 
 def _reclaim_wedged_owner(receipt_path: Path, *, owner: str, port: int) -> bool:
@@ -239,6 +287,7 @@ def run(args: argparse.Namespace) -> int:
                 }, sort_keys=True), file=sys.stderr)
                 return 75
 
+            _clear_stale_singleton_lock(Path(args.profile))
             child = subprocess.Popen(command, start_new_session=True)
             payload = {
                 "owner": args.owner,

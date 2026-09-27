@@ -52,7 +52,10 @@ test("ingestion projects real provider receipts and appends through the common s
 
   assert.deepEqual({ observed: result.observed, created: result.created, sources: result.sources }, {
     observed: 2, created: 2,
-    sources: { moneytree: "observed_unverified", agentEconomy: "observed_verified", marketplace: "empty" },
+    sources: {
+      moneytree: "observed_unverified", agentEconomy: "observed_verified", marketplace: "empty",
+      capafy: "not_configured", mobileApps: "not_configured",
+    },
   });
   assert.equal(result.economicSourceCoverage.loops.length, 14);
   assert.equal(result.economicSourceCoverage.subject_id, "tenant-1");
@@ -90,8 +93,68 @@ test("a configured missing journal is unavailable instead of empty revenue", asy
 
   assert.deepEqual(result.sources, {
     moneytree: "observed_unverified", agentEconomy: "unavailable",
-    marketplace: "not_configured",
+    marketplace: "not_configured", capafy: "not_configured", mobileApps: "not_configured",
   });
+});
+
+test("capafy revenue trend and mobile-apps RevenueCat revenue land as verified business_revenue", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-09-27T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    readCapafyAnalytics: async () => ({
+      daily_revenue_trend_last_30d: [
+        { date: "2026-09-26", revenue: 3.98, refundAmount: 0 },
+        { date: "2026-09-25", revenue: 0, refundAmount: 1.5 },
+      ],
+    }),
+    readMobileAppsRows: async () => [
+      {
+        product_id: "anicca-ios", business_date: "2026-09-26",
+        sources: { revenuecat: { status: "available", data: { charts: {
+          revenue: { latest_complete: { Revenue: { value: 12.5, incomplete: false } } },
+        } } } },
+      },
+      {
+        product_id: "honne-ai", business_date: "2026-09-26",
+        sources: { revenuecat: { status: "available", data: { charts: {
+          revenue: { latest_complete: { Revenue: { value: 0, incomplete: false } } },
+        } } } },
+      },
+      { product_id: "unrelated-product", business_date: "2026-09-26", sources: {} },
+    ],
+  });
+
+  assert.equal(result.sources.capafy, "observed_verified");
+  assert.equal(result.sources.mobileApps, "observed_verified");
+  const records = await store.read({ subjectId: "tenant-1" });
+  const capafyRevenue = records.find((r) => r.source.provider === "capafy" && r.kind === "business_revenue");
+  assert.equal(capafyRevenue.amount_minor, 398);
+  assert.equal(capafyRevenue.currency, "USD");
+  const capafyRefund = records.find((r) => r.source.provider === "capafy" && r.kind === "business_cost");
+  assert.equal(capafyRefund.amount_minor, 150);
+  const mobileRevenue = records.find((r) => r.source.provider === "mobile-apps");
+  assert.equal(mobileRevenue.amount_minor, 1250);
+  assert.equal(mobileRevenue.currency, "UNKNOWN");
+  assert.equal(mobileRevenue.source.external_ref, "anicca-ios:2026-09-26");
+  assert.equal(records.filter((r) => r.source.provider === "mobile-apps").length, 1);
+});
+
+test("capafy and mobile-apps sources fail closed on read errors", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-ingest-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-09-27T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    capafyAnalyticsPath: path.join(root, "missing-capafy-analytics.json"),
+    mobileAppsBusinessOutcomesPath: path.join(root, "missing-business-outcomes.jsonl"),
+  });
+
+  assert.equal(result.sources.capafy, "unavailable");
+  assert.equal(result.sources.mobileApps, "unavailable");
 });
 
 test("Moneytree read retries one transient connector startup failure", async (t) => {

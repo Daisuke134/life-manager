@@ -615,12 +615,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(connector.get("resource_class"), "browser")
         self.assertEqual(connector.get("admission_class"), "revenue")
         self.assertEqual(connector.get("priority"), "revenue")
-        for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics"):
+        # Revenue readers run on revenue capacity: as borrow owners they never got a
+        # slot once revenue owners filled the host (2026-09-27, SSOT P-5).
+        for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics",
+                        "capafy-outcome-monitor", "marketing-metrics", "marketing-owner-events"):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row.get("resource_class"), "deterministic")
-                self.assertEqual(row.get("admission_class"), "borrow")
-                self.assertEqual(row.get("priority"), "support")
+                self.assertEqual(row.get("admission_class"), "revenue")
+                self.assertEqual(row.get("priority"), "revenue")
         daily = registry["loops"]["life-manager-daily"]
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")

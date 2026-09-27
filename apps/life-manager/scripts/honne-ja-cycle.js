@@ -16,6 +16,7 @@ const {
   verifyMarketingVideoPublicationReceipt,
 } = require("../lib/marketing-video-publication-adapter.js");
 const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
+const { buildMarketingCtaCaptionRef } = require("../lib/marketing-app-store-cta.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
 
@@ -154,7 +155,15 @@ async function runHonneJaCycle(argv, deps = {}) {
   const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), now: () => new Date(nowMs).toISOString() });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));
   const publicationCreativeId = `${artifact.creative_id}-${slot.replace(/[^A-Za-z0-9]/g, "")}`;
-  const publicationJob = buildMarketingVideoPublicationJob({ tenantId, productId: lane.product, formatId: lane.format, form: artifact.form, locale: lane.locale, slot, creativeId: publicationCreativeId, platform: lane.platform, videoRef: artifact.video_ref, captionRef: artifact.copy_ref, approvalRef, instagramProfileRef: lane.platform === "instagram" ? lane.instagramProfileRef : "profile://instagram/unassigned", postizTokenRef: "secret://postiz/api-key", ...(lane.platform === "instagram" ? { instagramIntegrationRef: lane.integrationRef } : lane.platform === "youtube" ? { youtubeIntegrationRef: lane.integrationRef } : { tiktokIntegrationRef: lane.integrationRef }) });
+  const captionRef = buildMarketingCtaCaptionRef({
+    objectStore,
+    workspaceDir: path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "video-generation"),
+    baseCaptionRef: artifact.copy_ref,
+    productId: lane.product,
+    platform: lane.platform,
+    locale: lane.locale,
+  });
+  const publicationJob = buildMarketingVideoPublicationJob({ tenantId, productId: lane.product, formatId: lane.format, form: artifact.form, locale: lane.locale, slot, creativeId: publicationCreativeId, platform: lane.platform, videoRef: artifact.video_ref, captionRef, approvalRef, instagramProfileRef: lane.platform === "instagram" ? lane.instagramProfileRef : "profile://instagram/unassigned", postizTokenRef: "secret://postiz/api-key", ...(lane.platform === "instagram" ? { instagramIntegrationRef: lane.integrationRef } : lane.platform === "youtube" ? { youtubeIntegrationRef: lane.integrationRef } : { tiktokIntegrationRef: lane.integrationRef }) });
   const publicationQueued = await store.enqueueJob({ jobId: publicationJob.job_id, tenantId, loopId: publicationJob.loop_id, capability: publicationJob.capability, effectClass: publicationJob.effect_class, effectKey: publicationJob.effect_key, inputRefs: publicationJob.input_refs, maxAttempts: publicationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
   const runtime = services(env, dataDir, tenantId, lane);
   const publication = await executeJob(store, publicationJob, "honne-ja-cycle", (job) => runtime.publication.execute(job));

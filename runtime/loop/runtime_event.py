@@ -26,8 +26,11 @@ DIAGNOSTIC_FIELDS = {
 }
 # Present only when the effect-identity persistence step actually ran
 # (see lm_loop_run._persist_effect_identity); absent otherwise.
-OPTIONAL_FIELDS = {"effect_identity_status"}
+# ``error_detail`` is present only for a failing run that captured entrypoint
+# stderr (see lm_loop_run._run_entrypoint's bounded tail capture).
+OPTIONAL_FIELDS = {"effect_identity_status", "error_detail"}
 FIELDS = REQUIRED_FIELDS | DIAGNOSTIC_FIELDS | OPTIONAL_FIELDS
+MAX_ERROR_DETAIL_CHARS = 4096
 EFFECT_IDENTITY_STATUSES = {"not_written", "rejected", "persisted"}
 DOMAINS = {"physical", "mental", "financial", "earn", "growth", "system"}
 PHASES = {"plan", "execute", "reconcile", "verify", "report"}
@@ -42,6 +45,17 @@ SECRET = re.compile(
     r"(?i)(?:bearer\s+[A-Za-z0-9._~+/-]+|(?:token|secret|password|credential|api.?key|auth\.json)\s*[=:]|(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}|/" r"Users/)"
 )
 DEFAULT_MAX_BYTES = 16 * 1024 * 1024
+
+
+def redact_secrets(text: str) -> str:
+    """Replace anything matching the event-wide SECRET pattern with a marker.
+
+    Reused so any free-text diagnostic field (e.g. an entrypoint's stderr
+    tail) is pre-cleaned before it ever reaches ``validate_runtime_event``,
+    which otherwise rejects the whole event outright on a SECRET match --
+    losing the diagnostic instead of just the secret-looking substring.
+    """
+    return SECRET.sub("[redacted]", text)
 
 
 def _max_bytes() -> int:
@@ -169,6 +183,10 @@ def validate_runtime_event(event: dict) -> dict:
             raise ValueError("invalid official_readback_ref")
     if "effect_identity_status" in event and event["effect_identity_status"] not in EFFECT_IDENTITY_STATUSES:
         raise ValueError("invalid effect_identity_status")
+    if "error_detail" in event:
+        detail = event["error_detail"]
+        if not isinstance(detail, str) or not detail or len(detail) > MAX_ERROR_DETAIL_CHARS:
+            raise ValueError("invalid error_detail")
     return event
 
 
@@ -192,7 +210,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         next_action: str | None = None,
                         provider_receipt_id: str | None = None,
                         official_readback_ref: str | None = None,
-                        effect_identity_status: str | None = None) -> dict:
+                        effect_identity_status: str | None = None,
+                        error_detail: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -262,6 +281,10 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         event["evidence_refs"].append(effect_identity_ref)
     if effect_identity_status is not None:
         event["effect_identity_status"] = effect_identity_status
+    if error_detail is not None:
+        redacted = redact_secrets(error_detail).strip()[:MAX_ERROR_DETAIL_CHARS]
+        if redacted:
+            event["error_detail"] = redacted
     return validate_runtime_event(event)
 
 

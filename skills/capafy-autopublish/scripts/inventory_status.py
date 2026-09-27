@@ -53,13 +53,69 @@ REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
 CAP = 5
 
+# P-14 (2026-09-27): the seller list field `agentStatus` can go stale after Capafy
+# approves the latest version -- 5 agents sat at list agentStatus=under_review for
+# 12 days while their authoritative per-Agent detail already read status=3 (review
+# passed/pending listing) and auditStatus=4 (passed), per api-docs 00_overview.md
+# section 6.2. Treating the stale list value as still-occupying a slot produced a
+# false CAP_FULL forever. `status` 3 or 4 with `auditStatus` 4 is authoritative
+# "approved" and must not occupy a new-agent slot even when the list disagrees.
+DETAIL_APPROVED_STATUS = {3, 4}
+DETAIL_APPROVED_AUDIT_STATUS = 4
+# Bound authoritative-detail reads per pass; only draft/under_review rows (never
+# review_rejected, which is already classified as retryable) are ever fetched.
+DETAIL_FETCH_CAP = 10
 
-def normalize_agents(agents):
-    """Return sanitized rows and deterministic five-slot counts from server truth."""
+
+def is_approved_detail(detail):
+    """detail is (status, audit_status) from fetch_agent_detail, or None on read failure."""
+    if not detail:
+        return False
+    status, audit_status = detail
+    return status in DETAIL_APPROVED_STATUS and audit_status == DETAIL_APPROVED_AUDIT_STATUS
+
+
+def fetch_agent_detail(agent_id):
+    """Read-only GET /agent/agents/{agentId} via the existing `publish-remote-status`
+    CLI (capafy_platform.api.get_latest_version_raw). Returns (status, audit_status)
+    ints from the authoritative latest-version detail, or None on any read failure --
+    callers keep the conservative (occupied) classification when detail is unavailable.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "packager.py", "publish-remote-status", "--agent-id", str(agent_id)],
+            cwd=PUB, capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+        payload = json.loads(result.stdout, strict=False)
+        latest = payload.get("latest_version") if isinstance(payload, dict) else None
+        if not isinstance(latest, dict):
+            return None
+        status = latest.get("platform_status")
+        audit_status = latest.get("audit_status")
+        if isinstance(status, bool) or not isinstance(status, int):
+            return None
+        if isinstance(audit_status, bool) or not isinstance(audit_status, int):
+            return None
+        return status, audit_status
+    except Exception as e:
+        print(f"[inventory_status] agent detail read FAILED for {agent_id}: {e}", file=sys.stderr)
+        return None
+
+
+def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_CAP):
+    """Return sanitized rows and deterministic five-slot counts from server truth.
+
+    detail_fetcher, when given, is called with an agent_id for draft/under_review
+    rows (bounded by detail_fetch_cap) to resolve a stale list agentStatus against
+    the authoritative per-Agent detail. Omit it to keep the pre-P-14 behavior.
+    """
     normalized = []
     counts = {"total": len(agents), "listed": 0, "occupied": 0, "free": None,
               "retry": 0, "recover": 0, "ready_publish": 0, "blocked": 0, "unknown": 0}
     structurally_valid = True
+    detail_fetches_used = 0
     for agent in agents:
         if not isinstance(agent, dict):
             structurally_valid = False
@@ -77,13 +133,24 @@ def normalize_agents(agents):
         elif status in READY_TO_PUBLISH:
             lifecycle = "ready_publish"
             counts["ready_publish"] += 1
-        elif status in UNLISTED:
+        elif status == "review_rejected":
             # A rejected agent is still retryable, but it also consumes one of
-            # the platform's unlisted slots until Capafy releases it.
-            lifecycle = "retry" if status == "review_rejected" else "occupied"
+            # the platform's unlisted slots until Capafy releases it. Never spend
+            # a detail fetch here -- it is already correctly classified.
+            lifecycle = "retry"
             counts["occupied"] += 1
-            if status == "review_rejected":
-                counts["retry"] += 1
+            counts["retry"] += 1
+        elif status in UNLISTED:
+            detail = None
+            if detail_fetcher is not None and detail_fetches_used < detail_fetch_cap:
+                detail_fetches_used += 1
+                detail = detail_fetcher(agent_id)
+            if is_approved_detail(detail):
+                lifecycle = "listed"
+                counts["listed"] += 1
+            else:
+                lifecycle = "occupied"
+                counts["occupied"] += 1
         elif status == "banned":
             lifecycle = "blocked"
             counts["blocked"] += 1
@@ -304,7 +371,7 @@ def main():
         print(json.dumps(verdict, ensure_ascii=False))
         return 0
 
-    normalized = normalize_agents(agents)
+    normalized = normalize_agents(agents, detail_fetcher=fetch_agent_detail)
     if not normalized["readable"]:
         verdict = {"verdict": "SERVER_UNREADABLE", **normalized}
         print("VERDICT=SERVER_UNREADABLE")

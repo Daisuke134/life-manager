@@ -28,7 +28,8 @@ def _endpoint() -> tuple[str, str]:
 
 
 HOST, PORT = _endpoint()
-BASE = f"http://{HOST}:{PORT}"
+_HOST_FOR_URL = f"[{HOST}]" if ":" in HOST else HOST
+BASE = f"http://{_HOST_FOR_URL}:{PORT}"
 
 
 def _rpc(ws, call_id: int, method: str, params: dict | None = None) -> dict:
@@ -104,7 +105,7 @@ def close_target(target_id: str, owner: str | None = None) -> None:
 
 def _page(tid: str):
     return create_connection(
-        f"ws://{HOST}:{PORT}/devtools/page/{tid}", timeout=30, max_size=None, suppress_origin=True
+        f"ws://{_HOST_FOR_URL}:{PORT}/devtools/page/{tid}", timeout=30, max_size=None, suppress_origin=True
     )
 
 

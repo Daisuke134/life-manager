@@ -7,12 +7,14 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 API = "https://api.capafy.ai"
@@ -23,6 +25,8 @@ SOURCE_NAMES = (
     "unit_sales", "statements",
 )
 CAPAFY_ACTIVE_SUBMISSION_CAP = 5
+SKILL_STATS_CAP = 60  # ponytail: sequential per-agent calls, raise if catalog grows past this
+SKILL_STATS_DELAY_SECONDS = 0.15
 
 
 def _money(value: Any) -> str | None:
@@ -310,12 +314,367 @@ def build_receipt(payloads: dict[str, dict], observed_at: str) -> dict:
     }
 
 
+def _inventory_rows(payload: dict) -> list[dict] | None:
+    if not _ok(payload):
+        return None
+    data = _data(payload)
+    if isinstance(data, list):
+        return [row for row in data if isinstance(row, dict)]
+    if isinstance(data, dict):
+        for key in ("list", "agents"):
+            if isinstance(data.get(key), list):
+                return [row for row in data[key] if isinstance(row, dict)]
+    return None
+
+
+def _ranking_by_agent(payload: dict) -> dict[str, dict]:
+    if not _ok(payload):
+        return {}
+    data = _data(payload)
+    agents = data.get("agents") if isinstance(data, dict) else None
+    if not isinstance(agents, list):
+        return {}
+    return {str(row["agentId"]): row for row in agents if isinstance(row, dict) and row.get("agentId")}
+
+
+def _window_gross(ranking_row: dict | None, source_ok: bool) -> str | None:
+    """GROSS revenue for one agent in one clickhouse-ranking window.
+
+    A missing agent in an otherwise-successful response is a real zero (the API omits
+    agents with no activity); the field is None only when the ranking source itself failed.
+    """
+    if not source_ok:
+        return None
+    amount = ranking_row.get("totalSalesAmount", 0) if isinstance(ranking_row, dict) else 0
+    return _money(amount)
+
+
+def _paid_orders(unit_ranking_row: dict | None, source_ok: bool) -> int | None:
+    """Paid (non-free-trial) order count for one agent in one unit-sales-ranking window."""
+    if not source_ok:
+        return None
+    if not isinstance(unit_ranking_row, dict):
+        return 0
+    total, trial = unit_ranking_row.get("totalSalesVolume"), unit_ranking_row.get("freeTrialCount")
+    if type(total) is not int or type(trial) is not int or trial < 0 or total < trial:
+        return None
+    return total - trial
+
+
+def _earnings_by_agent(payload: dict) -> dict[str, Decimal]:
+    if not _ok(payload):
+        return {}
+    data = _data(payload)
+    agents = data.get("agents") if isinstance(data, dict) else None
+    if not isinstance(agents, list):
+        return {}
+    result: dict[str, Decimal] = {}
+    for row in agents:
+        if not isinstance(row, dict) or not row.get("agentId"):
+            continue
+        try:
+            result[str(row["agentId"])] = sum(
+                Decimal(str(sku.get("revenue", 0) or 0)) for sku in (row.get("skus") or [])
+            )
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    return result
+
+
+def _stats_orders_revenue(payload: dict) -> tuple[int | None, str | None]:
+    """Parse GET /agent/agent/{agentId}/stats: a flat {sales, revenue, daily} object,
+    NOT a list of daily rows under a nested "data" key."""
+    if not _ok(payload):
+        return None, None
+    data = _data(payload)
+    if not isinstance(data, dict):
+        return None, None
+    try:
+        orders = int(data.get("sales", 0) or 0)
+        revenue = Decimal(str(data.get("revenue", 0) or 0))
+    except (InvalidOperation, TypeError, ValueError):
+        return None, None
+    return orders, _money(revenue)
+
+
+def _agent_detail_model(payload: dict) -> str | None:
+    """Read GET /agent/agents/{agentId}'s "model" field (e.g. "Claude Sonnet 4.6").
+
+    The /agent/agents list endpoint used for inventory has no model/runtime field at all;
+    only the per-agent detail endpoint exposes the actual LLM model.
+    """
+    if not _ok(payload):
+        return None
+    data = _data(payload)
+    model = data.get("model") if isinstance(data, dict) else None
+    return model if isinstance(model, str) and model else None
+
+
+def _window_totals(rows: list, start: dt.date, end: dt.date) -> dict[str, Any]:
+    gross = Decimal("0")
+    refunds = Decimal("0")
+    orders = 0
+    try:
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError
+            date_str = row.get("date")
+            if not date_str:
+                continue
+            day = dt.date.fromisoformat(date_str)
+            if not (start <= day <= end):
+                continue
+            gross += Decimal(str(row.get("revenue", 0) or 0))
+            refunds += Decimal(str(row.get("refundAmount", 0) or 0))
+            orders += int(row.get("orders", 0) or 0)
+    except (InvalidOperation, TypeError, ValueError):
+        return {"gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
+    return {
+        "gross_usd": _money(gross), "orders": orders,
+        "refunds_usd": _money(refunds), "net_usd": _money(gross - refunds),
+    }
+
+
+def _catalog_models(repo_root: Path) -> dict[str, str]:
+    """agentId -> 'Primary Model' from skills/capafy/catalog/*/LISTING.md."""
+    models: dict[str, str] = {}
+    catalog_dir = repo_root / "skills" / "capafy" / "catalog"
+    if not catalog_dir.is_dir():
+        return models
+    for listing in sorted(catalog_dir.glob("*/LISTING.md")):
+        try:
+            text = listing.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        model_match = re.search(r"Primary Model:\s*([^·\n]+)", text)
+        agent_match = re.search(r"Capafy Agent `(\d+)`", text)
+        if model_match and agent_match:
+            models[agent_match.group(1)] = model_match.group(1).strip()
+    return models
+
+
+def _fetch_agent_stats_windows(
+    token: str, agent_ids: list[str], end: dt.date, *,
+    cap: int = SKILL_STATS_CAP, delay: float = SKILL_STATS_DELAY_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, dict]:
+    """Bounded, sequential per-agent settled-stats (30d, 7d) and agent-detail fetch."""
+    result: dict[str, dict] = {}
+    for agent_id in agent_ids[:cap]:
+        windows = {}
+        for label, days in (("d30", 29), ("d7", 6)):
+            start = (end - dt.timedelta(days=days)).isoformat()
+            windows[label] = _get(f"/agent/agent/{agent_id}/stats?startDate={start}&endDate={end.isoformat()}", token)
+            sleep(delay)
+        windows["detail"] = _get(f"/agent/agents/{agent_id}", token)
+        sleep(delay)
+        result[agent_id] = windows
+    return result
+
+
+def build_skill_analytics(
+    payloads: dict[str, dict], agent_stats: dict[str, dict],
+    catalog_models: dict[str, str], observed_at: str,
+) -> dict:
+    """Read-only per-skill Capafy analytics, isolating one endpoint's failure to its own section."""
+    end_date = dt.datetime.fromisoformat(observed_at.replace("Z", "+00:00")).date()
+    seller_ok = _ok(payloads.get("seller_sales", {}))
+    seller_data = _data(payloads["seller_sales"]) if seller_ok else None
+    rows = seller_data.get("data") if isinstance(seller_data, dict) else None
+    rows = rows if isinstance(rows, list) else []
+    all_time_gross = _money(seller_data.get("totalRevenue")) if isinstance(seller_data, dict) else None
+    units, trials, _non_trials = _unit_counts(payloads.get("unit_sales", {}))
+
+    account_status = "fresh" if seller_ok and all_time_gross is not None else "stale"
+    all_time = _window_totals(rows, dt.date.min, end_date)
+    if account_status == "fresh":
+        try:
+            refunds_dec = Decimal(all_time["refunds_usd"] or "0")
+            all_time["gross_usd"] = all_time_gross
+            all_time["net_usd"] = _money(Decimal(all_time_gross) - refunds_dec)
+        except InvalidOperation:
+            account_status = "stale"
+    else:
+        all_time = {"gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
+    all_time["units"] = units
+    all_time["trials"] = trials
+
+    last_30d = _window_totals(rows, end_date - dt.timedelta(days=29), end_date) if seller_ok else {
+        "gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
+    last_7d = _window_totals(rows, end_date - dt.timedelta(days=6), end_date) if seller_ok else {
+        "gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
+    account_totals = {
+        "_status": account_status, "all_time": all_time, "last_30d": last_30d, "last_7d": last_7d,
+    }
+
+    payout_ok = _ok(payloads.get("payout", {}))
+    payout_data = _data(payloads["payout"]) if payout_ok else None
+    balances = _payout_balances(payloads.get("payout", {}))
+    balances["payout_method"] = payout_data.get("payoutMethod") if isinstance(payout_data, dict) else None
+    balances["account_number_masked"] = payout_data.get("accountNumberMasked") if isinstance(payout_data, dict) else None
+    balances["_status"] = "fresh" if payout_ok else "stale"
+
+    inventory_rows = _inventory_rows(payloads.get("inventory", {}))
+    per_skill_rows: list[dict] = []
+    per_skill_rows_status = "fresh" if inventory_rows is not None else "stale"
+    if inventory_rows is not None:
+        ranking_by_id = _ranking_by_agent(payloads.get("seller_ranking", {}))
+        earnings_by_id = _earnings_by_agent(payloads.get("earnings_ranking", {}))
+        # GROSS per-agent sales/orders for fixed windows: these sum exactly to the
+        # account-level window totals (verified live), unlike the settled-only endpoint below.
+        # A missing agent in a successful ranking response is a real zero, not a failure;
+        # the whole window is None only when its ranking source itself failed.
+        sales_30d_ok = _ok(payloads.get("seller_ranking_30d", {}))
+        sales_7d_ok = _ok(payloads.get("seller_ranking_7d", {}))
+        units_30d_ok = _ok(payloads.get("unit_ranking_30d", {}))
+        units_7d_ok = _ok(payloads.get("unit_ranking_7d", {}))
+        sales_ranking_30d = _ranking_by_agent(payloads.get("seller_ranking_30d", {}))
+        sales_ranking_7d = _ranking_by_agent(payloads.get("seller_ranking_7d", {}))
+        unit_ranking_30d = _ranking_by_agent(payloads.get("unit_ranking_30d", {}))
+        unit_ranking_7d = _ranking_by_agent(payloads.get("unit_ranking_7d", {}))
+        for row in inventory_rows:
+            agent_id = str(row.get("agentId") or "")
+            if not agent_id:
+                continue
+            ranking_row = ranking_by_id.get(agent_id, {})
+            skus = ranking_row.get("skus") or []
+            gross = _money(ranking_row.get("totalSalesAmount", 0))
+            earnings = _money(earnings_by_id.get(agent_id, Decimal("0")))
+            stats = agent_stats.get(agent_id, {})
+            settled_orders_30d, settled_revenue_30d = _stats_orders_revenue(stats.get("d30", {}))
+            settled_orders_7d, settled_revenue_7d = _stats_orders_revenue(stats.get("d7", {}))
+            per_skill_rows.append({
+                "agent_id": agent_id,
+                "name": row.get("name"),
+                "status": row.get("agentStatus"),
+                "runtime": row.get("agentRuntime"),
+                "model": (catalog_models.get(agent_id)
+                          or _agent_detail_model(stats.get("detail", {}))
+                          or row.get("agentRuntime")),
+                "since_launch_skus": skus,
+                "since_launch_gross_usd": gross if gross is not None else "0.00",
+                "since_launch_creator_earnings_usd": earnings if earnings is not None else "0.00",
+                "stats_30d_orders": _paid_orders(unit_ranking_30d.get(agent_id), units_30d_ok),
+                "stats_30d_revenue_usd": _window_gross(sales_ranking_30d.get(agent_id), sales_30d_ok),
+                "stats_7d_orders": _paid_orders(unit_ranking_7d.get(agent_id), units_7d_ok),
+                "stats_7d_revenue_usd": _window_gross(sales_ranking_7d.get(agent_id), sales_7d_ok),
+                "stats_30d_settled_orders": settled_orders_30d,
+                "stats_30d_settled_revenue_usd": settled_revenue_30d,
+                "stats_7d_settled_orders": settled_orders_7d,
+                "stats_7d_settled_revenue_usd": settled_revenue_7d,
+                "rating": row.get("rating"),
+                "review_count": row.get("reviewCount"),
+            })
+
+    def _as_decimal(value: str | None) -> Decimal:
+        try:
+            return Decimal(value) if value is not None else Decimal("-1")
+        except InvalidOperation:
+            return Decimal("-1")
+
+    top_by_earnings = sorted(
+        per_skill_rows, key=lambda row: _as_decimal(row["since_launch_creator_earnings_usd"]), reverse=True,
+    )[:10]
+    top_by_units = sorted(
+        [row for row in per_skill_rows if row["stats_30d_orders"] is not None],
+        key=lambda row: row["stats_30d_orders"], reverse=True,
+    )[:10]
+    zero_sales = [row for row in per_skill_rows if _as_decimal(row["since_launch_gross_usd"]) == 0]
+    rankings = {
+        "top_by_earnings": [{"agent_id": row["agent_id"], "name": row["name"],
+                             "creator_earnings_usd": row["since_launch_creator_earnings_usd"]}
+                            for row in top_by_earnings],
+        "top_by_units_30d": [{"agent_id": row["agent_id"], "name": row["name"],
+                              "orders_30d": row["stats_30d_orders"]}
+                             for row in top_by_units],
+        "zero_sales": [{"agent_id": row["agent_id"], "name": row["name"]} for row in zero_sales],
+    }
+
+    daily_trend = [row for row in rows if row.get("date")
+                   and end_date - dt.timedelta(days=29) <= dt.date.fromisoformat(row["date"]) <= end_date]
+    daily_trend.sort(key=lambda row: row["date"])
+
+    subscription_agent_ids = {
+        row["agent_id"] for row in per_skill_rows
+        if any(str(sku.get("skuType") or "").startswith("subscription_") for sku in row["since_launch_skus"])
+    }
+    subscription_rows = [row for row in per_skill_rows if row["agent_id"] in subscription_agent_ids]
+    try:
+        subscription_30d_gross = sum(
+            Decimal(row["stats_30d_revenue_usd"]) for row in subscription_rows
+            if row["stats_30d_revenue_usd"] is not None
+        )
+    except InvalidOperation:
+        subscription_30d_gross = None
+    subscription_status = "unknown_no_per_skill_rows"
+    if per_skill_rows:
+        subscription_status = "fresh" if all(
+            row["stats_30d_revenue_usd"] is not None for row in subscription_rows
+        ) else "partial"
+    subscription_proxy = {
+        "label": "proxy_not_mrr",
+        "last_30d_net_usd": _money(subscription_30d_gross) if subscription_30d_gross is not None else None,
+        "status": subscription_status,
+        "note": ("Last-30d GROSS revenue (before refunds/fees) for subscription-type SKUs, used as "
+                 "an observed cash-flow proxy. This is NOT true MRR: Capafy exposes no "
+                 "active/canceled subscription-count source, so churn and active-subscriber state "
+                 "remain unknown. The field name says 'net' for backward compatibility with older "
+                 "readers, but it is a gross figure."),
+    }
+
+    data_gaps = [
+        "No active/canceled subscription count or true MRR endpoint exists; subscription_proxy is "
+        "a last-30d gross cash-flow proxy, not true MRR.",
+        "Per-skill unit (order) counts since launch are not exposed by any called endpoint; "
+        "top_by_units_30d uses the gross 30d paid-order count (unit-sales ranking, minus free trials).",
+        "Per-skill model is only known for agents tracked under skills/capafy/catalog/*/LISTING.md "
+        "(Primary Model line); other agents fall back to the coarse agentRuntime field, not the LLM model name.",
+        "GET /agent/agent/{agentId}/stats returns SETTLED orders/revenue only (post refund-window "
+        "clearance), which lags and understates gross activity relative to the since-launch web-console figures.",
+        "GET /agent/developer/payout-record returns at most the 5 most recent records only (no pagination).",
+    ]
+    if per_skill_rows_status == "stale":
+        data_gaps.append(
+            "inventory source failed this run; per_skill_rows, rankings, and subscription_proxy are empty/unknown."
+        )
+
+    verdict = "success" if (
+        account_status == "fresh" and balances["_status"] == "fresh" and per_skill_rows_status == "fresh"
+    ) else "degraded"
+
+    if per_skill_rows_status == "fresh":
+        telegram_summary = (
+            f"Capafy: all-time gross ${all_time['gross_usd']}, net30d ${last_30d['gross_usd']}, "
+            f"payout-able ${balances.get('balance_payout_usd')}. "
+            f"{len(zero_sales)}/{len(per_skill_rows)} skills zero-sales."
+        )
+    else:
+        telegram_summary = f"Capafy: all-time gross ${all_time['gross_usd']} (per-skill data stale this run)."
+
+    return {
+        "schema_version": 1,
+        "kind": "capafy_skill_analytics",
+        "observed_at": observed_at,
+        "verdict": verdict,
+        "account_totals": account_totals,
+        "balances": balances,
+        "per_skill_rows": per_skill_rows,
+        "per_skill_rows_status": per_skill_rows_status,
+        "rankings": rankings,
+        "daily_revenue_trend_last_30d": daily_trend,
+        "subscription_proxy": subscription_proxy,
+        "data_gaps": data_gaps,
+        "telegram_summary": telegram_summary,
+    }
+
+
 def _token(repo_root: Path) -> str:
     for key in ("CAPAFY_ACCESS_TOKEN", "CAPAFY_TOKEN"):
         if os.environ.get(key):
             return str(os.environ[key])
     candidates = (
         Path.home() / ".local/state/life-manager/credentials/capafy-publisher.json",
+        Path.home() / ".local/state/life-manager/runtime/capafy-publisher/config.json",
         repo_root / "skills/capafy-autopublish/vendor/capafy-publisher/config.json",
     )
     for path in candidates:
@@ -475,6 +834,7 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         payloads.update({name: {"_error": "web_token_unavailable"} for name in (
             "seller_sales", "seller_ranking", "creator_earnings", "earnings_ranking",
             "unit_sales", "statements",
+            "seller_ranking_30d", "seller_ranking_7d", "unit_ranking_30d", "unit_ranking_7d",
         )})
         return payloads
     seller_range = (
@@ -494,6 +854,18 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         "unit_sales": _post("/app/unit-sales/clickhouse/trend", web_token, period),
         "statements": _get("/app/developer/settlement-statement/list?page=1&size=20", web_token),
     })
+    # Per-agent GROSS revenue/orders for fixed 30d/7d windows. /agent/agent/{id}/stats
+    # (SOURCE_STATS_ENDPOINT below) returns SETTLED-only figures that lag real sales by a
+    # refund-clearance window and can read $0 for a skill with real recent activity; these
+    # windowed rankings sum to the account-level window totals exactly and are what actually
+    # answers "what sold in the last 30/7 days".
+    for label, days in (("30d", 29), ("7d", 6)):
+        window = {
+            "startDate": (observed.date() - dt.timedelta(days=days)).isoformat(),
+            "endDate": end, "granularity": "daily", "languageCode": "en",
+        }
+        payloads[f"seller_ranking_{label}"] = _post("/app/sales/clickhouse/ranking", web_token, window)
+        payloads[f"unit_ranking_{label}"] = _post("/app/unit-sales/clickhouse/ranking", web_token, window)
     if seller_start_date is not None:
         usage = _usage_requests(web_token, seller_range["startDate"], end)
         payloads["usage_requests"] = usage
@@ -609,6 +981,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"OpenRouter host key usage (calendar month): ${snapshot['openrouter_host_key_calendar_month_usage_usd']}")
             print("Active MRR: unavailable (seller active-subscription source missing)")
         return 0 if _money_complete(snapshot) else 1
+    if args.fixture_dir:
+        stats_path = args.fixture_dir / "agent_stats.json"
+        agent_stats = json.loads(stats_path.read_text()) if stats_path.exists() else {}
+    else:
+        agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                     if row.get("agentId")]
+        token = _token(repo_root)
+        agent_stats = _fetch_agent_stats_windows(token, agent_ids, observed.date()) if token else {}
+    analytics = build_skill_analytics(payloads, agent_stats, _catalog_models(repo_root), observed_at)
+    _atomic_write(args.output.parent / "capafy-skill-analytics.json", analytics)
     _atomic_write(args.output, receipt)
     print(json.dumps(receipt, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
     return 0 if receipt["verdict"] == "success" else 1

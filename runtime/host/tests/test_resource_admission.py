@@ -799,6 +799,41 @@ def test_dispatch_defer_skips_head_after_its_reservation_was_swept(
     ]
 
 
+def test_reservation_that_leaks_without_dispatch_cools_down_before_re_reserving(
+        tmp_path, monkeypatch):
+    """A reservation nobody ever claims must not let the same owner re-win forever.
+
+    Reproduces the hogging bug: `hf-gig-apply-reconcile`-style owners kept
+    re-winning `reserve_available()` the instant their unclaimed reservation's
+    lease expired (same `_queue_order`, still queue head), starving every
+    other owner of the shared capacity even though the winner rarely went
+    live. The leaked reservation must now cost its owner a cooldown, exactly
+    like an explicit `defer_durable()` does, so a different queued owner gets
+    a turn.
+    """
+    isolated(tmp_path, monkeypatch)
+    base = time.time()
+    admission.enqueue_durable("agent", "hogger", now=base)
+    admission.enqueue_durable("agent", "starved", now=base)
+    assert admission.reserve_available(now=base, lease_seconds=10) == ["hogger"]
+
+    # "hogger" never calls claim_durable; its lease simply expires. The next
+    # reserve_available sweep must hand the slot to "starved" instead of
+    # re-reserving "hogger" again.
+    assert admission.reserve_available(now=base + 11, lease_seconds=10) == ["starved"]
+    assert durable_rows(tmp_path, "reservations") == [{
+        "owner_id": "starved", "resource_class": "agent",
+        "sequence": 2, "lease_until": base + 21,
+    }]
+
+    # "hogger"'s cooldown was stamped when its reservation leaked (base + 11),
+    # so it stays ineligible right up to base + 71 ...
+    assert admission.reserve_available(now=base + 70, lease_seconds=10) == []
+    # ... and is eligible again once that cooldown elapses -- a temporary
+    # backoff, not a ban.
+    assert admission.reserve_available(now=base + 72, lease_seconds=10) == ["hogger"]
+
+
 def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     ticket, reason = admission.enqueue_durable("deterministic", "first")

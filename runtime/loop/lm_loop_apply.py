@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import plistlib
@@ -180,7 +181,20 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             ),
         })
     key, cadence = next(iter(entry["cadence"].items()))
-    if key == "start_interval_seconds":
+    if key == "start_interval_seconds" and cadence >= 3600 and 86400 % cadence == 0:
+        # launchd restarts the StartInterval countdown on every bootstrap, and
+        # release applies re-bootstrap owners more often than hourly, so hourly
+        # StartInterval jobs never fired. Wall-clock calendar entries survive a
+        # reload; a stable per-loop offset spreads owners across the hour.
+        offset = int(hashlib.sha256(loop_id.encode()).hexdigest(), 16)
+        minute, every = offset % 60, cadence // 3600
+        if every == 1:
+            value["StartCalendarInterval"] = [{"Minute": minute}]
+        else:
+            first = (offset // 60) % every
+            value["StartCalendarInterval"] = [
+                {"Hour": hour, "Minute": minute} for hour in range(first, 24, every)]
+    elif key == "start_interval_seconds":
         value["StartInterval"] = cadence
         if cadence < 10:
             value["ThrottleInterval"] = cadence

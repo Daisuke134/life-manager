@@ -11,6 +11,7 @@ Usage: loop_pnl.py [--date YYYY-MM-DD] [--json]   (date is the Asia/Tokyo report
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -176,6 +177,8 @@ def render(table: dict) -> str:
                        f"{USAGE_CURRENCY} {bucket[USAGE_CURRENCY].normalize():f} (no Product Loop)")
         if source["notes"].get("unparsed_lines"):
             out.append(f"  {source['name']}: {source['notes']['unparsed_lines']} unparseable lines skipped")
+        for product_id, value in sorted(source["notes"].get("mrr", {}).items()):
+            out.append(f"  {source['name']}.mrr[{product_id}]: {value}")
     out.append(f"{USAGE_CURRENCY} = runner-reported API-price estimate, not a provider bill. "
                "Currencies are never converted; net is per currency.")
     out.append("sources: " + ", ".join(
@@ -436,6 +439,93 @@ def marketplace_entries(platform: str, ledger: Path, day: date):
                     f"{platform}:{receipt_id}")
 
 
+# ---------------------------------------------------------------- Capafy (product loop, web console)
+
+CAPAFY_ANALYTICS = STATE / "state" / "capafy-skill-analytics.json"
+CAPAFY_FRESH_MAX_AGE = timedelta(hours=6)  # capafy_hourly_reconcile.py writes this file hourly
+
+
+def capafy_entries(day: date, path: Path = CAPAFY_ANALYTICS, now: datetime | None = None,
+                   loop_id: str = "capafy"):
+    """Web-console gross/refunds for ``day`` from the hourly reconcile snapshot's daily trend."""
+    now = now or datetime.now(timezone.utc)
+    text = path.read_text()
+    digest = hashlib.sha256(text.encode()).hexdigest()[:12]
+    data = json.loads(text)
+    observed_at = data.get("observed_at")
+    if not observed_at:
+        raise ValueError("capafy_snapshot_missing_observed_at")
+    observed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    if observed.tzinfo is None:
+        raise ValueError("capafy_snapshot_naive_observed_at")
+    status = (data.get("account_totals") or {}).get("_status")
+    if status != "fresh":
+        raise ValueError(f"capafy_account_totals_status:{status}")
+    if day == now.astimezone(JST).date() and now - observed > CAPAFY_FRESH_MAX_AGE:
+        raise ValueError(f"capafy_snapshot_stale:age_seconds={(now - observed).total_seconds():.0f}")
+    row = next((r for r in data.get("daily_revenue_trend_last_30d") or []
+                if r.get("date") == day.isoformat()), None)
+    if row is None:
+        raise LookupError(f"capafy_no_trend_row_for_date:{day.isoformat()}")
+    receipt = f"capafy:snapshot:{observed_at}:{digest}:{day.isoformat()}"
+    revenue = Decimal(str(row.get("revenue", 0)))
+    if revenue:
+        yield Entry(loop_id, "revenue", revenue, "USD", receipt + ":revenue")
+    refund = Decimal(str(row.get("refundAmount", 0)))
+    if refund:
+        yield Entry(loop_id, "refund", refund, "USD", receipt + ":refund")
+
+
+# ------------------------------------------------------------- mobile apps (RevenueCat, local state)
+
+BUSINESS_OUTCOMES = STATE / "marketing-metrics-daily" / "state" / "business-outcomes.jsonl"
+MOBILE_APPS_PRODUCTS = ("anicca-ios", "honne-ai")
+MOBILE_UNKNOWN_CURRENCY = "UNKNOWN"
+
+
+def mobile_apps_entries(day: date, path: Path = BUSINESS_OUTCOMES, loop_id: str = "mobile-apps",
+                        products: tuple[str, ...] = MOBILE_APPS_PRODUCTS, notes: dict | None = None):
+    """Sum RevenueCat daily Revenue across ``products`` for ``day``; MRR per product goes in notes."""
+    notes = notes if notes is not None else {}
+    if not path.is_file():
+        raise FileNotFoundError("mobile_apps_business_outcomes_missing")
+    rows: dict[str, dict] = {}
+    with path.open() as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue  # a corrupt line leaves that product's day missing, not invented
+            if row.get("business_date") == day.isoformat() and row.get("product_id") in products:
+                rows[row["product_id"]] = row
+    missing = [p for p in products if p not in rows]
+    if missing:
+        raise LookupError(f"mobile_apps_missing_business_date_row:{','.join(missing)}:{day.isoformat()}")
+    mrr: dict[str, str] = {}
+    for product_id in products:
+        row = rows[product_id]
+        rc = row.get("sources", {}).get("revenuecat", {})
+        if rc.get("status") != "available":
+            raise ValueError(f"mobile_apps_revenuecat_unavailable:{product_id}:{rc.get('reason')}")
+        rc_data = rc.get("data") or {}
+        charts = rc_data.get("charts") or {}
+        revenue_metric = (charts.get("revenue") or {}).get("latest_complete", {}).get("Revenue")
+        if not isinstance(revenue_metric, dict) or "value" not in revenue_metric:
+            raise ValueError(f"mobile_apps_revenue_metric_missing:{product_id}")
+        currency = rc_data.get("currency") or MOBILE_UNKNOWN_CURRENCY
+        value = Decimal(str(revenue_metric["value"]))
+        receipt = f"revenuecat:{product_id}:{row.get('snapshot_id', day.isoformat())}:revenue"
+        if value:
+            yield Entry(loop_id, "revenue", value, currency, receipt)
+        mrr_metric = (charts.get("mrr") or {}).get("latest_complete", {}).get("MRR")
+        if isinstance(mrr_metric, dict) and "value" in mrr_metric:
+            mrr[product_id] = str(mrr_metric["value"])
+    notes["mrr"] = mrr
+
+
 # ---------------------------------------------------------------- agent-runner usage (model cost)
 
 USAGE_CURRENCY = "USD_API_EQUIV"  # runner's provider_cost_usd is an API-price estimate, not a bill
@@ -520,6 +610,11 @@ def collect(day: date, loops: list[dict]) -> list[SourceResult]:
         else:
             sources.append(SourceResult(f"marketplace-{platform}", covers,
                                         error=f"marketplace-{platform}:no_payment_ledger_owner_writes"))
+    sources.append(run_source("capafy", {("capafy", "revenue"), ("capafy", "refund")},
+                              lambda: capafy_entries(day)))
+    mobile_notes: dict = {}
+    sources.append(run_source("mobile-apps", {("mobile-apps", "revenue")},
+                              lambda: mobile_apps_entries(day, notes=mobile_notes), notes=mobile_notes))
     notes: dict = {}
     sources.append(run_source("agent-usage", {(i, "cost") for i in ids},
                               lambda: usage_entries(usage_files(), day, job_map, notes), notes=notes))

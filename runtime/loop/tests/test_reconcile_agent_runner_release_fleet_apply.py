@@ -1,5 +1,6 @@
 import json
 import os
+import plistlib
 import stat
 import subprocess
 import tempfile
@@ -80,14 +81,19 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
         return repo, sha
 
-    def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",)):
+    def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",),
+                       labels=None):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
         (release_dir / "bin").mkdir(parents=True)
         (release_dir / "config").mkdir(parents=True)
         (release_dir / "RELEASE.json").write_text(
             json.dumps({"sha": sha, "release_paths": release_paths}))
+        labels = labels or {}
         (release_dir / "config" / "loop-registry.json").write_text(json.dumps({
-            "loops": {loop_id: {} for loop_id in loop_ids},
+            "loops": {
+                loop_id: ({"label": labels[loop_id]} if loop_id in labels else {})
+                for loop_id in loop_ids
+            },
             "retired_labels": [],
         }))
         lm_loop = release_dir / "bin" / "lm-loop"
@@ -394,6 +400,105 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(owners["loop-a"]["changed"], 1)
             self.assertEqual(owners["loop-b"]["changed"], 1)
             self.assertNotIn("own-id", owners)
+
+    def _write_plist(self, agents_dir, label, release_sha):
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        path = agents_dir / f"{label}.plist"
+        with path.open("wb") as handle:
+            plistlib.dump({
+                "Label": label,
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": release_sha},
+            }, handle)
+        return path
+
+    def test_owner_with_current_release_sha_in_plist_is_skipped_without_apply(self):
+        # An owner whose loaded LaunchAgent plist already carries the target release sha needs no
+        # apply at all -- per-owner apply costs 5-15s even as a no-op. Skip it cheaply and record it
+        # as skipped reason "current" instead of spawning `lm-loop apply`.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, loop_ids=("loop-a", "loop-b"),
+                labels={"loop-a": "ai.anicca.loop-a", "loop-b": "ai.anicca.loop-b"})
+            self._activate(root, release_dir)
+            agents_dir = root / "launch-agents"
+            self._write_plist(agents_dir, "ai.anicca.loop-a", sha)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["LIFE_MANAGER_LAUNCH_AGENTS_DIR"] = str(agents_dir)
+
+            result = self._run(env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            calls_text = calls_log.read_text() if calls_log.exists() else ""
+            self.assertNotIn("target=loop-a", calls_text,
+                              "an owner already on the target sha must never be applied")
+            self.assertIn("target=loop-b", calls_text)
+
+            owners = {row["loop_id"]: row for row in self._owners_log(root)}
+            self.assertEqual(owners["loop-a"]["reason"], "current")
+            self.assertEqual(owners["loop-a"]["skipped"], 1)
+            self.assertNotIn("reason", owners.get("loop-b", {}))
+
+            state = self._state(root)
+            self.assertEqual(state["status"], "ok")
+            self.assertEqual(state["changed"], 1)
+
+    def test_owner_that_errored_previous_attempt_for_same_sha_is_ordered_last(self):
+        # Every attempt restarts from the top of the (alphabetically sorted) registry, so an owner
+        # that keeps failing near the front can starve every owner after it. Owners that errored or
+        # timed out on a previous attempt for this exact sha must be tried last instead.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            # Alphabetically "aaa-timeout" sorts before "zzz-clean"; without reordering it would be
+            # applied first.
+            release_dir = self._make_release(root, sha, loop_ids=("aaa-timeout", "zzz-clean"))
+            self._activate(root, release_dir)
+            state_root = root / "reconciler-state"
+            state_root.mkdir(parents=True, exist_ok=True)
+            owners_log_path = state_root / "fleet-apply-owners.jsonl"
+            owners_log_path.write_text(json.dumps({
+                "sha": sha, "loop_id": "aaa-timeout", "rc": 124, "seconds": 120,
+                "changed": 0, "skipped": 0,
+            }, sort_keys=True) + "\n")
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            result = self._run(env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            calls_text = calls_log.read_text()
+            self.assertLess(
+                calls_text.index("target=zzz-clean"), calls_text.index("target=aaa-timeout"),
+                "the owner that errored/timed out last attempt for this sha must be tried last")
+
+    def test_owner_that_succeeded_after_previous_error_for_different_sha_is_not_deprioritized(self):
+        # A failure recorded against a *different* sha must not push an owner to the back for this
+        # sha's run.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(root, sha, loop_ids=("aaa-owner", "zzz-owner"))
+            self._activate(root, release_dir)
+            state_root = root / "reconciler-state"
+            state_root.mkdir(parents=True, exist_ok=True)
+            owners_log_path = state_root / "fleet-apply-owners.jsonl"
+            owners_log_path.write_text(json.dumps({
+                "sha": "f" * 40, "loop_id": "aaa-owner", "rc": 124, "seconds": 120,
+                "changed": 0, "skipped": 0,
+            }, sort_keys=True) + "\n")
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            result = self._run(env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            calls_text = calls_log.read_text()
+            self.assertLess(
+                calls_text.index("target=aaa-owner"), calls_text.index("target=zzz-owner"),
+                "a prior failure for an unrelated sha must not reorder this run")
 
 
 if __name__ == "__main__":

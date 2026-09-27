@@ -9,6 +9,7 @@ ENV_FILE="${LIFE_MANAGER_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
 DATA="$STATE_ROOT/data"
 mkdir -p "$DATA"
 STATE="$DATA/last-seen.txt"
+LEDGER="$STATE_ROOT/stripe-charges.jsonl"
 [ -r "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
 [ -n "${STRIPE_SECRET_KEY:-}" ] || { echo "stripe poller: setup_required STRIPE_SECRET_KEY" >&2; exit 0; }
 
@@ -21,6 +22,9 @@ RESP=$(curl -sS "https://api.stripe.com/v1/charges?limit=20&created%5Bgt%5D=$LAS
 
 NEW_COUNT=$(echo "$RESP" | jq '[.data[] | select(.status=="succeeded")] | length')
 echo "[$(date +%H:%M:%S)] new charges since $LAST: $NEW_COUNT"
+
+# Append every observed charge (any status) to the audit ledger, idempotent by charge id.
+echo "$RESP" | python3 "$SCRIPT_DIR/stripe_charge_ledger.py" append --ledger "$LEDGER" >/dev/null 2>&1 || true
 
 if [ "$NEW_COUNT" -gt 0 ]; then
   echo "$RESP" | jq -r '.data[] | select(.status=="succeeded") | "\(.id)|\(.created)|\(.amount)|\(.currency)|\(.description // .metadata.purpose // "-")"' | while IFS='|' read -r CHID CRT AMT CURR DESC; do
