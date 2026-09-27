@@ -330,6 +330,84 @@ def test_allocator_resumes_matching_draft_at_full_cap_but_blocks_without_one() -
     assert blocked == {"verdict": "CAP_FULL", "occupied": 5}
 
 
+def test_unlisted_agent_with_authoritative_approved_detail_frees_the_slot() -> None:
+    # P-14: the list field agentStatus can be stale ("under_review") after Capafy
+    # approves the latest version (status 3 = review passed/pending listing,
+    # auditStatus 4 = passed). The authoritative detail read must free the slot.
+    module = load_module()
+    rows = [agent("stale-1", "under_review")]
+
+    def fake_detail(agent_id: str):
+        assert agent_id == "stale-1"
+        return (3, 4)
+
+    result = module.normalize_agents(rows, detail_fetcher=fake_detail)
+
+    assert result["counts"]["occupied"] == 0
+    assert result["counts"]["listed"] == 1
+    assert result["counts"]["free"] == 5
+    assert result["agents"][0]["lifecycle"] == "listed"
+
+
+def test_unlisted_agent_with_pending_audit_detail_stays_occupied() -> None:
+    module = load_module()
+    rows = [agent("pending-1", "under_review")]
+
+    def fake_detail(agent_id: str):
+        return (2, 2)  # manual review in progress; audit not yet passed
+
+    result = module.normalize_agents(rows, detail_fetcher=fake_detail)
+
+    assert result["counts"]["occupied"] == 1
+    assert result["agents"][0]["lifecycle"] == "occupied"
+
+
+def test_rejected_agent_is_retryable_without_a_detail_fetch() -> None:
+    module = load_module()
+    rows = [agent("rejected-1", "review_rejected")]
+    calls: list[str] = []
+
+    def fake_detail(agent_id: str):
+        calls.append(agent_id)
+        return (4, 4)
+
+    result = module.normalize_agents(rows, detail_fetcher=fake_detail)
+
+    assert calls == []
+    assert result["agents"][0]["lifecycle"] == "retry"
+    assert result["counts"]["occupied"] == 1
+
+
+def test_detail_fetch_is_bounded_to_ten_gets() -> None:
+    module = load_module()
+    rows = [agent(f"draft-{i}", "under_review") for i in range(12)]
+    calls: list[str] = []
+
+    def fake_detail(agent_id: str):
+        calls.append(agent_id)
+        return None  # unreadable detail keeps the conservative classification
+
+    result = module.normalize_agents(rows, detail_fetcher=fake_detail)
+
+    assert len(calls) <= 10
+    assert result["counts"]["occupied"] == 12
+
+
+def test_fetch_agent_detail_reads_publish_remote_status(monkeypatch) -> None:
+    module = load_module()
+    payload = {"ok": True, "latest_version": {"platform_status": 3, "audit_status": 4}}
+
+    def fake_run(args, **kwargs):
+        assert args[1] == "packager.py"
+        assert args[2] == "publish-remote-status"
+        assert args[-1] == "9470213182"
+        return SimpleNamespace(stdout=json.dumps(payload), returncode=0)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module.fetch_agent_detail("9470213182") == (3, 4)
+
+
 def test_repo_catalog_is_ready_and_overrides_same_title_legacy_item(tmp_path: Path) -> None:
     module = load_module()
     features = tmp_path / "features"
