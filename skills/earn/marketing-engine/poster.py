@@ -481,6 +481,30 @@ def verify_only_main(
     return res
 
 
+def write_dispatch_marker(marker_path, occurrence_id=None, status="pre_effect", effect=None):
+    # Durable pre-effect marker (T5-G-4): written immediately before the publish call (status=
+    # "pre_effect") so a run that dies right after (no report, no ledger row) leaves a bound
+    # signal behind. Overwritten to status="completed" with effect=1 only once clip_upload/
+    # album_upload actually returns a media object -- an exception in between leaves the marker
+    # at "pre_effect", which is the honest answer ("dispatch was attempted, outcome unknown"), not
+    # a false "no effect". A future occurrence whose window never touches this marker at all (no
+    # marker, or a marker with an older ts than queued_at) is the case a reconciler may safely
+    # treat with runtime.host.resource_admission.resolve_pre_effect_occurrence; once effect=1 is
+    # written only an official Instagram readback may close that occurrence's fence. Optional:
+    # only callers that pass --dispatch-marker get this; other marketing loops are unaffected.
+    if not marker_path:
+        return
+    row = {"version": 1, "occurrence_id": occurrence_id, "status": status, "effect": effect,
+           "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+    path = os.path.expanduser(marker_path)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = f"{path}.tmp-{os.getpid()}"
+    descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        json.dump(row, output, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
 def get_sessionid(port):
     tabs = json.load(urllib.request.urlopen(cdp_http_url(port, "/json/list")))
     tid = next(t["id"] for t in tabs if t.get("type") == "page" and "instagram.com" in (t.get("url") or ""))
@@ -516,6 +540,10 @@ def main():
                      help="read-only golden-session probe; no post, never logs in")
     ap.add_argument("--verify-only", action="store_true",
                      help="read-only: return the account's current reel/post hrefs; no posting (SHARED-1 INV-3)")
+    ap.add_argument("--dispatch-marker",
+                     help="optional path: durable pre/post-publish marker for fence reconciliation (T5-G-4)")
+    ap.add_argument("--occurrence-id",
+                     help="optional admission occurrence id recorded into --dispatch-marker")
     a = ap.parse_args()
     accounts_path = a.accounts_path or C("~/.cloak/clip-accounts.json")
     if a.keepalive:
@@ -587,9 +615,12 @@ def main():
         if a.video:
             thumb = a.video + ".jpg"
             subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", a.video, "-ss", "1", "-vframes", "1", thumb], check=True)
+            write_dispatch_marker(a.dispatch_marker, a.occurrence_id)
             media = cl.clip_upload(a.video, caption, thumbnail=thumb)
         else:
+            write_dispatch_marker(a.dispatch_marker, a.occurrence_id)
             media = cl.album_upload(image_paths, caption)
+        write_dispatch_marker(a.dispatch_marker, a.occurrence_id, status="completed", effect=1)
         d = media.model_dump() if hasattr(media, "model_dump") else media.dict()
         code = d.get("code")
         url = f"https://www.instagram.com/{'reel' if a.video else 'p'}/{code}/"
