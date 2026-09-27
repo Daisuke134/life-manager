@@ -232,10 +232,114 @@ PY
   local already_owned=0 budget_exceeded=0
   local timed_out_owners="" apply_message=""
 
-  local loop_id
-  while IFS= read -r loop_id; do
+  # Cheap pre-check before spawning `lm-loop apply`: an owner whose loaded plist already carries
+  # the target sha needs no apply at all (per-owner apply costs 5-15s even as a no-op, 60-120s for
+  # mobile-publish owners with hundreds of effect_unknown fences), and every attempt restarts from
+  # the top of the registry so a slow tail may never be reached. Skip those owners without spawning
+  # apply, and push owners that errored or timed out on a previous attempt for this same sha to the
+  # end of the queue so a repeatedly-stuck owner cannot starve the rest of the fleet.
+  local plan_path
+  plan_path="$(mktemp "$state_dir/.fleet-apply-plan.XXXXXX")"
+  FLEET_APPLY_REGISTRY_PATH="$registry_path" FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" \
+    FLEET_APPLY_OWN_LOOP_ID="$own_loop_id" FLEET_APPLY_SHA="$release_sha" \
+    "$runtime_python" - >"$plan_path" <<'PY'
+import json, os, plistlib
+from pathlib import Path
+
+registry_path = os.environ["FLEET_APPLY_REGISTRY_PATH"]
+owners_log_path = os.environ["FLEET_APPLY_OWNERS_LOG_PATH"]
+own_loop_id = os.environ.get("FLEET_APPLY_OWN_LOOP_ID", "")
+release_sha = os.environ["FLEET_APPLY_SHA"]
+agents_dir = Path(os.environ.get(
+    "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+
+try:
+    with open(registry_path, encoding="utf-8") as handle:
+        registry = json.load(handle)
+except (OSError, ValueError):
+    registry = {}
+loops = registry.get("loops") or {}
+if not isinstance(loops, dict):
+    loops = {}
+
+# The most recent owners-log row per loop_id for this exact sha decides whether that owner
+# errored or timed out last time; a later successful retry for the same sha must not still be
+# pushed to the back.
+last_for_sha = {}
+try:
+    with open(owners_log_path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if row.get("sha") != release_sha:
+                continue
+            loop_id = row.get("loop_id")
+            if isinstance(loop_id, str):
+                last_for_sha[loop_id] = row
+except OSError:
+    pass
+prev_failed = {
+    loop_id for loop_id, row in last_for_sha.items()
+    if row.get("rc") not in (0, None)
+}
+
+skip_current, clean, failed_last = [], [], []
+for loop_id in sorted(loops.keys()):
+    if loop_id == own_loop_id:
+        continue
+    entry = loops[loop_id] if isinstance(loops.get(loop_id), dict) else {}
+    label = entry.get("label")
+    installed_sha = None
+    if isinstance(label, str) and label:
+        plist_path = agents_dir / f"{label}.plist"
+        try:
+            with plist_path.open("rb") as handle:
+                plist = plistlib.load(handle)
+            installed_sha = (plist.get("EnvironmentVariables") or {}).get(
+                "LIFE_MANAGER_RELEASE_SHA")
+        except Exception:
+            installed_sha = None
+    if installed_sha == release_sha:
+        skip_current.append(loop_id)
+    elif loop_id in prev_failed:
+        failed_last.append(loop_id)
+    else:
+        clean.append(loop_id)
+
+for loop_id in skip_current:
+    print(f"current\t{loop_id}")
+for loop_id in clean + failed_last:
+    print(f"apply\t{loop_id}")
+PY
+
+  local plan_action loop_id
+  while IFS=$'\t' read -r plan_action loop_id; do
     [ -z "$loop_id" ] && continue
-    [ "$loop_id" = "$own_loop_id" ] && continue
+    if [ "$plan_action" = "current" ]; then
+      skipped=$((skipped + 1))
+      FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
+        FLEET_APPLY_OWNER_LOOP_ID="$loop_id" \
+        "$runtime_python" - <<'PY'
+import json, os
+record = {
+    "sha": os.environ["FLEET_APPLY_SHA"],
+    "loop_id": os.environ["FLEET_APPLY_OWNER_LOOP_ID"],
+    "rc": 0,
+    "seconds": 0,
+    "changed": 0,
+    "skipped": 1,
+    "reason": "current",
+}
+with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(record, sort_keys=True) + "\n")
+PY
+      continue
+    fi
     if [ "$(date -u +%s)" -ge "$budget_deadline_epoch" ]; then
       budget_exceeded=1
       break
@@ -306,7 +410,8 @@ with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as h
 PY
 
     [ "$already_owned" -eq 1 ] && break
-  done < <(jq -r '.loops | keys[]?' "$registry_path" 2>/dev/null || true)
+  done <"$plan_path"
+  rm -f "$plan_path"
 
   local status message
   if [ "$already_owned" -eq 1 ]; then
