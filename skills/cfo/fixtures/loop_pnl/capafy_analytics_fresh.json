@@ -1,0 +1,14 @@
+{
+ "schema_version": 1,
+ "kind": "capafy_skill_analytics",
+ "observed_at": "2026-09-26T01:00:00Z",
+ "verdict": "success",
+ "account_totals": {
+  "_status": "fresh",
+  "all_time": {"gross_usd": "86.79", "net_usd": "86.79", "orders": 97, "refunds_usd": "0.00"}
+ },
+ "daily_revenue_trend_last_30d": [
+  {"date": "2026-09-25", "revenue": 1.99, "refundAmount": 0.0, "orders": 1},
+  {"date": "2026-09-26", "revenue": 12.5, "refundAmount": 1.0, "orders": 3}
+ ]
+}

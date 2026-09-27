@@ -1,0 +1,13 @@
+{
+ "schema_version": 1,
+ "kind": "capafy_skill_analytics",
+ "observed_at": "2026-09-26T09:30:00Z",
+ "verdict": "degraded",
+ "account_totals": {
+  "_status": "stale",
+  "all_time": {"gross_usd": null, "net_usd": null, "orders": null, "refunds_usd": null}
+ },
+ "daily_revenue_trend_last_30d": [
+  {"date": "2026-09-26", "revenue": 12.5, "refundAmount": 1.0, "orders": 3}
+ ]
+}

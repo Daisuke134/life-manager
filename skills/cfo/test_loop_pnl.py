@@ -5,7 +5,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -167,6 +167,59 @@ class MarketplaceTest(unittest.TestCase):
             for path in (empty, Path(tmp) / "absent.sqlite3"):
                 with self.assertRaises(FileNotFoundError):
                     list(m.marketplace_entries("coconala", path, DAY))
+
+
+class CapafyTest(unittest.TestCase):
+    NOW = datetime(2026, 9, 26, 2, 0, 0, tzinfo=timezone.utc)  # 11:00 JST 09-26: DAY is "today"
+
+    def test_fresh_snapshot_yields_revenue_and_refund_for_the_day(self):
+        entries = list(m.capafy_entries(DAY, FIX / "capafy_analytics_fresh.json", now=self.NOW))
+        self.assertEqual(sums(entries), {
+            ("capafy", "revenue", "USD"): Decimal("12.5"),
+            ("capafy", "refund", "USD"): Decimal("1.0"),
+        })
+        self.assertTrue(all(e.receipt_id.startswith("capafy:snapshot:2026-09-26T01:00:00Z:") for e in entries))
+
+    def test_snapshot_older_than_6h_for_todays_run_is_stale(self):
+        stale_now = self.NOW.replace(hour=8)  # observed_at 01:00Z, now 08:00Z -> 7h old, still JST 09-26
+        with self.assertRaisesRegex(ValueError, "capafy_snapshot_stale"):
+            list(m.capafy_entries(DAY, FIX / "capafy_analytics_fresh.json", now=stale_now))
+
+    def test_account_totals_not_fresh_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "capafy_account_totals_status:stale"):
+            list(m.capafy_entries(DAY, FIX / "capafy_analytics_stale_status.json", now=self.NOW))
+
+    def test_no_trend_row_for_date_fails_closed(self):
+        with self.assertRaisesRegex(LookupError, "capafy_no_trend_row_for_date"):
+            list(m.capafy_entries(DAY, FIX / "capafy_analytics_missing_row.json", now=self.NOW))
+
+    def test_malformed_snapshot_fails_closed(self):
+        with self.assertRaises(ValueError):
+            list(m.capafy_entries(DAY, FIX / "capafy_analytics_malformed.json", now=self.NOW))
+
+
+class MobileAppsTest(unittest.TestCase):
+    def test_fresh_rows_sum_revenue_and_expose_mrr_notes(self):
+        notes = {}
+        entries = list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_fresh.jsonl", notes=notes))
+        self.assertEqual(sums(entries), {("mobile-apps", "revenue", "UNKNOWN"): Decimal("7.75")})
+        self.assertEqual(notes["mrr"], {"anicca-ios": "20.34", "honne-ai": "0.0"})
+
+    def test_revenuecat_unavailable_for_one_product_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "mobile_apps_revenuecat_unavailable:anicca-ios"):
+            list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_stale.jsonl"))
+
+    def test_missing_business_date_row_fails_closed(self):
+        with self.assertRaisesRegex(LookupError, "mobile_apps_missing_business_date_row:honne-ai"):
+            list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_missing.jsonl"))
+
+    def test_malformed_line_leaves_that_product_missing(self):
+        with self.assertRaisesRegex(LookupError, "mobile_apps_missing_business_date_row:anicca-ios"):
+            list(m.mobile_apps_entries(DAY, FIX / "business_outcomes_malformed.jsonl"))
+
+    def test_missing_file_fails_closed(self):
+        with self.assertRaises(FileNotFoundError):
+            list(m.mobile_apps_entries(DAY, FIX / "does-not-exist.jsonl"))
 
 
 class UsageTest(unittest.TestCase):
