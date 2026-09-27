@@ -223,6 +223,11 @@ TODO（何を・どう直すか）
   - [ ] P-12a 誰がいつ価格を下げたか（capafy-loop の自動改善か手作業か）を listing の更新履歴と loop の記録で確認する。自動 loop が下げたなら、その loop の評価軸を直す。確認後に価格を戻すか決める
 - [x] P-1c 毎時の分析で per_skill_rows の name が全部 None だった。`/agent/agents` の項目名は `name`（`agentTitle` ではない）。直した（#6021）。本番データで 45 行すべてに名前が入ることを確認。model / runtime が None なのは別の既知の欠損（LISTING.md の形式が変わった）
 - [ ] P-13 **Telegram の製品レポート**: Capafy の hourly レポート（`capafy_company_receipt.py`）は全体の金額しか出していない。直近30日の net・注文数、直近7日、上位5スキルの収益、売上ゼロのスキル数、サブスク proxy と、アプリごとの RevenueCat（MRR・active・新規 trial と日付）を同じレポートに足す（実装中）
+- [ ] P-14 **Capafy の出品枠が詰まっている（新しいスキルを出せない）**: Capafy は未公開（draft/under_review）の Agent を同時に5つまでしか持てない（`skills/capafy-autopublish/scripts/inventory_status.py` CAP=5 → CAP_FULL）。5つ（9470213182 Job Description Writer、4886968609 Performance Review Writer、3947077924 Meeting Notes、5051239796 Cold Email Writer、7883384570 Thesis Structure Humanizer）は 2026-09-15 に審査通過（承認メールあり、API で status=3・auditStatus=4）なのに、一覧は under_review のまま12日間公開されていない。売り手が公開に進める API は無い。このため `capafy-loop-daily` は 09-15 以降1件も公開できず、申請待ちの候補が 12 件たまっている。2026-09-27 に support@capafy.ai へ公開か枠の解放を依頼した（message `1a0e17b64de76577`）
+  - [ ] P-14a support の返信を確認し、5つが online になったら工場の次の run で新しい Agent が公開されることを readback する
+  - [ ] P-14b 待つ間に、申請待ちの 12 件を P-11 の他の販売先（PromptBase など）に出す
+- [x] P-5d `capafy-loop-daily` の fence `18d84c602fcf10f8-88451` を公式 readback（`GET /agent/agents`、その時間帯に作成・更新なし）で閉じた。既存の `capafy-effect-reconcile.py` は released の行しか見ないため、失敗 run の claimed の fence を閉じられない → T5-G の汎用 reconciler に「失敗 run の claimed fence を公式 readback で閉じる」capafy adapter を足す
+- [x] P-5e `capafy-ig-marketing-daily` の fence を、ログインなしの公開プロフィールで確認して閉じた。アカウントは followers 1、最後の投稿は 2026-08-24。IG marketing と `capafy-ig-account-manager` を revenue capacity に移した（#6020、#6023）。06:04Z の初回 run は exit 1 で新しい fence → session 復旧と原因調査中
 - [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
