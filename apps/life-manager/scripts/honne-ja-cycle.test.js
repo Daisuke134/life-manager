@@ -3,6 +3,19 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { ANICCA_EN_CARD_INSTAGRAM_SLOTS, ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, ANICCA_HE_SLOTS, ANICCA_JP4_SLOTS, ANICCA_MAIN_INSTAGRAM_SLOTS, ANICCA_MAIN_SLOTS, PRODUCTION_SLOTS, parseArgs, runSlot, telegramNativeUrlVerified } = require("./honne-ja-cycle.js");
+const { marketingCtaLine } = require("../lib/marketing-app-store-cta.js");
+
+const ALL_LANE_COMMANDS = ["run", "run-anicca-main", "run-anicca-main-instagram", "run-anicca-en-card-instagram", "run-anicca-en-widget-instagram", "run-anicca-ai-youtube", "run-anicca-affirmation-youtube", "run-anicca-ja-widget-instagram", "run-anicca-jp4", "run-anicca-he"];
+
+test("Every Honne JA lane's product/platform/locale resolves to a real App Store CTA line", () => {
+  for (const command of ALL_LANE_COMMANDS) {
+    const lane = parseArgs([command]).lane;
+    const line = marketingCtaLine({ productId: lane.product, platform: lane.platform, locale: lane.locale });
+    assert.ok(line.length > 0, `${command} produced an empty CTA`);
+    if (lane.platform === "youtube") assert.match(line, /apps\.apple\.com/);
+    else assert.doesNotMatch(line, /apps\.apple\.com/);
+  }
+});
 
 test("Honne JA production cadence has three exact idempotent slots", () => {
   assert.deepEqual([...PRODUCTION_SLOTS], ["08:30", "12:30", "21:30"]);
