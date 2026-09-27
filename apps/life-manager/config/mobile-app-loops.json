@@ -12,7 +12,7 @@
     "life-manager-anicca-en-affirmation-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-en-affirmation-tiktok-production" },
     "life-manager-anicca-jp1-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-jp1-tiktok-production" },
     "life-manager-anicca-jp4": { "product_id": "anicca-ios", "runner": "honne-ja-cycle.js", "action": "run-anicca-jp4" },
-    "life-manager-anicca-larry-ja-instagram": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-larry-production" },
+    "life-manager-anicca-larry-ja-instagram": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-rotating.js", "action": "run-ja-larry-production" },
     "life-manager-anicca-main-instagram": { "product_id": "anicca-ios", "runner": "honne-ja-cycle.js", "action": "run-anicca-main-instagram" },
     "life-manager-anicca-buddha-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-buddha-tiktok-production" },
     "life-manager-anicca-main-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-main-tiktok-production" },
