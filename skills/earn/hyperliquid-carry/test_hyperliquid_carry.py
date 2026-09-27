@@ -153,6 +153,16 @@ class LedgerTest(unittest.TestCase):
                       resolves_intent_id="exit-1")
             self.assertEqual(lg.open_intents(), [])
 
+    def test_parent_linked_failed_exit_does_not_resolve_original_intent(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="original", action="enter", perp="PURR")
+            lg.append("intent", intent_id="failed-exit", action="exit", perp="PURR",
+                      resolves_intent_id="original")
+            lg.append("receipt", intent_id="failed-exit", result="failed", perp="PURR",
+                      resolves_intent_id="original")
+            self.assertEqual([r["intent_id"] for r in lg.open_intents()], ["original"])
+
     def test_partial_and_effect_unknown_intents_remain_open(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
@@ -780,6 +790,24 @@ class DepositTest(unittest.TestCase):
                 result = deposit.reconcile_pending(provider, lg)
                 self.assertEqual(result["result"], "effect_unknown")
                 self.assertIn("deposit_boundary", result["reason"])
+                self.assertTrue(deposit.pending_deposits(lg))
+
+    def test_malformed_provider_calldata_becomes_stable_effect_unknown(self):
+        malformed = [
+            "0xdeadbeef" + "0" * 128,
+            "0xa9059cbb" + "0" * 24 + "z" * 40 + "0" * 64,
+            "0xa9059cbb" + "0" * 24 + deposit.BRIDGE2[2:].lower() + "z" * 64,
+            "0xzz",
+        ]
+        for data in malformed:
+            with self.subTest(data=data), tempfile.TemporaryDirectory() as d:
+                tx = self._tx()
+                tx["input"] = data
+                lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
+                result = deposit.reconcile_pending(
+                    self._provider(tx, type("Receipt", (), {"status": 1})()), lg)
+                self.assertEqual(result["result"], "effect_unknown")
+                self.assertEqual(result["reason"], "deposit_boundary_transfer_calldata_mismatch")
                 self.assertTrue(deposit.pending_deposits(lg))
 
     def test_initial_wait_uses_the_same_verified_boundary_before_deposited(self):

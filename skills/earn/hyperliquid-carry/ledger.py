@@ -46,7 +46,11 @@ class Ledger:
                 and r.get("resolves_intent_id")
             }
         )
-        pending = list(done)
+        pending = [
+            r["intent_id"]
+            for r in rows
+            if r["kind"] == "receipt" and r.get("result") == "exited"
+        ]
         while pending:
             child = pending.pop()
             ancestor = parent.get(child)
