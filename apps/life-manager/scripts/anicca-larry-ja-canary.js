@@ -242,7 +242,7 @@ async function runAniccaCarouselCanary(argv = [], deps = {}) {
   const trustedNow = exactInstant(now(), `${lane.name} canary clock`);
   if (production && !parsed.slot) {
     const slot = marketingVideoDueSlot(Date.parse(trustedNow), "Asia/Tokyo", PRODUCTION_SLOTS[parsed.command]);
-    if (!slot) throw new Error(`${lane.name} production has no due slot yet`);
+    if (!slot) throw Object.assign(new Error(`${lane.name} production has no due slot yet`), { code: "NO_DUE_SLOT" });
     parsed = { ...parsed, slot };
   }
   const clock = () => trustedNow;
@@ -356,7 +356,7 @@ function runAniccaJp1TikTokCanary(argv = [], deps = {}) {
 }
 
 if (require.main === module) {
-  runAniccaCarouselCanary(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+  runAniccaCarouselCanary(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 }
 
 module.exports = { ACCOUNT_ID, EN_AFFIRMATION_LANE, EN_AFFIRMATION_PRODUCTION_SLOTS, EN_AFFIRMATION_TIKTOK_LANE, EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS, EN_SLIDESHOW_TIKTOK_LANE, INTEGRATION_REF, JA_JP1_TIKTOK_LANE, JA_JP1_TIKTOK_PRODUCTION_SLOTS, JA_LARRY_PRODUCTION_SLOTS, JA_MAIN_TIKTOK_LANE, JA_MAIN_TIKTOK_PRODUCTION_SLOTS, LANE, assertProductionControls, enAffirmationProductionSlot, enSlideshowProductionSlot, jaLarryProductionSlot, parseArgs, runAniccaCarouselCanary, runAniccaEnAffirmationInstagramCanary, runAniccaEnSlideshowTikTokCanary, runAniccaJp1TikTokCanary, runAniccaLarryJaCanary, verifyNativeObject };
