@@ -211,12 +211,16 @@ TODO（何を・どう直すか）
 - [x] P-3 **`marketing-metrics-daily` の exit 1**: 原因は business_outcomes が読む `~/.local/state/life-manager/.env` に、必要な key 7 個（ASC_ISSUER_ID・ASC_KEY_ID・ASC_KEY_PATH・REVENUECAT_PROJECT_ID・REVENUECAT_V2_SECRET_KEY・STRIPE_SECRET_KEY・MIXPANEL_API_SECRET）が無く、09-24 以降すべての source が unavailable で exit 1 になっていたこと。key は `~/.config/env/global.env` にあったので写した（mode 600）。`scheduled_runner.py metrics --no-send` で rc=0・success を確認（2026-09-27）
 - [x] P-4 **RevenueCat**: 2026-09-26 の snapshot で取得できた。**Anicca iOS: MRR $20.34、active 5、churn の値 4、新規 trial 0、7日の有料転換 0**。Honne: MRR・active・収益すべて 0。残り: honne-ai の ASC は provider_query_failed、PostHog は read credential が無い、電子書籍の Gumroad は未設定・KDP は未認証
 - [ ] P-5 **止まっている reader を動かす**: `life-manager-instagram-metrics`・`marketing-metrics`・`marketing-owner-events`・`life-manager-payout`（capacity 待ち）は revenue の実行枠か優先度を見直す。`life-manager-tiktok-metrics`・`capafy-outcome-monitor`（effect_unknown fence）は公式 readback で fence を閉じ、`lm-fence-reconciler` に adapter を登録する
+  - [x] P-5a 計測 reader 5つ（instagram-metrics・tiktok-metrics・capafy-outcome-monitor・marketing-metrics・marketing-owner-events）を revenue の deterministic capacity に変えた（#6009）。borrow のままでは revenue owner で host が埋まると一度も走れなかった。payout はお金を動かすので borrow のまま（出金は P-9 で Claude が行う）
+  - [ ] P-5b effect_unknown fence 1件ずつ（tiktok-metrics・capafy-outcome-monitor・capafy-ig-marketing-daily）を公式 readback か pre-effect proof で閉じる。読むだけの reader に publish/message の effect_class が付いていないかも確認する（調査中）
+  - [ ] P-5c marketing-owner-events の exit 1 の原因を直す（調査中）
 - [ ] P-6 **Capafy の IG 指標が 08-31 から止まっている**: `capafy-ig-marketing-daily` の実行記録を読み、`ig_metrics.py` が書かない原因を直す
 - [ ] P-7 **Stripe**: poller が charge を金額付きで `stripe-charges.jsonl` に保存するようにする（今は watermark と通知だけ）
 - [ ] P-8 **CFO の P&L につなぐ**: `skills/cfo/loop_pnl.py` の `collect()` に capafy（P-1 の月次とスキル別）と mobile-apps（RevenueCat の MRR と ASC の proceeds）の `run_source` を足し、`no_source_adapter` を無くす
 - [ ] P-9 **Capafy の出金**: 出金可能な $14.40 を Claude が出金し、公式画面と入金で確認する
 - [ ] P-11 **他の販売先**（調査 `~/.local/state/life-manager/state/marketplace-research-2026-09-27.md`）: 相性順に PromptBase（SKILL.md に対応、直リンク 0%・マーケット 20%）、x402 + MCP レジストリ（mcp.so・公式 registry、決済手数料 0、登録や審査なし）、Gumroad（10%+$0.50）、Lemon Squeezy（5%+50¢）。出金時の KYC の深さは未確認なので、まず PromptBase に1件出品して実測する。AppSumo・Envato は審査制で除外
 - [ ] P-12 **価格の見直し**: SKU 価格が $0.00 のスキルが多い。売れた6スキルの価格帯（$1.99〜$19.9）を基準に、0円 SKU を有料にするか判断する
+- [ ] P-13 **Telegram の製品レポート**: Capafy の hourly レポート（`capafy_company_receipt.py`）は全体の金額しか出していない。直近30日の net・注文数、直近7日、上位5スキルの収益、売上ゼロのスキル数、サブスク proxy と、アプリごとの RevenueCat（MRR・active・新規 trial と日付）を同じレポートに足す（実装中）
 - [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
