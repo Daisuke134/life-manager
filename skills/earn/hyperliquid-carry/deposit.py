@@ -102,19 +102,18 @@ def _boundary_reason(w3, tx_hash: str, intent: dict) -> str | None:
     payload = data[2:] if data.startswith("0x") else data
     if len(payload) != 8 + 64 + 64:
         return "deposit_boundary_transfer_calldata_mismatch"
+    if any(char not in "0123456789abcdef" for char in payload):
+        return "deposit_boundary_transfer_calldata_mismatch"
     try:
-        bytes.fromhex(payload)
+        calldata = bytes.fromhex(payload)
     except (TypeError, ValueError):
         return "deposit_boundary_transfer_calldata_mismatch"
-    if payload[:8] != TRANSFER_SELECTOR:
+    if len(calldata) != 68 or calldata[:4].hex() != TRANSFER_SELECTOR:
         return "deposit_boundary_transfer_calldata_mismatch"
-    target = "0x" + payload[8:72][-40:]
+    target = "0x" + calldata[4:36][-20:].hex()
     if target.lower() != str(intent.get("bridge", "")).lower():
         return "deposit_boundary_bridge_mismatch"
-    try:
-        raw_amount = int(payload[72:136], 16)
-    except (TypeError, ValueError):
-        return "deposit_boundary_transfer_calldata_mismatch"
+    raw_amount = int.from_bytes(calldata[36:68], "big")
     if raw_amount != int(intent.get("raw_amount", -1)):
         return "deposit_boundary_amount_mismatch"
     return None

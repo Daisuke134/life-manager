@@ -810,6 +810,21 @@ class DepositTest(unittest.TestCase):
                 self.assertEqual(result["reason"], "deposit_boundary_transfer_calldata_mismatch")
                 self.assertTrue(deposit.pending_deposits(lg))
 
+    def test_whitespace_in_provider_amount_padding_remains_effect_unknown_and_pending(self):
+        # Replacing two padding nibbles keeps the string length fixed.  The old
+        # parser let fromhex() discard them and int() accept them as leading whitespace.
+        with tempfile.TemporaryDirectory() as d:
+            tx = self._tx()
+            tx["input"] = tx["input"][:74] + "  " + tx["input"][76:]
+            lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
+
+            result = deposit.reconcile_pending(
+                self._provider(tx, type("Receipt", (), {"status": 1})()), lg)
+
+            self.assertEqual(result["result"], "effect_unknown")
+            self.assertEqual(result["reason"], "deposit_boundary_transfer_calldata_mismatch")
+            self.assertTrue(deposit.pending_deposits(lg))
+
     def test_initial_wait_uses_the_same_verified_boundary_before_deposited(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
