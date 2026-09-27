@@ -79,7 +79,8 @@ def _xfer_back(ex, info, address) -> str:
 
 def enter(ex, info, address, pair, leg_usd, lg) -> dict:
     iid = uuid.uuid4().hex
-    lg.append("intent", intent_id=iid, action="enter", perp=pair.perp, spot=pair.spot, leg_usd=leg_usd)
+    lg.append("intent", intent_id=iid, action="enter", perp=pair.perp, spot=pair.spot,
+              spot_token=pair.spot_token, leg_usd=leg_usd)
     coin = pair.spot_token or pair.spot.split("/")[0]
 
     # Size and the min-notional check run before any transfer: a rejected plan
@@ -153,7 +154,8 @@ def enter(ex, info, address, pair, leg_usd, lg) -> dict:
 
 def exit(ex, info, address, pair, lg) -> dict:
     iid = uuid.uuid4().hex
-    lg.append("intent", intent_id=iid, action="exit", perp=pair.perp, spot=pair.spot)
+    lg.append("intent", intent_id=iid, action="exit", perp=pair.perp, spot=pair.spot,
+              spot_token=pair.spot_token)
     coin = pair.spot_token or pair.spot.split("/")[0]
 
     ex.market_close(pair.perp)  # may return None (SDK: no open position) — readback decides, not the response (C3/I3)

@@ -569,5 +569,16 @@ class WakeReviewTest(unittest.TestCase):
             self.assertFalse(any(r["kind"] == "report" for r in lg.rows()))
 
 
+class ExecuteIntentTokenTest(unittest.TestCase):
+    def test_enter_records_at_spot_token_in_intent(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes()
+            zec = policy.Pair(perp="ZEC", spot="@272", spot_vol_usd=200_000,
+                              funding_apr_24h=0.30, spot_token="UZEC")
+            execute.enter(ex, info, "0xabc", zec, 24.0, lg)
+            self.assertEqual(lg.rows()[0]["spot_token"], "UZEC")
+
+
 if __name__ == "__main__":
     unittest.main()
