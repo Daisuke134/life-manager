@@ -108,6 +108,18 @@ class ProductBindingTest(unittest.TestCase):
                 {"i1": {"account_id": "tiktok.one", "product_id": "ebook-ja"}},
             )
 
+    def test_legacy_product_alias_is_the_same_binding(self):
+        # Rows persisted before the product-id rename carry "aniccaios"/"honne";
+        # treating them as conflicts made marketing-owner-events exit 1 every run.
+        bound, report = binding.bind_product_ids(
+            [{"postiz_post_id": "p1", "integration_id": "i1", "product_id": "aniccaios"},
+             {"postiz_post_id": "p2", "integration_id": "i2", "product_id": "honne"}],
+            {"i1": {"account_id": "tiktok.one", "product_id": "anicca-ios"},
+             "i2": {"account_id": "tiktok.two", "product_id": "honne-ai"}},
+        )
+        self.assertEqual([row["product_id"] for row in bound], ["anicca-ios", "honne-ai"])
+        self.assertEqual(report["already_bound"], 2)
+
     def test_same_existing_binding_is_idempotent(self):
         bound, report = binding.bind_product_ids(
             [{
