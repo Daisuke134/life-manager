@@ -40,10 +40,21 @@ PASS_SCHEMA="$SCRIPT_DIR/capafy-loop-pass.schema.json"
 OFFLINE_CADENCE_TOOL="$SCRIPT_DIR/capafy_offline_cadence.py"
 OFFLINE_CADENCE_STATE="$HOME/.local/state/life-manager/state/capafy-offline-build-cadence.json"
 SELFHEAL_REQUEST="$HOME/.local/state/life-manager/state/capafy-loop-selfheal-request.json"
+FENCE_RECONCILE_TOOL="$SCRIPT_DIR/capafy_factory_fence_reconcile.py"
 EXECUTION_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 TERMINAL_RECORDED=0
 mkdir -p "$(dirname "$LOG")"
 echo "=== capafy-loop-daily run $(date '+%F %T %Z') ===" >>"$LOG"
+
+# Durable pre-dispatch snapshot for the fence reconciler (T5-G-4): record every
+# known agent's latest version BEFORE any Capafy-mutating step below runs, so a
+# later effect_unknown fence (this run dies non-zero after touching Capafy) can
+# be diffed precisely instead of guessed from an updated_at window. Best-effort:
+# a write failure here never blocks the pass -- the reconciler falls back.
+if [ -n "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
+  python3 "$FENCE_RECONCILE_TOOL" --occurrence "$LIFE_MANAGER_OCCURRENCE_ID" \
+    --record-snapshot >>"$LOG" 2>&1 || true
+fi
 
 mark_healthy() {
   mkdir -p "$(dirname "$LAST_PASS_MARKER")" "$(dirname "$HEALTHY_MARKER")"
