@@ -5,15 +5,18 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from contextlib import redirect_stderr
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from runtime.host.browser_port_owner import (
+    _port_answers,
     _process_group_exists,
     _terminate_process_group,
     _wait_for_browser,
@@ -443,3 +446,58 @@ def test_malformed_lock_target_is_left_alone(tmp_path):
     (profile / "SingletonLock").symlink_to("not-a-pid-suffix")
     module._clear_stale_singleton_lock(profile)
     assert (profile / "SingletonLock").is_symlink()
+
+
+# --- 2026-09-27 production incident: 127.0.0.1:9222 is answered by an unrelated
+# process (404) while the daily-driver Chromium's CDP only binds ::1. The owner's
+# health probe hardcoded 127.0.0.1, always saw the unrelated 404, and killed a
+# perfectly healthy browser every ~90s (KeepAlive then relaunched it, UUID churn).
+
+class _FixedResponseHandler(BaseHTTPRequestHandler):
+    status_code = 200
+    body = b"{}"
+
+    def do_GET(self):  # noqa: N802 (stdlib override)
+        self.send_response(self.status_code)
+        self.send_header("Content-Length", str(len(self.body)))
+        self.end_headers()
+        self.wfile.write(self.body)
+
+    def log_message(self, *_args):
+        pass
+
+
+def _serve(address, family, port, status_code, body):
+    handler = type("Handler", (_FixedResponseHandler,), {"status_code": status_code, "body": body})
+    server = HTTPServer.__new__(HTTPServer)
+    server.address_family = family
+    HTTPServer.__init__(server, (address, port), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
+
+
+def test_port_answers_reaches_ipv6_only_cdp_even_when_ipv4_is_occupied():
+    """Reproduces the 2026-09-27 daily-driver crash loop with real sockets.
+
+    An unrelated process squats 127.0.0.1:<port> and 404s (exactly what was
+    observed on the Mac mini). The real CDP server only binds ::1 on the same
+    numeric port. _port_answers must still report healthy, the way
+    browser-guard.sh's `http://localhost:<port>` probe already does -- a
+    probe hardcoded to 127.0.0.1 sees only the unrelated 404 and reports
+    unhealthy, which is the bug.
+    """
+    port = _free_port()
+    rogue, rogue_thread = _serve("127.0.0.1", socket.AF_INET, port, 404, b"not found")
+    real, real_thread = _serve("::1", socket.AF_INET6, port, 200, json.dumps({
+        "webSocketDebuggerUrl": "ws://[::1]/devtools/browser/fake",
+    }).encode())
+    try:
+        assert _port_answers(port) is True
+    finally:
+        rogue.shutdown()
+        real.shutdown()
+        rogue_thread.join(timeout=2)
+        real_thread.join(timeout=2)
+        rogue.server_close()
+        real.server_close()
