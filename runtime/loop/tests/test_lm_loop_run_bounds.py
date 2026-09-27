@@ -17,13 +17,15 @@ from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop import PRE_EFFECT_ADMISSION_BLOCKERS
 from runtime.loop.lm_loop_run import (
     ADMISSION_CONTROL_RETRY_DELAY_SECONDS,
+    ENTRYPOINT_STDERR_TAIL_MAX_BYTES,
     EFFECT_RESULT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_ENTRYPOINTS,
     PRE_EFFECT_HINT_LOOP_IDS,
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
-    _heartbeat_loop, _run_admitted, _run_entrypoint, _runtime_limit,
+    _heartbeat_loop, _run_admitted, _run_entrypoint,
+    _run_entrypoint_with_stderr_capture, _runtime_limit,
     _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
     build_loop_command,
@@ -844,6 +846,95 @@ def test_entrypoint_completes_handoff_before_effect_gate(tmp_path):
     assert result == 0
 
 
+def test_entrypoint_stderr_capture_is_captured_and_still_passes_through(tmp_path, capfd):
+    child = (
+        "import sys; "
+        "sys.stderr.write('boom: precondition missing\\n'); "
+        "sys.exit(1)"
+    )
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    result, tail = _run_entrypoint_with_stderr_capture(
+        [sys.executable, "-c", child], scratch, timeout_seconds=5,
+    )
+
+    assert result == 1
+    assert tail.strip() == b"boom: precondition missing"
+    # Passthrough is preserved: the child's stderr still reaches this
+    # process's real stderr, exactly like before capture existed.
+    captured = capfd.readouterr()
+    assert "boom: precondition missing" in captured.err
+    # The capture file is a private, cleaned-up implementation detail, not a
+    # durable artifact -- nothing is left behind in the run's scratch dir.
+    assert list(scratch.iterdir()) == []
+
+
+def test_entrypoint_stderr_capture_is_bounded_to_its_last_bytes(tmp_path):
+    child = (
+        "import sys; "
+        "sys.stderr.write('a' * 6000); "
+        "sys.exit(1)"
+    )
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    result, tail = _run_entrypoint_with_stderr_capture(
+        [sys.executable, "-c", child], scratch, timeout_seconds=5,
+    )
+
+    assert result == 1
+    assert len(tail) == ENTRYPOINT_STDERR_TAIL_MAX_BYTES
+    assert tail == b"a" * len(tail)
+
+
+def test_entrypoint_without_stderr_capture_is_unaffected(capfd):
+    child = "import sys; sys.stderr.write('untouched\\n'); sys.exit(1)"
+
+    result = _run_entrypoint([sys.executable, "-c", child], timeout_seconds=5)
+
+    assert result == 1
+    captured = capfd.readouterr()
+    assert "untouched" in captured.err
+
+
+def test_detached_grandchild_stderr_write_after_run_returns_does_not_epipe(tmp_path):
+    # The entrypoint forks a grandchild, detaches it (start_new_session),
+    # and exits immediately -- the grandchild keeps the (now stale, unlinked)
+    # capture file's fd open and writes to it well after
+    # _run_entrypoint_with_stderr_capture has already returned, read the
+    # file back, and deleted it. A pipe would make that write raise
+    # EPIPE/SIGPIPE once this process closed its read end; a regular file
+    # has no such failure mode.
+    marker = tmp_path / "grandchild-ok"
+    grandchild = (
+        "import sys, time; "
+        "time.sleep(0.3); "
+        "sys.stderr.write('grandchild output'); "
+        "sys.stderr.flush(); "
+        f"open({str(marker)!r}, 'w').write('ok')"
+    )
+    child = (
+        "import subprocess, sys; "
+        f"subprocess.Popen([{sys.executable!r}, '-c', {grandchild!r}], "
+        "start_new_session=True); "
+        "sys.exit(1)"
+    )
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+
+    result, _tail = _run_entrypoint_with_stderr_capture(
+        [sys.executable, "-c", child], scratch, timeout_seconds=5,
+    )
+
+    assert result == 1
+    assert not (scratch / "entrypoint-stderr.log").exists()
+    deadline = time.monotonic() + 5
+    while not marker.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert marker.read_text() == "ok"
+
+
 def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "runtime_timeout_seconds": 123}
@@ -892,7 +983,13 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         else:
             protocol.assert_called_once_with()
         acquire.assert_not_called()
-        run.assert_called_once_with(["/bin/true"], env={}, timeout_seconds=900)
+        run.assert_called_once()
+        call_args, call_kwargs = run.call_args
+        assert call_args == (["/bin/true"],)
+        assert call_kwargs["env"] == {}
+        assert call_kwargs["timeout_seconds"] == 900
+        # The capture wrapper hands _run_entrypoint a real fd, not a pipe.
+        assert isinstance(call_kwargs["stderr_capture_fd"], int)
         assert json.loads(receipt.read_text()) == {
             "effect": 0,
             "reason": "control_plane_exempt",
@@ -1366,7 +1463,7 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     events = []
 
     def run_admitted(_command, _entry, loop_id, _env, receipt, *,
-                     occurrence_id, on_claimed):
+                     occurrence_id, on_claimed, on_stderr_tail=lambda _tail: None):
         on_claimed(occurrence_id)
         receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
         receipt.chmod(0o600)

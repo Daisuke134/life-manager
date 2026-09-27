@@ -196,7 +196,8 @@ class LoopCleanupTest(unittest.TestCase):
             home.mkdir()
             observed = {}
 
-            def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id, on_claimed):
+            def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id,
+                                on_claimed, on_stderr_tail=lambda _tail: None):
                 observed.update(env)
                 observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
                 on_claimed(occurrence_id)

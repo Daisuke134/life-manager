@@ -255,6 +255,77 @@ class RuntimeEventTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "effect_identity_status"):
             build_runtime_event(**common, effect_identity_status="bogus")
 
+    def test_error_detail_is_optional_and_carried_when_provided(self):
+        common = dict(
+            loop_id="mobile-publisher", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1,
+        )
+        event_without_detail = build_runtime_event(**common)
+        self.assertNotIn("error_detail", event_without_detail)
+
+        event_with_detail = build_runtime_event(
+            **common, error_detail="Error: LM_DATA_DIR is required\n")
+        self.assertEqual(
+            event_with_detail["error_detail"], "Error: LM_DATA_DIR is required")
+        self.assertEqual(validate_runtime_event(event_with_detail), event_with_detail)
+
+    def test_error_detail_redacts_secret_like_substrings(self):
+        # Built by concatenation so secret scanners do not flag this fixture.
+        FAKE_KEY = "sk-" + "abcdefghijklmnop" + "1234"
+        event = build_runtime_event(
+            loop_id="mobile-publisher", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1, error_detail="failed calling api_key: " + FAKE_KEY,
+        )
+        self.assertNotIn(FAKE_KEY, event["error_detail"])
+        self.assertIn("[redacted]", event["error_detail"])
+        # validate_runtime_event also fails closed on any residual secret
+        # pattern across the whole serialized event, so a correctly redacted
+        # event must still pass it.
+        self.assertEqual(validate_runtime_event(event), event)
+
+    def test_error_detail_is_bounded_and_blank_after_redaction_is_omitted(self):
+        oversized = "x" * 10_000
+        event = build_runtime_event(
+            loop_id="mobile-publisher", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1, error_detail=oversized,
+        )
+        self.assertLessEqual(
+            len(event["error_detail"]), runtime_event.MAX_ERROR_DETAIL_CHARS)
+
+        blank_event = build_runtime_event(
+            loop_id="mobile-publisher", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1, error_detail="   \n  ",
+        )
+        self.assertNotIn("error_detail", blank_event)
+
+    def test_error_detail_only_on_failure_is_a_caller_choice_not_enforced(self):
+        # build_runtime_event carries whatever the caller passes; lm_loop_run
+        # only ever passes error_detail for a non-zero exit (see main()), but
+        # the envelope itself just validates shape/bounds.
+        event = build_runtime_event(
+            loop_id="mobile-publisher", domain="growth", run_id="run-1",
+            release_sha="b" * 40, provider="deterministic", profile_alias=None,
+            effect_class="publish", succeeded=True, blocker=None,
+            error_detail="stray output",
+        )
+        self.assertEqual(event["error_detail"], "stray output")
+
+    def test_redact_secrets_replaces_matches_and_preserves_other_text(self):
+        text = "before Bearer abcDEF123456~+/- after"
+        redacted = runtime_event.redact_secrets(text)
+        self.assertNotIn("Bearer abcDEF123456~+/-", redacted)
+        self.assertIn("before", redacted)
+        self.assertIn("after", redacted)
+        self.assertEqual(runtime_event.redact_secrets("no secrets here"), "no secrets here")
+
 
 if __name__ == "__main__":
     unittest.main()
