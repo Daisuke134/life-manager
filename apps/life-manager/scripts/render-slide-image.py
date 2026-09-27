@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
-"""Render one Larry/native-carousel slide as a JPEG.
+"""Compose one Larry/native-carousel slide: a photorealistic background
+(already fetched/cached by marketing-slide-background-image.js -- this
+script does no network calls and needs no API key) plus big bold outlined
+title text, upper/middle third, max 2 lines.
 
 Native-tool choice (ponytail rung 5): Pillow is already an installed
-dependency on this host and, unlike this machine's ImageMagick build, its
-freetype support actually rasterizes CJK glyphs from system .ttc fonts --
-verified by hand before wiring this in (blank/tofu boxes would silently
-defeat the "no blank slides" gate check).
+dependency and, unlike this machine's ImageMagick build, its freetype
+support actually rasterizes CJK glyphs from system .ttc fonts -- verified by
+hand before wiring this in.
 
-usage: render-slide-image.py <out_file> <width> <height> <text>
-Reads background/foreground/font/pointsize from env so the caller (Node)
-never has to shell-escape a text argument through extra flags.
+usage: render-slide-image.py <bg_file> <out_file> <width> <height> <text>
+Prints exactly one JSON line to stdout on success:
+  {"luminance_std": 41.2, "text_contrast_ok": true}
+so the Node-side gate can verify text legibility without re-decoding the
+JPEG itself.
 """
+import json
 import os
 import sys
-import textwrap
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-FALLBACK_FONTS = [
-    "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
-    "/System/Library/Fonts/Helvetica.ttc",
-]
+BOLD_FONT = "/System/Library/Fonts/ヒラギノ角ゴシック W8.ttc"
+FALLBACK_FONTS = [BOLD_FONT, "/System/Library/Fonts/Helvetica.ttc"]
+MIN_POINT_SIZE_AT_1080 = 72
+MAX_LINES = 2
+# Text band: upper/middle third of the slide.
+BAND_TOP_FRACTION = 0.12
+BAND_BOTTOM_FRACTION = 0.55
 
 
 def load_font(point_size):
-    candidates = [os.environ.get("SLIDE_FONT_PATH", "")] + FALLBACK_FONTS
-    for path in candidates:
-        if path and os.path.isfile(path):
+    for path in FALLBACK_FONTS:
+        if os.path.isfile(path):
             try:
                 return ImageFont.truetype(path, point_size)
             except OSError:
@@ -34,12 +41,11 @@ def load_font(point_size):
     return ImageFont.load_default()
 
 
-def wrap_text(draw, text, font, max_width):
+def wrap_to_lines(draw, text, font, max_width, max_lines):
+    """Greedy char-wrap (correct for CJK, degrades gracefully for Latin)."""
+    paragraphs = [p for p in text.split("\n") if p != ""] or [text]
     lines = []
-    for paragraph in text.split("\n"):
-        if not paragraph:
-            lines.append("")
-            continue
+    for paragraph in paragraphs:
         current = ""
         for ch in paragraph:
             trial = current + ch
@@ -49,34 +55,101 @@ def wrap_text(draw, text, font, max_width):
                 current = ch
             else:
                 current = trial
-        lines.append(current)
-    return lines
+        if current:
+            lines.append(current)
+    if len(lines) <= max_lines:
+        return lines
+    # Too long for max_lines at this size -- caller shrinks font and retries.
+    return None
+
+
+def fit_text(draw, text, width, max_lines, min_point_size):
+    max_text_width = int(width * 0.86)
+    point_size = int(min_point_size * (width / 1080))
+    lines = None
+    font = load_font(point_size)
+    for _ in range(30):
+        font = load_font(point_size)
+        lines = wrap_to_lines(draw, text, font, max_text_width, max_lines)
+        if lines is not None:
+            break
+        point_size = max(int(min_point_size * (width / 1080) * 0.6), int(point_size * 0.9))
+        if point_size < 24:
+            lines = wrap_to_lines(draw, text, load_font(point_size), max_text_width, 99) or [text]
+            break
+    return lines, font
+
+
+def draw_scrim(image, top, bottom):
+    """Dark gradient band behind the text so it reads on any background."""
+    width, height = image.size
+    scrim = Image.new("L", (1, height), 0)
+    for y in range(height):
+        if top <= y <= bottom:
+            mid = (top + bottom) / 2
+            dist = abs(y - mid) / max((bottom - top) / 2, 1)
+            alpha = int(150 * max(0, 1 - dist ** 1.5))
+        else:
+            alpha = 0
+        scrim.putpixel((0, y), alpha)
+    scrim = scrim.resize((width, height))
+    overlay = Image.new("RGBA", image.size, (10, 10, 15, 0))
+    overlay.putalpha(scrim)
+    image.alpha_composite(overlay)
+
+
+def luminance(rgb):
+    r, g, b = rgb[:3]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def measure_contrast(image, box):
+    region = np.asarray(image.crop(box).convert("RGB"), dtype=np.float64)
+    if region.size == 0:
+        return 0.0, False
+    luminances = 0.2126 * region[..., 0] + 0.7152 * region[..., 1] + 0.0722 * region[..., 2]
+    std = float(luminances.std())
+    bright = float((luminances > 200).mean())
+    dark = float((luminances < 90).mean())
+    # A legible white-fill/dark-outline title on any photo produces both a
+    # meaningful bright cluster (the glyph fill) and a dark cluster (the
+    # outline/scrim) with real separation -- a flat/blank slide never does.
+    ok = std > 35 and bright > 0.03 and dark > 0.10
+    return std, ok
 
 
 def main():
-    out_file, width, height, text = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-    background = os.environ.get("SLIDE_BACKGROUND", "#141b2d")
-    foreground = os.environ.get("SLIDE_FOREGROUND", "#f5f5f0")
-    point_size = int(os.environ.get("SLIDE_POINT_SIZE", "56"))
+    bg_file, out_file, width, height, text = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
 
-    image = Image.new("RGB", (width, height), background)
-    draw = ImageDraw.Draw(image)
-    font = load_font(point_size)
-    margin = int(width * 0.12)
-    max_text_width = width - 2 * margin
-    lines = wrap_text(draw, text, font, max_text_width)
-    line_heights = [draw.textbbox((0, 0), line or " ", font=font)[3] for line in lines]
-    line_gap = int(point_size * 0.35)
-    total_height = sum(line_heights) + line_gap * (len(lines) - 1 if lines else 0)
-    y = (height - total_height) / 2
-    for line, line_height in zip(lines, line_heights):
-        box = draw.textbbox((0, 0), line, font=font)
+    background = Image.open(bg_file).convert("RGB").resize((width, height), Image.LANCZOS)
+    canvas = background.convert("RGBA")
+
+    band_top = int(height * BAND_TOP_FRACTION)
+    band_bottom = int(height * BAND_BOTTOM_FRACTION)
+    draw_scrim(canvas, band_top, band_bottom)
+
+    draw = ImageDraw.Draw(canvas)
+    lines, font = fit_text(draw, text, width, MAX_LINES, MIN_POINT_SIZE_AT_1080)
+
+    line_boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
+    line_heights = [box[3] - box[1] for box in line_boxes]
+    line_gap = int(font.size * 0.3)
+    total_height = sum(line_heights) + line_gap * (len(lines) - 1)
+    y = band_top + max(0, ((band_bottom - band_top) - total_height) // 2)
+    stroke_width = max(3, font.size // 14)
+
+    text_top, text_bottom = y, y
+    for line, box, line_height in zip(lines, line_boxes, line_heights):
         line_width = box[2] - box[0]
         x = (width - line_width) / 2
-        draw.text((x, y), line, font=font, fill=foreground)
+        draw.text((x, y), line, font=font, fill="white", stroke_width=stroke_width, stroke_fill=(10, 10, 15, 255))
+        text_bottom = y + line_height
         y += line_height + line_gap
 
-    image.save(out_file, format="JPEG", quality=92)
+    luminance_std, contrast_ok = measure_contrast(canvas, (0, text_top - 10, width, text_bottom + 10))
+
+    canvas.convert("RGB").save(out_file, format="JPEG", quality=92)
+    print(json.dumps({"luminance_std": round(luminance_std, 2), "text_contrast_ok": contrast_ok}))
 
 
 if __name__ == "__main__":

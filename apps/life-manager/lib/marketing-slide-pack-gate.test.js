@@ -28,11 +28,37 @@ function goodPack() {
 
 const GOOD_CAPTION = "メンタルが勝手に安定する口癖５選\n\nアプリはこちら → https://apps.apple.com/app/id6755129214";
 
-test("runAutomatedGate approves a well-formed pack + caption", () => {
-  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, platform: "instagram" });
+function goodImageChecks() {
+  return Array.from({ length: SLIDE_COUNT }, () => ({ present: true, contrastOk: true }));
+}
+
+test("runAutomatedGate approves a well-formed pack + caption + images", () => {
+  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, imageChecks: goodImageChecks(), totalCostUsd: 0.2, platform: "instagram" });
   assert.equal(result.passed, true);
   assert.ok(result.score >= 60);
   assert.deepEqual(result.reasons, []);
+});
+
+test("runAutomatedGate rejects a missing slide image", () => {
+  const checks = goodImageChecks();
+  checks[2] = { present: false, contrastOk: false };
+  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, imageChecks: checks });
+  assert.equal(result.passed, false);
+  assert.ok(result.reasons.some((r) => r.includes("slide 3 image is missing")));
+});
+
+test("runAutomatedGate rejects a slide whose text does not contrast against its background", () => {
+  const checks = goodImageChecks();
+  checks[4] = { present: true, contrastOk: false };
+  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, imageChecks: checks });
+  assert.equal(result.passed, false);
+  assert.ok(result.reasons.some((r) => r.includes("slide 5 text does not have enough contrast")));
+});
+
+test("runAutomatedGate rejects a pack whose image generation cost exceeds the cap", () => {
+  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, imageChecks: goodImageChecks(), totalCostUsd: 0.35, maxCostUsd: 0.30 });
+  assert.equal(result.passed, false);
+  assert.ok(result.reasons.some((r) => r.includes("exceeds the $0.3 cap")));
 });
 
 test("runAutomatedGate rejects the wrong slide count", () => {
@@ -47,20 +73,20 @@ test("runAutomatedGate rejects the wrong slide count", () => {
 test("runAutomatedGate rejects a blank slide", () => {
   const pack = goodPack();
   pack.slides[2].text = "   ";
-  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION });
+  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION, imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("slide 3 text is blank")));
 });
 
 test("runAutomatedGate rejects a caption missing the App Store CTA", () => {
-  const result = runAutomatedGate({ pack: goodPack(), caption: "メンタルが勝手に安定する口癖５選" });
+  const result = runAutomatedGate({ pack: goodPack(), caption: "メンタルが勝手に安定する口癖５選", imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("App Store CTA")));
 });
 
 test("runAutomatedGate rejects a caption over the platform limit", () => {
   const longCaption = `${"a".repeat(2300)}\nアプリはこちら → https://apps.apple.com/app/id6755129214`;
-  const result = runAutomatedGate({ pack: goodPack(), caption: longCaption, platform: "instagram" });
+  const result = runAutomatedGate({ pack: goodPack(), caption: longCaption, imageChecks: goodImageChecks(), platform: "instagram" });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("exceeds")));
 });
@@ -68,14 +94,14 @@ test("runAutomatedGate rejects a caption over the platform limit", () => {
 test("runAutomatedGate rejects a banned claim in a slide", () => {
   const pack = goodPack();
   pack.slides[1].text = "このアプリでうつ病が治る";
-  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION });
+  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION, imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("banned phrase")));
 });
 
 test("runAutomatedGate rejects a banned claim in the caption", () => {
   const caption = `${GOOD_CAPTION}\n必ず痩せる`;
-  const result = runAutomatedGate({ pack: goodPack(), caption });
+  const result = runAutomatedGate({ pack: goodPack(), caption, imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("banned phrase")));
 });
@@ -85,7 +111,7 @@ test("runAutomatedGate rejects heavily duplicated slide text (rubric score falls
   pack.slides[2].text = pack.slides[1].text;
   pack.slides[3].text = pack.slides[1].text;
   pack.slides[4].text = pack.slides[1].text;
-  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION });
+  const result = runAutomatedGate({ pack, caption: GOOD_CAPTION, imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("rubric score")));
 });
@@ -99,7 +125,7 @@ test("runAutomatedGate rejects a slide image smaller than 1080x1350", () => {
     0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x04, 0x00, 0x04, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9,
   ]);
   fs.writeFileSync(file, bytes);
-  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, mediaFiles: [file] });
+  const result = runAutomatedGate({ pack: goodPack(), caption: GOOD_CAPTION, mediaFiles: [file], imageChecks: goodImageChecks() });
   assert.equal(result.passed, false);
   assert.ok(result.reasons.some((r) => r.includes("smaller than 1080x1350")));
 });

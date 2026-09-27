@@ -26,7 +26,7 @@ async function runAniccaLarryJaRotatingCanary(argv = [], deps = {}) {
   const resolve = deps.resolveLarryJaSlot || resolveLarryJaSlot;
   const run = deps.runAniccaCarouselCanary || runAniccaCarouselCanary;
 
-  const { slot, selected } = resolve({ env, now });
+  const { slot, selected } = await resolve({ env, now });
   const rotatedEnv = {
     ...env,
     LM_ANICCA_LARRY_JA_PACK_REF: selected.packRef,

@@ -69,7 +69,7 @@ function readCreativeMetricsForFamilies(dataDir, candidates) {
     .map((row) => ({ familyId: familyByPackRef.get(`object://sha256/${row.hook_id}`), score: row.score }));
 }
 
-function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot } = {}) {
+async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground } = {}) {
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
@@ -77,14 +77,16 @@ function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOStr
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
   const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", JA_LANE.productId, ".workspace");
+  const imageCacheDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", JA_LANE.productId, "image-cache");
   const pool = poolPath(dataDir, tenantId, JA_LANE.productId, JA_LANE.lane);
   let candidates = readPool(pool);
 
   if (candidates.length < MIN_POOL_SIZE) {
     const rejected = [];
-    const generated = generateSlidePackCandidates({
+    const generated = await generateSlidePackCandidates({
       objectStore,
       workspaceDir,
+      imageCacheDir,
       tenantId,
       productId: JA_LANE.productId,
       locale: JA_LANE.locale,
@@ -94,6 +96,8 @@ function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOStr
       rendererId: JA_LANE.renderer,
       packFormat: JA_LANE.packFormat,
       form: JA_LANE.form,
+      geminiApiKey: resolveBackground ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
+      ...(resolveBackground ? { resolveBackground } : {}),
       now,
       onRejected: (info) => rejected.push(info),
     });
@@ -116,8 +120,7 @@ function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOStr
 }
 
 if (require.main === module) {
-  try {
-    const { slot, selected } = resolveLarryJaSlot({ slot: process.argv[2] || null });
+  resolveLarryJaSlot({ slot: process.argv[2] || null }).then(({ slot, selected }) => {
     process.stdout.write([
       `export LM_ANICCA_LARRY_JA_PACK_REF='${selected.packRef}'`,
       `export LM_ANICCA_LARRY_JA_MEDIA_REFS='${JSON.stringify(selected.mediaRefs)}'`,
@@ -126,10 +129,10 @@ if (require.main === module) {
       `export LM_ANICCA_LARRY_JA_SLOT='${slot}'`,
       "",
     ].join("\n"));
-  } catch (error) {
+  }).catch((error) => {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;
-  }
+  });
 }
 
 module.exports = { MIN_DAYS_BETWEEN_REPEAT, MIN_POOL_SIZE, poolPath, readPool, readPostedHistory, resolveLarryJaSlot };

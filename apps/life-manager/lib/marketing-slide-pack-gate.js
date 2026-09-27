@@ -17,6 +17,7 @@ const MAX_SLIDE_TEXT_LENGTH = 120;
 const RUBRIC_THRESHOLD = 60;
 const MIN_SLIDE_WIDTH = 1080;
 const MIN_SLIDE_HEIGHT = 1350;
+const DEFAULT_MAX_COST_USD = 0.30;
 
 // Claims that go beyond skills/earn/marketing-engine/registry/products/*.json
 // approved_claims -- absolute medical/financial/guarantee language a
@@ -62,8 +63,15 @@ function hasAppStoreCta(captionText) {
 
 // pack: { slide_count, slides: [{ position, role, text, media_ref }] }
 // caption: plain caption text (post-CTA)
-// mediaFiles: local file paths for each slide image, in slide order (optional)
-function runAutomatedGate({ pack, caption, mediaFiles = [], platform = "instagram", scoreFn = rubricScore } = {}) {
+// mediaFiles: local file paths for each slide image, in slide order (optional; JPEG dimension check)
+// imageChecks: [{ present, contrastOk }] in slide order (optional; from render-slide-image.py's
+//   luminance_std/text_contrast_ok -- catches a flat/blank background or unreadable text overlay
+//   that a pure JPEG-dimension check would miss)
+// totalCostUsd/maxCostUsd: enforces the per-pack image-generation cost cap
+function runAutomatedGate({
+  pack, caption, mediaFiles = [], imageChecks = [], totalCostUsd = 0, maxCostUsd = DEFAULT_MAX_COST_USD,
+  platform = "instagram", scoreFn = rubricScore,
+} = {}) {
   const reasons = [];
   const validShape = pack && pack.slide_count === SLIDE_COUNT && Array.isArray(pack.slides) && pack.slides.length === SLIDE_COUNT;
   if (!validShape) {
@@ -88,6 +96,18 @@ function runAutomatedGate({ pack, caption, mediaFiles = [], platform = "instagra
       reasons.push(error.message);
     }
   });
+
+  if (validShape && imageChecks.length !== pack.slides.length) {
+    reasons.push(`slide pack must have an image check for all ${SLIDE_COUNT} slides`);
+  }
+  imageChecks.forEach((check, index) => {
+    if (!check || !check.present) reasons.push(`slide ${index + 1} image is missing`);
+    else if (!check.contrastOk) reasons.push(`slide ${index + 1} text does not have enough contrast against its background`);
+  });
+
+  if (Number(totalCostUsd) > Number(maxCostUsd)) {
+    reasons.push(`slide pack image generation cost $${totalCostUsd} exceeds the $${maxCostUsd} cap`);
+  }
 
   const score = validShape ? scoreFn(pack) : 0;
   if (score < RUBRIC_THRESHOLD) reasons.push(`rubric score ${score} is below threshold ${RUBRIC_THRESHOLD}`);
