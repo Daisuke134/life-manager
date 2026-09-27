@@ -580,5 +580,33 @@ class ExecuteIntentTokenTest(unittest.TestCase):
             self.assertEqual(lg.rows()[0]["spot_token"], "UZEC")
 
 
+import deposit
+
+
+class DepositTest(unittest.TestCase):
+    def test_plan_waits_below_usdc_minimum(self):
+        self.assertEqual(deposit.plan(4.9, 0.001)["action"], "wait")
+
+    def test_plan_waits_without_arbitrum_gas(self):
+        self.assertEqual(deposit.plan(50.0, 0.0)["action"], "wait")
+
+    def test_plan_deposits_available_usdc_when_funded(self):
+        d = deposit.plan(50.0, 0.001)
+        self.assertEqual((d["action"], d["amount"]), ("deposit", 50.0))
+
+    def test_plan_accepts_exact_bridge_and_gas_minima(self):
+        self.assertEqual(deposit.plan(5.0, 0.00005)["action"], "deposit")
+
+    def test_bridge_address_is_set(self):
+        self.assertEqual(deposit.BRIDGE2.lower(), "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7")
+
+    def test_live_gate_requires_explicit_one(self):
+        decision = {"action": "deposit"}
+        self.assertFalse(deposit.may_send(decision, None))
+        self.assertFalse(deposit.may_send(decision, "true"))
+        self.assertTrue(deposit.may_send(decision, "1"))
+        self.assertFalse(deposit.may_send({"action": "wait"}, "1"))
+
+
 if __name__ == "__main__":
     unittest.main()
