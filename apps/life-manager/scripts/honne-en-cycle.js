@@ -45,7 +45,7 @@ function parseArgs(argv) {
 
 function runSlot(slot, nowMs) {
   const value = slot || marketingVideoDueSlot(nowMs, "Asia/Tokyo", HONNE_EN_SLOTS);
-  if (!value) throw new Error("honne EN cycle has no due slot yet");
+  if (!value) throw Object.assign(new Error("honne EN cycle has no due slot yet"), { code: "NO_DUE_SLOT" });
   const slotMs = Date.parse(String(value));
   if (!Number.isFinite(slotMs) || new Date(slotMs).toISOString() !== value) throw new Error("honne EN cycle run timestamp is invalid");
   return value;
@@ -127,6 +127,6 @@ async function runHonneEnCycle(argv, deps = {}) {
   return { slot, generation: { job_id: generationJob.job_id, created: generation.created, creative_id: generation.receipt.creative_id }, publication: result.publication, telegram: result.telegram };
 }
 
-if (require.main === module) runHonneEnCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+if (require.main === module) runHonneEnCycle(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 
 module.exports = { campaignCaptionRef, enqueuePublication, parseArgs, runHonneEnCycle, runSlot };

@@ -40,7 +40,7 @@ async function runAniccaLarryJaRotatingCanary(argv = [], deps = {}) {
 if (require.main === module) {
   runAniccaLarryJaRotatingCanary(process.argv.slice(2))
     .then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
-    .catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
+    .catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 }
 
 module.exports = { runAniccaLarryJaRotatingCanary };
