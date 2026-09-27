@@ -137,7 +137,11 @@ def main(argv: list[str] | None = None) -> int:
         humanize=True,
         args=[
             f"--remote-debugging-port={port}",
-            "--remote-debugging-address=127.0.0.1",
+            # No --remote-debugging-address: Dais's own Google Chrome (remote
+            # debugging enabled) holds 127.0.0.1 on this port, so pinning IPv4
+            # made the owned launch collide and the profile got relaunched
+            # elsewhere without --remote-allow-origins (raw CDP 403). The
+            # default loopback bind is reached via "localhost" by every probe.
             "--remote-allow-origins=*",
             "--disable-features=MacAppCodeSignClone",
             f"--renderer-process-limit={renderer_limit}",
