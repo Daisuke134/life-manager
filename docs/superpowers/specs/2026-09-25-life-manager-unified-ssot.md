@@ -205,6 +205,8 @@ Capafy の追加事実: 出品 40 スキル、有料 28 件・無料トライア
 
 TODO（何を・どう直すか）
 - [ ] P-1 **Capafy の月次売上とスキル別の売上**: `capafy_hourly_reconcile.py` に `GET /agent/sales/trend`（直近30日）と、出品中の各スキルの `GET /agent/agent/{id}/stats`（直近30日）を足す。出力: 月次の gross・返金・net、スキルごとの販売数・売上・評価を `capafy-skill-revenue.json` に保存し、日次で Telegram に要約。MRR はサブスク型スキルの直近30日 net を「観測した月次の継続収益」として出し、解約状況の source が無いことを明記する
+  - [x] P-1a 一回分の完全な分析（2026-09-27、読み取りのみ）: `~/.local/state/life-manager/state/capafy-analytics-2026-09-27.{json,md}`。全期間 gross $86.79・creator earnings $65.16・97 units（trial 69）、直近30日 gross/net $66.81（88 注文）、直近7日 $17.91（9 注文）、残高 confirmed $35.36・payout 可能 $14.40・出金 $0（wire_transfer）。登録 45 エージェント中 **39 が売上ゼロ**。1位 Hook Lab $25.40、2位 Slide Maker $15.20、3位 Marketing Strategist $10.40、4位 Academic Humanizer $8.00、5位 TikTok Script Pro $4.62。サブスク SKU 65、サブスク gross $76.80・単発 $9.99。多くの academic 系スキルの SKU 価格が $0.00。真の MRR（有効/解約数）、閲覧数・購入率を返す API は無い。`/agent/agent/{id}/stats` は確定済み注文だけで、gross はウェブコンソールの ranking が正本。動いた endpoint は md に列挙
+  - [ ] P-1b 上の分析を `capafy_hourly_reconcile.py` に組み込み、`capafy-skill-analytics.json` を毎回更新する（実装中）
 - [x] P-2 **App Store Connect の API key**: key は既にあった（`~/.config/env/global.env` に ASC_ISSUER_ID・ASC_KEY_ID・ASC_KEY_PATH・ASC_PRIVATE_KEY・ASC_VENDOR_NUMBER、RevenueCat の RC_API_KEY・REVENUECAT_PROJECT_ID も）。reader が読む `~/.local/state/life-manager/private/marketing.env` に入っていなかったのが原因。10 個を写した（mode 600、値は出力していない）。2026-09-27 に `marketing-asc-acquisition.js` を実行して rc=0、Anicca（9/23〜9/25）と Honne（9/25）の App Downloads / Discovery レポートが measured。訂正: lm-lead の「key を作る必要がある」は探索不足による誤り
 - [ ] P-3 **`marketing-metrics-daily` の exit 1**: 同じ env で手動実行して stderr を取り、原因を直す。`aniccaios` / `honne` の `ASC report has no instances` は、ASC に報告書が無い日の扱い（0件として記録するか）を直す
 - [ ] P-4 **RevenueCat**: 最新が 09-12 で止まっている。P-3 の後に最新の MRR・active・収益が日次で出ることを確認する（honne / anicca の両アプリ）
@@ -213,6 +215,8 @@ TODO（何を・どう直すか）
 - [ ] P-7 **Stripe**: poller が charge を金額付きで `stripe-charges.jsonl` に保存するようにする（今は watermark と通知だけ）
 - [ ] P-8 **CFO の P&L につなぐ**: `skills/cfo/loop_pnl.py` の `collect()` に capafy（P-1 の月次とスキル別）と mobile-apps（RevenueCat の MRR と ASC の proceeds）の `run_source` を足し、`no_source_adapter` を無くす
 - [ ] P-9 **Capafy の出金**: 出金可能な $14.40 を Claude が出金し、公式画面と入金で確認する
+- [ ] P-11 **他の販売先**（調査 `~/.local/state/life-manager/state/marketplace-research-2026-09-27.md`）: 相性順に PromptBase（SKILL.md に対応、直リンク 0%・マーケット 20%）、x402 + MCP レジストリ（mcp.so・公式 registry、決済手数料 0、登録や審査なし）、Gumroad（10%+$0.50）、Lemon Squeezy（5%+50¢）。出金時の KYC の深さは未確認なので、まず PromptBase に1件出品して実測する。AppSumo・Envato は審査制で除外
+- [ ] P-12 **価格の見直し**: SKU 価格が $0.00 のスキルが多い。売れた6スキルの価格帯（$1.99〜$19.9）を基準に、0円 SKU を有料にするか判断する
 - [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
