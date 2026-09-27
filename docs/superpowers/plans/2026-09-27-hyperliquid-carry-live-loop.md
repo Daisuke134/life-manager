@@ -709,7 +709,7 @@ git commit -m "feat(hl-carry): hedged enter/exit with journal-before-effect"
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`).
+- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair and attempt an exit before considering any new entry; it must not leave the loop permanently blocked.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -740,12 +740,17 @@ class WakeTest(unittest.TestCase):
         self.assertEqual(made, [1])
         self.assertEqual(lg.position(), "PURR")
 
-    def test_open_intent_blocks_new_effects(self):
+    def test_open_intent_reconciles_by_exit(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
-            lg.append("intent", intent_id="x", action="enter", perp="PURR")
-            r = run.wake(fake_post, lambda: (FakeEx(), FakeInfo()), lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
-            self.assertEqual(r["decision"]["action"], "blocked_open_intent")
+            lg.append("intent", intent_id="x", action="enter", perp="PURR", spot="PURR/USDC")
+            made = []
+            def make():
+                made.append(1); return FakeEx(), FakeInfo()
+            r = run.wake(fake_post, make, lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
+            self.assertEqual(r["decision"]["action"], "reconcile_exit")
+            self.assertEqual(made, [1])
+            self.assertIsNotNone(r["receipt"])
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -777,13 +782,26 @@ import policy  # noqa: E402
 
 
 def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
-    if lg.open_intents():
-        return {"decision": {"action": "blocked_open_intent"}}
     eq = market.equity(post, address)
     lg.mark_equity(eq)
     day_start, peak = lg.risk_state(today)
     pairs = market.pairs(post, int(time.time() * 1000))
     pos = lg.position()
+    open_intents = lg.open_intents()
+    if open_intents or lg.needs_unwind():
+        intent = open_intents[-1] if open_intents else {}
+        target = next((p for p in pairs if p.perp == (intent.get("perp") or pos)), None)
+        d = {"action": "reconcile_exit", "pair": target, "leg_usd": 0.0,
+             "reason": "open_intent_or_unhedged"}
+        receipt = None
+        if live and target is not None:
+            ex, info = make_clients()
+            receipt = execute.exit(ex, info, address, target, lg)
+        if not any(r["kind"] == "report" and r.get("day") == today for r in lg.rows()):
+            send(f"Hyperliquid carry {today}: equity ${eq:.2f} (reconcile exit; live={'yes' if live else 'no'}). Address {address}")
+            lg.append("report", day=today)
+        return {"decision": {k: (v.__dict__ if hasattr(v, "__dict__") else v) for k, v in d.items()},
+                "equity": eq, "receipt": receipt}
     d = policy.decide(pairs, pos, eq, day_start, peak, caps)
     receipt = None
     if live and d["action"] in ("enter", "exit", "halt"):
