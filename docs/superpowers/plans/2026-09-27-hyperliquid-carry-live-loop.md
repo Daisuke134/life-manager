@@ -711,7 +711,7 @@ git commit -m "feat(hl-carry): hedged enter/exit with journal-before-effect"
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). The report includes verified account-equity net P&L as `equity - day_start_equity`. An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair, terminalize the full intent chain only after a verified flat exit, and attempt an exit before considering any new entry; it must not leave the loop permanently blocked.
+- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). The report includes verified account-equity net P&L as `equity - day_start_equity`. An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair, terminalize the full intent chain only after a verified flat exit, and attempt an exit before considering any new entry; failed/partial/effect-unknown exits must not resolve their parent intent; it must not leave the loop permanently blocked.
 - Safety data contract: `execute.enter` and `execute.exit` persist `pair.spot_token` in their intent rows. This is required for a recorded fallback exit when the market snapshot no longer contains an `@...` spot pair.
 
 - [ ] **Step 1: Write the failing tests**
@@ -872,7 +872,7 @@ git commit -m "feat(hl-carry): one wake with caps, daily report, live gate"
 - Test: append to `test_hyperliquid_carry.py`
 
 **Interfaces:**
-- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which journals a deposit intent before an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`, records the tx hash immediately, verifies the receipt chain/from/token/Bridge2/amount boundary, and resolves receipt timeouts as `effect_unknown` without resending automatically. A verified failed receipt returns a nonzero status consistently.
+- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which journals a deposit intent before an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`, records the tx hash immediately, verifies the receipt chain/from/token/Bridge2/amount boundary, journals malformed provider data as `effect_unknown`, and resolves receipt timeouts as `effect_unknown` without resending automatically. A verified failed receipt returns a nonzero status consistently.
 
 - [ ] **Step 1: Source facts (verified 2026-09-27)**
 
