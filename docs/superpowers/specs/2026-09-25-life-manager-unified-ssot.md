@@ -199,15 +199,21 @@ As-Is（2026-09-27 11:4x JST 実測、読み取りのみ）
 
 To-Be: 各製品の reader が毎日動き、数字（収益・販売数・残高・出金・ダウンロード・再生数）が CFO の日次 P&L に receipt 付きで入る。その数字で T12 の自己改善が投稿・価格・アプリを選ぶ
 
-TODO
-- [ ] P-1 `ASC_ISSUER_ID` を含む App Store Connect の API key を Life Manager が自分で作成し、credential SSOT に保存する
-- [ ] P-2 `marketing-metrics-daily` の exit 1 を run ごとの stderr を残して特定し、直す
-- [ ] P-3 capacity 待ち / effect_unknown で止まっている reader（instagram-metrics、tiktok-metrics、capafy-outcome-monitor、marketing-owner-events、marketing-metrics、payout）を動かす
-- [ ] P-4 `capafy-ig-marketing-daily` の IG 指標が 08-31 から止まっている原因を直す
-- [ ] P-5 Stripe の charge を金額付きで保存する
-- [ ] P-6 `loop_pnl.py` に mobile-apps（RevenueCat/ASC）と capafy（hourly reconcile）の収益 source を足す
-- [ ] P-7 Capafy の出金（$14.40 出金可能）を Life Manager が自分で行い、公式 readback で確認する
-- [ ] P-8 共通部品化: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、新しいアプリ/スキルを同じ部品で量産する（T8/T9/T12 と一緒に進める）
+方針（2026-09-27 Dais）: まず人（Claude）が全部直して正しく動く状態にする。API key の取得なども Claude が自分で行ってよい。自己修復（④）はその後
+
+Capafy の追加事実: 出品 40 スキル、有料 28 件・無料トライアル 69 件、サブスク収益 $57.16、単発 $9.99、1位は Hook Lab（サブスク、$34.88）。公式 API に `GET /agent/sales/trend`（日別の orders・revenue・refund・netRevenue、最大90日）と `GET /agent/agent/{agentId}/stats`（スキル別の sales・revenue・rating）がある（`skills/capafy-autopublish/vendor/capafy-publisher/api-docs/00_overview.md`）。今の `capafy_hourly_reconcile.py` はこの2つを呼んでいないので、月次売上とスキル別の数字が出ていない
+
+TODO（何を・どう直すか）
+- [ ] P-1 **Capafy の月次売上とスキル別の売上**: `capafy_hourly_reconcile.py` に `GET /agent/sales/trend`（直近30日）と、出品中の各スキルの `GET /agent/agent/{id}/stats`（直近30日）を足す。出力: 月次の gross・返金・net、スキルごとの販売数・売上・評価を `capafy-skill-revenue.json` に保存し、日次で Telegram に要約。MRR はサブスク型スキルの直近30日 net を「観測した月次の継続収益」として出し、解約状況の source が無いことを明記する
+- [ ] P-2 **App Store Connect の API key**: Claude が CloakBrowser で App Store Connect → Users and Access → Integrations → App Store Connect API で key を作り、Issuer ID・Key ID・.p8 を credential SSOT と `~/.local/state/life-manager/private/marketing.env`（`ASC_ISSUER_ID` など reader が読む名前）に保存する。reader を手で1回走らせ、ダウンロード数と proceeds が出ることを確認する
+- [ ] P-3 **`marketing-metrics-daily` の exit 1**: 同じ env で手動実行して stderr を取り、原因を直す。`aniccaios` / `honne` の `ASC report has no instances` は、ASC に報告書が無い日の扱い（0件として記録するか）を直す
+- [ ] P-4 **RevenueCat**: 最新が 09-12 で止まっている。P-3 の後に最新の MRR・active・収益が日次で出ることを確認する（honne / anicca の両アプリ）
+- [ ] P-5 **止まっている reader を動かす**: `life-manager-instagram-metrics`・`marketing-metrics`・`marketing-owner-events`・`life-manager-payout`（capacity 待ち）は revenue の実行枠か優先度を見直す。`life-manager-tiktok-metrics`・`capafy-outcome-monitor`（effect_unknown fence）は公式 readback で fence を閉じ、`lm-fence-reconciler` に adapter を登録する
+- [ ] P-6 **Capafy の IG 指標が 08-31 から止まっている**: `capafy-ig-marketing-daily` の実行記録を読み、`ig_metrics.py` が書かない原因を直す
+- [ ] P-7 **Stripe**: poller が charge を金額付きで `stripe-charges.jsonl` に保存するようにする（今は watermark と通知だけ）
+- [ ] P-8 **CFO の P&L につなぐ**: `skills/cfo/loop_pnl.py` の `collect()` に capafy（P-1 の月次とスキル別）と mobile-apps（RevenueCat の MRR と ASC の proceeds）の `run_source` を足し、`no_source_adapter` を無くす
+- [ ] P-9 **Capafy の出金**: 出金可能な $14.40 を Claude が出金し、公式画面と入金で確認する
+- [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
 7. 失敗中の owner を1つずつ分類し、常駐 daemon の誤分類を除いた本当の失敗を直す
