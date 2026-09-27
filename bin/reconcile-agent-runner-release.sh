@@ -212,10 +212,15 @@ PY
 
   local apply_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS:-1200}"
   local backoff_seconds="${LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS:-1800}"
+  # Write to a file, not $(...): a descendant that inherits a pipe keeps command substitution
+  # waiting after apply itself exits (the first automatic run hit the 1200s timeout while the
+  # same apply to a file finished in 298s). The file is also the evidence for the next failure.
   local apply_output apply_rc=0
-  apply_output="$(LIFE_MANAGER_RELEASE_ROOT="$release_root" "$runtime_python" "$timeout_runner" \
-    --grace-seconds 15 "$apply_timeout_seconds" "$release_root/bin/lm-loop" apply --all 2>&1)" \
-    || apply_rc=$?
+  local output_path="$state_dir/fleet-apply-last-output.log"
+  LIFE_MANAGER_RELEASE_ROOT="$release_root" "$runtime_python" "$timeout_runner" \
+    --grace-seconds 15 "$apply_timeout_seconds" "$release_root/bin/lm-loop" apply --all \
+    >"$output_path" 2>&1 </dev/null || apply_rc=$?
+  apply_output="$(cat "$output_path")"
 
   local status changed=0 skipped=0 errors=0 message=""
   if [ "$apply_rc" -eq 0 ]; then
