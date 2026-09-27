@@ -23,16 +23,44 @@ function tempDataDir() {
 }
 
 function fakeResolveBackground() {
-  return async () => ({ file: path.join(os.tmpdir(), "generate-larry-slide-pack-fixture.png"), costUsd: 0.039, cached: false });
+  return async () => ({ file: path.join(os.tmpdir(), "generate-larry-slide-pack-fixture.png"), costUsd: 0, cached: true });
+}
+
+let copyCounter = 0;
+function fakeGenerateText() {
+  // Realistic-length fake lines (matches real Gemini output length) -- a
+  // too-short fake string is an unrepresentative edge case for the render/
+  // contrast check, not a real production scenario.
+  return async () => {
+    copyCounter += 1;
+    const n = copyCounter;
+    return {
+      text: JSON.stringify({
+        hook: `テストの見出しです${n}\n二行目もあります`,
+        body: [`ひとつめの本文です${n}`, `ふたつめの本文です${n}`, `みっつめの本文です${n}`, `よっつめの本文です${n}`],
+      }),
+      costUsd: 0.0004,
+    };
+  };
 }
 
 function makeFixtureBackgroundOnce() {
   const file = path.join(os.tmpdir(), "generate-larry-slide-pack-fixture.png");
   if (fs.existsSync(file)) return;
   const { spawnSync } = require("node:child_process");
+  // A noisy (non-flat) fixture -- matches marketing-slide-pack-factory.test.js's
+  // fixture -- so the renderer's real contrast check reliably passes
+  // regardless of the (freshly LLM-generated in production, counter-faked
+  // here) text length/content.
   const script = `
 from PIL import Image
-im = Image.new("RGB", (600, 750), (120, 90, 60))
+import random
+random.seed(7)
+im = Image.new("RGB", (600, 750))
+px = im.load()
+for y in range(750):
+    for x in range(600):
+        px[x, y] = ((x * 255) // 600, (y * 255) // 750, random.randint(0, 255))
 im.save("${file}")
 `;
   const result = spawnSync("python3", ["-c", script], { encoding: "utf8" });
@@ -49,7 +77,7 @@ test("resolveLarryJaSlot generates a pool from empty and returns a candidate", {
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir();
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const { slot, selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  const { slot, selected } = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   assert.equal(slot, "2026-09-28T01:30:00.000Z");
   assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
   assert.equal(selected.mediaRefs.length, 6);
@@ -62,10 +90,10 @@ test("resolveLarryJaSlot does not regenerate once the pool already has enough ca
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir();
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   const pool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
   const before = fs.readFileSync(pool, "utf8");
-  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   const after = fs.readFileSync(pool, "utf8");
   assert.equal(before, after, "pool should not grow once above MIN_POOL_SIZE");
 });
@@ -74,19 +102,19 @@ test("resolveLarryJaSlot never repeats a pack posted within MIN_DAYS_BETWEEN_REP
   makeFixtureBackgroundOnce();
   const dataDir = tempDataDir();
   const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
-  const first = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  const first = await resolveLarryJaSlot({ env, now: () => NOW, slot: "2026-09-28T01:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   const firstHash = /object:\/\/sha256\/([0-9a-f]{64})/.exec(first.selected.packRef)[1];
 
   writeDistributionLedger(dataDir, [
     { effect_key: "k1", job_id: "j1", receipt: { kind: "marketing_native_carousel_distribution", status: "published", pack_sha256: firstHash, published_at: NOW } },
   ]);
 
-  const second = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  const second = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   assert.notEqual(second.selected.packRef, first.selected.packRef);
 
   // Same slot retried immediately (idempotency-per-slot support): with the
   // pool/history unchanged, resolution is deterministic.
-  const retry = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground() });
+  const retry = await resolveLarryJaSlot({ env, now: () => "2026-09-28T07:30:00.000Z", slot: "2026-09-28T07:30:00.000Z", resolveBackground: fakeResolveBackground(), generateText: fakeGenerateText() });
   assert.equal(retry.selected.packRef, second.selected.packRef);
 });
 

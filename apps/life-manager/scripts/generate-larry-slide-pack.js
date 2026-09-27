@@ -69,7 +69,7 @@ function readCreativeMetricsForFamilies(dataDir, candidates) {
     .map((row) => ({ familyId: familyByPackRef.get(`object://sha256/${row.hook_id}`), score: row.score }));
 }
 
-async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground } = {}) {
+async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText } = {}) {
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
@@ -96,8 +96,9 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
       rendererId: JA_LANE.renderer,
       packFormat: JA_LANE.packFormat,
       form: JA_LANE.form,
-      geminiApiKey: resolveBackground ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
+      geminiApiKey: generateText ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
       ...(resolveBackground ? { resolveBackground } : {}),
+      ...(generateText ? { generateText } : {}),
       now,
       onRejected: (info) => rejected.push(info),
     });

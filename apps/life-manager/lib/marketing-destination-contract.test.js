@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const {
+  GATE_APPROVED,
   auditMarketingDestinationRegistry,
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
@@ -75,4 +76,18 @@ test("publication identity selects exactly one route and rejects cross-family co
   assert.equal(findMarketingDestinationTarget(contract, { ...input, jobFormatId: "reelclaw-card" }), null);
   assert.equal(findMarketingDestinationTarget(contract, { ...input, mediaForm: "nudge-card" }), null);
   assert.equal(findMarketingDestinationTarget(contract, { ...input, integrationId: "cmp9sdev5012voh0y58qs45xc" }), null);
+});
+
+test("GATE_APPROVED is a valid approved_pack_ref sentinel; any other non-object-ref string still fails closed", () => {
+  const value = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
+  value.targets[0].approved_pack_ref = GATE_APPROVED;
+  assert.doesNotThrow(() => validateMarketingDestinationContract(value));
+  value.targets[0].approved_pack_ref = "not-a-real-sentinel-or-ref";
+  assert.throws(() => validateMarketingDestinationContract(value), /approved_pack_ref/);
+});
+
+test("the JA Larry lane is the gate-approved lane (rotation, not a single pinned pack)", () => {
+  const contract = loadMarketingDestinationContract(CONTRACT);
+  const lane = contract.targets.find((row) => row.lane_id === "anicca-ios-ja-larry-instagram");
+  assert.equal(lane.approved_pack_ref, GATE_APPROVED);
 });

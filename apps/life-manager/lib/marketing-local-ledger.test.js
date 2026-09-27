@@ -199,6 +199,89 @@ test("closed canary fence allows an exact production-armed lane", async () => {
   })).status, "running");
 });
 
+function writeJaLarryLanePolicy(dataDir) {
+  const lane = {
+    account: "anicca-ios-ja-larry-instagram",
+    approved_pack: "anicca-ios-larry-ja-v1.pack.json",
+    canary_state: "canary-verified",
+    disabled: false,
+    disposition: "target",
+    format: "native-photo-carousel",
+    integration_id: "cmq3sq7mc000eqp0y7azfm8yk",
+    lane_state: "production-armed",
+    locale: "ja",
+    owner: "life-manager",
+    platform: "instagram",
+    product_id: "anicca",
+    production_armed: true,
+    profile: "@ani.cca1234",
+    provider: "postiz",
+    renderer: "larry",
+    target_daily_limit: 3,
+    tenant_id: "dais-local",
+    verified: true,
+  };
+  const manifest = createMarketingLaneManifest({
+    tenant_id: "dais-local",
+    integrations: [lane],
+    holds: [{
+      integration_id: "live-x-hold",
+      platform: "x",
+      account: "@aniccaxxx",
+      provider: "postiz",
+      provider_disabled: false,
+      owner: "life-manager",
+      disposition: "hold",
+      target_daily_limit: 0,
+      verified: true,
+    }],
+  }, { tenantId: "dais-local", assignments: [lane] });
+  writeMarketingLaneManifest(manifest, { dataDir });
+}
+
+test("gate-approved JA Larry lane accepts a rotating (previously unseen) pack_ref, using the real production destination contract", async () => {
+  const dataDir = tempDataDir();
+  const marketingDir = path.join(dataDir, "marketing");
+  fs.mkdirSync(marketingDir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(marketingDir, "publication-effect-fence.json"), `${JSON.stringify({
+    schema_version: 1,
+    state: "closed",
+    reason: "production manifest owns cadence",
+  })}\n`, { mode: 0o600 });
+  writeJaLarryLanePolicy(dataDir);
+  // No destinationContract override -- this exercises the real, checked-in
+  // config/marketing-destinations.json, where the JA Larry lane's
+  // approved_pack_ref is "gate-approved" (see marketing-destination-contract.js).
+  const ledger = createMarketingLocalLedger({ dataDir, now: () => "2026-09-28T01:30:00.000Z" });
+  const rotatingJob = job({
+    job_id: "ja-larry-rotating-job",
+    effect_key: "carousel:anicca-ios:ja:instagram:rotating-pack-1",
+    available_at: "2026-09-28T01:30:00.000Z",
+    input_refs: {
+      product_ref: "product://anicca-ios",
+      format_ref: "format://larry",
+      form_ref: "form://affirmation-carousel",
+      locale_ref: "locale://ja",
+      platform_ref: "platform://instagram",
+      account_ref: "account://instagram/@ani.cca1234",
+      instagram_integration_ref: "integration://postiz/instagram/cmq3sq7mc000eqp0y7azfm8yk",
+      // A brand-new pack_ref that was never registered as a single pinned
+      // approved_pack_ref -- this is exactly what the slide-pack factory
+      // produces on every run (fresh text/backgrounds each time).
+      pack_ref: "object://sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    },
+  });
+
+  assert.equal((await ledger.enqueueJob(rotatingJob)).created, true);
+  assert.equal((await ledger.claimJob({
+    tenantId: "dais-local",
+    jobId: "ja-larry-rotating-job",
+    capability: "marketing.video.publish",
+    workerId: "production-worker",
+    leaseSeconds: 30,
+  })).status, "running");
+});
+
 test("an armed integration rejects content from the wrong product format family", async () => {
   const dataDir = tempDataDir();
   const marketingDir = path.join(dataDir, "marketing");
