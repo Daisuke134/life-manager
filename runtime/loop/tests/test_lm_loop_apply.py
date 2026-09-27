@@ -1311,6 +1311,31 @@ class LmLoopApplyTest(unittest.TestCase):
             "calls": calls,
         }
 
+    def test_hourly_or_longer_interval_renders_as_calendar_that_survives_reload(self):
+        # launchd restarts the StartInterval countdown on every bootstrap, and
+        # release applies re-bootstrap owners more often than hourly, so an
+        # hourly StartInterval job never fired (runs = 0). Wall-clock
+        # StartCalendarInterval is not reset by a reload.
+        for seconds, runs_per_day in ((3600, 24), (21600, 4), (86400, 1)):
+            value = registry()
+            value["loops"]["example"]["cadence"] = {"start_interval_seconds": seconds}
+            plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+            self.assertNotIn("StartInterval", plist)
+            calendar = plist["StartCalendarInterval"]
+            self.assertEqual(len(calendar), 1 if runs_per_day == 24 else runs_per_day)
+            minutes = {item["Minute"] for item in calendar}
+            self.assertEqual(len(minutes), 1)
+            self.assertTrue(0 <= minutes.pop() < 60)
+            if runs_per_day < 24:
+                hours = sorted(item["Hour"] for item in calendar)
+                self.assertEqual(hours, sorted({h % 24 for h in range(hours[0], hours[0] + 24, 24 // runs_per_day)}))
+            else:
+                self.assertTrue(all("Hour" not in item for item in calendar))
+        value = registry()
+        value["loops"]["example"]["cadence"] = {"start_interval_seconds": 1800}
+        plist = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        self.assertEqual(plist["StartInterval"], 1800)
+
     def test_rendered_plist_is_deterministic_and_release_exact(self):
         first = build_apply_plan(registry(), self.root, SHA)
         second = build_apply_plan(registry(), self.root, SHA)
