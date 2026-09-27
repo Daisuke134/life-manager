@@ -493,7 +493,7 @@ def build_skill_analytics(
             orders_7d, revenue_7d = _stats_orders_revenue(stats.get("d7", {}))
             per_skill_rows.append({
                 "agent_id": agent_id,
-                "name": row.get("agentTitle"),
+                "name": row.get("name"),
                 "status": row.get("agentStatus"),
                 "runtime": row.get("agentRuntime"),
                 "model": catalog_models.get(agent_id) or row.get("agentRuntime"),
