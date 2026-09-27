@@ -358,18 +358,32 @@ def _earnings_by_agent(payload: dict) -> dict[str, Decimal]:
 
 
 def _stats_orders_revenue(payload: dict) -> tuple[int | None, str | None]:
+    """Parse GET /agent/agent/{agentId}/stats: a flat {sales, revenue, daily} object,
+    NOT a list of daily rows under a nested "data" key."""
     if not _ok(payload):
         return None, None
     data = _data(payload)
-    rows = data.get("data") if isinstance(data, dict) else None
-    if not isinstance(rows, list):
+    if not isinstance(data, dict):
         return None, None
     try:
-        orders = sum(int(row.get("orders", 0) or 0) for row in rows if isinstance(row, dict))
-        revenue = sum(Decimal(str(row.get("revenue", 0) or 0)) for row in rows if isinstance(row, dict))
+        orders = int(data.get("sales", 0) or 0)
+        revenue = Decimal(str(data.get("revenue", 0) or 0))
     except (InvalidOperation, TypeError, ValueError):
         return None, None
     return orders, _money(revenue)
+
+
+def _agent_detail_model(payload: dict) -> str | None:
+    """Read GET /agent/agents/{agentId}'s "model" field (e.g. "Claude Sonnet 4.6").
+
+    The /agent/agents list endpoint used for inventory has no model/runtime field at all;
+    only the per-agent detail endpoint exposes the actual LLM model.
+    """
+    if not _ok(payload):
+        return None
+    data = _data(payload)
+    model = data.get("model") if isinstance(data, dict) else None
+    return model if isinstance(model, str) and model else None
 
 
 def _window_totals(rows: list, start: dt.date, end: dt.date) -> dict[str, Any]:
@@ -420,7 +434,7 @@ def _fetch_agent_stats_windows(
     cap: int = SKILL_STATS_CAP, delay: float = SKILL_STATS_DELAY_SECONDS,
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, dict]:
-    """Bounded, sequential per-agent settled-stats fetch (30d and 7d windows)."""
+    """Bounded, sequential per-agent settled-stats (30d, 7d) and agent-detail fetch."""
     result: dict[str, dict] = {}
     for agent_id in agent_ids[:cap]:
         windows = {}
@@ -428,6 +442,8 @@ def _fetch_agent_stats_windows(
             start = (end - dt.timedelta(days=days)).isoformat()
             windows[label] = _get(f"/agent/agent/{agent_id}/stats?startDate={start}&endDate={end.isoformat()}", token)
             sleep(delay)
+        windows["detail"] = _get(f"/agent/agents/{agent_id}", token)
+        sleep(delay)
         result[agent_id] = windows
     return result
 
@@ -496,7 +512,9 @@ def build_skill_analytics(
                 "name": row.get("name"),
                 "status": row.get("agentStatus"),
                 "runtime": row.get("agentRuntime"),
-                "model": catalog_models.get(agent_id) or row.get("agentRuntime"),
+                "model": (catalog_models.get(agent_id)
+                          or _agent_detail_model(stats.get("detail", {}))
+                          or row.get("agentRuntime")),
                 "since_launch_skus": skus,
                 "since_launch_gross_usd": gross if gross is not None else "0.00",
                 "since_launch_creator_earnings_usd": earnings if earnings is not None else "0.00",

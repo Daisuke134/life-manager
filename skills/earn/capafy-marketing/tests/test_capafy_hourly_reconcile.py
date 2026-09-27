@@ -319,14 +319,18 @@ def skill_analytics_payloads() -> dict:
 
 
 def skill_agent_stats() -> dict:
+    # Real GET /agent/agent/{agentId}/stats shape: a flat object with sales/revenue/daily,
+    # not a nested "data" list.
     return {
         "111": {
-            "d30": {"code": 0, "data": {"data": [{"orders": 2, "revenue": 6.4}]}},
-            "d7": {"code": 0, "data": {"data": [{"orders": 0, "revenue": 0.0}]}},
+            "d30": {"code": 0, "data": {"agentId": "111", "sales": 2, "revenue": 6.4, "daily": []}},
+            "d7": {"code": 0, "data": {"agentId": "111", "sales": 0, "revenue": 0.0, "daily": []}},
+            "detail": {"code": 0, "data": {"agentId": "111", "model": "Claude Sonnet 4.6 (detail)"}},
         },
         "222": {
-            "d30": {"code": 0, "data": {"data": []}},
-            "d7": {"code": 0, "data": {"data": []}},
+            "d30": {"code": 0, "data": {"agentId": "222", "sales": 0, "revenue": 0.0, "daily": []}},
+            "d7": {"code": 0, "data": {"agentId": "222", "sales": 0, "revenue": 0.0, "daily": []}},
+            "detail": {"_error": "HTTP 503"},
         },
     }
 
@@ -425,15 +429,34 @@ def test_agent_stats_windows_bounded_sequential_with_delay(monkeypatch: pytest.M
     module = load_module()
     calls: list[str] = []
     sleeps: list[float] = []
-    monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {"data": []}})
+    monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {}})
 
     result = module._fetch_agent_stats_windows(
         "tok", ["a", "b", "c"], module.dt.date(2026, 9, 27), cap=2, delay=0.01, sleep=sleeps.append,
     )
 
     assert list(result.keys()) == ["a", "b"]
-    assert len(calls) == 4  # 2 agents x (d30, d7)
-    assert sleeps == [0.01, 0.01, 0.01, 0.01]
+    assert len(calls) == 6  # 2 agents x (d30, d7, detail)
+    assert calls[2] == "/agent/agents/a"
+    assert sleeps == [0.01] * 6
+
+
+def test_stats_orders_revenue_reads_the_flat_sales_and_revenue_fields() -> None:
+    module = load_module()
+    assert module._stats_orders_revenue(
+        {"code": 0, "data": {"sales": 3, "revenue": 12.5, "daily": []}},
+    ) == (3, "12.50")
+    assert module._stats_orders_revenue({"_error": "HTTP 503"}) == (None, None)
+    assert module._stats_orders_revenue({"code": 0, "data": {}}) == (0, "0.00")
+
+
+def test_agent_detail_model_reads_the_model_field_not_runtime() -> None:
+    module = load_module()
+    assert module._agent_detail_model(
+        {"code": 0, "data": {"agentRuntime": "openclaw", "model": "Claude Sonnet 4.6"}},
+    ) == "Claude Sonnet 4.6"
+    assert module._agent_detail_model({"_error": "timeout"}) is None
+    assert module._agent_detail_model({"code": 0, "data": {"model": None}}) is None
 
 
 def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytest.MonkeyPatch) -> None:

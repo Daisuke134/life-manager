@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import importlib.util
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).with_name("business_outcomes.py")
@@ -131,6 +133,54 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(got["date_min"], "2026-07-29")
         self.assertEqual(got["date_max"], "2026-07-30")
         self.assertEqual(got["numeric_totals"]["Counts"], 5)
+
+
+class AscCollectionTest(unittest.TestCase):
+    def test_one_report_with_no_instances_does_not_abort_the_others(self):
+        gz_rows = gzip.compress(
+            "Date\tDownload Type\tSource Type\tCounts\n"
+            "2026-09-26\tFirst-time download\tApp Store search\t2\n".encode()
+        )
+        checksum = hashlib.md5(gz_rows).hexdigest()
+
+        def fake_get(path_or_url, headers):
+            if path_or_url.endswith("/analyticsReportRequests?limit=200"):
+                return {"data": [{
+                    "id": "req1",
+                    "attributes": {"accessType": "ONGOING", "stoppedDueToInactivity": False},
+                }]}
+            if path_or_url.endswith("/analyticsReportRequests/req1/reports?limit=200"):
+                return {"data": [
+                    {"id": "rep-downloads", "attributes": {"name": "App Downloads Standard"}},
+                    {"id": "rep-purchases", "attributes": {"name": "App Store Purchases Standard"}},
+                ]}
+            if path_or_url == "/analyticsReports/rep-downloads/instances?limit=200":
+                return {"data": [{
+                    "id": "inst1",
+                    "attributes": {"processingDate": "2026-09-26", "granularity": "DAILY"},
+                }]}
+            if path_or_url == "/analyticsReports/rep-purchases/instances?limit=200":
+                return {"data": []}
+            if path_or_url == "/analyticsReportInstances/inst1/segments?limit=200":
+                return {"data": [{
+                    "id": "seg1",
+                    "attributes": {"url": "https://x/seg1", "sizeInBytes": len(gz_rows), "checksum": checksum},
+                }]}
+            raise AssertionError(f"unexpected path: {path_or_url}")
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(outcomes, "_asc_headers", return_value={}), \
+                 mock.patch.object(outcomes, "_asc_get", side_effect=fake_get), \
+                 mock.patch.object(outcomes, "_http_bytes", return_value=gz_rows):
+                result = outcomes.collect_asc({}, "app-1", Path(directory))
+
+        self.assertEqual(result["reports"]["downloads"]["status"], "available")
+        self.assertEqual(result["reports"]["downloads"]["data"]["first_time_downloads"], 2)
+        self.assertEqual(result["reports"]["purchases"]["status"], "unavailable")
+        self.assertEqual(result["reports"]["purchases"]["reason"], "no_instances")
+        # Report types not offered for this app at all are untouched by the fix.
+        self.assertEqual(result["reports"]["discovery"]["status"], "unavailable")
+        self.assertEqual(result["reports"]["discovery"]["reason"], "report_not_offered")
 
 
 class StripeContractTest(unittest.TestCase):

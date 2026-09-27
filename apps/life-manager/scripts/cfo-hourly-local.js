@@ -30,6 +30,21 @@ function agentReceiptPathsFromEnv(env) {
   );
 }
 
+function lifeManagerStateRoot(env) {
+  return env.LIFE_MANAGER_STATE_HOME
+    || path.join(os.homedir(), ".local/state/life-manager");
+}
+
+function capafyAnalyticsPathFromEnv(env) {
+  return env.LM_CFO_CAPAFY_ANALYTICS
+    || path.join(lifeManagerStateRoot(env), "state/capafy-skill-analytics.json");
+}
+
+function mobileAppsBusinessOutcomesPathFromEnv(env) {
+  return env.LM_CFO_MOBILE_APPS_BUSINESS_OUTCOMES
+    || path.join(lifeManagerStateRoot(env), "marketing-metrics-daily/state/business-outcomes.jsonl");
+}
+
 function readSnapshot(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -109,6 +124,8 @@ async function runHourlyCfo(options = {}) {
       agentReceiptPaths: options.agentReceiptPaths || [],
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
       pythonBin: options.pythonBin || "python3",
+      capafyAnalyticsPath: options.capafyAnalyticsPath,
+      mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
     }),
     deliveryStore: {
       lookup: () => {
@@ -155,6 +172,8 @@ async function main(env = process.env) {
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),
       agentReceiptPaths: agentReceiptPathsFromEnv(env),
       marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
+      capafyAnalyticsPath: capafyAnalyticsPathFromEnv(env),
+      mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
     });
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return ["sent", "quiet"].includes(result.status) ? 0 : 1;
@@ -169,4 +188,7 @@ async function main(env = process.env) {
 
 if (require.main === module) main().then((code) => { process.exitCode = code; });
 
-module.exports = { agentReceiptPathsFromEnv, main, runHourlyCfo };
+module.exports = {
+  agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
+  main, runHourlyCfo,
+};
