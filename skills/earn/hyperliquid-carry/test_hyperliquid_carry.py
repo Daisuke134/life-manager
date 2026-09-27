@@ -68,5 +68,30 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(policy.decide([pair(0.3)], None, 39.9, 40, 50, self.caps)["action"], "halt")
 
 
+import ledger
+
+
+class LedgerTest(unittest.TestCase):
+    def test_intent_without_receipt_is_open(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="i1", action="enter", perp="PURR")
+            self.assertEqual([r["intent_id"] for r in lg.open_intents()], ["i1"])
+            lg.append("receipt", intent_id="i1", result="entered", perp="PURR")
+            self.assertEqual(lg.open_intents(), [])
+            self.assertEqual(lg.position(), "PURR")
+            lg.append("intent", intent_id="i2", action="exit", perp="PURR")
+            lg.append("receipt", intent_id="i2", result="exited", perp="PURR")
+            self.assertIsNone(lg.position())
+
+    def test_risk_state_uses_first_mark_of_day_and_peak(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            for e in (50.0, 52.0, 51.0):
+                lg.mark_equity(e)
+            today = lg.rows()[-1]["ts"][:10]
+            self.assertEqual(lg.risk_state(today), (50.0, 52.0))
+
+
 if __name__ == "__main__":
     unittest.main()
