@@ -3,12 +3,14 @@
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore, sha256File } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
 const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
+const { buildMarketingCtaCaption } = require("./marketing-app-store-cta.js");
 
 const ADAPTER_ID = "marketing-native-carousel-publication";
 const LOOP_ID = "marketing.video.publish";
@@ -453,14 +455,18 @@ function runPostizCarouselProcess(input) {
   try { return JSON.parse(lines[0]); } catch { const error = new Error("marketing native carousel Postiz returned invalid JSON"); error.unknownEffect = true; throw error; }
 }
 
-function provider(result, lane) {
+function provider(result, lane, expectedContentSha256) {
   const state = result && (result.state || result.status);
   const postId = result && (result.provider_post_id || result.post_id);
   const url = result && (result.public_url || result.post_url);
   const reconciled = result && (result.reconciled === true || result.provider_reconciled === true);
   const direct = lane.platform === "instagram" && directPostPattern(lane).test(String(url || ""));
+  // The on-wire caption is the approved base caption plus the App Store CTA
+  // line (see buildMarketingCtaCaption), so the posted-content hash the
+  // provider echoes back is checked against that computed hash rather than
+  // the pinned approval's caption hash.
   const photoProof = lane.platform === "tiktok" && url == null
-    && result.integration_id === lane.integrationId && result.content_sha256 === lane.captionRef.slice(-64)
+    && result.integration_id === lane.integrationId && result.content_sha256 === expectedContentSha256
     && result.title === lane.title && result.posting_method === "DIRECT_POST"
     && /^p_pub_url~v2\.[0-9]+$/.test(String(result.release_id || ""));
   if (!result || state !== "PUBLISHED" || reconciled !== true || !PROVIDER_ID.test(String(postId || "")) || (!direct && !photoProof)) { const error = new Error("marketing native carousel provider result contract mismatch"); error.unknownEffect = true; throw error; }
@@ -496,7 +502,8 @@ function verifyMarketingNativeCarouselPublicationReceipt(receipt) {
     && receipt.public_url == null
     && receipt.provider_state === "PUBLISHED"
     && receipt.provider_integration_id === lane.integrationId
-    && receipt.provider_content_sha256 === receipt.caption_sha256
+    && HASH.test(String(receipt.caption_with_cta_sha256 || ""))
+    && receipt.provider_content_sha256 === receipt.caption_with_cta_sha256
     && receipt.provider_title === lane.title
     && receipt.provider_posting_method === "DIRECT_POST"
     && /^p_pub_url~v2\.[0-9]+$/.test(String(receipt.provider_release_id || ""));
@@ -540,6 +547,15 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   assertApproval(readJson(approvalPath, "marketing native carousel approval"), contract, lane);
   const token = await s.secretProvider.get(job.tenant_id, contract.postizTokenRef);
   if (typeof token !== "string" || !token.trim()) fail("marketing native carousel Postiz token is invalid");
+  // The approved caption above is the pinned, human-approved base text (its
+  // hash is what pack/approval are checked against). The App Store CTA is a
+  // deterministic, product-config-driven addition appended only to the copy
+  // actually sent to the provider, so it never requires a new approval.
+  const ctaCaption = buildMarketingCtaCaption(caption, { productId: lane.productId, platform: lane.platform, locale: lane.locale });
+  const ctaCaptionSha256 = crypto.createHash("sha256").update(ctaCaption).digest("hex");
+  const ctaWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "lm-carousel-cta-"));
+  const ctaCaptionPath = path.join(ctaWorkspace, "caption.txt");
+  fs.writeFileSync(ctaCaptionPath, ctaCaption, { mode: 0o600 });
   writeMarketingEffectIdentity({
     jobId: job.job_id,
     effectKey: job.effect_key,
@@ -558,9 +574,13 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
     mediaOrderSha256: mediaOrderHash(contract.mediaHashes),
   });
   let result;
-  try { result = await s.runDistribution({ tenantId: job.tenant_id, productId: lane.productId, formatId: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, title: pack.slides[0].text, creativeId: contract.creativeId, accountId: lane.accountId, integrationRef: contract.integrationRef, integrationId: lane.integrationId, packPath, mediaPaths: [...mediaPaths], captionPath, token }); } catch (cause) { const error = new Error(cause && cause.message ? cause.message : String(cause)); error.unknownEffect = true; throw error; }
-  const published = provider(result, lane);
-  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, provider_post_id: published.postId, provider_reconciled: true, public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
+  try {
+    try { result = await s.runDistribution({ tenantId: job.tenant_id, productId: lane.productId, formatId: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, title: pack.slides[0].text, creativeId: contract.creativeId, accountId: lane.accountId, integrationRef: contract.integrationRef, integrationId: lane.integrationId, packPath, mediaPaths: [...mediaPaths], captionPath: ctaCaptionPath, token }); } catch (cause) { const error = new Error(cause && cause.message ? cause.message : String(cause)); error.unknownEffect = true; throw error; }
+  } finally {
+    fs.rmSync(ctaWorkspace, { recursive: true, force: true });
+  }
+  const published = provider(result, lane, ctaCaptionSha256);
+  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, provider_post_id: published.postId, provider_reconciled: true, public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
   if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) { const error = new Error("marketing native carousel publication receipt verification failed"); error.unknownEffect = true; throw error; }
   appendRow(ledgerFor(s, job.tenant_id, lane.productId), job, receipt);
   return { receipt, result };

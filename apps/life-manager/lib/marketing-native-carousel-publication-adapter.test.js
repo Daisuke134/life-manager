@@ -17,6 +17,7 @@ const {
   executeMarketingNativeCarouselPublicationJob,
   verifyMarketingNativeCarouselPublicationReceipt,
 } = require("./marketing-native-carousel-publication-adapter.js");
+const { buildMarketingCtaCaption } = require("./marketing-app-store-cta.js");
 
 const jpeg = (width, height) => Buffer.from([
   0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08,
@@ -119,7 +120,9 @@ test("EN slideshow TikTok lane accepts exact Postiz API photo proof without inve
     creative_id: lane.creativeId, pack_sha256: lane.packRef.slice(-64),
     media_sha256: lane.mediaRefs.map((ref) => ref.slice(-64)),
     media_order_sha256: crypto.createHash("sha256").update(JSON.stringify(lane.mediaRefs.map((ref) => ref.slice(-64)))).digest("hex"),
-    caption_sha256: lane.captionRef.slice(-64), provider_post_id: "postiz-tiktok-carousel-1",
+    caption_sha256: lane.captionRef.slice(-64),
+    caption_with_cta_sha256: crypto.createHash("sha256").update("base caption + tiktok CTA line").digest("hex"),
+    provider_post_id: "postiz-tiktok-carousel-1",
     provider_reconciled: true, public_url: "https://www.tiktok.com/@anicca_slideshow/video/7777777777777777777",
     published_at: "2026-08-26T06:01:00.000Z",
   };
@@ -130,7 +133,7 @@ test("EN slideshow TikTok lane accepts exact Postiz API photo proof without inve
     public_url: null,
     provider_state: "PUBLISHED",
     provider_integration_id: lane.integrationId,
-    provider_content_sha256: receipt.caption_sha256,
+    provider_content_sha256: receipt.caption_with_cta_sha256,
     provider_title: lane.title,
     provider_posting_method: "DIRECT_POST",
     provider_release_id: "p_pub_url~v2.7678198747632977937",
@@ -189,12 +192,18 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
   const result = await executeMarketingNativeCarouselPublicationJob(value, {
     objectStore: { resolve: (ref) => path.join(objectRoot, ref.slice(-64)) },
     secretProvider: { get: async () => "postiz-secret" }, ledgerPath: ledger,
-    runDistribution: async (input) => { calls.push(input); return {
-      state: "PUBLISHED", reconciled: true, post_id: "postiz-tiktok-carousel-1", post_url: null,
-      integration_id: lane.integrationId, content_sha256: lane.captionRef.slice(-64),
-      title: "PROCRASTINATION ISN'T LAZINESS.", posting_method: "DIRECT_POST",
-      release_id: "p_pub_url~v2.7679813128503363591",
-    }; },
+    // A real Postiz call echoes back the hash of the exact bytes it received
+    // (the approved caption plus the App Store link-in-bio CTA), so the
+    // mock reports the hash of what the adapter actually wrote to disk.
+    runDistribution: async (input) => {
+      calls.push({ ...input, capturedCaption: fs.readFileSync(input.captionPath, "utf8") });
+      return {
+        state: "PUBLISHED", reconciled: true, post_id: "postiz-tiktok-carousel-1", post_url: null,
+        integration_id: lane.integrationId, content_sha256: crypto.createHash("sha256").update(fs.readFileSync(input.captionPath)).digest("hex"),
+        title: "PROCRASTINATION ISN'T LAZINESS.", posting_method: "DIRECT_POST",
+        release_id: "p_pub_url~v2.7679813128503363591",
+      };
+    },
     now: () => "2026-08-26T06:01:00.000Z",
   });
   assert.equal(calls.length, 1);
@@ -204,6 +213,12 @@ test("EN slideshow TikTok exact pack executes through six ordered JPEGs only", a
   assert.equal(calls[0].mediaPaths.length, 6);
   assert.deepEqual(result.receipt.media_sha256, lane.mediaRefs.map((ref) => ref.slice(-64)));
   assert.equal(verifyMarketingNativeCarouselPublicationReceipt(result.receipt), true);
+  // EN/TikTok: the posted caption ends with the link-in-bio CTA (TikTok does
+  // not linkify caption URLs) and is strictly longer than the approved base.
+  const approvedCaption = fs.readFileSync(path.join(objectRoot, lane.captionRef.slice(-64)), "utf8");
+  assert.notEqual(calls[0].capturedCaption, approvedCaption);
+  assert.equal(calls[0].capturedCaption, `${approvedCaption.replace(/\s+$/, "")}\n\nLink in bio for the app\n`);
+  assert.equal(result.receipt.caption_with_cta_sha256, crypto.createHash("sha256").update(calls[0].capturedCaption).digest("hex"));
 });
 
 const EN_ACCOUNT = "@anicca.affirmation";
@@ -467,7 +482,9 @@ test("execute resolves and SHA-checks object refs, then returns verified receipt
   const calls = [];
   const services = fixtureServices(value, {
     runDistribution: async (input) => {
-      calls.push(input);
+      // The workspace holding the on-wire (base + CTA) caption file is
+      // cleaned up before execute() returns, so capture its content now.
+      calls.push({ ...input, capturedCaption: fs.readFileSync(input.captionPath, "utf8") });
       return {
         state: "PUBLISHED",
         reconciled: true,
@@ -485,7 +502,9 @@ test("execute resolves and SHA-checks object refs, then returns verified receipt
   assert.equal(result.receipt.media_order_sha256, sha256Bytes(JSON.stringify(result.receipt.media_sha256)));
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].mediaPaths.map((file) => path.basename(file)), MEDIA_REFS.map((ref) => ref.slice(-64)));
-  assert.equal(calls[0].captionPath.endsWith(CAPTION_REF.slice(-64)), true);
+  // The on-wire caption is the approved base caption plus the App Store CTA
+  // line, written to its own workspace file rather than the approved object.
+  assert.equal(calls[0].capturedCaption, buildMarketingCtaCaption(CAPTION_BYTES.toString("utf8"), { productId: "anicca-ios", platform: "instagram", locale: "ja" }));
   assert.equal(calls[0].packPath.endsWith(PACK_REF.slice(-64)), true);
   assert.equal(calls[0].token, "provider-token");
 });
