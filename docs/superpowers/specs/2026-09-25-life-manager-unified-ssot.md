@@ -227,11 +227,17 @@ TODO（何を・どう直すか）
   - [x] P-12a 誰も値下げしていない（上の通り）。今後の価格判断は、単価ではなく販売数と単価を分けたデータで行う
 - [x] P-1c 毎時の分析で per_skill_rows の name が全部 None だった。`/agent/agents` の項目名は `name`（`agentTitle` ではない）。直した（#6021）。本番データで 45 行すべてに名前が入ることを確認。model / runtime が None なのは別の既知の欠損（LISTING.md の形式が変わった）
 - [ ] P-13 **Telegram の製品レポート**: Capafy の hourly レポート（`capafy_company_receipt.py`）は全体の金額しか出していない。直近30日の net・注文数、直近7日、上位5スキルの収益、売上ゼロのスキル数、サブスク proxy と、アプリごとの RevenueCat（MRR・active・新規 trial と日付）を同じレポートに足す（実装中）
-- [ ] P-14 **Capafy の出品枠が詰まっている（新しいスキルを出せない）**: Capafy は未公開（draft/under_review）の Agent を同時に5つまでしか持てない（`skills/capafy-autopublish/scripts/inventory_status.py` CAP=5 → CAP_FULL）。5つ（9470213182 Job Description Writer、4886968609 Performance Review Writer、3947077924 Meeting Notes、5051239796 Cold Email Writer、7883384570 Thesis Structure Humanizer）は 2026-09-15 に審査通過（承認メールあり、API で status=3・auditStatus=4）なのに、一覧は under_review のまま12日間公開されていない。売り手が公開に進める API は無い。このため `capafy-loop-daily` は 09-15 以降1件も公開できず、申請待ちの候補が 12 件たまっている。2026-09-27 に support@capafy.ai へ公開か枠の解放を依頼した（message `1a0e17b64de76577`）
+- [ ] P-14 **Capafy の出品枠（訂正 2026-09-27）**: BAN でも審査待ちでもない。アカウントは正常（developerVerified true、online 40）。5つは承認済み（detail で status=3・auditStatus=4、承認メールは「now available on Capafy」）で、公開ストア https://capafy.ai/agent/<id> で4つは購入できる（Job Description Writer のページだけ取得が空）。原因は自分たちの `inventory_status.py` が seller 一覧の古い `agentStatus=under_review` で未公開枠を数え、CAP_FULL と誤判定して工場の申請を 09-15 から止めていたこと。support@capafy.ai へのメールは不要だった。修正: detail の承認状態を見て公開済みとして数える（実装中）
   - [ ] P-14a 審査の結果待ちは blocker ではない（Dais 2026-09-27）。承認・却下・公開は Capafy 側の時間で進むので待つだけにして、その間も止めない: 工場は offline で候補を作り続ける（CAP_FULL 中は1日1件）、候補は P-11 の他の販売先に出す、出品中 40 件の価格・説明・宣伝を改善する。5つが online になったら工場の公開を readback する
   - [ ] P-14b 訂正: 申請待ちの候補は 12 件ではなく、現在の backlog（`capafy-candidate-backlog.json`）で ready は1件（capafy-o13-user-interview-synthesizer）。12 は 2026-09-24 のログ時点の数字だった
 - [x] P-5d `capafy-loop-daily` の fence `18d84c602fcf10f8-88451` を公式 readback（`GET /agent/agents`、その時間帯に作成・更新なし）で閉じた。既存の `capafy-effect-reconcile.py` は released の行しか見ないため、失敗 run の claimed の fence を閉じられない → T5-G の汎用 reconciler に「失敗 run の claimed fence を公式 readback で閉じる」capafy adapter を足す
 - [x] P-5e `capafy-ig-marketing-daily` の fence を、ログインなしの公開プロフィールで確認して閉じた。アカウントは followers 1、最後の投稿は 2026-08-24。IG marketing と `capafy-ig-account-manager` を revenue capacity に移した（#6020、#6023）。06:04Z の初回 run は exit 1 で新しい fence → session 復旧と原因調査中
+- [ ] P-15 **アプリの集客の穴（T9 診断 2026-09-27）**: 直近30日に Anicca の14アカウントで 601 投稿（TikTok 350・IG 203・YouTube 81）したが、キャプションに App Store の URL も「プロフィールのリンクから」も0件。ASC の Web referrer は Anicca・Honne とも0（SNS からストアに来た人がいない）。Anicca の impressions 226・page views 34・初回 DL 14（検索 10）で、ページ閲覧→DL は約41%と悪くない → 穴は「投稿→ストア」。Honne は DL 3 なのに RevenueCat がずっと 0 → 課金 SDK の接続を疑う。ASC の証拠は 09-12〜09-23 が欠けている
+  - [ ] P-15a キャプションに製品ごとの CTA を入れる（YouTube は App Store URL、TikTok/IG は「プロフィールのリンクから」）（実装中）
+  - [ ] P-15b 17アカウントのプロフィールに App Store リンクがあるかを監査し、無いものに入れる
+  - [ ] P-15c Honne の RevenueCat 接続を確認する
+  - [ ] P-15d ASC 証拠の 12 日欠けの原因を直す
+- [ ] P-16 Capafy から「LLM API issue（Action Required）」の警告が Marketing Strategist（09-12・09-15・09-16）と Hook Lab（09-13 に複数）に来ている。売れているスキルで購入者がエラーに当たると返金と評価に直結するので、現在も発生しているか確認して直す
 - [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
