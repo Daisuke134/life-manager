@@ -189,7 +189,7 @@ def _redact_url_for_output(value):
         host = str(parts.hostname or "").lower()
         if parts.scheme not in {"http", "https"} or not host:
             return "<redacted-url>"
-        if host == "api.capafy.ai" and re.fullmatch(r"/(?:E[1-9][0-9]{18}|[1-9][0-9]{19})", parts.path):
+        if host == "api.capafy.ai" and re.fullmatch(r"/(?:E[1-9][0-9]{18}|[1-9][0-9]{19}|R[1-9][0-9]{18})", parts.path):
             return "https://api.capafy.ai/<redacted-short-link>"
         authority = host
         if parts.port is not None and not (

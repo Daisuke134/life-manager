@@ -38,7 +38,7 @@ def _is_edit_url(url: str) -> bool:
         return False
     if (
         parts.netloc == SHORT_REVIEW_HOST
-        and re.fullmatch(r"/(?:E[1-9][0-9]{18}|[1-9][0-9]{19})", parts.path) is not None
+        and re.fullmatch(r"/(?:E[1-9][0-9]{18}|[1-9][0-9]{19}|R[1-9][0-9]{18})", parts.path) is not None
         and not parts.query
         and url == f"https://{SHORT_REVIEW_HOST}{parts.path}"
     ):

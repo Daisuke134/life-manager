@@ -223,3 +223,25 @@ def test_state_dump_and_toast_redact_numeric_short_link_path(capsys):
     output = capsys.readouterr().out
     assert short_url not in output
     assert "api.capafy.ai/<redacted-short-link>" in output
+
+
+def test_state_dump_and_toast_redact_rotating_short_link_path(capsys):
+    short_url = "https://api.capafy.ai/R2104175283125768192"
+    state = {
+        "url": short_url,
+        "toastOK": True,
+        "cardDone": False,
+        "priceSvg": "",
+    }
+
+    class _Page:
+        def evaluate(self, _expression):
+            return state
+
+    page = _Page()
+    cp1.dump(page, shot=False)
+    cp1._raw_dump(page, shot=False)
+    print(json.dumps(cp1._toast_for_output(state), ensure_ascii=False))
+    output = capsys.readouterr().out
+    assert short_url not in output
+    assert "api.capafy.ai/<redacted-short-link>" in output

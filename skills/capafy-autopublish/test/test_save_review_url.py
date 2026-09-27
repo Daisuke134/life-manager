@@ -14,3 +14,9 @@ def test_accepts_numeric_official_short_review_link() -> None:
     url = "https://api.capafy.ai/21041752831257681920"
 
     assert save_review_url._is_edit_url(url)
+
+
+def test_accepts_rotating_official_short_review_link() -> None:
+    url = "https://api.capafy.ai/R2104175283125768192"
+
+    assert save_review_url._is_edit_url(url)
