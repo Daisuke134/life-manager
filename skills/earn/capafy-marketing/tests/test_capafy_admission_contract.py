@@ -35,8 +35,10 @@ def test_capafy_effectful_recurring_owners_declare_effect_and_coalescing_contrac
     loops = json.loads((root / "config/loop-registry.json").read_text())["loops"]
     expected = {
         "capafy-loop-daily": ("publish", "deterministic", "revenue", "revenue"),
-        "capafy-outcome-monitor": ("message", "deterministic", "borrow", "support"),
-        "capafy-ig-account-manager": ("account_mutation", "agent", "borrow", "support"),
+        # Revenue readers / the IG account owner never got a slot as borrow once revenue
+        # owners filled the host (2026-09-27, SSOT P-5 / 7-6e).
+        "capafy-outcome-monitor": ("message", "deterministic", "revenue", "revenue"),
+        "capafy-ig-account-manager": ("account_mutation", "agent", "revenue", "revenue"),
         "capafy-ig-marketing-daily": ("publish", "agent", "borrow", "support"),
     }
 
