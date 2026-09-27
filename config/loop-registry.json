@@ -766,6 +766,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-outcome-monitor": {
+      "reconcile_queued_release": true,
       "cadence": {
         "start_interval_seconds": 60
       },
@@ -779,8 +780,8 @@
       "label": "ai.anicca.capafy-outcome-monitor",
       "log_root": "~/.local/state/life-manager/logs",
       "resource_class": "deterministic",
-      "admission_class": "borrow",
-      "priority": "support",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
@@ -2321,9 +2322,10 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-instagram-metrics": {
-      "priority": "support",
+      "reconcile_queued_release": true,
+      "priority": "revenue",
       "resource_class": "deterministic",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -2447,9 +2449,10 @@
       "state_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger"
     },
     "life-manager-tiktok-metrics": {
-      "priority": "support",
+      "reconcile_queued_release": true,
+      "priority": "revenue",
       "resource_class": "deterministic",
-      "admission_class": "borrow",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -2550,6 +2553,10 @@
       "state_root": "~/Library/Application Support/AniccaMarketing"
     },
     "marketing-metrics": {
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "priority": "revenue",
+      "admission_class": "revenue",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 900
@@ -2614,6 +2621,10 @@
       "state_root": "~/.local/state/life-manager/marketing-mine-daily"
     },
     "marketing-owner-events": {
+      "reconcile_queued_release": true,
+      "resource_class": "deterministic",
+      "priority": "revenue",
+      "admission_class": "revenue",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 3600
