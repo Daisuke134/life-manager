@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { sendMessage: sendTelegramMessage } = require("./telegram.js");
+const { activeSuppressedEventRefs } = require("./connector-candidate-suppression.js");
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,159}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
@@ -33,6 +34,10 @@ const CLAIM_KEYS = "claimed_at,schema_version,wake_id";
 const UNCERTAIN_KEYS = "quarantined_at,reason,schema_version,wake_id";
 const POSITIVE_PROVIDER_ID = /^[1-9][0-9]*$/;
 const UNCERTAIN_REASONS = new Set(["delivery_unknown", "missing_message_id", "provider_rejection", "transport"]);
+const CANDIDATE_ATTEMPT_OUTCOMES = new Set([
+  "verified_success", "known_no_effect", "unknown_effect", "recovery_required",
+]);
+const CANDIDATE_ATTEMPT_KEYS = "capability_version,event_ref,outcome,retry_after,safe_reason";
 const STATUSES = new Set(["applied_bundle", "completed_no_effect", "circuit_open"]);
 const DIAGNOSTIC_COUNTER_STATUSES = new Set(["counted", "not_counted_at_stage"]);
 const DIAGNOSTIC_EFFECT_STATUSES = new Set(["none", "not_applicable", "unknown", "started", "verified", "reconciled"]);
@@ -433,6 +438,7 @@ function createMinimalProductionOperations(options = {}) {
   const rankingAuditFile = path.join(stateDir, "ranking-audits.jsonl");
   const candidateRankingAuditFile = path.join(stateDir, "candidate-ranking-audits.jsonl");
   const candidateDispatchAuditFile = path.join(stateDir, "candidate-dispatch-audits.jsonl");
+  const candidateAttemptsFile = path.join(stateDir, "candidate-attempts.jsonl");
   const peatixDiscoveryAuditFile = path.join(stateDir, "peatix-discovery-audits.jsonl");
   const meetupDiscoveryAuditFile = path.join(stateDir, "meetup-discovery-audits.jsonl");
   const doorkeeperDiscoveryAuditFile = path.join(stateDir, "doorkeeper-discovery-audits.jsonl");
@@ -482,6 +488,34 @@ function createMinimalProductionOperations(options = {}) {
       selected_candidate_refs: Object.freeze([...input.selected_candidate_refs]),
       recorded_at: exactInstant(now()),
     }));
+  }
+
+  // Cross-wake terminal-candidate memory: every provider's known_no_effect
+  // (and other terminal) outcomes land here so the next wake's discovery
+  // never re-selects the same dead candidate. Fixes the connpass event that
+  // was re-picked on every wake because nothing durable ever recorded that
+  // it already failed with a known terminal reason (unlike luma, which had
+  // no live caller either, but at least the module covered its ref shape).
+  async function recordCandidateAttempt(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)
+      || Object.keys(input).sort().join(",") !== CANDIDATE_ATTEMPT_KEYS
+      || !SAFE_CANDIDATE_REF.test(String(input.event_ref || ""))
+      || !CANDIDATE_ATTEMPT_OUTCOMES.has(input.outcome)
+      || !SAFE_REASON.test(String(input.safe_reason || ""))
+      || !(input.retry_after === null || typeof input.retry_after === "string")
+      || !(input.capability_version == null || typeof input.capability_version === "string")) invalid();
+    appendDurable(candidateAttemptsFile, Object.freeze({
+      event_ref: input.event_ref,
+      outcome: input.outcome,
+      safe_reason: input.safe_reason,
+      observed_at: exactInstant(now()),
+      retry_after: input.retry_after,
+      capability_version: input.capability_version ?? null,
+    }));
+  }
+
+  async function readActiveSuppressedEventRefs() {
+    return activeSuppressedEventRefs({ now: exactInstant(now()), attempts: readRows(candidateAttemptsFile) });
   }
 
   async function recordPeatixDiscoveryAudit(input) {
@@ -599,6 +633,7 @@ function createMinimalProductionOperations(options = {}) {
     recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordCandidateRankingAudit, recordCandidateDispatchAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,
+    recordCandidateAttempt, readActiveSuppressedEventRefs,
   });
 }
 

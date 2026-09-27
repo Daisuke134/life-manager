@@ -1029,7 +1029,13 @@
       "priority": "support",
       "provider_route": "shared-agent-runner",
       "resource_class": "agent",
-      "state_root": "~/.local/state/life-manager/fundraiser"
+      "state_root": "~/.local/state/life-manager/fundraiser",
+      "effect_reconcile": {
+        "argv": ["skills/fundraiser-agent/runtime/fundraiser_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 60
+      }
     },
     "gig-outcome-watch": {
       "adapter": "exec",

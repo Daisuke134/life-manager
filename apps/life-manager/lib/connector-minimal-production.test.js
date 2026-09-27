@@ -228,7 +228,7 @@ test("official production factory exposes the complete minimal wake dependency c
     assert.equal(dependencies.browserRail, browserRail);
     assert.deepEqual(Object.keys(dependencies).sort(), [
       "browserRail", "completeEvidence", "completeTalkEvidence", "discoverCandidates", "now", "readCalendarGaps",
-      "readProviderState", "recordAction", "recordCandidateDispatchAudit", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
+      "readProviderState", "recordAction", "recordCandidateAttempt", "recordCandidateDispatchAudit", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
       "runDirectAction", "runTalkApplication", "saveRepairedActions",
     ]);
     assert.deepEqual(await dependencies.readCalendarGaps(), await calendarReader.readCalendarGaps());
@@ -459,6 +459,48 @@ test("production provider router records a zero ranking audit when discovery is 
     eligible_candidate_refs: [],
     ranked_candidate_summaries: [],
   }]);
+});
+
+test("production provider router excludes a durably suppressed connpass candidate from discovery", async () => {
+  const alive = rankingCandidate("alive", "2026-09-10T09:00:00.000Z");
+  const dead = rankingCandidate("408094", "2026-09-10T09:00:00.000Z");
+  const workflow = {
+    async discoverCandidates() { return [dead, alive]; },
+    async runDirectAction() {},
+    async readProviderState() { return { status: "absent" }; },
+  };
+  const router = createProductionProviderRouter({
+    now: () => new Date("2026-09-28T00:00:00.000Z"),
+    lumaWorkflow: workflow,
+    connpassWorkflow: workflow,
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+    async readSuppressedEventRefs() { return new Set(["connpass-event://event/408094"]); },
+  });
+
+  const discovered = await router.discoverCandidates("connpass", [], {});
+  assert.deepEqual(discovered.map((row) => row.event_ref), [alive.event_ref]);
+});
+
+test("production provider router keeps every candidate when nothing is suppressed (default reader)", async () => {
+  const alive = rankingCandidate("alive-2", "2026-09-10T09:00:00.000Z");
+  const workflow = {
+    async discoverCandidates() { return [alive]; },
+    async runDirectAction() {},
+    async readProviderState() { return { status: "absent" }; },
+  };
+  const router = createProductionProviderRouter({
+    now: () => new Date("2026-09-28T00:00:00.000Z"),
+    lumaWorkflow: workflow,
+    connpassWorkflow: workflow,
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+  });
+
+  const discovered = await router.discoverCandidates("connpass", [], {});
+  assert.deepEqual(discovered.map((row) => row.event_ref), [alive.event_ref]);
 });
 
 test("production provider router records a zero ranking audit for reconciliation-only candidates", async () => {

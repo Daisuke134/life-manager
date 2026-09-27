@@ -56,6 +56,21 @@ test("a later non-terminal observation supersedes an older known failure", () =>
   assert.deepEqual([...suppressed], []);
 });
 
+test("a connpass known failure is suppressed exactly like a luma one", () => {
+  const suppressed = activeSuppressedEventRefs({
+    now: "2026-09-28T01:00:00.000Z",
+    attempts: [{
+      event_ref: "connpass-event://event/408094",
+      outcome: "known_no_effect",
+      safe_reason: "CONNPASS_TIER_UNAVAILABLE",
+      observed_at: "2026-09-27T23:23:46.000Z",
+      retry_after: null,
+    }],
+  });
+
+  assert.deepEqual([...suppressed], ["connpass-event://event/408094"]);
+});
+
 test("a form capability upgrade re-evaluates an old form failure exactly once", () => {
   const legacy = {
     event_ref: "luma-event://event/form-upgrade",

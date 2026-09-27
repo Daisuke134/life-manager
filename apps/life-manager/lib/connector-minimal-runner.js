@@ -44,6 +44,7 @@ function dependencies(input) {
   if (input.reportConnpassActionBoundary != null && typeof input.reportConnpassActionBoundary !== "function") invalid();
   if (input.reportConnpassQuestionnaire != null && typeof input.reportConnpassQuestionnaire !== "function") invalid();
   if (input.recordCandidateDispatchAudit != null && typeof input.recordCandidateDispatchAudit !== "function") invalid();
+  if (input.recordCandidateAttempt != null && typeof input.recordCandidateAttempt !== "function") invalid();
   if (
     !input.browserRail || typeof input.browserRail !== "object"
     || typeof input.browserRail.open !== "function"
@@ -685,6 +686,15 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           || (provider === "luma" && ["luma_required_profile_field_unavailable", "private_value_unavailable"].includes(operationSafeReason(operation, lastSafeReason)));
         if (knownNoEffect) {
           knownNoEffectProviders.add(provider);
+          if (typeof deps.recordCandidateAttempt === "function") {
+            await deps.recordCandidateAttempt({
+              event_ref: selected.event_ref,
+              outcome: "known_no_effect",
+              safe_reason: lastSafeReason,
+              retry_after: null,
+              capability_version: null,
+            });
+          }
           continue;
         }
         consecutiveFailures += 1;
