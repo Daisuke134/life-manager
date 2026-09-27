@@ -177,6 +177,42 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 理由（今夜の実測）: 失敗の大半は各 loop のコードではなく土台だった。merge した修正が owner に届いていない（172 中 53 だけが current release）、admission の stop が戻っていない、capacity の予約の偏り、fence の滞留、ディスク満杯。SNS 投稿 owner は release を反映しただけで失敗が止まった。自己修復の dev agent は土台（runtime の制御面、launchd、admission）を編集できない設計なので、土台が壊れている間は自己修復の実証が起きない。green の基準線が無いと、自己修復が何を直したかも測れない。
 実測（10:4x JST）: loaded 172 = ok 64 / failing 47（常駐 daemon の再起動による誤分類を含む）/ capacity 待ち 41 / fence 20。earn 51 = ok 12 / failing 15 / fence 12 / capacity 12。
 
+**実行順の一覧（正本。下の各節の番号はこの順で進める）**
+
+① 土台
+1. 5-13 release を切ったら自動で全 owner へ apply（今は特定の owner で 1200 秒止まる。原因を実測で確定して直す）
+2. 5-13a pending-admission / loaded-running の owner にも release を届ける
+3. 7-6e admission の予約の偏り（予約 6.7/8 枠、実行 0.8）
+4. 6-9b ディスクの急減の犯人を特定する（`fs_usage`）
+5. 6-9c ブラウザの HTTP キャッシュ 5GB を lease 付きで定期削除
+6. 6-9d daily-driver の Chromium renderer 185 個を回収（カーネルパニック対策）
+
+② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
+7. 失敗中の owner を1つずつ分類し、常駐 daemon の誤分類を除いた本当の失敗を直す
+8. 6-5 en-card、6-7 job-search-inbox、6-8 pending-admission の owner
+9. 詰まりで止まっている owner の fence を公式 readback で閉じる（T5-G の汎用 reconciler に adapter を足す。T5-G-4b SNS 投稿の古い fence を含む）
+10. 6-10 release を約24時間凍結して、全体を測り直す（目標 `uncovered_failure=0`）
+
+③ 収益（T7）
+11. 7-0 Lancers 5605912: 仮払い確認 → 制作 → 納品 → 入金。7-0a' 応募価格の修正
+12. 7-4b / 7-5 Coconala の出品と応募の fence
+13. 7-6 CrowdWorks の Paid fence 4件（lm-crowdworks）
+14. 7-8 Freelancer → 7-9 Upwork → 7-10 Mercor
+15. 7-11 crash recovery、7-12 replay-zero
+16. 7-13 各サイトの入金を CFO の ledger に記録
+
+④ 自己修復の実証（T5）
+17. 5-12 自然に起きた失敗1件を、Life Manager だけで 検知 → issue → 修正 PR → merge → release → apply → PASS まで完走
+18. 5-12e 失敗した issue の再挑戦ルール
+19. 5-11b 収益コード（`skills/earn/`）の安全な自己修復経路
+
+⑤ 自己改善とその先（T8〜T15）
+20. T8 ループ別 P&L（8-1 入金 adapter、8-2 cost adapter、8-3 毎日の P&L）
+21. 8-4 投資の段階的拡大（Alpaca → Polymarket → Hyperliquid → 株 → ミームコイン。今は利益が出ないので live 拡大は禁止）
+22. T9 install → 課金の紐付け、T10 初回だけの設定で動く仕組み、T11 cloud と local の parity
+23. T12 評価器つきの自己改善（rollback 付き）
+24. T13 収入 ≥ コストの後に x402 自己資金化、T14 LM-EAB、T15 USD 10K MRR → YC W27
+
 ### 5.1 自己修復・自己改善の定義（T5 / T12 の正本）
 
 **目的**: Life Manager が、外部の coding agent（Dais が操作する Claude Code や Codex のセッション）にも人にも頼らず、自分の問題を見つけて、自分で直し、自分で改善すること。人と外部 agent はループの外にいる。
