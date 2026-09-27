@@ -187,6 +187,28 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 5. 6-9c ブラウザの HTTP キャッシュ 5GB を lease 付きで定期削除
 6. 6-9d daily-driver の Chromium renderer 185 個を回収（カーネルパニック対策）
 
+①' 人が要らない製品の計測（2026-09-27 順序変更: Gig より先。理由: 製品型（アプリ・Web・Capafy・投資）は KYC も顧客とのやり取りも要らず、onboarding がほぼゼロで拡大できる。Gig は lm-crowdworks が並行で続ける）
+
+As-Is（2026-09-27 11:4x JST 実測、読み取りのみ）
+- Capafy: `capafy_hourly_reconcile.py` の最新（09:07）で gross $86.79、creator earnings $65.16、確定残高 $35.36、出金可能 $14.40、**出金済み $0.00**、販売 97 件。`capafy-goal-monitor` は pass。`capafy-outcome-monitor` は effect_unknown fence で停止。`capafy-marketing-ig-metrics.jsonl` は 2026-08-31 から更新なし
+- モバイルアプリ: RevenueCat・ASC の reader は `marketing-metrics-daily` が動かす。最新の RevenueCat は honne が 2026-09-12 時点で MRR/収益/active すべて 0.0。anicca-ios / honne-ai は `KeyError: ASC_ISSUER_ID`（ASC の認証情報が無い）、aniccaios / honne は `ASC report has no instances`。loop 自体も毎回 exit 1（原因のログが run ごとに残っていない）
+- SNS 指標: `life-manager-instagram-metrics` は capacity 待ち、`life-manager-tiktok-metrics` は effect_unknown fence。どちらも最後のデータは 2026-09-24
+- Stripe: poller / listener は pass だが、charge の金額を保存せず watermark と Telegram 通知だけ
+- CFO: `skills/cfo/loop_pnl.py` は mobile-apps と capafy の収益 source を持たない（`no_source_adapter`）。reader の出力と P&L がつながっていない
+- 訂正: 2026-09-27 に lm-lead は「アプリの売上を読む仕組みが無い」と報告したが誤り。reader と loop はあり、止まっているのと P&L に未接続なのが実態
+
+To-Be: 各製品の reader が毎日動き、数字（収益・販売数・残高・出金・ダウンロード・再生数）が CFO の日次 P&L に receipt 付きで入る。その数字で T12 の自己改善が投稿・価格・アプリを選ぶ
+
+TODO
+- [ ] P-1 `ASC_ISSUER_ID` を含む App Store Connect の API key を Life Manager が自分で作成し、credential SSOT に保存する
+- [ ] P-2 `marketing-metrics-daily` の exit 1 を run ごとの stderr を残して特定し、直す
+- [ ] P-3 capacity 待ち / effect_unknown で止まっている reader（instagram-metrics、tiktok-metrics、capafy-outcome-monitor、marketing-owner-events、marketing-metrics、payout）を動かす
+- [ ] P-4 `capafy-ig-marketing-daily` の IG 指標が 08-31 から止まっている原因を直す
+- [ ] P-5 Stripe の charge を金額付きで保存する
+- [ ] P-6 `loop_pnl.py` に mobile-apps（RevenueCat/ASC）と capafy（hourly reconcile）の収益 source を足す
+- [ ] P-7 Capafy の出金（$14.40 出金可能）を Life Manager が自分で行い、公式 readback で確認する
+- [ ] P-8 共通部品化: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、新しいアプリ/スキルを同じ部品で量産する（T8/T9/T12 と一緒に進める）
+
 ② 全 loop を green（T6）: 各 owner を「正常 / 型付き fence / 意図した停止」のどれかにする
 7. 失敗中の owner を1つずつ分類し、常駐 daemon の誤分類を除いた本当の失敗を直す
 8. 6-5 en-card、6-7 job-search-inbox、6-8 pending-admission の owner
