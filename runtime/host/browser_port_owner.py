@@ -66,9 +66,18 @@ def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
 
 
 def _port_answers(port: int, timeout: float = 3.0) -> bool:
-    """True when something is serving CDP on the port right now."""
+    """True when something is serving CDP on the port right now.
+
+    Probes "localhost", not the literal 127.0.0.1: on this host an unrelated
+    process can (and did, 2026-09-27) occupy 127.0.0.1:<port> and 404 every
+    request, while the browser this owner spawned only binds the IPv6 loopback
+    (::1) on the same numeric port. browser-guard.sh already probes via
+    "localhost" for the same reason (commit de022c0); a probe hardcoded to the
+    IPv4 literal here saw only the unrelated occupant, always failed, and
+    killed a healthy browser every ~90s.
+    """
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=timeout):
+        with urllib.request.urlopen(f"http://localhost:{port}/json/version", timeout=timeout):
             return True
     except Exception:
         return False
