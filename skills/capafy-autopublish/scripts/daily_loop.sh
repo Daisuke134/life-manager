@@ -24,6 +24,14 @@ MARK="$CAPAFY_STATE_DIR/.capafy-healthy-pass"
 TS="$(date '+%Y-%m-%d %H:%M:%S')"
 mkdir -p "$CAPAFY_STATE_DIR"
 
+# This script is often launched by an agent-runner occurrence. Its private
+# TMPDIR is removed when that occurrence finishes, but a nested Capafy runner
+# inherits the stale value and fails at its first mktemp before doing any
+# publishing work. Use a loop-owned directory that outlives the nested runner.
+CAPAFY_TMPDIR="$CAPAFY_STATE_DIR/tmp"
+mkdir -p "$CAPAFY_TMPDIR"
+export TMPDIR="$CAPAFY_TMPDIR"
+
 # EXCLUSIVE LOCK (self-fix-capafy-loop, 2026-07-12): two independent schedulers
 # (launchd ai.anicca.capafy-loop-daily every hour via the full money-loop-core prompt,
 # and OpenClaw cron "anicca-capafy-daily-publish" @ 09:00 JST calling this script directly)

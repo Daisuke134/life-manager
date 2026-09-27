@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">RFP response evidence matrix icon</title>
+  <desc id="desc">A document with evidence rows and verification marks.</desc>
+  <rect width="256" height="256" rx="44" fill="#102A43"/>
+  <path d="M61 42h95l39 39v133H61z" fill="#EAF4F4"/>
+  <path d="M156 42v40h39" fill="#B8E3E0"/>
+  <rect x="82" y="105" width="92" height="10" rx="5" fill="#486581"/>
+  <rect x="82" y="130" width="92" height="10" rx="5" fill="#486581"/>
+  <rect x="82" y="155" width="55" height="10" rx="5" fill="#486581"/>
+  <circle cx="157" cy="160" r="17" fill="#2CB67D"/>
+  <path d="m149 160 6 6 11-13" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+  <circle cx="157" cy="135" r="8" fill="#F6C453"/>
+</svg>
