@@ -1,6 +1,12 @@
 "use strict";
 
-const EVENT_REF = /^luma-event:\/\/event\/[A-Za-z0-9_-]+$/;
+// Matches connector-candidate-outcome.js's EVENT_REF: this module suppresses
+// terminal candidates for every provider that classifier covers, not luma
+// alone. A luma-only regex here silently let connpass terminal outcomes pass
+// through unsuppressed forever (the same connpass event kept getting
+// re-selected every wake because checkedAttempt() would have thrown had a
+// connpass attempt even reached this module).
+const EVENT_REF = /^(?:luma-event:\/\/event\/[A-Za-z0-9_-]+|connpass-event:\/\/event\/[1-9][0-9]*)$/;
 const OUTCOMES = new Set([
   "verified_success",
   "known_no_effect",

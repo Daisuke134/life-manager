@@ -757,6 +757,41 @@ test("operations persist bounded candidate dispatch counts and refs", async () =
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
+test("recorded candidate attempts persist durably and feed the cross-wake suppression reader", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-candidate-attempts-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-candidate-attempt", telegramTarget: "private-target",
+      now: () => new Date("2026-09-28T00:00:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    assert.deepEqual([...await operations.readActiveSuppressedEventRefs()], []);
+    await operations.recordCandidateAttempt({
+      event_ref: "connpass-event://event/408094",
+      outcome: "known_no_effect",
+      safe_reason: "connpass_tier_unavailable",
+      retry_after: null,
+      capability_version: null,
+    });
+    const file = path.join(stateDir, "candidate-attempts.jsonl");
+    const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
+    assert.deepEqual(row, {
+      event_ref: "connpass-event://event/408094",
+      outcome: "known_no_effect",
+      safe_reason: "connpass_tier_unavailable",
+      observed_at: "2026-09-28T00:00:00.000Z",
+      retry_after: null,
+      capability_version: null,
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    assert.deepEqual([...await operations.readActiveSuppressedEventRefs()], ["connpass-event://event/408094"]);
+    await assert.rejects(() => operations.recordCandidateAttempt({
+      event_ref: "connpass-event://event/408094", outcome: "bogus_outcome",
+      safe_reason: "connpass_tier_unavailable", retry_after: null, capability_version: null,
+    }));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("Connpass discovery audit accepts a busy Tokyo listing and still bounds the count", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-connpass-busy-"));
   try {

@@ -322,6 +322,11 @@ function createProductionProviderRouter(options = {}) {
   const classifyTalkOpportunity = options.classifyTalkOpportunity;
   const buildTalkPack = options.buildTalkPack;
   const onCandidateRankingAudit = options.onCandidateRankingAudit;
+  // Cross-wake terminal-candidate memory (connector-candidate-attempts.jsonl via
+  // connector-minimal-operations.js's readActiveSuppressedEventRefs). Absent
+  // (undefined) defaults to "nothing suppressed" so tests that never wire it
+  // keep their existing behavior; production always wires the real reader.
+  const readSuppressedEventRefs = options.readSuppressedEventRefs || (async () => new Set());
   const eventPreferences = rankCandidates == null ? null : requiredText(options.eventPreferences);
   const connpassAutomatedSubmitAllowed = options.connpassAutomatedSubmitAllowed === true;
   const now = options.now || (() => new Date());
@@ -416,7 +421,17 @@ function createProductionProviderRouter(options = {}) {
           reconciliation_only: true,
         }));
         const queuedRefs = new Set(queued.map((candidate) => candidate.event_ref));
-        const candidates = Object.freeze([...queued, ...discoveredCandidates.filter((candidate) => !queuedRefs.has(candidate.event_ref))]);
+        // Reconciliation-queued candidates are exempt: they are already known
+        // to need a follow-up readback, not a fresh registration attempt, so
+        // a prior known_no_effect on the same ref (from before it reached
+        // "registered") must not hide them from that readback.
+        const suppressed = await readSuppressedEventRefs();
+        const candidates = Object.freeze([
+          ...queued,
+          ...discoveredCandidates.filter((candidate) => (
+            !queuedRefs.has(candidate.event_ref) && !suppressed.has(candidate.event_ref)
+          )),
+        ]);
         const emitCandidateRankingAudit = async (rankedCount, eligibleCandidates, rankedEvents = []) => {
           if (typeof onCandidateRankingAudit !== "function" || rankCandidates == null) return;
           const boundedRankedEvents = rankedEvents.slice(0, PROVIDER_RANK_MAX_CANDIDATES);
@@ -836,6 +851,7 @@ function createMinimalProductionDependencies(options = {}) {
     eventPreferences,
     rankCandidates,
     onCandidateRankingAudit: operations.recordCandidateRankingAudit,
+    readSuppressedEventRefs: operations.readActiveSuppressedEventRefs,
     classifyTalkOpportunity,
     buildTalkPack,
     now,
@@ -867,6 +883,7 @@ function createMinimalProductionDependencies(options = {}) {
     reportWake: operations.reportWake,
     recordAction: operations.recordAction,
     recordCandidateDispatchAudit: operations.recordCandidateDispatchAudit,
+    recordCandidateAttempt: operations.recordCandidateAttempt,
   });
 }
 

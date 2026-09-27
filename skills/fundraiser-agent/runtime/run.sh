@@ -17,13 +17,28 @@ PHOTO_SENDER="$REPO_ROOT/skills/_shared/send-telegram-photo.sh"
 LOOP_CLI="${LIFE_MANAGER_LOOP_CLI:-$REPO_ROOT/bin/lm-loop}"
 MIN_FREE_KIB=$((1536 * 1024))
 PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
+# The shared daily-driver browser is reached only through the registry-based
+# lease guard, never a literal host:port. #6048 stopped pinning the
+# daily-driver Chrome to 127.0.0.1 (that address now belongs to Dais's own
+# personal Google Chrome, pid 465), so a hardcoded "http://127.0.0.1:9222"
+# here would either connect refused or, worse, silently drive Dais's own
+# browser instead of the shared one. browser-guard.sh resolves the live,
+# UUID-verified endpoint for the "interactive:dais" identity and refuses to
+# hand back a mismatched browser (see ~/.config/ai/registry/browsers.toml).
+BROWSER_GUARD="${LIFE_MANAGER_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
+BROWSER_FOUNDATION="${LIFE_MANAGER_BROWSER_FOUNDATION:-$REPO_ROOT/skills/browser/ensure_browser.sh}"
+BROWSER_IDENTITY="${LIFE_MANAGER_BROWSER_IDENTITY:-interactive:dais}"
+export CLOAK_BROWSER_OWNER="${LIFE_MANAGER_BROWSER_TARGET_OWNER:-fundraiser}"
 
 available_kib() {
   df -Pk "$STATE_ROOT" 2>/dev/null | awk 'NR==2 {print $4}'
 }
 
-cdp_healthy() {
-  curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1
+BROWSER_LEASED=0
+release_browser() {
+  [ "$BROWSER_LEASED" -eq 1 ] || return 0
+  "$BROWSER_GUARD" release "$BROWSER_IDENTITY" >/dev/null 2>&1 || true
+  BROWSER_LEASED=0
 }
 
 # An application browser pass temporarily needs close to 1 GiB. Starting below this floor
@@ -41,30 +56,57 @@ if [ "$FREE_KIB" -lt "$PRESSURE_FREE_KIB" ]; then
   exit 75
 fi
 
-if ! cdp_healthy; then
-  "$LOOP_CLI" restart life-manager-daily-driver >/dev/null 2>&1 || true
-  CDP_READY=false
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if cdp_healthy; then
-      CDP_READY=true
-      break
-    fi
-    sleep 2
-  done
-  if [ "$CDP_READY" != true ]; then
-    echo "fundraiser: deferred cdp endpoint unavailable after owner recovery" >>"$LOG"
+[ -x "$BROWSER_GUARD" ] || {
+  echo "fundraiser: browser foundation unavailable" >>"$LOG"
+  exit 2
+}
+BROWSER_ENDPOINT=""
+if BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)"; then
+  BROWSER_LEASED=1
+else
+  BROWSER_RC=$?
+  if [ "$BROWSER_RC" -eq 10 ] && [ -x "$BROWSER_FOUNDATION" ]; then
+    # Identity mismatch or unreachable: ask the registered owner to recover the
+    # daily-driver profile (same recovery path life-manager-connector-native
+    # uses), then take one more lease attempt before giving up this wake.
+    BROWSER_STATUS="$(CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" bash "$BROWSER_FOUNDATION" 2>&1 | tail -n 1)" || BROWSER_STATUS="FAILED"
+    case "$BROWSER_STATUS" in
+      ALIVE|RECOVERED) ;;
+      *)
+        echo "fundraiser: deferred browser foundation unavailable: ${BROWSER_STATUS:-EMPTY}" >>"$LOG"
+        exit 75
+        ;;
+    esac
+    BROWSER_ENDPOINT="$(AI_BROWSER_HOLDER_PID=$$ "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY" 2>&1)" || {
+      echo "fundraiser: deferred browser lease unavailable after recovery: $BROWSER_ENDPOINT" >>"$LOG"
+      exit 75
+    }
+    BROWSER_LEASED=1
+  else
+    # Exit 9 (BUSY, another owner holds the lease) is normal, not a failure:
+    # skip this wake and let the next scheduled pass pick the work up.
+    echo "fundraiser: deferred browser lease unavailable rc=$BROWSER_RC: $BROWSER_ENDPOINT" >>"$LOG"
     exit 75
   fi
 fi
+case "$BROWSER_ENDPOINT" in
+  http://127.0.0.1:*|http://localhost:*|http://\[::1\]:*) ;;
+  *)
+    echo "fundraiser: deferred browser endpoint invalid: $BROWSER_ENDPOINT" >>"$LOG"
+    release_browser
+    exit 75
+    ;;
+esac
 
 mkdir -p "$STATE_ROOT/evidence" "$EVIDENCE_DIR"
 chmod 700 "$STATE_ROOT" "$STATE_ROOT/evidence" "$EVIDENCE_DIR"
 source "$LOCK_HELPER"
 if ! acquire_run_lock "$LOCK_DIR"; then
   echo "fundraiser: prior pass still owns the loop" >>"$LOG"
+  release_browser
   exit 0
 fi
-trap 'release_run_lock "$LOCK_DIR"' EXIT
+trap 'release_run_lock "$LOCK_DIR"; release_browser' EXIT
 
 export PATH="/opt/homebrew/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export LIFE_MANAGER_REPO="$REPO_ROOT"
@@ -75,8 +117,9 @@ export FUNDRAISER_RECEIPTS="$STATE_ROOT/application-receipts.jsonl"
 export FUNDRAISER_APPLICATIONS_DIR="$STATE_ROOT/applications"
 export FUNDRAISER_RECORD_APPLICATION="$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py"
 export FUNDRAISER_CURSOR="$STATE_ROOT/cursor.json"
-export FUNDRAISER_CDP_ENDPOINT="http://127.0.0.1:9222"
-export FUNDRAISER_X_CDP_ENDPOINT="http://127.0.0.1:9222"
+export CLOAK_CDP_BASE_URL="$BROWSER_ENDPOINT"
+export FUNDRAISER_CDP_ENDPOINT="$BROWSER_ENDPOINT"
+export FUNDRAISER_X_CDP_ENDPOINT="$BROWSER_ENDPOINT"
 export FUNDRAISER_TELEGRAM_SENDER="$SENDER"
 export FUNDRAISER_TELEGRAM_PHOTO_SENDER="$PHOTO_SENDER"
 export FUNDRAISER_CAPTCHA_MODE="existing-capsolver-only"
@@ -116,10 +159,10 @@ RUNTIME_PROMPT="$EVIDENCE_DIR/runtime-prompt.md"
 ## Concrete local runtime
 
 - This is real run \`$RUN_ID\`, owned by \`ai.anicca.fundraiser\`.
-- Work in \`$REPO_ROOT\`; use the existing authenticated Chrome CDP endpoint \`http://127.0.0.1:9222\`.
+- Work in \`$REPO_ROOT\`; use the existing authenticated Chrome CDP endpoint \`$FUNDRAISER_CDP_ENDPOINT\` (leased for identity \`$BROWSER_IDENTITY\` via \`skills/browser/browser-guard.sh\` for this run only — never a hardcoded host:port, and never Dais's own personal Chrome).
 - Search both the live Web and rendered authenticated X UI. X is discovery only; verify on the official program website before applying.
 - Use existing browser helpers under \`skills/browser/\`; do not launch or kill a browser.
-- If \`127.0.0.1:9222\` becomes connection-refused during this pass, do not record a candidate failure yet. Execute \`$LOOP_CLI restart life-manager-daily-driver\`, wait up to 20 seconds for \`curl -fsS --max-time 2 http://127.0.0.1:9222/json/version\` to succeed, reacquire a fresh fundraiser lease, and retry the same candidate observation once. Only checkpoint the transport if that exact managed recovery fails. Never launch or kill Chromium directly.
+- If \`$FUNDRAISER_CDP_ENDPOINT\` becomes connection-refused during this pass, do not record a candidate failure yet. Execute \`bash "$BROWSER_FOUNDATION"\`, wait up to 20 seconds for \`curl -fsS --max-time 2 "$FUNDRAISER_CDP_ENDPOINT/json/version"\` to succeed, reacquire a fresh fundraiser lease via \`bash "$BROWSER_GUARD" acquire "$BROWSER_IDENTITY"\`, and retry the same candidate observation once. Only checkpoint the transport if that exact managed recovery fails. Never launch or kill Chromium directly.
 - Read private founder values only from \`~/.config/anicca/job-search/profile.json\` and \`~/.local/share/anicca/credentials.json\`; never print or report their values.
 - The only attachable pitch deck is the deterministic preflight-verified file \`$FUNDRAISER_VERIFIED_DECK\`; never attach another deck path.
 - Never append a \`submitted_verified\` row directly. Before Submit, create a mode-600 draft JSON containing organization, program, cohort_window, account, official_url, contact {method,destination}, every rendered question and actual answer in question_answers, attachment names, the exact non-secret claims/source paths used in context_used, context_version \`$FUNDRAISER_CONTEXT_VERSION\`, and context_digest \`$FUNDRAISER_CONTEXT_DIGEST\`. Run \`python3 "$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py" --prepare --draft <draft> --ledger "$STATE_ROOT/application-receipts.jsonl" --applications-dir "$STATE_ROOT/applications" --expected-context-version "$FUNDRAISER_CONTEXT_VERSION" --expected-context-digest "$FUNDRAISER_CONTEXT_DIGEST"\` and require its prepared application_digest before claiming the final effect. This pre-submit gate rejects prior terminal applications even when cohort dates or URL spelling drift. After official screenshot and Telegram photo delivery, add submitted_at and evidence {completion_png,telegram_photo_message_id,provider_readback} without changing the prepared fields; then run \`python3 "$REPO_ROOT/skills/fundraiser-agent/runtime/record-application.py" --draft <draft> --ledger "$STATE_ROOT/application-receipts.jsonl" --applications-dir "$STATE_ROOT/applications" --run-id "$RUN_ID" --expected-context-version "$FUNDRAISER_CONTEXT_VERSION" --expected-context-digest "$FUNDRAISER_CONTEXT_DIGEST"\`. Only its successful output establishes \`submitted_verified\`. Use direct compact rows only for non-success terminal states.

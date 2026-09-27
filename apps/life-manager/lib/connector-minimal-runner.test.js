@@ -2210,3 +2210,45 @@ test("real runner production operations persist one positive wake delivery and d
     assertDurableWakeReport(stateDir, "7311");
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
+
+test("a known-no-effect connpass candidate is durably recorded so it can be suppressed next wake", async () => {
+  const attempts = [];
+  const state = fixture({
+    async discoverCandidates(provider) {
+      state.calls.push(["discover", provider]);
+      return provider === "connpass" ? [candidate("connpass", "408094")] : [];
+    },
+    async runDirectAction({ candidate: selected }) {
+      state.calls.push(["direct", selected.event_ref]);
+      return Object.freeze({ status: "failed", safe_reason: "connpass_tier_unavailable" });
+    },
+    async recordCandidateAttempt(input) {
+      attempts.push(input);
+    },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-attempt-record", providers: ["connpass"] }, state.dependencies);
+
+  assert.deepEqual(attempts, [{
+    event_ref: "connpass-event://event/408094",
+    outcome: "known_no_effect",
+    safe_reason: "connpass_tier_unavailable",
+    retry_after: null,
+    capability_version: null,
+  }]);
+});
+
+test("a wake with no recordCandidateAttempt dependency still completes (optional dependency)", async () => {
+  const state = fixture({
+    async discoverCandidates(provider) {
+      return provider === "connpass" ? [candidate("connpass", "408094")] : [];
+    },
+    async runDirectAction({ candidate: selected }) {
+      state.calls.push(["direct", selected.event_ref]);
+      return Object.freeze({ status: "failed", safe_reason: "connpass_tier_unavailable" });
+    },
+  });
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-no-recorder", providers: ["connpass"] }, state.dependencies);
+  assert.equal(result.status, "completed_no_effect");
+});
