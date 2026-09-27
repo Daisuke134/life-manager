@@ -175,7 +175,7 @@ class FakeState:
 
 class FakeEx:
     def __init__(self, state=None, fail_perp=False, fail_close=False, raise_on=None,
-                 xfer_status="ok", lev_status="ok"):
+                 xfer_status="ok", lev_status="ok", perp_fill_ratio=1.0, fail_spot_buy=False):
         self.calls = []
         self.state = state if state is not None else FakeState()
         self.fail_perp = fail_perp
@@ -183,6 +183,8 @@ class FakeEx:
         self.raise_on = raise_on or set()  # set of (name, is_buy) that raise RuntimeError, like a ClientError/network drop
         self.xfer_status = xfer_status
         self.lev_status = lev_status
+        self.perp_fill_ratio = perp_fill_ratio  # <1.0 models a partial perp fill
+        self.fail_spot_buy = fail_spot_buy  # spot buy rejected outright, no exception, no fill
 
     def usd_class_transfer(self, amount, to_perp):
         self.calls.append(("xfer", round(amount, 2), to_perp))
@@ -199,6 +201,8 @@ class FakeEx:
         if _is_spot(name):
             coin = _spot_coin(name)
             if is_buy:
+                if self.fail_spot_buy:
+                    return {"status": "ok", "response": {"data": {"statuses": [{"error": "no liquidity"}]}}}
                 fill = sz * (1 - FEE)
                 self.state.spot[coin] = self.state.spot.get(coin, 0.0) + fill
                 return _ok_fill(fill)
@@ -209,9 +213,10 @@ class FakeEx:
             return _ok_fill(sz)
         if self.fail_perp:
             return {"status": "ok", "response": {"data": {"statuses": [{"error": "no liquidity"}]}}}
-        delta = sz if is_buy else -sz
+        filled_sz = sz * self.perp_fill_ratio
+        delta = filled_sz if is_buy else -filled_sz
         self.state.perp_szi[name] = self.state.perp_szi.get(name, 0.0) + delta
-        return _ok_fill(sz)
+        return _ok_fill(filled_sz)
 
     def market_close(self, coin, sz=None, px=None, slippage=0.01, cloid=None):
         self.calls.append(("close", coin, sz))
@@ -250,6 +255,16 @@ class FakeInfoWithDecimals(FakeInfo):
         return 1 if "/" in name else 2
 
 
+class RaisingReadbackInfo(FakeInfo):
+    """Models info.user_state/spot_user_state itself raising (e.g. a dropped connection)."""
+
+    def spot_user_state(self, address):
+        raise RuntimeError("readback_error")
+
+    def user_state(self, address):
+        raise RuntimeError("readback_error")
+
+
 def fakes(**ex_kwargs):
     state = FakeState()
     return FakeEx(state, **ex_kwargs), FakeInfo(state)
@@ -282,6 +297,7 @@ class ExecuteTest(unittest.TestCase):
             expected_sell = execute._floor(120.0 * (1 - FEE), 2)
             self.assertIn(("open", "PURR/USDC", False, expected_sell), ex.calls)
             self.assertIsNone(lg.position())
+            self.assertEqual(r["xfer_back_status"], "ok")  # (N3) margin returned once flat
 
     def test_perp_exception_triggers_unwind_and_writes_receipt(self):
         with tempfile.TemporaryDirectory() as d:
@@ -289,7 +305,7 @@ class ExecuteTest(unittest.TestCase):
             ex, info = fakes(raise_on={("PURR", False)})
             r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "partial")
-            self.assertEqual(r["exc"], "RuntimeError")
+            self.assertEqual(r["error"], "RuntimeError")
             self.assertEqual([x["kind"] for x in lg.rows()], ["intent", "receipt"])
             self.assertIsNone(lg.position())
 
@@ -299,8 +315,47 @@ class ExecuteTest(unittest.TestCase):
             ex, info = fakes(raise_on={("PURR", False), ("PURR/USDC", False)})
             r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "unhedged")
+            self.assertEqual(r["error"], "RuntimeError")
             self.assertEqual(lg.position(), "PURR")
             self.assertTrue(lg.needs_unwind())
+
+    def test_partial_perp_fill_with_noop_close_leaves_unhedged_no_spot_sell(self):
+        # (N1) close finds no liquidity and never clears the position; the old
+        # code would have sold the *entire* spot balance anyway, creating a
+        # naked short. It must now skip the spot sell and report unhedged.
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(perp_fill_ratio=0.5, fail_close=True)
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "unhedged")
+            self.assertLess(r["perp_szi"], 0)
+            self.assertGreater(r["spot_sz"], 0)
+            opens = [c for c in ex.calls if c[0] == "open"]
+            # buy + the partial-fill hedge attempt only — no spot sell-back call.
+            self.assertEqual(len(opens), 2)
+            self.assertEqual([c[0] for c in ex.calls if c[0] == "close"], ["close"])
+            self.assertEqual(lg.position(), "PURR")
+            self.assertTrue(lg.needs_unwind())
+
+    def test_spot_buy_exception_yields_unhedged_receipt(self):
+        # (N2) the exchange may have accepted the buy even though the call
+        # raised; "failed" would wrongly imply nothing happened.
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(raise_on={("PURR/USDC", True)})
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "unhedged")
+            self.assertEqual(r["error"], "RuntimeError")
+
+    def test_final_readback_exception_yields_unhedged_receipt(self):
+        # (N2) info.user_state/spot_user_state raising must not escape enter().
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            state = FakeState()
+            ex, info = FakeEx(state), RaisingReadbackInfo(state)
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "unhedged")
+            self.assertEqual(r["error"], "RuntimeError")
 
     def test_transfer_failure_stops_before_any_order(self):
         with tempfile.TemporaryDirectory() as d:
@@ -311,23 +366,34 @@ class ExecuteTest(unittest.TestCase):
             self.assertEqual(r["reason"], "transfer_failed")
             self.assertEqual([c[0] for c in ex.calls], ["xfer"])
 
-    def test_leverage_failure_stops_before_any_order(self):
+    def test_leverage_failure_stops_before_any_order_and_returns_margin(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
             ex, info = fakes(lev_status="err")
             r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "failed")
             self.assertEqual(r["reason"], "leverage_failed")
-            self.assertEqual([c[0] for c in ex.calls], ["xfer", "lev"])
+            self.assertEqual([c[0] for c in ex.calls], ["xfer", "lev", "xfer"])  # (N3) margin sent back
+            self.assertEqual(r["xfer_back_status"], "ok")
 
-    def test_below_min_notional_stops_before_any_order(self):
+    def test_below_min_notional_makes_no_transfer_call_at_all(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
             ex, info = fakes()
             r = execute.enter(ex, info, "0xabc", pair(0.3), 5.0, lg)
             self.assertEqual(r["result"], "failed")
             self.assertEqual(r["reason"], "below_min_notional")
-            self.assertEqual([c[0] for c in ex.calls], ["xfer", "lev"])
+            self.assertEqual(ex.calls, [])  # (N3) no transfer at all — nothing to unwind
+
+    def test_spot_not_filled_returns_margin_to_spot(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(fail_spot_buy=True)
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "failed")
+            self.assertEqual(r["reason"], "spot_not_filled")
+            self.assertIn(("xfer", 25.0, False), ex.calls)  # (N3) margin moved back to spot
+            self.assertEqual(r["xfer_back_status"], "ok")
 
     def test_enter_uses_shared_min_sz_decimals_across_legs(self):
         with tempfile.TemporaryDirectory() as d:
@@ -353,6 +419,7 @@ class ExecuteTest(unittest.TestCase):
             names = [c[0] for c in ex.calls]
             self.assertLess(names.index("close"), names.index("open"))
             self.assertIn(("xfer", 25.0, False), ex.calls)
+            self.assertEqual(r["xfer_status"], "ok")
 
     def test_exit_when_perp_stays_open_does_not_touch_spot_or_margin(self):
         with tempfile.TemporaryDirectory() as d:
@@ -365,6 +432,7 @@ class ExecuteTest(unittest.TestCase):
             self.assertEqual(r["result"], "partial")
             self.assertEqual(r["reason"], "perp_not_flat")
             self.assertEqual([c[0] for c in ex.calls], ["close"])
+            self.assertEqual(r["xfer_status"], "not_attempted")
 
     def test_market_close_with_no_position_returns_none(self):
         self.assertIsNone(FakeEx(FakeState()).market_close("PURR"))

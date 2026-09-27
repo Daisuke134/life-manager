@@ -4,7 +4,9 @@ Every mutating call is followed by a state readback (spot balance, perp szi)
 rather than trust in the order response, because the SDK returns
 status="ok" envelopes even for rejected/unfilled orders and raises
 ClientError/ServerError on transport failures. Nothing here ever reports
-"flat" or "entered" without checking the account state that would prove it.
+"flat" or "entered" without checking the account state that would prove it,
+and nothing here ever assumes an unwind leg (close/sell) actually worked
+without re-reading state after it.
 """
 from __future__ import annotations
 
@@ -47,30 +49,71 @@ def _perp_szi(info, address, perp) -> float:
     return 0.0
 
 
+def _safe_perp_szi(info, address, perp):
+    try:
+        return _perp_szi(info, address, perp)
+    except Exception:
+        return None
+
+
+def _safe_spot_balance(info, address, coin):
+    try:
+        return _spot_balance(info, address, coin)
+    except Exception:
+        return None
+
+
+def _xfer_back(ex, info, address) -> str:
+    """Best-effort return of perp margin to spot after a failed/aborted entry (N3)."""
+    try:
+        withdrawable = float(info.user_state(address).get("withdrawable", 0.0))
+    except Exception:
+        return "readback_failed"
+    if withdrawable <= 0:
+        return "skipped"
+    try:
+        return ex.usd_class_transfer(withdrawable, False).get("status", "unknown")
+    except Exception as e:
+        return f"error:{type(e).__name__}"
+
+
 def enter(ex, info, address, pair, leg_usd, lg) -> dict:
     iid = uuid.uuid4().hex
     lg.append("intent", intent_id=iid, action="enter", perp=pair.perp, spot=pair.spot, leg_usd=leg_usd)
     coin = pair.spot_token or pair.spot.split("/")[0]
 
-    xfer = ex.usd_class_transfer(leg_usd + 1.0, True)
-    if xfer.get("status") != "ok":
-        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="transfer_failed")
-    lev = ex.update_leverage(1, pair.perp, True)
-    if lev.get("status") != "ok":
-        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="leverage_failed")
-
+    # Size and the min-notional check run before any transfer: a rejected plan
+    # should never leave margin stranded on the perp side to unwind. (N3)
     px = float(info.all_mids()[pair.spot])
     d = min(_sz_decimals(info, pair.spot), _sz_decimals(info, pair.perp))
     order_sz = _floor(leg_usd / px, d)
     if order_sz * px < MIN_NOTIONAL_USD:
         return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="below_min_notional")
 
-    spot_sz = _filled(ex.market_open(pair.spot, True, order_sz))
-    if spot_sz <= 0:
-        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="spot_not_filled")
+    xfer = ex.usd_class_transfer(leg_usd + 1.0, True)
+    if xfer.get("status") != "ok":
+        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="transfer_failed")
 
-    exc_name = None
-    entered, szi, bal = False, 0.0, 0.0
+    lev = ex.update_leverage(1, pair.perp, True)
+    if lev.get("status") != "ok":
+        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="leverage_failed",
+                         xfer_back_status=_xfer_back(ex, info, address))
+
+    try:
+        spot_sz = _filled(ex.market_open(pair.spot, True, order_sz))
+    except Exception as e:
+        # The exchange may have accepted the order even though the call raised
+        # (timeout/network drop) — never claim "failed" here, we don't know. (N2)
+        return lg.append("receipt", intent_id=iid, result="unhedged", perp=pair.perp,
+                         spot_sz=_safe_spot_balance(info, address, coin),
+                         perp_szi=_safe_perp_szi(info, address, pair.perp), error=type(e).__name__)
+
+    if spot_sz <= 0:
+        return lg.append("receipt", intent_id=iid, result="failed", perp=pair.perp, reason="spot_not_filled",
+                         xfer_back_status=_xfer_back(ex, info, address))
+
+    error = None
+    szi, bal = None, None
     try:
         # Hedge off the balance actually received (buy fees are taken in the
         # base asset), never off the order size we asked for. (C1)
@@ -79,31 +122,33 @@ def enter(ex, info, address, pair, leg_usd, lg) -> dict:
         szi = _perp_szi(info, address, pair.perp)
         bal = _spot_balance(info, address, coin)
         floored_bal = _floor(bal, d)
-        entered = szi < 0 and abs(-szi - floored_bal) < 10**-d + 1e-9
-    except Exception as e:  # SDK ClientError/ServerError/network — never trust an unread state (C2)
-        exc_name = type(e).__name__
-
-    if entered:
-        return lg.append("receipt", intent_id=iid, result="entered", perp=pair.perp, spot=pair.spot,
-                         spot_sz=bal, perp_szi=szi, entry_px=px)
+        if szi < 0 and abs(-szi - floored_bal) < 10**-d + 1e-9:
+            return lg.append("receipt", intent_id=iid, result="entered", perp=pair.perp, spot=pair.spot,
+                             spot_sz=bal, perp_szi=szi, entry_px=px)
+    except Exception as e:  # SDK ClientError/ServerError/network (C2)
+        error = type(e).__name__
 
     # Not hedged (mismatch or exception): unwind, then prove flat before saying so.
     try:
         szi = _perp_szi(info, address, pair.perp)
         if szi != 0:
             ex.market_close(pair.perp)
-        sell_sz = _floor(_spot_balance(info, address, coin), d)
-        if sell_sz > 0:
-            ex.market_open(pair.spot, False, sell_sz)
-    except Exception as e:
-        exc_name = exc_name or type(e).__name__
+            szi = _perp_szi(info, address, pair.perp)  # (N1) re-read — never assume the close worked
+        if szi == 0:
+            sell_sz = _floor(_spot_balance(info, address, coin), d)
+            if sell_sz > 0:
+                ex.market_open(pair.spot, False, sell_sz)
+        bal = _spot_balance(info, address, coin)
+    except Exception as e:  # an unwind leg or its readback failing (C2/N2)
+        error = error or type(e).__name__
+        szi = _safe_perp_szi(info, address, pair.perp)
+        bal = _safe_spot_balance(info, address, coin)
 
-    szi = _perp_szi(info, address, pair.perp)
-    bal = _spot_balance(info, address, coin)
-    if szi == 0 and _floor(bal, d) * px < 1.0:
-        return lg.append("receipt", intent_id=iid, result="partial", perp=pair.perp, reason="flat", exc=exc_name)
+    if szi == 0 and bal is not None and _floor(bal, d) * px < 1.0:
+        return lg.append("receipt", intent_id=iid, result="partial", perp=pair.perp, reason="flat", error=error,
+                         xfer_back_status=_xfer_back(ex, info, address))
     return lg.append("receipt", intent_id=iid, result="unhedged", perp=pair.perp,
-                     spot_sz=bal, perp_szi=szi, exc=exc_name)
+                     spot_sz=bal, perp_szi=szi, error=error)
 
 
 def exit(ex, info, address, pair, lg) -> dict:
@@ -114,7 +159,8 @@ def exit(ex, info, address, pair, lg) -> dict:
     ex.market_close(pair.perp)  # may return None (SDK: no open position) — readback decides, not the response (C3/I3)
     szi = _perp_szi(info, address, pair.perp)
     if szi != 0:
-        return lg.append("receipt", intent_id=iid, result="partial", perp=pair.perp, reason="perp_not_flat")
+        return lg.append("receipt", intent_id=iid, result="partial", perp=pair.perp, reason="perp_not_flat",
+                         xfer_status="not_attempted")
 
     d = _sz_decimals(info, pair.spot)
     sell_sz = _floor(_spot_balance(info, address, coin), d)  # floored, never raw fee-dust balance (C4)
@@ -122,9 +168,10 @@ def exit(ex, info, address, pair, lg) -> dict:
         ex.market_open(pair.spot, False, sell_sz)
 
     withdrawable = float(info.user_state(address).get("withdrawable", 0.0))
+    xfer_status = "skipped"
     if withdrawable > 0:
-        ex.usd_class_transfer(withdrawable, False)
+        xfer_status = ex.usd_class_transfer(withdrawable, False).get("status", "unknown")
 
     remaining = _floor(_spot_balance(info, address, coin), d)
     result = "exited" if remaining == 0 else "partial"
-    return lg.append("receipt", intent_id=iid, result=result, perp=pair.perp)
+    return lg.append("receipt", intent_id=iid, result=result, perp=pair.perp, xfer_status=xfer_status)
