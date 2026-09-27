@@ -725,7 +725,13 @@
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "shared-agent-runner",
-      "state_root": "~/.local/state/life-manager"
+      "state_root": "~/.local/state/life-manager",
+      "effect_reconcile": {
+        "argv": ["skills/earn/capafy-marketing/scripts/capafy_ig_fence_reconcile.py"],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      }
     },
     "capafy-loop-daily": {
       "admission_class": "revenue",
