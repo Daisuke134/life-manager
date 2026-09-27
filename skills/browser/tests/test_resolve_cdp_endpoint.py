@@ -1,4 +1,5 @@
 import importlib.util
+import socket
 from pathlib import Path
 
 import pytest
@@ -97,3 +98,27 @@ def test_resolve_all_exposes_duplicate_browser_uuid_for_guard_to_fail_closed():
 
     rows = MODULE.resolve_all(registry, fetch=fetch, listeners=listeners, command=command)
     assert [row["uuid"] for row in rows] == ["same-browser", "same-browser"]
+
+
+def test_listener_pids_finds_lsof_even_when_path_omits_usr_sbin(monkeypatch):
+    """Regression for the 2026-09-27 outage: every registered identity showed
+    reachable:false with error_class endpoint_not_profile_owned even though the
+    daily-driver Chromium was alive. Root cause: resolve_identity's default
+    _listener_pids() shells out to bare "lsof", and macOS ships that binary at
+    /usr/sbin/lsof -- a directory absent from the trimmed PATH this resolver
+    actually runs under (Claude Code's Bash tool and some launchd contexts).
+    subprocess.run(["lsof", ...]) raised FileNotFoundError, was swallowed by the
+    existing `except (OSError, subprocess.SubprocessError): return []`, and every
+    live browser was then reported as not-profile-owned. The fix must locate lsof
+    by absolute path when PATH lookup fails.
+    """
+    monkeypatch.setenv("PATH", "/nonexistent-bin-only")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    try:
+        port = server.getsockname()[1]
+        pids = MODULE._listener_pids("127.0.0.1", port)
+    finally:
+        server.close()
+    assert pids, "expected lsof (found via absolute fallback path) to report the bound listener"
