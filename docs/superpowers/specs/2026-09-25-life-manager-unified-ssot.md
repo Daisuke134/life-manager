@@ -223,8 +223,8 @@ TODO（何を・どう直すか）
   - [ ] P-11b アカウント作成（Zoneless 出金）、credential SSOT に保存
   - [ ] P-11c PromptBase support に SKILL.md の審査方法を問い合わせる
   - [ ] P-11d 売れた型（動画フック・スライド・マーケ戦略）のスキル1件を、買い切り価格・出力例つきの PromptBase 用 listing に書き直して出品し、公開を readback する
-- [ ] P-12 **価格の見直し**: 訂正 — 「$0 の SKU が多い」は売上額を価格と読み違えた誤り。実際は 80 SKU 中 $0 は1つ（Japanese Humanizer の download 無料枠、意図的とみられる）。逆に売れた4スキルが、過去に実際に売れた価格より安い: Hook Lab 日額 $1.99（過去 $19.9）、TikTok Script Pro 日額 $1.99（$5.97）、Slide Maker 週額 $9.99（$19.98）、Marketing Strategist 週額 $6.99（$13.98）。ただし売上は価格ごとに分かれないので方向性の証拠にとどまる（`~/.local/state/life-manager/state/capafy-pricing-2026-09-27.md`）
-  - [ ] P-12a 誰がいつ価格を下げたか（capafy-loop の自動改善か手作業か）を listing の更新履歴と loop の記録で確認する。自動 loop が下げたなら、その loop の評価軸を直す。確認後に価格を戻すか決める
+- [x] P-12 **価格の見直し（結論: 据え置き）**: 2回訂正した。(1)「$0 の SKU が多い」は売上額を価格と読み違えた誤り。(2)「売れた4スキルが過去の売値より安い」も誤りで、$19.9・$5.97・$19.98・$13.98 は現在価格 × 販売数（累計売上）だった。Capafy の初回販売メール（notify@notify.capafy.ai）で売値は現在と同じ: Hook Lab 月 $9.99、Slide Maker 週 $9.99、Marketing Strategist 週 $6.99、TikTok Script Pro 日 $1.99。価格を変えるコードも commit も無い（version 更新は無料 trial の廃止だけ）
+  - [x] P-12a 誰も値下げしていない（上の通り）。今後の価格判断は、単価ではなく販売数と単価を分けたデータで行う
 - [x] P-1c 毎時の分析で per_skill_rows の name が全部 None だった。`/agent/agents` の項目名は `name`（`agentTitle` ではない）。直した（#6021）。本番データで 45 行すべてに名前が入ることを確認。model / runtime が None なのは別の既知の欠損（LISTING.md の形式が変わった）
 - [ ] P-13 **Telegram の製品レポート**: Capafy の hourly レポート（`capafy_company_receipt.py`）は全体の金額しか出していない。直近30日の net・注文数、直近7日、上位5スキルの収益、売上ゼロのスキル数、サブスク proxy と、アプリごとの RevenueCat（MRR・active・新規 trial と日付）を同じレポートに足す（実装中）
 - [ ] P-14 **Capafy の出品枠が詰まっている（新しいスキルを出せない）**: Capafy は未公開（draft/under_review）の Agent を同時に5つまでしか持てない（`skills/capafy-autopublish/scripts/inventory_status.py` CAP=5 → CAP_FULL）。5つ（9470213182 Job Description Writer、4886968609 Performance Review Writer、3947077924 Meeting Notes、5051239796 Cold Email Writer、7883384570 Thesis Structure Humanizer）は 2026-09-15 に審査通過（承認メールあり、API で status=3・auditStatus=4）なのに、一覧は under_review のまま12日間公開されていない。売り手が公開に進める API は無い。このため `capafy-loop-daily` は 09-15 以降1件も公開できず、申請待ちの候補が 12 件たまっている。2026-09-27 に support@capafy.ai へ公開か枠の解放を依頼した（message `1a0e17b64de76577`）
