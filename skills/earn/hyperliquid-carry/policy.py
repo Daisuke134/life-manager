@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
+
+
+HARD_MAX_LEG_USD = 25.0
 
 
 @dataclass(frozen=True)
@@ -23,6 +27,10 @@ class Caps:
     exit_apr: float = 0.05
     round_trip_cost: float = 0.0023
     min_spot_vol_usd: float = 150_000.0
+
+    def __post_init__(self):
+        if not math.isfinite(self.max_leg_usd) or not 0 < self.max_leg_usd <= HARD_MAX_LEG_USD:
+            raise ValueError(f"max_leg_usd must be finite and within (0, {HARD_MAX_LEG_USD}]")
 
 
 def decide(pairs, position, equity, day_start_equity, peak_equity, caps: Caps) -> dict:

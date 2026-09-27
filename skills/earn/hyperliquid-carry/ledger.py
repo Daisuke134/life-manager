@@ -27,7 +27,17 @@ class Ledger:
 
     def open_intents(self) -> list[dict]:
         rows = self.rows()
-        done = {r["intent_id"] for r in rows if r["kind"] == "receipt"}
+        terminal = {"entered", "exited", "failed", "deposited"}
+        done = {
+            r["intent_id"]
+            for r in rows
+            if r["kind"] == "receipt" and r.get("result") in terminal
+        }
+        done.update(
+            r["resolves_intent_id"]
+            for r in rows
+            if r["kind"] == "receipt" and r.get("result") == "exited" and r.get("resolves_intent_id")
+        )
         return [r for r in rows if r["kind"] == "intent" and r["intent_id"] not in done]
 
     def position(self) -> str | None:

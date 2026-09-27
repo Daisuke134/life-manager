@@ -39,6 +39,10 @@ def _decision(d):
     return {k: (v.__dict__ if hasattr(v, "__dict__") else v) for k, v in d.items()}
 
 
+def _caps_from_env(environ) -> policy.Caps:
+    return policy.Caps(max_leg_usd=float(environ.get("HL_CARRY_MAX_LEG_USD", "25")))
+
+
 def _report_once(lg, today, text, send) -> None:
     if not any(r["kind"] == "report" and r.get("day") == today for r in lg.rows()):
         result = send(text)
@@ -51,9 +55,10 @@ def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
     eq = market.equity(post, address)
     lg.mark_equity(eq)
     day_start, peak = lg.risk_state(today)
+    net_pnl_usd = round(eq - day_start, 6)
     pairs = market.pairs(post, int(time.time() * 1000))
     pos = lg.position()
-    open_intents = lg.open_intents()
+    open_intents = [r for r in lg.open_intents() if r.get("action") in ("enter", "exit")]
     if open_intents or lg.needs_unwind():
         intent = open_intents[-1] if open_intents else {}
         perp = intent.get("perp") or pos
@@ -63,13 +68,15 @@ def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
         receipt = None
         if live and target is not None:
             ex, info = make_clients()
-            receipt = execute.exit(ex, info, address, target, lg)
+            receipt = execute.exit(ex, info, address, target, lg,
+                                   resolves_intent_id=intent.get("intent_id"))
         elif target is None:
             receipt = {"result": "reconciliation_pending", "reason": "pair_unavailable", "perp": perp}
         _report_once(lg, today,
-                     f"Hyperliquid carry {today}: equity ${eq:.2f} (reconcile exit; live={'yes' if live else 'no'}). Address {address}",
+                     f"Hyperliquid carry {today}: equity ${eq:.2f}, account-equity net P&L ${net_pnl_usd:.2f} "
+                     f"(reconcile exit; live={'yes' if live else 'no'}). Address {address}",
                      send)
-        return {"decision": _decision(d), "equity": eq, "receipt": receipt}
+        return {"decision": _decision(d), "equity": eq, "net_pnl_usd": net_pnl_usd, "receipt": receipt}
 
     d = policy.decide(pairs, pos, eq, day_start, peak, caps)
     receipt = None
@@ -86,13 +93,15 @@ def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
                 receipt = execute.exit(ex, info, address, target, lg)
     apr = f"{d['pair'].funding_apr_24h:.1%}" if d.get("pair") else "-"
     _report_once(lg, today,
-                 f"Hyperliquid carry {today}: equity ${eq:.2f} (day start ${day_start:.2f}, peak ${peak:.2f}), "
+                 f"Hyperliquid carry {today}: equity ${eq:.2f}, account-equity net P&L ${net_pnl_usd:.2f} "
+                 f"(day start ${day_start:.2f}, peak ${peak:.2f}), "
                  f"position {lg.position() or 'none'}, decision {d['action']} ({d['reason']}), funding {apr}, "
                  f"live={'yes' if live else 'no'}. Address {address}", send)
-    return {"decision": _decision(d), "equity": eq, "receipt": receipt}
+    return {"decision": _decision(d), "equity": eq, "net_pnl_usd": net_pnl_usd, "receipt": receipt}
 
 
 def main() -> int:
+    caps = _caps_from_env(os.environ)
     import wallet
     from hyperliquid.exchange import Exchange
     from hyperliquid.info import Info
@@ -102,7 +111,6 @@ def main() -> int:
     state = Path(os.environ.get("LIFE_MANAGER_STATE_ROOT",
                                 Path.home() / ".local/state/life-manager/hyperliquid-carry"))
     lg = ledger.Ledger(state / "journal.jsonl")
-    caps = policy.Caps(max_leg_usd=float(os.environ.get("HL_CARRY_MAX_LEG_USD", "25")))
     live = os.environ.get("HL_CARRY_LIVE") == "1"
     tg = HERE.parent.parent / "_shared" / "send-telegram.sh"
     send = lambda text: subprocess.run(["bash", str(tg), text], capture_output=True, timeout=30, check=True)

@@ -26,6 +26,21 @@ class WalletTest(unittest.TestCase):
             services = [r["service"] for r in json.loads(ssot.read_text())["credentials"]]
             self.assertEqual(services, ["other", wallet.SERVICE])
 
+    def test_repairs_existing_credential_and_parent_modes_before_reuse(self):
+        with tempfile.TemporaryDirectory() as d:
+            ssot = Path(d) / "anicca" / "credentials.json"
+            ssot.parent.mkdir(mode=0o755)
+            first = wallet.load_or_create(ssot)
+            os.chmod(ssot.parent, 0o755)
+            os.chmod(ssot, 0o644)
+
+            reused = wallet.load_or_create(ssot)
+
+            self.assertEqual(reused.address, first.address)
+            self.assertEqual(stat.S_IMODE(ssot.parent.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(ssot.stat().st_mode), 0o600)
+            self.assertEqual(len(json.loads(ssot.read_text())["credentials"]), 1)
+
 
 import policy
 
@@ -66,6 +81,12 @@ class PolicyTest(unittest.TestCase):
     def test_halts_on_daily_loss_and_drawdown(self):
         self.assertEqual(policy.decide([pair(0.3)], "PURR", 47.4, 50, 50, self.caps)["action"], "halt")
         self.assertEqual(policy.decide([pair(0.3)], None, 39.9, 40, 50, self.caps)["action"], "halt")
+
+    def test_rejects_leg_caps_that_expand_or_invalidates_hard_limit(self):
+        for value in (25.01, 0.0, -1.0, float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    policy.Caps(max_leg_usd=value)
 
 
 import ledger
@@ -109,6 +130,24 @@ class LedgerTest(unittest.TestCase):
             lg.append("receipt", intent_id="i2", result="exited", perp="PURR")
             self.assertFalse(lg.needs_unwind())
             self.assertIsNone(lg.position())
+
+    def test_verified_exit_can_resolve_the_original_intent(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="original", action="enter", perp="PURR")
+            lg.append("intent", intent_id="reconcile", action="exit", perp="PURR")
+            lg.append("receipt", intent_id="reconcile", result="exited", perp="PURR",
+                      resolves_intent_id="original")
+            self.assertEqual(lg.open_intents(), [])
+
+    def test_partial_and_effect_unknown_intents_remain_open(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="trade", action="exit", perp="PURR")
+            lg.append("receipt", intent_id="trade", result="partial", perp="PURR")
+            lg.append("intent", intent_id="deposit", action="deposit", raw_amount=5_000_000)
+            lg.append("receipt", intent_id="deposit", result="effect_unknown")
+            self.assertEqual({r["intent_id"] for r in lg.open_intents()}, {"trade", "deposit"})
 
 
 import market
@@ -475,6 +514,27 @@ class WakeTest(unittest.TestCase):
             self.assertEqual(made, [1])
             self.assertIsNotNone(r["receipt"])
 
+    def test_verified_reconciliation_resolves_original_intent_and_next_wake_progresses(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="original", action="enter", perp="PURR", spot="PURR/USDC")
+            r = run.wake(fake_post, lambda: fakes(), lg, "0xabc", policy.Caps(), True,
+                         "2099-01-01", lambda t: None)
+            self.assertEqual(r["receipt"]["result"], "exited")
+            self.assertEqual(lg.open_intents(), [])
+
+            next_wake = run.wake(fake_post, lambda: fakes(), lg, "0xabc", policy.Caps(), False,
+                                 "2099-01-01", lambda t: None)
+            self.assertNotEqual(next_wake["decision"]["action"], "reconcile_exit")
+
+    def test_deposit_intent_does_not_trigger_trade_reconciliation(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="deposit", action="deposit", raw_amount=5_000_000)
+            r = run.wake(fake_post, lambda: self.fail("no trading client"), lg, "0xabc", policy.Caps(),
+                         False, "2099-01-01", lambda t: None)
+            self.assertNotEqual(r["decision"]["action"], "reconcile_exit")
+
 
     def test_reconcile_without_current_pair_uses_recorded_pair(self):
         with tempfile.TemporaryDirectory() as d:
@@ -568,6 +628,22 @@ class WakeReviewTest(unittest.TestCase):
                 run._report_once(lg, "2099-01-01", "report", lambda text: failed)
             self.assertFalse(any(r["kind"] == "report" for r in lg.rows()))
 
+    def test_environment_leg_cap_cannot_bypass_hard_cap(self):
+        for value in ("25.01", "0", "nan", "inf", "-inf"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    run._caps_from_env({"HL_CARRY_MAX_LEG_USD": value})
+
+    def test_report_and_result_expose_account_equity_net_pnl_from_day_start(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("equity", equity=100.0, ts="2099-01-01T00:00:00+00:00")
+            sent = []
+            r = run.wake(self._post_with_equity(103.25), lambda: self.fail("dry wake must not sign"), lg,
+                         "0xabc", policy.Caps(), False, "2099-01-01", sent.append)
+            self.assertEqual(r["net_pnl_usd"], 3.25)
+            self.assertIn("account-equity net P&L $3.25", sent[0])
+
 
 class ExecuteIntentTokenTest(unittest.TestCase):
     def test_enter_records_at_spot_token_in_intent(self):
@@ -606,6 +682,90 @@ class DepositTest(unittest.TestCase):
         self.assertFalse(deposit.may_send(decision, "true"))
         self.assertTrue(deposit.may_send(decision, "1"))
         self.assertFalse(deposit.may_send({"action": "wait"}, "1"))
+
+    def test_submitted_deposit_remains_pending_until_provider_receipt_then_resolves(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="deposit-1", action="deposit", sender="0xabc", token=deposit.USDC,
+                      bridge=deposit.BRIDGE2, chain=deposit.ARBITRUM_CHAIN_ID, raw_amount=5_000_000)
+            lg.append("receipt", intent_id="deposit-1", result="submitted", tx_hash="0xabc")
+            self.assertEqual([r["intent_id"] for r in deposit.pending_deposits(lg)], ["deposit-1"])
+
+            class Web3:
+                class eth:
+                    @staticmethod
+                    def get_transaction_receipt(tx_hash):
+                        return type("Receipt", (), {"status": 1})()
+
+            resolved = deposit.reconcile_pending(Web3(), lg)
+            self.assertEqual(resolved["result"], "deposited")
+            self.assertEqual(deposit.pending_deposits(lg), [])
+
+    def test_effect_unknown_without_hash_remains_closed_and_never_becomes_sendable(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="deposit-unknown", action="deposit", raw_amount=5_000_000)
+            lg.append("receipt", intent_id="deposit-unknown", result="effect_unknown", error="TimeoutError")
+            self.assertTrue(deposit.pending_deposits(lg))
+            self.assertEqual(deposit.reconcile_pending(object(), lg)["reason"], "missing_tx_hash")
+            self.assertFalse(deposit.may_submit(lg))
+
+    def test_submit_refuses_to_resend_while_any_deposit_is_pending(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="pending", action="deposit", raw_amount=5_000_000)
+            lg.append("receipt", intent_id="pending", result="effect_unknown")
+            before = lg.rows()
+
+            r = deposit.submit(None, None, None, 5_000_000, lg)
+
+            self.assertEqual(r, {"result": "effect_unknown", "reason": "pending_deposit"})
+            self.assertEqual(lg.rows(), before)
+
+    def test_send_records_intent_before_submission_and_effect_unknown_after_wait_timeout(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+
+            class Hash:
+                def hex(self):
+                    return "0xsubmitted"
+
+            class Eth:
+                def __init__(self):
+                    self.rows_at_send = None
+                    self.rows_at_wait = None
+
+                def get_transaction_count(self, address):
+                    return 1
+
+                def send_raw_transaction(self, raw):
+                    self.rows_at_send = lg.rows()
+                    return Hash()
+
+                def wait_for_transaction_receipt(self, tx_hash, timeout):
+                    self.rows_at_wait = lg.rows()
+                    raise TimeoutError("receipt unavailable")
+
+            w3 = type("Web3", (), {"eth": Eth()})()
+            acct = type("Account", (), {
+                "address": "0xabc",
+                "sign_transaction": lambda self, tx: type("Signed", (), {"raw_transaction": b"signed"})(),
+            })()
+            token = type("Token", (), {
+                "functions": type("Functions", (), {
+                    "transfer": lambda self, to, amount: type("Transfer", (), {
+                        "build_transaction": lambda self, tx: tx,
+                    })(),
+                })(),
+            })()
+
+            r = deposit.submit(w3, token, acct, 5_000_000, lg)
+            self.assertEqual(r["result"], "effect_unknown")
+            self.assertEqual(w3.eth.rows_at_send[0]["kind"], "intent")
+            self.assertEqual([row["kind"] for row in w3.eth.rows_at_wait], ["intent", "receipt"])
+            self.assertEqual(w3.eth.rows_at_wait[-1]["result"], "submitted")
+            self.assertEqual(lg.rows()[-1]["tx_hash"], "0xsubmitted")
+            self.assertTrue(deposit.pending_deposits(lg))
 
 
 if __name__ == "__main__":

@@ -152,7 +152,7 @@ def enter(ex, info, address, pair, leg_usd, lg) -> dict:
                      spot_sz=bal, perp_szi=szi, error=error)
 
 
-def exit(ex, info, address, pair, lg) -> dict:
+def exit(ex, info, address, pair, lg, resolves_intent_id: str | None = None) -> dict:
     iid = uuid.uuid4().hex
     lg.append("intent", intent_id=iid, action="exit", perp=pair.perp, spot=pair.spot,
               spot_token=pair.spot_token)
@@ -176,4 +176,7 @@ def exit(ex, info, address, pair, lg) -> dict:
 
     remaining = _floor(_spot_balance(info, address, coin), d)
     result = "exited" if remaining == 0 else "partial"
-    return lg.append("receipt", intent_id=iid, result=result, perp=pair.perp, xfer_status=xfer_status)
+    fields = {"xfer_status": xfer_status}
+    if result == "exited" and resolves_intent_id:
+        fields["resolves_intent_id"] = resolves_intent_id
+    return lg.append("receipt", intent_id=iid, result=result, perp=pair.perp, **fields)
