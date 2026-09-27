@@ -183,6 +183,27 @@ def test_cli_fixture_run_writes_atomic_receipt(tmp_path: Path) -> None:
     assert not output.with_suffix(".json.tmp").exists()
 
 
+def test_cli_fixture_run_also_writes_skill_analytics_next_to_receipt(tmp_path: Path) -> None:
+    module = load_module()
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir()
+    payloads = live_payloads()
+    for name, payload in payloads.items():
+        (fixture_dir / f"{name}.json").write_text(json.dumps(payload))
+    output = tmp_path / "state" / "capafy-hourly-reconcile.json"
+
+    rc = module.main(
+        ["--fixture-dir", str(fixture_dir), "--output", str(output), "--observed-at", "2026-08-22T10:00:00Z"]
+    )
+
+    assert rc == 0
+    analytics_path = output.parent / "capafy-skill-analytics.json"
+    assert analytics_path.exists()
+    analytics = json.loads(analytics_path.read_text())
+    assert analytics["kind"] == "capafy_skill_analytics"
+    assert analytics["observed_at"] == "2026-08-22T10:00:00Z"
+
+
 def test_money_mode_is_read_only_and_keeps_subscription_mrr_unknown(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -208,6 +229,7 @@ def test_money_mode_is_read_only_and_keeps_subscription_mrr_unknown(
     shown = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert not output.exists()
+    assert not (output.parent / "capafy-skill-analytics.json").exists()
     assert shown["gross_sales_usd"] == "9.99"
     assert shown["window_start"] == "2026-09-01"
     assert shown["window_kind"] == "calendar_month_to_date_utc"
@@ -257,6 +279,157 @@ def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.Monkey
 
     assert all(body.get("startDate") == "2026-09-01" for body in calls)
     assert all(body.get("endDate") == "2026-09-17" for body in calls)
+
+
+def skill_analytics_payloads() -> dict:
+    return {
+        "account": {"code": 0, "data": {"email": "owner@example.com"}},
+        "inventory": {"code": 0, "data": {"list": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "agentStatus": "online",
+             "agentRuntime": "openclaw", "rating": 0, "reviewCount": 0},
+            {"agentId": "222", "agentTitle": "Zero Sales Skill", "agentStatus": "online",
+             "agentRuntime": "claude", "rating": 0, "reviewCount": 0},
+        ]}},
+        "seller_sales": {"code": 0, "data": {"totalRevenue": 34.88, "data": [
+            {"date": "2026-06-25", "orders": 1, "revenue": 19.9, "refundAmount": 0.0},
+            {"date": "2026-09-20", "orders": 1, "revenue": 9.99, "refundAmount": 0.0},
+            {"date": "2026-09-26", "orders": 1, "revenue": 4.99, "refundAmount": 0.0},
+        ]}},
+        "seller_ranking": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "totalSalesAmount": 34.88,
+             "skus": [{"skuName": "Daily Subscription", "skuType": "subscription_day",
+                       "salesAmount": 19.9, "previousSalesAmount": 0.0, "changePercent": 0.0},
+                      {"skuName": "Weekly Subscription", "skuType": "subscription_week",
+                       "salesAmount": 4.99, "previousSalesAmount": 0.0, "changePercent": 0.0}]},
+        ]}},
+        "earnings_ranking": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "skus": [{"skuType": "subscription_day", "revenue": 15.4},
+                                        {"skuType": "subscription_week", "revenue": 3.6}]},
+        ]}},
+        "unit_sales": {"code": 0, "data": {"totalSalesVolume": 3, "totalFreeTrialCount": 1, "data": []}},
+        "payout": {"code": 0, "data": {"balancePending": 15.4, "balanceConfirmed": 35.36,
+                                       "balancePayout": 14.4, "totalPayout": 0.0,
+                                       "payoutMethod": "wire_transfer", "accountNumberMasked": "****1900"}},
+        "refunds": {"code": 0, "data": {"list": []}},
+        "statements": {"code": 0, "data": {"list": [
+            {"settlementMonth": "2026-08", "endingSettlementBalance": 14.4, "payableAmount": 0.0}]}},
+    }
+
+
+def skill_agent_stats() -> dict:
+    return {
+        "111": {
+            "d30": {"code": 0, "data": {"data": [{"orders": 2, "revenue": 6.4}]}},
+            "d7": {"code": 0, "data": {"data": [{"orders": 0, "revenue": 0.0}]}},
+        },
+        "222": {
+            "d30": {"code": 0, "data": {"data": []}},
+            "d7": {"code": 0, "data": {"data": []}},
+        },
+    }
+
+
+def test_build_skill_analytics_account_totals_and_per_skill_rows() -> None:
+    module = load_module()
+    analytics = module.build_skill_analytics(
+        skill_analytics_payloads(), skill_agent_stats(), {"111": "Claude Sonnet 4.6"},
+        "2026-09-27T00:00:00Z",
+    )
+
+    assert analytics["kind"] == "capafy_skill_analytics"
+    assert analytics["account_totals"]["all_time"]["gross_usd"] == "34.88"
+    assert analytics["account_totals"]["all_time"]["units"] == 3
+    assert analytics["account_totals"]["all_time"]["trials"] == 1
+    assert analytics["account_totals"]["last_30d"]["gross_usd"] == "14.98"
+    assert analytics["account_totals"]["last_30d"]["orders"] == 2
+    assert analytics["account_totals"]["last_7d"]["gross_usd"] == "4.99"
+    assert analytics["balances"]["balance_payout_usd"] == "14.40"
+    assert analytics["balances"]["payout_method"] == "wire_transfer"
+
+    rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
+    assert rows["111"]["model"] == "Claude Sonnet 4.6"
+    assert rows["111"]["since_launch_gross_usd"] == "34.88"
+    assert rows["111"]["since_launch_creator_earnings_usd"] == "19.00"
+    assert rows["111"]["stats_30d_settled_orders"] == 2
+    assert rows["111"]["stats_30d_settled_revenue_usd"] == "6.40"
+    assert rows["222"]["model"] == "claude"
+    assert rows["222"]["since_launch_gross_usd"] == "0.00"
+
+    assert analytics["rankings"]["top_by_earnings"][0]["agent_id"] == "111"
+    zero_sales_ids = {row["agent_id"] for row in analytics["rankings"]["zero_sales"]}
+    assert zero_sales_ids == {"222"}
+
+    assert [row["date"] for row in analytics["daily_revenue_trend_last_30d"]] == [
+        "2026-09-20", "2026-09-26"]
+
+    assert analytics["subscription_proxy"]["label"] == "proxy_not_mrr"
+    assert "not" in analytics["subscription_proxy"]["note"].lower()
+    assert analytics["subscription_proxy"]["last_30d_net_usd"] == "6.40"
+
+    assert any("active" in gap.lower() and "subscription" in gap.lower() for gap in analytics["data_gaps"])
+    assert isinstance(analytics["telegram_summary"], str) and "34.88" in analytics["telegram_summary"]
+    assert analytics["verdict"] == "success"
+
+
+def test_build_skill_analytics_isolates_stale_section_on_source_failure() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["payout"] = {"_error": "HTTP 503"}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {}, "2026-09-27T00:00:00Z",
+    )
+
+    assert analytics["balances"]["_status"] == "stale"
+    assert analytics["balances"]["balance_payout_usd"] is None
+    assert analytics["verdict"] == "degraded"
+    # Other sections still compute despite the payout failure.
+    assert analytics["account_totals"]["_status"] == "fresh"
+    assert len(analytics["per_skill_rows"]) == 2
+
+
+def test_build_skill_analytics_isolates_stale_per_skill_rows_on_inventory_failure() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["inventory"] = {"_error": "timeout"}
+
+    analytics = module.build_skill_analytics(
+        payloads, {}, {}, "2026-09-27T00:00:00Z",
+    )
+
+    assert analytics["per_skill_rows"] == []
+    assert analytics["per_skill_rows_status"] == "stale"
+    assert analytics["account_totals"]["_status"] == "fresh"
+    assert analytics["verdict"] == "degraded"
+
+
+def test_catalog_models_reads_primary_model_and_agent_id_from_listing(tmp_path: Path) -> None:
+    module = load_module()
+    catalog = tmp_path / "skills" / "capafy" / "catalog" / "youtube-script-writer"
+    catalog.mkdir(parents=True)
+    (catalog / "LISTING.md").write_text(
+        "Primary Model: Claude Sonnet 4.6 · category: マーケティング · tags: x\n\n"
+        "demand evidence    : This is the existing Capafy Agent `7686597754`; revision.\n"
+    )
+
+    models = module._catalog_models(tmp_path)
+
+    assert models == {"7686597754": "Claude Sonnet 4.6"}
+
+
+def test_agent_stats_windows_bounded_sequential_with_delay(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    calls: list[str] = []
+    sleeps: list[float] = []
+    monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {"data": []}})
+
+    result = module._fetch_agent_stats_windows(
+        "tok", ["a", "b", "c"], module.dt.date(2026, 9, 27), cap=2, delay=0.01, sleep=sleeps.append,
+    )
+
+    assert list(result.keys()) == ["a", "b"]
+    assert len(calls) == 4  # 2 agents x (d30, d7)
+    assert sleeps == [0.01, 0.01, 0.01, 0.01]
 
 
 def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytest.MonkeyPatch) -> None:
