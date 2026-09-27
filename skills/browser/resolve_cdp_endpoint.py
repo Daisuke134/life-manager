@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import urllib.error
 import urllib.request
@@ -79,11 +80,35 @@ def _fetch_version(url: str) -> dict[str, object] | None:
     return {"uuid": match.group(1), "websocket": websocket}
 
 
+def _lsof_binary() -> str | None:
+    """Resolve lsof even when PATH omits the directory that ships it.
+
+    macOS ships lsof at /usr/sbin/lsof, but /usr/sbin is absent from some
+    trimmed PATHs the resolver actually runs under (observed 2026-09-27:
+    Claude Code's Bash tool PATH has /usr/bin and /bin but not /usr/sbin).
+    shutil.which("lsof") then returns None, subprocess.run(["lsof", ...])
+    raises FileNotFoundError, and the caller's except clause silently turns
+    that into an empty listener list -- indistinguishable from "nothing is
+    listening", so every live, profile-owned browser was misreported as
+    endpoint_not_profile_owned.
+    """
+    found = shutil.which("lsof")
+    if found:
+        return found
+    for candidate in ("/usr/sbin/lsof", "/usr/bin/lsof"):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
 def _listener_pids(host: str, port: int) -> list[int]:
+    binary = _lsof_binary()
+    if binary is None:
+        return []
     rendered_host = f"[{host}]" if ":" in host else host
     try:
         result = subprocess.run(
-            ["lsof", "-nP", "-a", f"-iTCP@{rendered_host}:{port}",
+            [binary, "-nP", "-a", f"-iTCP@{rendered_host}:{port}",
              "-sTCP:LISTEN", "-F", "p"],
             capture_output=True, text=True, check=False, timeout=3,
         )
