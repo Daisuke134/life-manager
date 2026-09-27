@@ -1,0 +1,2 @@
+{"business_date": "2026-09-26", "product_id": "anicca-ios", "snapshot_id": "anicca-ios:2026-09-26", "sources": {"revenuecat": {"status": "unavailable", "reason": "missing_project_read_credential", "data": null}}}
+{"business_date": "2026-09-26", "product_id": "honne-ai", "snapshot_id": "honne-ai:2026-09-26", "sources": {"revenuecat": {"status": "available", "data": {"charts": {"revenue": {"latest_complete": {"Revenue": {"value": 2.25}}}, "mrr": {"latest_complete": {"MRR": {"value": 0.0}}}}}}}}
