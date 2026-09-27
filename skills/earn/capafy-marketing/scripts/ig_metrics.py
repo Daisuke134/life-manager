@@ -26,6 +26,7 @@ REACH_MARKER = os.environ.get(
     os.path.expanduser("~/.local/state/life-manager/state/.capafy-ig-reach-healthy"),
 )
 CURRENT_HANDLE = os.environ.get("CAPAFY_IG_HANDLE", "")
+CURRENT_PORT = os.environ.get("CAPAFY_IG_PORT", "")
 
 READ_JS = r'''(() => {
   const a=document.querySelector('article'); if(!a) return JSON.stringify({available:false,reason:'article_absent'});
@@ -73,11 +74,16 @@ def _load_poster():
     return module
 
 
-def _private_read(url, handle, client_factory=None, poster_module=None):
+def _private_read(url, handle, client_factory=None, poster_module=None, port=None):
+    # Session self-heal (2026-09-27): the saved instagrapi session can die (LoginRequired) between
+    # metrics passes. Reuse the SAME login_resilient tier1/tier2/tier3 policy the poster already
+    # uses (never a fresh password relogin on a previously-alive session) instead of silently
+    # reporting every Reel "unavailable" forever once the golden session expires.
     match = re.search(r"/(?:reel|p)/([^/?#]+)", str(url))
     settings = os.path.expanduser(f"~/.cloak/instagrapi-{handle}.json")
     if not match or not handle or not os.path.isfile(settings):
         return None
+    port = port if port is not None else CURRENT_PORT
     try:
         if client_factory is None:
             from instagrapi import Client
@@ -86,8 +92,17 @@ def _private_read(url, handle, client_factory=None, poster_module=None):
         client = client_factory()
         client.delay_range = [1, 3]
         poster_module.apply_proxy(client, handle, {}, ACCOUNTS)
-        client.load_settings(settings)
-        media = client.media_info_v1(client.media_pk_from_code(match.group(1)))
+        try:
+            client.load_settings(settings)
+            media = client.media_info_v1(client.media_pk_from_code(match.group(1)))
+        except Exception:
+            if not port:
+                return None
+            if not poster_module.login_resilient(
+                client, handle, int(port), {}, settings_path=settings, accounts_path=ACCOUNTS
+            ):
+                return None
+            media = client.media_info_v1(client.media_pk_from_code(match.group(1)))
         data = media.model_dump() if hasattr(media, "model_dump") else media.dict()
         plays = int(data.get("play_count", 0) or 0)
         views = int(data.get("view_count", 0) or 0)

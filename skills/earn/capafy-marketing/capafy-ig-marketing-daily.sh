@@ -96,6 +96,7 @@ if ! IG_STARTED_WARMING="$(resolve_capafy_ig_started_warming "$ACCOUNTS_FILE")";
   exit 2
 fi
 export CAPAFY_IG_HANDLE="$IG_HANDLE"
+export CAPAFY_IG_PORT="$IG_PORT"  # lets ig_metrics.py self-heal a dead instagrapi session via login_resilient's tier2 (browser sessionid)
 LANDING_URL="${MKT_BIO_LINK:-https://capafy-skills-daily.netlify.app}"
 LANDING_SITE_ID="${MKT_LANDING_SITE_ID:-41c8e52e-b163-442a-84ff-fd866269bf6c}"
 COOKED_MARKER="$HOME/.local/state/life-manager/state/.${INSTANCE}-ig-account-cooked"
