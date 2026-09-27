@@ -502,5 +502,72 @@ class WakeTest(unittest.TestCase):
             self.assertEqual(made, [])
 
 
+import subprocess
+
+
+class WakeReviewTest(unittest.TestCase):
+    def _post_with_equity(self, equity):
+        return lambda b: fake_post(b) if b["type"] not in ("clearinghouseState", "spotClearinghouseState") \
+            else ({"marginSummary": {"accountValue": str(equity)}} if b["type"] == "clearinghouseState" else {"balances": []})
+
+    def _position(self, lg):
+        lg.append("receipt", intent_id="seed", result="entered", perp="PURR", spot="PURR/USDC")
+
+    def _clients(self):
+        state = FakeState(spot={"USDC": 1.0, "PURR": 10.0}, perp_szi={"PURR": -10.0})
+        return FakeEx(state), FakeInfo(state), state
+
+    def test_daily_loss_halt_flattens_live_position(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.mark_equity(100.0)
+            today = lg.rows()[-1]["ts"][:10]
+            self._position(lg)
+            ex, info, state = self._clients()
+            r = run.wake(self._post_with_equity(94.0), lambda: (ex, info), lg, "0xabc", policy.Caps(), True, today, lambda t: None)
+            self.assertEqual((r["decision"]["action"], r["decision"]["reason"]), ("halt", "day_loss_cap"))
+            self.assertEqual(r["receipt"]["result"], "exited")
+            self.assertEqual(state.perp_szi["PURR"], 0.0)
+            self.assertEqual(state.spot["PURR"], 0.0)
+
+    def test_drawdown_halt_flattens_live_position(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("equity", equity=100.0, ts="2000-01-01T00:00:00+00:00")
+            lg.mark_equity(95.0)
+            today = lg.rows()[-1]["ts"][:10]
+            self._position(lg)
+            ex, info, state = self._clients()
+            caps = policy.Caps(day_loss=0.50, drawdown=0.20)
+            r = run.wake(self._post_with_equity(79.0), lambda: (ex, info), lg, "0xabc", caps, True, today, lambda t: None)
+            self.assertEqual((r["decision"]["action"], r["decision"]["reason"]), ("halt", "drawdown_cap"))
+            self.assertEqual(r["receipt"]["result"], "exited")
+            self.assertEqual(state.perp_szi["PURR"], 0.0)
+            self.assertEqual(state.spot["PURR"], 0.0)
+
+    def test_at_spot_without_recorded_token_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="x", action="enter", perp="ZEC", spot="@272")
+            made = []
+            def no_zec_post(body):
+                if body["type"] == "metaAndAssetCtxs":
+                    return [{"universe": [{"name": "PURR"}]}, []]
+                return fake_post(body)
+            def make():
+                made.append(1); return fakes()
+            r = run.wake(no_zec_post, make, lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
+            self.assertEqual(r["receipt"]["result"], "reconciliation_pending")
+            self.assertEqual(made, [])
+
+    def test_failed_sender_does_not_mark_daily_report_sent(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            failed = subprocess.CompletedProcess(["send"], 1)
+            with self.assertRaises(subprocess.CalledProcessError):
+                run._report_once(lg, "2099-01-01", "report", lambda text: failed)
+            self.assertFalse(any(r["kind"] == "report" for r in lg.rows()))
+
+
 if __name__ == "__main__":
     unittest.main()

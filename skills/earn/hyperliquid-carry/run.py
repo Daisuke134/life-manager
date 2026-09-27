@@ -24,8 +24,15 @@ def _recorded_pair(lg, perp):
         return None
     for row in reversed(lg.rows()):
         if row["kind"] == "intent" and row.get("perp") == perp and row.get("spot"):
-            return SimpleNamespace(perp=perp, spot=row["spot"], spot_token=row.get("spot_token", ""))
+            spot_token = row.get("spot_token", "")
+            if row["spot"].startswith("@") and not spot_token:
+                continue
+            return SimpleNamespace(perp=perp, spot=row["spot"], spot_token=spot_token)
     return None
+
+
+def _exit_target(pairs, lg, perp):
+    return next((p for p in pairs if p.perp == perp), None) or _recorded_pair(lg, perp)
 
 
 def _decision(d):
@@ -34,7 +41,9 @@ def _decision(d):
 
 def _report_once(lg, today, text, send) -> None:
     if not any(r["kind"] == "report" and r.get("day") == today for r in lg.rows()):
-        send(text)
+        result = send(text)
+        if isinstance(result, subprocess.CompletedProcess):
+            result.check_returncode()
         lg.append("report", day=today)
 
 
@@ -48,7 +57,7 @@ def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
     if open_intents or lg.needs_unwind():
         intent = open_intents[-1] if open_intents else {}
         perp = intent.get("perp") or pos
-        target = next((p for p in pairs if p.perp == perp), None) or _recorded_pair(lg, perp)
+        target = _exit_target(pairs, lg, perp)
         reason = "open_intent_or_unhedged" if target else "reconciliation_pair_unavailable"
         d = {"action": "reconcile_exit", "pair": target, "leg_usd": 0.0, "reason": reason}
         receipt = None
@@ -64,13 +73,17 @@ def wake(post, make_clients, lg, address, caps, live, today, send) -> dict:
 
     d = policy.decide(pairs, pos, eq, day_start, peak, caps)
     receipt = None
-    if live and d["action"] in ("enter", "exit", "halt"):
+    if live:
         if d["action"] == "enter":
             ex, info = make_clients()
             receipt = execute.enter(ex, info, address, d["pair"], d["leg_usd"], lg)
-        elif d["action"] == "exit" and d["pair"] is not None:
-            ex, info = make_clients()
-            receipt = execute.exit(ex, info, address, d["pair"], lg)
+        elif d["action"] in ("exit", "halt") and pos:
+            target = d["pair"] or _exit_target(pairs, lg, pos)
+            if target is None:
+                receipt = {"result": "reconciliation_pending", "reason": "pair_unavailable", "perp": pos}
+            else:
+                ex, info = make_clients()
+                receipt = execute.exit(ex, info, address, target, lg)
     apr = f"{d['pair'].funding_apr_24h:.1%}" if d.get("pair") else "-"
     _report_once(lg, today,
                  f"Hyperliquid carry {today}: equity ${eq:.2f} (day start ${day_start:.2f}, peak ${peak:.2f}), "
@@ -92,7 +105,7 @@ def main() -> int:
     caps = policy.Caps(max_leg_usd=float(os.environ.get("HL_CARRY_MAX_LEG_USD", "25")))
     live = os.environ.get("HL_CARRY_LIVE") == "1"
     tg = HERE.parent.parent / "_shared" / "send-telegram.sh"
-    send = lambda text: subprocess.run(["bash", str(tg), text], capture_output=True, timeout=30)
+    send = lambda text: subprocess.run(["bash", str(tg), text], capture_output=True, timeout=30, check=True)
     make = lambda: (Exchange(acct, constants.MAINNET_API_URL), Info(constants.MAINNET_API_URL, skip_ws=True))
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     result = wake(market.post_info, make, lg, acct.address, caps, live, today, send)
