@@ -705,11 +705,13 @@ git commit -m "feat(hl-carry): hedged enter/exit with journal-before-effect"
 
 **Files:**
 - Create: `skills/earn/hyperliquid-carry/run.py`, `skills/earn/hyperliquid-carry/SKILL.md`
+- Modify: `skills/earn/hyperliquid-carry/execute.py` (persist the already-resolved `Pair.spot_token` on enter/exit intents so recorded `@...` pairs can be exited safely)
 - Test: append to `test_hyperliquid_carry.py`
 
 **Interfaces:**
 - Consumes: everything above.
 - Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair and attempt an exit before considering any new entry; it must not leave the loop permanently blocked.
+- Safety data contract: `execute.enter` and `execute.exit` persist `pair.spot_token` in their intent rows. This is required for a recorded fallback exit when the market snapshot no longer contains an `@...` spot pair.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -852,6 +854,8 @@ if __name__ == "__main__":
 
 Run: `cd skills/earn/hyperliquid-carry && python3 -m unittest test_hyperliquid_carry -v`
 Expected: PASS
+
+The regression test must verify that an intent produced for the `@272` spot pair records `spot_token="UZEC"`; a later reconciliation can then use that token instead of guessing from the display name.
 
 - [ ] **Step 5: Commit**
 
