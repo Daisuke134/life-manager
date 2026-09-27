@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Life Manager runs a real-money, loss-capped Hyperliquid spot-long/perp-short funding-carry position from its own agent-created wallet, and reports daily net P&L to Telegram with no human in the loop.
+**Goal:** Life Manager runs a real-money, loss-capped Hyperliquid spot-long/perp-short funding-carry position from its own agent-created wallet, and reports verified daily account-equity net P&L to Telegram with no human in the loop. Detailed cross-venue fee/funding/model-cost allocation is specified separately in `docs/superpowers/plans/2026-09-27-cross-venue-capital-allocator-net-pnl.md`.
 
 **Architecture:** One new skill directory `skills/earn/hyperliquid-carry/`. The decision logic is pure and unit-tested (`policy.py`). The only module that sends signed Hyperliquid actions is `execute.py`, and it runs only when `HL_CARRY_LIVE=1`. Every effect is journaled before it is sent and read back from Hyperliquid afterwards (`ledger.py`). One wake (`run.py`) loads the wallet, reads the market, applies the risk caps, acts at most once, and reports. The wallet key is stored in the credential SSOT, never in the repo.
 
-**Tech Stack:** Python 3.14 (managed venv), `hyperliquid-python-sdk==0.24.0` (MIT, official), `msgpack` (SDK dependency), `eth-account==0.13.7` and `web3==7.16.0` (already locked), stdlib `unittest`.
+**Tech Stack:** Python 3.14 (managed venv), `hyperliquid-python-sdk==0.24.0` (MIT, official), `msgpack==1.1.2` (SDK dependency, locked), `eth-account==0.13.7` and `web3==7.16.0` (already locked), stdlib `unittest`.
 
 **Spec:** `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` §5.2 8-4c, plus the Foundation investment ladder in `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md` ("Investment is an experiment portfolio"). Dais directive 2026-09-27: real money, no dry-run-only, no human in the loop, daily Telegram revenue report.
 
@@ -22,6 +22,7 @@
 
 - Real orders only when `HL_CARRY_LIVE=1` is set in the loop's environment; otherwise the wake computes and reports but sends nothing signed.
 - Capital caps: `HL_CARRY_MAX_LEG_USD` default `25`. Halt and flatten when the day's loss is ≥ 5% of start-of-day equity or the loss from the high-water mark is ≥ 20%.
+- `HL_CARRY_MAX_LEG_USD` values above `$25`, non-finite values, and non-positive values fail closed; the hard leg cap cannot be raised by environment configuration.
 - Hyperliquid minimum order value is $10 per order; never place a leg below $11.
 - Leverage 1x cross on the perp leg; the short size always equals the spot size (delta-neutral).
 - The wallet key lives only in `~/.local/share/anicca/credentials.json` (dir mode 700, file mode 600), under service `hyperliquid-carry-agent-wallet`. It never appears in logs, the repo, or Telegram.
@@ -710,7 +711,7 @@ git commit -m "feat(hl-carry): hedged enter/exit with journal-before-effect"
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair and attempt an exit before considering any new entry; it must not leave the loop permanently blocked.
+- Produces: `run.wake(post, make_clients, lg, address, caps, live: bool, today: str, send) -> dict`. Here `make_clients() -> (ex, info)`, and `send(text) -> None` posts to Telegram once per UTC day (the day is stored in the ledger as `kind="report"`). The report includes verified account-equity net P&L as `equity - day_start_equity`. An open intent or `lg.needs_unwind()` is a reconciliation cursor: the wake must choose the recorded/current pair, terminalize the original intent only after a verified flat exit, and attempt an exit before considering any new entry; it must not leave the loop permanently blocked.
 - Safety data contract: `execute.enter` and `execute.exit` persist `pair.spot_token` in their intent rows. This is required for a recorded fallback exit when the market snapshot no longer contains an `@...` spot pair.
 
 - [ ] **Step 1: Write the failing tests**
@@ -871,7 +872,7 @@ git commit -m "feat(hl-carry): one wake with caps, daily report, live gate"
 - Test: append to `test_hyperliquid_carry.py`
 
 **Interfaces:**
-- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which executes an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`.
+- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which journals a deposit intent before an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`, records the tx hash immediately, and resolves receipt timeouts as `effect_unknown` without resending automatically.
 
 - [ ] **Step 1: Source facts (verified 2026-09-27)**
 
