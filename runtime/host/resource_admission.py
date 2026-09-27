@@ -25,6 +25,10 @@ ADMISSION_CLASSES = {"borrow", "revenue"}
 ADMISSION_POLICY = "revenue-floor-v1"
 RESOURCE_CLASSES = ("agent", "browser", "deterministic")
 EFFECT_SCOPES = {"owner", "occurrence"}
+# Matches the cooldown `_dispatch_reserved`'s explicit defer() already applies;
+# an unclaimed (leaked) reservation gets the same backoff. See
+# `_expire_leaked_reservations`.
+RESERVATION_LEAK_COOLDOWN_SECONDS = 60
 
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
@@ -1447,6 +1451,27 @@ def cancel_effect_free_queued_owner(owner_id: str) -> str:
         os.close(descriptor)
 
 
+def _expire_leaked_reservations(connection: sqlite3.Connection, instant: float) -> None:
+    """Delete reservations nobody claimed in time, and cool the owner down.
+
+    Without this, an owner whose reservation lease expires unclaimed keeps
+    winning the very next `_reserve_locked` pass -- it is unchanged at the
+    front of `_queue_order` -- so it re-reserves the same slot forever while
+    rarely going live, starving every other queued owner. Apply the same
+    `next_eligible_at` cooldown `defer_durable` already uses for an explicit
+    dispatch failure, so a leaked reservation yields its slot for a while
+    instead of looping.
+    """
+    leaked = [row[0] for row in connection.execute(
+        "SELECT owner_id FROM reservations WHERE lease_until <= ?", (instant,))]
+    connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
+    if leaked:
+        connection.executemany(
+            """UPDATE priorities SET next_eligible_at=MAX(next_eligible_at,?)
+                 WHERE owner_id=?""",
+            [(instant + RESERVATION_LEAK_COOLDOWN_SECONDS, owner_id) for owner_id in leaked])
+
+
 def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path, *,
                     instant: float, lease_seconds: int,
                     starts: dict[int, str | None],
@@ -1454,7 +1479,7 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                     excluded_claim: Path | None = None) -> list[str]:
     dispatched = []
     while True:
-        connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
+        _expire_leaked_reservations(connection, instant)
         for resource_class in RESOURCE_CLASSES:
             _durable_capacity(
                 connection, owners, resource_class, "borrow", instant,
