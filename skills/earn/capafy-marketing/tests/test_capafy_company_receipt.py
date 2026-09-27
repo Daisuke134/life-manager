@@ -293,10 +293,16 @@ def _skill_analytics_fixture(**overrides) -> dict:
             "last_7d": {"gross_usd": "17.91", "net_usd": "17.91", "orders": 9, "refunds_usd": "0.00"},
         },
         "per_skill_rows_status": "fresh",
-        "per_skill_rows": [{"agent_id": "a1"}, {"agent_id": "a2"}, {"agent_id": "a3"}],
+        "per_skill_rows": [
+            {"agent_id": "8123079349", "name": None, "since_launch_gross_usd": "34.88",
+             "since_launch_skus": [{"skuType": "subscription_week"}]},
+            {"agent_id": "8828622062", "name": None, "since_launch_gross_usd": "19.98",
+             "since_launch_skus": [{"skuType": "subscription_month"}]},
+            {"agent_id": "a3", "name": "Idle Skill", "since_launch_gross_usd": "0.00", "since_launch_skus": []},
+        ],
         "rankings": {
             "top_by_earnings": [
-                {"agent_id": "8123079349", "name": "Interview Synthesizer", "creator_earnings_usd": "25.40"},
+                {"agent_id": "8123079349", "name": None, "creator_earnings_usd": "25.40"},
                 {"agent_id": "8828622062", "name": None, "creator_earnings_usd": "15.20"},
             ],
             "zero_sales": [{"agent_id": "a3", "name": "Idle Skill"}],
@@ -337,11 +343,87 @@ def test_skill_analytics_section_reads_fresh_top5_and_zero_sales(tmp_path: Path)
     assert section["last_30d_net_usd"] == "66.81"
     assert section["last_30d_orders"] == 88
     assert section["last_7d_gross_usd"] == "17.91"
-    assert section["top_skills"][0] == {"name": "Interview Synthesizer", "earnings_usd": "25.40"}
+    assert section["top_skills"][0] == {"name": "8123079349", "earnings_usd": "25.40"}
     assert section["top_skills"][1] == {"name": "8828622062", "earnings_usd": "15.20"}
     assert section["zero_sales_count"] == 1
     assert section["total_skills"] == 3
-    assert section["subscription_proxy_usd"] == "0.00"
+    assert section["subscription_signal"] == {
+        "amount_usd": "54.86", "label": "since-launch web-console gross, proxy not MRR, not last-30d",
+    }
+
+
+def test_skill_analytics_section_resolves_names_from_live_inventory_and_shortens_them(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(_skill_analytics_fixture()), encoding="utf-8")
+    name_by_agent_id = {
+        "8123079349": "Hook Lab — Win the First 3 Seconds",
+        "8828622062": "Slide Maker — Any Content Into a Styled Deck",
+    }
+
+    section = module._skill_analytics_section(path, name_by_agent_id)
+
+    assert section["top_skills"][0] == {"name": "Hook Lab", "earnings_usd": "25.40"}
+    assert section["top_skills"][1] == {"name": "Slide Maker", "earnings_usd": "15.20"}
+
+
+def test_skill_analytics_section_prefers_names_already_in_per_skill_rows(tmp_path: Path) -> None:
+    module = load_module()
+    fixture = _skill_analytics_fixture()
+    fixture["per_skill_rows"][0]["name"] = "Hook Lab — Win the First 3 Seconds"
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+
+    section = module._skill_analytics_section(path, {"8123079349": "Should Not Be Used"})
+
+    assert section["top_skills"][0]["name"] == "Hook Lab"
+
+
+def test_skill_analytics_section_falls_back_to_agent_id_without_any_name(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(_skill_analytics_fixture()), encoding="utf-8")
+
+    section = module._skill_analytics_section(path)
+
+    assert section["top_skills"][0]["name"] == "8123079349"
+
+
+def test_subscription_signal_falls_back_to_since_launch_gross_when_settled_net_is_zero(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(_skill_analytics_fixture()), encoding="utf-8")
+
+    section = module._skill_analytics_section(path)
+
+    assert section["subscription_signal"] == {
+        "amount_usd": "54.86", "label": "since-launch web-console gross, proxy not MRR, not last-30d",
+    }
+
+
+def test_subscription_signal_uses_settled_net_when_nonzero(tmp_path: Path) -> None:
+    module = load_module()
+    fixture = _skill_analytics_fixture()
+    fixture["subscription_proxy"]["last_30d_net_usd"] = "12.34"
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+
+    section = module._skill_analytics_section(path)
+
+    assert section["subscription_signal"] == {"amount_usd": "12.34", "label": "last30d settled net, proxy not MRR"}
+
+
+def test_subscription_signal_unavailable_when_neither_net_nor_gross_is_real(tmp_path: Path) -> None:
+    module = load_module()
+    fixture = _skill_analytics_fixture()
+    for row in fixture["per_skill_rows"]:
+        row["since_launch_gross_usd"] = "0.00"
+    path = tmp_path / "capafy-skill-analytics.json"
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+
+    section = module._skill_analytics_section(path)
+
+    assert section["subscription_signal"] == {"status": "unavailable", "reason": "settlement lag"}
 
 
 def test_skill_analytics_section_missing_file_is_unavailable(tmp_path: Path) -> None:
@@ -426,8 +508,11 @@ def test_render_message_includes_fresh_skill_and_product_sections() -> None:
         **sources(),
         "skill_analytics": {
             "status": "fresh", "last_30d_net_usd": "66.81", "last_30d_orders": 88, "last_7d_gross_usd": "17.91",
-            "top_skills": [{"name": "Interview Synthesizer", "earnings_usd": "25.40"}],
-            "zero_sales_count": 1, "total_skills": 3, "subscription_proxy_usd": "0.00",
+            "top_skills": [{"name": "Hook Lab", "earnings_usd": "25.40"}],
+            "zero_sales_count": 1, "total_skills": 3,
+            "subscription_signal": {
+                "amount_usd": "54.86", "label": "since-launch web-console gross, proxy not MRR, not last-30d",
+            },
         },
         "product_metrics": {
             "anicca-ios": {"status": "fresh", "business_date": "2026-09-26", "mrr": 20.34, "actives": 5.0, "new_trials": 0.0},
@@ -438,9 +523,9 @@ def test_render_message_includes_fresh_skill_and_product_sections() -> None:
     message = module.render_message(receipt)
 
     assert "Skills: net30d=$66.81 orders30d=88 gross7d=$17.91" in message
-    assert "Interview Synthesizer=$25.40" in message
+    assert "Hook Lab=$25.40" in message
     assert "zero-sales=1/3" in message
-    assert "sub-proxy(not MRR)=$0.00" in message
+    assert "sub=$54.86 (since-launch web-console gross, proxy not MRR, not last-30d)" in message
     assert "anicca-ios@2026-09-26(MRR=$20.34 actives=5.0 trials=0.0)" in message
     assert "honne-ai=unavailable (no_revenuecat_row)" in message
 

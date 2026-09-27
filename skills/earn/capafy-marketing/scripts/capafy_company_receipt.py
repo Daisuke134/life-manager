@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
@@ -114,11 +115,16 @@ def _render_skill_analytics_line(section: dict | None) -> str:
         return f"Skills(30d/7d): unavailable ({reason})"
     top = section.get("top_skills") or []
     top_text = ", ".join(f"{item.get('name')}=${item.get('earnings_usd')}" for item in top) or "none"
+    subscription = section.get("subscription_signal") or {}
+    if subscription.get("status") == "unavailable":
+        sub_text = f"unavailable ({subscription.get('reason')})"
+    else:
+        sub_text = f"${subscription.get('amount_usd')} ({subscription.get('label')})"
     return (
         f"Skills: net30d=${section.get('last_30d_net_usd')} orders30d={section.get('last_30d_orders')} "
         f"gross7d=${section.get('last_7d_gross_usd')} top5=[{top_text}] "
         f"zero-sales={section.get('zero_sales_count')}/{section.get('total_skills')} "
-        f"sub-proxy(not MRR)=${section.get('subscription_proxy_usd')}"
+        f"sub={sub_text}"
     )
 
 
@@ -311,7 +317,50 @@ def _marketing_from_ledger(path: Path) -> dict:
     }}
 
 
-def _skill_analytics_section(path: Path) -> dict:
+def _short_skill_name(name: str | None) -> str | None:
+    """Shorten 'Hook Lab — Win the First 3 Seconds' to 'Hook Lab' for a compact report line."""
+    if not isinstance(name, str) or not name.strip():
+        return name
+    return name.split(" — ", 1)[0].strip()
+
+
+def _decimal_or_none(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except InvalidOperation:
+        return None
+
+
+def _subscription_signal(data: dict) -> dict:
+    """Prefer last-30d settled net; Capafy's settlement lag makes it read $0.00 for weeks after
+    launch, so fall back to since-launch web-console gross for subscription SKUs, clearly labeled
+    as not-MRR and not-last-30d. Only report unavailable when neither source has a real number."""
+    proxy = data.get("subscription_proxy") or {}
+    settled_net = _decimal_or_none(proxy.get("last_30d_net_usd"))
+    if settled_net is not None and settled_net != 0:
+        return {"amount_usd": proxy.get("last_30d_net_usd"), "label": "last30d settled net, proxy not MRR"}
+
+    subscription_gross = Decimal("0")
+    saw_subscription_sku = False
+    for row in data.get("per_skill_rows") or []:
+        skus = row.get("since_launch_skus") or []
+        if not any(str((sku or {}).get("skuType") or "").startswith("subscription_") for sku in skus):
+            continue
+        saw_subscription_sku = True
+        gross = _decimal_or_none(row.get("since_launch_gross_usd"))
+        if gross is not None:
+            subscription_gross += gross
+    if saw_subscription_sku and subscription_gross > 0:
+        return {
+            "amount_usd": f"{subscription_gross:.2f}",
+            "label": "since-launch web-console gross, proxy not MRR, not last-30d",
+        }
+    return {"status": "unavailable", "reason": "settlement lag"}
+
+
+def _skill_analytics_section(path: Path, name_by_agent_id: dict[str, str] | None = None) -> dict:
     """Compact, product-metrics view of capafy-skill-analytics.json for the Telegram report."""
     if not path.is_file():
         return {"status": "unavailable", "reason": "missing_capafy_skill_analytics"}
@@ -330,10 +379,17 @@ def _skill_analytics_section(path: Path) -> dict:
     last_30d = account_totals.get("last_30d") or {}
     last_7d = account_totals.get("last_7d") or {}
     rankings = data.get("rankings") or {}
-    top_skills = [
-        {"name": row.get("name") or row.get("agent_id"), "earnings_usd": row.get("creator_earnings_usd")}
-        for row in (rankings.get("top_by_earnings") or [])[:5]
-    ]
+    name_by_agent_id = name_by_agent_id or {}
+    per_skill_name_by_id = {
+        row.get("agent_id"): row.get("name")
+        for row in (data.get("per_skill_rows") or [])
+        if row.get("agent_id") and row.get("name")
+    }
+    top_skills = []
+    for row in (rankings.get("top_by_earnings") or [])[:5]:
+        agent_id = row.get("agent_id")
+        resolved_name = per_skill_name_by_id.get(agent_id) or name_by_agent_id.get(agent_id) or agent_id
+        top_skills.append({"name": _short_skill_name(resolved_name), "earnings_usd": row.get("creator_earnings_usd")})
     return {
         "status": "fresh",
         "last_30d_net_usd": last_30d.get("net_usd"),
@@ -342,7 +398,7 @@ def _skill_analytics_section(path: Path) -> dict:
         "top_skills": top_skills,
         "zero_sales_count": len(rankings.get("zero_sales") or []),
         "total_skills": len(data.get("per_skill_rows") or []),
-        "subscription_proxy_usd": (data.get("subscription_proxy") or {}).get("last_30d_net_usd"),
+        "subscription_signal": _subscription_signal(data),
     }
 
 
@@ -416,7 +472,12 @@ def _live_sources() -> dict:
     money = _load(STATE_HOME / "state/capafy-hourly-reconcile.json")
     growth_path = STATE_HOME / "state/capafy-sales-ranking.json"
     growth = _load(growth_path) if growth_path.is_file() else {"signal": "unknown"}
-    skill_analytics = _skill_analytics_section(CAPAFY_STATE / "capafy-skill-analytics.json")
+    name_by_agent_id = {
+        agent.get("agent_id"): agent.get("name")
+        for agent in (inventory.get("agents") or [])
+        if isinstance(agent, dict) and agent.get("agent_id") and agent.get("name")
+    }
+    skill_analytics = _skill_analytics_section(CAPAFY_STATE / "capafy-skill-analytics.json", name_by_agent_id)
     business_outcomes_path = STATE_HOME / "marketing-metrics-daily/state/business-outcomes.jsonl"
     product_metrics = {
         product_id: _product_metrics_section(business_outcomes_path, product_id)
