@@ -614,6 +614,7 @@ def _token(repo_root: Path) -> str:
             return str(os.environ[key])
     candidates = (
         Path.home() / ".local/state/life-manager/credentials/capafy-publisher.json",
+        Path.home() / ".local/state/life-manager/runtime/capafy-publisher/config.json",
         repo_root / "skills/capafy-autopublish/vendor/capafy-publisher/config.json",
     )
     for path in candidates:
