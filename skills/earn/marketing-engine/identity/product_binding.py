@@ -9,8 +9,12 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 from pathlib import Path
 from typing import Any, Iterator
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "gates"))
+from product_router import canonical_product_id  # noqa: E402
 
 
 UNMAPPED_REASON = "account_manifest_integration_unmapped"
@@ -99,14 +103,14 @@ def bind_product_ids(
             report["unmapped"] += 1
         else:
             existing = output.get("product_id")
-            if existing not in (None, mapping["product_id"]):
+            if existing is not None and canonical_product_id(existing) != mapping["product_id"]:
                 raise ValueError("publication product binding conflict")
             output["account_id"] = mapping["account_id"]
             output["product_id"] = mapping["product_id"]
             output["product_id_null_reason"] = None
             output["product_binding_source"] = BINDING_SOURCE
             report["bound"] += 1
-            if existing == mapping["product_id"]:
+            if canonical_product_id(existing) == mapping["product_id"]:
                 report["already_bound"] += 1
         outputs.append(output)
 
