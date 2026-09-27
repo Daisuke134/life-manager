@@ -27,7 +27,7 @@ def _fail(message: str) -> int:
 
 def _load_agents() -> tuple[list[dict[str, str]] | None, int]:
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(sys.stdin.read(), strict=False)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return None, _fail(f"invalid JSON input: {exc}")
     if not isinstance(payload, dict) or not isinstance(payload.get("agents"), list):
@@ -52,6 +52,13 @@ def _load_agents() -> tuple[list[dict[str, str]] | None, int]:
     if duplicates:
         return None, _fail("duplicate agent_id in agents array")
     return agents, 0
+
+
+def _approved_by_detail(agent: dict[str, str]) -> bool:
+    if agent["agent_status"] == "review_rejected":
+        return False
+    from inventory_status import fetch_agent_detail, is_approved_detail
+    return is_approved_detail(fetch_agent_detail(agent["agent_id"]))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -84,7 +91,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.require_free_slot:
         if any(agent["agent_status"] not in CAPACITY_STATUSES for agent in agents):
             return _fail("inventory has unsupported status; review capacity unknown")
-        if sum(agent["agent_status"] in UNLISTED_STATUSES for agent in agents) >= CAPAFY_REVIEW_CAP:
+        unlisted = [agent for agent in agents if agent["agent_status"] in UNLISTED_STATUSES]
+        if len(unlisted) >= CAPAFY_REVIEW_CAP:
+            # The list agentStatus goes stale after approval (P-14); resolve
+            # draft/under_review rows against the authoritative per-Agent detail
+            # the same way inventory_status does, so approved Agents free a slot.
+            unlisted = [agent for agent in unlisted if not _approved_by_detail(agent)]
+        if len(unlisted) >= CAPAFY_REVIEW_CAP:
             return _fail("CAP_FULL: no slot for a new Agent/version")
 
     reuse_id = str(args.reuse_agent_id or "").strip()
