@@ -450,3 +450,16 @@ def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytes
     assert result["total"] == 2
     assert bodies[1]["cursorTime"] == 123
     assert bodies[1]["cursorRequestId"] == "a"
+
+
+def test_token_reads_the_publisher_runtime_config(tmp_path, monkeypatch):
+    # The live publisher keeps its REST session in runtime/capafy-publisher/config.json;
+    # without it the per-skill stats were access_token_unavailable in production.
+    module = load_module()
+    monkeypatch.delenv("CAPAFY_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("CAPAFY_TOKEN", raising=False)
+    monkeypatch.setattr(module.Path, "home", classmethod(lambda cls: tmp_path))
+    runtime = tmp_path / ".local/state/life-manager/runtime/capafy-publisher"
+    runtime.mkdir(parents=True)
+    (runtime / "config.json").write_text(json.dumps({"access_token": "runtime-token"}))
+    assert module._token(tmp_path / "repo") == "runtime-token"
