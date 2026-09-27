@@ -334,13 +334,14 @@ def _decimal_or_none(value: Any) -> Decimal | None:
 
 
 def _subscription_signal(data: dict) -> dict:
-    """Prefer last-30d settled net; Capafy's settlement lag makes it read $0.00 for weeks after
-    launch, so fall back to since-launch web-console gross for subscription SKUs, clearly labeled
-    as not-MRR and not-last-30d. Only report unavailable when neither source has a real number."""
+    """Prefer last-30d gross (subscription_proxy.last_30d_net_usd is a gross figure despite its
+    name, kept for backward compatibility); fall back to since-launch web-console gross for
+    subscription SKUs when the 30d window itself is a real, legitimate zero, clearly labeled as
+    not-MRR and not-last-30d. Only report unavailable when neither source has a real number."""
     proxy = data.get("subscription_proxy") or {}
-    settled_net = _decimal_or_none(proxy.get("last_30d_net_usd"))
-    if settled_net is not None and settled_net != 0:
-        return {"amount_usd": proxy.get("last_30d_net_usd"), "label": "last30d settled net, proxy not MRR"}
+    gross_30d = _decimal_or_none(proxy.get("last_30d_net_usd"))
+    if gross_30d is not None and gross_30d != 0:
+        return {"amount_usd": proxy.get("last_30d_net_usd"), "label": "last30d gross, proxy not MRR"}
 
     subscription_gross = Decimal("0")
     saw_subscription_sku = False

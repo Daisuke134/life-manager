@@ -410,7 +410,7 @@ def test_subscription_signal_uses_settled_net_when_nonzero(tmp_path: Path) -> No
 
     section = module._skill_analytics_section(path)
 
-    assert section["subscription_signal"] == {"amount_usd": "12.34", "label": "last30d settled net, proxy not MRR"}
+    assert section["subscription_signal"] == {"amount_usd": "12.34", "label": "last30d gross, proxy not MRR"}
 
 
 def test_subscription_signal_unavailable_when_neither_net_nor_gross_is_real(tmp_path: Path) -> None:

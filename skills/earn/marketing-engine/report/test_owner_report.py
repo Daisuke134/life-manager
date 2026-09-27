@@ -1224,6 +1224,81 @@ class OwnerReportRendererTest(unittest.TestCase):
         self.assertIn(first["status"], {"delivered", "delivery_unknown"})
         self.assertIn(second["status"], {"delivered", "delivery_unknown"})
 
+    def test_installs_7d_sums_only_the_seven_most_recent_verified_download_reports(self):
+        def asc_row(business_date: str, downloads: int | None):
+            reports = {
+                "downloads": (
+                    {"status": "available", "data": {"first_time_downloads": downloads}}
+                    if downloads is not None
+                    else {"status": "unavailable", "data": None, "reason": "provider_query_failed"}
+                ),
+            }
+            return {
+                "schema_version": 1,
+                "product_id": "anicca-ios",
+                "business_date": business_date,
+                "observed_at": f"{business_date}T08:00:00Z",
+                "snapshot_id": f"anicca-ios:{business_date}",
+                "sources": {
+                    "app_store_connect": {
+                        "status": "available",
+                        "reason": None,
+                        "data": {"app_id": "6755129214", "reports": reports},
+                    },
+                },
+            }
+
+        with tempfile.TemporaryDirectory() as path:
+            root = Path(path)
+            rows = [
+                asc_row("2026-08-01", 1),  # outside the 7-day window, must be excluded
+                asc_row("2026-08-02", 2),
+                asc_row("2026-08-03", None),  # unavailable that day: known count still sums
+                asc_row("2026-08-04", 3),
+                asc_row("2026-08-05", 4),
+                asc_row("2026-08-06", 5),
+                asc_row("2026-08-07", 6),
+                asc_row("2026-08-08", 7),
+            ]
+            (root / "business-outcomes.jsonl").write_text(
+                "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+                encoding="utf-8",
+            )
+            as_of = dt.datetime(2026, 8, 8, 12, tzinfo=dt.timezone.utc)
+            event = owner_report.build_events(
+                root, "product_daily", product_id="anicca-ios", as_of=as_of,
+            )[0]
+
+        # Window = 08-02..08-08 (7 days); 08-01 is excluded; 08-03 contributed 0 known days.
+        self.assertEqual(event["facts"]["installs_7d"], 2 + 3 + 4 + 5 + 6 + 7)
+        self.assertEqual(event["facts"]["installs_7d_reason"], "partial_window")
+        self.assertIn("直近7日の新規ダウンロード数は27件", owner_report.render_japanese(event))
+
+    def test_installs_7d_is_null_with_reason_when_no_snapshot_or_no_download_report(self):
+        with tempfile.TemporaryDirectory() as path:
+            root = Path(path)
+            no_snapshot_event = owner_report.build_events(
+                root, "product_daily", product_id="honne-ai", as_of=AS_OF,
+            )[0]
+            self.assertIsNone(no_snapshot_event["facts"]["installs_7d"])
+            self.assertEqual(no_snapshot_event["facts"]["installs_7d_reason"], "no_business_snapshot")
+
+            row = {
+                "schema_version": 1,
+                "product_id": "honne-ai",
+                "business_date": "2026-08-05",
+                "observed_at": "2026-08-05T08:00:00Z",
+                "snapshot_id": "honne-ai:2026-08-05",
+                "sources": {"revenuecat": {"status": "unavailable", "data": None, "reason": "fixture"}},
+            }
+            (root / "business-outcomes.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+            no_report_event = owner_report.build_events(
+                root, "product_daily", product_id="honne-ai", as_of=AS_OF,
+            )[0]
+            self.assertIsNone(no_report_event["facts"]["installs_7d"])
+            self.assertEqual(no_report_event["facts"]["installs_7d_reason"], "no_verified_download_report")
+            self.assertNotIn("ダウンロード数", owner_report.render_japanese(no_report_event))
+
     def test_missing_business_snapshot_emits_null_daily_event(self):
         with tempfile.TemporaryDirectory() as path:
             root = Path(path)

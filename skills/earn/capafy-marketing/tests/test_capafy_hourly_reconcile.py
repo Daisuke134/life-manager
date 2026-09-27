@@ -260,8 +260,21 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
         "/app/realtime-revenue/clickhouse/trend",
         "/app/realtime-revenue/clickhouse/comparison",
         "/app/unit-sales/clickhouse/trend",
+        "/app/unit-sales/clickhouse/ranking",
     }
-    assert all(body.get("sinceLaunch") is True for _, body in calls)
+    # The since-launch period calls (one per endpoint above, minus the two fixed 30d/7d
+    # ranking calls added below) all carry sinceLaunch=True.
+    since_launch_calls = [body for _, body in calls if "sinceLaunch" in body]
+    assert len(since_launch_calls) == 5
+    assert all(body.get("sinceLaunch") is True for body in since_launch_calls)
+    # Fixed 30d/7d windows for per-agent GROSS revenue and paid-order rankings.
+    windowed_calls = [(path, body) for path, body in calls if "startDate" in body]
+    assert {path for path, _ in windowed_calls} == {
+        "/app/sales/clickhouse/ranking", "/app/unit-sales/clickhouse/ranking",
+    }
+    assert len(windowed_calls) == 4
+    windows = {(body["startDate"], body["endDate"]) for _, body in windowed_calls}
+    assert windows == {("2026-08-19", "2026-09-17"), ("2026-09-11", "2026-09-17")}
 
 
 def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,7 +290,11 @@ def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.Monkey
 
     module._live_payloads(Path("/tmp"), observed, seller_start_date=observed.date().replace(day=1))
 
-    assert all(body.get("startDate") == "2026-09-01" for body in calls)
+    # Month-to-date calls (sinceLaunch replaced with an explicit month start).
+    month_to_date_calls = [body for body in calls if body.get("startDate") == "2026-09-01"]
+    assert len(month_to_date_calls) == 5
+    assert all(body.get("endDate") == "2026-09-17" for body in month_to_date_calls)
+    # The fixed 30d/7d gross-window ranking calls are independent of the month-to-date period.
     assert all(body.get("endDate") == "2026-09-17" for body in calls)
 
 
@@ -315,18 +332,36 @@ def skill_analytics_payloads() -> dict:
         "refunds": {"code": 0, "data": {"list": []}},
         "statements": {"code": 0, "data": {"list": [
             {"settlementMonth": "2026-08", "endingSettlementBalance": 14.4, "payableAmount": 0.0}]}},
+        # Windowed per-agent GROSS rankings: this is what actually reconciles against real sales.
+        # 222 is absent from all four (a real zero, not a source failure).
+        "seller_ranking_30d": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "totalSalesAmount": 24.89},
+        ]}},
+        "seller_ranking_7d": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "totalSalesAmount": 5.98},
+        ]}},
+        "unit_ranking_30d": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "totalSalesVolume": 61, "freeTrialCount": 50},
+        ]}},
+        "unit_ranking_7d": {"code": 0, "data": {"agents": [
+            {"agentId": "111", "agentTitle": "Hook Lab", "totalSalesVolume": 12, "freeTrialCount": 9},
+        ]}},
     }
 
 
 def skill_agent_stats() -> dict:
+    # Real GET /agent/agent/{agentId}/stats shape: a flat object with sales/revenue/daily,
+    # not a nested "data" list.
     return {
         "111": {
-            "d30": {"code": 0, "data": {"data": [{"orders": 2, "revenue": 6.4}]}},
-            "d7": {"code": 0, "data": {"data": [{"orders": 0, "revenue": 0.0}]}},
+            "d30": {"code": 0, "data": {"agentId": "111", "sales": 2, "revenue": 6.4, "daily": []}},
+            "d7": {"code": 0, "data": {"agentId": "111", "sales": 0, "revenue": 0.0, "daily": []}},
+            "detail": {"code": 0, "data": {"agentId": "111", "model": "Claude Sonnet 4.6 (detail)"}},
         },
         "222": {
-            "d30": {"code": 0, "data": {"data": []}},
-            "d7": {"code": 0, "data": {"data": []}},
+            "d30": {"code": 0, "data": {"agentId": "222", "sales": 0, "revenue": 0.0, "daily": []}},
+            "d7": {"code": 0, "data": {"agentId": "222", "sales": 0, "revenue": 0.0, "daily": []}},
+            "detail": {"_error": "HTTP 503"},
         },
     }
 
@@ -354,12 +389,24 @@ def test_build_skill_analytics_account_totals_and_per_skill_rows() -> None:
     assert rows["111"]["model"] == "Claude Sonnet 4.6"
     assert rows["111"]["since_launch_gross_usd"] == "34.88"
     assert rows["111"]["since_launch_creator_earnings_usd"] == "19.00"
+    # GROSS 30d/7d (per-agent clickhouse ranking window): reflects actual sales.
+    assert rows["111"]["stats_30d_revenue_usd"] == "24.89"
+    assert rows["111"]["stats_30d_orders"] == 11  # 61 total - 50 free trial
+    assert rows["111"]["stats_7d_revenue_usd"] == "5.98"
+    assert rows["111"]["stats_7d_orders"] == 3  # 12 total - 9 free trial
+    # SETTLED 30d/7d (/agent/agent/{id}/stats): kept as a separate, known-lagging figure.
     assert rows["111"]["stats_30d_settled_orders"] == 2
     assert rows["111"]["stats_30d_settled_revenue_usd"] == "6.40"
     assert rows["222"]["model"] == "claude"
     assert rows["222"]["since_launch_gross_usd"] == "0.00"
+    # 222 is absent from the windowed rankings: a real zero, not unavailable.
+    assert rows["222"]["stats_30d_revenue_usd"] == "0.00"
+    assert rows["222"]["stats_30d_orders"] == 0
 
     assert analytics["rankings"]["top_by_earnings"][0]["agent_id"] == "111"
+    assert analytics["rankings"]["top_by_units_30d"][0] == {
+        "agent_id": "111", "name": "Hook Lab", "orders_30d": 11,
+    }
     zero_sales_ids = {row["agent_id"] for row in analytics["rankings"]["zero_sales"]}
     assert zero_sales_ids == {"222"}
 
@@ -368,11 +415,34 @@ def test_build_skill_analytics_account_totals_and_per_skill_rows() -> None:
 
     assert analytics["subscription_proxy"]["label"] == "proxy_not_mrr"
     assert "not" in analytics["subscription_proxy"]["note"].lower()
-    assert analytics["subscription_proxy"]["last_30d_net_usd"] == "6.40"
+    # Gross, not the lagging settled figure (6.40) that used to make this proxy read near-zero.
+    assert analytics["subscription_proxy"]["last_30d_net_usd"] == "24.89"
 
     assert any("active" in gap.lower() and "subscription" in gap.lower() for gap in analytics["data_gaps"])
     assert isinstance(analytics["telegram_summary"], str) and "34.88" in analytics["telegram_summary"]
     assert analytics["verdict"] == "success"
+
+
+def test_gross_window_fails_closed_to_none_when_its_ranking_source_fails() -> None:
+    """A failed windowed-ranking source must not be confused with a real zero-sales skill."""
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["seller_ranking_30d"] = {"_error": "HTTP 503"}
+    payloads["unit_ranking_7d"] = {"_error": "HTTP 503"}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z",
+    )
+
+    rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
+    assert rows["111"]["stats_30d_revenue_usd"] is None  # its source (seller_ranking_30d) failed
+    assert rows["111"]["stats_7d_orders"] is None  # its source (unit_ranking_7d) failed
+    # Windows whose own source is still healthy are unaffected by the other two failing.
+    assert rows["111"]["stats_30d_orders"] == 11
+    assert rows["111"]["stats_7d_revenue_usd"] == "5.98"
+    assert rows["111"]["stats_30d_settled_revenue_usd"] == "6.40"
+    # top_by_units_30d still ranks by the healthy stats_30d_orders field.
+    assert analytics["rankings"]["top_by_units_30d"][0]["agent_id"] == "111"
 
 
 def test_build_skill_analytics_isolates_stale_section_on_source_failure() -> None:
@@ -425,15 +495,34 @@ def test_agent_stats_windows_bounded_sequential_with_delay(monkeypatch: pytest.M
     module = load_module()
     calls: list[str] = []
     sleeps: list[float] = []
-    monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {"data": []}})
+    monkeypatch.setattr(module, "_get", lambda path, _token: calls.append(path) or {"code": 0, "data": {}})
 
     result = module._fetch_agent_stats_windows(
         "tok", ["a", "b", "c"], module.dt.date(2026, 9, 27), cap=2, delay=0.01, sleep=sleeps.append,
     )
 
     assert list(result.keys()) == ["a", "b"]
-    assert len(calls) == 4  # 2 agents x (d30, d7)
-    assert sleeps == [0.01, 0.01, 0.01, 0.01]
+    assert len(calls) == 6  # 2 agents x (d30, d7, detail)
+    assert calls[2] == "/agent/agents/a"
+    assert sleeps == [0.01] * 6
+
+
+def test_stats_orders_revenue_reads_the_flat_sales_and_revenue_fields() -> None:
+    module = load_module()
+    assert module._stats_orders_revenue(
+        {"code": 0, "data": {"sales": 3, "revenue": 12.5, "daily": []}},
+    ) == (3, "12.50")
+    assert module._stats_orders_revenue({"_error": "HTTP 503"}) == (None, None)
+    assert module._stats_orders_revenue({"code": 0, "data": {}}) == (0, "0.00")
+
+
+def test_agent_detail_model_reads_the_model_field_not_runtime() -> None:
+    module = load_module()
+    assert module._agent_detail_model(
+        {"code": 0, "data": {"agentRuntime": "openclaw", "model": "Claude Sonnet 4.6"}},
+    ) == "Claude Sonnet 4.6"
+    assert module._agent_detail_model({"_error": "timeout"}) is None
+    assert module._agent_detail_model({"code": 0, "data": {"model": None}}) is None
 
 
 def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytest.MonkeyPatch) -> None:

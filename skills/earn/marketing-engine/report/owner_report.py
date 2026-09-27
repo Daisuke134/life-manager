@@ -595,6 +595,43 @@ def _minor_money(data: object) -> tuple[object, str | None, str | None, object] 
     return bucket["value"], bucket["currency"], bucket["metric"], bucket["minor"]
 
 
+def _download_count(row: dict) -> int | None:
+    """Read one day's verified ASC first-time-download count, or None if unmeasured."""
+
+    sources = row.get("sources") if isinstance(row.get("sources"), dict) else {}
+    asc = sources.get("app_store_connect") if isinstance(sources.get("app_store_connect"), dict) else {}
+    if asc.get("status") != "available":
+        return None
+    reports = (asc.get("data") or {}).get("reports") if isinstance(asc.get("data"), dict) else None
+    downloads = reports.get("downloads") if isinstance(reports, dict) else None
+    if not isinstance(downloads, dict) or downloads.get("status") != "available":
+        return None
+    value = (downloads.get("data") or {}).get("first_time_downloads")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _installs_7d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int | None, str | None]:
+    """Sum verified ASC first-time downloads over the 7 most recent eligible snapshots."""
+
+    eligible = sorted(
+        (
+            (row.get("business_date"), row)
+            for _, row in rows
+            if _before(row, as_of) and isinstance(row.get("business_date"), str) and row.get("business_date")
+        ),
+        key=lambda pair: pair[0],
+        reverse=True,
+    )[:7]
+    if not eligible:
+        return None, "no_business_snapshot"
+    counts = [_download_count(row) for _, row in eligible]
+    known = [count for count in counts if count is not None]
+    if not known:
+        return None, "no_verified_download_report"
+    total = sum(known)
+    return total, ("partial_window" if len(known) < len(eligible) else None)
+
+
 def _business_facts(row: dict) -> dict:
     sources = row.get("sources") if isinstance(row.get("sources"), dict) else {}
     revenuecat = sources.get("revenuecat") if isinstance(sources.get("revenuecat"), dict) else {}
@@ -727,12 +764,15 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
                 "money_metric": None,
                 "money_source": None,
                 "money_reason": "no_business_snapshot",
+                "installs_7d": None,
+                "installs_7d_reason": "no_business_snapshot",
                 "sources": {},
             },
             evidence_refs=[evidence_ref],
         )]
     index, row = latest
     facts = _business_facts(row)
+    facts["installs_7d"], facts["installs_7d_reason"] = _installs_7d(rows, as_of)
     evidence_ref = _ref("business-outcomes.jsonl", index)
     existing = _existing_owner_report_for_evidence(
         root, kind="product_daily", product_id=product_id, evidence_ref=evidence_ref
@@ -978,10 +1018,13 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
                 "money_metric": None,
                 "paid_orders": None,
                 "money_reason": "no_business_snapshot",
+                "installs_7d": None,
+                "installs_7d_reason": "no_business_snapshot",
             })
             continue
         index, row = latest
         facts = _business_facts(row)
+        installs_7d, installs_7d_reason = _installs_7d(rows, as_of)
         product = {
             "product_id": product_id,
             "mrr": facts.get("mrr"),
@@ -993,6 +1036,8 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
             "paid_orders": facts.get("paid_orders"),
             "money_source": facts.get("money_source"),
             "money_reason": facts.get("money_reason"),
+            "installs_7d": installs_7d,
+            "installs_7d_reason": installs_7d_reason,
         }
         money_buckets = facts.get("money_buckets")
         if isinstance(money_buckets, list) and len(money_buckets) > 1:
@@ -1133,6 +1178,9 @@ def render_japanese(event: dict) -> str:
                 )
             else:
                 lines.append(f"売上は{_reason_text(reason)}。")
+        installs_7d = facts.get("installs_7d")
+        if installs_7d is not None:
+            lines.append(f"直近7日の新規ダウンロード数は{installs_7d}件（App Store Connect）。")
     elif kind == "incident":
         source_gaps = facts.get("source_gaps")
         if isinstance(source_gaps, list) and source_gaps:
@@ -1196,6 +1244,8 @@ def render_japanese(event: dict) -> str:
                 detail = f"注文数 {item['paid_orders']}件・売上額は取得できませんでした"
             else:
                 detail = _reason_text(item.get("money_reason") or item.get("mrr_reason"))
+            if item.get("installs_7d") is not None:
+                detail += f"・直近7日DL {item['installs_7d']}件"
             lines.append(f"{item_product}: {detail}")
 
     lines.extend(["", "確認情報"])

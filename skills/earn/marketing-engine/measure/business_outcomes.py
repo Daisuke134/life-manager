@@ -499,54 +499,77 @@ def collect_asc(
         if not report:
             result["reports"][key] = unavailable_source("report_not_offered")
             continue
-        instances = _asc_get(
-            f"/analyticsReports/{report['id']}/instances?limit=200", headers
-        ).get("data", [])
-        instance = _latest_asc_instance(instances)
-        segments = _asc_get(
-            f"/analyticsReportInstances/{instance['id']}/segments?limit=200",
-            headers,
-        ).get("data", [])
-        rows: list[dict[str, str]] = []
-        segment_hashes: list[str] = []
-        for segment in segments:
-            attributes = segment.get("attributes", {})
-            payload = _http_bytes(attributes["url"])
-            expected_size = attributes.get("sizeInBytes")
-            if expected_size is not None and len(payload) != int(expected_size):
-                raise ValueError(f"ASC segment size mismatch: {segment['id']}")
-            expected_md5 = attributes.get("checksum")
-            actual_md5 = hashlib.md5(payload).hexdigest()
-            if expected_md5 and actual_md5 != expected_md5:
-                raise ValueError(f"ASC segment checksum mismatch: {segment['id']}")
-            rows.extend(parse_asc_tsv_gz(payload))
-            segment_hashes.append(hashlib.sha256(payload).hexdigest())
-        compact = (
-            summarize_asc_downloads(rows)
-            if key == "downloads" else summarize_asc_table(rows)
-        )
-        evidence = {
-            "app_id": app_id,
-            "report_name": name,
-            "processing_date": instance.get("attributes", {}).get("processingDate"),
-            "granularity": instance.get("attributes", {}).get("granularity"),
-            "segment_sha256": segment_hashes,
-            "rows": rows,
-        }
-        evidence_path = evidence_dir / f"{app_id}-{key}.json"
-        evidence_path.write_text(
-            json.dumps(evidence, ensure_ascii=False, sort_keys=True)
-        )
-        result["reports"][key] = available_source(
-            {
-                **compact,
-                "processing_date": evidence["processing_date"],
-                "granularity": evidence["granularity"],
-                "evidence_path": str(evidence_path),
-            },
-            evidence_sha256=_json_hash(evidence),
-        )
+        try:
+            result["reports"][key] = _collect_asc_report(
+                app_id, key, name, report, headers, evidence_dir
+            )
+        except Exception as error:
+            # One report type (e.g. Purchases/Subscription Events) can legitimately have
+            # zero instances when an app has no chargeable events yet. That must not
+            # discard the other reports (downloads, discovery, ...) that did succeed.
+            reason = "no_instances" if "no instances" in str(error) else "report_query_failed"
+            result["reports"][key] = unavailable_source(
+                reason, error=f"{type(error).__name__}: {error}"
+            )
     return result
+
+
+def _collect_asc_report(
+    app_id: str,
+    key: str,
+    name: str,
+    report: dict[str, Any],
+    headers: dict[str, str],
+    evidence_dir: Path,
+) -> dict[str, Any]:
+    instances = _asc_get(
+        f"/analyticsReports/{report['id']}/instances?limit=200", headers
+    ).get("data", [])
+    instance = _latest_asc_instance(instances)
+    segments = _asc_get(
+        f"/analyticsReportInstances/{instance['id']}/segments?limit=200",
+        headers,
+    ).get("data", [])
+    rows: list[dict[str, str]] = []
+    segment_hashes: list[str] = []
+    for segment in segments:
+        attributes = segment.get("attributes", {})
+        payload = _http_bytes(attributes["url"])
+        expected_size = attributes.get("sizeInBytes")
+        if expected_size is not None and len(payload) != int(expected_size):
+            raise ValueError(f"ASC segment size mismatch: {segment['id']}")
+        expected_md5 = attributes.get("checksum")
+        actual_md5 = hashlib.md5(payload).hexdigest()
+        if expected_md5 and actual_md5 != expected_md5:
+            raise ValueError(f"ASC segment checksum mismatch: {segment['id']}")
+        rows.extend(parse_asc_tsv_gz(payload))
+        segment_hashes.append(hashlib.sha256(payload).hexdigest())
+    compact = (
+        summarize_asc_downloads(rows)
+        if key == "downloads" else summarize_asc_table(rows)
+    )
+    evidence = {
+        "app_id": app_id,
+        "report_name": name,
+        "processing_date": instance.get("attributes", {}).get("processingDate"),
+        "granularity": instance.get("attributes", {}).get("granularity"),
+        "segment_sha256": segment_hashes,
+        "rows": rows,
+    }
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{app_id}-{key}.json"
+    evidence_path.write_text(
+        json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+    )
+    return available_source(
+        {
+            **compact,
+            "processing_date": evidence["processing_date"],
+            "granularity": evidence["granularity"],
+            "evidence_path": str(evidence_path),
+        },
+        evidence_sha256=_json_hash(evidence),
+    )
 
 
 def collect_revenuecat(
