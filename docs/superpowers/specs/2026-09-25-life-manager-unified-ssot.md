@@ -205,7 +205,7 @@ Capafy の追加事実: 出品 40 スキル、有料 28 件・無料トライア
 
 TODO（何を・どう直すか）
 - [ ] P-1 **Capafy の月次売上とスキル別の売上**: `capafy_hourly_reconcile.py` に `GET /agent/sales/trend`（直近30日）と、出品中の各スキルの `GET /agent/agent/{id}/stats`（直近30日）を足す。出力: 月次の gross・返金・net、スキルごとの販売数・売上・評価を `capafy-skill-revenue.json` に保存し、日次で Telegram に要約。MRR はサブスク型スキルの直近30日 net を「観測した月次の継続収益」として出し、解約状況の source が無いことを明記する
-- [ ] P-2 **App Store Connect の API key**: Claude が CloakBrowser で App Store Connect → Users and Access → Integrations → App Store Connect API で key を作り、Issuer ID・Key ID・.p8 を credential SSOT と `~/.local/state/life-manager/private/marketing.env`（`ASC_ISSUER_ID` など reader が読む名前）に保存する。reader を手で1回走らせ、ダウンロード数と proceeds が出ることを確認する
+- [x] P-2 **App Store Connect の API key**: key は既にあった（`~/.config/env/global.env` に ASC_ISSUER_ID・ASC_KEY_ID・ASC_KEY_PATH・ASC_PRIVATE_KEY・ASC_VENDOR_NUMBER、RevenueCat の RC_API_KEY・REVENUECAT_PROJECT_ID も）。reader が読む `~/.local/state/life-manager/private/marketing.env` に入っていなかったのが原因。10 個を写した（mode 600、値は出力していない）。2026-09-27 に `marketing-asc-acquisition.js` を実行して rc=0、Anicca（9/23〜9/25）と Honne（9/25）の App Downloads / Discovery レポートが measured。訂正: lm-lead の「key を作る必要がある」は探索不足による誤り
 - [ ] P-3 **`marketing-metrics-daily` の exit 1**: 同じ env で手動実行して stderr を取り、原因を直す。`aniccaios` / `honne` の `ASC report has no instances` は、ASC に報告書が無い日の扱い（0件として記録するか）を直す
 - [ ] P-4 **RevenueCat**: 最新が 09-12 で止まっている。P-3 の後に最新の MRR・active・収益が日次で出ることを確認する（honne / anicca の両アプリ）
 - [ ] P-5 **止まっている reader を動かす**: `life-manager-instagram-metrics`・`marketing-metrics`・`marketing-owner-events`・`life-manager-payout`（capacity 待ち）は revenue の実行枠か優先度を見直す。`life-manager-tiktok-metrics`・`capafy-outcome-monitor`（effect_unknown fence）は公式 readback で fence を閉じ、`lm-fence-reconciler` に adapter を登録する
