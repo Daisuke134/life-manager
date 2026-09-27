@@ -219,7 +219,9 @@ TODO（何を・どう直すか）
 - [x] P-8 **CFO の P&L**: `loop_pnl.py` に capafy（capafy-skill-analytics.json の日次推移、6時間より古いと unverified）と mobile-apps（business-outcomes.jsonl の RevenueCat 日次 Revenue 合計、MRR を注記）を足した（#6016）。実データ 2026-09-26: capafy 売上 $3.98・net −$0.65 相当のコスト控除後表示、mobile-apps 日次売上 0（RevenueCat の chart が 0）、MRR anicca-ios $20.34 / honne-ai $0
 - [ ] P-9 **Capafy の出金**: 最低出金額は **$100**（Dais 確認、2026-09-27。API docs には記載なし）。月次で自動（`payoutMonth`）、2026-07 は `below_threshold`（残高 $8）。現在の出金可能 $14.40 では出金できない。作業は売上を増やして $100 を超えさせることと、超えた月の payout-record を readback して `paid` と `paymentReference` を確認すること
 - [ ] P-11 **他の販売先**（調査 `~/.local/state/life-manager/state/marketplace-research-2026-09-27.md`）: 相性順に PromptBase（SKILL.md に対応、直リンク 0%・マーケット 20%）、x402 + MCP レジストリ（mcp.so・公式 registry、決済手数料 0、登録や審査なし）、Gumroad（10%+$0.50）、Lemon Squeezy（5%+50¢）。出金時の KYC の深さは未確認なので、まず PromptBase に1件出品して実測する。AppSumo・Envato は審査制で除外
-- [ ] P-12 **価格の見直し**: SKU 価格が $0.00 のスキルが多い。売れた6スキルの価格帯（$1.99〜$19.9）を基準に、0円 SKU を有料にするか判断する
+- [ ] P-12 **価格の見直し**: 訂正 — 「$0 の SKU が多い」は売上額を価格と読み違えた誤り。実際は 80 SKU 中 $0 は1つ（Japanese Humanizer の download 無料枠、意図的とみられる）。逆に売れた4スキルが、過去に実際に売れた価格より安い: Hook Lab 日額 $1.99（過去 $19.9）、TikTok Script Pro 日額 $1.99（$5.97）、Slide Maker 週額 $9.99（$19.98）、Marketing Strategist 週額 $6.99（$13.98）。ただし売上は価格ごとに分かれないので方向性の証拠にとどまる（`~/.local/state/life-manager/state/capafy-pricing-2026-09-27.md`）
+  - [ ] P-12a 誰がいつ価格を下げたか（capafy-loop の自動改善か手作業か）を listing の更新履歴と loop の記録で確認する。自動 loop が下げたなら、その loop の評価軸を直す。確認後に価格を戻すか決める
+- [x] P-1c 毎時の分析で per_skill_rows の name が全部 None だった。`/agent/agents` の項目名は `name`（`agentTitle` ではない）。直した（#6021）。本番データで 45 行すべてに名前が入ることを確認。model / runtime が None なのは別の既知の欠損（LISTING.md の形式が変わった）
 - [ ] P-13 **Telegram の製品レポート**: Capafy の hourly レポート（`capafy_company_receipt.py`）は全体の金額しか出していない。直近30日の net・注文数、直近7日、上位5スキルの収益、売上ゼロのスキル数、サブスク proxy と、アプリごとの RevenueCat（MRR・active・新規 trial と日付）を同じレポートに足す（実装中）
 - [ ] P-10 **共通部品で量産**: コンテンツ工場・マーケティング・収益 reader・評価器を製品間で共有し、P-1 のスキル別データで売れるスキルの型を見つけて新しいスキル/アプリを増やす
 
