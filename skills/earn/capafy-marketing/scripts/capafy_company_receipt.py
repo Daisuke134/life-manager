@@ -47,6 +47,8 @@ def _semantic_payload(sources: dict) -> dict:
     outcome = outcome if isinstance(outcome, dict) else {}
     money_source = sources.get("money") or {}
     growth = sources.get("growth") or {}
+    skill_analytics = sources.get("skill_analytics")
+    product_metrics = sources.get("product_metrics")
     return {
         "skill": {
             "candidate_id": candidate.get("candidate_id"),
@@ -77,6 +79,10 @@ def _semantic_payload(sources: dict) -> dict:
             "winner_agent_id": ((growth.get("winner") or {}).get("agent_id") or (growth.get("winner") or {}).get("agentId")) if isinstance(growth.get("winner"), dict) else None,
             "attribution_status": growth.get("attribution_status"),
         },
+        "skill_analytics": copy.deepcopy(skill_analytics) if isinstance(skill_analytics, dict) else {
+            "status": "unavailable", "reason": "not_provided",
+        },
+        "product_metrics": copy.deepcopy(product_metrics) if isinstance(product_metrics, dict) else {},
     }
 
 
@@ -101,6 +107,37 @@ def build_receipt(sources: dict, observed_at: str) -> dict:
     return receipt
 
 
+def _render_skill_analytics_line(section: dict | None) -> str:
+    section = section or {}
+    if section.get("status") != "fresh":
+        reason = section.get("reason") or "no_data"
+        return f"Skills(30d/7d): unavailable ({reason})"
+    top = section.get("top_skills") or []
+    top_text = ", ".join(f"{item.get('name')}=${item.get('earnings_usd')}" for item in top) or "none"
+    return (
+        f"Skills: net30d=${section.get('last_30d_net_usd')} orders30d={section.get('last_30d_orders')} "
+        f"gross7d=${section.get('last_7d_gross_usd')} top5=[{top_text}] "
+        f"zero-sales={section.get('zero_sales_count')}/{section.get('total_skills')} "
+        f"sub-proxy(not MRR)=${section.get('subscription_proxy_usd')}"
+    )
+
+
+def _render_product_metrics_line(sections: dict | None) -> str:
+    sections = sections or {}
+    parts = []
+    for product_id in ("anicca-ios", "honne-ai"):
+        section = sections.get(product_id) or {}
+        if section.get("status") != "fresh":
+            reason = section.get("reason") or "no_data"
+            parts.append(f"{product_id}=unavailable ({reason})")
+        else:
+            parts.append(
+                f"{product_id}@{section.get('business_date')}(MRR=${section.get('mrr')} "
+                f"actives={section.get('actives')} trials={section.get('new_trials')})"
+            )
+    return "Apps: " + " ".join(parts)
+
+
 def render_message(receipt: dict) -> str:
     skill = receipt["skill"]
     slots = receipt["slots"]
@@ -116,7 +153,9 @@ def render_message(receipt: dict) -> str:
         f"Slots: occupied={slots.get('occupied')} free={slots.get('free')} retry={slots.get('retry')} listed={slots.get('listed')}\n"
         f"Latest Reel: {post}\n"
         f"Money: orders={receipt.get('orders')} gross=${money.get('gross_usd')} pending=${money.get('pending_usd')} realized=${money.get('realized_usd')} refunds=${money.get('refunds_usd')} settled MRR={mrr_text}\n"
-        f"Growth signal: {growth.get('signal')} (winner_agent_id={growth.get('winner_agent_id') or 'none'}; attribution={growth.get('attribution_status') or 'none'})"
+        f"Growth signal: {growth.get('signal')} (winner_agent_id={growth.get('winner_agent_id') or 'none'}; attribution={growth.get('attribution_status') or 'none'})\n"
+        f"{_render_skill_analytics_line(receipt.get('skill_analytics'))}\n"
+        f"{_render_product_metrics_line(receipt.get('product_metrics'))}"
     )
 
 
@@ -272,6 +311,88 @@ def _marketing_from_ledger(path: Path) -> dict:
     }}
 
 
+def _skill_analytics_section(path: Path) -> dict:
+    """Compact, product-metrics view of capafy-skill-analytics.json for the Telegram report."""
+    if not path.is_file():
+        return {"status": "unavailable", "reason": "missing_capafy_skill_analytics"}
+    try:
+        data = _load(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {"status": "unavailable", "reason": "malformed_capafy_skill_analytics"}
+    account_totals = data.get("account_totals") or {}
+    account_status = account_totals.get("_status")
+    per_skill_status = data.get("per_skill_rows_status")
+    if account_status != "fresh" or per_skill_status != "fresh":
+        return {
+            "status": "unavailable",
+            "reason": f"stale_capafy_skill_analytics(account={account_status},per_skill={per_skill_status})",
+        }
+    last_30d = account_totals.get("last_30d") or {}
+    last_7d = account_totals.get("last_7d") or {}
+    rankings = data.get("rankings") or {}
+    top_skills = [
+        {"name": row.get("name") or row.get("agent_id"), "earnings_usd": row.get("creator_earnings_usd")}
+        for row in (rankings.get("top_by_earnings") or [])[:5]
+    ]
+    return {
+        "status": "fresh",
+        "last_30d_net_usd": last_30d.get("net_usd"),
+        "last_30d_orders": last_30d.get("orders"),
+        "last_7d_gross_usd": last_7d.get("gross_usd"),
+        "top_skills": top_skills,
+        "zero_sales_count": len(rankings.get("zero_sales") or []),
+        "total_skills": len(data.get("per_skill_rows") or []),
+        "subscription_proxy_usd": (data.get("subscription_proxy") or {}).get("last_30d_net_usd"),
+    }
+
+
+def _chart_latest_value(charts: dict, chart_name: str) -> Any:
+    latest = ((charts or {}).get(chart_name) or {}).get("latest_complete") or {}
+    for point in latest.values():
+        if isinstance(point, dict) and "value" in point:
+            return point.get("value")
+    return None
+
+
+def _latest_revenuecat_row(path: Path, product_id: str) -> dict | None:
+    matches: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(row, dict) or row.get("product_id") != product_id:
+            continue
+        revenuecat = ((row.get("sources") or {}).get("revenuecat")) or {}
+        if isinstance(revenuecat, dict) and revenuecat.get("status") == "available":
+            matches.append(row)
+    if not matches:
+        return None
+    return max(matches, key=lambda row: str(row.get("business_date") or ""))
+
+
+def _product_metrics_section(path: Path, product_id: str) -> dict:
+    if not path.is_file():
+        return {"status": "unavailable", "reason": "missing_business_outcomes"}
+    try:
+        row = _latest_revenuecat_row(path, product_id)
+    except OSError:
+        return {"status": "unavailable", "reason": "business_outcomes_read_failed"}
+    if row is None:
+        return {"status": "unavailable", "reason": "no_revenuecat_row"}
+    charts = (((row.get("sources") or {}).get("revenuecat") or {}).get("data") or {}).get("charts") or {}
+    return {
+        "status": "fresh",
+        "business_date": row.get("business_date"),
+        "mrr": _chart_latest_value(charts, "mrr"),
+        "actives": _chart_latest_value(charts, "actives"),
+        "new_trials": _chart_latest_value(charts, "trials_new"),
+    }
+
+
 def _live_sources() -> dict:
     inventory_result = subprocess.run(
         [sys.executable, str(REPO_ROOT / "skills/capafy-autopublish/scripts/inventory_status.py")],
@@ -295,7 +416,16 @@ def _live_sources() -> dict:
     money = _load(STATE_HOME / "state/capafy-hourly-reconcile.json")
     growth_path = STATE_HOME / "state/capafy-sales-ranking.json"
     growth = _load(growth_path) if growth_path.is_file() else {"signal": "unknown"}
-    return {"inventory": inventory, "candidate": candidate, "marketing": marketing, "money": money, "growth": growth}
+    skill_analytics = _skill_analytics_section(CAPAFY_STATE / "capafy-skill-analytics.json")
+    business_outcomes_path = STATE_HOME / "marketing-metrics-daily/state/business-outcomes.jsonl"
+    product_metrics = {
+        product_id: _product_metrics_section(business_outcomes_path, product_id)
+        for product_id in ("anicca-ios", "honne-ai")
+    }
+    return {
+        "inventory": inventory, "candidate": candidate, "marketing": marketing, "money": money, "growth": growth,
+        "skill_analytics": skill_analytics, "product_metrics": product_metrics,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
