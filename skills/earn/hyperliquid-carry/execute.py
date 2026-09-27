@@ -154,8 +154,11 @@ def enter(ex, info, address, pair, leg_usd, lg) -> dict:
 
 def exit(ex, info, address, pair, lg, resolves_intent_id: str | None = None) -> dict:
     iid = uuid.uuid4().hex
+    intent_fields = {"spot_token": pair.spot_token}
+    if resolves_intent_id:
+        intent_fields["resolves_intent_id"] = resolves_intent_id
     lg.append("intent", intent_id=iid, action="exit", perp=pair.perp, spot=pair.spot,
-              spot_token=pair.spot_token)
+              **intent_fields)
     coin = pair.spot_token or pair.spot.split("/")[0]
 
     ex.market_close(pair.perp)  # may return None (SDK: no open position) — readback decides, not the response (C3/I3)

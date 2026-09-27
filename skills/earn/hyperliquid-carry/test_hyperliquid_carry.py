@@ -140,6 +140,19 @@ class LedgerTest(unittest.TestCase):
                       resolves_intent_id="original")
             self.assertEqual(lg.open_intents(), [])
 
+    def test_verified_exit_transitively_resolves_partial_reconciliation_chain(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="original", action="enter", perp="PURR")
+            lg.append("intent", intent_id="exit-1", action="exit", perp="PURR",
+                      resolves_intent_id="original")
+            lg.append("receipt", intent_id="exit-1", result="partial", perp="PURR")
+            lg.append("intent", intent_id="exit-2", action="exit", perp="PURR",
+                      resolves_intent_id="exit-1")
+            lg.append("receipt", intent_id="exit-2", result="exited", perp="PURR",
+                      resolves_intent_id="exit-1")
+            self.assertEqual(lg.open_intents(), [])
+
     def test_partial_and_effect_unknown_intents_remain_open(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
@@ -527,6 +540,23 @@ class WakeTest(unittest.TestCase):
                                  "2099-01-01", lambda t: None)
             self.assertNotEqual(next_wake["decision"]["action"], "reconcile_exit")
 
+    def test_partial_then_verified_reconciliation_chain_does_not_stick_next_wake(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="original", action="enter", perp="PURR", spot="PURR/USDC")
+            lg.append("intent", intent_id="exit-1", action="exit", perp="PURR", spot="PURR/USDC",
+                      resolves_intent_id="original")
+            lg.append("receipt", intent_id="exit-1", result="partial", perp="PURR")
+            lg.append("intent", intent_id="exit-2", action="exit", perp="PURR", spot="PURR/USDC",
+                      resolves_intent_id="exit-1")
+            lg.append("receipt", intent_id="exit-2", result="exited", perp="PURR",
+                      resolves_intent_id="exit-1")
+
+            self.assertEqual(lg.open_intents(), [])
+            next_wake = run.wake(fake_post, lambda: fakes(), lg, "0xabc", policy.Caps(), False,
+                                 "2099-01-01", lambda t: None)
+            self.assertNotEqual(next_wake["decision"]["action"], "reconcile_exit")
+
     def test_deposit_intent_does_not_trigger_trade_reconciliation(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
@@ -655,11 +685,51 @@ class ExecuteIntentTokenTest(unittest.TestCase):
             execute.enter(ex, info, "0xabc", zec, 24.0, lg)
             self.assertEqual(lg.rows()[0]["spot_token"], "UZEC")
 
+    def test_exit_records_resolution_parent_on_intent_and_receipt(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes()
+            execute.exit(ex, info, "0xabc", pair(0.02), lg, resolves_intent_id="parent")
+            self.assertEqual(lg.rows()[0]["resolves_intent_id"], "parent")
+            self.assertEqual(lg.rows()[-1]["resolves_intent_id"], "parent")
+
 
 import deposit
 
 
 class DepositTest(unittest.TestCase):
+    SENDER = "0x0000000000000000000000000000000000000abc"
+
+    @classmethod
+    def _tx(cls, sender=None, token=None, bridge=None, raw_amount=5_000_000):
+        sender = sender or cls.SENDER
+        token = token or deposit.USDC
+        bridge = bridge or deposit.BRIDGE2
+        data = "0x" + "a9059cbb" + "0" * 24 + bridge[2:].lower() + f"{raw_amount:064x}"
+        return {"from": sender, "to": token, "input": data}
+
+    @classmethod
+    def _ledger_with_submitted(cls, path, tx_hash="0xabc"):
+        lg = ledger.Ledger(path)
+        lg.append("intent", intent_id="deposit-1", action="deposit", sender=cls.SENDER,
+                  token=deposit.USDC, bridge=deposit.BRIDGE2, chain=deposit.ARBITRUM_CHAIN_ID,
+                  raw_amount=5_000_000)
+        lg.append("receipt", intent_id="deposit-1", result="submitted", tx_hash=tx_hash)
+        return lg
+
+    @classmethod
+    def _provider(cls, tx=None, receipt=None, chain_id=deposit.ARBITRUM_CHAIN_ID):
+        class Eth:
+            def __init__(self):
+                self.chain_id = chain_id
+
+            def get_transaction_receipt(self, tx_hash):
+                return receipt
+
+            def get_transaction(self, tx_hash):
+                return tx
+
+        return type("Web3", (), {"eth": Eth()})()
     def test_plan_waits_below_usdc_minimum(self):
         self.assertEqual(deposit.plan(4.9, 0.001)["action"], "wait")
 
@@ -685,21 +755,78 @@ class DepositTest(unittest.TestCase):
 
     def test_submitted_deposit_remains_pending_until_provider_receipt_then_resolves(self):
         with tempfile.TemporaryDirectory() as d:
-            lg = ledger.Ledger(Path(d) / "j.jsonl")
-            lg.append("intent", intent_id="deposit-1", action="deposit", sender="0xabc", token=deposit.USDC,
-                      bridge=deposit.BRIDGE2, chain=deposit.ARBITRUM_CHAIN_ID, raw_amount=5_000_000)
-            lg.append("receipt", intent_id="deposit-1", result="submitted", tx_hash="0xabc")
+            lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
             self.assertEqual([r["intent_id"] for r in deposit.pending_deposits(lg)], ["deposit-1"])
-
-            class Web3:
-                class eth:
-                    @staticmethod
-                    def get_transaction_receipt(tx_hash):
-                        return type("Receipt", (), {"status": 1})()
-
-            resolved = deposit.reconcile_pending(Web3(), lg)
+            resolved = deposit.reconcile_pending(
+                self._provider(self._tx(), type("Receipt", (), {"status": 1})()), lg)
             self.assertEqual(resolved["result"], "deposited")
             self.assertEqual(deposit.pending_deposits(lg), [])
+
+    def test_reconcile_rejects_wrong_chain_or_transfer_boundary_as_effect_unknown(self):
+        cases = {
+            "wrong_chain": self._provider(self._tx(), type("Receipt", (), {"status": 1})(), chain_id=1),
+            "wrong_sender": self._provider(self._tx(sender="0x0000000000000000000000000000000000000def"),
+                                            type("Receipt", (), {"status": 1})()),
+            "wrong_token": self._provider(self._tx(token="0x0000000000000000000000000000000000000123"),
+                                           type("Receipt", (), {"status": 1})()),
+            "wrong_bridge": self._provider(self._tx(bridge="0x0000000000000000000000000000000000000456"),
+                                            type("Receipt", (), {"status": 1})()),
+            "wrong_amount": self._provider(self._tx(raw_amount=5_000_001),
+                                            type("Receipt", (), {"status": 1})()),
+        }
+        for reason, provider in cases.items():
+            with self.subTest(reason=reason), tempfile.TemporaryDirectory() as d:
+                lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
+                result = deposit.reconcile_pending(provider, lg)
+                self.assertEqual(result["result"], "effect_unknown")
+                self.assertIn("deposit_boundary", result["reason"])
+                self.assertTrue(deposit.pending_deposits(lg))
+
+    def test_initial_wait_uses_the_same_verified_boundary_before_deposited(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            tx_hash = "0xsubmitted"
+            provider = self._provider(self._tx(), type("Receipt", (), {"status": 1})())
+            provider.eth.get_transaction_count = lambda address: 1
+            provider.eth.send_raw_transaction = lambda raw: type("Hash", (), {"hex": lambda self: tx_hash})()
+            provider.eth.wait_for_transaction_receipt = lambda tx_hash, timeout: provider.eth.get_transaction_receipt(tx_hash)
+            account = type("Account", (), {
+                "address": self.SENDER,
+                "sign_transaction": lambda self, tx: type("Signed", (), {"raw_transaction": b"signed"})(),
+            })()
+            token = type("Token", (), {
+                "functions": type("Functions", (), {
+                    "transfer": lambda self, to, amount: type("Transfer", (), {
+                        "build_transaction": lambda self, tx: tx,
+                    })(),
+                })(),
+            })()
+            result = deposit.submit(provider, token, account, 5_000_000, lg)
+            self.assertEqual(result["result"], "deposited")
+
+    def test_initial_wait_boundary_mismatch_is_effect_unknown(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            tx_hash = "0xsubmitted"
+            provider = self._provider(self._tx(raw_amount=5_000_001), type("Receipt", (), {"status": 1})())
+            provider.eth.get_transaction_count = lambda address: 1
+            provider.eth.send_raw_transaction = lambda raw: type("Hash", (), {"hex": lambda self: tx_hash})()
+            provider.eth.wait_for_transaction_receipt = lambda tx_hash, timeout: provider.eth.get_transaction_receipt(tx_hash)
+            account = type("Account", (), {
+                "address": self.SENDER,
+                "sign_transaction": lambda self, tx: type("Signed", (), {"raw_transaction": b"signed"})(),
+            })()
+            token = type("Token", (), {
+                "functions": type("Functions", (), {
+                    "transfer": lambda self, to, amount: type("Transfer", (), {
+                        "build_transaction": lambda self, tx: tx,
+                    })(),
+                })(),
+            })()
+            result = deposit.submit(provider, token, account, 5_000_000, lg)
+            self.assertEqual(result["result"], "effect_unknown")
+            self.assertIn("deposit_boundary", result["reason"])
+            self.assertTrue(deposit.pending_deposits(lg))
 
     def test_effect_unknown_without_hash_remains_closed_and_never_becomes_sendable(self):
         with tempfile.TemporaryDirectory() as d:
@@ -766,6 +893,14 @@ class DepositTest(unittest.TestCase):
             self.assertEqual(w3.eth.rows_at_wait[-1]["result"], "submitted")
             self.assertEqual(lg.rows()[-1]["tx_hash"], "0xsubmitted")
             self.assertTrue(deposit.pending_deposits(lg))
+
+    def test_delayed_status_zero_is_failed_and_nonzero(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
+            result = deposit.reconcile_pending(
+                self._provider(self._tx(), type("Receipt", (), {"status": 0})()), lg)
+            self.assertEqual(result["result"], "failed")
+            self.assertEqual(deposit.exit_code(result), 1)
 
 
 if __name__ == "__main__":

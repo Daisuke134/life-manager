@@ -17,6 +17,7 @@ BRIDGE2 = "0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7"
 MIN_USDC = 5.0
 MIN_ETH = 0.00005
 USDC_DECIMALS = 6
+TRANSFER_SELECTOR = "a9059cbb"
 
 ERC20_ABI = [
     {
@@ -68,6 +69,65 @@ def _receipt_status(receipt) -> int:
     return int(receipt["status"] if isinstance(receipt, dict) else receipt.status)
 
 
+def _input_hex(value) -> str:
+    if isinstance(value, (bytes, bytearray)):
+        return "0x" + bytes(value).hex()
+    return str(value)
+
+
+def _boundary_reason(w3, tx_hash: str, intent: dict) -> str | None:
+    try:
+        chain_id = int(w3.eth.chain_id)
+    except Exception as e:
+        return f"deposit_boundary_chain_readback_{type(e).__name__}"
+    if chain_id != ARBITRUM_CHAIN_ID:
+        return "deposit_boundary_chain_mismatch"
+    try:
+        recorded_chain = int(intent["chain"])
+    except (KeyError, TypeError, ValueError):
+        return "deposit_boundary_recorded_chain_missing"
+    if recorded_chain != ARBITRUM_CHAIN_ID:
+        return "deposit_boundary_recorded_chain_mismatch"
+    try:
+        tx = w3.eth.get_transaction(tx_hash)
+    except Exception as e:
+        return f"deposit_boundary_transaction_readback_{type(e).__name__}"
+    if not tx:
+        return "deposit_boundary_transaction_missing"
+    if str(tx.get("from", "")).lower() != str(intent.get("sender", "")).lower():
+        return "deposit_boundary_sender_mismatch"
+    if str(tx.get("to", "")).lower() != str(intent.get("token", "")).lower():
+        return "deposit_boundary_token_mismatch"
+    data = _input_hex(tx.get("input", tx.get("data", ""))).lower()
+    payload = data[2:] if data.startswith("0x") else data
+    if len(payload) != 8 + 64 + 64 or payload[:8] != TRANSFER_SELECTOR:
+        return "deposit_boundary_transfer_calldata_mismatch"
+    target = "0x" + payload[8:72][-40:]
+    if target.lower() != str(intent.get("bridge", "")).lower():
+        return "deposit_boundary_bridge_mismatch"
+    raw_amount = int(payload[72:136], 16)
+    if raw_amount != int(intent.get("raw_amount", -1)):
+        return "deposit_boundary_amount_mismatch"
+    return None
+
+
+def _settle(w3, lg: ledger.Ledger, intent: dict, tx_hash: str, receipt) -> dict:
+    reason = _boundary_reason(w3, tx_hash, intent)
+    if reason:
+        return lg.append("receipt", intent_id=intent["intent_id"], result="effect_unknown",
+                         tx_hash=tx_hash, reason=reason)
+    try:
+        status = _receipt_status(receipt)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return lg.append("receipt", intent_id=intent["intent_id"], result="effect_unknown",
+                         tx_hash=tx_hash, reason="deposit_receipt_status_unknown")
+    if status not in (0, 1):
+        return lg.append("receipt", intent_id=intent["intent_id"], result="effect_unknown",
+                         tx_hash=tx_hash, reason="deposit_receipt_status_unknown")
+    result = "deposited" if status == 1 else "failed"
+    return lg.append("receipt", intent_id=intent["intent_id"], result=result, tx_hash=tx_hash)
+
+
 def reconcile_pending(w3, lg: ledger.Ledger) -> dict | None:
     """Read back one pending deposit without ever resubmitting it."""
     pending = pending_deposits(lg)
@@ -85,8 +145,7 @@ def reconcile_pending(w3, lg: ledger.Ledger) -> dict | None:
                          error=type(e).__name__)
     if receipt is None:
         return {"result": "submitted", "tx_hash": tx_hash, "intent_id": intent["intent_id"]}
-    result = "deposited" if _receipt_status(receipt) == 1 else "failed"
-    return lg.append("receipt", intent_id=intent["intent_id"], result=result, tx_hash=tx_hash)
+    return _settle(w3, lg, intent, tx_hash, receipt)
 
 
 def _tx_hash(tx_hash) -> str:
@@ -98,8 +157,8 @@ def submit(w3, token, acct, raw_amount: int, lg: ledger.Ledger) -> dict:
     if not may_submit(lg):
         return {"result": "effect_unknown", "reason": "pending_deposit"}
     iid = uuid.uuid4().hex
-    lg.append("intent", intent_id=iid, action="deposit", sender=acct.address, token=USDC, bridge=BRIDGE2,
-              chain=ARBITRUM_CHAIN_ID, raw_amount=int(raw_amount))
+    intent = lg.append("intent", intent_id=iid, action="deposit", sender=acct.address, token=USDC,
+                       bridge=BRIDGE2, chain=ARBITRUM_CHAIN_ID, raw_amount=int(raw_amount))
     try:
         tx = token.functions.transfer(BRIDGE2, int(raw_amount)).build_transaction({
             "from": acct.address,
@@ -120,8 +179,11 @@ def submit(w3, token, acct, raw_amount: int, lg: ledger.Ledger) -> dict:
     except Exception as e:
         return lg.append("receipt", intent_id=iid, result="effect_unknown", tx_hash=tx_hex,
                          error=type(e).__name__)
-    result = "deposited" if _receipt_status(receipt) == 1 else "failed"
-    return lg.append("receipt", intent_id=iid, result=result, tx_hash=tx_hex)
+    return _settle(w3, lg, intent, tx_hex, receipt)
+
+
+def exit_code(result: dict) -> int:
+    return 0 if result.get("result") == "deposited" else 1
 
 
 def main() -> int:
@@ -136,7 +198,7 @@ def main() -> int:
     pending = reconcile_pending(w3, lg)
     if pending is not None:
         print({"address": acct.address, "deposit": pending})
-        return 1 if pending["result"] == "effect_unknown" else 0
+        return exit_code(pending)
     token = w3.eth.contract(address=Web3.to_checksum_address(USDC), abi=ERC20_ABI)
     usdc_raw = token.functions.balanceOf(acct.address).call()
     usdc = usdc_raw / 10**USDC_DECIMALS
@@ -152,7 +214,7 @@ def main() -> int:
 
     receipt = submit(w3, token, acct, usdc_raw, lg)
     print(receipt)
-    return 0 if receipt["result"] == "deposited" else 1
+    return exit_code(receipt)
 
 
 if __name__ == "__main__":

@@ -33,11 +33,26 @@ class Ledger:
             for r in rows
             if r["kind"] == "receipt" and r.get("result") in terminal
         }
-        done.update(
-            r["resolves_intent_id"]
+        parent = {
+            r["intent_id"]: r["resolves_intent_id"]
             for r in rows
-            if r["kind"] == "receipt" and r.get("result") == "exited" and r.get("resolves_intent_id")
+            if r["kind"] == "intent" and r.get("resolves_intent_id")
+        }
+        parent.update(
+            {
+                r["intent_id"]: r["resolves_intent_id"]
+                for r in rows
+                if r["kind"] == "receipt" and r.get("result") == "exited"
+                and r.get("resolves_intent_id")
+            }
         )
+        pending = list(done)
+        while pending:
+            child = pending.pop()
+            ancestor = parent.get(child)
+            if ancestor and ancestor not in done:
+                done.add(ancestor)
+                pending.append(ancestor)
         return [r for r in rows if r["kind"] == "intent" and r["intent_id"] not in done]
 
     def position(self) -> str | None:
