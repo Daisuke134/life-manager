@@ -64,3 +64,24 @@ test("promptCacheKey is a stable sha256 hex digest", () => {
   assert.equal(key, promptCacheKey("hello"));
   assert.notEqual(key, promptCacheKey("hello2"));
 });
+
+const { getCachedBackground } = require("./marketing-slide-background-image.js");
+
+test("getCachedBackground returns the cached file at $0 cost and never calls the network", async () => {
+  const cacheDir = tempDir();
+  const cached = await resolveSlideBackground({
+    prompt: "a fixed approved background",
+    cacheDir,
+    apiKey: "k",
+    fetchImage: async () => ({ buffer: Buffer.from("x"), extension: "png" }),
+  });
+  const result = getCachedBackground({ prompt: "a fixed approved background", cacheDir });
+  assert.equal(result.file, cached.file);
+  assert.equal(result.costUsd, 0);
+  assert.equal(result.cached, true);
+});
+
+test("getCachedBackground throws (never fetches) when the prompt was never cached", () => {
+  const cacheDir = tempDir();
+  assert.throws(() => getCachedBackground({ prompt: "never generated", cacheDir }), /not in the approved cache/);
+});
