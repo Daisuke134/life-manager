@@ -872,7 +872,7 @@ git commit -m "feat(hl-carry): one wake with caps, daily report, live gate"
 - Test: append to `test_hyperliquid_carry.py`
 
 **Interfaces:**
-- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which journals a deposit intent before an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`, records the tx hash immediately, verifies the receipt chain/from/token/Bridge2/amount boundary, journals malformed provider data as `effect_unknown`, and resolves receipt timeouts as `effect_unknown` without resending automatically. A verified failed receipt returns a nonzero status consistently.
+- Produces: `deposit.plan(usdc_balance: float, eth_balance: float) -> dict` (pure: `{"action": "deposit"|"wait", "amount": float, "reason": str}`, with a minimum of 5 USDC and 0.00005 ETH for gas) and `deposit.main()`, which journals a deposit intent before an ERC-20 `transfer(BRIDGE2, amount)` on Arbitrum from the agent wallet when `HL_CARRY_LIVE=1`, records the tx hash immediately, strictly verifies the receipt chain/from/token/Bridge2/amount boundary and exact 68-byte transfer calldata, journals malformed provider data as `effect_unknown`, and resolves receipt timeouts as `effect_unknown` without resending automatically. A verified failed receipt returns a nonzero status consistently.
 
 - [ ] **Step 1: Source facts (verified 2026-09-27)**
 
