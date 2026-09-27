@@ -211,21 +211,54 @@ PY
   fi
 
   local apply_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_TIMEOUT_SECONDS:-1200}"
+  local per_owner_timeout_seconds="${LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS:-120}"
   local backoff_seconds="${LIFE_MANAGER_FLEET_APPLY_BACKOFF_SECONDS:-1800}"
-  # Write to a file, not $(...): a descendant that inherits a pipe keeps command substitution
+  # Write to files, not $(...): a descendant that inherits a pipe keeps command substitution
   # waiting after apply itself exits (the first automatic run hit the 1200s timeout while the
-  # same apply to a file finished in 298s). The file is also the evidence for the next failure.
-  local apply_output apply_rc=0
+  # same apply to a file finished in 298s). The output file is also the evidence for a failure.
   local output_path="$state_dir/fleet-apply-last-output.log"
-  LIFE_MANAGER_RELEASE_ROOT="$release_root" "$runtime_python" "$timeout_runner" \
-    --grace-seconds 15 "$apply_timeout_seconds" "$release_root/bin/lm-loop" apply --all \
-    >"$output_path" 2>&1 </dev/null || apply_rc=$?
-  apply_output="$(cat "$output_path")"
+  local owners_log_path="$state_dir/fleet-apply-owners.jsonl"
+  : >"$output_path"
 
-  local status changed=0 skipped=0 errors=0 message=""
-  if [ "$apply_rc" -eq 0 ]; then
-    status="ok"
-    read -r changed skipped errors < <(printf '%s' "$apply_output" | "$runtime_python" -c '
+  # One `apply --all` call waits on every owner in one process; a single stuck owner (or the
+  # reconciler's own label, which `apply --all` skips as "already owned" by itself) hangs the
+  # whole fleet for the full 1200s budget with nothing applied. Apply one owner at a time instead
+  # so a stuck owner only burns its own bounded timeout and every other owner still gets applied.
+  local own_loop_id="${LIFE_MANAGER_LOOP_ID:-}"
+  local registry_path="$release_root/config/loop-registry.json"
+  local budget_deadline_epoch=$((now_epoch + apply_timeout_seconds))
+
+  local changed=0 skipped=0 errors=0
+  local already_owned=0 budget_exceeded=0
+  local timed_out_owners="" apply_message=""
+
+  local loop_id
+  while IFS= read -r loop_id; do
+    [ -z "$loop_id" ] && continue
+    [ "$loop_id" = "$own_loop_id" ] && continue
+    if [ "$(date -u +%s)" -ge "$budget_deadline_epoch" ]; then
+      budget_exceeded=1
+      break
+    fi
+
+    local owner_output_path owner_started owner_rc owner_output owner_seconds
+    owner_output_path="$(mktemp "$state_dir/.fleet-apply-owner-output.XXXXXX")"
+    owner_started="$(date -u +%s)"
+    owner_rc=0
+    LIFE_MANAGER_RELEASE_ROOT="$release_root" LIFE_MANAGER_APPLY_TARGET="$loop_id" \
+      "$runtime_python" "$timeout_runner" --grace-seconds 15 "$per_owner_timeout_seconds" \
+      "$release_root/bin/lm-loop" apply >"$owner_output_path" 2>&1 </dev/null || owner_rc=$?
+    owner_output="$(cat "$owner_output_path")"
+    owner_seconds=$(( $(date -u +%s) - owner_started ))
+    {
+      printf '=== owner %s (rc=%s, %ss) ===\n' "$loop_id" "$owner_rc" "$owner_seconds"
+      cat "$owner_output_path"
+    } >>"$output_path"
+    rm -f "$owner_output_path"
+
+    local owner_changed=0 owner_skipped=0 owner_errors=0
+    if [ "$owner_rc" -eq 0 ]; then
+      read -r owner_changed owner_skipped owner_errors < <(printf '%s' "$owner_output" | "$runtime_python" -c '
 import json, sys
 try:
     rows = json.load(sys.stdin)
@@ -238,22 +271,62 @@ skipped = sum(1 for r in rows if isinstance(r, dict) and r.get("skipped"))
 errors = sum(1 for r in rows if isinstance(r, dict) and r.get("ok") is False)
 print(changed, skipped, errors)
 ' 2>/dev/null || printf '0 0 0')
-  elif printf '%s' "$apply_output" | grep -q "production apply is already owned"; then
-    # Another apply (a human running `lm-loop apply --all`, or this reconciler's own next-tick
-    # retry racing a slow prior run) already owns the fleet apply lock. This is lock contention,
-    # not a broken release -- retry on the very next tick instead of the error backoff.
+      changed=$((changed + owner_changed))
+      skipped=$((skipped + owner_skipped))
+      errors=$((errors + owner_errors))
+    elif printf '%s' "$owner_output" | grep -q "production apply is already owned"; then
+      # Another apply (a human running `lm-loop apply --all`, or this reconciler's own next-tick
+      # retry racing a slow prior run) already owns the fleet apply lock. This is lock contention,
+      # not a broken release -- stop this cycle and retry on the very next tick.
+      already_owned=1
+      apply_message="production apply is already owned"
+    elif [ "$owner_rc" -eq 124 ]; then
+      errors=$((errors + 1))
+      timed_out_owners="${timed_out_owners:+$timed_out_owners,}$loop_id"
+    else
+      errors=$((errors + 1))
+    fi
+
+    FLEET_APPLY_OWNERS_LOG_PATH="$owners_log_path" FLEET_APPLY_SHA="$release_sha" \
+      FLEET_APPLY_OWNER_LOOP_ID="$loop_id" FLEET_APPLY_OWNER_RC="$owner_rc" \
+      FLEET_APPLY_OWNER_SECONDS="$owner_seconds" FLEET_APPLY_OWNER_CHANGED="$owner_changed" \
+      FLEET_APPLY_OWNER_SKIPPED="$owner_skipped" \
+      "$runtime_python" - <<'PY'
+import json, os
+record = {
+    "sha": os.environ["FLEET_APPLY_SHA"],
+    "loop_id": os.environ["FLEET_APPLY_OWNER_LOOP_ID"],
+    "rc": int(os.environ["FLEET_APPLY_OWNER_RC"]),
+    "seconds": int(os.environ["FLEET_APPLY_OWNER_SECONDS"]),
+    "changed": int(os.environ["FLEET_APPLY_OWNER_CHANGED"]),
+    "skipped": int(os.environ["FLEET_APPLY_OWNER_SKIPPED"]),
+}
+with open(os.environ["FLEET_APPLY_OWNERS_LOG_PATH"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(record, sort_keys=True) + "\n")
+PY
+
+    [ "$already_owned" -eq 1 ] && break
+  done < <(jq -r '.loops | keys[]?' "$registry_path" 2>/dev/null || true)
+
+  local status message
+  if [ "$already_owned" -eq 1 ]; then
     status="skip"
-    message="production apply is already owned"
-  elif [ "$apply_rc" -eq 124 ]; then
+    message="$apply_message"
+  elif [ -n "$timed_out_owners" ] || [ "$budget_exceeded" -eq 1 ]; then
+    # A stuck or slow owner (or an overrun budget) must not be silently swallowed into "ok" --
+    # record it as partial so it still backs off, and name exactly which owner(s) hung.
+    status="partial"
+    message="timed out owners: ${timed_out_owners:-none}${budget_exceeded:+; budget exceeded}"
+  elif [ "$errors" -gt 0 ]; then
     status="error"
-    message="apply --all timed out after ${apply_timeout_seconds}s"
+    message="one or more owner applies failed"
   else
-    status="error"
-    message="apply --all exited ${apply_rc}"
+    status="ok"
+    message=""
   fi
 
   local next_retry_epoch=0
-  [ "$status" = "error" ] && next_retry_epoch=$((now_epoch + backoff_seconds))
+  { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && next_retry_epoch=$((now_epoch + backoff_seconds))
   local new_last_ok_epoch="${last_ok_epoch:-0}"
   [ "$status" = "ok" ] && new_last_ok_epoch="$now_epoch"
 
@@ -288,7 +361,7 @@ PY
     "$release_sha" "$status" "$changed" "$skipped" "$errors" \
     "${message:+ message=\"$message\"}" >&2
 
-  [ "$status" = "error" ] && return 1
+  { [ "$status" = "error" ] || [ "$status" = "partial" ]; } && return 1
   return 0
 }
 

@@ -11,21 +11,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "bin/reconcile-agent-runner-release.sh"
 
+# The reconciler now applies one registry loop id at a time (LIFE_MANAGER_APPLY_TARGET) instead
+# of one fleet-wide `apply --all`, so the fake must answer per target rather than emit one fixed
+# fleet-wide response. `target=$FAKE_TARGET_ECHO` is appended to the calls log line so tests can
+# tell which owner each call was for.
 FAKE_LM_LOOP = """#!/bin/sh
 set -eu
-echo "$@" >> "$FAKE_LM_LOOP_CALLS_LOG"
+target="${LIFE_MANAGER_APPLY_TARGET:-}"
+echo "$@ target=$target" >> "$FAKE_LM_LOOP_CALLS_LOG"
 if [ "$1" = "reconcile" ]; then
   exit 0
 fi
 if [ "$1" = "apply" ]; then
   case "${FAKE_APPLY_MODE:-ok}" in
     ok)
-      echo '[{"ok":true,"label":"a","release_sha":"x","changed":true},{"ok":true,"label":"b","release_sha":"x","changed":false,"skipped":"effect-unknown-fence"}]'
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
     orphan_holds_stdout)
       sleep 60 &
-      echo '[{"ok":true,"label":"a","release_sha":"x","changed":true}]'
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
       exit 0
       ;;
     already_owned)
@@ -35,6 +40,14 @@ if [ "$1" = "apply" ]; then
     fail)
       echo '{"ok": false, "error": "boom"}'
       exit 1
+      ;;
+    hang_one)
+      if [ "$target" = "${FAKE_HANG_LOOP_ID:-}" ]; then
+        sleep 60
+        exit 0
+      fi
+      echo "[{\\"ok\\":true,\\"label\\":\\"$target\\",\\"release_sha\\":\\"x\\",\\"changed\\":true}]"
+      exit 0
       ;;
   esac
 fi
@@ -67,11 +80,16 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
         return repo, sha
 
-    def _make_release(self, root, sha, *, release_paths="ALL"):
+    def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",)):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
         (release_dir / "bin").mkdir(parents=True)
+        (release_dir / "config").mkdir(parents=True)
         (release_dir / "RELEASE.json").write_text(
             json.dumps({"sha": sha, "release_paths": release_paths}))
+        (release_dir / "config" / "loop-registry.json").write_text(json.dumps({
+            "loops": {loop_id: {} for loop_id in loop_ids},
+            "retired_labels": [],
+        }))
         lm_loop = release_dir / "bin" / "lm-loop"
         lm_loop.write_text(FAKE_LM_LOOP)
         lm_loop.chmod(lm_loop.stat().st_mode | stat.S_IEXEC)
@@ -326,6 +344,56 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             state = self._state(root)
             self.assertEqual(state["sha"], sha3,
                              "must apply only the current release, never the coalesced sha2")
+
+    def _owners_log(self, root):
+        path = root / "reconciler-state" / "fleet-apply-owners.jsonl"
+        if not path.exists():
+            return []
+        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+    def test_one_hung_owner_times_out_others_still_applied_own_id_skipped(self):
+        # Applying one `--all` process for the whole fleet means one stuck owner hangs everything
+        # for the full budget. Per-owner apply must bound the hung owner to its own timeout, still
+        # apply every other owner, record the hung owner in the per-owner log, and mark the whole
+        # cycle "partial" rather than silently "ok". The reconciler's own loop id must never be
+        # applied to itself.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, loop_ids=("own-id", "loop-a", "loop-hang", "loop-b"))
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log, apply_mode="hang_one")
+            env["LIFE_MANAGER_LOOP_ID"] = "own-id"
+            env["FAKE_HANG_LOOP_ID"] = "loop-hang"
+            env["LIFE_MANAGER_FLEET_APPLY_PER_OWNER_TIMEOUT_SECONDS"] = "2"
+
+            started = time.monotonic()
+            result = self._run(env)
+            elapsed = time.monotonic() - started
+            self.assertLess(elapsed, 30, "a hung owner must not stall the other owners")
+            self.assertNotEqual(result.returncode, 0)
+
+            calls_text = calls_log.read_text()
+            self.assertNotIn("target=own-id", calls_text,
+                             "the reconciler must never apply itself")
+            self.assertIn("target=loop-a", calls_text)
+            self.assertIn("target=loop-hang", calls_text)
+            self.assertIn("target=loop-b", calls_text,
+                          "owners after the hung one must still be applied")
+
+            state = self._state(root)
+            self.assertEqual(state["status"], "partial")
+            self.assertEqual(state["changed"], 2, "loop-a and loop-b both applied cleanly")
+            self.assertGreater(state["next_retry_epoch"], 0)
+
+            owners = {row["loop_id"]: row for row in self._owners_log(root)}
+            self.assertIn("loop-hang", owners)
+            self.assertNotEqual(owners["loop-hang"]["rc"], 0)
+            self.assertEqual(owners["loop-a"]["changed"], 1)
+            self.assertEqual(owners["loop-b"]["changed"], 1)
+            self.assertNotIn("own-id", owners)
 
 
 if __name__ == "__main__":

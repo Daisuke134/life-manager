@@ -537,8 +537,9 @@ class CutLoopReleaseTest(unittest.TestCase):
                 "#!/bin/sh\n"
                 f"printf '%s\\n' \"$1\" > {cutter_arg}\n"
                 f"printf '%s\\n' \"{'c' * 40}\" > {root / 'origin.sha'}\n"
-                f"mkdir -p {new_release / 'bin'}\n"
+                f"mkdir -p {new_release / 'bin'} {new_release / 'config'}\n"
                 f"printf '%s\\n' '{{\"sha\":\"{captured_sha}\",\"release_paths\":\"ALL\"}}' > {new_release / 'RELEASE.json'}\n"
+                f"printf '%s\\n' '{{\"loops\":{{\"loop-a\":{{}}}}}}' > {new_release / 'config' / 'loop-registry.json'}\n"
                 f"printf '%s\\n' '#!/bin/sh' 'printf \"%s|%s\\\\n\" \"$LIFE_MANAGER_RELEASE_ROOT\" \"$*\" >> {calls}' 'exit 0' > {new_release / 'bin' / 'lm-loop'}\n"
                 f"chmod +x {new_release / 'bin' / 'lm-loop'}\n"
                 f"ln -sfn {new_release} {current}\n"
@@ -576,7 +577,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "reconcile shared-agent-runner --loaded-idle-only --max-owners 4",
                     "reconcile deterministic --loaded-idle-only --max-owners 4",
                     "admission-v2-enable",
-                    "apply --all",
+                    "apply",
                 ],
             )
 
@@ -588,12 +589,16 @@ class CutLoopReleaseTest(unittest.TestCase):
             loops = root / "loops"
             release = loops / "releases" / "current-release"
             release.mkdir(parents=True)
+            (release / "config").mkdir()
             current = loops / "current"
             current.symlink_to(release)
             current_sha = "b" * 40
             main_sha = "a" * 40
             (release / "RELEASE.json").write_text(
                 '{"sha":"%s","release_paths":"ALL"}\n' % current_sha
+            )
+            (release / "config" / "loop-registry.json").write_text(
+                '{"loops":{"loop-a":{}}}\n'
             )
             cutter_called = root / "cutter.called"
             calls = root / "lm-loop.calls"
