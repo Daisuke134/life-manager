@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -359,3 +360,86 @@ def test_both_lock_branches_try_to_reclaim_before_giving_up():
     from pathlib import Path
     source = (Path(__file__).resolve().parents[1] / "browser_port_owner.py").read_text(encoding="utf-8")
     assert source.count("_reclaim_wedged_owner(") == 3  # definition + profile branch + port branch
+
+
+# --- EPERM on an already-exited process group is not a crash, 2026-09-27 -------------------
+
+def test_eperm_on_sigterm_ends_cleanup_without_raising():
+    """Observed on the Mac mini: killpg(SIGTERM) raises EPERM for a group whose
+    session leader already exited. That is evidence the group is gone, not a
+    real permission conflict, so cleanup ends quietly instead of crashing the
+    supervisor's finally block."""
+    with (
+        patch("runtime.host.browser_port_owner._process_group_exists", return_value=True),
+        patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError),
+    ):
+        _terminate_process_group(43210, grace_seconds=1)  # must not raise
+
+
+def test_esrch_on_sigterm_ends_cleanup_without_raising():
+    with (
+        patch("runtime.host.browser_port_owner._process_group_exists", return_value=True),
+        patch("runtime.host.browser_port_owner.os.killpg", side_effect=ProcessLookupError),
+    ):
+        _terminate_process_group(43210, grace_seconds=1)  # must not raise
+
+
+def test_eperm_on_sigkill_ends_cleanup_without_raising():
+    calls = {"n": 0}
+
+    def killpg(pgid, sig):
+        calls["n"] += 1
+        if sig == signal.SIGKILL:
+            raise PermissionError
+
+    with (
+        patch("runtime.host.browser_port_owner._process_group_exists", return_value=True),
+        patch("runtime.host.browser_port_owner.os.killpg", side_effect=killpg),
+        patch("runtime.host.browser_port_owner.time.sleep"),
+        patch("runtime.host.browser_port_owner.time.monotonic", side_effect=[0, 2, 2, 4]),
+    ):
+        _terminate_process_group(43210, grace_seconds=1)  # must not raise
+    assert calls["n"] == 2
+
+
+# --- a stale SingletonLock from a dead owner does not wedge the next launch, 2026-09-27 -----
+
+def test_stale_lock_from_a_dead_pid_is_cleared(tmp_path):
+    module = _owner_module()
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    dead_pid = subprocess.Popen([sys.executable, "-c", "pass"])
+    dead_pid.wait()
+    (profile / "SingletonLock").symlink_to(f"host-{dead_pid.pid}")
+    module._clear_stale_singleton_lock(profile)
+    assert not (profile / "SingletonLock").exists()
+
+
+def test_lock_from_a_live_pid_is_left_alone(tmp_path):
+    module = _owner_module()
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    live = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(5)"])
+    try:
+        (profile / "SingletonLock").symlink_to(f"host-{live.pid}")
+        module._clear_stale_singleton_lock(profile)
+        assert (profile / "SingletonLock").is_symlink()
+    finally:
+        live.terminate()
+        live.wait(timeout=3)
+
+
+def test_missing_lock_is_a_no_op(tmp_path):
+    module = _owner_module()
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    module._clear_stale_singleton_lock(profile)  # must not raise
+
+
+def test_malformed_lock_target_is_left_alone(tmp_path):
+    module = _owner_module()
+    profile = tmp_path / "profile"
+    profile.mkdir()
+    (profile / "SingletonLock").symlink_to("not-a-pid-suffix")
+    module._clear_stale_singleton_lock(profile)
+    assert (profile / "SingletonLock").is_symlink()
