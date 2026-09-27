@@ -24,6 +24,12 @@ MARK="$CAPAFY_STATE_DIR/.capafy-healthy-pass"
 TS="$(date '+%Y-%m-%d %H:%M:%S')"
 mkdir -p "$CAPAFY_STATE_DIR"
 
+# Agent-runner occurrences can leave a deleted private TMPDIR in the inherited
+# environment. Nested publisher runs need a durable, loop-owned temp directory.
+CAPAFY_TMPDIR="$CAPAFY_STATE_DIR/tmp"
+mkdir -p "$CAPAFY_TMPDIR"
+export TMPDIR="$CAPAFY_TMPDIR"
+
 # EXCLUSIVE LOCK (self-fix-capafy-loop, 2026-07-12): two independent schedulers
 # (launchd ai.anicca.capafy-loop-daily every hour via the full money-loop-core prompt,
 # and OpenClaw cron "anicca-capafy-daily-publish" @ 09:00 JST calling this script directly)
