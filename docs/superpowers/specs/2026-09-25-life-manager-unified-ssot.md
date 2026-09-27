@@ -194,6 +194,33 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 残り（この順）: ① #6039 merge と daily-driver の UUID が 5 分安定を確認 → ② ディスク空き 20GB 以上 → ③ Capafy 工場の申請再開と IG Reel の実投稿を readback → ④ 計測の穴を埋める（business-outcomes 再開、ASC、per-skill 30 日・モデル、CFO P&L 接続、インストール数）→ ⑤ mobile-app の exit 1 の本当の原因を直し fence を公式 readback で close → ⑥ P-10 勝ち型スキルの量産 / 売上ゼロ 39 本の判断 → ⑦ PromptBase の payout（Zoneless、Dais 承認済み）と Hook Lab の審査提出 → ⑧ Honne RevenueCat・IG/YouTube リンク → ⑨ T6 以降
 
+### 5.0.1 3つの並列作業の最新受入れ判定（2026-09-27 JST、読み取り専用再確認）
+
+判定基準は「実装・テスト・main/release反映」と「本番の自然run・公式receipt・実利益」を分ける。後者が無いものを完了とは扱わない。現在のloaded immutable releaseは `f0fcf1a1197c29927f021d0275dc426d8b9daab4`。
+
+この節が最新の受入れ判定であり、直下の旧As-Is（11:4x JST）とP-8以前の記述は履歴として保持する。旧記述とこの節が異なる場合は、この節のloaded release・runtime state・公式receiptの方を採用する。
+
+| 作業 | 完了していること | まだ完了していないこと | 次の証拠 |
+|---|---|---|---|
+| CFO / loop P&L | PR #6016 がmerge済み。loaded releaseに `skills/cfo/loop_pnl.py` が存在し、Capafy/Mobile source adapterとfixture testsが入っている。 | `writer`の`~/.local/state/life-manager/writer/money.sqlite3` readerは未実装で、現行P&LではWriter revenueが未確認のまま。さらに`life-manager-cfo-hourly`の最新wakeは`exit=75`, `host_admission_deferred:resource_effect_unknown`, `provider_receipt_id=null`, `official_readback_ref=null`。最後のdelivery snapshotは2026-09-26の旧形式で、今回の14行P&Lを含む今日のoutbox receiptではない。現行`loop_pnl.py --json`でもMobileは当日行欠損、Capafyは当日entries 0。 | Writer adapter（`money_events`/`payouts`の`external_receipt_id`をreceipt-joinし、空tableはverified 0）とreport integrationを実装・fixture testし、その後1回の自然CFO runがloaded SHAで完走し、14 catalog rows（receipt/unverified reason付き）をTelegram outboxへ送り、`provider_message_id`をreadbackする。 |
+| Capafy / IG・factory | #6015/#6020/#6023/#6037/#6042/#6043 がmainへmerge済み。official analyticsはall-time gross **$86.79**, 30日gross **$66.81**, 7日gross **$17.91**, creator earnings **$65.16**, paid-out **$0**, payout可能 **$14.40**, 45 agents中39 zero-sales。slot/detail判定とIG fence reconcilerは実装済み。 | `capafy-ig-account-manager` と `capafy-ig-marketing-daily` は現在 `resource_effect_unknown`、`capafy-loop-daily` もeffect unknown。`capafy-ig-lifecycle` は `publish_probe_ready` だが `last_public_reel_url=null`, `reach_healthy=false`。新Reelの公式URL/timestamp、factoryの新規公開receipt、true active-subscription MRR、payout receiptは無い。legacy Agent API **$101.78 gross / $24.98 refunds** と公式publisher **$86.79 gross** のsource差の説明も未確定。 | effect fenceをoccurrence単位で公式readbackし、factoryの新version公開とInstagramの新Reel URL/timestampを1件ずつ確認する。source差の定義（legacy APIとpublisher consoleの集計範囲）を記録し、true MRRはactive/cancelled sourceが得られるまでunknownのままにする。 |
+| Investment / Hyperliquid carry | `feat/hyperliquid-carry-live-20260927` にwallet/policy/ledger/market/executeとunit test、実装planがある。既存Alpacaは公式readback済みだが、直近測定net P&Lは **-$0.04**、現行wakeもadmission待ち。 | Hyperliquidの`run.py`、`deposit.py`、運用SKILL、registry row、immutable release、自然run、agent wallet、Arbitrum deposit、HL equity、`entered`/funding/payment receiptが無い。credential SSOTにも`hyperliquid-carry-agent-wallet`は無い。plan Task 6–8は未完了。 | Task 6（one-wake/report/live gate）→Task 7（deposit path）→Task 8（tests・review・PR・lm-leadのregistry/release依頼）。funding・real-money canaryは、コード/review/release/registryの全gate後にのみ進め、資金移動の承認境界を越えない。 |
+
+**この3件の受入れ結果:** 3件とも「全作業完了」ではない。CFOはsource code/releaseまで、Capafyはanalyticsと一部fence修正まで、Investmentはcarry kernelの前半までで止まっている。収益の完了は、必ず自然run → provider公式readback → payout/settlement → CFO receipt joinまで必要。
+
+### 5.0.2 このhandoverでの実行順の上書き
+
+旧順序はCapafy/Mobileの計測、CFO、Investmentを別々に扱っていた。新順序は、製品型ループの収益証拠を先に揃え、それをCFOへ流し、最後に資金リスクのあるInvestmentを進める。理由は、P&Lが無いまま投稿・価格・取引を増やすと、利益ではなくログだけを最適化してしまうため。
+
+現在cursor: **WS-1（Capafyの実公開）**。
+
+1. **Capafyを先に閉じる:** effect fenceの公式readback → factoryの新規公開 → Instagram新ReelのURL/timestamp/readback → slot状態 → revenue source差分の説明。
+2. **Mobileを閉じる:** exact releaseの全owner反映 → exit 1/unknown occurrenceの公式Postiz readback → account/topic/hook/body/CTA/visualの新規variant → install/activation/paywall/purchase/retentionのattribution。
+3. **CFOを実運用化:** Capafy/Mobileのfresh receiptを入力に、14行のdaily P&Lを一回の自然wakeで送信し、Telegram `provider_message_id`と`/Users/anicca/loops/current`のoutputをreadback。
+4. **利益最適化:** Capafy/Mobileのview→click→install→paid→retention→net contributionを日次比較し、勝ちvariantだけを昇格する。gross、trial、投稿数だけで$10K MRRを主張しない。
+5. **Investmentを再開:** Hyperliquid Task 6–8とAlpacaのadmission/repeatabilityを完了してから、read-only→paper→shadow→最小live canaryの順に進む。現時点で新規資金を投入しない。
+6. その後にT6（14 loopの型付きhealth）、T7（Paid）、T11（cloud/local parity）、T12（evaluator-owned self-improvement）、T13（x402 self-funding）、T14（LM-EAB）、T15（verified $10K MRR）へ進む。
+
 **実行順の一覧（正本。下の各節の番号はこの順で進める）**
 
 ① 土台
