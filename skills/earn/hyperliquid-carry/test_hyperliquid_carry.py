@@ -92,6 +92,24 @@ class LedgerTest(unittest.TestCase):
             today = lg.rows()[-1]["ts"][:10]
             self.assertEqual(lg.risk_state(today), (50.0, 52.0))
 
+    def test_unhedged_receipt_stays_open_like_entered(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="i1", action="enter", perp="PURR")
+            lg.append("receipt", intent_id="i1", result="unhedged", perp="PURR")
+            self.assertEqual(lg.position(), "PURR")
+
+    def test_needs_unwind_true_only_while_latest_receipt_is_unhedged(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="i1", action="enter", perp="PURR")
+            lg.append("receipt", intent_id="i1", result="unhedged", perp="PURR")
+            self.assertTrue(lg.needs_unwind())
+            lg.append("intent", intent_id="i2", action="exit", perp="PURR")
+            lg.append("receipt", intent_id="i2", result="exited", perp="PURR")
+            self.assertFalse(lg.needs_unwind())
+            self.assertIsNone(lg.position())
+
 
 import market
 
@@ -131,37 +149,98 @@ class MarketTest(unittest.TestCase):
 
 import execute
 
+FEE = 0.0007  # spot taker fee taken in the base asset, per real Hyperliquid spot fills
+
+
+def _is_spot(name):
+    return "/" in name or name.startswith("@")
+
+
+def _spot_coin(name):
+    return name.split("/")[0] if "/" in name else "UZEC"
+
+
+def _ok_fill(sz):
+    return {"status": "ok", "response": {"data": {"statuses": [{"filled": {"totalSz": str(sz), "avgPx": "0.2"}}]}}}
+
+
+class FakeState:
+    """Shared account state a FakeEx mutates and a FakeInfo reads back — no order response is trusted on its own."""
+
+    def __init__(self, spot=None, perp_szi=None, withdrawable=25.0):
+        self.spot = dict(spot) if spot else {"USDC": 1.0}
+        self.perp_szi = dict(perp_szi) if perp_szi else {}
+        self.withdrawable = withdrawable
+
 
 class FakeEx:
-    def __init__(self, perp_fills=True):
-        self.calls, self.perp_fills = [], perp_fills
+    def __init__(self, state=None, fail_perp=False, fail_close=False, raise_on=None,
+                 xfer_status="ok", lev_status="ok"):
+        self.calls = []
+        self.state = state if state is not None else FakeState()
+        self.fail_perp = fail_perp
+        self.fail_close = fail_close
+        self.raise_on = raise_on or set()  # set of (name, is_buy) that raise RuntimeError, like a ClientError/network drop
+        self.xfer_status = xfer_status
+        self.lev_status = lev_status
 
     def usd_class_transfer(self, amount, to_perp):
-        self.calls.append(("xfer", round(amount, 2), to_perp)); return {"status": "ok"}
+        self.calls.append(("xfer", round(amount, 2), to_perp))
+        return {"status": self.xfer_status}
 
     def update_leverage(self, lev, name, is_cross=True):
-        self.calls.append(("lev", lev, name)); return {"status": "ok"}
+        self.calls.append(("lev", lev, name))
+        return {"status": self.lev_status}
 
     def market_open(self, name, is_buy, sz, px=None, slippage=0.01, cloid=None):
         self.calls.append(("open", name, is_buy, sz))
-        filled = self.perp_fills or "/" in name or name.startswith("@")
-        st = {"filled": {"totalSz": str(sz), "avgPx": "0.2"}} if filled else {"error": "no liquidity"}
-        return {"status": "ok", "response": {"data": {"statuses": [st]}}}
+        if (name, is_buy) in self.raise_on:
+            raise RuntimeError("sdk_error")
+        if _is_spot(name):
+            coin = _spot_coin(name)
+            if is_buy:
+                fill = sz * (1 - FEE)
+                self.state.spot[coin] = self.state.spot.get(coin, 0.0) + fill
+                return _ok_fill(fill)
+            bal = self.state.spot.get(coin, 0.0)
+            if sz > bal + 1e-9:
+                return {"status": "ok", "response": {"data": {"statuses": [{"error": "insufficient balance"}]}}}
+            self.state.spot[coin] = bal - sz
+            return _ok_fill(sz)
+        if self.fail_perp:
+            return {"status": "ok", "response": {"data": {"statuses": [{"error": "no liquidity"}]}}}
+        delta = sz if is_buy else -sz
+        self.state.perp_szi[name] = self.state.perp_szi.get(name, 0.0) + delta
+        return _ok_fill(sz)
 
     def market_close(self, coin, sz=None, px=None, slippage=0.01, cloid=None):
         self.calls.append(("close", coin, sz))
-        return {"status": "ok", "response": {"data": {"statuses": [{"filled": {"totalSz": str(sz or 0), "avgPx": "0.2"}}]}}}
+        cur = self.state.perp_szi.get(coin, 0.0)
+        if cur == 0:
+            return None  # real SDK: no open position to close
+        if self.fail_close:
+            return {"status": "ok", "response": {"data": {"statuses": [{"error": "no liquidity"}]}}}
+        filled = abs(cur)
+        self.state.perp_szi[coin] = 0.0
+        return _ok_fill(filled)
 
 
 class FakeInfo:
+    def __init__(self, state=None):
+        self.state = state if state is not None else FakeState()
+
     def all_mids(self):
         return {"PURR/USDC": "0.2", "PURR": "0.2", "@272": "30"}
 
     def spot_user_state(self, address):
-        return {"balances": [{"coin": "PURR", "total": "120"}]}
+        return {"balances": [{"coin": c, "total": str(v)} for c, v in self.state.spot.items()]}
 
     def user_state(self, address):
-        return {"withdrawable": "25.0"}
+        return {
+            "withdrawable": str(self.state.withdrawable),
+            "assetPositions": [{"position": {"coin": p, "szi": str(v)}}
+                               for p, v in self.state.perp_szi.items() if v != 0],
+        }
 
 
 class FakeInfoWithDecimals(FakeInfo):
@@ -171,43 +250,124 @@ class FakeInfoWithDecimals(FakeInfo):
         return 1 if "/" in name else 2
 
 
+def fakes(**ex_kwargs):
+    state = FakeState()
+    return FakeEx(state, **ex_kwargs), FakeInfo(state)
+
+
 class ExecuteTest(unittest.TestCase):
-    def test_enter_journals_then_hedges_same_size(self):
+    def test_enter_journals_then_hedges_off_balance_after_fees(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
-            r = execute.enter(FakeEx(), FakeInfo(), "0xabc", pair(0.3), 24.0, lg)
+            ex, info = fakes()
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "entered")
             kinds = [x["kind"] for x in lg.rows()]
             self.assertEqual(kinds, ["intent", "receipt"])
             self.assertEqual(lg.position(), "PURR")
+            opens = [c for c in ex.calls if c[0] == "open"]
+            self.assertEqual(opens[0], ("open", "PURR/USDC", True, 120.0))
+            # Hedge size is floored off the post-fee balance, never off the order size (C1).
+            expected_hedge = execute._floor(120.0 * (1 - FEE), 2)
+            self.assertEqual(opens[1], ("open", "PURR", False, expected_hedge))
+            self.assertLess(expected_hedge, 120.0)
 
-    def test_unhedged_spot_is_sold_back(self):
+    def test_perp_order_fails_sells_back_floored_balance_and_stays_flat(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
-            ex = FakeEx(perp_fills=False)
-            r = execute.enter(ex, FakeInfo(), "0xabc", pair(0.3), 24.0, lg)
+            ex, info = fakes(fail_perp=True)
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "partial")
-            self.assertIn(("open", "PURR/USDC", False, 120.0), ex.calls)
+            self.assertEqual(r["reason"], "flat")
+            expected_sell = execute._floor(120.0 * (1 - FEE), 2)
+            self.assertIn(("open", "PURR/USDC", False, expected_sell), ex.calls)
             self.assertIsNone(lg.position())
 
-    def test_exit_closes_perp_then_spot(self):
+    def test_perp_exception_triggers_unwind_and_writes_receipt(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
-            ex = FakeEx()
-            r = execute.exit(ex, FakeInfo(), "0xabc", pair(0.02), lg)
-            self.assertEqual(r["result"], "exited")
-            names = [c[0] for c in ex.calls]
-            self.assertLess(names.index("close"), names.index("open"))
+            ex, info = fakes(raise_on={("PURR", False)})
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "partial")
+            self.assertEqual(r["exc"], "RuntimeError")
+            self.assertEqual([x["kind"] for x in lg.rows()], ["intent", "receipt"])
+            self.assertIsNone(lg.position())
+
+    def test_perp_exception_then_sellback_exception_leaves_unhedged(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(raise_on={("PURR", False), ("PURR/USDC", False)})
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "unhedged")
+            self.assertEqual(lg.position(), "PURR")
+            self.assertTrue(lg.needs_unwind())
+
+    def test_transfer_failure_stops_before_any_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(xfer_status="err")
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "failed")
+            self.assertEqual(r["reason"], "transfer_failed")
+            self.assertEqual([c[0] for c in ex.calls], ["xfer"])
+
+    def test_leverage_failure_stops_before_any_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes(lev_status="err")
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
+            self.assertEqual(r["result"], "failed")
+            self.assertEqual(r["reason"], "leverage_failed")
+            self.assertEqual([c[0] for c in ex.calls], ["xfer", "lev"])
+
+    def test_below_min_notional_stops_before_any_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            ex, info = fakes()
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 5.0, lg)
+            self.assertEqual(r["result"], "failed")
+            self.assertEqual(r["reason"], "below_min_notional")
+            self.assertEqual([c[0] for c in ex.calls], ["xfer", "lev"])
 
     def test_enter_uses_shared_min_sz_decimals_across_legs(self):
         with tempfile.TemporaryDirectory() as d:
             lg = ledger.Ledger(Path(d) / "j.jsonl")
-            ex = FakeEx()
-            r = execute.enter(ex, FakeInfoWithDecimals(), "0xabc", pair(0.3), 24.0, lg)
+            state = FakeState()
+            ex, info = FakeEx(state), FakeInfoWithDecimals(state)
+            r = execute.enter(ex, info, "0xabc", pair(0.3), 24.0, lg)
             self.assertEqual(r["result"], "entered")
             opens = [c for c in ex.calls if c[0] == "open"]
             self.assertEqual(opens[0], ("open", "PURR/USDC", True, 120.0))
-            self.assertEqual(opens[1], ("open", "PURR", False, 120.0))
+            expected_hedge = execute._floor(120.0 * (1 - FEE), 0)
+            self.assertEqual(opens[1], ("open", "PURR", False, expected_hedge))
+
+    def test_exit_closes_perp_then_spot_then_moves_usdc(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            hedge_sz = execute._floor(120.0 * (1 - FEE), 2)
+            state = FakeState(spot={"USDC": 1.0, "PURR": 120.0 * (1 - FEE)},
+                               perp_szi={"PURR": -hedge_sz}, withdrawable=25.0)
+            ex, info = FakeEx(state), FakeInfo(state)
+            r = execute.exit(ex, info, "0xabc", pair(0.02), lg)
+            self.assertEqual(r["result"], "exited")
+            names = [c[0] for c in ex.calls]
+            self.assertLess(names.index("close"), names.index("open"))
+            self.assertIn(("xfer", 25.0, False), ex.calls)
+
+    def test_exit_when_perp_stays_open_does_not_touch_spot_or_margin(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            hedge_sz = execute._floor(120.0 * (1 - FEE), 2)
+            state = FakeState(spot={"USDC": 1.0, "PURR": 120.0 * (1 - FEE)},
+                               perp_szi={"PURR": -hedge_sz}, withdrawable=25.0)
+            ex, info = FakeEx(state, fail_close=True), FakeInfo(state)
+            r = execute.exit(ex, info, "0xabc", pair(0.02), lg)
+            self.assertEqual(r["result"], "partial")
+            self.assertEqual(r["reason"], "perp_not_flat")
+            self.assertEqual([c[0] for c in ex.calls], ["close"])
+
+    def test_market_close_with_no_position_returns_none(self):
+        self.assertIsNone(FakeEx(FakeState()).market_close("PURR"))
 
 
 if __name__ == "__main__":

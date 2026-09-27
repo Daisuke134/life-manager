@@ -32,9 +32,15 @@ class Ledger:
 
     def position(self) -> str | None:
         for r in reversed(self.rows()):
-            if r["kind"] == "receipt" and r.get("result") in ("entered", "exited"):
-                return r["perp"] if r["result"] == "entered" else None
+            if r["kind"] == "receipt" and r.get("result") in ("entered", "exited", "unhedged"):
+                return r["perp"] if r["result"] in ("entered", "unhedged") else None
         return None
+
+    def needs_unwind(self) -> bool:
+        for r in reversed(self.rows()):
+            if r["kind"] == "receipt" and r.get("result") in ("entered", "exited", "unhedged"):
+                return r["result"] == "unhedged"
+        return False
 
     def mark_equity(self, equity: float) -> None:
         self.append("equity", equity=round(float(equity), 6))
