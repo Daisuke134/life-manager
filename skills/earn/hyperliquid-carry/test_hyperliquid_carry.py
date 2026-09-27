@@ -93,5 +93,41 @@ class LedgerTest(unittest.TestCase):
             self.assertEqual(lg.risk_state(today), (50.0, 52.0))
 
 
+import market
+
+SPOT_META = [{"tokens": [{"index": 0, "name": "USDC"}, {"index": 1, "name": "PURR"}, {"index": 2, "name": "UZEC"}],
+              "universe": [{"name": "PURR/USDC", "tokens": [1, 0]}, {"name": "@272", "tokens": [2, 0]}]},
+             [{"dayNtlVlm": "1000000", "markPx": "0.2"}, {"dayNtlVlm": "200000", "markPx": "30"}]]
+PERP_META = [{"universe": [{"name": "PURR"}, {"name": "ZEC"}]}, [{"funding": "0.0000125"}, {"funding": "0.00003"}]]
+
+
+def fake_post(body):
+    t = body["type"]
+    if t == "spotMetaAndAssetCtxs":
+        return SPOT_META
+    if t == "metaAndAssetCtxs":
+        return PERP_META
+    if t == "fundingHistory":
+        rate = "0.0000125" if body["coin"] == "PURR" else "0.00003"
+        return [{"time": 1, "fundingRate": rate}] * 24
+    if t == "clearinghouseState":
+        return {"marginSummary": {"accountValue": "24.5"}}
+    if t == "spotClearinghouseState":
+        return {"balances": [{"coin": "USDC", "total": "1.0"}, {"coin": "PURR", "total": "120"}]}
+    raise AssertionError(t)
+
+
+class MarketTest(unittest.TestCase):
+    def test_pairs_map_u_prefixed_spot_tokens_to_perps(self):
+        ps = {p.perp: p for p in market.pairs(fake_post, now_ms=10**13)}
+        self.assertEqual(ps["PURR"].spot, "PURR/USDC")
+        self.assertEqual(ps["ZEC"].spot, "@272")
+        self.assertEqual(ps["ZEC"].spot_token, "UZEC")
+        self.assertAlmostEqual(ps["PURR"].funding_apr_24h, 0.0000125 * 24 * 365)
+
+    def test_equity_sums_perp_spot_usdc_and_marked_tokens(self):
+        self.assertAlmostEqual(market.equity(fake_post, "0xabc"), 24.5 + 1.0 + 120 * 0.2)
+
+
 if __name__ == "__main__":
     unittest.main()
