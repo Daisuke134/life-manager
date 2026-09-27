@@ -17,6 +17,7 @@ const {
 } = require("../lib/marketing-video-publication-adapter.js");
 const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
 const { buildMarketingCtaCaptionRef } = require("../lib/marketing-app-store-cta.js");
+const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
 
@@ -152,7 +153,7 @@ async function runHonneJaCycle(argv, deps = {}) {
   const store = deps.store || createMarketingLocalLedger({ dataDir });
   const generationJob = buildMarketingVideoGenerationJob({ tenantId, productId: lane.product, formatId: lane.format, locale: lane.locale, slot, packRef, mediaRefs });
   const generationQueued = await store.enqueueJob({ jobId: generationJob.job_id, tenantId, loopId: generationJob.loop_id, capability: generationJob.capability, effectClass: generationJob.effect_class, effectKey: generationJob.effect_key, inputRefs: generationJob.input_refs, maxAttempts: generationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
-  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), now: () => new Date(nowMs).toISOString() });
+  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString() });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));
   const publicationCreativeId = `${artifact.creative_id}-${slot.replace(/[^A-Za-z0-9]/g, "")}`;
   const captionRef = buildMarketingCtaCaptionRef({

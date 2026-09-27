@@ -11,6 +11,7 @@ const {
   verifyMarketingVideoGenerationReceipt,
 } = require("../lib/marketing-video-generation-adapter.js");
 const { buildMarketingVideoPublicationJob } = require("../lib/marketing-video-publication-adapter.js");
+const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
 const { PROMOTION_CONFIRMATION } = require("../lib/marketing-canary.js");
 const { HONNE_EN_SLOTS } = require("../lib/honne-en-shadow-runtime.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
@@ -61,7 +62,7 @@ function historyProvider(dataDir) {
   } };
 }
 
-async function generate(store, job, dataDir, nowIso) {
+async function generate(store, job, dataDir, nowIso, metricsProvider) {
   const queued = await store.enqueueJob({
     jobId: job.job_id, tenantId: job.tenant_id, loopId: job.loop_id, capability: job.capability,
     effectClass: job.effect_class, effectKey: job.effect_key, inputRefs: job.input_refs,
@@ -72,7 +73,7 @@ async function generate(store, job, dataDir, nowIso) {
   const claim = await store.claimJob({ tenantId: job.tenant_id, jobId: job.job_id, capability: job.capability, workerId: "honne-en-cycle", leaseSeconds: 180 });
   if (!claim) throw new Error("honne EN generation job is not claimable");
   try {
-    const adapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), now: () => nowIso });
+    const adapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: metricsProvider || createCreativeMetricsProvider(dataDir), now: () => nowIso });
     const receipt = (await adapter.execute(claim)).receipt;
     await store.completeJob({ tenantId: claim.tenant_id, jobId: claim.job_id, attempt: claim.attempt, workerId: claim.lease_owner, receipt });
     return { created: queued.created, receipt };
@@ -110,7 +111,7 @@ async function runHonneEnCycle(argv, deps = {}) {
   }
   const store = deps.store || createMarketingLocalLedger({ dataDir });
   const generationJob = buildMarketingVideoGenerationJob({ tenantId, productId: PRODUCT, formatId: FORMAT, locale: LOCALE, slot, packRef, mediaRefs });
-  const generation = await generate(store, generationJob, dataDir, new Date(nowMs).toISOString());
+  const generation = await generate(store, generationJob, dataDir, new Date(nowMs).toISOString(), deps.metricsProvider);
   const captionRef = campaignCaptionRef(objectStore, dataDir, generation.receipt.copy_ref, env.LM_HONNE_EN_CAMPAIGN_URL);
   const publicationJob = buildMarketingVideoPublicationJob({
     tenantId, productId: PRODUCT, formatId: FORMAT, form: generation.receipt.form, locale: LOCALE, slot,
