@@ -27,5 +27,46 @@ class WalletTest(unittest.TestCase):
             self.assertEqual(services, ["other", wallet.SERVICE])
 
 
+import policy
+
+
+def pair(apr, vol=1_000_000, name="PURR"):
+    return policy.Pair(perp=name, spot=f"{name}/USDC", spot_vol_usd=vol, funding_apr_24h=apr)
+
+
+class PolicyTest(unittest.TestCase):
+    caps = policy.Caps()
+
+    def test_enters_best_pair_when_expected_carry_beats_cost(self):
+        d = policy.decide([pair(0.11), pair(0.30, name="ZEC")], None, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["pair"].perp), ("enter", "ZEC"))
+        self.assertEqual(d["leg_usd"], 24.0)
+
+    def test_idle_when_carry_does_not_beat_round_trip_cost(self):
+        d = policy.decide([pair(0.05)], None, 50, 50, 50, self.caps)
+        self.assertEqual(d["action"], "idle")
+
+    def test_skips_illiquid_spot(self):
+        d = policy.decide([pair(0.50, vol=10_000)], None, 50, 50, 50, self.caps)
+        self.assertEqual(d["action"], "idle")
+
+    def test_idle_when_equity_too_small_for_min_order(self):
+        d = policy.decide([pair(0.30)], None, 20, 20, 20, self.caps)
+        self.assertEqual(d["action"], "idle")
+        self.assertIn("min_leg", d["reason"])
+
+    def test_exits_when_funding_decays(self):
+        d = policy.decide([pair(0.02)], "PURR", 50, 50, 50, self.caps)
+        self.assertEqual(d["action"], "exit")
+
+    def test_holds_while_funding_stays_high(self):
+        d = policy.decide([pair(0.11)], "PURR", 50, 50, 50, self.caps)
+        self.assertEqual(d["action"], "hold")
+
+    def test_halts_on_daily_loss_and_drawdown(self):
+        self.assertEqual(policy.decide([pair(0.3)], "PURR", 47.4, 50, 50, self.caps)["action"], "halt")
+        self.assertEqual(policy.decide([pair(0.3)], None, 39.9, 40, 50, self.caps)["action"], "halt")
+
+
 if __name__ == "__main__":
     unittest.main()
