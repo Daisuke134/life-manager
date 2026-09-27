@@ -437,6 +437,70 @@ class ExecuteTest(unittest.TestCase):
     def test_market_close_with_no_position_returns_none(self):
         self.assertIsNone(FakeEx(FakeState()).market_close("PURR"))
 
+import run
+
+
+class WakeTest(unittest.TestCase):
+    def _wake(self, live, equity=50.0):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            sent, made = [], []
+            post = lambda b: fake_post(b) if b["type"] not in ("clearinghouseState", "spotClearinghouseState") \
+                else ({"marginSummary": {"accountValue": str(equity)}} if b["type"] == "clearinghouseState" else {"balances": []})
+            def make():
+                made.append(1); return fakes()
+            r = run.wake(post, make, lg, "0xabc", policy.Caps(), live, "2099-01-01", sent.append)
+            return r, sent, made, lg.position()
+
+    def test_dry_wake_decides_and_reports_but_never_signs(self):
+        r, sent, made, _ = self._wake(live=False)
+        self.assertEqual(r["decision"]["action"], "enter")
+        self.assertEqual(made, [])
+        self.assertEqual(len(sent), 1)
+
+    def test_live_wake_enters(self):
+        r, _, made, position = self._wake(live=True)
+        self.assertEqual(made, [1])
+        self.assertEqual(position, "ZEC")
+
+    def test_open_intent_reconciles_by_exit(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="x", action="enter", perp="PURR", spot="PURR/USDC")
+            made = []
+            def make():
+                made.append(1); return FakeEx(), FakeInfo()
+            r = run.wake(fake_post, make, lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
+            self.assertEqual(r["decision"]["action"], "reconcile_exit")
+            self.assertEqual(made, [1])
+            self.assertIsNotNone(r["receipt"])
+
+
+    def test_reconcile_without_current_pair_uses_recorded_pair(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="x", action="enter", perp="MISSING", spot="MISSING/USDC")
+            made = []
+            def make():
+                made.append(1); return FakeEx(), FakeInfo()
+            r = run.wake(fake_post, make, lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
+            self.assertEqual(r["decision"]["action"], "reconcile_exit")
+            self.assertEqual(r["decision"]["reason"], "open_intent_or_unhedged")
+            self.assertEqual(made, [1])
+            self.assertIsNotNone(r["receipt"])
+
+    def test_reconcile_without_safe_pair_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            lg = ledger.Ledger(Path(d) / "j.jsonl")
+            lg.append("intent", intent_id="x", action="enter", perp="MISSING")
+            made = []
+            def make():
+                made.append(1); return FakeEx(), FakeInfo()
+            r = run.wake(fake_post, make, lg, "0xabc", policy.Caps(), True, "2099-01-01", lambda t: None)
+            self.assertEqual(r["decision"]["reason"], "reconciliation_pair_unavailable")
+            self.assertEqual(r["receipt"]["result"], "reconciliation_pending")
+            self.assertEqual(made, [])
+
 
 if __name__ == "__main__":
     unittest.main()
