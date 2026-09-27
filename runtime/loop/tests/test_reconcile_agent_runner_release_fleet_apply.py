@@ -3,6 +3,7 @@ import os
 import stat
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -20,6 +21,11 @@ if [ "$1" = "apply" ]; then
   case "${FAKE_APPLY_MODE:-ok}" in
     ok)
       echo '[{"ok":true,"label":"a","release_sha":"x","changed":true},{"ok":true,"label":"b","release_sha":"x","changed":false,"skipped":"effect-unknown-fence"}]'
+      exit 0
+      ;;
+    orphan_holds_stdout)
+      sleep 60 &
+      echo '[{"ok":true,"label":"a","release_sha":"x","changed":true}]'
       exit 0
       ;;
     already_owned)
@@ -154,6 +160,24 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(self._apply_call_count(calls_log), 1,
                              "same release on the next tick must not re-apply")
+
+    def test_descendant_holding_stdout_does_not_stall_the_apply(self):
+        # A process started during apply that keeps stdout open made the first
+        # automatic run wait until the 1200s timeout.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(root, sha)
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log,
+                                 apply_mode="orphan_holds_stdout")
+            started = time.monotonic()
+            result = self._run(env)
+            self.assertLess(time.monotonic() - started, 20)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self._state(root)["status"], "ok")
+            self.assertEqual(self._state(root)["changed"], 1)
 
     def test_promotion_hold_prevents_apply(self):
         with tempfile.TemporaryDirectory() as directory:
