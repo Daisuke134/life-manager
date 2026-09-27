@@ -732,11 +732,20 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
     return False, False, f"entrypoint_exit_{return_code}"
 
 
+# A failing entrypoint's own stderr is the only first-hand evidence of why it
+# died (see the en-card-instagram investigation: hundreds of entrypoint_exit_1
+# failures with nothing durable to read afterwards, because the per-run
+# scratch dir is removed once the terminal event is written). Bounded so one
+# noisy child cannot bloat the shared events.jsonl.
+ENTRYPOINT_STDERR_TAIL_MAX_BYTES = 2048
+
+
 def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     timeout_seconds: float | None = None,
                     termination_grace_seconds: float = 15,
                     cancelled: Callable[[], bool] = lambda: False,
-                    on_started: Callable[[int], None] = lambda _pid: None) -> int:
+                    on_started: Callable[[int], None] = lambda _pid: None,
+                    stderr_capture_fd: int | None = None) -> int:
     watched = (signal.SIGTERM, signal.SIGINT)
     previous = {}
     process = None
@@ -764,7 +773,8 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
     try:
         process = subprocess.Popen(
             [sys.executable, str(EXEC_GATE), str(read_fd), *command],
-            start_new_session=True, env=env, pass_fds=(read_fd,))
+            start_new_session=True, env=env, pass_fds=(read_fd,),
+            stderr=stderr_capture_fd)
         os.close(read_fd)
         if cancelled() or pending or stopping:
             os.close(write_fd)
@@ -837,6 +847,61 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         for signum, handler in previous.items():
             signal.signal(signum, handler)
     return return_code if return_code >= 0 else 128 - return_code
+
+
+def _run_entrypoint_with_stderr_capture(
+        command: list[str], scratch_dir: Path, *,
+        env: dict[str, str] | None = None,
+        timeout_seconds: float | None = None,
+        termination_grace_seconds: float = 15,
+        cancelled: Callable[[], bool] = lambda: False,
+        on_started: Callable[[int], None] = lambda _pid: None) -> tuple[int, bytes]:
+    """Run the entrypoint, capturing its stderr via a real file, not a pipe.
+
+    A pipe's write end is inherited by any grandchild the entrypoint detaches
+    (a browser, a helper daemon) and leaves running past this run's own
+    lifetime. Once this process closes its read end, that grandchild's next
+    stderr write raises EPIPE/SIGPIPE and can kill it. A regular file has no
+    such failure mode: even after it is unlinked here, anyone still holding
+    the fd open (the detached grandchild) keeps writing to it harmlessly
+    until they close it -- exactly like inherited-stderr-to-a-log-file
+    worked before this capture existed. No thread is needed either: the
+    child's stderr fd is duped directly onto a real file, and only after the
+    run's own exit is the file read back, forwarded to this process's real
+    stderr, and deleted.
+    """
+    capture_path = scratch_dir / "entrypoint-stderr.log"
+    descriptor = os.open(
+        capture_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
+    try:
+        return_code = _run_entrypoint(
+            command, env=env, timeout_seconds=timeout_seconds,
+            termination_grace_seconds=termination_grace_seconds,
+            cancelled=cancelled, on_started=on_started,
+            stderr_capture_fd=descriptor)
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+    try:
+        data = capture_path.read_bytes()
+    except OSError:
+        data = b""
+    finally:
+        try:
+            capture_path.unlink()
+        except OSError:
+            pass
+    tail = b""
+    if data:
+        try:
+            sys.stderr.buffer.write(data)
+            sys.stderr.buffer.flush()
+        except (OSError, ValueError):
+            pass
+        tail = data[-ENTRYPOINT_STDERR_TAIL_MAX_BYTES:]
+    return return_code, tail
 
 
 def _dispatch_arguments(arguments: object, loop_id: str, entry: dict,
@@ -946,7 +1011,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
                   receipt: Path, *, occurrence_id: str | None = None,
-                  on_claimed: Callable[[str], None] = lambda _value: None) -> int:
+                  on_claimed: Callable[[str], None] = lambda _value: None,
+                  on_stderr_tail: Callable[[bytes], None] = lambda _tail: None) -> int:
     limit = _runtime_limit(entry)
     if loop_id in CONTROL_PLANE_SAFETY_LOOPS:
         if entry.get("effect_class") == "none":
@@ -956,7 +1022,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 print(f"lm-loop-run: no-effect recovery deferred: {error}", file=sys.stderr)
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
-        result = _run_entrypoint(command, env=env, timeout_seconds=limit)
+        if limit is None:
+            result = _run_entrypoint(command, env=env, timeout_seconds=None)
+        else:
+            result, tail = _run_entrypoint_with_stderr_capture(
+                command, receipt.parent, env=env, timeout_seconds=limit)
+            on_stderr_tail(tail)
         if result == 0 and loop_id != "capafy-loop-healthcheck":
             try:
                 if durable_protocol_version() == 2:
@@ -969,6 +1040,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     if limit is None:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "continuous_owner_exempt"})
+        # A continuous/keep-alive owner's process is meant to run indefinitely;
+        # capturing its stderr to a file has no natural end and no bound. Keep
+        # stderr inherited exactly as before capture existed for every other
+        # owner -- no capture here.
         return _run_entrypoint(command, env=env, timeout_seconds=None)
     try:
         minimum_free = int(os.environ.get("LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT", "15"))
@@ -1138,10 +1213,14 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
         if effect_result_hint_allowed:
             child_env["LIFE_MANAGER_LOOP_ID"] = loop_id
-        return_code = _run_entrypoint(
-            command, env=child_env, timeout_seconds=limit,
+        # This branch is only reached when limit is not None (the
+        # limit-is-None/continuous_owner_exempt case already returned above),
+        # so capture is always safe here.
+        return_code, stderr_tail = _run_entrypoint_with_stderr_capture(
+            command, receipt.parent, env=child_env, timeout_seconds=limit,
             cancelled=lambda: interrupted or heartbeat_failed.is_set(),
             on_started=transfer_claim)
+        on_stderr_tail(stderr_tail)
         if heartbeat_failed.is_set():
             return_code = 75
             try:
@@ -1240,12 +1319,17 @@ def main(argv: list[str] | None = None) -> int:
         def record_claimed(value: str) -> None:
             nonlocal claimed_occurrence_id
             claimed_occurrence_id = value
+        entrypoint_stderr_tail = b""
+        def record_stderr_tail(value: bytes) -> None:
+            nonlocal entrypoint_stderr_tail
+            entrypoint_stderr_tail = value
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "LIFE_MANAGER_RUN_ID": run_id,
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-        }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed)
+        }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed,
+           on_stderr_tail=record_stderr_tail)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         effect_result = None
         if (return_code == 0
@@ -1270,6 +1354,10 @@ def main(argv: list[str] | None = None) -> int:
         try:
             succeeded, deferred, blocker = _terminal_outcome(
                 return_code, host_deferred=host_deferred)
+            error_detail = (
+                entrypoint_stderr_tail.decode("utf-8", errors="replace")
+                if not succeeded and entrypoint_stderr_tail else None
+            )
             event = build_runtime_event(
                 loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                 release_sha=manifest["sha"], provider=entry["provider_route"],
@@ -1293,6 +1381,7 @@ def main(argv: list[str] | None = None) -> int:
                     "release_sha": manifest["sha"],
                 }),
                 exit_code=return_code,
+                error_detail=error_detail,
             )
             event = _apply_verified_effect_result(event, effect_result)
             append_runtime_event(event_path, event)
