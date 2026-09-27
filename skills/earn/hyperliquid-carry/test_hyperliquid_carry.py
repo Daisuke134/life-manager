@@ -810,6 +810,19 @@ class DepositTest(unittest.TestCase):
                 self.assertEqual(result["reason"], "deposit_boundary_transfer_calldata_mismatch")
                 self.assertTrue(deposit.pending_deposits(lg))
 
+    def test_nonzero_transfer_address_padding_becomes_effect_unknown_and_pending(self):
+        with tempfile.TemporaryDirectory() as d:
+            tx = self._tx()
+            tx["input"] = tx["input"][:10] + "f" + tx["input"][11:]
+            lg = self._ledger_with_submitted(Path(d) / "j.jsonl")
+
+            result = deposit.reconcile_pending(
+                self._provider(tx, type("Receipt", (), {"status": 1})()), lg)
+
+            self.assertEqual(result["result"], "effect_unknown")
+            self.assertEqual(result["reason"], "deposit_boundary_transfer_calldata_mismatch")
+            self.assertTrue(deposit.pending_deposits(lg))
+
     def test_whitespace_in_provider_amount_padding_remains_effect_unknown_and_pending(self):
         # Replacing two padding nibbles keeps the string length fixed.  The old
         # parser let fromhex() discard them and int() accept them as leading whitespace.

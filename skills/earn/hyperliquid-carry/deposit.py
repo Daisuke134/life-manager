@@ -110,6 +110,8 @@ def _boundary_reason(w3, tx_hash: str, intent: dict) -> str | None:
         return "deposit_boundary_transfer_calldata_mismatch"
     if len(calldata) != 68 or calldata[:4].hex() != TRANSFER_SELECTOR:
         return "deposit_boundary_transfer_calldata_mismatch"
+    if calldata[4:16] != b"\x00" * 12:
+        return "deposit_boundary_transfer_calldata_mismatch"
     target = "0x" + calldata[4:36][-20:].hex()
     if target.lower() != str(intent.get("bridge", "")).lower():
         return "deposit_boundary_bridge_mismatch"
