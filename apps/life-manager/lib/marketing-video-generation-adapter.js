@@ -289,7 +289,35 @@ function verifyMarketingVideoGenerationReceipt(receipt) {
   return true;
 }
 
-function selectHook(pack, history) {
+function scoreByHookFromMetrics(metrics) {
+  if (!Array.isArray(metrics)) {
+    throw new Error("marketing video generation metrics are invalid");
+  }
+  const scoreByHook = new Map();
+  for (const row of metrics) {
+    if (
+      !row
+      || typeof row !== "object"
+      || !IDENTIFIER.test(String(row.hook_id || ""))
+      || typeof row.score !== "number"
+      || !Number.isFinite(row.score)
+      || row.score < 0
+    ) {
+      throw new Error("marketing video generation metrics are invalid");
+    }
+    scoreByHook.set(row.hook_id, row.score);
+  }
+  return scoreByHook;
+}
+
+// Selects the next hook for this pack: candidates never used (or never scored) are always
+// explored first (oldest/never-used wins ties by id, unchanged from the original rotation).
+// Among already-used hooks with a recorded metric score, a hook scoring below the median of
+// all scored hooks is deprioritized one tier below every non-deprioritized candidate instead
+// of being excluded outright — this is the "drop the formats that didn't perform" exploit half
+// of the explore/exploit policy, while a single bad sample can never permanently kill a hook
+// (only an explicit status: "killed" in the pack does that).
+function selectHook(pack, history, metrics = []) {
   if (!Array.isArray(history)) {
     throw new Error("marketing video generation history is invalid");
   }
@@ -310,6 +338,13 @@ function selectHook(pack, history) {
       used.set(receipt.hook_id, receipt.generated_at);
     }
   }
+  const scoreByHook = scoreByHookFromMetrics(metrics);
+  const scores = [...scoreByHook.values()].sort((left, right) => left - right);
+  const median = scores.length
+    ? (scores.length % 2 === 1
+      ? scores[(scores.length - 1) / 2]
+      : (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2)
+    : null;
   const candidates = pack.hooks
     .filter(({ status }) => status !== "killed")
     .map((hook) => {
@@ -317,9 +352,14 @@ function selectHook(pack, history) {
         .filter(Boolean)
         .sort()
         .at(-1) || null;
-      return { hook, lastUsed };
+      const score = scoreByHook.has(hook.id) ? scoreByHook.get(hook.id) : null;
+      const underperforming = median != null && score != null && score < median;
+      return { hook, lastUsed, underperforming };
     })
     .sort((left, right) => {
+      if (left.underperforming !== right.underperforming) {
+        return left.underperforming ? 1 : -1;
+      }
       if (left.lastUsed === right.lastUsed) {
         return left.hook.id.localeCompare(right.hook.id);
       }
@@ -369,7 +409,11 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
     if (!historyProvider || typeof historyProvider.list !== "function") {
       throw new Error("marketing video generation history provider is required");
     }
-    return { dataDir, objectStore, historyProvider };
+    const metricsProvider = deps.metricsProvider || { list: async () => [] };
+    if (typeof metricsProvider.list !== "function") {
+      throw new Error("marketing video generation metrics provider is invalid");
+    }
+    return { dataDir, objectStore, historyProvider, metricsProvider };
   }
   const now = deps.now || (() => new Date().toISOString());
   return Object.freeze({
@@ -381,6 +425,7 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
         dataDir,
         objectStore,
         historyProvider,
+        metricsProvider,
       } = services();
       const contract = normalizeJob(job);
       const pack = normalizeMarketingVideoPack(
@@ -388,13 +433,17 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
         contract,
       );
       for (const ref of contract.mediaRefs) objectStore.resolve(ref);
-      const history = await historyProvider.list({
+      const scope = {
         tenantId: contract.tenantId,
         productId: contract.productId,
         formatId: contract.formatId,
         locale: contract.locale,
-      });
-      const hook = selectHook(pack, history);
+      };
+      const [history, metrics] = await Promise.all([
+        historyProvider.list(scope),
+        metricsProvider.list(scope),
+      ]);
+      const hook = selectHook(pack, history, metrics);
       if (hook.media_ref && !contract.mediaRefs.includes(hook.media_ref)) {
         throw new Error("marketing video hook media is not approved");
       }
@@ -466,5 +515,6 @@ module.exports = {
   createMarketingVideoGenerationLoopAdapter,
   normalizeMarketingVideoPack,
   safeMarketingVideoGenerationSummary,
+  selectHook,
   verifyMarketingVideoGenerationReceipt,
 };

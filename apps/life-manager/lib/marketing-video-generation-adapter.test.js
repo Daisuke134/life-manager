@@ -10,6 +10,7 @@ const test = require("node:test");
 const {
   buildMarketingVideoGenerationJob,
   createMarketingVideoGenerationLoopAdapter,
+  selectHook,
   verifyMarketingVideoGenerationReceipt,
 } = require("./marketing-video-generation-adapter.js");
 const { importContentObject } = require("./content-object-store.js");
@@ -272,4 +273,133 @@ test("adapter fails closed on pack identity mismatch, extra fields, or no active
     }),
     /active hook/i,
   );
+});
+
+test("selectHook is unaffected by metrics when no metrics are supplied (backward compatible)", () => {
+  const pack = {
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    locale: "ja",
+    hooks: [
+      { id: "HJA-001", text: "one", status: "active", prior_used_at: "2026-07-28T12:00:00.000Z" },
+      { id: "HJA-002", text: "two", status: "active", prior_used_at: null },
+    ],
+  };
+  assert.equal(selectHook(pack, []).id, "HJA-002");
+  assert.equal(selectHook(pack, [], []).id, "HJA-002");
+});
+
+test("selectHook deprioritizes a hook whose recorded metric score is below the median", () => {
+  const pack = {
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    locale: "ja",
+    hooks: [
+      // HJA-001 is the oldest by prior_used_at, so pure LRU would pick it next.
+      { id: "HJA-001", text: "old but underperforms", status: "active", prior_used_at: "2026-07-20T00:00:00.000Z" },
+      { id: "HJA-002", text: "newer but performs well", status: "active", prior_used_at: "2026-07-25T00:00:00.000Z" },
+    ],
+  };
+  const metrics = [
+    { hook_id: "HJA-001", score: 1 },
+    { hook_id: "HJA-002", score: 100 },
+  ];
+  // Without metrics, LRU alone would pick HJA-001 (oldest).
+  assert.equal(selectHook(pack, [], []).id, "HJA-001");
+  // With metrics showing HJA-001 underperforms relative to the median, it is deprioritized
+  // one tier below every non-deprioritized hook, so HJA-002 is picked instead.
+  assert.equal(selectHook(pack, [], metrics).id, "HJA-002");
+});
+
+test("selectHook still explores a never-used hook ahead of any scored, already-used hook", () => {
+  const pack = {
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    locale: "ja",
+    hooks: [
+      { id: "HJA-001", text: "used, top performer", status: "active", prior_used_at: "2026-07-20T00:00:00.000Z" },
+      { id: "HJA-002", text: "never used yet", status: "active", prior_used_at: null },
+    ],
+  };
+  const metrics = [{ hook_id: "HJA-001", score: 100 }];
+  assert.equal(selectHook(pack, [], metrics).id, "HJA-002");
+});
+
+test("selectHook never fully excludes an underperforming hook (only status: killed does that)", () => {
+  const pack = {
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    locale: "ja",
+    hooks: [
+      { id: "HJA-001", text: "only hook, underperforms", status: "active", prior_used_at: "2026-07-20T00:00:00.000Z" },
+    ],
+  };
+  const metrics = [{ hook_id: "HJA-001", score: 1 }];
+  assert.equal(selectHook(pack, [], metrics).id, "HJA-001");
+});
+
+test("selectHook rejects invalid metrics rows", () => {
+  const pack = {
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    locale: "ja",
+    hooks: [{ id: "HJA-001", text: "one", status: "active", prior_used_at: null }],
+  };
+  assert.throws(() => selectHook(pack, [], [{ hook_id: "HJA-001", score: -1 }]), /metrics are invalid/);
+  assert.throws(() => selectHook(pack, [], [{ hook_id: "HJA-001", score: "high" }]), /metrics are invalid/);
+  assert.throws(() => selectHook(pack, [], "not-an-array"), /metrics are invalid/);
+});
+
+test("adapter's execute() queries metricsProvider and lets a recorded score change the picked hook", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-metrics-"));
+  const objects = path.join(root, "objects");
+  const packPath = path.join(root, "pack.json");
+  const video = path.join(root, "v1.mp4");
+  fs.writeFileSync(packPath, `${JSON.stringify({
+    schema_version: 1,
+    product_id: "honne-ai",
+    format_id: "reelclaw",
+    form: "relationship-confession",
+    locale: "ja",
+    title: "Honne",
+    hashtags: [],
+    hooks: [
+      { id: "HJA-001", text: "old but underperforms", status: "active", prior_used_at: "2026-07-20T00:00:00.000Z" },
+      { id: "HJA-002", text: "newer but performs well", status: "active", prior_used_at: "2026-07-25T00:00:00.000Z" },
+    ],
+  })}\n`);
+  fs.writeFileSync(video, Buffer.from("0000ftyp-video"));
+  const pack = importContentObject(packPath, { objectDir: objects });
+  const media = importContentObject(video, { objectDir: objects });
+  const metricsCalls = [];
+  const adapter = createMarketingVideoGenerationLoopAdapter({
+    dataDir: root,
+    historyProvider: { list: async () => [] },
+    metricsProvider: {
+      list: async (scope) => {
+        metricsCalls.push(scope);
+        return [{ hook_id: "HJA-001", score: 1 }, { hook_id: "HJA-002", score: 100 }];
+      },
+    },
+    now: () => "2026-07-30T12:30:01.000Z",
+  });
+  const executionJob = buildMarketingVideoGenerationJob({
+    tenantId: "tenant-a",
+    productId: "honne-ai",
+    formatId: "reelclaw",
+    locale: "ja",
+    slot: "2026-07-30T12:30:00.000Z",
+    packRef: pack.ref,
+    mediaRefs: [media.ref],
+  });
+
+  const result = await adapter.execute(executionJob);
+
+  assert.deepEqual(metricsCalls, [{
+    tenantId: "tenant-a",
+    productId: "honne-ai",
+    formatId: "reelclaw",
+    locale: "ja",
+  }]);
+  assert.equal(result.receipt.hook_id, "HJA-002");
 });
