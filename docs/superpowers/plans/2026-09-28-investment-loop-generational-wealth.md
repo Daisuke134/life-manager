@@ -86,6 +86,31 @@ These are planning calculations, not forecasts:
 
 The current `$100` Alpaca cap at a hypothetical 10% net annual return produces about `$0.83/month`; a `$24` Hyperliquid leg at the plan's measured 11% APR produces about `$0.22/month` gross before variable funding and fees. Therefore the path to generational wealth must combine a measured investment engine with a cash-generation engine and recurring contributions. The investment loop alone cannot turn `$100` into `$10k/month` without assuming an unsafe, unmeasured return.
 
+### Generational-wealth accumulation boundary
+
+`$10,000/month` is a realised net-profit target, not gross sales and not a promise. A separate planning target is `$1,000,000` net worth. The accumulation path is:
+
+```mermaid
+flowchart LR
+    Cash["Verified net cash engine\nproduct / service revenue"] --> Reserve["Tax + emergency reserve\nowner-approved boundary"]
+    Investment["Verified investment net P&L\nfees/costs included"] --> Reserve
+    Reserve --> Contribution["Scheduled contribution\nno blind wallet transfer"]
+    Contribution --> Assets["Diversified measured assets\nvenue caps + receipts"]
+    Assets --> Wealth["$1M net-worth target"]
+```
+
+Illustrative math only: starting from `$0`, contributing monthly, assuming a constant `7%` nominal annual return compounded monthly, before tax, fees, and inflation. This is a planning sensitivity table, not a forecast or a capital authorization:
+
+| Horizon | Required monthly contribution to reach `$1M` |
+|---|---:|
+| 10 years | `$5,777.51` |
+| 15 years | `$3,154.95` |
+| 20 years | `$1,919.66` |
+| 25 years | `$1,234.46` |
+| 30 years | `$819.69` |
+
+The operational rule is to route only verified net cash through reserves and then an explicitly recorded contribution. Owner deposits remain principal, and no contribution schedule overrides the venue caps, missing-receipt holds, tax reserve, or owner approval boundary.
+
 ## To-Be Architecture
 
 ```mermaid
@@ -410,7 +435,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but default state has `0` persisted daily receipts and no complete live 30-day window | Read-only; expansion false | lm-lead cadence/owner-runtime receipt, then 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
 | Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; separate x402 ledger is measured at `0.150000 USDC` for September / `0.180000 USDC` lifetime and is now shown in a separate briefing section; Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | accumulate 30 daily receipts; obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
-| Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
+| Goal | No official rolling monthly net receipt at or above `$10,000`; `$1M` generational-wealth target unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger and scheduled contribution evidence |
 
 ### Current category accounting
 
