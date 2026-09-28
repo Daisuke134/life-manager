@@ -516,6 +516,96 @@ def _configured_proxy_focus_expression(role):
     )
 
 
+def _llm_config_form_expression():
+    """Recognize the "LLM 設定とホスト型キー · プロキシホスト型" Hosted Key card
+    rendered under the "Agent ワークスペース" tab on same-Agent update/resumed
+    drafts (live, 2026-09-28, Agent 8123079349 / 9466718786). Neither the
+    provider-path-text layout nor the four-field configured-proxy layout match
+    it: it has no `models.providers.openrouter.apiKey` text node yet (nothing
+    is saved), and its field placeholders differ from the configured-proxy
+    card's literal `urlName` / `https://api.example.com` contract. These four
+    field placeholders are this card's own form contract, verified live via
+    read-only DOM inspection; all four must be uniquely present.
+    """
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const by=(predicate)=>[...document.querySelectorAll('input')].filter(x=>visible(x)&&predicate(x));"
+        "const keyName=by(x=>(x.placeholder||'').includes('Anthropic API')&&(x.placeholder||'').includes('TikTok'));"
+        "const baseUrl=by(x=>(x.placeholder||'').trim()==='api.anthropic.com');"
+        "const model=by(x=>(x.placeholder||'').trim()==='モデル');"
+        "const key=by(x=>x.type==='password'&&(x.placeholder||'').includes('新しいキーを貼り付けて'));"
+        "if(keyName.length!==1||baseUrl.length!==1||model.length!==1||key.length!==1)"
+        "return {ok:false,reason:'llm-config-field-count',counts:[keyName.length,baseUrl.length,model.length,key.length]};"
+        "return {ok:true};"
+        "})()"
+    )
+
+
+def _llm_config_focus_expression(role):
+    selectors = {
+        "base_url": "(x.placeholder||'').trim()==='api.anthropic.com'",
+        "model": "(x.placeholder||'').trim()==='モデル'",
+        "key": "x.type==='password'&&(x.placeholder||'').includes('新しいキーを貼り付けて')",
+    }
+    if role not in selectors:
+        raise ValueError(role)
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input')].filter(x=>visible(x)&&({selectors[role]}));"
+        "if(xs.length!==1)return {ok:false,reason:'llm-config-focus-count',count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});x.focus();x.select();return {ok:true};"
+        "})()"
+    )
+
+
+def _llm_config_vendor_state_expression():
+    """Read the vendor picker scoped to this card (walk up from the base-URL
+    field, same ancestor-search pattern the strict field/button lookups use
+    elsewhere) without clicking it. Live (2026-09-28) the picker is already
+    "OpenRouter" by default, matching CAPAFY_HOSTED_MODEL_ID's provider -- so
+    the normal path never has to drive its dropdown."""
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bases=[...document.querySelectorAll('input')].filter(x=>visible(x)&&(x.placeholder||'').trim()==='api.anthropic.com');"
+        "if(bases.length!==1)return {ok:false,reason:'base-count',count:bases.length};"
+        "let card=bases[0],buttons=[];"
+        "for(let k=0;k<12&&card;k++,card=card.parentElement){"
+        "const bs=[...card.querySelectorAll('button')].filter(b=>visible(b)&&/^(OpenRouter|ベンダーを選択|Select Vendor)/.test((b.textContent||'').trim()));"
+        "if(bs.length===1){buttons=bs;break;}"
+        "}"
+        "if(buttons.length!==1)return {ok:false,reason:'vendor-button-count',count:buttons.length};"
+        "return {ok:true,text:(buttons[0].textContent||'').trim()};"
+        "})()"
+    )
+
+
+def _raw_configure_llm_form(page, key):
+    """Fill the llm_config_form Hosted Key card. Vendor is only set when the
+    picker is empty/unset -- Capafy already shows "OpenRouter" by default in
+    every observed live case, so driving its dropdown is not automated.
+    ponytail: no dropdown automation; upgrade if a real draft ever needs it.
+    """
+    state = page.evaluate(_llm_config_form_expression())
+    if not isinstance(state, dict) or not state.get("ok"):
+        raise RuntimeError(f"ambiguous llm config hosted-key form ({state})")
+    vendor = page.evaluate(_llm_config_vendor_state_expression())
+    if not isinstance(vendor, dict) or not vendor.get("ok"):
+        raise RuntimeError(f"ambiguous llm config vendor picker ({vendor})")
+    if vendor.get("text") != "OpenRouter":
+        raise RuntimeError(
+            f"llm config vendor picker is not OpenRouter ({vendor.get('text')!r}); "
+            "set it manually once, then rerun -- vendor-dropdown selection is not automated"
+        )
+    for role, value in (("base_url", BASE_URL), ("model", MODEL), ("key", key)):
+        focused = page.evaluate(_llm_config_focus_expression(role))
+        if not isinstance(focused, dict) or not focused.get("ok"):
+            raise RuntimeError(f"llm config {role} focus failed ({focused})")
+        page.call("Input.insertText", {"text": value})
+
+
 def _raw_configure_proxy_form(page, key):
     state = page.evaluate(_configured_proxy_form_expression())
     if not isinstance(state, dict) or not state.get("ok"):
@@ -596,6 +686,9 @@ def _ensure_raw_provider_section(page):
         proxy_form = _bounded_page_evaluate(page, _configured_proxy_form_expression(), deadline)
         if isinstance(proxy_form, dict) and proxy_form.get("ok"):
             return "configured_proxy"
+        llm_form = _bounded_page_evaluate(page, _llm_config_form_expression(), deadline)
+        if isinstance(llm_form, dict) and llm_form.get("ok"):
+            return "llm_config_form"
         if not workspace_tab_clicked:
             # A resumed review page opens on 基本情報; the hosted-key fields live
             # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
@@ -704,6 +797,13 @@ def _raw_cp2(cp2, key, cdp_base):
             # paths are saved; it intentionally has no separate model input.
             _raw_configure_proxy_form(page, key)
             print("configured proxy fields: True")
+        elif section_mode == "llm_config_form":
+            # Third CP2 layout (2026-09-28, Agent ワークスペース tab, same-Agent
+            # update/resumed drafts): a direct "LLM 設定とホスト型キー" Hosted Key
+            # card, already in edit mode (no edit-pencil step, unlike the
+            # provider-path layout).
+            _raw_configure_llm_form(page, key)
+            print("llm config form fields: True")
         else:
             has_input = page.evaluate(
                 "[...document.querySelectorAll('input')].some(i=>{const v=i.value||'';return v.includes('api.')||v.includes('openrouter')})"
@@ -732,6 +832,31 @@ def _raw_cp2(cp2, key, cdp_base):
         if not blockrun_state.get("none"):
             page.click_coords("(() => {const path='models.providers.blockrun.apiKey';const xs=[...document.querySelectorAll('*')].filter(x=>(x.textContent||'').trim()===path&&![...x.children].some(c=>(c.textContent||'').trim()===path));if(xs.length!==1)return null;let card=xs[0],b=null;for(let k=0;k<12&&card&&!b;k++,card=card.parentElement){const ys=[...card.querySelectorAll('button')];if(ys.length===1)b=ys[0];}if(!b)return null;b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()")
         time.sleep(1.2)
+
+        if section_mode == "llm_config_form":
+            # This card's own Save both persists and verifies the hosted key in
+            # one click -- there is no separate page-level "キーを確認して保存"
+            # button for this layout (live-confirmed 2026-09-28, Agent
+            # 8123079349: official is_confirmed_config_keys flipped to true
+            # right after this card's Save, with `page.strict_click(...,
+            # "confirm")` correctly finding nothing to click). Watch a short
+            # window for an error toast; its absence is the success signal.
+            # ponytail: no positive "saved" toast is known for this layout, so
+            # success is inferred from the absence of an error within the
+            # window; tighten if a false-positive is ever observed.
+            result = "VERIFIED"
+            deadline = time.monotonic() + 9
+            while time.monotonic() < deadline:
+                time.sleep(3)
+                toast = page.evaluate(
+                    "[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim())"
+                    ".find(x=>/Verification failed|失敗|エラー/i.test(x)&&x.length<120)||''"
+                )
+                if toast:
+                    result = "FAILED: " + str(toast)[:80]
+                    break
+            print("RESULT:", result)
+            return result == "VERIFIED"
 
         baseline_url = str(page.evaluate("location.href") or "")
         baseline_toasts = page.evaluate("[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim()).filter(x=>/キー確認済み|Verification failed|失敗|エラー/i.test(x)&&x.length<120)") or []

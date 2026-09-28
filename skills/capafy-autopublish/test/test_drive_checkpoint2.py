@@ -348,6 +348,7 @@ def test_provider_section_clicks_one_counted_button_then_requires_path() -> None
         def __init__(self):
             self.states = iter((
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"},
                 {"ok": True, "x": 10, "y": 20}, {"count": 1},
             ))
             self.calls = []
@@ -395,6 +396,7 @@ def test_provider_section_polls_delayed_provider_path() -> None:
         def __init__(self):
             self.states = iter((
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"},
                 {"ok": False},  # no Agent workspace tab on this page
                 {"ok": False, "count": 0}, {"count": 1},
             ))
@@ -415,9 +417,11 @@ def test_provider_section_polls_delayed_counted_button_and_path() -> None:
     class _Page:
         def __init__(self):
             self.states = iter((
-                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": False},
+                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"}, {"ok": False},
                 {"ok": False, "count": 0},
-                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": True, "x": 10, "y": 20},
+                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"}, {"ok": True, "x": 10, "y": 20},
                 {"count": 1},
             ))
             self.calls = []
@@ -446,6 +450,79 @@ def test_provider_section_accepts_expanded_configured_proxy_form() -> None:
             pytest.fail("configured proxy form must not click the detected-keys button")
 
     assert module._ensure_raw_provider_section(_Page()) == "configured_proxy"
+
+
+def test_provider_section_accepts_llm_config_form_layout() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            return {"count": 0}
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("llm config form layout must not click the detected-keys button")
+
+    assert module._ensure_raw_provider_section(_Page()) == "llm_config_form"
+
+
+def test_raw_configure_llm_form_writes_base_url_model_key_when_vendor_already_openrouter() -> None:
+    module = load_module()
+    focused = []
+    calls = []
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            if "vendor-button-count" in expression:
+                return {"ok": True, "text": "OpenRouter"}
+            focused.append(expression)
+            return {"ok": True}
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+    module._raw_configure_llm_form(_Page(), "test-secret")
+    assert len(focused) == 3
+    assert calls == [
+        ("Input.insertText", {"text": module.BASE_URL}),
+        ("Input.insertText", {"text": module.MODEL}),
+        ("Input.insertText", {"text": "test-secret"}),
+    ]
+
+
+def test_raw_configure_llm_form_fails_closed_when_vendor_is_not_openrouter() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            if "vendor-button-count" in expression:
+                return {"ok": True, "text": "ベンダーを選択"}
+            pytest.fail("must not write fields before the vendor guard passes")
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("must not click/write before the vendor guard passes")
+
+    with pytest.raises(RuntimeError, match="not OpenRouter"):
+        module._raw_configure_llm_form(_Page(), "test-secret")
+
+
+def test_raw_configure_llm_form_rejects_ambiguous_field_counts() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, _expression):
+            return {"ok": False, "reason": "llm-config-field-count", "counts": [1, 2, 1, 1]}
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("ambiguous llm config form must not write")
+
+    with pytest.raises(RuntimeError, match="ambiguous llm config"):
+        module._raw_configure_llm_form(_Page(), "test-secret")
 
 
 def test_raw_configure_proxy_form_writes_provider_contract_without_model_field() -> None:
@@ -649,7 +726,7 @@ def test_provider_section_clicks_workspace_tab_once() -> None:
     class _Page:
         def __init__(self):
             self.states = iter((
-                {"count": 0}, {"ok": False}, {"ok": True, "x": 5, "y": 6},
+                {"count": 0}, {"ok": False}, {"ok": False}, {"ok": True, "x": 5, "y": 6},
                 {"count": 1},
             ))
             self.calls = []
