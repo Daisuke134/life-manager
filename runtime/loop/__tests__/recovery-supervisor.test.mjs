@@ -42,6 +42,10 @@ async function journalRows(journal) {
   return (await readFile(journal, 'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);
 }
 
+async function selfHealFixture(name) {
+  return JSON.parse(await readFile(path.join(HERE, '..', 'fixtures', 'self-heal', name), 'utf8'));
+}
+
 test('consumes exactly one owner intent and does not replay a repaired intent', async () => {
   const { queue, journal } = await files([intent('one'), intent('two', 'sibling-loop')]);
   const calls = [];
@@ -236,6 +240,34 @@ test('terminally skips its own intent without execution and then consumes one si
   assert.equal(selfOutcomes[0].state, 'skipped');
   assert.equal(selfOutcomes[0].budget_consumed, false);
   assert.equal(selfOutcomes[0].reason, 'supervisor_self_recovery_excluded');
+});
+
+test('retained release-SHA mismatch incident never executes recovery for the supervisor itself', async () => {
+  const fixture = await selfHealFixture('recovery-supervisor-release-sha-mismatch.json');
+  const { queue, journal } = await files([fixture.recovery_intent]);
+  let executed = false;
+
+  const result = await consumeRecoveryIntentQueue({
+    queuePath: queue,
+    journalPath: journal,
+    supervisorOwnerId: fixture.owner_id,
+    now: fixture.observed_at,
+    executeIntent: async () => { executed = true; throw new Error('must not reconcile supervisor'); },
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    state: 'skipped',
+    intent_id: fixture.recovery_intent.intent_id,
+    loop_id: fixture.owner_id,
+    attempt: 0,
+    reason: 'supervisor_self_recovery_excluded',
+  });
+  assert.equal(executed, false);
+  const outcome = (await journalRows(journal)).at(-1);
+  assert.equal(outcome.release_sha, fixture.release_sha);
+  assert.equal(outcome.command_exit_code, null);
+  assert.equal(outcome.next_action, 'none');
 });
 
 test('production CLI derives its owner from the registry and terminally drains one old self intent', async () => {

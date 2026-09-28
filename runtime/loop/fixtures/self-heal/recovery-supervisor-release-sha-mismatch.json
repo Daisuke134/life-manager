@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "fixture": "sanitized_recovery_outcome",
+  "owner_id": "life-manager-recovery-supervisor",
+  "occurrence_id": "life-manager-recovery-supervisor:18d82f0ef349c998-91380",
+  "release_sha": "7cbc861929cd75ef7a6ad08ad05b24ab35b100ff",
+  "observed_at": "2026-09-25T00:00:00.000Z",
+  "recovery_intent": {
+    "schema_version": 1,
+    "record_type": "recovery_intent",
+    "intent_id": "self-heal-5860-release-sha-mismatch",
+    "loop_id": "life-manager-recovery-supervisor",
+    "owner_id": "life-manager-recovery-supervisor",
+    "occurrence_id": "life-manager-recovery-supervisor:18d82f0ef349c998-91380",
+    "wake_id": "18d82f0ef349c998",
+    "run_id": "91380",
+    "release_sha": "7cbc861929cd75ef7a6ad08ad05b24ab35b100ff",
+    "action": "reconcile_owner",
+    "failure_layer": "entrypoint",
+    "reason": "bounded_owner_reconciliation",
+    "mutates_external_effect": false,
+    "evidence_refs": [
+      "lm-loop://life-manager-recovery-supervisor/18d82f0ef349c998-91380/summary.json"
+    ]
+  },
+  "observed_outcome": {
+    "result": "blocked",
+    "attempt": 1,
+    "outcome_reason": "release_sha_mismatch",
+    "next_action": "escalate_owner"
+  },
+  "expected": {
+    "state": "skipped",
+    "reason": "supervisor_self_recovery_excluded",
+    "execute_reconcile": false,
+    "preserves_release_binding": true
+  }
+}
