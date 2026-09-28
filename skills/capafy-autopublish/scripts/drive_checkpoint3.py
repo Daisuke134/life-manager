@@ -225,8 +225,9 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
 
 
 def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
-    _fill_version_update_if_required(page, update_info)
-
+    # Runs FIRST (2026-09-28 12:4xZ): a new v1.0.0 page shows neither the
+    # change-note textarea nor 審査に提出 until these fields and the DPA box are
+    # set, so the version-form wait below timed out before this ever ran.
     # A resumed draft's Agent ワークスペース tab can still be missing its
     # welcome-message/input-placeholder/test-case/AI-service-provider fields
     # and its required DPA-agreement checkbox even after CP2 ran (2026-09-28,
@@ -244,6 +245,8 @@ def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
             _raw_fill_workspace_conversation_fields(page, listing_path)
         except Exception as workspace_error:
             print(f"CP3 workspace-field fix: best-effort, did not complete ({workspace_error})")
+
+    _fill_version_update_if_required(page, update_info)
 
     deadline = time.monotonic() + CP3_HYDRATE_TIMEOUT_S
     while time.monotonic() < deadline:
