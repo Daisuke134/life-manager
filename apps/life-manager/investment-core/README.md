@@ -49,6 +49,15 @@ against the `$10,000/month` trading target, and the optional
 `treasury_surplus_target_gap_usd` after tax and cash reserves. Neither target
 authorizes a transfer, a capital increase, or a live venue action.
 
+`cfo_receipts.cfo_table_to_treasury_receipts(table, period)` is the read-only
+bridge from `skills/cfo/loop_pnl.py`. It maps only non-investment `USD`
+`revenue`, `refund`, and `cost` cells to `customer_revenue`,
+`customer_refund`, and `operating_cost`. The `investment` row remains owned by
+the canonical venue P&L spine; owner cash flow and model cost require their own
+receipts. `JPY`, `USDC`, and `USD_API_EQUIV` are reported as excluded rather
+than converted or treated as a provider bill. Unverified or incomplete cells
+remain partial, and the aggregate receipt retains the source receipt IDs.
+
 ## lm-lead boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.

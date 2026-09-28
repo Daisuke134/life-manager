@@ -7,7 +7,16 @@ from typing import Any, Iterable
 
 
 _MONEY = Decimal("0.01")
-_CATEGORIES = {"customer_revenue", "investment_net_pnl", "owner_cash_flow", "model_cost"}
+_CATEGORIES = {
+    "customer_revenue",
+    "customer_refund",
+    "operating_cost",
+    "investment_net_pnl",
+    "owner_cash_flow",
+    "model_cost",
+}
+_NONNEGATIVE_CATEGORIES = {"customer_revenue", "customer_refund", "operating_cost", "model_cost"}
+_DEDUCTIBLE_COST_CATEGORIES = {"operating_cost", "model_cost"}
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -30,9 +39,14 @@ def _empty(period: str, status: str, reason: str) -> dict[str, Any]:
     return {
         "period": period,
         "customer_revenue_usd": None,
+        "customer_refund_usd": None,
+        "net_customer_revenue_usd": None,
+        "operating_cost_usd": None,
         "investment_net_pnl_usd": None,
         "owner_cash_flow_usd": None,
         "model_cost_usd": None,
+        "operating_cost_deducted_usd": None,
+        "model_cost_deducted_usd": None,
         "tax_reserve_usd": None,
         "investable_surplus_usd": None,
         "investment_net_pnl_target_usd": "10000.00",
@@ -65,7 +79,7 @@ def treasury_snapshot(period: str, receipts: Iterable[dict[str, Any]], reserve_p
     totals = {category: Decimal("0") for category in _CATEGORIES}
     categories_seen: set[str] = set()
     source_ids: list[str] = []
-    deductible_model_cost = Decimal("0")
+    deductible_costs = {category: Decimal("0") for category in _DEDUCTIBLE_COST_CATEGORIES}
     partial_reason = None
     for row in rows:
         if not isinstance(row, dict):
@@ -86,18 +100,18 @@ def treasury_snapshot(period: str, receipts: Iterable[dict[str, Any]], reserve_p
         amount = _decimal(row.get("amount_usd"))
         if amount is None:
             return _empty(period, "blocked", "amount_invalid")
-        if category in {"customer_revenue", "model_cost"} and amount < 0:
+        if category in _NONNEGATIVE_CATEGORIES and amount < 0:
             return _empty(period, "blocked", "amount_invalid")
         categories_seen.add(category)
         totals[category] += amount
-        if category == "model_cost":
+        if category in _DEDUCTIBLE_COST_CATEGORIES:
             included = row.get("included_in_investment_net")
             if not isinstance(included, bool):
-                partial_reason = partial_reason or "model_cost_scope_unknown"
+                partial_reason = partial_reason or f"{category}_scope_unknown"
             elif not included:
-                deductible_model_cost += amount
+                deductible_costs[category] += amount
 
-    required = {"customer_revenue", "investment_net_pnl", "owner_cash_flow", "model_cost"}
+    required = _CATEGORIES
     if not required.issubset(categories_seen):
         partial_reason = partial_reason or "receipt_category_missing"
     if partial_reason:
@@ -105,18 +119,33 @@ def treasury_snapshot(period: str, receipts: Iterable[dict[str, Any]], reserve_p
         result["source_receipt_ids"] = source_ids
         return result
 
-    taxable_base = max(Decimal("0"), totals["customer_revenue"] + max(Decimal("0"), totals["investment_net_pnl"]) - deductible_model_cost)
+    net_customer_revenue = totals["customer_revenue"] - totals["customer_refund"]
+    deductible_operating_cost = deductible_costs["operating_cost"]
+    deductible_model_cost = deductible_costs["model_cost"]
+    taxable_base = max(
+        Decimal("0"),
+        net_customer_revenue + max(Decimal("0"), totals["investment_net_pnl"])
+        - deductible_operating_cost - deductible_model_cost,
+    )
     tax_reserve = taxable_base * tax_rate
-    investable = totals["customer_revenue"] + totals["investment_net_pnl"] - deductible_model_cost - tax_reserve - cash_reserve
+    investable = (
+        net_customer_revenue + totals["investment_net_pnl"]
+        - deductible_operating_cost - deductible_model_cost - tax_reserve - cash_reserve
+    )
     treasury_target = _decimal(reserve_policy.get("treasury_surplus_target_usd"))
     if treasury_target is not None and treasury_target < 0:
         return _empty(period, "blocked", "treasury_target_invalid")
     return {
         "period": period,
         "customer_revenue_usd": _money(totals["customer_revenue"]),
+        "customer_refund_usd": _money(totals["customer_refund"]),
+        "net_customer_revenue_usd": _money(net_customer_revenue),
+        "operating_cost_usd": _money(totals["operating_cost"]),
         "investment_net_pnl_usd": _money(totals["investment_net_pnl"]),
         "owner_cash_flow_usd": _money(totals["owner_cash_flow"]),
         "model_cost_usd": _money(totals["model_cost"]),
+        "operating_cost_deducted_usd": _money(deductible_operating_cost),
+        "model_cost_deducted_usd": _money(deductible_model_cost),
         "tax_reserve_usd": _money(tax_reserve),
         "investable_surplus_usd": _money(investable),
         "investment_net_pnl_target_usd": "10000.00",
@@ -128,6 +157,5 @@ def treasury_snapshot(period: str, receipts: Iterable[dict[str, Any]], reserve_p
         "evidence_status": "measured",
         "reason": "measured_receipts",
         "source_receipt_ids": source_ids,
-        "model_cost_deducted_usd": _money(deductible_model_cost),
         "taxable_base_usd": _money(taxable_base),
     }

@@ -20,8 +20,10 @@ class TreasuryTests(unittest.TestCase):
             "2026-09",
             [
                 row("rev-1", "customer_revenue", "100"),
+                row("refund-1", "customer_refund", "0"),
                 row("pnl-1", "investment_net_pnl", "10"),
                 row("flow-1", "owner_cash_flow", "1000"),
+                row("op-1", "operating_cost", "0", included_in_investment_net=False),
                 row("model-1", "model_cost", "5", included_in_investment_net=False),
             ],
             {"tax_rate": "0.20", "cash_reserve_usd": "50"},
@@ -65,8 +67,10 @@ class TreasuryTests(unittest.TestCase):
             "2026-09",
             [
                 row("rev-1", "customer_revenue", "1000"),
+                row("refund-1", "customer_refund", "0"),
                 row("pnl-1", "investment_net_pnl", "100"),
                 row("flow-1", "owner_cash_flow", "0"),
+                row("op-1", "operating_cost", "0", included_in_investment_net=False),
                 row("model-1", "model_cost", "50", included_in_investment_net=False),
             ],
             {"tax_rate": "0.25", "cash_reserve_usd": "200", "treasury_surplus_target_usd": "1000"},
@@ -84,8 +88,10 @@ class TreasuryTests(unittest.TestCase):
             "2026-09",
             [
                 row("rev-1", "customer_revenue", "10"),
+                row("refund-1", "customer_refund", "0"),
                 row("pnl-1", "investment_net_pnl", "-20"),
                 row("flow-1", "owner_cash_flow", "0"),
+                row("op-1", "operating_cost", "0", included_in_investment_net=False),
                 row("model-1", "model_cost", "5", included_in_investment_net=False),
             ],
             {"tax_rate": "0.25", "cash_reserve_usd": "0"},
@@ -93,6 +99,32 @@ class TreasuryTests(unittest.TestCase):
 
         self.assertEqual(result["evidence_status"], "measured")
         self.assertEqual(result["investable_surplus_usd"], "-16.25")
+
+    def test_refunds_and_operating_costs_reduce_surplus_without_touching_owner_flow(self):
+        result = treasury_snapshot(
+            "2026-09",
+            [
+                row("rev-1", "customer_revenue", "100"),
+                row("refund-1", "customer_refund", "10"),
+                row("pnl-1", "investment_net_pnl", "10"),
+                row("flow-1", "owner_cash_flow", "1000"),
+                row("op-1", "operating_cost", "20", included_in_investment_net=False),
+                row("model-1", "model_cost", "5", included_in_investment_net=False),
+            ],
+            {"tax_rate": "0.20", "cash_reserve_usd": "0"},
+        )
+
+        self.assertEqual(result["evidence_status"], "measured")
+        self.assertEqual(result["customer_revenue_usd"], "100.00")
+        self.assertEqual(result["customer_refund_usd"], "10.00")
+        self.assertEqual(result["net_customer_revenue_usd"], "90.00")
+        self.assertEqual(result["operating_cost_usd"], "20.00")
+        self.assertEqual(result["operating_cost_deducted_usd"], "20.00")
+        self.assertEqual(result["model_cost_deducted_usd"], "5.00")
+        self.assertEqual(result["taxable_base_usd"], "75.00")
+        self.assertEqual(result["tax_reserve_usd"], "15.00")
+        self.assertEqual(result["investable_surplus_usd"], "60.00")
+        self.assertEqual(result["owner_cash_flow_usd"], "1000.00")
 
 
 if __name__ == "__main__":
