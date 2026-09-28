@@ -514,6 +514,12 @@ def build_skill_analytics(
     balances["account_number_masked"] = payout_data.get("accountNumberMasked") if isinstance(payout_data, dict) else None
     balances["_status"] = "fresh" if payout_ok else "stale"
 
+    usage_summary = _usage_summary(payloads.get("usage_requests", {}),
+                                   payloads.get("agent_models", {}),
+                                   payloads.get("model_prices", {}))
+    cost_30d_by_agent = {agent["agent_id"]: agent.get("estimated_model_cost_usd")
+                        for agent in usage_summary["agents"]}
+
     inventory_rows = _inventory_rows(payloads.get("inventory", {}))
     per_skill_rows: list[dict] = []
     per_skill_rows_status = "fresh" if inventory_rows is not None else "stale"
@@ -543,6 +549,20 @@ def build_skill_analytics(
             stats = agent_stats.get(agent_id, {})
             settled_orders_30d, settled_revenue_30d = _stats_orders_revenue(stats.get("d30", {}))
             settled_orders_7d, settled_revenue_7d = _stats_orders_revenue(stats.get("d7", {}))
+            revenue_30d = _window_gross(sales_ranking_30d.get(agent_id), sales_30d_ok)
+            cost_30d = cost_30d_by_agent.get(agent_id)
+            net_revenue_30d = None
+            if revenue_30d is not None:
+                try:
+                    net_revenue_30d = _money(Decimal(revenue_30d) * Decimal("0.80"))
+                except InvalidOperation:
+                    net_revenue_30d = None
+            profit_30d = None
+            if net_revenue_30d is not None and cost_30d is not None:
+                try:
+                    profit_30d = _money(Decimal(net_revenue_30d) - Decimal(cost_30d))
+                except InvalidOperation:
+                    profit_30d = None
             per_skill_rows.append({
                 "agent_id": agent_id,
                 "name": row.get("name"),
@@ -555,7 +575,10 @@ def build_skill_analytics(
                 "since_launch_gross_usd": gross if gross is not None else "0.00",
                 "since_launch_creator_earnings_usd": earnings if earnings is not None else "0.00",
                 "stats_30d_orders": _paid_orders(unit_ranking_30d.get(agent_id), units_30d_ok),
-                "stats_30d_revenue_usd": _window_gross(sales_ranking_30d.get(agent_id), sales_30d_ok),
+                "stats_30d_revenue_usd": revenue_30d,
+                "cost_30d_usd": cost_30d,
+                "net_revenue_30d_usd": net_revenue_30d,
+                "profit_30d_usd": profit_30d,
                 "stats_7d_orders": _paid_orders(unit_ranking_7d.get(agent_id), units_7d_ok),
                 "stats_7d_revenue_usd": _window_gross(sales_ranking_7d.get(agent_id), sales_7d_ok),
                 "stats_30d_settled_orders": settled_orders_30d,
@@ -632,6 +655,10 @@ def build_skill_analytics(
         "GET /agent/agent/{agentId}/stats returns SETTLED orders/revenue only (post refund-window "
         "clearance), which lags and understates gross activity relative to the since-launch web-console figures.",
         "GET /agent/developer/payout-record returns at most the 5 most recent records only (no pagination).",
+        "cost_30d_usd is an estimate: observed token counts (input_uncached/cache_read/cache_write/output) "
+        "times the OpenRouter list price for the agent's model, not an actual invoice; null when the "
+        "model or its price is unknown. profit_30d_usd = net_revenue_30d_usd (stats_30d_revenue_usd x 0.80, "
+        "Capafy's 20% cut) minus cost_30d_usd, and is null if either side is unknown.",
     ]
     if per_skill_rows_status == "stale":
         data_gaps.append(
@@ -643,11 +670,26 @@ def build_skill_analytics(
     ) else "degraded"
 
     if per_skill_rows_status == "fresh":
+        def _profit_line(row: dict) -> str:
+            return (f"{row['name']} rev ${row['net_revenue_30d_usd']} "
+                    f"cost ${row['cost_30d_usd']} profit ${row['profit_30d_usd']}")
+
+        priced_rows = [row for row in per_skill_rows if row["stats_30d_revenue_usd"] is not None]
+        top_5_by_revenue = sorted(
+            priced_rows, key=lambda row: Decimal(row["stats_30d_revenue_usd"]), reverse=True,
+        )[:5]
+        negative_profit_rows = [
+            row for row in per_skill_rows
+            if row["profit_30d_usd"] is not None and Decimal(row["profit_30d_usd"]) < 0
+        ]
+        profit_lines = list({row["agent_id"]: row for row in top_5_by_revenue + negative_profit_rows}.values())
         telegram_summary = (
             f"Capafy: all-time gross ${all_time['gross_usd']}, net30d ${last_30d['gross_usd']}, "
             f"payout-able ${balances.get('balance_payout_usd')}. "
             f"{len(zero_sales)}/{len(per_skill_rows)} skills zero-sales."
         )
+        if profit_lines:
+            telegram_summary += " Per-skill 30d profit: " + "; ".join(_profit_line(row) for row in profit_lines) + "."
     else:
         telegram_summary = f"Capafy: all-time gross ${all_time['gross_usd']} (per-skill data stale this run)."
 
@@ -866,27 +908,29 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         }
         payloads[f"seller_ranking_{label}"] = _post("/app/sales/clickhouse/ranking", web_token, window)
         payloads[f"unit_ranking_{label}"] = _post("/app/unit-sales/clickhouse/ranking", web_token, window)
-    if seller_start_date is not None:
-        usage = _usage_requests(web_token, seller_range["startDate"], end)
-        payloads["usage_requests"] = usage
-        agent_ids = {str(row.get("agentId")) for row in usage.get("rows", []) if row.get("agentId")}
-        details = {aid: _data(_get(f"/agent/agents/{aid}", token)) for aid in agent_ids}
-        display_models = {aid: detail.get("model") if isinstance(detail, dict) else None
-                          for aid, detail in details.items()}
-        model_ids = {"Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
-                     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash"}
-        payloads["agent_models"] = {aid: model_ids.get(display) for aid, display in display_models.items()}
-        catalog = _openrouter_data("/models")
-        model_rows = catalog.get("data") if isinstance(catalog, dict) else None
-        payloads["model_prices"] = (
-            {row["id"]: row.get("pricing", {}) for row in model_rows if isinstance(row, dict) and row.get("id")}
-            if isinstance(model_rows, list) else {})
-        key = os.environ.get("CAPAFY_HOST_OPENROUTER_KEY", "")
-        key_result = _openrouter_data("/key", key) if key else {"_error": "key_unavailable"}
-        key_data = _data(key_result) if _ok(key_result) else None
-        payloads["openrouter_usage"] = (
-            {"data": {"usage_monthly": key_data.get("usage_monthly")}}
-            if isinstance(key_data, dict) else {"_error": "key_usage_unavailable"})
+    # Usage/cost is always fetched over the trailing 30 days (same window as stats_30d
+    # revenue) regardless of --money, independent of the sinceLaunch range used above.
+    usage_start = (observed.date() - dt.timedelta(days=29)).isoformat()
+    usage = _usage_requests(web_token, usage_start, end)
+    payloads["usage_requests"] = usage
+    agent_ids = {str(row.get("agentId")) for row in usage.get("rows", []) if row.get("agentId")}
+    details = {aid: _data(_get(f"/agent/agents/{aid}", token)) for aid in agent_ids}
+    display_models = {aid: detail.get("model") if isinstance(detail, dict) else None
+                      for aid, detail in details.items()}
+    model_ids = {"Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
+                 "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash"}
+    payloads["agent_models"] = {aid: model_ids.get(display) for aid, display in display_models.items()}
+    catalog = _openrouter_data("/models")
+    model_rows = catalog.get("data") if isinstance(catalog, dict) else None
+    payloads["model_prices"] = (
+        {row["id"]: row.get("pricing", {}) for row in model_rows if isinstance(row, dict) and row.get("id")}
+        if isinstance(model_rows, list) else {})
+    key = os.environ.get("CAPAFY_HOST_OPENROUTER_KEY", "")
+    key_result = _openrouter_data("/key", key) if key else {"_error": "key_unavailable"}
+    key_data = _data(key_result) if _ok(key_result) else None
+    payloads["openrouter_usage"] = (
+        {"data": {"usage_monthly": key_data.get("usage_monthly")}}
+        if isinstance(key_data, dict) else {"_error": "key_usage_unavailable"})
     return payloads
 
 

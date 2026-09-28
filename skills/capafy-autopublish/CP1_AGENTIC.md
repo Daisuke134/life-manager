@@ -84,9 +84,15 @@ showed).
    `Daily → price ph "0.07", cap ph "50"` · `Weekly → "0.5" / "200"` · `Monthly → "2" / "500"`.
    (Confirm the placeholders in `state` before trusting them — if the UI changed,
    just read each card's visible Period label and fill that card's two number inputs.)
-5. Each plan needs a trial choice (required). **"No Free Trial" is the safe, proven
-   default** (Enable Free Trial reveals extra required fields). Only set trials if the
-   target explicitly asks and the tab stays green after.
+5. Each plan needs a trial choice (required). Read the TARGET line printed by
+   `publish_prepare.sh` for that plan's `trial=` value:
+   - `trial=No Free Trial` → click **"No Free Trial"**.
+   - `trial=Free Trial <H>h / <N> requests` → click **"Enable Free Trial"**, which
+     reveals a duration field and a free-request-count field; fill them with the
+     printed `<H>` and `<N>` exactly, then re-check the 価格設定 tab is still green.
+     If the revealed fields don't match what you expect (wrong units, missing
+     field, still red after filling), do NOT block the submission on it — fall
+     back to **"No Free Trial"** for that plan and note why in your report.
 6. Below the plan cards there may be more required fields (test input, AI
    provider, third-party data sharing, DPA checkbox) depending on the exact
    card version Capafy renders for this Agent — **verified 2026-09-28: none of

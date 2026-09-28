@@ -251,6 +251,8 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
     monkeypatch.setattr(module, "_web_token", lambda: "web-token")
     monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
     monkeypatch.setattr(module, "_post", lambda path, _token, body: calls.append((path, body)) or {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {})
 
     module._live_payloads(Path("/tmp"), observed)
 
@@ -543,6 +545,54 @@ def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytes
     assert result["total"] == 2
     assert bodies[1]["cursorTime"] == 123
     assert bodies[1]["cursorRequestId"] == "a"
+
+
+def test_normal_mode_fetches_usage_over_the_trailing_30_days_not_since_launch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cost visibility must not require --money: usage is fetched every normal run too,
+    over the same fixed 30d window as stats_30d, independent of the sinceLaunch range."""
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    usage_calls = []
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests",
+                        lambda _web_token, start, end: usage_calls.append((start, end)) or {"rows": []})
+    monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {})
+
+    payloads = module._live_payloads(Path("/tmp"), observed)  # seller_start_date defaults to None
+
+    assert usage_calls == [("2026-08-19", "2026-09-17")]
+    assert payloads["usage_requests"] == {"rows": []}
+
+
+def test_per_skill_profit_from_net_revenue_minus_estimated_cost() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["usage_requests"] = {"rows": [{
+        "requestId": "r1", "agentId": "111", "agentTitle": "Hook Lab",
+        "inputUncached": 1_000_000, "cacheRead": 0, "cacheWrite": 0, "output": 0,
+    }]}
+    payloads["agent_models"] = {"111": "anthropic/claude-sonnet-4.6"}
+    payloads["model_prices"] = {"anthropic/claude-sonnet-4.6": {"prompt": "0.00002", "completion": "0.000015"}}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z",
+    )
+
+    rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
+    # stats_30d_revenue_usd is "24.89"; net = 24.89 * 0.80 = 19.912 -> "19.91"; cost = "20.00".
+    assert rows["111"]["cost_30d_usd"] == "20.00"
+    assert rows["111"]["net_revenue_30d_usd"] == "19.91"
+    assert rows["111"]["profit_30d_usd"] == "-0.09"
+    # 222 has no usage rows: cost/net/profit stay unknown/null, never fabricated.
+    assert rows["222"]["cost_30d_usd"] is None
+    assert rows["222"]["profit_30d_usd"] is None
+
+    assert "Hook Lab" in analytics["telegram_summary"]
+    assert "profit $-0.09" in analytics["telegram_summary"]
+    assert any("cost_30d_usd is an estimate" in gap for gap in analytics["data_gaps"])
 
 
 def test_token_reads_the_publisher_runtime_config(tmp_path, monkeypatch):

@@ -5,6 +5,8 @@ R2 recurring output: Each cycle produces three fresh channel-ready replies, a pr
 day-8 answer       : New prospects, objections, deal stages, and approved proof make prior replies stale.
 demand evidence    : Existing Capafy orders prove marketplace demand in aggregate; this Agent's retained usage and settled revenue remain measured outcomes, not assumptions.
 
+Demand rank: 3
+
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
