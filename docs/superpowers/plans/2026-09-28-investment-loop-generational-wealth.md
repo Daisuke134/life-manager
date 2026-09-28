@@ -125,7 +125,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 2: Run the focused test** with `cd apps/life-manager/investment-core && python3 -m unittest test_portfolio_performance`; the expected missing-adapter `ModuleNotFoundError` was observed.
 - [x] **Step 3: Implement the pure schema/aggregate boundary** without provider submit/signing imports; preserve unknown fields as blocked evidence, never as zero.
 - [x] **Step 4: Run focused tests and existing `skills/alpaca-investment/test_performance.py`**; new tests pass `6/6`, existing performance tests pass `7/7`, and the complete investment suite passes `139/139`.
-- [ ] **Step 5: Commit** `feat(investment): add canonical fee-model-cost net pnl spine`.
+- [x] **Step 5: Commit** `feat(investment): add canonical fee-model-cost net pnl spine` (`fa710b6310`); focused task-done verification records `6/6` passing.
 
 ### Task 2: Hyperliquid funded canary and verified carry evidence
 
@@ -235,8 +235,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
 2. Get lm-lead's registry/runtime readback for Hyperliquid.
-3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified; commit it before starting Task 2.
-4. Run the original Hyperliquid canary only after funding and operational readback.
+3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified (`fa710b6310`); its source contract is ready for venue adapters.
+4. Obtain Hyperliquid owner/runtime readback before any funding or canary.
 5. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 6. Implement the Solana plan only through read-only scout and paper before the `$2` canary.
 7. Implement the allocator and treasury rollups.
