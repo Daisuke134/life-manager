@@ -1,0 +1,1 @@
+{"loops":{"life-manager-recovery-supervisor":{"entrypoint":"runtime/loop/recovery-supervisor-cli.mjs","provider_route":"deterministic"}}}

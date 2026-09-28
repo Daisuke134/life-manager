@@ -11,6 +11,9 @@ import { consumeRecoveryIntentQueue } from '../recovery-supervisor.mjs';
 const SHA = 'a'.repeat(40);
 const execFileAsync = promisify(execFile);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const SELF_RELEASE_MISMATCH_FIXTURE = path.join(
+  HERE, "..", "fixtures", "self-heal", "recovery-supervisor-release-sha-mismatch.json",
+);
 
 function intent(id, loopId = 'example-loop') {
   return {
@@ -239,7 +242,8 @@ test('terminally skips its own intent without execution and then consumes one si
 });
 
 test('production CLI derives its owner from the registry and terminally drains one old self intent', async () => {
-  const { queue, journal } = await files([intent('old-self', 'life-manager-recovery-supervisor')]);
+  const retainedFailure = JSON.parse(await readFile(SELF_RELEASE_MISMATCH_FIXTURE, 'utf8'));
+  const { queue, journal } = await files([retainedFailure]);
   const registry = path.join(path.dirname(queue), 'registry.json');
   await writeFile(registry, `${JSON.stringify({ loops: {
     'life-manager-recovery-supervisor': {
@@ -259,7 +263,7 @@ test('production CLI derives its owner from the registry and terminally drains o
   assert.deepEqual(JSON.parse(stdout), {
     ok: true,
     state: 'skipped',
-    intent_id: 'old-self',
+    intent_id: retainedFailure.intent_id,
     loop_id: 'life-manager-recovery-supervisor',
     attempt: 0,
     reason: 'supervisor_self_recovery_excluded',
@@ -269,4 +273,6 @@ test('production CLI derives its owner from the registry and terminally drains o
   );
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0].state, 'skipped');
+  assert.equal(outcomes[0].release_sha, retainedFailure.release_sha);
+  assert.equal(outcomes[0].reason, 'supervisor_self_recovery_excluded');
 });

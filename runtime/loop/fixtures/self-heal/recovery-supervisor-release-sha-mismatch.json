@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "record_type": "recovery_intent",
+  "intent_id": "life-manager-recovery-supervisor:18d82f75c40dccd0-28993",
+  "loop_id": "life-manager-recovery-supervisor",
+  "owner_id": "life-manager-recovery-supervisor",
+  "occurrence_id": "life-manager-recovery-supervisor:18d82f75c40dccd0-28993",
+  "release_sha": "7cbc861929cd75ef7a6ad08ad05b24ab35b100ff",
+  "action": "reconcile_owner",
+  "failure_layer": "entrypoint",
+  "reason": "bounded_owner_reconciliation",
+  "mutates_external_effect": false,
+  "evidence_refs": [
+    "lm-loop://life-manager-recovery-supervisor/18d82f75c40dccd0-28993/summary.json"
+  ]
+}
