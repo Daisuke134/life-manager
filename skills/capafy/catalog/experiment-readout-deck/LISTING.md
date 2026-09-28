@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: experiment readout, decision deck, product analysis
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: experiment readout, decision deck, product analysis
 
 The local offline selector cache records the official seller winner as `Slide Maker — Any Content Into a Styled Deck` with a $9.99 weekly subscription. This candidate follows that high-value deck format for a distinct job: making buyer-supplied experiment evidence and limits legible before a product, marketing, or operations decision.
 

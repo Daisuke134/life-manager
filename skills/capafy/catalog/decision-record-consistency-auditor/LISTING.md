@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: decision records, architecture decisions, project governance
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: decision records, architecture decisions, project governance
 
 R1 recurring input : Teams revise decisions through meeting notes, ADRs, project briefs, and operating documents.
 R2 recurring output: Each review produces a new traceable conflict and ambiguity report for the supplied records.

@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: vendor evaluation, procurement, scorecard, decision support
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: vendor evaluation, procurement, scorecard, decision support
 
 Catalog check: this is a buyer-side comparison of pasted vendor proposals and criteria. The current catalog has an RFP response matrix for organizing a seller's own response, but no vendor-selection evidence scorecard.
 

@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: security exception, risk review, decision deck, governance
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: security exception, risk review, decision deck, governance
 
 R1 recurring input : Security-exception requests vary by affected scope, control text, risk evidence, measures, owners, and expiry.
 R2 recurring output: Each supplied request produces a new source-linked decision deck with its own open questions and review checkpoints.

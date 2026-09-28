@@ -16,8 +16,13 @@ because a human-like agent verifies each step by looking.
 ## The tool (run with the resolved browser Python)
 ```
 SHOT=<scratchpad>/cp1.png
+CP1_EXPECTED_MODEL="<the exact model in CONFIG_PATH>" \
 CP1_SHOT=$SHOT scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
 ```
+★ Always export `CP1_EXPECTED_MODEL` (the exact `model` string from `<CONFIG_PATH>`,
+e.g. "DeepSeek V4.1 Flash") for every command, not just the ones that touch the
+model dropdown — `cp1_agent.py` reads it once at process start and bakes it into
+every `state`/`shot` readout as `expectedModel`/`modelDropdownVisible`/`modelSelected`.
 `cp1_python.sh` selects a locally installed Python with both `playwright` and
 `websocket` (normally `/opt/homebrew/bin/python3`) and fails clearly if none is
 available. Override it only when necessary with `CP1_PYTHON=/path/to/python`.
@@ -28,9 +33,35 @@ useless) · `into "<text>"` · `toast`. After each call, **Read the screenshot**
 the `fields`/`buttons`/`markers` coords (viewport-relative, map 1:1 to `click`).
 
 ## Success signal (the ONLY thing that means done)
-- toast **「カードを保存しました」** (`toastOK:true`) or url→`cardDone:true`, AND
-- server `publish-remote-status … latest_version.is_confirmed_skills == true`.
+- toast **「カードを保存しました」** (`toastOK:true`) or url→`cardDone:true`,
+- server `publish-remote-status … latest_version.is_confirmed_skills == true`, AND
+- `modelSelected == true` in the last `state`/`shot` readout (Primary Model dropdown
+  shows the exact `CP1_EXPECTED_MODEL` text) — ★ NOT server-verifiable until the
+  next step, so this DOM check is your only signal before you click save. ★
 A green price tab alone is NOT done — you must still 提出を確認 and confirm the save.
+
+## ★★ FAIL CLOSED: Primary Model must be selected before every save ★★
+Agent 4243672453 saved once with the Primary Model dropdown never touched — the
+card looked done (toast, green tabs) but the official Agent detail's `model`
+field came back `null`, and `publish_finish.sh`'s `verify_cp1_model.py` gate
+correctly refused to continue (`CP1_MODEL=MISMATCH`). Do not repeat this:
+1. Before clicking **下書きを保存** or **提出を確認**, run `state` and read
+   `modelDropdownVisible` and `modelSelected`.
+   - `modelDropdownVisible: false` → the dropdown hasn't rendered yet (wrong tab,
+     not scrolled into view, or the UI moved it). **Do not save.** Scroll/click
+     into 価格設定 and look again — never assume it's fine because the price
+     tab is green.
+   - `modelDropdownVisible: true, modelSelected: false` → click the dropdown
+     (its coords are in `markers['Primary Model']` or `markers['モデル']`),
+     read the shot for the option list, and select the option whose text
+     equals `CP1_EXPECTED_MODEL` exactly. Re-run `state` and confirm
+     `modelSelected: true` before proceeding.
+2. Immediately after the save succeeds (toast/`cardDone`), run
+   `verify_cp1_model.py --agent-id <ID> --version-id <AGENT_VERSION_ID> --model
+   "<CP1_EXPECTED_MODEL>"` yourself (same script `publish_finish.sh` uses) and
+   read stderr/exit code. `CP1_MODEL=VERIFIED` → CP1 is genuinely done. Anything
+   else (`MISMATCH`/`UNKNOWN`) → CP1 is **NOT** done; do not hand off to
+   `publish_finish.sh` — reopen the edit URL, fix the dropdown, save again.
 
 ## The card has THREE tabs (top): verify each is green ✓
 | tab | usually | what to do |

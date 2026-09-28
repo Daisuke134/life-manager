@@ -181,6 +181,34 @@ def test_state_dump_and_toast_redact_query_and_fragment(url, capsys):
     assert "?page=edit" in output or "?page=review" in output
 
 
+def test_build_state_js_embeds_expected_model_as_safe_json_literal(monkeypatch):
+    monkeypatch.setenv("CP1_EXPECTED_MODEL", 'DeepSeek "V4.1" Flash')
+    js = cp1._build_state_js()
+    assert 'const EXPECTED_MODEL = "DeepSeek \\"V4.1\\" Flash";' in js
+    # Injection must stay inside the JSON string literal, never break out of it.
+    assert 'Flash";alert' not in js
+
+
+def test_build_state_js_defaults_to_null_when_env_unset(monkeypatch):
+    monkeypatch.delenv("CP1_EXPECTED_MODEL", raising=False)
+    js = cp1._build_state_js()
+    assert "const EXPECTED_MODEL = null;" in js
+
+
+def test_build_state_js_blank_env_also_defaults_to_null(monkeypatch):
+    monkeypatch.setenv("CP1_EXPECTED_MODEL", "   ")
+    js = cp1._build_state_js()
+    assert "const EXPECTED_MODEL = null;" in js
+
+
+def test_module_level_state_js_is_the_built_template():
+    # STATE_JS is what dump()/_raw_dump() actually evaluate; it must be the
+    # rendered template (placeholder substituted), not the raw template string.
+    assert "__EXPECTED_MODEL_JSON__" not in cp1.STATE_JS
+    assert "modelSelected" in cp1.STATE_JS
+    assert "modelDropdownVisible" in cp1.STATE_JS
+
+
 def test_state_dump_and_toast_redact_short_link_path(capsys):
     short_url = "https://api.capafy.ai/E1234567890123456789"
     state = {

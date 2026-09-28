@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: incident update, status communication, operations
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: incident update, status communication, operations
 
 ## Offline selection notes
 
