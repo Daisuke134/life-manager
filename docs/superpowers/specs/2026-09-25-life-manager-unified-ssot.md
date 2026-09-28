@@ -637,6 +637,8 @@ TODO（何を・どう直すか）
 
 **最新natural wake（2026-09-29）**: occurrence `alpaca-investment-live:18d9948d01173300-25286`はloaded release `110561505844ab79fc524273ae86250cda697d50`で`host_admission_deferred:resource_capacity_busy`・exit `75`・`effect_status=unknown`・provider receiptなし・`retry_after_eligibility`。effect前deferなのでtrade/P&L/round-trip sampleではない。shared contract gateはCapafy mismatchのままであり、投資laneはCapafyやhost DBを直接変更しない。
 
+**投資candidate最新同期（2026-09-29）**: `origin/main=20753ada4c`のYouTube marketing修正をmerge `84400303e7`で取り込み、投資core・ETF policy・cross-venue・registryを保持した。candidateはpush済みだが、`./bin/lm-loop-contract`はCapafy `loops[12]` mismatchでRED、loaded releaseは`110561...`の`borrow/support`でETF/cross-venue未搭載。gate greenまでinvestment release handoffは行わない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
