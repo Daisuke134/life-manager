@@ -658,3 +658,5 @@ TODO（何を・どう直すか）
 **owner表記の正規化（2026-09-29）**: 投資core READMEに残っていた未定義の`lm-lead`表記を削除し、argv/env・cadence・release・provider acknowledgementのruntime ownerをLife Managerと明記した。これは投資lane内の文書修正であり、runtime state・admission・provider effectは変更していない。
 
 **最新main同期後の投資検証（2026-09-29）**: `origin/main=b79275cfed`をcandidate merge `41bc8be6d3`で同期しpush済み。candidate doctorはPASS（registry `170`、missing/unmanagedなし）、Alpaca `200/200`、investment-core `101/101`、cross-venue指定テスト`27/27`。shared contract gateは同じrecovery-class mismatchでREDのまま。provider receipt、注文、送金、P&Lは新規発生していない。
+
+**shared gate handoff（2026-09-29）**: team `lm` の登録ownerへ、candidate `528108c4c4`、最新main `b79275cfed`、PASS証拠、`recovery_class_mismatch`の完全な差分、green後の次順序（candidate sync → immutable release → natural paper receipt）を送信した。投資laneは共有gateのコードを編集せず、資金・注文も要求しない。

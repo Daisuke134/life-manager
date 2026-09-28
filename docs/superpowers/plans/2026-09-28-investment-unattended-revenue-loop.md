@@ -261,3 +261,5 @@ This plan is complete only when Task 1–10 have their stated evidence. In parti
 **Owner wording correction（2026-09-29）**: the investment-core README now names Life Manager runtime—not an undefined agent label—as the owner of argv/env, cadence, release, and provider acknowledgement. No runtime or provider state changed.
 
 **Latest-main verification（2026-09-29）**: candidate merge `41bc8be6d3` includes `origin/main=b79275cfed`; doctor, Alpaca `200/200`, investment-core `101/101`, and cross-venue `27/27` pass. The repository-wide contract gate remains RED on the existing recovery-class mismatch, so immutable promotion and natural receipt remain open items. The worktree is clean after removing the test fixture.
+
+**Shared-gate handoff（2026-09-29）**: sent the exact promotion-gate failure and investment candidate evidence through the registered `lm` agent channel to the shared-gate owner. This lane remains responsible for the investment candidate and will continue with immutable release handoff as soon as the gate is GREEN; it does not modify the gate owner’s code or request capital/order effects.
