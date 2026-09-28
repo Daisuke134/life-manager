@@ -45,7 +45,7 @@ def test_effected_appends_ledger_and_closes(tmp_path):
         settings_path=tmp_path / "unused-settings.json",
         ledger_path=ledger_path,
         fenced_row_fn=_fenced_row_fn(),
-        read_media_fn=lambda handle, settings_path: media_readback,
+        read_media_fn=lambda handle, settings_path, **_: media_readback,
         resolve_fn=fake_resolve,
         now=QUEUED_AT + dt.timedelta(minutes=25),
         resolve=True,
@@ -69,7 +69,7 @@ def test_effected_appends_ledger_and_closes(tmp_path):
         settings_path=tmp_path / "unused-settings.json",
         ledger_path=ledger_path,
         fenced_row_fn=_fenced_row_fn(),
-        read_media_fn=lambda handle, settings_path: media_readback,
+        read_media_fn=lambda handle, settings_path, **_: media_readback,
         resolve_fn=fake_resolve,
         now=QUEUED_AT + dt.timedelta(minutes=30),
         resolve=True,
@@ -98,7 +98,7 @@ def test_no_effect_complete_listing_closes(tmp_path):
         settings_path=tmp_path / "unused-settings.json",
         ledger_path=tmp_path / "ig-ledger.jsonl",
         fenced_row_fn=_fenced_row_fn(),
-        read_media_fn=lambda handle, settings_path: media_readback,
+        read_media_fn=lambda handle, settings_path, **_: media_readback,
         resolve_fn=fake_resolve,
         now=QUEUED_AT + dt.timedelta(hours=3),
         resolve=True,
@@ -126,7 +126,7 @@ def test_incomplete_listing_stays_fenced(tmp_path):
         settings_path=tmp_path / "unused-settings.json",
         ledger_path=tmp_path / "ig-ledger.jsonl",
         fenced_row_fn=_fenced_row_fn(),
-        read_media_fn=lambda handle, settings_path: media_readback,
+        read_media_fn=lambda handle, settings_path, **_: media_readback,
         resolve_fn=fake_resolve,
         now=QUEUED_AT + dt.timedelta(hours=3),
         resolve=True,
@@ -154,7 +154,7 @@ def test_too_recent_stays_fenced(tmp_path):
         settings_path=tmp_path / "unused-settings.json",
         ledger_path=tmp_path / "ig-ledger.jsonl",
         fenced_row_fn=_fenced_row_fn(),
-        read_media_fn=lambda handle, settings_path: media_readback,
+        read_media_fn=lambda handle, settings_path, **_: media_readback,
         resolve_fn=fake_resolve,
         now=QUEUED_AT + dt.timedelta(minutes=30),
         resolve=True,
@@ -197,6 +197,77 @@ def test_read_media_no_saved_session(tmp_path):
         "capafy.skills8m4q2z", tmp_path / "missing.json",
     )
     assert result == {"ok": False, "reason": "no_saved_session"}
+
+
+def test_read_media_self_heals_dead_session_via_login_resilient(tmp_path):
+    """2026-09-29: capafy-ig-marketing-daily's fence stayed held on
+    readback_failed:LoginRequired forever even though poster.py and
+    ig_metrics.py already self-heal a dead saved session via login_resilient's
+    tier1/tier2/tier3 policy (tier2 rebuilds the instagrapi session from the
+    dedicated browser's live sessionid). This adapter never called it. Root
+    cause fix: retry once through the SAME login_resilient before giving up."""
+    settings_path = tmp_path / "instagrapi-capafy.skills8m4q2z.json"
+    settings_path.write_text("{}", encoding="utf-8")
+
+    class FakeAccount:
+        username = "capafy.skills8m4q2z"
+        pk = "123"
+
+    class FakeMedia:
+        code = "Da7HEALED"
+        taken_at = QUEUED_AT + dt.timedelta(minutes=10)
+
+    class FakeClient:
+        delay_range = None
+
+        def __init__(self):
+            self.healed = False
+
+        def load_settings(self, path):
+            raise Exception("login_required")
+
+        def account_info(self):
+            if not self.healed:
+                raise AssertionError("login_resilient must run before a retry")
+            return FakeAccount()
+
+        def user_medias(self, user_id, amount=0):
+            return [FakeMedia()]
+
+    login_resilient_calls = []
+
+    class FakePoster:
+        @staticmethod
+        def login_resilient(client, handle, port, res, settings_path=None, accounts_path=None):
+            login_resilient_calls.append((handle, port))
+            client.healed = True
+            return True
+
+    result = reconciler.read_media(
+        "capafy.skills8m4q2z", settings_path, client_factory=FakeClient,
+        port=49444, poster_module=FakePoster,
+    )
+    assert login_resilient_calls == [("capafy.skills8m4q2z", 49444)]
+    assert result["ok"] is True
+    assert result["media"] == [{"code": "Da7HEALED", "taken_at": FakeMedia.taken_at}]
+
+
+def test_read_media_without_port_stays_held_on_dead_session(tmp_path):
+    """No CDP port available (e.g. CAPAFY_IG_PORT unset) -- must not crash, must
+    stay a plain readback failure instead of attempting a self-heal."""
+    settings_path = tmp_path / "instagrapi-capafy.skills8m4q2z.json"
+    settings_path.write_text("{}", encoding="utf-8")
+
+    class FakeClient:
+        delay_range = None
+
+        def load_settings(self, path):
+            raise Exception("login_required")
+
+    result = reconciler.read_media(
+        "capafy.skills8m4q2z", settings_path, client_factory=FakeClient, port=None,
+    )
+    assert result == {"ok": False, "reason": "readback_failed:Exception"}
 
 
 def test_active_ig_handle_unresolvable_stays_fenced(tmp_path):
