@@ -461,6 +461,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 ## Current TODO Cursor
 
+0. **Scope correction (`2026-09-28T12:25:31Z`)**: Dais directs this lane to investment execution/evidence and Telegram notification only. Capafy, PromptBase, and other cash-engine work are parked as historical context and are not active work for this lane. The active cursor is the lm-lead investment runtime receipt below.
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
 2. Hyperliquid read-only preflight is complete; obtain `lm-lead` owner/runtime receipt before any funding or canary.
 3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified (`fa710b6310`); its source contract is ready for venue adapters.
@@ -484,14 +485,14 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 18. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 19. Latest focused verification passes: cross-venue `35/35`, Capafy reconcile (actual-cost plus traffic adapter) `37/37`, and PromptBase publisher `15/15`. The broader Capafy package is `223` passed / `5` failed; the five failures are pre-existing launchd/self-heal test boundaries (`LIFE_MANAGER_RELEASE_ROOT invalid` and a missing cutover marker anchor) outside this investment-lane change, so the package is not reported green.
 20. Continuation audit after the latest main merge is recorded: no `lm-lead` owner/runtime admission receipt has arrived yet. Keep the exact next step as owner receipt → 30 official daily receipts → authorized USD ledger → promotion review; do not skip to Binance funding or a live canary.
-21. Cash-engine cursor: reproduce the measured positive Capafy formats, repair or reprice the Hook Lab loss, and close Slide Maker's missing actual-cost attribution. Keep the resulting contribution outside investment P&L until payout and Treasury joins are verified.
+21. **Parked outside this lane**: Capafy cash-engine work (Hook Lab, Slide Maker, payout, and acquisition) is retained as historical context only; do not resume it from the investment loop.
 22. Cost-truth gate is implemented: a zero estimated model-cost share or missing fresh actual allocation cannot create product-level verified profit, and summary output cannot fallback to an estimate while actual billing is fresh. Re-run the natural producer after the readback completes and keep any remaining missing attribution visible as unknown.
 23. PromptBase cursor: verified demos now cover three Slide Maker-family candidates plus the measured-positive Marketing Strategist and YouTube Script Writer catalogs; browser-free builder/tests pass `15/15`. The live dry-run proves the remaining public step is human CAPTCHA verification; do not infer examples, retry the challenge autonomously, or submit without that boundary being explicitly satisfied.
 24. Owner coordination cursor: await the `lm-lead` reply containing the admission receipt or exact blocker; the latest poll is still empty. Do not replace this dependency with a local registry edit, a fabricated daily receipt, or owner capital.
 25. Latest Capafy money-only readback is fresh but estimate-based; keep the dated actual-cost proxy `$11.43` separate and do not promote the `$3.86` estimate or `$52.30` creator earnings into investable surplus.
 26. Latest PromptBase readback is a no-op read-only result (`checked=0`, `updates=[]`) because no submitted listing is tracked locally; keep PromptBase revenue at `$0` and treat the CAPTCHA human gate as the only remaining public-action boundary.
 27. Fresh Capafy official readback confirms Hook Lab `v1.0.3` is still `under_review` (`platform_status=1`, `audit_status=2`, `can_report_published=false`); after approval, obtain a natural cost-complete receipt before judging whether the cash-engine repair worked.
-28. Capafy trafficSources API contract and a fail-closed read-only adapter are ready (`37/37` focused tests); readback is still unauthenticated (`401 token_invalid_or_expired`) and the shared browser is occupied. Refresh the existing Capafy auth through the owner/browser path, run the adapter, observe the provider response shape, then normalize traffic-by-source metrics before changing acquisition or claiming a demand gap.
+28. **Parked outside this lane**: Capafy trafficSources work is not an investment-loop task. Do not refresh Capafy auth, run acquisition, or normalize traffic from this cursor.
 
 ### Current S0 scoreboard
 
