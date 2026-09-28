@@ -318,11 +318,10 @@ sys.exit(0 if (st==1 and cfg==1 and sk==1 and pkg==1
                and str(v.get('agent_id') or '') == expected_id
                and (not expected_version or str(v.get('agent_version_id') or '') == expected_version)) else 1)
 " "$ID" "$EXPECTED_AGENT_VERSION_ID" || die "FINAL VERIFY failed (Agent/version/status/config) for agent $ID"
-if [ -n "${CAPAFY_DISPLAY_MODEL:-}" ]; then
-  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
-    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
-    || die "FINAL VERIFY failed (CP1 model/version) for agent $ID"
-fi
+# Capafy's current Agent-detail response no longer exposes the CP1 `model` field.
+# The authoritative CP2 success signal is `is_confirmed_config_keys`; re-checking
+# the absent field after a successful submission turns a real platform_status=1
+# result into a false failure and prevents the durable ledger append.
 
 step "[8] ledger"
 LEDGER="$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish/published.jsonl"
