@@ -71,6 +71,7 @@ def render_daily_pnl(aggregate: Mapping[str, Any], allocation: Mapping[str, Any]
         f"rolling period end: {aggregate.get('rolling_period_end') or '不明'}",
         f"rolling 30d net P&L: {_money(aggregate.get('rolling_30d_net_pnl_usd'))}",
         f"target gap ($10k/month): {_money(aggregate.get('target_gap_usd'))}",
+        f"input manifest: {aggregate.get('input_manifest_status') or 'unknown'}",
         "",
         "venues:",
     ]
@@ -242,10 +243,15 @@ def wake(
     available = readers.get("__available_capital_usd__", aggregate.get("free_cash_usd", "0"))
     candidates = build_candidates(known, aggregate, dict(caps))
     allocation = rank(candidates, available, dict(caps))
+    manifest_status = readers.get("__input_manifest_status__")
+    if isinstance(manifest_status, str) and manifest_status:
+        aggregate["input_manifest_status"] = manifest_status
     message = render_daily_pnl(aggregate, allocation, today)
     database = state / "telegram-outbox.sqlite3"
     event_key = f"cross-venue-daily:{today}"
     receipt = _base_receipt(today, aggregate, allocation, unknown, event_key)
+    if isinstance(manifest_status, str) and manifest_status:
+        receipt["input_manifest_status"] = manifest_status
     try:
         inserted = telegram_outbox.enqueue(database, event_key, message, now_text)
     except Exception as error:

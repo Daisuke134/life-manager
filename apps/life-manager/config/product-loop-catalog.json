@@ -77,7 +77,7 @@
     },
     {
       "id": "investment",
-      "job_ids": ["alpaca-investment-live"],
+      "job_ids": ["alpaca-investment-live", "investment-cross-venue-report"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",
       "recovery_classes": ["external_effect_owner"],

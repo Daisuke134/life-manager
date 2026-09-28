@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 
-from cross_venue_run import build_readers, main, parse_snapshot_spec, run_once
+from cross_venue_run import build_readers, main, parse_snapshot_spec, read_manifest, run_once
 
 
 NOW = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -32,6 +32,30 @@ def snapshot(venue="alpaca"):
 
 
 class CrossVenueRunTests(unittest.TestCase):
+    def test_missing_manifest_is_explicitly_unknown_and_has_no_capital(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = read_manifest(Path(directory) / "inputs.json")
+
+        self.assertEqual(manifest["status"], "missing")
+        self.assertEqual(manifest["snapshot_specs"], [])
+        self.assertEqual(manifest["available_capital_usd"], "0")
+
+    def test_manifest_loads_snapshot_and_owner_flow_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "inputs.json"
+            path.write_text(json.dumps({
+                "snapshot_specs": ["alpaca=/tmp/alpaca.json"],
+                "owner_cash_flow_path": "/tmp/owner-flow.json",
+                "available_capital_usd": "100",
+            }), encoding="utf-8")
+
+            manifest = read_manifest(path)
+
+        self.assertEqual(manifest["status"], "configured")
+        self.assertEqual(manifest["snapshot_specs"], ["alpaca=/tmp/alpaca.json"])
+        self.assertEqual(manifest["owner_cash_flow_path"], "/tmp/owner-flow.json")
+        self.assertEqual(manifest["available_capital_usd"], "100")
+
     def test_parse_snapshot_spec_rejects_missing_venue_or_path(self):
         with self.assertRaisesRegex(ValueError, "snapshot_spec_invalid"):
             parse_snapshot_spec("/tmp/snapshot.json")
@@ -107,7 +131,9 @@ class CrossVenueRunTests(unittest.TestCase):
 
             self.assertEqual(status, 0)
             self.assertEqual(len(calls), 1)
-            self.assertEqual(json.loads(output.getvalue())["provider_message_id"], "m-2")
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["provider_message_id"], "m-2")
+            self.assertEqual(result["input_manifest_status"], "missing")
 
 
 if __name__ == "__main__":

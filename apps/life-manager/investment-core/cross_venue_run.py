@@ -22,6 +22,7 @@ from portfolio_receipts import VenueSnapshot
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/life-manager/investment-cross-venue")
+DEFAULT_MANIFEST_NAME = "inputs.json"
 STANDARD_VENUES = ("alpaca", "hyperliquid", "solana")
 _VENUE_RE = re.compile(r"[A-Za-z0-9_-]+\Z")
 
@@ -117,6 +118,50 @@ def _valid_available_capital(value: Any) -> str:
     return str(parsed)
 
 
+def read_manifest(path: str | Path | None) -> dict[str, Any]:
+    """Read the owner-provided input manifest without treating absence as zero."""
+    if path is None:
+        return {
+            "status": "missing",
+            "snapshot_specs": [],
+            "owner_cash_flow_path": None,
+            "available_capital_usd": "0",
+        }
+    manifest_path = Path(path).expanduser()
+    if not manifest_path.is_file():
+        return {
+            "status": "missing",
+            "snapshot_specs": [],
+            "owner_cash_flow_path": None,
+            "available_capital_usd": "0",
+        }
+    try:
+        value = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "status": "invalid",
+            "snapshot_specs": [],
+            "owner_cash_flow_path": None,
+            "available_capital_usd": "0",
+        }
+    if not isinstance(value, Mapping):
+        status = "invalid"
+        return {"status": status, "snapshot_specs": [],
+                "owner_cash_flow_path": None, "available_capital_usd": "0"}
+    specs = value.get("snapshot_specs", [])
+    owner_path = value.get("owner_cash_flow_path")
+    if (not isinstance(specs, list) or any(not isinstance(item, str) or not item for item in specs)
+            or (owner_path is not None and not isinstance(owner_path, str))):
+        return {"status": "invalid", "snapshot_specs": [],
+                "owner_cash_flow_path": None, "available_capital_usd": "0"}
+    return {
+        "status": "configured",
+        "snapshot_specs": specs,
+        "owner_cash_flow_path": owner_path,
+        "available_capital_usd": value.get("available_capital_usd", "0"),
+    }
+
+
 def run_once(
     *,
     snapshot_specs: Iterable[str],
@@ -125,12 +170,14 @@ def run_once(
     owner_cash_flow_path: str | Path | None,
     available_capital_usd: Any,
     send: Callable[[str], Any],
+    input_manifest_status: str = "configured",
 ) -> dict[str, Any]:
     """Run one finite measurement/report wake with no venue side effect."""
     owner_path = Path(owner_cash_flow_path).expanduser() if owner_cash_flow_path else None
     readers: dict[str, Callable[[], Any]] = build_readers(snapshot_specs)
     readers["__owner_cash_flow_usd__"] = _read_owner_cash_flow(owner_path)
     readers["__available_capital_usd__"] = _valid_available_capital(available_capital_usd)
+    readers["__input_manifest_status__"] = input_manifest_status
     return wake(readers, Path(state_dir).expanduser(), today, send)
 
 
@@ -143,10 +190,15 @@ def _telegram_send(message: str) -> Any:
 
 def _parser() -> argparse.ArgumentParser:
     default_state = os.environ.get("INVESTMENT_CROSS_VENUE_STATE_DIR", str(DEFAULT_STATE_DIR))
+    default_manifest = os.environ.get(
+        "INVESTMENT_CROSS_VENUE_MANIFEST",
+        str(Path(default_state).expanduser() / DEFAULT_MANIFEST_NAME),
+    )
     default_capital = os.environ.get("INVESTMENT_AVAILABLE_CAPITAL_USD", "0")
     default_owner_flow = os.environ.get("INVESTMENT_OWNER_CASH_FLOW_FILE")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", default=default_state)
+    parser.add_argument("--manifest", default=default_manifest)
     parser.add_argument("--today", default=None, help="UTC date; defaults to today")
     parser.add_argument("--snapshot", dest="snapshot_specs", action="append", default=[],
                         metavar="VENUE=PATH")
@@ -159,13 +211,17 @@ def main(argv: list[str] | None = None, *, send: Callable[[str], Any] | None = N
     args = _parser().parse_args(argv)
     today = args.today or datetime.now(timezone.utc).date().isoformat()
     date.fromisoformat(today)
+    manifest = read_manifest(args.manifest)
     receipt = run_once(
-        snapshot_specs=args.snapshot_specs,
+        snapshot_specs=args.snapshot_specs or manifest["snapshot_specs"],
         state_dir=args.state_dir,
         today=today,
-        owner_cash_flow_path=args.owner_cash_flow_file,
-        available_capital_usd=args.available_capital_usd,
+        owner_cash_flow_path=args.owner_cash_flow_file or manifest["owner_cash_flow_path"],
+        available_capital_usd=(args.available_capital_usd
+                               if args.available_capital_usd != "0"
+                               else manifest["available_capital_usd"]),
         send=send or _telegram_send,
+        input_manifest_status=manifest["status"],
     )
     print(json.dumps(receipt, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
     return 0 if receipt.get("status") == "delivered" else 1
@@ -177,10 +233,12 @@ if __name__ == "__main__":
 
 __all__ = [
     "DEFAULT_STATE_DIR",
+    "DEFAULT_MANIFEST_NAME",
     "STANDARD_VENUES",
     "build_readers",
     "main",
     "parse_snapshot_spec",
+    "read_manifest",
     "render_daily_pnl",
     "run_once",
     "wake",

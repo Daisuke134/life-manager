@@ -102,6 +102,31 @@ The entrypoint does not read credentials, sign, submit orders, fund wallets,
 or edit loop admission. The Life Manager runtime owns the fixed argv/env,
 cadence, release, and live provider acknowledgement.
 
+### Life Manager To-Be connection
+
+The canonical Life Manager job ID is `investment-cross-venue-report`. Its
+registry entry runs this finite entrypoint once per UTC day with state root
+`~/.local/state/life-manager/investment-cross-venue` and manifest
+`inputs.json`. The investment product catalog maps this reporting job beside
+`alpaca-investment-live`; it is one owner-controlled receipt path, not a
+second ad-hoc scheduler.
+
+The manifest is the owner-to-reader boundary:
+
+```json
+{
+  "snapshot_specs": ["alpaca=/path/to/alpaca-snapshot.json"],
+  "owner_cash_flow_path": "/path/to/owner-cash-flow.json",
+  "available_capital_usd": "0"
+}
+```
+
+If the manifest is absent, invalid, or a source file is missing, the daily
+receipt records `input_manifest_status` as `missing` or `invalid`, keeps the
+venue measurement `unknown`, and uses no available capital. It never turns a
+missing input into `$0` profit. `configured` means only that the manifest was
+validly read; it does not mean a venue made money.
+
 Current source boundaries:
 
 - Alpaca performance receipts: existing `skills/alpaca-investment` readback and `investment-core` adapters.
