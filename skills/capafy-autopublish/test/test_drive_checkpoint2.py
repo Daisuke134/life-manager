@@ -81,6 +81,42 @@ def test_short_cp2_url_resolves_one_valid_redirect(monkeypatch) -> None:
     assert seen == [("https://api.capafy.ai/R123", "HEAD")]
 
 
+def test_short_cp2_url_rejects_unidentified_blank_new_agent_page(monkeypatch) -> None:
+    # Regression: Agent 9466718786 resume (2026-09-28 06:52Z) -- the short
+    # link's redirect degraded to a bare ?page=review with no source/token/
+    # draftKey, which is Capafy's blank "create a new Agent" form, not the
+    # existing draft. _validate_cp2_url alone (page value only) accepted it;
+    # the driver must instead fail closed rather than fill in the wrong page.
+    module = load_module()
+    monkeypatch.setattr(module.time, "sleep", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        module,
+        "_single_redirect_location",
+        lambda *_args: ["https://capafy.ai/developer/createAgent?page=review"],
+    )
+
+    with pytest.raises(RuntimeError, match="unidentified draft page"):
+        module._resolve_cp2_url("https://api.capafy.ai/R123")
+
+
+def test_short_cp2_url_retries_a_transient_unidentified_redirect(monkeypatch) -> None:
+    # The same short link resolved correctly moments before and hours after
+    # the 06:52Z failure (live-verified against Agent 9466718786's real
+    # editLink on 2026-09-28) -- a transient degraded redirect, not a
+    # permanently dead one. A retry that later sees the identified page must
+    # succeed instead of failing closed on the first bad response.
+    module = load_module()
+    monkeypatch.setattr(module.time, "sleep", lambda *_a, **_k: None)
+    final = "https://capafy.ai/developer/createAgent?source=temp-link&token=123&page=review"
+    responses = iter([
+        ["https://capafy.ai/developer/createAgent?page=review"],
+        [final],
+    ])
+    monkeypatch.setattr(module, "_single_redirect_location", lambda *_args: next(responses))
+
+    assert module._resolve_cp2_url("https://api.capafy.ai/R123") == final
+
+
 def test_short_cp2_url_rejects_cross_domain_location(monkeypatch) -> None:
     module = load_module()
     monkeypatch.setattr(

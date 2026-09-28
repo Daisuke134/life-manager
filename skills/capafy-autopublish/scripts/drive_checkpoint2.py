@@ -27,6 +27,8 @@ RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))
 RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "15"))
 RAW_SECTION_POLL_S = float(os.environ.get("CP2_SECTION_POLL_S", "0.25"))
+_CP2_RESOLVE_RETRIES = int(os.environ.get("CP2_RESOLVE_RETRIES", "3"))
+_CP2_RESOLVE_RETRY_DELAY_S = float(os.environ.get("CP2_RESOLVE_RETRY_DELAY_S", "5"))
 CP2_HOST = "capafy.ai"
 CP2_PATH = "/developer/createAgent"
 OPENROUTER_API_KEY_PATH = "models.providers.openrouter.apiKey"
@@ -235,6 +237,40 @@ def _validate_cp2_url(cp2):
         raise RuntimeError("CP2 URL must use the exact Capafy HTTPS origin/path")
 
 
+def _is_identified_cp2_url(url):
+    """True only if <url> carries the draft-identifying params Capafy's short
+    review link (/R<digits>) is supposed to redirect to: either a temp-link
+    token or a draftKey, alongside page=credential|review.
+
+    Root cause (2026-09-28, Agent 9466718786 resume): a short link's redirect
+    target sometimes degrades to a bare ?page=review with NO source/token/
+    draftKey -- that is Capafy's blank "create a new Agent" form, not the
+    existing draft. _validate_cp2_url alone accepts it (it only checks the
+    `page` value), so the resume driver silently opened/would have driven the
+    wrong page. Only the resolved target of a short link needs this extra
+    check: a caller-supplied full URL (tests, manual invocation) already
+    carries whatever identity it carries by construction.
+    """
+    try:
+        _validate_cp2_url(url)
+    except RuntimeError:
+        return False
+    parts = urlsplit(url)
+    try:
+        query = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
+    except ValueError:
+        return False
+    keys = [key for key, _value in query]
+    if len(set(keys)) != len(keys):
+        return False
+    values = dict(query)
+    if set(keys) == {"page", "source", "token"}:
+        return values.get("source") == "temp-link" and re.fullmatch(r"[0-9]+", values.get("token", "")) is not None
+    if set(keys) == {"draftKey", "page"}:
+        return bool(values.get("draftKey", "").strip())
+    return False
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *_args, **_kwargs):
         return None
@@ -280,14 +316,32 @@ def _resolve_cp2_url(raw_url):
     ):
         raise RuntimeError("CP2 short URL must be exactly https://api.capafy.ai/R<digits>")
 
-    locations = _single_redirect_location(raw_url, "HEAD")
-    if not locations:
-        locations = _single_redirect_location(raw_url, "GET")
-    if len(locations) != 1:
-        raise RuntimeError("CP2 short URL must return exactly one redirect Location")
-    resolved = locations[0]
-    _validate_cp2_url(resolved)
-    return resolved
+    # Retry ONLY the "resolved but unidentified" case: a resume drove Agent
+    # 9466718786 into a bare ?page=review (Capafy's blank new-Agent form, no
+    # source/token/draftKey) on 2026-09-28 06:52Z, while the identical short
+    # link resolved correctly moments before (06:13Z, same-pass) and again on
+    # manual re-check hours later -- a transient degraded redirect, not a
+    # permanently dead link. A malformed/cross-domain/missing Location is a
+    # real structural failure and must still fail closed immediately below.
+    last_error = None
+    for attempt in range(_CP2_RESOLVE_RETRIES):
+        if attempt:
+            time.sleep(_CP2_RESOLVE_RETRY_DELAY_S)
+        locations = _single_redirect_location(raw_url, "HEAD")
+        if not locations:
+            locations = _single_redirect_location(raw_url, "GET")
+        if len(locations) != 1:
+            raise RuntimeError("CP2 short URL must return exactly one redirect Location")
+        resolved = locations[0]
+        _validate_cp2_url(resolved)
+        if _is_identified_cp2_url(resolved):
+            return resolved
+        last_error = resolved
+    raise RuntimeError(
+        "CP2 short URL redirected to an unidentified draft page after "
+        f"{_CP2_RESOLVE_RETRIES} attempts (no source+token or draftKey; last: {last_error!r}) "
+        "-- this is Capafy's blank new-Agent form, not the existing draft; refusing to drive it"
+    )
 
 
 def _wait_raw_navigation(page, cp2):
