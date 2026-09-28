@@ -268,11 +268,17 @@ def _resolve_cp2_url(raw_url):
     if (
         parts.scheme != "https"
         or parts.netloc.lower() != "api.capafy.ai"
-        or not re.fullmatch(r"/C[0-9]+", parts.path)
+        # Verified live 2026-09-28 (Agent 4243672453): both publish-refresh-url
+        # --step publish and publish-submit --action continue_upload's review_url
+        # return an /R<digits> short link -- the same prefix drive_checkpoint3.py
+        # (CP3) already expects for the identical review page. /C<digits> was
+        # never observed and made every CP2 call fail closed on this exact
+        # RuntimeError before the browser was ever touched.
+        or not re.fullmatch(r"/R[0-9]+", parts.path)
         or parts.query
         or parts.fragment
     ):
-        raise RuntimeError("CP2 short URL must be exactly https://api.capafy.ai/C<digits>")
+        raise RuntimeError("CP2 short URL must be exactly https://api.capafy.ai/R<digits>")
 
     locations = _single_redirect_location(raw_url, "HEAD")
     if not locations:

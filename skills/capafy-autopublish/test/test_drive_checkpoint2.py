@@ -77,8 +77,8 @@ def test_short_cp2_url_resolves_one_valid_redirect(monkeypatch) -> None:
 
     monkeypatch.setattr(module, "_single_redirect_location", redirect)
 
-    assert module._resolve_cp2_url("https://api.capafy.ai/C123") == final
-    assert seen == [("https://api.capafy.ai/C123", "HEAD")]
+    assert module._resolve_cp2_url("https://api.capafy.ai/R123") == final
+    assert seen == [("https://api.capafy.ai/R123", "HEAD")]
 
 
 def test_short_cp2_url_rejects_cross_domain_location(monkeypatch) -> None:
@@ -90,14 +90,27 @@ def test_short_cp2_url_rejects_cross_domain_location(monkeypatch) -> None:
     )
 
     with pytest.raises(RuntimeError, match="exact Capafy"):
-        module._resolve_cp2_url("https://api.capafy.ai/C123")
+        module._resolve_cp2_url("https://api.capafy.ai/R123")
 
 
 def test_short_cp2_url_rejects_invalid_path() -> None:
     module = load_module()
 
-    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/C"):
+    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/R"):
         module._resolve_cp2_url("https://api.capafy.ai/not-a-short-url")
+
+
+def test_short_cp2_url_rejects_the_old_c_prefix() -> None:
+    # Regression: /C<digits> was the pattern this validator checked for until
+    # 2026-09-28, but Capafy's actual review-page short link (both
+    # publish-refresh-url --step publish and continue_upload's review_url) is
+    # /R<digits> -- the exact prefix drive_checkpoint3.py (CP3) already uses for
+    # the same review page (Agent 4243672453 live verification). A stray /C link
+    # must still fail closed, just with the corrected message.
+    module = load_module()
+
+    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/R"):
+        module._resolve_cp2_url("https://api.capafy.ai/C123")
 
 
 def test_raw_page_connects_to_validated_page_websocket(monkeypatch) -> None:
