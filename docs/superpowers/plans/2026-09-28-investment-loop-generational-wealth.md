@@ -88,6 +88,8 @@ These are planning calculations, not forecasts:
 
 Terminology boundary: `$10,000/month` of customer revenue is `$120,000/year` gross, while `$100,000/year` is about `$8,333.33/month`. Neither number is the same as `$10,000/month` of realised net investment P&L. The CFO/Treasury ledger tracks customer cash and investment P&L as separate categories, so deposits, gross sales, unrealised gains, and projections cannot be substituted for net profit.
 
+External guardrail checked `2026-09-28`: [Investor.gov](https://www.investor.gov/introduction-investing) states that investments have no set rate of return and that asset allocation/diversification manage risk but do not guarantee against loss. The `7%` accumulation math below is therefore a sensitivity assumption only, not a promised return or funding authorization.
+
 | Target | Required net capital at 10% APR | at 15% APR | at 20% APR |
 |---|---:|---:|---:|
 | `$10,000/month` net (`$120,000/year`) | `$1.20M` | `$800k` | `$600k` |
