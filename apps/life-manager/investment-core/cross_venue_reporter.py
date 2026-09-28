@@ -12,6 +12,7 @@ import telegram_outbox
 from cross_venue_allocator import build_candidates, rank
 from net_pnl import aggregate as aggregate_net
 from portfolio_receipts import VenueSnapshot
+from rolling_measurement import rolling_30d
 
 
 _MONEY = Decimal("0.01")
@@ -167,16 +168,37 @@ def wake(
     if unknown:
         aggregate["unknown_venues"] = unknown
         aggregate["measurement_status"] = "partial" if aggregate.get("measurement_status") == "measured" else "unknown"
-    rolling = readers.get("__rolling_30d_net_pnl_usd__")
-    if rolling is not None:
-        aggregate["rolling_30d_net_pnl_usd"] = rolling
+    daily_receipts = readers.get("__daily_receipts__")
+    if daily_receipts is not None:
         try:
-            aggregate["target_gap_usd"] = max(Decimal("0"), Decimal("10000") - Decimal(str(rolling)))
-        except (InvalidOperation, TypeError, ValueError):
-            aggregate["target_gap_usd"] = None
+            daily_receipts = daily_receipts() if callable(daily_receipts) else daily_receipts
+            rolling_result = rolling_30d(daily_receipts, today)
+        except Exception as error:  # receipt boundary: preserve class, not provider text
+            rolling_result = {
+                "measurement_status": "unknown",
+                "reason": type(error).__name__,
+                "net_pnl_usd": None,
+                "owner_cash_flow_usd": None,
+                "target_gap_usd": None,
+            }
+        aggregate["rolling_measurement_status"] = rolling_result.get("measurement_status")
+        aggregate["rolling_reason"] = rolling_result.get("reason")
+        aggregate["rolling_30d_net_pnl_usd"] = rolling_result.get("net_pnl_usd")
+        aggregate["rolling_owner_cash_flow_usd"] = rolling_result.get("owner_cash_flow_usd")
+        aggregate["target_gap_usd"] = rolling_result.get("target_gap_usd")
     else:
-        aggregate["rolling_30d_net_pnl_usd"] = None
+        # Kept for callers that already provide a separately verified rolling
+        # receipt. The daily-receipt path above is the canonical producer.
+        rolling = readers.get("__rolling_30d_net_pnl_usd__")
+        aggregate["rolling_measurement_status"] = "provided" if rolling is not None else "unknown"
+        aggregate["rolling_reason"] = "provided_input" if rolling is not None else "daily_receipts_missing"
+        aggregate["rolling_30d_net_pnl_usd"] = rolling
         aggregate["target_gap_usd"] = None
+        if rolling is not None:
+            try:
+                aggregate["target_gap_usd"] = max(Decimal("0"), Decimal("10000") - Decimal(str(rolling)))
+            except (InvalidOperation, TypeError, ValueError):
+                aggregate["target_gap_usd"] = None
 
     caps = readers.get("__caps__", _DEFAULT_CAPS)
     if not isinstance(caps, Mapping):

@@ -1,6 +1,6 @@
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from cross_venue_reporter import render_daily_pnl, wake
@@ -114,6 +114,36 @@ class CrossVenueReporterTests(unittest.TestCase):
             self.assertEqual(first["status"], "delivery_uncertain")
             self.assertEqual(second["status"], "delivery_uncertain")
             self.assertEqual(len(calls), 1)
+
+    def test_wake_derives_rolling_target_gap_from_daily_receipts(self):
+        today = "2026-09-28"
+        end = date.fromisoformat(today)
+        daily_receipts = []
+        for offset in range(29, -1, -1):
+            day = (end - timedelta(days=offset)).isoformat()
+            daily_receipts.append({
+                "day": day,
+                "status": "delivered",
+                "aggregate": {
+                    "measurement_status": "measured",
+                    "net_pnl_usd": "1.00",
+                    "owner_cash_flow_usd": "50.00",
+                    "source_receipt_ids": [f"daily-{offset}"],
+                },
+            })
+
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = wake(
+                {"alpaca": lambda: snapshot(), "__daily_receipts__": daily_receipts},
+                Path(directory),
+                today,
+                lambda _message: {"message_id": "telegram-rolling"},
+            )
+
+        self.assertEqual(receipt["aggregate"]["rolling_measurement_status"], "measured")
+        self.assertEqual(receipt["aggregate"]["rolling_30d_net_pnl_usd"], "30.00")
+        self.assertEqual(receipt["aggregate"]["target_gap_usd"], "9970.00")
+        self.assertEqual(receipt["aggregate"]["rolling_owner_cash_flow_usd"], "1500.00")
 
 
 if __name__ == "__main__":

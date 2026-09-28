@@ -17,11 +17,18 @@ net_pnl_usd = gross_pnl_usd
 
 Deposits and withdrawals are `owner_cash_flow_usd` and remain principal/cash-flow evidence. They are never investment revenue or net P&L. Missing, stale, duplicate, malformed, or `effect_unknown` evidence remains unknown/blocked and is never replaced with zero.
 
-The canonical `VenueSnapshot` is in `portfolio_receipts.py`. `venue_receipts.py` normalizes receipt rows; `net_pnl.py` aggregates Decimal-safe totals; `cross_venue_allocator.py` ranks only measured, positive-net, sample-qualified, drawdown-safe candidates. The allocator always keeps the existing `$100` cap and reserve and returns `capital_expansion_allowed: false`.
+The canonical `VenueSnapshot` is in `portfolio_receipts.py`. `venue_receipts.py` normalizes receipt rows; `net_pnl.py` aggregates Decimal-safe totals; `cross_venue_allocator.py` ranks only measured, positive-net, sample-qualified, drawdown-safe candidates. `rolling_measurement.py` calculates the verified UTC 30-day window from daily receipts. The allocator always keeps the existing `$100` cap and reserve and returns `capital_expansion_allowed: false`.
 
 ## Daily wake and state
 
 `cross_venue_reporter.wake(...)` is a finite read-only wake. It writes one `cross-venue-YYYY-MM-DD.json` receipt and uses `telegram_outbox.sqlite3` for idempotent delivery. A provider message ID is recorded only after the sender acknowledges it. Missing provider acknowledgement is `delivery_uncertain` and is not blindly resent. State roots must be owner-only (`0700` directory, `0600` files).
+
+When `wake(...)` receives `readers["__daily_receipts__"]`, it calls
+`rolling_measurement.rolling_30d(...)` and reports the result only when all 30
+UTC days are present, delivered, measured, and source-receipt IDs are unique.
+Missing/partial/undelivered days return `unknown`; malformed or duplicate
+evidence returns `blocked`. Owner cash flow is summed as a separate field and
+never added to rolling net P&L. A numeric target gap is never zero-filled.
 
 Current source boundaries:
 
@@ -32,7 +39,7 @@ Current source boundaries:
 
 ## $10k/month scoreboard
 
-The `$10,000/month` target is a measurement target, not a forecast. It is achieved only when a rolling monthly official receipt reports `net_pnl_usd >= 10000` after all listed costs. Until then, `target_gap_usd` is `不明` unless a measured rolling-30-day receipt is supplied. Treasury cash surplus and customer revenue remain separate from investment P&L.
+The `$10,000/month` target is a measurement target, not a forecast. It is achieved only when a rolling monthly official receipt reports `net_pnl_usd >= 10000` after all listed costs. Until then, `target_gap_usd` is `不明` unless `rolling_30d(...)` returns a measured 30-day receipt. Treasury cash surplus and customer revenue remain separate from investment P&L.
 
 ## Treasury cash contract
 

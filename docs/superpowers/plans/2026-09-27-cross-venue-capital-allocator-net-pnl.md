@@ -95,7 +95,7 @@
 - [x] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
 - [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
-- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_reporter` passes `3/3`; same-day replay sends once and preserves the provider message ID.
+- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_reporter` passes `4/4`; same-day replay sends once and preserves the provider message ID.
 - [ ] **Step 5: Commit** `feat(investment): report cross-venue net pnl daily`.
 
 ### Task 5: Acceptance evidence and operator contract
@@ -111,6 +111,24 @@
 - [x] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.** The cross-venue acceptance/report/allocator/net/snapshot/performance command passes `26/26`.
 - [x] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.** Current Hyperliquid owner/runtime receipt and external Telegram provider acknowledgement are absent; no external send was attempted, and this remains an explicit boundary in `README.md`.
 - [x] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
+
+### Rolling 30-day measurement extension
+
+**Files:**
+- Create: `apps/life-manager/investment-core/rolling_measurement.py`
+- Test: `apps/life-manager/investment-core/test_rolling_measurement.py`
+- Modify: `apps/life-manager/investment-core/cross_venue_reporter.py`
+
+`rolling_30d(receipts, end_day)` consumes only persisted daily report receipts.
+It requires the inclusive UTC window, confirmed delivery, measured daily
+aggregates, explicit owner cash flow, and unique provider receipt IDs. It sums
+only `net_pnl_usd`, keeps owner cash flow separate, and returns no numeric result
+for missing, partial, undelivered, malformed, or duplicate evidence.
+
+- [x] **Step 1: Add failing tests** for exact 30-day arithmetic, owner-flow separation, missing days, partial/undelivered days, duplicate days/receipt IDs, and invalid source numbers. RED observed with the missing module.
+- [x] **Step 2: Implement the Decimal-safe pure measurement function** and wire the explicit `__daily_receipts__` reader into the daily reporter; no filesystem, network, credential, or venue-effect import was added.
+- [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `4/4`, including a measured `$30.00` fixture and `$9,970.00` target gap.
+- [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** Current live venue receipts are not complete, so this data gate remains open.
 
 ## Source references
 
