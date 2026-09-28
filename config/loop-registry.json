@@ -14,6 +14,7 @@
   ],
   "loops": {
     "alpaca-investment-live": {
+      "reconcile_queued_release": true,
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -32,8 +33,8 @@
       "label": "ai.anicca.alpaca-investment-live",
       "log_root": "~/.local/state/life-manager/alpaca-investment-live/logs",
       "resource_class": "agent",
-      "admission_class": "borrow",
-      "priority": "support",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "provider_route": "shared-agent-runner",

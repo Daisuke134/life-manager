@@ -5,6 +5,7 @@ import tempfile
 import threading
 import unittest
 from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -358,6 +359,18 @@ class BrokerSnapshotTest(unittest.TestCase):
             result = CLI.read_crypto_history(credentials_path=Path("credentials"),
                 cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
         self.assertEqual(result["BTC/USDC"][0]["c"], "101")
+
+    def test_crypto_history_accepts_inclusive_four_hour_window(self):
+        start = datetime(2026, 9, 10, 4, 5, tzinfo=timezone.utc)
+        rows = [{"symbol": "BTC/USDC", "bars": [
+            {"t": (start + timedelta(minutes=5 * index)).isoformat().replace("+00:00", "Z"),
+             "o": 100, "h": 102, "l": 99, "c": 101}
+            for index in range(49)]}]
+        with patch.object(CLI, "_context", return_value={}), patch.object(
+                CLI, "_run", return_value=rows):
+            result = CLI.read_crypto_history(credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
+        self.assertEqual(len(result["BTC/USDC"]), 49)
 
     def test_crypto_history_rejects_future_or_malformed_bars(self):
         cases = [
