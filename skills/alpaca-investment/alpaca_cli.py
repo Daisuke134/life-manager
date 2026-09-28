@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
+from etf_ownership import ETF_OWNER_ID, ETF_STRATEGY_ID, ETF_SYMBOLS
 
 
 CLI_VERSION = "0.0.14"
@@ -27,6 +28,7 @@ ETF_DAILY_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD")
 ETF_DAILY_LOOKBACK_SESSIONS = 127
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
+MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
     "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "order_list",
@@ -116,7 +118,9 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError(f"alpaca_cli_timeout:{operation}") from error
     if result.returncode != 0:
         raise ValueError(f"alpaca_cli_failed:{operation}")
-    if len(result.stdout) > MAX_OUTPUT_BYTES:
+    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars"
+                    else MAX_OUTPUT_BYTES)
+    if len(result.stdout) > output_limit:
         raise ValueError("alpaca_cli_output_too_large")
     try:
         return json.loads(result.stdout.decode("utf-8").strip())
@@ -186,8 +190,10 @@ def find_order_by_client_id(
     query = (
         f"first(.[]|select(.client_order_id=={json.dumps(client_order_id)})) // "
         "{found:false}|if .found==false then . else "
-        "{found:true,client_order_id:.client_order_id,status:.status,"
-        "filled_qty:.filled_qty,filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
+        "{found:true,id:.id,client_order_id:.client_order_id,status:.status,"
+        "symbol:.symbol,side:.side,type:.type,time_in_force:.time_in_force,"
+        "notional:.notional,qty:.qty,filled_qty:.filled_qty,"
+        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
     )
     result = _run(cli_path, [
         "order", "list", "--quiet", "--status", "all", "--limit", "500", "--jq", query,
@@ -673,6 +679,7 @@ def read_live_performance_snapshot(
 def submit_order(
     *, credentials_path: Path, cli_path: Path, client_order_id: str,
     order: dict[str, Any], mode: str | None = None,
+    owner_id: str | None = None, strategy_id: str | None = None,
 ) -> dict[str, Any]:
     """Submit one already-gated paper order or tightly bounded live crypto order."""
     if not re.fullmatch(r"lm-ai-[0-9a-f]{24}", client_order_id):
@@ -681,6 +688,8 @@ def submit_order(
     if mode == "shadow":
         raise ValueError("investment_mode_effect_forbidden")
     if mode == "live":
+        if order.get("asset_class") == "us_equity":
+            raise ValueError("live_etf_rejected")
         expected = {"asset_class", "side", "symbol", "time_in_force", "type"}
         if order.get("symbol") != "BTC/USDC" or order.get("asset_class") != "crypto" \
                 or order.get("type") != "market" or order.get("time_in_force") != "gtc":
@@ -717,8 +726,23 @@ def submit_order(
         if not isinstance(result, dict) or result.get("client_order_id") != client_order_id:
             raise ValueError("alpaca_submit_readback_invalid")
         return result
-    env = _context(credentials_path, cli_path, mode)
-    if order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
+    if order.get("asset_class") == "us_equity":
+        if owner_id != ETF_OWNER_ID or strategy_id != ETF_STRATEGY_ID:
+            raise ValueError("etf_order_identity_invalid")
+        expected = {"asset_class", "notional_usd", "side", "symbol", "time_in_force", "type"}
+        try:
+            notional = Decimal(str(order.get("notional_usd")))
+            valid_notional = notional.is_finite() and notional == Decimal("10.00")
+        except InvalidOperation:
+            valid_notional = False
+        if (set(order) != expected or order.get("symbol") not in ETF_SYMBOLS
+                or order.get("side") != "buy" or order.get("type") != "market"
+                or order.get("time_in_force") != "day" or not valid_notional):
+            raise ValueError("etf_order_shape_invalid")
+        args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
+                "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
+                "--time-in-force", "day", "--client-order-id", client_order_id]
+    elif order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
         args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
                 "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
                 "--time-in-force", "gtc", "--client-order-id", client_order_id]
@@ -736,10 +760,26 @@ def submit_order(
                 "--client-order-id", client_order_id]
     else:
         raise ValueError("unsupported_order_shape")
+    env = _context(credentials_path, cli_path, mode)
     result = _run(cli_path, [*args, "--jq",
-        "{client_order_id,status,submitted_at,symbol,notional}"], env)
+        "{id,client_order_id,status,submitted_at,symbol,notional,qty,filled_qty,"
+        "filled_avg_price,side,type,time_in_force}"], env)
     if not isinstance(result, dict) or result.get("client_order_id") != client_order_id:
         raise ValueError("alpaca_submit_readback_invalid")
+    if order.get("asset_class") == "us_equity":
+        try:
+            acknowledged_notional = Decimal(str(result.get("notional")))
+        except InvalidOperation:
+            acknowledged_notional = Decimal("0")
+        if (result.get("symbol") not in ETF_SYMBOLS
+                or result.get("symbol") != order.get("symbol")
+                or result.get("side") != "buy"
+                or result.get("type") != "market"
+                or result.get("time_in_force") != "day"
+                or acknowledged_notional != Decimal("10.00")
+                or not isinstance(result.get("id"), str)
+                or not result["id"]):
+            raise ValueError("alpaca_submit_readback_invalid")
     return result
 
 

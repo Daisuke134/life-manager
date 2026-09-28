@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from risk_policy import evaluate_entry
+from etf_ownership import ETF_OWNER_ID
 from strategy_policy import (ACTION_ENTER, ACTION_NO_TRADE, ALLOWED_ACTIONS,
                              BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
                              ETF_SYMBOLS, evaluate,
@@ -205,6 +206,8 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "observed_at": observed_at,
         }
     decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
+    if card.strategy_id == ETF_STRATEGY_ID:
+        decision["owner_id"] = ETF_OWNER_ID
     gated = gate(snapshot, candidates, decision)
     gated["observed_at"] = observed_at
     return gated

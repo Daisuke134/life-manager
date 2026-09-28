@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -44,6 +45,14 @@ def _response(*, add_current: bool = True, add_future: bool = False,
 
 
 class EtfDailyBarsTests(unittest.TestCase):
+    def test_multi_bars_has_bounded_large_response_budget_only_for_that_operation(self):
+        payload = json.dumps({"payload": "x" * alpaca_cli.MAX_OUTPUT_BYTES}).encode("utf-8")
+        completed = type("Completed", (), {"returncode": 0, "stdout": payload})()
+        with patch.object(alpaca_cli.subprocess, "run", return_value=completed):
+            self.assertIn("payload", alpaca_cli._run(Path("alpaca"), ["data", "multi-bars"], {}))
+            with self.assertRaisesRegex(ValueError, "^alpaca_cli_output_too_large$"):
+                alpaca_cli._run(Path("alpaca"), ["account", "get"], {})
+
     def _read(self, response):
         with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
             alpaca_cli, "_run", return_value=response
