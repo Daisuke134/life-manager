@@ -46,7 +46,7 @@
 - [x] **Step 2: Run `cd apps/life-manager/investment-core && python3 -m unittest test_venue_snapshot` and verify failure.** RED observed with missing `venue_receipts.py`.
 - [x] **Step 3: Implement decimal-safe normalization** while preserving `unknown` boundaries and the source receipt IDs. The existing canonical `portfolio_receipts.VenueSnapshot` is extended with per-cost evidence, and the compatibility adapter keeps latest equity/free cash while summing period P&L/cost rows.
 - [x] **Step 4: Run the focused test and verify pass.** `test_venue_snapshot` passes `5/5`; existing portfolio performance tests remain green.
-- [ ] **Step 5: Commit** `feat(investment): normalize cross-venue receipts`.
+- [x] **Step 5: Commit** `82fdbc5f44` (`feat(investment): normalize cross-venue receipts`).
 
 ### Task 2: Fee/model-cost-net P&L aggregation
 
@@ -62,7 +62,7 @@
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `net_pnl.py`; one fixture expectation also caught the full cost-vector arithmetic and was corrected to `-3.00`.
 - [x] **Step 3: Implement the pure Decimal aggregation** and reuse the existing `performance.py` fail-closed conventions without weakening its schema. The adapter returns per-venue rows, owner cash flow separately, and never turns a deposit into P&L.
 - [x] **Step 4: Run the focused test and verify pass.** `test_net_pnl`, `test_venue_snapshot`, and `test_portfolio_performance` pass `16/16`.
-- [ ] **Step 5: Commit** `feat(investment): calculate fee and model-cost net pnl`.
+- [x] **Step 5: Commit** `86e39e6fcc` (`feat(investment): calculate fee and model-cost net pnl`).
 
 ### Task 3: Deterministic cross-venue capital allocator
 
@@ -78,7 +78,7 @@
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_allocator.py`.
 - [x] **Step 3: Implement the pure ranking/gating layer**; do not call the existing model runner or any venue execution module from this file. Allocation is capped by reserve, current `$100` cap, drawdown, and sample thresholds; expansion remains false.
 - [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_allocator` passes `6/6`; the module imports only the read-only net-P&L adapter.
-- [ ] **Step 5: Commit** `feat(investment): rank verified cross-venue capital`.
+- [x] **Step 5: Commit** `567862f202` (`feat(investment): rank verified cross-venue capital`).
 
 ### Task 4: Daily aggregate report and finite read-only wake
 
@@ -96,7 +96,7 @@
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
 - [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
 - [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_reporter` passes `4/4`; same-day replay sends once and preserves the provider message ID.
-- [ ] **Step 5: Commit** `feat(investment): report cross-venue net pnl daily`.
+- [x] **Step 5: Commit** `e407769d43` (`feat(investment): report cross-venue net pnl daily`). The pure wake and import shim are committed; owner-owned registry/cadence wiring and a natural owner-runtime receipt remain open.
 
 ### Task 5: Acceptance evidence and operator contract
 
@@ -129,6 +129,12 @@ for missing, partial, undelivered, malformed, or duplicate evidence.
 - [x] **Step 2: Implement the Decimal-safe pure measurement function** and wire both the explicit `__daily_receipts__` reader and the persisted completed-day replay into the daily reporter; malformed state is blocked and no filesystem, network, credential, or venue-effect import was added to the pure calculator.
 - [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `7/7`, including a measured `$30.00` fixture, `$9,970.00` target gap, malformed-file handling, and a persisted 30-completed-day replay.
 - [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** The reporter now measures the last completed UTC window; current live venue receipts are not complete, so this data gate remains open.
+
+## Current live boundary (2026-09-28)
+
+- The implementation commits above are present, but the live producer is not admitted: `config/loop-registry.json` has no cross-venue row and `cross_venue_run.py` remains an import shim rather than an owner executable entrypoint.
+- A host/state read-only audit found no cross-venue/rolling launchd label or plist and `0` persisted `cross-venue-YYYY-MM-DD.json` receipts under the default Life Manager state root. `rolling_30d([], "2026-09-28")` therefore returns `measurement_status=unknown`, `reason=daily_receipt_missing`, and `capital_expansion_allowed=false`.
+- The next action is an lm-lead owner/runtime admission receipt containing the loaded entrypoint, cadence, state root, argv/env, release SHA, and provider acknowledgement. Do not edit registry/runtime files from this lane, fabricate a daily receipt, fund a venue, or report a numeric live rolling P&L before that boundary exists.
 
 ## Source references
 
