@@ -157,9 +157,11 @@ def main() -> int:
         home = Path.home()
         command = command_for(loop_id, root, home)
         environment = environment_for(loop_id, home, os.environ)
+        os.execve(command[0], command, environment)
     except ValueError as error:
         print(f"entry-dispatch: {error}", file=sys.stderr); return 78
-    os.execve(command[0], command, environment)
+    except OSError as error:
+        print(f"entry-dispatch: exec failed: {error}", file=sys.stderr); return 71
     return 70
 
 

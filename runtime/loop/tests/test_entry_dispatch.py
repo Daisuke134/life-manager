@@ -295,5 +295,23 @@ class EntryDispatchTest(unittest.TestCase):
         script = Path(__file__).parents[3] / 'skills/earn/lancers/scripts/browser-owner'
         self.assertIn('--disable-features=MacAppCodeSignClone', script.read_text())
 
+    def test_exec_failure_is_a_classified_entrypoint_error_not_a_bare_traceback(self):
+        # Regression for issue #5899: hf-gig-apply-reconcile's occurrence showed
+        # failure_layer=entrypoint with no diagnostic. main() caught ValueError from
+        # command_for/environment_for but left os.execve unguarded, so a missing or
+        # unreadable target on the release layout crashed with an unhandled OSError
+        # traceback instead of the same classified "entry-dispatch: ..." message and
+        # deterministic exit code used for every other entrypoint failure here.
+        with patch.dict('os.environ', {'LIFE_MANAGER_LOOP_ID': 'hf-gig-apply-reconcile'}, clear=False):
+            with patch.object(entry_dispatch.os, 'execve',
+                               side_effect=FileNotFoundError('missing target')):
+                with patch('sys.stderr') as stderr:
+                    exit_code = entry_dispatch.main()
+                    written = ''.join(call.args[0] for call in stderr.write.call_args_list
+                                       if call.args)
+        self.assertIsInstance(exit_code, int)
+        self.assertNotEqual(exit_code, 0)
+        self.assertIn('entry-dispatch:', written)
+
 
 if __name__=='__main__':unittest.main()
