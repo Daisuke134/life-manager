@@ -97,7 +97,7 @@
 - [x] **Step 2: Run the focused test and observe RED.** `cd apps/life-manager/investment-core && python3 -m unittest test_strategy_cards -v`.
 - [x] **Step 3: Implement the minimal immutable card parser and validator.** Preserve decimal values as strings; never infer defaults for cost or risk.
 - [x] **Step 4: Run focused and discovery tests.** Focused `8/8` and investment-core discovery `74/74` pass.
-- [ ] **Step 5: Commit.** `git add apps/life-manager/investment-core docs/superpowers && git commit -m "feat(investment): add evidence-backed strategy cards"`.
+- [x] **Step 5: Commit.** Commit `9c0e14ca84` is pushed on the dedicated investment branch.
 
 ### Task 3: Build an OSS-style, cost-complete validation harness
 
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 2 Step 5 — commit the StrategyCard contract and tests.** The contract is implemented and verified; Task 1 is complete and pushed. No strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 3 Step 1 — write failing tests for cost-complete out-of-sample validation.** Tasks 1–2 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
