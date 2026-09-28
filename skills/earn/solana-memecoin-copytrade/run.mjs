@@ -12,6 +12,7 @@ import { paperApply } from "./paper.mjs";
 import { loadOrCreateAgentWallet, readTargets } from "./wallet.mjs";
 
 const VALID_MODES = new Set(["read_only", "paper", "live"]);
+const EXIT_ACTIONS = new Set(["mirror_exit", "stop_exit", "time_exit"]);
 
 function dayUtc(nowMs) {
   return new Date(nowMs).toISOString().slice(0, 10);
@@ -23,7 +24,9 @@ function makeIntent(mode, liveGate, candidate, decision, quote, nowMs, owner) {
     intentId: `${mode}-${candidate.sourceSignature}`,
     mode,
     liveGate,
+    action: decision.action,
     owner: owner || candidate.observedOwner || null,
+    targetAddress: candidate.observedOwner || null,
     mint: destinationMint,
     sourceMint: candidate.sourceMint,
     destinationMint,
@@ -35,6 +38,47 @@ function makeIntent(mode, liveGate, candidate, decision, quote, nowMs, owner) {
   };
 }
 
+function positionFromRows(rows) {
+  for (const row of [...rows].reverse()) {
+    if (row.kind !== "receipt" || row.status !== "paper") continue;
+    if (row.action === "copy_entry" && row.position) return row.position;
+    if (EXIT_ACTIONS.has(row.action)) return null;
+  }
+  return null;
+}
+
+function makeExitIntent(mode, liveGate, position, decision, quote, nowMs, owner) {
+  return {
+    intentId: `${mode}-${decision.sourceSignature}`,
+    mode,
+    liveGate,
+    action: decision.action,
+    owner: owner || null,
+    mint: position.mint,
+    sourceMint: position.mint,
+    destinationMint: position.exitMint || quote?.outputMint || null,
+    sourceRawAmount: position.amountRaw,
+    destinationRawAmount: String(quote?.outAmount ?? quote?.outputAmount ?? ""),
+    amountUsd: decision.amountUsd,
+    sourceSignature: decision.sourceSignature,
+    createdAtMs: nowMs,
+    position,
+  };
+}
+
+function defaultExitQuote(position, exitSnapshot = {}) {
+  const quote = exitSnapshot.quote || {};
+  return {
+    inputMint: position.mint,
+    outputMint: position.exitMint,
+    inAmount: position.amountRaw,
+    outAmount: String(quote.outAmount ?? quote.outputAmount ?? ""),
+    priceImpactPct: quote.priceImpactPct,
+    simulatedFeeUsd: quote.simulatedFeeUsd,
+    simulatedSlippageUsd: quote.simulatedSlippageUsd,
+  };
+}
+
 function defaultQuote(candidate) {
   const market = candidate.market?.jupiter || {};
   return {
@@ -43,6 +87,7 @@ function defaultQuote(candidate) {
     inAmount: candidate.sourceRawAmount,
     outAmount: String(candidate.destinationRawAmount || market.outAmount || market.outputAmount || ""),
     priceImpactPct: market.priceImpactPct,
+    priceUsd: market.priceUsd ?? candidate.market?.gmgn?.priceUsd ?? candidate.market?.dexscreener?.priceUsd,
     simulatedFeeUsd: null,
     simulatedSlippageUsd: null,
   };
@@ -120,6 +165,64 @@ export async function wake({ mode = "read_only", liveGate = false, targets = [],
     const decision = { action: "halt", reason: "scout_unknown", sourceSignature: null, mint: null, amountUsd: 0 };
     return { stage: mode, decision, receipt: null, report: await report(journalPath, nowMs, mode, decision, null, 0) };
   }
+
+  const position = typeof clients.position === "function"
+    ? await clients.position(rows, nowMs)
+    : clients.position || positionFromRows(rows);
+  if (position) {
+    const suppliedExitSnapshot = typeof clients.exitSnapshot === "function"
+      ? await clients.exitSnapshot(position, scoutResult, nowMs)
+      : clients.exitSnapshot || scoutResult.exitSnapshot || {};
+    const exitSnapshot = suppliedExitSnapshot && typeof suppliedExitSnapshot === "object"
+      ? suppliedExitSnapshot
+      : {};
+    const exitRisk = typeof clients.risk === "function"
+      ? await clients.risk(position, nowMs)
+      : { nowMs, ...(clients.risk || {}) };
+    const decideFn = clients.decide || decide;
+    const exitDecision = await decideFn({ ...exitSnapshot, position, nowMs }, exitRisk);
+    if (!EXIT_ACTIONS.has(exitDecision.action)) {
+      return {
+        stage: mode,
+        decision: exitDecision,
+        receipt: null,
+        report: await report(journalPath, nowMs, mode, exitDecision, null, scoutResult.candidates?.length || 0),
+      };
+    }
+    if (mode === "live") {
+      const receipt = {
+        kind: "receipt",
+        status: "rejected",
+        effect: "none",
+        verified: false,
+        reason: "live_exit_closed",
+        retry: false,
+        intentId: null,
+        sourceSignature: exitDecision.sourceSignature || null,
+      };
+      return {
+        stage: mode,
+        decision: exitDecision,
+        receipt,
+        report: await report(journalPath, nowMs, mode, exitDecision, receipt, scoutResult.candidates?.length || 0),
+      };
+    }
+
+    const quote = clients.exitQuoteFor
+      ? await clients.exitQuoteFor(position, exitDecision, exitSnapshot)
+      : defaultExitQuote(position, exitSnapshot);
+    const owner = clients.wallet?.publicKey || null;
+    const intent = makeExitIntent(mode, liveGate, position, exitDecision, quote, nowMs, owner);
+    const paperFn = clients.paperApply || paperApply;
+    const receipt = await paperFn(intent, quote, journalPath);
+    return {
+      stage: mode,
+      decision: exitDecision,
+      receipt,
+      report: await report(journalPath, nowMs, mode, exitDecision, receipt, scoutResult.candidates?.length || 0),
+    };
+  }
+
   const candidate = scoutResult.candidates?.[0];
   if (!candidate) {
     const decision = { action: "skip", reason: "no_candidate", sourceSignature: null, mint: null, amountUsd: 0 };
@@ -131,7 +234,7 @@ export async function wake({ mode = "read_only", liveGate = false, targets = [],
     : { nowMs, ...(clients.risk || {}) };
   const decideFn = clients.decide || decide;
   const decision = await decideFn(candidate, risk);
-  if (decision.action !== "copy") {
+  if (decision.action !== "copy_entry") {
     return { stage: mode, decision, receipt: null, report: await report(journalPath, nowMs, mode, decision, null, 1) };
   }
 
