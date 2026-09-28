@@ -1190,7 +1190,28 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
                       for aid, detail in details.items()}
     model_ids = {"Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
                  "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash"}
-    payloads["agent_models"] = {aid: model_ids.get(display) for aid, display in display_models.items()}
+    agent_models = {aid: model_ids.get(display) for aid, display in display_models.items()}
+    # The detail API describes the LATEST version. While an update is under review
+    # (2026-09-28: Hook Lab v1.0.3 on DeepSeek) buyers are still served by the live
+    # version, so price usage with the model last seen while the Agent was online.
+    served_path = Path(os.environ.get(
+        "CAPAFY_SERVED_MODELS", Path.home() / ".local/state/life-manager/state/capafy-served-models.json"))
+    try:
+        served = json.loads(served_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        served = {}
+    status_by_id = {str(row.get("agentId")): str(row.get("agentStatus") or "").lower()
+                    for row in (_inventory_rows(payloads.get("inventory", {})) or [])}
+    for aid, model in list(agent_models.items()):
+        if status_by_id.get(aid) == "online" and model:
+            served[aid] = model
+        elif served.get(aid):
+            agent_models[aid] = served[aid]
+    try:
+        _atomic_write(served_path, served)
+    except OSError:
+        pass
+    payloads["agent_models"] = agent_models
     catalog = _openrouter_data("/models")
     model_rows = catalog.get("data") if isinstance(catalog, dict) else None
     payloads["model_prices"] = (
