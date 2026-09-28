@@ -18,7 +18,7 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.dumps(
             {
                 "Browser": "Chrome/140",
-                "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/browser/abc",
+                "webSocketDebuggerUrl": "ws://localhost:9222/devtools/browser/abc",
             }
         ).encode()
         self.send_response(200)
@@ -67,7 +67,7 @@ class BrowserOwnerTests(unittest.TestCase):
                     "owner": "ai.anicca.job-search-daily",
                     "endpoint": endpoint,
                     "browser": "Chrome/140",
-                    "websocket": "ws://127.0.0.1:9222/devtools/browser/abc",
+                    "websocket": "ws://localhost:9222/devtools/browser/abc",
                 },
             )
         finally:

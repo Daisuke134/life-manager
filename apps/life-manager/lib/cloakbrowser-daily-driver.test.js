@@ -70,7 +70,7 @@ test("uses only the live :9222 shared context and closes only its own page", asy
 
   assert.deepEqual(result, { status: "read-only" });
   assert.deepEqual(fx.calls, [
-    ["connect", "http://127.0.0.1:9222"],
+    ["connect", "http://localhost:9222"],
     ["contexts"],
     ["read-existing-pages"],
     ["new-page"],
@@ -250,7 +250,7 @@ test("uses a parent-created fenced target and releases it only after task readba
             calls.push(["create-target"]);
             return {
               target_id: "PARENT_TARGET",
-              page_websocket: "ws://127.0.0.1:9222/devtools/page/PARENT_TARGET",
+              page_websocket: "ws://localhost:9222/devtools/page/PARENT_TARGET",
               page: fx.ownedPage,
             };
           },
@@ -282,7 +282,7 @@ test("uses a parent-created fenced target and releases it only after task readba
   assert.deepEqual(calls.find(([name]) => name === "claim-exact"), ["claim-exact", {
     canonicalUrl: "https://luma.com/event-a",
     targetId: "PARENT_TARGET",
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PARENT_TARGET",
+    pageWebsocket: "ws://localhost:9222/devtools/page/PARENT_TARGET",
     receiptPath: "/private/evidence/tab-owner.json",
   }]);
 });

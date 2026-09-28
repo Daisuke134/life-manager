@@ -53,7 +53,7 @@ RETAINER_ULID_PATTERN = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 
 def _cdp_base():
-    # No silent default. The old fallback was http://127.0.0.1:9222, which on this host
+    # No silent default. The old fallback was http://localhost:9222, which on this host
     # is a proxy onto the SAME browser as gig production :9223 -- the 2026-07-26
     # collision. Whenever the env is set (gig_pass.sh exports :9223) nothing changes;
     # when it is missing we now fail loudly instead of quietly attaching to whatever

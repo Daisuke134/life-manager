@@ -1365,13 +1365,13 @@ class LmLoopApplyTest(unittest.TestCase):
         environment = value["EnvironmentVariables"]
         self.assertEqual(environment["CLOAK_BROWSER_LAUNCHD_LABEL"],
                          "ai.anicca.life-manager-daily-driver")
-        self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://127.0.0.1:9222")
+        self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://localhost:9222")
         self.assertEqual(environment["CDP_DAILY_DRIVER_PORT"], "9222")
         self.assertEqual(environment["CDP_DAILY_DRIVER_PROFILE"],
                          str(Path.home() / ".cloak/profiles/daily-driver"))
         self.assertEqual(environment["WRITER_BROWSER_LAUNCHD_LABEL"],
                          "ai.anicca.life-manager-daily-driver")
-        self.assertEqual(environment["WRITER_CDP_URL"], "http://127.0.0.1:9222")
+        self.assertEqual(environment["WRITER_CDP_URL"], "http://localhost:9222")
         self.assertEqual(environment["WRITER_CDP_PORT"], "9222")
         self.assertEqual(environment["WRITER_CDP_PROFILE"],
                          str(Path.home() / ".cloak/profiles/daily-driver"))
@@ -2049,7 +2049,7 @@ class LmLoopApplyTest(unittest.TestCase):
                 if print_count == 1:
                     return 1, "not loaded"
                 environment = {
-                    key: ("http://127.0.0.1:9222"
+                    key: ("http://localhost:9222"
                           if key in {"CLOAK_CDP_BASE_URL", "GIG_CDP_HEALTH_URL"}
                           else "9222"
                           if key == "CDP_DAILY_DRIVER_PORT"

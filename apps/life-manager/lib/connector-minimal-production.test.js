@@ -992,7 +992,7 @@ test("official factory composes the default Peatix Harness with the attendee pro
   } };
   try {
     const dependencies = createMinimalProductionDependencies({ repoRoot: "/private/repo", stateDir, wakeId: "wake-production-peatix-harness-1", calendarAccount: "private-account", gogKeyring: "private-keyring", telegramTarget: "private-target", lumaFormProfilePath: "/private/form-profile.json", lunaEvidenceDir: "/private/luna-evidence", calendar: { ready() { return true; } }, calendarReader: { async readCalendarGaps() { return []; } }, lumaWorkflow: emptyWorkflow, connpassWorkflow: emptyWorkflow, peatixWorkflow: emptyWorkflow, peatixAttendeeProfile: profile, proposeAction: async () => ({ purpose: "fill", method: "ax_fill", control: "control_1" }), actionCache: { async replay() { return { status: "cache_miss" }; }, saveVerifiedRepair() {} }, evidenceChain: { async completeEvidence() {} }, operations: { async reportWake() {}, async recordAction() {} }, now: () => new Date("2026-08-10T08:30:00.000Z") });
-    const result = await dependencies.runAgentFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/1" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
+    const result = await dependencies.runAgentFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/1" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
     assert.equal(result.status, "completed"); assert.equal(filled, profile.name); assert.equal(JSON.stringify(result).includes(profile.email), false); reads += 1;
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
   assert.equal(reads, 1);
@@ -1047,7 +1047,7 @@ test("production provider router keeps Luma cache direct fallback and readback o
     provider: "luma",
     candidate,
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1",
     maxSteps: 10,
     expectedState: "registered_or_pending",
   }), { status: "failed" });
@@ -1632,7 +1632,7 @@ test("official production factory default Harness reaches injected TECH PLAY reg
       calendar: { ready() { return true; } }, calendarReader: { async readCalendarGaps() { return []; } }, browserRail: { open() {}, navigate() {}, close() {} }, lumaWorkflow: emptyWorkflow, connpassWorkflow: emptyWorkflow, techplayWorkflow,
       actionCache: { async replay() {}, saveVerifiedRepair() {} }, evidenceChain: { async completeEvidence() {} }, operations: { async reportWake() {}, async recordAction() {} }, proposeAction: async () => { proposerCalls += 1; throw new Error("TECH PLAY final must not use proposer"); }, resolveValue: async () => null,
     });
-    const result = await dependencies.runAgentFallback({ provider: "techplay", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAYFACTORY1", maxSteps: 15, expectedState: "registered_or_pending" });
+    const result = await dependencies.runAgentFallback({ provider: "techplay", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAYFACTORY1", maxSteps: 15, expectedState: "registered_or_pending" });
     assert.deepEqual(result, { status: "completed", provider_state: { status: "registered", receipt_id: "techplay-1" }, repaired_actions: [{ purpose: "submit", method: "ax_click", control: "techplay_final_999190" }] });
     assert.equal(readbacks, 1); assert.equal(clicks, 1); assert.equal(proposerCalls, 0);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
@@ -1693,7 +1693,7 @@ test("official production factory default Harness reaches injected Doorkeeper pa
       actionCache: { async replay() {}, saveVerifiedRepair() {} }, evidenceChain: { async completeEvidence() {} },
       operations: { async reportWake() {}, async recordAction() {} },
     });
-    const result = await dependencies.runAgentFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPERFACTORY1", maxSteps: 1, expectedState: "registered_or_pending" });
+    const result = await dependencies.runAgentFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPERFACTORY1", maxSteps: 1, expectedState: "registered_or_pending" });
     assert.equal(result.status, "completed");
     assert.equal(readbacks, 1);
     assert.equal(clicks, 1);
@@ -1793,7 +1793,7 @@ test("production browser rail owns exactly one :9222 target without closing the 
       calls.push(["target-create"]);
       return Object.freeze({
         target_id: "OWNEDTARGET1",
-        page_websocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+        page_websocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1",
         page,
       });
     },
@@ -1823,7 +1823,7 @@ test("production browser rail owns exactly one :9222 target without closing the 
     const rail = createProductionBrowserRail({
       stateDir,
       connectOverCDP: async (endpoint, options) => {
-        assert.equal(endpoint, "http://127.0.0.1:9222");
+        assert.equal(endpoint, "http://localhost:9222");
         assert.deepEqual(options, { timeout: 120_000 });
         calls.push(["connect", endpoint]);
         return browser;
@@ -1871,7 +1871,7 @@ test("production browser rail does not create a target until stale reap succeeds
   const controller = {
     async create() {
       calls.push(["target-create"]);
-      return { target_id: "OWNEDTARGET2", page_websocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET2", page };
+      return { target_id: "OWNEDTARGET2", page_websocket: "ws://localhost:9222/devtools/page/OWNEDTARGET2", page };
     },
     async close(targetId) { calls.push(["target-close", targetId]); return true; },
   };
@@ -1954,7 +1954,7 @@ test("composed cached action self-heal repairs one stale submit and replays it o
   const dependencies = {
     now: () => observedAt,
     browserRail: {
-      async open() { openCalls += 1; return { session_id: "session-self-heal", target_id: "SELFHEALTHTARGET", page_websocket: "ws://127.0.0.1:9222/devtools/page/SELFHEALTHTARGET", page }; },
+      async open() { openCalls += 1; return { session_id: "session-self-heal", target_id: "SELFHEALTHTARGET", page_websocket: "ws://localhost:9222/devtools/page/SELFHEALTHTARGET", page }; },
       async navigate(owned, url) { touch(owned.page); events.push(`navigate:${url}`); },
       async close(owned) { touch(owned.page); closeCalls += 1; },
     },
@@ -2073,7 +2073,7 @@ test("official production factory default KokuchPro Harness stops at auth before
       actionCache: { async replay() { return { status: "cache_miss" }; }, saveVerifiedRepair() { counts.save += 1; } }, evidenceChain: { async completeEvidence() {} }, operations: { async reportWake() {}, async recordAction() {} },
       inspectControls: async () => { counts.inspect += 1; return []; }, proposeAction: async () => { counts.propose += 1; return { control: "register" }; }, operateControl: async () => { counts.operate += 1; return { status: "success" }; }, resolveValue: async () => { counts.resolve += 1; return "private"; },
     });
-    assert.deepEqual(await dependencies.runAgentFallback({ provider: "kokuchpro", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/KOKUCHPROAUTH1", maxSteps: 1, expectedState: "registered_or_pending" }), { status: "failed", safe_reason: "auth_required", repaired_actions: [] });
+    assert.deepEqual(await dependencies.runAgentFallback({ provider: "kokuchpro", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/KOKUCHPROAUTH1", maxSteps: 1, expectedState: "registered_or_pending" }), { status: "failed", safe_reason: "auth_required", repaired_actions: [] });
     assert.deepEqual(counts, { inspect: 0, propose: 0, operate: 0, resolve: 0, save: 0 });
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });

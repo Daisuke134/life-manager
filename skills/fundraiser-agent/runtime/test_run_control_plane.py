@@ -49,7 +49,7 @@ def _run(tmp_path, free_kib: int, guard_script: str, foundation_script: str = "#
 def test_low_disk_requests_cleanup_through_lm_loop(tmp_path):
     result, calls = _run(
         tmp_path, free_kib=1,
-        guard_script="#!/bin/sh\necho http://127.0.0.1:9222\nexit 0\n",
+        guard_script="#!/bin/sh\necho http://localhost:9222\nexit 0\n",
     )
     assert result.returncode == 75
     assert calls.read_text().strip() == "restart life-manager-disk-cleanup"

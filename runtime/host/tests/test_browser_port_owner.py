@@ -448,7 +448,7 @@ def test_malformed_lock_target_is_left_alone(tmp_path):
     assert (profile / "SingletonLock").is_symlink()
 
 
-# --- 2026-09-27 production incident: 127.0.0.1:9222 is answered by an unrelated
+# --- 2026-09-27 production incident: localhost:9222 is answered by an unrelated
 # process (404) while the daily-driver Chromium's CDP only binds ::1. The owner's
 # health probe hardcoded 127.0.0.1, always saw the unrelated 404, and killed a
 # perfectly healthy browser every ~90s (KeepAlive then relaunched it, UUID churn).

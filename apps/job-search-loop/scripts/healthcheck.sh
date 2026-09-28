@@ -35,7 +35,7 @@ if [[ "$BROWSER_STATUS" != *"state=running"* || "$BROWSER_STATUS" == *"pid= " ||
   echo "$BROWSER_LABEL unhealthy: $BROWSER_STATUS" >&2
   exit 1
 fi
-curl -fsS --max-time 5 http://127.0.0.1:9222/json/version >/dev/null
+curl -fsS --max-time 5 http://localhost:9222/json/version >/dev/null
 echo "$BROWSER_LABEL $BROWSER_STATUS"
 
 "$JOB_SEARCH_PYTHON" - "$JOB_SEARCH_STATE_ROOT" "$JOB_SEARCH_PROFILE" <<'PY'

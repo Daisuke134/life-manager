@@ -83,7 +83,7 @@ def _deny_reads(paths: list[str]) -> str:
 
 def _shared_browser_denies() -> str:
     """Remove the authenticated Coconala daily-driver from model-owned processes."""
-    endpoint = urlsplit(os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"))
+    endpoint = urlsplit(os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222"))
     if endpoint.hostname not in {"localhost", "127.0.0.1", "::1"} or endpoint.port is None:
         raise ValueError("shared CDP endpoint must be loopback with an explicit port")
     vault = Path(os.environ.get(

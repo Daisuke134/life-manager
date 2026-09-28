@@ -36,7 +36,7 @@ except ImportError:
 
 
 def _cdp_base():
-    return os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222").rstrip("/")
+    return os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222").rstrip("/")
 
 
 def _vault_path():
@@ -104,7 +104,7 @@ def _dispose_lock_path():
     configured = os.environ.get("CLOAK_CONTEXT_DISPOSE_LOCK_FILE")
     if configured:
         return os.path.expanduser(configured)
-    parsed = urlparse(os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"))
+    parsed = urlparse(os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222"))
     port = parsed.port or 9222
     return os.path.expanduser(f"~/.cloak/vault/cdp-context-dispose-{port}.lock")
 

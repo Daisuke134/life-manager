@@ -347,7 +347,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--tiktok-snapshot", type=Path)
     result.add_argument(
         "--cdp-url",
-        default=os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"),
+        default=os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222"),
     )
     result.add_argument("--output", type=Path, default=root / "state/publication-identity.jsonl")
     result.add_argument("--report", type=Path, required=True)

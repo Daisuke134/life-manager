@@ -149,7 +149,7 @@ class PublicationLedgerTest(unittest.TestCase):
                 ])
             row = json.loads(output.read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual(result, 0)
-        free_fetch.assert_called_once_with(["handle"], cdp_url="http://127.0.0.1:9222")
+        free_fetch.assert_called_once_with(["handle"], cdp_url="http://localhost:9222")
         self.assertEqual(row["identity_status"], "resolved")
         self.assertEqual(row["native_post_id"], "7669159327655054613")
         self.assertEqual(

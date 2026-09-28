@@ -12,10 +12,10 @@ const {
 } = require("./connector-browser-target-controller.js");
 
 test("uses only the reachable IPv4 daily-driver endpoint and exact page websocket origin", () => {
-  assert.equal(CONNECTOR_CDP_ENDPOINT, "http://127.0.0.1:9222");
-  assert.equal(CONNECTOR_CDP_WEBSOCKET_ORIGIN, "ws://127.0.0.1:9222");
+  assert.equal(CONNECTOR_CDP_ENDPOINT, "http://localhost:9222");
+  assert.equal(CONNECTOR_CDP_WEBSOCKET_ORIGIN, "ws://localhost:9222");
   assert.equal(
-    connectorPageWebsocketTargetId("ws://127.0.0.1:9222/devtools/page/TARGET123"),
+    connectorPageWebsocketTargetId("ws://localhost:9222/devtools/page/TARGET123"),
     "TARGET123",
   );
   assert.throws(
@@ -117,7 +117,7 @@ test("creates exactly one default-context target and binds only its exact Playwr
   const result = await controller.create();
 
   assert.equal(result.target_id, "OWNED123");
-  assert.equal(result.page_websocket, "ws://127.0.0.1:9222/devtools/page/OWNED123");
+  assert.equal(result.page_websocket, "ws://localhost:9222/devtools/page/OWNED123");
   assert.equal(result.page, fx.owned);
   assert.equal(fx.calls.filter(([name, method]) => name === "browser-send" && method === "Target.createTarget").length, 1);
   assert.deepEqual(

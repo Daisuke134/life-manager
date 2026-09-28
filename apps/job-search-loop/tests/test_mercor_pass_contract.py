@@ -183,7 +183,7 @@ class MercorPassContractTests(unittest.TestCase):
 
         connection = FakeWebSocket()
         deny_mercor_media_permissions(
-            "ws://127.0.0.1:9222/devtools/page/owned",
+            "ws://localhost:9222/devtools/page/owned",
             websocket_factory=lambda *_args, **_kwargs: connection,
         )
         self.assertEqual(
@@ -216,7 +216,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=self._profile(state / "profile.json"),
                 resume_path=state / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["recently_inspected_listing_ids"], ["list-seen"])
 
@@ -238,7 +238,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=self._profile(state / "profile.json"),
                 resume_path=state / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["recently_inspected_listings"], [{
                 "listing_id": "list-recent",
@@ -264,7 +264,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=self._profile(state / "profile.json"),
                 resume_path=state / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["host_capabilities"], {
                 "architecture": "arm64", "macos_version": "15.6",
@@ -286,7 +286,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=profile,
                 resume_path=resume,
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["profile_material"]["profile_sha256"],
                              hashlib.sha256(profile.read_bytes()).hexdigest())
@@ -308,7 +308,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=self._profile(root / "profile.json"),
                 resume_path=root / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["approved_recordings_manifest"], str(manifest.resolve()))
 
@@ -323,7 +323,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=self._profile(root / "profile.json"),
                 resume_path=root / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertNotIn("approved_recordings_manifest", context)
 
@@ -337,7 +337,7 @@ class MercorPassContractTests(unittest.TestCase):
                 state_root=state,
                 profile_path=profile,
                 resume_path=state / "resume.pdf",
-                cdp_url="http://127.0.0.1:9222",
+                cdp_url="http://localhost:9222",
             )
             self.assertEqual(context["profile_proposal_path"], str(proposal.resolve()))
 
@@ -1280,7 +1280,7 @@ class MercorPassContractTests(unittest.TestCase):
                     state_root=state,
                     profile_path=profile,
                     resume_path=root / "resume.pdf",
-                    cdp_url="http://127.0.0.1:9222",
+                    cdp_url="http://localhost:9222",
                 )
             self.assertEqual(
                 context["human_gate_store"],

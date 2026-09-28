@@ -58,7 +58,7 @@ def wait_for_cdp(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--endpoint", default="http://127.0.0.1:9222")
+    parser.add_argument("--endpoint", default="http://localhost:9222")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     result = wait_for_cdp(args.endpoint)

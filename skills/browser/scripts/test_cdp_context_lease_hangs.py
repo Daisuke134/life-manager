@@ -82,7 +82,7 @@ def test_release_of_an_undisposable_context_keeps_cleanup_tombstone(monkeypatch,
         "gig-task": {
             "context_id": "dead-context",
             "target_id": "dead-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/dead-target",
+            "ws": "ws://localhost:9222/devtools/page/dead-target",
             "ts": 0,
             "token": "a" * 32,
             "generation": 1,
@@ -137,7 +137,7 @@ def test_acquire_does_not_orphan_an_undisposable_dead_context(monkeypatch, tmp_p
     leases_file.write_text(json.dumps({
         "gig-task": {
             "context_id": "dead-context", "target_id": "dead-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/dead-target",
+            "ws": "ws://localhost:9222/devtools/page/dead-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
             "pid": 2_147_483_647,
         }
@@ -164,7 +164,7 @@ def test_acquire_recreates_responsive_cleanup_pending_context_without_holder(mon
     leases_file.write_text(json.dumps({
         "gig-task": {
             "context_id": "responsive-context", "target_id": "responsive-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/responsive-target",
+            "ws": "ws://localhost:9222/devtools/page/responsive-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
             "pid": None, "cleanup_pending": True,
             "cleanup_error_type": "RuntimeError",
@@ -207,7 +207,7 @@ def test_gc_keeps_cleanup_tombstone_until_dispose_succeeds(monkeypatch, tmp_path
     leases_file.write_text(json.dumps({
         "gig-task": {
             "context_id": "dead-context", "target_id": "dead-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/dead-target",
+            "ws": "ws://localhost:9222/devtools/page/dead-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
             "cleanup_pending": True,
         }
@@ -233,7 +233,7 @@ def test_release_with_a_wrong_fence_still_refuses(monkeypatch, tmp_path):
     leases_file.write_text(json.dumps({
         "gig-task": {
             "context_id": "c", "target_id": "t",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t",
+            "ws": "ws://localhost:9222/devtools/page/t",
             "ts": 0, "token": "a" * 32, "generation": 2,
         }
     }), encoding="utf-8")
@@ -253,7 +253,7 @@ def test_commit_cookies_merges_only_requested_domain(monkeypatch, tmp_path):
     leases_file.write_text(json.dumps({
         "mercor-task": {
             "context_id": "mercor-context", "target_id": "mercor-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/mercor-target",
+            "ws": "ws://localhost:9222/devtools/page/mercor-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
         }
     }), encoding="utf-8")
@@ -299,7 +299,7 @@ def test_commit_cookies_keeps_vault_when_context_has_no_requested_cookie(monkeyp
     leases_file.write_text(json.dumps({
         "mercor-task": {
             "context_id": "mercor-context", "target_id": "mercor-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/mercor-target",
+            "ws": "ws://localhost:9222/devtools/page/mercor-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
         }
     }), encoding="utf-8")
@@ -400,7 +400,7 @@ def test_commit_cookies_also_commits_only_declared_web_storage(monkeypatch, tmp_
     leases_file.write_text(json.dumps({
         "mercor-task": {
             "context_id": "mercor-context", "target_id": "mercor-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/mercor-target",
+            "ws": "ws://localhost:9222/devtools/page/mercor-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
         }
     }), encoding="utf-8")
@@ -457,7 +457,7 @@ def test_commit_cookies_commits_declared_indexeddb_records(monkeypatch, tmp_path
     leases_file.write_text(json.dumps({
         "mercor-task": {
             "context_id": "mercor-context", "target_id": "mercor-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/mercor-target",
+            "ws": "ws://localhost:9222/devtools/page/mercor-target",
             "ts": 0, "token": "a" * 32, "generation": 1,
         }
     }), encoding="utf-8")

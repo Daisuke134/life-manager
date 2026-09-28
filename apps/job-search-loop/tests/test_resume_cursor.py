@@ -12,7 +12,7 @@ from job_search_loop.state import provider_recovery_url
 class ResumeCursorTests(unittest.IsolatedAsyncioTestCase):
     async def test_recovered_handle_on_another_provider_requires_navigation(self):
         session = Mock()
-        handle = SessionHandleV1(1, "http://127.0.0.1:9222", "workday-row", "marker", 2)
+        handle = SessionHandleV1(1, "http://localhost:9222", "workday-row", "marker", 2)
         session.resume = AsyncMock(return_value=(handle, True))
         session.page.return_value.url = "https://jobs.ashbyhq.com/sierra/role/application"
         checkpoint = RowCheckpointV1(
@@ -33,7 +33,7 @@ class ResumeCursorTests(unittest.IsolatedAsyncioTestCase):
         canonical = "https://example.wd5.myworkdayjobs.com/job/Workday-Role_JR123"
 
         cursor = await RowResumer(session, checkpoints, evidence).restore(
-            "http://127.0.0.1:9222",
+            "http://localhost:9222",
             "workday-row",
             canonical,
         )

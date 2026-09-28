@@ -170,7 +170,7 @@ class WorkdayVerificationTests(unittest.TestCase):
                     message_id="message-reset",
                     credential_store=credentials,
                     database=self.database,
-                    endpoint="http://127.0.0.1:9222",
+                    endpoint="http://localhost:9222",
                     gog="/gog",
                 )
             )

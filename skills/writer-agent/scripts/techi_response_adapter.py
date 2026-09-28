@@ -170,7 +170,7 @@ def poll(opportunity: dict[str, Any]) -> dict[str, Any] | None:
     submission_id = _text(opportunity.get("submission_id"), "submission_id")
     if not VENV_CLOAK_PYTHON.is_file():
         raise ResponseUnavailable("Writer browser Python is unavailable for TECHi status")
-    cdp_url = os.environ.get("WRITER_CDP_URL", "http://127.0.0.1:9222")
+    cdp_url = os.environ.get("WRITER_CDP_URL", "http://localhost:9222")
     script = f'''
 import base64, json, sys
 from playwright.sync_api import sync_playwright

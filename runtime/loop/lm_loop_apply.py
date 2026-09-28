@@ -229,13 +229,13 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ARTICLE_CODEX_PROVIDER_ENV_KEY": "CLIPROXY_API_KEY",
             "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE": "cliproxyapi",
             "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
-            "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9222",
+            "CLOAK_CDP_BASE_URL": "http://localhost:9222",
             "CDP_DAILY_DRIVER_PORT": "9222",
             "CDP_DAILY_DRIVER_PROFILE": str(
                 Path.home() / ".cloak/profiles/daily-driver"
             ),
             "WRITER_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
-            "WRITER_CDP_URL": "http://127.0.0.1:9222",
+            "WRITER_CDP_URL": "http://localhost:9222",
             "WRITER_CDP_PORT": "9222",
             "WRITER_CDP_PROFILE": str(
                 Path.home() / ".cloak/profiles/daily-driver"

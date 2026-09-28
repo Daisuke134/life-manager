@@ -29,7 +29,7 @@ async function postizAnalytics(input, env = process.env) {
 }
 
 async function collectTikTokWindow(input, env = process.env, observedAt = new Date().toISOString()) {
-  const endpoint = env.LM_CDP_ENDPOINT || "http://127.0.0.1:9222"; const base = new URL(endpoint); if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.port !== "9222") throw new Error("TikTok native metric CDP endpoint invalid");
+  const endpoint = env.LM_CDP_ENDPOINT || "http://localhost:9222"; const base = new URL(endpoint); if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.port !== "9222") throw new Error("TikTok native metric CDP endpoint invalid");
   const request = async (suffix, options = {}) => { const response = await fetch(new URL(suffix, base), { ...options, signal: AbortSignal.timeout(10_000) }); if (!response.ok) throw new Error(`TikTok native metric CDP HTTP ${response.status}`); return response.json(); };
   const version = await request("/json/version"); const target = await request(`/json/new?${encodeURIComponent("about:blank")}`, { method: "PUT" }); if (!version.webSocketDebuggerUrl || !target.id) throw new Error("TikTok native metric CDP target unavailable");
   let client;

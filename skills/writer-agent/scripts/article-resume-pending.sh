@@ -903,7 +903,7 @@ if [ "$FIRST_INITIALIZATION" = "x-article/ja" ] || [ "$FIRST_INITIALIZATION" = "
     echo "article-resume: X browser guard missing at $BROWSER_GUARD" >>"$LOG"
     exit 1
   fi
-  WRITER_CDP_ENDPOINT="${WRITER_CDP_URL:-http://127.0.0.1:9222}"
+  WRITER_CDP_ENDPOINT="${WRITER_CDP_URL:-http://localhost:9222}"
   WRITER_CDP_ENDPOINT_PORT="${WRITER_CDP_PORT:-9222}"
   WRITER_CDP_ENDPOINT_PROFILE="${WRITER_CDP_PROFILE:-$HOME/.cloak/profiles/daily-driver}"
   WRITER_BROWSER_OWNER_LABEL="${WRITER_BROWSER_LAUNCHD_LABEL:-ai.anicca.life-manager-daily-driver}"

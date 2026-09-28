@@ -36,7 +36,7 @@ EXCERPT = 6000  # keep each page small — the model needs the signal, not the w
 
 def _browser_ws():
     data = json.loads(
-        urllib.request.urlopen("http://127.0.0.1:9222/json/version", timeout=8).read()
+        urllib.request.urlopen("http://localhost:9222/json/version", timeout=8).read()
     )
     return data["webSocketDebuggerUrl"]
 

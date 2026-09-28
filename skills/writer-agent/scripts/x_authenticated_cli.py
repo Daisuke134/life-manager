@@ -332,7 +332,7 @@ def capture_x_article_body(
     metadata: dict[str, Any] = {}
     if dom_reader is None:
         resolved_url, raw_body, metadata = _read_article_dom(
-            url, cdp_url or os.environ.get("WRITER_CDP_URL", "http://127.0.0.1:9222")
+            url, cdp_url or os.environ.get("WRITER_CDP_URL", "http://localhost:9222")
         )
     else:
         try:
@@ -432,7 +432,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--handle", required=True)
     parser.add_argument("--limit", required=True, type=int)
-    parser.add_argument("--cdp-url", default="http://127.0.0.1:9222")
+    parser.add_argument("--cdp-url", default="http://localhost:9222")
     args = parser.parse_args(argv)
     if args.limit < 1 or args.limit > 50:
         raise SystemExit("limit must be between 1 and 50")

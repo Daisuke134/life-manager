@@ -375,7 +375,7 @@ def fetch_x(
         [
             str(cloak_python), str(bridge), "--handle", handle,
             "--limit", str(int(source.get("limit", 10))),
-            "--cdp-url", os.environ.get("WRITER_CDP_URL", "http://127.0.0.1:9222"),
+            "--cdp-url", os.environ.get("WRITER_CDP_URL", "http://localhost:9222"),
         ],
         timeout=45,
     )

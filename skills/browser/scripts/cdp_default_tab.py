@@ -28,7 +28,7 @@ except ImportError:
 
 
 def _cdp_base():
-    return os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222").rstrip("/")
+    return os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222").rstrip("/")
 
 
 def _browser_ws():
