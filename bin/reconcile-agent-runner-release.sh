@@ -133,6 +133,21 @@ if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
   exit 69
 fi
 
+provision_investment_manifest() {
+  local release_root="$1"
+  local provisioner="$release_root/apps/life-manager/investment-core/provision_manifest.py"
+  [ -f "$provisioner" ] || return 0
+  local manifest_path="${LIFE_MANAGER_INVESTMENT_MANIFEST_PATH:-$HOME/.local/state/life-manager/investment-cross-venue/inputs.json}"
+  local alpaca_state_dir="${LIFE_MANAGER_INVESTMENT_ALPACA_STATE_DIR:-~/.local/state/life-manager/alpaca-investment-live}"
+  if ! "$runtime_python" "$provisioner" \
+      --path "$manifest_path" \
+      --alpaca-state-dir "$alpaca_state_dir" \
+      --available-capital-usd 0; then
+    printf 'agent-runner reconcile: investment owner manifest provisioning failed\n' >&2
+    return 1
+  fi
+}
+
 run_reconcile() {
   local release_root="$1"
   shift
@@ -542,6 +557,10 @@ if [ "$release_sha" != "$release_sha_target" ] || [ "$release_paths" != "ALL" ];
   exit 1
 fi
 
+if ! provision_investment_manifest "$RELEASE_ROOT"; then
+  printf 'agent-runner reconcile refused: investment owner manifest is not provisioned\n' >&2
+  exit 1
+fi
 reconcile_status=0
 reconcile_release "$RELEASE_ROOT" || reconcile_status=1
 fleet_apply_status=0

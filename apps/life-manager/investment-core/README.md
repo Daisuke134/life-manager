@@ -133,6 +133,14 @@ It never turns a missing input into `$0` profit. `configured` means only that
 the manifest was validly read; it does not mean a venue made money. Missing
 funding, gas, or model-cost fields remain partial/unknown rather than zero.
 
+During a complete Life Manager release handoff, `bin/reconcile-agent-runner-release.sh`
+invokes `provision_manifest.py` before owner reconciliation when that provisioner is
+present in the release. If the owner manifest is absent, it creates only the safe
+zero-capital default (`snapshot_specs=[]`, the durable Alpaca state directory, and
+`available_capital_usd="0"`). A valid existing manifest is preserved; an invalid
+existing manifest is not overwritten and fails the handoff. The daily wake never
+creates or repairs this file.
+
 Current source boundaries:
 
 - Alpaca performance receipts: existing `skills/alpaca-investment` readback and `investment-core` adapters.
