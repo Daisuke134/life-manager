@@ -375,7 +375,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 1: Add a failing normalization test** for accepted finalized external rows and rejected non-finalized/internal rows; the initial run failed because the export did not exist.
 - [x] **Step 2: Implement the pure normalization and wire `store-improve` to `external-inflows-<payTo>.jsonl`; keep local attempts for demand/age only.**
 - [x] **Step 3: Run wallet-scoped read-only replay.** Franklin1 has no verified external inflow and remains a hold/drop recommendation; Railway has `18` verified `/funding-rates` receipts and keeps only that route. No wallet data is merged and no seller is restarted.
-- [x] **Step 4: Run the x402 suite, then commit and push this evidence-boundary change.** The full x402 suite passes `223/223`; commit/push is the remaining handoff step for this task.
+- [x] **Step 4: Run the x402 suite, then commit and push this evidence-boundary change.** The full x402 suite passes `223/223`; commit `6068011ede` is pushed on the dedicated branch.
 
 ## Current TODO Cursor
 
@@ -392,7 +392,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
 12. Task 12 is complete and pushed after the CFO wiring: x402 verification is healthy, the separate USDC adapter is measured, and the briefing keeps it outside USD Treasury.
 13. Task 13 x402 active-catalog alignment is implemented and pushed (`d989f44d58`).
-14. Task 14 x402 verified-inflow reward boundary is implemented and fully tested (`223/223`); commit/push it before taking the next revenue-evidence cursor.
+14. Task 14 x402 verified-inflow reward boundary is implemented, fully tested (`223/223`), and pushed (`6068011ede`).
 15. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
 16. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 17. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
