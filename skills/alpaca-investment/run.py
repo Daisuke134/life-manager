@@ -333,7 +333,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         stage = "allocator_read"
         allocator_snapshot = read_allocator_snapshot(
             credentials_path=credentials_path, cli_path=cli_path,
-            risk_day_path=state / "risk-day.json")
+            risk_day_path=state / "risk-day.json", include_etf_bars=True)
+        allocator_snapshot["mode"] = mode
         if mode == "live":
             stage = "market_history_read"
             allocator_snapshot["crypto_history"] = read_crypto_history(
@@ -401,7 +402,9 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     # Re-read official slots under the exclusive effect fence so two
                     # overlapping wakes cannot both act on the same stale snapshot.
                     fresh = read_allocator_snapshot(credentials_path=credentials_path,
-                        cli_path=cli_path, risk_day_path=state / "risk-day.json")
+                        cli_path=cli_path, risk_day_path=state / "risk-day.json",
+                        include_etf_bars=True)
+                    fresh["mode"] = mode
                     fresh["unresolved_intents"] = unresolved_intent_count(state / "receipts.jsonl")
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or

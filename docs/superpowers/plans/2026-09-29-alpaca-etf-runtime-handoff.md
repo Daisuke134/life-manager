@@ -86,11 +86,13 @@
 - Use the Alpaca market clock to exclude the current incomplete session; a provider row after the declared completed boundary is a typed failure.
 - Preserve provider response/source identifiers for later paper receipts; never convert missing bars or unavailable cost to zero.
 
-- [ ] **Step 1: Write failing adapter tests** for exact fixed symbols, bounded lookback, completed-session cutoff, duplicate rows, and provider errors.
-- [ ] **Step 2: Run the adapter tests RED** before changing the CLI adapter.
-- [ ] **Step 3: Implement the read-only stock-bars operation** with existing subprocess/credential boundaries and no order calls.
-- [ ] **Step 4: Run adapter plus pure-policy regressions** and inspect one sanitized read-only response.
-- [ ] **Step 5: Commit and push** the ingestion boundary; do not call it a paper trade or P&L receipt.
+- [x] **Step 1: Write failing adapter tests** for exact fixed symbols, bounded lookback, completed-session cutoff, duplicate rows, future rows, and provider errors.
+- [x] **Step 2: Run the adapter tests RED** before changing the CLI adapter; the missing `read_etf_daily_bars` boundary and fixture setup were caught.
+- [x] **Step 3: Implement the read-only stock-bars operation** with `data multi-bars`, `--feed iex`, `--adjustment split`, `--timeframe 1Day`, a bounded 260-calendar-day window, NY-session filtering, 127 common sessions, deterministic source hash, and no order calls. `run.py` now requests the same boundary for both the initial and fresh allocator snapshots.
+- [x] **Step 4: Run adapter plus pure-policy regressions.** Adapter tests pass `5/5`, the combined ingestion/selection/allocator/risk/position set passes `41/41`, and the complete Alpaca discovery suite passes `188/188`. The installed CLI help confirms the `multi-bars` command contract; no live provider order or P&L receipt was created.
+- [x] **Step 5: Commit and push** the ingestion boundary; the source hash is an evidence reference, not a paper trade or P&L receipt.
+
+**Task 3 result:** The read-only ingestion code is complete in the worktree, but the loaded production release still lacks it and no provider paper receipt exists. Task 4 and the Life Manager release handoff remain open.
 
 ### Task 4: Paper order, ownership, reconciliation, and receipt
 

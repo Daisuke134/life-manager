@@ -10,6 +10,7 @@ import stat
 import subprocess
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,16 +23,19 @@ from risk_policy import parse_instant
 CLI_VERSION = "0.0.14"
 PAPER_ENDPOINT = "https://paper-api.alpaca.markets/v2"
 LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
+ETF_DAILY_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD")
+ETF_DAILY_LOOKBACK_SESSIONS = 127
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
-    "data_latest-quotes", "data_latest-trade", "data_option", "order_list",
+    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "order_list",
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",
+    "alpaca_etf_daily_bars_invalid",
     "alpaca_cli_json_invalid", "alpaca_cli_output_too_large", "alpaca_cli_unavailable",
     "alpaca_cli_version_unpinned", "alpaca_credential_record_invalid",
     "alpaca_live_credentials_unavailable", "alpaca_paper_credentials_unavailable",
@@ -241,8 +245,107 @@ def read_campaign_snapshot(
     }
 
 
+def _normalize_etf_daily_bars(rows: Any, clock: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(rows, list) or not isinstance(clock, Mapping):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    is_open = clock.get("is_open")
+    if not isinstance(is_open, bool):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    try:
+        observed = parse_instant(clock["timestamp"])
+        current_session = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+
+    by_symbol: dict[str, dict[str, dict[str, str]]] = {}
+    try:
+        for item in rows:
+            if not isinstance(item, dict):
+                raise ValueError
+            symbol = item.get("symbol")
+            if symbol not in ETF_DAILY_SYMBOLS or symbol in by_symbol:
+                raise ValueError
+            raw_bars = item.get("bars")
+            if not isinstance(raw_bars, list) or not raw_bars:
+                raise ValueError
+            normalized: dict[str, dict[str, str]] = {}
+            previous_session: str | None = None
+            for raw in raw_bars:
+                if not isinstance(raw, dict):
+                    raise ValueError
+                timestamp = parse_instant(raw["t"])
+                session = timestamp.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+                if session > current_session:
+                    raise ValueError
+                if is_open and session == current_session:
+                    continue
+                opening = Decimal(str(raw["o"]))
+                closing = Decimal(str(raw["c"]))
+                if (not opening.is_finite() or not closing.is_finite()
+                        or opening <= 0 or closing <= 0):
+                    raise ValueError
+                if previous_session is not None:
+                    if session == previous_session or session < previous_session:
+                        raise ValueError
+                normalized[session] = {
+                    "t": str(raw["t"]), "o": str(opening), "c": str(closing),
+                }
+                previous_session = session
+            if not normalized:
+                raise ValueError
+            by_symbol[symbol] = normalized
+        if set(by_symbol) != set(ETF_DAILY_SYMBOLS):
+            raise ValueError
+        common_sessions = set.intersection(*(set(rows_by_session) for rows_by_session in by_symbol.values()))
+        if len(common_sessions) < ETF_DAILY_LOOKBACK_SESSIONS:
+            raise ValueError
+        selected_sessions = sorted(common_sessions)[-ETF_DAILY_LOOKBACK_SESSIONS:]
+        aligned = {
+            symbol: [by_symbol[symbol][session] for session in selected_sessions]
+            for symbol in ETF_DAILY_SYMBOLS
+        }
+        completed = selected_sessions[-1]
+        canonical = json.dumps(
+            {"symbols": ETF_DAILY_SYMBOLS, "completed_through_session": completed,
+             "daily_bars": aligned}, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+        source_hash = hashlib.sha256(canonical).hexdigest()
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+    return {
+        "daily_bars": aligned,
+        "completed_through_session": completed,
+        "source_receipt_ids": [
+            f"alpaca://stock-bars/iex/split/{completed}/{source_hash}"
+        ],
+    }
+
+
+def read_etf_daily_bars(
+    *, credentials_path: Path, cli_path: Path, clock: Mapping[str, Any],
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Read a bounded, split-adjusted IEX daily ETF window without an effect."""
+    try:
+        observed = parse_instant(clock["timestamp"])
+        current_session = observed.astimezone(ZoneInfo("America/New_York")).date()
+        start = current_session - timedelta(days=260)
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+    context = env if env is not None else _context(credentials_path, cli_path)
+    rows = _run(cli_path, [
+        "data", "multi-bars", "--symbols", ",".join(ETF_DAILY_SYMBOLS),
+        "--start", start.isoformat(), "--end", current_session.isoformat(),
+        "--timeframe", "1Day", "--adjustment", "split", "--feed", "iex",
+        "--limit", "2000", "--sort", "asc", "--quiet", "--jq",
+        ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,c}))})",
+    ], context)
+    return _normalize_etf_daily_bars(rows, clock)
+
+
 def read_allocator_snapshot(
     *, credentials_path: Path, cli_path: Path, risk_day_path: Path,
+    include_etf_bars: bool = False,
 ) -> dict[str, Any]:
     """Read only the official fields needed to offer trade candidates."""
     env = _context(credentials_path, cli_path)
@@ -346,10 +449,16 @@ def read_allocator_snapshot(
                 "ny_day": ny_day}
     except (KeyError, InvalidOperation, TypeError, ValueError) as error:
         raise ValueError("alpaca_allocator_risk_invalid") from error
-    return {"account": account, "available_cash_usd": str(available_cash),
+    result = {"account": account, "available_cash_usd": str(available_cash),
             "clock": clock, "crypto": crypto,
             "open_orders": orders, "option_quotes": options, "positions": len(risk_positions), "risk": risk,
             "qqq_asset": qqq_asset, "qqq_quote": qqq_quote, "spy": spy}
+    if include_etf_bars:
+        result.update(read_etf_daily_bars(
+            credentials_path=credentials_path, cli_path=cli_path,
+            clock=clock, env=env,
+        ))
+    return result
 
 
 def read_crypto_history(*, credentials_path: Path, cli_path: Path,
