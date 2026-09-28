@@ -28,29 +28,56 @@ def load_config() -> dict:
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
+HOOK_CORE_TERMS = ["hook", "hooks"]
+
 ROWS_FIXTURE = [
     {"keyword": "generic head term", "searchVolume": 500000, "keywordDifficulty": 95, "intent": "informational"},
-    {"keyword": "best target keyword", "searchVolume": 12000, "keywordDifficulty": 20, "intent": "informational"},
-    {"keyword": "second choice keyword", "searchVolume": 9000, "keywordDifficulty": 15, "intent": "commercial"},
-    {"keyword": "low volume niche term", "searchVolume": 300, "keywordDifficulty": 5, "intent": "informational"},
-    {"keyword": "wrong intent keyword", "searchVolume": 999999, "keywordDifficulty": 1, "intent": "navigational"},
-    {"keyword": "no kd data", "searchVolume": 5000, "keywordDifficulty": None, "intent": "commercial"},
+    {"keyword": "best hook keyword", "searchVolume": 12000, "keywordDifficulty": 20, "intent": "informational"},
+    {"keyword": "second choice hook keyword", "searchVolume": 9000, "keywordDifficulty": 15, "intent": "commercial"},
+    {"keyword": "low volume niche hook term", "searchVolume": 300, "keywordDifficulty": 5, "intent": "informational"},
+    {"keyword": "wrong intent hook keyword", "searchVolume": 999999, "keywordDifficulty": 1, "intent": "navigational"},
+    {"keyword": "hooks with no kd data", "searchVolume": 5000, "keywordDifficulty": None, "intent": "commercial"},
+    {"keyword": "off topic keyword with high volume", "searchVolume": 800000, "keywordDifficulty": 10, "intent": "informational"},
 ]
 
 
 def test_pick_keywords_excludes_high_kd_head_term_and_wrong_intent():
     module = load_module()
-    picked = module.pick_keywords(ROWS_FIXTURE)
-    assert picked["primary"] == "best target keyword"
+    picked = module.pick_keywords(ROWS_FIXTURE, HOOK_CORE_TERMS)
+    assert picked["primary"] == "best hook keyword"
     assert "generic head term" not in picked["secondary"]
-    assert "wrong intent keyword" not in picked["secondary"]
-    assert "no kd data" not in picked["secondary"]
+    assert "wrong intent hook keyword" not in picked["secondary"]
+    assert "hooks with no kd data" not in picked["secondary"]
     assert picked["metrics"]["primary"]["searchVolume"] == 12000
+
+
+def test_pick_keywords_rejects_a_candidate_without_the_skills_core_term():
+    module = load_module()
+    picked = module.pick_keywords(ROWS_FIXTURE, HOOK_CORE_TERMS)
+    # "off topic keyword with high volume" beats every hook candidate on volume
+    # and KD alone, but it must never be picked because it has no core term.
+    assert picked["primary"] != "off topic keyword with high volume"
+    assert "off topic keyword with high volume" not in picked["secondary"]
+
+
+def test_pick_keywords_returns_none_when_no_row_contains_a_core_term():
+    module = load_module()
+    rows = [{"keyword": "off topic keyword with high volume", "searchVolume": 800000, "keywordDifficulty": 10, "intent": "informational"}]
+    assert module.pick_keywords(rows, HOOK_CORE_TERMS) is None
+
+
+def test_pick_keywords_ignores_core_terms_when_skill_has_none():
+    module = load_module()
+    # A skill with no seo_core_terms configured keeps the old behavior (no
+    # relevance filter) rather than rejecting everything.
+    rows = [{"keyword": "off topic keyword with high volume", "searchVolume": 800000, "keywordDifficulty": 10, "intent": "informational"}]
+    picked = module.pick_keywords(rows, [])
+    assert picked["primary"] == "off topic keyword with high volume"
 
 
 def test_pick_keywords_returns_none_when_nothing_qualifies():
     module = load_module()
-    assert module.pick_keywords([{"keyword": "x", "searchVolume": 10, "keywordDifficulty": 90, "intent": "informational"}]) is None
+    assert module.pick_keywords([{"keyword": "hook x", "searchVolume": 10, "keywordDifficulty": 90, "intent": "informational"}], HOOK_CORE_TERMS) is None
 
 
 def test_resolve_uses_fresh_cache_without_any_network_call(tmp_path, monkeypatch):
@@ -99,10 +126,51 @@ def test_resolve_calls_live_once_and_writes_cache_when_stale(tmp_path, monkeypat
     assert len(calls) == 1
     assert calls[0][0] == "test-key"
     assert result["source"] == "live"
-    assert result["primary"] == "best target keyword"
+    assert result["primary"] == "best hook keyword"
     written = json.loads((cache_dir / "hook-lab.json").read_text(encoding="utf-8"))
-    assert written["primary"] == "best target keyword"
+    assert written["primary"] == "best hook keyword"
     assert written["fetched_at"] == 2000.0
+
+
+def test_resolve_caches_a_no_relevant_match_outcome_without_a_second_call(tmp_path, monkeypatch):
+    """The seed for hook-lab can dilute to an off-topic head term (this
+    happened live 2026-09-28: seed "hook for short form video" returned zero
+    rows containing "hook"). That must fall back to the static seed AND be
+    cached for 30 days -- otherwise every single run would re-spend credits
+    trying the same seed again."""
+    module = load_module()
+    config = load_config()
+    cache_dir = tmp_path / "cache"
+    credentials_file = tmp_path / "credentials.json"
+    credentials_file.write_text(json.dumps({
+        "credentials": [{"service": "openseo", "api_key": "test-key"}]
+    }), encoding="utf-8")
+
+    calls = []
+
+    def fake_fetch(api_key, project_id, seed):
+        calls.append(seed)
+        return [{"keyword": "generic video term", "searchVolume": 60500, "keywordDifficulty": 26, "intent": "informational"}]
+
+    monkeypatch.setattr(module, "fetch_live_rows", fake_fetch)
+    result = module.resolve(
+        "hook-lab", config, cache_dir=cache_dir, credentials_file=credentials_file, now=3000.0,
+    )
+    assert len(calls) == 1  # exactly one call, no retry with a different seed
+    assert result["source"] == "live-no-match"
+    assert result["primary"] == config["products"]["capafy-skills"]["skills"]["hook-lab"]["seo_seed"]
+    written = json.loads((cache_dir / "hook-lab.json").read_text(encoding="utf-8"))
+    assert written["fetched_at"] == 3000.0
+
+    # A second resolve() shortly after must hit the cache, not call live again.
+    def boom(*a, **k):
+        raise AssertionError("must not call OpenSEO again while the no-match cache is fresh")
+
+    monkeypatch.setattr(module, "fetch_live_rows", boom)
+    second = module.resolve(
+        "hook-lab", config, cache_dir=cache_dir, credentials_file=credentials_file, now=3600.0,
+    )
+    assert second["source"] == "cache"
 
 
 def test_resolve_falls_back_to_stale_cache_when_live_call_fails(tmp_path, monkeypatch):
@@ -192,6 +260,12 @@ def test_every_capafy_skill_has_a_seo_seed():
     config = load_config()
     for slug, skill in config["products"]["capafy-skills"]["skills"].items():
         assert skill.get("seo_seed"), f"{slug} is missing seo_seed"
+
+
+def test_every_capafy_skill_has_seo_core_terms():
+    config = load_config()
+    for slug, skill in config["products"]["capafy-skills"]["skills"].items():
+        assert skill.get("seo_core_terms"), f"{slug} is missing seo_core_terms"
 
 
 def test_cli_prints_one_json_object(tmp_path):

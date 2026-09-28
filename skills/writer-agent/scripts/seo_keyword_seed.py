@@ -7,13 +7,20 @@ that run's title/H2s for the chosen skill's buyer problem, using OpenSEO
 (hosted MCP, free-trial credits -- see config/products.json "tracking" for why we
 already trust OpenSEO's own numbers).
 
-Cost discipline: one live research_keywords call costs ~43-54 OpenSEO credits.
-Each skill's result is cached for 30 days under
+Cost discipline: one live research_keywords call costs ~43-54 OpenSEO credits
+(free trial; confirmed live 2026-09-28: 457 -> 414 after one call for the
+"hook for short form video" seed, then 414 -> 317 across two more exploratory
+calls made only during investigation -- 140 credits spent in total, 317
+remaining). Each skill's result is cached for 30 days under
 ~/.local/state/life-manager/writer/seo-keywords/<slug>.json, so each of the six
 skills costs at most one call per rotation month, not one call per run. A
 network/API/credits failure NEVER fails the article run -- it falls back to
 whatever cache exists (even stale), and if there is no cache at all, falls back
 to the skill's static seed phrase from products.json with no live metrics.
+Same fallback (static seed, no extra API call) applies when the live call
+succeeds but no returned keyword contains one of the skill's seo_core_terms --
+a broad seed can dilute to its own dominant off-topic token (e.g. "video" for
+a "hook" skill) and that must never be picked over a real miss.
 
 Usage:
   seo_keyword_seed.py --slug hook-lab --config config/products.json
@@ -94,14 +101,30 @@ def fetch_live_rows(api_key: str, project_id: str, seed: str) -> list[dict[str, 
     return result.get("rows", [])
 
 
-def pick_keywords(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Apply the spec's ranking: informational/commercial intent, keyword
-    difficulty low (capped, so a seed's dominant head term with KD=100 never
-    wins on volume alone), search volume high. Returns primary + up to 4
-    secondaries, or None if nothing qualifies."""
+def _contains_core_term(keyword: str, core_terms: list[str]) -> bool:
+    keyword_lower = keyword.lower()
+    return any(term.lower() in keyword_lower for term in core_terms)
+
+
+def pick_keywords(
+    rows: list[dict[str, Any]], core_terms: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Apply the spec's ranking: keyword must contain at least one distinctive
+    core term for the skill (so a seed's dominant, off-topic token -- e.g.
+    "video" for a "hook" skill -- can never win just because it has volume),
+    then informational/commercial intent, keyword difficulty low (capped, so a
+    seed's dominant head term with KD=100 never wins on volume alone), search
+    volume high. Returns primary + up to 4 secondaries, or None if nothing
+    qualifies (caller falls back to the static seed, never makes another
+    API call for this)."""
+    relevant_rows = (
+        [row for row in rows if _contains_core_term(row.get("keyword", ""), core_terms)]
+        if core_terms
+        else rows
+    )
     candidates = [
         row
-        for row in rows
+        for row in relevant_rows
         if row.get("intent") in GOOD_INTENTS
         and isinstance(row.get("searchVolume"), (int, float))
         and row["searchVolume"] > 0
@@ -164,6 +187,7 @@ def resolve(
     if skill is None:
         raise KeyError(f"unknown capafy skill slug: {slug}")
     seed = skill.get("seo_seed") or skill.get("buyer_problem", slug)
+    core_terms = skill.get("seo_core_terms") or []
 
     cache = load_cache(cache_dir, slug)
     if cache is not None and cache_is_fresh(cache, now):
@@ -173,16 +197,21 @@ def resolve(
     if credential and credential.get("api_key"):
         try:
             rows = fetch_live_rows(credential["api_key"], DEFAULT_PROJECT_ID, seed)
-            picked = pick_keywords(rows)
-            if picked is not None:
-                record = {
-                    "slug": slug,
-                    "seed": seed,
-                    "fetched_at": now,
-                    **picked,
+            picked = pick_keywords(rows, core_terms)
+            # Cache a no-relevant-match outcome too (primary falls back to the
+            # static seed, no metrics) -- otherwise a skill whose seed keeps
+            # diluting to an off-topic head term would re-spend credits on
+            # every single run instead of at most once per rotation month.
+            record = (
+                {"slug": slug, "seed": seed, "fetched_at": now, **picked}
+                if picked is not None
+                else {
+                    "slug": slug, "seed": seed, "fetched_at": now,
+                    "primary": seed, "secondary": [], "metrics": {},
                 }
-                write_cache(cache_dir, slug, record)
-                return {**record, "source": "live"}
+            )
+            write_cache(cache_dir, slug, record)
+            return {**record, "source": "live" if picked is not None else "live-no-match"}
         except (urllib.error.URLError, OSError, RuntimeError, KeyError, ValueError, TypeError):
             pass  # fall through to stale cache / static fallback below
 
