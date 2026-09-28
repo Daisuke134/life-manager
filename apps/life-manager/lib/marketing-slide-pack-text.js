@@ -1,5 +1,7 @@
 "use strict";
 
+const crypto = require("node:crypto");
+
 // Generates fresh Larry slide-pack TEXT (hook + 4 body lines) for one pack.
 // Dais direction (2026-09-28): the approved background images are good and
 // must be REUSED every pack (see getCachedBackground() in
@@ -98,4 +100,25 @@ async function generateSlideCopy({ familyId, apiKey, avoidTexts = [], locale = "
   return { hook: parsed.hook.trim(), body: parsed.body.map((line) => line.trim()), costUsd };
 }
 
-module.exports = { FAMILY_BRIEFS, FAMILY_BRIEFS_BY_LOCALE, buildPrompt, fetchGeminiText, generateSlideCopy };
+// Video hook/title/description text (honne-ja-cycle.js / marketing-video-generation-
+// adapter.js's selectHook()) has no per-post generation step at all -- it just reuses a
+// hook.text from a static pack forever (see the YouTube "Daily Affirmation App" repeat
+// measured 2026-09-25..28). Rather than forking a second Gemini call path for video,
+// this reuses generateSlideCopy() unchanged and only takes its `hook` line: any style
+// hint (the winning hook's own static text, i.e. the "type" #6047's metrics already
+// picked) is hashed to one of the family briefs above deterministically, so the same
+// winning type always asks for the same style of fresh line while the words are new
+// every call.
+function familyForStyleHint(styleHint, locale = "ja") {
+  const families = Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS_BY_LOCALE.ja);
+  const index = crypto.createHash("sha256").update(String(styleHint || "")).digest()[0] % families.length;
+  return families[index];
+}
+
+async function generateVideoHookText({ styleHint, apiKey, avoidTexts = [], locale = "en", generateText = fetchGeminiText }) {
+  const familyId = familyForStyleHint(styleHint, locale);
+  const copy = await generateSlideCopy({ familyId, apiKey, avoidTexts, locale, generateText });
+  return { hook: copy.hook, costUsd: copy.costUsd };
+}
+
+module.exports = { FAMILY_BRIEFS, FAMILY_BRIEFS_BY_LOCALE, buildPrompt, familyForStyleHint, fetchGeminiText, generateSlideCopy, generateVideoHookText };

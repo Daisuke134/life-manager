@@ -74,6 +74,17 @@ test("JP4 lane is account-bound and capped at three isolated slots", () => {
   assert.equal(lane.account, "@anicca.jp4"); assert.equal(lane.integrationId, "cmn8x8hdv028uqx0y4gdfse5t"); assert.equal(lane.approvalKey, "LM_ANICCA_JP4_TIKTOK_APPROVAL_REF"); assert.deepEqual([...ANICCA_JP4_SLOTS], ["09:15", "15:15", "20:45"]); assert.equal(lane.slots.length, 3);
 });
 
+test("only the measured-repeating YouTube lane (Daily Affirmation App) opts into fresh hook text", () => {
+  const affirmation = parseArgs(["run-anicca-affirmation-youtube"]).lane;
+  assert.equal(affirmation.account, "@life-manager-m4p");
+  assert.equal(affirmation.integrationId, "cmn8ymq6c02oio70y5ea1trv8");
+  assert.equal(affirmation.freshHookText, true);
+  for (const command of ALL_LANE_COMMANDS) {
+    if (command === "run-anicca-affirmation-youtube") continue;
+    assert.ok(!parseArgs([command]).lane.freshHookText, `${command} should not opt into fresh hook text yet`);
+  }
+});
+
 test("HE lane is account-bound and capped at three isolated slots", () => {
   const lane = parseArgs(["run-anicca-he"]).lane;
   assert.equal(lane.account, "@anicca.he"); assert.equal(lane.integrationId, "cmq2aoena08bhqp0yx1epjcik"); assert.equal(lane.approvalKey, "LM_ANICCA_HE_TIKTOK_APPROVAL_REF"); assert.deepEqual([...ANICCA_HE_SLOTS], ["07:15", "13:45", "18:15"]); assert.equal(lane.slots.length, 3);

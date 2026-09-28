@@ -18,6 +18,7 @@ const {
 const { buildMarketingLivenessJob, executeMarketingLivenessJob } = require("../lib/marketing-liveness-adapter.js");
 const { buildMarketingCtaCaptionRef } = require("../lib/marketing-app-store-cta.js");
 const { createCreativeMetricsProvider } = require("../lib/marketing-creative-metrics.js");
+const { generateVideoHookText } = require("../lib/marketing-slide-pack-text.js");
 const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
 const { executeCapabilityJob } = require("./runtime-up.js");
 
@@ -39,7 +40,9 @@ const LANES = Object.freeze({
   "run-anicca-en-card-instagram": { name: "Anicca EN Card Instagram", product: "anicca-ios", format: "reelclaw-card", locale: "en", platform: "instagram", account: "@anicca.encards", instagramProfileRef: "profile://instagram/anicca.encards", integrationId: "cmpc3gx4001nklg0y27a8o66q", slots: ANICCA_EN_CARD_INSTAGRAM_SLOTS, packKey: "LM_ANICCA_EN_CARD_PACK_REF", mediaKey: "LM_ANICCA_EN_CARD_MEDIA_REFS", approvalKey: "LM_ANICCA_EN_CARD_INSTAGRAM_APPROVAL_REF", telegramLane: "anicca-en-card-instagram" },
   "run-anicca-en-widget-instagram": { name: "Anicca EN Widget Instagram", product: "anicca-ios", format: "reelclaw-widget", locale: "en", platform: "instagram", account: "@anicca.en", instagramProfileRef: "profile://instagram/anicca.en", integrationId: "cmn8y95rg02d2qx0y09bbk5pb", slots: ANICCA_EN_WIDGET_INSTAGRAM_SLOTS, packKey: "LM_ANICCA_EN_WIDGET_PRODUCTION_PACK_REF", mediaKey: "LM_ANICCA_EN_WIDGET_PRODUCTION_MEDIA_REFS", approvalKey: "LM_ANICCA_EN_WIDGET_PRODUCTION_APPROVAL_REF", telegramLane: "anicca-en-widget-instagram" },
   "run-anicca-ai-youtube": { name: "Anicca AI YouTube", product: "anicca-ios", format: "reelclaw-widget", locale: "en", platform: "youtube", account: "@anicca-ai", integrationId: "cmq3u37gi005iqp0y90a2w92n", slots: ANICCA_AI_YOUTUBE_SLOTS, packKey: "LM_ANICCA_AI_YOUTUBE_PACK_REF", mediaKey: "LM_ANICCA_AI_YOUTUBE_MEDIA_REFS", approvalKey: "LM_ANICCA_AI_YOUTUBE_APPROVAL_REF", telegramLane: "anicca-ai-youtube" },
-  "run-anicca-affirmation-youtube": { name: "Anicca Affirmation YouTube", product: "anicca-ios", format: "reelclaw-card", locale: "en", platform: "youtube", account: "@life-manager-m4p", integrationId: "cmn8ymq6c02oio70y5ea1trv8", slots: ANICCA_AFFIRMATION_YOUTUBE_SLOTS, packKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_PACK_REF", mediaKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_MEDIA_REFS", approvalKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_APPROVAL_REF", telegramLane: "anicca-affirmation-youtube" },
+  // freshHookText: true -- the only lane measured reposting the same 2 captions 9 times
+  // (2026-09-25..28, Postiz public API); see runHonneJaCycle()'s textGenerator wiring.
+  "run-anicca-affirmation-youtube": { name: "Anicca Affirmation YouTube", product: "anicca-ios", format: "reelclaw-card", locale: "en", platform: "youtube", account: "@life-manager-m4p", integrationId: "cmn8ymq6c02oio70y5ea1trv8", slots: ANICCA_AFFIRMATION_YOUTUBE_SLOTS, packKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_PACK_REF", mediaKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_MEDIA_REFS", approvalKey: "LM_ANICCA_AFFIRMATION_YOUTUBE_APPROVAL_REF", telegramLane: "anicca-affirmation-youtube", freshHookText: true },
   "run-anicca-ja-widget-instagram": { name: "Anicca JA Widget Instagram", product: "anicca-ios", format: "reelclaw-widget", locale: "ja", platform: "instagram", account: "@anicca.jp.videos", instagramProfileRef: "profile://instagram/anicca.jp.videos", integrationId: "cmmzzg2es0539p30ycb94ayx0", slots: ANICCA_JA_WIDGET_INSTAGRAM_SLOTS, packKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_PACK_REF", mediaKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_MEDIA_REFS", approvalKey: "LM_ANICCA_JA_WIDGET_PRODUCTION_APPROVAL_REF", telegramLane: "anicca-ja-widget-instagram" },
   "run-anicca-jp4": { name: "Anicca JP4", product: "anicca-ios", format: "reelclaw-card", locale: "ja", platform: "tiktok", account: "@anicca.jp4", integrationId: "cmn8x8hdv028uqx0y4gdfse5t", slots: ANICCA_JP4_SLOTS, packKey: "LM_ANICCA_JP4_PACK_REF", mediaKey: "LM_ANICCA_JP4_MEDIA_REFS", approvalKey: "LM_ANICCA_JP4_TIKTOK_APPROVAL_REF", telegramLane: "anicca-jp4-ja-tiktok" },
   "run-anicca-he": { name: "Anicca HE", product: "anicca-ios", format: "reelclaw-card", locale: "ja", platform: "tiktok", account: "@anicca.he", integrationId: "cmq2aoena08bhqp0yx1epjcik", slots: ANICCA_HE_SLOTS, packKey: "LM_ANICCA_HE_PACK_REF", mediaKey: "LM_ANICCA_HE_MEDIA_REFS", approvalKey: "LM_ANICCA_HE_TIKTOK_APPROVAL_REF", telegramLane: "anicca-he-ja-tiktok" },
@@ -153,7 +156,13 @@ async function runHonneJaCycle(argv, deps = {}) {
   const store = deps.store || createMarketingLocalLedger({ dataDir });
   const generationJob = buildMarketingVideoGenerationJob({ tenantId, productId: lane.product, formatId: lane.format, locale: lane.locale, slot, packRef, mediaRefs });
   const generationQueued = await store.enqueueJob({ jobId: generationJob.job_id, tenantId, loopId: generationJob.loop_id, capability: generationJob.capability, effectClass: generationJob.effect_class, effectKey: generationJob.effect_key, inputRefs: generationJob.input_refs, maxAttempts: generationJob.max_attempts, availableAt: new Date(nowMs).toISOString() });
-  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString() });
+  // Fresh hook/title/description text (instead of a fixed pack string reused forever)
+  // is opt-in per lane via lane.freshHookText -- see marketing-video-generation-
+  // adapter.js's execute() for the generic mechanism this wires into.
+  const textGenerator = lane.freshHookText
+    ? (deps.textGenerator || ((args) => generateVideoHookText({ ...args, apiKey: required(env.GEMINI_API_KEY, "GEMINI_API_KEY") })))
+    : null;
+  const generationAdapter = createMarketingVideoGenerationLoopAdapter({ dataDir, historyProvider: historyProvider(dataDir), metricsProvider: deps.metricsProvider || createCreativeMetricsProvider(dataDir), now: () => new Date(nowMs).toISOString(), ...(textGenerator ? { textGenerator } : {}) });
   const artifact = await executeJob(store, generationJob, "honne-ja-cycle", (job) => generationAdapter.execute(job));
   const publicationCreativeId = `${artifact.creative_id}-${slot.replace(/[^A-Za-z0-9]/g, "")}`;
   const captionRef = buildMarketingCtaCaptionRef({
