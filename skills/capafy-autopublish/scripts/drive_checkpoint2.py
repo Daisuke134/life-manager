@@ -10,15 +10,22 @@ Sets the LLM Config to the CANONICAL recipe (verified 2026-06-25):
 Deletes the blockrun (127.0.0.1 localhost) card which always fails verification.
 Clicks "キーを確認して保存" and waits for the "キー確認済み" success toast.
 
+If $CAPAFY_DISPLAY_MODEL is set, also sets the Agent card's "LLM モデル"
+display field (モデル設定 section) to that exact preset name and verifies it
+via the official GET /agent/agents/<id> `model` field. This runs even when
+the Hosted Key section above is already saved/collapsed (idempotent: it is
+independent of the hosted-key step and is a no-op if already correct).
+
 Usage: drive_checkpoint2.py <CP2_review_url>
 Requires: CloakBrowser daemon on CDP :9222 (never close it), CAPAFY_HOST_OPENROUTER_KEY in env.
+CAPAFY_ACCESS_TOKEN in env is required only to verify CAPAFY_DISPLAY_MODEL.
 Exit 0 + prints VERIFIED on success; exit 1 on failure (fail-closed).
 """
 import math
 import os, sys, time, json, urllib.request
 import re
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, parse_qsl, urlsplit
+from urllib.parse import parse_qs, parse_qsl, quote, urlsplit
 
 BASE_URL = "https://openrouter.ai/api/v1"
 MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "anthropic/claude-sonnet-4.6")
@@ -27,10 +34,15 @@ RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))
 RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "15"))
 RAW_SECTION_POLL_S = float(os.environ.get("CP2_SECTION_POLL_S", "0.25"))
+_CP2_RESOLVE_RETRIES = int(os.environ.get("CP2_RESOLVE_RETRIES", "3"))
+_CP2_RESOLVE_RETRY_DELAY_S = float(os.environ.get("CP2_RESOLVE_RETRY_DELAY_S", "5"))
 CP2_HOST = "capafy.ai"
 CP2_PATH = "/developer/createAgent"
 OPENROUTER_API_KEY_PATH = "models.providers.openrouter.apiKey"
 OPENROUTER_BASE_URL_PATH = "models.providers.openrouter.baseUrl"
+AGENT_DETAIL_URL = "https://api.capafy.ai/agent/agents/{agent_id}"
+DISPLAY_MODEL_VERIFY_TRIES = int(os.environ.get("CP2_DISPLAY_MODEL_VERIFY_TRIES", "4"))
+DISPLAY_MODEL_VERIFY_DELAY_S = float(os.environ.get("CP2_DISPLAY_MODEL_VERIFY_DELAY_S", "3"))
 BLOCKRUN_API_KEY_PATH = "models.providers.blockrun.apiKey"
 
 
@@ -120,6 +132,23 @@ def _capafy_page_targets(cdp_base):
     if not matches:
         raise RuntimeError("no existing Capafy createAgent page target")
     return matches
+
+
+def _open_cp2_target(cdp_base, cp2):
+    """Open the validated CP2 URL in a new tab and wait until DevTools lists it."""
+    _validate_cp2_url(cp2)
+    cdp_base = _validate_cdp_base(cdp_base)
+    request = urllib.request.Request(
+        f"{cdp_base}/json/new?{quote(cp2, safe='')}", method="PUT")
+    with urllib.request.urlopen(request, timeout=8) as r:
+        r.read()
+    deadline = time.time() + RAW_NAV_TIMEOUT_S
+    while time.time() < deadline:
+        try:
+            return _raw_page_targets(cdp_base, cp2)
+        except RuntimeError:
+            time.sleep(1)
+    raise RuntimeError("opened CP2 tab did not appear as a page target")
 
 
 class _RawPage:
@@ -235,6 +264,40 @@ def _validate_cp2_url(cp2):
         raise RuntimeError("CP2 URL must use the exact Capafy HTTPS origin/path")
 
 
+def _is_identified_cp2_url(url):
+    """True only if <url> carries the draft-identifying params Capafy's short
+    review link (/R<digits>) is supposed to redirect to: either a temp-link
+    token or a draftKey, alongside page=credential|review.
+
+    Root cause (2026-09-28, Agent 9466718786 resume): a short link's redirect
+    target sometimes degrades to a bare ?page=review with NO source/token/
+    draftKey -- that is Capafy's blank "create a new Agent" form, not the
+    existing draft. _validate_cp2_url alone accepts it (it only checks the
+    `page` value), so the resume driver silently opened/would have driven the
+    wrong page. Only the resolved target of a short link needs this extra
+    check: a caller-supplied full URL (tests, manual invocation) already
+    carries whatever identity it carries by construction.
+    """
+    try:
+        _validate_cp2_url(url)
+    except RuntimeError:
+        return False
+    parts = urlsplit(url)
+    try:
+        query = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
+    except ValueError:
+        return False
+    keys = [key for key, _value in query]
+    if len(set(keys)) != len(keys):
+        return False
+    values = dict(query)
+    if set(keys) == {"page", "source", "token"}:
+        return values.get("source") == "temp-link" and re.fullmatch(r"[0-9]+", values.get("token", "")) is not None
+    if set(keys) == {"draftKey", "page"}:
+        return bool(values.get("draftKey", "").strip())
+    return False
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *_args, **_kwargs):
         return None
@@ -268,20 +331,44 @@ def _resolve_cp2_url(raw_url):
     if (
         parts.scheme != "https"
         or parts.netloc.lower() != "api.capafy.ai"
-        or not re.fullmatch(r"/C[0-9]+", parts.path)
+        # Verified live 2026-09-28 (Agent 4243672453): both publish-refresh-url
+        # --step publish and publish-submit --action continue_upload's review_url
+        # return an /R<digits> short link -- the same prefix drive_checkpoint3.py
+        # (CP3) already expects for the identical review page. /C<digits> was
+        # never observed and made every CP2 call fail closed on this exact
+        # RuntimeError before the browser was ever touched.
+        or not re.fullmatch(r"/R[0-9]+", parts.path)
         or parts.query
         or parts.fragment
     ):
-        raise RuntimeError("CP2 short URL must be exactly https://api.capafy.ai/C<digits>")
+        raise RuntimeError("CP2 short URL must be exactly https://api.capafy.ai/R<digits>")
 
-    locations = _single_redirect_location(raw_url, "HEAD")
-    if not locations:
-        locations = _single_redirect_location(raw_url, "GET")
-    if len(locations) != 1:
-        raise RuntimeError("CP2 short URL must return exactly one redirect Location")
-    resolved = locations[0]
-    _validate_cp2_url(resolved)
-    return resolved
+    # Retry ONLY the "resolved but unidentified" case: a resume drove Agent
+    # 9466718786 into a bare ?page=review (Capafy's blank new-Agent form, no
+    # source/token/draftKey) on 2026-09-28 06:52Z, while the identical short
+    # link resolved correctly moments before (06:13Z, same-pass) and again on
+    # manual re-check hours later -- a transient degraded redirect, not a
+    # permanently dead link. A malformed/cross-domain/missing Location is a
+    # real structural failure and must still fail closed immediately below.
+    last_error = None
+    for attempt in range(_CP2_RESOLVE_RETRIES):
+        if attempt:
+            time.sleep(_CP2_RESOLVE_RETRY_DELAY_S)
+        locations = _single_redirect_location(raw_url, "HEAD")
+        if not locations:
+            locations = _single_redirect_location(raw_url, "GET")
+        if len(locations) != 1:
+            raise RuntimeError("CP2 short URL must return exactly one redirect Location")
+        resolved = locations[0]
+        _validate_cp2_url(resolved)
+        if _is_identified_cp2_url(resolved):
+            return resolved
+        last_error = resolved
+    raise RuntimeError(
+        "CP2 short URL redirected to an unidentified draft page after "
+        f"{_CP2_RESOLVE_RETRIES} attempts (no source+token or draftKey; last: {last_error!r}) "
+        "-- this is Capafy's blank new-Agent form, not the existing draft; refusing to drive it"
+    )
 
 
 def _wait_raw_navigation(page, cp2):
@@ -439,6 +526,96 @@ def _configured_proxy_focus_expression(role):
     )
 
 
+def _llm_config_form_expression():
+    """Recognize the "LLM 設定とホスト型キー · プロキシホスト型" Hosted Key card
+    rendered under the "Agent ワークスペース" tab on same-Agent update/resumed
+    drafts (live, 2026-09-28, Agent 8123079349 / 9466718786). Neither the
+    provider-path-text layout nor the four-field configured-proxy layout match
+    it: it has no `models.providers.openrouter.apiKey` text node yet (nothing
+    is saved), and its field placeholders differ from the configured-proxy
+    card's literal `urlName` / `https://api.example.com` contract. These four
+    field placeholders are this card's own form contract, verified live via
+    read-only DOM inspection; all four must be uniquely present.
+    """
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const by=(predicate)=>[...document.querySelectorAll('input')].filter(x=>visible(x)&&predicate(x));"
+        "const keyName=by(x=>(x.placeholder||'').includes('Anthropic API')&&(x.placeholder||'').includes('TikTok'));"
+        "const baseUrl=by(x=>(x.placeholder||'').trim()==='api.anthropic.com');"
+        "const model=by(x=>(x.placeholder||'').trim()==='モデル');"
+        "const key=by(x=>x.type==='password'&&(x.placeholder||'').includes('新しいキーを貼り付けて'));"
+        "if(keyName.length!==1||baseUrl.length!==1||model.length!==1||key.length!==1)"
+        "return {ok:false,reason:'llm-config-field-count',counts:[keyName.length,baseUrl.length,model.length,key.length]};"
+        "return {ok:true};"
+        "})()"
+    )
+
+
+def _llm_config_focus_expression(role):
+    selectors = {
+        "base_url": "(x.placeholder||'').trim()==='api.anthropic.com'",
+        "model": "(x.placeholder||'').trim()==='モデル'",
+        "key": "x.type==='password'&&(x.placeholder||'').includes('新しいキーを貼り付けて')",
+    }
+    if role not in selectors:
+        raise ValueError(role)
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input')].filter(x=>visible(x)&&({selectors[role]}));"
+        "if(xs.length!==1)return {ok:false,reason:'llm-config-focus-count',count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});x.focus();x.select();return {ok:true};"
+        "})()"
+    )
+
+
+def _llm_config_vendor_state_expression():
+    """Read the vendor picker scoped to this card (walk up from the base-URL
+    field, same ancestor-search pattern the strict field/button lookups use
+    elsewhere) without clicking it. Live (2026-09-28) the picker is already
+    "OpenRouter" by default, matching CAPAFY_HOSTED_MODEL_ID's provider -- so
+    the normal path never has to drive its dropdown."""
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bases=[...document.querySelectorAll('input')].filter(x=>visible(x)&&(x.placeholder||'').trim()==='api.anthropic.com');"
+        "if(bases.length!==1)return {ok:false,reason:'base-count',count:bases.length};"
+        "let card=bases[0],buttons=[];"
+        "for(let k=0;k<12&&card;k++,card=card.parentElement){"
+        "const bs=[...card.querySelectorAll('button')].filter(b=>visible(b)&&/^(OpenRouter|ベンダーを選択|Select Vendor)/.test((b.textContent||'').trim()));"
+        "if(bs.length===1){buttons=bs;break;}"
+        "}"
+        "if(buttons.length!==1)return {ok:false,reason:'vendor-button-count',count:buttons.length};"
+        "return {ok:true,text:(buttons[0].textContent||'').trim()};"
+        "})()"
+    )
+
+
+def _raw_configure_llm_form(page, key):
+    """Fill the llm_config_form Hosted Key card. Vendor is only set when the
+    picker is empty/unset -- Capafy already shows "OpenRouter" by default in
+    every observed live case, so driving its dropdown is not automated.
+    ponytail: no dropdown automation; upgrade if a real draft ever needs it.
+    """
+    state = page.evaluate(_llm_config_form_expression())
+    if not isinstance(state, dict) or not state.get("ok"):
+        raise RuntimeError(f"ambiguous llm config hosted-key form ({state})")
+    vendor = page.evaluate(_llm_config_vendor_state_expression())
+    if not isinstance(vendor, dict) or not vendor.get("ok"):
+        raise RuntimeError(f"ambiguous llm config vendor picker ({vendor})")
+    if vendor.get("text") != "OpenRouter":
+        raise RuntimeError(
+            f"llm config vendor picker is not OpenRouter ({vendor.get('text')!r}); "
+            "set it manually once, then rerun -- vendor-dropdown selection is not automated"
+        )
+    for role, value in (("base_url", BASE_URL), ("model", MODEL), ("key", key)):
+        focused = page.evaluate(_llm_config_focus_expression(role))
+        if not isinstance(focused, dict) or not focused.get("ok"):
+            raise RuntimeError(f"llm config {role} focus failed ({focused})")
+        page.call("Input.insertText", {"text": value})
+
+
 def _raw_configure_proxy_form(page, key):
     state = page.evaluate(_configured_proxy_form_expression())
     if not isinstance(state, dict) or not state.get("ok"):
@@ -483,6 +660,20 @@ def _bounded_page_evaluate(page, expression, deadline):
         page._call_timeout_s = original
 
 
+_WORKSPACE_TAB_EXPRESSION = """(() => {
+  const tabs = [...document.querySelectorAll('[role=tab],button,div,span,a')].filter(e => {
+    const t = (e.textContent || '').trim();
+    const r = e.getBoundingClientRect();
+    return (t === 'Agent ワークスペース' || t === 'Agent Workspace') && r.width > 0 && r.height > 0 && r.height < 80;
+  });
+  if (!tabs.length) return {ok: false};
+  const e = tabs[tabs.length - 1];
+  e.scrollIntoView({block: 'center'});
+  const r = e.getBoundingClientRect();
+  return {ok: true, x: r.x + r.width / 2, y: r.y + r.height / 2};
+})()"""
+
+
 def _ensure_raw_provider_section(page):
     deadline = time.monotonic() + RAW_SECTION_TIMEOUT_S
 
@@ -497,6 +688,7 @@ def _ensure_raw_provider_section(page):
             raise RuntimeError(f"ambiguous OpenRouter provider path during {phase} ({state})")
         return False
 
+    workspace_tab_clicked = False
     while time.monotonic() < deadline:
         state = provider_state()
         if require_count_one(state, "initial hydration"):
@@ -504,6 +696,20 @@ def _ensure_raw_provider_section(page):
         proxy_form = _bounded_page_evaluate(page, _configured_proxy_form_expression(), deadline)
         if isinstance(proxy_form, dict) and proxy_form.get("ok"):
             return "configured_proxy"
+        llm_form = _bounded_page_evaluate(page, _llm_config_form_expression(), deadline)
+        if isinstance(llm_form, dict) and llm_form.get("ok"):
+            return "llm_config_form"
+        if not workspace_tab_clicked:
+            # A resumed review page opens on 基本情報; the hosted-key fields live
+            # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
+            # Look once: a page that already shows the form has no such tab.
+            workspace_tab_clicked = True
+            tab = _bounded_page_evaluate(page, _WORKSPACE_TAB_EXPRESSION, deadline)
+            if isinstance(tab, dict) and tab.get("ok"):
+                for kind in ("mousePressed", "mouseReleased"):
+                    _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
+                time.sleep(1)
+                continue
         button = _bounded_page_evaluate(page, _detected_keys_button_expression(), deadline)
         if isinstance(button, dict) and button.get("ok"):
             x, y = button.get("x"), button.get("y")
@@ -576,76 +782,326 @@ def _open_responsive_page(targets):
     raise RuntimeError(f"no responsive exact CP2 page target ({last_error})")
 
 
+def _official_agent_model(agent_id):
+    """GET /agent/agents/<id> the same way verify_cp1_model.py does, returning
+    the official `model` field. Returns None on any failure (missing token,
+    network error, id mismatch) -- never raises, so a caller can poll instead
+    of treating one slow read as a hard error."""
+    token = os.environ.get("CAPAFY_ACCESS_TOKEN", "").strip()
+    if not token or not str(agent_id or "").isdecimal():
+        return None
+    request = urllib.request.Request(
+        AGENT_DETAIL_URL.format(agent_id=agent_id),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            payload = json.load(response)
+    except (OSError, ValueError):
+        return None
+    data = payload.get("data") if isinstance(payload, dict) and payload.get("code") == 0 else None
+    if not isinstance(data, dict) or str(data.get("agentId") or "") != str(agent_id):
+        return None
+    return data.get("model")
+
+
+def _verify_official_display_model(agent_id, display_model):
+    """Poll the official Agent detail (server is eventually consistent, same
+    reasoning as publish_finish.sh's own poll()) until `model` matches, or
+    give up after DISPLAY_MODEL_VERIFY_TRIES."""
+    last = None
+    for _ in range(DISPLAY_MODEL_VERIFY_TRIES):
+        last = _official_agent_model(agent_id)
+        if last == display_model:
+            return True
+        time.sleep(DISPLAY_MODEL_VERIFY_DELAY_S)
+    print(f"official model mismatch after retries: {last!r} != {display_model!r}")
+    return False
+
+
+def _agent_id_from_page_expression():
+    """The Agent id is rendered read-only in the review header (e.g.
+    "8123079349 · v1.0.3") -- read it from the DOM instead of threading it
+    through the CLI, since drive_checkpoint2.py's only argument is the CP2
+    URL, which does not carry the numeric agent id."""
+    return (
+        "(() => {"
+        "const e=document.querySelector('.finalReviewAgentMeta');"
+        "if(!e)return {ok:false,reason:'no-agent-meta'};"
+        "const m=(e.textContent||'').match(/(\\d+)/);"
+        "return m?{ok:true,agentId:m[1]}:{ok:false,reason:'no-digits'};"
+        "})()"
+    )
+
+
+def _display_model_combobox_expression():
+    """The "LLM モデル" combobox under モデル設定 (Agent ワークスペース tab) --
+    the field verify_cp1_model.py's official `model` readback is sourced
+    from. Verified live (2026-09-28, Agent 8123079349): a single
+    role=combobox input with this exact placeholder."""
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const xs=[...document.querySelectorAll('input')].filter(x=>visible(x)&&x.getAttribute('role')==='combobox'&&(x.placeholder||'').trim()==='モデルを選択または入力');"
+        "if(xs.length!==1)return {ok:false,reason:'display-model-combobox-count',count:xs.length};"
+        "return {ok:true,value:xs[0].value};"
+        "})()"
+    )
+
+
+def _display_model_focus_expression():
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const xs=[...document.querySelectorAll('input')].filter(x=>visible(x)&&x.getAttribute('role')==='combobox'&&(x.placeholder||'').trim()==='モデルを選択または入力');"
+        "if(xs.length!==1)return {ok:false,reason:'display-model-combobox-count',count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});x.focus();x.select();return {ok:true};"
+        "})()"
+    )
+
+
+def _display_model_option_expression(display_model):
+    """Typing into the combobox filters #pricingTabModelList to
+    role=option buttons (verified live: typing "DeepSeek" surfaced "DeepSeek
+    V4.1 Flash" as the first match). Require an EXACT text match -- never
+    click a near-miss preset."""
+    return (
+        "(() => {"
+        f"const model={json.dumps(display_model)};"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const list=document.getElementById('pricingTabModelList');"
+        "if(!list)return {ok:false,reason:'no-model-list'};"
+        "const opts=[...list.querySelectorAll('button')].filter(b=>visible(b)&&(b.textContent||'').trim()===model);"
+        "if(opts.length!==1)return {ok:false,reason:'display-model-option-count',count:opts.length};"
+        "const b=opts[0];b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();"
+        "return {ok:true,x:r.x+r.width/2,y:r.y+r.height/2};"
+        "})()"
+    )
+
+
+def _draft_save_button_expression():
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bs=[...document.querySelectorAll('button')].filter(b=>visible(b)&&(b.textContent||'').trim()==='下書きを保存');"
+        "if(bs.length!==1)return {ok:false,reason:'draft-save-count',count:bs.length};"
+        "const b=bs[0];b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();"
+        "return {ok:true,x:r.x+r.width/2,y:r.y+r.height/2,disabled:!!b.disabled};"
+        "})()"
+    )
+
+
+def _raw_fix_display_model(page, display_model):
+    """Idempotently set the Agent card's "LLM モデル" display field to
+    <display_model> (preferring a matching preset option over free text --
+    free-text entry is not automated, since every model this pipeline hosts
+    has a preset), persist via the page's own "下書きを保存" draft-save
+    button, then verify against the official Agent detail API.
+
+    Independent of the Hosted Key card: it also runs when that card is
+    already saved/collapsed, because 2026-09-28 (Hook Lab 8123079349) showed
+    the official `model` field can stay stale ("Claude Sonnet 4.6") even
+    after the hosted key is confirmed -- nothing had ever driven this
+    separate combobox.
+    """
+    combo = page.evaluate(_display_model_combobox_expression())
+    if not isinstance(combo, dict) or not combo.get("ok"):
+        raise RuntimeError(f"ambiguous display-model combobox ({combo})")
+
+    if combo.get("value") != display_model:
+        focused = page.evaluate(_display_model_focus_expression())
+        if not isinstance(focused, dict) or not focused.get("ok"):
+            raise RuntimeError(f"display-model focus failed ({focused})")
+        page.call("Input.insertText", {"text": display_model})
+
+        deadline = time.monotonic() + RAW_SECTION_TIMEOUT_S
+        option = None
+        while time.monotonic() < deadline:
+            option = page.evaluate(_display_model_option_expression(display_model))
+            if isinstance(option, dict) and option.get("ok"):
+                break
+            count = option.get("count") if isinstance(option, dict) else None
+            if isinstance(count, (int, float)) and not isinstance(count, bool) and count > 1:
+                raise RuntimeError(f"ambiguous display-model preset option ({option})")
+            time.sleep(RAW_SECTION_POLL_S)
+        if not isinstance(option, dict) or not option.get("ok"):
+            raise RuntimeError(
+                f"no exact preset option for display model {display_model!r} ({option}); "
+                "free-text fallback is not automated"
+            )
+        for kind in ("mousePressed", "mouseReleased"):
+            page.call("Input.dispatchMouseEvent", {
+                "type": kind, "x": float(option["x"]), "y": float(option["y"]),
+                "button": "left", "clickCount": 1,
+            })
+        time.sleep(0.5)
+
+        combo_after = page.evaluate(_display_model_combobox_expression())
+        if not isinstance(combo_after, dict) or combo_after.get("value") != display_model:
+            raise RuntimeError(f"display-model combobox did not commit {display_model!r} ({combo_after})")
+
+        save = page.evaluate(_draft_save_button_expression())
+        if not isinstance(save, dict) or not save.get("ok"):
+            raise RuntimeError(f"ambiguous draft-save button ({save})")
+        if save.get("disabled"):
+            raise RuntimeError("draft-save button is disabled")
+        for kind in ("mousePressed", "mouseReleased"):
+            page.call("Input.dispatchMouseEvent", {
+                "type": kind, "x": float(save["x"]), "y": float(save["y"]),
+                "button": "left", "clickCount": 1,
+            })
+        print("draft save: clicked")
+        time.sleep(3)
+    else:
+        print("display model already:", display_model)
+
+    agent_info = page.evaluate(_agent_id_from_page_expression())
+    agent_id = agent_info.get("agentId") if isinstance(agent_info, dict) and agent_info.get("ok") else None
+    if not agent_id:
+        raise RuntimeError(f"could not read agent id from page ({agent_info})")
+    verified = _verify_official_display_model(agent_id, display_model)
+    print("official model verified:", verified)
+    return verified
+
+
+def _raw_configure_hosted_key(page, key, section_mode):
+    """Fill + save + verify the CP2 Hosted Key card for <section_mode>.
+    Extracted from _raw_cp2 so the caller can run the independent
+    display-model fix afterward regardless of whether this ran at all (it is
+    skipped entirely when the card is already saved/collapsed)."""
+    if section_mode == "configured_proxy":
+        # The form itself supplies the provider metadata after the field
+        # paths are saved; it intentionally has no separate model input.
+        _raw_configure_proxy_form(page, key)
+        print("configured proxy fields: True")
+    elif section_mode == "llm_config_form":
+        # Third CP2 layout (2026-09-28, Agent ワークスペース tab, same-Agent
+        # update/resumed drafts): a direct "LLM 設定とホスト型キー" Hosted Key
+        # card, already in edit mode (no edit-pencil step, unlike the
+        # provider-path layout).
+        _raw_configure_llm_form(page, key)
+        print("llm config form fields: True")
+    else:
+        has_input = page.evaluate(
+            "[...document.querySelectorAll('input')].some(i=>{const v=i.value||'';return v.includes('api.')||v.includes('openrouter')})"
+        )
+        if not has_input:
+            page.strict_click(OPENROUTER_API_KEY_PATH, "edit")
+            time.sleep(2)
+
+        page.strict_focus_and_insert(OPENROUTER_BASE_URL_PATH, "base", BASE_URL)
+        print("baseurl: True")
+        page.strict_focus_and_insert(OPENROUTER_API_KEY_PATH, "model", MODEL)
+        page.press_enter()
+        print("model: True")
+        page.strict_focus_and_insert(OPENROUTER_API_KEY_PATH, "key", key)
+        print("key pasted len", len(key))
+
+    def card_save():
+        return page.strict_click(OPENROUTER_API_KEY_PATH, "save")
+
+    if not card_save():
+        raise RuntimeError("CP2 card Save is disabled")
+    time.sleep(2)
+    blockrun_state = page.evaluate("(() => {const path='models.providers.blockrun.apiKey';const xs=[...document.querySelectorAll('*')].filter(x=>(x.textContent||'').trim()===path&&![...x.children].some(c=>(c.textContent||'').trim()===path));if(xs.length===0)return {ok:true,none:true};if(xs.length!==1)return {ok:false,count:xs.length};let card=xs[0],bs=[];for(let k=0;k<12&&card;k++,card=card.parentElement){const ys=[...card.querySelectorAll('button')];if(ys.length===1){bs=ys;break;}}if(bs.length!==1)return {ok:false,count:bs.length};const b=bs[0];b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return {ok:true,x:r.x+r.width/2,y:r.y+r.height/2};})()")
+    if not isinstance(blockrun_state, dict) or not blockrun_state.get("ok"):
+        raise RuntimeError(f"ambiguous blockrun card ({blockrun_state})")
+    if not blockrun_state.get("none"):
+        page.click_coords("(() => {const path='models.providers.blockrun.apiKey';const xs=[...document.querySelectorAll('*')].filter(x=>(x.textContent||'').trim()===path&&![...x.children].some(c=>(c.textContent||'').trim()===path));if(xs.length!==1)return null;let card=xs[0],b=null;for(let k=0;k<12&&card&&!b;k++,card=card.parentElement){const ys=[...card.querySelectorAll('button')];if(ys.length===1)b=ys[0];}if(!b)return null;b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()")
+    time.sleep(1.2)
+
+    if section_mode == "llm_config_form":
+        # This card's own Save both persists and verifies the hosted key in
+        # one click -- there is no separate page-level "キーを確認して保存"
+        # button for this layout (live-confirmed 2026-09-28, Agent
+        # 8123079349: official is_confirmed_config_keys flipped to true
+        # right after this card's Save, with `page.strict_click(...,
+        # "confirm")` correctly finding nothing to click). Watch a short
+        # window for an error toast; its absence is the success signal.
+        # ponytail: no positive "saved" toast is known for this layout, so
+        # success is inferred from the absence of an error within the
+        # window; tighten if a false-positive is ever observed.
+        result = "VERIFIED"
+        deadline = time.monotonic() + 9
+        while time.monotonic() < deadline:
+            time.sleep(3)
+            toast = page.evaluate(
+                "[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim())"
+                ".find(x=>/Verification failed|失敗|エラー/i.test(x)&&x.length<120)||''"
+            )
+            if toast:
+                result = "FAILED: " + str(toast)[:80]
+                break
+        print("RESULT:", result)
+        return result == "VERIFIED"
+
+    baseline_url = str(page.evaluate("location.href") or "")
+    baseline_toasts = page.evaluate("[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim()).filter(x=>/キー確認済み|Verification failed|失敗|エラー/i.test(x)&&x.length<120)") or []
+    if not page.strict_click(OPENROUTER_API_KEY_PATH, "confirm"):
+        raise RuntimeError("CP2 confirmation button is disabled")
+    print("save: clicked")
+
+    result = "TIMEOUT"
+    deadline = time.monotonic() + RAW_NAV_TIMEOUT_S
+    for _ in range(10):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(3)
+        toast = page.evaluate("[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim()).find(x=>/キー確認済み|Verification failed|失敗|エラー/i.test(x)&&x.length<120)||''")
+        url = page.evaluate("location.href") or ""
+        if _fresh_success(baseline_url, baseline_toasts, url, toast):
+            result = "VERIFIED"
+            break
+        if "Verification failed" in str(toast) or "失敗" in str(toast):
+            result = "FAILED: " + str(toast)[:80]
+            break
+    print("RESULT:", result)
+    return result == "VERIFIED"
+
+
 def _raw_cp2(cp2, key, cdp_base):
     """Drive CP2 through an existing page websocket when browser attach is unavailable."""
     _validate_cp2_url(cp2)
     try:
         targets = _raw_page_targets(cdp_base, cp2)
     except RuntimeError:
-        targets = _capafy_page_targets(cdp_base)
+        try:
+            targets = _capafy_page_targets(cdp_base)
+        except RuntimeError:
+            # A deterministic resume of a CP1-confirmed draft never ran the CP1
+            # agent, so no createAgent tab exists (2026-09-28, 9466718786).
+            _open_cp2_target(cdp_base, cp2)
+            targets = _raw_page_targets(cdp_base, cp2)
     page = _open_responsive_page(targets)
     try:
         page.call("Page.enable")
         page.call("Page.bringToFront")
         _wait_raw_navigation(page, cp2)
-        section_mode = _ensure_raw_provider_section(page)
 
-        if section_mode == "configured_proxy":
-            # The form itself supplies the provider metadata after the field
-            # paths are saved; it intentionally has no separate model input.
-            _raw_configure_proxy_form(page, key)
-            print("configured proxy fields: True")
-        else:
-            has_input = page.evaluate(
-                "[...document.querySelectorAll('input')].some(i=>{const v=i.value||'';return v.includes('api.')||v.includes('openrouter')})"
-            )
-            if not has_input:
-                page.strict_click(OPENROUTER_API_KEY_PATH, "edit")
-                time.sleep(2)
+        try:
+            section_mode = _ensure_raw_provider_section(page)
+        except RuntimeError as hydrate_error:
+            if "did not hydrate" not in str(hydrate_error):
+                raise
+            # No known fillable Hosted Key layout is present. Most likely it
+            # is already saved/collapsed from a prior run (2026-09-28, Hook
+            # Lab 8123079349: is_confirmed_config_keys was already true here
+            # after PR #6092) -- nothing to fill. Fall through to the
+            # independent display-model fix below instead of failing closed
+            # on a step that is already done.
+            print(f"hosted key section: none fillable, assuming already configured ({hydrate_error})")
+            section_mode = None
 
-            page.strict_focus_and_insert(OPENROUTER_BASE_URL_PATH, "base", BASE_URL)
-            print("baseurl: True")
-            page.strict_focus_and_insert(OPENROUTER_API_KEY_PATH, "model", MODEL)
-            page.press_enter()
-            print("model: True")
-            page.strict_focus_and_insert(OPENROUTER_API_KEY_PATH, "key", key)
-            print("key pasted len", len(key))
+        key_host_verified = True
+        if section_mode is not None:
+            key_host_verified = _raw_configure_hosted_key(page, key, section_mode)
 
-        def card_save():
-            return page.strict_click(OPENROUTER_API_KEY_PATH, "save")
+        display_model = os.environ.get("CAPAFY_DISPLAY_MODEL", "").strip()
+        if not display_model:
+            return key_host_verified
 
-        if not card_save():
-            raise RuntimeError("CP2 card Save is disabled")
-        time.sleep(2)
-        blockrun_state = page.evaluate("(() => {const path='models.providers.blockrun.apiKey';const xs=[...document.querySelectorAll('*')].filter(x=>(x.textContent||'').trim()===path&&![...x.children].some(c=>(c.textContent||'').trim()===path));if(xs.length===0)return {ok:true,none:true};if(xs.length!==1)return {ok:false,count:xs.length};let card=xs[0],bs=[];for(let k=0;k<12&&card;k++,card=card.parentElement){const ys=[...card.querySelectorAll('button')];if(ys.length===1){bs=ys;break;}}if(bs.length!==1)return {ok:false,count:bs.length};const b=bs[0];b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return {ok:true,x:r.x+r.width/2,y:r.y+r.height/2};})()")
-        if not isinstance(blockrun_state, dict) or not blockrun_state.get("ok"):
-            raise RuntimeError(f"ambiguous blockrun card ({blockrun_state})")
-        if not blockrun_state.get("none"):
-            page.click_coords("(() => {const path='models.providers.blockrun.apiKey';const xs=[...document.querySelectorAll('*')].filter(x=>(x.textContent||'').trim()===path&&![...x.children].some(c=>(c.textContent||'').trim()===path));if(xs.length!==1)return null;let card=xs[0],b=null;for(let k=0;k<12&&card&&!b;k++,card=card.parentElement){const ys=[...card.querySelectorAll('button')];if(ys.length===1)b=ys[0];}if(!b)return null;b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()")
-        time.sleep(1.2)
-
-        baseline_url = str(page.evaluate("location.href") or "")
-        baseline_toasts = page.evaluate("[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim()).filter(x=>/キー確認済み|Verification failed|失敗|エラー/i.test(x)&&x.length<120)") or []
-        if not page.strict_click(OPENROUTER_API_KEY_PATH, "confirm"):
-            raise RuntimeError("CP2 confirmation button is disabled")
-        print("save: clicked")
-
-        result = "TIMEOUT"
-        deadline = time.monotonic() + RAW_NAV_TIMEOUT_S
-        for _ in range(10):
-            if time.monotonic() >= deadline:
-                break
-            time.sleep(3)
-            toast = page.evaluate("[...document.querySelectorAll('*')].map(e=>(e.textContent||'').trim()).find(x=>/キー確認済み|Verification failed|失敗|エラー/i.test(x)&&x.length<120)||''")
-            url = page.evaluate("location.href") or ""
-            if _fresh_success(baseline_url, baseline_toasts, url, toast):
-                result = "VERIFIED"
-                break
-            if "Verification failed" in str(toast) or "失敗" in str(toast):
-                result = "FAILED: " + str(toast)[:80]
-                break
-        print("RESULT:", result)
-        return result == "VERIFIED"
+        display_verified = _raw_fix_display_model(page, display_model)
+        return key_host_verified and display_verified
     finally:
         page.close()
 

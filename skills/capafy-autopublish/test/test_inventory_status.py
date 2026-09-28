@@ -114,8 +114,13 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     request = next(item for item in items if item["feature"] == "catalog:marketing-strategist")
     assert request["update_request"]["agent_id"] == "9563867391"
     assert request["icon"].endswith("icon.webp")
+    others = [item for item in items
+              if item.get("update_request") and item is not request]
     rows = [agent("9563867391", "online", name=request["title"],
                   latestAgentVersionId="2070737929294868480"),
+            *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
+                    latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
+              for item in others],
             agent("other", "under_review")]
     monkeypatch.setattr(module, "server_agents", lambda: rows)
 
@@ -434,3 +439,81 @@ def test_repo_catalog_is_ready_and_overrides_same_title_legacy_item(tmp_path: Pa
     assert len(items) == 1
     assert items[0]["feature"] == "catalog:football-match-analyst"
     assert items[0]["source"] == "repo_catalog"
+
+
+def test_create_fresh_prefers_lower_demand_rank_over_alphabetical_feature() -> None:
+    # "Board Update Deck Builder" (alphabetically first feature) must NOT jump the queue
+    # over a lower (more urgent) demand-ranked candidate like football-match-analyst.
+    module = load_module()
+    normalized = {"readable": True, "counts": {"occupied": 0}}
+    candidates = [
+        {"feature": "catalog:board-update-deck-builder", "title": "Board Update Deck Builder",
+         "demand_rank": module.UNRANKED_DEMAND},
+        {"feature": "catalog:football-match-analyst", "title": "Football Match Analyst",
+         "demand_rank": 1},
+        {"feature": "catalog:portfolio-tracker", "title": "Portfolio Tracker", "demand_rank": 2},
+    ]
+
+    decision = module.allocate_action(normalized, [], candidates)
+
+    assert decision["action"] == "create_fresh"
+    assert decision["item"]["feature"] == "catalog:football-match-analyst"
+
+
+def test_create_fresh_falls_back_to_alphabetical_within_same_rank() -> None:
+    module = load_module()
+    normalized = {"readable": True, "counts": {"occupied": 0}}
+    candidates = [
+        {"feature": "catalog:zzz-skill", "title": "Zzz", "demand_rank": module.UNRANKED_DEMAND},
+        {"feature": "catalog:aaa-skill", "title": "Aaa", "demand_rank": module.UNRANKED_DEMAND},
+    ]
+
+    decision = module.allocate_action(normalized, [], candidates)
+
+    assert decision["item"]["feature"] == "catalog:aaa-skill"
+
+
+def test_listing_demand_rank_parses_line_and_defaults_when_missing(tmp_path: Path) -> None:
+    module = load_module()
+    ranked = tmp_path / "ranked.md"
+    ranked.write_text("Primary Model: Claude Sonnet 4.6\n\nDemand rank: 2\n\n| cycle |\n")
+    unranked = tmp_path / "unranked.md"
+    unranked.write_text("Primary Model: Claude Sonnet 4.6\n\n| cycle |\n")
+
+    assert module.listing_demand_rank(str(ranked)) == 2
+    assert module.listing_demand_rank(str(unranked)) == module.UNRANKED_DEMAND
+
+
+def test_ready_inventory_reads_demand_rank_from_catalog_listing(tmp_path: Path) -> None:
+    module = load_module()
+    features = tmp_path / "features"
+    icons = tmp_path / "icons"
+    catalog = tmp_path / "catalog"
+    features.mkdir()
+    icons.mkdir()
+    ranked = catalog / "football-match-analyst"
+    ranked.mkdir(parents=True)
+    (ranked / "LISTING.md").write_text("## Title\nFootball Match Analyst\n\nDemand rank: 1\n")
+    (ranked / "SKILL.md").write_text("skill")
+    (ranked / "icon.png").write_bytes(b"png")
+    module.FEATURES = str(features)
+    module.ICONS = str(icons)
+    module.CATALOG = str(catalog)
+
+    items = module.ready_inventory()
+
+    assert items[0]["demand_rank"] == 1
+
+
+def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
+    module = load_module()
+    request = {"agent_id": "8123079349", "from_version_id": "2099413428859719680",
+               "target_model_id": "deepseek/deepseek-v4.1-flash"}
+    update = {"agent_id": "8123079349", "feature": "catalog:hook-lab",
+              "title": "Hook Lab — Win the First 3 Seconds", "update_request": request}
+    draft = {"agent_id": "9466718786", "title": "Shorts Hook Lab"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
+
+    assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
+    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"

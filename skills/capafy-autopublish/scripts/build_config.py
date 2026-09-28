@@ -7,7 +7,8 @@ in its separate protected file.
 Usage: build_config.py <LISTING.md> <icon_path> [out.json]
 LISTING.md must contain:
   header line with "Primary Model: <model>" and "category: <cat> ... tags: a, b, c"
-  a pricing table:  | cycle | price | cap | trial |  rows (trial = "No Free Trial" only)
+  a pricing table:  | cycle | price | cap | trial |  rows (trial = "No Free Trial" or
+    "Free Trial <hours>h / <N> requests")
   ## Title / ## shortDescription / ## welcomeMessage / ## detailedDescription
 test_input is extracted from the welcomeMessage "Example:" line.
 """
@@ -20,11 +21,18 @@ from pathlib import Path
 
 
 NO_FREE_TRIAL = re.compile(r"no[\s_-]+free[\s_-]+trial", re.I)
+FREE_TRIAL = re.compile(r"free[\s_-]+trial\s+(\d+)\s*h\s*/\s*(\d+)\s*requests?", re.I)
 MODEL_IDS = {
     "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
     "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
 }
-HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 128000, "DeepSeek V4.1 Flash": 8192}
+# E (2026-09-28): Hook Lab (agent 8123079349, Sonnet-hosted) measured ~45k input
+# tokens/request. This repo has no visibility into Capafy's server-side system
+# prompt/history assembly, but a 128000 max_tokens ceiling lets one completion grow
+# huge and then gets echoed back into the next turn's history on a multi-turn card,
+# compounding input size run over run. Existing online agents (Hook Lab included)
+# keep their already-published CP2 config; only NEW skills get the lower ceiling.
+HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 8192, "DeepSeek V4.1 Flash": 8192}
 
 
 def main():
@@ -55,14 +63,21 @@ def main():
     plans = []
     for row in re.findall(r"\|\s*(day|week|month)\s*\|\s*\$?([0-9.]+)\s*\|\s*([0-9]+)\s*\|\s*([^|]+)\|", L, re.I):
         cyc, price, cap, trial = row
-        if not NO_FREE_TRIAL.fullmatch(trial.strip()):
+        trial = trial.strip()
+        trial_match = FREE_TRIAL.fullmatch(trial)
+        if trial_match:
+            trial_value = {"hours": int(trial_match.group(1)), "requests": int(trial_match.group(2))}
+        elif NO_FREE_TRIAL.fullmatch(trial):
+            trial_value = None
+        else:
             print(
-                f"ERROR: free trials are disabled; {cyc} plan trial must be No Free Trial",
+                f"ERROR: {cyc} plan trial must be 'No Free Trial' or "
+                f"'Free Trial <hours>h / <N> requests': {trial!r}",
                 file=sys.stderr,
             )
             sys.exit(2)
         plans.append({"cycle": cyc.lower(), "price": price, "cap": cap,
-                      "trial": None})
+                      "trial": trial_value})
     if not plans:
         print("ERROR: no pricing rows parsed from LISTING", file=sys.stderr); sys.exit(2)
 

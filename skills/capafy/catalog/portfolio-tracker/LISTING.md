@@ -6,6 +6,8 @@ R2 staleness       : The next trading day's position weights, price changes, and
 day-8 answer       : New price and position numbers happened each day, so last week's portfolio review is stale.
 demand evidence    : Stock tracking is a measured recurring-input winner: 781 sold at $9.99/week (BEST_PRACTICES §13); it is the highest-demand qualifying vertical not already in our catalog after football fixture analysis.
 
+Demand rank: 2
+
 | cycle | price | cap | trial |
 | week | $9.99 | 20 | No Free Trial |
 

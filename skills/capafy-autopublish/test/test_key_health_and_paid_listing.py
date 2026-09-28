@@ -13,13 +13,6 @@ AUTO = Path(__file__).resolve().parents[1]
 KEY_GATE = AUTO / "scripts" / "key_health_gate.sh"
 BUILD_CONFIG = AUTO / "scripts" / "build_config.py"
 LINT_LISTING = AUTO / "scripts" / "lint_listing.py"
-CANONICAL_PAID_ONLY_FILES = (
-    AUTO / "BEST_PRACTICES.md",
-    AUTO / "SKILL.md",
-    AUTO / "PUBLISHING_RUNBOOK.md",
-    AUTO / "references" / "pricing.md",
-    AUTO.parent / "capafy" / "catalog" / "youtube-script-writer" / "LISTING.md",
-)
 KEY_GATE_CALL_SITES = (
     AUTO / "scripts" / "daily_loop.sh",
     AUTO / "scripts" / "publish_prepare.sh",
@@ -308,7 +301,10 @@ Structured script output from your brief.
         self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
         config = json.loads(build.stdout)
         self.assertEqual(config["model_id"], "anthropic/claude-sonnet-4.6")
-        self.assertEqual(config["max_tokens"], 128000)
+        # E (2026-09-28): lowered from 128000 for NEW skills only — Hook Lab's measured
+        # ~45k input tokens/request implicated an oversized completion ceiling compounding
+        # multi-turn history growth; existing online agents are not retroactively changed.
+        self.assertEqual(config["max_tokens"], 8192)
         self.assertEqual(config["plans"], [{"cycle": "week", "price": "9.99", "cap": "20", "trial": None}])
         self.assertNotIn("edit_url", config)
 
@@ -358,32 +354,33 @@ Structured script output from your brief.
         )
         self.assertNotEqual(build.returncode, 0)
 
-    def test_canonical_paid_only_docs_have_no_enabled_free_trial_guidance(self):
-        normative_patterns = (
-            r"enable\s+free\s+trial",
-            r"\bif\s+enable\b",
-            r"free\s+trial\s*を必ず",
-            r"per-plan\s+trial\s*=\s*winner",
-            r"trial\s*=\s*winner\s+config",
-            r"TRIAL\s+config\s*=\s*COPY\s+THE\s+WINNER",
-            r"copy\s+billings?[^\n]*\btrial\b",
-        )
-        for path in CANONICAL_PAID_ONLY_FILES:
-            text = path.read_text(encoding="utf-8")
-            for pattern in normative_patterns:
-                self.assertIsNone(
-                    re.search(pattern, text, re.I),
-                    f"normative free-trial guidance remains: {pattern} in {path}",
-                )
+    def test_existing_published_listings_keep_no_free_trial(self):
+        """2026-09-28 policy reversal: NEW skills now default to a trial (measured: every
+        seller with revenue and every marketplace winner has one). Existing already-online
+        agents are untouched (E forbids editing a live agent's config) so their listings
+        must still read No Free Trial in every plan."""
+        for name in ("youtube-script-writer", "marketing-strategist"):
+            listing = (AUTO.parent / "capafy" / "catalog" / name / "LISTING.md").read_text(encoding="utf-8")
+            rows = re.findall(
+                r"\|\s*(day|week|month)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|", listing, re.I,
+            )
+            self.assertTrue(rows)
+            self.assertTrue(
+                all(re.fullmatch(r"no[\s_-]+free[\s_-]+trial", trial.strip(), re.I) for _, trial in rows)
+            )
 
-        listing = CANONICAL_PAID_ONLY_FILES[-1].read_text(encoding="utf-8")
-        rows = re.findall(
-            r"\|\s*(day|week|month)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|",
-            listing,
-            re.I,
-        )
-        self.assertTrue(rows)
-        self.assertTrue(all(re.fullmatch(r"no[\s_-]+free[\s_-]+trial", trial.strip(), re.I) for _, trial in rows))
+    def test_best_practices_documents_the_new_skill_trial_default(self):
+        text = (AUTO / "BEST_PRACTICES.md").read_text(encoding="utf-8")
+        self.assertRegex(text, r"[Ff]ree [Tt]rial 24h\s*/\s*3 requests")
+        self.assertRegex(text, r"[Ff]ree [Tt]rial 72h\s*/\s*5 requests")
+        self.assertRegex(text, r"day.{0,40}No Free Trial", re.S)
+
+    def test_free_trial_cell_is_accepted_by_lint_and_build(self):
+        lint, build = self.run_tools("Free Trial 24h / 3 requests")
+        self.assertEqual(lint.returncode, 0, lint.stdout + lint.stderr)
+        self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+        config = json.loads(build.stdout)
+        self.assertEqual(config["plans"][0]["trial"], {"hours": 24, "requests": 3})
 
 
 if __name__ == "__main__":

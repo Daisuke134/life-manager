@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: incident postmortem, reliability, operations writing
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: incident postmortem, reliability, operations writing
 
 R1 recurring input : Each incident has a new timeline, impact description, observations, and follow-up context.
 R2 recurring output: Each incident produces a fresh evidence-bound postmortem draft and verification checklist.

@@ -35,16 +35,22 @@ mkdir -p "$CAPAFY_STATE_DIR"
 # atomic on every POSIX fs and needs no extra binary (macOS ships no `flock` CLI) — a
 # second concurrent invocation exits immediately instead of silently corrupting the first.
 LOCK_DIR="$CAPAFY_STATE_DIR/.daily_loop.lockdir"
+# The owner pid lives inside the lock. A holder killed with its parent pass (SIGKILL
+# skips the EXIT trap) left the lock for 40 minutes on 2026-09-28, so every pass in
+# between skipped the drainer; a dead owner is stolen at once.
+take_lock() { echo "$$" >"$LOCK_DIR/pid"; trap 'rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null' EXIT; }
 if mkdir "$LOCK_DIR" 2>/dev/null; then
-  trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+  take_lock
 else
-  # stale-lock guard: a lock dir older than 40min means a prior run crashed without
-  # cleaning up (this script's own claude call is timeout-guarded at 1200s=20min) —
-  # steal it rather than wedging the loop forever.
+  # stale-lock guard: a dead owner, or a lock dir older than 40min, means a prior run
+  # crashed without cleaning up (this script's own claude call is timeout-guarded at
+  # 1200s=20min) — steal it rather than wedging the loop forever.
   AGE=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || echo 0) ))
-  if [ "$AGE" -gt 2400 ]; then
-    rmdir "$LOCK_DIR" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null
-    trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+  OWNER="$(cat "$LOCK_DIR/pid" 2>/dev/null)"
+  if [ "$AGE" -gt 2400 ] || { [ -n "$OWNER" ] && ! kill -0 "$OWNER" 2>/dev/null; } \
+      || { [ -z "$OWNER" ] && [ "$AGE" -gt 60 ]; }; then
+    rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null
+    take_lock
   else
     echo "=== $TS daily_loop SKIPPED — another instance holds $LOCK_DIR (age ${AGE}s) ===" >>"$LOG"
     exit 0
@@ -104,6 +110,28 @@ esac
 # a REVIEW_REJECTED item is merely resubmitted into under_review (self-fix-capafy-loop, 2026-07-11:
 # this exact confusion produced a false "PUBLISHED" label on a run where nothing went online).
 PRE_ONLINE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("online_count", -1))' 2>>"$LOG")"
+
+# A resumed draft whose CP1 is already confirmed only needs CP2 -> CP3, which is
+# deterministic. The agentic runbook re-enters CP1 and demands an edit URL that
+# Capafy no longer issues once CP1 is saved (2026-09-28, Agent 9466718786: the
+# refresh returned only /R<digits> and every resume stopped). publish_finish.sh
+# refuses before any write unless is_confirmed_skills=true, so a draft that still
+# needs CP1 falls through to the agentic flow below.
+RESUME="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}
+if d.get("action") == "resume_draft" and i.get("agent_id") and i.get("skill") and i.get("listing"):
+    print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"], sep="\t")' 2>>"$LOG")"
+if [ -n "$RESUME" ]; then
+  IFS=$'\t' read -r R_ID R_SKILL R_LISTING <<<"$RESUME"
+  R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
+  R_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_version_id",""))' "$R_MANIFEST" 2>>"$LOG")"
+  if [ -n "$R_VERSION" ] && bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (RESUMED — $R_ID finished CP2/CP3 deterministically; no LLM spend) ===" >> "$LOG"
+    exit 0
+  fi
+  echo "$TS resume_draft $R_ID: deterministic finish did not complete; falling back to the agentic runbook" >> "$LOG"
+fi
 
 # PUBLISHABLE → the shared agent runner tries the configured tool-agent providers in order and
 # records durable per-attempt evidence. Keep ANTHROPIC_API_KEY unset so a Claude fallback uses the

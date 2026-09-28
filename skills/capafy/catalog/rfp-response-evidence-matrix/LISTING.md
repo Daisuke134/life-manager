@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: RFP, procurement, response matrix, sales operations
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: RFP, procurement, response matrix, sales operations
 
 R1 recurring input : RFPs, vendor questionnaires, and supporting company material change from opportunity to opportunity.
 R2 recurring output: Each supplied request produces a new traceable requirement-and-evidence matrix with its own gaps and verification queue.

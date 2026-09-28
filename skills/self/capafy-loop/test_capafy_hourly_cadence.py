@@ -9,7 +9,7 @@ DAILY = Path(__file__).parent / "capafy-loop-daily.sh"
 def test_capafy_supply_owner_wakes_hourly_without_duplicate_schedule() -> None:
     config = plistlib.loads(PLIST.read_bytes())
 
-    assert config["StartInterval"] == 3600
+    assert config["StartInterval"] == 900
     assert config["ThrottleInterval"] == 60
     assert "StartCalendarInterval" not in config
     assert config["Label"] == "ai.anicca.capafy-loop-daily"
@@ -31,7 +31,7 @@ def test_every_healthy_terminal_refreshes_the_healthcheck_marker() -> None:
     script = DAILY.read_text(encoding="utf-8")
 
     assert 'HEALTHY_MARKER="$HOME/.local/state/life-manager/state/capafy-autopublish/.capafy-healthy-pass"' in script
-    assert script.count("mark_healthy || exit 2") == 3
+    assert script.count("mark_healthy || exit 2") == 4
 
 
 def test_selfheal_request_preempts_cap_full_offline_build() -> None:
@@ -64,3 +64,11 @@ def test_cap_full_fast_path_reconciles_the_live_ledger_before_inventory() -> Non
     assert script.count(reconcile) == 1
     assert script.index(reconcile) < script.index(inventory)
     assert script.index(reconcile) < script.index(cap_full)
+
+
+def test_publishable_runs_the_bounded_drainer_outside_the_agent() -> None:
+    script = DAILY.read_text(encoding="utf-8")
+
+    drainer = 'bash "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/daily_loop.sh"'
+    assert script.count(drainer) == 1
+    assert script.index(drainer) < script.index("PROMPT='You are the Anicca Capafy money-loop core")

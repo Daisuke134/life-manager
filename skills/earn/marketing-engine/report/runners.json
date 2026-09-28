@@ -13,7 +13,10 @@
     },
     "metrics": {
       "command": ["{python}", "{repo}/skills/earn/marketing-engine/measure/business_outcomes.py"],
-      "product_ids": ["anicca-ios", "honne-ai", "ebook-ja", "ebook-en"],
+      "product_ids": [
+        "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
+        "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en"
+      ],
       "quarantine_reason": null
     },
     "dashboard": {

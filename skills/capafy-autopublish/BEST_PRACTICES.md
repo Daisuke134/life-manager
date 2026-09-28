@@ -9,7 +9,7 @@ Originality = lost sales + rejection risk. For each new listing: search a proven
 data (`GET /agent/agent/agents/<id>`), and **copy its price / cap / category / structure verbatim**.
 Write original *words* (avoid plagiarism), copy the *facts/structure*. NEVER invent a price or cap
 "to be safe" — the winner already proved the numbers convert and the cap keeps cost < revenue.
-Our paid-only policy in §3 overrides any winner's free-trial field; never copy a free-trial setting.
+Follow the free-trial DEFAULT in §3 for new skills rather than copying a winner's exact trial value.
 
 ## 1. SELLABLE TEST (decide before building)
 - **run_online** (what we sell): buyer chats in a sandbox = model + pasted input only. No web/tool/
@@ -31,9 +31,28 @@ Common shapes that sell (pick the one your winner uses; don't blend two):
 - Cheap impulse niches (cold email) run low (week $1.99 / month $5.99). Pro/analyst niches run high
   (month $24.99–27.99). Match the niche's proven band.
 
-## 3. TRIAL config — paid-only
-Every plan must select **No Free Trial**. `lint_listing.py` and `build_config.py` reject
-every other trial value, so no generated listing can expose a free offering.
+## 3. TRIAL config — new skills default to a trial (2026-09-28 policy, supersedes the old paid-only rule)
+Measured 2026-09-28: every seller with revenue in our own catalog is short-form/recurring-input content
+(Hook Lab, Slide Maker, Marketing Strategist, TikTok Script Pro, YouTube Script Writer), the marketplace
+winners in those verticals nearly all carry a free trial, and 69 of our 98 historical units were free-trial
+units before we banned trials outright. Banning trials cost us conversion volume for no measured benefit.
+
+**New skills** (not yet published): set a trial on the **week** and **month** plans; the **day** plan
+stays **No Free Trial** (day-plan buyers are already impulse-converting, a trial there just delays revenue).
+Defaults unless a specific winner's data says otherwise:
+- week plan: `Free Trial 24h / 3 requests`
+- month plan: `Free Trial 72h / 5 requests`
+
+`lint_listing.py` and `build_config.py` accept exactly two trial cell shapes: `No Free Trial` or
+`Free Trial <hours>h / <N> requests` (e.g. `Free Trial 24h / 3 requests`); anything else is rejected.
+`build_config.py` emits `{"trial": {"hours": H, "requests": N}}` or `null` per plan.
+
+**Already-published skills are never retroactively edited** to add a trial — touching a live agent's
+pricing config is out of scope for routine catalog work (would require a CP1 edit + re-review on an
+Agent that is already earning). Only NEW skills use this default.
+
+See `CP1_AGENTIC.md` §"Fixing 価格設定" for how the agent enables the trial in the CP1 UI and what to
+do when the revealed fields don't match the target.
 
 ## 4. CATEGORY (use the winner's; JP labels in the CP1 dropdown)
 writing→ライティング · research→リサーチ · marketing→マーケティング · social→ソーシャルメディア ·
@@ -66,10 +85,13 @@ Honest reframes that PASS: "from your input + model knowledge", "outputs self-co
 
 ## 8. LISTING FILE SHAPE (so build_config.py can parse it)
 `$LIFE_MANAGER_STATE_HOME/features/capafy-<name>/LISTING.md`:
-- header line: `Primary Model: Claude Sonnet 4.6 · category: <JP> ... tags: a, b, c`
-- a pricing table: `| cycle | price | cap | trial |` rows (trial = "No Free Trial" only)
+- header line: `Primary Model: DeepSeek V4.1 Flash · category: <JP> ... tags: a, b, c` (new skills default to DeepSeek V4.1 Flash — cheaper hosted model, see `build_config.py MODEL_IDS`; already-published Sonnet skills are not migrated)
+- a pricing table: `| cycle | price | cap | trial |` rows (trial = `No Free Trial` or
+  `Free Trial <hours>h / <N> requests`; see §3 for the new-skill default)
 - `## Title` / `## shortDescription` / `## welcomeMessage` / `## detailedDescription`
 (internal notes above `## Title` are NOT submitted — only the labeled sections are.)
+- optional `Demand rank: <int>` line (lower = publish first; `inventory_status.py` sorts
+  `create_fresh` candidates by this instead of alphabetically; missing = published last).
 
 ## 9. REFERENCE — winners we cloned (verified live)
 | ours | winner cloned | proof |
@@ -127,3 +149,61 @@ New-to-us niche: HR/talent deck writer ("built more decks than I can count — t
 cases, board updates") — text/structured-output only, `run_online`-safe, not yet in our 28 listings.
 Takeaway: no fabricated "winner" this pass (sales_selector signal=none across our 28), so this sweep
 is enrichment only per the loop contract — did not change which listing gets published this pass.
+
+## 13. MARKET SWEEP (2026-09-28, own-seller + marketplace revenue audit) — WINNER FAMILY SUPPLY
+Measured, not invented: every one of our own listings with actual revenue is short-form creator
+content — Hook Lab (hooks, $34.88), Slide Maker, Marketing Strategist, TikTok Script Pro, YouTube
+Script Writer. Marketplace winners cluster in the same families: hook optimization, finance summaries,
+sports analysis, video, priced $9.99–27.99/month, most with a free trial (see §3). Portfolio Tracker
+(stock tracking, 781 sold at $9.99/wk) is the highest-demand qualifying vertical not yet in our catalog
+after football fixture analysis — both are now `Demand rank`ed (see §8) to publish before anything else.
+
+**Next candidates, in priority order, are variants inside these already-proven families — not novel
+categories:**
+1. Hook Lab variants for a specific platform or niche (Reels, YouTube Shorts, ads, podcasts,
+   newsletters) — same recurring-input shape (buyer pastes new raw footage/topic each time), new
+   audience.
+2. Finance summaries (earnings/market recap style, not stock-tracking — that's Portfolio Tracker).
+3. Sports analysis beyond football fixtures (a different league/sport with the same weekly-fixture
+   recurring-input shape as `football-match-analyst`).
+Use **DeepSeek V4.1 Flash** as Primary Model (§5's cheaper default) and set the trial per §3.
+
+### Description template (derived from Hook Lab's live listing style)
+Use this shape for every new listing in this family — outcome headline, buyer identity, 3 concrete
+outcomes, one real example, then the plan table:
+```
+## Title
+<Outcome-first name — what the buyer gets, not the model or method>
+
+## shortDescription
+<one sentence: the outcome + the recurring input the buyer pastes each time>
+
+## welcomeMessage
+👋 I <do X> from your <pasted input>. Example: "<a real, specific example input>"
+
+## detailedDescription
+✨ What you get
+- <concrete outcome 1>
+- <concrete outcome 2>
+- <concrete outcome 3>
+
+⚙️ How it works
+1. Paste your <input> (new each time — <what changes>).
+2. I <transform/analyze/generate> it into <output shape>.
+3. You get <deliverable> ready to use.
+
+💡 Example
+Input: "<real pasted input>"
+Output: "<real generated output, trimmed to the essential lines>"
+
+👤 Who it's for
+<buyer persona 1>, <buyer persona 2>, <buyer persona 3>.
+
+Honesty: <what this does NOT do — no live data / no posting / no file export, per §6>.
+
+| cycle | price | cap | trial |
+|---|---:|---:|---|
+| day   | $X.XX | N | No Free Trial |
+| week  | $X.XX | N | Free Trial 24h / 3 requests |
+| month | $X.XX | N | Free Trial 72h / 5 requests |
+```

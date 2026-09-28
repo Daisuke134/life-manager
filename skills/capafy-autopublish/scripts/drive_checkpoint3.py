@@ -13,6 +13,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from drive_checkpoint2 import (
     _RawPage,
+    _open_cp2_target,
     _bounded_page_call,
     _bounded_page_evaluate,
     _detect_cdp,
@@ -161,10 +162,19 @@ CONFIRM_CLICK_JS = """(() => {
 })()"""
 
 
+_VERSION_TAB_CLICK = """(() => {
+  const xs = [...document.querySelectorAll('button,[role=tab]')].filter(e => ['バージョン','Version'].includes((e.textContent || '').trim()));
+  if (xs.length !== 1) return {ok:false, count:xs.length};
+  xs[0].click();
+  return {ok:true};
+})()"""
+
+
 def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
     """Populate the one required version-history textarea when the page has it."""
     deadline = time.monotonic() + CP3_HYDRATE_TIMEOUT_S
     state = None
+    version_tab_clicked = False
     while time.monotonic() < deadline:
         state = page.evaluate("""(() => {
           const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
@@ -177,6 +187,15 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
         })()""")
         if isinstance(state, dict) and state.get("hydrated"):
             break
+        if not version_tab_clicked:
+            # An update version's review page opens on 基本情報; the change-note
+            # textarea (and then 審査に提出) only appears under バージョン
+            # (live, Hook Lab v1.0.3, 2026-09-28).
+            version_tab_clicked = True
+            clicked = page.evaluate(_VERSION_TAB_CLICK)
+            if isinstance(clicked, dict) and clicked.get("ok"):
+                time.sleep(1)
+                continue
         time.sleep(CP3_POLL_S)
     if not isinstance(state, dict) or not state.get("ok"):
         raise RuntimeError(f"CP3 version-update field is ambiguous: {state}")
@@ -302,7 +321,13 @@ def main(argv: list[str]) -> int:
         print("RESULT: submitted")
         return 0
     cdp = _detect_cdp()
-    targets = _candidate_page_targets(cdp)
+    try:
+        targets = _candidate_page_targets(cdp)
+    except RuntimeError:
+        # Deterministic resumes never ran the CP1 agent, so no createAgent tab
+        # may exist (2026-09-28, Hook Lab v1.0.3); open the review page itself.
+        _open_cp2_target(cdp, resolved)
+        targets = _candidate_page_targets(cdp)
     page = _open_responsive_page(targets)
     try:
         page.call("Page.enable")

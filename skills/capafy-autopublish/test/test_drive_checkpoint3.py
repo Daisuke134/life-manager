@@ -214,3 +214,24 @@ def test_cp3_output_contains_no_url_or_token(monkeypatch, capsys) -> None:
     output = capsys.readouterr().out
     assert output == "RESULT: submitted\n"
     assert "secret" not in output
+
+
+def test_version_form_opens_the_version_tab_once_before_filling() -> None:
+    module = load_module()
+    module.CP3_POLL_S = 0
+
+    class _Page:
+        def __init__(self):
+            self.states = iter((
+                {"ok": True, "hydrated": False, "required": False},  # 基本情報 tab: nothing yet
+                {"ok": True},                                           # バージョン tab click
+                {"ok": True, "hydrated": True, "required": False},    # form now present
+            ))
+
+        def evaluate(self, _expression):
+            return next(self.states)
+
+    page = _Page()
+    module._fill_version_update_if_required(page, "Switch hosted model.")
+    with pytest.raises(StopIteration):
+        next(page.states)

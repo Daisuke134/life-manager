@@ -960,6 +960,18 @@ class OwnerReportRendererTest(unittest.TestCase):
         for product_id in PRODUCTS:
             self.assertEqual(text.count(product_id), 1, product_id)
 
+    def test_portfolio_weekly_sums_revenue_28d_and_installs_28d_across_products(self):
+        event = self.event("portfolio_weekly")
+        for item in event["facts"]["products"]:
+            if item["product_id"] == "anicca-ios":
+                item["revenue_28d"] = 40.0
+                item["installs_28d"] = 100
+            elif item["product_id"] == "honne-ai":
+                item["revenue_28d"] = 10.0
+                item["installs_28d"] = 20
+        rendered = owner_report.render_japanese(event)
+        self.assertIn("ポートフォリオ合計: 28日売上合計 50.0 USD・28日DL合計 120件", rendered)
+
     def test_rendered_numbers_equal_literal_fixture_facts(self):
         anicca = owner_report.render_japanese(self.event("product_daily", "anicca-ios"))
         honne = owner_report.render_japanese(self.event("product_daily", "honne-ai"))
@@ -1298,6 +1310,92 @@ class OwnerReportRendererTest(unittest.TestCase):
             self.assertIsNone(no_report_event["facts"]["installs_7d"])
             self.assertEqual(no_report_event["facts"]["installs_7d_reason"], "no_verified_download_report")
             self.assertNotIn("ダウンロード数", owner_report.render_japanese(no_report_event))
+
+    def test_installs_28d_and_proceeds_28d_sum_the_28_day_window(self):
+        def asc_row(business_date: str, downloads: int | None, proceeds: float | None):
+            reports = {
+                "downloads": (
+                    {"status": "available", "data": {"first_time_downloads": downloads}}
+                    if downloads is not None
+                    else {"status": "unavailable", "data": None, "reason": "provider_query_failed"}
+                ),
+            }
+            sales = (
+                {"status": "available", "data": {"proceeds": {"USD": proceeds}, "units": 1}}
+                if proceeds is not None
+                else {"status": "unavailable", "data": None, "reason": "provider_query_failed"}
+            )
+            return {
+                "schema_version": 1,
+                "product_id": "anicca-ios",
+                "business_date": business_date,
+                "observed_at": f"{business_date}T08:00:00Z",
+                "snapshot_id": f"anicca-ios:{business_date}",
+                "sources": {
+                    "app_store_connect": {
+                        "status": "available",
+                        "reason": None,
+                        "data": {"app_id": "6755129214", "reports": reports},
+                    },
+                    "app_store_sales": sales,
+                },
+            }
+
+        with tempfile.TemporaryDirectory() as path:
+            root = Path(path)
+            rows = [asc_row(f"2026-08-{day:02d}", day, float(day)) for day in range(1, 29)]
+            (root / "business-outcomes.jsonl").write_text(
+                "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+                encoding="utf-8",
+            )
+            as_of = dt.datetime(2026, 8, 28, 12, tzinfo=dt.timezone.utc)
+            event = owner_report.build_events(
+                root, "product_daily", product_id="anicca-ios", as_of=as_of,
+            )[0]
+
+        self.assertEqual(event["facts"]["installs_28d"], sum(range(1, 29)))
+        self.assertIsNone(event["facts"]["installs_28d_reason"])
+        self.assertEqual(event["facts"]["proceeds_28d"], float(sum(range(1, 29))))
+        self.assertIsNone(event["facts"]["proceeds_28d_reason"])
+        rendered = owner_report.render_japanese(event)
+        self.assertIn("直近28日の新規ダウンロード数は406件", rendered)
+        self.assertIn("直近28日のApple収益は406", rendered)
+
+    def test_active_trials_and_revenue_28d_come_from_revenuecat_charts(self):
+        row = {
+            "schema_version": 1,
+            "product_id": "anicca-ios",
+            "business_date": "2026-08-05",
+            "observed_at": "2026-08-05T08:00:00Z",
+            "snapshot_id": "anicca-ios:2026-08-05",
+            "sources": {
+                "revenuecat": {
+                    "status": "available",
+                    "reason": None,
+                    "data": {
+                        "app_id": "app511ef26659",
+                        "charts": {
+                            "mrr": {"latest_complete": {"MRR": {"value": 20.73}}},
+                            "actives": {"latest_complete": {"Actives": {"value": 5}}},
+                            "trials": {"latest_complete": {"Active Trials": {"value": 2}}},
+                            "revenue": {"window_sum": 63.5},
+                        },
+                    },
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as path:
+            root = Path(path)
+            (root / "business-outcomes.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+            event = owner_report.build_events(
+                root, "product_daily", product_id="anicca-ios", as_of=AS_OF,
+            )[0]
+        self.assertEqual(event["facts"]["active_trials"], 2)
+        self.assertEqual(event["facts"]["revenue_28d"], 63.5)
+        rendered = owner_report.render_japanese(event)
+        self.assertIn("直近28日の売上は63.5 USD", rendered)
+        self.assertIn("有料課金者数は5人", rendered)
+        self.assertIn("トライアル中は2人", rendered)
 
     def test_missing_business_snapshot_emits_null_daily_event(self):
         with tempfile.TemporaryDirectory() as path:

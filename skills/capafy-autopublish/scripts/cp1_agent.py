@@ -106,8 +106,22 @@ CDP = _detect_cdp()
 # viewport-center coords, so the agent can both SEE (screenshot) and target
 # precisely (coords). Fields (inputs/textareas/selects) are listed first with a
 # stable index the agent references for fill/typeinto/upload.
-STATE_JS = r"""
+#
+# CP1_EXPECTED_MODEL (env) is the exact LISTING.md `Primary Model` display
+# string (e.g. "DeepSeek V4.1 Flash"). Verified live 2026-09-28: the current
+# Capafy card has NO Primary Model field on CP1 at all (displayed `model`
+# comes only from CP2's drive_checkpoint2.py, which writes it into the hosted
+# LLM Config) -- Agent 4243672453's official `model:null` was actually
+# publish_finish.sh checking that field too early (before CP2 ever ran), not
+# a missed CP1 click; see CP1_AGENTIC.md. This marker/field exposure is kept
+# as forward-compatible DATA EXPOSURE ONLY (not a hardcoded click sequence):
+# if Capafy ever puts a model selector back on the card, `modelDropdownVisible`
+# / `modelSelected` give the agentic loop an objective signal instead of
+# trusting the save toast. Today it will normally read modelDropdownVisible:
+# false, and that is expected, not a failure.
+STATE_JS_TEMPLATE = r"""
 () => {
+  const EXPECTED_MODEL = __EXPECTED_MODEL_JSON__;
   const vis = (e) => {
     const r = e.getBoundingClientRect();
     const s = getComputedStyle(e);
@@ -143,7 +157,8 @@ STATE_JS = r"""
   const markers = ['基本情報','価格設定','下書きを保存','提出を確認','審査に提出',
     'カードを保存しました','Capafy で実行','On-Demand','Subscription','Daily','Weekly','Monthly',
     'Add Plan','無料トライアル','Enable Free Trial','No Free Trial','重複するプラン',
-    'メインカテゴリ','確認','ファイル','アップロード','スキル'];
+    'メインカテゴリ','確認','ファイル','アップロード','スキル','Primary Model','モデル'];
+  if (EXPECTED_MODEL && !markers.includes(EXPECTED_MODEL)) markers.push(EXPECTED_MODEL);
   const found = {};
   [...document.querySelectorAll('*')].forEach((e) => {
     const t = (e.textContent || '').replace(/\s+/g,' ').trim();
@@ -168,11 +183,30 @@ STATE_JS = r"""
   const page = safePages.has(rawPage) ? rawPage : '';
   const safeUrl = current.origin + current.pathname + (page ? '?page=' + encodeURIComponent(page) : '');
   const cardDone = /card-done|credential/.test(current.pathname) || /credential(-done)?/.test(rawPage);
+  // Objective, code-computed answer to "is the Primary Model dropdown set to
+  // our target?" -- the agent must not proceed to save while this is false.
+  const modelDropdownVisible = !!found['Primary Model'] || !!found['モデル'];
+  const modelSelected = EXPECTED_MODEL ? !!found[EXPECTED_MODEL] : null;
   return { url: safeUrl, page, scrollY: Math.round(scrollY), vh: innerHeight,
            fields, buttons: buttons.slice(0, 60), markers: found,
-           toastOK, priceSvg, cardDone };
+           toastOK, priceSvg, cardDone,
+           expectedModel: EXPECTED_MODEL || null, modelDropdownVisible, modelSelected };
 }
 """
+
+
+def _build_state_js():
+    """Inject CP1_EXPECTED_MODEL (if set) as a JSON literal into STATE_JS_TEMPLATE.
+
+    Pure string templating -- no browser/network -- so it is unit-testable in
+    isolation (see test_cp1_expected_model.py).
+    """
+    expected_model = os.environ.get("CP1_EXPECTED_MODEL", "").strip()
+    literal = json.dumps(expected_model) if expected_model else "null"
+    return STATE_JS_TEMPLATE.replace("__EXPECTED_MODEL_JSON__", literal)
+
+
+STATE_JS = _build_state_js()
 
 
 def all_pages(br):

@@ -77,8 +77,44 @@ def test_short_cp2_url_resolves_one_valid_redirect(monkeypatch) -> None:
 
     monkeypatch.setattr(module, "_single_redirect_location", redirect)
 
-    assert module._resolve_cp2_url("https://api.capafy.ai/C123") == final
-    assert seen == [("https://api.capafy.ai/C123", "HEAD")]
+    assert module._resolve_cp2_url("https://api.capafy.ai/R123") == final
+    assert seen == [("https://api.capafy.ai/R123", "HEAD")]
+
+
+def test_short_cp2_url_rejects_unidentified_blank_new_agent_page(monkeypatch) -> None:
+    # Regression: Agent 9466718786 resume (2026-09-28 06:52Z) -- the short
+    # link's redirect degraded to a bare ?page=review with no source/token/
+    # draftKey, which is Capafy's blank "create a new Agent" form, not the
+    # existing draft. _validate_cp2_url alone (page value only) accepted it;
+    # the driver must instead fail closed rather than fill in the wrong page.
+    module = load_module()
+    monkeypatch.setattr(module.time, "sleep", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        module,
+        "_single_redirect_location",
+        lambda *_args: ["https://capafy.ai/developer/createAgent?page=review"],
+    )
+
+    with pytest.raises(RuntimeError, match="unidentified draft page"):
+        module._resolve_cp2_url("https://api.capafy.ai/R123")
+
+
+def test_short_cp2_url_retries_a_transient_unidentified_redirect(monkeypatch) -> None:
+    # The same short link resolved correctly moments before and hours after
+    # the 06:52Z failure (live-verified against Agent 9466718786's real
+    # editLink on 2026-09-28) -- a transient degraded redirect, not a
+    # permanently dead one. A retry that later sees the identified page must
+    # succeed instead of failing closed on the first bad response.
+    module = load_module()
+    monkeypatch.setattr(module.time, "sleep", lambda *_a, **_k: None)
+    final = "https://capafy.ai/developer/createAgent?source=temp-link&token=123&page=review"
+    responses = iter([
+        ["https://capafy.ai/developer/createAgent?page=review"],
+        [final],
+    ])
+    monkeypatch.setattr(module, "_single_redirect_location", lambda *_args: next(responses))
+
+    assert module._resolve_cp2_url("https://api.capafy.ai/R123") == final
 
 
 def test_short_cp2_url_rejects_cross_domain_location(monkeypatch) -> None:
@@ -90,14 +126,27 @@ def test_short_cp2_url_rejects_cross_domain_location(monkeypatch) -> None:
     )
 
     with pytest.raises(RuntimeError, match="exact Capafy"):
-        module._resolve_cp2_url("https://api.capafy.ai/C123")
+        module._resolve_cp2_url("https://api.capafy.ai/R123")
 
 
 def test_short_cp2_url_rejects_invalid_path() -> None:
     module = load_module()
 
-    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/C"):
+    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/R"):
         module._resolve_cp2_url("https://api.capafy.ai/not-a-short-url")
+
+
+def test_short_cp2_url_rejects_the_old_c_prefix() -> None:
+    # Regression: /C<digits> was the pattern this validator checked for until
+    # 2026-09-28, but Capafy's actual review-page short link (both
+    # publish-refresh-url --step publish and continue_upload's review_url) is
+    # /R<digits> -- the exact prefix drive_checkpoint3.py (CP3) already uses for
+    # the same review page (Agent 4243672453 live verification). A stray /C link
+    # must still fail closed, just with the corrected message.
+    module = load_module()
+
+    with pytest.raises(RuntimeError, match="exactly https://api.capafy.ai/R"):
+        module._resolve_cp2_url("https://api.capafy.ai/C123")
 
 
 def test_raw_page_connects_to_validated_page_websocket(monkeypatch) -> None:
@@ -299,6 +348,7 @@ def test_provider_section_clicks_one_counted_button_then_requires_path() -> None
         def __init__(self):
             self.states = iter((
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"},
                 {"ok": True, "x": 10, "y": 20}, {"count": 1},
             ))
             self.calls = []
@@ -346,6 +396,8 @@ def test_provider_section_polls_delayed_provider_path() -> None:
         def __init__(self):
             self.states = iter((
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"},
+                {"ok": False},  # no Agent workspace tab on this page
                 {"ok": False, "count": 0}, {"count": 1},
             ))
 
@@ -365,8 +417,11 @@ def test_provider_section_polls_delayed_counted_button_and_path() -> None:
     class _Page:
         def __init__(self):
             self.states = iter((
-                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": False, "count": 0},
-                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": True, "x": 10, "y": 20},
+                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"}, {"ok": False},
+                {"ok": False, "count": 0},
+                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False, "reason": "llm-config-field-count"}, {"ok": True, "x": 10, "y": 20},
                 {"count": 1},
             ))
             self.calls = []
@@ -395,6 +450,79 @@ def test_provider_section_accepts_expanded_configured_proxy_form() -> None:
             pytest.fail("configured proxy form must not click the detected-keys button")
 
     assert module._ensure_raw_provider_section(_Page()) == "configured_proxy"
+
+
+def test_provider_section_accepts_llm_config_form_layout() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            return {"count": 0}
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("llm config form layout must not click the detected-keys button")
+
+    assert module._ensure_raw_provider_section(_Page()) == "llm_config_form"
+
+
+def test_raw_configure_llm_form_writes_base_url_model_key_when_vendor_already_openrouter() -> None:
+    module = load_module()
+    focused = []
+    calls = []
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            if "vendor-button-count" in expression:
+                return {"ok": True, "text": "OpenRouter"}
+            focused.append(expression)
+            return {"ok": True}
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+    module._raw_configure_llm_form(_Page(), "test-secret")
+    assert len(focused) == 3
+    assert calls == [
+        ("Input.insertText", {"text": module.BASE_URL}),
+        ("Input.insertText", {"text": module.MODEL}),
+        ("Input.insertText", {"text": "test-secret"}),
+    ]
+
+
+def test_raw_configure_llm_form_fails_closed_when_vendor_is_not_openrouter() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, expression):
+            if "llm-config-field-count" in expression:
+                return {"ok": True}
+            if "vendor-button-count" in expression:
+                return {"ok": True, "text": "ベンダーを選択"}
+            pytest.fail("must not write fields before the vendor guard passes")
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("must not click/write before the vendor guard passes")
+
+    with pytest.raises(RuntimeError, match="not OpenRouter"):
+        module._raw_configure_llm_form(_Page(), "test-secret")
+
+
+def test_raw_configure_llm_form_rejects_ambiguous_field_counts() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, _expression):
+            return {"ok": False, "reason": "llm-config-field-count", "counts": [1, 2, 1, 1]}
+
+        def call(self, *_args, **_kwargs):
+            pytest.fail("ambiguous llm config form must not write")
+
+    with pytest.raises(RuntimeError, match="ambiguous llm config"):
+        module._raw_configure_llm_form(_Page(), "test-secret")
 
 
 def test_raw_configure_proxy_form_writes_provider_contract_without_model_field() -> None:
@@ -589,3 +717,175 @@ def test_fallback_does_not_print_secret(capsys, monkeypatch) -> None:
         module.main()
     assert exc.value.code == 0
     assert "do-not-print-secret" not in capsys.readouterr().out
+
+
+def test_provider_section_clicks_workspace_tab_once() -> None:
+    module = load_module()
+    module.RAW_SECTION_POLL_S = 0
+
+    class _Page:
+        def __init__(self):
+            self.states = iter((
+                {"count": 0}, {"ok": False}, {"ok": False}, {"ok": True, "x": 5, "y": 6},
+                {"count": 1},
+            ))
+            self.calls = []
+
+        def evaluate(self, _expression):
+            return next(self.states)
+
+        def call(self, method, params=None):
+            self.calls.append((method, params["type"]))
+
+    page = _Page()
+    module.time.sleep, sleep = (lambda _s: None), module.time.sleep
+    try:
+        assert module._ensure_raw_provider_section(page) == "provider"
+    finally:
+        module.time.sleep = sleep
+    assert page.calls == [("Input.dispatchMouseEvent", "mousePressed"),
+                          ("Input.dispatchMouseEvent", "mouseReleased")]
+
+
+def test_official_agent_model_requires_token_and_numeric_id(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.delenv("CAPAFY_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: pytest.fail("must not call the API without a token"))
+    assert module._official_agent_model("8123079349") is None
+
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: pytest.fail("must not call the API for a non-numeric id"))
+    assert module._official_agent_model("not-a-number") is None
+
+
+def test_official_agent_model_returns_model_only_on_matching_agent_id(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+    payload = {"code": 0, "data": {"agentId": "8123079349", "model": "DeepSeek V4.1 Flash"}}
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: _Response(payload))
+    assert module._official_agent_model("8123079349") == "DeepSeek V4.1 Flash"
+    assert module._official_agent_model("9466718786") is None
+
+
+def test_official_agent_model_returns_none_on_network_or_json_error(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+
+    def boom(*_a, **_k):
+        raise OSError("network down")
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", boom)
+    assert module._official_agent_model("8123079349") is None
+
+
+def test_verify_official_display_model_polls_until_match(monkeypatch) -> None:
+    module = load_module()
+    module.DISPLAY_MODEL_VERIFY_DELAY_S = 0
+    values = iter(["Claude Sonnet 4.6", "Claude Sonnet 4.6", "DeepSeek V4.1 Flash"])
+    monkeypatch.setattr(module, "_official_agent_model", lambda _id: next(values))
+    assert module._verify_official_display_model("8123079349", "DeepSeek V4.1 Flash") is True
+
+
+def test_verify_official_display_model_gives_up_after_retries(monkeypatch) -> None:
+    module = load_module()
+    module.DISPLAY_MODEL_VERIFY_TRIES = 2
+    module.DISPLAY_MODEL_VERIFY_DELAY_S = 0
+    monkeypatch.setattr(module, "_official_agent_model", lambda _id: "Claude Sonnet 4.6")
+    assert module._verify_official_display_model("8123079349", "DeepSeek V4.1 Flash") is False
+
+
+def test_raw_fix_display_model_is_a_noop_when_already_correct(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "_verify_official_display_model", lambda *_a: True)
+
+    class _Page:
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": "DeepSeek V4.1 Flash"}
+            if "no-agent-meta" in expression:
+                return {"ok": True, "agentId": "8123079349"}
+            pytest.fail(f"must not touch the DOM when already correct: {expression}")
+
+        def call(self, *_a, **_k):
+            pytest.fail("must not click/type when already correct")
+
+    assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
+
+
+def test_raw_fix_display_model_selects_preset_and_saves() -> None:
+    module = load_module()
+    calls = []
+
+    class _Page:
+        def __init__(self):
+            self._combo_value = "Claude Sonnet 4.6"
+
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": self._combo_value}
+            if "display-model-option-count" in expression:
+                return {"ok": True, "x": 1, "y": 2}
+            if "draft-save-count" in expression:
+                return {"ok": True, "x": 3, "y": 4, "disabled": False}
+            if "no-agent-meta" in expression:
+                return {"ok": True, "agentId": "8123079349"}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+            if method == "Input.insertText":
+                self._combo_value = params["text"]
+
+    module.RAW_SECTION_POLL_S = 0
+    module._verify_official_display_model = lambda *_a: True
+    assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
+    assert ("Input.insertText", {"text": "DeepSeek V4.1 Flash"}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 1.0, "y": 2.0, "button": "left", "clickCount": 1}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 3.0, "y": 4.0, "button": "left", "clickCount": 1}) in calls
+
+
+def test_raw_fix_display_model_fails_closed_without_a_matching_preset() -> None:
+    module = load_module()
+    module.RAW_SECTION_TIMEOUT_S = 0.01
+    module.RAW_SECTION_POLL_S = 0.001
+
+    class _Page:
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": ""}
+            if "display-model-option-count" in expression:
+                return {"ok": False, "reason": "display-model-option-count", "count": 0}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, *_a, **_k):
+            pass
+
+    with pytest.raises(RuntimeError, match="no exact preset option"):
+        module._raw_fix_display_model(_Page(), "Some Unknown Model")
+
+
+def test_raw_cp2_falls_back_to_display_model_fix_when_hosted_key_already_configured(monkeypatch) -> None:
+    module = load_module()
+
+    def raise_hydrate_timeout(_page):
+        raise RuntimeError("provider path and detected-keys button did not hydrate before deadline")
+
+    monkeypatch.setattr(module, "_raw_page_targets", lambda *_a: [{"webSocketDebuggerUrl": "ws://127.0.0.1:1/x"}])
+    monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _FakePage())
+    monkeypatch.setattr(module, "_wait_raw_navigation", lambda *_a: None)
+    monkeypatch.setattr(module, "_ensure_raw_provider_section", raise_hydrate_timeout)
+    monkeypatch.setattr(module, "_raw_configure_hosted_key", lambda *_a: pytest.fail("must not fill an already-configured card"))
+    monkeypatch.setenv("CAPAFY_DISPLAY_MODEL", "DeepSeek V4.1 Flash")
+    fix_calls = []
+    monkeypatch.setattr(module, "_raw_fix_display_model", lambda _page, model: fix_calls.append(model) or True)
+
+    assert module._raw_cp2("https://capafy.ai/developer/createAgent?token=t&page=review", "secret", "http://localhost:9222") is True
+    assert fix_calls == ["DeepSeek V4.1 Flash"]
+
+
+class _FakePage:
+    def call(self, *_a, **_k):
+        return {}
+
+    def close(self):
+        pass

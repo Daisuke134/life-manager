@@ -736,7 +736,7 @@
     "capafy-loop-daily": {
       "admission_class": "revenue",
       "cadence": {
-        "start_interval_seconds": 3600
+        "start_interval_seconds": 900
       },
       "cleanup": {
         "max_age_days": 14,

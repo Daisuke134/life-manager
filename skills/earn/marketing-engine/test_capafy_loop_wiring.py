@@ -99,7 +99,7 @@ class CapafyLoopWiringTest(unittest.TestCase):
         text = CAPAFY.read_text(encoding="utf-8")
         self.assertIn("INITIAL WRAPPER INVENTORY VERDICT: $VERDICT", text)
         self.assertIn("Historical log lines before this execution are not current failures", text)
-        self.assertIn("DRAINED requires designing and fully submitting one new skill", text)
+        self.assertIn("If the INITIAL action is DRAINED and a review slot is free, develop and submit exactly one new Skill.", text)
 
     def test_capafy_drainer_prompt_binds_authoritative_inventory_action(self):
         text = CAPAFY_DRAINER.read_text(encoding="utf-8")
@@ -116,9 +116,8 @@ class CapafyLoopWiringTest(unittest.TestCase):
 
     def test_capafy_cp1_guide_covers_current_silent_save_blockers(self):
         text = CAPAFY_CP1.read_text(encoding="utf-8")
-        for blocker in (
-            "welcomeMessage", "test input", "other third-party", "DPA",
-        ):
+        # Live card 2026-09-28 (#6068): no welcomeMessage / third-party fields on CP1.
+        for blocker in ("test input", "DPA"):
             self.assertIn(blocker, text)
 
     def test_run_agent_accepts_every_task_class_its_consumers_declare(self):

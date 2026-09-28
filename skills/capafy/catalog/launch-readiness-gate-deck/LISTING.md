@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: launch readiness, go no-go, decision deck
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: launch readiness, go no-go, decision deck
 
 RENEWAL GATE (§1b)
 R1 recurring input : Each launch, release candidate, decision date, gate set, dependency list, and evidence set changes.

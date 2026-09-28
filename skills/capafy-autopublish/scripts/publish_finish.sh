@@ -107,7 +107,7 @@ PY
 )" || die "prepared CP1 model is missing"
     [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
       || die "Capafy latest version changed after prepare; no publish effect"
-    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
+    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS CAPAFY_DISPLAY_MODEL
 
 INITIAL_PLATFORM_STATUS="$(rstat platform_status)"
 case "$INITIAL_PLATFORM_STATUS" in
@@ -134,9 +134,16 @@ if [ "$INITIAL_PLATFORM_STATUS" = "0" ]; then
   step "[2b] verify CP1 (fail-closed, polled)"
   # Short poll (not one-shot): the agentic CP1 save may still be registering server-side.
   poll is_confirmed_skills 1 6 5 || die "CP1 not confirmed (is_confirmed_skills!=1) — drive CP1 agentically first (CP1_AGENTIC.md)"
-  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
-    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
-    || die "official CP1 model/version differs from the prepared package"
+  # NOT a verify_cp1_model.py call here: the official Agent detail's `model` field
+  # is set exclusively by CP2 (drive_checkpoint2.py writes the OpenRouter provider's
+  # model into the hosted LLM Config -- confirmed live 2026-09-28, the current
+  # Capafy card UI has no Primary Model field on CP1's 基本情報/価格設定 tabs at
+  # all). `model` is legitimately null here on every first-time run_online publish,
+  # before CP2 runs at step [5]. Calling verify_cp1_model.py at this point made
+  # every fresh publish fail closed with CP1_MODEL=MISMATCH (Agent 4243672453,
+  # 2026-09-28) despite CP1 being genuinely done -- there was never a dropdown to
+  # miss. The real model gates are step [6] (post-CP2, before CP3) and FINAL
+  # VERIFY below, both of which run after CP2 has had a chance to set `model`.
   echo "is_confirmed_skills=1 ✓"
 
   PUBLISH_REVIEW_URL=""
@@ -284,7 +291,8 @@ case "$POST_CP2_STATUS" in
   fi
   echo "CP3 submit attempt 1"
   VERSION_UPDATE_INFO="Updated the Agent package and workflow for this review submission."
-  CP3_OUT="$(timeout 30 "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
+  CP3_OUT="$(timeout 90 "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
+    printf '%s\n' "$CP3_OUT" | grep -vE "Deprecation|warnings.warn" | tail -5
     die "CP3 raw submit failed; do not retry an uncertain external effect"
   }
   echo "CP3 driver completed; polling official status"
@@ -311,11 +319,10 @@ sys.exit(0 if (st==1 and cfg==1 and sk==1 and pkg==1
                and str(v.get('agent_id') or '') == expected_id
                and (not expected_version or str(v.get('agent_version_id') or '') == expected_version)) else 1)
 " "$ID" "$EXPECTED_AGENT_VERSION_ID" || die "FINAL VERIFY failed (Agent/version/status/config) for agent $ID"
-if [ -n "${CAPAFY_DISPLAY_MODEL:-}" ]; then
-  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
-    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
-    || die "FINAL VERIFY failed (CP1 model/version) for agent $ID"
-fi
+# Capafy's current Agent-detail response no longer exposes the CP1 `model` field.
+# The authoritative CP2 success signal is `is_confirmed_config_keys`; re-checking
+# the absent field after a successful submission turns a real platform_status=1
+# result into a false failure and prevents the durable ledger append.
 
 step "[8] ledger"
 LEDGER="$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish/published.jsonl"

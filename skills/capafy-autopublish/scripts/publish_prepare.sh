@@ -99,6 +99,11 @@ WS="$CAPAFY_PUBLISH_HOME/.openclaw/workspace"
 [ -z "${CAPAFY_WORKSPACE:-}" ] || [ "$CAPAFY_WORKSPACE" = "$WS" ] \
   || die "CAPAFY_WORKSPACE override is not Agent-isolated"
 CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
+# Keep the icon with the Agent's publisher home. Recording the release path broke
+# every later resume once that immutable release was pruned (2026-09-28, 9466718786).
+ICON_COPY="$CAPAFY_PUBLISH_HOME/icon.${ICON##*.}"
+cp "$ICON" "$ICON_COPY" || die "icon copy failed"
+ICON="$ICON_COPY"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
   || die "build_config failed"
 if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then
@@ -283,7 +288,9 @@ import json,sys
 c=json.load(open(sys.argv[1]))
 for p in c["plans"]:
     tr = p.get("trial")
-    print(f"  {p['cycle']:5} : price ${p['price']}  cap {p['cap']}  trial={'No Free Trial' if not tr else str(tr)+'h'}")
+    trial_target = (f"Free Trial {tr['hours']}h / {tr['requests']} requests"
+                    if isinstance(tr, dict) else "No Free Trial")
+    print(f"  {p['cycle']:5} : price ${p['price']}  cap {p['cap']}  trial={trial_target}")
 print("  category:", c.get("category"), "| model:", c.get("model"))
 PY
 echo ""

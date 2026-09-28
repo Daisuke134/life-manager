@@ -201,6 +201,20 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     occupied = (normalized.get("counts") or {}).get("occupied")
     if not isinstance(occupied, int) or isinstance(occupied, bool) or occupied < 0:
         return {"verdict": "SERVER_UNREADABLE"}
+    # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
+    # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
+    # re-selected every wake while three slots sat empty and Hook Lab's
+    # DeepSeek update (cost > revenue on Sonnet) waited behind it.
+    if updates and occupied < CAP:
+        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        request = item["update_request"]
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "paid existing Agent has an explicit version update request",
+            "action": "update_existing",
+            "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
+            "item": item,
+        }
     if resumable_drafts:
         item = min(
             resumable_drafts,
@@ -258,7 +272,8 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "item": item,
         }
     if publishable:
-        item = min(publishable, key=lambda row: (str(row.get("feature") or ""), str(row.get("title") or "")))
+        item = min(publishable, key=lambda row: (
+            row.get("demand_rank", UNRANKED_DEMAND), str(row.get("feature") or ""), str(row.get("title") or "")))
         identity = item.get("feature") or item.get("title")
         return {
             "verdict": "PUBLISHABLE",
@@ -312,6 +327,22 @@ def listing_title(path):
     return None
 
 
+UNRANKED_DEMAND = 999
+
+
+def listing_demand_rank(path):
+    """Extract an optional 'Demand rank: <int>' line from a LISTING.md.
+
+    Lower = publish first. Missing/unparsable = UNRANKED_DEMAND (published last,
+    ordered alphabetically among themselves as before)."""
+    try:
+        text = open(path, encoding="utf-8").read()
+    except Exception:
+        return UNRANKED_DEMAND
+    m = re.search(r"^Demand rank:\s*(\d+)\s*$", text, re.M)
+    return int(m.group(1)) if m else UNRANKED_DEMAND
+
+
 def ready_inventory():
     """Return complete legacy candidates plus repository-owned canonical catalog items."""
     items = []
@@ -327,7 +358,8 @@ def ready_inventory():
             skill = os.path.join(d, "SKILL.md")
             if title and os.path.isfile(icon) and os.path.isfile(skill):
                 items.append({"feature": name, "title": title, "icon": icon,
-                              "listing": listing, "skill": skill, "source": "legacy_state"})
+                              "listing": listing, "skill": skill, "source": "legacy_state",
+                              "demand_rank": listing_demand_rank(listing)})
 
     if os.path.isdir(CATALOG):
         for name in sorted(os.listdir(CATALOG)):
@@ -343,7 +375,8 @@ def ready_inventory():
             title = listing_title(listing) if os.path.isfile(listing) else None
             if title and icon and os.path.isfile(skill):
                 item = {"feature": f"catalog:{name}", "title": title, "icon": icon,
-                        "listing": listing, "skill": skill, "source": "repo_catalog"}
+                        "listing": listing, "skill": skill, "source": "repo_catalog",
+                        "demand_rank": listing_demand_rank(listing)}
                 update_file = os.path.join(d, "UPDATE.json")
                 if os.path.isfile(update_file):
                     request = json.load(open(update_file, encoding="utf-8"))
@@ -445,7 +478,7 @@ def main():
         retry_items.append({"agent_id": str(agent.get("agentId")), "title": title,
                             **ready_by_title[title]})
     fresh_items = [
-        {key: item[key] for key in ("feature", "title", "icon", "listing", "skill", "source")}
+        {key: item[key] for key in ("feature", "title", "icon", "listing", "skill", "source", "demand_rank")}
         for item in publishable
     ]
     recovery_items = [
