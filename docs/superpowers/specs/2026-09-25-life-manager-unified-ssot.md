@@ -635,6 +635,8 @@ TODO（何を・どう直すか）
 
 **投資admission根因（2026-09-29 05:00 JST）**: authoritative host-admission DBで`alpaca-investment-live`はqueue sequence `269435`の`agent` owner、production rowは`borrow/support`、reservation 0、effect-unknown claim 0。queue総数は74件で、投資専用のstale claimではない。candidateは`revenue/revenue`へ修正済みだがloaded releaseへ未反映なので、自然wakeは`resource_fifo_wait`/`resource_capacity_busy`でprovider effect前にdeferする。DB直接操作ではなく、shared gate green後のLife Manager immutable release handoffが唯一の次操作である。
 
+**最新natural wake（2026-09-29）**: occurrence `alpaca-investment-live:18d9948d01173300-25286`はloaded release `110561505844ab79fc524273ae86250cda697d50`で`host_admission_deferred:resource_capacity_busy`・exit `75`・`effect_status=unknown`・provider receiptなし・`retry_after_eligibility`。effect前deferなのでtrade/P&L/round-trip sampleではない。shared contract gateはCapafy mismatchのままであり、投資laneはCapafyやhost DBを直接変更しない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
