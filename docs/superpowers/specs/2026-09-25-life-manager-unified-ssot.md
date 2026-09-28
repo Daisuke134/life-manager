@@ -664,3 +664,5 @@ TODO（何を・どう直すか）
 **外部release install readback（2026-09-29）**: Life Managerの`install` eventは`pass`で、loaded候補は`b79275cfed5f61a01137e2105da0cf089873f8a2`（`/Users/anicca/loops/releases/20260929T073044-b79275cf`）へ進んだ。しかしrelease内にETF policy／cross-venue entrypointはなく、investment registryは`borrow/support`・queued reconciliationなし。最新investment terminalは旧`5dfb1f84…`のcapacity deferで、新SHAのnatural terminal・provider receipt・P&Lは未取得。installはpromotionやsampleとは数えない。
 
 **純粋promotion gate readback（2026-09-29）**: 公式performance state（`net_pnl_usd=-0.15`、round trip `1`、cap `$100`、receipt IDsあり）でrequested cap `$1,000`を評価し、`status=reject`、`capital_expansion_allowed=false`。理由は`net_non_positive`、`sample_insufficient`、`cost_unknown`、`drawdown_unknown`、`venue_unhealthy`。cap・wallet・注文・runtime stateは変更していない。
+
+**candidate/install境界証拠（2026-09-29）**: candidate `e35831019c`は`revenue/revenue`・`reconcile_queued_release=true`・ETF policy/cross-venue entrypointあり。installed `b79275cfed`は`borrow/support`・queued reconciliationなし・両entrypointなし。したがって未完了はworktree実装ではなく、共有gate後の正式promotionである。bypass・送金・注文はしていない。
