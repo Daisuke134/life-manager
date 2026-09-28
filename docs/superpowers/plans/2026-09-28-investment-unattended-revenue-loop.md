@@ -211,7 +211,7 @@ flowchart LR
 
 ## Execution order and next cursor
 
-The execution order is strictly `Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6 → Task 7 → Task 8 → Task 9 → Task 10`. Task 1 is complete at commit `3a4a6cacae`; the immediate cursor is **Task 2 Step 1: send the owner admission handoff with the pushed SHA and exact receipt schema**. The next external dependency is Task 2, but it is not a reason to manually wake a loop or claim revenue.
+The execution order is strictly `Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6 → Task 7 → Task 8 → Task 9 → Task 10`. Task 1 is complete at commit `3a4a6cacae`, and Task 2 Step 1 handoff is sent; the immediate cursor is **Task 2 Step 2: read one complete owner admission receipt or exact blocker**. The next external dependency is Task 2, but it is not a reason to manually wake a loop or claim revenue.
 
 ## Completion definition
 

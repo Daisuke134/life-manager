@@ -468,7 +468,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 ### Active implementation plan (`2026-09-28`)
 
-The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-investment-unattended-revenue-loop.md`](./2026-09-28-investment-unattended-revenue-loop.md). It is the execution-order companion to this primary investment plan: it does not broaden the lane, authorize funding, or transfer ownership of runtime files. Current cursor: **Task 1 Step 5**, after the fail-closed snapshot validation has passed its focused and full investment-core tests.
+The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-investment-unattended-revenue-loop.md`](./2026-09-28-investment-unattended-revenue-loop.md). It is the execution-order companion to this primary investment plan: it does not broaden the lane, authorize funding, or transfer ownership of runtime files. Task 1 is complete at `3a4a6cacae`; Task 2 Step 1 handoff is sent; current cursor: **Task 2 Step 2**, read one complete owner admission receipt or exact blocker.
 
 ### Atomic investment TODO — canonical order
 
