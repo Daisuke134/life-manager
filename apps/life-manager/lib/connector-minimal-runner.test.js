@@ -2252,3 +2252,55 @@ test("a wake with no recordCandidateAttempt dependency still completes (optional
   const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-no-recorder", providers: ["connpass"] }, state.dependencies);
   assert.equal(result.status, "completed_no_effect");
 });
+
+test("a pre-submit provider_state that is neither absent/registered/pending is durably recorded before the silent skip", async () => {
+  const attempts = [];
+  const state = fixture({
+    async discoverCandidates(provider) {
+      return provider === "connpass" ? [candidate("connpass", "408094")] : [];
+    },
+    async readProviderState({ candidate: selected }) {
+      state.calls.push(["readback", selected.event_ref]);
+      return Object.freeze({ status: "unavailable" });
+    },
+    async runDirectAction() {
+      throw new Error("direct action must not run for an unavailable pre-submit state");
+    },
+    async recordCandidateAttempt(input) {
+      attempts.push(input);
+    },
+  });
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-presubmit-unavailable", providers: ["connpass"] }, state.dependencies);
+
+  assert.equal(result.status, "completed_no_effect");
+  assert.deepEqual(attempts, [{
+    event_ref: "connpass-event://event/408094",
+    outcome: "known_no_effect",
+    safe_reason: "connpass_pre_submit_unavailable",
+    retry_after: null,
+    capability_version: null,
+  }]);
+});
+
+test("a reconciliation-only candidate's pre-submit skip is never recorded as a fresh candidate failure", async () => {
+  const attempts = [];
+  const state = fixture({
+    async discoverCandidates(provider) {
+      return provider === "connpass"
+        ? [{ ...candidate("connpass", "queued"), reconciliation_only: true }] : [];
+    },
+    async readProviderState() {
+      return Object.freeze({ status: "unavailable" });
+    },
+    async runDirectAction() {
+      throw new Error("direct action must not run for a reconciliation-only candidate");
+    },
+    async recordCandidateAttempt(input) {
+      attempts.push(input);
+    },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-reconciliation-skip", providers: ["connpass"] }, state.dependencies);
+  assert.deepEqual(attempts, []);
+});
