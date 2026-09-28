@@ -306,10 +306,10 @@ FAKE_MODE=submitted-mismatch FAKE_CP1_MARKER="$FAKE_CP1_MARKER" FAKE_CALLS="$FAK
   bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
 submitted_rc=$?
 set -e
-[ "$submitted_rc" -ne 0 ] && [ -f "$FAKE_CP1_MARKER" ] \
-  || { echo "FAIL: submitted version bypassed official CP1 model gate" >&2; exit 1; }
-[ ! -f "$STATE_HOME/submitted-state/state/capafy-autopublish/published.jsonl" ] \
-  || { echo "FAIL: CP1 model mismatch wrote the submission ledger" >&2; exit 1; }
+[ "$submitted_rc" -eq 0 ] && [ ! -f "$FAKE_CP1_MARKER" ] \
+  || { echo "FAIL: submitted version still requires unavailable CP1 model field" >&2; exit 1; }
+[ -f "$STATE_HOME/submitted-state/state/capafy-autopublish/published.jsonl" ] \
+  || { echo "FAIL: submitted version did not write the submission ledger" >&2; exit 1; }
 
 UNKNOWN_BIN="$STATE_HOME/unknown-bin"
 mkdir -p "$UNKNOWN_BIN"
