@@ -586,6 +586,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 52. **Repeated natural wake confirmation (`2026-09-29`)**: a later scheduler wake produced occurrence `alpaca-investment-live:18d98c540f732260-44694` with the same `resource_capacity_busy` admission defer, exit `75`, no provider receipt, and `admission_effect_unknown=false`. This confirms the runtime is safely deferring before a provider effect; it does not authorize a retry, manual wake, funding, or sample-count increment.
 
+53. **Blocked audit (`2026-09-29`, third consecutive occurrence)**: the mandatory repository-wide contract gate remains RED on the unchanged Capafy `loops[12]` recovery-class mismatch; `origin/main` remains `d0a2f91635`, no investment PR exists, and production remains on `92f04c91…`. Investment candidate doctor and investment-specific tests pass, but this lane cannot safely or legitimately edit Capafy/shared promotion policy. The investment goal remains incomplete and awaits an external owner/state change before immutable release handoff.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
