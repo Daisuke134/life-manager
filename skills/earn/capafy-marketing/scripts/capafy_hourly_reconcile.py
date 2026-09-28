@@ -15,6 +15,7 @@ import urllib.request
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlencode
 
 
 API = "https://api.capafy.ai"
@@ -24,6 +25,16 @@ SOURCE_NAMES = (
     "seller_sales", "seller_ranking", "creator_earnings", "earnings_ranking",
     "unit_sales", "statements",
 )
+TRAFFIC_SOURCE_ENDPOINTS = {
+    "agent_options": ("GET", "/app/developer/traffic-sources/agent-options"),
+    "visits": ("POST", "/app/developer/traffic-sources/v2/visits/stats"),
+    "impressions": ("POST", "/app/developer/traffic-sources/v2/impressions/stats"),
+    "sales": ("POST", "/app/developer/traffic-sources/v2/sales/stats"),
+    "internal": ("GET", "/app/developer/traffic-sources/internal/stats"),
+    "referrer": ("GET", "/app/developer/traffic-sources/referrer/stats"),
+    "utm_source": ("GET", "/app/developer/traffic-sources/utm-source/stats"),
+}
+TRAFFIC_RANGE_DAYS = {"24h": 1, "7d": 7, "28d": 28, "90d": 90}
 CAPAFY_ACTIVE_SUBMISSION_CAP = 5
 SKILL_STATS_CAP = 60  # ponytail: sequential per-agent calls, raise if catalog grows past this
 SKILL_STATS_DELAY_SECONDS = 0.15
@@ -856,6 +867,138 @@ def _post(path: str, token: str, body: dict) -> dict:
         return {"_error": f"{type(exc).__name__}: {exc}"}
 
 
+def _traffic_sources_query(
+    observed: dt.datetime, range_name: str, *, agent_id: str | None = None,
+    country: str | None = None,
+) -> dict[str, Any]:
+    """Build the read-only query used by Capafy's trafficSources page.
+
+    The public page uses all-time mode or a millisecond UTC interval.  Keep this
+    helper pure so a provider response can never be mistaken for a locally
+    fabricated zero.
+    """
+    if observed.tzinfo is None:
+        observed = observed.replace(tzinfo=dt.timezone.utc)
+    observed = observed.astimezone(dt.timezone.utc)
+    if range_name == "all":
+        query: dict[str, Any] = {"allTime": True}
+    else:
+        try:
+            days = TRAFFIC_RANGE_DAYS[range_name]
+        except KeyError as exc:
+            raise ValueError(f"unsupported traffic range: {range_name}") from exc
+        start = observed - dt.timedelta(days=days)
+        query = {
+            "startAt": int(start.timestamp() * 1000),
+            "endAt": int(observed.timestamp() * 1000),
+        }
+    if agent_id:
+        query["agentId"] = str(agent_id)
+    if country:
+        query["country"] = str(country)
+    return query
+
+
+def _traffic_sources_get_path(path: str, query: dict[str, Any]) -> str:
+    encoded = []
+    for key, value in query.items():
+        if isinstance(value, bool):
+            value = "true" if value else "false"
+        encoded.append((key, value))
+    return f"{path}?{urlencode(encoded)}" if encoded else path
+
+
+def _fetch_traffic_sources(
+    token: str, observed: dt.datetime, range_name: str, *, agent_id: str | None = None,
+    country: str | None = None,
+) -> dict[str, dict]:
+    """Fetch only the read-only trafficSources endpoints; never create campaigns."""
+    query = _traffic_sources_query(observed, range_name, agent_id=agent_id, country=country)
+    payloads: dict[str, dict] = {}
+    for name, (method, path) in TRAFFIC_SOURCE_ENDPOINTS.items():
+        if name == "agent_options":
+            payloads[name] = _get(path, token)
+        elif method == "POST":
+            # These POSTs are statistics queries, not campaign creation.
+            payloads[name] = _post(path, token, query)
+        else:
+            payloads[name] = _get(_traffic_sources_get_path(path, query), token)
+    return payloads
+
+
+def _traffic_response_shape(payload: dict) -> dict[str, Any]:
+    data = payload.get("data")
+    if isinstance(data, dict):
+        data_shape = {"type": "object", "keys": sorted(str(key) for key in data)[:80]}
+    elif isinstance(data, list):
+        data_shape = {"type": "array"}
+    elif data is None:
+        data_shape = {"type": "null"}
+    else:
+        data_shape = {"type": type(data).__name__}
+    return {
+        "top_level_keys": sorted(str(key) for key in payload)[:80],
+        "data": data_shape,
+    }
+
+
+def _traffic_error_reason(payload: dict) -> str:
+    error = str(payload.get("_error") or "").lower()
+    if "401" in error or "unauthorized" in error or "invalid or expired" in error:
+        return "unauthorized"
+    if "403" in error or "forbidden" in error:
+        return "forbidden"
+    if "timeout" in error:
+        return "timeout"
+    return "request_failed"
+
+
+def _traffic_source_status(payload: dict) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {"status": "unknown", "reason": "response_not_object"}
+    if "_error" in payload:
+        return {"status": "unknown", "reason": _traffic_error_reason(payload)}
+    if not _ok(payload):
+        return {"status": "unknown", "reason": "provider_error"}
+    return {"status": "fresh", "shape": _traffic_response_shape(payload)}
+
+
+def build_traffic_sources_readback(
+    payloads: dict[str, dict], observed_at: str, range_name: str, *,
+    agent_id: str | None = None, country: str | None = None,
+) -> dict[str, Any]:
+    """Summarize traffic endpoint availability without interpreting unknown shapes.
+
+    A successful HTTP response is deliberately reported as ``fresh_unparsed``
+    until its provider data shape is observed and normalized.  Neither an empty
+    array nor an auth failure becomes a numeric zero.
+    """
+    observed = dt.datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    query = _traffic_sources_query(observed, range_name, agent_id=agent_id, country=country)
+    sources = {
+        name: {
+            "method": method,
+            "path": path,
+            **_traffic_source_status(payloads.get(name, {"_error": "not_observed"})),
+        }
+        for name, (method, path) in TRAFFIC_SOURCE_ENDPOINTS.items()
+    }
+    complete = all(source["status"] == "fresh" for source in sources.values())
+    return {
+        "schema_version": 1,
+        "kind": "capafy_traffic_sources_readback",
+        "observed_at": observed_at,
+        "range": {"name": range_name, "query": query},
+        "verdict": "fresh_unparsed" if complete else "unknown",
+        "metrics_status": "unknown_unparsed_response_shape" if complete else "unknown",
+        "metrics": {},
+        "sources": sources,
+        "data_gaps": [
+            "Provider traffic response shape is recorded but not converted to visits, impressions, or sales until an authenticated readback is observed.",
+        ],
+    }
+
+
 def _usage_requests(web_token: str, start: str, end: str) -> dict:
     rows: list[dict] = []
     seen: set[str] = set()
@@ -1173,6 +1316,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--money", action="store_true", help="read live money without writing state")
     parser.add_argument("--json", action="store_true", help="machine-readable money output")
+    parser.add_argument(
+        "--traffic-sources", action="store_true",
+        help="read Capafy trafficSources endpoints without writing provider state",
+    )
+    parser.add_argument("--traffic-range", choices=(*TRAFFIC_RANGE_DAYS, "all"), default="28d")
+    parser.add_argument("--traffic-agent-id")
+    parser.add_argument("--traffic-country")
     parser.add_argument("--fixture-dir", type=Path)
     parser.add_argument("--output", type=Path, default=Path.home() / ".local/state/life-manager/state/capafy-hourly-reconcile.json")
     parser.add_argument("--observed-at")
@@ -1182,6 +1332,22 @@ def main(argv: list[str] | None = None) -> int:
         observed = dt.datetime.fromisoformat(args.observed_at.replace("Z", "+00:00"))
     observed_at = observed.astimezone(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     repo_root = Path(__file__).resolve().parents[4]
+    if args.traffic_sources:
+        token = _web_token() or _token(repo_root)
+        payloads = (
+            _fetch_traffic_sources(
+                token, observed, args.traffic_range,
+                agent_id=args.traffic_agent_id, country=args.traffic_country,
+            )
+            if token
+            else {name: {"_error": "traffic_token_unavailable"} for name in TRAFFIC_SOURCE_ENDPOINTS}
+        )
+        readback = build_traffic_sources_readback(
+            payloads, observed_at, args.traffic_range,
+            agent_id=args.traffic_agent_id, country=args.traffic_country,
+        )
+        print(json.dumps(readback, ensure_ascii=False, sort_keys=True))
+        return 0 if readback["verdict"] == "fresh_unparsed" else 1
     if args.fixture_dir:
         payloads = {name: json.loads((args.fixture_dir / f"{name}.json").read_text()) for name in SOURCE_NAMES}
         for name in ("usage_requests", "agent_models", "model_prices", "openrouter_usage", "openrouter_activity"):

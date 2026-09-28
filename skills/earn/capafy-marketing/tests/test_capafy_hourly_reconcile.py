@@ -279,6 +279,98 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
     assert windows == {("2026-08-19", "2026-09-17"), ("2026-09-11", "2026-09-17")}
 
 
+def test_traffic_sources_query_matches_public_console_contract() -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 28, 12, 0, tzinfo=module.dt.timezone.utc)
+
+    query = module._traffic_sources_query(
+        observed, "28d", agent_id="8123079349", country="JP",
+    )
+
+    assert query == {
+        "startAt": int((observed - module.dt.timedelta(days=28)).timestamp() * 1000),
+        "endAt": int(observed.timestamp() * 1000),
+        "agentId": "8123079349",
+        "country": "JP",
+    }
+    assert module._traffic_sources_query(observed, "all") == {"allTime": True}
+
+
+def test_traffic_sources_fetch_uses_only_read_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 28, 12, 0, tzinfo=module.dt.timezone.utc)
+    gets = []
+    posts = []
+
+    monkeypatch.setattr(
+        module, "_get",
+        lambda path, token: gets.append((path, token)) or {"code": 0, "data": {}},
+    )
+    monkeypatch.setattr(
+        module, "_post",
+        lambda path, token, body: posts.append((path, token, body)) or {"code": 0, "data": {}},
+    )
+
+    payloads = module._fetch_traffic_sources("traffic-token", observed, "7d")
+
+    assert payloads["agent_options"] == {"code": 0, "data": {}}
+    assert [path for path, _token in gets] == [
+        "/app/developer/traffic-sources/agent-options",
+        "/app/developer/traffic-sources/internal/stats?startAt=1789992000000&endAt=1790596800000",
+        "/app/developer/traffic-sources/referrer/stats?startAt=1789992000000&endAt=1790596800000",
+        "/app/developer/traffic-sources/utm-source/stats?startAt=1789992000000&endAt=1790596800000",
+    ]
+    assert [path for path, _token, _body in posts] == [
+        "/app/developer/traffic-sources/v2/visits/stats",
+        "/app/developer/traffic-sources/v2/impressions/stats",
+        "/app/developer/traffic-sources/v2/sales/stats",
+    ]
+    assert all(token == "traffic-token" for _path, token in gets)
+    assert all(token == "traffic-token" for _path, token, _body in posts)
+    assert all(body["startAt"] == 1789992000000 for _path, _token, body in posts)
+    assert all(body["endAt"] == 1790596800000 for _path, _token, body in posts)
+
+
+def test_traffic_sources_readback_keeps_auth_failure_unknown_not_zero() -> None:
+    module = load_module()
+    readback = module.build_traffic_sources_readback(
+        {
+            "agent_options": {"_error": "HTTPError: 401 Unauthorized"},
+            "visits": {"_error": "HTTPError: 401 Unauthorized"},
+            "impressions": {"_error": "HTTPError: 401 Unauthorized"},
+            "sales": {"_error": "HTTPError: 401 Unauthorized"},
+            "internal": {"_error": "HTTPError: 401 Unauthorized"},
+            "referrer": {"_error": "HTTPError: 401 Unauthorized"},
+            "utm_source": {"_error": "HTTPError: 401 Unauthorized"},
+        },
+        "2026-09-28T12:00:00Z",
+        "28d",
+    )
+
+    assert readback["verdict"] == "unknown"
+    assert readback["metrics_status"] == "unknown"
+    assert all(source["status"] == "unknown" for source in readback["sources"].values())
+    assert all(source["reason"] == "unauthorized" for source in readback["sources"].values())
+    assert "traffic" not in readback or readback.get("traffic") is None
+
+
+def test_traffic_sources_readback_does_not_turn_empty_data_into_zero() -> None:
+    module = load_module()
+    payloads = {
+        name: {"code": 0, "data": []}
+        for name in ("agent_options", "visits", "impressions", "sales", "internal", "referrer", "utm_source")
+    }
+
+    readback = module.build_traffic_sources_readback(
+        payloads, "2026-09-28T12:00:00Z", "28d",
+    )
+
+    assert readback["verdict"] == "fresh_unparsed"
+    assert readback["metrics_status"] == "unknown_unparsed_response_shape"
+    assert "visits" not in readback["metrics"]
+    assert all(source["status"] == "fresh" for source in readback["sources"].values())
+
+
 def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
