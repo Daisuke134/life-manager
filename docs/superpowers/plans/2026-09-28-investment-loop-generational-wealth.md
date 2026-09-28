@@ -327,6 +327,17 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; current subject ledger has historical `0.003 USDC` only and September has no USD treasury receipt | No transfer; no target claim | fix source ledgers/credential and obtain verified USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
+### Current category accounting
+
+| Category | Fresh evidence | Counts as profit/revenue? |
+|---|---|---|
+| Alpaca | One measured round trip: net `-$0.15` (`-$0.10` realized, `-$0.05` unrealized, `$0.01` fees, `$0.00` slippage) | Yes, as a negative measured result; not promotion evidence (`1/30`) |
+| Hyperliquid | No funded account, no entry/exit, no funding receipt; official account readback is zero | No receipt; do not call this `$0` profit |
+| Solana copy | Read-only scout `scout_unknown`, `0` candidates, no live transaction | No receipt; no P&L |
+| Customer/CFO USD revenue | `0` verified USD receipts; historical `0.003 USDC` is excluded from USD treasury | No measured USD revenue |
+| Owner cash flow | `$66.75` Alpaca incoming transfer | Principal only; never profit |
+| Cross-venue allocator | Fixture net `$8.70` | Test evidence only; not revenue |
+
 ### Execution order ruling
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
