@@ -34,6 +34,32 @@ When that reader is not supplied, `wake(...)` replays the persisted
 current day is intentionally excluded until its delivery receipt is durable;
 the result records `rolling_period_end` so the measured window is explicit.
 
+## Owner-run entrypoint
+
+`cross_venue_run.py` is a finite owner-runtime entrypoint. It accepts canonical
+snapshot files with repeated `--snapshot venue=/path/to/snapshot.json` options,
+an optional owner cash-flow receipt via `--owner-cash-flow-file`, and an
+explicit `--available-capital-usd` value. It defaults to the standard venues
+`alpaca`, `hyperliquid`, and `solana`; an unconfigured or malformed source is
+reported as `unknown`, never as zero. The owner cash-flow file must include a
+numeric `owner_cash_flow_usd` and non-empty `source_receipt_ids`.
+
+Example owner invocation:
+
+```text
+python3 apps/life-manager/investment-core/cross_venue_run.py \
+  --state-dir "$INVESTMENT_CROSS_VENUE_STATE_DIR" \
+  --snapshot alpaca=/path/to/alpaca-snapshot.json \
+  --snapshot hyperliquid=/path/to/hyperliquid-snapshot.json \
+  --snapshot solana=/path/to/solana-snapshot.json \
+  --owner-cash-flow-file /path/to/owner-cash-flow.json \
+  --available-capital-usd 0
+```
+
+The entrypoint does not read credentials, sign, submit orders, fund wallets,
+or edit loop admission. lm-lead still owns the fixed argv/env, cadence,
+release, and live provider acknowledgement.
+
 Current source boundaries:
 
 - Alpaca performance receipts: existing `skills/alpaca-investment` readback and `investment-core` adapters.

@@ -96,7 +96,8 @@
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
 - [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
 - [x] **Step 4: Run the focused test and verify pass.** The initial reporter slice passed `4/4`; after the rolling-window additions, the current `test_cross_venue_reporter` suite passes `7/7`, including same-day replay and provider-message-ID persistence.
-- [x] **Step 5: Commit** `e407769d43` (`feat(investment): report cross-venue net pnl daily`). The pure wake and import shim are committed; owner-owned registry/cadence wiring and a natural owner-runtime receipt remain open.
+- [x] **Step 5: Commit** `e407769d43` (`feat(investment): report cross-venue net pnl daily`). The pure wake and reporter import shim are committed; owner-owned registry/cadence wiring and a natural owner-runtime receipt remain open.
+- [x] **Step 6: Add the finite owner entrypoint** in `cross_venue_run.py`. It loads canonical snapshot files without credentials or venue-effect imports, keeps missing standard venues `unknown`, requires source IDs for owner cash-flow evidence, and delegates idempotent delivery to `wake(...)`. Focused entrypoint tests pass `4/4`; the owner runtime still has to provide the fixed argv/env and natural receipt.
 
 ### Task 5: Acceptance evidence and operator contract
 
@@ -130,11 +131,11 @@ for missing, partial, undelivered, malformed, or duplicate evidence.
 - [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `7/7`, including a measured `$30.00` fixture, `$9,970.00` target gap, malformed-file handling, and a persisted 30-completed-day replay.
 - [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** The reporter now measures the last completed UTC window; current live venue receipts are not complete, so this data gate remains open.
 
-## Current live boundary (2026-09-28)
+## Current live boundary (2026-09-28T12:51:49Z)
 
-- The implementation commits above are present, but the live producer is not admitted: `config/loop-registry.json` has no cross-venue row and `cross_venue_run.py` remains an import shim rather than an owner executable entrypoint.
+- The implementation commits above are present and `cross_venue_run.py` is now an owner-ready finite executable entrypoint. The live producer is still not admitted: `config/loop-registry.json` has no cross-venue row, and no owner cadence/release receipt exists.
 - A host/state read-only audit found no cross-venue/rolling launchd label or plist and `0` persisted `cross-venue-YYYY-MM-DD.json` receipts under the default Life Manager state root. `rolling_30d([], "2026-09-28")` therefore returns `measurement_status=unknown`, `reason=daily_receipt_missing`, and `capital_expansion_allowed=false`.
-- The next action is an lm-lead owner/runtime admission receipt containing the loaded entrypoint, cadence, state root, argv/env, release SHA, and provider acknowledgement. Do not edit registry/runtime files from this lane, fabricate a daily receipt, fund a venue, or report a numeric live rolling P&L before that boundary exists.
+- The next action is an lm-lead owner/runtime admission receipt containing the loaded entrypoint, fixed argv/env, cadence, state root, release SHA, owner/occurrence, and provider acknowledgement. Do not edit registry/runtime files from this lane, fabricate a daily receipt, fund a venue, or report a numeric live rolling P&L before that boundary exists.
 
 ## Source references
 
