@@ -5,9 +5,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { inferCategory } from './scout-market.mjs';
 import { resolveX402StateDir } from './state-paths.mjs';
+import { CORE_PATHS } from './catalog-paths.mjs';
 
-export const CORE_PATHS = ['/web-search', '/funding-rates', '/funding-rate-arb', '/research', '/llm', '/image'];
 const EXCLUDED_CATEGORIES = new Set(['other', 'calc']);
+
+export { CORE_PATHS } from './catalog-paths.mjs';
 
 function formatUsd(value) {
   return value.toFixed(6).replace(/\.?0+$/, '');

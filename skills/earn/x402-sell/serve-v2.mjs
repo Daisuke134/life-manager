@@ -39,6 +39,7 @@ import { RESALE_PRODUCTS, resaleHandler } from "./resale.mjs";
 import { llmProduct, llmResaleHandler } from "./llm-resale.mjs";
 import { ensureFacilitatorInitialized } from "./lib/facilitator-init.mjs";
 import { resolveX402StateDir } from "./state-paths.mjs";
+import { CORE_PATH_SET } from "./catalog-paths.mjs";
 
 function payTo() {
   if (process.env.X402_PAYTO) return process.env.X402_PAYTO;
@@ -189,11 +190,10 @@ let PRODUCTS = [
 // live web search resale (needs an Exa key) + aggregated cross-exchange funding data + research
 // digest. The ~27 pure calculators stay in code (reversible: X402_CATALOG=full restores them) but
 // are dropped from the catalog, paywall config, and routing so the shop presents a focused offering.
-const CORE_PATHS = new Set(["/web-search", "/funding-rates", "/funding-rate-arb", "/research", "/llm"]);
 const CATALOG_MODE = process.env.X402_CATALOG || "core";
 const ALL_PRODUCTS = PRODUCTS;
 if (CATALOG_MODE !== "full") {
-  PRODUCTS = ALL_PRODUCTS.filter((p) => CORE_PATHS.has(p.path));
+  PRODUCTS = ALL_PRODUCTS.filter((p) => CORE_PATH_SET.has(p.path));
 }
 const INACTIVE_PATHS = new Set(ALL_PRODUCTS.filter((p) => !PRODUCTS.includes(p)).map((p) => p.path));
 

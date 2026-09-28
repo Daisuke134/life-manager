@@ -68,6 +68,7 @@ flowchart LR
 - The rolling measurement extension is implemented in `rolling_measurement.py` and is wired to both the explicit `__daily_receipts__` input and the reporter's persisted last-completed-day replay. It requires 30 delivered, measured UTC daily receipts with unique source IDs; the fixture is not live revenue and no numeric live rolling result exists yet. A read-only audit found zero persisted `cross-venue-YYYY-MM-DD.json` files under the default Life Manager state root, so the current gap is cadence/owner wiring plus complete cost receipts, not a fabricated zero-profit result.
 - The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources. Its fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills; the new bridge keeps that state partial instead of claiming a measured cash surplus.
 - The external agent-economy state contains one settled x402 receipt with verified chain proof: `0.003 USDC` on `2026-08-24`. Separately, the x402 seller's finalized external-inflow ledger contains `18` unique Railway receipts totaling `0.180000 USDC` (`15` receipts / `0.150000 USDC` in `2026-09`). The duplicate agent-economy paths are byte-identical; these non-USD receipts are not converted into USD or investment P&L.
+- The x402 seller audit is wallet-scoped: the active `serve-v2` core catalog has five routes, while the revenue controller previously carried a stale `/image` route. Franklin1's read-only local telemetry has `7` settled rows, `0` identified external payers, and `57` attempts in the last 24 hours; the separate Railway wallet's finalized external ledger is not merged into Franklin1's store metrics.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
 - The canonical CFO hourly FinancialRecord readback is subject-scoped: the current subject has `101` verified records but only one verified `business_revenue`, `0.003 USDC` in `2026-08`, and no `2026-09` revenue. A separate subject has additional x402 records; they are excluded rather than combined.
 
@@ -342,6 +343,23 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 4: Add the Decimal-safe non-USD adapter.** `test_x402_inflow_receipts` passes `5/5`; real-state replay returns measured Jul `0.010000 USDC`, Aug `0.020000 USDC`, and Sep `0.150000 USDC`. The adapter deliberately emits no `amount_usd`.
 - [x] **Step 5: Wire this report into the CFO briefing as a separate USDC section.** The local CFO discovers the shared x402 ledger, invokes the same Python adapter, renders `x402外部USDC cash（USD/Treasuryと分離）`, and can deliver that section even when no USD FinancialRecord exists. Focused JS tests pass `29/29` across ingest/report/runtime/CFO; the real-state read-only replay returns September `0.150000 USDC` from `15` receipts and no `amount_usd`. No USD claim, FX conversion, transfer, or funding authorization is created.
 
+### Task 13: Align the x402 improvement controller with the active seller catalog
+
+**Files:**
+- Create: `skills/earn/x402-sell/catalog-paths.mjs`
+- Modify: `skills/earn/x402-sell/product-gaps.mjs` and `skills/earn/x402-sell/serve-v2.mjs`
+- Test: `skills/earn/x402-sell/__tests__/product-gaps.test.mjs`
+
+**Interfaces:**
+- The pure catalog module is the shared source for the default `serve-v2` core routes and the improvement controller's served-route/demand calculations.
+- The controller must not classify a route that `serve-v2` does not expose in default core mode as an active product.
+- This task changes no wallet, price, seller process, registry row, or external effect; it only prevents stale telemetry from driving the next product decision.
+
+- [x] **Step 1: Add a failing regression** that requires the controller catalog to equal the five default `serve-v2` core routes; the pre-fix run failed because `/image` was still present.
+- [x] **Step 2: Add the pure canonical catalog and import it from both `product-gaps.mjs` and `serve-v2.mjs`; remove the stale `/image` entry from the improvement catalog.**
+- [x] **Step 3: Run focused catalog/controller/server tests.** `product-gaps`, `store-improve`, and `serve-listen` pass `17/17`; no seller was restarted.
+- [x] **Step 4: Commit and push** the catalog alignment before moving to the next x402 revenue-evidence boundary.
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -356,10 +374,11 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
 11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
 12. Task 12 is complete and pushed after the CFO wiring: x402 verification is healthy, the separate USDC adapter is measured, and the briefing keeps it outside USD Treasury.
-13. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
-14. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
-15. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
-16. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+13. Task 13 x402 active-catalog alignment is implemented locally; commit/push it before taking the next revenue-evidence cursor.
+14. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
+15. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+16. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+17. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 
 ### Current S0 scoreboard
 
@@ -389,7 +408,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
 `Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
-The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 11 CFO source audit → rolling measurement data accumulation → authorized USD receipt → Task 2/Task 4 effect gates`. Task 10, the read-only part of Task 11, and the rolling producer/replay implementation are complete; the remaining receipt/effect/data gates still do not authorize funding, wallet mutation, or capital expansion.
+The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 11 CFO source audit → Task 12 x402 inflow/CFO bridge → Task 13 active-catalog alignment → rolling measurement data accumulation → authorized USD receipt → Task 2/Task 4 effect gates`. Task 10, the read-only part of Task 11, Task 12, and Task 13 are complete; the remaining receipt/effect/data gates still do not authorize funding, wallet mutation, or capital expansion. Task 13 was inserted before rolling accumulation because the read-only x402 audit found that the controller's route catalog had drifted from the production seller and could misdirect product selection.
 
 ## Source References
 

@@ -20,8 +20,14 @@ test('the gap scout knows the live LLM route is already served', () => {
   assert.equal(CORE_PATHS.includes('/llm'), true);
 });
 
-test('the gap scout knows the live image route is already served', () => {
-  assert.equal(CORE_PATHS.includes('/image'), true);
+test('the gap scout catalog matches the five routes served by serve-v2 core mode', () => {
+  assert.deepEqual(CORE_PATHS, [
+    '/web-search',
+    '/funding-rates',
+    '/funding-rate-arb',
+    '/research',
+    '/llm',
+  ]);
 });
 
 test('computeGaps ranks opportunities by supply-adjusted observed revenue', () => {
