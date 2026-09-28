@@ -198,7 +198,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 **Capafy の残り TODO（この順が正本。1つずつ、公式 readback で閉じる）**
 
 順序変更（2026-09-28 20:xx JST）: 旧 C3→C4→C5、新 C3→C5→C4。理由: 公開 49 本のうち売れているのは 6 本（Hook Lab・Slide Maker・Marketing Strategist・Academic Humanizer・TikTok Script Pro・YouTube Script Writer）、30 日の有料注文は約 20 件で、止まっているのは供給ではなく流入。売上ゼロ 43 本の整理（C4）より先に、売れている型へ流入を作る（C5: SNS・SEO・PromptBase・trafficSources の日次計測）。Capafy laneの旧cursorは履歴として保持する。C2 は Hook Lab v1.0.3 の承認と実利益の黒字化待ち。
-**投資laneスコープ訂正（2026-09-28 12:25Z）**: Daisの指示により、投資loopのactive workは公式投資receipt・net P&L・資本拡大ゲート・Telegram通知だけに限定する。Capafy/PromptBase/C3〜C5のcash-engine作業はこのlaneでは停止し、Capafy側のownerへ戻す。投資laneのcursorは `docs/superpowers/plans/2026-09-28-investment-loop-generational-wealth.md` の「lm-lead owner/runtime receipt → 30 daily receipts → USD ledger → promotion review」。
+**投資laneスコープ訂正（2026-09-28 12:25Z）**: Daisの指示により、投資loopのactive workは公式投資receipt・net P&L・資本拡大ゲート・Telegram通知だけに限定する。Capafy/PromptBase/C3〜C5のcash-engine作業はこのlaneでは停止し、Capafy側のownerへ戻す。投資laneのcursorは `docs/superpowers/plans/2026-09-28-investment-loop-generational-wealth.md` のLife Manager runtime health → natural official P&L → sample/promotion review。
 
 **Capafy/PromptBase documentation-only handoff（2026-09-28T12:34:54Z）**:
 
@@ -561,17 +561,16 @@ TODO（何を・どう直すか）
   - [ ] 8-4g cross-venue/rolling: `lm-lead` のowner/runtime admission receipt（entrypoint、cadence、state root、release、公式readback）を取得するまで、30日計測・資金供給・promotionを開始しない。最新監査ではcross-venue registry row、owner cadence receipt、launchd label、daily state receiptが未確認。`apps/life-manager/investment-core/cross_venue_run.py` の有限read-only entrypointは実装済みだが、owner admission済みとは扱わない
 **Investment remaining TODO（2026-09-28、canonical、未完了だけ）**: Life Managerが投資loopのownerである。公開研究・OSS・公式venue仕様の調査と研究台帳は完了済みなので、以下の残TODOには再掲しない。上にある旧`8-4`監査行、完了済みtask、`lm-lead`表現は履歴・証拠メモであり、この一覧の代わりに使わない。実行順の正本は [`docs/superpowers/plans/2026-09-28-open-source-grounded-investment-strategy-validation.md`](../plans/2026-09-28-open-source-grounded-investment-strategy-validation.md) である。
 
-1. **Deterministic strategy selection** — validation reportから1つのcard、または`NO_STRATEGY`だけを選び、release SHAに固定する。目的: 根拠のないAI判断で注文しない。
-2. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。
-3. **Natural official P&L proof** — pre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
-4. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixtureは数えない。
-5. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
-6. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
-7. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
-8. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
-9. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
+1. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。
+2. **Natural official P&L proof** — pre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
+3. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixtureは数えない。
+4. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
+5. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
+6. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
+7. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
+8. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
 
-**Current cursor**: `1. Deterministic strategy selection`。Hyperliquid bounded carryはTask 5として実装・focused `13/13`・suite `74/74`・commit `327d3366b7`まで完了し、Solana explicit exitsはTask 6として実装・focused policy/paper `14/14`・全体 `39/39`・commit `6a19b08615`まで完了した。ただし、どのcardもvalidation/selection後の承認済みlive戦略ではない。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryは残TODOが通るまで実施しない。以前の`lm-lead`表現は未確認のagent labelとして履歴扱いにし、active dependencyにしない。
+**Current cursor**: `1. Life Manager runtime health`。Task 7のdeterministic selectionは実装・focused selection `8/8`・investment-core `89/89`・Alpaca `162/162`・commit `b1b050793e` / `8bee56babb`まで完了したが、read-only現状にはcomplete validation reportが無く、選定結果は`NO_STRATEGY`（`validation_reports_missing`）、selected card/releaseは無い。Hyperliquid bounded carryはTask 5、Solana explicit exitsはTask 6として完了済み。どのcardも承認済みlive戦略ではない。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryは残TODOが通るまで実施しない。以前の`lm-lead`表現は未確認のagent labelとして履歴扱いにし、active dependencyにしない。
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）

@@ -195,6 +195,7 @@
 - Modify: `apps/life-manager/investment-core/strategy_validation.py`
 - Modify: `skills/alpaca-investment/allocator.py`
 - Create: `apps/life-manager/investment-core/test_strategy_selection.py`
+- Modify: `skills/alpaca-investment/test_risk_policy.py`
 - Modify: the three investment plan/spec files after evidence
 
 **Interfaces:**
@@ -202,11 +203,11 @@
 - `select_strategy(reports: Sequence[Mapping[str, Any]]) -> dict[str, Any]` returns exactly one `strategy_id` or `NO_STRATEGY`, with report IDs, holdout metrics, cost model, and rejection reasons.
 - Selection first filters the explicit gates, then ranks by holdout net P&L, lower max drawdown, lower turnover, and finally lexicographic `strategy_id`; it is deterministic and release-pinned. Model output can explain the selected report but cannot alter selection.
 
-- [ ] **Step 1: Write failing selection tests** for two candidates, one passing holdout, all candidates rejected, stale report, cost-unknown report, and duplicate evidence IDs.
-- [ ] **Step 2: Implement fail-closed selection and release pinning.** No selected card means no effect permission.
-- [ ] **Step 3: Run focused selection, investment-core, and Alpaca suites.**
-- [ ] **Step 4: Record the selected card or `NO_STRATEGY` in the primary plan, detailed plan, and SSOT.**
-- [ ] **Step 5: Commit and push the evidence boundary.**
+- [x] **Step 1: Write failing selection tests** for two candidates, one passing holdout, all candidates rejected, missing reports, stale report, cost-unknown report, duplicate evidence IDs, deterministic tie-breaks, and allocator `NO_STRATEGY`; the initial import/allocator run was RED. The focused selection suite now passes `8/8`.
+- [x] **Step 2: Implement fail-closed selection and release pinning.** `select_strategy` requires a valid card, measured/paper report, positive holdout net, drawdown, turnover, complete cost model, fresh report, unique evidence IDs, and a 40–64 hex release SHA. It ranks only by holdout net, drawdown, turnover, and strategy ID; model scores are ignored. Missing reports return `NO_STRATEGY` with `validation_reports_missing`; allocator turns `NO_STRATEGY` into `NO_TRADE`.
+- [x] **Step 3: Run focused selection, investment-core, and Alpaca suites.** Focused selection passes `8/8`; investment-core discovery passes `89/89`; Alpaca discovery passes `162/162`; Python compilation and diff checks pass.
+- [x] **Step 4: Record the selected card or `NO_STRATEGY` in the primary plan, detailed plan, and SSOT.** Current read-only state has no complete validation reports and no `selected-strategy.json`; the deterministic result is `NO_STRATEGY` / `validation_reports_missing`, so no card or effect permission is selected.
+- [x] **Step 5: Commit and push the evidence boundary.** Commits `b1b050793e` and `8bee56babb` are pushed on the dedicated investment branch; no order, signing, funding, or capital-cap change occurred.
 
 ### Task 8: Resume Life Manager unattended runtime only after strategy selection
 
@@ -256,7 +257,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 6 Step 1 — write failing Solana exit-policy tests.** Tasks 1–5 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 8 Step 1 — verify the selected strategy release is loaded by Life Manager.** Tasks 1–7 are complete and pushed; Task 7 deterministically returned `NO_STRATEGY` because no complete validation reports are present, so no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
