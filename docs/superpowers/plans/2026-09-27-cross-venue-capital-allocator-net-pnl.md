@@ -95,7 +95,7 @@
 - [x] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
 - [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
 - [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
-- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_reporter` passes `4/4`; same-day replay sends once and preserves the provider message ID.
+- [x] **Step 4: Run the focused test and verify pass.** The initial reporter slice passed `4/4`; after the rolling-window additions, the current `test_cross_venue_reporter` suite passes `7/7`, including same-day replay and provider-message-ID persistence.
 - [x] **Step 5: Commit** `e407769d43` (`feat(investment): report cross-venue net pnl daily`). The pure wake and import shim are committed; owner-owned registry/cadence wiring and a natural owner-runtime receipt remain open.
 
 ### Task 5: Acceptance evidence and operator contract
@@ -108,7 +108,7 @@
 - Documents the snapshot schema, source receipt requirements, fee/model-cost equation, unknown behavior, state paths, and the lm-lead registry request without editing registry/runtime files.
 
 - [x] **Step 1: Add acceptance tests** for a fixture with Alpaca + Hyperliquid + Solana rows and verify the exact daily net breakdown and no execution side effect. The fixture measures aggregate net `8.70` with owner cash flow `100.00`; ranking excludes the negative-net Solana row.
-- [x] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.** The cross-venue acceptance/report/allocator/net/snapshot/performance command passes `26/26`.
+- [x] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.** The current focused command (`test_venue_snapshot test_net_pnl test_cross_venue_allocator test_cross_venue_reporter test_cross_venue_acceptance test_rolling_measurement test_portfolio_performance`) passes `35/35` on the dedicated branch; this is implementation evidence, not live revenue evidence.
 - [x] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.** Current Hyperliquid owner/runtime receipt and external Telegram provider acknowledgement are absent; no external send was attempted, and this remains an explicit boundary in `README.md`.
 - [x] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
 
