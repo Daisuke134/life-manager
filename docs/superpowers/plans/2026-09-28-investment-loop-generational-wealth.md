@@ -84,6 +84,7 @@ flowchart LR
 - The route-level own-cash replay is concentrated in `/funding-rates`: `18` finalized receipts / `0.180000 USDC` lifetime (`15` / `0.150000 USDC` in September), average `0.010000 USDC` per receipt; the other active core routes have no verified external receipt. This is gross non-USD cash only: infrastructure, upstream, model, and FX costs are not yet measured, so verified net profit is still unknown.
 - The latest main merge includes a PromptBase publisher/readback path; its browser-free tests pass `15/15`. A real `reels-hook-lab` catalog build succeeds with a `$4.99` Claude 5 Sonnet text listing and verified example, while the older `hook-lab` catalog is missing its required evidence file and is not fabricated. No PromptBase listing was publicly submitted, no CAPTCHA was attempted, and PromptBase revenue remains `$0` measured until a confirmed listing/payout readback exists.
 - A continuation audit after the latest `origin/main` merge rechecked the owner boundary: the registry and host still expose only the Alpaca investment label, with no cross-venue/rolling owner receipt or persisted daily state. The follow-up was sent to `lm-lead`; no funding, order, wallet transfer, public listing submit, or payout readback occurred.
+- The same fresh Capafy analytics ranks the cash engine by 30-day product evidence: Marketing Strategist revenue `$11.18`, actual allocated model cost `$4.10`, contribution `$7.08`; TikTok Script Pro `$4.78` / `$0.54` / `$4.24`; YouTube Script Writer `$3.18` / `$0.91` / `$2.27`; Hook Lab `$19.91` / `$36.40` / `-$16.49` and currently draft; Slide Maker `$15.98` with `$0.00` allocated actual cost, so its apparent profit is not cost-complete. `43/49` skills have zero sales, and the cost window does not exactly match the local revenue window.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
 - The canonical CFO hourly FinancialRecord readback is subject-scoped: the current subject has `101` verified records but only one verified `business_revenue`, `0.003 USDC` in `2026-08`, and no `2026-09` revenue. A separate subject has additional x402 records; they are excluded rather than combined.
 
@@ -115,6 +116,17 @@ The latest provider snapshot is a small operating-cash signal, not investment ca
 | `$10,000/month` contribution proxy | `874.9x` | `$48,154` | `$38,154` | `$10,000` |
 
 These are arithmetic scenarios, not forecasts: the current sample is too small, MRR is unknown, payout is unsettled, and the cost/revenue windows are not perfectly period-matched. The operating plan is therefore to improve measured product volume and margin, then join provider revenue, actual model cost, payout, refunds, tax, and reserve receipts before routing any surplus to investments.
+
+### Cash-engine product triage
+
+| Priority | Product evidence | Decision |
+|---|---|---|
+| 1 | Marketing Strategist `+$7.08`, TikTok `+$4.24`, YouTube `+$2.27` on actual allocated cost | Replicate the winning format and measure each new unit with the same cost join |
+| 2 | Hook Lab `-$16.49` on `$19.91` revenue; actual cost exceeds revenue | Keep expansion paused; reduce prompt/input cost or change price before more traffic |
+| 3 | Slide Maker `$15.98` revenue but `$0.00` actual cost allocation | Treat apparent profit as unverified until model-cost attribution is complete |
+| 4 | `43/49` skills have zero sales | Do not spread effort across the whole catalog; use winners and measured distribution first |
+
+This is an operating-cash priority, not an investment promotion signal. No product revenue becomes investable capital until payout, actual cost, refund, tax, reserve, and owner-flow receipts are joined.
 
 ### Generational-wealth accumulation boundary
 
@@ -460,6 +472,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 18. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 19. Latest post-merge focused verification passes: cross-venue `35/35`, Capafy actual-cost reader `31/31`, and PromptBase publisher `15/15`. The broader Capafy package is `221` passed / `5` failed; the five failures are pre-existing launchd/self-heal test boundaries (`LIFE_MANAGER_RELEASE_ROOT invalid` and a missing cutover marker anchor) outside this investment-lane change, so the package is not reported green.
 20. Continuation audit after the latest main merge is recorded: no `lm-lead` owner/runtime admission receipt has arrived yet. Keep the exact next step as owner receipt → 30 official daily receipts → authorized USD ledger → promotion review; do not skip to Binance funding or a live canary.
+21. Cash-engine cursor: reproduce the measured positive Capafy formats, repair or reprice the Hook Lab loss, and close Slide Maker's missing actual-cost attribution. Keep the resulting contribution outside investment P&L until payout and Treasury joins are verified.
 
 ### Current S0 scoreboard
 
