@@ -75,7 +75,7 @@
 - [x] **Step 2: Inspect licenses.** Record GPL-3.0 for Freqtrade sources, Apache-2.0 for Hummingbot, and LGPL-3.0 for NautilusTrader; mark copy-in of GPL strategy files as prohibited.
 - [x] **Step 3: Write the research ledger and evidence boundary.** Separate `what the source says`, `what we infer`, and `what remains unproven` in [`docs/superpowers/research/2026-09-28-open-source-investment-strategies.md`](../research/2026-09-28-open-source-investment-strategies.md).
 - [x] **Step 4: Link the ledger from the primary plan and SSOT.** The primary plan points to this active plan, and the SSOT records the ledger boundary; the old free-form Alpaca decision and Solana entry-only canary remain unvalidated strategy behavior, not approved investment strategy.
-- [ ] **Step 5: Commit and push the documentation-only research boundary.**
+- [x] **Step 5: Commit and push the documentation-only research boundary.** Commit `264751ff05` is pushed on the dedicated investment branch.
 
 ### Task 2: Add a canonical StrategyCard contract
 
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 1 Step 5 — commit and push the documentation-only research boundary.** The OSS/source survey and ledger are complete; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 2 Step 1 — write failing tests for the StrategyCard contract.** Task 1 is complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
