@@ -58,10 +58,10 @@
 - Produces `aggregate(period_start, observed_at, snapshots, owner_cash_flow_usd) -> dict` with `gross_pnl_usd`, `trading_fees_usd`, `funding_or_borrow_usd`, `slippage_usd`, `gas_usd`, `model_cost_usd`, `owner_cash_flow_usd`, `net_pnl_usd`, `venue_rows`, `source_receipt_ids`, `measurement_status`, and `reason`.
 - Produces `venue_net(snapshot) -> dict` and rejects non-finite numbers, negative cost components, duplicate source IDs, and cash-flow-adjusted NAV mismatches.
 
-- [ ] **Step 1: Write failing tests** for exact net arithmetic, cash-flow adjustment, missing-cost unknown, duplicate receipt rejection, negative net, and aggregate receipt ordering.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the pure Decimal aggregation** and reuse the existing `performance.py` fail-closed conventions without weakening its schema.
-- [ ] **Step 4: Run the focused test and verify pass.**
+- [x] **Step 1: Write failing tests** for exact net arithmetic, cash-flow adjustment, missing-cost unknown, duplicate receipt rejection, negative net, and aggregate receipt ordering.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `net_pnl.py`; one fixture expectation also caught the full cost-vector arithmetic and was corrected to `-3.00`.
+- [x] **Step 3: Implement the pure Decimal aggregation** and reuse the existing `performance.py` fail-closed conventions without weakening its schema. The adapter returns per-venue rows, owner cash flow separately, and never turns a deposit into P&L.
+- [x] **Step 4: Run the focused test and verify pass.** `test_net_pnl`, `test_venue_snapshot`, and `test_portfolio_performance` pass `16/16`.
 - [ ] **Step 5: Commit** `feat(investment): calculate fee and model-cost net pnl`.
 
 ### Task 3: Deterministic cross-venue capital allocator
