@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +76,7 @@ def _existing_selection_is_valid(value: Any) -> bool:
     return card.strategy_id == value["strategy_id"] and not validate_strategy_card(card)
 
 
-def _selection_payload(selection: dict[str, Any]) -> dict[str, Any]:
+def _selection_payload(selection: dict[str, Any], source_reports: list[dict[str, Any]]) -> dict[str, Any]:
     if selection.get("selection") != "selected":
         raise SelectionProvisionError("no_strategy_selected")
     report_id = selection.get("report_id")
@@ -89,6 +90,21 @@ def _selection_payload(selection: dict[str, Any]) -> dict[str, Any]:
     )
     if selected is None:
         raise SelectionProvisionError("selected_strategy_invalid")
+    source = next(
+        (report for report in source_reports if report.get("report_id") == report_id),
+        None,
+    )
+    if source is None:
+        raise SelectionProvisionError("selected_strategy_invalid")
+    expires_at = source.get("expires_at")
+    if not isinstance(expires_at, str) or not expires_at.strip():
+        raise SelectionProvisionError("validation_report_expiry_missing")
+    try:
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise SelectionProvisionError("validation_report_expiry_invalid") from error
+    if expires.tzinfo is None or expires <= datetime.now(timezone.utc):
+        raise SelectionProvisionError("validation_report_expired")
     return {
         "selection": "selected",
         "strategy_id": selection.get("strategy_id"),
@@ -99,6 +115,8 @@ def _selection_payload(selection: dict[str, Any]) -> dict[str, Any]:
         "holdout": selection.get("holdout"),
         "cost_model": selection.get("cost_model"),
         "evidence_ids": selected.get("evidence_ids"),
+        "observed_at": source.get("observed_at"),
+        "expires_at": expires_at,
     }
 
 
@@ -118,7 +136,7 @@ def provision_selection(path: str | Path, reports_path: str | Path) -> dict[str,
 
     reports = _read_reports(Path(reports_path).expanduser())
     selection = select_strategy(reports)
-    payload = _selection_payload(selection)
+    payload = _selection_payload(selection, reports)
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     destination.parent.chmod(0o700)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

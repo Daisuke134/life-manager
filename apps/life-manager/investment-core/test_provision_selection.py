@@ -29,6 +29,8 @@ def _report(*, net: str = "1.62", report_id: str = "report-etf") -> dict[str, ob
         "turnover": "14",
         "evidence_ids": ["alpaca-paper://stock-bars/iex/split/20200929-20260928"],
         "fresh": True,
+        "observed_at": "2026-09-29T00:00:00Z",
+        "expires_at": "2099-01-01T00:00:00Z",
     }
 
 
@@ -59,6 +61,20 @@ class ProvisionSelectionTests(unittest.TestCase):
             reports.write_text(json.dumps([_report(net="0")]), encoding="utf-8")
 
             with self.assertRaisesRegex(SelectionProvisionError, "no_strategy_selected"):
+                provision_selection(destination, reports)
+
+            self.assertFalse(destination.exists())
+
+    def test_unbounded_report_does_not_create_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            report = _report()
+            del report["expires_at"]
+            reports.write_text(json.dumps([report]), encoding="utf-8")
+
+            with self.assertRaisesRegex(SelectionProvisionError, "validation_report_expiry_missing"):
                 provision_selection(destination, reports)
 
             self.assertFalse(destination.exists())
