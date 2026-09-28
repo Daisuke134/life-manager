@@ -42,9 +42,17 @@ read-only/dry-run capability, not revenue evidence.
 
 ## Current verification refresh (2026-09-28)
 
-- The complete offline `test_hyperliquid_carry` suite passes `69/69`. This verifies policy, journal, deposit-boundary, reconciliation, dry-wake, and fake-client effect fences; it does not prove a live order or profit.
+- The complete offline `test_hyperliquid_carry` suite passes `74/74`. This verifies the bounded BTC/ETH policy, journal, deposit-boundary, reconciliation, dry-wake, and fake-client effect fences; it does not prove a live order or profit.
 - The official read-only account boundary remains unchanged: Arbitrum wallet USDC/ETH `0`, Hyperliquid account value `0`, positions `0`, funding rows `0`, and non-funding ledger rows `0`. No deposit, signing, order, or live canary was performed.
 - The registry/runtime boundary remains open because the repository has no `hyperliquid-carry` registry row. The next executable step is still an owner/lm-lead runtime receipt plus explicit funding; the `$25` leg cap and capital-expansion hold remain unchanged.
+
+## Strategy-boundary correction (2026-09-28)
+
+The older policy example below is historical implementation context and is superseded by the investment validation plan's Task 5. A displayed APR or the previously observed PURR/ZEC market snapshot is not an admission signal. The current pure policy admits only matching BTC/ETH spot-perp pairs (`BTC/USDC`/`ETH/USDC`, or the official indexed `@142`/`@151` with `UBTC`/`UETH` token identity); PURR, ZEC, and any other high-APR pair return `idle` rather than becoming a live candidate.
+
+Entry now projects the trailing 24-hour funding APR over `enter_hold_days` (14 days), then subtracts the declared round-trip fee/slippage cost, bridge cost, model cost, and a fixed net buffer. Any missing cost field returns `cost_model_incomplete` and `idle`. The default runtime caps leave model cost unknown, so they cannot authorize entry until a measured model-cost receipt is supplied. Existing positions exit on funding decay, missing official state, or an allowlist mismatch; daily-loss and drawdown halts remain first-class exits.
+
+The correction is implemented in `skills/earn/hyperliquid-carry/policy.py` and covered by the full offline suite `74/74`; no wallet funding, signature, order, registry mutation, or live canary occurred. This policy result is a gate, not evidence of profit.
 
 ## File Structure
 

@@ -50,37 +50,61 @@ def pair(apr, vol=1_000_000, name="PURR"):
 
 
 class PolicyTest(unittest.TestCase):
-    caps = policy.Caps()
+    caps = policy.Caps(bridge_cost_usd=0.0, model_cost_usd=0.0)
 
     def test_enters_best_pair_when_expected_carry_beats_cost(self):
-        d = policy.decide([pair(0.11), pair(0.30, name="ZEC")], None, 50, 50, 50, self.caps)
-        self.assertEqual((d["action"], d["pair"].perp), ("enter", "ZEC"))
+        d = policy.decide([pair(0.11, name="BTC"), pair(0.30, name="ETH")], None, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["pair"].perp), ("enter", "ETH"))
         self.assertEqual(d["leg_usd"], 24.0)
 
     def test_idle_when_carry_does_not_beat_round_trip_cost(self):
-        d = policy.decide([pair(0.05)], None, 50, 50, 50, self.caps)
+        d = policy.decide([pair(0.05, name="BTC")], None, 50, 50, 50, self.caps)
         self.assertEqual(d["action"], "idle")
 
     def test_skips_illiquid_spot(self):
-        d = policy.decide([pair(0.50, vol=10_000)], None, 50, 50, 50, self.caps)
+        d = policy.decide([pair(0.50, vol=10_000, name="BTC")], None, 50, 50, 50, self.caps)
         self.assertEqual(d["action"], "idle")
 
     def test_idle_when_equity_too_small_for_min_order(self):
-        d = policy.decide([pair(0.30)], None, 20, 20, 20, self.caps)
+        d = policy.decide([pair(0.30, name="BTC")], None, 20, 20, 20, self.caps)
         self.assertEqual(d["action"], "idle")
         self.assertIn("min_leg", d["reason"])
 
     def test_exits_when_funding_decays(self):
-        d = policy.decide([pair(0.02)], "PURR", 50, 50, 50, self.caps)
+        d = policy.decide([pair(0.02, name="BTC")], "BTC", 50, 50, 50, self.caps)
         self.assertEqual(d["action"], "exit")
 
+    def test_exits_when_hedge_mismatch_is_reported(self):
+        d = policy.decide([pair(0.30, name="BTC")],
+                          {"perp": "BTC", "hedge_mismatch": True}, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["reason"]), ("exit", "hedge_mismatch"))
+
     def test_holds_while_funding_stays_high(self):
-        d = policy.decide([pair(0.11)], "PURR", 50, 50, 50, self.caps)
+        d = policy.decide([pair(0.11, name="BTC")], "BTC", 50, 50, 50, self.caps)
         self.assertEqual(d["action"], "hold")
 
+    def test_rejects_high_apr_unallowlisted_pairs(self):
+        d = policy.decide([pair(9.0), pair(4.0, name="ZEC")], None, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["reason"]), ("idle", "pair_not_allowlisted"))
+
+    def test_cost_unknown_funding_is_idle(self):
+        caps = policy.Caps(bridge_cost_usd=0.0, model_cost_usd=None)
+        d = policy.decide([pair(9.0, name="BTC")], None, 50, 50, 50, caps)
+        self.assertEqual((d["action"], d["reason"]), ("idle", "cost_model_incomplete"))
+
+    def test_positive_carry_after_all_declared_costs_enters(self):
+        d = policy.decide([pair(0.30, name="ETH")], None, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["reason"]), ("enter", "carry_beats_cost"))
+
+    def test_allowlist_accepts_official_indexed_btc_spot_pair(self):
+        indexed = policy.Pair(perp="BTC", spot="@142", spot_token="UBTC",
+                              spot_vol_usd=1_000_000, funding_apr_24h=0.30)
+        d = policy.decide([indexed], None, 50, 50, 50, self.caps)
+        self.assertEqual((d["action"], d["pair"].perp), ("enter", "BTC"))
+
     def test_halts_on_daily_loss_and_drawdown(self):
-        self.assertEqual(policy.decide([pair(0.3)], "PURR", 47.4, 50, 50, self.caps)["action"], "halt")
-        self.assertEqual(policy.decide([pair(0.3)], None, 39.9, 40, 50, self.caps)["action"], "halt")
+        self.assertEqual(policy.decide([pair(0.3, name="BTC")], "BTC", 47.4, 50, 50, self.caps)["action"], "halt")
+        self.assertEqual(policy.decide([pair(0.3, name="BTC")], None, 39.9, 40, 50, self.caps)["action"], "halt")
 
     def test_rejects_leg_caps_that_expand_or_invalidates_hard_limit(self):
         for value in (25.01, 0.0, -1.0, float("nan"), float("inf"), float("-inf")):
@@ -516,14 +540,15 @@ class WakeTest(unittest.TestCase):
 
     def test_dry_wake_decides_and_reports_but_never_signs(self):
         r, sent, made, _ = self._wake(live=False)
-        self.assertEqual(r["decision"]["action"], "enter")
+        self.assertEqual(r["decision"]["action"], "idle")
         self.assertEqual(made, [])
         self.assertEqual(len(sent), 1)
 
-    def test_live_wake_enters(self):
+    def test_live_wake_does_not_enter_unallowlisted_pair(self):
         r, _, made, position = self._wake(live=True)
-        self.assertEqual(made, [1])
-        self.assertEqual(position, "ZEC")
+        self.assertEqual(r["decision"]["action"], "idle")
+        self.assertEqual(made, [])
+        self.assertIsNone(position)
 
     def test_open_intent_reconciles_by_exit(self):
         with tempfile.TemporaryDirectory() as d:
