@@ -39,11 +39,13 @@
 - Entry rule: with no owned position, no pending effect, and a new decision session, return `ENTER` for the selected symbol with `entry_after_session` equal to the completed decision session; the order layer must submit no same-session duplicate.
 - Position rule: return `EXIT` after 21 completed sessions or when the selected symbol changes; otherwise return `HOLD`. A foreign, malformed, or ambiguous position returns `NO_TRADE`.
 
-- [ ] **Step 1: Write failing tests.** Add fixtures for 127 common sessions across all eight ETFs and tests for: deterministic top-symbol selection; future-bar rejection; missing-symbol rejection; duplicate/unsorted session rejection; same-session re-entry rejection; pending-order fence; foreign-position rejection; 21-session exit; and symbol-change exit.
-- [ ] **Step 2: Run the focused tests and observe RED.** Run `cd skills/alpaca-investment && python3 -m unittest test_etf_policy`; expected failure is the missing `etf_policy` module, not a fixture error.
-- [ ] **Step 3: Implement the minimum pure policy.** Normalize sessions and Decimal prices, require the common latest session to equal `completed_through_session`, compute the ranking with a stable symbol tie-break, and return fail-closed decisions. Do not import broker clients, subprocesses, filesystem writers, schedulers, or credential readers.
-- [ ] **Step 4: Run focused and regression tests.** Run `python3 -m unittest test_etf_policy test_strategy_policy` from `skills/alpaca-investment`; then run `python3 -m unittest discover -s . -p 'test_*.py'` in that directory.
-- [ ] **Step 5: Record evidence and commit.** Update the SSOT with the test counts, policy boundary, and the fact that no order or P&L was created. Commit `feat(investment): add fail-closed ETF daily policy` and push the dedicated branch.
+- [x] **Step 1: Write failing tests.** Added 127-session fixtures across all eight ETFs and tests for deterministic top-symbol selection; future-bar rejection; missing-symbol rejection; duplicate/unsorted session rejection; same-session re-entry rejection; pending-order fence; foreign-position rejection; 21-session exit; and symbol-change exit.
+- [x] **Step 2: Run the focused tests and observe RED.** `python3 -m unittest test_etf_policy` failed as expected with `ModuleNotFoundError: No module named 'etf_policy'` before production code existed.
+- [x] **Step 3: Implement the minimum pure policy.** `etf_policy.py` now normalizes sessions and Decimal prices, requires the common latest session to equal `completed_through_session`, computes the ranking with a complete symbol tie-break, and returns fail-closed decisions without broker, subprocess, filesystem-write, scheduler, or credential imports.
+- [x] **Step 4: Run focused and regression tests.** `test_etf_policy` and `test_strategy_policy` pass `24/24`; the complete `skills/alpaca-investment` discovery suite passes `175/175`.
+- [x] **Step 5: Record evidence and commit.** The SSOT and this plan record that the policy is code-tested only and produced no order or P&L. The implementation is committed and pushed as `feat(investment): add fail-closed ETF daily policy`.
+
+**Task 1 result:** This closes only the pure policy boundary. It does not create a selected runtime state, ingest broker bars, submit a paper order, produce a provider receipt, or authorize live capital.
 
 ### Task 2: Release-pinned selection and allocator dispatch
 
