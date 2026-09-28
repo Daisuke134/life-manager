@@ -107,6 +107,27 @@ from writer_report_worker import telegram_api_transport
 # Compatibility name for callers that mean the current required set.  Legacy
 # exact-eight state is selected explicitly from its persisted contract below.
 REQUIRED_PAIRS = ACTIVE_PAIRS
+
+# A destination whose staging failure means the account can never reach that
+# editor at all (not a dead credential, not a rate limit, not a transient 5xx)
+# is a permanent unavailability, not a candidate for the re-arm path. Dais
+# 2026-09-29: an X Article JA staging failure of x-editor-unreachable left
+# run 20260928-132912 reporting "frozen incomplete pair" / resumable:false
+# forever, and a Writer pass exploring old runs mistook that open-looking
+# verdict for an obligation blocking a brand-new day's article. Tag these
+# reasons with a durable skip receipt, identical in spirit to a dormant-pair
+# skip, so every consumer (worker_plan, initialization_plan, the cross-day
+# pending planner, and adoption selection) treats the pair as closed history
+# for this run instead of retryable/open work.
+PERMANENT_UNAVAILABLE_REASON_PREFIXES = ("x-editor-unreachable:",)
+
+
+def _is_permanent_unavailable_reason(reason: str) -> bool:
+    return isinstance(reason, str) and reason.startswith(
+        PERMANENT_UNAVAILABLE_REASON_PREFIXES
+    )
+
+
 HISTORICAL_DORMANT_STATUSES = {
     "intent",
     "live",
@@ -1630,6 +1651,20 @@ class PublicationStore:
                 "error": reason,
                 "unavailable_at": utc_now(),
             }
+            if _is_permanent_unavailable_reason(reason):
+                # A permanent unavailability (the editor itself is unreachable
+                # for this account, not a dead credential or a rate limit) is
+                # closed for this run the moment it is recorded — never a
+                # future re-arm candidate. Stamp it the same way a dormant
+                # skip is stamped so downstream planners recognize it as
+                # terminal, not as still-open work.
+                entry["skip_receipt"] = {
+                    "type": "permanent-unavailable",
+                    "pair": pair,
+                    "reason": reason,
+                    "slo": "not-applicable",
+                    "recorded_at": entry["unavailable_at"],
+                }
             state["pairs"][pair] = entry
             self._write_locked(state)
             return entry
@@ -3309,6 +3344,20 @@ class PublicationStore:
                 # Returning all-complete here made an armed run look finished
                 # forever after a transient staging failure and suppressed the
                 # explicit re-arm path (clear-unavailable/register-intent).
+                #
+                # A pair carrying a permanent-unavailable skip receipt (Dais
+                # 2026-09-29, x-editor-unreachable) is the one exception: that
+                # failure class can never be re-armed by fixing a credential
+                # or waiting out a rate limit, so treating it as still-open
+                # "frozen incomplete" work left a fully-published run (three
+                # live receipts, one permanently unreachable editor) reading
+                # as an unresolved obligation that a later Writer pass tried
+                # to audit and finish instead of writing a new day's article.
+                if all(
+                    isinstance(state["pairs"][pair].get("skip_receipt"), dict)
+                    for pair in frozen_unavailable
+                ):
+                    return {"resumable": False, "reason": "all-complete"}
                 return {
                     "resumable": False,
                     "reason": "frozen-incomplete-pairs",
