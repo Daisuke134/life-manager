@@ -88,21 +88,22 @@
 
 - [x] **Step 1: Write failing adapter tests** for exact fixed symbols, bounded lookback, completed-session cutoff, duplicate rows, future rows, and provider errors.
 - [x] **Step 2: Run the adapter tests RED** before changing the CLI adapter; the missing `read_etf_daily_bars` boundary and fixture setup were caught.
-- [x] **Step 3: Implement the read-only stock-bars operation** with `data multi-bars`, `--feed iex`, `--adjustment split`, `--timeframe 1Day`, a bounded 260-calendar-day window, NY-session filtering, 127 common sessions, deterministic source hash, and no order calls. `run.py` now requests the same boundary for both the initial and fresh allocator snapshots.
-- [x] **Step 4: Run adapter plus pure-policy regressions.** Adapter tests pass `5/5`, the combined ingestion/selection/allocator/risk/position set passes `41/41`, and the complete Alpaca discovery suite passes `188/188`. The installed CLI help confirms the `multi-bars` command contract; no live provider order or P&L receipt was created.
+- [x] **Step 3: Implement the read-only stock-bars operation** with `data multi-bars`, `--feed iex`, `--adjustment split`, `--timeframe 1Day`, a bounded 260-calendar-day window, NY-session filtering, 127 common sessions, deterministic source hash, and no order calls. `run.py` now requests the same boundary for both the initial and fresh allocator snapshots. The bounded `data_multi-bars` response budget is `512 KiB`; other CLI operations retain the `64 KiB` limit.
+- [x] **Step 4: Run adapter plus pure-policy regressions.** Adapter tests pass `6/6`, the complete Alpaca discovery suite passes `200/200`, and a live paper read-only preflight returned all eight symbols, 127 common sessions through `2026-09-25`, and one source receipt without submitting an order. No live provider order, paper order, or P&L receipt was created.
 - [x] **Step 5: Commit and push** the ingestion boundary; the source hash is an evidence reference, not a paper trade or P&L receipt.
 
-**Task 3 result:** The read-only ingestion code is complete in the worktree, but the loaded production release still lacks it and no provider paper receipt exists. Task 4 and the Life Manager release handoff remain open.
+**Task 3 result:** The read-only ingestion code and the bounded production-shaped paper data read are complete in this worktree. The loaded production release still lacks the code, and the preflight is a bar-source read rather than a paper order or P&L receipt. Task 4 code is now complete; the Life Manager release handoff and natural paper receipt remain open.
 
 ### Task 4: Paper order, ownership, reconciliation, and receipt
 
 **Files:**
 
 - Modify: `skills/alpaca-investment/alpaca_cli.py`
-- Modify: `apps/life-manager/investment-core/allocator.py`
-- Modify: `skills/alpaca-investment/position_manager.py` or the existing ownership module used by the run path
+- Modify: `skills/alpaca-investment/allocator.py` (the run-path allocator)
+- Create: `skills/alpaca-investment/etf_ownership.py`
 - Modify: `skills/alpaca-investment/run.py`
-- Modify: corresponding test modules before each production change
+- Create: `skills/alpaca-investment/test_etf_execution.py`
+- Modify: `skills/alpaca-investment/test_alpaca_cli.py`
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` after focused verification
 
 **Interfaces:**
@@ -112,11 +113,13 @@
 - Ownership state must record owner, strategy, symbol, decision session, order identity, provider receipt identity, and position quantity; foreign state is never adopted.
 - A receipt is complete only after provider order/fill/account readback and replay-zero identity checking.
 
-- [ ] **Step 1: Write failing order/ownership/reconciliation tests** for paper acceptance, live refusal, wrong symbol, wrong owner, duplicate client identity, missing fill, and replay-zero.
-- [ ] **Step 2: Run the focused tests RED.** Confirm each failure is at the new ETF boundary rather than a broken existing BTC test.
-- [ ] **Step 3: Implement paper-only stock submission and durable ownership** using existing effect fences and official readback helpers.
-- [ ] **Step 4: Run the complete Alpaca investment suite** and a read-only paper preflight; no live order is submitted.
-- [ ] **Step 5: Commit and push** the paper receipt boundary and update the SSOT with the exact evidence status.
+- [x] **Step 1: Write failing order/ownership/reconciliation tests** for paper acceptance, live refusal, wrong symbol, wrong owner, duplicate client identity, missing fill, and replay-zero. `test_etf_execution.py` now covers these plus the run callback and pre-outcome callback ordering (`11` tests).
+- [x] **Step 2: Run the focused tests RED.** The first run failed at the missing `etf_ownership` module; subsequent RED runs isolated the missing `submit_order` identity parameters and effect callback before implementation. Existing BTC tests remained green.
+- [x] **Step 3: Implement paper-only stock submission and durable ownership** using existing effect fences and official readback helpers. The boundary validates fixed ETF symbols, exact `$10.00` market/day paper shape, owner/strategy/client identity, provider fill identity, account position quantity, foreign-state rejection, and replay-zero. Live ETF submission returns `live_etf_rejected` before provider access.
+- [x] **Step 4: Run the complete Alpaca investment suite** and a read-only paper preflight; no live order is submitted. `python3 -m unittest discover -p 'test_*.py'` passes `200/200`; official paper read-only account/bar preflight passes with no order submission.
+- [x] **Step 5: Commit and push** the paper receipt boundary and update the SSOT with the exact evidence status. Code commit/push: `faab25176a`.
+
+**Task 4 result:** The paper ETF order/ownership/reconciliation boundary is complete and pushed in `faab25176a`. A filled provider order must be followed by account-position readback before `etf-owned-position.json` is written; the effect callback runs before the ledger closes, so a crash can replay the same identity without a duplicate effect. The official paper preflight read only bars/account state and submitted no order. The loaded Life Manager release still lacks this boundary, so no provider paper receipt or P&L exists yet; Task 5 remains open.
 
 ### Task 5: Life Manager release handoff and natural receipt
 
