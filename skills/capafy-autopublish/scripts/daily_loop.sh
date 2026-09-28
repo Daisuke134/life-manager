@@ -111,6 +111,28 @@ esac
 # this exact confusion produced a false "PUBLISHED" label on a run where nothing went online).
 PRE_ONLINE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys; print(json.load(sys.stdin).get("online_count", -1))' 2>>"$LOG")"
 
+# A resumed draft whose CP1 is already confirmed only needs CP2 -> CP3, which is
+# deterministic. The agentic runbook re-enters CP1 and demands an edit URL that
+# Capafy no longer issues once CP1 is saved (2026-09-28, Agent 9466718786: the
+# refresh returned only /R<digits> and every resume stopped). publish_finish.sh
+# refuses before any write unless is_confirmed_skills=true, so a draft that still
+# needs CP1 falls through to the agentic flow below.
+RESUME="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}
+if d.get("action") == "resume_draft" and i.get("agent_id") and i.get("skill") and i.get("listing"):
+    print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"], sep="\t")' 2>>"$LOG")"
+if [ -n "$RESUME" ]; then
+  IFS=$'\t' read -r R_ID R_SKILL R_LISTING <<<"$RESUME"
+  R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
+  R_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_version_id",""))' "$R_MANIFEST" 2>>"$LOG")"
+  if [ -n "$R_VERSION" ] && bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (RESUMED — $R_ID finished CP2/CP3 deterministically; no LLM spend) ===" >> "$LOG"
+    exit 0
+  fi
+  echo "$TS resume_draft $R_ID: deterministic finish did not complete; falling back to the agentic runbook" >> "$LOG"
+fi
+
 # PUBLISHABLE → the shared agent runner tries the configured tool-agent providers in order and
 # records durable per-attempt evidence. Keep ANTHROPIC_API_KEY unset so a Claude fallback uses the
 # authenticated subscription instead of an exhausted pay-as-you-go key.
