@@ -560,6 +560,20 @@ def _bounded_page_evaluate(page, expression, deadline):
         page._call_timeout_s = original
 
 
+_WORKSPACE_TAB_EXPRESSION = """(() => {
+  const tabs = [...document.querySelectorAll('[role=tab],button,div,span,a')].filter(e => {
+    const t = (e.textContent || '').trim();
+    const r = e.getBoundingClientRect();
+    return (t === 'Agent ワークスペース' || t === 'Agent Workspace') && r.width > 0 && r.height > 0 && r.height < 80;
+  });
+  if (!tabs.length) return {ok: false};
+  const e = tabs[tabs.length - 1];
+  e.scrollIntoView({block: 'center'});
+  const r = e.getBoundingClientRect();
+  return {ok: true, x: r.x + r.width / 2, y: r.y + r.height / 2};
+})()"""
+
+
 def _ensure_raw_provider_section(page):
     deadline = time.monotonic() + RAW_SECTION_TIMEOUT_S
 
@@ -574,6 +588,7 @@ def _ensure_raw_provider_section(page):
             raise RuntimeError(f"ambiguous OpenRouter provider path during {phase} ({state})")
         return False
 
+    workspace_tab_clicked = False
     while time.monotonic() < deadline:
         state = provider_state()
         if require_count_one(state, "initial hydration"):
@@ -581,6 +596,16 @@ def _ensure_raw_provider_section(page):
         proxy_form = _bounded_page_evaluate(page, _configured_proxy_form_expression(), deadline)
         if isinstance(proxy_form, dict) and proxy_form.get("ok"):
             return "configured_proxy"
+        if not workspace_tab_clicked:
+            # A resumed review page opens on 基本情報; the hosted-key fields live
+            # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
+            tab = _bounded_page_evaluate(page, _WORKSPACE_TAB_EXPRESSION, deadline)
+            if isinstance(tab, dict) and tab.get("ok"):
+                for kind in ("mousePressed", "mouseReleased"):
+                    _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
+                workspace_tab_clicked = True
+                time.sleep(1)
+                continue
         button = _bounded_page_evaluate(page, _detected_keys_button_expression(), deadline)
         if isinstance(button, dict) and button.get("ok"):
             x, y = button.get("x"), button.get("y")
