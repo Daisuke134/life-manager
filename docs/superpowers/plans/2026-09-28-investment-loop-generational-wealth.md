@@ -66,6 +66,7 @@ flowchart LR
 - The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
 - The rolling measurement extension is implemented in `rolling_measurement.py` and is wired to the reporter's explicit `__daily_receipts__` input. It requires 30 delivered, measured UTC daily receipts with unique source IDs; the fixture is not live revenue and no numeric live rolling result exists yet.
 - The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources. Its fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills; the new bridge keeps that state partial instead of claiming a measured cash surplus.
+- The external agent-economy state contains exactly one settled x402 revenue receipt with verified chain proof: `0.003 USDC` on `2026-08-24`. The root and instance receipt paths are byte-identical, so this is one receipt, not two; it is historical/non-USD evidence and is not counted as current USD revenue.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
 - The canonical CFO hourly FinancialRecord readback is subject-scoped: the current subject has `101` verified records but only one verified `business_revenue`, `0.003 USDC` in `2026-08`, and no `2026-09` revenue. A separate subject has additional x402 records; they are excluded rather than combined.
 
@@ -342,7 +343,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but no complete live 30-day window exists | Read-only; expansion false | 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
-| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; Stripe live credential and several owner-written marketplace ledgers are absent; current subject ledger has historical `0.003 USDC` only | No transfer; no target claim | obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; one historical x402 receipt is settled/chain-verified at `0.003 USDC`, while Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Current category accounting
@@ -352,7 +353,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Alpaca | One measured round trip: net `-$0.15` (`-$0.10` realized, `-$0.05` unrealized, `$0.01` fees, `$0.00` slippage) | Yes, as a negative measured result; not promotion evidence (`1/30`) |
 | Hyperliquid | No funded account, no entry/exit, no funding receipt; official account readback is zero | No receipt; do not call this `$0` profit |
 | Solana copy | Read-only scout `scout_unknown`, `0` candidates, no live transaction | No receipt; no P&L |
-| Customer/CFO USD revenue | `0` verified USD receipts; historical `0.003 USDC` is excluded from USD treasury; Stripe live key and several marketplace ledgers are absent | No measured USD revenue |
+| Customer/CFO USD revenue | `0` verified USD receipts; one historical settled x402 receipt is `0.003 USDC` with verified chain proof and is excluded from USD treasury; Stripe live key and several marketplace ledgers are absent | No measured USD revenue |
+| Agent-economy x402 | `0.003 USDC` settled/verified on 2026-08-24; duplicate state path is identical, so count once | Yes as historical USDC revenue; not current USD revenue and not investment P&L |
 | Owner cash flow | `$66.75` Alpaca incoming transfer | Principal only; never profit |
 | Cross-venue allocator | Fixture net `$8.70` | Test evidence only; not revenue |
 
