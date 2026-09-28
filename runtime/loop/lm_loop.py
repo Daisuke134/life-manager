@@ -1929,7 +1929,14 @@ def main(argv: list[str] | None = None) -> int:
         explicitly_reloadable = {
             loop_id for loop_id in effective_requested_ids
             if registry["loops"][loop_id].get("cadence", {}).get("keep_alive") is True
-        }
+        } | (
+            {
+                loop_id for loop_id, entry in registry["loops"].items()
+                if entry.get("provider_route") == route
+                and entry.get("cadence", {}).get("keep_alive") is True
+            }
+            if automatic_release_reconciler and not requested_ids else set()
+        )
         agents_dir = Path(os.environ.get(
             "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
         snapshot_shas = {}

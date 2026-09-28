@@ -2242,6 +2242,47 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
         self.assertEqual(json.loads(output.getvalue())["skipped_non_ancestor"], ["candidate"])
 
+    def test_automatic_reconcile_reloads_keep_alive_owner_that_is_loaded_running(self):
+        # life-manager-daily-driver is keep_alive and effectively always loaded-running,
+        # so it is caught up by the periodic no-loop-id bounded sweep
+        # (bin/reconcile-agent-runner-release.sh calls `reconcile <route> --loaded-idle-only
+        # --max-owners N` with no --loop-id) rather than only through an explicit request.
+        release = self._release("release-auto-keep-alive").resolve()
+        value = registry()
+        value["loops"]["life-manager-daily-driver"] = {
+            **value["loops"]["example"],
+            "label": "ai.anicca.life-manager-daily-driver",
+            "provider_route": "shared-agent-runner",
+            "cadence": {"keep_alive": True},
+        }
+        del value["loops"]["example"]
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-running", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "life-manager-daily-driver",
+        }]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows) as fleet,
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "4",
+            ]), 0)
+        fleet.assert_called_once()
+        targeted.assert_not_called()
+        self.assertEqual(applied, ["life-manager-daily-driver"])
+
     def test_bounded_reconcile_does_not_hide_later_idle_owner_behind_eight_stale_rows(self):
         value = registry()
         value["loops"] = {
