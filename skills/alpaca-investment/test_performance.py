@@ -83,14 +83,14 @@ class NetPerformanceTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "live_performance_round_trip_invalid"):
                 performance_gate._round_trip(ledger)
 
-    def test_official_adapter_separates_cashflow_realized_and_slippage(self):
+    def test_official_adapter_reconciles_realized_with_marked_ending_nav(self):
         buy_client, sell_client = "lm-ai-" + "a" * 24, "lm-ai-" + "b" * 24
         buy_order, sell_order = "buy-order", "sell-order"
         responses = [
-            {"cash": "0", "equity": "99"},
+            {"cash": "0", "equity": "99.5"},
             {"timestamp": "2026-09-10T00:00:00Z"},
-            [{"symbol": "USDCUSD", "qty": "99", "market_value": "99",
-              "unrealized_pl": "0", "current_price": "1"}],
+            [{"symbol": "USDCUSD", "qty": "99.5", "market_value": "99.5",
+              "unrealized_pl": "-0.25", "current_price": "1"}],
             [{"id": "transfer", "asset": "USDC", "amount": "100", "usd_value": "100",
               "direction": "INCOMING", "status": "COMPLETE",
               "created_at": "2026-09-09T00:00:00Z"}],
@@ -121,12 +121,12 @@ class NetPerformanceTest(unittest.TestCase):
                 period_start="2026-09-09T00:00:00Z",
                 buy_client_order_id=buy_client, sell_client_order_id=sell_client)
         self.assertEqual(snapshot["owner_cash_flow_usd"], "100")
-        self.assertEqual(snapshot["realized_pnl_usd"], "-1")
+        self.assertEqual(snapshot["realized_pnl_usd"], "-0.25")
         self.assertEqual(snapshot["slippage_usd"], "0")
         self.assertEqual(snapshot["fees_usd"], "0.20")
         projected = performance.project(snapshot)
-        self.assertEqual(projected["net_pnl_usd"], "-1.00")
-        self.assertEqual(projected["observed_endpoint_drawdown_usd"], "1.00")
+        self.assertEqual(projected["net_pnl_usd"], "-0.50")
+        self.assertEqual(projected["observed_endpoint_drawdown_usd"], "0.50")
 
     def test_non_finite_negative_cost_and_impossible_peak_fail_closed(self):
         cases = (
