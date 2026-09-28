@@ -94,11 +94,11 @@
 - Produces `executeCanary(intent, quote, wallet, clients, journalPath) -> receipt`; `clients` supplies quote/build/send/confirm/readTransaction/readBalances functions so tests never touch the network.
 - Produces `verifyReceipt(intent, transaction, beforeBalances, afterBalances) -> { verified, status, netUsd, feeLamports, evidence }` and accepts only `verified` or a typed `effect_unknown`/`rejected` result.
 
-- [ ] **Step 1: Write failing tests** proving read-only and paper modes never call `send`, live mode rejects missing `SOL_COPY_LIVE=1`, a $4 intent is rejected, a confirmed matching swap is verified, and a mismatched confirmed swap becomes `effect_unknown` without retry.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the double gate, journal-before-send boundary, Jupiter transaction submission, and RPC receipt verification.**
-- [ ] **Step 4: Run the focused test and verify the canary invariants.**
-- [ ] **Step 5: Commit** `feat(sol-copy): verify live canary receipts on chain`.
+- [x] **Step 1: Write failing tests** proving read-only and paper modes never call `send`, live mode rejects missing `SOL_COPY_LIVE=1`, a $4 intent is rejected, a confirmed matching swap is verified, and a mismatched confirmed swap becomes `effect_unknown` without retry.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `execute.mjs`.
+- [x] **Step 3: Implement the double gate, journal-before-send boundary, Jupiter transaction submission, and RPC receipt verification.** The implementation requires `mode=live`, `liveGate=true`, and `SOL_COPY_LIVE=1`; it records the intent before send, checks confirmed transaction and before/after owner token deltas, and writes `effect_unknown` with `retry=false` on ambiguity.
+- [x] **Step 4: Run the focused test and verify the canary invariants.** `node --test skills/earn/solana-memecoin-copytrade/test_live_canary.mjs` passes `5/5` with fake clients only; no network send or wallet signing occurred in verification.
+- [x] **Step 5: Commit** `feat(sol-copy): verify live canary receipts on chain`.
 
 ### Task 5: One wake, operator notes, and staged acceptance
 
