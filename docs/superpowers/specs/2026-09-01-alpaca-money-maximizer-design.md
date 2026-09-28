@@ -943,6 +943,12 @@ step repeats shadow, canary, and bounded-campaign gates. Strategy changes and ca
 same release. The `$10,000` KPI is reached only when official broker receipts prove at least that much realised net
 profit in a calendar month; a projected annualisation or one lucky trade does not qualify.
 
+The additive generational-wealth workstream is tracked in
+`docs/superpowers/plans/2026-09-28-investment-loop-generational-wealth.md`. Its Task 1 receipt spine is a
+provider-neutral, read-only measurement boundary: it classifies owner deposits as principal, subtracts known
+fees/funding/slippage/gas/model cost exactly once, and blocks unknown, stale, or duplicate evidence. It does not
+change the frozen L05–L12 risk limits, submit broker effects, authorize funding, or mark L18 complete.
+
 ### 7.5 Product and revenue decision
 
 The long-term customer default is the **existing Life Manager Cloud / Web App**, while `local` remains the proving

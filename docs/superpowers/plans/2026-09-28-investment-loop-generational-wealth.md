@@ -121,10 +121,10 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Consumes: venue-specific official receipt readers and owner cash-flow records.
 - Produces: `VenueSnapshot` with `venue`, `observed_at`, `equity_usd`, `free_cash_usd`, `gross_pnl_usd`, `trading_fees_usd`, `funding_or_borrow_usd`, `slippage_usd`, `gas_usd`, `model_cost_usd`, `source_receipt_ids`, `risk`, and `measurement_status`; `aggregate(snapshots, owner_cash_flow_usd) -> dict`.
 
-- [ ] **Step 1: Write failing tests** for owner deposits excluded from P&L, exact `net_pnl = gross - trading_fees - funding_or_borrow - slippage - gas - model_cost`, duplicate receipt rejection, missing-cost blocking, stale snapshot exclusion, and cross-venue source ID uniqueness.
-- [ ] **Step 2: Run the focused test** with `cd apps/life-manager/investment-core && python3 -m unittest test_portfolio_performance`; expect failures for the missing adapter and aggregate function.
-- [ ] **Step 3: Implement the pure schema/aggregate boundary** without provider submit/signing imports; preserve unknown fields as blocked evidence, never as zero.
-- [ ] **Step 4: Run focused tests and existing `skills/alpaca-investment/test_performance.py`**; expect all prior Alpaca invariants to remain green and the new aggregate tests to pass.
+- [x] **Step 1: Write failing tests** for owner deposits excluded from P&L, exact `net_pnl = gross - trading_fees - funding_or_borrow - slippage - gas - model_cost`, duplicate receipt rejection, missing-cost blocking, stale snapshot exclusion, and cross-venue source ID uniqueness.
+- [x] **Step 2: Run the focused test** with `cd apps/life-manager/investment-core && python3 -m unittest test_portfolio_performance`; the expected missing-adapter `ModuleNotFoundError` was observed.
+- [x] **Step 3: Implement the pure schema/aggregate boundary** without provider submit/signing imports; preserve unknown fields as blocked evidence, never as zero.
+- [x] **Step 4: Run focused tests and existing `skills/alpaca-investment/test_performance.py`**; new tests pass `6/6`, existing performance tests pass `7/7`, and the complete investment suite passes `139/139`.
 - [ ] **Step 5: Commit** `feat(investment): add canonical fee-model-cost net pnl spine`.
 
 ### Task 2: Hyperliquid funded canary and verified carry evidence
@@ -235,7 +235,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
 2. Get lm-lead's registry/runtime readback for Hyperliquid.
-3. Build Task 1 canonical fee/model-cost net-P&L spine.
+3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified; commit it before starting Task 2.
 4. Run the original Hyperliquid canary only after funding and operational readback.
 5. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 6. Implement the Solana plan only through read-only scout and paper before the `$2` canary.
