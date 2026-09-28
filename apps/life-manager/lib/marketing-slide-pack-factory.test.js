@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -43,14 +44,35 @@ im.save("${file}")
   return file;
 }
 
-test("generateSlidePackCandidates produces approved packs matching the adapter's pack/approval contract", { timeout: 60_000 }, async () => {
+// Every background is already "in the fixed approved cache" for this test --
+// no network call, matches Dais's 2026-09-28 direction that images are
+// reused forever. Only the text (fakeGenerateText below) is fresh per pack.
+function fakeResolveBackground() {
+  const fixtureBackground = makeFixtureBackground();
+  let calls = 0;
+  const resolveBackground = async () => { calls += 1; return { file: fixtureBackground, costUsd: 0, cached: true }; };
+  return { resolveBackground, callCount: () => calls };
+}
+
+let copyCounter = 0;
+function fakeGenerateText() {
+  return async (prompt) => {
+    copyCounter += 1;
+    const n = copyCounter;
+    return {
+      text: JSON.stringify({ hook: `フック${n}`, body: [`ひとつめ${n}`, `ふたつめ${n}`, `みっつめ${n}`, `よっつめ${n}`] }),
+      costUsd: 0.0004,
+    };
+  };
+}
+
+test("generateSlidePackCandidates produces approved packs matching the adapter's pack/approval contract, with $0 image cost", { timeout: 60_000 }, async () => {
   const objectDir = tempDir("slide-pack-objects-");
   const workspaceDir = tempDir("slide-pack-workspace-");
   const imageCacheDir = tempDir("slide-pack-image-cache-");
   const objectStore = createContentObjectStore({ objectDir });
   const now = () => "2026-09-28T09:00:00.000Z";
-  const fixtureBackground = makeFixtureBackground();
-  let backgroundCalls = 0;
+  const { resolveBackground, callCount } = fakeResolveBackground();
 
   const rejected = [];
   const candidates = await generateSlidePackCandidates({
@@ -67,7 +89,9 @@ test("generateSlidePackCandidates produces approved packs matching the adapter's
     packFormat: JA_LANE.packFormat,
     form: JA_LANE.form,
     now,
-    resolveBackground: async () => { backgroundCalls += 1; return { file: fixtureBackground, costUsd: 0.039, cached: false }; },
+    geminiApiKey: "test-key",
+    generateText: fakeGenerateText(),
+    resolveBackground,
     onRejected: (info) => rejected.push(info),
   });
 
@@ -78,6 +102,7 @@ test("generateSlidePackCandidates produces approved packs matching the adapter's
   assert.equal(familyIds.size, Object.keys(FAMILIES).length);
 
   const seenPackRefs = new Set();
+  const seenHooks = new Set();
   for (const candidate of candidates) {
     assert.match(candidate.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
     assert.equal(candidate.mediaRefs.length, SLIDE_COUNT);
@@ -103,6 +128,8 @@ test("generateSlidePackCandidates produces approved packs matching the adapter's
       assert.ok(slide.text.trim().length > 0);
       assert.equal(slide.media_ref, candidate.mediaRefs[index]);
     });
+    assert.equal(seenHooks.has(pack.slides[0].text), false, "every candidate must get fresh, distinct text");
+    seenHooks.add(pack.slides[0].text);
 
     const caption = fs.readFileSync(objectStore.resolve(candidate.captionRef), "utf8");
     assert.equal(pack.caption, caption);
@@ -129,13 +156,16 @@ test("generateSlidePackCandidates produces approved packs matching the adapter's
     assert.equal(approval.integration_ref, JA_LANE.integrationRef);
     assert.equal(approval.pack_ref, candidate.packRef);
     assert.deepEqual(approval.media_refs, candidate.mediaRefs);
-    const crypto = require("node:crypto");
     assert.equal(approval.caption_sha256, crypto.createHash("sha256").update(caption).digest("hex"));
+    // Text-only cost now (the whole point of this change): a few hundred
+    // LLM tokens, nowhere near the old per-image cost cap.
     assert.ok(approval.generation_cost_usd > 0);
-    assert.ok(approval.generation_cost_usd <= MAX_PACK_COST_USD);
+    assert.ok(approval.generation_cost_usd < 0.01);
   }
 
-  assert.equal(backgroundCalls, candidates.length * SLIDE_COUNT);
+  // Every background must come from the fixed cache -- zero image
+  // (re)generation calls per pack.
+  assert.equal(callCount(), candidates.length * SLIDE_COUNT);
 });
 
 test("generateSlidePackCandidates makes the last slide an app CTA screen with the JA link-in-bio line", { timeout: 60_000 }, async () => {
@@ -143,7 +173,7 @@ test("generateSlidePackCandidates makes the last slide an app CTA screen with th
   const workspaceDir = tempDir("slide-pack-workspace-cta-");
   const imageCacheDir = tempDir("slide-pack-image-cache-cta-");
   const objectStore = createContentObjectStore({ objectDir });
-  const fixtureBackground = makeFixtureBackground();
+  const { resolveBackground } = fakeResolveBackground();
 
   const [candidate] = await generateSlidePackCandidates({
     objectStore,
@@ -159,7 +189,9 @@ test("generateSlidePackCandidates makes the last slide an app CTA screen with th
     packFormat: JA_LANE.packFormat,
     form: JA_LANE.form,
     now: () => "2026-09-28T09:00:00.000Z",
-    resolveBackground: async () => ({ file: fixtureBackground, costUsd: 0.039, cached: false }),
+    geminiApiKey: "test-key",
+    generateText: fakeGenerateText(),
+    resolveBackground,
   });
 
   const pack = JSON.parse(fs.readFileSync(objectStore.resolve(candidate.packRef), "utf8"));
@@ -168,12 +200,44 @@ test("generateSlidePackCandidates makes the last slide an app CTA screen with th
   assert.match(lastSlide.text, /プロフィールのリンクから/);
 });
 
-test("generateSlidePackCandidates rejects (not posts) a candidate whose image generation exceeds the cost cap", { timeout: 60_000 }, async () => {
+test("generateSlidePackCandidates rejects (not posts) every candidate when text generation fails, and never calls the image cache", { timeout: 60_000 }, async () => {
+  const objectDir = tempDir("slide-pack-objects-fail-");
+  const workspaceDir = tempDir("slide-pack-workspace-fail-");
+  const imageCacheDir = tempDir("slide-pack-image-cache-fail-");
+  const objectStore = createContentObjectStore({ objectDir });
+  const rejected = [];
+  let backgroundCalls = 0;
+
+  const candidates = await generateSlidePackCandidates({
+    objectStore,
+    workspaceDir,
+    imageCacheDir,
+    tenantId: "dais-local",
+    productId: JA_LANE.productId,
+    locale: JA_LANE.locale,
+    platform: JA_LANE.platform,
+    accountId: JA_LANE.accountId,
+    integrationRef: JA_LANE.integrationRef,
+    rendererId: JA_LANE.renderer,
+    packFormat: JA_LANE.packFormat,
+    form: JA_LANE.form,
+    now: () => "2026-09-28T09:00:00.000Z",
+    geminiApiKey: "test-key",
+    generateText: async () => ({ text: "not json", costUsd: 0 }),
+    resolveBackground: async () => { backgroundCalls += 1; return { file: "/dev/null", costUsd: 0, cached: true }; },
+    onRejected: (info) => rejected.push(info),
+  });
+
+  assert.equal(candidates.length, 0);
+  assert.equal(rejected.length, candidateCount());
+  assert.equal(backgroundCalls, 0, "a candidate whose text failed must never touch the (fixed, reused) image cache");
+});
+
+test("generateSlidePackCandidates rejects (never posts) a candidate whose text generation cost exceeds the cap", { timeout: 60_000 }, async () => {
   const objectDir = tempDir("slide-pack-objects-cap-");
   const workspaceDir = tempDir("slide-pack-workspace-cap-");
   const imageCacheDir = tempDir("slide-pack-image-cache-cap-");
   const objectStore = createContentObjectStore({ objectDir });
-  const fixtureBackground = makeFixtureBackground();
   const rejected = [];
 
   const candidates = await generateSlidePackCandidates({
@@ -190,7 +254,9 @@ test("generateSlidePackCandidates rejects (not posts) a candidate whose image ge
     packFormat: JA_LANE.packFormat,
     form: JA_LANE.form,
     now: () => "2026-09-28T09:00:00.000Z",
-    resolveBackground: async () => ({ file: fixtureBackground, costUsd: 1, cached: false }),
+    geminiApiKey: "test-key",
+    generateText: async () => ({ text: JSON.stringify({ hook: "h", body: ["a", "b", "c", "d"] }), costUsd: 1 }),
+    resolveBackground: async () => ({ file: "/dev/null", costUsd: 0, cached: true }),
     onRejected: (info) => rejected.push(info),
   });
 

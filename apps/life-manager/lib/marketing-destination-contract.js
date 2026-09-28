@@ -8,6 +8,7 @@ const HANDLE = /^@[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const OBJECT_REF = /^object:\/\/sha256\/[0-9a-f]{64}$/;
 const TIME = /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/;
 const PLATFORMS = new Set(["instagram", "tiktok", "youtube"]);
+const GATE_APPROVED = "gate-approved";
 
 function invalid(field) {
   throw new Error(`marketing destination contract ${field} invalid`);
@@ -48,7 +49,15 @@ function validateMarketingDestinationContract(input) {
     text(row.job_format_id, "job_format_id");
     text(row.media_form, "media_form");
     text(row.approved_pack, "approved_pack", /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.json$/);
-    text(row.approved_pack_ref, "approved_pack_ref", OBJECT_REF);
+    // Every lane still pins an exact object ref (a human/process approved
+    // this exact content, forever) EXCEPT a lane explicitly marked
+    // "gate-approved": for that lane, marketing-slide-pack-gate.js's
+    // automated per-job approval (checked by assertApproval in
+    // marketing-native-carousel-publication-adapter.js) is the trusted
+    // content reviewer instead of one pinned pack -- this contract only
+    // still asserts the lane/account/platform/integration/format wiring is
+    // correct, not which exact content that wiring is allowed to carry.
+    if (row.approved_pack_ref !== GATE_APPROVED) text(row.approved_pack_ref, "approved_pack_ref", OBJECT_REF);
     text(row.loop_name, "loop_name");
     text(row.label, "label", /^ai\.anicca\.life-manager-[A-Za-z0-9._-]+$/);
     text(row.entrypoint, "entrypoint", /^apps\/life-manager\/scripts\/(?:mobile-app|[A-Za-z0-9._-]+\.sh)$/);
@@ -118,6 +127,7 @@ function loadMarketingDestinationContract(file = path.resolve(__dirname, "../../
 }
 
 module.exports = {
+  GATE_APPROVED,
   auditMarketingDestinationRegistry,
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,

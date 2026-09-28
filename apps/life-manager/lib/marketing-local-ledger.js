@@ -7,6 +7,7 @@ const { isDeepStrictEqual } = require("node:util");
 const { resolveDataRoot } = require("./runtime-paths.js");
 const { isMarketingLaneManifest } = require("./marketing-lane-manifest.js");
 const {
+  GATE_APPROVED,
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
 } = require("./marketing-destination-contract.js");
@@ -227,7 +228,7 @@ function createMarketingLocalLedger(options = {}) {
       jobFormatId: formatMatch[1],
       mediaForm: formMatch[1],
     });
-    if (!destination || (refs.pack_ref && refs.pack_ref !== destination.approved_pack_ref)) return null;
+    if (!destination || (refs.pack_ref && destination.approved_pack_ref !== GATE_APPROVED && refs.pack_ref !== destination.approved_pack_ref)) return null;
     return manifest.lanes.find((lane) => (
       lane.tenant_id === job.tenant_id
       && lane.product_id === product

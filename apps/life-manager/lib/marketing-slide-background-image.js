@@ -66,4 +66,22 @@ async function resolveSlideBackground({ prompt, cacheDir, apiKey, fetchImpl, fet
   return { file, costUsd: GEMINI_IMAGE_COST_USD, cached: false };
 }
 
-module.exports = { GEMINI_IMAGE_COST_USD, fetchGeminiImage, promptCacheKey, resolveSlideBackground };
+// Returns { file, costUsd, cached } for an already-cached prompt only --
+// NEVER calls the network. Dais direction (2026-09-28): the approved
+// background set is fixed and must be reused forever; only the composited
+// text changes per pack. Use this (not resolveSlideBackground) in the
+// factory's normal generation path so per-pack image cost is always exactly
+// $0. resolveSlideBackground stays available for deliberately seeding a new
+// background into the approved set (a separate, explicit action).
+function getCachedBackground({ prompt, cacheDir }) {
+  if (!prompt || !String(prompt).trim()) throw new Error("slide background prompt is required");
+  if (!cacheDir) throw new Error("slide background cache dir is required");
+  const key = promptCacheKey(prompt);
+  const file = ["png", "jpg"]
+    .map((ext) => path.join(cacheDir, `${key}.${ext}`))
+    .find((candidate) => fs.existsSync(candidate));
+  if (!file) throw new Error(`slide background is not in the approved cache for this prompt (${key})`);
+  return { file, costUsd: 0, cached: true };
+}
+
+module.exports = { GEMINI_IMAGE_COST_USD, fetchGeminiImage, getCachedBackground, promptCacheKey, resolveSlideBackground };
