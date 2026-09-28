@@ -299,6 +299,21 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 4: Re-run the official Alpaca read-only performance gate**; result is `measured`, one completed round trip, net `-$0.15`, realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`, owner cash flow `$66.75`, capital expansion `false`, promotion `reject`; no order was submitted.
 - [x] **Step 5: Commit and push** `10935021d1` (`fix(investment): reconcile marked alpaca nav exactly`).
 
+### Task 11: Audit CFO cash-engine source completeness
+
+**Files:**
+- Read-only: `skills/cfo/loop_pnl.py`, credential metadata, and the existing CFO state/report
+- Update: this plan's scoreboard and current cursor only; no credential or provider mutation
+
+**Interfaces:**
+- Consumes current provider/source readbacks for Stripe, x402/Base, marketplace ledgers, Capafy, mobile apps, and model-usage observations.
+- Produces a fail-closed source-completeness result; API-price estimates and native USDC observations never become verified USD revenue or provider-billed cost.
+
+- [x] **Step 1: Run the CFO collector read-only for `2026-09-26` and `2026-09-28`**; Stripe fails closed for a missing live secret, Coconala/CrowdWorks have no owner-written payment ledgers, Lancers has no settled receipt for those dates, x402 has no matching receipt, and current Capafy/mobile sources have no USD receipt for `2026-09-28`.
+- [x] **Step 2: Inspect credential metadata without printing values**; only Stripe test records exist, so no live Stripe revenue can be claimed or fabricated.
+- [x] **Step 3: Keep model usage separate**; the collector saw usage observations, but `USD_API_EQUIV` remains an API-price estimate rather than a provider bill.
+- [ ] **Step 4: Obtain an authorized live USD provider receipt or owner-configured marketplace ledger** before Treasury can become measured. This requires external account/provider state; no credential, payment, or ledger mutation is performed by this lane.
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -311,10 +326,11 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, and the current subject ledger has only historical `0.003 USDC`, so no cash-surplus target claim is allowed.
 9. Task 9's canonical FinancialRecord bridge is implemented and pushed; current CFO-subject replay remains partial with no USD treasury receipt, and the second subject is blocked.
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
-11. Current cursor: return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
-12. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
-13. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
-14. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial.
+12. Current cursor: obtain the authorized USD receipt/ledger, then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
+13. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+14. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+15. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 
 ### Current S0 scoreboard
 
@@ -324,7 +340,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
-| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; current subject ledger has historical `0.003 USDC` only and September has no USD treasury receipt | No transfer; no target claim | fix source ledgers/credential and obtain verified USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; Stripe live credential and several owner-written marketplace ledgers are absent; current subject ledger has historical `0.003 USDC` only | No transfer; no target claim | obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Current category accounting
@@ -334,7 +350,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Alpaca | One measured round trip: net `-$0.15` (`-$0.10` realized, `-$0.05` unrealized, `$0.01` fees, `$0.00` slippage) | Yes, as a negative measured result; not promotion evidence (`1/30`) |
 | Hyperliquid | No funded account, no entry/exit, no funding receipt; official account readback is zero | No receipt; do not call this `$0` profit |
 | Solana copy | Read-only scout `scout_unknown`, `0` candidates, no live transaction | No receipt; no P&L |
-| Customer/CFO USD revenue | `0` verified USD receipts; historical `0.003 USDC` is excluded from USD treasury | No measured USD revenue |
+| Customer/CFO USD revenue | `0` verified USD receipts; historical `0.003 USDC` is excluded from USD treasury; Stripe live key and several marketplace ledgers are absent | No measured USD revenue |
 | Owner cash flow | `$66.75` Alpaca incoming transfer | Principal only; never profit |
 | Cross-venue allocator | Fixture net `$8.70` | Test evidence only; not revenue |
 
@@ -342,7 +358,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
 `Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
-The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 2/Task 4 effect gates → rolling measurement`. Task 10 is now complete; the remaining effect gates still do not authorize funding, wallet mutation, or capital expansion.
+The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 11 CFO source audit → authorized USD receipt → Task 2/Task 4 effect gates → rolling measurement`. Task 10 and the read-only part of Task 11 are complete; the remaining receipt/effect gates still do not authorize funding, wallet mutation, or capital expansion.
 
 ## Source References
 
