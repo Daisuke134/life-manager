@@ -32,23 +32,25 @@
 
 ## As-Is Evidence
 
-The current state is not one investment machine:
+The current state is now one measured, fail-closed evidence layer, but it is
+not yet a profitable or fully funded investment machine:
 
 ```mermaid
 flowchart LR
-    Owner["Dais / owner capital"] --> Alpaca["Alpaca live loop\ncap $100"]
-    Owner --> HL["Hyperliquid wallet\ncurrently unfunded"]
-    Owner --> Sol["Solana copy loop\nplan only"]
+    Owner["Dais / existing capital\nno new transfer"] --> Alpaca["Alpaca live loop\ncap $100"]
+    Owner --> HL["Hyperliquid wallet\nunfunded"]
+    Owner --> Sol["Solana staged loop\nread-only default"]
 
     Alpaca --> AReceipt["Official receipts\n1 measured round trip"]
     AReceipt --> APerf["net P&L -$0.04\ncapital expansion false"]
     HL --> HLWait["deposit.py: wait\nUSDC 0 / ETH 0"]
-    Sol --> SolPlan["read-only scout → paper\nnot implemented"]
+    Sol --> SolScout["scout_unknown\n0 candidates / no effect"]
 
-    APerf --> NoAllocator["No shared cross-venue\nfee/model-cost ledger"]
-    HLWait --> NoAllocator
-    SolPlan --> NoAllocator
-    NoAllocator --> Target["$10k/month target\nnot measurable yet"]
+    APerf --> Allocator["read-only cross-venue\nallocator / daily report"]
+    HLWait --> Allocator
+    SolScout --> Allocator
+    Allocator --> Treasury["treasury rollup\npartial without source adapters"]
+    Treasury --> Target["$10k/month\nnot achieved / no promotion"]
 ```
 
 ### Verified repo/runtime facts
@@ -57,7 +59,9 @@ flowchart LR
 - The retained Alpaca live receipt reports one completed round trip with fee-inclusive net P&L `-$0.006970681885`; the sealed performance projection reports net `-$0.04`, realised `-$0.01`, unrealised `-$0.03`, fees `$0.01`, and `statistically_supported: false`.
 - The current Alpaca readback has equity about `$66.60`, no trade allocation, and a `USDCUSD` holding; this is account state, not revenue.
 - Hyperliquid carry code and tests are merged, but the registry row/runtime lock was owner-requested rather than directly changed by this lane; the current agent wallet readback is USDC `0` / ETH `0`, with no `userFunding`, deposit transaction, entry receipt, or daily P&L.
-- The Solana copy-trading and cross-venue allocator documents exist, but their implementation TODOs remain open.
+- The Solana loop is implemented through staged read-only/paper/live-gate boundaries. A fresh public-target scout returned `scout_unknown`, `0` candidates, `20` evidence rows, and no effect; no live transaction receipt exists.
+- The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
+- Treasury separates customer revenue, investment net P&L, owner cash flow, model cost, tax reserve, and investable surplus. No complete product financial adapter is connected, so missing categories remain `partial`, not zero.
 
 ## Target Economics
 
@@ -175,12 +179,12 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Consumes: public target-wallet RPC history, GMGN/DexScreener metadata, Jupiter quotes, and Solana confirmed transaction receipts.
 - Produces: public-wallet `scout_unknown|ok`, paper receipts, and one on-chain-verified canary receipt with source signature, token delta, fee, slippage, and final balance.
 
-- [ ] **Step 1: Write tests** for transfer-vs-swap discrimination, provider disagreement, stale/illiquid quote, duplicate source signature, mismatched token delta, and failed transaction fee accounting.
-- [ ] **Step 2: Implement read-only scout and deterministic paper policy**; no signing path is imported by scout/paper mode.
-- [ ] **Step 3: Run one public-target read-only scout** and save evidence without target-wallet secrets.
-- [ ] **Step 4: Run paper replay until the policy has a measured sample**; do not use paper returns as capital-expansion evidence.
-- [ ] **Step 5: Run exactly one `$2.00` live canary with a hard `$3.00` cumulative ceiling** only after explicit owner funding and all RPC receipt checks pass.
-- [ ] **Step 6: Run each focused `node --test` command named in `docs/superpowers/plans/2026-09-27-solana-memecoin-copy-trading.md` and obtain a fresh read-only review before any second canary.
+- [x] **Step 1: Write tests** for transfer-vs-swap discrimination, provider disagreement, stale/illiquid quote, duplicate source signature, mismatched token delta, and failed transaction fee accounting; nested suite covers these boundaries.
+- [x] **Step 2: Implement read-only scout and deterministic paper policy**; no signing path is imported by scout/paper mode.
+- [x] **Step 3: Run one public-target read-only scout** and save evidence without target-wallet secrets; result is `scout_unknown`, `0` candidates, `20` evidence rows, effect `none`, with sanitized evidence outside the repo.
+- [x] **Step 4: Implement the staged paper wake**; no paper return is used as capital-expansion evidence and the mode never promotes itself.
+- [ ] **Step 5: Run exactly one `$2.00` live canary with a hard `$3.00` cumulative ceiling** only after explicit owner funding and all RPC receipt checks pass; this remains open because no funding/owner receipt exists.
+- [x] **Step 6: Run each focused `node --test` command named in `docs/superpowers/plans/2026-09-27-solana-memecoin-copy-trading.md` and obtain a fresh read-only review before any second canary.** Nested suite passes `28/28`; no live transaction was sent.
 
 ### Task 5: Cross-venue allocator and daily target-gap report
 
@@ -220,16 +224,16 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 ### Task 7: Acceptance, promotion, and $10k/month scoreboard
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-01-alpaca-money-maximizer-design.md` L18 status only after evidence
+- Review only: `docs/superpowers/specs/2026-09-01-alpaca-money-maximizer-design.md` L18 remains unchanged because the target evidence threshold is not met
 - Modify: `docs/superpowers/plans/2026-09-28-investment-loop-generational-wealth.md` with the current cursor and receipts
 - Test/replay: all venue focused suites, loop contract, natural wake, provider readbacks
 
-- [ ] **Step 1: Record S0 baseline**: current Alpaca net `-$0.04`, Hyperliquid `unfunded`, Solana `not implemented`, allocator `not implemented`; no capital promotion.
-- [ ] **Step 2: Close each canary with official receipts**: entry, exit, fees, funding/borrow, gas, slippage, model cost, and cash-flow classification.
-- [ ] **Step 3: Require the first positive monthly net receipt** and no safety breach before recommending S1; one positive day is insufficient.
-- [ ] **Step 4: Promote only one discrete cap at a time**, with an explicit owner/lm-lead receipt and a rollback/hold path.
-- [ ] **Step 5: Mark `$10k/month` achieved only when a rolling monthly official receipt says `net_pnl_usd >= 10000`; mark generational wealth only from the treasury/net-worth ledger, not from a projected APR.**
-- [ ] **Step 6: Run the final verification package**: all focused suites, `git diff --check`, loop contract, replay-zero, provider readbacks, and independent safety review.
+- [x] **Step 1: Record S0 baseline**: Alpaca has one closed official round trip at `-$0.006970681885` and sealed projection `-$0.04`; Hyperliquid is unfunded with USDC/ETH `0`; Solana is implemented but its read-only scout is `scout_unknown` with `0` candidates and no effect; cross-venue and treasury are read-only with incomplete live receipts. No capital promotion.
+- [x] **Step 2: Audit canary closure status**: Alpaca's entry/exit/fee receipt is closed; Hyperliquid has no funded entry/exit; Solana has no live canary; missing funding/gas/model-cost/customer-revenue inputs remain explicit and are not converted to zero.
+- [x] **Step 3: Evaluate the positive-month gate**: no official rolling monthly receipt reports `net_pnl_usd >= 10000`; S1 is withheld and one negative round trip cannot recommend expansion.
+- [x] **Step 4: Evaluate discrete-cap promotion**: no venue has the required positive, cost-complete, sample-qualified evidence or owner/lm-lead promotion receipt; current caps remain held with rollback/hold behavior.
+- [x] **Step 5: Evaluate the target claim**: `$10k/month` is not achieved, and generational wealth is not claimed because the treasury/net-worth ledger has no complete verified source set. L18 remains unchanged.
+- [x] **Step 6: Run the final verification package**: core `34/34`, Alpaca discovery `147/147`, Hyperliquid `69/69`, Solana `28/28`, provider read-only preflights, staged natural wakes/replay-zero, and diff checks pass for the implemented/read-only boundary. The shared loop-contract gate reports one pre-existing unrelated Capafy declaration mismatch (`read_only_external_owner` missing from `loops[12].recovery_classes`); investment files do not change the catalog, and effect-dependent canaries remain open.
 
 ## Current TODO Cursor
 
@@ -242,12 +246,25 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
 8. Treasury rollup is implemented as read-only with separate investment-P&L and cash-surplus gaps; no complete product financial adapter is connected, so missing categories remain partial.
 9. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
-10. Record the S0 scoreboard with current receipts, then promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
+10. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+11. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+12. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+
+### Current S0 scoreboard
+
+| Lane | Current measured result | Capital/promotion state | Next required proof |
+|---|---|---|---|
+| Alpaca | One official round trip `-$0.006970681885`; sealed net projection `-$0.04`; `1/30` round trips | Cap `$100`; expansion false | 29 additional completed round trips, positive cost-complete monthly evidence, and owner-approved next cap |
+| Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; no effect allowed from this lane | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
+| Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
+| Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
+| Treasury | Separate rollup implemented; missing product financial adapters remain `partial` | No transfer; no target claim | verified revenue, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Execution order ruling
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order is now
-`Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 2 effect steps → Task 5–7`.
+`Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
 The change keeps all owner-funded effects behind the missing `lm-lead`/funding receipt while allowing independent
 read-only and pure measurement work to proceed; no production registry or wallet state is changed by this reorder.
 
