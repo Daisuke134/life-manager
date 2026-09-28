@@ -82,7 +82,8 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         return repo, sha
 
     def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",),
-                       labels=None, with_investment_provisioner=False):
+                       labels=None, with_investment_provisioner=False,
+                       with_investment_selection_provisioner=False):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
         (release_dir / "bin").mkdir(parents=True)
         (release_dir / "config").mkdir(parents=True)
@@ -108,6 +109,19 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 "if os.environ.get('FAKE_PROVISION_FAIL') == '1':\n"
                 "    raise SystemExit(1)\n"
                 "Path(os.environ['FAKE_PROVISION_MARKER']).write_text("
+                "json.dumps({'argv': sys.argv[1:]})\n"
+                ")\n",
+                encoding="utf-8",
+            )
+        if with_investment_selection_provisioner:
+            provisioner = release_dir / "apps/life-manager/investment-core/provision_selection.py"
+            provisioner.parent.mkdir(parents=True, exist_ok=True)
+            provisioner.write_text(
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "if os.environ.get('FAKE_SELECTION_PROVISION_FAIL') == '1':\n"
+                "    raise SystemExit(1)\n"
+                "Path(os.environ['FAKE_SELECTION_PROVISION_MARKER']).write_text("
                 "json.dumps({'argv': sys.argv[1:]})\n"
                 ")\n",
                 encoding="utf-8",
@@ -239,6 +253,57 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env = self._base_env(root, repo, calls_log=calls_log)
             env["FAKE_PROVISION_MARKER"] = str(root / "provision.json")
             env["FAKE_PROVISION_FAIL"] = "1"
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+
+    def test_release_handoff_runs_investment_selection_provisioner_when_reports_configured(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "selection-provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(marker)
+            env["LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH"] = str(
+                root / "state/validation-reports.json"
+            )
+            env["LIFE_MANAGER_INVESTMENT_SELECTION_PATH"] = str(
+                root / "state/selected-strategy.json"
+            )
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(marker.read_text(encoding="utf-8"))["argv"],
+                [
+                    "--path", str(root / "state/selected-strategy.json"),
+                    "--reports", str(root / "state/validation-reports.json"),
+                ],
+            )
+
+    def test_failed_investment_selection_provisioning_stops_owner_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(root / "selection-provision.json")
+            env["FAKE_SELECTION_PROVISION_FAIL"] = "1"
+            env["LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH"] = str(
+                root / "state/validation-reports.json"
+            )
 
             result = self._run(env)
 
