@@ -4,11 +4,17 @@
 
 **Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in AWS AgentCore, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
 
-**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles + Live View for tenant browser continuity and phone takeover, AgentCore Identity for outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM.
+**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies.
 
 **Tech Stack:** Node.js 20 CommonJS business kernel, TypeScript AgentCore entrypoint, `@aws/agentcore@0.30.0` pinned, AWS SDK v3, AgentCore Runtime/Browser/Identity, Inngest 4, PostgreSQL/Supabase, Stripe, S3, CloudWatch, `node:test`.
 
 **Spec:** `docs/superpowers/specs/2026-09-28-life-manager-agentcore-cloud-design.md`
+
+## Global constraints
+
+- No human in loop: normal jobs never emit `ask`, `approve`, or `human_wait`; deterministic policy and provider readback decide execution.
+- Human credentials, login, OAuth, CAPTCHA, 2FA, 3DS, KYC, interviews, signatures, browser takeover, and resume callbacks are never required by the default product path. Select an agent-owned/API alternative or close the candidate as `not_applicable: requires_human_principal` and continue.
+- Existing `handoff_required` browser rows are migrated explicitly in Task 6 to terminal `not_applicable` records; do not silently reinterpret or resume stored production rows.
 
 ## Current state and scope
 
@@ -24,8 +30,8 @@
 1. A user can onboard with only Telegram/web on a phone, no card, and receive one verified result.
 2. The same immutable business-kernel SHA runs locally and in AgentCore.
 3. Each active tenant run has a dedicated AgentCore microVM; idle tenants consume no runtime VM.
-4. Browser login survives across jobs through a tenant/provider Browser Profile.
-5. OAuth/CAPTCHA can be completed through a short-lived phone Live View and resumed exactly once.
+4. Agent-owned browser login survives across jobs through a tenant/provider Browser Profile; no human credential is imported.
+5. Actions complete with zero credential requests, confirmations, approvals, browser takeover, or resume steps. Human-principal-only opportunities are excluded without stopping other work.
 6. Cross-tenant access, duplicate execution, uncertain-effect replay, unbounded session, and budget overrun all fail closed.
 7. Free costs cannot exceed their deterministic caps; every paid user has a complete revenue/cost contribution row.
 8. Five-user and then 25-user cohorts pass operational gates.
@@ -78,7 +84,7 @@
 - Test: `apps/life-manager/scripts/agentcore-cloud-canary.test.js`
 - Create: `docs/evidence/cloud/agentcore-cl00.md`
 
-**Produces:** a disposable read-only runtime/browser/profile/live-view/identity canary in `ap-northeast-1`, deployed from a pinned official CLI configuration.
+**Produces:** a disposable read-only runtime/browser/agent-owned-profile/identity canary in `ap-northeast-1`, deployed from a pinned official CLI configuration.
 
 - [ ] **Step 1: Write the canary contract test**
 
@@ -120,7 +126,7 @@
 
 - [ ] **Step 6: Deploy the CL00 canary**
 
-  This changes cloud state; announce it immediately before running. Deploy only the canary resources in Tokyo, invoke one runtime session, create one Browser Profile, open one browser session to an inert read-only page, generate and load one Live View URL on a phone-sized viewport, request one non-secret Identity health result, then stop every session.
+  This changes cloud state; announce it immediately before running. Deploy only the canary resources in Tokyo, invoke one runtime session, create one agent-owned Browser Profile, open one browser session to an inert read-only page, request one non-secret Identity health result, then stop every session. Do not supply a human credential or interactive takeover.
 
 - [ ] **Step 7: Read back provider state and cost**
 
@@ -128,7 +134,7 @@
 
 - [ ] **Step 8: Write CL00 evidence and decide**
 
-  Pass only if all four capabilities work. If Browser or Live View fails on the actual phone path, stop AgentCore expansion and evaluate the existing Steel adapter against the exact failed contract; do not silently combine both providers.
+  Pass only if Runtime, Browser/Profile, and Identity work without human input. If Browser fails the agent-owned path, stop AgentCore expansion and evaluate the existing Steel adapter against the exact failed contract; do not silently combine both providers.
 
 ---
 
@@ -214,7 +220,7 @@
     "job_id": "...",
     "attempt": 1,
     "release_sha": "...",
-    "status": "completed|retry|human_wait|reconcile|blocked",
+    "status": "completed|retry|reconcile|not_applicable|policy_denied|blocked",
     "receipt_ref": "...",
     "evidence_sha256": "...",
     "usage": []
@@ -267,46 +273,44 @@
 
 ---
 
-### Task 6: Replace the primary Steel path with AgentCore Browser Profiles and phone Live View (CL03/CL04)
+### Task 6: Replace the primary Steel path with human-free AgentCore Browser Profiles (CL03/CL04)
 
 **Files:**
 - Create: `apps/life-manager/lib/agentcore-browser-driver.js`
 - Create: `apps/life-manager/lib/agentcore-browser-driver.test.js`
-- Create: `apps/life-manager/lib/agentcore-live-view.js`
-- Create: `apps/life-manager/lib/agentcore-live-view.test.js`
+- Create: `apps/life-manager/lib/browser-principal-policy.js`
+- Create: `apps/life-manager/lib/browser-principal-policy.test.js`
 - Modify: `apps/life-manager/lib/generic-browser-task.js`
 - Modify: `apps/life-manager/lib/browser-job-runtime.js`
-- Modify: `apps/life-manager/server.js`
 - Test: `apps/life-manager/lib/browser-job-runtime.test.js`
-- Test: `apps/life-manager/test/telegram-callback-http-contract.test.js`
 
-**Produces:** job-scoped browser sessions, tenant/provider profiles, and exact one-time phone takeover.
+**Produces:** job-scoped browser sessions, agent-owned tenant/provider profiles, zero-human execution, and terminal exclusion of human-principal-only opportunities.
 
 - [ ] **Step 1: Write RED browser/profile tests**
 
-  Assert profile lookup is tenant/provider scoped, concurrent owners cannot start a second session, profile save happens only after verified completion/handoff, and failed release retains reconciliation data.
+  Assert profile lookup is tenant/provider scoped and agent-owned, concurrent owners cannot start a second session, profile save happens only after verified completion, and failed release retains reconciliation data.
 
-- [ ] **Step 2: Write RED Live View tests**
+- [ ] **Step 2: Write RED no-human principal tests**
 
-  Assert signed URLs are short-lived, single-use, and bound to tenant/job/browser session. Expired, replayed, cross-tenant, and wrong-session resume requests make zero browser calls.
+  Assert policy-allowed agent-owned actions expose no credential request, ask, approve, takeover, or resume state. Human credential/profile input and sites requiring human login, OAuth, CAPTCHA, 2FA, 3DS, KYC, interview, or signature return `not_applicable: requires_human_principal`, make no external effect, and do not stop another eligible job.
 
 - [ ] **Step 3: Implement the AgentCore driver**
 
-  Map the existing provider-neutral browser contract onto StartBrowserSession, automation WebSocket, SaveBrowserSessionProfile, and StopBrowserSession. Do not expose AWS credentials or raw profile data.
+  Map the existing provider-neutral browser contract onto StartBrowserSession, automation WebSocket, SaveBrowserSessionProfile, and StopBrowserSession. Accept only server-owned profile refs and agent-owned principals; never expose AWS credentials or raw profile data.
 
-- [ ] **Step 4: Implement the phone route**
+- [ ] **Step 4: Migrate legacy handoff rows without resuming them**
 
-  Add an authenticated mobile page rendering `BrowserLiveView` from a server-generated presigned URL. Telegram sends only the application URL, never the raw AWS URL. Resume updates the exact `human_wait` occurrence once.
+  Convert existing `handoff_required` rows to terminal `not_applicable` receipts with reason `requires_human_principal`. Do not replay their effect, ask for credentials, send an approval link, or create a resume callback.
 
 - [ ] **Step 5: Run focused tests**
 
   ```bash
-  node --test lib/agentcore-browser-driver.test.js lib/agentcore-live-view.test.js lib/browser-job-runtime.test.js test/telegram-callback-http-contract.test.js
+  node --test lib/agentcore-browser-driver.test.js lib/browser-principal-policy.test.js lib/browser-job-runtime.test.js
   ```
 
-- [ ] **Step 6: Run real phone canary**
+- [ ] **Step 6: Run real no-human canary**
 
-  On a dedicated test tenant, open a read-only authenticated page, take control on a phone, release control, resume the agent, read back the same browser/profile IDs, and stop the session. Confirm active sessions=0 afterward.
+  On a dedicated test tenant, prove one agent-owned read-only browser action completes with human inputs 0 and read back the same tenant/profile binding. Probe one synthetic human-principal requirement and require provider effect 0, terminal `not_applicable`, another queued job completed, and active sessions=0 afterward.
 
 ---
 
@@ -319,11 +323,11 @@
 - Modify: `apps/life-manager/lib/browser-auth-session-store.js`
 - Test: `apps/life-manager/lib/browser-auth-session-store.test.js`
 
-**Produces:** new cloud connections store OAuth/API credentials in AgentCore Identity; existing encrypted browser contexts remain readable only during bounded migration.
+**Produces:** agent-owned cloud connections store OAuth/API credentials in AgentCore Identity; human-owned credentials are rejected and never migrated.
 
 - [ ] **Step 1: Write RED secret-boundary tests**
 
-  Prove job rows, prompts, runtime envelopes, traces, and Telegram payloads contain opaque refs only. Cross-tenant ref use must fail before AgentCore Identity is called.
+  Prove job rows, prompts, runtime envelopes, traces, and Telegram payloads contain opaque refs only. Cross-tenant or human-principal ref use must fail before AgentCore Identity is called.
 
 - [ ] **Step 2: Implement the provider interface**
 
@@ -331,7 +335,7 @@
 
 - [ ] **Step 3: Add migration-on-use**
 
-  For an existing supported credential, verify ownership, create the Identity credential, store the opaque ref, verify a read-only call, and only then retire the old cloud credential copy. Never migrate local Mac credentials automatically.
+  For an existing agent-owned supported credential, verify ownership, create the Identity credential, store the opaque ref, verify a read-only call, and only then retire the old cloud credential copy. Never migrate local Mac or human credentials.
 
 - [ ] **Step 4: Verify revoke and tenant deletion**
 
@@ -351,7 +355,7 @@
 
 - [ ] **Step 1: Add forged-reference cases**
 
-  Cover state ref, receipt ref, runtime session, browser session, browser profile, Identity ref, S3 key, Live View token, and callback token. For every rejection, assert provider call count is zero.
+  Cover state ref, receipt ref, runtime session, browser session, browser profile, Identity ref, S3 key, human credential input, approval callback, and resume callback. For every rejection, assert provider call count is zero.
 
 - [ ] **Step 2: Add lifecycle failure cases**
 
@@ -421,11 +425,11 @@
 
 - [ ] **Step 2: Deploy candidate and canary tenant**
 
-  Deploy one immutable version, bind only the internal canary tenant, complete read-only task, browser handoff, official readback, and replay-zero.
+  Deploy one immutable version, bind only the internal canary tenant, complete an agent-owned read-only task with human inputs 0, official readback, and replay-zero.
 
 - [ ] **Step 3: Expand to five invited Free tenants**
 
-  Each tenant completes onboarding and one verified result. Measure activation time, actual cost, session cleanup, human-gate rate, and errors. No autonomous external spend.
+  Each tenant completes onboarding and one verified result. Measure activation time, actual cost, session cleanup, human-input count, human-principal exclusions, and errors. Free policy permits no external spend, so no spending action is admitted or asked about.
 
 - [ ] **Step 4: Evaluate gates**
 
@@ -486,7 +490,7 @@
 
 - [ ] **Step 1: Define cohort gates in code**
 
-  Track activation, first verified result, D7/D30 retention, Free→Paid conversion, cost/active user, human-gate completion, duplicate effects, and tenant isolation incidents.
+  Track activation, first verified result, D7/D30 retention, Free→Paid conversion, cost/active user, human-input count, human-principal exclusions, duplicate effects, and tenant isolation incidents.
 
 - [ ] **Step 2: Expand 5 → 25**
 
@@ -510,8 +514,8 @@
 2. **Durable tenant/session/budget schema** — makes every later call tenant-safe and cost-bounded.
 3. **Same-kernel AgentCore packaging (CL01)** — prevents a second product implementation.
 4. **Inngest dispatcher + one tenant writer** — makes loops genuinely run in cloud.
-5. **Browser Profile + Live View (CL03/CL04)** — removes the Mac and enables phone-only use.
-6. **Identity credential boundary** — enables authenticated real work without exposing secrets.
+5. **Agent-owned Browser Profile (CL03/CL04)** — removes the Mac without introducing human login or takeover.
+6. **Agent-owned Identity boundary** — enables authenticated real work without human credentials or exposed secrets.
 7. **Isolation + uncertain-effect recovery (CL02)** — makes multi-tenant selling safe.
 8. **Cost ledger + Free admission (CL06)** — bounds loss before onboarding strangers.
 9. **Immutable promotion + 5 Free users (CL05)** — proves the real product path.
@@ -533,7 +537,7 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A03 | **next** | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
 | A04 | todo | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
 | A05 | todo | Read-only canary runtime package | reproducible local package; no AWS mutation |
-| A06 | todo | Tokyo Runtime/Browser/Profile/Live View/Identity canary | official resource IDs and phone-sized Live View proof |
+| A06 | todo | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
 | A08 | todo | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
 | A09 | todo | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
@@ -544,10 +548,10 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A14 | todo | Runtime SDK client and dispatcher tests | budget/release/lease checks occur before provider call |
 | A15 | todo | One Inngest cloud-job function | tenant concurrency 1; event carries IDs only |
 | A16 | todo | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
-| A17 | todo | AgentCore Browser Profile adapter | tenant/provider-scoped profile and exact session release |
-| A18 | todo | Single-use mobile Live View route | wrong/expired/replayed tenant/job/session token makes browser calls 0 |
-| A19 | todo | Real phone handoff canary | take control, release, resume once, same profile, active sessions 0 |
-| A20 | todo | AgentCore Identity provider and migration-on-use | opaque refs only; revoke pauses dependent jobs |
+| A17 | todo | AgentCore Browser Profile adapter | agent-owned tenant/provider profile and exact session release |
+| A18 | todo | No-human browser policy and legacy-state migration | human credential/callback/provider effect 0; stored `handoff_required` closes `not_applicable` without replay |
+| A19 | todo | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
+| A20 | todo | AgentCore Identity provider and migration-on-use | agent-owned opaque refs only; human refs rejected; revoke closes dependent jobs without asking |
 | A21 | todo | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |
 | A22 | todo | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
 | A23 | todo | Natural no-card Free onboarding | one goal and first verified result before checkout offer |

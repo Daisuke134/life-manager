@@ -12,7 +12,9 @@
 
 Life Manager はアシスタントではなくマネージャー。Grok bot、Muse、Instinct と同じく、自分でコンピュータとブラウザを使い、仕事を最後まで完結させる。**人（Dais を含む）に作業や判断を頼むことは、設計違反として扱う。**
 - 応募・承諾・制作・納品・入金確認・修復・改善は、すべて Life Manager の loop が行う。
-- 人に頼るのは、法律上どうしても本人が必要なものだけ（初回の KYC、本人確認など）。それも最初の1回に限る（T10）。
+- 人間のcredential、login、KYC、CAPTCHA、2FA、3DS、面接、署名を必要とする経路は、既定のLife Manager product loopに採用しない。agent-owned identity/APIで完結する別経路を選び、無ければその機会を`not_applicable: requires_human_principal`で閉じて別の仕事を続ける。
+- `ask`、`approve`、`human_wait`、日常的な確認ボタンを通常のjob stateにしない。effect fenceは人の承認ではなく、決定的policy、spend cap、idempotency、公式readbackである。
+- 人間に最後の操作を委ねる場合、その操作はLife Manager loopの外であり、Life Managerの完了・収益・成功として数えない。待機stateや再開buttonを作らず、他のeligible jobを自律的に続ける。
 - 判断は model が提案し、決定的な policy（金額、契約条件の一致、上限、重複防止、rollback）が確定させる。
 - 外部の coding agent（Claude Code、Codex のセッション）も同じく「人」の側。Life Manager が自分で直せるようになること（§5.1）が目標。
 
@@ -97,7 +99,7 @@ flowchart LR
 - **ループの健康の定義:** 全行が `healthy` か、型付きの fence（安全な次アクションが記録済み）のどちらか。`unknown` は診断cursorであり、再送の許可ではない。
 - **利益の定義:** ループごとに `settled_customer_revenue - refunds - measured cost`。CFO が provider receipt と照合して算出する。Pass やログは利益ではない。
 - **役割分担:** model は提案する。identity・計算・dedupe・spend cap・rollback は決定的なコードが持つ。
-- **Dais の手間:** 最初の bootstrap と、法的に必要な KYC/OAuth/CAPTCHA だけにする。
+- **Dais の手間:** product loopの実行、credential供給、KYC/OAuth/CAPTCHA、承認、再開を0にする。人間principalが不可避な機会は既定対象から外す。
 - **経済目標:** 検証済み net MRR USD 10K → 自己資金化 → YC W27 用の証拠 → AGI/UBI 研究。証拠なしに達成を主張しない。
 
 ## 5. TODO（実行順・正本）
@@ -362,18 +364,18 @@ TODO（何を・どう直すか）
 20. T8 ループ別 P&L: 各 occurrence を 露出 → 行動 → 公式 receipt → 入金 → 返金 → payout → コスト（model・browser・cloud・provider）に結び付け、毎日 receipt id 付きで出す（8-1 入金 adapter、8-2 cost adapter、8-3 日次 P&L）
 21. 商用 loop が利益を学ぶ: Affiliate、Mobile Apps/Capafy、Writer/Product、Gig、Investment、x402 を P&L につなぐ。SNS はアカウントごとに題材・本文・CTA・画像を回す。重複投稿・クリック・含み益・model の判断をお金として数えない
 22. 8-4 投資の段階的拡大: read-only scout → 過去データ評価 → paper → shadow → 最小額 live canary → 公式決済確認 → 再現性 → 上限付き拡大 or rollback。Alpaca → Polymarket → Hyperliquid → 株 → ミームコイン（今は利益が出ないので live 拡大は禁止）
-23. T10 one-shot capability capsule（製品として配れる形）: identity・capability・credential の参照、不変の policy、onboarding の版、loop への自動登録を永続化する。目標設定や日常の承認は聞かない。provider の KYC/CAPTCHA/OAuth だけは初回に明示する
+23. T10 one-shot capability capsule（製品として配れる形）: agent-owned identity・capability・credential の参照、不変の policy、onboarding の版、loop への自動登録を永続化する。人間のcredential、KYC、CAPTCHA、OAuth、承認、resumeを要求しない。agent-owned/APIで完結しないprovider経路は`not_applicable: requires_human_principal`で閉じる
 24. T11 **Cloud 版（有料で売る Life Manager）**。provider・実行単位・状態所有・無料枠・unit economicsの正本は `docs/superpowers/specs/2026-09-28-life-manager-agentcore-cloud-design.md`、実装順は `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`。同じ実装を2つのモードで出す
     - Local 版: 自分の Mac/Linux で動くセルフホスト版。開発・自前運用・復旧用。今動いているのはこれ
-    - Cloud 版: 既存Railway API・Inngest・Supabase PostgreSQL・Stripeを制御面として再利用し、AWS Bedrock AgentCore Runtime V2・Browser Profiles/Live View・Identityを隔離実行面に使う。利用者に要るのはスマホとTelegram/webだけで、Macは不要
+    - Cloud 版: 既存Railway API・Inngest・Supabase PostgreSQL・Stripeを制御面として再利用し、AWS Bedrock AgentCore Runtime V2・Browser・agent-owned Browser Profiles/Identityを隔離実行面に使う。利用者に要るのはスマホとTelegram/webだけで、Macもcredential入力も不要
     - tenantごとに24時間起動VMは置かない。各tenantは1つの論理Cloud Computerを持ち、job中だけ専用microVMを起動する。永続stateはPostgreSQL/S3/Browser Profile/Identityが所有し、同一tenantのactive runtimeは最大1つ
-    - DigitalOcean Managed Agentsはrunner-upだが、最大100 sessions、lifecycle webhook/Live View/VPC不足、unattended approval semanticsのため現時点の有料本番には使わない。Muse Connectorはruntimeではなく、Life Manager REST API完成後のdistribution channel
+    - DigitalOcean Managed Agentsはrunner-up。no-ask triggerはLife Managerと整合するが、最大100 sessions、lifecycle webhook/VPC不足、tenant別login continuityの未確認により現時点の有料本番には使わない。Muse Connectorはruntimeではなく、Life Manager REST API完成後のdistribution channel
     - 前提: ②の local 完了 gate（全 loop に owner と release が1つ、重複 scheduler なし、admission が有界、受領の契約、setup_required/not_applicable 以外に unknown が無い）を通ってから昇格する
-    - [ ] CL00 TokyoでAgentCore Runtime、Browser Profile、Live View、Identityの実cloud read-only canaryと公式usage/cost receiptを確認する
+    - [ ] CL00 TokyoでAgentCore Runtime、Browser、agent-owned Browser Profile/Identityの実cloud read-only canaryと公式usage/cost receiptを確認する。human inputは0
     - [ ] CL01 承認済みの同じ business-kernel SHA を tenant 分離の Cloud host adapter に載せる
     - [ ] CL02 tenant A が tenant B の credential・browser session・state・receipt を読めないことを証明する
     - [ ] CL03 AgentCore Runtime/Browserのtenant lease/session/profile lifecycleが2つ目の owner や古いleaseを残さず、cold startで再開できることを証明する
-    - [ ] CL04 スマホだけ（Telegram + Live View）で状態確認 → OAuth/CAPTCHA human gate → 再開 → readbackが1回通ることを証明する
+    - [ ] CL04 スマホからgoal投入後、credential入力・確認・承認・resume 0でagent-owned action → 公式readback → session releaseが通ることを証明する。human principal必須候補はprovider call 0で`not_applicable`になり、別jobが継続する
     - [ ] CL05 同じ SHA で Cloud gate を実行し、公式 readback と replay-zero を確認する（local と同じ capsule・evidence hash）
     - [ ] CL06 Freeの初回$1/月$0.50、Founding Proのtarget $6/hard cap $12を実測cost ledgerで強制する
     - [ ] R01 最初のverified result後だけ$49 Founding Proを提示し、Stripeの公式subscription receiptと1-user contributionを1件確認する

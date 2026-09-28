@@ -2,7 +2,12 @@
 <!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
 # Life Manager
 
-**Life Managerは、あなたの身体・心・お金を管理するproactive general agentです。** 目標を提案で終わらせず、
+**NO HUMAN IN THE LOOP（人間を実行loopに入れない）。** Life Managerはcredential、login、KYC、
+CAPTCHA、2FA、3DS、承認、browser takeover、resumeを人間に求めず、仕事をend-to-endで完了するagentです。
+agent-owned identity/APIで完結できない機会は`not_applicable: requires_human_principal`で閉じ、別のeligibleな
+仕事を続けます。Life Manager外で人間が行った操作は、Life Managerの完了・収益・成功として数えません。
+
+Life Managerは、あなたの身体・心・お金を管理するproactive general agentです。目標を提案で終わらせず、
 委任された範囲で現実の行動を実行し、結果を検証して、証拠と一緒に人間が理解できる言葉でTelegramへ報告します。
 信頼できるcareとagencyを常時利用可能にし、人間から始めて最終的にすべての生き物の苦しみを終わらせることがmissionです。
 
@@ -23,7 +28,7 @@ receiptのない試行を「完了」と報告しません。
 14本はuser-facingな製品能力の数です。process数ではありません。registryには、各product loopを実装する
 応募・browser owner・報告・照合・healthcheckなどの小さいjobが多数あります。
 
-1〜3は**Human Gig Work** familyです。案件発見、選別、応募、交渉、納品支援、照合、報告をLife Managerが自動化し、platformが本人確認、面談、承認、最終納品を要求する箇所だけ人が参加します。
+1〜3は**Human Gig Work** familyです。Life Managerはagent-owned principalでend-to-end完了できる案件だけを発見、選別、応募、交渉、納品、照合、報告します。本人確認、面談、人間の承認・credential・最終納品が必要な案件は自律product経路から除外し、完了や収益に数えません。
 
 | # | Product loop | 現在の代表owner | 役割 |
 |---:|---|---|---|
@@ -42,7 +47,9 @@ receiptのない試行を「完了」と報告しません。
 | 13 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Capafyという別productの販売・outcome・audience-growth workflowを運用 |
 | 14 | CFO | `life-manager-cfo-hourly` | 全earning loopのverified revenue、cash flow、残高、payout、財務報告を照合 |
 
-### setupと開始方法の現在地
+### legacy/local setupと開始方法の現在地
+
+次の表は既存adapterの現状を正直に記録するもので、no-human Cloud contractではありません。owner credential、login、KYC、承認、private inputが必要な行はlegacy実装債務であり、agent-owned/API経路ができるまで既定productの対象外です。
 
 | Product loop | ユーザーが設定するもの | 現在の開始入口 |
 |---|---|---|
@@ -172,8 +179,10 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-default installerが14本すべてを黙って開始することはありません。provider account、credential、KYC、
-browser loginが未設定のloopは`setup_required`のままです。guided installerが現在あるのは
+default installerが14本すべてを黙って開始することはありません。既存local adapterにはprovider account、
+credential、KYC、browser loginが無いと`setup_required`を返すものがあります。これはlegacy/local境界であり、
+no-human Cloud経路でもLife Managerの完了でもありません。既定productはagent-owned/API代替を選ぶか、
+`not_applicable`で閉じて別の仕事へ進みます。guided installerが現在あるのは
 `./install.sh coconala`、`connector`、`fundraiser`、`job-hunter`で、その他のloopの現在の境界は上の
 14-loop catalogに記載します。
 

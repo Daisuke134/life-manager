@@ -2,7 +2,13 @@
 <!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
 # Life Manager
 
-**Life Manager is an AI that manages your life better than you ever can.** It is a proactive general agent that
+**NO HUMAN IN THE LOOP.** Life Manager is an autonomous agent that completes work end to end without asking a
+person for credentials, login, KYC, CAPTCHA, 2FA, 3DS, approval, browser takeover, or resume. It uses an
+agent-owned identity or API path; when a provider requires a human principal, that opportunity is closed as
+`not_applicable: requires_human_principal` and Life Manager continues with other eligible work. A human action
+performed outside Life Manager is never counted as a Life Manager completion, revenue event, or success.
+
+Life Manager is an AI that manages your life better than you ever can. It is a proactive general agent that
 manages your body, mind, and money. It turns goals into
 completed real-world actions, acts within delegated boundaries, verifies what happened, and reports the result
 in plain language with evidence in Telegram. Its mission is to make dependable care and agency continuously
@@ -32,8 +38,9 @@ implement and support these 14 loops.
 
 Loops 1–3 form the **Human Gig Work** family. Life Manager automates discovery,
 screening, application, negotiation, delivery support, reconciliation, and
-reporting; a person participates only where the marketplace requires identity,
-an interview, approval, or final delivery.
+reporting only for opportunities it can complete with an agent-owned principal. Opportunities that require a
+person's identity, interview, approval, credential, or final delivery are excluded from the autonomous product
+path and are not counted as completed or earned revenue.
 
 | # | Product loop | Representative current owners | What it does |
 |---:|---|---|---|
@@ -52,7 +59,11 @@ an interview, approval, or final delivery.
 | 13 | Capafy | `capafy-loop-daily`, `capafy-outcome-monitor`, `capafy-ig-account-manager`, `capafy-ig-marketing-daily` | Operates Capafy's separate product, sales, outcome, and audience-growth workflows |
 | 14 | CFO | `life-manager-cfo-hourly` | Reconciles verified revenue, cash flow, balances, payouts, and financial reports across the earning loops |
 
-### Setup and start truth
+### Legacy/local setup truth
+
+The following table documents existing adapters honestly; it is not the no-human Cloud contract. Any row that
+needs owner credentials, login, KYC, approval, or private input is legacy implementation debt and is ineligible
+for the default product path until an agent-owned/API route exists.
 
 | Product loop | User setup | Current start path |
 |---|---|---|
@@ -230,18 +241,20 @@ tests, independent evidence, official readback, rollback, and tenant isolation.
 
 Money Printer is the shared earning-work surface across Life Manager's revenue-producing loops, not a separate
 loop. Its cloud scout searches the public Web for current paid opportunities, admits only citation-backed public
-URLs, deduplicates them in Railway Postgres, and hands each one to the relevant durable capability worker. The person sees one six-column board and is asked
-only when identity, authority, judgment, payment information, or a physical action is genuinely required.
+URLs, deduplicates them in Railway Postgres, and hands each one to the relevant durable capability worker. The
+no-human product admits only work the agent can complete under deterministic policy with an agent-owned
+principal. A requirement for human identity, authority, judgment, payment information, or a physical action
+closes that opportunity as `not_applicable`; it never creates a wait state.
 The zero-login judge tenant cannot perform external application, delivery, payment, or money effects.
 
 ```mermaid
 flowchart LR
     S["8-hour cloud scout<br/>Gemini + Google Search citations"] --> Q[("Railway runtime queue")]
     Q --> W["Capability worker<br/>qualify / research / continue"]
-    W --> H{"Genuine human boundary?"}
-    H -->|No| W
-    H -->|Yes| N["Needs You card"]
-    N --> W
+    W --> H{"Agent-owned path?"}
+    H -->|Yes| W
+    H -->|No| N["not_applicable<br/>continue other work"]
+    N --> Q
     W --> R["Typed receipt + replay-safe state"]
     R --> D["Netlify Dashboard + WebMCP tools"]
 ```
@@ -251,8 +264,12 @@ flowchart LR
 | `inspect_money_printer` | Reads metrics, six board columns, and safe recent activity | None |
 | `add_opportunity` | Adds one public HTTPS opportunity to the durable queue with an idempotency fence | Internal state only |
 | `inspect_workroom` | Reads the selected opportunity, job, and receipt timeline | None |
-| `inspect_next_human_task` | Reads the oldest exact open human task | None |
-| `record_human_answer` | Records a versioned answer and resumes the same job; registered only when a task is open | Internal state only |
+| `inspect_next_human_task` | Legacy compatibility surface; not part of the no-human product contract | None |
+| `record_human_answer` | Legacy compatibility surface; must not resume a default-product job | Internal state only |
+
+The existing `HumanTask` contract and the two legacy WebMCP tools above are migration debt. They do not define
+Life Manager. Stored open human tasks must be closed terminally as `not_applicable` without replaying an effect;
+the Cloud product must not create new ones.
 
 ### Challenge-period changes
 
@@ -302,10 +319,10 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-The default installer does not silently start all 14 product loops. Each provider-backed loop remains
-`setup_required` until its account, credentials, KYC or browser login is configured. Guided installers currently
-exist for `./install.sh coconala`, `connector`, `fundraiser`, and `job-hunter`; the README catalog states the current
-boundary for the other product loops.
+The default installer does not silently start all 14 product loops. Existing local adapters may still return
+`setup_required` for an account, credential, KYC, or browser login. Those are legacy/local boundaries, not a
+valid no-human Cloud path and not a completed Life Manager job. The default product selects an agent-owned/API
+alternative or closes the opportunity as `not_applicable` and continues.
 
 Preview a zero-effect plan for only the loops you select. The plan reads the same
 [`apps/life-manager/config/product-loop-catalog.json`](apps/life-manager/config/product-loop-catalog.json) used by
@@ -519,7 +536,7 @@ stateDiagram-v2
 | TECH PLAY | RSS/detail discovery, input/review/final action, registered readback, evidence | Connected; all three current eligible candidates conflict with Calendar, so live bundle remains pending |
 | KokuchPro | Official listing/detail discovery, strict free/Tokyo/open gate, entry/login readback, bounded Harness | Connected; current official first page has no event inside the 28-day window. Login is classified as `auth_required` and safely hands off without private-value or retry effects |
 
-Safety invariants: one hourly schedule owner, one browser target per wake, one external mutation at most per wake, `effect_unknown` means no retry, private form values never enter action history, and only an `applied_bundle` proves a new completed application. A verified open lightning-talk application consumes that wake's effect budget before attendance; payment, CAPTCHA, identity verification, and unknown required fields always stop for human action. `completed_no_effect` is a healthy process result with zero new external writes. Current evidence and remaining gates live in the [Connector execution SSOT](docs/superpowers/specs/2026-08-01-dais-life-manager-five-phase-execution-spec.md).
+Safety invariants: one hourly schedule owner, one browser target per wake, one external mutation at most per wake, `effect_unknown` means no retry, private form values never enter action history, and only an `applied_bundle` proves a new completed application. A verified open lightning-talk application consumes that wake's effect budget before attendance; payment, CAPTCHA, identity verification, or an unknown required field makes that candidate `not_applicable` with no human wait, and the loop continues to another eligible candidate. `completed_no_effect` is a healthy process result with zero new external writes. Current evidence and remaining gates live in the [Connector execution SSOT](docs/superpowers/specs/2026-08-01-dais-life-manager-five-phase-execution-spec.md).
 
 ### Connector local install and uninstall
 

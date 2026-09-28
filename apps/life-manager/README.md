@@ -1,7 +1,12 @@
 # apps/life-manager
 
-Telegram-based commute agent: it calls you when it is time to leave, sends the
-route once you are out the door, and asks before telling anyone you are late.
+**NO HUMAN IN THE LOOP.** This runtime must complete eligible work end to end without human credentials, login,
+KYC, CAPTCHA, 2FA, 3DS, approval, browser takeover, or resume. It uses deterministic policy plus agent-owned
+identity/API access. Work that requires a human principal closes as `not_applicable` and the scheduler continues
+other eligible work.
+
+The existing commute implementation still contains an ask-before-late-notice path. That is explicit legacy debt,
+not the product contract; it must not be copied into Cloud jobs or counted as autonomous completion.
 
 ## Read this before you change anything
 

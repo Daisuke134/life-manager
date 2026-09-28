@@ -21,6 +21,15 @@
 
 本specでこの曖昧さを終わらせる。以後、provider変更は本specのDecision gateを満たす証拠がある場合だけ行い、会話ごとには変更しない。
 
+### 1.1 No-human-loop invariant
+
+Life Managerは通常のjobで利用者に許可・承認・判断を求めない。`ask`、`approve`、`human_wait`はCloud productの通常stateに存在しない。
+
+- effect fenceは人の承認待ちではない。決定的policy、spend cap、idempotency key、最新state、公式receipt/readbackが自動でallow、deny、reconcileを決める。
+- policy内のactionは質問せず実行する。policy外のactionは質問せず`policy_denied`として閉じ、別のeligible jobを続ける。
+- 人間のcredential、login、OAuth、CAPTCHA、2FA、3DS、KYC、面接、署名を要求する経路は既定product loopへ入れない。agent-owned identity/APIで完結する代替を選び、無ければ`not_applicable: requires_human_principal`でterminalにして別のeligible jobを続ける。
+- 人間に最後の操作を委ねる場合、その操作はLife Manager loop外であり、Life Managerの完了・収益・成功に数えない。待機state、接続依頼、approve/resume callbackを作らない。
+
 ## 2. 単一推奨
 
 ### 2.1 答え
@@ -39,9 +48,7 @@ flowchart LR
   R --> G[API tools / AgentCore Gateway]
   R --> B[AgentCore Browser<br/>job session]
   B <--> P[tenant/provider別<br/>Browser Profile]
-  B --> LV[Live View<br/>短時間署名URL]
-  LV --> U
-  R --> I[AgentCore Identity<br/>OAuth/API credential]
+  R --> I[AgentCore Identity<br/>agent-owned OAuth/API credential]
   R --> E[(S3 evidence / replay)]
   R --> PG
   PG --> S[Stripe entitlement + CFO P&L]
@@ -81,14 +88,14 @@ local版とCloud版の差は「誰が起こすか」「どこで隔離実行す�
 | 選択肢 | 確認した事実 | 判断 |
 |---|---|---|
 | [AWS Bedrock AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html) | 各user sessionは専用microVM。任意framework/model、最大8時間、非同期処理、消費量課金。GAでTokyo対応 | **採用** |
-| [AgentCore Browser](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-tool.html) / [Browser Profiles](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-profiles.html) / [Live View](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-dcv-integration.html) | 隔離browser、cookie/local storageをprofileへ保存、スマホで操作可能なLive View、CloudTrail/recording | **採用** |
+| [AgentCore Browser](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-tool.html) / [Browser Profiles](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-profiles.html) | 隔離browser、agent-owned cookie/local storageをprofileへ保存、CloudTrail/recording | **採用** |
 | [AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-overview.html) | inbound identity、outbound OAuth/API keyを一元管理し、credentialをmodel contextへ置かない | **採用** |
 | [AgentCore pricing](https://aws.amazon.com/bedrock/agentcore/pricing/) | 最低料金・前払いなし。Runtime V2はCPU $0.1276/vCPU-hour、memory $0.0169/GB-hour、BrowserはCPU $0.0895/vCPU-hour、memory $0.00945/GB-hour | 無料枠をhard budgetで実現可能 |
 | [DigitalOcean Managed Agents](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/concepts/architecture/) | 1 session = 1 microVM、pause/resume、Chromium、Action Gateway、tenantごとにsessionを作れる | runner-up |
-| [DigitalOcean limits](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/limits/) / [triggers](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/how-to/run-agents-with-triggers/) | 最大100 sessions、run lifecycle webhookなし、live previewなし、VPCなし。unattended triggerでは`ask`を使えず、残ったpromptを自動承認する場合がある | 外部作用を持つ有料本番には不採用 |
-| [Google Agent Platform](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview) | managed runtime、sessions、memory、computer use、sandbox、IAMを持つ | 強い代替。ただし本調査でtenant別browser profile + phone Live Viewの同等契約を確認できず不採用 |
-| [Microsoft Foundry Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/overview) | hosted container、session state、VM-isolated sandbox、managed identityを持つ | 強い代替。ただし同等のmanaged browser profile + phone takeoverが一体化していないため不採用 |
-| [E2B persistence](https://e2b.dev/docs/sandbox/persistence) | filesystemとmemoryをpause/resumeできる | compute部品として優秀だが、identity/browser takeover/audit/control planeを自作するため不採用 |
+| [DigitalOcean limits](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/limits/) / [triggers](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/how-to/run-agents-with-triggers/) | 最大100 sessions、run lifecycle webhookなし、live previewなし、VPCなし。unattended triggerは`ask`を使わず、policyでallow/denyする | no-askはLife Managerと整合するが、scale、lifecycle readback、tenant別login stateの独立管理の確認不足によりrunner-up |
+| [Google Agent Platform](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview) | managed runtime、sessions、memory、computer use、sandbox、IAMを持つ | 強い代替。ただし本調査でtenant別のagent-owned browser profile/identity契約を確認できず不採用 |
+| [Microsoft Foundry Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/overview) | hosted container、session state、VM-isolated sandbox、managed identityを持つ | 強い代替。ただしmanaged browser profileとagent-owned outbound identityが一体化していないため不採用 |
+| [E2B persistence](https://e2b.dev/docs/sandbox/persistence) | filesystemとmemoryをpause/resumeできる | compute部品として優秀だが、tenant別identity/browser profile/audit/control planeを自作するため不採用 |
 | [Daytona persistence](https://www.daytona.io/docs/en/persistence/) | persistent filesystem、VM memory pause/resume、snapshot/forkを持つ | 同上 |
 | [Fly Machines suspend/resume](https://fly.io/docs/reference/suspend-resume/) | Firecracker snapshotで高速resume、suspend中はstorage課金だけ。ただしsnapshotは保証されずcold start必須 | 運用責任が大きいため不採用 |
 | 自前Kubernetes/Firecracker + Steel | 最大の自由度 | isolation、patch、autoscale、browser、viewer、vault、auditを全部所有するためv1では不採用 |
@@ -100,25 +107,25 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 
 1. 専用microVMでtenant実行を隔離できる。
 2. Browser Profileでログインを次回jobへ持ち越せる。
-3. Live ViewでOAuth/CAPTCHAだけ人へ引き継げる。
+3. Browser ProfileとIdentityをagent-owned principalだけに限定し、人間credentialをruntimeへ持ち込まない。
 4. Identityでrefresh token/API keyをmodelから隔離できる。
 5. CloudTrail/CloudWatch/session replayを既存receipt ledgerと結べる。
 6. Tokyo regionがあり、GA、CloudFormation対応である。
 7. 既存のNode business kernel、PostgreSQL job protocol、Inngest、Stripeを捨てずに接続できる。
 
-DigitalOcean Managed Agentsは概念的には非常に近い。しかし現在のpreview制約と、unattended triggerのapproval semanticsがLife Managerのeffect fenceと合わない。productionの第一選択にはしない。provider adapter境界を維持し、将来GAと安全契約が揃えば再評価する。
+DigitalOcean Managed Agentsは概念的には非常に近く、unattended triggerが`ask`を持たない点はLife ManagerのNo-human-loopと整合する。しかし現行の同時session上限、run lifecycle webhook/VPCの欠如、tenant別login stateをephemeral workerから独立して管理する契約を確認できない点からproductionの第一選択にはしない。provider adapter境界を維持し、これらの実測契約が揃えば再評価する。
 
 ## 4. componentの責任
 
 | Component | 唯一の責任 | 正本にしないもの |
 |---|---|---|
-| Railway API | Telegram/web ingress、auth済みtenant scope、Live View link発行 | job進行、receipt判定 |
+| Railway API | Telegram/web ingress、auth済みtenant scope、goal/status/result | job進行、receipt判定 |
 | Inngest | cron/event wake、再試行、tenant concurrency=1 | effectが成功したかの判断 |
 | Supabase PostgreSQL | tenant、goal、`lm_runtime_jobs`、lease、checkpoint、receipt、entitlement、cost ledger | credential値、browser cookie平文 |
 | AgentCore Runtime V2 | 有限jobを同一business kernel SHAで実行 | 永久memory、最終receiptの自己申告 |
-| AgentCore Browser | job中のbrowser automationとLive View | 永続的なbusiness state |
-| Browser Profile | tenant/provider別cookieとlocal storage | 複数tenant共有、receipt |
-| AgentCore Identity | OAuth refresh token/API key、agent identity | user goal、economic ledger |
+| AgentCore Browser | job中の自律browser automationとprovider readback | 永続的なbusiness state、人間操作 |
+| Browser Profile | tenant/provider別のagent-owned cookieとlocal storage | human credential、複数tenant共有、receipt |
+| AgentCore Identity | agent-owned OAuth refresh token/API key、agent identity | human credential、user goal、economic ledger |
 | S3 | artifact、screenshot、trace、session replay。DBにはhash/refだけ | query可能なjob state |
 | Stripe | subscription/paymentの公式状態 | agent jobの成功 |
 | CFO ledger | provider receipt + revenue - 全cost | passログや予測利益 |
@@ -130,8 +137,8 @@ DigitalOcean Managed Agentsは概念的には非常に近い。しかし現在�
 1. 利用者がTelegramまたはwebで「何を任せたいか」を1文で入れる。
 2. APIがtenantを作り、`free` entitlement、月次cost budget、1つのgoalを割り当てる。カードは要求しない。
 3. 最初はAPI/read-onlyで完了できる仕事を選び、10分以内に最初のverified resultを返す。
-4. ログインが必要になった時だけLive View linkを送る。利用者はスマホでOAuth/CAPTCHAを行い、Life Managerへ操作を返す。
-5. 以後はInngestが自動wakeし、通常結果は静かに保存し、material outcomeまたはhuman gateだけ通知する。
+4. 人間principalを要求する候補は選ばず、agent-owned identity/APIで完結する候補へ自動で切り替える。代替が無ければ`not_applicable`で閉じる。
+5. 以後はInngestが自動wakeし、通常結果は静かに保存する。通知はmaterial outcomeだけで、credential、許可、承認、再開を求めない。
 
 ### 5.2 scheduled wake
 
@@ -141,16 +148,16 @@ DigitalOcean Managed Agentsは概念的には非常に近い。しかし現在�
 4. budgetとrelease gateが通った時だけAgentCore Runtimeをinvokeする。
 5. runtimeは参照だけのtask capsuleを受け、必要なstateをtenant scopeで読む。
 6. jobは有限に終わり、checkpoint、usage、provider receipt ref、evidence hashを返す。
-7. control planeが公式readbackを行い、PostgreSQLでcomplete/retry/reconcile/human_waitを決定する。
+7. control planeが公式readbackを行い、PostgreSQLで`completed|retry|reconcile|not_applicable|policy_denied|blocked`を決定する。どの状態も人のcredential・承認・再開を待たず、他のeligible jobを継続する。
 8. microVMを終了する。次のjobは新しいmicroVMでも同じ正本から続く。
 
-### 5.3 browser jobとhuman gate
+### 5.3 browser jobとhuman-free principal selection
 
 1. API toolがあるproviderはGateway/API adapterを優先する。
 2. browserしかない場合、tenant/providerに紐づくBrowser Profileで新しいBrowser sessionを開始する。
-3. 外部作用直前に最新stateとeffect fenceを再読込する。
-4. OAuth/CAPTCHA/本人確認が必要ならjobを`human_wait`へ遷移し、短時間・単一job・単一tenantに束縛したLive View URLを送る。
-5. 利用者の操作完了後に明示resumeする。古いURLや別tenantからのresumeは拒否する。
+3. 外部作用直前に最新stateとeffect fenceを再読込し、policy内なら質問せず実行する。
+4. providerがhuman login、OAuth、CAPTCHA、2FA、3DS、KYC、面接、署名を要求したら外部作用を開始せず、その候補を`not_applicable: requires_human_principal`で閉じてagent-owned/API候補へ移る。
+5. user credential input、Live View takeover、approve/resume callbackは実装しない。human principalを要求する入力はprovider call 0で拒否する。
 6. 作用後はproviderのreceipt/readbackを取得する。取得できない場合は`effect_unknown`へ隔離し、自動再送しない。
 7. session stateをBrowser Profileへ保存してsessionを終了する。
 
@@ -162,7 +169,7 @@ DigitalOcean Managed Agentsは概念的には非常に近い。しかし現在�
 - `runtime_session_id`、`browser_session_id`、`browser_profile_id`はtenant mapからだけ取得し、client入力を信用しない。
 - 同一tenantのactive runtime leaseは最大1つ。別tenantは別microVM、別browser session、別profileを使う。
 - credential値はAgentCore Identityまたは既存server-side vaultだけに置き、prompt、job row、trace、Telegramへ出さない。
-- Live View URLは短時間、single-use、tenant/job/session boundにする。
+- Browser ProfileとIdentity refはagent-owned principalだけを許可し、人間credential値またはuser-supplied sessionを拒否する。
 - artifactは`tenant/<tenant_id>/...` prefixとKMSで分離し、DBにはrefとSHA-256だけ置く。
 - release SHAが承認済みSHAと違うruntimeは、state readやeffect前にfail closedする。
 - forged cross-tenant refのtestでは、backing provider callが0回であることを確認する。
@@ -273,11 +280,11 @@ Free→Paid conversionをactivated users基準で置くと、204,082 paidへ必�
 
 | Gate | 完了条件 |
 |---|---|
-| CL00 Provider proof | TokyoでAgentCore Runtime、Browser Profile、Live View、Identityのread-only canaryが実環境PASS。公式resource IDとusage/cost receiptを保存 |
+| CL00 Provider proof | TokyoでAgentCore Runtime、Browser、agent-owned Browser Profile、Identityのread-only canaryが実環境PASS。公式resource IDとusage/cost receiptを保存 |
 | CL01 Kernel parity | localとAgentCoreが同じ承認済みbusiness-kernel SHA、task capsuleから同じcanonical receipt/evidence hashを作る |
 | CL02 Tenant isolation | tenant Aからtenant Bのstate、credential ref、browser profile、session、receipt、artifactへ到達不能。provider call 0 |
 | CL03 Lifecycle | tenantごとactive runtime 1、jobごとbrowser session 1。timeout/crash/deploy後もstale leaseをreconcileし、cold startで再開 |
-| CL04 Phone-only | Telegramだけでstatus確認、Live View handoff、resume、公式readback、session releaseを1回完走 |
+| CL04 Phone-only | Telegram/webでgoal投入後、credential入力・確認・承認・resume 0でagent-owned action、公式readback、session releaseを完走。human principalを要求する候補はprovider call 0で`not_applicable`になり、別jobが継続 |
 | CL05 Promotion | main由来immutable releaseだけをdeployし、cloud canary、official readback、replay-zeroを確認 |
 | CL06 Cost/Free | Free capで追加computeをfail closedし、既存stateを保持。CFO ledgerでtenant/job単位のmodel/browser/runtime/tool costをjoin |
 | R01 Paid | StripeのFounding Pro subscription receiptを1件公式readbackし、entitlement反映とcancel/revokeを確認 |
@@ -291,7 +298,7 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 
 - Browser互換性canaryがAgentCoreで失敗したproviderだけ、既存Steel adapterを限定fallbackとして再評価する。
 - AgentCore outageはjobをretry/reconcileへ戻す。即座に別providerへ二重送信しない。
-- DigitalOceanへの変更は、GA、必要session数、Live View相当、VPC、lifecycle webhook、安全なhuman approvalが全部確認できた場合だけ行う。
+- DigitalOceanへの変更は、必要session数、agent-owned tenant別login continuity、VPC、lifecycle readback、決定的allow/deny policyが全部確認できた場合だけ行う。
 - provider変更後もPostgreSQLのjob/receipt/effect contractとbusiness-kernel SHAは変えない。
 
 ## 10. 非目標
@@ -309,6 +316,6 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 - **Base:** 一部providerでbrowser互換性調整が必要だが、API優先とAgentCore Browserで大半を処理し、限定fallbackだけ追加する。
 - **Worst:** AgentCore Browserが主要収益providerで動かない。この場合もbusiness kernel、PostgreSQL job、Inngest、Stripeは残り、browser adapterだけSteel/E2Bへ差し替える。
 
-棄却案の最強論拠は、DigitalOcean Managed Agentsなら「本当にtenantごとにpause可能な1 VM」を最短で得られること。ただし現時点のpreview制約とapproval semanticsは、外部作用を持つ有料Life Managerの安全要件より重い。
+棄却案の最強論拠は、DigitalOcean Managed Agentsなら「tenantごとにpause可能なagent + workspace + Chromium」を最短で得られ、no-ask triggerもLife Managerと整合すること。ただし現時点のsession scale、lifecycle readback、tenant別login continuity、phone bootstrapの未確認が、既存control planeへ採用する利点より重い。
 
-**この判断が間違う最有力の筋:** AgentCoreの実サイトbrowser互換性またはphone Live View UXが、一次資料どおりでもLife Managerの主要providerで実用にならないこと。したがってCL00を最初の有料実装前gateにする。
+**この判断が間違う最有力の筋:** AgentCoreの実サイトbrowser互換性、agent-owned login continuity、または実測unit costが、Life Managerの主要providerで実用にならないこと。したがってCL00を最初の有料実装前gateにする。
