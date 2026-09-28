@@ -66,7 +66,7 @@ Honest reframes that PASS: "from your input + model knowledge", "outputs self-co
 
 ## 8. LISTING FILE SHAPE (so build_config.py can parse it)
 `$LIFE_MANAGER_STATE_HOME/features/capafy-<name>/LISTING.md`:
-- header line: `Primary Model: Claude Sonnet 4.6 · category: <JP> ... tags: a, b, c`
+- header line: `Primary Model: DeepSeek V4.1 Flash · category: <JP> ... tags: a, b, c` (new skills default to DeepSeek V4.1 Flash — cheaper hosted model, see `build_config.py MODEL_IDS`; already-published Sonnet skills are not migrated)
 - a pricing table: `| cycle | price | cap | trial |` rows (trial = "No Free Trial" only)
 - `## Title` / `## shortDescription` / `## welcomeMessage` / `## detailedDescription`
 (internal notes above `## Title` are NOT submitted — only the labeled sections are.)

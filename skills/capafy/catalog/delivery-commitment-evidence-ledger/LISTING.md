@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: delivery operations, evidence ledger, project governance
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: delivery operations, evidence ledger, project governance
 
 R1 recurring input : Teams have commitments, acceptance wording, project updates, and delivery material scattered across their own documents.
 R2 recurring output: Each review produces a new traceable commitment-and-evidence ledger for the supplied material.

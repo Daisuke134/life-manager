@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 分析 · tags: AI evaluation, failure triage, evidence brief
+Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: AI evaluation, failure triage, evidence brief
 
 ## Offline selection notes
 

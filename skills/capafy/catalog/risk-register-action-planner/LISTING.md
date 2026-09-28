@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: project risk, risk register, project planning
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: project risk, risk register, project planning
 
 R1 recurring input : Each project review brings new risks, assumptions, decisions, owners, and constraints.
 R2 recurring output: Each review produces an updated evidence-bound risk register and action agenda.

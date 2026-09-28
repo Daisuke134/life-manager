@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: privacy notice, change brief, stakeholder deck, policy review
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: privacy notice, change brief, stakeholder deck, policy review
 
 R1 recurring input : Each product or notice revision brings different before-and-after wording, context, reviewers, and deadlines.
 R2 recurring output: Each revision produces a fresh, source-bound change brief with its own text ledger and open review questions.

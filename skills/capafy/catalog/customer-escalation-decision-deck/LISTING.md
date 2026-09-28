@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: customer escalation, decision deck, account management
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: customer escalation, decision deck, account management
 
 ## Offline selection notes
 

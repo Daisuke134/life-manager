@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: research presentation, findings, slide outline
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: research presentation, findings, slide outline
 
 RENEWAL GATE
 R1 recurring input : Each study update, lab meeting, conference talk, thesis defense, and coauthor review brings a different set of findings, constraints, and audience questions.

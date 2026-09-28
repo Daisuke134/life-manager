@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 分析 · tags: board update, executive communication, deck outline
+Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: board update, executive communication, deck outline
 
 R1 recurring input : Each board cycle supplies a new reporting period, metrics, risks, and decisions.
 R2 recurring output: Each cycle produces a fresh, traceable board-update storyboard from those supplied facts.
