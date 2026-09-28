@@ -301,17 +301,27 @@ function makeStagehandSteelDriver(options = {}) {
   const invalidateBrowserAuthSession =
     options.invalidateBrowserAuthSession || defaultInvalidateBrowserAuthSession;
   const now = typeof options.now === "function" ? options.now : Date.now;
+  const sessionLease = options.sessionLease || null;
+  if (sessionLease) {
+    for (const method of ["acquire", "attach", "release", "isOwner", "reapExpired"]) {
+      if (typeof sessionLease[method] !== "function") {
+        throw new Error(`Stagehand Steel session lease missing ${method}`);
+      }
+    }
+  }
   const sessions = new Map();
   const authSessions = new Map();
+  const leasedSessions = new Map();
 
   return {
-    hasHeldSession() { return sessions.size > 0; },
+    hasHeldSession() { return sessions.size > 0 || leasedSessions.size > 0; },
     async releaseExpiredSessions() {
       let released = 0;
+      if (sessionLease) released += await sessionLease.reapExpired();
       for (const [id, open] of [...sessions]) {
         if (!open || !Number.isFinite(open.heldAt) || open.heldAt + 10 * 60 * 1000 > now()) continue;
-        await this.releaseSession(id, { providerReceipt: { handoffReason: "expired" } });
-        released += 1;
+        const receipt = await this.releaseSession(id, { providerReceipt: { handoffReason: "expired" } });
+        if (!receipt.already_released) released += 1;
       }
       return released;
     },
@@ -324,9 +334,14 @@ function makeStagehandSteelDriver(options = {}) {
       });
     },
     async openSession(input = {}) {
+      let lease = null;
+      if (sessionLease) {
+        lease = await sessionLease.acquire({ tenantId: input.uid, ownerId: input.ownerId });
+      }
       let auth = null;
       let context;
-      if (input && input.requiresLogin === true) {
+      try {
+        if (input && input.requiresLogin === true) {
         const explicitUrl = explicitPublicHttpsUrl(input.goal);
         if (explicitUrl) {
           const identity = {
@@ -354,9 +369,19 @@ function makeStagehandSteelDriver(options = {}) {
           }
         }
       }
+      } catch (error) {
+        if (lease) await sessionLease.release(lease);
+        throw error;
+      }
       const createOptions = { blockAds: true };
       if (context !== undefined) createOptions.sessionContext = context;
-      const created = await steelClient.createRawSession(createOptions);
+      let created;
+      try {
+        created = await steelClient.createRawSession(createOptions);
+      } catch (error) {
+        if (lease) await sessionLease.release(lease);
+        throw error;
+      }
       let session;
       try {
         session = privateSession(created);
@@ -364,7 +389,18 @@ function makeStagehandSteelDriver(options = {}) {
         if (created && created.id) {
           try { await steelClient.releaseSession(String(created.id)); } catch { /* preserve validation */ }
         }
+        if (lease) await sessionLease.release(lease);
         throw error;
+      }
+      if (lease) {
+        try {
+          lease = await sessionLease.attach({ ...lease, sessionId: String(session.id) });
+          leasedSessions.set(String(session.id), lease);
+        } catch (error) {
+          try { await steelClient.releaseSession(String(session.id)); } catch { /* preserve lease error */ }
+          await sessionLease.release(lease);
+          throw error;
+        }
       }
       if (auth) authSessions.set(String(session.id), auth);
       return session;
@@ -721,8 +757,17 @@ function makeStagehandSteelDriver(options = {}) {
       const id = String(sessionId || "");
       const open = sessions.get(id);
       const auth = authSessions.get(id);
+      const lease = leasedSessions.get(id);
       sessions.delete(id);
       authSessions.delete(id);
+
+      if (lease && !await sessionLease.isOwner(lease)) {
+        leasedSessions.delete(id);
+        if (open && open.stagehand && typeof open.stagehand.close === "function") {
+          try { await open.stagehand.close(); } catch { /* provider session is already stale-released */ }
+        }
+        return { released: true, lease_released: true, already_released: true };
+      }
 
       let authContextSaved = false;
       let authContextInvalidated = false;
@@ -773,7 +818,13 @@ function makeStagehandSteelDriver(options = {}) {
         try { await open.stagehand.close(); } catch { /* Steel release below owns the real slot */ }
       }
       const released = await steelClient.releaseSession(id);
+      let leaseReleased = false;
+      if (released === true && lease) {
+        leaseReleased = await sessionLease.release(lease);
+        if (leaseReleased) leasedSessions.delete(id);
+      }
       const receipt = { released: released === true };
+      if (lease) receipt.lease_released = leaseReleased === true;
       if (!auth) return receipt;
       return {
         ...receipt,

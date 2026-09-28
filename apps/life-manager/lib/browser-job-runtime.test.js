@@ -142,6 +142,7 @@ test("the durable worker passes exact job identity and only a closed provider re
 
   assert.deepEqual(openInput, {
     uid: "u-1",
+    ownerId: "job-1",
     goal: "Open https://auth.example/account",
     requiresLogin: true,
     principalKind: "user_provided",

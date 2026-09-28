@@ -106,6 +106,7 @@ async function runGenericBrowserTask(job, deps) {
   try {
     session = await deps.openSession({
       uid: job.uid,
+      ownerId: job.id,
       goal: job.goal,
       requiresLogin: job.requires_login === true,
       principalKind: job.principal_kind,

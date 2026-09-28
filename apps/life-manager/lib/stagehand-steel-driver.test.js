@@ -7,6 +7,10 @@ const {
   collectReadOnlyDomSnapshot,
   makeStagehandSteelDriver,
 } = require("./stagehand-steel-driver.js");
+const {
+  createMemoryBrowserSessionLeaseStore,
+  createBrowserSessionLeaseCoordinator,
+} = require("./browser-session-lease.js");
 
 function visibleElement(metadata = {}, innerText = "") {
   return {
@@ -175,6 +179,7 @@ function fixture(fixtureOptions = {}) {
     upsertBrowserAuthSession,
     invalidateBrowserAuthSession,
     now: fixtureOptions.now,
+    sessionLease: fixtureOptions.sessionLease,
   });
   return { driver, calls, authCalls, getOptions: () => options };
 }
@@ -241,6 +246,26 @@ test("expired held session releases the exact Steel slot once", async () => {
   assert.equal(driver.hasHeldSession(), false);
   assert.equal(calls.filter(([name, id]) => name === "release" && id === session.id).length, 1);
   assert.equal(await driver.releaseExpiredSessions(), 0);
+});
+
+test("shared lease prevents a second driver owner from creating a Steel session", async () => {
+  const store = createMemoryBrowserSessionLeaseStore();
+  const lease = createBrowserSessionLeaseCoordinator(store, {
+    now: () => 1_800_000_000_000,
+    ttlMs: 600_000,
+    releaseProviderSession: async () => true,
+  });
+  const first = fixture({ sessionLease: lease });
+  const second = fixture({ sessionLease: lease });
+
+  await first.driver.openSession({ uid: "tenant-a", ownerId: "job-a" });
+  await assert.rejects(
+    second.driver.openSession({ uid: "tenant-a", ownerId: "job-b" }),
+    /Browser session lease unavailable/i,
+  );
+
+  assert.equal(first.calls.filter(([name]) => name === "create").length, 1);
+  assert.equal(second.calls.filter(([name]) => name === "create").length, 0);
 });
 
 test("a listing/search page is never accepted as the selected provider action page", async () => {
