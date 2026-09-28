@@ -648,3 +648,5 @@ TODO（何を・どう直すか）
 - `launchctl` の変更は `bin/launchctl-safe` 経由だけで行う。
 
 **投資lane所有権再確認（2026-09-29）**: Life Managerが投資loopのruntime ownerであり、Codexはこの投資candidate・検証証拠・owner-path handoffを担当する。最新`origin/main=5dfb1f84f6`をcandidate merge `7efcd1a13a`へ同期済み。candidateは投資境界を保持するが、production loaded release `20260929T052319-5dfb1f84`は旧`borrow/support` admissionでETF/cross-venue未搭載。次はcandidate verification → shared contract gate green → Life Manager immutable release handoff → natural paper receipt → official cost-complete P&L。共有gateの迂回、host DB直接変更、Binance送金、live注文、29回の手動wakeはしない。
+
+**投資candidate検証readback（2026-09-29）**: candidate `46eec8d617`はpush済みでclean。`./bin/lm-loop doctor`は`ok=true`・registry `170`・missing/unmanagedなし、Alpaca `200/200`、investment-core `101/101`。全体contract gateは既存のrecovery-class mismatchでREDのままで、投資laneは変更していない。provider receipt、注文、資金投入、P&Lは新規発生していない。次のcursorはshared gate green後のimmutable release handoff。
