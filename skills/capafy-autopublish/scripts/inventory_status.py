@@ -201,6 +201,20 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     occupied = (normalized.get("counts") or {}).get("occupied")
     if not isinstance(occupied, int) or isinstance(occupied, bool) or occupied < 0:
         return {"verdict": "SERVER_UNREADABLE"}
+    # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
+    # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
+    # re-selected every wake while three slots sat empty and Hook Lab's
+    # DeepSeek update (cost > revenue on Sonnet) waited behind it.
+    if updates and occupied < CAP:
+        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        request = item["update_request"]
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "paid existing Agent has an explicit version update request",
+            "action": "update_existing",
+            "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
+            "item": item,
+        }
     if resumable_drafts:
         item = min(
             resumable_drafts,
