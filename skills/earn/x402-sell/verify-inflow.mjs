@@ -3,6 +3,7 @@
 // INV-7: never counted as revenue) vs external (real earnings). No API key: public Base RPC.
 //   node verify-inflow.mjs [hoursBack=48]
 import { SELF_WALLETS } from "./lib/self-wallets.mjs";
+import { BASE_LOG_CHUNK_SIZE, chunkBlockRanges } from "./lib/rpc-log-range.mjs";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -33,10 +34,9 @@ async function rpc(method, params) {
 const latest = parseInt(await rpc("eth_blockNumber", []), 16);
 const fromBlock = latest - HOURS * BLOCKS_PER_HOUR;
 const toTopic = "0x" + PAY_TO.slice(2).padStart(64, "0");
-const CHUNK = 10_000; // public RPC getLogs range cap
+const CHUNK = BASE_LOG_CHUNK_SIZE;
 const logs = [];
-for (let start = fromBlock; start <= latest; start += CHUNK) {
-  const end = Math.min(start + CHUNK - 1, latest);
+for (const [start, end] of chunkBlockRanges(fromBlock, latest, CHUNK)) {
   logs.push(...await rpc("eth_getLogs", [{
     address: USDC, fromBlock: "0x" + start.toString(16), toBlock: "0x" + end.toString(16),
     topics: [TRANSFER_TOPIC, null, toTopic],
