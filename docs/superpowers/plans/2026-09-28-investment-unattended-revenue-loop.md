@@ -27,6 +27,14 @@
 - このlaneは他agentのworktree、Capafy、PromptBaseを変更しない。Life Manager runtimeのregistry/apply/host制御は専用runtime手順で扱い、投資laneから別のagentへ依頼する設計にはしない。
 - owner wallet/口座から外部へ資金を出す操作、Binance transfer、wallet creation、signed orderはこの計画では実行しない。
 
+## Wealth architecture and money target
+
+The long-run plan uses a diversified core plus capped experimental sleeves: 90% core wealth account (Japanese NISA/regulated brokerage), 5% measured Alpaca trading, 3% Hyperliquid only after read-only/shadow proof, and 2% Solana/meme-coin experiments only after a prior venue is positive. This is a future allocation rule, not current funding authorization; the existing `$100`/`$25`/`$2` caps remain stricter.
+
+`$10,000/month` is not an expected platform yield. At hypothetical net monthly returns of 2%, 5%, and 10%, the arithmetic capital requirements are `$500,000`, `$200,000`, and `$100,000`, respectively; the plan assumes none of those returns. A `$100` cap cannot rationally be reported as `$10,000/month`.
+
+For generational wealth, the compounding target is explicit: at a hypothetical 8% annual nominal return, monthly contributions are approximately `$671` for `$1M` in 30 years, `$3,355` for `$5M`, or `$6,710` for `$10M`. These figures are illustrations, not forecasts or guarantees.
+
 ## Review Focus
 
 - deferred wakeがtrade sampleに化ける: `1,047` wakeは往復数ではなく、official completed round tripだけを数える。

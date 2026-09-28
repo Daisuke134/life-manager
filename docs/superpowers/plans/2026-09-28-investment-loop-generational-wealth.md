@@ -12,6 +12,23 @@
 
 Life Manager is the investment-loop owner. `config/loop-registry.json` confirms `alpaca-investment-live` with a 300-second cadence, `skills/alpaca-investment/run.py`, and an effect-reconcile entrypoint. The earlier `lm-lead` wording was an unverified agent label, not a required person or dependency; it is historical context only. The active order is Life Manager runtime health → natural wake → official P&L → conditional sample gate → one-step promotion.
 
+## Actual wealth architecture
+
+The recommended game is a barbell, not a single trading bot:
+
+1. **Core wealth engine — 90% long-run target:** a Japanese regulated brokerage NISA account holding a low-cost, broadly diversified fund/ETF selected from the current eligible list. This is the compounding and inheritance base; Life Manager records contributions, balances, fees, and monthly net worth but does not invent returns.
+2. **Measured trading engine — 5% long-run target:** Life Manager's Alpaca strategy. It stays at the current `$100` cap until official cost-complete net P&L is positive and the promotion gate passes. The percentage is a future allocation rule, not a request to transfer money now.
+3. **High-risk research sleeve — 3% long-run target:** Hyperliquid only after read-only/shadow evidence and a separate funding boundary. Current leg cap remains `$25`; no Binance transfer now.
+4. **Experimental sleeve — 2% long-run target:** Solana/meme-coin scout → paper → one `$2` canary with a `$3` cumulative ceiling, only after a prior venue has reproducible positive net. This is not a generational-wealth foundation.
+
+The 90/5/3/2 split is a planning default after emergency/tax/operating reserves are funded; it does not authorize a deposit, order, wallet, or leverage. The current live caps and fail-closed gates override it.
+
+### Capital reality
+
+`$10,000/month` of trading net is a measured outcome, not a platform promise. Pure arithmetic says the required capital would be `$500,000` at a hypothetical 2% monthly net return, `$200,000` at 5%, or `$100,000` at 10%; none of those returns is assumed or guaranteed. With a `$100` cap, a 5% monthly result would be `$5`, not `$10,000`.
+
+For long-run wealth, a hypothetical 8% annual nominal return with monthly contributions would require approximately `$671/month` for `$1M` in 30 years, `$3,355/month` for `$5M`, or `$6,710/month` for `$10M`. These are planning illustrations before tax, inflation, fees, and losses; they are not forecasts.
+
 **Spec:** `docs/superpowers/specs/2026-09-01-alpaca-money-maximizer-design.md` §7.3 and §8 L18; `docs/superpowers/plans/2026-09-27-hyperliquid-carry-live-loop.md`; `docs/superpowers/plans/2026-09-27-solana-memecoin-copy-trading.md`; `docs/superpowers/plans/2026-09-27-cross-venue-capital-allocator-net-pnl.md`.
 
 ## Global Constraints
