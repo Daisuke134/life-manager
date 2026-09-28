@@ -424,13 +424,26 @@ test("EN affirmation lane binds exact identity and six media in order", () => {
   assert.equal(value.input_refs.approval_ref, EN_APPROVAL_REF);
 });
 
-test("EN lane rejects alternate self-consistent references before provider", () => {
-  assert.throws(() => enJob({
+test("EN lane accepts a different gate-approved (rotated) pack instead of only the one pinned pack", () => {
+  // Root-cause regression test: this lane used to reject any pack/media/
+  // caption/approval that did not match the one hardcoded lane.packRef byte
+  // for byte, which is exactly what made it repost the same caption/slide
+  // text forever (anicca-larry-ja-rotating.js now feeds it a fresh pack every
+  // slot). Full pack/approval content is still verified downstream against
+  // the resolved object store contents (see "pack and approval mismatches
+  // fail before transport"), so this does not weaken validation -- it only
+  // stops requiring one specific pinned pack.
+  assert.equal(EN_AFFIRMATION_LANE.rotationEnabled, true);
+  const rotated = enJob({
     packRef: `object://sha256/${"f".repeat(64)}`,
     mediaRefs: EN_MEDIA_REFS.map((_, index) => `object://sha256/${String(index + 1).repeat(64)}`),
     captionRef: `object://sha256/${"e".repeat(64)}`,
     approvalRef: `object://sha256/${"d".repeat(64)}`,
-  }), /lane|reference|identity/i);
+  });
+  assert.equal(rotated.input_refs.pack_ref, `object://sha256/${"f".repeat(64)}`);
+  // Identity fields (product/format/form/locale/account/integration) are
+  // still pinned -- only the content refs became rotatable.
+  assert.throws(() => enJob({ accountId: "@someone-else" }), /invalid|identity/i);
 });
 
 test("changing only ordered media changes effect identity", () => {
@@ -475,6 +488,44 @@ test("pack and approval mismatches fail before transport", async () => {
     );
   }
   assert.equal(transports, 0);
+});
+
+test("execute refuses to post when the caption or slide text was already posted to this account in the last 7 days", async () => {
+  const value = job();
+  let transports = 0;
+  const services = fixtureServices(value, {
+    runDistribution: async () => { transports += 1; throw new Error("transport reached"); },
+  });
+  fs.mkdirSync(path.dirname(services.ledgerPath), { recursive: true });
+  fs.writeFileSync(services.ledgerPath, `${JSON.stringify({
+    effect_key: "prior-effect",
+    job_id: "prior-job",
+    receipt: {
+      integration_ref: INTEGRATION_REF,
+      caption_sha256: CAPTION_REF.slice(-64),
+      text_sha256: "f".repeat(64),
+      published_at: "2026-08-24T07:31:00.000Z", // 2 days before the fixture clock, inside the 7-day window
+    },
+  })}\n`);
+  await assert.rejects(
+    executeMarketingNativeCarouselPublicationJob(value, services),
+    /already posted to this account within the last 7 days/i,
+  );
+  assert.equal(transports, 0);
+});
+
+test("execute does not block a caption/slide text posted to a DIFFERENT account, or outside the 7-day window", async () => {
+  const value = job();
+  const services = fixtureServices(value, {
+    runDistribution: async () => ({ state: "PUBLISHED", reconciled: true, post_id: "postiz-carousel-fresh-1", post_url: URL }),
+  });
+  fs.mkdirSync(path.dirname(services.ledgerPath), { recursive: true });
+  fs.writeFileSync(services.ledgerPath, [
+    { effect_key: "e1", job_id: "j1", receipt: { integration_ref: "integration://postiz/instagram/some-other-account", caption_sha256: CAPTION_REF.slice(-64), published_at: "2026-08-25T07:31:00.000Z" } },
+    { effect_key: "e2", job_id: "j2", receipt: { integration_ref: INTEGRATION_REF, caption_sha256: CAPTION_REF.slice(-64), published_at: "2026-08-01T07:31:00.000Z" } }, // >7 days old
+  ].map((row) => `${JSON.stringify(row)}\n`).join(""));
+  const result = await executeMarketingNativeCarouselPublicationJob(value, services);
+  assert.equal(result.receipt.status, "published");
 });
 
 test("execute resolves and SHA-checks object refs, then returns verified receipt", async () => {

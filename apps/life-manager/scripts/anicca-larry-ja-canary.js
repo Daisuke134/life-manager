@@ -112,7 +112,12 @@ function laneConfig(env, parsed, now, lane = JA_RUNNER_LANE) {
   for (const [ref, label] of [[packRef, "pack"], [captionRef, "caption"], [approvalRef, "approval"]]) {
     if (!OBJECT_REF.test(ref)) throw new Error(`${lane.name} ${label} ref is invalid`);
   }
-  if (lane.packRef && (packRef !== lane.packRef || JSON.stringify(mediaRefs) !== JSON.stringify(lane.mediaRefs)
+  // rotationEnabled lanes accept any gate-approved rotated pack fed in via
+  // env vars (see marketing-native-carousel-publication-adapter.js's
+  // selectMarketingNativeCarouselLane, which relaxes the same check) instead
+  // of only the one pinned lane.packRef -- that pin is what caused the same
+  // pack to repost forever for these lanes.
+  if (lane.packRef && !lane.rotationEnabled && (packRef !== lane.packRef || JSON.stringify(mediaRefs) !== JSON.stringify(lane.mediaRefs)
     || captionRef !== lane.captionRef || approvalRef !== lane.approvalRef)) {
     throw new Error(`${lane.name} dedicated object references are not the approved lane`);
   }
@@ -359,4 +364,4 @@ if (require.main === module) {
   runAniccaCarouselCanary(process.argv.slice(2)).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => { if (error && error.code === "NO_DUE_SLOT") { process.stdout.write(`${JSON.stringify({ status: "no_due_slot", reason: error.message })}\n`); return; } process.stderr.write(`${error.message}\n`); process.exitCode = 1; });
 }
 
-module.exports = { ACCOUNT_ID, EN_AFFIRMATION_LANE, EN_AFFIRMATION_PRODUCTION_SLOTS, EN_AFFIRMATION_TIKTOK_LANE, EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS, EN_SLIDESHOW_TIKTOK_LANE, INTEGRATION_REF, JA_JP1_TIKTOK_LANE, JA_JP1_TIKTOK_PRODUCTION_SLOTS, JA_LARRY_PRODUCTION_SLOTS, JA_MAIN_TIKTOK_LANE, JA_MAIN_TIKTOK_PRODUCTION_SLOTS, LANE, assertProductionControls, enAffirmationProductionSlot, enSlideshowProductionSlot, jaLarryProductionSlot, parseArgs, runAniccaCarouselCanary, runAniccaEnAffirmationInstagramCanary, runAniccaEnSlideshowTikTokCanary, runAniccaJp1TikTokCanary, runAniccaLarryJaCanary, verifyNativeObject };
+module.exports = { ACCOUNT_ID, EN_AFFIRMATION_LANE, EN_AFFIRMATION_PRODUCTION_SLOTS, EN_AFFIRMATION_TIKTOK_LANE, EN_AFFIRMATION_TIKTOK_PRODUCTION_SLOTS, EN_SLIDESHOW_PRODUCTION_SLOTS, EN_SLIDESHOW_TIKTOK_LANE, INTEGRATION_REF, JA_BUDDHA_TIKTOK_PRODUCTION_SLOTS, JA_JP1_TIKTOK_LANE, JA_JP1_TIKTOK_PRODUCTION_SLOTS, JA_LARRY_PRODUCTION_SLOTS, JA_MAIN_TIKTOK_LANE, JA_MAIN_TIKTOK_PRODUCTION_SLOTS, LANE, assertProductionControls, enAffirmationProductionSlot, enSlideshowProductionSlot, jaLarryProductionSlot, parseArgs, runAniccaCarouselCanary, runAniccaEnAffirmationInstagramCanary, runAniccaEnSlideshowTikTokCanary, runAniccaJp1TikTokCanary, runAniccaLarryJaCanary, verifyNativeObject };

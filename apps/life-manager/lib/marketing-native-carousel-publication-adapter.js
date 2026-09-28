@@ -88,6 +88,15 @@ const EN_AFFIRMATION_LANE = Object.freeze({
   manifestAccount: "anicca-ios-en-affirmation-instagram",
   renderer: "larry",
   lane: "anicca-en-affirmation-instagram",
+  // Root-cause fix (2026-09-29): this lane was reposting the same fixed pack
+  // over and over because the checks below rejected any pack that did not
+  // match these pinned refs byte-for-byte. rotationEnabled skips that exact-
+  // match enforcement (mirrors JA_LANE, which never pinned a fixed pack) so
+  // anicca-larry-ja-rotating.js can feed it a fresh, gate-approved pack every
+  // slot. The pinned refs below stay as-is: they document/exercise the
+  // original approved pack in tests and remain valid content, just no longer
+  // the ONLY content this lane will accept.
+  rotationEnabled: true,
   creativeId: "EN-AFFIRMATION-CAROUSEL-da8d8265",
   packRef: "object://sha256/e23cd41257832d2032fd889bd9a16ec95ea8dc213cdd7a2e3f820fbe1578669e",
   mediaRefs: Object.freeze([
@@ -151,6 +160,8 @@ const EN_SLIDESHOW_TIKTOK_LANE = Object.freeze({
   manifestAccount: "anicca-ios-en-slideshow-tiktok",
   renderer: "slideshow",
   lane: "anicca-en-slideshow-tiktok",
+  // See EN_AFFIRMATION_LANE's rotationEnabled comment above -- same fix.
+  rotationEnabled: true,
   creativeId: "EN-SLIDESHOW-PROCRASTINATION-05090bf2b4ee-R2",
   title: "PROCRASTINATION ISN'T LAZINESS.",
   packRef: "object://sha256/3241653ecc9239663de3151426d01a6b1c34cfe7c130288e928fab6686de624c",
@@ -192,6 +203,10 @@ const JA_MAIN_TIKTOK_LANE = Object.freeze({
   manifestAccount: "anicca-ios-ja-tiktok",
   renderer: "larry",
   lane: "anicca-main-ja-tiktok",
+  // See EN_AFFIRMATION_LANE's rotationEnabled comment above -- same fix.
+  // JA_JP1_TIKTOK_LANE and JA_BUDDHA_TIKTOK_LANE below spread this lane, so
+  // they inherit rotationEnabled automatically.
+  rotationEnabled: true,
   creativeId: "JA-SUNSET-LARRY-20d53f17",
   title: "メンタルが強い人の口癖５選",
   packRef: "object://sha256/63e2b1b84342253b3d54eac4b428293572ee285906b38c5aacad614cd1a83664",
@@ -295,8 +310,13 @@ function selectMarketingNativeCarouselLane(input = {}) {
   if (input.lane !== undefined && input.lane !== lane) fail("marketing native carousel lane is not trusted");
   if (input.accountRef !== undefined && input.accountRef !== lane.accountRef) fail("marketing native carousel account reference is invalid");
   if (input.nativeOwner !== undefined && input.nativeOwner !== lane.nativeOwner) fail("marketing native carousel native owner is invalid");
-  if (lane.creativeId && input.creativeId !== undefined && input.creativeId !== lane.creativeId) fail("marketing native carousel creative is not approved");
-  if (lane.packRef && ((input.packRef !== undefined && input.packRef !== lane.packRef)
+  if (lane.creativeId && !lane.rotationEnabled && input.creativeId !== undefined && input.creativeId !== lane.creativeId) fail("marketing native carousel creative is not approved");
+  // rotationEnabled lanes (see the lane definitions above) accept any
+  // gate-approved rotated pack instead of only the one pinned lane.packRef --
+  // that pin is what caused the same pack to repost forever. Full pack
+  // identity is still verified downstream (assertPack/assertApproval against
+  // the resolved object store contents), so this does not weaken validation.
+  if (lane.packRef && !lane.rotationEnabled && ((input.packRef !== undefined && input.packRef !== lane.packRef)
     || (input.mediaRefs !== undefined && !sameArray(input.mediaRefs, lane.mediaRefs))
     || (input.captionRef !== undefined && input.captionRef !== lane.captionRef)
     || (input.approvalRef !== undefined && input.approvalRef !== lane.approvalRef))) {
@@ -455,7 +475,7 @@ function runPostizCarouselProcess(input) {
   try { return JSON.parse(lines[0]); } catch { const error = new Error("marketing native carousel Postiz returned invalid JSON"); error.unknownEffect = true; throw error; }
 }
 
-function provider(result, lane, expectedContentSha256) {
+function provider(result, lane, expectedContentSha256, expectedTitle) {
   const state = result && (result.state || result.status);
   const postId = result && (result.provider_post_id || result.post_id);
   const url = result && (result.public_url || result.post_url);
@@ -465,9 +485,14 @@ function provider(result, lane, expectedContentSha256) {
   // line (see buildMarketingCtaCaption), so the posted-content hash the
   // provider echoes back is checked against that computed hash rather than
   // the pinned approval's caption hash.
+  // Fixed lanes pin lane.title to the one approved pack's hook text. Rotation
+  // lanes post a different hook every time, so the title actually posted
+  // (the pack's own slide 1 text, passed in as expectedTitle) is what must be
+  // echoed back -- not a lane-wide constant.
+  const titleOk = lane.rotationEnabled ? result.title === expectedTitle : result.title === lane.title;
   const photoProof = lane.platform === "tiktok" && url == null
     && result.integration_id === lane.integrationId && result.content_sha256 === expectedContentSha256
-    && result.title === lane.title && result.posting_method === "DIRECT_POST"
+    && titleOk && result.posting_method === "DIRECT_POST"
     && /^p_pub_url~v2\.[0-9]+$/.test(String(result.release_id || ""));
   if (!result || state !== "PUBLISHED" || reconciled !== true || !PROVIDER_ID.test(String(postId || "")) || (!direct && !photoProof)) { const error = new Error("marketing native carousel provider result contract mismatch"); error.unknownEffect = true; throw error; }
   return { postId: String(postId), url: direct ? String(url) : null, ...(photoProof ? { state, integrationId: result.integration_id, contentSha256: result.content_sha256, title: result.title, postingMethod: result.posting_method, releaseId: result.release_id } : {}) };
@@ -504,7 +529,9 @@ function verifyMarketingNativeCarouselPublicationReceipt(receipt) {
     && receipt.provider_integration_id === lane.integrationId
     && HASH.test(String(receipt.caption_with_cta_sha256 || ""))
     && receipt.provider_content_sha256 === receipt.caption_with_cta_sha256
-    && receipt.provider_title === lane.title
+    && (lane.rotationEnabled
+      ? typeof receipt.provider_title === "string" && receipt.provider_title.trim() !== ""
+      : receipt.provider_title === lane.title)
     && receipt.provider_posting_method === "DIRECT_POST"
     && /^p_pub_url~v2\.[0-9]+$/.test(String(receipt.provider_release_id || ""));
   if (!direct && !photoApiProof) return false;
@@ -527,6 +554,41 @@ function services(deps = {}, lane = JA_LANE) {
 function ledgerFor(s, tenantId, productId = PRODUCT_ID) { if (typeof s.ledgerPath === "function") return s.ledgerPath(tenantId, productId); if (typeof s.ledgerPath === "string" && s.ledgerPath.trim()) return s.ledgerPath; fail("marketing native carousel distribution ledger path is invalid"); }
 function appendRow(file, job, receipt) { fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 }); fs.appendFileSync(file, `${JSON.stringify({ effect_key: job.effect_key, job_id: job.job_id, receipt })}\n`, { encoding: "utf8", mode: 0o600 }); fs.chmodSync(file, 0o600); }
 
+// Shared pre-publish duplicate-content guard (used by every lane, fixed or
+// rotating): even though rotation already avoids reposting the exact same
+// generated pack for MIN_DAYS_BETWEEN_REPEAT days (see
+// generate-larry-slide-pack.js), this is the belt-and-suspenders check that
+// looks at what was ACTUALLY posted to this Postiz account and refuses to
+// publish if the caption text or the slide text was already posted there in
+// the last FRESH_TEXT_WINDOW_DAYS days -- regardless of which pack it came
+// from. It reads the local publication ledger (the same file every lane
+// already appends its receipts to); a missing/empty ledger has no history,
+// so nothing is blocked. Throws a plain (non-unknownEffect) error so the
+// caller fails this one publish attempt closed without ever reaching the
+// provider -- the rotation pool simply tries a different candidate next run.
+const FRESH_TEXT_WINDOW_DAYS = 7;
+function recentAccountReceipts(ledgerPath, integrationRef, windowDays, nowIso) {
+  let lines;
+  try { lines = fs.readFileSync(ledgerPath, "utf8").split(/\r?\n/).filter(Boolean); } catch (error) { if (error.code === "ENOENT") return []; fail("marketing native carousel distribution ledger is invalid"); }
+  const cutoffMs = Date.parse(nowIso) - Number(windowDays) * 86400000;
+  const receipts = [];
+  for (const line of lines) {
+    let row;
+    try { row = JSON.parse(line); } catch { fail("marketing native carousel distribution ledger is invalid"); }
+    const receipt = row && row.receipt;
+    if (!receipt || receipt.integration_ref !== integrationRef) continue;
+    const publishedMs = Date.parse(String(receipt.published_at || ""));
+    if (!Number.isFinite(publishedMs) || publishedMs < cutoffMs) continue;
+    receipts.push(receipt);
+  }
+  return receipts;
+}
+function assertFreshCaptionAndSlideText({ ledgerPath, integrationRef, captionSha256, textSha256, windowDays = FRESH_TEXT_WINDOW_DAYS, now }) {
+  const recent = recentAccountReceipts(ledgerPath, integrationRef, windowDays, now);
+  const dupe = recent.find((receipt) => receipt.caption_sha256 === captionSha256 || receipt.text_sha256 === textSha256);
+  if (dupe) fail(`marketing native carousel caption or slide text was already posted to this account within the last ${windowDays} days`);
+}
+
 async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   const contract = normalizeJob(job);
   const lane = contract.lane;
@@ -545,6 +607,14 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   const pack = readJson(packPath, "marketing native carousel pack");
   assertPack(pack, { ...contract, expectedCaption: caption }, caption, lane);
   assertApproval(readJson(approvalPath, "marketing native carousel approval"), contract, lane);
+  const textSha256 = digestJson(pack.slides.map((slide) => slide.text));
+  assertFreshCaptionAndSlideText({
+    ledgerPath: ledgerFor(s, job.tenant_id, lane.productId),
+    integrationRef: contract.integrationRef,
+    captionSha256: contract.captionHash,
+    textSha256,
+    now: s.now(),
+  });
   const token = await s.secretProvider.get(job.tenant_id, contract.postizTokenRef);
   if (typeof token !== "string" || !token.trim()) fail("marketing native carousel Postiz token is invalid");
   // The approved caption above is the pinned, human-approved base text (its
@@ -579,8 +649,8 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   } finally {
     fs.rmSync(ctaWorkspace, { recursive: true, force: true });
   }
-  const published = provider(result, lane, ctaCaptionSha256);
-  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, provider_post_id: published.postId, provider_reconciled: true, public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
+  const published = provider(result, lane, ctaCaptionSha256, pack.slides[0].text);
+  const receipt = { schema_version: 1, kind: "marketing_native_carousel_distribution", status: "published", product_id: lane.productId, format_id: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, account_id: lane.accountId, integration_ref: contract.integrationRef, creative_id: contract.creativeId, pack_sha256: contract.packHash, media_sha256: [...contract.mediaHashes], media_order_sha256: mediaOrderHash(contract.mediaHashes), caption_sha256: contract.captionHash, caption_with_cta_sha256: ctaCaptionSha256, text_sha256: textSha256, provider_post_id: published.postId, provider_reconciled: true, public_url: published.url, ...(published.url == null ? { provider_state: published.state, provider_integration_id: published.integrationId, provider_content_sha256: published.contentSha256, provider_title: published.title, provider_posting_method: published.postingMethod, provider_release_id: published.releaseId } : {}), published_at: instant(s.now(), "marketing native carousel publication time") };
   if (!verifyMarketingNativeCarouselPublicationReceipt(receipt)) { const error = new Error("marketing native carousel publication receipt verification failed"); error.unknownEffect = true; throw error; }
   appendRow(ledgerFor(s, job.tenant_id, lane.productId), job, receipt);
   return { receipt, result };
@@ -604,4 +674,4 @@ function createMarketingNativeCarouselPublicationLoopAdapter(deps = {}) {
   return Object.freeze({ plan: async (input) => [buildMarketingNativeCarouselPublicationJob(input)], execute: (job, extra = {}) => executeMarketingNativeCarouselPublicationJob(job, { ...deps, ...extra }), reconcile: async (effect) => reconcile(effect, services(deps)), verify: verifyMarketingNativeCarouselPublicationReceipt, report: summary });
 }
 
-module.exports = { ADAPTER_ID, LOOP_ID, CAPABILITY, PRODUCT_ID, FORMAT_ID, FORM_ID, ACCOUNT_ID, ACCOUNT_REF, INTEGRATION_REF, PACK_FORMAT_ID, JA_LANE, EN_AFFIRMATION_LANE, EN_AFFIRMATION_TIKTOK_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_MAIN_TIKTOK_LANE, JA_JP1_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE, assertMarketingCarouselJpeg, buildMarketingNativeCarouselPublicationJob, buildMarketingNativeCarouselJob: buildMarketingNativeCarouselPublicationJob, createMarketingNativeCarouselPublicationLoopAdapter, createMarketingNativeCarouselAdapter: createMarketingNativeCarouselPublicationLoopAdapter, executeMarketingNativeCarouselPublicationJob, executeMarketingNativeCarouselJob: executeMarketingNativeCarouselPublicationJob, normalizeMarketingNativeCarouselJob: normalizeJob, selectMarketingNativeCarouselLane, runPostizCarouselProcess, safeMarketingNativeCarouselSummary: summary, verifyMarketingNativeCarouselPublicationReceipt, verifyMarketingNativeCarouselReceipt: verifyMarketingNativeCarouselPublicationReceipt };
+module.exports = { ADAPTER_ID, LOOP_ID, CAPABILITY, PRODUCT_ID, FORMAT_ID, FORM_ID, ACCOUNT_ID, ACCOUNT_REF, INTEGRATION_REF, PACK_FORMAT_ID, FRESH_TEXT_WINDOW_DAYS, JA_LANE, EN_AFFIRMATION_LANE, EN_AFFIRMATION_TIKTOK_LANE, EN_SLIDESHOW_TIKTOK_LANE, JA_MAIN_TIKTOK_LANE, JA_JP1_TIKTOK_LANE, JA_BUDDHA_TIKTOK_LANE, assertFreshCaptionAndSlideText, assertMarketingCarouselJpeg, buildMarketingNativeCarouselPublicationJob, buildMarketingNativeCarouselJob: buildMarketingNativeCarouselPublicationJob, createMarketingNativeCarouselPublicationLoopAdapter, createMarketingNativeCarouselAdapter: createMarketingNativeCarouselPublicationLoopAdapter, executeMarketingNativeCarouselPublicationJob, executeMarketingNativeCarouselJob: executeMarketingNativeCarouselPublicationJob, normalizeMarketingNativeCarouselJob: normalizeJob, selectMarketingNativeCarouselLane, runPostizCarouselProcess, safeMarketingNativeCarouselSummary: summary, verifyMarketingNativeCarouselPublicationReceipt, verifyMarketingNativeCarouselReceipt: verifyMarketingNativeCarouselPublicationReceipt };
