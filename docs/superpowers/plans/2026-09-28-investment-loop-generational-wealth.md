@@ -497,6 +497,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 29. **Investment-only verification (`2026-09-28T12:30:31Z`)**: focused investment-core tests pass `35/35`; Alpaca investment tests pass `147/147`. The default-state audit still has `0` cross-venue daily receipts, and `rolling_30d` remains `unknown/daily_receipt_missing` with `capital_expansion_allowed=false`.
 30. **Investment notification (`2026-09-28T12:30Z`)**: the current Alpaca, Hyperliquid, Solana, and cross-venue status was sent to Telegram and acknowledged by the sender as `TELEGRAM_SENT=true`; this is a status report only and cannot authorize funding or promotion.
 31. **Next action remains owner-side**: poll for the complete lm-lead admission receipt (entrypoint, cadence, state root, argv/env, release SHA, provider ack). Until it arrives, do not send Binance funds, create a wallet, submit an order, or open a live canary.
+32. **General execution boundary**: act only inside the explicitly assigned current objective; never initiate or modify another agent's, another owner's, another worktree's, or another project's work. For this plan, self-directed work is limited to investment receipts, realized cost-complete net P&L, capital gates, and Telegram notification.
 
 ### Current S0 scoreboard
 
