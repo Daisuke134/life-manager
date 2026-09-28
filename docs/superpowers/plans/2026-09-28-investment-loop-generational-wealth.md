@@ -49,7 +49,7 @@ flowchart LR
     APerf --> Allocator["read-only cross-venue\nallocator / daily report"]
     HLWait --> Allocator
     SolScout --> Allocator
-    CFO["CFO receipt table\npartial / USD bridge 0"] --> Treasury
+    CFO["CFO + ledger\npartial / USD 0 / 0.003 USDC historical"] --> Treasury
     Allocator --> Treasury["treasury rollup\npartial / fail closed"]
     Treasury --> Target["$10k/month\nnot achieved / no promotion"]
 ```
@@ -64,6 +64,7 @@ flowchart LR
 - The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
 - The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources. Its fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills; the new bridge keeps that state partial instead of claiming a measured cash surplus.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
+- The canonical CFO hourly FinancialRecord readback is subject-scoped: the current subject has `101` verified records but only one verified `business_revenue`, `0.003 USDC` in `2026-08`, and no `2026-09` revenue. A separate subject has additional x402 records; they are excluded rather than combined.
 
 ## Target Economics
 
@@ -268,7 +269,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 5. Solana nested Tasks 1–5 (wallet/journal, read-only scout, pure policy/paper, fake-client receipt verification, and staged wake) are implemented and focused-tested; real read-only evidence is saved, but no live transaction has been sent.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
-8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, so no cash-surplus target claim is allowed.
+8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, and the current subject ledger has only historical `0.003 USDC`, so no cash-surplus target claim is allowed.
 9. Current cursor: return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
 10. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 11. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
@@ -282,7 +283,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; no effect allowed from this lane | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
-| Treasury | CFO bridge implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7` | No transfer; no target claim | fix source ledgers/credential, then verified revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO bridge implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; current subject ledger has historical `0.003 USDC` only | No transfer; no target claim | fix source ledgers/credential, then verified revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Execution order ruling
