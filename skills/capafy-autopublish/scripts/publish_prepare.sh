@@ -99,6 +99,11 @@ WS="$CAPAFY_PUBLISH_HOME/.openclaw/workspace"
 [ -z "${CAPAFY_WORKSPACE:-}" ] || [ "$CAPAFY_WORKSPACE" = "$WS" ] \
   || die "CAPAFY_WORKSPACE override is not Agent-isolated"
 CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
+# Keep the icon with the Agent's publisher home. Recording the release path broke
+# every later resume once that immutable release was pruned (2026-09-28, 9466718786).
+ICON_COPY="$CAPAFY_PUBLISH_HOME/icon.${ICON##*.}"
+cp "$ICON" "$ICON_COPY" || die "icon copy failed"
+ICON="$ICON_COPY"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
   || die "build_config failed"
 if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then

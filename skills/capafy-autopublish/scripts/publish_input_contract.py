@@ -52,6 +52,13 @@ def snapshot(args: argparse.Namespace) -> dict:
             digest.update(str(path.relative_to(skill_dir)).encode("utf-8"))
             digest.update(path.read_bytes())
     icon = Path(config["icon"])
+    if not icon.is_file():
+        # Drafts prepared before icons were copied into the publisher home point
+        # into a release that may have been pruned; the same catalog file in the
+        # current release is accepted only because its bytes still feed the
+        # digest compared against publisher-inputs.json.
+        release = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT") or Path(__file__).resolve().parents[3])
+        icon = release / "skills/capafy/catalog" / args.skill_name / icon.name
     digest.update(icon.read_bytes())
     return {"agent_id": args.agent_id, "skill_name": args.skill_name,
             "agent_version_id": manifest["agent_version_id"],
