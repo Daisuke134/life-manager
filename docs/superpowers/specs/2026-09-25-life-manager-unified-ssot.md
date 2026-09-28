@@ -192,7 +192,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 TODO の分け方（Dais 2026-09-28 14:3x JST）: Capafy と PromptBase は別のお店なので別の TODO。記事・自社メディアは両方を宣伝する共通の集客。新しい販売先の調査は今はしない。
 
-Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客（記事の誘導先を Capafy の売れている Skill に ✅ #6110、Capafy の Instagram 復旧、Skill 別・流入元別の注文を毎日 Telegram）/ C4 売上ゼロ 43 本の書き直しか取り下げ / C6 数字から LM が次の手を選ぶ / C7 実行枠の配分。
+Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客: 記事の誘導先を Capafy に ✅ #6110、Skill 別の実利益・流入元を毎時の Telegram 報告に ✅ #6121（2026-09-28 15:55Z message 99023 で到達を確認。公開中の版のモデルで費用を配分するよう修正）、Capafy の Instagram は Dais の判断で後回し / C4 売上ゼロの整理（進行中）: 流入 API（by_agent）で見ると売上ゼロの約 35 本は月 7〜86 閲覧しかなく「見られていない」のが原因 → 1 本ずつの書き直しより集客と勝ち型への集中。最初の一手: Agent 3332784488（Japanese Humanizer、download 型）が価格未設定で 30 日に 6 人が $0 で入手していた → $9.99 買い切りの同一 Agent 更新を queue（#6123、download 型の価格を工場で扱えるよう拡張、release 92f04c91 反映）。次: TikTok Script Pro（598 閲覧で有料 3 件）の説明文・価格 / C6 数字から LM が次の手を選ぶ / C7 実行枠の配分。
 
 集客は全商品に共通のエンジン（Dais 2026-09-28）: 記事・SEO・SNS・自社メディアの仕組みを一度完成させれば、Capafy Skill・PromptBase・既存/新規モバイルアプリ・Web アプリ・Life Manager・電子書籍（Anicca monk factory）のどれにも使える。売上が少ない原因は全商品で「distribution（集客）」が先。
 
