@@ -188,6 +188,14 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 4 ✅ 本番 readback: 06:07Z の毎時 receipt（capafy-skill-analytics.json）に per-skill `profit_30d_usd` と Telegram 要約が実データで入った。
 - **Capafy は未完了（訂正 2026-09-28 15:3x JST、Dais）**: 申請の仕組みが動いただけで完了扱いにしてアプリへ移ったのは誤り。1つずつ閉じる。アプリ（下の 5 アプリ As-Is）は Capafy の C1〜C7 が閉じるまで着手しない。
 
+**集客は 1 回きりではなく loop で回る（2026-09-29 時点の頻度）**: 記事 article-daily は毎日 06:00 JST に 1 本（Substack JA/EN・note・aniccaai.com。1 日おきに Capafy の売れている Skill へ誘導、ct=article-<slug> で計測）、途中で止まった記事は article-resume が 5 分ごとに引き継ぐ。open-seo の検索語は Skill ごとに 30 日に 1 回更新。Capafy の工場は 15 分ごと。Skill 別利益・流入元の Telegram 報告は毎時（数字が変わった時だけ）。PromptBase は毎日 04:20 JST に 1 件。Capafy Instagram は復旧後 1 時間ごとの loop。アプリの SNS 投稿は各 lane 1 日 3 回。
+
+**Capafy を閉じて次（モバイルアプリ）へ進む条件（公式 readback で確認できたら閉じる。審査・承認・売上の結果待ちは条件にしない = 監視のみ）**:
+- X1 Capafy Instagram が人の手なしで Reel を 1 本投稿（Instagram の公式 Reel 一覧で確認）
+- X2 Capafy の Skill に誘導する記事が 1 本公開され、リンクに ct=article-<slug> が付いている（RSS・公開ページで確認）
+- X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
+- 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
