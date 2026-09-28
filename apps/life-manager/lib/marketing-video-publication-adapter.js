@@ -15,6 +15,13 @@ const {
   findMarketingDestinationTarget,
   loadMarketingDestinationContract,
 } = require("./marketing-destination-contract.js");
+// Reuses (not forks) the same 7-day duplicate-content guard #6127 added for the
+// carousel pipeline: same window, same "read what was actually posted to this Postiz
+// integration, fail closed for this one publish attempt only" semantics.
+const {
+  assertFreshCaptionAndSlideText,
+  FRESH_TEXT_WINDOW_DAYS,
+} = require("./marketing-native-carousel-publication-adapter.js");
 
 const ADAPTER_ID = "marketing-video-publication";
 const LOOP_ID = "marketing.video.publish";
@@ -375,6 +382,21 @@ function defaultLedgerPath(tenantId, productId, paths) {
   );
 }
 
+// distribute.py owns distribution.jsonl (its own row shape, no account/integration
+// field), so the shared caption-freshness guard gets its own sibling file instead of
+// being squeezed into that contract. Rows are written in the exact shape
+// assertFreshCaptionAndSlideText already reads (`{ receipt: { integration_ref,
+// caption_sha256, published_at } }`), so the guard function itself is reused unchanged.
+function freshnessLedgerPath(ledgerPath) {
+  return path.join(path.dirname(ledgerPath), "caption-freshness.jsonl");
+}
+
+function appendFreshnessRow(freshnessPath, row) {
+  fs.mkdirSync(path.dirname(freshnessPath), { recursive: true, mode: 0o700 });
+  fs.appendFileSync(freshnessPath, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+  fs.chmodSync(freshnessPath, 0o600);
+}
+
 // Base allowlist for the distribution subprocess plus the exact LM_* variables
 // distribute.py reads (LM_DATA_DIR, LM_DISTRIBUTION_LEDGER,
 // LM_DISTRIBUTION_APPROVALS, LM_INSTAGRAM_HANDLE, LM_INSTAGRAM_ACCOUNTS,
@@ -575,6 +597,18 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
   });
   const ledgerPath = services.ledgerPath(job.tenant_id, contract.productId);
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
+  const freshnessPath = freshnessLedgerPath(ledgerPath);
+  // Fails closed for this one publish attempt only (plain error, provider never called)
+  // when the exact same caption text was already posted to this Postiz account within
+  // the last FRESH_TEXT_WINDOW_DAYS -- regardless of which creative/job produced it.
+  assertFreshCaptionAndSlideText({
+    ledgerPath: freshnessPath,
+    integrationRef: contract.postizIntegrationRef,
+    captionSha256: captionHash,
+    textSha256: captionHash,
+    windowDays: FRESH_TEXT_WINDOW_DAYS,
+    now: services.now(),
+  });
   let result;
   try {
     result = await services.runDistribution({
@@ -648,6 +682,13 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
   if (!verifyMarketingVideoPublicationReceipt(receipt)) {
     throw new Error("marketing video publication receipt verification failed");
   }
+  appendFreshnessRow(freshnessPath, {
+    receipt: {
+      integration_ref: contract.postizIntegrationRef,
+      caption_sha256: captionHash,
+      published_at: receipt.published_at,
+    },
+  });
   return { receipt, result };
 }
 

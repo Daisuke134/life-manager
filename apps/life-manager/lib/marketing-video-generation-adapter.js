@@ -10,6 +10,8 @@ const { assertMarketingProductFormat } = require("./marketing-format-policy.js")
 const ADAPTER_ID = "marketing-video-generation";
 const LOOP_ID = "marketing.video.generate";
 const CAPABILITY = "marketing.video.generate";
+// One generated hook line costs far less than a full slide pack (no 4-line body).
+const MAX_HOOK_TEXT_COST_USD = 0.05;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const LOCALE = /^[a-z]{2}(?:-[A-Z]{2})?$/;
 const HASH = /^[0-9a-f]{64}$/;
@@ -371,6 +373,23 @@ function selectHook(pack, history, metrics = []) {
   return candidates[0].hook;
 }
 
+// Best-effort avoid list for the fresh-text prompt: reads the plain caption text (first
+// line, before the hashtags) of the most recently generated posts in this history scope.
+// A missing/unreadable object never blocks generation -- it only shrinks the avoid list.
+function recentCopyTexts(history, objectStore, limit = 8) {
+  const sorted = [...history].sort((left, right) => (left.generated_at < right.generated_at ? 1 : -1));
+  const texts = [];
+  for (const receipt of sorted) {
+    if (texts.length >= limit) break;
+    try {
+      const raw = fs.readFileSync(objectStore.resolve(receipt.copy_ref), "utf8");
+      const firstLine = raw.split("\n\n")[0].trim();
+      if (firstLine) texts.push(firstLine);
+    } catch { /* best-effort; missing object never blocks generation */ }
+  }
+  return texts;
+}
+
 function safeMarketingVideoGenerationSummary(receipt) {
   if (!verifyMarketingVideoGenerationReceipt(receipt)) {
     throw new Error("marketing video generation receipt verification failed");
@@ -447,6 +466,26 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
       if (hook.media_ref && !contract.mediaRefs.includes(hook.media_ref)) {
         throw new Error("marketing video hook media is not approved");
       }
+      // Opt-in fresh text: when a textGenerator dep is supplied (wired per lane in the
+      // caller, e.g. honne-ja-cycle.js), the static hook.text is only a style hint for the
+      // hook "type" selectHook()/metrics already picked -- the actual words posted are
+      // regenerated every call instead of being the same handful of pack strings forever.
+      // No textGenerator configured -> unchanged legacy behavior (hook.text verbatim).
+      let hookText = hook.text;
+      if (deps.textGenerator) {
+        const generated = await deps.textGenerator({
+          styleHint: hook.text,
+          avoidTexts: recentCopyTexts(history, objectStore),
+          locale: contract.locale,
+        });
+        if (!generated || typeof generated.hook !== "string" || !generated.hook.trim()) {
+          throw new Error("marketing video generation fresh hook text is invalid");
+        }
+        if (typeof generated.costUsd === "number" && generated.costUsd > MAX_HOOK_TEXT_COST_USD) {
+          throw new Error(`marketing video generation fresh hook text exceeded the $${MAX_HOOK_TEXT_COST_USD} cost cap`);
+        }
+        hookText = generated.hook.trim();
+      }
       const mediaIndex = Number.parseInt(
         crypto.createHash("sha256")
           .update(`${contract.slot}:${contract.packRef}`)
@@ -470,12 +509,12 @@ function createMarketingVideoGenerationLoopAdapter(deps = {}) {
       );
       const hashtags = pack.hashtags.map((value) => `#${value}`).join(" ");
       const publishCopy = hashtags
-        ? `${hook.text}\n\n${hashtags}\n`
-        : `${hook.text}\n`;
+        ? `${hookText}\n\n${hashtags}\n`
+        : `${hookText}\n`;
       fs.writeFileSync(copyPath, publishCopy, { mode: 0o600 });
       fs.chmodSync(copyPath, 0o600);
       const copy = objectStore.import(copyPath);
-      const hookSha256 = crypto.createHash("sha256").update(hook.text).digest("hex");
+      const hookSha256 = crypto.createHash("sha256").update(hookText).digest("hex");
       const receipt = {
         schema_version: 1,
         kind: "marketing_video_artifact",

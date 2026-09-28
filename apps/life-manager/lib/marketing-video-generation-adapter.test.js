@@ -163,6 +163,99 @@ test("adapter selects the least-recent hook and creates immutable copy plus vide
   assert.equal(verifyMarketingVideoGenerationReceipt(result.receipt), true);
 });
 
+test("a textGenerator dep replaces the pack's static hook text with fresh generated text (opt-in, legacy default unchanged)", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-fresh-text-"));
+  const objects = path.join(root, "objects");
+  const packPath = path.join(root, "pack.json");
+  const videoPath = path.join(root, "v1.mp4");
+  fs.writeFileSync(packPath, `${JSON.stringify({
+    schema_version: 1,
+    product_id: "anicca-ios",
+    format_id: "reelclaw-card",
+    form: "lockscreen-affirmation-widget",
+    locale: "en",
+    title: "Anicca",
+    hashtags: ["anicca"],
+    hooks: [
+      { id: "HJA-001", text: "static pack hook", status: "active", prior_used_at: null },
+    ],
+  })}\n`);
+  fs.writeFileSync(videoPath, Buffer.from("0000ftyp-video"));
+  const pack = importContentObject(packPath, { objectDir: objects });
+  const media = importContentObject(videoPath, { objectDir: objects });
+  let seenArgs = null;
+  const adapter = createMarketingVideoGenerationLoopAdapter({
+    dataDir: root,
+    historyProvider: { list: async () => [] },
+    now: () => "2026-09-29T08:15:01.000Z",
+    textGenerator: async (args) => { seenArgs = args; return { hook: "a brand new fresh line", costUsd: 0.001 }; },
+  });
+  const result = await adapter.execute(buildMarketingVideoGenerationJob({
+    tenantId: "tenant-a",
+    productId: "anicca-ios",
+    formatId: "reelclaw-card",
+    locale: "en",
+    slot: "2026-09-29T08:15:00.000Z",
+    packRef: pack.ref,
+    mediaRefs: [media.ref],
+  }));
+  assert.equal(seenArgs.styleHint, "static pack hook");
+  assert.equal(seenArgs.locale, "en");
+  assert.deepEqual(seenArgs.avoidTexts, []);
+  const copyPath = path.join(objects, "sha256", result.receipt.copy_sha256);
+  assert.equal(fs.readFileSync(copyPath, "utf8"), "a brand new fresh line\n\n#anicca\n");
+  assert.equal(
+    result.receipt.hook_sha256,
+    crypto.createHash("sha256").update("a brand new fresh line").digest("hex"),
+  );
+  assert.equal(verifyMarketingVideoGenerationReceipt(result.receipt), true);
+});
+
+test("textGenerator failures and an exceeded cost cap fail generation closed", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-fresh-text-caps-"));
+  const objects = path.join(root, "objects");
+  const packPath = path.join(root, "pack.json");
+  const videoPath = path.join(root, "v1.mp4");
+  fs.writeFileSync(packPath, `${JSON.stringify({
+    schema_version: 1,
+    product_id: "anicca-ios",
+    format_id: "reelclaw-card",
+    form: "lockscreen-affirmation-widget",
+    locale: "en",
+    title: "Anicca",
+    hashtags: [],
+    hooks: [{ id: "HJA-001", text: "static pack hook", status: "active", prior_used_at: null }],
+  })}\n`);
+  fs.writeFileSync(videoPath, Buffer.from("0000ftyp-video"));
+  const pack = importContentObject(packPath, { objectDir: objects });
+  const media = importContentObject(videoPath, { objectDir: objects });
+  const executionJob = buildMarketingVideoGenerationJob({
+    tenantId: "tenant-a",
+    productId: "anicca-ios",
+    formatId: "reelclaw-card",
+    locale: "en",
+    slot: "2026-09-29T08:15:00.000Z",
+    packRef: pack.ref,
+    mediaRefs: [media.ref],
+  });
+  await assert.rejects(
+    createMarketingVideoGenerationLoopAdapter({
+      dataDir: root,
+      historyProvider: { list: async () => [] },
+      textGenerator: async () => ({ hook: "", costUsd: 0 }),
+    }).execute(executionJob),
+    /fresh hook text is invalid/,
+  );
+  await assert.rejects(
+    createMarketingVideoGenerationLoopAdapter({
+      dataDir: root,
+      historyProvider: { list: async () => [] },
+      textGenerator: async () => ({ hook: "too expensive", costUsd: 1 }),
+    }).execute(executionJob),
+    /exceeded the \$0\.05 cost cap/,
+  );
+});
+
 test("durable generation history overrides imported last-used state", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-history-"));
   const objects = path.join(root, "objects");
