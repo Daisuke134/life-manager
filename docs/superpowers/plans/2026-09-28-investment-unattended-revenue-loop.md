@@ -175,7 +175,7 @@ Life Managerのregistry/state receipt must expose `run_id`, `owner_id=alpaca-inv
 - Existing: `apps/life-manager/investment-core/capital_ladder.py`, `performance_gate.py`, `cross_venue_allocator.py`
 - Modify: investment plan/spec files after authorized evidence
 
-- [ ] **Step 1: Run the pure promotion gate** with official receipt IDs, positive cost-complete net P&L, complete sample count, drawdown, venue health, and requested cap.
+- [x] **Step 1: Run the pure promotion gate** with the current official receipt IDs and requested next cap. It returned `status=reject`, `capital_expansion_allowed=false`, current cap `$100`, next cap `$1,000`, with reasons `net_non_positive`, `sample_insufficient`, `cost_unknown`, `drawdown_unknown`, and `venue_unhealthy`.
 - [ ] **Step 2: Require an explicit Life Manager owner promotion receipt.** Telegram text cannot authorize cap, leverage, destination, or funding changes.
 - [ ] **Step 3: Promote exactly one cap step or hold.** Record before/after cap, evidence IDs, decision, and rollback condition.
 - [ ] **Step 4: Verify the next natural run** uses the promoted release and remains inside the new cap. If not, rollback/hold through the owner path.
@@ -265,3 +265,5 @@ This plan is complete only when Task 1–10 have their stated evidence. In parti
 **Shared-gate handoff（2026-09-29）**: sent the exact promotion-gate failure and investment candidate evidence through the registered `lm` agent channel to the shared-gate owner. This lane remains responsible for the investment candidate and will continue with immutable release handoff as soon as the gate is GREEN; it does not modify the gate owner’s code or request capital/order effects.
 
 **External install readback（2026-09-29）**: Life Manager installed immutable release `b79275cfed5f61a01137e2105da0cf089873f8a2` (`20260929T073044-b79275cf`, install event PASS), but the release is still missing the investment ETF/cross-venue boundaries and retains `borrow/support` admission. The latest investment terminal event belongs to the previous SHA and is a capacity defer. Installation alone is not promotion, paper evidence, or P&L.
+
+**Pure promotion-gate readback（2026-09-29）**: using the official performance state (`net_pnl_usd=-0.15`, `completed_round_trips=1`, cap `$100`) and its receipt IDs, `recommend_next_cap(..., requested_cap=1000)` returned `reject` with `capital_expansion_allowed=false`. This closes only Task 6 Step 1; no cap, wallet, order, or runtime state changed.

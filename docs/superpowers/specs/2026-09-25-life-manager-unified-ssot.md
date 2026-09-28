@@ -662,3 +662,5 @@ TODO（何を・どう直すか）
 **shared gate handoff（2026-09-29）**: team `lm` の登録ownerへ、candidate `528108c4c4`、最新main `b79275cfed`、PASS証拠、`recovery_class_mismatch`の完全な差分、green後の次順序（candidate sync → immutable release → natural paper receipt）を送信した。投資laneは共有gateのコードを編集せず、資金・注文も要求しない。
 
 **外部release install readback（2026-09-29）**: Life Managerの`install` eventは`pass`で、loaded候補は`b79275cfed5f61a01137e2105da0cf089873f8a2`（`/Users/anicca/loops/releases/20260929T073044-b79275cf`）へ進んだ。しかしrelease内にETF policy／cross-venue entrypointはなく、investment registryは`borrow/support`・queued reconciliationなし。最新investment terminalは旧`5dfb1f84…`のcapacity deferで、新SHAのnatural terminal・provider receipt・P&Lは未取得。installはpromotionやsampleとは数えない。
+
+**純粋promotion gate readback（2026-09-29）**: 公式performance state（`net_pnl_usd=-0.15`、round trip `1`、cap `$100`、receipt IDsあり）でrequested cap `$1,000`を評価し、`status=reject`、`capital_expansion_allowed=false`。理由は`net_non_positive`、`sample_insufficient`、`cost_unknown`、`drawdown_unknown`、`venue_unhealthy`。cap・wallet・注文・runtime stateは変更していない。
