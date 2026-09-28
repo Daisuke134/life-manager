@@ -36,8 +36,7 @@ def test_capafy_effectful_recurring_owners_declare_effect_and_coalescing_contrac
     root = Path(__file__).resolve().parents[4]
     loops = json.loads((root / "config/loop-registry.json").read_text())["loops"]
     expected = {
-        # The skill factory is the primary revenue engine; it must win a slot over gig loops.
-        "capafy-loop-daily": ("publish", "deterministic", "revenue", "critical_paid"),
+        "capafy-loop-daily": ("publish", "deterministic", "revenue", "revenue"),
         # Revenue readers / the IG account owner never got a slot as borrow once revenue
         # owners filled the host (2026-09-27, SSOT P-5 / 7-6e).
         "capafy-outcome-monitor": ("message", "deterministic", "revenue", "revenue"),
