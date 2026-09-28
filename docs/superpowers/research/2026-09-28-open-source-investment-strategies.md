@@ -28,6 +28,19 @@
 | `venue.hyperliquid.carry` | [Funding](https://hyperliquid.gitbook.io/hyperliquid-docs/trading/funding) / [fees](https://hyperliquid.gitbook.io/hyperliquid-docs/trading/fees) | official venue docs | fundingの支払方向、perp/spot feeをcarryのnet計算に入れる | read-only snapshotと公式receiptで再確認 | `candidate` |
 | `venue.solana.fees` | [Solana fee structure](https://solana.com/docs/core/fees/fee-structure) | official protocol docs | base fee、priority fee、失敗transactionの費用をcopy tradeのcost modelに入れる | transaction receiptで再確認 | `reference` |
 
+## Clone pins and direct README observations
+
+2026-09-28に、次の4 repoを一時ディレクトリへ `--depth 1 --filter=blob:none --sparse` でcloneした。clone先は作業repo外であり、コードは投資repoへコピーしていない。以下のSHAは、今回読んだREADME/LICENSEの固定参照である。
+
+| repository | observed commit | direct observation |
+|---|---|---|
+| `freqtrade` | `3c3b7dda0b52271cfaf9709973f873957a5e34da` | READMEはeducational purpose、資金をriskしないこと、まずdry-runすることを明記。LICENSEはGPL-3.0。 |
+| `freqtrade-strategies` | `f3340ce11f5bdf62f598522e64d1f5638eaa13f5` | READMEはstrategyをeducational purpose・as-isとして扱い、backtest後にdry-runしてから資金を使うよう明記。LICENSEはGPL-3.0。 |
+| `hummingbot` | `9af100d6822da7d2d0291a906c730ef172284ee2` | READMEはlive market dataを使うpaper trading scriptと、API keyを使うlive strategy controllerを分けて説明。LICENSEはApache-2.0。 |
+| `nautilus_trader` | `b916d05803474adb37c15b858d7728e323526fff` | READMEは同じstrategy/execution codeをbacktest/liveで使える一方、liveにはvenue・transport・timing・persistence差があると明記。LICENSEはLGPL-3.0。 |
+
+この直接観測は、公開OSS自身が「cloneして即利益」ではなく、paper/backtest/liveの差と資金投入前の検証を前提にしていることを補強する。Freqtradeのsample strategyにあるRSI等の指標構造は、GPLコードを取り込まず、候補仮説を自前のpure policyとして再実装するための参考にだけ使う。
+
 ## 「source says / infer / unproven」分離
 
 ### Freqtrade系
