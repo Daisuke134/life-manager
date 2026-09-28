@@ -1010,7 +1010,13 @@ def _allocate_actual_cost_by_agent(usage_agents: list[dict], openrouter_actual: 
             result[agent_id] = None
             continue
         try:
-            result[agent_id] = _money(Decimal(actual_for_model) * Decimal(cost) / total_estimated)
+            estimated_cost = Decimal(cost)
+            if estimated_cost <= 0:
+                # A revenue-bearing agent with no observed priced tokens has no defensible
+                # product-level cost share; do not turn missing usage into verified profit.
+                result[agent_id] = None
+                continue
+            result[agent_id] = _money(Decimal(actual_for_model) * estimated_cost / total_estimated)
         except (InvalidOperation, TypeError):
             result[agent_id] = None
     return result

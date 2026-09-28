@@ -645,6 +645,20 @@ def test_allocate_actual_cost_splits_by_estimated_share_within_a_model() -> None
     assert result["333"] is None
 
 
+def test_allocate_actual_cost_keeps_zero_estimate_cost_unknown() -> None:
+    module = load_module()
+    usage_agents = [
+        {"agent_id": "slide", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "0.00"},
+        {"agent_id": "hook", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "10.00"},
+    ]
+    openrouter_actual = {"status": "fresh", "by_model": {"anthropic/claude-sonnet-4.6": "20.00"}}
+
+    result = module._allocate_actual_cost_by_agent(usage_agents, openrouter_actual)
+
+    assert result["slide"] is None
+    assert result["hook"] == "20.00"
+
+
 def test_allocate_actual_cost_empty_when_actual_unavailable() -> None:
     module = load_module()
     usage_agents = [{"agent_id": "111", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "6.00"}]
