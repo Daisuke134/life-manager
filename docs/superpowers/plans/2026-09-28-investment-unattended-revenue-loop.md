@@ -57,7 +57,7 @@ For generational wealth, the compounding target is explicit: at a hypothetical 8
 - 追加のbounded candidate screenでは、固定cost後にBTC/USDC・ETH/USDCの事前定義reversion/breakout/pullback候補がすべてholdout不合格となった。新しいStrategyCardは追加していない。
 - **候補戦略の公式replay（2026-09-29）**: read-only Alpaca paper BTC/USDC 5分足は `6,855` bars（返却範囲 `2026-08-30T00:00:00Z`–`2026-09-28T15:30:00Z`、raw SHA-256 `283ca45e9b14e8573120b7a3d73bba8b51700878626097465f4349d66801c5a0`）。reversionはholdout `-$0.89` / 12 trades、trendは `-$0.08` / 1 tradeで、両方とも費用後holdoutと9点sensitivity gateに失敗した。これは口座P&Lではなく、StrategyCard選定を止める証拠である。
 - **長期窓の公式replay（2026-09-29、read-only）**: 同じ固定costでBTC/USDC 5分足を2026-06-30T00:00:00Z〜2026-09-28T15:30:00Zまで105 bounded queriesで取得し、20,126 unique bars（canonical hash `1a00e5e02496e117419beceaf7626649d34f95d73c381fc4a916be4c97d7f713`）を検証した。reversionはholdout `-$2.18` / 29 trades、trendは `+$0.13` / 7 tradesだがsensitivity `0/9`で不成立。両方rejectedで、選択カード・追加資金・30往復サンプルの根拠にはならない。
-- **研究候補の追加（2026-09-29、read-only）**: 別の株式daily momentum evaluatorをTDDで実装し、公式IEX split-adjusted barsの固定8 ETF universeを126/21で測定した。holdoutは`+$1.62` / 14 trades、9点gridは`9/9` positive・median`+$1.62`、片側25/50bp stressはpositive、100bpはnegative。`alpaca-etf-126d-momentum-v1`はresearch-onlyで、runtime選択・paper注文・live注文・追加資金には未接続である。
+- **研究候補の追加（2026-09-29、read-only）**: 別の株式daily momentum evaluatorをTDDで実装し、公式IEX split-adjusted barsの固定8 ETF universeを126/21で測定した。holdoutは`+$1.62` / 14 trades、9点gridは`9/9` positive・median`+$1.62`、片側25/50bp stressはpositive、100bpはnegative。standard reportは`decision=paper`、pure selectorは`selected`を返したが、`alpaca-etf-126d-momentum-v1`はresearch/runtime handoff段階で、daily ingestion・paper order・official receipt・live注文・追加資金には未接続である。
 
 ```mermaid
 flowchart LR

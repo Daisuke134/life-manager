@@ -109,7 +109,7 @@ trendのholdoutが僅かに正でも、頑健性gateが不成立なのでpaper/l
 
 公式Alpaca paperのIEX・split-adjusted daily barsは、8 symbolのcommon sessionsが2020-07-27〜2026-09-28の1,551件、canonical payload hashは`83d5ba8290d940f63880a2770f846a1addf19ea8632ce9ed626b73cf9490336a`だった。126/21の結果はtrain/validation/holdout `40/13/14` trades、netは`+$2.17 / +$2.21 / +$1.62`、holdout max drawdown `$1.25`、cost `$0.28`。9点gridは`9/9` positive、median holdout net `+$1.62`。片側slippage 25bpではholdout `+$1.20`、50bpでは`+$0.50`、100bpでは`-$0.90`。
 
-これはcandidate research evidenceであり、research-only `alpaca-etf-126d-momentum-v1`を作っただけである。standard validation report、runtime daily ingestion、position ownership、stock order constraints、official paper receipt、release-pinned selectionが未完なので、selected strategy・口座P&L・30往復・追加送金とは数えない。
+これはcandidate research evidenceであり、research-only `alpaca-etf-126d-momentum-v1`を作った。standard report `alpaca-etf-126d-momentum-v1-20260929`は`decision=paper`、release SHA `afc476bcab1f7a10f5695bd4224af4242f1d8f09`でpure selectorが`selected`を返すところまで確認した。ただしこれはread-only process内の判定であり、runtime daily ingestion、position ownership、stock order constraints、official paper receipt、runtime stateへのrelease applyが未完なので、口座P&L・30往復・追加送金・実行承認とは数えない。
 
 ## 現時点の結論
 

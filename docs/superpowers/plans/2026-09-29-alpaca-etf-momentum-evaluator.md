@@ -79,3 +79,5 @@
 ## Measured result and boundary
 
 The corrected evaluator uses only the close at the decision session, enters at the next common-session open, and exits at the close after 21 sessions. It found `40/13/14` train/validation/holdout trades for the fixed `126/21` card: train net `+$2.17`, validation net `+$2.21`, holdout net `+$1.62`; holdout max drawdown was `$1.25` and cost was `$0.28`. The nine neighboring cells were all positive (`9/9`, median `+$1.62`). This is a candidate research result, not a selected release, broker receipt, realized account P&L, or authorization to fund the account.
+
+The result was then converted to the existing validation schema with report ID `alpaca-etf-126d-momentum-v1-20260929`, evidence ID `alpaca-paper://stock-bars/iex/split/20200929-20260928`, and release SHA `afc476bcab1f7a10f5695bd4224af4242f1d8f09`. The report returned `decision=paper`, and the pure `select_strategy` function returned `selected`. This selection exists only in the read-only process output; no `selected-strategy.json`, runtime apply, paper order, live order, or capital change was performed.
