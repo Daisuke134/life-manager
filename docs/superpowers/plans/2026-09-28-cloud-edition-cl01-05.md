@@ -1,5 +1,7 @@
 # Cloud Edition CL01-CL05 Implementation Plan
 
+> **Superseded for remaining work:** Task 1 produced useful provider-neutral parity groundwork in `a78ab3d306`, but this plan's local in-memory “Cloud” simulation and Steel-first runtime cannot prove a sellable Cloud product. Do not continue Tasks 2-3 as the T11 production path. The selected architecture and executable TODO are now `docs/superpowers/specs/2026-09-28-life-manager-agentcore-cloud-design.md` and `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`. Existing uncommitted browser/Steel work must be preserved and classified as provider-neutral lease code or conditional fallback; it is not CL03 evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Prove one repository-owned business kernel runs through local and tenant-isolated Cloud host adapters with identical receipts and evidence, strict tenant boundaries, bounded Steel leases, phone-only handoff, and replay-zero.

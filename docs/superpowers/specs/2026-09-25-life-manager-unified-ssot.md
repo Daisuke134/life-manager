@@ -363,16 +363,21 @@ TODO（何を・どう直すか）
 21. 商用 loop が利益を学ぶ: Affiliate、Mobile Apps/Capafy、Writer/Product、Gig、Investment、x402 を P&L につなぐ。SNS はアカウントごとに題材・本文・CTA・画像を回す。重複投稿・クリック・含み益・model の判断をお金として数えない
 22. 8-4 投資の段階的拡大: read-only scout → 過去データ評価 → paper → shadow → 最小額 live canary → 公式決済確認 → 再現性 → 上限付き拡大 or rollback。Alpaca → Polymarket → Hyperliquid → 株 → ミームコイン（今は利益が出ないので live 拡大は禁止）
 23. T10 one-shot capability capsule（製品として配れる形）: identity・capability・credential の参照、不変の policy、onboarding の版、loop への自動登録を永続化する。目標設定や日常の承認は聞かない。provider の KYC/CAPTCHA/OAuth だけは初回に明示する
-24. T11 **Cloud 版（有料で売る Life Manager）**。同じ実装を2つのモードで出す（Foundation spec「Life Manager exposes two deployment modes」、CL01〜CL05）
+24. T11 **Cloud 版（有料で売る Life Manager）**。provider・実行単位・状態所有・無料枠・unit economicsの正本は `docs/superpowers/specs/2026-09-28-life-manager-agentcore-cloud-design.md`、実装順は `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`。同じ実装を2つのモードで出す
     - Local 版: 自分の Mac/Linux で動くセルフホスト版。開発・自前運用・復旧用。今動いているのはこれ
-    - Cloud 版: 制御面・tenant ごとの永続ストア・worker pool・Steel Browser（クラウドの仮想ブラウザ）がすべて cloud で24時間動く。利用者に要るのはスマホと Telegram/アプリだけ（phone-only が既定）。業務コードは fork せず、host adapter だけが違う
+    - Cloud 版: 既存Railway API・Inngest・Supabase PostgreSQL・Stripeを制御面として再利用し、AWS Bedrock AgentCore Runtime V2・Browser Profiles/Live View・Identityを隔離実行面に使う。利用者に要るのはスマホとTelegram/webだけで、Macは不要
+    - tenantごとに24時間起動VMは置かない。各tenantは1つの論理Cloud Computerを持ち、job中だけ専用microVMを起動する。永続stateはPostgreSQL/S3/Browser Profile/Identityが所有し、同一tenantのactive runtimeは最大1つ
+    - DigitalOcean Managed Agentsはrunner-upだが、最大100 sessions、lifecycle webhook/Live View/VPC不足、unattended approval semanticsのため現時点の有料本番には使わない。Muse Connectorはruntimeではなく、Life Manager REST API完成後のdistribution channel
     - 前提: ②の local 完了 gate（全 loop に owner と release が1つ、重複 scheduler なし、admission が有界、受領の契約、setup_required/not_applicable 以外に unknown が無い）を通ってから昇格する
+    - [ ] CL00 TokyoでAgentCore Runtime、Browser Profile、Live View、Identityの実cloud read-only canaryと公式usage/cost receiptを確認する
     - [ ] CL01 承認済みの同じ business-kernel SHA を tenant 分離の Cloud host adapter に載せる
     - [ ] CL02 tenant A が tenant B の credential・browser session・state・receipt を読めないことを証明する
-    - [ ] CL03 Steel Browser の session lease/release が2つ目の owner や古い lease を残さないことを証明する
-    - [ ] CL04 スマホだけ（Telegram）で 状態確認 → human gate → 再開 → readback が1回通ることを証明する
+    - [ ] CL03 AgentCore Runtime/Browserのtenant lease/session/profile lifecycleが2つ目の owner や古いleaseを残さず、cold startで再開できることを証明する
+    - [ ] CL04 スマホだけ（Telegram + Live View）で状態確認 → OAuth/CAPTCHA human gate → 再開 → readbackが1回通ることを証明する
     - [ ] CL05 同じ SHA で Cloud gate を実行し、公式 readback と replay-zero を確認する（local と同じ capsule・evidence hash）
-    - [ ] R01 Cloud 版のサブスク課金を始め、公式の有料サブスク receipt を1件確認する
+    - [ ] CL06 Freeの初回$1/月$0.50、Founding Proのtarget $6/hard cap $12を実測cost ledgerで強制する
+    - [ ] R01 最初のverified result後だけ$49 Founding Proを提示し、Stripeの公式subscription receiptと1-user contributionを1件確認する
+    - [ ] R02 25 Free tenantsでcross-tenant leak 0、duplicate effect 0、unbounded session 0、cost cap breach 0を確認する
     - 昇格は immutable source と契約だけをコピーし、tenant ごとに新しい state を作る。local の credential・browser session・可変ログはコピーしない
 25. T14 LM-EAB（benchmark）: recovery eval・economic eval・公開 benchmark・production gate を分ける。独立 adapter、タスク作成、本番失敗のサンプリング、public/dev/held-out/challenge split、汚染監査、繰り返し試行の不確かさ、grader の較正、伏せ字化した軌跡、再現可能なレポート
 26. T12 評価器が決める自己改善: 候補は prompt・tool・routing・offer・マーケティング・価格・新しい loop の提案を改善してよい。凍結した evaluator と policy kernel が promote/rollback を決める。候補は identity・権限・receipt・effect fence・spend cap・自分の点数を書き換えられない
