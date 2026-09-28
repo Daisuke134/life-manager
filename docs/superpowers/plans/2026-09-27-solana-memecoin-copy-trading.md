@@ -111,11 +111,11 @@
 **Interfaces:**
 - Produces `wake({ mode, liveGate, targets, clients, journalPath, nowMs }) -> { stage, decision, receipt }` and never advances mode automatically; a mode transition is an explicit state record produced by the owner loop, not a human credential prompt.
 
-- [ ] **Step 1: Write failing integration tests** for read-only → paper → live stage reporting, daily idempotent report rows, no live call in the first two stages, and terminal `effect_unknown` fencing.
-- [ ] **Step 2: Run the focused suite and verify failure.**
-- [ ] **Step 3: Implement the finite wake and `SKILL.md`** with the provider URLs, credential prohibition, risk caps, journal path, and the exact staged acceptance sequence.
-- [ ] **Step 4: Run all plan tests and a real read-only scout against one public target wallet; save the evidence without exposing secrets.**
-- [ ] **Step 5: Commit** `feat(sol-copy): stage autonomous memecoin copy canary`.
+- [x] **Step 1: Write failing integration tests** for read-only → paper → live stage reporting, daily idempotent report rows, no live call in the first two stages, and terminal `effect_unknown` fencing.
+- [x] **Step 2: Run the focused suite and verify failure.** RED observed with missing `run.mjs`.
+- [x] **Step 3: Implement the finite wake and `SKILL.md`** with the provider URLs, credential prohibition, risk caps, journal path, and the exact staged acceptance sequence. The default CLI remains read-only; live execution is wired only behind both mode and environment gates.
+- [x] **Step 4: Run all plan tests and a real read-only scout against one public target wallet; save the evidence without exposing secrets.** The complete nested suite passes `28/28`; target `F5SY…Z5T` produced `scout_unknown`, `0` candidates, `12` non-swap rows and `8` RPC read failures. Sanitized evidence is stored outside the repository at `~/.local/state/anicca/solana-memecoin-copytrade/read-only-evidence.jsonl` with mode `0600`; effect is `none`.
+- [x] **Step 5: Commit** `feat(sol-copy): stage autonomous memecoin copy canary`.
 
 ## Source references
 

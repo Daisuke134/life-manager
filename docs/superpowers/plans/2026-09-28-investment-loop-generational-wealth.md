@@ -237,7 +237,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 2. Hyperliquid read-only preflight is complete; obtain `lm-lead` owner/runtime receipt before any funding or canary.
 3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified (`fa710b6310`); its source contract is ready for venue adapters.
 4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified (`3e6c81970d`); keep the cap at `$100` until its live evidence is complete.
-5. Solana nested Tasks 1–4 (wallet/journal, read-only scout, pure policy/paper, and fake-client receipt verification) are implemented and focused-tested; no live transaction has been sent.
+5. Solana nested Tasks 1–5 (wallet/journal, read-only scout, pure policy/paper, fake-client receipt verification, and staged wake) are implemented and focused-tested; real read-only evidence is saved, but no live transaction has been sent.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Implement the allocator and treasury rollups.
 8. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.

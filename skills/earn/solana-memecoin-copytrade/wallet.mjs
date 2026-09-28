@@ -37,8 +37,10 @@ function walletView(keypair) {
   return Object.freeze({
     publicKey: keypair.publicKey.toBase58(),
     async signTransaction(transaction) {
-      if (!transaction || typeof transaction.partialSign !== "function") throw new Error("transaction_invalid");
-      transaction.partialSign(keypair);
+      if (!transaction) throw new Error("transaction_invalid");
+      if (typeof transaction.sign === "function") transaction.sign([keypair]);
+      else if (typeof transaction.partialSign === "function") transaction.partialSign(keypair);
+      else throw new Error("transaction_invalid");
       return transaction;
     },
   });
