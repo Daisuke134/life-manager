@@ -31,6 +31,11 @@ ALLOWED_PREPUBLICATION_FILES = {
     "gates/strategy-consumption.json",
     "gates/quality-replacement.json",
     "gates/media-create-required.json",
+    # The model copies its claimed topic card here and may leave an empty
+    # lock beside a publication state it never created (runs 20260918-225940,
+    # 20260928-210313). Neither is a draft or a public effect.
+    "gates/claimed-card.md",
+    ".publication-state.json.lock",
     # The selected demand route is a durable pre-publication receipt. Keep it
     # in place during an interrupted retry so the owner-fence can restore the
     # exact in-progress card without selecting a second topic.
@@ -149,8 +154,21 @@ def _failed_before_publication(state: dict[str, Any]) -> bool:
         and attempts
         and isinstance(attempts[-1].get("return_code"), int)
         and attempts[-1]["return_code"] != 0
-        and attempts[-1].get("boundary") == "prepublication-empty"
+        and _prepublication_only_boundary(attempts[-1].get("boundary"))
     )
+
+
+def _prepublication_only_boundary(boundary: Any) -> bool:
+    # Re-read a recorded boundary against the current allowlist so a run
+    # stranded by a since-allowlisted pre-publication file can retry.
+    # prepublication_empty() still re-checks the live run dir afterwards.
+    if boundary == "prepublication-empty":
+        return True
+    prefix = "generated-or-staged-artifacts:"
+    if not isinstance(boundary, str) or not boundary.startswith(prefix):
+        return False
+    paths = boundary[len(prefix):].split(",")
+    return all(path and _is_allowed_prepublication(path) for path in paths)
 
 
 def _lock(path: Path):
@@ -535,6 +553,7 @@ def adopt_prepublication(
             and last["return_code"] != 0
             and isinstance(boundary, str)
             and boundary.startswith("generated-or-staged-artifacts:")
+            and not _prepublication_only_boundary(boundary)
         )
         if _charged_attempt_count(state) < maximum and not non_resumable:
             raise GenerationInvariant("generation attempt remains safely resumable")
