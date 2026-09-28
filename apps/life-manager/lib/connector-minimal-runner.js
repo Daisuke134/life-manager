@@ -486,7 +486,27 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         }));
         if (deadlineReached() && !registered(providerState)) return finish("circuit_open", "wake_deadline");
         if (selected.reconciliation_only === true && !registered(providerState)) continue;
-        if (!registered(providerState) && providerState?.status !== "absent") continue;
+        if (!registered(providerState) && providerState?.status !== "absent") {
+          // A pre-submit readback of e.g. "login_required", "unavailable", or
+          // "unknown" (never "absent"/"registered"/"pending") used to just
+          // `continue` here with nothing recorded anywhere -- the measured
+          // cause of connpass-event://event/408094 being re-selected every
+          // wake for 2+ days: this branch ran and silently skipped it before
+          // ever reaching the known-no-effect tracking further down, which
+          // only sees a post-submit runDirectAction failure. Record it the
+          // same way so the next wake's discovery excludes it too.
+          if (typeof deps.recordCandidateAttempt === "function"
+            && providerState && typeof providerState.status === "string") {
+            await deps.recordCandidateAttempt({
+              event_ref: selected.event_ref,
+              outcome: "known_no_effect",
+              safe_reason: `${provider}_pre_submit_${providerState.status}`,
+              retry_after: null,
+              capability_version: null,
+            });
+          }
+          continue;
+        }
         let usedFallback = false;
         let ambiguousAgentEffect = false;
         let directFailureReason = null;
