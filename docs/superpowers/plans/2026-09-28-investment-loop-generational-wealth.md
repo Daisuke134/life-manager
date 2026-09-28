@@ -590,6 +590,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 54. **External main/release movement without investment promotion (`2026-09-29`)**: `origin/main` is now `e0fd94a1a5` and production loaded release is `1105615058`, but that release contains no ETF boundary and retains investment `borrow/support` admission without queued-release reconciliation. Natural occurrence `alpaca-investment-live:18d993ba15e0a1f0-96273` remains a typed capacity defer with no provider receipt. The investment candidate still starts at `d0a2f91635`; it must be refreshed against current main before a valid promotion attempt, while the Capafy contract gate remains outside this lane.
 
+55. **Why the promotion gate is red and the exact owner fix (`2026-09-29`)**: `runtime/loop/recovery-class.cjs` maps any registry job with `priority=critical_paid` to `read_only_external_owner`. Capafy’s `capafy-loop-daily` has `priority=critical_paid`, `effect_class=publish`, and a deterministic entrypoint, while catalog `loops[12]` omits `read_only_external_owner`; the gate therefore reports declared `{deterministic, external_effect_owner}` versus observed `{deterministic, external_effect_owner, read_only_external_owner}`. The Capafy owner must either declare that recovery class in its catalog or correct the job’s priority/classifier and its tests. The investment lane must not make that change. After `./bin/lm-loop-contract` returns `ok=true`, refresh the investment candidate onto current main before release promotion.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
