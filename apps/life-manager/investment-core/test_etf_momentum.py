@@ -4,8 +4,14 @@ from datetime import date, timedelta
 from decimal import Decimal
 import unittest
 
-from etf_momentum import screen_grid, simulate, strategy_card
+from etf_momentum import (
+    build_validation_report,
+    screen_grid,
+    simulate,
+    strategy_card,
+)
 from strategy_cards import validate_strategy_card
+from strategy_validation import select_strategy
 
 
 UNIVERSE = ("A", "B", "C")
@@ -37,6 +43,40 @@ def _costs() -> dict[str, Decimal]:
         "exit_fee_bps": Decimal("0"),
         "entry_slippage_bps": Decimal("10"),
         "exit_slippage_bps": Decimal("10"),
+    }
+
+
+def _measured_result() -> dict[str, object]:
+    summary = {
+        "trades": 40,
+        "gross_pnl_usd": "3.00",
+        "cost_usd": "0.80",
+        "net_pnl_usd": "2.20",
+        "max_drawdown_usd": "2.72",
+    }
+    return {
+        "status": "measured",
+        "decision": "measured",
+        "reason": None,
+        "data_quality": {"common_sessions": 1551},
+        "trades": [{"net_pnl_usd": "0.10"}],
+        "train": summary,
+        "validation": {**summary, "trades": 13, "net_pnl_usd": "2.21"},
+        "holdout": {
+            **summary,
+            "trades": 14,
+            "net_pnl_usd": "1.62",
+            "max_drawdown_usd": "1.25",
+        },
+    }
+
+
+def _passing_grid() -> dict[str, object]:
+    return {
+        "gate": True,
+        "positive_count": 9,
+        "median_holdout_net_pnl_usd": "1.62",
+        "grid": [],
     }
 
 
@@ -128,6 +168,33 @@ class EtfMomentumTests(unittest.TestCase):
         ))
         self.assertEqual(card.timeframe, "1d")
         self.assertEqual(card.status, "research")
+
+    def test_validation_report_can_enter_deterministic_selection(self):
+        report = build_validation_report(
+            strategy_card(), _measured_result(), _passing_grid(),
+            release_sha="a" * 40,
+            report_id="alpaca-etf-126d-momentum-v1-20260929",
+            evidence_ids=["alpaca-paper://etf/20260929/83d5"],
+            observed_at="2026-09-28T16:15:54Z",
+        )
+
+        self.assertEqual(report["decision"], "paper")
+        selected = select_strategy([report])
+        self.assertEqual(selected["strategy_id"], "alpaca-etf-126d-momentum-v1")
+
+    def test_validation_report_rejects_incomplete_neighbor_gate(self):
+        grid = {**_passing_grid(), "gate": False, "positive_count": 4}
+
+        report = build_validation_report(
+            strategy_card(), _measured_result(), grid,
+            release_sha="a" * 40,
+            report_id="alpaca-etf-126d-momentum-v1-rejected",
+            evidence_ids=["alpaca-paper://etf/20260929/rejected"],
+            observed_at="2026-09-28T16:15:54Z",
+        )
+
+        self.assertEqual(report["decision"], "rejected")
+        self.assertIn("parameter_sensitivity", report["failed_gates"])
 
 
 if __name__ == "__main__":

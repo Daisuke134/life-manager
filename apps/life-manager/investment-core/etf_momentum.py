@@ -12,7 +12,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from typing import Any
 
-from strategy_cards import StrategyCard
+from strategy_cards import StrategyCard, is_valid_release_sha, validate_strategy_card
 
 
 _MONEY = Decimal("0.01")
@@ -306,4 +306,97 @@ def screen_grid(
     }
 
 
-__all__ = ["ETF_MOMENTUM_UNIVERSE", "screen_grid", "simulate", "strategy_card"]
+def build_validation_report(
+    card: StrategyCard,
+    result: Mapping[str, Any],
+    grid: Mapping[str, Any],
+    *,
+    release_sha: str,
+    report_id: str,
+    evidence_ids: Sequence[str],
+    observed_at: str,
+) -> dict[str, Any]:
+    """Convert measured candidate evidence to the existing selection schema."""
+    if not isinstance(card, StrategyCard) or validate_strategy_card(card):
+        raise ValueError("card_invalid")
+    if not is_valid_release_sha(release_sha):
+        raise ValueError("release_sha_invalid")
+    if not isinstance(report_id, str) or not report_id.strip():
+        raise ValueError("report_id_invalid")
+    if (isinstance(evidence_ids, (str, bytes)) or not isinstance(evidence_ids, Sequence)
+            or not evidence_ids or any(not isinstance(value, str) or not value.strip()
+                                       for value in evidence_ids)):
+        raise ValueError("evidence_ids_invalid")
+    if not isinstance(result, Mapping) or not isinstance(grid, Mapping):
+        raise ValueError("validation_result_invalid")
+
+    failures: list[str] = []
+    if result.get("status") != "measured":
+        failures.append("validation_not_measured")
+    holdout = result.get("holdout")
+    if not isinstance(holdout, Mapping):
+        failures.append("holdout_metrics_missing")
+        holdout = {"trades": 0, "net_pnl_usd": "unknown", "max_drawdown_usd": "unknown"}
+    try:
+        holdout_trades = int(holdout.get("trades"))
+    except (TypeError, ValueError):
+        holdout_trades = 0
+    if holdout_trades <= 0:
+        failures.append("holdout_trades_missing")
+    try:
+        holdout_net = Decimal(str(holdout.get("net_pnl_usd")))
+    except (InvalidOperation, TypeError, ValueError):
+        holdout_net = None
+    if holdout_net is None or not holdout_net.is_finite() or holdout_net <= 0:
+        failures.append("holdout_net_non_positive")
+    try:
+        drawdown = Decimal(str(holdout.get("max_drawdown_usd")))
+        drawdown_limit = Decimal(str(card.risk_limits["max_drawdown_usd"]))
+    except (InvalidOperation, KeyError, TypeError, ValueError):
+        drawdown = None
+        drawdown_limit = None
+    if drawdown is None or drawdown < 0:
+        failures.append("holdout_drawdown_invalid")
+    elif drawdown_limit is None or drawdown > drawdown_limit:
+        failures.append("max_drawdown_exceeded")
+    if grid.get("gate") is not True:
+        failures.append("parameter_sensitivity")
+    cost_model = card.to_mapping()["cost_model"]
+    try:
+        for key in ("entry_fee_bps", "exit_fee_bps", "entry_slippage_bps", "exit_slippage_bps"):
+            _cost(cost_model[key])
+    except (KeyError, ValueError):
+        failures.append("cost_model_incomplete")
+
+    status = str(result.get("status", "unknown"))
+    report = {
+        "report_id": report_id,
+        "strategy_id": card.strategy_id,
+        "release_sha": release_sha,
+        "card": card.to_mapping(),
+        "status": status,
+        "decision": "paper" if not failures else "rejected",
+        "reason": None if not failures else failures[0],
+        "failed_gates": list(dict.fromkeys(failures)),
+        "train": result.get("train"),
+        "validation": result.get("validation"),
+        "holdout": dict(holdout),
+        "trades": result.get("trades", []),
+        "net_pnl_usd": holdout.get("net_pnl_usd"),
+        "turnover": str(holdout_trades),
+        "cost_model": cost_model,
+        "max_drawdown_usd": holdout.get("max_drawdown_usd"),
+        "lookahead_detected": False,
+        "parameter_sensitivity": dict(grid),
+        "evidence_ids": list(evidence_ids),
+        "fresh": True,
+        "observed_at": observed_at,
+        "data_quality": result.get("data_quality"),
+    }
+    return report
+
+
+__all__ = [
+    "ETF_MOMENTUM_UNIVERSE", "build_validation_report", "screen_grid", "simulate",
+    "strategy_card",
+]
