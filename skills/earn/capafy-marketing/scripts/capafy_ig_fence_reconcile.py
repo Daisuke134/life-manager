@@ -55,6 +55,20 @@ ACCOUNTS_PATH = Path("~/.cloak/clip-accounts-capafy.json").expanduser()
 IG_LEDGER_PATH = Path(
     "~/.local/state/life-manager/state/capafy-marketing-ig-ledger.jsonl"
 ).expanduser()
+POSTER_PATH = REPO_ROOT / "skills/earn/marketing-engine/poster.py"
+# CAPAFY_IG_PORT is the same env var capafy-ig-marketing-daily.sh exports for ig_metrics.py's
+# identical self-heal (see that script's module docstring) -- the dedicated browser's live CDP
+# port, needed only for login_resilient's tier2 (browser sessionid) rebuild.
+CURRENT_PORT = os.environ.get("CAPAFY_IG_PORT", "")
+
+
+def _load_poster() -> Any:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("capafy_fence_reconcile_poster", POSTER_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, dt.datetime]:
@@ -104,14 +118,42 @@ def resolve_handle(accounts_path: Path) -> str | None:
     return str(usable[-1]["handle"])
 
 
+def _fetch_media(client: Any, handle: str) -> tuple[dict[str, Any] | None, list[Any] | None]:
+    """One account_info + user_medias pass. Returns (error_result, medias);
+    exactly one of the two is non-None."""
+    account = client.account_info()
+    username = getattr(account, "username", None)
+    if username is None and isinstance(account, Mapping):
+        username = account.get("username")
+    if not isinstance(username, str) or username.casefold() != handle.casefold():
+        return {"ok": False, "reason": "authenticated_identity_mismatch"}, None
+    user_id = getattr(account, "pk", None)
+    if user_id is None and isinstance(account, Mapping):
+        user_id = account.get("pk")
+    if not user_id:
+        return {"ok": False, "reason": "authenticated_user_id_unavailable"}, None
+    return None, client.user_medias(user_id, amount=0)
+
+
 def read_media(handle: str, settings_path: Path,
-                client_factory: Callable[[], Any] | None = None) -> dict[str, Any]:
+                client_factory: Callable[[], Any] | None = None,
+                port: str | int | None = None,
+                accounts_path: Path = ACCOUNTS_PATH,
+                poster_module: Any | None = None) -> dict[str, Any]:
     """Read-only authenticated readback of the account's own posted media.
 
-    Never logs in and never relogs in -- a dead/absent saved session is a
-    readback failure, not a license to authenticate a different way. Returns
-    ``{"ok": True, "media": [{"code","taken_at"}, ...]}`` (the whole account
-    history, i.e. provably complete) or ``{"ok": False, "reason": ...}``.
+    Never logs in and never relogs in on its own -- a dead/absent saved
+    session used to be a permanent readback failure. Since 2026-09-29 a dead
+    saved session (LoginRequired) self-heals exactly once via the SAME
+    login_resilient tier1/tier2/tier3 policy poster.py and ig_metrics.py
+    already use (tier2 = rebuild the instagrapi session from the dedicated
+    browser's live sessionid cookie) before this adapter gives up and leaves
+    the fence held -- this is what was missing: poster.py and ig_metrics.py
+    already self-healed, this reconciler never did, so a dead session left a
+    fence permanently stuck on readback_failed:LoginRequired.
+
+    Returns ``{"ok": True, "media": [{"code","taken_at"}, ...]}`` (the whole
+    account history, i.e. provably complete) or ``{"ok": False, "reason": ...}``.
     """
     if not settings_path.is_file():
         return {"ok": False, "reason": "no_saved_session"}
@@ -121,19 +163,22 @@ def read_media(handle: str, settings_path: Path,
             client_factory = Client
         client = client_factory()
         client.delay_range = [1, 3]
-        client.load_settings(str(settings_path))
-        account = client.account_info()
-        username = getattr(account, "username", None)
-        if username is None and isinstance(account, Mapping):
-            username = account.get("username")
-        if not isinstance(username, str) or username.casefold() != handle.casefold():
-            return {"ok": False, "reason": "authenticated_identity_mismatch"}
-        user_id = getattr(account, "pk", None)
-        if user_id is None and isinstance(account, Mapping):
-            user_id = account.get("pk")
-        if not user_id:
-            return {"ok": False, "reason": "authenticated_user_id_unavailable"}
-        medias = client.user_medias(user_id, amount=0)
+        try:
+            client.load_settings(str(settings_path))
+            error, medias = _fetch_media(client, handle)
+        except Exception:
+            if not port:
+                raise
+            poster_module = poster_module or _load_poster()
+            healed = poster_module.login_resilient(
+                client, handle, int(port), {}, settings_path=str(settings_path),
+                accounts_path=str(accounts_path),
+            )
+            if not healed:
+                raise
+            error, medias = _fetch_media(client, handle)
+        if error is not None:
+            return error
     except Exception as exc:  # noqa: BLE001 - any read failure keeps the fence
         return {"ok": False, "reason": f"readback_failed:{type(exc).__name__}"}
     rows: list[dict[str, Any]] = []
@@ -245,6 +290,7 @@ def reconcile(
     resolve_fn: Callable[..., bool] | None = None,
     now: dt.datetime | None = None,
     resolve: bool = False,
+    port: str | int | None = None,
 ) -> dict[str, Any]:
     state, queued_at = fenced_row_fn(OWNER_ID, occurrence_id)
     resolved_handle = handle or resolve_handle(accounts_path)
@@ -254,7 +300,11 @@ def reconcile(
     resolved_settings = settings_path or Path(
         f"~/.cloak/instagrapi-{resolved_handle}.json"
     ).expanduser()
-    media_readback = read_media_fn(resolved_handle, resolved_settings)
+    resolved_port = port if port is not None else CURRENT_PORT
+    media_readback = read_media_fn(
+        resolved_handle, resolved_settings,
+        port=resolved_port, accounts_path=accounts_path,
+    )
     proof, reel_url = build_proof(OWNER_ID, occurrence_id, queued_at, media_readback, now=now)
     result: dict[str, Any] = {**proof, "admission_state": state, "handle": resolved_handle}
     if not proof.get("verified") or not resolve:
@@ -285,12 +335,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--settings-path", type=Path)
     parser.add_argument("--ledger-path", type=Path, default=IG_LEDGER_PATH)
     parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--port", default=CURRENT_PORT,
+                         help="dedicated browser's live CDP port, for login_resilient's tier2 "
+                              "(browser sessionid) self-heal; defaults to $CAPAFY_IG_PORT")
     args = parser.parse_args(argv)
     try:
         result = reconcile(
             args.occurrence, accounts_path=args.accounts_path, handle=args.handle,
             settings_path=args.settings_path, ledger_path=args.ledger_path,
-            resolve=args.resolve,
+            resolve=args.resolve, port=args.port,
         )
     except (OSError, ValueError, sqlite3.Error) as exc:
         print(json.dumps({
