@@ -128,9 +128,10 @@
 - Read-only: Life Manager registry, loaded immutable release, state receipts, and official Alpaca paper readback
 - Modify only: the three investment spec/plan files after the owner release/readback exists
 
-**Acceptance:** a Life Manager-owned immutable release contains the pure policy, selected state, completed-bar ingestion, and paper-only order boundary; one natural scheduler wake produces a typed terminal result, official paper order/fill readback, durable receipt, and replay-zero notification. A runtime `resource_capacity_busy` or `resource_fifo_wait` event remains a hold and does not count as a trade.
+**Acceptance:** a Life Manager-owned immutable release contains the pure policy, selected state, completed-bar ingestion, paper-only order boundary, and the release-time safe owner-manifest provisioner; one natural scheduler wake produces a typed terminal result, official paper order/fill readback, durable receipt, and replay-zero notification. A runtime `resource_capacity_busy` or `resource_fifo_wait` event remains a hold and does not count as a trade.
 
-- [ ] **Step 1: Verify the release artifact** contains the committed investment boundary and exact loaded argv/env.
+- [x] **Step 1: Verify the candidate release artifact** contains the committed investment boundary, safe manifest provisioner, deployment hook, and exact registry argv. Isolated release `d14f12306a8fe30558391685226e74436548f673` has `release_paths=ALL` and contains `provision_manifest.py`, `cross_venue_run.py`, `bin/reconcile-agent-runner-release.sh`, and the `investment-cross-venue-report` row. This is candidate evidence (`pushed-not-yet-on-main`), not a production readback.
+- [ ] **Step 1b: Verify the installed production release artifact** contains the same boundary and exact loaded argv/env. Current production `current` lacks the provisioner and `investment-cross-venue-report` is unloaded.
 - [ ] **Step 2: Allow the Life Manager owner path to apply/reconcile** only through its normal release workflow; do not edit registry, admission DB, LaunchAgent, or production state from this lane.
 - [ ] **Step 3: Observe one natural wake** and collect run ID, occurrence ID, release SHA, effect journal, provider readback, receipt ID, and Telegram message ID.
 - [ ] **Step 4: Update the SSOT and primary plan** with pass/fail; only a complete receipt opens the next Alpaca sample step.
