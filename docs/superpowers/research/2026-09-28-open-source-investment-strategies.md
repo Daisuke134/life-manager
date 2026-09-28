@@ -90,6 +90,19 @@
 
 事前に定義した候補群は、Bollinger/RSI reversion、lower-band reclaim、RSI-open rebound、Donchian 10/20 breakout、trend pullback、volatility breakoutである。chronological 60/20/20の同一screenでは、両symbolともholdout netが正になる候補は0件だった。このscreenはStrategyCardのpassing reportではなく、最良結果だけを後付け採用していない。新cardは追加せず、`NO_STRATEGY`と追加資金停止を維持する。次の候補は、別の出典・timeframe・venueを明示してから、同じcost/holdout/sensitivity gateを通す。
 
+## Long-window official replay（2026-09-29）
+
+同じ公式Alpaca paper endpointでBTC/USDCの5分足を2026-06-30T00:00:00Z〜2026-09-28T15:30:00Zまでread-only取得した。CLIの64KB応答上限を越えないよう、500本chunkでの失敗を観測後、250本chunk・105 bounded queriesへ縮小した。重複を除いたcanonical fields（`t/o/h/l/c`）は20,126 bars、SHA-256は`1a00e5e02496e117419beceaf7626649d34f95d73c381fc4a916be4c97d7f713`。
+
+固定notional `$10`、片側25bp fee + 5bp slippage、chronological 60/20/20で現行カードを再評価した。
+
+| card | train / validation / holdout trades | holdout net | sensitivity | 判定 |
+|---|---:|---:|---:|---|
+| `alpaca-btc-5m-reversion-v1` | 85 / 34 / 29 | `-$2.18` | incomplete, 0/9 positive | rejected |
+| `alpaca-btc-5m-trend-v1` | 23 / 8 / 7 | `+$0.13` | incomplete, 0/9 positive | rejected |
+
+trendのholdoutが僅かに正でも、頑健性gateが不成立なのでpaper/live候補へ昇格しない。これは口座P&Lではなく、既存カードを選択しないための追加証拠であり、新しいStrategyCardや追加資金の根拠にはしない。
+
 ## 現時点の結論
 
 - OSS・公開研究から得られたのは、候補ルールと検証規律であって、利益保証ではない。
