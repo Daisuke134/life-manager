@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
 from cross_venue_reporter import render_daily_pnl, wake
+from portfolio_receipts import VenueSnapshot
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/life-manager/investment-cross-venue")
@@ -62,7 +63,12 @@ def _snapshot_reader(venue: str, path: Path) -> Callable[[], Mapping[str, Any]]:
             return _unknown(reason if isinstance(reason, str) and reason else "source_unknown")
         if payload.get("venue") != venue:
             return _unknown("snapshot_venue_mismatch")
-        return value
+        try:
+            canonical = VenueSnapshot.from_mapping(payload)
+        except (TypeError, ValueError) as error:
+            return _unknown(str(error))
+        reason = canonical.validation_reason()
+        return _unknown(reason) if reason is not None else canonical
 
     return read
 

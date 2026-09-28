@@ -50,6 +50,17 @@ class CrossVenueRunTests(unittest.TestCase):
             {"status": "unknown", "reason": "snapshot_file_missing"},
         )
 
+    def test_reader_rejects_snapshot_with_missing_cost_before_aggregation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "alpaca.json"
+            incomplete = snapshot()
+            del incomplete["model_cost_usd"]
+            path.write_text(json.dumps(incomplete), encoding="utf-8")
+
+            result = build_readers([f"alpaca={path}"])["alpaca"]()
+
+            self.assertEqual(result, {"status": "unknown", "reason": "cost_unknown"})
+
     def test_run_once_loads_snapshot_and_persists_delivered_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
