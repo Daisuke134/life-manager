@@ -59,7 +59,7 @@ Pass はライフサイクル上の投影で、settled revenue ではない。�
 | # | ループ | Jobs/Pass/Blocked/Fail/無終端 | 主な境界 | 記録されたお金 |
 |---|---|---|---|---|
 | 1 | Affiliate | 6/1/2/0/0 | effect fence / FIFO | conversion・settled commission なし |
-| 2 | Investment | 1/0/1/0/0 | 起動前の capacity admission | Alpaca 実験 net 約 **-$0.04** |
+| 2 | Investment | 1/0/1/0/0 | 起動前の capacity admission / cross-venue owner receipt 不在 | Alpaca 公式 readback net **-$0.15**（往復1回、1/30、拡大不可） |
 | 3 | Agent Economy | 19/1/9/4/4 | capacity/effect fence、旧entrypoint失敗 | settled x402 **0.003 USDC**、net は未証明 |
 | 4 | Job Hunter | 7/1/5/1/0 | effect fence、inbox/runner失敗 | 新規 funded contract なし、Mercor **$0.00** |
 | 5 | Fundraiser | 1/0/1/0/0 | effect fence | 資金 receipt なし |
@@ -530,12 +530,13 @@ TODO（何を・どう直すか）
 - [ ] 8-1 ループごとの settlement adapter（Stripe / x402 / Coconala / Lancers の payout readback）
 - [ ] 8-2 cost adapter（モデルの token、cloud、tool のコスト）
 - [ ] 8-3 receipt id 付きのループ別 P&L を毎日出す
-- [ ] 8-4 投資アダプタの段階的な追加（Foundation spec 3186-3212 行の ladder: read-only scout → 過去データでの評価 → paper → 本番口座での shadow → 最小額の live canary → 公式の決済確認 → 再現性の確認 → 上限付きの拡大、または rollback）。現状は `alpaca-investment-live`（株と24時間の crypto）だけが live で、net -$0.05、拡大は禁止（`net_negative_and_statistically_unsupported`）
-  - [~] 8-4a Alpaca: 公式の約定履歴で、往復3回、net -0.15 USD（-0.225%）。手数料（往復約0.25%）が値動きより大きい。n=3 で統計的な根拠なし。拡大は禁止のまま。モデル/cloud のコストは 8-2 待ち
+- [ ] 8-4 投資アダプタの段階的な追加（Foundation spec 3186-3212 行の ladder: read-only scout → 過去データでの評価 → paper → 本番口座での shadow → 最小額の live canary → 公式の決済確認 → 再現性の確認 → 上限付きの拡大、または rollback）。現状は `alpaca-investment-live`（株と24時間の crypto）だけが live で、最新公式readbackは往復1回 net -$0.15、拡大は禁止（`net_negative_and_statistically_unsupported`）
+  - [~] 8-4a Alpaca: 最新の公式readbackは往復1回、net -0.15 USD（realized -0.10、unrealized -0.05、fees 0.01、slippage 0.00）。統計的な根拠はなく、30往復ゲートの1/30。拡大は禁止のまま。モデル/cloud のコストは8-2待ち
   - [ ] 8-4b Polymarket（`pm-decision-loop` / `pm-live-trade`）: admission 待ちを解消し、同じ ladder の現在の段を readback する
   - [ ] 8-4c Hyperliquid: read-only scout → paper → shadow。signing key は credential SSOT で管理する。`hyperliquid-trading-agent` のリポジトリはライセンスが無く監査もされていないので、参考にするだけでコードは使わない
   - [ ] 8-4d 株（Alpaca 以外の venue を含む）: 同じ ladder
   - [ ] 8-4e ミームコイン: 最後の段階。read-only scout とリスク検証だけ。live は、他の venue で再現性のある正の net が出た後に限る
+  - [ ] 8-4g cross-venue/rolling: `lm-lead` のowner/runtime admission receipt（entrypoint、cadence、state root、release、公式readback）を取得するまで、30日計測・資金供給・promotionを開始しない。最新監査ではcross-venue registry row、実行可能owner entrypoint、launchd label、daily state receiptが未確認
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）
