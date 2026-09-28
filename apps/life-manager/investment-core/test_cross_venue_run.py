@@ -58,6 +58,20 @@ class CrossVenueRunTests(unittest.TestCase):
         self.assertEqual(manifest["owner_cash_flow_path"], "/tmp/owner-flow.json")
         self.assertEqual(manifest["available_capital_usd"], "100")
 
+    def test_manifest_with_invalid_snapshot_spec_is_invalid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "inputs.json"
+            path.write_text(json.dumps({
+                "snapshot_specs": ["not-a-venue-spec"],
+                "available_capital_usd": "0",
+            }), encoding="utf-8")
+
+            manifest = read_manifest(path)
+
+        self.assertEqual(manifest["status"], "invalid")
+        self.assertEqual(manifest["snapshot_specs"], [])
+        self.assertEqual(manifest["available_capital_usd"], "0")
+
     def test_run_once_can_read_alpaca_owner_state_without_snapshot_file(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

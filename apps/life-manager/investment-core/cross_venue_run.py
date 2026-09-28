@@ -162,6 +162,17 @@ def read_manifest(path: str | Path | None) -> dict[str, Any]:
         return {"status": "invalid", "snapshot_specs": [],
                 "alpaca_state_dir": None, "owner_cash_flow_path": None,
                 "available_capital_usd": "0"}
+    try:
+        parsed_specs = [parse_snapshot_spec(item) for item in specs]
+    except ValueError:
+        return {"status": "invalid", "snapshot_specs": [],
+                "alpaca_state_dir": None, "owner_cash_flow_path": None,
+                "available_capital_usd": "0"}
+    venues = [venue for venue, _ in parsed_specs]
+    if len(venues) != len(set(venues)):
+        return {"status": "invalid", "snapshot_specs": [],
+                "alpaca_state_dir": None, "owner_cash_flow_path": None,
+                "available_capital_usd": "0"}
     return {
         "status": "configured",
         "snapshot_specs": specs,

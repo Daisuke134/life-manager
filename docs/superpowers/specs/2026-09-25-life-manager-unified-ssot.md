@@ -698,3 +698,5 @@ TODO（何を・どう直すか）
 **最新main同期後の投資検証（2026-09-29）**: `origin/main=65854805e8`をcandidate merge `83969f345c`で同期した。main差分はwriterのみで、投資core・adapter・registry・specは保持。merge後もinvestment-core `109/109`、runtime `2/2`、契約＋entrypoint `9/9`、`lm-loop-contract ok=true`（registry `171`）、doctor PASS、JSON、`git diff --check`。productionのreport jobは未load、Alpaca provider receiptは未取得。
 
 **owner manifest provisioning gap（2026-09-29）**: productionの`~/.local/state/life-manager/investment-cross-venue/inputs.json`は存在しない。したがって、candidateがinstallされてもmanifestがprovisionされるまで日次receiptは`input_manifest_status=missing`としてvenue/capitalをunknownにする。これは利益`$0`ではない。Life Managerのrelease/deployment handoffでreview済みmanifestを作成し、その後に自然daily receiptとreplay-zeroを取得する。`cross_venue_run.py`自身がwake中にmanifestを生成する変更はfail-closed違反なので行わない。
+
+**投資TODOの安定ID（2026-09-29）**: 実行順の正本は投資planの`INV-001`〜`INV-008`で、現在cursorは`INV-001`（Life Manager runtime handoff）。manifestの不正・重複snapshot指定は`invalid`としてdurable unknown receiptへ落とす回帰修正をcandidateへ追加し、investment-core `110/110`、runtime `2/2`、shared contract `ok=true`、doctor PASSを確認した。これはsource boundaryの完了であり、production install、自然provider receipt、cost-complete P&L、利益の証拠ではない。
