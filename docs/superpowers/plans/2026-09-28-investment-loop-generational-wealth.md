@@ -42,7 +42,7 @@ flowchart LR
     Owner --> Sol["Solana staged loop\nread-only default"]
 
     Alpaca --> AReceipt["Official receipts\n1 measured round trip"]
-    AReceipt --> APerf["net P&L -$0.04\ncapital expansion false"]
+    AReceipt --> APerf["fresh net P&L -$0.15\ncapital expansion false"]
     HL --> HLWait["deposit.py: wait\nUSDC 0 / ETH 0"]
     Sol --> SolScout["scout_unknown\n0 candidates / no effect"]
 
@@ -57,7 +57,7 @@ flowchart LR
 ### Verified repo/runtime facts
 
 - `skills/alpaca-investment/performance.py` reports `capital_expansion_allowed: false`, requires at least `30` round trips for statistical support, and hard-caps the current performance gate at `$100`.
-- The retained Alpaca live receipt reports one completed round trip with fee-inclusive net P&L `-$0.006970681885`; the sealed performance projection reports net `-$0.04`, realised `-$0.01`, unrealised `-$0.03`, fees `$0.01`, and `statistically_supported: false`.
+- The fresh official Alpaca replay reports one completed round trip with measured net P&L `-$0.15`, realised `-$0.10`, unrealised `-$0.05`, fees `$0.01`, slippage `$0.00`, owner cash flow `$66.75`, and `statistically_supported: false`; the original sealed snapshot is superseded for current reporting.
 - The current Alpaca readback has equity about `$66.60`, no trade allocation, and a `USDCUSD` holding; this is account state, not revenue.
 - Hyperliquid carry code and tests are merged, but the registry row/runtime lock was owner-requested rather than directly changed by this lane; the current agent wallet readback is USDC `0` / ETH `0`, with no `userFunding`, deposit transaction, entry receipt, or daily P&L.
 - A fresh read-only Hyperliquid market observation saw `19` spot/perp pairs; the default volume/cost policy would shortlist `PURR`, `ZEC`, and `STABLE`, but funding APR is a changing quote, not realised P&L. No account was funded and no order was submitted.
