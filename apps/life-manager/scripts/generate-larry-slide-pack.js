@@ -22,8 +22,9 @@ const { createContentObjectStore } = require("../lib/content-object-store.js");
 const { readCreativeMetrics } = require("../lib/marketing-creative-metrics.js");
 const { generateSlidePackCandidates } = require("../lib/marketing-slide-pack-factory.js");
 const { selectSlidePack } = require("../lib/marketing-slide-pack-rotation.js");
+const { marketingVideoDueSlot } = require("../lib/honne-ja-shadow-schedule.js");
 const { JA_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
-const { JA_LARRY_PRODUCTION_SLOTS, jaLarryProductionSlot } = require("./anicca-larry-ja-canary.js");
+const { JA_LARRY_PRODUCTION_SLOTS } = require("./anicca-larry-ja-canary.js");
 
 const MIN_POOL_SIZE = 4;
 const MIN_DAYS_BETWEEN_REPEAT = 7;
@@ -69,16 +70,24 @@ function readCreativeMetricsForFamilies(dataDir, candidates) {
     .map((row) => ({ familyId: familyByPackRef.get(`object://sha256/${row.hook_id}`), score: row.score }));
 }
 
-async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText } = {}) {
+// `lane` is any of the lane objects exported by
+// marketing-native-carousel-publication-adapter.js (JA_LANE by default, for
+// backward compatibility). This function is intentionally lane-agnostic --
+// every field it reads (productId/locale/platform/accountId/integrationRef/
+// renderer/packFormat/form/lastSlideRole/name/lane) already exists on every
+// lane object, so the same rotation pipeline that stopped the JA Larry
+// Instagram lane from reposting also fixes any other lane wired to it,
+// without a second implementation.
+async function resolveLarryJaSlot({ env = process.env, now = () => new Date().toISOString(), slot, resolveBackground, generateText, lane = JA_LANE, productionSlots = JA_LARRY_PRODUCTION_SLOTS } = {}) {
   const dataDir = path.resolve(required(env.LM_DATA_DIR, "LM_DATA_DIR"));
   const tenantId = required(env.LM_RUNTIME_TENANT_ID, "LM_RUNTIME_TENANT_ID");
   const nowIso = now();
-  const dueSlot = slot || jaLarryProductionSlot(Date.parse(nowIso)) || nowIso;
+  const dueSlot = slot || marketingVideoDueSlot(Date.parse(nowIso), "Asia/Tokyo", productionSlots) || nowIso;
 
   const objectStore = createContentObjectStore({ objectDir: path.join(dataDir, "objects") });
-  const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", JA_LANE.productId, ".workspace");
-  const imageCacheDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", JA_LANE.productId, "image-cache");
-  const pool = poolPath(dataDir, tenantId, JA_LANE.productId, JA_LANE.lane);
+  const workspaceDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, ".workspace");
+  const imageCacheDir = path.join(dataDir, "tenants", encodeURIComponent(tenantId), "marketing", "slide-pack-rotation", lane.productId, "image-cache");
+  const pool = poolPath(dataDir, tenantId, lane.productId, lane.lane);
   let candidates = readPool(pool);
 
   if (candidates.length < MIN_POOL_SIZE) {
@@ -88,14 +97,15 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
       workspaceDir,
       imageCacheDir,
       tenantId,
-      productId: JA_LANE.productId,
-      locale: JA_LANE.locale,
-      platform: JA_LANE.platform,
-      accountId: JA_LANE.accountId,
-      integrationRef: JA_LANE.integrationRef,
-      rendererId: JA_LANE.renderer,
-      packFormat: JA_LANE.packFormat,
-      form: JA_LANE.form,
+      productId: lane.productId,
+      locale: lane.locale,
+      platform: lane.platform,
+      accountId: lane.accountId,
+      integrationRef: lane.integrationRef,
+      rendererId: lane.renderer,
+      packFormat: lane.packFormat,
+      form: lane.form,
+      lastSlideRole: lane.lastSlideRole,
       geminiApiKey: generateText ? env.GEMINI_API_KEY : required(env.GEMINI_API_KEY, "GEMINI_API_KEY"),
       ...(resolveBackground ? { resolveBackground } : {}),
       ...(generateText ? { generateText } : {}),
@@ -111,11 +121,11 @@ async function resolveLarryJaSlot({ env = process.env, now = () => new Date().to
     }
   }
 
-  const postedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, JA_LANE.productId));
+  const postedHistory = readPostedHistory(distributionLedgerPath(dataDir, tenantId, lane.productId));
   const metrics = readCreativeMetricsForFamilies(dataDir, candidates);
   const selected = selectSlidePack({ candidates, postedHistory, metrics, minDaysBetweenRepeat: MIN_DAYS_BETWEEN_REPEAT, now: nowIso });
   if (!selected) {
-    throw new Error(`${JA_LANE.name} slide pack rotation has no unposted candidate available for this slot`);
+    throw new Error(`${lane.name} slide pack rotation has no unposted candidate available for this slot`);
   }
   return { slot: dueSlot, selected };
 }
