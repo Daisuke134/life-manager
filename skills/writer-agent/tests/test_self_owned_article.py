@@ -62,6 +62,70 @@ def test_build_contract_requires_a_paid_boundary():
         module.build_contract(run_id="20260928-132912", lang="ja", markdown="# Title only\n\nshort body, no second heading")
 
 
+_SELF_OWNED_CTA = (
+    "https://aniccaai.com/lm?product_id=anicca&run_id=20260928-132912"
+    "&artifact_id=article-ja&variant_id=role-map&click_id=20260928-132912-article-ja"
+)
+_CAPAFY_CTA = (
+    "https://capafy.ai/agent/9563867391?product_id=capafy-skills"
+    "&run_id=20260928-132912&artifact_id=article-ja&variant_id=hook-variant-1"
+    "&click_id=20260928-132912-article-ja&ct=article-marketing-strategist"
+)
+
+
+def test_build_contract_never_buries_the_self_owned_cta_in_the_paid_section():
+    """Regression: run 20260928-132912's real article-ja.md had its CTA link
+    in a paragraph right before the last H2 ("## 出典" / Sources). The
+    naive first-H2-past-threshold boundary landed BEFORE that paragraph, so
+    the CTA ended up in paid_markdown -- which the site never renders for a
+    free reader -- and the live page had zero conversion links.
+    """
+    module = soa()
+    body = "\n\n".join(
+        f"Filler sentence number {i} with enough visible characters to count toward the preview minimum threshold."
+        for i in range(20)
+    )
+    markdown = (
+        f"# A useful title\n\n{body}\n\n"
+        f"## Where to start\n\nSee [the workspace]({_SELF_OWNED_CTA}) to continue.\n\n"
+        "## Sources\n\n- one citation\n"
+    )
+    contract = module.build_contract(run_id="20260928-132912", lang="ja", markdown=markdown)
+    assert _SELF_OWNED_CTA in contract["preview_markdown"]
+    assert _SELF_OWNED_CTA not in contract["paid_markdown"]
+
+
+def test_build_contract_never_buries_a_capafy_cta_in_the_paid_section():
+    module = soa()
+    body = "\n\n".join(
+        f"Filler sentence number {i} with enough visible characters to count toward the preview minimum threshold."
+        for i in range(20)
+    )
+    markdown = (
+        f"# A useful title\n\n{body}\n\n"
+        f"## Where to start\n\nSee [the agent]({_CAPAFY_CTA}) to continue.\n\n"
+        "## Sources\n\n- one citation\n"
+    )
+    contract = module.build_contract(run_id="20260928-132912", lang="ja", markdown=markdown)
+    assert _CAPAFY_CTA in contract["preview_markdown"]
+    assert _CAPAFY_CTA not in contract["paid_markdown"]
+
+
+def test_build_contract_refuses_to_split_a_cta_with_no_boundary_after_it():
+    """If the CTA is the very last thing in the article (no heading after
+    it), there is no safe boundary that both hides something and keeps the
+    CTA visible. Fail closed rather than silently dropping the CTA.
+    """
+    module = soa()
+    body = "\n\n".join(
+        f"Filler sentence number {i} with enough visible characters to count toward the preview minimum threshold."
+        for i in range(20)
+    )
+    markdown = f"# A useful title\n\n{body}\n\nSee [the workspace]({_SELF_OWNED_CTA}) to continue.\n"
+    with pytest.raises(module.SelfOwnedInvariant, match="boundary"):
+        module.build_contract(run_id="20260928-132912", lang="ja", markdown=markdown)
+
+
 def test_contracts_from_publication_state_requires_safety_allow(tmp_path):
     module = soa()
     run_dir = tmp_path / "20260928-132912"

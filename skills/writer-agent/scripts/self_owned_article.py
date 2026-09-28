@@ -14,7 +14,7 @@ import urllib.request
 import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 class SelfOwnedInvariant(ValueError):
@@ -57,6 +57,30 @@ def _slug(title: str, lang: str, source: str) -> str:
     return slug[:100].rstrip("-")
 
 
+# The revenue-path CTA link cta-gate.sh already requires on every frozen
+# article (skills/writer-agent/scripts/cta-gate.sh): any URL carrying all
+# five query parameters. This definition is host-agnostic on purpose -- it
+# matches both the self-owned aniccaai.com/lm CTA and the Capafy
+# capafy.ai/agent/<id> CTA from #6110 without hardcoding either domain.
+_URL_RE = re.compile(r"https?://[^\s<>\]\[()\"']+")
+_CTA_REQUIRED_PARAMS = ("product_id", "run_id", "artifact_id", "variant_id", "click_id")
+
+
+def _last_cta_link_end(source: str) -> int | None:
+    """Return the offset just past the last recognized CTA link in ``source``,
+    or None if the article has no such link. build_contract uses this to
+    refuse a preview/paid split that would bury the CTA in the paid section,
+    where the public page never renders it.
+    """
+    end = None
+    for match in _URL_RE.finditer(source):
+        url = match.group(0).rstrip(".,;:!?")
+        query = parse_qs(urlparse(url).query, keep_blank_values=True)
+        if all(query.get(field, [""])[0] for field in _CTA_REQUIRED_PARAMS):
+            end = match.start() + len(url)
+    return end
+
+
 def build_contract(
     *, run_id: str, lang: str, markdown: str, after_chars: int = 1200,
     minimum_preview_chars: int = 1000,
@@ -66,10 +90,14 @@ def build_contract(
     if lang not in {"ja", "en"}:
         raise SelfOwnedInvariant("language is unsupported")
     source = _without_frontmatter(markdown)
+    cta_end = _last_cta_link_end(source)
     boundary = None
     for match in re.finditer(r"(?m)^##\s+.+$", source):
         visible = _visible_chars(source[: match.start()])
-        if visible >= after_chars and visible >= minimum_preview_chars:
+        if (
+            visible >= after_chars and visible >= minimum_preview_chars
+            and (cta_end is None or match.start() >= cta_end)
+        ):
             boundary = match.start()
             break
     if boundary is None:
