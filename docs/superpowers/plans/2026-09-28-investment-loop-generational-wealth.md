@@ -209,13 +209,13 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 **Interfaces:**
 - Consumes: official customer-revenue receipts, owner cash-flow receipts, venue net-P&L receipts, model/API cost receipts, and reserve policy.
-- Produces: `treasury_snapshot(period) -> {customer_revenue_usd, investment_net_pnl_usd, owner_cash_flow_usd, model_cost_usd, tax_reserve_usd, investable_surplus_usd, evidence_status}`.
+- Produces: `treasury_snapshot(period) -> {customer_revenue_usd, investment_net_pnl_usd, owner_cash_flow_usd, model_cost_usd, tax_reserve_usd, investable_surplus_usd, investment_net_pnl_target_gap_usd, treasury_surplus_target_gap_usd, evidence_status}`.
 
-- [ ] **Step 1: Write tests** for principal/revenue/P&L separation, missing cost evidence, duplicate receipt IDs, reserve calculation, and negative investable surplus.
-- [ ] **Step 2: Implement a read-only treasury rollup**; it never transfers funds and never counts projected investment return as cash.
-- [ ] **Step 3: Connect only existing receipt producers**; a missing product financial adapter remains visible as `partial`, not silently omitted.
-- [ ] **Step 4: Report two separate targets:** investment net P&L target `$10k/month` and total treasury surplus target; never merge subscription MRR with trading P&L.
-- [ ] **Step 5: Commit** `feat(investment): separate treasury cash from investment pnl`.
+- [x] **Step 1: Write tests** for principal/revenue/P&L separation, missing cost evidence, duplicate receipt IDs, reserve calculation, separate target gaps, and negative investable surplus; focused tests pass `5/5`.
+- [x] **Step 2: Implement a read-only treasury rollup**; it never transfers funds and never counts projected investment return as cash.
+- [x] **Step 3: Connect only existing receipt producers**; currently no complete product financial adapter is available in this lane, so missing categories remain visible as `partial` and `product-loop-catalog.json` is unchanged.
+- [x] **Step 4: Report two separate targets:** investment net P&L target `$10k/month` and optional treasury surplus target; owner cash flow and customer revenue are not merged with trading P&L.
+- [x] **Step 5: Commit** `feat(investment): separate treasury cash from investment pnl`.
 
 ### Task 7: Acceptance, promotion, and $10k/month scoreboard
 
@@ -239,9 +239,10 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified (`3e6c81970d`); keep the cap at `$100` until its live evidence is complete.
 5. Solana nested Tasks 1–5 (wallet/journal, read-only scout, pure policy/paper, fake-client receipt verification, and staged wake) are implemented and focused-tested; real read-only evidence is saved, but no live transaction has been sent.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
-7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); move to the treasury rollup while keeping capital expansion disabled.
-8. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
-9. Promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
+7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
+8. Treasury rollup is implemented as read-only with separate investment-P&L and cash-surplus gaps; no complete product financial adapter is connected, so missing categories remain partial.
+9. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
+10. Record the S0 scoreboard with current receipts, then promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
 
 ### Execution order ruling
 

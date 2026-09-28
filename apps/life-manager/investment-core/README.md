@@ -34,7 +34,21 @@ Current source boundaries:
 
 The `$10,000/month` target is a measurement target, not a forecast. It is achieved only when a rolling monthly official receipt reports `net_pnl_usd >= 10000` after all listed costs. Until then, `target_gap_usd` is `不明` unless a measured rolling-30-day receipt is supplied. Treasury cash surplus and customer revenue remain separate from investment P&L.
 
+## Treasury cash contract
+
+`treasury.treasury_snapshot(period, receipts, reserve_policy)` is a read-only
+rollup. It keeps `customer_revenue`, `investment_net_pnl`, `owner_cash_flow`,
+and `model_cost` as separate receipt categories. Owner cash flow is never
+added to profit. A model cost is deducted from treasury only when its receipt
+explicitly says it was not already included in investment net P&L; missing
+scope, cost, duplicate, or unverified receipts produce `partial`/`blocked`
+evidence rather than zero.
+
+The result exposes two independent gaps: `investment_net_pnl_target_gap_usd`
+against the `$10,000/month` trading target, and the optional
+`treasury_surplus_target_gap_usd` after tax and cash reserves. Neither target
+authorizes a transfer, a capital increase, or a live venue action.
+
 ## lm-lead boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.
-
