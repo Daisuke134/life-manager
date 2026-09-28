@@ -13,7 +13,7 @@
 ## Current state and scope
 
 - `a78ab3d306` contains the first local/cloud host-adapter parity slice. It is unit evidence, not a real cloud proof.
-- The existing uncommitted Steel lease work is preserved but is not CL03 completion. Steel is a conditional browser fallback, not the selected primary runtime.
+- `5be0ff8551` classifies the pending browser work: `browser-session-lease` is the provider-neutral ownership contract, while Stagehand/Steel remains a conditional compatibility fallback. Its 79 focused tests are local evidence, not CL03 completion or an AgentCore implementation.
 - `lm_runtime_jobs`, tenant-scoped job leases, browser jobs, Inngest per-user functions, Stripe webhook entitlement, and PostgreSQL adapters already exist and must be reused.
 - Do not build a second Life Manager repository or copy business rules into the AgentCore wrapper.
 - Do not migrate Railway/Inngest/Supabase/Stripe in this plan. Replatforming the working control plane is outside the critical path.
@@ -42,11 +42,11 @@
 
 **Produces:** one live Cloud plan, one provider decision, and explicit evidence that current parity code is only CL01 unit groundwork.
 
-- [ ] **Step 1: Record the supersession**
+- [x] **Step 1: Record the supersession**
 
   Point T11 and the old CL01-CL05 plan to the AgentCore design and this plan. Preserve historical completed work; do not label the local simulation a cloud canary.
 
-- [ ] **Step 2: Re-run the existing parity unit test**
+- [x] **Step 2: Re-run the existing parity unit test**
 
   Run from `apps/life-manager`:
 
@@ -56,13 +56,13 @@
 
   Expected: PASS. Record the business-kernel SHA and note that no AWS call occurred.
 
-- [ ] **Step 3: Classify the pending Steel changes**
+- [x] **Step 3: Classify the pending Steel changes**
 
   Inspect only the six existing dirty browser/Steel files. Reusable provider-neutral lease behavior stays as an adapter contract; Steel-specific code is deferred behind a compatibility canary. Do not count it as AgentCore implementation.
 
-- [ ] **Step 4: Commit the documentation decision separately**
+- [x] **Step 4: Commit the documentation decision separately**
 
-  Stage only the spec/plan files. Preserve all pre-existing code changes.
+  Stage only the spec/plan files. Preserve all pre-existing code changes. Task 1 closes with the documentation commit containing this checkbox; the next cursor is Task 2 Step 1.
 
 ---
 
@@ -408,8 +408,8 @@
 ### Task 10: Promote the immutable release and run five real Free tenants (CL05)
 
 **Files:**
-- Create: `apps/life-manager/scripts/cloud-promotion-gate.js`
-- Create: `apps/life-manager/scripts/cloud-promotion-gate.test.js`
+- Modify: `apps/life-manager/scripts/cloud-promotion-gate.js`
+- Modify: `apps/life-manager/scripts/cloud-promotion-gate.test.js`
 - Create: `docs/evidence/cloud/agentcore-cl05-five-tenant.md`
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`
 
@@ -520,3 +520,40 @@
 12. **Muse Connector** — distribution after the Life Manager API is stable and Meta publishing exists.
 
 Do not move billing ahead of real-cloud cost measurement, and do not move Muse ahead of the product API. Those two reorderings make revenue or distribution claims without a working Life Manager cloud core.
+
+## Atomic execution ledger — current cursor and start-to-finish order
+
+Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
+
+| ID | Status | Atomic output | Completion evidence |
+|---|---|---|---|
+| A00 | done | Provider decision and one live spec/plan | `7eb28dc7a6`; old plan points here |
+| A01 | done | Same-kernel local/cloud host-adapter groundwork | `a78ab3d306`; parity unit test 3/3, AWS calls 0 |
+| A02 | done | Provider-neutral browser lease; Steel adapter integration | `5be0ff8551`; focused tests 79/79 |
+| A03 | **next** | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
+| A04 | todo | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
+| A05 | todo | Read-only canary runtime package | reproducible local package; no AWS mutation |
+| A06 | todo | Tokyo Runtime/Browser/Profile/Live View/Identity canary | official resource IDs and phone-sized Live View proof |
+| A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
+| A08 | todo | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
+| A09 | todo | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
+| A10 | todo | Versioned `free-v1` and `founding-pro-v1` policy | pure admission tests PASS |
+| A11 | todo | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
+| A12 | todo | Thin AgentCore wrapper over existing kernel | no duplicated business rule; local canonical parity PASS |
+| A13 | todo | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash |
+| A14 | todo | Runtime SDK client and dispatcher tests | budget/release/lease checks occur before provider call |
+| A15 | todo | One Inngest cloud-job function | tenant concurrency 1; event carries IDs only |
+| A16 | todo | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
+| A17 | todo | AgentCore Browser Profile adapter | tenant/provider-scoped profile and exact session release |
+| A18 | todo | Single-use mobile Live View route | wrong/expired/replayed tenant/job/session token makes browser calls 0 |
+| A19 | todo | Real phone handoff canary | take control, release, resume once, same profile, active sessions 0 |
+| A20 | todo | AgentCore Identity provider and migration-on-use | opaque refs only; revoke pauses dependent jobs |
+| A21 | todo | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |
+| A22 | todo | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
+| A23 | todo | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
+| A24 | todo | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero |
+| A25 | todo | Internal + five-user phone-only cohort | isolation/effect/session/cost invariant breaches 0 |
+| A26 | todo | First live $49 Founding Pro receipt | Stripe readback, entitlement transition, actual tenant contribution row |
+| A27 | todo | 25-user cohort | measured activation, D7/D30, conversion, p50/p95 cost replace assumptions |
+| A28 | todo | Repeatable growth engine toward 204,082 active paid | each scale gate shows retained paid net growth after churn replacement |
+| A29 | todo | Muse Connector distribution | only after stable Life Manager API and publishable Meta access |

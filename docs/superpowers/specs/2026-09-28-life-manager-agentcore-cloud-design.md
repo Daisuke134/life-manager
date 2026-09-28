@@ -6,6 +6,8 @@
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
+**Current cursor:** provider decision、same-kernel unit groundwork、browser lease classificationは完了。次はCL00のTokyo read-only provider proofであり、まだAgentCore本番実装完了ではない。
+
 ## 1. このspecが固定すること
 
 これまでのT11は「worker pool + Steel Browser」までしか決めておらず、次が未決定だった。
@@ -55,6 +57,22 @@ flowchart LR
 - runtime session ID、browser session ID、profile IDは状態の参照であり、business truthではない。
 
 これはGrok BotやMuseの「自分専用クラウドコンピュータ」と同じ利用者体験を与えながら、永続VMのコストと単一障害点を避ける。
+
+### 2.3 既存loopを作り直さない境界
+
+Cloud版は新しいagentをもう1体作らない。既存Life Managerのloopを、別のhostから呼ぶ。
+
+| 既存のまま再利用するもの | Cloud用に追加する薄い境界 |
+|---|---|
+| goal、business rule、effect fence、receipt判定、`lm_runtime_jobs` state machine | AgentCore request/response envelope |
+| Inngestのwake/retryとtenant別直列化 | AgentCore runtime dispatcher |
+| PostgreSQLのjob/checkpoint/receipt | tenant→runtime/profile/usageのprovider ID map |
+| 既存browser task contract | AgentCore Browser adapter。Steelはcompatibility fallbackのみ |
+| Stripe webhook entitlement | `free-v1` / `founding-pro-v1` admission policy |
+
+local版とCloud版の差は「誰が起こすか」「どこで隔離実行するか」「provider IDをどう保存するか」だけにする。business kernelをcopyしない。同じtask capsuleを同じkernel SHAへ渡し、canonical receipt/evidence hashが一致しなければCL01失敗である。
+
+`browser-session-lease`はprovider-neutral contractとしてtenantごとにbrowser ownerを1つへ制限する。既存Stagehand/Steel driverはそのcontractを利用できるが、AgentCore Browserの代替採用を意味せず、CL00で特定providerの互換性が失敗した場合だけ再評価する。
 
 ## 3. 調査した選択肢
 
@@ -211,6 +229,7 @@ internal revenueを0としても、Base targetの算術は次になる。
 | 100 | $4,900 | $211 | $600 | $200 | **$3,889/月** |
 | 1,000 | $49,000 | $2,107 | $6,000 | $2,000 | **$38,893/月** |
 | 100,000 | $4.9M | $210,700 | $600,000 | $200,000 | **$3.889M/月** |
+| 204,082 | $10,000,018 | $430,001 | $1,224,492 | $408,164 | **$7,937,361/月** |
 | 1,000,000 | $49M | $2.107M | $6M | $2M | **$38.893M/月** |
 
 100,000人・1,000,000人は売上予測ではなく、$49とBase targetを掛けたcapacity/business modelである。顧客獲得、解約、support、人件費、税、広告費を含まない。実際のforecastは、25人cohortのactivation、D7/D30 retention、Free→Paid conversion、cost/userが揃ってから更新する。
@@ -226,7 +245,22 @@ portfolio_net_profit
 
 たとえばcompany-owned loopが100,000 paid usersへ帰属可能なsettled revenueを平均$10/user生み、そのための追加costが$3/userなら、追加貢献は$700,000/月である。しかし現状の統合SSOTでは検証済みsettled net MRRはほぼ0なので、この$10をforecastには入れない。receiptが生まれた分だけCFOが加算する。
 
-### 7.5 launch cohort
+### 7.5 $10M MRRへ到達する算術とgrowth gate
+
+`$10,000,000 ÷ $49`を切り上げると、必要なactive paid subscriptionsは**204,082人**で、実際のMRRは`204,082 × $49 = $10,000,018`である。Base targetなら人件費・税・広告費前の月次粗利貢献は約**$7,937,361**である。これは売上予測でも達成保証でもなく、priceとcost capから出る必要顧客数・capacityの式である。
+
+Free→Paid conversionをactivated users基準で置くと、204,082 paidへ必要なactivated usersは次のとおりである。
+
+| Measured conversion | 必要activated users | 解釈 |
+|---:|---:|---|
+| 5% | 4,081,640 | 20人のactivated userから約1人がpaid |
+| 10% | 2,040,820 | 10人のactivated userから約1人がpaid |
+
+成長の順序は`1 paid receipt → 100 paid → 1,000 paid → 10,000 paid → 100,000 paid → 204,082 paid`とする。各段階で先へ進む条件は、MRRの見かけではなく、paid retention、月次churn、verified outcome率、Free→Paid conversion、support負荷、p50/p95 cost/userが計測でき、解約分を補充した後もactive paidが純増していることである。必要な月次新規paid数は常に`目標純増 + 当月churn人数`である。
+
+最初から204,082人分のVMを予約しない。active jobだけmicroVM/browserを作るため、capacityは利用者数ではなく同時実行数と実測job minutesに合わせて増やす。company-owned internal revenueはreceipt-backed settled netだけを上乗せし、$10M subscription MRRの必須条件には含めない。
+
+### 7.6 launch cohort
 
 1. internal tenantでread-only canary。
 2. 5人のinvite-only Free cohort。
@@ -271,7 +305,7 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 
 ## 11. best / base / worst
 
-- **Best:** managed isolation/browser/identityがそのまま適合し、5人canaryから25人Free cohort、$29 Founding Proへ進む。
+- **Best:** managed isolation/browser/identityがそのまま適合し、5人canaryから25人Free cohort、$49 Founding Proへ進む。
 - **Base:** 一部providerでbrowser互換性調整が必要だが、API優先とAgentCore Browserで大半を処理し、限定fallbackだけ追加する。
 - **Worst:** AgentCore Browserが主要収益providerで動かない。この場合もbusiness kernel、PostgreSQL job、Inngest、Stripeは残り、browser adapterだけSteel/E2Bへ差し替える。
 
