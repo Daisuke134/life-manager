@@ -158,10 +158,10 @@
 - Entry requires trailing 24-hour funding projected across the 14-day horizon to exceed measured entry/exit fees, slippage, bridge cost, and model cost with a fixed buffer; a displayed APR alone cannot pass.
 - Exit requires funding below the declared threshold, hedge mismatch, missing official state, daily loss cap, drawdown cap, or an unresolvable effect.
 
-- [ ] **Step 1: Add failing tests** proving PURR/ZEC/high-APR-but-unallowlisted pairs are not admitted, cost-unknown funding is idle, positive funding after costs enters, and funding decay exits.
-- [ ] **Step 2: Implement the allowlist and cost-complete carry gate.** Do not fund the wallet or sign an order.
-- [ ] **Step 3: Run the focused Hyperliquid suite and read-only market snapshot.** No live wallet mutation.
-- [ ] **Step 4: Commit.** `git add skills/earn/hyperliquid-carry docs/superpowers/plans/2026-09-27-hyperliquid-carry-live-loop.md && git commit -m "fix(hl-carry): require declared low-risk carry universe"`.
+- [x] **Step 1: Add failing tests** proving PURR/ZEC/high-APR-but-unallowlisted pairs are not admitted, indexed official BTC/ETH spot pairs are recognized, cost-unknown funding is idle, positive funding after costs enters, funding decay exits, and hedge mismatch exits. Focused policy tests now pass `13/13`.
+- [x] **Step 2: Implement the allowlist and cost-complete carry gate.** Only BTC/ETH matching spot-perp pairs are admitted; 14-day projected funding must exceed round-trip cost, bridge cost, model cost, and a fixed net buffer. The runtime default keeps model cost unknown, so it cannot enter. No wallet was funded and no order was signed.
+- [x] **Step 3: Run the focused Hyperliquid suite and read-only market snapshot.** The full offline suite passes `74/74`. The official read-only snapshot observed indexed BTC/ETH spot names (`@142`/`@151`) with zero reported spot volume, while PURR/ZEC were high-APR examples and remained excluded; no live wallet mutation occurred.
+- [x] **Step 4: Commit.** Commit `327d3366b7` (`fix(hl-carry): require declared low-risk carry universe`) is pushed on the dedicated investment branch; the canonical cursor update follows in the primary investment plan and SSOT.
 
 ### Task 6: Complete Solana copy exits before any canary
 
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 5 Step 1 — write failing tests for bounded Hyperliquid carry.** Tasks 1–4 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 6 Step 1 — write failing Solana exit-policy tests.** Tasks 1–5 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
