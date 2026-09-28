@@ -545,6 +545,39 @@ if [ "$ARTICLE_PRODUCT_SELECTION_CALLER_SET" -eq 0 ]; then
   echo "article-daily: product selection product_id=$ARTICLE_PRODUCT_ID landing=$ARTICLE_PRODUCT_LANDING_URL ct=${ARTICLE_PRODUCT_CT:-none}" >>"$LOG"
 fi
 
+# SEO KEYWORD TARGET (spec: give capafy-skills runs a real title/H2 target keyword
+# from OpenSEO instead of guessing): only runs when this pass actually picked a
+# Capafy skill. seo_keyword_seed.py owns its own 30-day cache per skill under
+# ~/.local/state/life-manager/writer/seo-keywords/, so this call is cheap on every
+# day but the first of a given skill's rotation month, and it never fails the run --
+# any OpenSEO/network problem falls back to a cached or static keyword inside that
+# script. The receipt is frozen to this run's gates/ dir so a resumed pass targets
+# the same keyword it started with.
+ARTICLE_SEO_TARGET_KEYWORD=""
+ARTICLE_SEO_SECONDARY_KEYWORDS=""
+if [ "$ARTICLE_PRODUCT_ID" = "capafy-skills" ]; then
+  CAPAFY_SKILL_SLUG="$(printf '%s' "$PRODUCT_SELECTION_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("capafy_skill") or "")')" || exit 1
+  SEO_KEYWORD_RECEIPT="$RUN_DIR/gates/seo-keyword.json"
+  if [ -n "$CAPAFY_SKILL_SLUG" ]; then
+    if [ -s "$SEO_KEYWORD_RECEIPT" ]; then
+      SEO_KEYWORD_JSON="$(cat "$SEO_KEYWORD_RECEIPT")"
+    else
+      SEO_KEYWORD_JSON="$(python3 "$ARTICLE_ROOT/scripts/seo_keyword_seed.py" \
+        --slug "$CAPAFY_SKILL_SLUG" --config "$ARTICLE_ROOT/config/products.json")" || {
+        echo "=== article-daily seo keyword lookup failed run=$RUN_TS slug=$CAPAFY_SKILL_SLUG (non-fatal, continuing without a target keyword) ===" >>"$LOG"
+        SEO_KEYWORD_JSON=""
+      }
+      [ -n "$SEO_KEYWORD_JSON" ] && printf '%s\n' "$SEO_KEYWORD_JSON" >"$SEO_KEYWORD_RECEIPT"
+    fi
+    if [ -n "$SEO_KEYWORD_JSON" ]; then
+      ARTICLE_SEO_TARGET_KEYWORD="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("primary") or "")')" || ARTICLE_SEO_TARGET_KEYWORD=""
+      ARTICLE_SEO_SECONDARY_KEYWORDS="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("secondary") or []))')" || ARTICLE_SEO_SECONDARY_KEYWORDS=""
+    fi
+  fi
+  export ARTICLE_SEO_TARGET_KEYWORD ARTICLE_SEO_SECONDARY_KEYWORDS
+  echo "article-daily: seo keyword target=${ARTICLE_SEO_TARGET_KEYWORD:-none} secondary=${ARTICLE_SEO_SECONDARY_KEYWORDS:-none} slug=${CAPAFY_SKILL_SLUG:-none}" >>"$LOG"
+fi
+
 if [ "$START_ACTION" = "new-quality-replacement" ]; then
   QUALITY_REPLACEMENT_TMP="$RUN_DIR/gates/.quality-replacement.json.$$"
   printf '%s' "$START_DECISION" | jq -c '{
@@ -1010,6 +1043,22 @@ STEP 9 (REPORT EVIDENCE -- MANDATORY, every pass, success or failure): persist h
 STEP 10 (FINISH -- HONEST DELIVERY): completion requires identity safety clear, conscience ALLOW, every active platform attempted independently, and exact current-run ledger evidence. Editorial/reader FAIL is retried in the same run up to five iterations; after the fifth it may be an explicitly recorded force-publish advisory, never a hidden bypass. In armed mode article-run-complete.py requires four active live reality receipts; the four dormant skip receipts are not failures or SLO work. Until then report PENDING; never equate foreground exit with shipped.'
 
 PROMPT="${PROMPT//PUBLICATION_PAUSE_SNAPSHOT_PLACEHOLDER/$PUBLICATION_PAUSE_SNAPSHOT}"
+# SEO keyword addendum (spec: capafy-skills runs target a real OpenSEO keyword):
+# append-only, same technique as the browser addendum below. No-op (PROMPT
+# unchanged) whenever this run has no target keyword -- the normal anicca-day case,
+# and any capafy-skills day where the OpenSEO lookup fell back with nothing usable.
+if [ -n "$ARTICLE_SEO_TARGET_KEYWORD" ]; then
+  PROMPT="${PROMPT}"'
+
+★ SEO TARGET KEYWORD THIS RUN ★ This run promotes a Capafy skill, and OpenSEO keyword
+research picked a real target keyword for that skills buyer problem: "'"$ARTICLE_SEO_TARGET_KEYWORD"'"
+(secondary keywords: '"${ARTICLE_SEO_SECONDARY_KEYWORDS:-none}"'). During STEP 2 research and STEP 3
+writing, work this target keyword and, where natural, one or two secondaries into the title and
+H2s of BOTH language drafts without breaking any existing title rule from STEP 3 above or
+reading like it was stuffed in -- a reader-first phrasing that happens to contain the keyword beats
+an awkward one that forces it verbatim. If the keyword genuinely does not fit the researched
+angle, use it as naturally as the real content allows rather than forcing an unnatural fit.'
+fi
 # self-heal L2 (spec #22): append-only, same technique as above -- if ensure_browser.sh could
 # not bring the shared daily-driver back, tell the pass to degrade gracefully (skip the
 # browser-dependent platforms and report why) instead of failing blind on every step that
