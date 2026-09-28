@@ -22,7 +22,8 @@ verified() {
     [ -f "$FINAL_ROOT/source/LICENSE" ] &&
     [ -f "$FINAL_ROOT/source/package-lock.json" ] &&
     [ -f "$FINAL_ROOT/source/server.js" ] &&
-    [ -d "$FINAL_ROOT/source/node_modules" ]
+    [ -d "$FINAL_ROOT/source/node_modules" ] &&
+    [ -f "$FINAL_ROOT/source/node_modules/better-sqlite3/build/Release/better_sqlite3.node" ]
 }
 
 if ! verified; then
@@ -58,7 +59,11 @@ PY
   [ -f "$TEMP_ROOT/source/LICENSE" ]
   [ -f "$TEMP_ROOT/source/package-lock.json" ]
   [ -f "$TEMP_ROOT/source/server.js" ]
-  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts)
+  # This is intentionally a source build: the cache is shared across Node
+  # upgrades, while better-sqlite3's binary is ABI-specific. Keep npm's
+  # progress on stderr because callers capture stdout as the one-line source
+  # path used by start.sh.
+  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts >&2 && npm rebuild better-sqlite3 --foreground-scripts >&2)
   if [ -e "$FINAL_ROOT" ]; then
     rm -rf "$FINAL_ROOT"
   fi
