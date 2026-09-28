@@ -72,6 +72,10 @@ def _has_completed_publication(runs: Path) -> bool:
 def select(state_root: Path, ledger: Path, decision: dict) -> str | None:
     runs = state_root / "runs"
     selected = decision.get("run_id")
+    if decision.get("action") == "resume-generation":
+        # A safely retryable generation is owned by the same-run retry below,
+        # not by draft adoption (which needs drafts the failed attempt lacks).
+        return None
     if isinstance(selected, str) and _status(runs, selected) in ALLOWED_STATUSES:
         # A publication-state run is owned by the foreground publication
         # planner, even when its generation status still looks adoptable. Do
