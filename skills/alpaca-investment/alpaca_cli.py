@@ -370,8 +370,10 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
     try:
         for row in rows:
             symbol, bars = row["symbol"], row["bars"]
+            # Alpaca's inclusive start/end query returns 49 five-minute bars
+            # for a four-hour window; reject only values beyond that bound.
             if symbol not in {"BTC/USDC", "ETH/USDC"} or symbol in result \
-                    or not isinstance(bars, list) or len(bars) > 48:
+                    or not isinstance(bars, list) or len(bars) > 49:
                 raise ValueError
             normalized = []
             previous_timestamp = None
