@@ -108,13 +108,17 @@ CDP = _detect_cdp()
 # stable index the agent references for fill/typeinto/upload.
 #
 # CP1_EXPECTED_MODEL (env) is the exact LISTING.md `Primary Model` display
-# string (e.g. "DeepSeek V4.1 Flash"). Agent 4243672453 saved once with the
-# Primary Model dropdown never selected (official `model` came back null),
-# and publish_finish.sh only caught the mismatch after CP1 already reported
-# done. Baking the expected text into a `markers` entry keeps this a thin,
-# deterministic DATA-EXPOSURE addition -- not a hardcoded click sequence --
-# so the state/shot readout objectively answers "is it selected" and the
-# agentic loop / PUBLISHING_RUNBOOK.md can fail closed before saving.
+# string (e.g. "DeepSeek V4.1 Flash"). Verified live 2026-09-28: the current
+# Capafy card has NO Primary Model field on CP1 at all (displayed `model`
+# comes only from CP2's drive_checkpoint2.py, which writes it into the hosted
+# LLM Config) -- Agent 4243672453's official `model:null` was actually
+# publish_finish.sh checking that field too early (before CP2 ever ran), not
+# a missed CP1 click; see CP1_AGENTIC.md. This marker/field exposure is kept
+# as forward-compatible DATA EXPOSURE ONLY (not a hardcoded click sequence):
+# if Capafy ever puts a model selector back on the card, `modelDropdownVisible`
+# / `modelSelected` give the agentic loop an objective signal instead of
+# trusting the save toast. Today it will normally read modelDropdownVisible:
+# false, and that is expected, not a failure.
 STATE_JS_TEMPLATE = r"""
 () => {
   const EXPECTED_MODEL = __EXPECTED_MODEL_JSON__;
