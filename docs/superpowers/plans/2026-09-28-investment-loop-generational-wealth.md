@@ -498,7 +498,7 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 ### Atomic investment TODO — canonical order
 
 1. **Source/OSS evidence ledger — done and pushed in `264751ff05`.** Record source, license, mechanism, limitation, and whether each source is reference/candidate/rejected. No OSS claim becomes profit evidence.
-2. **StrategyCard contract — next.** Require explicit instrument, timeframe, entry, exit, cost, sizing, risk, kill conditions, and evidence references before any venue can be a live candidate.
+2. **StrategyCard contract — implementation and tests complete; commit pending.** `StrategyCard` is frozen/recursive-immutable, preserves `Decimal` values as strings, rejects missing exit/cost/risk/evidence and unknown status, and has focused `8/8` plus investment-core discovery `74/74` green. Require explicit instrument, timeframe, entry, exit, cost, sizing, risk, kill conditions, and evidence references before any venue can be a live candidate.
 3. **Cost-complete out-of-sample validation — not done.** Reproduce candidate methods without copying incompatible-license code; reject lookahead, overfit, missing-cost, and holdout-negative candidates.
 4. **Alpaca declared policy — not done.** Replace free-form model selection with one release-pinned BTC/USDC strategy card; QQQ/SPY remain paper-only until separately specified.
 5. **Hyperliquid bounded carry policy — not done.** Restrict live candidates to the declared BTC/ETH spot-long/perp-short universe; require funding after fees/slippage/bridge/model costs; no Binance transfer.

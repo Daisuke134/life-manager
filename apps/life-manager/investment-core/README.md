@@ -2,6 +2,28 @@
 
 This directory owns a local-first, read-only measurement boundary for Alpaca, Hyperliquid carry, Solana copy-trading, and future investment receipt sources. It does not own venue admission, funding, signing, order submission, or loop release.
 
+## StrategyCard contract
+
+`strategy_cards.py` is the canonical, side-effect-free declaration for a
+candidate strategy. A card must declare its instrument, timeframe, entry,
+exit, sizing, cost model, risk limits, kill conditions, evidence URLs, and
+status (`research`, `paper`, `shadow`, `live_candidate`, or `rejected`).
+
+```python
+from strategy_cards import StrategyCard, validate_strategy_card
+
+card = StrategyCard.from_mapping(payload)
+errors = validate_strategy_card(card)
+if errors:
+    # Do not grant an effect permission.
+    raise ValueError(errors)
+```
+
+`StrategyCard` is frozen and recursively immutable. `to_mapping()` returns a
+detached JSON-like mapping, and `Decimal` inputs are preserved as strings.
+Missing cost or risk data never receives a default; missing exit, cost, risk,
+or evidence data must remain invalid until the source is supplied.
+
 ## Net-P&L contract
 
 Every measured venue snapshot carries official source receipt IDs and explicit costs:

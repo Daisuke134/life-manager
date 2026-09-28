@@ -93,10 +93,10 @@
 - Required fields: `strategy_id`, `venue`, `instruments`, `timeframe`, `entry_rules`, `exit_rules`, `sizing_rule`, `cost_model`, `risk_limits`, `kill_conditions`, `evidence_refs`, `status`.
 - `status` is one of `research`, `paper`, `shadow`, `live_candidate`, `rejected`; missing exit/cost/evidence always rejects.
 
-- [ ] **Step 1: Write failing tests** for missing exit, missing cost, empty instruments, missing evidence URLs, unknown status, stable serialization, and a valid read-only card.
-- [ ] **Step 2: Run the focused test and observe RED.** `cd apps/life-manager/investment-core && python3 -m unittest test_strategy_cards -v`.
-- [ ] **Step 3: Implement the minimal immutable card parser and validator.** Preserve decimal values as strings; never infer defaults for cost or risk.
-- [ ] **Step 4: Run focused and discovery tests.** `python3 -m unittest test_strategy_cards -v` and `python3 -m unittest discover -s . -p 'test_*.py'`.
+- [x] **Step 1: Write failing tests** for missing exit, missing cost, empty instruments, missing evidence URLs, unknown status, stable serialization, and a valid read-only card. RED was observed as the expected missing-module failure before implementation.
+- [x] **Step 2: Run the focused test and observe RED.** `cd apps/life-manager/investment-core && python3 -m unittest test_strategy_cards -v`.
+- [x] **Step 3: Implement the minimal immutable card parser and validator.** Preserve decimal values as strings; never infer defaults for cost or risk.
+- [x] **Step 4: Run focused and discovery tests.** Focused `8/8` and investment-core discovery `74/74` pass.
 - [ ] **Step 5: Commit.** `git add apps/life-manager/investment-core docs/superpowers && git commit -m "feat(investment): add evidence-backed strategy cards"`.
 
 ### Task 3: Build an OSS-style, cost-complete validation harness
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 2 Step 1 — write failing tests for the StrategyCard contract.** Task 1 is complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 2 Step 5 — commit the StrategyCard contract and tests.** The contract is implemented and verified; Task 1 is complete and pushed. No strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
