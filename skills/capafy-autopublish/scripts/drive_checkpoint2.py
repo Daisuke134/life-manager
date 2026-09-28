@@ -18,7 +18,7 @@ import math
 import os, sys, time, json, urllib.request
 import re
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, parse_qsl, urlsplit
+from urllib.parse import parse_qs, parse_qsl, quote, urlsplit
 
 BASE_URL = "https://openrouter.ai/api/v1"
 MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "anthropic/claude-sonnet-4.6")
@@ -122,6 +122,23 @@ def _capafy_page_targets(cdp_base):
     if not matches:
         raise RuntimeError("no existing Capafy createAgent page target")
     return matches
+
+
+def _open_cp2_target(cdp_base, cp2):
+    """Open the validated CP2 URL in a new tab and wait until DevTools lists it."""
+    _validate_cp2_url(cp2)
+    cdp_base = _validate_cdp_base(cdp_base)
+    request = urllib.request.Request(
+        f"{cdp_base}/json/new?{quote(cp2, safe='')}", method="PUT")
+    with urllib.request.urlopen(request, timeout=8) as r:
+        r.read()
+    deadline = time.time() + RAW_NAV_TIMEOUT_S
+    while time.time() < deadline:
+        try:
+            return _raw_page_targets(cdp_base, cp2)
+        except RuntimeError:
+            time.sleep(1)
+    raise RuntimeError("opened CP2 tab did not appear as a page target")
 
 
 class _RawPage:
@@ -642,7 +659,13 @@ def _raw_cp2(cp2, key, cdp_base):
     try:
         targets = _raw_page_targets(cdp_base, cp2)
     except RuntimeError:
-        targets = _capafy_page_targets(cdp_base)
+        try:
+            targets = _capafy_page_targets(cdp_base)
+        except RuntimeError:
+            # A deterministic resume of a CP1-confirmed draft never ran the CP1
+            # agent, so no createAgent tab exists (2026-09-28, 9466718786).
+            _open_cp2_target(cdp_base, cp2)
+            targets = _raw_page_targets(cdp_base, cp2)
     page = _open_responsive_page(targets)
     try:
         page.call("Page.enable")
