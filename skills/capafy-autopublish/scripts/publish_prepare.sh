@@ -111,9 +111,14 @@ if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then
     || die "catalog update request differs from Agent/source version/model"
 import json,sys
 request, config = (json.load(open(path, encoding="utf-8")) for path in sys.argv[1:3])
+target_model = request.get("target_model_id")
+target_fee = request.get("target_one_time_fee")
+if not target_model and not target_fee:
+    raise SystemExit(1)
 if (str(request.get("agent_id")) != sys.argv[3]
         or str(request.get("from_version_id")) != sys.argv[4]
-        or request.get("target_model_id") != config.get("model_id")):
+        or (target_model and target_model != config.get("model_id"))
+        or (target_fee and str(target_fee) != str(config.get("one_time_fee")))):
     raise SystemExit(1)
 PY
 fi
@@ -121,16 +126,23 @@ read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
   python3 - "$CFG_ONE" <<'PY'
 import json, sys
 config = json.load(open(sys.argv[1], encoding="utf-8"))
-print(config["model_id"], config["max_tokens"])
+print(config["model_id"] or "", config["max_tokens"] or "")
 PY
 )
 export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
 
-step "[0b] KEY-HEALTH GATE (fail-closed) — never publish into an under-funded host key"
-# 2026-07-18 A1: 4 agents were rejected with a billing error caused by a THIN OpenRouter
-# balance (NOT a stale key / NOT the provider-name label). Block the publish here so the
-# loop stops cleanly instead of shipping into a $-low account and getting re-rejected.
-"$AUTO/scripts/key_health_gate.sh" || die "KEY-HEALTH gate FAIL — restore OpenRouter funding (>= \$20 remaining) before publishing; see state/lessons.md"
+# Download-mode listings (pricing_mode=download, e.g. a one-time-fee update) have
+# no hosted LLM/CP2 — verified 2026-09-28 via publish-remote-status on agent
+# 3332784488: agent_type=download, is_confirmed_config_keys=false. Skip the
+# OpenRouter key-health gate and hosted-provider config for those; both only
+# apply to run_online (subscription) skills.
+if [ -n "$CAPAFY_HOSTED_MODEL_ID" ]; then
+  step "[0b] KEY-HEALTH GATE (fail-closed) — never publish into an under-funded host key"
+  # 2026-07-18 A1: 4 agents were rejected with a billing error caused by a THIN OpenRouter
+  # balance (NOT a stale key / NOT the provider-name label). Block the publish here so the
+  # loop stops cleanly instead of shipping into a $-low account and getting re-rejected.
+  "$AUTO/scripts/key_health_gate.sh" || die "KEY-HEALTH gate FAIL — restore OpenRouter funding (>= \$20 remaining) before publishing; see state/lessons.md"
+fi
 
 step "clean-WS copy"
 mkdir -p "$WS/skills"
@@ -144,8 +156,10 @@ cp -R "$SKILL_DIR" "$WS/skills/$SKILL_NAME" || die "clean-WS copy failed"
 # run_online packaging scans the clean runtime, not the operator's ~/.openclaw.
 # Give that runtime one explicit hosted provider contract.  Keep only an env
 # reference here: CP2 supplies the real key from the private state env.
-mkdir -p "$CAPAFY_PUBLISH_HOME/.openclaw"
-python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" "$CAPAFY_HOSTED_MODEL_ID" "$CAPAFY_HOSTED_MAX_TOKENS" <<'PY'
+# Download-mode listings have no hosted model — nothing to write.
+if [ -n "$CAPAFY_HOSTED_MODEL_ID" ]; then
+  mkdir -p "$CAPAFY_PUBLISH_HOME/.openclaw"
+  python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" "$CAPAFY_HOSTED_MODEL_ID" "$CAPAFY_HOSTED_MAX_TOKENS" <<'PY'
 import json, sys
 model_id, max_tokens = sys.argv[2], int(sys.argv[3])
 json.dump({
@@ -158,6 +172,7 @@ json.dump({
   "agents": {"defaults": {"model": {"primary": "openrouter/" + model_id}}}
 }, open(sys.argv[1], "w"), ensure_ascii=False, indent=2)
 PY
+fi
 
 step "[1] publish-init Phase A discovery"
 export HOME="$CAPAFY_PUBLISH_HOME"
@@ -286,6 +301,8 @@ echo "TARGET PRICING (drive each plan card to these EXACT values on the 価格�
 python3 - "$CFG_ONE" <<'PY'
 import json,sys
 c=json.load(open(sys.argv[1]))
+if c.get("pricing_mode") == "download":
+    print(f"  download : one-time fee ${c['one_time_fee']} (no cap/trial/hosted model — CP2 skipped)")
 for p in c["plans"]:
     tr = p.get("trial")
     trial_target = (f"Free Trial {tr['hours']}h / {tr['requests']} requests"
