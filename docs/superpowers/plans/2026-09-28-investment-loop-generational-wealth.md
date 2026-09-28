@@ -271,16 +271,16 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Reference only: `apps/life-manager/lib/financial-record-contract.js` and `financial-record-store.js`; the adapter receives already subject-scoped records and performs no filesystem, network, or wallet operation
 
 **Interfaces:**
-- Produces `financial_records_to_treasury_receipts(records, subject_id, period) -> {receipts, evidence_status, missing_sources, excluded_currencies, unclassified_records, source_record_ids}`.
+- Produces `financial_records_to_treasury_receipts(records, subject_id, period) -> {receipts, evidence_status, missing_sources, excluded_currencies, unclassified_records, ignored_non_business_records, source_record_ids}`.
 - Maps verified USD `business_revenue` to `customer_revenue` and verified USD `fee` to `operating_cost`; the record's original ID/provider remains attached to the aggregate receipt.
 - Requires an exact subject and `YYYY-MM` period. Other subjects, unverified/stale records, `business_cost` rows without an explicit refund/operating classification, payouts, transfers, and tax rows remain visible as excluded/unclassified evidence rather than being silently counted.
 - Excludes `USDC`, `USDT`, JPY, and any other non-USD asset rather than assuming an FX rate. This preserves the canonical ledger's native-asset truth while keeping the treasury target in USD.
 
-- [ ] **Step 1: Write failing tests** for subject/period filtering, USD revenue and fee mapping, non-USD exclusion, unverified/stale evidence, unclassified business costs, duplicate/malformed rows, and deterministic source receipt IDs.
-- [ ] **Step 2: Implement the pure FinancialRecord adapter** with Decimal-safe minor-unit conversion and no provider or state-store imports.
-- [ ] **Step 3: Replay the current CFO subject ledger for `2026-08` and `2026-09`**; prove the adapter excludes the historical `0.003 USDC` instead of calling it USD and never imports the separate subject.
-- [ ] **Step 4: Run focused tests plus the full investment-core suite and update the treasury README/spec with the result.
-- [ ] **Step 5: Commit and push** before returning to the Hyperliquid/ Solana external-effect gates.
+- [x] **Step 1: Write failing tests** for subject/period filtering, USD revenue and fee mapping, non-USD exclusion, unverified/stale evidence, unclassified business costs, duplicate/malformed rows, and deterministic source receipt IDs; focused tests pass `7/7`.
+- [x] **Step 2: Implement the pure FinancialRecord adapter** with Decimal-safe minor-unit conversion and no provider or state-store imports.
+- [x] **Step 3: Replay the current CFO subject ledger for `2026-08` and `2026-09`**; `2026-08` remains partial with the historical `0.003 USDC` excluded, `2026-09` has no USD treasury receipt and ignores only non-business balances, and combining the separate subject is blocked by `subject_mismatch`.
+- [x] **Step 4: Run focused tests plus the full investment-core suite and update the treasury README/spec with the result.** FinancialRecord plus Treasury focused tests pass `13/13`, CFO bridge focused tests pass `5/5`, the combined focused run passes `18/18`, and full investment-core discovery passes `47/47`; the README documents the exact subject/currency boundary.
+- [x] **Step 5: Commit and push** `460eba8427` (`feat(investment): bridge canonical financial records to treasury`) before returning to the Hyperliquid/Solana external-effect gates.
 
 ## Current TODO Cursor
 
@@ -292,8 +292,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
 8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, and the current subject ledger has only historical `0.003 USDC`, so no cash-surplus target claim is allowed.
-9. Current cursor: implement Task 9's canonical FinancialRecord bridge with exact subject and native-currency boundaries.
-10. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
+9. Task 9's canonical FinancialRecord bridge is implemented and pushed; current CFO-subject replay remains partial with no USD treasury receipt, and the second subject is blocked.
+10. Current cursor: return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
 11. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 12. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
 13. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
@@ -306,7 +306,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
-| Treasury | CFO bridge implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; current subject ledger has historical `0.003 USDC` only | No transfer; no target claim | finish canonical FinancialRecord bridge, then fix source ledgers/credential and obtain verified USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; current subject ledger has historical `0.003 USDC` only and September has no USD treasury receipt | No transfer; no target claim | fix source ledgers/credential and obtain verified USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Execution order ruling
