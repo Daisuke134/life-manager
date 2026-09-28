@@ -110,7 +110,7 @@ if [ "$VERDICT" = "CAP_FULL" ] && [ ! -f "$SELFHEAL_REQUEST" ]; then
   EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/capafy-offline-build/$(date +%s)-$$"
   OFFLINE_PROMPT='Build exactly ONE differentiated, honest Capafy skill candidate OFFLINE inside $LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog/<new-slug>/. Use only executables from $LIFE_MANAGER_RELEASE_ROOT. This is a CAP_FULL pass: NEVER call Capafy create/publish/configure/ship/submit APIs or UI, and never modify any remote platform state. Use sales_selector.py plus current inventory and existing catalog to avoid duplicates. Produce SKILL.md, LISTING.md, icon.svg, and evidence/verified-demonstration.md containing a concrete input, actual output, and verification notes. Follow the repository skill-creator quality contract, keep claims within what the skill can actually do. Build the next candidate in a proven winner family (BEST_PRACTICES.md §13): a Hook Lab variant for a specific platform/niche (Reels, YouTube Shorts, ads, podcasts, newsletters), a finance summary skill, or a sports analysis skill; use DeepSeek V4.1 Flash as Primary Model; set day=No Free Trial, week/month=a free trial per BEST_PRACTICES.md §3; set a Demand rank in LISTING.md; follow the description template in BEST_PRACTICES.md §13. Run the release-owned listing lint. Commit, push, merge through a PR, and verify origin/main contains the completed source change. Return status=success only after all four repo-owned artifacts exist, lint passes, and the commit is an ancestor of origin/main; otherwise status=failure. Include the created path, commit, merged-main readback, and lint evidence.'
   printf '%s\n' "$OFFLINE_PROMPT" | AGENT_RUNNER_EVIDENCE_MIN_FREE_BYTES=67108864 "$RUN_AGENT" \
-    --task-class browser-lane-agent --schema "$PASS_SCHEMA" --evidence-dir "$EVIDENCE_DIR" \
+    --task-class application-lane-agent --schema "$PASS_SCHEMA" --evidence-dir "$EVIDENCE_DIR" \
     --task-label capafy-offline-daily --loop capafy \
     --escalation-reason "authorized Capafy browser publishing workflow" >>"$LOG" 2>&1
   RC=$?
@@ -147,7 +147,7 @@ if d.get("action") == "update_existing":
 if [ -n "$UPDATE_ACTION" ]; then
   PROMPT="$PROMPT PAID AGENT UPDATE: selected official action is update_existing with $UPDATE_ACTION. Use that repo catalog Skill/Listing, keep the exact Agent ID, verify the source version still matches before prepare, submit at most one new version, and finish with the prepare-emitted AGENT_VERSION_ID. Never create a new Agent ID or claim Capafy Test Run succeeded before its official readback."
 fi
-# task-class browser-lane-agent (900s), not tool-agent (180s): a capafy pass
+# task-class application-lane-agent (3600s; browser-lane-agent 1800s killed the 2026-09-28 05:25Z pass rc=124 after CP3 while it was still reporting), not tool-agent (180s): a capafy pass
 # drives the Capafy CP1/CP2/CP3 browser UI. Measured 2026-07-27 against this
 # exact prompt, a READ-ONLY dry run already took 21 turns / 229s, and a real
 # publish pass is longer. Under tool-agent every pass was SIGKILLed mid-flight
@@ -156,7 +156,7 @@ fi
 # was a lie the model kept planning against. Same split, same reason as the gig
 # browser lanes.
 printf '%s\n' "$PROMPT" | AGENT_RUNNER_EVIDENCE_MIN_FREE_BYTES=67108864 "$RUN_AGENT" \
-  --task-class browser-lane-agent \
+  --task-class application-lane-agent \
   --schema "$PASS_SCHEMA" \
   --evidence-dir "$EVIDENCE_DIR" \
   --task-label capafy-marketplace-daily \
