@@ -466,6 +466,10 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 `29` is **not** a manual-wake task and it is not a promise that the next 29 trades will make money. It is the downstream sample requirement for the Alpaca promotion gate. The system must first run unattended, make its own decisions, reconcile official provider state, emit cost-complete P&L, notify, and recover/fence failures without Dais babysitting. Only then may natural runtime wakes accumulate the remaining sample.
 
+### Active implementation plan (`2026-09-28`)
+
+The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-investment-unattended-revenue-loop.md`](./2026-09-28-investment-unattended-revenue-loop.md). It is the execution-order companion to this primary investment plan: it does not broaden the lane, authorize funding, or transfer ownership of runtime files. Current cursor: **Task 1 Step 5**, after the fail-closed snapshot validation has passed its focused and full investment-core tests.
+
 ### Atomic investment TODO — canonical order
 
 1. **Owner admission receipt — not done.** Obtain one structured lm-lead receipt proving the loaded investment entrypoint, cadence, state root, redacted argv/env, release SHA, owner/occurrence, phase, exit/effect, and official provider acknowledgement. No local registry/runtime edit in this lane.
@@ -515,7 +519,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 30. **Investment notification (`2026-09-28T12:30Z`)**: the current Alpaca, Hyperliquid, Solana, and cross-venue status was sent to Telegram and acknowledged by the sender as `TELEGRAM_SENT=true`; this is a status report only and cannot authorize funding or promotion.
 31. **Next action remains owner-side**: poll for the complete lm-lead admission receipt (entrypoint, cadence, state root, argv/env, release SHA, provider ack). Until it arrives, do not send Binance funds, create a wallet, submit an order, or open a live canary.
 32. **General execution boundary**: act only inside the explicitly assigned current objective; never initiate or modify another agent's, another owner's, another worktree's, or another project's work. For this plan, self-directed work is limited to investment receipts, realized cost-complete net P&L, capital gates, and Telegram notification.
-33. **Investment entrypoint slice (`2026-09-28T12:51:49Z`)**: `cross_venue_run.py` now provides a tested finite owner entrypoint. It reads only canonical snapshot files, preserves missing Alpaca/Hyperliquid/Solana inputs as `unknown`, requires source IDs for owner cash-flow evidence, defaults available capital to `0`, and never imports credentials or venue-effect functions. Investment-core discovery is `65/65` green; the remaining blocker is owner-side admission/cadence/provider acknowledgement, not another manual wake.
+33. **Investment entrypoint slice (`2026-09-28T12:51:49Z`, pushed `3a4a6cacae`)**: `cross_venue_run.py` now provides a tested finite owner entrypoint. It reads only canonical snapshot files, preserves missing Alpaca/Hyperliquid/Solana inputs as `unknown`, requires source IDs for owner cash-flow evidence, defaults available capital to `0`, and never imports credentials or venue-effect functions. The detailed plan also fail-closes canonical snapshots with missing cost evidence before aggregation; the focused suite is `5/5` and investment-core discovery is `66/66` green. Task 1 is complete. The next cursor is Task 2 owner admission handoff; the remaining dependency is owner-side cadence/provider acknowledgement, not another manual wake.
+34. **Investment plan cursor (`2026-09-28T13:02:10Z`)**: Task 2 Step 1 handoff was sent to `lm-lead` with commit `3a4a6cacae` and the complete receipt schema. Task 2 Step 2 is not complete: no admission receipt or exact blocker has arrived. Do not treat an active session, registry row, lock, intent, or sent message as admission evidence.
 
 ### Current S0 scoreboard
 
