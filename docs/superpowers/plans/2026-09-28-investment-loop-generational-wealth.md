@@ -457,6 +457,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 16. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 17. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
 18. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+19. Latest post-merge focused verification passes: cross-venue `35/35`, Capafy actual-cost reader `31/31`, and PromptBase publisher `15/15`. The broader Capafy package is `221` passed / `5` failed; the five failures are pre-existing launchd/self-heal test boundaries (`LIFE_MANAGER_RELEASE_ROOT invalid` and a missing cutover marker anchor) outside this investment-lane change, so the package is not reported green.
 
 ### Current S0 scoreboard
 
