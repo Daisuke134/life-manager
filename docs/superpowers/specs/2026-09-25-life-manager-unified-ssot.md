@@ -656,3 +656,5 @@ TODO（何を・どう直すか）
 **Life Manager runtime最新readback（2026-09-29）**: `lm-loop status alpaca-investment-live`で`owner=life-manager`、`launchd_state=loaded-idle`、loaded SHA=`5dfb1f84f6039a0e0a9661ee2f7977acfff0d163`、cadence=`300s`を確認。最新occurrenceは`alpaca-investment-live:18d99c8032903b98-81460`、`host_admission_deferred:resource_capacity_busy`、exit `75`、`provider_receipt_id=null`、`official_readback_ref=null`、`next_action=retry_after_eligibility`。loaded registryは`borrow/support`・queued reconciliationなし、ETF policy/cross-venue entrypointなし。現HEADのshared contract gateも同じrecovery-class mismatchでRED。これはeffect前の安全なdeferであり、注文・送金・P&Lではない。
 
 **owner表記の正規化（2026-09-29）**: 投資core READMEに残っていた未定義の`lm-lead`表記を削除し、argv/env・cadence・release・provider acknowledgementのruntime ownerをLife Managerと明記した。これは投資lane内の文書修正であり、runtime state・admission・provider effectは変更していない。
+
+**最新main同期後の投資検証（2026-09-29）**: `origin/main=b79275cfed`をcandidate merge `41bc8be6d3`で同期しpush済み。candidate doctorはPASS（registry `170`、missing/unmanagedなし）、Alpaca `200/200`、investment-core `101/101`、cross-venue指定テスト`27/27`。shared contract gateは同じrecovery-class mismatchでREDのまま。provider receipt、注文、送金、P&Lは新規発生していない。
