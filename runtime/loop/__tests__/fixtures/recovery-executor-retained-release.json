@@ -1,0 +1,10 @@
+{
+  "intent_release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "current_release_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "retained_release_dir": "20260924T000000-aaaaaaaa",
+  "expected": {
+    "state": "repaired",
+    "release_binding": "intent_release_sha",
+    "authoritative_status_readback": true
+  }
+}

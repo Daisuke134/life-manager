@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { access, constants, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { resolveBoundRelease } from './recovery-release-binding.mjs';
 
 const execFileAsync = promisify(execFile);
 const SHA256 = /^[0-9a-f]{40}$/u;
@@ -170,15 +171,11 @@ export async function executeRecoveryPlan({
     return resultBase(plan, 'blocked', false, { reason: 'command_contract_invalid' });
   }
 
-  let manifest;
-  try {
-    manifest = JSON.parse(await readFile(path.join(releaseRoot, 'RELEASE.json'), 'utf8'));
-  } catch {
-    return resultBase(plan, 'blocked', false, { reason: 'release_manifest_unreadable' });
-  }
-  if (manifest?.sha !== plan.release_sha) {
+  const boundReleaseRoot = await resolveBoundRelease(releaseRoot, plan.release_sha);
+  if (!boundReleaseRoot) {
     return resultBase(plan, 'blocked', false, { reason: 'release_sha_mismatch' });
   }
+  releaseRoot = boundReleaseRoot;
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');
   try {

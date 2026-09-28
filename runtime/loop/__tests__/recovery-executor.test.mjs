@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, chmod } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, chmod, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { buildRecoveryApplyPlan } from '../recovery-apply-plan.mjs';
@@ -166,6 +166,56 @@ test('refuses a plan whose release SHA is not the loaded release', async () => {
   assert.equal(result.state, 'blocked');
   assert.equal(result.reason, 'release_sha_mismatch');
   assert.equal(invoked, false);
+});
+
+test('reconciles from the retained immutable release when current has advanced', async () => {
+  const fixture = JSON.parse(await readFile(
+    new URL('./fixtures/recovery-executor-retained-release.json', import.meta.url), 'utf8',
+  ));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lm-recovery-retained-release-'));
+  const current = path.join(root, 'current');
+  const retained = path.join(root, 'releases', fixture.retained_release_dir);
+  for (const [release, sha] of [[current, fixture.current_release_sha], [retained, fixture.intent_release_sha]]) {
+    await mkdir(path.join(release, 'bin'), { recursive: true });
+    await writeFile(path.join(release, 'RELEASE.json'), `${JSON.stringify({ sha })}\n`);
+    await writeFile(path.join(release, 'bin', 'lm-loop'), '#!/bin/sh\n');
+    await chmod(path.join(release, 'bin', 'lm-loop'), 0o755);
+  }
+
+  const plan = buildRecoveryApplyPlan({ intent: intent({ release_sha: fixture.intent_release_sha }), registry });
+  const readbacks = [
+    statusResult(status({ event_id: 'before', last_terminal_result: 'fail', diagnostic_complete: false })),
+    statusResult(status({ event_id: 'after' })),
+  ];
+  const calls = [];
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    releaseRoot: current,
+    runCommand: async (request) => {
+      calls.push(request);
+      return {
+        code: 0,
+        stdout: JSON.stringify({
+          ok: true, route: 'deterministic', release_sha: fixture.intent_release_sha,
+          eligible: 1, applied: [{ label: 'ai.anicca.example' }], failed: [],
+        }),
+        stderr: '',
+      };
+    },
+    readStatus: async (request) => {
+      calls.push(request);
+      return readbacks.shift();
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state, fixture.expected.state);
+  assert.equal(result.after_readback.event_id, 'after');
+  assert.deepEqual(calls.map((call) => call.executable), [
+    path.join(retained, 'bin', 'lm-loop'), path.join(retained, 'bin', 'lm-loop'), path.join(retained, 'bin', 'lm-loop'),
+  ]);
+  assert.ok(calls.every((call) => call.env.LIFE_MANAGER_RELEASE_ROOT === retained));
 });
 
 test('refuses a plan that could target a sibling or more than one owner', async () => {
