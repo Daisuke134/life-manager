@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import math
 import sys
 import tempfile
@@ -49,6 +50,33 @@ class FixedRiskPolicyTest(unittest.TestCase):
         self.assertFalse(result["approved"])
         self.assertEqual(result["reason"], "strategy_release_missing")
         self.assertFalse((root / "state" / "decision-schema.json").exists())
+
+    def test_allocator_honors_no_strategy_selection_as_no_trade(self):
+        snapshot = {
+            "account": {"cash": "100", "equity": "100"},
+            "available_cash_usd": "100",
+            "clock": {"timestamp": "2026-09-10T10:00:00Z"},
+            "positions": 0,
+            "open_orders": 0,
+            "unresolved_intents": 0,
+        }
+        candidate = {
+            "asset_class": "crypto", "candidate_ref": "crypto://BTC/USDC",
+            "max_loss_usd": 10, "quote_age_seconds": 0, "spread_fraction": 0,
+            "symbol": "BTC/USDC",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            state.mkdir()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "strategy_id": "NO_STRATEGY",
+                "selection": "no_strategy",
+                "rejection_reasons": ["holdout_net_non_positive"],
+            }))
+            result = allocator.choose(snapshot, [candidate], state, Path("runner"), Path(directory))
+
+        self.assertFalse(result["approved"])
+        self.assertEqual(result["reason"], "no_strategy_selected")
 
     def _provider_snapshot(self, timestamp="2026-09-06T13:59:50Z", open_orders=0):
         clock = {"is_open": True, "timestamp": timestamp}

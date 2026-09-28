@@ -5,12 +5,19 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
+import re
 from types import MappingProxyType
 from typing import Any
 from urllib.parse import urlparse
 
 
 VALID_STATUSES = frozenset({"research", "paper", "shadow", "live_candidate", "rejected"})
+_RELEASE_SHA = re.compile(r"^[0-9a-fA-F]{40,64}$")
+
+
+def is_valid_release_sha(value: Any) -> bool:
+    """Return whether a selection can be pinned to an immutable release."""
+    return isinstance(value, str) and _RELEASE_SHA.fullmatch(value) is not None
 
 
 def _freeze(value: Any) -> Any:
@@ -146,4 +153,4 @@ def validate_strategy_card(card: StrategyCard) -> tuple[str, ...]:
     return tuple(errors)
 
 
-__all__ = ["StrategyCard", "VALID_STATUSES", "validate_strategy_card"]
+__all__ = ["StrategyCard", "VALID_STATUSES", "is_valid_release_sha", "validate_strategy_card"]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,19 @@ from strategy_policy import (ACTION_ENTER, ACTION_NO_TRADE, ALLOWED_ACTIONS,
 MAX_QUOTE_AGE_SECONDS = 30
 MAX_SPREAD_FRACTION = .15
 MIN_CASH_FRACTION = .30
+
+
+def _read_selection(state: Path) -> dict[str, Any] | None:
+    path = state / "selected-strategy.json"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("strategy_selection_invalid") from error
+    if not isinstance(value, dict):
+        raise ValueError("strategy_selection_invalid")
+    return value
 
 
 def _age_seconds(timestamp: str) -> float:
@@ -87,6 +101,32 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
     del runner, workdir
     observed_at = snapshot.get("clock", {}).get("timestamp")
     try:
+        selection = _read_selection(state)
+    except ValueError as error:
+        return {
+            "action": ACTION_NO_TRADE,
+            "strategy_id": None,
+            "signal_inputs": {},
+            "reason": str(error),
+            "expected_cost_usd": None,
+            "candidate_ref": "NO_TRADE",
+            "approved": False,
+            "gate": "strategy_selection_invalid",
+            "observed_at": observed_at,
+        }
+    if selection is not None and selection.get("strategy_id") == "NO_STRATEGY":
+        return {
+            "action": ACTION_NO_TRADE,
+            "strategy_id": None,
+            "signal_inputs": {},
+            "reason": "no_strategy_selected",
+            "expected_cost_usd": None,
+            "candidate_ref": "NO_TRADE",
+            "approved": False,
+            "gate": "strategy_selection_no_strategy",
+            "observed_at": observed_at,
+        }
+    try:
         card, release_sha = load_selected_card(state)
     except ValueError as error:
         return {
@@ -100,6 +140,34 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
             "gate": str(error),
             "observed_at": observed_at,
         }
+    if selection is not None:
+        if (selection.get("selection") != "selected"
+                or not isinstance(selection.get("report_id"), str)
+                or not selection["report_id"].strip()):
+            return {
+                "action": ACTION_NO_TRADE,
+                "strategy_id": None,
+                "signal_inputs": {},
+                "reason": "strategy_selection_invalid",
+                "expected_cost_usd": None,
+                "candidate_ref": "NO_TRADE",
+                "approved": False,
+                "gate": "strategy_selection_invalid",
+                "observed_at": observed_at,
+            }
+        if (selection.get("strategy_id") != card.strategy_id
+                or selection.get("release_sha") != release_sha):
+            return {
+                "action": ACTION_NO_TRADE,
+                "strategy_id": None,
+                "signal_inputs": {},
+                "reason": "strategy_selection_mismatch",
+                "expected_cost_usd": None,
+                "candidate_ref": "NO_TRADE",
+                "approved": False,
+                "gate": "strategy_selection_mismatch",
+                "observed_at": observed_at,
+            }
     offered = next((row for row in candidates
                     if row.get("asset_class") == "crypto"
                     and row.get("symbol") in BTC_SYMBOLS), None)

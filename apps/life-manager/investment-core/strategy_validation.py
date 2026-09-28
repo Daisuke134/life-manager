@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 import re
 from typing import Any
 
-from strategy_cards import StrategyCard, validate_strategy_card
+from strategy_cards import StrategyCard, is_valid_release_sha, validate_strategy_card
 
 
 _MONEY = Decimal("0.01")
@@ -272,6 +272,7 @@ def _notional(card: StrategyCard) -> Decimal | None:
 def _empty_summary() -> dict[str, Any]:
     return {
         "trades": 0,
+        "turnover": "0",
         "gross_pnl_usd": "0.00",
         "net_pnl_usd": "0.00",
         "fees_usd": "0.00",
@@ -294,6 +295,9 @@ def _summary(trades: list[dict[str, Any]]) -> dict[str, Any]:
         drawdown = max(drawdown, peak - equity)
     return {
         "trades": len(trades),
+        # The finite evaluator has no volume stream; completed round trips are
+        # the explicit comparable turnover proxy carried into selection.
+        "turnover": str(len(trades)),
         "gross_pnl_usd": _money(gross),
         "net_pnl_usd": _money(net),
         "fees_usd": _money(fees),
@@ -481,6 +485,7 @@ def _empty_report(strategy_id: Any, status: str, reason: str, lookahead: bool = 
         "holdout": _empty_summary(),
         "trades": [],
         "net_pnl_usd": "0.00",
+        "turnover": "0",
         "fees_usd": "0.00",
         "slippage_usd": "0.00",
         "max_drawdown_usd": "0.00",
@@ -562,6 +567,7 @@ def validate_series(
         "holdout": summaries["holdout"],
         "trades": trades,
         "net_pnl_usd": total["net_pnl_usd"],
+        "turnover": summaries["holdout"]["turnover"],
         "fees_usd": total["fees_usd"],
         "slippage_usd": total["slippage_usd"],
         "max_drawdown_usd": total["max_drawdown_usd"],
@@ -575,4 +581,240 @@ def validate_series(
     return result
 
 
-__all__ = ["validate_series"]
+def _selection_copy(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, Mapping):
+        return {str(key): _selection_copy(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_selection_copy(item) for item in value]
+    return value
+
+
+def _selection_cost_complete(value: Any) -> bool:
+    if not isinstance(value, Mapping) or not value:
+        return False
+    numeric = False
+    for item in value.values():
+        if isinstance(item, Mapping):
+            if not _selection_cost_complete(item):
+                return False
+            numeric = True
+            continue
+        if isinstance(item, (list, tuple)):
+            if not item or not all(_selection_cost_complete({"value": nested}) for nested in item):
+                return False
+            numeric = True
+            continue
+        if isinstance(item, str) and item.strip().lower() in {"", "unknown", "missing", "none", "null"}:
+            return False
+        parsed = _decimal(item)
+        if parsed is None or parsed < 0:
+            return False
+        numeric = True
+    return numeric
+
+
+def _selection_detail(report: Mapping[str, Any], index: int) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
+    strategy_id = report.get("strategy_id")
+    report_id = report.get("report_id")
+    card_value = report.get("card")
+    card: StrategyCard | None = None
+    reasons: list[str] = []
+
+    if not isinstance(report_id, str) or not report_id.strip():
+        reasons.append("report_id_missing")
+    if not isinstance(strategy_id, str) or not strategy_id.strip():
+        reasons.append("strategy_id_missing")
+    if not is_valid_release_sha(report.get("release_sha")):
+        reasons.append("release_sha_invalid")
+    if not isinstance(card_value, Mapping):
+        reasons.append("card_invalid")
+    else:
+        try:
+            card = StrategyCard.from_mapping(card_value)
+            if validate_strategy_card(card):
+                reasons.append("card_invalid")
+            elif card.strategy_id != strategy_id:
+                reasons.append("strategy_id_mismatch")
+        except (TypeError, ValueError):
+            reasons.append("card_invalid")
+
+    if report.get("status") != "measured":
+        reasons.append("validation_not_measured")
+    if report.get("decision") != "paper":
+        reasons.append("validation_not_paper")
+    if report.get("lookahead_detected") is True:
+        reasons.append("lookahead_detected")
+    if report.get("failed_gates"):
+        reasons.append("validation_gate_failed")
+
+    holdout = report.get("holdout")
+    holdout_net: Decimal | None = None
+    holdout_drawdown: Decimal | None = None
+    if not isinstance(holdout, Mapping):
+        reasons.append("holdout_metrics_missing")
+    else:
+        holdout_net = _decimal(holdout.get("net_pnl_usd"))
+        if holdout_net is None:
+            reasons.append("holdout_net_invalid")
+        elif holdout_net <= 0:
+            reasons.append("holdout_net_non_positive")
+        trades = _decimal(holdout.get("trades"))
+        if trades is None or trades <= 0 or trades != trades.to_integral_value():
+            reasons.append("holdout_trades_missing")
+        holdout_drawdown = _decimal(holdout.get("max_drawdown_usd"))
+        if holdout_drawdown is None or holdout_drawdown < 0:
+            reasons.append("holdout_drawdown_invalid")
+
+    cost_model = report.get("cost_model")
+    if not _selection_cost_complete(cost_model):
+        reasons.append("cost_model_incomplete")
+
+    turnover = _decimal(report.get("turnover", holdout.get("turnover") if isinstance(holdout, Mapping) else None))
+    if turnover is None or turnover < 0:
+        reasons.append("turnover_missing")
+
+    if report.get("stale") is True or report.get("fresh") is False:
+        reasons.append("report_stale")
+    elif "expires_at" in report:
+        expires_at = _timestamp(report.get("expires_at"))
+        if expires_at is None or expires_at <= datetime.now(timezone.utc):
+            reasons.append("report_stale")
+
+    evidence_ids = report.get("evidence_ids")
+    if not isinstance(evidence_ids, (list, tuple)) or not evidence_ids:
+        reasons.append("evidence_ids_missing")
+        evidence_ids = []
+    elif any(not isinstance(value, str) or not value.strip() for value in evidence_ids):
+        reasons.append("evidence_ids_invalid")
+
+    detail = {
+        "index": index,
+        "report_id": report_id if isinstance(report_id, str) else None,
+        "strategy_id": strategy_id if isinstance(strategy_id, str) else None,
+        "venue": card.venue if card is not None else report.get("venue"),
+        "release_sha": report.get("release_sha") if isinstance(report.get("release_sha"), str) else None,
+        "card": card.to_mapping() if card is not None else None,
+        "holdout": _selection_copy(holdout) if isinstance(holdout, Mapping) else None,
+        "cost_model": _selection_copy(cost_model) if isinstance(cost_model, Mapping) else None,
+        "turnover": str(turnover) if turnover is not None else None,
+        "evidence_ids": list(evidence_ids),
+        "accepted": False,
+        "rejection_reasons": reasons,
+    }
+    rank = {
+        "holdout_net": holdout_net,
+        "holdout_drawdown": holdout_drawdown,
+        "turnover": turnover,
+    }
+    return detail, reasons, rank
+
+
+def select_strategy(reports: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Select one release-pinned strategy from complete validation reports.
+
+    The function is pure and deterministic. It ignores model-generated scores
+    or explanations; only declared evidence fields participate in the gates and
+    ranking. A missing or conflicting evidence boundary returns ``NO_STRATEGY``.
+    """
+    if isinstance(reports, (str, bytes)) or not isinstance(reports, Sequence):
+        reports = []
+
+    details: list[dict[str, Any]] = []
+    ranks: list[dict[str, Decimal | None]] = []
+    for index, report in enumerate(reports):
+        if not isinstance(report, Mapping):
+            details.append({
+                "index": index,
+                "report_id": None,
+                "strategy_id": None,
+                "venue": None,
+                "release_sha": None,
+                "card": None,
+                "holdout": None,
+                "cost_model": None,
+                "turnover": None,
+                "evidence_ids": [],
+                "accepted": False,
+                "rejection_reasons": ["report_invalid"],
+            })
+            ranks.append({"holdout_net": None, "holdout_drawdown": None, "turnover": None})
+            continue
+        detail, _reasons, rank = _selection_detail(report, index)
+        details.append(detail)
+        ranks.append(rank)
+
+    report_id_indexes: dict[str, list[int]] = {}
+    evidence_indexes: dict[str, list[int]] = {}
+    for index, detail in enumerate(details):
+        report_id = detail.get("report_id")
+        if report_id:
+            report_id_indexes.setdefault(report_id, []).append(index)
+        for evidence_id in detail.get("evidence_ids", []):
+            if isinstance(evidence_id, str) and evidence_id:
+                evidence_indexes.setdefault(evidence_id, []).append(index)
+    for indexes in report_id_indexes.values():
+        if len(indexes) > 1:
+            for index in indexes:
+                details[index]["rejection_reasons"].append("duplicate_report_id")
+    for indexes in evidence_indexes.values():
+        if len(indexes) > 1:
+            for index in indexes:
+                details[index]["rejection_reasons"].append("duplicate_evidence_id")
+
+    accepted: list[tuple[Decimal, Decimal, Decimal, str, int]] = []
+    for index, detail in enumerate(details):
+        reasons = detail["rejection_reasons"]
+        detail["rejection_reasons"] = list(dict.fromkeys(reasons))
+        detail["accepted"] = not detail["rejection_reasons"]
+        if not detail["accepted"]:
+            continue
+        rank = ranks[index]
+        if (detail.get("strategy_id") is None or rank["holdout_net"] is None
+                or rank["holdout_drawdown"] is None or rank["turnover"] is None):
+            detail["accepted"] = False
+            detail["rejection_reasons"] = ["selection_rank_invalid"]
+            continue
+        accepted.append((
+            -rank["holdout_net"],
+            rank["holdout_drawdown"],
+            rank["turnover"],
+            str(detail["strategy_id"]),
+            index,
+        ))
+
+    if not accepted:
+        rejection_reasons = sorted({
+            reason for detail in details for reason in detail["rejection_reasons"]
+        })
+        return {
+            "strategy_id": "NO_STRATEGY",
+            "venue": None,
+            "report_id": None,
+            "release_sha": None,
+            "card": None,
+            "holdout": None,
+            "cost_model": None,
+            "rejection_reasons": rejection_reasons,
+            "reports": details,
+            "selection": "no_strategy",
+        }
+
+    accepted.sort()
+    selected = details[accepted[0][4]]
+    return {
+        "strategy_id": selected["strategy_id"],
+        "venue": selected["venue"],
+        "report_id": selected["report_id"],
+        "release_sha": selected["release_sha"],
+        "card": selected["card"],
+        "holdout": selected["holdout"],
+        "cost_model": selected["cost_model"],
+        "rejection_reasons": [],
+        "reports": details,
+        "selection": "selected",
+    }
+
+
+__all__ = ["select_strategy", "validate_series"]
