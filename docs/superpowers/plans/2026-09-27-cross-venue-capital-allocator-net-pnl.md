@@ -107,10 +107,10 @@
 **Interfaces:**
 - Documents the snapshot schema, source receipt requirements, fee/model-cost equation, unknown behavior, state paths, and the lm-lead registry request without editing registry/runtime files.
 
-- [ ] **Step 1: Add acceptance tests** for a fixture with Alpaca + Hyperliquid + Solana rows and verify the exact daily net breakdown and no execution side effect.
-- [ ] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.**
-- [ ] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.**
-- [ ] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
+- [x] **Step 1: Add acceptance tests** for a fixture with Alpaca + Hyperliquid + Solana rows and verify the exact daily net breakdown and no execution side effect. The fixture measures aggregate net `8.70` with owner cash flow `100.00`; ranking excludes the negative-net Solana row.
+- [x] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.** The cross-venue acceptance/report/allocator/net/snapshot/performance command passes `26/26`.
+- [x] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.** Current Hyperliquid owner/runtime receipt and external Telegram provider acknowledgement are absent; no external send was attempted, and this remains an explicit boundary in `README.md`.
+- [x] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
 
 ## Source references
 
