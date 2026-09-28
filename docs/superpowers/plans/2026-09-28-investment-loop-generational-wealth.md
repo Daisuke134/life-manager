@@ -582,6 +582,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 50. **Candidate-versus-loaded-release revalidation (`2026-09-29`)**: running the repository-owned doctor from the investment candidate and `origin/main` returns `ok=true`, `registry_entries=170`, `missing_entrypoints=[]`, and `unmanaged_labels=[]`; the old loaded release returns `ok=false`, `registry_entries=164`, and eight unmanaged labels. The candidate row is explicitly `revenue/revenue` with queued-release reconciliation, while the loaded row remains implicit `borrow/support`. This narrows the next action to the Life Manager promotion path for the pushed candidate; no sibling-loop repair or manual trade is authorized.
 
+51. **Promotion contract-gate revalidation (`2026-09-29`)**: candidate/source doctor passes, but the repository-wide `./bin/lm-loop-contract` returns `ok=false` at `loops[12]` (`capafy`) because declared recovery classes omit observed `read_only_external_owner`. The investment candidate has no diff in `apps/life-manager/config/product-loop-catalog.json`; investment registry tests remain `124/124`. This is an external Capafy gate, not an investment defect; do not edit Capafy from this lane, and do not cut/apply a release while the mandatory gate is red.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
