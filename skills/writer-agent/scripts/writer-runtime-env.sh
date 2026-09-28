@@ -120,12 +120,22 @@ NOTE_WORK_ROOT="$WRITER_STATE_DIR/note-work"
 ZENN_ARTICLES_REPO="$ZENN_REPO_PATH"
 ARTICLE_ZENN_REPO="$ZENN_REPO_PATH"
 PYTHONPATH="$NOTE_MCP_SRC${PYTHONPATH:+:$PYTHONPATH}"
+# The self-owned adjunct (article-resume-pending.sh) pushes the frozen daily
+# article straight into the landing repo's own git history. Landing root is a
+# derived checkout path like ZENN_REPO_PATH above; remote/branch are simple
+# knobs an operator can still override. ARTICLE_SELF_OWNED_BASE_URL has no
+# default here -- it is site-specific (aniccaai.com for this installer) and
+# stays purely an operator/dotenv value, same as ZENN_REPOSITORY_URL.
+ARTICLE_SELF_OWNED_LANDING_ROOT="$WRITER_STATE_DIR/checkouts/self-owned-landing"
+ARTICLE_SELF_OWNED_REMOTE="${ARTICLE_SELF_OWNED_REMOTE:-origin}"
+ARTICLE_SELF_OWNED_BRANCH="${ARTICLE_SELF_OWNED_BRANCH:-main}"
 export LIFE_MANAGER_REPO LIFE_MANAGER_SOURCE_REPO LIFE_MANAGER_ENV_FILE LIFE_MANAGER_PYTHON WRITER_ROOT WRITER_STATE_DIR WRITER_LOG_DIR
 export ARTICLE_ROOT ARTICLE_SKILL_DIR ARTICLE_STATE_DIR STATE_DIR WRITER_BROWSER_PYTHON WRITER_CLOAK_PYTHON
 export NOTE_MCP_DIR NOTE_MCP_SRC PYTHONPATH
 export NOTE_WORK_ROOT
 export ZENN_REPO_PATH ZENN_ARTICLES_REPO ARTICLE_ZENN_REPO ZENN_REPOSITORY_URL ZENN_ACCOUNT
 export ZENN_GIT_NAME ZENN_GIT_EMAIL ARTICLE_MEDIA_RAW_BASE
+export ARTICLE_SELF_OWNED_LANDING_ROOT ARTICLE_SELF_OWNED_REMOTE ARTICLE_SELF_OWNED_BRANCH
 
 # Model-led live helpers sometimes invoke the interpreter by its conventional
 # `python3` name rather than expanding WRITER_BROWSER_PYTHON.  Keep that bare
