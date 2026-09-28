@@ -139,6 +139,32 @@ fi
 PROMPT="Follow this runbook exactly and do ONE iteration, terse output: $(cat "$AUTO/DAILY_LOOP.md")
 AUTHORITATIVE INVENTORY ACTION: $(printf '%s' "$INV" | tail -1)
 Execute exactly that action/item. Do not select or substitute another item from stale ledger or rejection history."
+# create_fresh: run the deterministic prepare here, not inside the agent. The
+# agent's own per-command timeout killed publish_prepare.sh mid-run on
+# 2026-09-28 (Agent 4973250899 was created but its ID never came back), leaving
+# an orphan draft. The agent now only drives CP1; publish_finish runs after it.
+FRESH="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}
+if d.get("action") == "create_fresh" and i.get("skill") and i.get("listing") and i.get("icon"):
+    print(os.path.dirname(i["skill"]), i["listing"], i["icon"], sep="\t")' 2>>"$LOG")"
+PREPARED=""
+if [ -n "$FRESH" ]; then
+  IFS=$'\t' read -r F_SKILL_DIR F_LISTING F_ICON <<<"$FRESH"
+  PREP_OUT="$(bash "$AUTO/scripts/publish_prepare.sh" "$F_SKILL_DIR" "$F_LISTING" "$F_ICON" 2>&1)"
+  PREP_RC=$?
+  printf '%s\n' "$PREP_OUT" >> "$LOG"
+  F_ID="$(printf '%s\n' "$PREP_OUT" | sed -n 's/^AGENT_ID=//p' | tail -1)"
+  F_VERSION="$(printf '%s\n' "$PREP_OUT" | sed -n 's/^AGENT_VERSION_ID=//p' | tail -1)"
+  if [ "$PREP_RC" -ne 0 ] || [ -z "$F_ID" ] || [ -z "$F_VERSION" ]; then
+    echo "=== $TS daily_loop done rc=1 (PREPARE_FAILED rc=$PREP_RC — no agent spend) ===" >> "$LOG"
+    exit 1
+  fi
+  PREPARED="1"
+  PROMPT="$PROMPT
+PREPARE ALREADY DONE by the wrapper — do NOT run publish_prepare.sh or publish_finish.sh. Its output:
+$PREP_OUT
+Do only step 5b: drive CP1 per CP1_AGENTIC.md with the exact EDIT_URL_FILE above until official publish-remote-status shows latest_version.is_confirmed_skills=true, then stop. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | timeout 1200 env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
   --task-class application-lane-agent \
@@ -147,6 +173,14 @@ printf '%s\n' "$PROMPT" | timeout 1200 env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
   --loop capafy \
   --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
 RC=$?
+if [ -n "$PREPARED" ]; then
+  F_SKILL="$(basename "$F_SKILL_DIR")"
+  if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then
+    RC=0; echo "$TS create_fresh $F_ID: publish_finish completed (CP2 -> CP3)" >> "$LOG"
+  else
+    echo "$TS create_fresh $F_ID: publish_finish did not complete; draft resumes on a later pass" >> "$LOG"
+  fi
+fi
 
 # Post-run truth: did a listing actually go live (online_count increased), not just "did the
 # rejected/publishable buckets empty out"? A REVIEW_REJECTED item resubmitted into under_review also
