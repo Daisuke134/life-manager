@@ -745,3 +745,147 @@ def test_provider_section_clicks_workspace_tab_once() -> None:
         module.time.sleep = sleep
     assert page.calls == [("Input.dispatchMouseEvent", "mousePressed"),
                           ("Input.dispatchMouseEvent", "mouseReleased")]
+
+
+def test_official_agent_model_requires_token_and_numeric_id(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.delenv("CAPAFY_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: pytest.fail("must not call the API without a token"))
+    assert module._official_agent_model("8123079349") is None
+
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: pytest.fail("must not call the API for a non-numeric id"))
+    assert module._official_agent_model("not-a-number") is None
+
+
+def test_official_agent_model_returns_model_only_on_matching_agent_id(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+    payload = {"code": 0, "data": {"agentId": "8123079349", "model": "DeepSeek V4.1 Flash"}}
+    monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_a, **_k: _Response(payload))
+    assert module._official_agent_model("8123079349") == "DeepSeek V4.1 Flash"
+    assert module._official_agent_model("9466718786") is None
+
+
+def test_official_agent_model_returns_none_on_network_or_json_error(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setenv("CAPAFY_ACCESS_TOKEN", "t")
+
+    def boom(*_a, **_k):
+        raise OSError("network down")
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", boom)
+    assert module._official_agent_model("8123079349") is None
+
+
+def test_verify_official_display_model_polls_until_match(monkeypatch) -> None:
+    module = load_module()
+    module.DISPLAY_MODEL_VERIFY_DELAY_S = 0
+    values = iter(["Claude Sonnet 4.6", "Claude Sonnet 4.6", "DeepSeek V4.1 Flash"])
+    monkeypatch.setattr(module, "_official_agent_model", lambda _id: next(values))
+    assert module._verify_official_display_model("8123079349", "DeepSeek V4.1 Flash") is True
+
+
+def test_verify_official_display_model_gives_up_after_retries(monkeypatch) -> None:
+    module = load_module()
+    module.DISPLAY_MODEL_VERIFY_TRIES = 2
+    module.DISPLAY_MODEL_VERIFY_DELAY_S = 0
+    monkeypatch.setattr(module, "_official_agent_model", lambda _id: "Claude Sonnet 4.6")
+    assert module._verify_official_display_model("8123079349", "DeepSeek V4.1 Flash") is False
+
+
+def test_raw_fix_display_model_is_a_noop_when_already_correct(monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "_verify_official_display_model", lambda *_a: True)
+
+    class _Page:
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": "DeepSeek V4.1 Flash"}
+            if "no-agent-meta" in expression:
+                return {"ok": True, "agentId": "8123079349"}
+            pytest.fail(f"must not touch the DOM when already correct: {expression}")
+
+        def call(self, *_a, **_k):
+            pytest.fail("must not click/type when already correct")
+
+    assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
+
+
+def test_raw_fix_display_model_selects_preset_and_saves() -> None:
+    module = load_module()
+    calls = []
+
+    class _Page:
+        def __init__(self):
+            self._combo_value = "Claude Sonnet 4.6"
+
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": self._combo_value}
+            if "display-model-option-count" in expression:
+                return {"ok": True, "x": 1, "y": 2}
+            if "draft-save-count" in expression:
+                return {"ok": True, "x": 3, "y": 4, "disabled": False}
+            if "no-agent-meta" in expression:
+                return {"ok": True, "agentId": "8123079349"}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+            if method == "Input.insertText":
+                self._combo_value = params["text"]
+
+    module.RAW_SECTION_POLL_S = 0
+    module._verify_official_display_model = lambda *_a: True
+    assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
+    assert ("Input.insertText", {"text": "DeepSeek V4.1 Flash"}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 1.0, "y": 2.0, "button": "left", "clickCount": 1}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 3.0, "y": 4.0, "button": "left", "clickCount": 1}) in calls
+
+
+def test_raw_fix_display_model_fails_closed_without_a_matching_preset() -> None:
+    module = load_module()
+    module.RAW_SECTION_TIMEOUT_S = 0.01
+    module.RAW_SECTION_POLL_S = 0.001
+
+    class _Page:
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": ""}
+            if "display-model-option-count" in expression:
+                return {"ok": False, "reason": "display-model-option-count", "count": 0}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, *_a, **_k):
+            pass
+
+    with pytest.raises(RuntimeError, match="no exact preset option"):
+        module._raw_fix_display_model(_Page(), "Some Unknown Model")
+
+
+def test_raw_cp2_falls_back_to_display_model_fix_when_hosted_key_already_configured(monkeypatch) -> None:
+    module = load_module()
+
+    def raise_hydrate_timeout(_page):
+        raise RuntimeError("provider path and detected-keys button did not hydrate before deadline")
+
+    monkeypatch.setattr(module, "_raw_page_targets", lambda *_a: [{"webSocketDebuggerUrl": "ws://127.0.0.1:1/x"}])
+    monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _FakePage())
+    monkeypatch.setattr(module, "_wait_raw_navigation", lambda *_a: None)
+    monkeypatch.setattr(module, "_ensure_raw_provider_section", raise_hydrate_timeout)
+    monkeypatch.setattr(module, "_raw_configure_hosted_key", lambda *_a: pytest.fail("must not fill an already-configured card"))
+    monkeypatch.setenv("CAPAFY_DISPLAY_MODEL", "DeepSeek V4.1 Flash")
+    fix_calls = []
+    monkeypatch.setattr(module, "_raw_fix_display_model", lambda _page, model: fix_calls.append(model) or True)
+
+    assert module._raw_cp2("https://capafy.ai/developer/createAgent?token=t&page=review", "secret", "http://localhost:9222") is True
+    assert fix_calls == ["DeepSeek V4.1 Flash"]
+
+
+class _FakePage:
+    def call(self, *_a, **_k):
+        return {}
+
+    def close(self):
+        pass
