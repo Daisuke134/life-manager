@@ -311,6 +311,7 @@ def build_receipt(payloads: dict[str, dict], observed_at: str) -> dict:
                                 payloads.get("agent_models", {}),
                                 payloads.get("model_prices", {})),
         "openrouter": payloads.get("openrouter_usage", {"_error": "not_observed"}),
+        "openrouter_actual": _openrouter_actual(payloads.get("openrouter_activity", {})),
     }
 
 
@@ -503,6 +504,14 @@ def build_skill_analytics(
         "gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
     last_7d = _window_totals(rows, end_date - dt.timedelta(days=6), end_date) if seller_ok else {
         "gross_usd": None, "orders": None, "refunds_usd": None, "net_usd": None}
+    # Account-level net revenue (Capafy's 20% cut) and real OpenRouter cost for the same
+    # trailing-30d window as last_30d (openrouter_actual has its own window_start/window_end,
+    # which may not line up exactly with last_30d's local calendar window).
+    try:
+        net30_usd = (_money(Decimal(last_30d["gross_usd"]) * Decimal("0.80"))
+                     if last_30d["gross_usd"] is not None else None)
+    except InvalidOperation:
+        net30_usd = None
     account_totals = {
         "_status": account_status, "all_time": all_time, "last_30d": last_30d, "last_7d": last_7d,
     }
@@ -519,6 +528,17 @@ def build_skill_analytics(
                                    payloads.get("model_prices", {}))
     cost_30d_by_agent = {agent["agent_id"]: agent.get("estimated_model_cost_usd")
                         for agent in usage_summary["agents"]}
+    openrouter_actual = _openrouter_actual(payloads.get("openrouter_activity", {}))
+    cost_30d_actual_by_agent = _allocate_actual_cost_by_agent(usage_summary["agents"], openrouter_actual)
+    cost30_actual_usd = openrouter_actual.get("total_usd")
+    profit30_actual_usd = None
+    if net30_usd is not None and cost30_actual_usd is not None:
+        try:
+            profit30_actual_usd = _money(Decimal(net30_usd) - Decimal(cost30_actual_usd))
+        except InvalidOperation:
+            profit30_actual_usd = None
+    account_totals.update(
+        net30_usd=net30_usd, cost30_actual_usd=cost30_actual_usd, profit30_actual_usd=profit30_actual_usd)
 
     inventory_rows = _inventory_rows(payloads.get("inventory", {}))
     per_skill_rows: list[dict] = []
@@ -563,6 +583,13 @@ def build_skill_analytics(
                     profit_30d = _money(Decimal(net_revenue_30d) - Decimal(cost_30d))
                 except InvalidOperation:
                     profit_30d = None
+            cost_30d_actual = cost_30d_actual_by_agent.get(agent_id)
+            profit_30d_actual = None
+            if net_revenue_30d is not None and cost_30d_actual is not None:
+                try:
+                    profit_30d_actual = _money(Decimal(net_revenue_30d) - Decimal(cost_30d_actual))
+                except InvalidOperation:
+                    profit_30d_actual = None
             per_skill_rows.append({
                 "agent_id": agent_id,
                 "name": row.get("name"),
@@ -579,6 +606,8 @@ def build_skill_analytics(
                 "cost_30d_usd": cost_30d,
                 "net_revenue_30d_usd": net_revenue_30d,
                 "profit_30d_usd": profit_30d,
+                "cost_30d_actual_usd": cost_30d_actual,
+                "profit_30d_actual_usd": profit_30d_actual,
                 "stats_7d_orders": _paid_orders(unit_ranking_7d.get(agent_id), units_7d_ok),
                 "stats_7d_revenue_usd": _window_gross(sales_ranking_7d.get(agent_id), sales_7d_ok),
                 "stats_30d_settled_orders": settled_orders_30d,
@@ -659,6 +688,14 @@ def build_skill_analytics(
         "times the OpenRouter list price for the agent's model, not an actual invoice; null when the "
         "model or its price is unknown. profit_30d_usd = net_revenue_30d_usd (stats_30d_revenue_usd x 0.80, "
         "Capafy's 20% cut) minus cost_30d_usd, and is null if either side is unknown.",
+        "cost_30d_actual_usd/profit_30d_actual_usd (per-skill) and cost30_actual_usd/profit30_actual_usd "
+        "(account, in account_totals) come from GET /api/v1/activity via CAPAFY_OPENROUTER_MANAGEMENT_KEY "
+        "(the real bill): each model's actual OpenRouter spend is allocated across the agents using that "
+        "model in proportion to each agent's estimated list-price cost for that model over the same usage "
+        "window. openrouter_actual has its own window_start/window_end, which may not exactly match the "
+        "local last_30d calendar window used for net30_usd. Null (status openrouter_actual.status = "
+        "'unavailable:<reason>') when the management key is missing or the call fails, in which case the "
+        "estimate fields above are the only signal.",
     ]
     if per_skill_rows_status == "stale":
         data_gaps.append(
@@ -670,9 +707,15 @@ def build_skill_analytics(
     ) else "degraded"
 
     if per_skill_rows_status == "fresh":
+        def _effective_cost(row: dict) -> str | None:
+            return row["cost_30d_actual_usd"] if row["cost_30d_actual_usd"] is not None else row["cost_30d_usd"]
+
+        def _effective_profit(row: dict) -> str | None:
+            return row["profit_30d_actual_usd"] if row["profit_30d_actual_usd"] is not None else row["profit_30d_usd"]
+
         def _profit_line(row: dict) -> str:
             return (f"{row['name']} rev ${row['net_revenue_30d_usd']} "
-                    f"cost ${row['cost_30d_usd']} profit ${row['profit_30d_usd']}")
+                    f"cost ${_effective_cost(row)} profit ${_effective_profit(row)}")
 
         priced_rows = [row for row in per_skill_rows if row["stats_30d_revenue_usd"] is not None]
         top_5_by_revenue = sorted(
@@ -680,11 +723,20 @@ def build_skill_analytics(
         )[:5]
         negative_profit_rows = [
             row for row in per_skill_rows
-            if row["profit_30d_usd"] is not None and Decimal(row["profit_30d_usd"]) < 0
+            if _effective_profit(row) is not None and Decimal(_effective_profit(row)) < 0
         ]
         profit_lines = list({row["agent_id"]: row for row in top_5_by_revenue + negative_profit_rows}.values())
+        cost30_display = cost30_actual_usd if cost30_actual_usd is not None else usage_summary.get("estimated_model_cost_usd")
+        profit30_display = profit30_actual_usd
+        if profit30_display is None and net30_usd is not None and cost30_display is not None:
+            try:
+                profit30_display = _money(Decimal(net30_usd) - Decimal(cost30_display))
+            except InvalidOperation:
+                profit30_display = None
+        cost_label = "cost30(actual)" if cost30_actual_usd is not None else "cost30(est)"
         telegram_summary = (
-            f"Capafy: all-time gross ${all_time['gross_usd']}, net30d ${last_30d['gross_usd']}, "
+            f"Capafy: all-time gross ${all_time['gross_usd']}, net30 ${net30_usd}, "
+            f"{cost_label} ${cost30_display}, profit30 ${profit30_display}, "
             f"payout-able ${balances.get('balance_payout_usd')}. "
             f"{len(zero_sales)}/{len(per_skill_rows)} skills zero-sales."
         )
@@ -705,6 +757,7 @@ def build_skill_analytics(
         "rankings": rankings,
         "daily_revenue_trend_last_30d": daily_trend,
         "subscription_proxy": subscription_proxy,
+        "openrouter_actual": openrouter_actual,
         "data_gaps": data_gaps,
         "telegram_summary": telegram_summary,
     }
@@ -856,6 +909,78 @@ def _usage_summary(payload: dict, models: dict[str, str], prices: dict) -> dict:
             "estimated_model_cost_usd": _money(total_cost) if all_priced else None}
 
 
+def _openrouter_actual(payload: dict) -> dict:
+    """Real OpenRouter spend from GET /api/v1/activity (management key), independent of the
+    per-token list-price estimate in _usage_summary above."""
+    empty = {"window_start": None, "window_end": None, "total_usd": None,
+             "by_model": {}, "by_day": {}, "status": "unavailable:not_observed"}
+    if not isinstance(payload, dict):
+        return empty
+    if "_error" in payload:
+        return {**empty, "status": f"unavailable:{payload['_error']}"}
+    if not _ok(payload):
+        return {**empty, "status": "unavailable:error_response"}
+    rows = _data(payload)
+    if not isinstance(rows, list):
+        return {**empty, "status": "unavailable:unrecognized_shape"}
+    total = Decimal("0")
+    by_model: dict[str, Decimal] = {}
+    by_day: dict[str, Decimal] = {}
+    dates: list[str] = []
+    try:
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError
+            usage = Decimal(str(row.get("usage", 0) or 0))
+            model = str(row.get("model") or "unknown")
+            total += usage
+            by_model[model] = by_model.get(model, Decimal("0")) + usage
+            date_str = row.get("date")
+            if date_str:
+                by_day[date_str] = by_day.get(date_str, Decimal("0")) + usage
+                dates.append(date_str)
+    except (InvalidOperation, TypeError, ValueError):
+        return {**empty, "status": "unavailable:invalid_row_shape"}
+    return {
+        "window_start": min(dates) if dates else None,
+        "window_end": max(dates) if dates else None,
+        "total_usd": _money(total),
+        "by_model": {model: _money(amount) for model, amount in by_model.items()},
+        "by_day": {date: _money(amount) for date, amount in by_day.items()},
+        "status": "fresh",
+    }
+
+
+def _allocate_actual_cost_by_agent(usage_agents: list[dict], openrouter_actual: dict) -> dict[str, str | None]:
+    """Split each model's real OpenRouter spend across the agents that use it, in proportion
+    to each agent's estimated (list-price) cost for that model over the same usage window."""
+    if openrouter_actual.get("status") != "fresh":
+        return {}
+    by_model_actual = openrouter_actual.get("by_model") or {}
+    estimated_by_model: dict[str, Decimal] = {}
+    for agent in usage_agents:
+        model, cost = agent.get("model"), agent.get("estimated_model_cost_usd")
+        if not model or cost is None:
+            continue
+        try:
+            estimated_by_model[model] = estimated_by_model.get(model, Decimal("0")) + Decimal(cost)
+        except InvalidOperation:
+            continue
+    result: dict[str, str | None] = {}
+    for agent in usage_agents:
+        agent_id, model, cost = agent["agent_id"], agent.get("model"), agent.get("estimated_model_cost_usd")
+        actual_for_model = by_model_actual.get(model)
+        total_estimated = estimated_by_model.get(model)
+        if not model or cost is None or actual_for_model is None or not total_estimated:
+            result[agent_id] = None
+            continue
+        try:
+            result[agent_id] = _money(Decimal(actual_for_model) * Decimal(cost) / total_estimated)
+        except (InvalidOperation, TypeError):
+            result[agent_id] = None
+    return result
+
+
 def _live_payloads(repo_root: Path, observed: dt.datetime,
                    *, seller_start_date: dt.date | None = None) -> dict[str, dict]:
     token = _token(repo_root)
@@ -931,6 +1056,10 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
     payloads["openrouter_usage"] = (
         {"data": {"usage_monthly": key_data.get("usage_monthly")}}
         if isinstance(key_data, dict) else {"_error": "key_usage_unavailable"})
+    # Real billed spend (the host key gets 403 on /activity; only the management key can read it).
+    management_key = os.environ.get("CAPAFY_OPENROUTER_MANAGEMENT_KEY", "")
+    payloads["openrouter_activity"] = (
+        _openrouter_data("/activity", management_key) if management_key else {"_error": "key_unavailable"})
     return payloads
 
 
@@ -1002,7 +1131,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[4]
     if args.fixture_dir:
         payloads = {name: json.loads((args.fixture_dir / f"{name}.json").read_text()) for name in SOURCE_NAMES}
-        for name in ("usage_requests", "agent_models", "model_prices", "openrouter_usage"):
+        for name in ("usage_requests", "agent_models", "model_prices", "openrouter_usage", "openrouter_activity"):
             path = args.fixture_dir / f"{name}.json"
             if path.exists():
                 payloads[name] = json.loads(path.read_text())
