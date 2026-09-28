@@ -129,6 +129,36 @@ test("an existing marked issue is recorded without creating a duplicate", async 
   assert.equal(created, false);
 });
 
+test("a blocked release_sha_mismatch outcome with next_action promote_release never becomes a code-repair issue", async () => {
+  const value = outcome({
+    intent_id: "e".repeat(32),
+    state: "blocked",
+    result: "blocked",
+    failure_layer: "tool_logic",
+    intent_reason: "bounded_owner_reconciliation",
+    before_event_id: null,
+    after_event_id: null,
+    command_exit_code: null,
+    reason: "release_sha_mismatch",
+    next_action: "promote_release",
+  });
+  const { journalPath, cursorPath } = tempFiles([value]);
+  let called = false;
+  const result = await processRecoveryOutcomeJournal({
+    journalPath,
+    cursorPath,
+    issueClient: {
+      async ensureLabel() { called = true; },
+      async findByMarker() { called = true; },
+      async create() { called = true; },
+    },
+  });
+
+  assert.equal(result.status, "no-op");
+  assert.equal(result.reason, "promotion_pending_not_code_repair");
+  assert.equal(called, false);
+});
+
 test("malformed, nonterminal and effect-held rows never become code repair issues", async () => {
   const { journalPath, cursorPath } = tempFiles([
     outcome({ intent_id: "unsafe path", state: "escalated" }),

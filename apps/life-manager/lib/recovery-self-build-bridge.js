@@ -8,6 +8,7 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const RELEASE_SHA = /^[0-9a-f]{40}$/;
 const SAFE_REF = /^[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9._:/-]{1,512}$/;
 const TERMINAL_REPAIR_FAILURES = new Set(["blocked", "escalated"]);
+const PROMOTION_PENDING_NEXT_ACTIONS = new Set(["promote_release"]);
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024;
 
 function safeId(value, field) {
@@ -152,15 +153,25 @@ async function processRecoveryOutcomeJournal({ journalPath, cursorPath, issueCli
   const issued = issuedIntentIds(cursorPath);
   const seen = new Set();
   let selected = null;
+  let promotionPending = false;
   for (const row of readJsonLinesTail(journalPath, maxBytes)) {
     let normalized;
     try { normalized = normalizeRecoveryOutcome(row); } catch { continue; }
     if (seen.has(normalized.intent_id) || issued.has(normalized.intent_id)) continue;
     seen.add(normalized.intent_id);
+    if (PROMOTION_PENDING_NEXT_ACTIONS.has(normalized.next_action)) {
+      promotionPending = true;
+      continue;
+    }
     selected = row;
     break;
   }
-  if (!selected) return { status: "no-op", reason: "no_unissued_terminal_outcome" };
+  if (!selected) {
+    return {
+      status: "no-op",
+      reason: promotionPending ? "promotion_pending_not_code_repair" : "no_unissued_terminal_outcome",
+    };
+  }
 
   const normalized = normalizeRecoveryOutcome(selected);
   const marker = markerForRecoveryOutcome(selected);
