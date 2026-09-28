@@ -169,7 +169,7 @@ python3 -m pytest -q skills/writer-agent/tests/test_writer_w2_capacity.py skills
 
 Expected: the new assertions fail at the described boundary.
 
-- [ ] Step 3: Implement the smallest root-cause change. Keep writer_capacity_floor.py as the single floor resolver; reject malformed receipts and floor-lowering overrides. Normalize demand observation IDs before card validation. Preserve Image API intent-before-request and receipt-before-replay; never retry an unknown delivery without reconciliation. Keep article-daily returning the inner provider/capacity code.
+- [ ] Step 3: Implement the smallest root-cause change. Keep writer_capacity_floor.py as the single floor resolver; reject malformed receipts and floor-lowering overrides. Normalize demand observation IDs before card validation and use the same normalized keys in claim_supply.py's model-selected lookup/refill path. Preserve Image API intent-before-request and receipt-before-replay; never retry an unknown delivery without reconciliation. Keep article-daily returning the inner provider/capacity code.
 
 - [ ] Step 4: Run green focused tests and syntax.
 
@@ -190,7 +190,7 @@ git push -u origin HEAD
 
 - [ ] Step 6: After integration, cut one immutable release and apply only article-daily through bin/lm-loop. Read back release SHA, ARTICLE_ROOT, ARTICLE_SKILL_DIR, LIFE_MANAGER_REPO, state root, and rollback release before waking it.
 
-- [ ] Step 7: Run exactly one natural W2 canary. It must create a non-duplicate topic, JA/EN artifacts, and a GPT Image 2 receipt with model gpt-image-2-2026-04-21, x-request-id, request/prompt/response/file hashes, 1536x1024, alt text, and rights provenance. Capacity/provider absence is a persisted blocker, not a fabricated article.
+- [ ] Step 7: Run exactly one natural W2 canary. It must create a non-duplicate topic, JA/EN artifacts, and a GPT Image 2 receipt with model gpt-image-2-2026-04-21, x-request-id, request_sha256 plus prompt/response/file hashes, 1536x1024, alt text, and rights provenance. Capacity/provider absence is a persisted blocker, not a fabricated article.
 
 ### Task 3: Publish and read back Note JA (W3)
 
