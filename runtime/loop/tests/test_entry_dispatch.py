@@ -283,6 +283,14 @@ class EntryDispatchTest(unittest.TestCase):
         self.assertNotIn('--auto-cadence', storefront)
         self.assertNotIn('--full-interval-seconds', storefront)
 
+    def test_hf_gig_apply_reconcile_dispatch_uses_discover_mode(self):
+        command = command_for('hf-gig-apply-reconcile', Path('/release'), Path('/home'))
+        self.assertEqual(command, [
+            sys.executable,
+            '/release/skills/earn/gig/scripts/application_occurrence_reconcile.py',
+            '--discover',
+        ])
+
     def test_coconala_reply_no_longer_has_a_handwritten_dispatch(self):
         with self.assertRaisesRegex(ValueError, 'no dispatch command'):
             command_for('hf-gig-reply-detector', Path('/release'), Path('/home'))
