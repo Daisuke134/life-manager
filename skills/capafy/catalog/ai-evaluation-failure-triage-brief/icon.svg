@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">AI Evaluation Failure Triage Brief</title>
+  <desc id="desc">A dark analysis card with a cyan checklist and amber warning marker.</desc>
+  <rect width="512" height="512" rx="96" fill="#10253d"/>
+  <rect x="100" y="86" width="312" height="340" rx="30" fill="#eaf4f8"/>
+  <rect x="140" y="138" width="142" height="22" rx="11" fill="#164b68"/>
+  <rect x="140" y="195" width="180" height="18" rx="9" fill="#8ab7c9"/>
+  <rect x="140" y="239" width="144" height="18" rx="9" fill="#8ab7c9"/>
+  <rect x="140" y="283" width="120" height="18" rx="9" fill="#8ab7c9"/>
+  <path d="M321 183l59 103H262z" fill="#f2a83b"/>
+  <rect x="314" y="218" width="14" height="35" rx="7" fill="#10253d"/>
+  <circle cx="321" cy="272" r="8" fill="#10253d"/>
+  <path d="M140 345l20 20 42-48" fill="none" stroke="#12a8a3" stroke-linecap="round" stroke-linejoin="round" stroke-width="18"/>
+  <rect x="222" y="334" width="118" height="18" rx="9" fill="#164b68"/>
+</svg>

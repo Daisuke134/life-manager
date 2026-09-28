@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: 13.333in 7.5in; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #0b1f33;
+      color: #f4f7f8;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 1.28;
+    }
+    .slide {
+      position: relative;
+      width: 13.333in;
+      height: 7.5in;
+      overflow: hidden;
+      page-break-after: always;
+      padding: 0.56in 0.70in 0.45in;
+      background: #0b1f33;
+    }
+    .slide:last-child { page-break-after: auto; }
+    .light { background: #f5f7f2; color: #102238; }
+    .green { color: #76b900; }
+    .muted { color: #a7b5c0; }
+    .light .muted { color: #5d6b78; }
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #76b900;
+      margin-bottom: 18px;
+    }
+    .light .eyebrow { color: #4d7900; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 48px; line-height: 1.05; letter-spacing: -.025em; font-weight: 800; }
+    h2 { font-size: 37px; line-height: 1.08; letter-spacing: -.018em; font-weight: 800; max-width: 1060px; }
+    h3 { font-size: 21px; line-height: 1.1; font-weight: 800; }
+    .subtitle { margin-top: 17px; font-size: 21px; color: #c7d3da; max-width: 920px; }
+    .light .subtitle { color: #4e5f6e; }
+    .rule { height: 4px; width: 74px; background: #76b900; margin: 22px 0 24px; }
+    .footer {
+      position: absolute;
+      left: 0.70in;
+      right: 0.70in;
+      bottom: 0.18in;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      font-size: 9px;
+      line-height: 1.15;
+      color: #91a2af;
+    }
+    .light .footer { color: #6d7b85; }
+    .footer .source { max-width: 88%; }
+    .footer a { color: inherit; text-decoration: none; }
+    .page-no { color: #76b900; font-weight: 700; white-space: nowrap; }
+    .practice {
+      position: absolute;
+      top: 0.22in;
+      right: 0.70in;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #8093a0;
+    }
+    .hero { display: flex; flex-direction: column; justify-content: center; height: 6.35in; }
+    .hero .accent { position: absolute; top: 0; right: 0; width: 1.8in; height: 100%; background: #76b900; opacity: .95; }
+    .hero .accent-inner { position: absolute; top: 0; right: 0; width: .34in; height: 100%; background: #0b1f33; }
+    .hero-copy { position: relative; max-width: 9.5in; z-index: 2; }
+    .hero h1 { font-size: 56px; max-width: 9.3in; }
+    .hero .green-line { width: 1.2in; height: 8px; background: #76b900; margin: 28px 0; }
+    .hero .meta { font-size: 15px; color: #a7b5c0; letter-spacing: .04em; }
+    .hero .warning { margin-top: 32px; padding: 12px 16px; border-left: 4px solid #ffb000; color: #f4d68a; font-size: 14px; max-width: 7.4in; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; margin-top: 26px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 24px; }
+    .block { border-top: 2px solid #314b60; padding-top: 14px; }
+    .light .block { border-color: #c4cdd2; }
+    .block h3 { color: #76b900; margin-bottom: 10px; }
+    .light .block h3 { color: #4d7900; }
+    .body { font-size: 19px; color: #d5dfe4; }
+    .light .body { color: #344957; }
+    .body + .body { margin-top: 8px; }
+    .quote {
+      margin-top: 30px;
+      padding: 18px 24px;
+      border-left: 6px solid #76b900;
+      background: #112b42;
+      font-size: 28px;
+      line-height: 1.12;
+      font-weight: 800;
+      max-width: 10.8in;
+    }
+    .light .quote { background: #e6eee2; }
+    .callout {
+      margin-top: 22px;
+      padding: 14px 18px;
+      background: #162f45;
+      border: 1px solid #3a556a;
+      font-size: 17px;
+    }
+    .light .callout { background: #e8edf0; border-color: #c6d0d5; }
+    ul { margin: 0; padding-left: 22px; }
+    li { margin: 0 0 10px; }
+    li:last-child { margin-bottom: 0; }
+    .checklist li::marker { color: #76b900; }
+    .persona { min-height: 2.0in; }
+    .persona .label { font-size: 14px; color: #76b900; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .persona p { font-size: 17px; color: #d5dfe4; }
+    .light .persona p { color: #344957; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: stretch; margin-top: 30px; }
+    .flow-step { padding: 18px 14px; border: 1px solid #496479; background: #112b42; min-height: 1.65in; }
+    .light .flow-step { border-color: #b9c6cc; background: #eef2ee; }
+    .flow-step .num { font-size: 14px; color: #76b900; font-weight: 800; margin-bottom: 12px; }
+    .flow-step strong { display: block; font-size: 18px; margin-bottom: 7px; }
+    .flow-step span { display: block; font-size: 14px; color: #afc0ca; }
+    .light .flow-step span { color: #5d6b78; }
+    .tech { min-height: 2.55in; padding: 16px 18px; border-top: 5px solid #76b900; background: #112b42; }
+    .light .tech { background: #edf2ee; }
+    .tech .name { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+    .tech .role { font-size: 14px; color: #76b900; font-weight: 700; margin-bottom: 10px; }
+    .light .tech .role { color: #4d7900; }
+    .tech p { font-size: 16px; color: #c6d3da; }
+    .light .tech p { color: #435564; }
+    .small { font-size: 13px; }
+    .timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+    .phase { position: relative; padding: 18px 18px 16px; min-height: 2.5in; border-left: 5px solid #76b900; background: #112b42; }
+    .light .phase { background: #edf2ee; }
+    .phase .days { font-size: 14px; letter-spacing: .1em; color: #76b900; font-weight: 800; margin-bottom: 10px; }
+    .light .phase .days { color: #4d7900; }
+    .phase h3 { margin-bottom: 10px; }
+    .phase li { font-size: 16px; margin-bottom: 8px; color: #c6d3da; }
+    .light .phase li { color: #435564; }
+    .metric-table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 16px; }
+    .metric-table th, .metric-table td { padding: 11px 13px; border-bottom: 1px solid #3c5669; text-align: left; vertical-align: top; }
+    .light .metric-table th, .light .metric-table td { border-color: #c6d0d5; }
+    .metric-table th { color: #76b900; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    .light .metric-table th { color: #4d7900; }
+    .metric-table td strong { color: #f4f7f8; }
+    .light .metric-table td strong { color: #102238; }
+    .two-col-tight { display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; margin-top: 25px; }
+    .assumption { padding: 17px 20px; border: 1px solid #ffb000; background: #2a2b25; color: #f2ddb0; font-size: 16px; }
+    .light .assumption { background: #fff7df; color: #5b4b20; }
+    .source-list { margin-top: 11px; font-size: 11px; line-height: 1.28; color: #8fa0ab; }
+    .light .source-list { color: #5d6b78; }
+    .source-list div { margin-bottom: 5px; }
+    .source-list a { color: inherit; text-decoration: none; }
+    .fit { margin-top: 20px; padding: 16px 20px; background: #162f45; border-left: 5px solid #76b900; }
+    .light .fit { background: #e6eee2; }
+    .fit strong { color: #76b900; }
+    .light .fit strong { color: #4d7900; }
+  </style>
+</head>
+<body>
+  <section class="slide">
+    <div class="hero">
+      <div class="accent"></div><div class="accent-inner"></div>
+      <div class="hero-copy">
+        <div class="eyebrow">Interview practice draft · JR2017937</div>
+        <h1>Turning JRI’s AI factory into a Japan FSI developer program</h1>
+        <div class="green-line"></div>
+        <p class="subtitle">A focused proposal for the Senior Developer Relations Manager, Financial Services role</p>
+        <p class="meta" style="margin-top:24px">Daisuke Narita · 15 September 2026</p>
+        <div class="warning">Practice material only. NVIDIA’s assignment asks candidates to complete the take-home without AI assistance. Do not submit this deck as-is.</div>
+      </div>
+    </div>
+    <div class="footer"><span class="source">Internal prep draft based on the NVIDIA assignment email and public sources listed in later slides.</span><span class="page-no">01 / 10</span></div>
+  </section>
+
+  <section class="slide light">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">01 · Recommendation</div>
+    <h2>JRI is the right anchor for the next adoption step</h2>
+    <div class="rule"></div>
+    <div class="grid-2">
+      <div class="block"><h3>Public signal</h3><p class="body">NVIDIA says the Japan Research Institute, the core IT company of SMBC Group, deployed an AI factory using Nemotron open models to turn financial data into intelligence.</p><p class="body" style="margin-top:12px">JRI describes a mission-critical financial IT footprint and an advanced technology lab that evaluates and applies emerging AI.</p></div>
+      <div class="block"><h3>Proposed focus</h3><p class="body">Use JRI as the anchor developer for a repeatable, governed financial-agent reference program that can extend beyond one group.</p><div class="quote">From one AI factory to a developer program that makes safe production repeatable.</div></div>
+    </div>
+    <div class="callout"><strong>Why this fits the role:</strong> Developer Relations is measured by developer behavior. The program must create working examples, technical confidence and partner-led adoption, not another broad product tour.</div>
+    <div class="footer"><span class="source">Sources: <a href="https://blogs.nvidia.co.jp/blog/japan-ecosystem-2026/">NVIDIA Japan Blog, Japan ecosystem 2026</a>; <a href="https://www.jri.co.jp/brand/itsol/">JRI IT solutions</a>; <a href="https://www.jri.co.jp/company/business/system/advtechlab/">JRI Advanced Technology Lab</a></span><span class="page-no">02 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">02 · Opportunity</div>
+    <h2>The opportunity is the gap between a model demo and production</h2>
+    <div class="rule"></div>
+    <div class="flow">
+      <div class="flow-step"><div class="num">01</div><strong>AI factory</strong><span>Compute and models are available.</span></div>
+      <div class="flow-step"><div class="num">02</div><strong>First use case</strong><span>A team proves value in one workflow.</span></div>
+      <div class="flow-step"><div class="num">03</div><strong>Developer kit</strong><span>Reusable retrieval, agent and evaluation patterns.</span></div>
+      <div class="flow-step"><div class="num">04</div><strong>Partner activation</strong><span>JRI, NEC and cloud partners repeat the pattern.</span></div>
+      <div class="flow-step"><div class="num">05</div><strong>Adoption</strong><span>More teams reach a governed pilot.</span></div>
+    </div>
+    <div class="grid-2" style="margin-top:32px">
+      <div class="block"><h3>Developer friction to remove</h3><ul class="checklist"><li>Data cannot leave the approved environment.</li><li>Quality, latency and cost are hard to compare.</li><li>Prototype code does not become an auditable service.</li></ul></div>
+      <div class="block"><h3>Hypothesis to validate with JRI</h3><p class="body">A small, public-safe reference workflow plus hands-on support can reduce the distance from a financial AI experiment to a production candidate.</p></div>
+    </div>
+    <div class="footer"><span class="source">Sources: <a href="https://blogs.nvidia.co.jp/blog/japan-ecosystem-2026/">NVIDIA Japan Blog</a>; <a href="https://www.jri.co.jp/report/researchfocus/detail/16916/">JRI, AI risks in finance, 19 Aug 2026</a></span><span class="page-no">03 / 10</span></div>
+  </section>
+
+  <section class="slide light">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">03 · Target developers</div>
+    <h2>The target is the team that turns bank data into repeatable workflows</h2>
+    <div class="rule"></div>
+    <div class="grid-3">
+      <div class="block persona"><div class="label">Anchor</div><h3>JRI applied-AI and platform teams</h3><p>Need a secure reference architecture, evaluation discipline and a way to share patterns across SMBC businesses.</p></div>
+      <div class="block persona"><div class="label">Adopter</div><h3>Bank product and operations developers</h3><p>Need faster access to trusted internal knowledge, clear citations, predictable response time and audit trails.</p></div>
+      <div class="block persona"><div class="label">Multiplier</div><h3>NEC, cloud and fintech engineers</h3><p>Need framework flexibility, supported APIs, sample code and partner enablement that shortens their own delivery cycle.</p></div>
+    </div>
+    <div class="two-col-tight">
+      <div class="block"><h3>Shared technical needs</h3><ul class="checklist"><li>Japanese document understanding and retrieval</li><li>On-premises or hybrid deployment</li><li>Quality, safety, cost and latency visibility</li></ul></div>
+      <div class="block"><h3>Adoption barriers</h3><ul class="checklist"><li>Data governance and PII controls</li><li>Procurement and skills shortage</li><li>Fear of lock-in and unproven ROI</li></ul></div>
+    </div>
+    <div class="footer"><span class="source">Persona and barrier framing are proposed hypotheses for discovery; JRI’s public role and AI focus: <a href="https://www.jri.co.jp/company/business/system/advtechlab/">JRI Advanced Technology Lab</a>.</span><span class="page-no">04 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">04 · Use case</div>
+    <h2>A document-grounded agent is the fastest shared proof point</h2>
+    <div class="rule"></div>
+    <div class="quote">Help a relationship manager or operations team answer a Japanese financial question with evidence, a clear next action and an audit trail.</div>
+    <div class="flow" style="grid-template-columns:repeat(5,1fr); margin-top:32px">
+      <div class="flow-step"><div class="num">INPUT</div><strong>Approved documents</strong><span>Policies, product notes, filings and procedures.</span></div>
+      <div class="flow-step"><div class="num">RETRIEVE</div><strong>Parse and rank</strong><span>Find the right passages, tables and citations.</span></div>
+      <div class="flow-step"><div class="num">REASON</div><strong>Guarded model</strong><span>Answer only within policy and evidence.</span></div>
+      <div class="flow-step"><div class="num">ACT</div><strong>Agent tools</strong><span>Route to a workflow or human review.</span></div>
+      <div class="flow-step"><div class="num">LEARN</div><strong>Measure</strong><span>Track quality, latency, cost and feedback.</span></div>
+    </div>
+    <div class="fit"><strong>Candidate connection:</strong> My MUIT experience showed me that an enterprise agent is adopted when response quality and user feedback are observable, not when a demo merely looks impressive.</div>
+    <div class="footer"><span class="source">Technical framing: <a href="https://docs.nvidia.com/nemo/retriever/latest/index.html">NeMo Retriever overview</a>; <a href="https://docs.nvidia.com/nemo/guardrails/index.html">NeMo Guardrails</a>. Candidate connection uses personal resume facts.</span><span class="page-no">05 / 10</span></div>
+  </section>
+
+  <section class="slide light">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">05 · NVIDIA stack</div>
+    <h2>Three NVIDIA building blocks connect prototype to production</h2>
+    <div class="rule"></div>
+    <div class="grid-3">
+      <div class="tech"><div class="name">NeMo Retriever</div><div class="role">Grounded financial knowledge</div><p>Extract text, tables and charts from approved documents, then embed and rerank evidence for RAG.</p></div>
+      <div class="tech"><div class="name">NIM</div><div class="role">Predictable inference</div><p>Package optimized model inference behind standard APIs across on-premises, cloud and hybrid environments.</p></div>
+      <div class="tech"><div class="name">NeMo Agent Toolkit</div><div class="role">Agent integration and proof</div><p>Connect existing frameworks and tools, then instrument, evaluate and optimize the workflow.</p></div>
+    </div>
+    <div class="callout"><strong>Model layer:</strong> Nemotron is the open model family already associated with the JRI public signal. I would keep model choice swappable while standardizing the developer experience around retrieval, inference and evaluation.</div>
+    <div class="footer"><span class="source">Sources: <a href="https://docs.nvidia.com/nemo/retriever/latest/index.html">NeMo Retriever docs</a>; <a href="https://www.nvidia.com/en-us/ai/nim-for-financial-services/">NIM for Financial Services</a>; <a href="https://docs.nvidia.com/nemo/agent-toolkit/latest/">NeMo Agent Toolkit docs</a>; <a href="https://www.nvidia.com/ja-jp/ai-data-science/foundation-models/nemotron/">Nemotron</a>.</span><span class="page-no">06 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">06 · Ecosystem</div>
+    <h2>The program needs one anchor and a partner ring</h2>
+    <div class="rule"></div>
+    <div class="grid-2">
+      <div class="block"><h3>Anchor</h3><p class="body" style="font-size:26px;font-weight:800">JRI / SMBC Group</p><p class="body">Own the reference use case, the approved data boundary and the first developer cohort.</p></div>
+      <div class="block"><h3>NVIDIA Japan</h3><p class="body" style="font-size:26px;font-weight:800">Developer Relations + FSI solution team</p><p class="body">Bring SDK education, architecture guidance, technical advocates and product feedback.</p></div>
+    </div>
+    <div class="grid-3" style="margin-top:32px">
+      <div class="block"><h3>Implementation partner</h3><p class="body">NEC, whose 2026 partnership with JRI covers AI, cloud, security and the lifecycle from planning to operations.</p></div>
+      <div class="block"><h3>Infrastructure ring</h3><p class="body">Approved cloud and on-prem partners provide deployment paths without forcing one environment.</p></div>
+      <div class="block"><h3>Community ring</h3><p class="body">NVIDIA DLI, Japan developer events, universities and fintech builders turn one reference into many learning paths.</p></div>
+    </div>
+    <div class="footer"><span class="source">Sources: <a href="https://www.jri.co.jp/company/release/2026/0610/">JRI–NEC partnership, 10 Jun 2026</a>; <a href="https://www.nvidia.com/ja-jp/industries/finance/partners/">NVIDIA Financial Services partners</a>.</span><span class="page-no">07 / 10</span></div>
+  </section>
+
+  <section class="slide light">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">07 · Engagement plan</div>
+    <h2>Developer Relations should create a tight 90-day loop</h2>
+    <div class="rule"></div>
+    <div class="timeline">
+      <div class="phase"><div class="days">DAYS 0–30</div><h3>Discover and baseline</h3><ul><li>Interview JRI and adopter teams.</li><li>Select one public-safe document workflow.</li><li>Baseline quality, latency, cost and safety.</li></ul></div>
+      <div class="phase"><div class="days">DAYS 31–60</div><h3>Build and teach</h3><ul><li>Publish a synthetic-data reference repo.</li><li>Run two hands-on workshops and office hours.</li><li>Capture developer feedback and blockers.</li></ul></div>
+      <div class="phase"><div class="days">DAYS 61–90</div><h3>Prove and multiply</h3><ul><li>Run a joint demo day with JRI and NEC.</li><li>Start one partner pilot.</li><li>Launch a monthly developer clinic.</li></ul></div>
+    </div>
+    <div class="callout"><strong>Dependency:</strong> A named JRI sponsor and an approved synthetic or public document set must exist before any workshop claims production readiness.</div>
+    <div class="footer"><span class="source">Proposed action plan. Public technology and partner facts are sourced on slides 05–07.</span><span class="page-no">08 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">08 · Measurement</div>
+    <h2>Adoption metrics should connect developers to pipeline</h2>
+    <div class="rule"></div>
+    <table class="metric-table">
+      <thead><tr><th>Layer</th><th>Measure</th><th>Proposed 90-day target</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Reach</strong></td><td>Workshop attendance and qualified JRI / partner teams</td><td>40 attendees, 12 qualified teams</td><td>Developer interest reaches the right people.</td></tr>
+        <tr><td><strong>Activation</strong></td><td>Time to first grounded answer; weekly active developers</td><td>First success in 2 days; 20 active developers</td><td>The sample is usable outside a demo.</td></tr>
+        <tr><td><strong>Technical proof</strong></td><td>Groundedness, p95 latency, cost per request, safety incidents</td><td>Baseline established; no unresolved critical safety issue</td><td>Teams can make a production decision.</td></tr>
+        <tr><td><strong>Business</strong></td><td>Partner pilots and production candidates</td><td>3 pilots; 1 production candidate</td><td>Developer activity becomes GTM evidence.</td></tr>
+      </tbody>
+    </table>
+    <div class="assumption" style="margin-top:26px"><strong>Assumption:</strong> Targets are planning hypotheses, not public NVIDIA or JRI results. I would reset them after day-30 discovery.</div>
+    <div class="footer"><span class="source">Measurement design is proposed for interview discussion; technical metric categories align with NVIDIA Agent Toolkit observability and JRI’s public governance concerns.</span><span class="page-no">09 / 10</span></div>
+  </section>
+
+  <section class="slide light">
+    <div class="practice">practice draft</div>
+    <div class="eyebrow">09 · Interview close</div>
+    <h2>The next six months are about repeatability and proof</h2>
+    <div class="rule"></div>
+    <div class="two-col-tight">
+      <div class="block"><h3>Dependencies and risks</h3><ul class="checklist"><li>JRI sponsor and approved data boundary</li><li>Security, PII and model-governance review</li><li>GPU capacity and deployment ownership</li><li>Model quality and Japanese evaluation set</li><li>Vendor lock-in and unclear ROI</li></ul></div>
+      <div class="block"><h3>My interview bridge</h3><p class="body">At MUIT, I worked on Agentforce in a bank CRM, Databricks-based agent observability, prompt tuning and context engineering.</p><div class="fit"><strong>My point:</strong> I would bring the same discipline to developer adoption: start with a real workflow, instrument quality, listen to users and make the next team faster.</div></div>
+    </div>
+    <div class="quote" style="font-size:25px">The proposal is intentionally narrow: one anchor, one workflow, three NVIDIA building blocks, one 90-day proof loop.</div>
+    <div class="assumption" style="margin-top:20px"><strong>Open question for the team:</strong> Which JRI financial workflow and developer audience would NVIDIA Japan want to prioritize first?</div>
+    <div class="source-list">
+      <div>Key sources: <a href="https://blogs.nvidia.co.jp/blog/japan-ecosystem-2026/">NVIDIA Japan Blog</a> · <a href="https://www.jri.co.jp/company/release/2026/0610/">JRI–NEC release</a> · <a href="https://www.nvidia.com/en-us/ai/nim-for-financial-services/">NIM for Financial Services</a> · <a href="https://docs.nvidia.com/nemo/retriever/latest/index.html">NeMo Retriever</a> · <a href="https://docs.nvidia.com/nemo/agent-toolkit/latest/">NeMo Agent Toolkit</a>.</div>
+    </div>
+    <div class="footer"><span class="source">Practice only. Replace this deck with independently researched and written work before any submission.</span><span class="page-no">10 / 10</span></div>
+  </section>
+</body>
+</html>

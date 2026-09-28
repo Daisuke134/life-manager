@@ -19,6 +19,10 @@ fi
 LOG="/tmp/camofox.log"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_DIR="/tmp/camofox-browser-lifecycle.lock"
+# The server outlives the loop/self-fix process that starts it.  Do not let it
+# inherit a per-run TMPDIR: those directories are reclaimed after the caller
+# exits, which makes every later Playwright mkdtemp fail with ENOENT.
+SERVER_TMPDIR="${CAMOFOX_SERVER_TMPDIR:-/tmp}"
 
 # start.sh and stop.sh are called by several independent loops.  Without a
 # cross-script lock, two callers can both observe a dead browser; the second
@@ -84,7 +88,7 @@ fi
 # process group; automation runners may reap that group when this script
 # exits, taking the otherwise-healthy server with it.
 NODE_BIN="$(command -v node)"
-nohup "$NODE_BIN" "$CAMOFOX_DIR/server.js" </dev/null >"$LOG" 2>&1 &
+nohup env TMPDIR="$SERVER_TMPDIR" "$NODE_BIN" "$CAMOFOX_DIR/server.js" </dev/null >"$LOG" 2>&1 &
 PID=$!
 echo "started camofox pid=$PID, waiting..."
 for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do

@@ -1,5 +1,1 @@
-{
-  "permissions": {
-    "defaultMode": "bypassPermissions"
-  }
-}
+{"permissions":{"defaultMode":"bypassPermissions"},"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"'/Users/anicca/.agents/skills/agmsg/scripts/session-start.sh' 'claude-code' '/Users/anicca/Projects/life-manager-main'"}]}],"SessionEnd":[{"matcher":"","hooks":[{"type":"command","command":"'/Users/anicca/.agents/skills/agmsg/scripts/session-end.sh'   'claude-code' '/Users/anicca/Projects/life-manager-main'"}]}]}}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Security Exception Decision Deck</title>
+  <desc id="desc">A shield with an exception marker above a decision deck.</desc>
+  <rect width="512" height="512" rx="96" fill="#101B34"/>
+  <rect x="86" y="282" width="340" height="144" rx="20" fill="#EAF2FF"/>
+  <rect x="116" y="314" width="178" height="18" rx="9" fill="#2454A6"/>
+  <rect x="116" y="352" width="256" height="14" rx="7" fill="#7798CF"/>
+  <rect x="116" y="384" width="142" height="14" rx="7" fill="#7798CF"/>
+  <path d="M256 72 372 116v100c0 76-49 137-116 168-67-31-116-92-116-168V116z" fill="#3E7EEB"/>
+  <path d="M256 103 342 136v80c0 57-34 107-86 135-52-28-86-78-86-135v-80z" fill="#D7E6FF"/>
+  <path d="M256 149v83" stroke="#1A3D7C" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="256" cy="270" r="14" fill="#1A3D7C"/>
+  <circle cx="356" cy="122" r="42" fill="#FFB546" stroke="#101B34" stroke-width="12"/>
+  <path d="M356 101v25" stroke="#101B34" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="356" cy="142" r="7" fill="#101B34"/>
+</svg>

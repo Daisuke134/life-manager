@@ -131,6 +131,19 @@ cases, board updates") — text/structured-output only, `run_online`-safe, not y
 Takeaway: no fabricated "winner" this pass (sales_selector signal=none across our 28), so this sweep
 is enrichment only per the loop contract — did not change which listing gets published this pass.
 
+## 13. MARKET SWEEP (2026-09-28, WebSearch — public Capafy marketplace homepage)
+The current public homepage search result displayed **CloneCut — Viral Clone, Seedance2.0** at **10.8k sold**, rated 4.5, at **US$12.50/month** (Capafy homepage search result, crawled 2026-09-27). This confirms sustained demand for short-form-video outcomes, but CloneCut explicitly relies on Seedance video generation and source-media transformation. A pure `run_online` Claude listing must not claim to render, edit, ingest, or remix video: the honest adjacent product is a text-only first-three-seconds diagnosis, hook rewrite, caption/title variants, and shot-list/prompt blueprint from a user-pasted transcript or brief. Source: https://capafy.ai/
+
+## 14. MARKET SWEEP (2026-09-27, public Capafy homepage WebSearch)
+The homepage's public trending results showed **CloneCut — Viral Clone, Seedance2.0** at 10.8k sold
+($19.99/month), **Alpha Consensus — X's Best Traders** at 480 sold ($10.83/month), and **Odeo
+Maker** at 39 sold. These are public listing observations, not evidence about our own sales. The
+video leaders rely on a video-generation engine and Alpha Consensus describes live public-market
+tracking, so neither literal service claim is valid for our pure-LLM run_online packages. Reuse
+only the buyer job structure: an honest Hook Lab-style listing may turn a *pasted* transcript,
+offer, or video description into text hooks, a shot list, and a self-critique; it must never claim
+video rendering, live market data, X monitoring, or web retrieval.
+
 ## 13. MARKET SWEEP (2026-08-24, external WebSearch — Capafy homepage/search index)
 The public marketplace result showed **"Commerce Video Ad Maker — Photos to Sales-Ready"** at 23 sold
 for US$9.99/week, and **"Sales Enablement — Scale how your top rep sells"** at 1 sold for US$3.99/week.
