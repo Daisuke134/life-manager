@@ -77,11 +77,11 @@
 - Produces `decide(snapshot, risk) -> { action: "copy"|"skip"|"exit"|"halt", mint, amountUsd, reason, sourceSignature }`.
 - Produces `paperApply(intent, quote, journalPath) -> receipt` with no signing, no RPC mutation, and explicit simulated fees/slippage from the quote.
 
-- [ ] **Step 1: Write failing tests** for the exact $2 initial size, the $3 hard ceiling, insufficient SOL reserve, stale/illiquid/unsafe candidates, duplicated source events, and a paper receipt that contains no live signature.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement deterministic risk gates**: quote freshness, maximum price impact, minimum liquidity, SOL gas reserve, one open intent, target-event age, and cumulative canary budget.
-- [ ] **Step 4: Run the focused test and verify all paper decisions are deterministic and effect-free.**
-- [ ] **Step 5: Commit** `feat(sol-copy): add gated policy and paper replay`.
+- [x] **Step 1: Write failing tests** for the exact $2 initial size, the $3 hard ceiling, insufficient SOL reserve, stale/illiquid/unsafe candidates, duplicated source events, and a paper receipt that contains no live signature.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `policy.mjs`.
+- [x] **Step 3: Implement deterministic risk gates**: quote freshness, maximum price impact, minimum liquidity, SOL gas reserve, one open intent, target-event age, and cumulative canary budget. The policy is pure and fixes the initial notional at `$2.00`; it never splits the `$3.00` ceiling.
+- [x] **Step 4: Run the focused test and verify all paper decisions are deterministic and effect-free.** `node --test skills/earn/solana-memecoin-copytrade/test_policy_paper.mjs` passes `7/7`; paper writes only an intent and a receipt with explicit simulated fee/slippage and no live signature.
+- [x] **Step 5: Commit** `feat(sol-copy): add gated policy and paper replay`.
 
 ### Task 4: $2–3 live canary and RPC receipt verification
 
