@@ -88,7 +88,7 @@ function zonedMidnight(key, timezone) {
 }
 
 function buildFinancialManagerReport(rawRecords, reportingDate, {
-  timezone = "Asia/Tokyo", economicSourceCoverage = null,
+  timezone = "Asia/Tokyo", economicSourceCoverage = null, x402ExternalUsdc = null,
 } = {}) {
   const records = rawRecords.map(projectFinancialRecord);
   const verified = records.filter((record) => record.verification.status === "verified");
@@ -142,6 +142,7 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
       },
       byProvider,
     },
+    nonUsdCash: x402ExternalUsdc,
     providers,
     economicSourceCoverage,
   };
@@ -189,6 +190,24 @@ function businessLines(label, summary) {
   ];
 }
 
+function x402CashLines(cash) {
+  if (!cash || typeof cash !== "object") return [];
+  const status = cash.evidence_status === "measured" ? "測定済み"
+    : cash.evidence_status === "partial" ? "部分測定"
+      : "確認不可";
+  const amount = typeof cash.revenue_usdc === "string" ? `USDC ${cash.revenue_usdc}` : "未測定";
+  const receiptCount = Array.isArray(cash.cash_receipts) ? cash.cash_receipts.length : 0;
+  const outsideCount = Number.isSafeInteger(cash.outside_period_count) ? cash.outside_period_count : 0;
+  return [
+    "\nx402外部USDC cash（USD/Treasuryと分離）",
+    `状態：${status}`,
+    `今月：${amount}`,
+    `検証済みreceipt：${receiptCount}件`,
+    `期間外：${outsideCount}件`,
+    "USD換算：しない（承認済みFX台帳なし）",
+  ];
+}
+
 function renderFinancialManagerTelegram(report) {
   const lines = ["💰 Financial Manager"];
   if (report.personal.assets.length || report.personal.liabilities.length) {
@@ -202,6 +221,7 @@ function renderFinancialManagerTelegram(report) {
   lines.push(...businessLines("\n事業（今日）", report.business.today));
   lines.push(...businessLines("\n事業（直近7日）", report.business.last7Days));
   lines.push(...businessLines(`\n事業（${report.business.period}）`, report.business));
+  lines.push(...x402CashLines(report.nonUsdCash));
   const revenueProviders = report.business.byProvider.filter((item) => item.revenue.length);
   if (revenueProviders.length) {
     lines.push("\n収益内訳（今月・プロバイダー別）");

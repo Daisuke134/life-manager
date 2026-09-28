@@ -8,7 +8,9 @@ const test = require("node:test");
 
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const { createJsonlFinancialRecordStore } = require("../lib/financial-record-store.js");
-const { agentReceiptPathsFromEnv, runHourlyCfo } = require("./cfo-hourly-local.js");
+const {
+  agentReceiptPathsFromEnv, runHourlyCfo, x402ExternalInflowPathsFromEnv,
+} = require("./cfo-hourly-local.js");
 
 function revenue(overrides = {}) {
   const subjectId = overrides.subject_id || "dais-local";
@@ -242,4 +244,14 @@ test("CFO defaults Agent Economy to its portable Life Manager state and accepts 
   assert.deepEqual(agentReceiptPathsFromEnv({
     REVENUE_RECEIPT_JOURNAL: "/state/revenue.jsonl",
   }), ["/state/revenue.jsonl"]);
+});
+
+test("CFO discovers x402 external-inflow ledgers from the shared state root", (t) => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cfo-x402-paths-"));
+  t.after(() => fs.rmSync(stateDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(stateDir, "external-inflows-0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl"), "");
+  fs.writeFileSync(path.join(stateDir, "unrelated.jsonl"), "");
+  assert.deepEqual(x402ExternalInflowPathsFromEnv({ LM_CFO_X402_STATE_DIR: stateDir }), [
+    path.join(stateDir, "external-inflows-0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jsonl"),
+  ]);
 });

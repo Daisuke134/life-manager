@@ -325,6 +325,10 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Create: `skills/earn/x402-sell/__tests__/rpc-log-range.test.mjs`
 - Create: `apps/life-manager/investment-core/x402_inflow_receipts.py`
 - Create: `apps/life-manager/investment-core/test_x402_inflow_receipts.py`
+- Modify: `apps/life-manager/lib/financial-manager-ingest.js`
+- Modify: `apps/life-manager/lib/financial-manager-report.js`
+- Modify: `apps/life-manager/lib/financial-manager-runtime.js`
+- Modify: `apps/life-manager/scripts/cfo-hourly-local.js`
 
 **Interfaces:**
 - Consumes: finalized external-inflow rows already produced by the x402 seller's Base receipt recorder.
@@ -334,7 +338,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 2: Fix the RPC boundary with a tested 2,000-block chunker.** The focused range/wallet tests pass `5/5`; a fresh read-only `verify-inflow.mjs 2` now completes with `inflows=0`, `EXTERNAL=0`, and no exception.
 - [x] **Step 3: Audit the finalized external ledger without printing transaction IDs.** It contains `18` unique `x402-railway /funding-rates` receipts totaling `0.180000 USDC`; `2026-09` contains `15` receipts totaling `0.150000 USDC`; all rows are `finalized`, `success`, and `external=true`, with no duplicate transaction.
 - [x] **Step 4: Add the Decimal-safe non-USD adapter.** `test_x402_inflow_receipts` passes `5/5`; real-state replay returns measured Jul `0.010000 USDC`, Aug `0.020000 USDC`, and Sep `0.150000 USDC`. The adapter deliberately emits no `amount_usd`.
-- [ ] **Step 5: Wire this report into the CFO briefing as a separate USDC section** without feeding it to the USD Treasury categories. No USD claim or FX conversion is allowed until an authorized rate/ledger boundary exists.
+- [x] **Step 5: Wire this report into the CFO briefing as a separate USDC section.** The local CFO discovers the shared x402 ledger, invokes the same Python adapter, renders `x402外部USDC cash（USD/Treasuryと分離）`, and can deliver that section even when no USD FinancialRecord exists. Focused JS tests pass `29/29` across ingest/report/runtime/CFO; the real-state read-only replay returns September `0.150000 USDC` from `15` receipts and no `amount_usd`. No USD claim, FX conversion, transfer, or funding authorization is created.
 
 ## Current TODO Cursor
 
@@ -349,8 +353,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 9. Task 9's canonical FinancialRecord bridge is implemented and pushed; current CFO-subject replay remains partial with no USD treasury receipt, and the second subject is blocked.
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
 11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
-12. Task 12 steps 1–4 are complete: x402 verification is healthy and the separate USDC adapter is measured; step 5 remains to wire it into the CFO briefing without currency mixing.
-13. Current cursor: wire the non-USD x402 report, accumulate 30 delivered measured daily receipts through the rolling producer, and obtain the authorized USD receipt/ledger; then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
+12. Task 12 is complete and pushed after the CFO wiring: x402 verification is healthy, the separate USDC adapter is measured, and the briefing keeps it outside USD Treasury.
+13. Current cursor: accumulate 30 delivered measured daily receipts through the rolling producer and obtain the authorized USD receipt/ledger; then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
 14. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 15. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
 16. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
@@ -363,7 +367,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but no complete live 30-day window exists | Read-only; expansion false | 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
-| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; separate x402 ledger is measured at `0.150000 USDC` for September / `0.180000 USDC` lifetime; Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | wire non-USD briefing; obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; separate x402 ledger is measured at `0.150000 USDC` for September / `0.180000 USDC` lifetime and is now shown in a separate briefing section; Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | accumulate 30 daily receipts; obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Current category accounting

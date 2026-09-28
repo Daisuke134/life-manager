@@ -56,8 +56,10 @@ async function runFinancialManager(options = {}) {
   const { report, digest } = buildFinancialManagerReport(records, reportingDate, {
     timezone: options.timezone || "Asia/Tokyo",
     economicSourceCoverage: ingestion.economicSourceCoverage || null,
+    x402ExternalUsdc: ingestion.x402ExternalUsdc || null,
   });
-  if (report.verifiedRecordCount === 0) {
+  const hasMeasuredNonUsdCash = report.nonUsdCash?.evidence_status === "measured";
+  if (report.verifiedRecordCount === 0 && !hasMeasuredNonUsdCash) {
     return {
       status: "quiet", reason: "no_verified_financial_records", reportingDate,
       recordCount: records.length, delivered: false, ingestion, report, digest,

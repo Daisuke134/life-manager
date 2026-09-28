@@ -250,3 +250,37 @@ test("Moneytree snapshot starts only one app-server read at a time", async () =>
   ]);
   assert.equal(maximum, 1);
 });
+
+test("configured x402 external ledger is projected into a separate USDC report", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-financial-x402-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createJsonlFinancialRecordStore({ directoryPath: path.join(root, "records") });
+  const row = (saleId, txDigit, amount, observedAt) => ({
+    source: "x402-railway", source_sale_id: saleId, offer_id: "/funding-rates",
+    tx: `0x${txDigit.repeat(64)}`, block: 100,
+    from: "0x2222222222222222222222222222222222222222",
+    to: "0x6592eb8ef820abc092e8c3474fb2042dffccedc7",
+    payTo: "0x6592eb8ef820abc092e8c3474fb2042dffccedc7", usdc: amount,
+    finalized: true, status: "success", external: true, observed_at: observedAt,
+  });
+  const ledger = path.join(root, "external-inflows.jsonl");
+  fs.writeFileSync(ledger, [
+    row("sale-1", "a", "0.01", "2026-09-10T00:00:00Z"),
+    row("sale-2", "b", "0.01", "2026-09-11T00:00:00Z"),
+    row("sale-old", "c", "0.01", "2026-08-31T00:00:00Z"),
+  ].map((value) => JSON.stringify(value)).join("\n") + "\n");
+
+  const result = await ingestFinancialRecords({
+    store, subjectId: "tenant-1", now: new Date("2026-09-28T02:00:00Z"),
+    readMoneytreeAccounts: async () => [], readMoneytreeTransactions: async () => [],
+    x402ExternalInflowPaths: [ledger],
+  });
+
+  assert.equal(result.sources.x402ExternalInflow, "observed_verified");
+  assert.equal(result.x402ExternalUsdc.evidence_status, "measured");
+  assert.equal(result.x402ExternalUsdc.revenue_usdc, "0.020000");
+  assert.equal(result.x402ExternalUsdc.outside_period_count, 1);
+  assert.equal(result.observed, 0);
+  assert.equal(result.x402ExternalUsdc.cash_receipts[0].currency, "USDC");
+  assert.equal("amount_usd" in result.x402ExternalUsdc.cash_receipts[0], false);
+});

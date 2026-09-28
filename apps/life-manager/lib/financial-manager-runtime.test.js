@@ -109,3 +109,28 @@ test("CFO report carries private economic coverage from ingestion", async () => 
   assert.equal(result.status, "quiet");
   assert.deepEqual(result.report.economicSourceCoverage, coverage);
 });
+
+test("CFO delivers an x402 USDC section even without USD FinancialRecords", async () => {
+  const messages = [];
+  const x402ExternalUsdc = {
+    period: "2026-09",
+    evidence_status: "measured",
+    revenue_usdc: "0.150000",
+    outside_period_count: 0,
+    cash_receipts: [{ receipt_id: "x402-inflow:sale-1" }],
+  };
+  const result = await runFinancialManager({
+    subjectId: "tenant-a", reportingDate: "2026-09-28", now: "2026-09-28T06:00:00.000Z",
+    store: store([]),
+    ingest: async () => ({
+      observed: 0, created: 0, sources: {}, x402ExternalUsdc,
+    }),
+    notify: async ({ message }) => {
+      messages.push(message);
+      return { delivered: true, providerMessageId: "telegram-x402" };
+    },
+  });
+  assert.equal(result.status, "sent");
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /x402外部USDC cash（USD\/Treasuryと分離）/);
+});

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
+import json
 import re
+import sys
 from typing import Any
 
 
@@ -149,3 +152,20 @@ def x402_inflows_to_cash_receipts(rows: Any, period: str) -> dict[str, Any]:
 
 
 __all__ = ["x402_inflows_to_cash_receipts"]
+
+
+def _main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--period", required=True)
+    args = parser.parse_args(argv)
+    try:
+        rows = json.load(sys.stdin)
+        result = x402_inflows_to_cash_receipts(rows, args.period)
+    except (json.JSONDecodeError, OSError, TypeError, ValueError):
+        return 2
+    sys.stdout.write(json.dumps(result, ensure_ascii=False, separators=(",", ":")) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

@@ -94,3 +94,20 @@ test("economic source coverage stays private and does not change the notificatio
   assert.equal(withCoverage.digest, withoutCoverage.digest);
   assert.doesNotMatch(renderFinancialManagerTelegram(withCoverage.report), /economic|coverage|tenant-1/i);
 });
+
+test("Financial Manager renders verified x402 USDC cash outside USD Treasury", () => {
+  const x402ExternalUsdc = {
+    period: "2026-09",
+    evidence_status: "measured",
+    revenue_usdc: "0.150000",
+    outside_period_count: 3,
+    cash_receipts: [{ receipt_id: "x402-inflow:sale-1" }],
+  };
+  const { report } = buildFinancialManagerReport([], "2026-09-28", { x402ExternalUsdc });
+  assert.deepEqual(report.nonUsdCash, x402ExternalUsdc);
+  const text = renderFinancialManagerTelegram(report);
+  assert.match(text, /x402外部USDC cash（USD\/Treasuryと分離）/);
+  assert.match(text, /今月：USDC 0\.150000/);
+  assert.match(text, /検証済みreceipt：1件/);
+  assert.match(text, /USD換算：しない（承認済みFX台帳なし）/);
+});

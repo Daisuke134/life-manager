@@ -86,6 +86,12 @@ timestamps. It returns `amount_usdc` only; it never invents an FX rate or an
 The current audited ledger has 18 unique Railway inflows totaling `0.180000
 USDC`; September has 15 totaling `0.150000 USDC`.
 
+The local CFO discovers `external-inflows-0x*.jsonl` under the shared
+`x402-sell` state root, projects the current period through this adapter, and
+renders a separate `x402外部USDC cash` briefing section. That section is
+delivery/reporting evidence only; it does not create a USD FinancialRecord or
+authorize a transfer.
+
 ## lm-lead boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.

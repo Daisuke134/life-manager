@@ -30,6 +30,23 @@ function agentReceiptPathsFromEnv(env) {
   );
 }
 
+function x402ExternalInflowPathsFromEnv(env) {
+  if (env.LM_CFO_X402_EXTERNAL_INFLOW_RECEIPTS) {
+    return splitPaths(env.LM_CFO_X402_EXTERNAL_INFLOW_RECEIPTS);
+  }
+  const stateDir = env.LM_CFO_X402_STATE_DIR || env.X402_STATE_DIR
+    || path.join(lifeManagerStateRoot(env), "x402-sell");
+  try {
+    return fs.readdirSync(stateDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^external-inflows-0x[0-9a-fA-F]{40}\.jsonl$/.test(entry.name))
+      .map((entry) => path.join(stateDir, entry.name))
+      .sort();
+  } catch (error) {
+    if (error && error.code === "ENOENT") return [];
+    return [];
+  }
+}
+
 function lifeManagerStateRoot(env) {
   return env.LIFE_MANAGER_STATE_HOME
     || path.join(os.homedir(), ".local/state/life-manager");
@@ -123,6 +140,7 @@ async function runHourlyCfo(options = {}) {
       }),
       agentReceiptPaths: options.agentReceiptPaths || [],
       marketplaceReceiptPaths: options.marketplaceReceiptPaths || [],
+      x402ExternalInflowPaths: options.x402ExternalInflowPaths || [],
       pythonBin: options.pythonBin || "python3",
       capafyAnalyticsPath: options.capafyAnalyticsPath,
       mobileAppsBusinessOutcomesPath: options.mobileAppsBusinessOutcomesPath,
@@ -172,6 +190,7 @@ async function main(env = process.env) {
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),
       agentReceiptPaths: agentReceiptPathsFromEnv(env),
       marketplaceReceiptPaths: splitPaths(env.LM_CFO_MARKETPLACE_RECEIPTS),
+      x402ExternalInflowPaths: x402ExternalInflowPathsFromEnv(env),
       capafyAnalyticsPath: capafyAnalyticsPathFromEnv(env),
       mobileAppsBusinessOutcomesPath: mobileAppsBusinessOutcomesPathFromEnv(env),
     });
@@ -190,5 +209,6 @@ if (require.main === module) main().then((code) => { process.exitCode = code; })
 
 module.exports = {
   agentReceiptPathsFromEnv, capafyAnalyticsPathFromEnv, mobileAppsBusinessOutcomesPathFromEnv,
+  x402ExternalInflowPathsFromEnv,
   main, runHourlyCfo,
 };

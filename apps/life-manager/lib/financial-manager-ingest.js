@@ -37,6 +37,27 @@ function projectMarketplace(receipts, { subjectId, pythonBin, script }) {
   return projected;
 }
 
+function projectX402ExternalInflows(rows, { period, pythonBin, script } = {}) {
+  const adapter = script || path.resolve(__dirname, "../investment-core/x402_inflow_receipts.py");
+  const result = spawnSync(pythonBin || "python3", [adapter, "--period", period], {
+    input: JSON.stringify(rows), encoding: "utf8", timeout: 30_000,
+  });
+  if (result.status !== 0) throw new Error("x402 external-inflow projection failed");
+  let projected;
+  try { projected = JSON.parse(String(result.stdout || "")); }
+  catch { throw new Error("x402 external-inflow projection invalid"); }
+  if (!projected || typeof projected !== "object" || Array.isArray(projected)) {
+    throw new Error("x402 external-inflow projection invalid");
+  }
+  if (projected.evidence_status === "blocked") {
+    throw new Error("x402 external-inflow evidence blocked");
+  }
+  if (!Array.isArray(projected.cash_receipts)) {
+    throw new Error("x402 external-inflow receipts invalid");
+  }
+  return projected;
+}
+
 async function readMoneytreeSnapshot(readAccounts, readTransactions, range) {
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -62,12 +83,16 @@ async function readMoneytreeSnapshot(readAccounts, readTransactions, range) {
 async function ingestFinancialRecords(options) {
   const {
     store, subjectId, now, agentReceiptPaths = [], marketplaceReceiptPaths = [],
-    pythonBin = "python3",
+    x402ExternalInflowPaths = [], pythonBin = "python3",
   } = options;
   if (!store || typeof store.append !== "function") throw new Error("FinancialRecord store required");
   const recordedAt = now.toISOString();
   const records = [];
   const sources = {};
+  const reportingPeriod = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit",
+  }).format(now);
+  let x402ExternalUsdc = null;
   let agentReceipts = [];
   let agentRevenueRecords = [];
   let agentRevenueReadState = "not_configured";
@@ -75,9 +100,7 @@ async function ingestFinancialRecords(options) {
   try {
     const readAccounts = options.readMoneytreeAccounts || moneytree.readAccounts;
     const readTransactions = options.readMoneytreeTransactions || moneytree.readTransactions;
-    const startDate = `${new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit",
-    }).format(now)}-01`;
+    const startDate = `${reportingPeriod}-01`;
     const endDate = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(now);
@@ -190,6 +213,27 @@ async function ingestFinancialRecords(options) {
     sources.mobileApps = "unavailable";
   }
 
+  try {
+    const readX402ExternalInflows = options.readX402ExternalInflows
+      || (x402ExternalInflowPaths.length
+        ? async () => (await Promise.all(x402ExternalInflowPaths.map(readJsonl))).flat()
+        : null);
+    if (readX402ExternalInflows) {
+      const rows = await readX402ExternalInflows();
+      if (!Array.isArray(rows)) throw new Error("x402 external-inflow rows invalid");
+      const projector = options.projectX402ExternalInflows || ((input) => (
+        projectX402ExternalInflows(input, { period: reportingPeriod, pythonBin })
+      ));
+      x402ExternalUsdc = await projector(rows);
+      sources.x402ExternalInflow = rows.length ? "observed_verified" : "empty";
+    }
+  } catch {
+    x402ExternalUsdc = null;
+    if (x402ExternalInflowPaths.length || options.readX402ExternalInflows) {
+      sources.x402ExternalInflow = "unavailable";
+    }
+  }
+
   let created = 0;
   for (const record of records) {
     const result = await store.append(record);
@@ -236,8 +280,10 @@ async function ingestFinancialRecords(options) {
   });
   return {
     observed: records.length, created, sources, economicSourceCoverage,
-    economicFunnelObservations: agentEconomySources.funnelObservations,
+    economicFunnelObservations: agentEconomySources.funnelObservations, x402ExternalUsdc,
   };
 }
 
-module.exports = { ingestFinancialRecords, readJsonl, readMoneytreeSnapshot, splitPaths };
+module.exports = {
+  ingestFinancialRecords, projectX402ExternalInflows, readJsonl, readMoneytreeSnapshot, splitPaths,
+};
