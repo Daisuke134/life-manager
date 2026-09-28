@@ -83,6 +83,8 @@ flowchart LR
 
 These are planning calculations, not forecasts:
 
+Terminology boundary: `$10,000/month` of customer revenue is `$120,000/year` gross, while `$100,000/year` is about `$8,333.33/month`. Neither number is the same as `$10,000/month` of realised net investment P&L. The CFO/Treasury ledger tracks customer cash and investment P&L as separate categories, so deposits, gross sales, unrealised gains, and projections cannot be substituted for net profit.
+
 | Target | Required net capital at 10% APR | at 15% APR | at 20% APR |
 |---|---:|---:|---:|
 | `$10,000/month` net (`$120,000/year`) | `$1.20M` | `$800k` | `$600k` |
