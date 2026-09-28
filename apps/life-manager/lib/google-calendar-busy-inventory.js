@@ -58,6 +58,23 @@ function isLifeManagerTravelBlock(event) {
   return summary.startsWith(LIFE_MANAGER_TRAVEL_SUMMARY_PREFIX) && description === LIFE_MANAGER_TRAVEL_DESCRIPTION;
 }
 
+// Google Calendar keeps a declined invite on the calendar owner's own events.list
+// response (it does not disappear), so without this check every event Dais
+// declined still blocked every Connector candidate that overlapped it. Only the
+// owner's OWN response matters: an event Dais organizes/attends has either no
+// attendees array (personal event, implicitly accepted) or an attendees array
+// where his own entry ("self": true, matching Google's own convention) is
+// missing/accepted/tentative — all of those stay busy. Only an explicit
+// self-declined response frees the slot; another attendee declining (or any
+// other responseStatus value on Dais's own entry) never does.
+function isDeclinedByOwner(event) {
+  const attendees = event.attendees;
+  if (attendees == null) return false;
+  if (!Array.isArray(attendees)) invalid();
+  const own = attendees.find((attendee) => attendee && typeof attendee === "object" && attendee.self === true);
+  return Boolean(own) && String(own.responseStatus || "").toLowerCase() === "declined";
+}
+
 function connectorMarker(event) {
   if (!Object.hasOwn(event, "extendedProperties")) return null;
   const extended = event.extendedProperties;
@@ -92,6 +109,7 @@ function normalizeBusyEvent(event, calendars, seen) {
   if (String(event.status || "").toLowerCase() === "cancelled") return null;
   if (String(event.transparency || "").toLowerCase() === "transparent") return null;
   if (isLifeManagerTravelBlock(event)) return null;
+  if (isDeclinedByOwner(event)) return null;
   const connectorIdempotency = connectorMarker(event);
   const calendarRef = `calendar-evidence://google/calendar/${digest(calendarId)}`;
   const eventRef = `calendar-evidence://google/event/${digest(identity)}`;
