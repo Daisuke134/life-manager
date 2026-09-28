@@ -194,6 +194,15 @@ TODO の分け方（Dais 2026-09-28 14:3x JST）: Capafy と PromptBase は別�
 
 Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客（記事の誘導先を Capafy の売れている Skill に ✅ #6110、Capafy の Instagram 復旧、Skill 別・流入元別の注文を毎日 Telegram）/ C4 売上ゼロ 43 本の書き直しか取り下げ / C6 数字から LM が次の手を選ぶ / C7 実行枠の配分。
 
+集客は全商品に共通のエンジン（Dais 2026-09-28）: 記事・SEO・SNS・自社メディアの仕組みを一度完成させれば、Capafy Skill・PromptBase・既存/新規モバイルアプリ・Web アプリ・Life Manager・電子書籍（Anicca monk factory）のどれにも使える。売上が少ない原因は全商品で「distribution（集客）」が先。
+
+モバイルアプリの TODO（Capafy の後。この順。Dais 2026-09-28）: 順番は 集客 → オンボーディング（場所ごとの指標）→ 課金 → アプリの中身。アプリ自体の改善や審査対応は後。Anicca 1.9.5 の再提出はしない。
+- A1 同じ文面の繰り返し投稿を止める。実測（Postiz 公式 API、2026-09-25〜28 の 146 投稿）: TikTok Affirmation Girl 9 投稿で文面 2 種、TikTok anicca 7→2、TikTok アニッチャ iOS 9→2、TikTok アニッチャ お笑い 7→2、Instagram anicca 7→2、YouTube Daily Affirmation App 9→2（本音翻訳は 9→9 で毎回違う）。原因: 毎回新しい文字を作る仕組み（#6049〜#6058）は Larry JA の 1 lane にだけ入り、他の lane は少数の固定の文面・スライドを使い回している（スライド画像内の文字の重複は直す時に lane ごとに確定する）。直し方: Larry JA と同じ「背景は使い回し・文字は毎回生成・7 日内の再利用禁止・自動 gate・指標で型を選ぶ」を全 lane に広げ、Postiz の投稿本文とスライドの hash で同一アカウント内の重複を投稿前に止める。
+- A2 投稿 → App Store の流れを測る（アカウント・投稿ごとの再生 → プロフィール → ストア → install）。今は SNS 経由の install がほぼ 0。
+- A3 ASO（App Store の検索で見つかる言葉・スクリーンショット・説明文）。
+- A4 オンボーディング → 課金の指標（場所ごと）。
+- A5 アプリの中身の改善・工場の未公開 4 本は、集客が回ってから。
+
 PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 🔧 毎日 1 件、人の手なしで出品する loop（同じ CloakBrowser daily-driver を lease。reCAPTCHA は普段は画像なしで通る。画像が出た日は解かずに翌日再試行）/ P3 売上の毎日の読み戻し / P4 記事から PromptBase への誘導。
 
 記事・自社メディア（共通の集客）の TODO（この順）: M1 ✅ 記事 loop 復旧（note・Substack で 9 日ぶりに公開）/ M2 🔧 aniccaai.com に毎日の記事を出す（今は出ていない）、sitemap にブログ 44 本を載せる（今は 0 本）、RSS を作る / M3 🔧 open-seo（無料）で記事の検索語を選ぶ / M4 Zenn・dev.to・X の記事の再開。
