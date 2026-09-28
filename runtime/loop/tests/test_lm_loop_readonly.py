@@ -751,3 +751,32 @@ class LmLoopReadonlyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EffectUnknownDiagnosisTest(unittest.TestCase):
+    def test_names_cause_run_provider_state_and_next_action(self):
+        occ = "capafy-loop-daily:run-2"
+        journal = [
+            {"occurrence_id": occ, "status": "running", "run_id": "run-2", "phase": "execute"},
+            {"occurrence_id": occ, "status": "fail", "run_id": "run-2", "phase": "report",
+             "error_class": "entrypoint_exit_1", "exit_code": 1, "error_detail": "x" * 900},
+        ]
+        call = {"occurrence_id": occ, "exit_code": 1, "closed": False,
+                "stdout_tail": 'id": "a", "reason": "too_recent:10s<=3720s", "verified": false}\n'
+                               "CAPAFY_FACTORY_FENCE_RECONCILE=HELD\n"}
+        entry = {"effect_reconcile": {"argv": ["x.py"]}}
+        got = lm_loop.effect_unknown_diagnosis(
+            "capafy-loop-daily", entry, ("capafy-loop-daily:run-1", occ),
+            journal_rows=journal, adapter_calls={occ: call})
+        self.assertEqual(got["fenced_occurrences"], 2)
+        self.assertEqual(got["cause_run"]["run_id"], "run-2")
+        self.assertEqual(got["cause_run"]["failed_phase"], "report")
+        self.assertEqual(len(got["cause_run"]["error_detail"]), lm_loop.DIAGNOSIS_DETAIL_CHARS)
+        self.assertEqual(got["provider_state"]["reason"], "too_recent:10s<=3720s")
+        self.assertEqual(got["provider_state"]["marker"], "CAPAFY_FACTORY_FENCE_RECONCILE=HELD")
+        self.assertEqual(got["next_action"], "adapter_held:too_recent:10s<=3720s")
+        bare = lm_loop.effect_unknown_diagnosis(
+            "x", {}, (occ,), journal_rows=None, adapter_calls={})
+        self.assertEqual(bare["cause_run"], "journal_unavailable")
+        self.assertEqual(bare["provider_state"], "no_adapter")
+        self.assertTrue(bare["next_action"].startswith("no_readback_adapter"))
