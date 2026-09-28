@@ -748,7 +748,7 @@
       "label": "ai.anicca.capafy-loop-daily",
       "log_root": "~/.local/state/life-manager/logs",
       "resource_class": "deterministic",
-      "priority": "critical_paid",
+      "priority": "revenue",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "provider_route": "deterministic",
