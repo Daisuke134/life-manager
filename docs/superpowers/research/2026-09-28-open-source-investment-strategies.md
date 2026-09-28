@@ -84,6 +84,12 @@
 4. entryしかなくexitがないSolana copy trade、cost未知のcarry、holdout失敗のstrategyをliveにすること。
 5. 旧Alpacaの`1/30`を、新しいStrategyCardの30-round-trip sampleへ自動的に繰り越すこと。
 
+## 追加候補screen（2026-09-28T15:53:30Z）
+
+公式Alpaca paper endpointをread-onlyでbounded queryし、2026-08-30T00:00:00Z〜2026-09-28T15:30:00Zの5分足を比較した。BTC/USDCは6,855 bars・845 indicator candles、ETH/USDCは7,715 bars・2,021 indicator candlesだった。固定notionalは`$10`、costは片側25bp fee + 5bp slippage（往復の宣言costは60bp）とした。
+
+事前に定義した候補群は、Bollinger/RSI reversion、lower-band reclaim、RSI-open rebound、Donchian 10/20 breakout、trend pullback、volatility breakoutである。chronological 60/20/20の同一screenでは、両symbolともholdout netが正になる候補は0件だった。このscreenはStrategyCardのpassing reportではなく、最良結果だけを後付け採用していない。新cardは追加せず、`NO_STRATEGY`と追加資金停止を維持する。次の候補は、別の出典・timeframe・venueを明示してから、同じcost/holdout/sensitivity gateを通す。
+
 ## 現時点の結論
 
 - OSS・公開研究から得られたのは、候補ルールと検証規律であって、利益保証ではない。
