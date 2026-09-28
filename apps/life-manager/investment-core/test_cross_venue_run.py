@@ -45,6 +45,7 @@ class CrossVenueRunTests(unittest.TestCase):
             path = Path(directory) / "inputs.json"
             path.write_text(json.dumps({
                 "snapshot_specs": ["alpaca=/tmp/alpaca.json"],
+                "alpaca_state_dir": "/tmp/alpaca-state",
                 "owner_cash_flow_path": "/tmp/owner-flow.json",
                 "available_capital_usd": "100",
             }), encoding="utf-8")
@@ -53,8 +54,58 @@ class CrossVenueRunTests(unittest.TestCase):
 
         self.assertEqual(manifest["status"], "configured")
         self.assertEqual(manifest["snapshot_specs"], ["alpaca=/tmp/alpaca.json"])
+        self.assertEqual(manifest["alpaca_state_dir"], "/tmp/alpaca-state")
         self.assertEqual(manifest["owner_cash_flow_path"], "/tmp/owner-flow.json")
         self.assertEqual(manifest["available_capital_usd"], "100")
+
+    def test_run_once_can_read_alpaca_owner_state_without_snapshot_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            alpaca_state = root / "alpaca-state"
+            alpaca_state.mkdir()
+            (alpaca_state / "performance-latest.json").write_text(json.dumps({
+                "measurement_status": "measured",
+                "observed_at": NOW,
+                "gross_strategy_pnl_usd": "10",
+                "fees_usd": "1",
+                "funding_or_borrow_usd": "0.5",
+                "slippage_usd": "0.25",
+                "gas_usd": "0.1",
+                "model_cost_usd": "0.15",
+                "completed_round_trips": 30,
+                "observed_endpoint_drawdown_usd": "1",
+                "gross_exposure_usd": "100",
+                "source_receipt_ids": ["alpaca-state-receipt"],
+            }), encoding="utf-8")
+            (alpaca_state / "observation-latest.json").write_text(json.dumps({
+                "account": {"equity": "1000", "cash": "500"},
+            }), encoding="utf-8")
+            (alpaca_state / "risk-latest.json").write_text(json.dumps({
+                "drawdown_fraction": "0.01",
+            }), encoding="utf-8")
+            owner_flow_path = root / "owner-flow.json"
+            owner_flow_path.write_text(
+                json.dumps({"owner_cash_flow_usd": "0", "source_receipt_ids": ["flow-1"]}),
+                encoding="utf-8",
+            )
+
+            receipt = run_once(
+                snapshot_specs=[],
+                alpaca_state_dir=alpaca_state,
+                state_dir=root / "state",
+                today="2026-09-29",
+                owner_cash_flow_path=owner_flow_path,
+                available_capital_usd="0",
+                send=lambda message: {"message_id": "m-state"},
+            )
+
+        self.assertEqual(receipt["status"], "delivered")
+        self.assertEqual(receipt["provider_message_id"], "m-state")
+        self.assertEqual(receipt["aggregate"]["net_pnl_usd"], "8.00")
+        self.assertEqual(
+            [row["venue"] for row in receipt["aggregate"]["unknown_venues"]],
+            ["hyperliquid", "solana"],
+        )
 
     def test_parse_snapshot_spec_rejects_missing_venue_or_path(self):
         with self.assertRaisesRegex(ValueError, "snapshot_spec_invalid"):

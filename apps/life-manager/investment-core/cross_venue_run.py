@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from alpaca_snapshot import read_alpaca_snapshot
 from cross_venue_reporter import render_daily_pnl, wake
 from portfolio_receipts import VenueSnapshot
 
@@ -124,6 +125,7 @@ def read_manifest(path: str | Path | None) -> dict[str, Any]:
         return {
             "status": "missing",
             "snapshot_specs": [],
+            "alpaca_state_dir": None,
             "owner_cash_flow_path": None,
             "available_capital_usd": "0",
         }
@@ -132,6 +134,7 @@ def read_manifest(path: str | Path | None) -> dict[str, Any]:
         return {
             "status": "missing",
             "snapshot_specs": [],
+            "alpaca_state_dir": None,
             "owner_cash_flow_path": None,
             "available_capital_usd": "0",
         }
@@ -141,22 +144,28 @@ def read_manifest(path: str | Path | None) -> dict[str, Any]:
         return {
             "status": "invalid",
             "snapshot_specs": [],
+            "alpaca_state_dir": None,
             "owner_cash_flow_path": None,
             "available_capital_usd": "0",
         }
     if not isinstance(value, Mapping):
         status = "invalid"
         return {"status": status, "snapshot_specs": [],
-                "owner_cash_flow_path": None, "available_capital_usd": "0"}
+                "alpaca_state_dir": None, "owner_cash_flow_path": None,
+                "available_capital_usd": "0"}
     specs = value.get("snapshot_specs", [])
+    alpaca_state_dir = value.get("alpaca_state_dir")
     owner_path = value.get("owner_cash_flow_path")
     if (not isinstance(specs, list) or any(not isinstance(item, str) or not item for item in specs)
+            or (alpaca_state_dir is not None and not isinstance(alpaca_state_dir, str))
             or (owner_path is not None and not isinstance(owner_path, str))):
         return {"status": "invalid", "snapshot_specs": [],
-                "owner_cash_flow_path": None, "available_capital_usd": "0"}
+                "alpaca_state_dir": None, "owner_cash_flow_path": None,
+                "available_capital_usd": "0"}
     return {
         "status": "configured",
         "snapshot_specs": specs,
+        "alpaca_state_dir": alpaca_state_dir,
         "owner_cash_flow_path": owner_path,
         "available_capital_usd": value.get("available_capital_usd", "0"),
     }
@@ -171,10 +180,19 @@ def run_once(
     available_capital_usd: Any,
     send: Callable[[str], Any],
     input_manifest_status: str = "configured",
+    alpaca_state_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one finite measurement/report wake with no venue side effect."""
     owner_path = Path(owner_cash_flow_path).expanduser() if owner_cash_flow_path else None
-    readers: dict[str, Callable[[], Any]] = build_readers(snapshot_specs)
+    specs = list(snapshot_specs)
+    readers: dict[str, Callable[[], Any]] = build_readers(specs)
+    explicit_alpaca = any(
+        isinstance(spec, str) and spec.partition("=")[0] == "alpaca"
+        for spec in specs
+    )
+    if alpaca_state_dir and not explicit_alpaca:
+        state_path = Path(alpaca_state_dir).expanduser()
+        readers["alpaca"] = lambda: read_alpaca_snapshot(state_path)
     readers["__owner_cash_flow_usd__"] = _read_owner_cash_flow(owner_path)
     readers["__available_capital_usd__"] = _valid_available_capital(available_capital_usd)
     readers["__input_manifest_status__"] = input_manifest_status
@@ -194,11 +212,13 @@ def _parser() -> argparse.ArgumentParser:
         "INVESTMENT_CROSS_VENUE_MANIFEST",
         str(Path(default_state).expanduser() / DEFAULT_MANIFEST_NAME),
     )
+    default_alpaca_state = os.environ.get("INVESTMENT_ALPACA_STATE_DIR")
     default_capital = os.environ.get("INVESTMENT_AVAILABLE_CAPITAL_USD", "0")
     default_owner_flow = os.environ.get("INVESTMENT_OWNER_CASH_FLOW_FILE")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-dir", default=default_state)
     parser.add_argument("--manifest", default=default_manifest)
+    parser.add_argument("--alpaca-state-dir", default=default_alpaca_state)
     parser.add_argument("--today", default=None, help="UTC date; defaults to today")
     parser.add_argument("--snapshot", dest="snapshot_specs", action="append", default=[],
                         metavar="VENUE=PATH")
@@ -214,6 +234,7 @@ def main(argv: list[str] | None = None, *, send: Callable[[str], Any] | None = N
     manifest = read_manifest(args.manifest)
     receipt = run_once(
         snapshot_specs=args.snapshot_specs or manifest["snapshot_specs"],
+        alpaca_state_dir=args.alpaca_state_dir or manifest["alpaca_state_dir"],
         state_dir=args.state_dir,
         today=today,
         owner_cash_flow_path=args.owner_cash_flow_file or manifest["owner_cash_flow_path"],

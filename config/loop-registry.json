@@ -53,7 +53,9 @@
         "--state-dir",
         "~/.local/state/life-manager/investment-cross-venue",
         "--manifest",
-        "~/.local/state/life-manager/investment-cross-venue/inputs.json"
+        "~/.local/state/life-manager/investment-cross-venue/inputs.json",
+        "--alpaca-state-dir",
+        "~/.local/state/life-manager/alpaca-investment-live"
       ],
       "domain": "financial",
       "effect_class": "message",

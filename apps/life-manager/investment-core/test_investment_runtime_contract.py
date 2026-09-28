@@ -27,6 +27,10 @@ class InvestmentRuntimeContractTests(unittest.TestCase):
         self.assertEqual(job["priority"], "revenue")
         self.assertEqual(job["state_root"], "~/.local/state/life-manager/investment-cross-venue")
         self.assertEqual(job["command"][:2], ["--state-dir", "~/.local/state/life-manager/investment-cross-venue"])
+        self.assertIn("--alpaca-state-dir", job["command"])
+        alpaca_index = job["command"].index("--alpaca-state-dir")
+        self.assertEqual(job["command"][alpaca_index + 1],
+                         "~/.local/state/life-manager/alpaca-investment-live")
 
     def test_investment_product_maps_the_daily_receipt_job(self):
         investment = next(loop for loop in self.catalog["loops"] if loop["id"] == "investment")

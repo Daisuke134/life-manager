@@ -116,16 +116,22 @@ The manifest is the owner-to-reader boundary:
 ```json
 {
   "snapshot_specs": ["alpaca=/path/to/alpaca-snapshot.json"],
+  "alpaca_state_dir": "~/.local/state/life-manager/alpaca-investment-live",
   "owner_cash_flow_path": "/path/to/owner-cash-flow.json",
   "available_capital_usd": "0"
 }
 ```
 
-If the manifest is absent, invalid, or a source file is missing, the daily
-receipt records `input_manifest_status` as `missing` or `invalid`, keeps the
-venue measurement `unknown`, and uses no available capital. It never turns a
-missing input into `$0` profit. `configured` means only that the manifest was
-validly read; it does not mean a venue made money.
+When no explicit `--snapshot alpaca=...` is supplied, `alpaca_state_dir` lets
+the reader consume the three durable Alpaca owner files
+(`performance-latest.json`, `observation-latest.json`, and `risk-latest.json`)
+without credentials or provider calls. An explicit snapshot file wins over
+the state directory. If the manifest is absent, invalid, or a source file is
+missing, the daily receipt records `input_manifest_status` as `missing` or
+`invalid`, keeps unavailable venues `unknown`, and uses no available capital.
+It never turns a missing input into `$0` profit. `configured` means only that
+the manifest was validly read; it does not mean a venue made money. Missing
+funding, gas, or model-cost fields remain partial/unknown rather than zero.
 
 Current source boundaries:
 
