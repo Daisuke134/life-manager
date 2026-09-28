@@ -746,7 +746,7 @@ def parser() -> argparse.ArgumentParser:
     collect.add_argument("--now")
     collect.add_argument(
         "--cdp-url",
-        default=os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"),
+        default=os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222"),
     )
     collect.add_argument("--raw-evidence", type=Path, default=DEFAULT_RAW_EVIDENCE)
     collect.add_argument("--report", type=Path)

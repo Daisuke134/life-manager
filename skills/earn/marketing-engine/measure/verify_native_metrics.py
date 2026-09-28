@@ -344,7 +344,7 @@ def main() -> int:
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     parser.add_argument(
         "--cdp-url",
-        default="http://127.0.0.1:9222",
+        default="http://localhost:9222",
     )
     args = parser.parse_args()
     env = native_metrics.load_env(args.env)

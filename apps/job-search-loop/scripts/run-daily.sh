@@ -87,7 +87,7 @@ report_wake() {
 }
 trap report_wake EXIT
 "$JOB_SEARCH_PYTHON" -m job_search_loop.browser_owner \
-  --endpoint "http://127.0.0.1:9222" \
+  --endpoint "http://localhost:9222" \
   --output "$JOB_SEARCH_BROWSER_OWNER_EVIDENCE"
 CANDIDATE_MEMORY="$JOB_SEARCH_STATE_ROOT/candidate-memory.v1.json"
 MATERIALS_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/anicca/job-search/materials"

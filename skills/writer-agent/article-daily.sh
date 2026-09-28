@@ -550,7 +550,7 @@ python3 "$ARTICLE_ROOT/scripts/strategy_runtime.py" \
 BROWSER_GUARD="${LIFE_MANAGER_REPO:-$(cd "$ARTICLE_ROOT/../.." && pwd)}/skills/browser/ensure_browser.sh"
 if [ -x "$BROWSER_GUARD" ]; then
   BROWSER_STATUS="$(
-    CLOAK_CDP_BASE_URL="${WRITER_CDP_URL:-http://127.0.0.1:9222}" \
+    CLOAK_CDP_BASE_URL="${WRITER_CDP_URL:-http://localhost:9222}" \
     CDP_DAILY_DRIVER_PORT="${WRITER_CDP_PORT:-9222}" \
     CDP_DAILY_DRIVER_PROFILE="${WRITER_CDP_PROFILE:-$HOME/.cloak/profiles/daily-driver}" \
     CLOAK_BROWSER_LAUNCHD_LABEL="${WRITER_BROWSER_LAUNCHD_LABEL:-ai.anicca.life-manager-daily-driver}" \

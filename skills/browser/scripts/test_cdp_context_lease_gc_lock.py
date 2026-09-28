@@ -43,7 +43,7 @@ def test_gc_does_not_clobber_a_concurrent_heartbeat_write(monkeypatch, tmp_path)
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": stale_ts, "token": "a" * 32, "generation": 1,
         }
     })
@@ -116,7 +116,7 @@ def test_gc_removes_a_row_that_is_still_stale(monkeypatch, tmp_path):
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": stale_ts, "token": "a" * 32, "generation": 1,
         }
     })
@@ -139,7 +139,7 @@ def test_gc_does_not_remove_a_row_reacquired_with_a_new_identity(monkeypatch, tm
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": stale_ts, "token": "a" * 32, "generation": 1,
         }
     })
@@ -151,7 +151,7 @@ def test_gc_does_not_remove_a_row_reacquired_with_a_new_identity(monkeypatch, tm
         leases = module._leases()
         leases["gig-task"] = {
             "context_id": "new-context", "target_id": "new-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/new-target",
+            "ws": "ws://localhost:9222/devtools/page/new-target",
             "ts": stale_ts, "token": "b" * 32, "generation": 1,
         }
         module._save(leases)

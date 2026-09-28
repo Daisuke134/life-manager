@@ -5,7 +5,7 @@ const test = require("node:test");
 
 const { createBrowserHarnessAdapter } = require("./connector-browser-harness-adapter.js");
 
-const PAGE_WS = "ws://127.0.0.1:9222/devtools/page/TARGETOWNED123";
+const PAGE_WS = "ws://localhost:9222/devtools/page/TARGETOWNED123";
 
 test("bounded fallback discovers and executes only focused actions on the exact claimed page", async () => {
   const calls = [];
@@ -126,10 +126,10 @@ test("adapter rejects browser-wide, Gig, credential-bearing, and non-page websoc
   };
 
   for (const pageWebsocket of [
-    "ws://127.0.0.1:9222/devtools/browser/abcdef",
+    "ws://localhost:9222/devtools/browser/abcdef",
     "ws://127.0.0.1:9223/devtools/page/TARGETOWNED123",
-    "ws://user:secret@127.0.0.1:9222/devtools/page/TARGETOWNED123",
-    "ws://127.0.0.1:9222/devtools/page/",
+    "ws://user:secret@localhost:9222/devtools/page/TARGETOWNED123",
+    "ws://localhost:9222/devtools/page/",
   ]) {
     assert.throws(() => adapter.runFallback({ ...base, pageWebsocket }), /Browser Harness adapter invalid/);
   }

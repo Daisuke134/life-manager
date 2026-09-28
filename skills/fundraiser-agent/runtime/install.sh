@@ -17,8 +17,8 @@ esac
 for command in git node npm python3 gog; do
   command -v "$command" >/dev/null 2>&1 || { printf 'Fundraiser prerequisite unavailable: %s\n' "$command" >&2; exit 2; }
 done
-curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null || {
-  printf 'Fundraiser daily-driver unavailable on 127.0.0.1:9222\n' >&2
+curl -fsS --max-time 2 http://localhost:9222/json/version >/dev/null || {
+  printf 'Fundraiser daily-driver unavailable on localhost:9222\n' >&2
   exit 2
 }
 

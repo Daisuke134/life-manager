@@ -159,7 +159,7 @@ async function findPublishedLink(page) {
 export async function runDirect({
   video,
   captionFile,
-  cdpUrl = "http://127.0.0.1:9222",
+  cdpUrl = "http://localhost:9222",
   preflight = false,
 }) {
   const contract = await exactContract(video, captionFile);

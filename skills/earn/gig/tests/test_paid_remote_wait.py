@@ -634,7 +634,7 @@ def test_remote_owner_sandbox_removes_shared_marketplace_browser(tmp_path, monke
     leases = tmp_path / "daily-driver-leases.json"
     target_owners = tmp_path / "daily-driver-target-owners.json"
     profile_root = tmp_path / "gig-daily-driver-profile"
-    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222")
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://localhost:9222")
     monkeypatch.setenv("CLOAK_SESSION_VAULT_FILE", str(vault))
     monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases))
     monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(target_owners))

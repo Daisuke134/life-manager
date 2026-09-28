@@ -119,7 +119,7 @@ if [[ "$NEW_COUNT" -gt 0 && "$RESET_COUNT" == "$NEW_COUNT" ]]; then
       --message-id "$message_id" \
       --credential-store "$JOB_SEARCH_MACHINE_CREDENTIALS" \
       --database "$JOB_SEARCH_STATE_ROOT/workday-verifications.sqlite3" \
-      --endpoint "http://127.0.0.1:9222" \
+      --endpoint "http://localhost:9222" \
       >>"$RESET_RECEIPTS"
   done
   "$JOB_SEARCH_JQ" -s \

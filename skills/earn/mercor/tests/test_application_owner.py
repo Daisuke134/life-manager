@@ -117,7 +117,7 @@ def test_owner_stops_after_failed_profile_readback_without_retrying(tmp_path):
         "if len(sys.argv) >= 3 and sys.argv[1] != '-m':\n"
         "    command = sys.argv[2]; log(command)\n"
         "    if command == 'acquire':\n"
-        "        print(json.dumps({'ok': True, 'ws': 'ws://127.0.0.1:9222/devtools/page/test', 'token': 't', 'generation': 1}))\n"
+        "        print(json.dumps({'ok': True, 'ws': 'ws://localhost:9222/devtools/page/test', 'token': 't', 'generation': 1}))\n"
         "    else: print(json.dumps({'ok': True}))\n"
         "    raise SystemExit(0)\n"
         "if len(sys.argv) >= 3 and sys.argv[1] == '-m':\n"

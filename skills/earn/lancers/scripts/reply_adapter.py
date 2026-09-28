@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, quote, urlsplit
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT") or HERE.parents[3]).resolve()
 JST = timezone(timedelta(hours=9))
-EXTERNAL_CDP_URL = "http://127.0.0.1:9222"
+EXTERNAL_CDP_URL = "http://localhost:9222"
 EXTERNAL_CDP_CONNECT_TIMEOUT_MS = 30_000
 EXTERNAL_CDP_ATTACH_ATTEMPTS = 2
 EXTERNAL_CDP_RETRY_DELAY_SECONDS = 1.0

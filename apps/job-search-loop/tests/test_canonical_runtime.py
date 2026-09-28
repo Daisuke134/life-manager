@@ -79,7 +79,7 @@ if sys.argv[1:3] and sys.argv[1] == "-m" and "--output" in sys.argv:
     elif module == "job_search_loop.ashby_discovery":
         value = {"status": "completed", "discovered": []}
     elif module == "job_search_loop.browser_owner":
-        value = {"status": "ready", "endpoint": "http://127.0.0.1:9222"}
+        value = {"status": "ready", "endpoint": "http://localhost:9222"}
     output.write_text(json.dumps(value) + "\\n", encoding="utf-8")
     raise SystemExit(0)
 if sys.argv[1:3] == ["-m", "job_search_loop.browser_agent.orchestrator"]:

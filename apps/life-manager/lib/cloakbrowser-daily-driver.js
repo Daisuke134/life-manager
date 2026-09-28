@@ -1,6 +1,6 @@
 "use strict";
 
-const DAILY_DRIVER_CDP = "http://127.0.0.1:9222";
+const DAILY_DRIVER_CDP = "http://localhost:9222";
 const PROVIDER_HOSTS = Object.freeze({
   luma: Object.freeze(["luma.com", "lu.ma"]),
   connpass: Object.freeze(["connpass.com"]),

@@ -1,6 +1,6 @@
 "use strict";
 
-const DEFAULT_CONNECTOR_CDP_ENDPOINT = "http://127.0.0.1:9222";
+const DEFAULT_CONNECTOR_CDP_ENDPOINT = "http://localhost:9222";
 
 function normalizeConnectorCdpEndpoint(value) {
   let parsed;

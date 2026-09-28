@@ -94,13 +94,13 @@ def test_acquire_reclaims_oldest_parked_context_at_limit(monkeypatch, tmp_path):
     _write_leases(leases_file, {
         "old-idle": {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": 1, "token": "a" * 32, "generation": 1,
             "pid": None, "parked": True,
         },
         "new-idle": {
             "context_id": "new-context", "target_id": "new-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/new-target",
+            "ws": "ws://localhost:9222/devtools/page/new-target",
             "ts": 2, "token": "b" * 32, "generation": 1,
             "pid": None, "parked": True,
         },
@@ -138,7 +138,7 @@ def test_acquire_never_reclaims_an_owned_context_at_limit(monkeypatch, tmp_path)
     _write_leases(leases_file, {
         "active": {
             "context_id": "active-context", "target_id": "active-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/active-target",
+            "ws": "ws://localhost:9222/devtools/page/active-target",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": os.getpid(),
         }
@@ -217,7 +217,7 @@ def test_reuse_and_heartbeat_keep_explicit_holder_pid(monkeypatch, tmp_path):
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": os.getpid(),
         }
@@ -240,7 +240,7 @@ def test_acquire_rejects_a_second_live_holder(monkeypatch, tmp_path):
     _write_leases(leases_file, {
         "mercor-session": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": os.getppid(),
         }
@@ -267,7 +267,7 @@ def test_foreign_holder_is_never_probed_or_disposed(monkeypatch, tmp_path):
         _write_leases(leases_file, {
             "mercor-session": {
                 "context_id": "c1", "target_id": "t1",
-                "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+                "ws": "ws://localhost:9222/devtools/page/t1",
                 "ts": int(time.time()), "token": "a" * 32, "generation": 1,
                 "pid": holder_pid,
             }
@@ -305,7 +305,7 @@ def test_gc_reaps_a_row_whose_pid_just_died_even_though_it_is_not_idle_stale(mon
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": fresh_ts, "token": "a" * 32, "generation": 1,
             "pid": _dead_pid(),
         }
@@ -328,7 +328,7 @@ def test_gc_does_not_reap_a_fresh_row_with_a_live_pid(monkeypatch, tmp_path):
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": os.getpid(),
         }
@@ -350,7 +350,7 @@ def test_gc_does_not_reap_a_legacy_row_missing_pid_before_idle_min(monkeypatch, 
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "c1", "target_id": "t1",
-            "ws": "ws://127.0.0.1:9222/devtools/page/t1",
+            "ws": "ws://localhost:9222/devtools/page/t1",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
         }
     })
@@ -372,7 +372,7 @@ def test_gc_does_not_reap_a_row_reacquired_by_a_live_pid_between_dispose_and_fin
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": dead,
         }
@@ -382,7 +382,7 @@ def test_gc_does_not_reap_a_row_reacquired_by_a_live_pid_between_dispose_and_fin
         leases = module._leases()
         leases["gig-task"] = {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": int(time.time()), "token": "b" * 32, "generation": 1,
             "pid": os.getpid(),  # live pid took over the same row via acquire's reuse path
         }
@@ -409,7 +409,7 @@ def test_acquire_reclaims_a_lease_whose_holder_pid_is_dead(monkeypatch, tmp_path
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": _dead_pid(),
         }
@@ -451,7 +451,7 @@ def test_acquire_does_not_reclaim_a_lease_whose_holder_pid_is_alive(monkeypatch,
     _write_leases(leases_file, {
         "gig-task": {
             "context_id": "old-context", "target_id": "old-target",
-            "ws": "ws://127.0.0.1:9222/devtools/page/old-target",
+            "ws": "ws://localhost:9222/devtools/page/old-target",
             "ts": int(time.time()), "token": "a" * 32, "generation": 1,
             "pid": os.getpid(),  # this test process is definitely alive
         }

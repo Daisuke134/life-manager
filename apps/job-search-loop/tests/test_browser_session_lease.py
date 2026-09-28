@@ -9,7 +9,7 @@ LEASE = {
     "ok": True,
     "context_id": "CONTEXT_A",
     "target_id": "TARGET_A",
-    "ws": "ws://127.0.0.1:9222/devtools/page/TARGET_A",
+    "ws": "ws://localhost:9222/devtools/page/TARGET_A",
     "token": "a" * 32,
     "generation": 7,
 }
@@ -41,7 +41,7 @@ class BrowserSessionLeaseTests(unittest.IsolatedAsyncioTestCase):
         session = BrowserSession()
         session._lease_command = AsyncMock(return_value=LEASE.copy())
         with patch("job_search_loop.browser_agent.session.DirectCDPPage", _Page):
-            handle = await session.attach("http://127.0.0.1:9222", "row-1")
+            handle = await session.attach("http://localhost:9222", "row-1")
             await session.close_owned(handle)
 
         self.assertEqual(
@@ -57,7 +57,7 @@ class BrowserSessionLeaseTests(unittest.IsolatedAsyncioTestCase):
         page = _Page()
         page.marker = "another-row"
         handle = SessionHandleV1(
-            1, "http://127.0.0.1:9222", "row-1", "anicca-job-search:row-1", 1
+            1, "http://localhost:9222", "row-1", "anicca-job-search:row-1", 1
         )
         session._pages[handle.page_marker] = page
         session._leases[handle.page_marker] = LEASE.copy()
@@ -81,7 +81,7 @@ class BrowserSessionLeaseTests(unittest.IsolatedAsyncioTestCase):
         session._lease_command = AsyncMock(return_value=LEASE.copy())
         with patch("job_search_loop.browser_agent.session.DirectCDPPage", BrokenPage):
             with self.assertRaisesRegex(RuntimeError, "marker failed"):
-                await session.attach("http://127.0.0.1:9222", "row-1")
+                await session.attach("http://localhost:9222", "row-1")
         self.assertEqual(session._lease_command.await_args_list[-1].args[0], "release")
 
     async def test_release_failure_retains_fence_for_safe_retry(self):
@@ -89,7 +89,7 @@ class BrowserSessionLeaseTests(unittest.IsolatedAsyncioTestCase):
         page = _Page()
         page.marker = "anicca-job-search:row-1"
         handle = SessionHandleV1(
-            1, "http://127.0.0.1:9222", "row-1", page.marker, 1
+            1, "http://localhost:9222", "row-1", page.marker, 1
         )
         session._pages[handle.page_marker] = page
         session._leases[handle.page_marker] = LEASE.copy()

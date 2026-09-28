@@ -20,7 +20,7 @@ PRESSURE_FREE_KIB=$((2 * 1024 * 1024))
 # The shared daily-driver browser is reached only through the registry-based
 # lease guard, never a literal host:port. #6048 stopped pinning the
 # daily-driver Chrome to 127.0.0.1 (that address now belongs to Dais's own
-# personal Google Chrome, pid 465), so a hardcoded "http://127.0.0.1:9222"
+# personal Google Chrome, pid 465), so a hardcoded "http://localhost:9222"
 # here would either connect refused or, worse, silently drive Dais's own
 # browser instead of the shared one. browser-guard.sh resolves the live,
 # UUID-verified endpoint for the "interactive:dais" identity and refuses to

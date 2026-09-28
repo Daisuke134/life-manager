@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--message-id", required=True)
     parser.add_argument("--credential-store", required=True, type=Path)
     parser.add_argument("--database", required=True, type=Path)
-    parser.add_argument("--endpoint", default="http://127.0.0.1:9222")
+    parser.add_argument("--endpoint", default="http://localhost:9222")
     parser.add_argument("--gog", default=os.environ.get("JOB_SEARCH_GOG", "gog"))
     args = parser.parse_args(argv)
     receipt = asyncio.run(

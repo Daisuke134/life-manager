@@ -156,7 +156,7 @@ async def _collect_profiles_async(
 def collect_tiktok_public_profiles(
     handles: Iterable[str],
     *,
-    cdp_url: str = "http://127.0.0.1:9222",
+    cdp_url: str = "http://localhost:9222",
     wait_ms: int = 7_000,
 ) -> list[dict[str, Any]]:
     return asyncio.run(
@@ -238,7 +238,7 @@ async def _collect_async(
 def collect_tiktok_public_metrics(
     publications: Iterable[dict[str, Any]],
     *,
-    cdp_url: str = "http://127.0.0.1:9222",
+    cdp_url: str = "http://localhost:9222",
     wait_ms: int = 7_000,
 ) -> dict[str, dict[str, Any]]:
     return asyncio.run(

@@ -97,7 +97,7 @@ async def _collect_async(*, expected_handle: str, cdp_url: str,
 
 
 def collect_tiktok_candidates(*, expected_handle: str,
-                              cdp_url: str = "http://127.0.0.1:9222",
+                              cdp_url: str = "http://localhost:9222",
                               wait_ms: int = 7_000) -> dict:
     return asyncio.run(_collect_async(expected_handle=expected_handle,
                                       cdp_url=cdp_url, wait_ms=wait_ms))

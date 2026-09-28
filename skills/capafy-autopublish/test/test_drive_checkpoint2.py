@@ -40,8 +40,8 @@ def test_raw_page_targets_only_exact_resolved_cp2_url(monkeypatch) -> None:
     cp2 = "https://capafy.ai/developer/createAgent?source=temp-link&token=123&page=credential"
     targets = [
         {"type": "page", "url": "https://coconala.com/", "webSocketDebuggerUrl": "ws://other"},
-        {"type": "page", "url": "https://capafy.ai/developer/createAgent?page=credential&source=temp-link&token=123", "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/page/order"},
-        {"type": "page", "url": "https://capafy.ai/developer/createAgent?source=temp-link&token=wrong&page=credential", "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/page/wrong"},
+        {"type": "page", "url": "https://capafy.ai/developer/createAgent?page=credential&source=temp-link&token=123", "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/order"},
+        {"type": "page", "url": "https://capafy.ai/developer/createAgent?source=temp-link&token=wrong&page=credential", "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/wrong"},
         {"type": "iframe", "url": "https://capafy.ai/iframe", "webSocketDebuggerUrl": "ws://iframe"},
     ]
     monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_args, **_kwargs: _Response(targets))
@@ -59,7 +59,7 @@ def test_raw_target_rejects_evil_host_and_non_loopback_ws(monkeypatch) -> None:
     monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_args, **_kwargs: _Response(targets))
 
     with pytest.raises(RuntimeError, match="no exact CP2 page"):
-        module._raw_page_targets("http://127.0.0.1:9222", "https://capafy.ai/developer/createAgent?token=123&page=credential")
+        module._raw_page_targets("http://localhost:9222", "https://capafy.ai/developer/createAgent?token=123&page=credential")
     with pytest.raises(RuntimeError, match="loopback HTTP"):
         module._raw_page_targets("http://evil.example:9222", "https://capafy.ai/developer/createAgent?token=123&page=credential")
     with pytest.raises(RuntimeError, match="loopback host"):
@@ -113,10 +113,10 @@ def test_raw_page_connects_to_validated_page_websocket(monkeypatch) -> None:
     )
     monkeypatch.setitem(sys.modules, "websocket", fake_websocket)
 
-    page = module._RawPage("ws://127.0.0.1:9222/devtools/page/capafy")
+    page = module._RawPage("ws://localhost:9222/devtools/page/capafy")
     page.close()
 
-    assert calls == [("ws://127.0.0.1:9222/devtools/page/capafy", {"timeout": 15, "enable_multithread": True})]
+    assert calls == [("ws://localhost:9222/devtools/page/capafy", {"timeout": 15, "enable_multithread": True})]
 
 
 @pytest.mark.parametrize(
@@ -580,7 +580,7 @@ def test_fallback_does_not_print_secret(capsys, monkeypatch) -> None:
             return _Playwright()
 
     monkeypatch.setattr(module, "_load_playwright", lambda: _Factory())
-    monkeypatch.setattr(module, "_detect_cdp", lambda: "http://127.0.0.1:9222")
+    monkeypatch.setattr(module, "_detect_cdp", lambda: "http://localhost:9222")
     monkeypatch.setattr(module, "_raw_cp2", lambda *_args: True)
     monkeypatch.setenv("CAPAFY_HOST_OPENROUTER_KEY", "do-not-print-secret")
     monkeypatch.setattr(sys, "argv", ["drive_checkpoint2.py", "https://capafy.ai/developer/createAgent?token=t&page=credential"])

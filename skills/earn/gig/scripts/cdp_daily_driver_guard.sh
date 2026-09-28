@@ -36,12 +36,12 @@ _cdp_guard_probe() {
 import socket, sys, urllib.request
 port, timeout = int(sys.argv[1]), float(sys.argv[2])
 try:
-    s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
+    s = socket.create_connection(("localhost", port), timeout=timeout)
     s.close()
 except Exception:
     sys.exit(1)
 try:
-    with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=timeout) as r:
+    with urllib.request.urlopen(f"http://localhost:{port}/json/version", timeout=timeout) as r:
         r.read(1)
     sys.exit(0)
 except Exception:
@@ -70,6 +70,7 @@ _cdp_guard_relaunch() {
   mkdir -p "$CDP_PROFILE" 2>/dev/null || true
   nohup "$chromium_bin" \
     --remote-debugging-port="$CDP_PORT" \
+    --remote-allow-origins="*" \
     --user-data-dir="$CDP_PROFILE" \
     --disable-features=MacAppCodeSignClone \
     --no-first-run --no-default-browser-check \

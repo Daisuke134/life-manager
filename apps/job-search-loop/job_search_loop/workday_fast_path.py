@@ -618,7 +618,7 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--endpoint", default="http://127.0.0.1:9222")
+    parser.add_argument("--endpoint", default="http://localhost:9222")
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--materials-root", type=Path, required=True)

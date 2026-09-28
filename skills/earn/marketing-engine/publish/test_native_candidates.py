@@ -87,7 +87,7 @@ def test_native_candidate_cli_filters_unrelated_posts_and_writes_schema(tmp_path
     report = tmp_path / "native-candidates-report.json"
     result = run_native_candidates(
         db_path=store.path, publish_key=intent["publish_key"], output_path=output,
-        engine=HERE.parent, cdp_url="http://127.0.0.1:9222", wait_ms=1,
+        engine=HERE.parent, cdp_url="http://localhost:9222", wait_ms=1,
         collector=collector, report_path=report)
     assert result["candidate_count"] == 1
     assert result["api_responses_observed"] == 1
@@ -110,7 +110,7 @@ def test_native_candidate_cli_distinguishes_unobserved_api_from_zero_match(tmp_p
     result = run_native_candidates(
         db_path=store.path, publish_key=intent["publish_key"],
         output_path=tmp_path / "none.json", engine=HERE.parent,
-        cdp_url="http://127.0.0.1:9222", wait_ms=1,
+        cdp_url="http://localhost:9222", wait_ms=1,
         collector=lambda **_: {"api_responses_observed": 0,
                                "profile_items_observed": 0, "candidates": []})
     assert result["status"] == "collector_unverified"

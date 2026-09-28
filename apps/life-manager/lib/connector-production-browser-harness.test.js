@@ -68,7 +68,7 @@ test("bounded proposer requests one structured action from Terra with sanitized 
   });
   const action = await proposer({
     provider: "luma",
-    page_websocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+    page_websocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1",
     target_id: "OWNEDTARGET1",
     expected_state: "registered_or_pending",
     step: 2,
@@ -169,7 +169,7 @@ test("Connpass known form completes natively before the agent when the runner is
     resolveValue: createPrivateValueResolver({ async readPeatixProfile() { throw new Error("private profile must not be read"); }, async readFormProfile() { throw new Error("form profile must not be read"); } }),
   });
 
-  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/KNOWNCONNPASS1", maxSteps: 10, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/KNOWNCONNPASS1", maxSteps: 10, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.equal(agentCalls, 0);
   assert.deepEqual(operated, ["online_radio", "referral_radio", "confirm_button"]);
@@ -200,7 +200,7 @@ test("Connpass ordinary attendee tiers complete natively without selecting speak
     });
     const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/404960" },
       page: { url() { return "https://hello-output.connpass.com/event/404960/join/"; } },
-      pageWebsocket: "ws://127.0.0.1:9222/devtools/page/ATTENDEE1", maxSteps: 3, expectedState: "registered_or_pending" });
+      pageWebsocket: "ws://localhost:9222/devtools/page/ATTENDEE1", maxSteps: 3, expectedState: "registered_or_pending" });
     assert.equal(result.status, "completed", `${attendeeLabel}: ${JSON.stringify(result)}`);
     assert.deepEqual(operated, ["attendee", "confirm_button"], attendeeLabel);
     assert.equal(agentCalls, 0, attendeeLabel);
@@ -240,7 +240,7 @@ test("Connpass fallback binds a newly worded questionnaire radio to an existing 
     }),
   });
   const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400029" }, page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PROFILECONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
+    pageWebsocket: "ws://localhost:9222/devtools/page/PROFILECONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.deepEqual(operated, ["role_founder", "confirm_button"]);
   assert.equal(factLookups, 1);
@@ -281,7 +281,7 @@ test("Connpass fallback fills unknown radio and text controls before one officia
   });
   const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/405844" },
     page: { url() { return "https://tokyo-builders.connpass.com/event/405844/join/"; } },
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/UNKNOWNCONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
+    pageWebsocket: "ws://localhost:9222/devtools/page/UNKNOWNCONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.deepEqual(operated, ["new_yes", "new_text", "confirm_button"]);
   assert.deepEqual(answered, ["new_yes", "new_text"]);
@@ -356,7 +356,7 @@ test("Connpass fallback latches the first submit attempt across a path change", 
     async resolveValue() { return null; },
   });
 
-  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/CONNPASSLATCH1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/CONNPASSLATCH1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed");
   assert.equal(result.safe_reason, "effect_unknown");
   assert.equal(proposals, 2);
@@ -521,7 +521,7 @@ test("production harness lets the model choose controls but parent owns values a
     provider: "luma",
     candidate,
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1",
     maxSteps: 10,
     expectedState: "registered_or_pending",
   });
@@ -568,7 +568,7 @@ test("production harness uses Connpass parent readback for a Connpass fallback",
     provider: "connpass",
     candidate: { event_ref: "connpass-event://event/401001" },
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1",
     maxSteps: 10,
     expectedState: "registered_or_pending",
   });
@@ -588,7 +588,7 @@ test("production harness uses Peatix parent readback for a Peatix fallback", asy
     async resolveValue() { return "parent-owned"; },
   });
   const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/1" }, page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1", maxSteps: 10, expectedState: "registered_or_pending" });
+    pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1", maxSteps: 10, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
 });
 
@@ -619,7 +619,7 @@ test("production harness accepts Meetup and completes only after same-page paren
     provider: "meetup",
     candidate: { event_ref: "meetup-event://event/315756352" },
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/MEETUPTARGET1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/MEETUPTARGET1",
     maxSteps: 2,
     expectedState: "registered_or_pending",
   });
@@ -693,7 +693,7 @@ test("production harness rejects unapproved Peatix radio before DOM action", asy
     resolveValue: createPrivateValueResolver({ readPeatixProfile: async () => ({ accept_organizer_privacy: false }), readFormProfile: async () => ({ form_answers: {} }) }),
   });
   const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/1" }, page: {},
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
+    pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed"); assert.equal(result.safe_reason, "agent_action_failed"); assert.equal(operated, 0);
 });
 
@@ -706,7 +706,7 @@ test("Luma fallback reports an unavailable parent-owned form answer", async () =
     operateControl: async () => { operated += 1; return { status: "success" }; },
     resolveValue: async () => null,
   });
-  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page: {}, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page: {}, pageWebsocket: "ws://localhost:9222/devtools/page/OWNEDTARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
   assert.equal(result.safe_reason, "private_value_unavailable");
   assert.equal(operated, 0);
 });
@@ -739,7 +739,7 @@ test("bounded proposer fails closed for a missing or unknown returned control", 
 
 test("production harness rejects a completed fill before resolving or operating DOM", async () => {
   let resolves = 0; let operates = 0; const harness = createProductionBrowserHarness({ lumaWorkflow: { async readProviderState() { return { status: "absent" }; } }, inspectControls: async () => [{ control: "name_field", kind: "input", label: "Name", required: true, completed: true }], proposeAction: async () => ({ purpose: "fill", method: "ax_fill", control: "name_field" }), async operateControl() { operates += 1; return { status: "success" }; }, async resolveValue() { resolves += 1; return "parent-owned"; } });
-  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page: {}, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page: {}, pageWebsocket: "ws://localhost:9222/devtools/page/TARGET1", maxSteps: 1, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed"); assert.equal(result.safe_reason, "agent_action_failed"); assert.equal(resolves, 0); assert.equal(operates, 0);
 });
 
@@ -752,20 +752,20 @@ test("bounded proposer separates fallback evidence sequences on one target", asy
 
 test("production harness rejects an identical mutating action only after its first success and resets per fallback", async () => {
   let operated = 0; const page = { url() { return "https://peatix.com/sales/event/1/form?token=one"; } }; const harness = createProductionBrowserHarness({ lumaWorkflow: { async readProviderState() { return { status: "absent" }; } }, inspectControls: async () => [{ control: "submit_button", kind: "button", label: "Submit", required: false, submittable: true }], proposeAction: async () => ({ purpose: "submit", method: "ax_click", control: "submit_button" }), async operateControl() { operated += 1; return { status: "success" }; }, async resolveValue() { return null; } });
-  const input = { provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TARGET1", expectedState: "registered_or_pending" };
+  const input = { provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/TARGET1", expectedState: "registered_or_pending" };
   const first = await harness.runFallback({ ...input, maxSteps: 2 }); assert.equal(first.safe_reason, "agent_action_failed"); assert.equal(operated, 1);
   const second = await harness.runFallback({ ...input, maxSteps: 1 }); assert.equal(second.safe_reason, "agent_step_limit"); assert.equal(operated, 2);
 });
 
 test("production harness allows the same mutating action after an exact page path change", async () => {
   let operated = 0; let href = "https://peatix.com/sales/event/1/form?token=one"; const page = { url() { return href; } }; const harness = createProductionBrowserHarness({ lumaWorkflow: { async readProviderState() { if (operated === 1) href = "https://peatix.com/sales/event/1/confirm#final"; return { status: "absent" }; } }, inspectControls: async () => [{ control: "submit_button", kind: "button", label: "Submit", required: false, submittable: true }], proposeAction: async () => ({ purpose: "submit", method: "ax_click", control: "submit_button" }), async operateControl() { operated += 1; return { status: "success" }; }, async resolveValue() { return null; } });
-  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.safe_reason, "agent_step_limit"); assert.equal(operated, 2);
 });
 
 test("production harness treats equivalent activation methods as one repeated effect", async () => {
   let operated = 0; let method = "ax_click"; const page = { url() { return "https://peatix.com/sales/event/1/form"; } }; const harness = createProductionBrowserHarness({ lumaWorkflow: { async readProviderState() { return { status: "absent" }; } }, inspectControls: async () => [{ control: "submit_button", kind: "button", label: "Submit", required: false, submittable: true }], proposeAction: async () => ({ purpose: "submit", method, control: "submit_button" }), async operateControl() { operated += 1; method = "coordinate_click"; return { status: "success" }; }, async resolveValue() { return null; } });
-  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.safe_reason, "agent_action_failed"); assert.equal(operated, 1);
 });
 
@@ -845,7 +845,7 @@ test("same-page duplicate guard rejects a reindexed submit token", async () => {
     async operateControl() { operated += 1; return { status: "success" }; },
     async resolveValue() { return null; },
   });
-  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "luma", candidate: { event_ref: "luma-event://event/one" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/TARGET1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.safe_reason, "agent_action_failed");
   assert.equal(operated, 1);
 });
@@ -1450,7 +1450,7 @@ test("Peatix form submit waits for the bounded same-event confirm navigation bef
     provider: "peatix",
     candidate: { event_ref: "peatix-event://event/5104728" },
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PEATIXCONFIRM1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/PEATIXCONFIRM1",
     maxSteps: 2,
     expectedState: "registered_or_pending",
   });
@@ -1483,7 +1483,7 @@ test("Peatix form submit stops on a cross-event confirm mismatch before readback
     async operateControl() { operated += 1; href = "https://peatix.com/sales/event/9999999/confirm"; return { status: "success" }; },
     async resolveValue() { return null; },
   });
-  const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PEATIXMISMATCH1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/PEATIXMISMATCH1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed");
   assert.equal(result.safe_reason, "agent_action_failed");
   assert.equal(observed, 1);
@@ -1503,7 +1503,7 @@ test("Peatix final click settles delayed registration before one completed outco
     async operateControl() { clicks += 1; setTimeout(() => { registered = true; }, 10); return { status: "success" }; },
     async resolveValue() { return null; },
   });
-  const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PEATIXFINALDELAY1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/PEATIXFINALDELAY1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.equal(clicks, 1);
   assert.equal(result.provider_state.status, "pending");
@@ -1521,7 +1521,7 @@ test("Connpass final click settles delayed registration before one completed out
     async operateControl() { clicks += 1; setTimeout(() => { registered = true; }, 10); return { status: "success" }; },
     async resolveValue() { return null; },
   });
-  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/CONNPASSFINALDELAY1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/CONNPASSFINALDELAY1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed"); assert.equal(result.provider_state.status, "registered"); assert.equal(clicks, 1);
   assert.equal(observations, 1); assert.equal(proposals, 1);
   assert.ok(reads >= 1);
@@ -1565,7 +1565,7 @@ test("Peatix final click fails bounded when provider readback never settles", as
       async operateControl() { clicks += 1; return { status: "success" }; },
       async resolveValue() { return null; },
     });
-    const resultPromise = harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PEATIXNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
+    const resultPromise = harness.runFallback({ provider: "peatix", candidate: { event_ref: "peatix-event://event/5104728" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/PEATIXNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
     for (let attempt = 0; attempt < 100 && !readStarted; attempt += 1) await Promise.resolve();
     assert.equal(readStarted, true);
     resultPromise.then(() => { settled = true; });
@@ -1593,7 +1593,7 @@ test("Connpass final click fails bounded when provider readback never settles", 
       async operateControl() { clicks += 1; return { status: "success" }; },
       async resolveValue() { return null; },
     });
-    const resultPromise = harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/CONNPASSFINALNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
+    const resultPromise = harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400028" }, page, pageWebsocket: "ws://localhost:9222/devtools/page/CONNPASSFINALNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
     for (let attempt = 0; attempt < 100 && !readStarted; attempt += 1) await Promise.resolve();
     assert.equal(readStarted, true); resultPromise.then(() => { settled = true; });
     mock.timers.tick(30_001);
@@ -1618,7 +1618,7 @@ test("Doorkeeper final submit requires exact identity and registered readback", 
     async operateControl() { clicks += 1; registered = true; return { status: "success" }; },
     async resolveValue() { return null; },
   });
-  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPER1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPER1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.equal(result.provider_state.status, "registered");
   assert.equal(clicks, 1);
@@ -1668,7 +1668,7 @@ test("Doorkeeper does not complete a required fill from pending readback", async
     async operateControl({ control }) { if (control.kind === "input") { fills += 1; completed = true; } else submits += 1; return { status: "success" }; },
     async resolveValue() { return "attendee"; },
   });
-  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPERPENDING1", maxSteps: 1, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPERPENDING1", maxSteps: 1, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed");
   assert.equal(result.safe_reason, "agent_step_limit");
   assert.equal(fills, 1);
@@ -1724,7 +1724,7 @@ test("Doorkeeper final readback is bounded when it never settles", async () => {
       async operateControl() { clicks += 1; return { status: "success" }; },
       async resolveValue() { return null; },
     });
-    const resultPromise = harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPERNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
+    const resultPromise = harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPERNEVER1", maxSteps: 2, expectedState: "registered_or_pending" });
     for (let attempt = 0; attempt < 100 && !readStarted; attempt += 1) await Promise.resolve();
     assert.equal(readStarted, true);
     resultPromise.then(() => { settled = true; });
@@ -1751,7 +1751,7 @@ test("Doorkeeper ambiguous click still uses readback and never clicks twice", as
       async operateControl() { clicks += 1; registered = true; if (outcome === "throw") throw new Error("ambiguous click"); return { status: "failed" }; },
       async resolveValue() { return null; },
     });
-    const result = await harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/DOORKEEPER-${outcome}`, maxSteps: 2, expectedState: "registered_or_pending" });
+    const result = await harness.runFallback({ provider: "doorkeeper", candidate, page: { url() { return candidate.canonical_url; } }, pageWebsocket: `ws://localhost:9222/devtools/page/DOORKEEPER-${outcome}`, maxSteps: 2, expectedState: "registered_or_pending" });
     assert.equal(result.status, "completed", outcome);
     assert.equal(result.provider_state.status, "registered", outcome);
     assert.equal(clicks, 1, outcome);
@@ -1975,7 +1975,7 @@ function makeDoorkeeperFallbackFixture(proposalForStep) {
 
 test("Doorkeeper fallback performs trigger, Email fill, and one final submit", async () => {
   const { candidate, page, harness, operated } = makeDoorkeeperFallbackFixture();
-  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPERFLOW1", maxSteps: 3, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPERFLOW1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.deepEqual(result.repaired_actions, [
     { purpose: "submit", method: "ax_click", control: "doorkeeper_trigger" },
@@ -1988,7 +1988,7 @@ test("Doorkeeper fallback performs trigger, Email fill, and one final submit", a
 test("Doorkeeper fallback latches a repeated trigger without blocking fill or final submit", async () => {
   const sequence = ["doorkeeper_trigger", "doorkeeper_trigger", "event_email", "doorkeeper_submit"];
   const { candidate, page, harness, operated } = makeDoorkeeperFallbackFixture((step) => sequence[step - 1]);
-  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/DOORKEEPERFLOW2", maxSteps: 4, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "doorkeeper", candidate, page, pageWebsocket: "ws://localhost:9222/devtools/page/DOORKEEPERFLOW2", maxSteps: 4, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.deepEqual(operated.map(({ control }) => control), ["doorkeeper_trigger", "event_email", "doorkeeper_submit"]);
 });
@@ -2284,7 +2284,7 @@ function eventbriteFallbackFixture(readProviderState, { elementDelayMs = 0, clic
 
 test("Eventbrite runFallback dispatches the Eventbrite workflow and never Luma", async () => {
   const fixture = eventbriteFallbackFixture(async () => ({ status: "registered", receipt_id: "evt-1901" }));
-  const result = await fixture.harness.runFallback({ provider: "eventbrite", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EVENTBRITEFALLBACK1", maxSteps: 2, expectedState: "registered_or_pending" });
+  const result = await fixture.harness.runFallback({ provider: "eventbrite", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/EVENTBRITEFALLBACK1", maxSteps: 2, expectedState: "registered_or_pending" });
   assert.deepEqual(result, { status: "completed", provider_state: { status: "registered", receipt_id: "evt-1901" }, repaired_actions: [fixture.action] });
   assert.deepEqual(fixture.stats, { proposals: 1, operations: 1, clicks: 1, readbacks: 1, luma: 0 });
 });
@@ -2293,7 +2293,7 @@ test("Eventbrite runFallback stops after one final effect_unknown without retry"
   const fixture = eventbriteFallbackFixture(async () => ({ status: "pending" }));
   mock.timers.enable({ apis: ["Date", "setTimeout"] });
   try {
-    const resultPromise = fixture.harness.runFallback({ provider: "eventbrite", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EVENTBRITEEFFECTUNKNOWN1", maxSteps: 2, expectedState: "registered_or_pending" });
+    const resultPromise = fixture.harness.runFallback({ provider: "eventbrite", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/EVENTBRITEEFFECTUNKNOWN1", maxSteps: 2, expectedState: "registered_or_pending" });
     let settled = false; resultPromise.then(() => { settled = true; }, () => { settled = true; });
     for (let attempt = 0; attempt < 1_300 && !settled; attempt += 1) { await Promise.resolve(); mock.timers.tick(25); }
     assert.deepEqual(await resultPromise, { status: "failed", safe_reason: "effect_unknown", repaired_actions: [] });
@@ -2305,7 +2305,7 @@ test("Eventbrite final timeout before handle dispatch has zero clicks, while dis
   const before = eventbriteFallbackFixture(async () => ({ status: "absent" }), { elementDelayMs: 30 });
   const beforeResult = await before.harness.runFallback({
     provider: "eventbrite", candidate: before.candidate, page: before.page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EVENTBRITE-PRE-DISPATCH",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EVENTBRITE-PRE-DISPATCH",
     maxSteps: 2, maxDurationMs: 5, expectedState: "registered_or_pending",
   });
   assert.deepEqual(beforeResult, { status: "failed", safe_reason: "time_limit", repaired_actions: [] });
@@ -2316,7 +2316,7 @@ test("Eventbrite final timeout before handle dispatch has zero clicks, while dis
   const after = eventbriteFallbackFixture(async () => ({ status: "registered" }), { clickDelayMs: 30 });
   const afterResult = await after.harness.runFallback({
     provider: "eventbrite", candidate: after.candidate, page: after.page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EVENTBRITE-AFTER-DISPATCH",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EVENTBRITE-AFTER-DISPATCH",
     maxSteps: 2, maxDurationMs: 5, expectedState: "registered_or_pending",
   });
   assert.deepEqual(afterResult, { status: "failed", safe_reason: "effect_unknown", repaired_actions: [] });
@@ -3163,7 +3163,7 @@ test("Eventbrite adapter forwards fill ax_uncheck exactly once", async () => {
     async performAction(input) { performed += 1; assert.deepEqual(input.action, action); return { status: "success" }; },
     async readExpectedState() { return { status: "absent" }; },
   });
-  assert.deepEqual(await adapter.runFallback({ provider: "eventbrite", page: {}, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EVENTBRITEOPT1", maxSteps: 1, expectedState: "registered_or_pending" }), { status: "failed", safe_reason: "agent_step_limit", repaired_actions: [action] });
+  assert.deepEqual(await adapter.runFallback({ provider: "eventbrite", page: {}, pageWebsocket: "ws://localhost:9222/devtools/page/EVENTBRITEOPT1", maxSteps: 1, expectedState: "registered_or_pending" }), { status: "failed", safe_reason: "agent_step_limit", repaired_actions: [action] });
   assert.equal(proposals, 1); assert.equal(performed, 1);
 });
 
@@ -3792,7 +3792,7 @@ test("KokuchPro canonical route navigates by GET, checks one seat locally, then 
     operateControl: (input) => operatePageControl({ ...input, beforeDispatch() { fixture.beforeDispatch(); input.beforeDispatch?.(); } }),
     resolveValue: createPrivateValueResolver({ async readPeatixProfile() { throw new Error("KokuchPro must not read private profiles"); }, async readFormProfile() { throw new Error("KokuchPro must not read private profiles"); } }),
   });
-  const result = await harness.runFallback({ provider: "kokuchpro", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/KOKUCHPROMULTISTEP1", maxSteps: 3, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "kokuchpro", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/KOKUCHPROMULTISTEP1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed"); assert.equal(result.provider_state.status, "registered"); assert.equal(agentCalls, 0); assert.equal(readbacks, 4);
   assert.deepEqual(fixture.events.map(([name]) => name), ["goto", "check", "click"]); assert.equal(fixture.beforeDispatchCalls, 1); assert.equal(fixture.clicks.length, 1); assert.equal(fixture.clicks[0], fixture.final);
   assert.doesNotMatch(JSON.stringify(result), /hidden-email|hidden-name|4631739/);
@@ -3837,7 +3837,7 @@ test("KokuchPro live spinner form fills one seat with ax_fill before one final s
     operateControl: (input) => operatePageControl({ ...input, beforeDispatch() { fixture.beforeDispatch(); input.beforeDispatch?.(); } }),
     resolveValue: createPrivateValueResolver({ async readPeatixProfile() { throw new Error("KokuchPro must not read private profiles"); }, async readFormProfile() { throw new Error("KokuchPro must not read private profiles"); } }),
   });
-  const result = await harness.runFallback({ provider: "kokuchpro", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/KOKUCHPROSPINNER1", maxSteps: 3, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "kokuchpro", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/KOKUCHPROSPINNER1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed"); assert.equal(result.provider_state.status, "registered"); assert.equal(agentCalls, 0); assert.equal(readbacks, 4);
   assert.deepEqual(fixture.events.map(([name]) => name), ["goto", "fill", "click"]); assert.equal(fixture.seat.value, "1"); assert.equal(fixture.beforeDispatchCalls, 1); assert.equal(fixture.clicks.length, 1); assert.equal(fixture.clicks[0], fixture.final);
   assert.doesNotMatch(JSON.stringify(result), /seat4637229|hidden-email|hidden-name/);
@@ -3978,7 +3978,7 @@ test("configured extension provider reuses the generic fallback for its exact to
 
   const result = await harness.runFallback({
     provider: "extension-site", candidate, page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EXTENSION1",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EXTENSION1",
     maxSteps: 2, expectedState: "registered_or_pending",
   });
   assert.equal(result.status, "completed");
@@ -3988,7 +3988,7 @@ test("configured extension provider reuses the generic fallback for its exact to
   assert.equal(readbacks, 2);
   await assert.rejects(() => harness.runFallback({
     provider: "another-extension", candidate, page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EXTENSION2",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EXTENSION2",
     maxSteps: 1, expectedState: "registered_or_pending",
   }), /Connector production Browser Harness invalid/);
 });
@@ -4032,7 +4032,7 @@ test("extension fallback requires independent workflow readback despite action p
         async operateControl(input) { operations += 1; input.beforeDispatch?.(); return { status: "success", provider_state: { status: claimedStatus } }; },
         async resolveValue() { return null; },
       });
-      const result = await harness.runFallback({ provider: "extension-proof", candidate: { event_ref: "extension-proof://event/1" }, page: { url() { return "https://extension-proof.example/event/1"; } }, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/EXTENSION-PROOF-${claimedStatus}-${name}`, maxSteps: 1, expectedState: "registered_or_pending" });
+      const result = await harness.runFallback({ provider: "extension-proof", candidate: { event_ref: "extension-proof://event/1" }, page: { url() { return "https://extension-proof.example/event/1"; } }, pageWebsocket: `ws://localhost:9222/devtools/page/EXTENSION-PROOF-${claimedStatus}-${name}`, maxSteps: 1, expectedState: "registered_or_pending" });
       assert.equal(reads, 2, `${claimedStatus}-${name}-readback`);
       assert.equal(operations, 1, `${claimedStatus}-${name}-operation`);
       assert.equal(result.status, "failed", `${claimedStatus}-${name}-status`);
@@ -4055,7 +4055,7 @@ test("extension auth preflight is terminal before any browser adapter step", asy
   const result = await harness.runFallback({
     provider: "extension-auth", candidate: { event_ref: "extension-auth://event/1" },
     page: { url() { return "https://extension-auth.example/event/1"; } },
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EXTENSION-AUTH",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EXTENSION-AUTH",
     maxSteps: 10, expectedState: "registered_or_pending",
   });
   assert.deepEqual(result, { status: "failed", safe_reason: "auth_required", repaired_actions: [] });
@@ -4074,7 +4074,7 @@ test("extension auth preflight cannot bypass adapter scope validation", async ()
     async resolveValue() { calls.resolve += 1; return "private-value"; },
   });
   const candidate = { event_ref: "extension-scope://event/1" };
-  const validWebsocket = "ws://127.0.0.1:9222/devtools/page/EXTENSION-SCOPE";
+  const validWebsocket = "ws://localhost:9222/devtools/page/EXTENSION-SCOPE";
   for (const [name, input] of [
     ["malformed websocket", { page: {}, pageWebsocket: "http://bad", maxSteps: 1, expectedState: "registered_or_pending" }],
     ["zero maxSteps", { page: {}, pageWebsocket: validWebsocket, maxSteps: 0, expectedState: "registered_or_pending" }],
@@ -4105,7 +4105,7 @@ test("extension auth after one submit effect becomes effect_unknown without retr
   });
   const result = await harness.runFallback({
     provider: "extension-auth-after", candidate: { event_ref: "extension-auth-after://event/1" }, page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/EXTENSION-AUTH-AFTER",
+    pageWebsocket: "ws://localhost:9222/devtools/page/EXTENSION-AUTH-AFTER",
     maxSteps: 2, expectedState: "registered_or_pending",
   });
   assert.deepEqual(result, { status: "failed", safe_reason: "effect_unknown", repaired_actions: [action] });
@@ -4132,7 +4132,7 @@ test("extension submit success followed by step-limit or unavailable readback be
       provider: `extension-effect-${name}`,
       candidate: { event_ref: `extension-effect-${name}://event/1` },
       page: { url() { return `https://extension-effect-${name}.example/event/1`; } },
-      pageWebsocket: `ws://127.0.0.1:9222/devtools/page/EXTENSION-EFFECT-${name.toUpperCase()}`,
+      pageWebsocket: `ws://localhost:9222/devtools/page/EXTENSION-EFFECT-${name.toUpperCase()}`,
       maxSteps: 1,
       expectedState: "registered_or_pending",
     });
@@ -4165,7 +4165,7 @@ test("extension submit attempt latches effect_unknown on dispatch failure but no
       provider: `extension-attempt-${name}`,
       candidate: { event_ref: `extension-attempt-${name}://event/1` },
       page: { url() { return `https://extension-attempt-${name}.example/event/1`; } },
-      pageWebsocket: `ws://127.0.0.1:9222/devtools/page/EXTENSION-ATTEMPT-${name.toUpperCase()}`,
+      pageWebsocket: `ws://localhost:9222/devtools/page/EXTENSION-ATTEMPT-${name.toUpperCase()}`,
       maxSteps: 1,
       expectedState: "registered_or_pending",
     });
@@ -4192,7 +4192,7 @@ test("extension submit attempt latches effect_unknown on dispatch failure but no
       provider: `extension-validation-${locatorCount}`,
       candidate: { event_ref: `extension-validation-${locatorCount}://event/1` },
       page,
-      pageWebsocket: `ws://127.0.0.1:9222/devtools/page/EXTENSION-VALIDATION-${locatorCount}`,
+      pageWebsocket: `ws://localhost:9222/devtools/page/EXTENSION-VALIDATION-${locatorCount}`,
       maxSteps: 1,
       expectedState: "registered_or_pending",
     });
@@ -4228,7 +4228,7 @@ test("production harness timeout before locator dispatch prevents immediate and 
     provider: "luma",
     candidate: { event_ref: "luma-event://event/timeout-before-dispatch" },
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TIMEOUT-BEFORE-DISPATCH",
+    pageWebsocket: "ws://localhost:9222/devtools/page/TIMEOUT-BEFORE-DISPATCH",
     maxSteps: 2,
     maxDurationMs: 5,
     expectedState: "registered_or_pending",
@@ -4268,7 +4268,7 @@ test("production harness timeout after submit dispatch is effect_unknown and doe
     provider: "luma",
     candidate: { event_ref: "luma-event://event/timeout-after-dispatch" },
     page,
-    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TIMEOUT-AFTER-DISPATCH",
+    pageWebsocket: "ws://localhost:9222/devtools/page/TIMEOUT-AFTER-DISPATCH",
     maxSteps: 2,
     maxDurationMs: 5,
     expectedState: "registered_or_pending",
@@ -4447,7 +4447,7 @@ test("TECH PLAY final ticket drift at effect-wait read start fails before operat
     },
   };
   const { harness: fallbackHarness } = makeTechPlayOperationHarness(fallback, fallbackOptions);
-  const fallbackResult = await fallbackHarness.runFallback({ provider: "techplay", candidate: fallback.candidate, page: fallback.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY-FINAL-DRIFT", maxSteps: 15, expectedState: "registered_or_pending" });
+  const fallbackResult = await fallbackHarness.runFallback({ provider: "techplay", candidate: fallback.candidate, page: fallback.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY-FINAL-DRIFT", maxSteps: 15, expectedState: "registered_or_pending" });
   assert.equal(fallbackWorkflow.reads(), 3); assert.equal(fallbackWorkflow.drifted(), true);
   assert.equal(fallbackResult.status, "failed"); assert.equal(fallbackResult.safe_reason, "final_blocked");
   assert.equal(fallbackResult.repaired_actions.length, 14);
@@ -4461,7 +4461,7 @@ test("TECH PLAY fallback performs 13 inputs, review, and one final click only at
   options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
   options.techplayWorkflow = { async readProviderState() { options.readbacks = (options.readbacks || 0) + 1; return options.finalRegistered ? { status: "registered", receipt_id: "techplay-1" } : { status: "absent" }; } };
   const { harness } = makeTechPlayOperationHarness(fixture, options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAYFINAL15", maxSteps: 15, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAYFINAL15", maxSteps: 15, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed"); assert.equal(result.provider_state.status, "registered"); assert.equal(result.repaired_actions.length, 15);
   assert.equal(options.proposeCalls || 0, 0); assert.equal(options.operateCalls, 15); assert.equal(options.reviewClicks, 1); assert.equal(options.finalClicks, 1); assert.ok(options.readbacks >= 1);
   assert.equal(result.repaired_actions.at(-1).control, "techplay_final_999190");
@@ -4471,7 +4471,7 @@ test("TECH PLAY fallback keeps a confirm page final_blocked at maxSteps 14", asy
   const fixture = makeTechPlayOperationFixture({ events: [] }); fixture.setHref("https://techplay.jp/event/join/999190/confirm");
   fixture.options.techplayWorkflow = { async readProviderState() { return { status: "registered" }; } };
   const { harness } = makeTechPlayOperationHarness(fixture, fixture.options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAYFINAL14", maxSteps: 14, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAYFINAL14", maxSteps: 14, expectedState: "registered_or_pending" });
   assert.deepEqual(result, { status: "failed", safe_reason: "final_blocked", repaired_actions: [] }); assert.equal(fixture.final.clicked, undefined);
 });
 
@@ -4555,7 +4555,7 @@ test("TECH PLAY fallback selects scalar/radio/opt-out inputs and blocks when rev
   const base = makeTechPlayPrivateResolverFixture();
   options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
   const { harness } = makeTechPlayOperationHarness(fixture, options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAYINPUT1", maxSteps: 20, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAYINPUT1", maxSteps: 20, expectedState: "registered_or_pending" });
   assert.equal(options.proposeCalls || 0, 0); assert.equal(options.operateCalls || 0, 14); assert.equal(options.reviewClicks, 1);
   assert.equal(result.status, "failed"); assert.equal(result.safe_reason, "effect_unknown"); assert.equal(result.repaired_actions.length, 14);
   assert.equal(fixture.answers.every((answer) => Boolean(String(answer.value).trim())), true); assert.equal(fixture.radioAnswers[0].checked, true); assert.equal(fixture.radioAnswers[3].checked, true); assert.equal(fixture.optouts.every((optout) => optout.ariaChecked === false), true);
@@ -4567,7 +4567,7 @@ test("TECH PLAY fallback navigates once to same-event confirm and blocks the fin
   const base = makeTechPlayPrivateResolverFixture();
   options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
   const { harness } = makeTechPlayOperationHarness(fixture, options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAYREVIEW1", maxSteps: 14, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAYREVIEW1", maxSteps: 14, expectedState: "registered_or_pending" });
   assert.equal(result.status, "failed"); assert.equal(result.safe_reason, "final_blocked"); assert.equal(result.repaired_actions.length, 14);
   assert.equal(options.proposeCalls || 0, 0); assert.equal(options.operateCalls, 14); assert.equal(options.reviewClicks, 1);
   assert.deepEqual(options.events.slice(0, 2), ["arm", "click"]);
@@ -4585,7 +4585,7 @@ test("TECH PLAY review rechecks the complete candidate binding before clicking",
     return controls;
   };
   const { harness } = makeTechPlayOperationHarness(fixture, fixture.options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY-TICKET-DRIFT", maxSteps: 14, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY-TICKET-DRIFT", maxSteps: 14, expectedState: "registered_or_pending" });
   assert.equal(completeObservations, 3);
   assert.equal(result.safe_reason, "review_blocked"); assert.equal(result.repaired_actions.length, 13); assert.equal(fixture.options.reviewClicks || 0, 0); assert.equal(fixture.options.confirmInspectCalls || 0, 0);
 });
@@ -4602,14 +4602,14 @@ test("TECH PLAY review navigation accepts only one exact same-event URL and reco
     const fixture = makeTechPlayOperationFixture({ ...options, events: [] }); const base = makeTechPlayPrivateResolverFixture();
     fixture.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
     const { harness } = makeTechPlayOperationHarness(fixture, fixture.options);
-    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/TECHPLAY-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
+    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://localhost:9222/devtools/page/TECHPLAY-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
     assert.equal(result.status, "failed", name); assert.equal(result.safe_reason, "effect_unknown", name); assert.equal(result.repaired_actions.length, 14, name);
     assert.equal(fixture.options.waitCalls, 1, `${name}-wait-once`); assert.equal(fixture.options.reviewClicks, 1, `${name}-click-once`); assert.equal(fixture.final.clicked, undefined, `${name}-final-blocked`);
   }
   const throwing = makeTechPlayOperationFixture({ navigateOnReview: true, throwOnReview: true, events: [] }); const base = makeTechPlayPrivateResolverFixture();
   throwing.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
   const { harness } = makeTechPlayOperationHarness(throwing, throwing.options);
-  const result = await harness.runFallback({ provider: "techplay", candidate: throwing.candidate, page: throwing.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY-THROW", maxSteps: 20, expectedState: "registered_or_pending" });
+  const result = await harness.runFallback({ provider: "techplay", candidate: throwing.candidate, page: throwing.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY-THROW", maxSteps: 20, expectedState: "registered_or_pending" });
   assert.equal(result.safe_reason, "final_blocked"); assert.equal(result.repaired_actions.length, 14); assert.equal(throwing.options.reviewClicks, 1); assert.equal(throwing.final.clicked, undefined);
 });
 
@@ -4618,14 +4618,14 @@ test("TECH PLAY confirm hydration retry is read-only and bounded", async () => {
   transient.options.sleep = async () => { transient.options.sleepCalls = (transient.options.sleepCalls || 0) + 1; };
   transient.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
   const { harness } = makeTechPlayOperationHarness(transient, transient.options);
-  const never = await harness.runFallback({ provider: "techplay", candidate: transient.candidate, page: transient.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY-NEVER-STABLE", maxSteps: 14, expectedState: "registered_or_pending" });
+  const never = await harness.runFallback({ provider: "techplay", candidate: transient.candidate, page: transient.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY-NEVER-STABLE", maxSteps: 14, expectedState: "registered_or_pending" });
   assert.equal(never.safe_reason, "effect_unknown"); assert.equal(never.repaired_actions.length, 14); assert.equal(transient.options.reviewClicks, 1); assert.equal(transient.options.sleepCalls, 19); assert.equal(transient.options.confirmInspectCalls, 20); assert.equal(transient.final.clicked, undefined);
 
   for (const [name, options] of [["throw", { navigateOnReview: true, throwOnConfirmInspect: true }], ["url-drift", { navigateOnReview: true, driftConfirmHref: "https://techplay.jp/event/join/999191/confirm" }], ["ticket-drift", { navigateOnReview: true, driftConfirmTicket: true }]]) {
     const fixture = makeTechPlayOperationFixture({ ...options, events: [] }); const values = makeTechPlayPrivateResolverFixture(); fixture.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : values.resolver(input);
     fixture.options.sleep = async () => { fixture.options.sleepCalls = (fixture.options.sleepCalls || 0) + 1; };
     const { harness: caseHarness } = makeTechPlayOperationHarness(fixture, fixture.options);
-    const result = await caseHarness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/TECHPLAY-CONFIRM-${name}`, maxSteps: 14, expectedState: "registered_or_pending" });
+    const result = await caseHarness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://localhost:9222/devtools/page/TECHPLAY-CONFIRM-${name}`, maxSteps: 14, expectedState: "registered_or_pending" });
     assert.equal(result.safe_reason, "effect_unknown", name); assert.equal(result.repaired_actions.length, 14, name); assert.equal(fixture.options.reviewClicks, 1, `${name}-review-once`); assert.equal(fixture.options.sleepCalls || 0, 0, `${name}-no-retry`); assert.equal(fixture.final.clicked, undefined, `${name}-final-zero`);
   }
 });
@@ -4635,7 +4635,7 @@ test("TECH PLAY review blocks pre-click drift or locator ambiguity without recor
     const fixture = makeTechPlayOperationFixture({ ...options, events: [] }); const base = makeTechPlayPrivateResolverFixture();
     fixture.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
     const { harness } = makeTechPlayOperationHarness(fixture, fixture.options);
-    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/TECHPLAY-PRE-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
+    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://localhost:9222/devtools/page/TECHPLAY-PRE-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
     assert.equal(result.safe_reason, "review_blocked", name); assert.equal(result.repaired_actions.length, 13, name); assert.equal(fixture.options.reviewClicks || 0, 0, `${name}-click-zero`);
   }
 });
@@ -4645,7 +4645,7 @@ test("TECH PLAY final inspector drift blocks without a final click", async () =>
     const fixture = makeTechPlayOperationFixture({ navigateOnReview: true, events: [] }); mutate(fixture); const base = makeTechPlayPrivateResolverFixture();
     fixture.options.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : base.resolver(input);
     const { harness } = makeTechPlayOperationHarness(fixture, fixture.options);
-    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/TECHPLAY-FINAL-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
+    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://localhost:9222/devtools/page/TECHPLAY-FINAL-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
     assert.equal(result.safe_reason, "effect_unknown", name); assert.equal(result.repaired_actions.length, 14, name); assert.equal(fixture.options.reviewClicks, 1, `${name}-review-once`); assert.equal(fixture.final.clicked, undefined, `${name}-final-zero`);
   }
 });
@@ -4653,7 +4653,7 @@ test("TECH PLAY final inspector drift blocks without a final click", async () =>
 test("TECH PLAY fallback stops before DOM action for zero or multiple approved radio options", async () => {
   for (const [name, resolveValue] of [["zero", async (input) => input.control.kind === "radio" ? null : "NameFixture"], ["multiple", async (input) => input.control.kind === "radio" ? true : "NameFixture"]]) {
     const fixture = makeTechPlayOperationFixture(); const options = { resolveValue }; const { harness } = makeTechPlayOperationHarness(fixture, options);
-    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://127.0.0.1:9222/devtools/page/TECHPLAY-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
+    const result = await harness.runFallback({ provider: "techplay", candidate: fixture.candidate, page: fixture.page, pageWebsocket: `ws://localhost:9222/devtools/page/TECHPLAY-${name}`, maxSteps: 20, expectedState: "registered_or_pending" });
     assert.equal(options.proposeCalls || 0, 0, `${name}-proposer`); assert.equal(options.operateCalls || 0, 4, `${name}-operate`); assert.equal(result.status, "failed", name); assert.equal(result.safe_reason, "agent_action_failed", name);
   }
 });
@@ -4665,34 +4665,34 @@ test("TECH PLAY fallback preserves exact page scope, candidate binding, and boun
   const { harness } = makeTechPlayOperationHarness(fixture, options);
   const scoped = { provider: "techplay", candidate: fixture.candidate, page: fixture.page, maxSteps: 10, expectedState: "registered_or_pending" };
   for (const pageWebsocket of [
-    "ws://127.0.0.1:9222/devtools/browser/TECHPLAY_SCOPE1",
+    "ws://localhost:9222/devtools/browser/TECHPLAY_SCOPE1",
     "ws://127.0.0.1:9223/devtools/page/TECHPLAY_SCOPE1",
-    "ws://127.0.0.1:9222/devtools/page/",
-    "ws://user:secret@127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1",
-    "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1?query=1",
+    "ws://localhost:9222/devtools/page/",
+    "ws://user:secret@localhost:9222/devtools/page/TECHPLAY_SCOPE1",
+    "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE1?query=1",
   ]) {
     await assert.rejects(() => harness.runFallback({ ...scoped, pageWebsocket }), /Connector production Browser Harness invalid/);
   }
   const { maxSteps, ...missingMaxSteps } = scoped;
-  await assert.rejects(() => harness.runFallback({ ...missingMaxSteps, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1" }), /Connector production Browser Harness invalid/);
+  await assert.rejects(() => harness.runFallback({ ...missingMaxSteps, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE1" }), /Connector production Browser Harness invalid/);
   const { expectedState, ...missingExpectedState } = scoped;
-  await assert.rejects(() => harness.runFallback({ ...missingExpectedState, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1" }), /Connector production Browser Harness invalid/);
+  await assert.rejects(() => harness.runFallback({ ...missingExpectedState, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE1" }), /Connector production Browser Harness invalid/);
   for (const invalidMaxSteps of [0, 21]) {
-    await assert.rejects(() => harness.runFallback({ ...scoped, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1", maxSteps: invalidMaxSteps }), /Connector production Browser Harness invalid/);
+    await assert.rejects(() => harness.runFallback({ ...scoped, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE1", maxSteps: invalidMaxSteps }), /Connector production Browser Harness invalid/);
   }
-  await assert.rejects(() => harness.runFallback({ ...scoped, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE1", candidate: { ...fixture.candidate, event_ref: "techplay-event://event/999191" } }), /Connector production Browser Harness invalid/);
+  await assert.rejects(() => harness.runFallback({ ...scoped, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE1", candidate: { ...fixture.candidate, event_ref: "techplay-event://event/999191" } }), /Connector production Browser Harness invalid/);
 
   const ticketDrift = makeTechPlayOperationFixture(); const ticketOptions = {};
   const ticketBase = makeTechPlayPrivateResolverFixture(); ticketOptions.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : ticketBase.resolver(input);
   const { harness: ticketHarness } = makeTechPlayOperationHarness(ticketDrift, ticketOptions);
-  const ticketResult = await ticketHarness.runFallback({ ...scoped, candidate: { ...ticketDrift.candidate, ticket_id: "98037" }, page: ticketDrift.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE2" });
+  const ticketResult = await ticketHarness.runFallback({ ...scoped, candidate: { ...ticketDrift.candidate, ticket_id: "98037" }, page: ticketDrift.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE2" });
   assert.deepEqual(ticketResult, { status: "failed", safe_reason: "agent_action_failed", repaired_actions: [] });
   assert.equal(ticketOptions.operateCalls || 0, 0);
 
   const limited = makeTechPlayOperationFixture(); const limitedOptions = {};
   const limitedBase = makeTechPlayPrivateResolverFixture(); limitedOptions.resolveValue = async (input) => input.control.question === "職種" ? (input.control.label === "職種1" ? true : null) : limitedBase.resolver(input);
   const { harness: limitedHarness } = makeTechPlayOperationHarness(limited, limitedOptions);
-  const limitedResult = await limitedHarness.runFallback({ provider: "techplay", candidate: limited.candidate, page: limited.page, pageWebsocket: "ws://127.0.0.1:9222/devtools/page/TECHPLAY_SCOPE3", maxSteps: 10, expectedState: "registered_or_pending" });
+  const limitedResult = await limitedHarness.runFallback({ provider: "techplay", candidate: limited.candidate, page: limited.page, pageWebsocket: "ws://localhost:9222/devtools/page/TECHPLAY_SCOPE3", maxSteps: 10, expectedState: "registered_or_pending" });
   assert.equal(limitedResult.safe_reason, "agent_step_limit"); assert.equal(limitedResult.repaired_actions.length, 10); assert.equal(limitedOptions.proposeCalls || 0, 0); assert.equal(limitedOptions.operateCalls || 0, 10);
   assert.ok(limitedResult.repaired_actions.every((action) => typeof action.control === "string" && typeof action.method === "string" && !Object.hasOwn(action, "value")));
   assert.doesNotMatch(JSON.stringify(limitedResult.repaired_actions), /NameFixture|email\.fixture@example\.test|CompanyFixture|2002-08-12/);

@@ -196,14 +196,14 @@ start_setup() {
   "$SCRIPT_DIR/install-launchd.sh" --browser-only
   local ready=false
   for _ in {1..30}; do
-    if curl -fsS --max-time 3 http://127.0.0.1:9222/json/version >/dev/null 2>&1; then
+    if curl -fsS --max-time 3 http://localhost:9222/json/version >/dev/null 2>&1; then
       ready=true
       break
     fi
     sleep 1
   done
   $ready || { print -u2 "[job-hunter] dedicated browser did not become ready"; return 2; }
-  curl -fsS -X PUT 'http://127.0.0.1:9222/json/new?https%3A%2F%2Faccounts.google.com%2F' >/dev/null || true
+  curl -fsS -X PUT 'http://localhost:9222/json/new?https%3A%2F%2Faccounts.google.com%2F' >/dev/null || true
   record_state browser_ready
   cat <<'GUIDE'
 
@@ -223,7 +223,7 @@ status() {
     return 2
   fi
   local browser=false stage=profile_ready
-  curl -fsS --max-time 3 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && browser=true
+  curl -fsS --max-time 3 http://localhost:9222/json/version >/dev/null 2>&1 && browser=true
   stage=$("$JOB_SEARCH_PYTHON" - "$JOB_SEARCH_INSTALL_CONFIG" <<'PY'
 import json,sys
 from pathlib import Path
@@ -242,7 +242,7 @@ finished() {
     print '{"status":"blocked","missing":["profile"]}'
     return 2
   }
-  curl -fsS --max-time 3 http://127.0.0.1:9222/json/version >/dev/null 2>&1 || {
+  curl -fsS --max-time 3 http://localhost:9222/json/version >/dev/null 2>&1 || {
     print '{"status":"blocked","missing":["browser"]}'
     return 2
   }

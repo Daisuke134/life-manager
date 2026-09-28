@@ -82,9 +82,9 @@ def test_candidate_page_targets_scope_host_and_path(monkeypatch) -> None:
     import json
 
     targets = [
-        {"type": "page", "url": "https://capafy.ai/developer/createAgent?old=1", "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/page/good"},
-        {"type": "page", "url": "https://capafy.ai/other", "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/page/wrong-path"},
-        {"type": "page", "url": "https://evil.example/developer/createAgent", "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/page/wrong-host"},
+        {"type": "page", "url": "https://capafy.ai/developer/createAgent?old=1", "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/good"},
+        {"type": "page", "url": "https://capafy.ai/other", "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/wrong-path"},
+        {"type": "page", "url": "https://evil.example/developer/createAgent", "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/wrong-host"},
     ]
 
     class _Response:
@@ -93,7 +93,7 @@ def test_candidate_page_targets_scope_host_and_path(monkeypatch) -> None:
         def read(self): return json.dumps(targets).encode()
 
     monkeypatch.setattr(module.urllib.request, "urlopen", lambda *_args, **_kwargs: _Response())
-    assert module._candidate_page_targets("http://127.0.0.1:9222") == [targets[0]]
+    assert module._candidate_page_targets("http://localhost:9222") == [targets[0]]
 
 
 def test_candidate_page_targets_fail_when_none(monkeypatch) -> None:

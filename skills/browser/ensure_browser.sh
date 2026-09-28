@@ -3,7 +3,7 @@
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
-CDP="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
+CDP="${CLOAK_CDP_BASE_URL:-http://localhost:9222}"
 CDP_PORT="${CDP_DAILY_DRIVER_PORT:-${CDP##*:}}"
 LOG="${CDP_GUARD_LOG:-${LIFE_MANAGER_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}/logs/cdp-daily-driver-guard.log}"
 GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../earn/gig/scripts/cdp_daily_driver_guard.sh"
