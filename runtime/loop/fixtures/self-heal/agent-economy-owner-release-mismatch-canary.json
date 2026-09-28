@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "target": {
+    "loop_id": "agent-economy-loop",
+    "label": "ai.anicca.agent-economy-loop",
+    "provider_route": "shared-agent-runner",
+    "effect_class": "none"
+  },
+  "sibling": {
+    "loop_id": "compute-proxy",
+    "label": "ai.anicca.compute-proxy",
+    "provider_route": "shared-agent-runner",
+    "effect_class": "none"
+  },
+  "stale_release_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "current_release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "failure_event": {
+    "loop_id": "agent-economy-loop",
+    "owner_id": "agent-economy-loop",
+    "wake_id": "wake-canary-1",
+    "run_id": "run-canary-1",
+    "occurrence_id": "agent-economy-loop:run-canary-1",
+    "release_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "status": "fail",
+    "failure_layer": "tool_logic",
+    "effect_class": "none",
+    "effect_status": "not_applicable",
+    "blocker": "tool_logic_exception",
+    "consecutive_failure_streak": 1,
+    "threshold": 3,
+    "evidence_refs": [
+      "lm-loop://agent-economy-loop/run-canary-1/summary.json"
+    ]
+  }
+}
