@@ -38,9 +38,11 @@ credentials or calls venue effect functions.
 For the Alpaca cards, `skills/alpaca-investment/strategy_policy.py`
 `build_validation_candles(...)` derives RSI/EMA/TEMA/Bollinger/ATR features
 from each prefix of the official 5-minute OHLC stream and discards only the
-indicator warmup rows. It never uses a future bar. Exit expressions may use
-the current position's `entry_price` and `age_bars`; those values are supplied
-by the evaluator, not invented by a model.
+indicator warmup rows. If the official stream has a missing five-minute bar,
+the builder starts a new contiguous segment; it never fills the gap or bridges
+indicators across it. It never uses a future bar. Exit expressions may use the
+current position's `entry_price` and `age_bars`; those values are supplied by
+the evaluator, not invented by a model.
 
 ## Net-P&L contract
 

@@ -197,6 +197,36 @@ def _normalise_bars(snapshot: Mapping[str, Any]) -> list[dict[str, Any]] | None:
     return bars
 
 
+def _normalise_contiguous_segments(raw_bars: Sequence[Mapping[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Validate official bars and split at missing five-minute intervals."""
+    segments: list[list[dict[str, Any]]] = []
+    current: list[Mapping[str, Any]] = []
+    previous: datetime | None = None
+
+    def flush() -> None:
+        if not current:
+            return
+        normalized = _normalise_bars({"crypto_history": {CANONICAL_SYMBOL: current}})
+        if normalized:
+            segments.append(normalized)
+
+    for raw_bar in raw_bars:
+        single = _normalise_bars({"crypto_history": {CANONICAL_SYMBOL: [raw_bar]}})
+        if single is None:
+            flush()
+            current = []
+            previous = None
+            continue
+        timestamp = single[0]["timestamp"]
+        if previous is not None and (timestamp - previous).total_seconds() != BAR_SECONDS:
+            flush()
+            current = []
+        current.append(raw_bar)
+        previous = timestamp
+    flush()
+    return segments
+
+
 def _ema(values: Sequence[Decimal], period: int) -> list[Decimal]:
     if len(values) < period:
         return []
@@ -286,23 +316,21 @@ def build_validation_candles(
     raw_bars: Sequence[Mapping[str, Any]], strategy_id: str,
 ) -> list[dict[str, str]]:
     """Build indicator candles without using any bar after the current one."""
-    bars = _normalise_bars({"crypto_history": {CANONICAL_SYMBOL: raw_bars}})
-    if bars is None:
-        return []
     result: list[dict[str, str]] = []
-    for index, bar in enumerate(bars):
-        indicators = _indicators(bars[:index + 1], strategy_id)
-        if indicators is None:
-            continue
-        row = {
-            "timestamp": bar["timestamp"].isoformat(),
-            "open": str(bar["o"]),
-            "high": str(bar["h"]),
-            "low": str(bar["l"]),
-            "close": str(bar["c"]),
-        }
-        row.update({key: str(value) for key, value in indicators.items()})
-        result.append(row)
+    for bars in _normalise_contiguous_segments(raw_bars):
+        for index, bar in enumerate(bars):
+            indicators = _indicators(bars[:index + 1], strategy_id)
+            if indicators is None:
+                continue
+            row = {
+                "timestamp": bar["timestamp"].isoformat(),
+                "open": str(bar["o"]),
+                "high": str(bar["h"]),
+                "low": str(bar["l"]),
+                "close": str(bar["c"]),
+            }
+            row.update({key: str(value) for key, value in indicators.items()})
+            result.append(row)
     return result
 
 

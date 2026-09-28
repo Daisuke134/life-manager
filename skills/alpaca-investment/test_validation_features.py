@@ -43,6 +43,17 @@ class ValidationFeatureTests(unittest.TestCase):
             {key: changed[0][key] for key in ("ema_20", "ema_50", "atr_14", "prior_20_high")},
         )
 
+    def test_gap_splits_history_without_filling_or_bridging_indicators(self):
+        source = _bars(120)
+        gap_timestamp = source.pop(60)["t"]
+
+        candles = build_validation_candles(source, "alpaca-btc-5m-trend-v1")
+
+        self.assertEqual(len(candles), 19)
+        self.assertEqual(candles[0]["timestamp"], "2026-01-01T04:10:00+00:00")
+        self.assertEqual(candles[10]["timestamp"], "2026-01-01T09:15:00+00:00")
+        self.assertNotIn(gap_timestamp, {row["timestamp"] for row in candles})
+
 
 if __name__ == "__main__":
     unittest.main()
