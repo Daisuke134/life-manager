@@ -395,6 +395,7 @@ def test_provider_section_polls_delayed_provider_path() -> None:
         def __init__(self):
             self.states = iter((
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"},
+                {"ok": False},  # no Agent workspace tab on this page
                 {"ok": False, "count": 0}, {"count": 1},
             ))
 
@@ -414,7 +415,8 @@ def test_provider_section_polls_delayed_counted_button_and_path() -> None:
     class _Page:
         def __init__(self):
             self.states = iter((
-                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": False, "count": 0},
+                {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": False},
+                {"ok": False, "count": 0},
                 {"count": 0}, {"ok": False, "reason": "configured-proxy-field-count"}, {"ok": True, "x": 10, "y": 20},
                 {"count": 1},
             ))
@@ -638,3 +640,31 @@ def test_fallback_does_not_print_secret(capsys, monkeypatch) -> None:
         module.main()
     assert exc.value.code == 0
     assert "do-not-print-secret" not in capsys.readouterr().out
+
+
+def test_provider_section_clicks_workspace_tab_once() -> None:
+    module = load_module()
+    module.RAW_SECTION_POLL_S = 0
+
+    class _Page:
+        def __init__(self):
+            self.states = iter((
+                {"count": 0}, {"ok": False}, {"ok": True, "x": 5, "y": 6},
+                {"count": 1},
+            ))
+            self.calls = []
+
+        def evaluate(self, _expression):
+            return next(self.states)
+
+        def call(self, method, params=None):
+            self.calls.append((method, params["type"]))
+
+    page = _Page()
+    module.time.sleep, sleep = (lambda _s: None), module.time.sleep
+    try:
+        assert module._ensure_raw_provider_section(page) == "provider"
+    finally:
+        module.time.sleep = sleep
+    assert page.calls == [("Input.dispatchMouseEvent", "mousePressed"),
+                          ("Input.dispatchMouseEvent", "mouseReleased")]

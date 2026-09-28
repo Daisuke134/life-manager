@@ -599,11 +599,12 @@ def _ensure_raw_provider_section(page):
         if not workspace_tab_clicked:
             # A resumed review page opens on 基本情報; the hosted-key fields live
             # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
+            # Look once: a page that already shows the form has no such tab.
+            workspace_tab_clicked = True
             tab = _bounded_page_evaluate(page, _WORKSPACE_TAB_EXPRESSION, deadline)
             if isinstance(tab, dict) and tab.get("ok"):
                 for kind in ("mousePressed", "mouseReleased"):
                     _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
-                workspace_tab_clicked = True
                 time.sleep(1)
                 continue
         button = _bounded_page_evaluate(page, _detected_keys_button_expression(), deadline)
