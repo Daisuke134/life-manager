@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 import re
 
 
@@ -52,13 +53,22 @@ def _publication_complete(runs: Path, run_id: str) -> bool:
         ]
     else:
         required = ["note/ja", "substack/ja", "substack/en", "x-article/ja"]
-    return all(
-        isinstance(pairs.get(pair), dict)
-        and pairs[pair].get("status") == "live"
-        and isinstance(pairs[pair].get("receipt", {}).get("live_url"), str)
-        and pairs[pair]["receipt"]["live_url"].startswith("https://")
-        for pair in required
-    )
+
+    def _pair_closed(entry: Any) -> bool:
+        if not isinstance(entry, dict):
+            return False
+        if entry.get("status") == "live":
+            live_url = entry.get("receipt", {}).get("live_url")
+            return isinstance(live_url, str) and live_url.startswith("https://")
+        # A permanent-unavailable pair (Dais 2026-09-29, x-editor-unreachable)
+        # never becomes live and is never a re-arm candidate; its durable
+        # skip receipt closes it exactly like a dormant skip, so it must not
+        # keep an otherwise-published run looking adoptable forever.
+        if entry.get("status") == "unavailable":
+            return isinstance(entry.get("skip_receipt"), dict)
+        return False
+
+    return all(_pair_closed(pairs.get(pair)) for pair in required)
 
 
 def _has_completed_publication(runs: Path) -> bool:
