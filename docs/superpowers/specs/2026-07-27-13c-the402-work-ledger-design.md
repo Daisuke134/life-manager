@@ -11,6 +11,12 @@
 - 2026-07-27 の実測では過去の実入札 2 件は期限切れ、現在の open postings / jobs / threads / settled / held / pending はすべて 0。
 - したがって今回証明できるのは分類・記帳経路の生存までで、実仕事収益は外部採用と着金が起きるまで未実証。
 
+## Current read-only refresh (2026-09-28)
+
+- The402 postings API returned HTTP `200` with `0` total postings, `0` open postings, and `0` eligible postings.
+- The local durable inbox contained `3` completed jobs, `0` pending jobs, and `0` dead jobs; no acquisition-action log was present.
+- No bid, job dispatch, callback, or external message was sent during this refresh. The work-revenue path remains unproven for current-period cash, and the next safe probe is another read-only API check when an open eligible posting exists.
+
 ## Primary sources
 
 - the402.ai OpenAPI: <https://api.the402.ai/openapi.json>
@@ -67,4 +73,3 @@ The402 postings
 - Bridge tests prove a work row delegates once and preserves the shared deterministic entry key.
 - Focused earnings/x402 suite passes.
 - Production launchd is kicked; current zero-market run must exit 0 and report zero without claiming revenue.
-
