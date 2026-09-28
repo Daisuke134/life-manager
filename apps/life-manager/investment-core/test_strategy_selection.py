@@ -91,6 +91,12 @@ class StrategySelectionTests(unittest.TestCase):
         self.assertIsNone(selected["report_id"])
         self.assertIn("holdout_net_non_positive", selected["rejection_reasons"])
 
+    def test_missing_reports_explains_no_strategy(self):
+        selected = select_strategy([])
+
+        self.assertEqual(selected["strategy_id"], "NO_STRATEGY")
+        self.assertEqual(selected["rejection_reasons"], ["validation_reports_missing"])
+
     def test_stale_report_is_rejected(self):
         selected = select_strategy([_report("candidate-stale", stale=True)])
 

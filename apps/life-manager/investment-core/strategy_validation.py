@@ -788,6 +788,8 @@ def select_strategy(reports: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         rejection_reasons = sorted({
             reason for detail in details for reason in detail["rejection_reasons"]
         })
+        if not details:
+            rejection_reasons = ["validation_reports_missing"]
         return {
             "strategy_id": "NO_STRATEGY",
             "venue": None,
