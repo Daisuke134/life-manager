@@ -244,6 +244,8 @@ The finite cross-venue code task is complete at `3a4a6cacae`, the validation-bou
 
 **最新main同期（2026-09-29）**: `origin/main=20753ada4c`をmerge `84400303e7`で同期済み。変更はmarketingだけで投資ファイルは保持。contract gateはCapafy mismatchでRED、loaded investment rowは`borrow/support`のまま。次はgate green後のowner-path immutable releaseであり、他laneの実装は変更しない。
 
+**再開runの最終audit（2026-09-29）**: candidate `e9b9a66b66`はAlpaca `200/200`、investment-core `101/101`、doctor PASS。shared gateは同じCapafy mismatch、productionは旧`borrow/support`、自然wakeはeffect前defer。candidate同期・根因診断・spec更新・検証は完了し、次の一手は外部gate green後のowner-path releaseのみ。
+
 ## Completion definition
 
 This plan is complete only when Task 1–10 have their stated evidence. In particular, a green unit-test suite, a registered loop, a funded wallet, 29 wake attempts, or a positive fixture does not complete the plan. Completion requires healthy Life Manager natural operation, official cost-complete realized net P&L, the promotion receipts, the verified rolling `$10,000/month` result, and a separate settled-surplus wealth ledger.

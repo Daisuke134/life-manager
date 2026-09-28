@@ -639,6 +639,8 @@ TODO（何を・どう直すか）
 
 **投資candidate最新同期（2026-09-29）**: `origin/main=20753ada4c`のYouTube marketing修正をmerge `84400303e7`で取り込み、投資core・ETF policy・cross-venue・registryを保持した。candidateはpush済みだが、`./bin/lm-loop-contract`はCapafy `loops[12]` mismatchでRED、loaded releaseは`110561...`の`borrow/support`でETF/cross-venue未搭載。gate greenまでinvestment release handoffは行わない。
 
+**投資lane再開run最終audit（2026-09-29）**: current candidate `e9b9a66b66`のAlpaca `200/200`、investment-core `101/101`、doctor PASSを確認。shared contract gateは同じCapafy mismatch、loaded release/admissionは旧`borrow/support`、host DBはinvestment reservation 0・stale claim 0、自然wakeはprovider effect前defer。投資lane内の安全な修正と証拠化は尽くし、external gate greenなしにrelease bypass・DB操作・資金投入は行わない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
