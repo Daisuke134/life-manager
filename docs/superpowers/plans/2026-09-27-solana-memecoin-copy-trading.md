@@ -42,10 +42,10 @@
 - Produces `loadOrCreateAgentWallet(ssotPath) -> { publicKey, signTransaction }` and `readTargets(configPath) -> Array<{address, label}>`; reject private keys in target configuration.
 - Produces `append(journalPath, row)`, `readRows(journalPath)`, `openIntent(journalPath)`, and `seenSourceSignature(journalPath, signature)` with owner-only state permissions.
 
-- [ ] **Step 1: Write the failing tests** for SSOT preservation, 0700/0600 state permissions, public-only target validation, intent-before-effect ordering, and source-signature deduplication.
-- [ ] **Step 2: Run `node --test skills/earn/solana-memecoin-copytrade/test_wallet_journal.mjs` and verify it fails because the modules do not exist.**
-- [ ] **Step 3: Implement the wallet and journal contracts** using the existing credential-SSOT shape and atomic append; never print or serialize the secret.
-- [ ] **Step 4: Run the focused test and verify all assertions pass.**
+- [x] **Step 1: Write the failing tests** for SSOT preservation, 0700/0600 state permissions, public-only target validation, intent-before-effect ordering, and source-signature deduplication.
+- [x] **Step 2: Run `node --test skills/earn/solana-memecoin-copytrade/test_wallet_journal.mjs` and verify it fails because the modules do not exist.** RED observed with missing `wallet.mjs`.
+- [x] **Step 3: Implement the wallet and journal contracts** using the existing credential-SSOT shape and atomic append; never print or serialize the secret.
+- [x] **Step 4: Run the focused test and verify all assertions pass.** `5/5` pass.
 - [ ] **Step 5: Commit** `feat(sol-copy): add agent wallet and durable copy journal`.
 
 ### Task 2: Read-only scout using Solana RPC, GMGN, DexScreener, and Jupiter
