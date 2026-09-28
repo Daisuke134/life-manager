@@ -58,7 +58,10 @@ PY
   [ -f "$TEMP_ROOT/source/LICENSE" ]
   [ -f "$TEMP_ROOT/source/package-lock.json" ]
   [ -f "$TEMP_ROOT/source/server.js" ]
-  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts)
+  # This script is consumed by start.sh via command substitution.  Keep the
+  # dependency install's progress off stdout so CAMOFOX_DIR is exactly the
+  # final source path on a cold cache, rather than npm's log plus that path.
+  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts >/dev/null)
   if [ -e "$FINAL_ROOT" ]; then
     rm -rf "$FINAL_ROOT"
   fi
