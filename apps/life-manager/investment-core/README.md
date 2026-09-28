@@ -58,6 +58,14 @@ receipts. `JPY`, `USDC`, and `USD_API_EQUIV` are reported as excluded rather
 than converted or treated as a provider bill. Unverified or incomplete cells
 remain partial, and the aggregate receipt retains the source receipt IDs.
 
+`financial_record_receipts.financial_records_to_treasury_receipts(records,
+subject_id, period)` consumes rows already returned by the canonical
+FinancialRecord store. It requires an exact subject and `YYYY-MM` period,
+maps only verified USD `business_revenue` and explicit `fee` rows, and keeps
+native-asset balances, ambiguous `business_cost` rows, payouts, transfers,
+taxes, stale rows, and non-USD assets outside the USD treasury. A second
+subject is a blocked input, never an additional revenue source.
+
 ## lm-lead boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.
