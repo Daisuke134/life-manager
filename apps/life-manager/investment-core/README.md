@@ -77,6 +77,15 @@ native-asset balances, ambiguous `business_cost` rows, payouts, transfers,
 taxes, stale rows, and non-USD assets outside the USD treasury. A second
 subject is a blocked input, never an additional revenue source.
 
+`x402_inflow_receipts.x402_inflows_to_cash_receipts(rows, period)` consumes the
+separate finalized external-inflow ledger produced by the x402 seller. It
+requires successful finalized Base USDC transfers, `external=true`, exact
+pay-to binding, unique transaction/source-sale IDs, and timezone-aware
+timestamps. It returns `amount_usdc` only; it never invents an FX rate or an
+`amount_usd` field, and therefore cannot silently enter the USD Treasury rollup.
+The current audited ledger has 18 unique Railway inflows totaling `0.180000
+USDC`; September has 15 totaling `0.150000 USDC`.
+
 ## lm-lead boundary
 
 The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.

@@ -66,7 +66,7 @@ flowchart LR
 - The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
 - The rolling measurement extension is implemented in `rolling_measurement.py` and is wired to both the explicit `__daily_receipts__` input and the reporter's persisted last-completed-day replay. It requires 30 delivered, measured UTC daily receipts with unique source IDs; the fixture is not live revenue and no numeric live rolling result exists yet.
 - The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources. Its fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills; the new bridge keeps that state partial instead of claiming a measured cash surplus.
-- The external agent-economy state contains exactly one settled x402 revenue receipt with verified chain proof: `0.003 USDC` on `2026-08-24`. The root and instance receipt paths are byte-identical, so this is one receipt, not two; it is historical/non-USD evidence and is not counted as current USD revenue.
+- The external agent-economy state contains one settled x402 receipt with verified chain proof: `0.003 USDC` on `2026-08-24`. Separately, the x402 seller's finalized external-inflow ledger contains `18` unique Railway receipts totaling `0.180000 USDC` (`15` receipts / `0.150000 USDC` in `2026-09`). The duplicate agent-economy paths are byte-identical; these non-USD receipts are not converted into USD or investment P&L.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
 - The canonical CFO hourly FinancialRecord readback is subject-scoped: the current subject has `101` verified records but only one verified `business_revenue`, `0.003 USDC` in `2026-08`, and no `2026-09` revenue. A separate subject has additional x402 records; they are excluded rather than combined.
 
@@ -317,6 +317,25 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 3: Keep model usage separate**; the collector saw usage observations, but `USD_API_EQUIV` remains an API-price estimate rather than a provider bill.
 - [ ] **Step 4: Obtain an authorized live USD provider receipt or owner-configured marketplace ledger** before Treasury can become measured. This requires external account/provider state; no credential, payment, or ledger mutation is performed by this lane.
 
+### Task 12: Repair x402 inflow verification and preserve non-USD cash
+
+**Files:**
+- Modify: `skills/earn/x402-sell/verify-inflow.mjs`
+- Create: `skills/earn/x402-sell/lib/rpc-log-range.mjs`
+- Create: `skills/earn/x402-sell/__tests__/rpc-log-range.test.mjs`
+- Create: `apps/life-manager/investment-core/x402_inflow_receipts.py`
+- Create: `apps/life-manager/investment-core/test_x402_inflow_receipts.py`
+
+**Interfaces:**
+- Consumes: finalized external-inflow rows already produced by the x402 seller's Base receipt recorder.
+- Produces: a separate USDC cash receipt report; it does not produce USD, FX, investment P&L, or a funding authorization.
+
+- [x] **Step 1: Reproduce the live monitor failure.** `verify-inflow.mjs 2` failed at `eth_getLogs` because the Base RPC rejected the hard-coded `10,000`-block range with the current `2,000`-block limit; the watcher had hundreds of repeated parse-error rows.
+- [x] **Step 2: Fix the RPC boundary with a tested 2,000-block chunker.** The focused range/wallet tests pass `5/5`; a fresh read-only `verify-inflow.mjs 2` now completes with `inflows=0`, `EXTERNAL=0`, and no exception.
+- [x] **Step 3: Audit the finalized external ledger without printing transaction IDs.** It contains `18` unique `x402-railway /funding-rates` receipts totaling `0.180000 USDC`; `2026-09` contains `15` receipts totaling `0.150000 USDC`; all rows are `finalized`, `success`, and `external=true`, with no duplicate transaction.
+- [x] **Step 4: Add the Decimal-safe non-USD adapter.** `test_x402_inflow_receipts` passes `5/5`; real-state replay returns measured Jul `0.010000 USDC`, Aug `0.020000 USDC`, and Sep `0.150000 USDC`. The adapter deliberately emits no `amount_usd`.
+- [ ] **Step 5: Wire this report into the CFO briefing as a separate USDC section** without feeding it to the USD Treasury categories. No USD claim or FX conversion is allowed until an authorized rate/ledger boundary exists.
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -329,11 +348,12 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, and the current subject ledger has only historical `0.003 USDC`, so no cash-surplus target claim is allowed.
 9. Task 9's canonical FinancialRecord bridge is implemented and pushed; current CFO-subject replay remains partial with no USD treasury receipt, and the second subject is blocked.
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
-11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial.
-12. Current cursor: accumulate 30 delivered measured daily receipts through the new rolling producer while obtaining the authorized USD receipt/ledger; then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
-13. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
-14. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
-15. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
+12. Task 12 steps 1–4 are complete: x402 verification is healthy and the separate USDC adapter is measured; step 5 remains to wire it into the CFO briefing without currency mixing.
+13. Current cursor: wire the non-USD x402 report, accumulate 30 delivered measured daily receipts through the rolling producer, and obtain the authorized USD receipt/ledger; then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
+14. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+15. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+16. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 
 ### Current S0 scoreboard
 
@@ -343,7 +363,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but no complete live 30-day window exists | Read-only; expansion false | 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
-| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; one historical x402 receipt is settled/chain-verified at `0.003 USDC`, while Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; separate x402 ledger is measured at `0.150000 USDC` for September / `0.180000 USDC` lifetime; Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | wire non-USD briefing; obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Current category accounting
@@ -353,8 +373,9 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Alpaca | One measured round trip: net `-$0.15` (`-$0.10` realized, `-$0.05` unrealized, `$0.01` fees, `$0.00` slippage) | Yes, as a negative measured result; not promotion evidence (`1/30`) |
 | Hyperliquid | No funded account, no entry/exit, no funding receipt; official account readback is zero | No receipt; do not call this `$0` profit |
 | Solana copy | Read-only scout `scout_unknown`, `0` candidates, no live transaction | No receipt; no P&L |
-| Customer/CFO USD revenue | `0` verified USD receipts; one historical settled x402 receipt is `0.003 USDC` with verified chain proof and is excluded from USD treasury; Stripe live key and several marketplace ledgers are absent | No measured USD revenue |
+| Customer/CFO USD revenue | `0` verified USD receipts; Stripe live key and several marketplace ledgers are absent | No measured USD revenue |
 | Agent-economy x402 | `0.003 USDC` settled/verified on 2026-08-24; duplicate state path is identical, so count once | Yes as historical USDC revenue; not current USD revenue and not investment P&L |
+| x402 Railway external inflow | `18` finalized external receipts, `0.180000 USDC` lifetime; September `15` receipts / `0.150000 USDC` | Yes as verified USDC cash; not USD revenue until an FX/treasury boundary exists |
 | Owner cash flow | `$66.75` Alpaca incoming transfer | Principal only; never profit |
 | Cross-venue allocator | Fixture net `$8.70` | Test evidence only; not revenue |
 
