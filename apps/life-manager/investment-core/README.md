@@ -99,8 +99,8 @@ python3 apps/life-manager/investment-core/cross_venue_run.py \
 ```
 
 The entrypoint does not read credentials, sign, submit orders, fund wallets,
-or edit loop admission. lm-lead still owns the fixed argv/env, cadence,
-release, and live provider acknowledgement.
+or edit loop admission. The Life Manager runtime owns the fixed argv/env,
+cadence, release, and live provider acknowledgement.
 
 Current source boundaries:
 
