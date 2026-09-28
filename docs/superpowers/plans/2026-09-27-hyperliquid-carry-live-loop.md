@@ -30,6 +30,16 @@
 - Never edit `runtime/loop`, `runtime/host`, `bin/`, or `config/loop-registry.json`. Registry rows and release/apply are lm-lead's; ask via agmsg.
 - Telegram messages go through `skills/_shared/send-telegram.sh`.
 
+## Current evidence cursor
+
+Read-only verification on 2026-09-28 reports agent wallet `0xA428EC15fD85A1CED452dfC8Fe8436d334D9A302` with Arbitrum
+USDC `0` and ETH `0`; `deposit.py` returns `wait/usdc_below_bridge_minimum` with `HL_CARRY_LIVE` unset. Hyperliquid
+official `clearinghouseState` reports account value `0`, zero positions, and zero withdrawable balance; `userFunding`
+and `userNonFundingLedgerUpdates` both contain zero rows. The repository registry has no `hyperliquid-carry` row, so
+no live scheduler or owner-path enablement is claimed. No funding, signing, registry mutation, or canary has occurred.
+The next effect-dependent step remains owner/lm-lead readback plus explicit funding; until then, this plan is a
+read-only/dry-run capability, not revenue evidence.
+
 ## File Structure
 
 - `skills/earn/hyperliquid-carry/wallet.py`: load or create the agent wallet in the credential SSOT.
