@@ -517,3 +517,14 @@ def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
 
     assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
     assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"
+
+
+def test_fresh_skill_outranks_draft_resume_when_a_slot_is_free() -> None:
+    module = load_module()
+    fresh = {"feature": "catalog:ad-hook-lab", "title": "Ad Hook Lab", "demand_rank": 3}
+    draft = {"agent_id": "9466718786", "title": "Shorts Hook Lab"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
+
+    assert module.allocate_action(free, [], [fresh], resumable_drafts=[draft])["action"] == "create_fresh"
+    assert module.allocate_action(full, [], [fresh], resumable_drafts=[draft])["action"] == "resume_draft"

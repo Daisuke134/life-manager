@@ -215,6 +215,20 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
             "item": item,
         }
+    # With a free review slot, shipping a fresh Skill outranks resuming a draft:
+    # on 2026-09-28 one draft (Shorts Hook Lab) was re-selected wake after wake
+    # while Ad Hook Lab and the rest of the ranked queue could not ship. Drafts
+    # still resume when the five slots are full.
+    if publishable and occupied < CAP and not ready_to_publish and not recoveries and not retries:
+        item = min(publishable, key=lambda row: (
+            row.get("demand_rank", UNRANKED_DEMAND), str(row.get("feature") or ""), str(row.get("title") or "")))
+        identity = item.get("feature") or item.get("title")
+        return {
+            "verdict": "PUBLISHABLE",
+            "action": "create_fresh",
+            "action_key": f"create:{identity}",
+            "item": item,
+        }
     if resumable_drafts:
         item = min(
             resumable_drafts,
