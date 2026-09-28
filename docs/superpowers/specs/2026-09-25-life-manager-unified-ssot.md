@@ -203,9 +203,9 @@ Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook
 - A4 オンボーディング → 課金の指標（場所ごと）。
 - A5 アプリの中身の改善・工場の未公開 4 本は、集客が回ってから。
 
-PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 🔧 毎日 1 件、人の手なしで出品する loop（同じ CloakBrowser daily-driver を lease。reCAPTCHA は普段は画像なしで通る。画像が出た日は解かずに翌日再試行）/ P3 売上の毎日の読み戻し / P4 記事から PromptBase への誘導。
+PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 ✅ 毎日 1 件、人の手なしで出品する loop promptbase-loop-daily（#6117、毎日 04:20 JST、release 9c9ca53d で loaded-idle を readback）。reCAPTCHA は解かない: 画像の問題が出た日は captcha_challenge_deferred を記録して翌日再試行。初回 2026-09-28 は reels-hook-lab で画像の問題が出て deferred。出品フォームの実バグ 3 件（見本出力 4 件必須・テンプレートの [ ] ごとの値・提出ダイアログで固まる）を修正済み / P3 売上の毎日の読み戻し（loop の最初の手順。初回 run の実データで確認）/ P4 記事から PromptBase への誘導。
 
-記事・自社メディア（共通の集客）の TODO（この順）: M1 ✅ 記事 loop 復旧（note・Substack で 9 日ぶりに公開）/ M2 🔧 aniccaai.com に毎日の記事を出す（今は出ていない）、sitemap にブログ 44 本を載せる（今は 0 本）、RSS を作る / M3 🔧 open-seo（無料）で記事の検索語を選ぶ / M4 Zenn・dev.to・X の記事の再開。
+記事・自社メディア（共通の集客）の TODO（この順）: M1 ✅ 記事 loop 復旧（note・Substack）/ M2 🔧 aniccaai.com: sitemap のブログ 0→47 本・RSS 404→200・robots に sitemap（anicca-products #414 merge、live readback）、毎日の記事を aniccaai.com にも出す（#6116 merge、今日の JA/EN 2 本が live 200）。残り: 自社ページで CTA リンクが落ちる（原稿にはある）→ 修正中 / M3 ✅ open-seo の検索語を Capafy の日の記事に（#6114、core term 必須、無料クレジット残り 317）/ M4 Zenn・dev.to・X の再開。
 
 **Capafy の残り TODO（この順が正本。1つずつ、公式 readback で閉じる）**
 
