@@ -195,8 +195,16 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 4 ✅ 本番 readback: 06:07Z の毎時 receipt（capafy-skill-analytics.json）に per-skill `profit_30d_usd` と Telegram 要約が実データで入った。
 - **Capafy は未完了（訂正 2026-09-28 15:3x JST、Dais）**: 申請の仕組みが動いただけで完了扱いにしてアプリへ移ったのは誤り。1つずつ閉じる。アプリ（下の 5 アプリ As-Is）は Capafy の C1〜C7 が閉じるまで着手しない。
 
+**集客は 1 回きりではなく loop で回る（2026-09-29 時点の頻度）**: 記事 article-daily は毎日 06:00 JST に 1 本（Substack JA/EN・note・aniccaai.com。1 日おきに Capafy の売れている Skill へ誘導、ct=article-<slug> で計測）、途中で止まった記事は article-resume が 5 分ごとに引き継ぐ。open-seo の検索語は Skill ごとに 30 日に 1 回更新。Capafy の工場は 15 分ごと。Skill 別利益・流入元の Telegram 報告は毎時（数字が変わった時だけ）。PromptBase は毎日 04:20 JST に 1 件。Capafy Instagram は復旧後 1 時間ごとの loop。アプリの SNS 投稿は各 lane 1 日 3 回。
+
+**Capafy を閉じて次（モバイルアプリ）へ進む条件（公式 readback で確認できたら閉じる。審査・承認・売上の結果待ちは条件にしない = 監視のみ）**:
+- X1 Capafy Instagram が人の手なしで Reel を 1 本投稿（Instagram の公式 Reel 一覧で確認）
+- X2 Capafy の Skill に誘導する記事が 1 本公開され、リンクに ct=article-<slug> が付いている（RSS・公開ページで確認）
+- X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
+- 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
-1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Instagram は Dais 判断で後回し）・C6 は完了。
+1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
 3. 記事・自社メディア: M4 Zenn・dev.to・X の再開。M1〜M3 は完了。
 4. モバイルアプリ: A1 同じ文面の繰り返し投稿を止める（carousel 6 lane は #6127 で反映済み。修正後の最初の投稿 = Affirmation Girl 09:15 JST を Postiz で確認待ち。YouTube Daily Affirmation App は別パイプラインで修正中）→ A2 投稿 → App Store の流れを測る → A3 ASO → A4 オンボーディング → 課金の指標 → A5 アプリの中身・工場の 4 本。
@@ -209,7 +217,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 TODO の分け方（Dais 2026-09-28 14:3x JST）: Capafy と PromptBase は別のお店なので別の TODO。記事・自社メディアは両方を宣伝する共通の集客。新しい販売先の調査は今はしない。
 
-Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客: 記事の誘導先を Capafy に ✅ #6110、Skill 別の実利益・流入元を毎時の Telegram 報告に ✅ #6121（2026-09-28 15:55Z message 99023 で到達を確認。公開中の版のモデルで費用を配分するよう修正）、Capafy の Instagram は Dais の判断で後回し / C4 売上ゼロの整理（進行中）: 流入 API（by_agent）で見ると売上ゼロの約 35 本は月 7〜86 閲覧しかなく「見られていない」のが原因 → 1 本ずつの書き直しより集客と勝ち型への集中。最初の一手: Agent 3332784488（Japanese Humanizer、download 型）が価格未設定で 30 日に 6 人が $0 で入手していた → $9.99 買い切りの同一 Agent 更新を queue（#6123、download 型の価格を工場で扱えるよう拡張、release 92f04c91 反映）。次: TikTok Script Pro（598 閲覧で有料 3 件）の説明文・価格 / C6 数字から LM が次の手を選ぶ（中心は ✅ #6125: 次に作る型を gross の 1 位ではなく 30 日の実利益の順で選ぶ。本番 readback 2026-09-29 02:4xZ: winner=Slide Maker（+$15.98）、次点 TikTok Script Pro（+$11.85）・Marketing Strategist（+$7.11）、赤字の Hook Lab（−$16.16）は除外。毎時 Telegram 報告の Skill 別利益は #6121 修正後の値で到達を確認 message 99068）/ C7 実行枠の配分（待ちは 1 分で実害小）。
+Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客: 記事の誘導先を Capafy に ✅ #6110、Skill 別の実利益・流入元を毎時の Telegram 報告に ✅ #6121（2026-09-28 15:55Z message 99023 で到達を確認。公開中の版のモデルで費用を配分するよう修正）、Capafy の Instagram は復旧作業中（Dais 2026-09-29: 後回しにしない） / C4 売上ゼロの整理（進行中）: 流入 API（by_agent）で見ると売上ゼロの約 35 本は月 7〜86 閲覧しかなく「見られていない」のが原因 → 1 本ずつの書き直しより集客と勝ち型への集中。最初の一手: Agent 3332784488（Japanese Humanizer、download 型）が価格未設定で 30 日に 6 人が $0 で入手していた → $9.99 買い切りの同一 Agent 更新を queue（#6123、download 型の価格を工場で扱えるよう拡張、release 92f04c91 反映）。次: TikTok Script Pro（598 閲覧で有料 3 件）の説明文・価格 / C6 数字から LM が次の手を選ぶ（中心は ✅ #6125: 次に作る型を gross の 1 位ではなく 30 日の実利益の順で選ぶ。本番 readback 2026-09-29 02:4xZ: winner=Slide Maker（+$15.98）、次点 TikTok Script Pro（+$11.85）・Marketing Strategist（+$7.11）、赤字の Hook Lab（−$16.16）は除外。毎時 Telegram 報告の Skill 別利益は #6121 修正後の値で到達を確認 message 99068）/ C7 実行枠の配分（待ちは 1 分で実害小）。
 
 集客は全商品に共通のエンジン（Dais 2026-09-28）: 記事・SEO・SNS・自社メディアの仕組みを一度完成させれば、Capafy Skill・PromptBase・既存/新規モバイルアプリ・Web アプリ・Life Manager・電子書籍（Anicca monk factory）のどれにも使える。売上が少ない原因は全商品で「distribution（集客）」が先。
 
