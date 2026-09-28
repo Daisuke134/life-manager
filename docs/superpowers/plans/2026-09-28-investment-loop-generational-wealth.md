@@ -89,6 +89,8 @@ These are planning calculations, not forecasts:
 
 The current `$100` Alpaca cap at a hypothetical 10% net annual return produces about `$0.83/month`; a `$24` Hyperliquid leg at the plan's measured 11% APR produces about `$0.22/month` gross before variable funding and fees. Therefore the path to generational wealth must combine a measured investment engine with a cash-generation engine and recurring contributions. The investment loop alone cannot turn `$100` into `$10k/month` without assuming an unsafe, unmeasured return.
 
+The observed x402 route average is `0.010000 USDC` per finalized receipt. As planning arithmetic only (not an FX conversion and not net profit), gross `10,000` units/month at that average would require `1,000,000` receipts/month. September's `15` verified receipts are `0.0015%` of that volume. The current x402 seller is therefore an evidence-producing seed, not yet a credible `$10k/month` engine; the next wealth-building bottleneck is verified USD cash generation and net-margin measurement, not sending more Binance capital.
+
 ### Generational-wealth accumulation boundary
 
 `$10,000/month` is a realised net-profit target, not gross sales and not a promise. A separate planning target is `$1,000,000` net worth. The accumulation path is:
