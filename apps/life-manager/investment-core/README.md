@@ -24,6 +24,17 @@ detached JSON-like mapping, and `Decimal` inputs are preserved as strings.
 Missing cost or risk data never receives a default; missing exit, cost, risk,
 or evidence data must remain invalid until the source is supplied.
 
+## Strategy validation
+
+`strategy_validation.validate_series(card, candles, split, costs)` is a finite
+read-only evaluator. It uses chronological train/validation/holdout partitions
+(60/20/20 by default), rejects duplicate or future-looking candle inputs,
+subtracts entry/exit fees and slippage, and reports `unknown` when required
+market or cost data is absent. A card becomes `paper` only when holdout net
+P&L is positive, drawdown is within the card, no lookahead is detected, and
+the nine-point parameter sensitivity gate passes. The evaluator never imports
+credentials or calls venue effect functions.
+
 ## Net-P&L contract
 
 Every measured venue snapshot carries official source receipt IDs and explicit costs:
