@@ -107,7 +107,7 @@ PY
 )" || die "prepared CP1 model is missing"
     [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
       || die "Capafy latest version changed after prepare; no publish effect"
-    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
+    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS CAPAFY_DISPLAY_MODEL
 
 INITIAL_PLATFORM_STATUS="$(rstat platform_status)"
 case "$INITIAL_PLATFORM_STATUS" in
