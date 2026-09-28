@@ -17,6 +17,14 @@ if ! npx --yes hyperframes@0.8.8 lint . </dev/null 2>&1 | grep -v "npm warn" | t
   exit 1
 fi
 
+# The render/check Chrome lives in ~/.cache/hyperframes and cache sweeps can
+# delete it; a missing executable failed the 2026-09-29 Capafy Reel pass before
+# posting. `browser ensure` is a no-op when present and re-downloads when not.
+npx --yes hyperframes@0.8.8 browser ensure </dev/null >/dev/null 2>&1 || {
+  echo "HYPERFRAMES_CHECK=FAIL reason=browser_unavailable"
+  exit 1
+}
+
 LOG="$(mktemp "${TMPDIR:-/tmp}/hyperframes-check.XXXXXX")"
 trap 'rm -f "$LOG"' EXIT
 npx --yes hyperframes@0.8.8 check --no-browser-gpu . </dev/null >"$LOG" 2>&1 &
