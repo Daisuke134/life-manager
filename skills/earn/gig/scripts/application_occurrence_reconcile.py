@@ -577,8 +577,8 @@ def discover_single_target(*, owner_id: str, intent_root: Path) -> tuple[str, st
     """Read admission state and intent state without changing either store."""
     if owner_id != OWNER_ID:
         raise ReconcileContractError("owner_not_allowlisted")
-    _root, _owners, _tickets, database = resource_admission._durable_paths()
     try:
+        _root, _owners, _tickets, database = resource_admission._durable_paths()
         connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=5)
     except (OSError, sqlite3.Error) as error:
         raise ReconcileContractError("admission_database_unreadable") from error

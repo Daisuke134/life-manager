@@ -180,6 +180,24 @@ def test_discovery_requires_a_single_occurrence_and_single_intent():
     ) is None
 
 
+def test_discover_admission_paths_failure_becomes_contract_error(tmp_path, monkeypatch):
+    """A durable-path OSError (disk full, permission race) must not escape as a raw
+    traceback: --discover's entrypoint only translates ReconcileContractError into a
+    structured unresolved/retryable result. Regression for hf-gig-apply-reconcile
+    (#5901): _durable_paths() ran outside the guarded try, so any OSError from its
+    mkdir/chmod crashed the entrypoint process instead of yielding a JSON result."""
+    intent_root = tmp_path / "intents"
+    intent_root.mkdir()
+
+    def boom():
+        raise OSError("disk full")
+
+    monkeypatch.setattr(reconcile.resource_admission, "_durable_paths", boom)
+
+    with pytest.raises(reconcile.ReconcileContractError):
+        reconcile.discover_single_target(owner_id=OWNER, intent_root=intent_root)
+
+
 def test_denied_or_incomplete_readback_never_calls_resolver(tmp_path):
     intent_root = tmp_path / "intents"
     _intent(intent_root / f"{REQUEST_ID}.json")
