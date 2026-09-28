@@ -188,6 +188,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 4 ✅ 本番 readback: 06:07Z の毎時 receipt（capafy-skill-analytics.json）に per-skill `profit_30d_usd` と Telegram 要約が実データで入った。
 - **Capafy は未完了（訂正 2026-09-28 15:3x JST、Dais）**: 申請の仕組みが動いただけで完了扱いにしてアプリへ移ったのは誤り。1つずつ閉じる。アプリ（下の 5 アプリ As-Is）は Capafy の C1〜C7 が閉じるまで着手しない。
 
+**Capafy + PromptBase の To-Be（2026-09-28 Dais と合意）**: 人は何もしない。(1) Capafy は審査枠が空くたびに売れる型の新 Skill を自動提出（✅ 完成）。(2) PromptBase に同じ Skill を 1 日 1 件（reCAPTCHA だけ Dais）。(3) 記事（Substack・note・Zenn・X・aniccaai.com）が毎日出て、各 Skill の Capafy / PromptBase ページへ誘導。open-seo（無料）で検索語を選ぶ。Instagram でも使い方を見せる。(4) Skill 別・流入元別の売上 − 費用 = 利益を毎日 Telegram（✅ 数字は毎時取得済み）。(5) 赤字は安い model へ、売れない型は止め、売れた型を増やす判断を LM が自分で行う（C6）。
+
+C5 の内訳（この順）: 5-1 記事の生成が rc=124 で時間切れ（2026-09-28 13:34Z、続きは article-resume が引き継ぎ）→ 新記事の公開を RSS で確認 / 5-2 記事の誘導先を Capafy の売れている Skill に（作業中）/ 5-3 open-seo 無料登録・MCP（作業中）/ 5-4 PromptBase 毎日 1 件の loop / 5-5 Capafy IG 復旧（LoginRequired）/ 5-6 流入元別の注文を毎日 Telegram へ。
+
 **Capafy の残り TODO（この順が正本。1つずつ、公式 readback で閉じる）**
 
 順序変更（2026-09-28 20:xx JST）: 旧 C3→C4→C5、新 C3→C5→C4。理由: 公開 49 本のうち売れているのは 6 本（Hook Lab・Slide Maker・Marketing Strategist・Academic Humanizer・TikTok Script Pro・YouTube Script Writer）、30 日の有料注文は約 20 件で、止まっているのは供給ではなく流入。売上ゼロ 43 本の整理（C4）より先に、売れている型へ流入を作る（C5: SNS・SEO・PromptBase・trafficSources の日次計測）。現在の cursor: C3（PromptBase 自動出品を作成中、Shorts Hook Lab の再提出を工場に任せる）。C2 は Hook Lab v1.0.3 の承認と実利益の黒字化待ち。
