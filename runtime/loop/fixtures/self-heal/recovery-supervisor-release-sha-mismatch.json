@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "incident": "5866",
+  "recovery_intent": {
+    "schema_version": 1,
+    "record_type": "recovery_intent",
+    "intent_id": "life-manager-recovery-supervisor:18d82f66d0e7b560-28403",
+    "loop_id": "life-manager-recovery-supervisor",
+    "owner_id": "life-manager-recovery-supervisor",
+    "occurrence_id": "life-manager-recovery-supervisor:18d82f66d0e7b560-28403",
+    "wake_id": "18d82f66d0e7b560-28403",
+    "run_id": "18d82f66d0e7b560-28403",
+    "release_sha": "7cbc861929cd75ef7a6ad08ad05b24ab35b100ff",
+    "action": "reconcile_owner",
+    "failure_layer": "entrypoint",
+    "reason": "bounded_owner_reconciliation",
+    "mutates_external_effect": false,
+    "evidence_refs": [
+      "lm-loop://life-manager-recovery-supervisor/18d82f66d0e7b560-28403/summary.json"
+    ]
+  },
+  "historical_outcome": {
+    "state": "blocked",
+    "reason": "release_sha_mismatch",
+    "attempt": 1,
+    "before_event_id": null,
+    "after_event_id": null,
+    "command_exit_code": null,
+    "next_action": "escalate_owner"
+  },
+  "expected_outcome": {
+    "state": "skipped",
+    "reason": "supervisor_self_recovery_excluded",
+    "attempt": 0,
+    "budget_consumed": false,
+    "next_action": "none"
+  }
+}
