@@ -45,6 +45,31 @@ class LedgerTest(unittest.TestCase):
         ledger.append(self._row(status="rejected"), self.path)
         self.assertIsNone(ledger.already_listed("reels-hook-lab", self.path))
 
+    def test_captcha_challenge_deferred_allows_retry(self):
+        # The strict CAPTCHA policy: an image challenge is a clean stop, not a
+        # permanent block -- the next day's run must be able to pick this slug
+        # again.
+        ledger.append(self._row(status="captcha_challenge_deferred"), self.path)
+        self.assertIsNone(ledger.already_listed("reels-hook-lab", self.path))
+
+    def test_record_captcha_deferred_new_slug(self):
+        row = ledger.record_captcha_deferred(
+            "reels-hook-lab", title="Reels Hook Lab", evidence_dir="/tmp/ev", ledger_path=self.path,
+        )
+        self.assertEqual(row["status"], "captcha_challenge_deferred")
+        self.assertEqual(row["title"], "Reels Hook Lab")
+        self.assertIsNone(ledger.already_listed("reels-hook-lab", self.path))
+
+    def test_record_captcha_deferred_existing_slug_appends_update(self):
+        ledger.append(self._row(status="submitted_pending_review"), self.path)
+        ledger.record_captcha_deferred("reels-hook-lab", ledger_path=self.path)
+        rows = ledger.read_all(self.path)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[-1]["status"], "captcha_challenge_deferred")
+        # promptbase_id/url from the original row are preserved (update_status
+        # copies the prior row rather than discarding history).
+        self.assertEqual(rows[-1]["promptbase_id"], "abc123")
+
     def test_append_requires_all_fields(self):
         with self.assertRaises(ValueError):
             ledger.append({"slug": "x"}, self.path)

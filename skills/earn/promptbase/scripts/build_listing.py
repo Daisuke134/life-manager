@@ -27,6 +27,15 @@ MODEL_VERSION = "5 Sonnet"
 GENERATION_TYPE = "Text"
 PRICE_USD = 4.99
 ITEM_TYPE = "Prompt"
+# The one bracketed variable this builder itself injects into the prompt
+# template (see build_listing() below). PromptBase auto-detects every
+# "[...]" run in the template as a fillable variable and requires an example
+# value for each one per example row before it will submit -- publish.py's
+# _fill_step2 maps input boxes with this exact placeholder back to
+# listing.example_input, and fills any *other* detected variable (e.g. a
+# literal "[ADD: your number]" inside a catalog skill's own SKILL.md body)
+# with a generic non-fabricated placeholder instead.
+INPUT_VARIABLE_LABEL = "TOPIC / PRODUCT / CLIP IDEA"
 TAGS = ["claude", "prompts"]
 
 
@@ -125,7 +134,7 @@ def build_listing(catalog_dir: Path) -> Listing:
     # from the SKILL.md body that follows. Reproduce that shape with this
     # catalog skill's own concrete input as the value.
     prompt_instructions = (
-        f"[TOPIC / PRODUCT / CLIP IDEA]: {example_input}\n\n{skill_md.strip()}"
+        f"[{INPUT_VARIABLE_LABEL}]: {example_input}\n\n{skill_md.strip()}"
     )
 
     return Listing(
