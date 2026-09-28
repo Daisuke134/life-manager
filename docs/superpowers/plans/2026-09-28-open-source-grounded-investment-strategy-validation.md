@@ -220,10 +220,10 @@
 
 - A natural event must expose `strategy_id`, `release_sha`, loaded argv/env, `run_id`, `occurrence_id`, official provider readback, cost-complete P&L, durable receipt, Telegram provider ID, `error_class`, `retryable`, and `next_action`.
 
-- [ ] **Step 1: Verify the selected strategy release is loaded.** A stale release or missing card is a typed hold, not a sample.
-- [ ] **Step 2: Repair current `resource_capacity_busy`, duplicate-writer, stale-release, and active state blockers.** No manual wake, restart, funding, or cap increase.
-- [ ] **Step 3: Verify one natural terminal wake and replay-zero delivery.**
-- [ ] **Step 4: Record the exact runtime evidence in all investment specs.**
+- [ ] **Step 1: Verify the selected strategy release is loaded.** A stale release or missing card is a typed hold, not a sample. Read-only result (`2026-09-29`): the registry contract is present (`300s`, `skills/alpaca-investment/run.py`, `alpaca-investment-live`), but `selected-strategy.json` is absent and deterministic selection remains `NO_STRATEGY` / `validation_reports_missing`. The loaded LaunchAgent release is `ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`; it is not an ancestor of the investment release `205630e8208b54bb3a0760f79f04edb13a2abefe` and does not contain the selector. The typed result is `strategy_release_missing`.
+- [ ] **Step 2: Repair current `resource_capacity_busy`, duplicate-writer, stale-release, and active state blockers.** No manual wake, restart, funding, or cap increase. Read-only result: the latest runtime events include `host_admission_deferred:resource_capacity_busy`, `status=blocked`, `effect_status=unknown`, `exit_code=75`, `next_action=retry_after_eligibility`; repeatability still reports `multiple_processes=true`. The current LaunchAgent readback is `not running`, so no runtime mutation was performed in this investment lane.
+- [ ] **Step 3: Verify one natural terminal wake and replay-zero delivery.** No qualifying wake exists after the release readback: the latest observed event is an install-plan event, not a natural terminal investment run. Deferred/typed-hold events do not count as a trade sample or P&L receipt.
+- [ ] **Step 4: Record the exact runtime evidence in all investment specs.** This read-only result is recorded in the primary plan, unattended-runtime plan, and SSOT; the cursor remains Task 8 until a selected release and a qualifying natural terminal wake exist.
 
 ### Task 9: Measure the selected Alpaca strategy, then cross-venue evidence
 
@@ -257,7 +257,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 8 Step 1 — verify the selected strategy release is loaded by Life Manager.** Tasks 1–7 are complete and pushed; Task 7 deterministically returned `NO_STRATEGY` because no complete validation reports are present, so no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 8 Step 1 remains blocked — verify a selected strategy release is loaded by Life Manager.** Tasks 1–7 are complete and pushed; Task 7 deterministically returned `NO_STRATEGY` because no complete validation reports are present. The `alpaca-investment-live` registry row exists, but the current LaunchAgent is `not running`, its loaded release is not the investment release containing the selector, and no `selected-strategy.json` exists. Therefore no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
