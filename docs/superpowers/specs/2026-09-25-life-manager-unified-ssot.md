@@ -631,6 +631,8 @@ TODO（何を・どう直すか）
 
 **投資lane最新状態（2026-09-29）**: `origin/main=8348587ac2a39787747868733cc2dd9b7e1e5c49`をcandidateへmergeし、`97b821b9b7`をpushした。競合はSSOT文書のみで、投資コードとCapafy実装を編集せず解消した。candidate doctorは`ok=true`・`registry_entries=170`・`missing_entrypoints=[]`・`unmanaged_labels=[]`、Alpaca `200/200`、investment-core `101/101`。全体contract gateはCapafy `loops[12]` mismatchのままなので、投資laneからCapafyを変更・release bypassしない。loaded releaseは`20260929T031323-11056150`で、投資rowは`borrow/support`・queued reconciliationなし、ETF policyとcross-venue entrypointは未搭載。最新natural occurrence `alpaca-investment-live:18d99400582f1be0-5050`は`host_admission_deferred:resource_capacity_busy`・exit `75`・`effect_status=unknown`・provider receiptなし・`retry_after_eligibility`であり、sample/P&Lではない。次の順序は shared gate green → Life Manager owner-path immutable release → ETF selected state → natural paper receipt → official cost-complete P&L。Binance送金、cap増額、29回の手動wakeはしない。
 
+**投資lane再検証（2026-09-29 04:54 JST）**: `origin/main=ce3a85cb49`の変更はCapafy/SSOT文書だけで、投資core・ETF policy・cross-venueはcandidateに保持され、merge `c2bb9a4a11`をpushした。全体contract gateはなおCapafy `loops[12]` recovery-class mismatchでRED。loaded releaseは`20260929T031323-11056150`、投資rowは`borrow/support`・queued reconciliationなし、ETF/cross-venue未搭載。最新natural occurrence `alpaca-investment-live:18d9944687719400-16005`は`host_admission_deferred:resource_fifo_wait`・exit `75`・`effect_status=unknown`・provider receiptなし・`retry_after_eligibility`であり、trade/P&L/sampleではない。shared gate green後にLife Manager owner-path release → selected state → natural paper receiptへ進む。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
