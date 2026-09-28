@@ -176,6 +176,40 @@ test('refuses a plan whose release SHA is not the loaded release', async () => {
   assert.equal(invoked, false);
 });
 
+test('trusts the supervisor-vouched release SHA instead of re-reading a racing manifest', async () => {
+  // Regression for #5897: the supervisor already confirmed intent.release_sha
+  // matches the release at wake start (recovery-supervisor.mjs currentReleaseSha
+  // check). A promotion landing between that check and this executor call must
+  // not re-block an intent the supervisor already vouched for in the same wake.
+  const root = await releaseRoot('b'.repeat(40));
+  const plan = buildRecoveryApplyPlan({ intent: intent(), registry });
+  const readbacks = [
+    statusResult(status({
+      event_id: 'event-before', event_release_sha: 'b'.repeat(40),
+      last_terminal_result: 'fail', diagnostic_complete: false,
+    })),
+    statusResult(status({})),
+  ];
+  const result = await executeRecoveryPlan({
+    plan,
+    registry,
+    releaseRoot: root,
+    expectedReleaseSha: SHA,
+    runCommand: async () => ({
+      code: 0,
+      stdout: JSON.stringify({
+        ok: true, route: 'deterministic', release_sha: SHA, eligible: 1,
+        applied: [{ label: 'ai.anicca.example' }], failed: [],
+      }),
+      stderr: '',
+    }),
+    readStatus: async () => readbacks.shift(),
+  });
+
+  assert.equal(result.reason, undefined);
+  assert.notEqual(result.state, 'blocked');
+});
+
 test('refuses a plan that could target a sibling or more than one owner', async () => {
   const root = await releaseRoot();
   const base = buildRecoveryApplyPlan({ intent: intent(), registry });

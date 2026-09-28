@@ -140,6 +140,7 @@ export async function executeRecoveryPlan({
   plan,
   registry,
   releaseRoot,
+  expectedReleaseSha = null,
   runCommand = runLmLoop,
   readStatus = runLmLoop,
 } = {}) {
@@ -171,17 +172,32 @@ export async function executeRecoveryPlan({
     return resultBase(plan, 'blocked', false, { reason: 'command_contract_invalid' });
   }
 
-  let manifest;
-  try {
-    manifest = JSON.parse(await readFile(path.join(releaseRoot, 'RELEASE.json'), 'utf8'));
-  } catch {
-    return resultBase(plan, 'blocked', false, { reason: 'release_manifest_unreadable' });
-  }
-  if (manifest?.sha !== plan.release_sha) {
-    return resultBase(plan, 'blocked', false, {
-      reason: 'release_sha_mismatch',
-      next_action: 'promote_release',
-    });
+  // If the caller already vouched for a release SHA (the supervisor validates
+  // intent.release_sha against RELEASE.json once per wake before claiming an
+  // intent), trust that snapshot instead of re-reading RELEASE.json here. A
+  // second independent read races a concurrent promotion: the file can change
+  // between the supervisor's check and this call, false-blocking an intent the
+  // supervisor already confirmed was current (#5897).
+  if (expectedReleaseSha !== null) {
+    if (!SHA256.test(expectedReleaseSha) || expectedReleaseSha !== plan.release_sha) {
+      return resultBase(plan, 'blocked', false, {
+        reason: 'release_sha_mismatch',
+        next_action: 'promote_release',
+      });
+    }
+  } else {
+    let manifest;
+    try {
+      manifest = JSON.parse(await readFile(path.join(releaseRoot, 'RELEASE.json'), 'utf8'));
+    } catch {
+      return resultBase(plan, 'blocked', false, { reason: 'release_manifest_unreadable' });
+    }
+    if (manifest?.sha !== plan.release_sha) {
+      return resultBase(plan, 'blocked', false, {
+        reason: 'release_sha_mismatch',
+        next_action: 'promote_release',
+      });
+    }
   }
 
   const executable = path.join(releaseRoot, 'bin', 'lm-loop');

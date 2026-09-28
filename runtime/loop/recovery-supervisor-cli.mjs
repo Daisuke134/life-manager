@@ -78,7 +78,9 @@ async function main(args = process.argv.slice(2)) {
     currentReleaseSha,
     executeIntent: async (intent) => {
       const plan = buildRecoveryApplyPlan({ intent, registry });
-      return executeRecoveryPlan({ plan, registry, releaseRoot });
+      return executeRecoveryPlan({
+        plan, registry, releaseRoot, expectedReleaseSha: currentReleaseSha,
+      });
     },
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
