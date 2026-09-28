@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -14,10 +15,7 @@ from strategy_cards import StrategyCard, is_valid_release_sha, validate_strategy
 
 _MONEY = Decimal("0.01")
 _BPS = Decimal("10000")
-_RULE_TEXT = re.compile(
-    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(<=|>=|==|!=|<|>)\s*"
-    r"([A-Za-z_][A-Za-z0-9_]*|-?\d+(?:\.\d+)?)\s*$"
-)
+_RULE_TEXT = re.compile(r"^\s*(.+?)\s*(<=|>=|==|!=|<|>)\s*(.+?)\s*$")
 _OPERATORS = {
     "gt": ">",
     "gte": ">=",
@@ -193,6 +191,49 @@ def _compare(left: Decimal | str, right: Decimal | str, operator: str) -> bool |
     return None
 
 
+def _expression(value: Any, candle: Mapping[str, Any]) -> Decimal | None:
+    """Evaluate the small Decimal-only expression language used by exits."""
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float, str)) and not isinstance(value, bool):
+        try:
+            tree = ast.parse(str(value).strip(), mode="eval")
+        except (SyntaxError, ValueError):
+            return None
+    else:
+        return None
+
+    def visit(node: ast.AST) -> Decimal | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, str)):
+            return _decimal(node.value)
+        if isinstance(node, ast.Name):
+            return _decimal(candle.get(node.id))
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            value = visit(node.operand)
+            if value is None:
+                return None
+            return value if isinstance(node.op, ast.UAdd) else -value
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            left, right = visit(node.left), visit(node.right)
+            if left is None or right is None:
+                return None
+            try:
+                if isinstance(node.op, ast.Add):
+                    return left + right
+                if isinstance(node.op, ast.Sub):
+                    return left - right
+                if isinstance(node.op, ast.Mult):
+                    return left * right
+                if right == 0:
+                    return None
+                return left / right
+            except (InvalidOperation, ZeroDivisionError):
+                return None
+        return None
+
+    return visit(tree.body)
+
+
 def _operand(value: Any, candle: Mapping[str, Any]) -> Decimal | str | None:
     number = _decimal(value)
     if number is not None:
@@ -209,11 +250,11 @@ def _condition(rule: Any, candle: Mapping[str, Any]) -> bool | None:
         match = _RULE_TEXT.match(rule)
         if not match:
             return None
-        field, operator, expected = match.groups()
-        if _lookahead(field):
+        left_text, operator, right_text = match.groups()
+        if _lookahead(left_text) or _lookahead(right_text):
             return None
-        actual = _operand(candle.get(field), candle)
-        wanted = _operand(expected, candle)
+        actual = _expression(left_text, candle)
+        wanted = _expression(right_text, candle)
         if actual is None or wanted is None:
             return None
         return _compare(actual, wanted, operator)
@@ -322,7 +363,7 @@ def _evaluate_partitions(
         rows = partitions[period]
         position: dict[str, Any] | None = None
         trades: list[dict[str, Any]] = []
-        for candle in rows:
+        for row_index, candle in enumerate(rows):
             if position is None:
                 signal = _condition(card.entry_rules, candle)
                 if signal is None:
@@ -337,10 +378,16 @@ def _evaluate_partitions(
                         "timestamp": candle["timestamp"],
                         "price": price,
                         "quantity": notional / price,
+                        "entry_index": row_index,
                     }
                 continue
 
-            signal = _condition(card.exit_rules, candle)
+            exit_candle = {
+                **candle,
+                "entry_price": position["price"],
+                "age_bars": row_index - position["entry_index"],
+            }
+            signal = _condition(card.exit_rules, exit_candle)
             if signal is None:
                 unknown = True
                 continue
@@ -378,6 +425,11 @@ def _evaluate_partitions(
 
 
 def _find_parameter(value: Any, path: tuple[Any, ...] = ()) -> tuple[tuple[Any, ...], Decimal] | None:
+    if isinstance(value, str):
+        match = re.search(r"(?<![A-Za-z_])-?\d+(?:\.\d+)?(?![A-Za-z_])", value)
+        if match is not None:
+            return path + ("__numeric_text__", match.start(), match.end()), Decimal("1")
+        return None
     if isinstance(value, Mapping):
         if "field" in value and "value" in value:
             number = _decimal(value.get("value"))
@@ -398,6 +450,16 @@ def _find_parameter(value: Any, path: tuple[Any, ...] = ()) -> tuple[tuple[Any, 
 
 def _replace_path(value: Any, path: tuple[Any, ...], replacement: Any) -> Any:
     copied = deepcopy(value)
+    if "__numeric_text__" in path:
+        marker = path.index("__numeric_text__")
+        parent = copied
+        for key in path[:marker - 1]:
+            parent = parent[key]
+        key = path[marker - 1]
+        original = parent[key]
+        start, end = path[marker + 1:marker + 3]
+        parent[key] = f"{original[:start]}{replacement}{original[end:]}"
+        return copied
     target = copied
     for key in path[:-1]:
         target = target[key]
@@ -427,14 +489,21 @@ def _parameter_sensitivity(
         }
 
     rule_name, path, step = selected
-    original = _decimal(mapping[rule_name][path[0]]) if len(path) == 1 else None
-    if original is None:
-        # The common card shape has a logical wrapper, so locate the value by
-        # applying the path to a deep copy instead of assuming a fixed depth.
+    if "__numeric_text__" in path:
+        marker = path.index("__numeric_text__")
         target: Any = mapping[rule_name]
-        for key in path:
+        for key in path[:marker - 1]:
             target = target[key]
-        original = _decimal(target)
+        original = _decimal(target[path[marker - 1]][path[marker + 1]:path[marker + 2]])
+    else:
+        original = _decimal(mapping[rule_name][path[0]]) if len(path) == 1 else None
+        if original is None:
+            # The common card shape has a logical wrapper, so locate the value by
+            # applying the path to a deep copy instead of assuming a fixed depth.
+            target = mapping[rule_name]
+            for key in path:
+                target = target[key]
+            original = _decimal(target)
     if original is None:
         return {
             "status": "not_evaluated",

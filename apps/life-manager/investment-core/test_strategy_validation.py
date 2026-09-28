@@ -138,6 +138,19 @@ class StrategyValidationTests(unittest.TestCase):
         self.assertEqual(result["decision"], "paper")
         self.assertGreaterEqual(result["parameter_sensitivity"]["positive_count"], 5)
 
+    def test_exit_rule_evaluates_entry_price_and_indicator_arithmetic(self):
+        card = _card(exit={"any": ["close <= entry_price - 1.5 * atr_14"]})
+        candles = _candles([100, 98, 100, 98, 100, 98, 100, 98, 100, 98])
+        for candle in candles:
+            candle["atr_14"] = "1"
+
+        result = validate_series(card, candles, _split(), _costs())
+
+        self.assertEqual(result["status"], "measured")
+        self.assertEqual(len(result["trades"]), 5)
+        self.assertEqual(result["trades"][0]["entry_price"], "100")
+        self.assertEqual(result["trades"][0]["exit_price"], "98")
+
 
 if __name__ == "__main__":
     unittest.main()

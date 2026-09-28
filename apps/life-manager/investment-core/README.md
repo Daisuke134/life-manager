@@ -35,6 +35,13 @@ P&L is positive, drawdown is within the card, no lookahead is detected, and
 the nine-point parameter sensitivity gate passes. The evaluator never imports
 credentials or calls venue effect functions.
 
+For the Alpaca cards, `skills/alpaca-investment/strategy_policy.py`
+`build_validation_candles(...)` derives RSI/EMA/TEMA/Bollinger/ATR features
+from each prefix of the official 5-minute OHLC stream and discards only the
+indicator warmup rows. It never uses a future bar. Exit expressions may use
+the current position's `entry_price` and `age_bars`; those values are supplied
+by the evaluator, not invented by a model.
+
 ## Net-P&L contract
 
 Every measured venue snapshot carries official source receipt IDs and explicit costs:
@@ -151,6 +158,6 @@ renders a separate `x402外部USDC cash` briefing section. That section is
 delivery/reporting evidence only; it does not create a USD FinancialRecord or
 authorize a transfer.
 
-## lm-lead boundary
+## Life Manager runtime boundary
 
-The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. lm-lead owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.
+The allocator may report a recommendation, but it must not edit `config/loop-registry.json`, `runtime/loop`, `runtime/host`, `bin/`, or any provider wallet. Life Manager runtime owns cadence, registry admission, release, external funding, and live enablement. A missing owner/runtime receipt keeps the relevant venue visible as partial/unknown.

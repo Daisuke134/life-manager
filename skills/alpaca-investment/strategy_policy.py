@@ -282,6 +282,30 @@ def _indicators(bars: Sequence[Mapping[str, Any]], strategy_id: str) -> dict[str
     return None
 
 
+def build_validation_candles(
+    raw_bars: Sequence[Mapping[str, Any]], strategy_id: str,
+) -> list[dict[str, str]]:
+    """Build indicator candles without using any bar after the current one."""
+    bars = _normalise_bars({"crypto_history": {CANONICAL_SYMBOL: raw_bars}})
+    if bars is None:
+        return []
+    result: list[dict[str, str]] = []
+    for index, bar in enumerate(bars):
+        indicators = _indicators(bars[:index + 1], strategy_id)
+        if indicators is None:
+            continue
+        row = {
+            "timestamp": bar["timestamp"].isoformat(),
+            "open": str(bar["o"]),
+            "high": str(bar["h"]),
+            "low": str(bar["l"]),
+            "close": str(bar["c"]),
+        }
+        row.update({key: str(value) for key, value in indicators.items()})
+        result.append(row)
+    return result
+
+
 def _signal_inputs(indicators: Mapping[str, Decimal], age_bars: int | None = None,
                    quote_age: Decimal | None = None, spread: Decimal | None = None) -> dict[str, str]:
     values = {key: _fmt(value) for key, value in indicators.items()}
@@ -467,5 +491,6 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
 
 
 __all__ = [
-    "ALLOWED_ACTIONS", "StrategyCard", "candidate_cards", "evaluate", "load_selected_card",
+    "ALLOWED_ACTIONS", "StrategyCard", "build_validation_candles", "candidate_cards",
+    "evaluate", "load_selected_card",
 ]
