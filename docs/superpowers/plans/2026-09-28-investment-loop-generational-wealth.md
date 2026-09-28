@@ -580,6 +580,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 49. **Latest production revalidation (`2026-09-29`)**: the investment label remains `classification=managed` with `missing_entrypoints=[]`, but the shared `lm-loop doctor` now returns `ok=false`, `registry_entries=164`, and `unmanaged_labels=8`. The loaded release is still `92f04c91fa594ae2209b2ff323fe9fdfa91e5b5e`; the latest natural occurrence `alpaca-investment-live:18d98c0df11c44e0-36365` is a typed `host_admission_deferred:resource_capacity_busy` with exit `75`, `effect_status=unknown`, no provider receipt, and `retry_after_eligibility`. This is a shared runtime/release-health blocker, not evidence of a trade or P&L. Do not edit sibling loops from the investment lane.
 
+50. **Candidate-versus-loaded-release revalidation (`2026-09-29`)**: running the repository-owned doctor from the investment candidate and `origin/main` returns `ok=true`, `registry_entries=170`, `missing_entrypoints=[]`, and `unmanaged_labels=[]`; the old loaded release returns `ok=false`, `registry_entries=164`, and eight unmanaged labels. The candidate row is explicitly `revenue/revenue` with queued-release reconciliation, while the loaded row remains implicit `borrow/support`. This narrows the next action to the Life Manager promotion path for the pushed candidate; no sibling-loop repair or manual trade is authorized.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
