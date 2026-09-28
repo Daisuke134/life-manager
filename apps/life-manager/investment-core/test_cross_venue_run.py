@@ -107,6 +107,52 @@ class CrossVenueRunTests(unittest.TestCase):
             ["hyperliquid", "solana"],
         )
 
+    def test_missing_manifest_disables_fixed_alpaca_state_reader(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            alpaca_state = root / "alpaca-state"
+            alpaca_state.mkdir()
+            (alpaca_state / "performance-latest.json").write_text(json.dumps({
+                "measurement_status": "measured",
+                "observed_at": NOW,
+                "gross_strategy_pnl_usd": "10",
+                "fees_usd": "1",
+                "funding_or_borrow_usd": "0.5",
+                "slippage_usd": "0.25",
+                "gas_usd": "0.1",
+                "model_cost_usd": "0.15",
+                "completed_round_trips": 30,
+                "source_receipt_ids": ["alpaca-state-receipt"],
+            }), encoding="utf-8")
+            (alpaca_state / "observation-latest.json").write_text(json.dumps({
+                "account": {"equity": "1000", "cash": "500"},
+            }), encoding="utf-8")
+            (alpaca_state / "risk-latest.json").write_text(json.dumps({
+                "drawdown_fraction": "0.01",
+            }), encoding="utf-8")
+            owner_flow_path = root / "owner-flow.json"
+            owner_flow_path.write_text(
+                json.dumps({"owner_cash_flow_usd": "0", "source_receipt_ids": ["flow-1"]}),
+                encoding="utf-8",
+            )
+
+            receipt = run_once(
+                snapshot_specs=[],
+                alpaca_state_dir=alpaca_state,
+                state_dir=root / "state",
+                today="2026-09-29",
+                owner_cash_flow_path=owner_flow_path,
+                available_capital_usd="0",
+                input_manifest_status="missing",
+                send=lambda message: {"message_id": "m-missing-manifest"},
+            )
+
+        self.assertEqual(receipt["status"], "delivered")
+        self.assertIn(
+            {"venue": "alpaca", "reason": "snapshot_file_missing"},
+            receipt["aggregate"]["unknown_venues"],
+        )
+
     def test_parse_snapshot_spec_rejects_missing_venue_or_path(self):
         with self.assertRaisesRegex(ValueError, "snapshot_spec_invalid"):
             parse_snapshot_spec("/tmp/snapshot.json")

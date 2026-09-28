@@ -190,7 +190,8 @@ def run_once(
         isinstance(spec, str) and spec.partition("=")[0] == "alpaca"
         for spec in specs
     )
-    if alpaca_state_dir and not explicit_alpaca:
+    if (alpaca_state_dir and input_manifest_status == "configured"
+            and not explicit_alpaca):
         state_path = Path(alpaca_state_dir).expanduser()
         readers["alpaca"] = lambda: read_alpaca_snapshot(state_path)
     readers["__owner_cash_flow_usd__"] = _read_owner_cash_flow(owner_path)
