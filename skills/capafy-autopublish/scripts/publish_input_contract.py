@@ -19,16 +19,26 @@ def snapshot(args: argparse.Namespace) -> dict:
         raise ValueError("workspace is not inside the Agent publisher home")
     config = json.loads(args.config.read_text(encoding="utf-8"))
     model_id, max_tokens = config["model_id"], config["max_tokens"]
-    if not isinstance(model_id, str) or not model_id or type(max_tokens) is not int:
-        raise ValueError("invalid listing model contract")
-    hosted = json.loads((home / ".openclaw/openclaw.json").read_text(encoding="utf-8"))
-    provider = hosted["models"]["providers"]["openrouter"]
-    if (provider.get("api") != "openai-responses"
-            or provider.get("apiKey") != "${CAPAFY_HOST_OPENROUTER_KEY}"
-            or provider.get("models") != [{"id": model_id, "name": model_id,
-                                            "maxTokens": max_tokens}]
-            or hosted["agents"]["defaults"]["model"]["primary"] != "openrouter/" + model_id):
-        raise ValueError("hosted provider differs from the listing model contract")
+    # Download-mode listings (pricing_mode=download, one-time fee) have no
+    # hosted LLM and no CP2 — publish_prepare.sh writes no openclaw.json for
+    # them (verified 2026-09-28 via publish-remote-status on agent 3332784488:
+    # agent_type=download, is_confirmed_config_keys=false). A run_online
+    # listing still requires the full hosted-provider contract below.
+    hosted = None
+    if config.get("pricing_mode") == "download":
+        if model_id is not None or max_tokens is not None:
+            raise ValueError("invalid listing model contract")
+    else:
+        if not isinstance(model_id, str) or not model_id or type(max_tokens) is not int:
+            raise ValueError("invalid listing model contract")
+        hosted = json.loads((home / ".openclaw/openclaw.json").read_text(encoding="utf-8"))
+        provider = hosted["models"]["providers"]["openrouter"]
+        if (provider.get("api") != "openai-responses"
+                or provider.get("apiKey") != "${CAPAFY_HOST_OPENROUTER_KEY}"
+                or provider.get("models") != [{"id": model_id, "name": model_id,
+                                                "maxTokens": max_tokens}]
+                or hosted["agents"]["defaults"]["model"]["primary"] != "openrouter/" + model_id):
+            raise ValueError("hosted provider differs from the listing model contract")
     skill_dir = workspace / "skills" / args.skill_name
     manifest = json.loads((args.work_dir / "publish-work-state.json").read_text(encoding="utf-8"))
     extra = manifest["extra"]
@@ -83,7 +93,7 @@ def main() -> int:
         if args.action == "verify":
             if json.loads(target.read_text(encoding="utf-8")) != expected:
                 raise ValueError("publisher inputs changed after preparation")
-            print(expected["model_id"], expected["max_tokens"])
+            print(expected["model_id"] or "", expected["max_tokens"] if expected["max_tokens"] is not None else "")
             return 0
         args.work_dir.mkdir(parents=True, exist_ok=True)
         fd, temp = tempfile.mkstemp(prefix=".publisher-inputs.", dir=args.work_dir)

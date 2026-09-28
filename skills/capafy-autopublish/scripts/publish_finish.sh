@@ -93,6 +93,14 @@ PY
     )" || die "publisher manifest is not bound to agent_id=$ID"
     export HOME="$CAPAFY_PUBLISH_HOME"
     CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
+    # Download-mode listings (one-time fee, no hosted LLM/CP2) — verified
+    # 2026-09-28 via publish-remote-status on agent 3332784488: agent_type=
+    # download, is_confirmed_config_keys=false. A run_online listing keeps the
+    # full hosted-model contract/CP2/model-verify gates below unchanged.
+    DOWNLOAD_MODE="$(python3 -c "import json,sys
+c=json.load(open(sys.argv[1], encoding='utf-8'))
+print('1' if c.get('pricing_mode') == 'download' else '0')" "$CFG_ONE" 2>/dev/null)" \
+      || die "could not read prepared listing config"
     MODEL_CONTRACT="$(python3 "$AUTO/scripts/publish_input_contract.py" verify \
       --agent-id "$ID" --skill-name "$SKILL_NAME" --config "$CFG_ONE" \
       --workspace "$CAPAFY_PUBLISH_HOME/.openclaw/workspace" \
@@ -102,7 +110,8 @@ PY
     read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS <<<"$MODEL_CONTRACT"
     CAPAFY_DISPLAY_MODEL="$(python3 - "$CFG_ONE" <<'PY'
 import json,sys
-print(json.load(open(sys.argv[1], encoding="utf-8"))["model"])
+model = json.load(open(sys.argv[1], encoding="utf-8"))["model"]
+print(model if model is not None else "")
 PY
 )" || die "prepared CP1 model is missing"
     [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
@@ -118,7 +127,8 @@ case "$INITIAL_PLATFORM_STATUS" in
     ;;
   1)
     [ "$(rstat is_confirmed_skills)" = "1" ] || die "platform_status=1 but is_confirmed_skills is not confirmed; verify only"
-    [ "$(rstat is_confirmed_config_keys)" = "1" ] || die "platform_status=1 but is_confirmed_config_keys is not confirmed; verify only"
+    [ "$DOWNLOAD_MODE" = "1" ] || [ "$(rstat is_confirmed_config_keys)" = "1" ] \
+      || die "platform_status=1 but is_confirmed_config_keys is not confirmed; verify only"
     [ "$(rstat package_uploaded)" = "1" ] || die "platform_status=1 but package_uploaded is not true; verify only"
     echo "platform_status=1 with skills/config confirmed ✓ — idempotent verify/skip"
     ;;
@@ -245,6 +255,12 @@ except Exception: print('')")"
       esac
   fi
 
+  if [ "$DOWNLOAD_MODE" = "1" ]; then
+    # Download-mode listings have no hosted LLM/CP2 to key-host or verify —
+    # is_confirmed_config_keys never becomes true for agent_type=download
+    # (verified 2026-09-28 on agent 3332784488's live/online version).
+    echo "download-mode listing: no CP2 (skipping key host + workspace fields)"
+  else
   # Always run drive_checkpoint2.py before CP3, even when is_confirmed_config_keys
   # is already 1: the Agent ワークスペース tab's welcome-message/input-placeholder/
   # test-case fields have no server readback of their own and can still render
@@ -266,6 +282,7 @@ except Exception: print('')")"
   # exit just before the server registers the hosted key -> a one-shot read false-dies.
   poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
   echo "is_confirmed_config_keys=1 ✓"
+  fi
 fi
 
 # CP3 is skipped if the agent is ALREADY submitted (platform_status=1) — makes a
@@ -281,9 +298,12 @@ case "$POST_CP2_STATUS" in
   ;;
 0)
   step "[6] CP3 submit (審査に提出, final review page) — exactly once"
-  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
-    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
-    || die "official CP1 model/version changed before review submission"
+  # Download-mode listings have no hosted-model field to verify (see [5] above).
+  if [ "$DOWNLOAD_MODE" != "1" ]; then
+    python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
+      --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
+      || die "official CP1 model/version changed before review submission"
+  fi
   [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
     || die "Capafy latest version changed before review submission"
   if [ -z "$PUBLISH_REVIEW_URL" ]; then
@@ -325,11 +345,14 @@ def number(value):
     except (TypeError,ValueError): return None
 st=number(v.get('platform_status')); cfg=number(v.get('is_confirmed_config_keys')); sk=number(v.get('is_confirmed_skills')); au=number(v.get('audit_status')); pkg=number(v.get('package_uploaded'))
 print(f'platform_status={st} skills={sk} cfg={cfg} package_uploaded={pkg} audit={au} title={str(v.get(\"title\"))[:42]}')
-expected_id, expected_version = sys.argv[1:3]
-sys.exit(0 if (st==1 and cfg==1 and sk==1 and pkg==1
+expected_id, expected_version, download_mode = sys.argv[1:4]
+# Download-mode listings never confirm hosted config keys (no CP2) — verified
+# 2026-09-28 on agent 3332784488's live/online version.
+cfg_ok = cfg==1 or download_mode == '1'
+sys.exit(0 if (st==1 and cfg_ok and sk==1 and pkg==1
                and str(v.get('agent_id') or '') == expected_id
                and (not expected_version or str(v.get('agent_version_id') or '') == expected_version)) else 1)
-" "$ID" "$EXPECTED_AGENT_VERSION_ID" || die "FINAL VERIFY failed (Agent/version/status/config) for agent $ID"
+" "$ID" "$EXPECTED_AGENT_VERSION_ID" "$DOWNLOAD_MODE" || die "FINAL VERIFY failed (Agent/version/status/config) for agent $ID"
 # Capafy's current Agent-detail response no longer exposes the CP1 `model` field.
 # The authoritative CP2 success signal is `is_confirmed_config_keys`; re-checking
 # the absent field after a successful submission turns a real platform_status=1

@@ -387,19 +387,28 @@ def ready_inventory():
             icon = next((os.path.join(d, candidate) for candidate in ("icon.png", "icon.jpg", "icon.webp", "icon.svg")
                          if os.path.isfile(os.path.join(d, candidate))), None)
             title = listing_title(listing) if os.path.isfile(listing) else None
+            update_file = os.path.join(d, "UPDATE.json")
+            update_request = None
+            if os.path.isfile(update_file):
+                request = json.load(open(update_file, encoding="utf-8"))
+                target_model = str(request.get("target_model_id") or "").strip()
+                # target_one_time_fee updates the Download-mode Pricing card only
+                # (a price-only same-Agent update — no hosted model, no CP2, no
+                # package re-upload); target_model_id updates the hosted LLM.
+                # Exactly one target kind is required.
+                target_fee = str(request.get("target_one_time_fee") or "").strip()
+                if (not isinstance(request, dict)
+                        or not all(str(request.get(key) or "").isdigit()
+                                   for key in ("agent_id", "from_version_id"))
+                        or not (target_model or target_fee)):
+                    raise ValueError(f"invalid same-Agent update request: {name}")
+                update_request = request
             if title and icon and os.path.isfile(skill):
                 item = {"feature": f"catalog:{name}", "title": title, "icon": icon,
                         "listing": listing, "skill": skill, "source": "repo_catalog",
                         "demand_rank": listing_demand_rank(listing)}
-                update_file = os.path.join(d, "UPDATE.json")
-                if os.path.isfile(update_file):
-                    request = json.load(open(update_file, encoding="utf-8"))
-                    if (not isinstance(request, dict)
-                            or not all(str(request.get(key) or "").isdigit()
-                                       for key in ("agent_id", "from_version_id"))
-                            or not str(request.get("target_model_id") or "").strip()):
-                        raise ValueError(f"invalid same-Agent update request: {name}")
-                    item["update_request"] = request
+                if update_request:
+                    item["update_request"] = update_request
                 items.append(item)
 
     # The repository catalog is authoritative when a legacy candidate has the same title.

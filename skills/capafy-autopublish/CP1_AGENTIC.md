@@ -117,3 +117,25 @@ showed).
   URL and your work vanishes. Never close the daily-driver.
 - If a click seems to do nothing, Read the screenshot — the layout probably moved.
   Re-target from the fresh `fields`/`buttons` coords. Do not blindly retry old coords.
+
+## Download-mode price-only update (one-time fee, no hosted model)
+`build_config.py` emits `"pricing_mode": "download"` when the LISTING.md pricing
+table has a single `| download | $X | - | - |` row instead of day/week/month. This
+is the CP1 recipe for a same-Agent `target_one_time_fee` update (added 2026-09-28
+to fix agent 3332784488 shipping with billings=download/price=null — confirmed via
+`publish-remote-status`: agent_type=download, is_confirmed_config_keys=false).
+1. On 基本情報, leave every field (title/short/detail/logo) AS-IS — a price-only
+   update never touches Basic Info. Do not re-upload a logo.
+2. On 価格設定, the billing-mode card should already show **Download** selected
+   (it is the Agent's existing type). If it shows Subscription instead, STOP and
+   report — do not toggle modes for a price-only update (toggling
+   download↔run_online rolls the version back to draft and clears the confirmed
+   skill selection; see PUBLISHING_RUNBOOK.md "UPGRADING a LISTED download agent").
+3. Set the **oneTimeFee** field to the exact value from `CONFIG_PATH`'s
+   `one_time_fee` (e.g. `9.99`). Check the Data Processing Agreement checkbox if
+   present and unchecked.
+4. No CP2 for Download mode — go straight from CP1 card-done to
+   `publish_finish.sh`, which skips key hosting for a null `model`/`model_id`.
+5. Verify via `publish-remote-status`: `latest_version.is_confirmed_skills=true`
+   and (after finish) the billings row shows the new price — `billings=null`
+   still visible means the price did not save; re-open Pricing and retry.
