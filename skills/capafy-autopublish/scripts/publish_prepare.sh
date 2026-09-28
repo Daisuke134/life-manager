@@ -283,7 +283,9 @@ import json,sys
 c=json.load(open(sys.argv[1]))
 for p in c["plans"]:
     tr = p.get("trial")
-    print(f"  {p['cycle']:5} : price ${p['price']}  cap {p['cap']}  trial={'No Free Trial' if not tr else str(tr)+'h'}")
+    trial_target = (f"Free Trial {tr['hours']}h / {tr['requests']} requests"
+                    if isinstance(tr, dict) else "No Free Trial")
+    print(f"  {p['cycle']:5} : price ${p['price']}  cap {p['cap']}  trial={trial_target}")
 print("  category:", c.get("category"), "| model:", c.get("model"))
 PY
 echo ""

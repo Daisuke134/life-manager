@@ -13,7 +13,7 @@ publish-remote-status.
 - The direct OpenRouter `/responses` probe verifies availability; Capafy Test Run verifies the hosted buyer path after review.
 
 ## Flow (one listing)
-1. **Research demand and economics**: inspect official listings and sales, then choose subscription cycle/price/cap with positive expected hosted contribution. Write original copy and no free trial.
+1. **Research demand and economics**: inspect official listings and sales, then choose subscription cycle/price/cap with positive expected hosted contribution. Write original copy. New skills: day plan = No Free Trial, week/month plans = a free trial (see BEST_PRACTICES.md §3 for the default hours/request-count).
 2. **Build skill**: pure-LLM, self-contained, NO local deps/secrets. Add `test/case1.md`. grep-verify clean.
 3. **Write LISTING.md**: title ≤50 chars, shortDescription, **welcomeMessage**, detailedDescription (emoji sections + table).
 4. **Isolate package inputs**: `publish_prepare.sh` copies the Skill into a private Agent-owned HOME/workspace and binds that source, version and model before any upload. Do not publish from the operator's live workspace.
@@ -39,7 +39,7 @@ publish-remote-status.
      third "Agent ワークスペース" tab appears requiring one click to re-confirm
      the (already re-registered by `publish_prepare.sh`) skill — see
      CP1_AGENTIC.md "Switching an EXISTING agent's hosted model".
-   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle → **select No Free Trial on EVERY plan (an unselected trial radio silently blocks save; enabled free trials are forbidden).**
+   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle → **select a trial choice on EVERY plan (an unselected trial radio silently blocks save): day = No Free Trial, week/month = Enable Free Trial with the target hours/requests from BEST_PRACTICES.md §3, falling back to No Free Trial if the revealed fields do not match.**
    - Click **提出を確認**. ★ VERIFY GATE: page must reach `page=card-done` / "カードを保存しました". If still `page=edit`, a required field is empty/invalid — find the red error or empty input and fix; do NOT proceed. ★ `is_confirmed_skills=true` is the CP1 done-gate; the `model` field is verified later, after CP2 (step 9 below), never before.
 7. **Finish through the 0.9.11 submit flow** with
    `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>` using the exact `AGENT_VERSION_ID` emitted by prepare.
@@ -74,7 +74,7 @@ publish-remote-status.
 - A local success can refer to the wrong draft when CP1 never saved. ALWAYS verify
   remote-status fields (agent_version_id/platform_status/is_confirmed_config_keys/agent_type/title)
   plus the official Agent detail's `model`, not local output.
-- CP1 silent-block causes: empty welcomeMessage, empty test input, an unselected per-plan trial radio, empty provider field. Fill all, then confirm `page=card-done`.
+- CP1 silent-block causes: empty welcomeMessage, empty test input, an unselected per-plan trial radio (every plan needs an explicit choice, whether No Free Trial or Enable Free Trial), empty provider field. Fill all, then confirm `page=card-done`.
 - CP2 card defaults to SUMMARY mode → must click Edit before fields exist. drive_checkpoint2.py now does this.
 - Direct Anthropic never passes CP2 (openai-responses /responses 404) → OpenRouter only.
 - Re-using a download-type junk draft for run_online is fine (C1 did it) BUT you must fully fill + save CP1; selections alone don't set the card.
@@ -118,14 +118,15 @@ A brand-new run_online agent (NOT a junk-draft reuse) has CP1 traps the reused-d
 7. Plans: "Add Plan" button label is "Add Plan (1/3)" etc. — match loosely.
 8. ★ AI service provider field (placeholder "例: OpenAI、Anthropic、MiniMax") is REQUIRED ★ → `.type("openrouter.ai")`.
 9. Container mode (On-Demand US$0.07/day vs Cron+On-Demand) — select On-Demand.
-10. ★★ THE FINAL BLOCKER: EVERY plan must select No Free Trial. An unselected trial radio on ANY plan = price-tab red ✗ = 提出を確認 no-ops, with NO red text (only a tab-icon goes red). An enabled free trial is forbidden. ★★
+10. ★★ THE FINAL BLOCKER: EVERY plan must have an EXPLICIT trial choice. An unselected trial radio on ANY plan = price-tab red ✗ = 提出を確認 no-ops, with NO red text (only a tab-icon goes red). New skills: day = No Free Trial, week/month = Enable Free Trial per BEST_PRACTICES.md §3 (fall back to No Free Trial for a plan if its revealed fields don't match the target — never block submission on it). ★★
 11. ★ Validate via the TAB ICON COLOR: find the 価格設定 tab <button>, read its <svg> color — green rgb(61,220,132)=✓ valid, red rgb(229,83,75)=✗ invalid. This is the ONLY reliable "is the tab complete" signal. ★
 12. Success = toast "カードを保存しました" OR url=card-done/credential — never trust the absence of red text.
 
-### Historical winner evidence (not current policy)
+### Historical winner evidence (now current policy, 2026-09-28)
 Unscore 4097802482 for Humanizer historically used day=No Free Trial, week=24h, and month=72h
-free trials. The current paid-only policy overrides that historical configuration: use No Free Trial
-on every plan.
+free trials. That is now the default new-skill shape again (BEST_PRACTICES.md §3): day = No Free
+Trial, week = Free Trial 24h / 3 requests, month = Free Trial 72h / 5 requests, unless a specific
+winner's data says otherwise. Already-published listings are not retroactively edited.
 
 ## drive_cp1.py — 2 MORE gotchas found on O2 (2026-06-27), now baked in:
 13. ★ The React form fields LAZY-MOUNT only after a Playwright LOCATOR click on the 基本情報 tab (`pg.get_by_text("基本情報",exact=True).first.click()`). On a fresh new_page goto, inputs count = 0 until that locator click fires the render. evaluate/coords clicks do NOT mount it. (drive_cp1 uses tab_click()).

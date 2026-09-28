@@ -5,6 +5,8 @@ R2 recurring output: Every matchweek produces a fresh seven-axis matchup brief, 
 day-8 answer       : A new matchweek and new team-news happened, so last week's fixture analysis is stale.
 demand evidence    : Football fixture analysis is the highest measured recurring-input vertical: 2,788 sold at $99.99/year; the top marketplace listing accounts for 57% of 4,889 observed sales.
 
+Demand rank: 1
+
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
