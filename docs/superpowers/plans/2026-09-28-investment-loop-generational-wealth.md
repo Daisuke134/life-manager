@@ -49,7 +49,7 @@ flowchart LR
     APerf --> Allocator["read-only cross-venue\nallocator / daily report"]
     HLWait --> Allocator
     SolScout --> Allocator
-    Allocator --> Treasury["treasury rollup\npartial without source adapters"]
+    Allocator --> Treasury["treasury rollup\npartial until receipt bridge"]
     Treasury --> Target["$10k/month\nnot achieved / no promotion"]
 ```
 
@@ -61,7 +61,7 @@ flowchart LR
 - Hyperliquid carry code and tests are merged, but the registry row/runtime lock was owner-requested rather than directly changed by this lane; the current agent wallet readback is USDC `0` / ETH `0`, with no `userFunding`, deposit transaction, entry receipt, or daily P&L.
 - The Solana loop is implemented through staged read-only/paper/live-gate boundaries. A fresh public-target scout returned `scout_unknown`, `0` candidates, `20` evidence rows, and no effect; no live transaction receipt exists.
 - The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
-- Treasury separates customer revenue, investment net P&L, owner cash flow, model cost, tax reserve, and investable surplus. No complete product financial adapter is connected, so missing categories remain `partial`, not zero.
+- The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources, but the fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills. Treasury therefore needs an explicit read-only adapter before it can claim a measured cash surplus.
 
 ## Target Economics
 
@@ -235,6 +235,27 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 5: Evaluate the target claim**: `$10k/month` is not achieved, and generational wealth is not claimed because the treasury/net-worth ledger has no complete verified source set. L18 remains unchanged.
 - [x] **Step 6: Run the final verification package**: core `34/34`, Alpaca discovery `147/147`, Hyperliquid `69/69`, Solana `28/28`, provider read-only preflights, staged natural wakes/replay-zero, and diff checks pass for the implemented/read-only boundary. The shared loop-contract gate reports one pre-existing unrelated Capafy declaration mismatch (`read_only_external_owner` missing from `loops[12].recovery_classes`); investment files do not change the catalog, and effect-dependent canaries remain open.
 
+### Task 8: Bridge existing CFO receipts into treasury
+
+**Files:**
+- Create: `apps/life-manager/investment-core/cfo_receipts.py`
+- Create: `apps/life-manager/investment-core/test_cfo_receipts.py`
+- Modify: `apps/life-manager/investment-core/treasury.py` and `apps/life-manager/investment-core/test_treasury.py` to keep customer refunds and operating costs separate from model costs
+- Modify: `apps/life-manager/investment-core/README.md` with the adapter contract
+- Reference only: `skills/cfo/loop_pnl.py`; the adapter consumes its JSON table and does not make provider calls
+
+**Interfaces:**
+- Consumes: the existing CFO JSON table (`reporting_date`, `sources`, and per-loop `revenue`/`refund`/`cost` cells).
+- Produces: `cfo_table_to_treasury_receipts(table, period) -> {receipts, evidence_status, missing_sources, excluded_currencies, excluded_investment_rows, source_receipt_ids}`.
+- Maps only non-investment USD cells: `revenue -> customer_revenue`, `refund -> customer_refund`, and `cost -> operating_cost`. The canonical investment row is excluded because Task 1 owns investment net P&L; owner cash flow and model cost must come from their own receipts.
+- Excludes `JPY`, `USDC`, and `USD_API_EQUIV` rather than applying an unverified FX rate or treating an API-price estimate as a provider bill. Unverified cells and incomplete cost cells remain missing evidence. No adapter receipt authorizes a transfer or capital promotion.
+
+- [ ] **Step 1: Write failing tests** for USD mapping, investment-row exclusion, non-USD/`USD_API_EQUIV` exclusion, unverified and incomplete cells, deterministic aggregate receipt IDs, and malformed/duplicate input rejection.
+- [ ] **Step 2: Extend treasury categories** with `customer_refund` and `operating_cost`; calculate net customer revenue and deductible operating/model costs separately while preserving owner cash-flow and investment-P&L separation.
+- [ ] **Step 3: Implement the pure CFO-table adapter** with no network or credential imports; keep source receipt IDs and reasons in the output for audit.
+- [ ] **Step 4: Run focused adapter/treasury tests, the full investment suite, and a fresh CFO read-only table replay**; no source failure may become a zero or a USD claim.
+- [ ] **Step 5: Commit and push** the adapter plus updated plan/spec evidence before moving to the next external receipt gate.
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -244,7 +265,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 5. Solana nested Tasks 1–5 (wallet/journal, read-only scout, pure policy/paper, fake-client receipt verification, and staged wake) are implemented and focused-tested; real read-only evidence is saved, but no live transaction has been sent.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
-8. Treasury rollup is implemented as read-only with separate investment-P&L and cash-surplus gaps; no complete product financial adapter is connected, so missing categories remain partial.
+8. Task 8 is the current cursor: bridge the existing CFO table into treasury without mapping `USD_API_EQUIV` estimates or investment rows into customer cash.
 9. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
 10. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 11. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
@@ -258,15 +279,14 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; no effect allowed from this lane | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
-| Treasury | Separate rollup implemented; missing product financial adapters remain `partial` | No transfer; no target claim | verified revenue, owner-flow, P&L, model-cost, tax/reserve receipts |
+| Treasury | Separate rollup implemented; CFO table exists but its fresh USD cash bridge is not yet complete | No transfer; no target claim | verified revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
 ### Execution order ruling
 
-The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order is now
+The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
 `Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
-The change keeps all owner-funded effects behind the missing `lm-lead`/funding receipt while allowing independent
-read-only and pure measurement work to proceed; no production registry or wallet state is changed by this reorder.
+The current order is `Task 8 CFO receipt bridge → Task 2/Task 4 effect gates → rolling measurement`. This moves an independent read-only revenue/cost evidence boundary ahead of owner-funded venue effects; no production registry, wallet state, or owner capital is changed by the reorder.
 
 ## Source References
 
