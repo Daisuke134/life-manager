@@ -164,6 +164,106 @@ test("a normal event with neither travel signal is unaffected", async () => {
   assert.equal(result.excluded_event_count, 0);
 });
 
+test("an event Dais (self) declined is excluded, even though Google still returns it", async () => {
+  const result = await inspectGoogleCalendarBusyInventory({
+    ...WINDOW,
+    calendar: transport({
+      async listAllEventsRaw() {
+        return [
+          {
+            CalendarID: "primary", id: "declined-1", status: "confirmed", summary: "Optional sync",
+            start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
+            attendees: [
+              { email: "someone@example.com", responseStatus: "accepted" },
+              { email: "keiodaisuke@gmail.com", self: true, responseStatus: "declined" },
+            ],
+          },
+        ];
+      },
+    }),
+  });
+  assert.equal(result.busy_event_count, 0);
+  assert.equal(result.excluded_event_count, 1);
+});
+
+test("an event Dais (self) accepted, or has not responded to, stays busy", async () => {
+  const result = await inspectGoogleCalendarBusyInventory({
+    ...WINDOW,
+    calendar: transport({
+      async listAllEventsRaw() {
+        return [
+          {
+            CalendarID: "primary", id: "accepted-1", status: "confirmed",
+            start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
+            attendees: [{ email: "keiodaisuke@gmail.com", self: true, responseStatus: "accepted" }],
+          },
+          {
+            CalendarID: "primary", id: "needs-action-1", status: "confirmed",
+            start: { dateTime: "2026-08-05T11:00:00+09:00" }, end: { dateTime: "2026-08-05T12:00:00+09:00" },
+            attendees: [{ email: "keiodaisuke@gmail.com", self: true, responseStatus: "needsAction" }],
+          },
+        ];
+      },
+    }),
+  });
+  assert.equal(result.busy_event_count, 2);
+  assert.equal(result.excluded_event_count, 0);
+});
+
+test("another attendee declining never frees Dais's own event", async () => {
+  const result = await inspectGoogleCalendarBusyInventory({
+    ...WINDOW,
+    calendar: transport({
+      async listAllEventsRaw() {
+        return [
+          {
+            CalendarID: "primary", id: "guest-declined-1", status: "confirmed",
+            start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
+            attendees: [
+              { email: "keiodaisuke@gmail.com", self: true, responseStatus: "accepted" },
+              { email: "someone@example.com", responseStatus: "declined" },
+            ],
+          },
+        ];
+      },
+    }),
+  });
+  assert.equal(result.busy_event_count, 1);
+  assert.equal(result.excluded_event_count, 0);
+});
+
+test("a personal event with no attendees array is unaffected by the declined check", async () => {
+  const result = await inspectGoogleCalendarBusyInventory({
+    ...WINDOW,
+    calendar: transport({
+      async listAllEventsRaw() {
+        return [
+          {
+            CalendarID: "primary", id: "solo-1", status: "confirmed",
+            start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
+          },
+        ];
+      },
+    }),
+  });
+  assert.equal(result.busy_event_count, 1);
+});
+
+test("a malformed attendees value fails closed", async () => {
+  await assert.rejects(inspectGoogleCalendarBusyInventory({
+    ...WINDOW,
+    calendar: transport({
+      async listAllEventsRaw() {
+        return [{
+          CalendarID: "primary", id: "malformed-1", status: "confirmed",
+          start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
+          attendees: "not-an-array",
+        }];
+      },
+    }),
+  }), /calendar busy inventory invalid/i);
+});
+
 test("no title or description ever appears on a returned busy interval, travel or otherwise", async () => {
   const result = await inspectGoogleCalendarBusyInventory({
     ...WINDOW,
