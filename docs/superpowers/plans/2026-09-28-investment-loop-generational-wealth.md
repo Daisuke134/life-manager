@@ -193,11 +193,11 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Consumes: Task 1 venue snapshots, free cash, risk caps, stale/unknown state, and target `$10,000/month`.
 - Produces: `rank(...) -> allocate|hold|halt`, daily aggregate receipt, `rolling_30d_net_pnl_usd`, `target_gap_usd`, `capital_expansion_allowed`, and source receipt IDs.
 
-- [ ] **Step 1: Add failing tests** for positive net vs unknown-cost candidates, owner cash-flow adjustment, stale venue exclusion, drawdown halt, deterministic tie-breaks, duplicate daily report, and target-gap accuracy.
-- [ ] **Step 2: Implement read-only ranking**; the allocator must not import or call venue submit/signing functions.
-- [ ] **Step 3: Implement one UTC-daily report** through the existing idempotent Telegram outbox; unknown values render `不明`, never zero.
-- [ ] **Step 4: Run focused tests, existing investment tests, and replay-zero checks**; prove the allocator cannot create a second order or reinterpret a deposit as revenue.
-- [ ] **Step 5: Commit** `feat(investment): rank verified cross-venue net returns`.
+- [x] **Step 1: Add failing tests** for positive net vs unknown-cost candidates, owner cash-flow adjustment, stale venue exclusion, drawdown halt, deterministic tie-breaks, duplicate daily report, and target-gap accuracy. Cross-venue nested plan tests cover these boundaries.
+- [x] **Step 2: Implement read-only ranking**; the allocator must not import or call venue submit/signing functions.
+- [x] **Step 3: Implement one UTC-daily report** through the existing idempotent Telegram outbox; unknown values render `不明`, never zero. Missing owner/runtime or provider receipts remain explicit.
+- [x] **Step 4: Run focused tests, existing investment tests, and replay-zero checks**; prove the allocator cannot create a second order or reinterpret a deposit as revenue. Cross-venue acceptance/report suite passes `26/26`.
+- [x] **Step 5: Commit** `feat(investment): rank verified cross-venue net returns` via nested implementation commits through `d48e355e7b`.
 
 ### Task 6: Treasury and generational-wealth cash engine
 
@@ -239,7 +239,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified (`3e6c81970d`); keep the cap at `$100` until its live evidence is complete.
 5. Solana nested Tasks 1–5 (wallet/journal, read-only scout, pure policy/paper, fake-client receipt verification, and staged wake) are implemented and focused-tested; real read-only evidence is saved, but no live transaction has been sent.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
-7. Implement the allocator and treasury rollups.
+7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); move to the treasury rollup while keeping capital expansion disabled.
 8. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
 9. Promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
 
