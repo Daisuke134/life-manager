@@ -16,7 +16,7 @@
 	<key>StandardOutPath</key>
 	<string>__LIFE_MANAGER_HOME__/logs/capafy-loop-daily.out</string>
 	<key>StartInterval</key>
-	<integer>3600</integer>
+	<integer>900</integer>
 	<key>ThrottleInterval</key>
 	<integer>60</integer>
 </dict>
