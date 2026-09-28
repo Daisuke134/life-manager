@@ -1,0 +1,10 @@
+{
+  "owner_id": "franklin-loop",
+  "occurrence_id": "franklin-loop:18d88f0d8c4fb180-56530",
+  "release_sha": "e4f93e2ad0966deca2a972d1dd00614120c47241",
+  "failure_layer": "brain_transport",
+  "intent_reason": "bounded_owner_reconciliation",
+  "action": "reconcile_owner",
+  "result": "blocked",
+  "outcome_reason": "release_sha_mismatch"
+}

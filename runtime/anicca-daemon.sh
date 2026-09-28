@@ -64,13 +64,7 @@ stop_owned_processes() {
 trap 'stop_owned_processes; exit 143' TERM INT
 trap 'stop_owned_processes' EXIT
 
-# 1. self-update from the mother (fast-forward only; never clobber local state) ------------------
-if [ -d "$REPO/.git" ]; then
-  git -C "$REPO" fetch --quiet origin main 2>/dev/null \
-    && git -C "$REPO" merge --ff-only origin/main 2>/dev/null \
-    && log "self-updated to $(git -C "$REPO" rev-parse --short HEAD)" \
-    || log "self-update skipped (offline or diverged)"
-fi
+# 1. immutable release binding ---------------------------------------------------------------
 # Skill code executes directly from this immutable Life Manager release. ANICCA_HOME owns only
 # per-instance identity, state, and logs; it is never a second source-code checkout or copied tree.
 export LIFE_MANAGER_SKILLS_ROOT="${LIFE_MANAGER_SKILLS_ROOT:-$REPO/skills}"

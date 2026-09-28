@@ -26,6 +26,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DAEMON_PATH = path.resolve(__dirname, '../../anicca-daemon.sh');
 const source = fs.readFileSync(DAEMON_PATH, 'utf8');
+const releaseBindingFixture = JSON.parse(fs.readFileSync(
+  path.join(__dirname, 'fixtures', 'franklin-release-binding-mismatch.json'), 'utf8',
+));
 
 function extractBetween(text, startMarker, endMarker) {
   const startIdx = text.indexOf(startMarker);
@@ -57,6 +60,22 @@ function runPortSnippet(env) {
     timeout: 5000,
   });
 }
+
+test('self-heal #5903: Franklin keeps the failed wake bound to its immutable release', () => {
+  assert.deepEqual(releaseBindingFixture, {
+    owner_id: 'franklin-loop',
+    occurrence_id: 'franklin-loop:18d88f0d8c4fb180-56530',
+    release_sha: 'e4f93e2ad0966deca2a972d1dd00614120c47241',
+    failure_layer: 'brain_transport',
+    intent_reason: 'bounded_owner_reconciliation',
+    action: 'reconcile_owner',
+    result: 'blocked',
+    outcome_reason: 'release_sha_mismatch',
+  });
+  const ownerStartup = source.slice(0, source.indexOf('# Skill code executes'));
+  assert.doesNotMatch(ownerStartup, /\bgit\s+-C\s+"\$REPO"\s+(?:fetch|merge)\b/,
+    'an immutable release owner must not mutate its checkout before it reports or reconciles a wake');
+});
 
 test('ARCH-11: each Franklin-family instance resolves to its own repository-proxy port', () => {
   const result = runPortSnippet({ ANICCA_INSTANCE: 'franklin' });
