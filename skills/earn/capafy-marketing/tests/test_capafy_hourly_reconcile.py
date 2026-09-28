@@ -595,6 +595,146 @@ def test_per_skill_profit_from_net_revenue_minus_estimated_cost() -> None:
     assert any("cost_30d_usd is an estimate" in gap for gap in analytics["data_gaps"])
 
 
+def activity_fixture_rows() -> list[dict]:
+    return [
+        {"date": "2026-09-01", "model": "anthropic/claude-sonnet-4.6", "usage": 20.0,
+         "requests": 400, "prompt_tokens": 1_000_000, "completion_tokens": 200_000},
+        {"date": "2026-09-15", "model": "anthropic/claude-sonnet-4.6", "usage": 22.87,
+         "requests": 417, "prompt_tokens": 1_100_000, "completion_tokens": 210_000},
+        {"date": "2026-09-15", "model": "openai/gpt-4o-mini", "usage": 0.49,
+         "requests": 30, "prompt_tokens": 50_000, "completion_tokens": 5_000},
+    ]
+
+
+def test_openrouter_actual_summarizes_activity_rows_by_model_and_day() -> None:
+    module = load_module()
+
+    actual = module._openrouter_actual({"data": activity_fixture_rows()})
+
+    assert actual["status"] == "fresh"
+    assert actual["total_usd"] == "43.36"
+    assert actual["by_model"] == {"anthropic/claude-sonnet-4.6": "42.87", "openai/gpt-4o-mini": "0.49"}
+    assert actual["by_day"] == {"2026-09-01": "20.00", "2026-09-15": "23.36"}
+    assert actual["window_start"] == "2026-09-01"
+    assert actual["window_end"] == "2026-09-15"
+
+
+def test_openrouter_actual_reports_unavailable_reason_without_key_or_on_error() -> None:
+    module = load_module()
+
+    assert module._openrouter_actual({"_error": "key_unavailable"})["status"] == "unavailable:key_unavailable"
+    assert module._openrouter_actual({"_error": "HTTPError: 403"})["status"] == "unavailable:HTTPError: 403"
+    assert module._openrouter_actual({"code": 0, "data": "not-a-list"})["status"] == "unavailable:unrecognized_shape"
+
+
+def test_allocate_actual_cost_splits_by_estimated_share_within_a_model() -> None:
+    module = load_module()
+    usage_agents = [
+        {"agent_id": "111", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "6.00"},
+        {"agent_id": "222", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "2.00"},
+        {"agent_id": "333", "model": "openai/gpt-4o-mini", "estimated_model_cost_usd": None},
+    ]
+    openrouter_actual = {"status": "fresh", "by_model": {"anthropic/claude-sonnet-4.6": "40.00"}}
+
+    result = module._allocate_actual_cost_by_agent(usage_agents, openrouter_actual)
+
+    # 111 has 3x the estimated cost of 222 within the same model -> 3x the allocated actual spend.
+    assert result["111"] == "30.00"
+    assert result["222"] == "10.00"
+    # No actual figure for gpt-4o-mini, and no estimate for 333: stays unknown, not fabricated.
+    assert result["333"] is None
+
+
+def test_allocate_actual_cost_empty_when_actual_unavailable() -> None:
+    module = load_module()
+    usage_agents = [{"agent_id": "111", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "6.00"}]
+
+    assert module._allocate_actual_cost_by_agent(usage_agents, {"status": "unavailable:key_unavailable"}) == {}
+
+
+def test_per_skill_and_account_actual_cost_profit_use_real_openrouter_spend() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["usage_requests"] = {"rows": [{
+        "requestId": "r1", "agentId": "111", "agentTitle": "Hook Lab",
+        "inputUncached": 1_000_000, "cacheRead": 0, "cacheWrite": 0, "output": 0,
+    }]}
+    payloads["agent_models"] = {"111": "anthropic/claude-sonnet-4.6"}
+    payloads["model_prices"] = {"anthropic/claude-sonnet-4.6": {"prompt": "0.00002", "completion": "0.000015"}}
+    payloads["openrouter_activity"] = {"data": [
+        {"date": "2026-09-01", "model": "anthropic/claude-sonnet-4.6", "usage": 42.87, "requests": 817},
+    ]}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z",
+    )
+
+    rows = {row["agent_id"]: row for row in analytics["per_skill_rows"]}
+    # 111 is the only agent with an estimated cost for this model, so it absorbs the full
+    # real spend even though its estimate ("20.00") was lower than the actual bill.
+    assert rows["111"]["cost_30d_actual_usd"] == "42.87"
+    assert rows["111"]["profit_30d_usd"] == "-0.09"  # unchanged estimate-based figure
+    assert rows["111"]["profit_30d_actual_usd"] == "-22.96"  # 19.91 net - 42.87 actual
+    assert rows["222"]["cost_30d_actual_usd"] is None
+
+    assert analytics["account_totals"]["net30_usd"] is not None
+    assert analytics["account_totals"]["cost30_actual_usd"] == "42.87"
+    assert analytics["account_totals"]["profit30_actual_usd"] == module._money(
+        module.Decimal(analytics["account_totals"]["net30_usd"]) - module.Decimal("42.87"))
+    assert "cost30(actual) $42.87" in analytics["telegram_summary"]
+    assert "profit $-22.96" in analytics["telegram_summary"]
+    assert any("api/v1/activity" in gap for gap in analytics["data_gaps"])
+
+
+def test_account_actual_falls_back_to_estimate_label_when_activity_unavailable() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()  # no openrouter_activity fixture -> key_unavailable
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z",
+    )
+
+    assert analytics["account_totals"]["cost30_actual_usd"] is None
+    assert analytics["account_totals"]["profit30_actual_usd"] is None
+    assert analytics["openrouter_actual"]["status"].startswith("unavailable:")
+    assert "cost30(est)" in analytics["telegram_summary"]
+
+
+def test_live_payloads_fetches_activity_with_management_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    calls = []
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(module, "_openrouter_data", lambda path, token="": calls.append((path, token)) or {"data": []})
+    monkeypatch.setenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", "mgmt-key")
+    monkeypatch.delenv("CAPAFY_HOST_OPENROUTER_KEY", raising=False)
+
+    payloads = module._live_payloads(Path("/tmp"), observed)
+
+    assert ("/activity", "mgmt-key") in calls
+    assert payloads["openrouter_activity"] == {"data": []}
+
+
+def test_live_payloads_skips_activity_without_management_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {"data": {}})
+    monkeypatch.delenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", raising=False)
+
+    payloads = module._live_payloads(Path("/tmp"), observed)
+
+    assert payloads["openrouter_activity"] == {"_error": "key_unavailable"}
+
+
 def test_token_reads_the_publisher_runtime_config(tmp_path, monkeypatch):
     # The live publisher keeps its REST session in runtime/capafy-publisher/config.json;
     # without it the per-skill stats were access_token_unavailable in production.
