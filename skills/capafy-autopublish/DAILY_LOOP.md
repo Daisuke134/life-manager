@@ -88,7 +88,8 @@ monitoring/deferred work.
       → prints `AGENT_ID=`, `AGENT_VERSION_ID=`, `EDIT_URL_FILE=`, and target pricing.
       `resume_draft` uses its existing manifest and official refreshed URL without
       creating another version. Deterministic, fail-closed on lint and capacity.
-   b. **Drive CP1 agentically** per `CP1_AGENTIC.md`: with `scripts/cp1_agent.py`, open the
+   b. (Skip b when official `is_confirmed_skills` is already true — e.g. a `resume_draft` after CP1 was saved; Capafy then issues only the /R<digits> review URL, no edit URL. Go straight to c.)
+      **Drive CP1 agentically** per `CP1_AGENTIC.md`: with `scripts/cp1_agent.py`, open the
       exact URL read from `EDIT_URL_FILE`, LOOK at each screenshot, fix the 価格設定 plan cards to the target values
       until the price tab is GREEN, then 下書きを保存 → 提出を確認. Loop until server
       `publish-remote-status --agent-id <AGENT_ID>` shows
