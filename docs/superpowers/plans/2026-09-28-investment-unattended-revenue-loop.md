@@ -249,3 +249,5 @@ The finite cross-venue code task is complete at `3a4a6cacae`, the validation-bou
 ## Completion definition
 
 This plan is complete only when Task 1–10 have their stated evidence. In particular, a green unit-test suite, a registered loop, a funded wallet, 29 wake attempts, or a positive fixture does not complete the plan. Completion requires healthy Life Manager natural operation, official cost-complete realized net P&L, the promotion receipts, the verified rolling `$10,000/month` result, and a separate settled-surplus wealth ledger.
+
+**Ownership revalidation（2026-09-29）**: Life Manager is the runtime owner; this investment lane owns the candidate and its evidence. Candidate merge `7efcd1a13a` contains the latest `origin/main=5dfb1f84f6` while preserving the investment boundary. Production still loads the immutable release `20260929T052319-5dfb1f84`, so the remaining order is: candidate verification → shared contract gate green → Life Manager immutable release handoff → natural paper receipt → cost-complete P&L. Waiting for an imaginary owner is not a step; bypassing the shared gate or placing a live order is also not a step.

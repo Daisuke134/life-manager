@@ -646,3 +646,5 @@ TODO（何を・どう直すか）
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
 - `unknown` / `effect_unknown` / `circuit_open` / `wake_boundary_failed` は再送の許可ではない。
 - `launchctl` の変更は `bin/launchctl-safe` 経由だけで行う。
+
+**投資lane所有権再確認（2026-09-29）**: Life Managerが投資loopのruntime ownerであり、Codexはこの投資candidate・検証証拠・owner-path handoffを担当する。最新`origin/main=5dfb1f84f6`をcandidate merge `7efcd1a13a`へ同期済み。candidateは投資境界を保持するが、production loaded release `20260929T052319-5dfb1f84`は旧`borrow/support` admissionでETF/cross-venue未搭載。次はcandidate verification → shared contract gate green → Life Manager immutable release handoff → natural paper receipt → official cost-complete P&L。共有gateの迂回、host DB直接変更、Binance送金、live注文、29回の手動wakeはしない。
