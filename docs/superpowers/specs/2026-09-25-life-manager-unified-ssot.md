@@ -190,7 +190,13 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **Capafy + PromptBase の To-Be（2026-09-28 Dais と合意）**: 人は何もしない。(1) Capafy は審査枠が空くたびに売れる型の新 Skill を自動提出（✅ 完成）。(2) PromptBase に同じ Skill を 1 日 1 件（reCAPTCHA だけ Dais）。(3) 記事（Substack・note・Zenn・X・aniccaai.com）が毎日出て、各 Skill の Capafy / PromptBase ページへ誘導。open-seo（無料）で検索語を選ぶ。Instagram でも使い方を見せる。(4) Skill 別・流入元別の売上 − 費用 = 利益を毎日 Telegram（✅ 数字は毎時取得済み）。(5) 赤字は安い model へ、売れない型は止め、売れた型を増やす判断を LM が自分で行う（C6）。
 
-C5 の内訳（この順、2026-09-28 14:1x JST 更新）: 5-1 ✅ 記事 loop 復旧（9/19 から article-daily と article-resume が fence で停止 → 公式 RSS で公開なしを確認して close、note に 9 日ぶりの記事 https://note.com/anicca123/n/n9a76bab62e53）/ 5-2 ✅ 記事の誘導先を 1 日おきに Capafy の売れている Skill に（#6110、ct=article-<slug> で流入元計測）/ 5-3 🔧 open-seo（無料トライアル、MCP・SEO skill 11 個接続済み、残り約 457 credits、カード未登録）で Capafy の日の検索語を選ぶ / 5-4 🔧 PromptBase に毎日 1 件、人の手なしで出品する loop（同じ CloakBrowser daily-driver を lease で使用。reCAPTCHA は普段は画像なしで通る。画像の問題が出た日は解かずに引き下がり翌日再試行。CAPTCHA の自動突破はしない）/ 5-5 人の手なしで出せる別の販売先（API で出品でき CAPTCHA がない所: x402+MCP レジストリ・Gumroad・Lemon Squeezy 等）/ 5-6 Capafy IG の復旧（LoginRequired、Dais の後回し判断の見直し待ち）/ 5-7 流入元別の注文を毎日 Telegram へ。
+TODO の分け方（Dais 2026-09-28 14:3x JST）: Capafy と PromptBase は別のお店なので別の TODO。記事・自社メディアは両方を宣伝する共通の集客。新しい販売先の調査は今はしない。
+
+Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook Lab の DeepSeek 版提出 / C3 ✅ 工場の自動提出 / C5 集客（記事の誘導先を Capafy の売れている Skill に ✅ #6110、Capafy の Instagram 復旧、Skill 別・流入元別の注文を毎日 Telegram）/ C4 売上ゼロ 43 本の書き直しか取り下げ / C6 数字から LM が次の手を選ぶ / C7 実行枠の配分。
+
+PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 🔧 毎日 1 件、人の手なしで出品する loop（同じ CloakBrowser daily-driver を lease。reCAPTCHA は普段は画像なしで通る。画像が出た日は解かずに翌日再試行）/ P3 売上の毎日の読み戻し / P4 記事から PromptBase への誘導。
+
+記事・自社メディア（共通の集客）の TODO（この順）: M1 ✅ 記事 loop 復旧（note・Substack で 9 日ぶりに公開）/ M2 🔧 aniccaai.com に毎日の記事を出す（今は出ていない）、sitemap にブログ 44 本を載せる（今は 0 本）、RSS を作る / M3 🔧 open-seo（無料）で記事の検索語を選ぶ / M4 Zenn・dev.to・X の記事の再開。
 
 **Capafy の残り TODO（この順が正本。1つずつ、公式 readback で閉じる）**
 
