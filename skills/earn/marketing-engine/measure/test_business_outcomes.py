@@ -90,6 +90,21 @@ class RevenueCatContractTest(unittest.TestCase):
             0,
         )
 
+    def test_window_sum_adds_every_complete_daily_point_for_one_measure(self):
+        body = {
+            "measures": [{"display_name": "Revenue"}],
+            "values": [
+                {"cohort": 0, "measure": 0, "value": 10.0, "incomplete": False},
+                {"cohort": 1, "measure": 0, "value": 15.0, "incomplete": False},
+                {"cohort": 2, "measure": 0, "value": 99.0, "incomplete": True},
+            ],
+        }
+        self.assertEqual(outcomes.sum_complete_chart_points(body, "Revenue"), 25.0)
+
+    def test_window_sum_is_none_when_the_measure_has_no_complete_point(self):
+        body = {"measures": [{"display_name": "Revenue"}], "values": []}
+        self.assertIsNone(outcomes.sum_complete_chart_points(body, "Revenue"))
+
 
 class AppStoreContractTest(unittest.TestCase):
     def test_download_types_are_never_collapsed_into_installs(self):
@@ -133,6 +148,30 @@ class AppStoreContractTest(unittest.TestCase):
         self.assertEqual(got["date_min"], "2026-07-29")
         self.assertEqual(got["date_max"], "2026-07-30")
         self.assertEqual(got["numeric_totals"]["Counts"], 5)
+
+    def test_sales_report_multiplies_units_by_per_unit_proceeds(self):
+        rows = [
+            {"Apple Identifier": "6755129214", "Units": "3",
+             "Developer Proceeds": "0.70", "Currency of Proceeds": "USD"},
+            {"Apple Identifier": "6755129214", "Units": "1",
+             "Developer Proceeds": "1.40", "Currency of Proceeds": "USD"},
+            {"Apple Identifier": "6759667221", "Units": "5",
+             "Developer Proceeds": "0.70", "Currency of Proceeds": "USD"},
+        ]
+        summary = outcomes.summarize_asc_sales(rows, "6755129214")
+        self.assertEqual(summary["units"], 4)
+        self.assertEqual(summary["proceeds"], {"USD": 3.5})
+        self.assertEqual(summary["row_count"], 2)
+
+    def test_sales_report_with_no_activity_anywhere_is_a_successful_zero(self):
+        summary = outcomes.summarize_asc_sales([], "6755129214")
+        self.assertEqual(summary["units"], 0)
+        self.assertEqual(summary["proceeds"], {})
+
+    def test_sales_report_missing_required_column_is_rejected(self):
+        rows = [{"Apple Identifier": "6755129214", "Units": "1"}]
+        with self.assertRaisesRegex(ValueError, "Developer Proceeds"):
+            outcomes.summarize_asc_sales(rows, "6755129214")
 
 
 class AscCollectionTest(unittest.TestCase):
@@ -288,11 +327,11 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
             rows = [json.loads(line) for line in path.read_text().splitlines()]
             self.assertEqual(rows, [current])
 
-    def test_gate5_verifier_requires_four_scoped_products_and_no_fake_installs(self):
+    def test_gate5_verifier_requires_every_scoped_product_and_no_fake_installs(self):
         rows = []
         for product in outcomes.PRODUCTS:
             sources = {}
-            if product in {"anicca-ios", "honne-ai"}:
+            if "revenuecat_app_id" in outcomes.PRODUCTS[product]:
                 config = outcomes.PRODUCTS[product]
                 sources = {
                     "revenuecat": outcomes.available_source({
@@ -327,7 +366,7 @@ class AnalyticsAndSnapshotContractTest(unittest.TestCase):
             })
         report = outcomes.verify_gate5_snapshots(rows, "2026-07-30")
         self.assertTrue(report["gate_pass"])
-        self.assertEqual(report["products_verified"], 4)
+        self.assertEqual(report["products_verified"], len(outcomes.PRODUCTS))
 
         rows[0]["sources"]["app_store_connect"]["data"]["reports"]["downloads"]["data"]["installs"] = 9
         with self.assertRaisesRegex(ValueError, "ambiguous installs"):

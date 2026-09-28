@@ -54,6 +54,26 @@ PRODUCTS = {
         "revenuecat_app_id": "app3bbd298d22",
         "analytics": None,
     },
+    "breath-reset": {
+        "asc_app_id": "6760253231",
+        "revenuecat_app_id": "app498e23effc",
+        "analytics": None,
+    },
+    "sleep-ritual": {
+        "asc_app_id": "6759916261",
+        "revenuecat_app_id": "app92143da86e",
+        "analytics": None,
+    },
+    "desk-stretch-timer": {
+        "asc_app_id": "6760048397",
+        "revenuecat_app_id": "appca8d955a75",
+        "analytics": None,
+    },
+    "micro-mood": {
+        "asc_app_id": "6759877003",
+        "revenuecat_app_id": "appdda58236fa",
+        "analytics": None,
+    },
     "ebook-en": {"stripe_product_ids": ["prod_UQ2LTH66Rwict4"]},
     "ebook-ja": {"stripe_product_ids": ["prod_UQ2LrpVy4b1bAY"]},
 }
@@ -61,6 +81,7 @@ PRODUCTS = {
 RC_CHARTS = (
     "mrr",
     "actives",
+    "trials",
     "revenue",
     "trials_new",
     "churn",
@@ -158,6 +179,35 @@ def latest_complete_chart_points(body: dict[str, Any]) -> dict[str, dict[str, An
     }
 
 
+def sum_complete_chart_points(body: dict[str, Any], measure_name: str) -> float | None:
+    """Sum every complete daily value for one measure across the queried window.
+
+    A point-in-time measure (e.g. MRR, Active Subscriptions) wants
+    ``latest_complete_chart_points``; a flow measure (e.g. Revenue) wants the
+    window total, since RevenueCat's per-day values do not accumulate.
+    Returns ``None`` only when the measure has no complete daily value at all.
+    """
+    measures = body.get("measures") or [{"id": "value"}]
+    index = next(
+        (i for i in range(len(measures)) if _measure_name(measures, i) == measure_name),
+        None,
+    )
+    if index is None:
+        return None
+    total = 0.0
+    seen = False
+    for value in body.get("values", []):
+        if not isinstance(value, dict) or "value" not in value:
+            continue
+        if value.get("incomplete") is True:
+            continue
+        if int(value.get("measure", 0)) != index:
+            continue
+        total += float(value.get("value") or 0)
+        seen = True
+    return total if seen else None
+
+
 def parse_asc_tsv_gz(payload: bytes) -> list[dict[str, str]]:
     text = gzip.decompress(payload).decode("utf-8-sig")
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
@@ -241,6 +291,36 @@ def summarize_asc_table(rows: list[dict[str, str]]) -> dict[str, Any]:
     }
 
 
+def summarize_asc_sales(rows: list[dict[str, str]], apple_identifier: str) -> dict[str, Any]:
+    """Summarize one day's ASC Sales Report rows for one app.
+
+    Per Apple's Sales and Trends report reference, ``Developer Proceeds`` is
+    the per-unit proceeds amount in ``Currency of Proceeds``; a row's total is
+    ``Units * Developer Proceeds``. An empty account-wide report (no sales
+    activity anywhere that day) is a successful zero, not a schema failure.
+    """
+    if rows:
+        _required_columns(rows, {"Apple Identifier", "Units", "Developer Proceeds"})
+    matched = [row for row in rows if row.get("Apple Identifier") == apple_identifier]
+    units = 0
+    proceeds: dict[str, Decimal] = {}
+    for row in matched:
+        row_units = _integer(row.get("Units"))
+        units += row_units
+        currency = (row.get("Currency of Proceeds") or "").strip() or "unknown"
+        try:
+            per_unit = Decimal((row.get("Developer Proceeds") or "0").strip())
+        except InvalidOperation:
+            continue
+        proceeds[currency] = proceeds.get(currency, Decimal(0)) + per_unit * row_units
+    return {
+        "apple_identifier": apple_identifier,
+        "units": units,
+        "proceeds": {key: float(value) for key, value in sorted(proceeds.items())},
+        "row_count": len(matched),
+    }
+
+
 def summarize_stripe_sessions(
     sessions: Iterable[dict[str, Any]], product_ids: set[str]
 ) -> dict[str, Any]:
@@ -317,7 +397,7 @@ def verify_gate5_snapshots(rows: list[dict[str, Any]], business_date: str) -> di
     validate_snapshots(selected, set(PRODUCTS))
     by_product = {row["product_id"]: row for row in selected}
     if set(by_product) != set(PRODUCTS) or len(selected) != len(PRODUCTS):
-        raise ValueError("Gate 5 requires exactly four product snapshots")
+        raise ValueError(f"Gate 5 requires exactly {len(PRODUCTS)} product snapshots")
     unavailable: list[dict[str, str]] = []
     for product_id, config in PRODUCTS.items():
         sources = by_product[product_id]["sources"]
@@ -572,6 +652,39 @@ def _collect_asc_report(
     )
 
 
+def collect_asc_sales(
+    env: dict[str, str],
+    app_id: str,
+    business_date: str,
+    evidence_dir: Path,
+) -> dict[str, Any]:
+    """Fetch one day's account-wide ASC Sales Report and scope it to one app.
+
+    The Sales Reports API (distinct from Analytics Reports) returns every app
+    under the vendor in one gzipped TSV; ``app_id`` here is the numeric ASC
+    "Apple Identifier", used to filter rows to this product.
+    """
+    headers = {**_asc_headers(env), "Accept": "application/a-gzip"}
+    query = urllib.parse.urlencode({
+        "filter[frequency]": "DAILY",
+        "filter[reportDate]": business_date,
+        "filter[reportSubType]": "SUMMARY",
+        "filter[reportType]": "SALES",
+        "filter[vendorNumber]": env["ASC_VENDOR_NUMBER"],
+        "filter[version]": "1_1",
+    })
+    payload = _http_bytes(
+        "https://api.appstoreconnect.apple.com/v1/salesReports?" + query, headers
+    )
+    rows = parse_asc_tsv_gz(payload)
+    compact = summarize_asc_sales(rows, app_id)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence = {"app_id": app_id, "business_date": business_date, "rows": rows}
+    evidence_path = evidence_dir / f"{app_id}-sales-{business_date}.json"
+    evidence_path.write_text(json.dumps(evidence, ensure_ascii=False, sort_keys=True))
+    return {**compact, "business_date": business_date, "evidence_path": str(evidence_path)}, evidence
+
+
 def collect_revenuecat(
     env: dict[str, str],
     app_id: str,
@@ -599,6 +712,12 @@ def collect_revenuecat(
             "end_date": body.get("end_date"),
             "evidence_sha256": _json_hash(body),
         }
+        if chart == "revenue":
+            # Revenue is a flow metric: the queried window is exactly the
+            # report's 28-day window (see collect_snapshot), so summing every
+            # complete daily point gives the window total, not RevenueCat's
+            # single latest per-day value.
+            result["charts"][chart]["window_sum"] = sum_complete_chart_points(body, "Revenue")
     products = revenuecat_products(env).get(app_id, [])
     if products:
         chart = "conversion_to_paying"
@@ -684,7 +803,8 @@ def collect_snapshot(
     config = PRODUCTS[product_id]
     sources: dict[str, Any] = {}
     if "revenuecat_app_id" in config:
-        start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=34)).isoformat()
+        # 28-day inclusive window: matches the "revenue_28d" figure in the owner report.
+        start = (dt.date.fromisoformat(business_date) - dt.timedelta(days=27)).isoformat()
         try:
             data = collect_revenuecat(
                 env, config["revenuecat_app_id"], start, business_date
@@ -705,6 +825,20 @@ def collect_snapshot(
             )
         except Exception as error:
             sources["app_store_connect"] = unavailable_source(
+                "provider_query_failed", error=f"{type(error).__name__}: {error}"
+            )
+        try:
+            sales, sales_evidence = collect_asc_sales(
+                env,
+                config["asc_app_id"],
+                business_date,
+                DEFAULT_EVIDENCE / business_date / product_id,
+            )
+            sources["app_store_sales"] = available_source(
+                sales, evidence_sha256=_json_hash(sales_evidence)
+            )
+        except Exception as error:
+            sources["app_store_sales"] = unavailable_source(
                 "provider_query_failed", error=f"{type(error).__name__}: {error}"
             )
         if config.get("analytics") == "mixpanel":
