@@ -535,8 +535,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A01 | done | Same-kernel local/cloud host-adapter groundwork | `a78ab3d306`; parity unit test 3/3, AWS calls 0 |
 | A02 | done | Provider-neutral browser lease; Steel adapter integration | `5be0ff8551`; focused tests 79/79 |
 | A03 | done | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
-| A04 | **next** | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
-| A05 | todo | Read-only canary runtime package | reproducible local package; no AWS mutation |
+| A04 | done | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
+| A05 | **next** | Read-only canary runtime package | reproducible local package; no AWS mutation |
 | A06 | todo | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
 | A08 | todo | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
