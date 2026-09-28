@@ -1,0 +1,79 @@
+# 投資戦略のOSS・公開研究台帳
+
+観測日: `2026-09-28`
+
+## この台帳の役割
+
+この台帳は、投資loopへ取り込む「候補の出所」と「運用上の検証規律」を分離して記録する。公開OSSのstar数、READMEの取引量、第三者のbacktest画面、表示APR、成功談は利益証明ではない。利益の判定は、選択したStrategyCard、cost-completeなout-of-sample結果、paper/shadowとの一致、公式provider receipt、実現net P&Lで行う。
+
+この調査から、監査済みで将来利益を保証するOSS・人物・資料は見つかっていない。したがって、調査結果だけで注文、署名、送金、Binanceからの追加入金、上限拡大を行わない。
+
+## Source ledger
+
+| source_id | URL | license / status | mechanism or operational lesson | reproducibility | adopted_as |
+|---|---|---|---|---|---|
+| `oss.freqtrade` | [Freqtrade repository](https://github.com/freqtrade/freqtrade) | GPL-3.0 | strategy interface、backtest、dry-run、live運用の境界 | repoと公式docsを再読可能。コードはコピーしない | `reference` |
+| `oss.freqtrade-strategies` | [Freqtrade strategy collection](https://github.com/freqtrade/freqtrade-strategies) | GPL-3.0 | 公開strategy例の構造と、教育用・as-isという注意 | sourceとlicenseは再読可能。利益は再現未証明 | `reference` |
+| `docs.freqtrade.backtesting` | [Freqtrade backtesting](https://docs.freqtrade.io/en/stable/backtesting/) | docs | fee込みbacktest、dry-runとの差分、過去結果の限界 | 手順を自前harnessへ移植可能 | `reference` |
+| `docs.freqtrade.lookahead` | [Freqtrade lookahead-analysis](https://docs.freqtrade.io/en/stable/lookahead-analysis/) | docs | future candle参照を検出して不正なstrategyを拒否 | fixtureで再現可能 | `reference` |
+| `oss.hummingbot` | [Hummingbot repository](https://github.com/hummingbot/hummingbot) / [official docs](https://hummingbot.org/docs/) | Apache-2.0 | paper trade、controller、executor、position lifecycleの分離 | 概念を自前実装へ移植可能。実績は未監査 | `reference` |
+| `oss.nautilus` | [NautilusTrader repository](https://github.com/nautechsystems/nautilus_trader) / [strategy docs](https://nautilustrader.io/docs/latest/concepts/strategies/) | LGPL-3.0 | backtest/liveで同じstrategy sourceを使う。liveはvenue・timing・persistence・reconciliationが異なる | architectureは再現可能。venue結果は未再現 | `reference` |
+| `research.jegadeesh_titman` | [Returns to Buying Winners and Selling Losers](https://doi.org/10.1111/j.1540-6261.1993.tb04702.x) | published research | 株式の過去winner/loserに3–12か月のmomentum候補があるという研究 | 対象・期間・costを指定した再検証が必要 | `candidate` |
+| `research.bailey_overfit` | [The Probability of Backtest Overfitting](https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf) | published research | 多数の候補から最大backtestだけを選ぶとoverfitし得る。holdoutと頑健性を要求 | validation fixtureとholdout gateへ移植可能 | `reference` |
+| `reference.berkshire_letters` | [Berkshire Hathaway shareholder letters](https://www.berkshirehathaway.com/letters/letters.html) | company archive | 理解可能な事業を長期保有し、価格・価値・複利を区別するcore wealthの参照 | 考え方は参照可能。短期botのedgeは再現不能 | `reference` |
+| `benchmark.spiva_japan` | [SPIVA Japan Year-End 2024](https://www.spglobal.com/spdji/en/documents/spiva/spiva-japan-year-end-2024.pdf) | benchmark report | active運用をbenchmarkと比較する必要を示す。coreを投機loopの実績と混ぜない | 比較指標は再読可能。将来performance保証ではない | `reference` |
+| `regulator.fsa_nisa` | [金融庁 NISA investment guidance](https://www.fsa.go.jp/policy/nisa2/invest/) | regulator guidance | 長期・積立・分散をcoreの原則とし、元本割れリスクを明示 | 方針は再読可能。個別商品推奨ではない | `reference` |
+| `venue.alpaca.crypto` | [Alpaca crypto trading](https://docs.alpaca.markets/us/docs/crypto-trading) / [fees](https://docs.alpaca.markets/us/docs/crypto-fees) | official venue docs | crypto spot、注文・fee・取引可能条件をcost modelの入力にする | 実行時の公式readbackで再確認 | `reference` |
+| `venue.alpaca.paper` | [Alpaca paper trading](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading) | official venue docs | paperとliveは約定・市場影響が同じではない。paperだけで利益を断定しない | paper receiptは再現可能。live parityは未証明 | `reference` |
+| `venue.hyperliquid.carry` | [Funding](https://hyperliquid.gitbook.io/hyperliquid-docs/trading/funding) / [fees](https://hyperliquid.gitbook.io/hyperliquid-docs/trading/fees) | official venue docs | fundingの支払方向、perp/spot feeをcarryのnet計算に入れる | read-only snapshotと公式receiptで再確認 | `candidate` |
+| `venue.solana.fees` | [Solana fee structure](https://solana.com/docs/core/fees/fee-structure) | official protocol docs | base fee、priority fee、失敗transactionの費用をcopy tradeのcost modelに入れる | transaction receiptで再確認 | `reference` |
+
+## 「source says / infer / unproven」分離
+
+### Freqtrade系
+
+- **Source says:** strategyをbacktestした後にdry-runや実運用との差を検証する仕組みがあり、lookahead-analysisで未来データ参照を調べられる。strategy collectionは教育用・as-isで、対象pair・期間ごとの自前検証が必要とされている。
+- **Our inference:** Alpaca BTC/USDC候補は、同じく明示的なentry・exit・fee・lookahead検査を持つpure policyとして再実装する。GPL-3.0のstrategyファイルはコピーせず、構造と公開された一般的な指標の出典だけを記録する。
+- **Still unproven:** Freqtradeのサンプルやcollectionが、現在のBTC/USDC・5分足・Alpaca fee・この資本規模で利益を出すことは証明されていない。
+
+### Hummingbot / NautilusTrader系
+
+- **Source says:** paper/controller/executorを分離し、backtestとliveに共通のstrategy sourceを使える一方、liveではvenue、timing、persistence、reconciliationの差が残る。
+- **Our inference:** Life Managerではpure policy、effect owner、official readback、durable receiptを別境界にする。paper/shadowが通ってもliveの利益証拠とは数えない。
+- **Still unproven:** 公開repoのarchitectureを採用しても、勝てるsignal、十分な流動性、約定品質、収益は得られるとは限らない。
+
+### Momentum研究と長期core
+
+- **Source says:** Jegadeesh–Titmanは株式の3–12か月のwinner/loser momentumを研究している。Berkshireのlettersと金融庁の案内は、長期・理解可能性・分散・複利をcoreの考え方として参照できる。SPIVAはactive運用をbenchmarkと比較する文脈を提供する。
+- **Our inference:** `core-global-index-v1`と短期venue botを別ledgerにし、積立・分散のcoreを、未検証の投機P&Lや取引資金の増加根拠にしない。momentumは株式の長期候補として記録し、5分足BTC・Solanaへの直接移植は候補扱いに留める。
+- **Still unproven:** coreの長期方針でも元本割れはあり得る。momentum研究から短期cryptoの利益や`$10,000/month`を導けない。
+
+### Carry / Solana venue rules
+
+- **Source says:** Hyperliquidはfundingとfeeの公式仕様を公開し、Solanaはbase/priority feeを公開している。Alpacaはpaperとliveの差を明示している。
+- **Our inference:** 表示APRやquote priceだけでentryしない。funding、fee、slippage、bridge/model cost、失敗費用、exit費用を差し引いたnet期待値と公式receiptを要求する。Hyperliquidのlive候補は当初BTC/ETHのallowlistに限定し、Solanaはentryだけでなくmirror-sale・hard stop・time stopを先に実装する。
+- **Still unproven:** positive fundingが将来継続すること、allowlistが利益を出すこと、public-wallet copyが安全であることは未証明。高APR altcoinを選ぶ理由にはならない。
+
+## 採用境界
+
+### 採用するもの
+
+1. StrategyCardに出典URL、対象、entry、exit、cost、sizing、risk、kill条件を固定する。
+2. chronological train/validation/holdout、lookahead検査、fee/slippage込みnet P&L、隣接parameterの頑健性を通す。
+3. paper/shadow、release SHA、公式receipt、自然wake、replay-zeroを順番に要求する。
+4. Life Managerが承認済みreleaseとcap内で無人実行し、Daisへ結果だけを通知する。
+
+### 採用しないもの
+
+1. OSSのコードをライセンス確認なしにclone/copyすること。
+2. READMEのvolume、star、他人のbacktest、成功談、APR、AIの説明を利益証拠にすること。
+3. free-form modelに銘柄、threshold、exit、leverageを発明させること。
+4. entryしかなくexitがないSolana copy trade、cost未知のcarry、holdout失敗のstrategyをliveにすること。
+5. 旧Alpacaの`1/30`を、新しいStrategyCardの30-round-trip sampleへ自動的に繰り越すこと。
+
+## 現時点の結論
+
+- OSS・公開研究から得られたのは、候補ルールと検証規律であって、利益保証ではない。
+- `alpaca-btc-5m-reversion-v1`、`alpaca-btc-5m-trend-v1`、`hyperliquid-carry-v1`、`solana-copy-v1`は候補名であり、まだ`paper`にも`live_candidate`にも昇格していない。
+- 現在の次の実装cursorは、候補を機械的に表現するStrategyCard contractである。StrategyCardとcost-complete holdoutが通るまで、Binance追加資金、cap増額、live canary、30回の新規計測は開始しない。
+- `30`は「30回繰り返せば儲かる」という意味ではない。選ばれたstrategyを固定した後、無人loopが自然に生成した完了round tripを測るpromotion sampleである。
