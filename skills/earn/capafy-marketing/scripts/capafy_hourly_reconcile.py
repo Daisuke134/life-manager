@@ -743,14 +743,21 @@ def build_skill_analytics(
 
     if per_skill_rows_status == "fresh":
         def _effective_cost(row: dict) -> str | None:
-            return row["cost_30d_actual_usd"] if row["cost_30d_actual_usd"] is not None else row["cost_30d_usd"]
+            if openrouter_actual.get("status") == "fresh":
+                return row["cost_30d_actual_usd"]
+            return row["cost_30d_usd"]
 
         def _effective_profit(row: dict) -> str | None:
-            return row["profit_30d_actual_usd"] if row["profit_30d_actual_usd"] is not None else row["profit_30d_usd"]
+            if openrouter_actual.get("status") == "fresh":
+                return row["profit_30d_actual_usd"]
+            return row["profit_30d_usd"]
+
+        def _display(value: str | None) -> str:
+            return value if value is not None else "unknown"
 
         def _profit_line(row: dict) -> str:
-            return (f"{row['name']} rev ${row['net_revenue_30d_usd']} "
-                    f"cost ${_effective_cost(row)} profit ${_effective_profit(row)}")
+            return (f"{row['name']} rev ${_display(row['net_revenue_30d_usd'])} "
+                    f"cost ${_display(_effective_cost(row))} profit ${_display(_effective_profit(row))}")
 
         priced_rows = [row for row in per_skill_rows if row["stats_30d_revenue_usd"] is not None]
         top_5_by_revenue = sorted(

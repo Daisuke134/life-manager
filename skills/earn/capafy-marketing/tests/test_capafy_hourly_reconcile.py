@@ -659,6 +659,42 @@ def test_allocate_actual_cost_keeps_zero_estimate_cost_unknown() -> None:
     assert result["hook"] == "20.00"
 
 
+def test_fresh_actual_cost_gap_does_not_fallback_to_estimate_in_summary() -> None:
+    module = load_module()
+    payloads = skill_analytics_payloads()
+    payloads["seller_ranking_30d"]["data"]["agents"].append(
+        {"agentId": "222", "agentTitle": "Zero Sales Skill", "totalSalesAmount": 10.00}
+    )
+    payloads["unit_ranking_30d"]["data"]["agents"].append(
+        {"agentId": "222", "agentTitle": "Zero Sales Skill", "totalSalesVolume": 1, "freeTrialCount": 0}
+    )
+    payloads["usage_requests"] = {"rows": [
+        {"requestId": "hook-1", "agentId": "111", "agentTitle": "Hook Lab",
+         "inputUncached": 1_000_000, "cacheRead": 0, "cacheWrite": 0, "output": 0},
+        {"requestId": "zero-1", "agentId": "222", "agentTitle": "Zero Sales Skill",
+         "inputUncached": 0, "cacheRead": 0, "cacheWrite": 0, "output": 0},
+    ]}
+    payloads["agent_models"] = {
+        "111": "anthropic/claude-sonnet-4.6", "222": "anthropic/claude-sonnet-4.6",
+    }
+    payloads["model_prices"] = {
+        "anthropic/claude-sonnet-4.6": {"prompt": "0.00002", "completion": "0.000015"},
+    }
+    payloads["openrouter_activity"] = {"data": [
+        {"date": "2026-09-01", "model": "anthropic/claude-sonnet-4.6", "usage": 42.87},
+    ]}
+
+    analytics = module.build_skill_analytics(
+        payloads, skill_agent_stats(), {"111": "Claude Sonnet 4.6"}, "2026-09-27T00:00:00Z",
+    )
+
+    row = {item["agent_id"]: item for item in analytics["per_skill_rows"]}["222"]
+    assert row["cost_30d_usd"] == "0.00"
+    assert row["cost_30d_actual_usd"] is None
+    assert row["profit_30d_actual_usd"] is None
+    assert "Zero Sales Skill rev $8.00 cost $unknown profit $unknown" in analytics["telegram_summary"]
+
+
 def test_allocate_actual_cost_empty_when_actual_unavailable() -> None:
     module = load_module()
     usage_agents = [{"agent_id": "111", "model": "anthropic/claude-sonnet-4.6", "estimated_model_cost_usd": "6.00"}]
