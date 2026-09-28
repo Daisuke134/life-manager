@@ -2856,6 +2856,41 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/pm-live-trade"
     },
+    "promptbase-loop-daily": {
+      "priority": "revenue",
+      "resource_class": "browser",
+      "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "calendar_interval": {
+          "Hour": 4,
+          "Minute": 20
+        }
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "earn",
+      "effect_class": "publish",
+      "entrypoint": "skills/earn/promptbase/daily.sh",
+      "browser_identity": "interactive:dais",
+      "browser_target_owner": "promptbase-loop-daily",
+      "label": "ai.anicca.promptbase-loop-daily",
+      "log_root": "~/.local/state/life-manager/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 900,
+      "state_root": "~/.local/state/life-manager",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/promptbase/scripts/promptbase_fence_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 120
+      }
+    },
     "realtime-guide": {
       "cadence": {
         "keep_alive": true
