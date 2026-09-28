@@ -35,16 +35,22 @@ mkdir -p "$CAPAFY_STATE_DIR"
 # atomic on every POSIX fs and needs no extra binary (macOS ships no `flock` CLI) — a
 # second concurrent invocation exits immediately instead of silently corrupting the first.
 LOCK_DIR="$CAPAFY_STATE_DIR/.daily_loop.lockdir"
+# The owner pid lives inside the lock. A holder killed with its parent pass (SIGKILL
+# skips the EXIT trap) left the lock for 40 minutes on 2026-09-28, so every pass in
+# between skipped the drainer; a dead owner is stolen at once.
+take_lock() { echo "$$" >"$LOCK_DIR/pid"; trap 'rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null' EXIT; }
 if mkdir "$LOCK_DIR" 2>/dev/null; then
-  trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+  take_lock
 else
-  # stale-lock guard: a lock dir older than 40min means a prior run crashed without
-  # cleaning up (this script's own claude call is timeout-guarded at 1200s=20min) —
-  # steal it rather than wedging the loop forever.
+  # stale-lock guard: a dead owner, or a lock dir older than 40min, means a prior run
+  # crashed without cleaning up (this script's own claude call is timeout-guarded at
+  # 1200s=20min) — steal it rather than wedging the loop forever.
   AGE=$(( $(date +%s) - $(stat -f %m "$LOCK_DIR" 2>/dev/null || echo 0) ))
-  if [ "$AGE" -gt 2400 ]; then
-    rmdir "$LOCK_DIR" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null
-    trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT
+  OWNER="$(cat "$LOCK_DIR/pid" 2>/dev/null)"
+  if [ "$AGE" -gt 2400 ] || { [ -n "$OWNER" ] && ! kill -0 "$OWNER" 2>/dev/null; } \
+      || { [ -z "$OWNER" ] && [ "$AGE" -gt 60 ]; }; then
+    rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null; mkdir "$LOCK_DIR" 2>/dev/null
+    take_lock
   else
     echo "=== $TS daily_loop SKIPPED — another instance holds $LOCK_DIR (age ${AGE}s) ===" >>"$LOG"
     exit 0
