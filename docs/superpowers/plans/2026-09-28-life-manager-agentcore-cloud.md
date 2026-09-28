@@ -86,7 +86,7 @@
 
 **Produces:** a disposable read-only runtime/browser/agent-owned-profile/identity canary in `ap-northeast-1`, deployed from a pinned official CLI configuration.
 
-- [ ] **Step 1: Write the canary contract test**
+- [x] **Step 1: Write the canary contract test**
 
   Test that the script rejects missing region, non-Tokyo resource ARN, mutable/unpinned release SHA, missing runtime session ID, missing browser/profile ID, missing official usage record, or any effect other than `none`.
 
@@ -99,7 +99,7 @@
   assert.ok(result.usage_receipt_ref);
   ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
   ```bash
   node --test scripts/agentcore-cloud-canary.test.js
@@ -534,8 +534,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A00 | done | Provider decision and one live spec/plan | `7eb28dc7a6`; old plan points here |
 | A01 | done | Same-kernel local/cloud host-adapter groundwork | `a78ab3d306`; parity unit test 3/3, AWS calls 0 |
 | A02 | done | Provider-neutral browser lease; Steel adapter integration | `5be0ff8551`; focused tests 79/79 |
-| A03 | **next** | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
-| A04 | todo | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
+| A03 | done | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
+| A04 | **next** | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
 | A05 | todo | Read-only canary runtime package | reproducible local package; no AWS mutation |
 | A06 | todo | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
