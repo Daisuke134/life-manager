@@ -357,7 +357,13 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             decision = {"approved": position["action"] == "EXIT",
                         "candidate_ref": "position://BTCUSD", "gate": "position_exit" if position["action"] == "EXIT" else "position_hold",
                         "reason": position["reason"], "position_action": position["action"],
-                        "position_qty": position["qty"], "observed_at": allocator_snapshot["clock"]["timestamp"]}
+                        "policy_action": position.get("policy_action"),
+                        "strategy_id": position.get("strategy_id"),
+                        "signal_inputs": position.get("signal_inputs", {}),
+                        "expected_cost_usd": position.get("expected_cost_usd"),
+                        "release_sha": position.get("release_sha"),
+                        "position_qty": position["qty"],
+                        "observed_at": allocator_snapshot["clock"]["timestamp"]}
         else:
             if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
                 decision = {"approved": False, "candidate_ref": "NO_TRADE",
@@ -416,7 +422,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         marker = (_closing_marker(ownership, sealed) if live_positions else {
                             "entry_client_order_id": sealed["client_order_id"],
                             "entry_effect_id": sealed["effect_id"], "entry_filled_qty": "0",
-                            "status": "entry_pending", "symbol": "BTCUSD"})
+                            "status": "entry_pending", "symbol": "BTCUSD",
+                            "entry_timestamp": allocator_snapshot["clock"]["timestamp"]})
                         _atomic_json(state / "live-owned-position.json", marker)
                     effect_attempted = True
                     acknowledgement = submit_order(credentials_path=credentials_path, cli_path=cli_path,

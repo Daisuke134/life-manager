@@ -1,15 +1,16 @@
-"""Model allocation with a deterministic risk boundary."""
+"""Declared-card allocation with a deterministic risk boundary."""
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from risk_policy import evaluate_entry
+from strategy_policy import (ACTION_ENTER, ACTION_NO_TRADE, ALLOWED_ACTIONS,
+                             BTC_SYMBOLS, CANONICAL_SYMBOL, evaluate,
+                             load_selected_card)
 
 
 MAX_QUOTE_AGE_SECONDS = 30
@@ -80,50 +81,80 @@ def build_candidates(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     return candidates
 
 
-def _schema(path: Path) -> None:
-    schema = {"type": "object", "additionalProperties": False,
-              "properties": {
-                  "candidate_ref": {"type": "string"}, "probability_profit": {"type": "number"},
-                  "expected_gain_usd": {"type": "number"}, "reason": {"type": "string"}},
-              "required": ["candidate_ref", "probability_profit", "expected_gain_usd", "reason"]}
-    path.write_text(json.dumps(schema), encoding="utf-8")
-
-
 def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Path,
            runner: Path, workdir: Path) -> dict[str, Any]:
-    schema_path, evidence = state / "decision-schema.json", state / "agent-evidence"
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    _schema(schema_path)
-    prompt = (
-        "You allocate an investment account. Select exactly one candidate_ref offered below, "
-        "or NO_TRADE. Judge near-term expected value from only this snapshot; never invent market data. "
-        "probability_profit must be 0..1 and expected_gain_usd must be the upside conditional on profit. "
-        "Write reason as one concise natural Japanese sentence. "
-        "Choose NO_TRADE with both numbers 0 when evidence is inadequate.\n"
-        + json.dumps({
-            "account": snapshot["account"],
-            "available_cash_usd": snapshot.get("available_cash_usd", snapshot["account"]["cash"]),
-            "candidates": candidates,
-        }, separators=(",", ":"))
-    )
-    result = subprocess.run([
-        str(runner), "--task-class", "diagnostic-agent", "--prompt-stdin",
-        "--schema", str(schema_path), "--evidence-dir", str(evidence),
-        "--task-label", "alpaca-allocation", "--loop", "alpaca-investment",
-        "--workdir", str(workdir), "--timeout-seconds", "120", "--read-only",
-    ], input=prompt, text=True, capture_output=True, timeout=135, check=False)
-    if result.returncode != 0:
-        raise ValueError("allocation_agent_failed")
-    summary = json.loads(result.stdout.strip().splitlines()[-1])
-    decision = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
+    """Evaluate the release-pinned card; runner/workdir remain for API compatibility."""
+    del runner, workdir
+    observed_at = snapshot.get("clock", {}).get("timestamp")
+    try:
+        card, release_sha = load_selected_card(state)
+    except ValueError as error:
+        return {
+            "action": ACTION_NO_TRADE,
+            "strategy_id": None,
+            "signal_inputs": {},
+            "reason": str(error),
+            "expected_cost_usd": None,
+            "candidate_ref": "NO_TRADE",
+            "approved": False,
+            "gate": str(error),
+            "observed_at": observed_at,
+        }
+    offered = next((row for row in candidates
+                    if row.get("asset_class") == "crypto"
+                    and row.get("symbol") in BTC_SYMBOLS), None)
+    if offered is None:
+        return {
+            "action": ACTION_NO_TRADE,
+            "strategy_id": card.strategy_id,
+            "signal_inputs": {},
+            "reason": "candidate_not_offered",
+            "expected_cost_usd": None,
+            "candidate_ref": "NO_TRADE",
+            "release_sha": release_sha,
+            "approved": False,
+            "gate": "candidate_not_offered",
+            "observed_at": observed_at,
+        }
+    policy = evaluate(snapshot, card)
+    decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
     gated = gate(snapshot, candidates, decision)
-    gated["observed_at"] = snapshot["clock"]["timestamp"]
+    gated["observed_at"] = observed_at
     return gated
 
 
 def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: dict[str, Any]) -> dict[str, Any]:
     offered = {row["candidate_ref"]: row for row in candidates}
     ref = decision.get("candidate_ref")
+    if decision.get("action") in ALLOWED_ACTIONS:
+        if decision.get("action") != ACTION_ENTER:
+            return {**decision, "approved": False,
+                    "gate": f"policy_{str(decision.get('action')).lower()}"}
+        candidate = offered.get(ref)
+        if candidate is None:
+            return {**decision, "approved": False, "gate": "candidate_not_offered"}
+        try:
+            equity = float(snapshot["account"]["equity"])
+            cash = float(snapshot.get("available_cash_usd", snapshot["account"]["cash"]))
+            loss = float(candidate["max_loss_usd"])
+        except (KeyError, TypeError, ValueError):
+            return {**decision, "approved": False, "gate": "snapshot_invalid"}
+        fixed_risk = evaluate_entry(snapshot.get("risk"), candidate["max_loss_usd"])
+        checks = {
+            "quote_fresh": 0 <= candidate.get("quote_age_seconds", -1) <= MAX_QUOTE_AGE_SECONDS,
+            "spread": candidate.get("spread_fraction", MAX_SPREAD_FRACTION + 1) <= MAX_SPREAD_FRACTION,
+            "policy_cost_complete": decision.get("expected_cost_usd") is not None,
+            "fixed_risk": fixed_risk["approved"],
+            "cash_reserve": cash - loss >= equity * MIN_CASH_FRACTION,
+            "position_slot": snapshot.get("positions") == 0,
+            "order_slot": snapshot.get("open_orders") == 0,
+            "intent_slot": snapshot.get("unresolved_intents") == 0,
+            "live_instrument": candidate.get("symbol") == CANONICAL_SYMBOL,
+        }
+        approved = all(checks.values()) and candidate.get("asset_class") == "crypto"
+        return {**decision, "approved": approved, "candidate": candidate,
+                "checks": checks, "fixed_risk": fixed_risk,
+                "gate": "approved" if approved else "risk_rejected"}
     if ref == "NO_TRADE":
         return {**decision, "approved": False, "gate": "model_no_trade"}
     candidate = offered.get(ref)

@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
-import json
 import math
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -31,7 +29,7 @@ def risk(**changes):
 
 
 class FixedRiskPolicyTest(unittest.TestCase):
-    def test_allocator_prompt_exposes_usdc_backed_available_cash(self):
+    def test_allocator_requires_a_release_and_never_calls_free_form_agent(self):
         snapshot = {
             "account": {"cash": "0", "equity": "66.72"},
             "available_cash_usd": "66.72",
@@ -47,21 +45,10 @@ class FixedRiskPolicyTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            result_path = root / "result.json"
-            result_path.write_text(json.dumps({
-                "candidate_ref": "NO_TRADE", "probability_profit": 0,
-                "expected_gain_usd": 0, "reason": "根拠不足",
-            }))
-
-            def completed(args, **kwargs):
-                payload = json.loads(kwargs["input"].splitlines()[-1])
-                self.assertEqual(payload["account"]["cash"], "0")
-                self.assertEqual(payload["available_cash_usd"], "66.72")
-                return subprocess.CompletedProcess(
-                    args, 0, json.dumps({"result_path": str(result_path)}), "")
-
-            with patch.object(allocator.subprocess, "run", side_effect=completed):
-                allocator.choose(snapshot, [candidate], root / "state", Path("runner"), root)
+            result = allocator.choose(snapshot, [candidate], root / "state", Path("runner"), root)
+        self.assertFalse(result["approved"])
+        self.assertEqual(result["reason"], "strategy_release_missing")
+        self.assertFalse((root / "state" / "decision-schema.json").exists())
 
     def _provider_snapshot(self, timestamp="2026-09-06T13:59:50Z", open_orders=0):
         clock = {"is_open": True, "timestamp": timestamp}
