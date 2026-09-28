@@ -291,7 +291,8 @@ case "$POST_CP2_STATUS" in
   fi
   echo "CP3 submit attempt 1"
   VERSION_UPDATE_INFO="Updated the Agent package and workflow for this review submission."
-  CP3_OUT="$(timeout 30 "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
+  CP3_OUT="$(timeout 90 "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
+    printf '%s\n' "$CP3_OUT" | grep -vE "Deprecation|warnings.warn" | tail -5
     die "CP3 raw submit failed; do not retry an uncertain external effect"
   }
   echo "CP3 driver completed; polling official status"

@@ -13,6 +13,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from drive_checkpoint2 import (
     _RawPage,
+    _open_cp2_target,
     _bounded_page_call,
     _bounded_page_evaluate,
     _detect_cdp,
@@ -302,7 +303,13 @@ def main(argv: list[str]) -> int:
         print("RESULT: submitted")
         return 0
     cdp = _detect_cdp()
-    targets = _candidate_page_targets(cdp)
+    try:
+        targets = _candidate_page_targets(cdp)
+    except RuntimeError:
+        # Deterministic resumes never ran the CP1 agent, so no createAgent tab
+        # may exist (2026-09-28, Hook Lab v1.0.3); open the review page itself.
+        _open_cp2_target(cdp, resolved)
+        targets = _candidate_page_targets(cdp)
     page = _open_responsive_page(targets)
     try:
         page.call("Page.enable")
