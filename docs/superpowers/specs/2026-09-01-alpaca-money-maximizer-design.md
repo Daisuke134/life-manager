@@ -949,6 +949,11 @@ provider-neutral, read-only measurement boundary: it classifies owner deposits a
 fees/funding/slippage/gas/model cost exactly once, and blocks unknown, stale, or duplicate evidence. It does not
 change the frozen L05–L12 risk limits, submit broker effects, authorize funding, or mark L18 complete.
 
+The capital-promotion recommendation boundary uses only the discrete caps `$100 → $1,000 → $10,000 → $100,000`.
+It requires at least `30` completed live round trips, positive net P&L, complete cost evidence, healthy venue/risk
+state, and an explicit requested next cap. A `recommend` result is data only: `capital_expansion_allowed` stays
+false, owner authorization remains required, and a Telegram message cannot authorize or mutate the cap.
+
 ### 7.5 Product and revenue decision
 
 The long-term customer default is the **existing Life Manager Cloud / Web App**, while `local` remains the proving

@@ -158,10 +158,10 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Consumes: official measured net-P&L receipt, round-trip count, drawdown, current cap, explicit approved next cap, and venue health.
 - Produces: `recommend_next_cap(evidence, current_cap, requested_cap) -> {status: "hold"|"recommend"|"reject", current_cap_usd, next_cap_usd, reasons, evidence_ids}`. It never submits an order or changes the cap itself.
 
-- [ ] **Step 1: Write failing tests** proving current negative/one-round-trip evidence rejects expansion, paper evidence rejects expansion, unknown cost rejects expansion, and a positive fixture with `round_trips >= 30` recommends only the next discrete cap.
-- [ ] **Step 2: Implement the pure ladder** with exact caps `$100 → $1,000 → $10,000 → $100,000`; require an explicit requested cap and preserve the existing `$10` trade / `$20` daily loss gates until a separately approved risk revision exists.
-- [ ] **Step 3: Add receipt-backed promotion evidence** to the Telegram/report schema without exposing secrets or allowing a message to authorize promotion.
-- [ ] **Step 4: Run `cd skills/alpaca-investment && python3 -m unittest test_performance test_capital_ladder test_risk_policy` plus the existing investment suite, then run the app/skill parity check.**
+- [x] **Step 1: Write failing tests** proving current negative/one-round-trip evidence rejects expansion, paper evidence rejects expansion, unknown cost rejects expansion, and a positive fixture with `round_trips >= 30` recommends only the next discrete cap. Added a regression for a missing unknown-cost vector.
+- [x] **Step 2: Implement the pure ladder** with exact caps `$100 → $1,000 → $10,000 → $100,000`; require an explicit requested cap and preserve the existing `$10` trade / `$20` daily loss gates until a separately approved risk revision exists.
+- [x] **Step 3: Add receipt-backed promotion evidence** to the Telegram/report schema without exposing secrets or allowing a message to authorize promotion. The report is recommendation-only and always requires owner authorization.
+- [x] **Step 4: Run `cd skills/alpaca-investment && python3 -m unittest test_performance test_capital_ladder test_risk_policy` plus the existing investment suite, then run the app/skill parity check.** Focused tests pass `25/25`, app tests pass `3/3`, full investment discovery passes `147/147`, and parity is clean.
 - [ ] **Step 5: Commit** `feat(investment): gate capital ladder by measured net pnl`.
 
 ### Task 4: Solana read-only scout → paper → `$2–3` canary
@@ -234,13 +234,21 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
-2. Get lm-lead's registry/runtime readback for Hyperliquid.
+2. Hyperliquid read-only preflight is complete; obtain `lm-lead` owner/runtime receipt before any funding or canary.
 3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified (`fa710b6310`); its source contract is ready for venue adapters.
-4. Hyperliquid read-only preflight is complete; obtain `lm-lead` owner/runtime receipt before any funding or canary.
-5. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
-6. Implement the Solana plan only through read-only scout and paper before the `$2` canary.
+4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified; keep the cap at `$100` until its live evidence is complete.
+5. Implement the Solana plan only through read-only scout and paper before the `$2` canary.
+6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Implement the allocator and treasury rollups.
-8. Promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
+8. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
+9. Promote capital one measured step at a time; never chase the `$10k/month` number with leverage or blind deposits.
+
+### Execution order ruling
+
+The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order is now
+`Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 2 effect steps → Task 5–7`.
+The change keeps all owner-funded effects behind the missing `lm-lead`/funding receipt while allowing independent
+read-only and pure measurement work to proceed; no production registry or wallet state is changed by this reorder.
 
 ## Source References
 

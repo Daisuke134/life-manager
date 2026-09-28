@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from alpaca_cli import read_live_performance_snapshot
+from capital_ladder import recommend_next_cap
 from performance import project
 
 
@@ -62,6 +63,22 @@ def _write(path: Path, value: dict) -> None:
             pass
 
 
+def promotion_report_fields(recommendation: dict) -> dict:
+    """Return safe report fields; no Telegram message can authorize promotion."""
+    ids = recommendation.get("evidence_ids", [])
+    reasons = recommendation.get("reasons", [])
+    return {
+        "capital_expansion_allowed": False,
+        "capital_promotion_status": recommendation.get("status", "reject"),
+        "current_cap_usd": recommendation.get("current_cap_usd"),
+        "message_can_authorize": False,
+        "next_cap_usd": recommendation.get("next_cap_usd"),
+        "owner_authorization_required": True,
+        "promotion_evidence_ids": [item for item in ids if isinstance(item, str) and item],
+        "promotion_reasons": [item for item in reasons if isinstance(item, str) and item],
+    }
+
+
 def main() -> int:
     credentials, state, cli = _context()
     period_start, buy_client, sell_client = _round_trip(state / "receipts.jsonl")
@@ -71,6 +88,25 @@ def main() -> int:
     result = project(snapshot)
     if result.get("measurement_status") != "measured":
         raise ValueError("live_performance_projection_blocked")
+    recommendation = recommend_next_cap(
+        {
+            "measurement_status": result.get("measurement_status"),
+            "measurement_mode": "live",
+            "paper": False,
+            "net_pnl_usd": result.get("net_pnl_usd"),
+            "completed_round_trips": result.get("completed_round_trips"),
+            "drawdown_usd": result.get("observed_endpoint_drawdown_usd"),
+            "drawdown_limit_usd": "20.00",
+            "costs_complete": False,
+            "unknown_costs": ["funding_or_borrow_usd", "gas_usd", "model_cost_usd"],
+            "risk_breach": False,
+            "venue_health": "unknown",
+            "source_receipt_ids": result.get("source_receipt_ids", []),
+        },
+        current_cap=result.get("capital_cap_usd"),
+        requested_cap=None,
+    )
+    result["capital_promotion"] = promotion_report_fields(recommendation)
     _write(state / "performance-latest.json", result)
     print(json.dumps({key: result[key] for key in (
         "measurement_status", "net_pnl_usd", "realized_pnl_usd", "unrealized_pnl_usd",
@@ -78,6 +114,7 @@ def main() -> int:
         "gross_exposure_usd",
         "benchmark_return", "alpha_pnl_usd", "completed_round_trips",
         "statistically_supported", "capital_cap_usd", "capital_expansion_allowed", "reason",
+        "capital_promotion",
     )}, sort_keys=True, separators=(",", ":")))
     return 0
 
