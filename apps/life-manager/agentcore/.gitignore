@@ -1,3 +1,7 @@
 .env.local
 cdk.out/
 .agentcore/
+app/*/dist/
+app/*/node_modules/
+cloud_canary/
+cloud_canary.zip

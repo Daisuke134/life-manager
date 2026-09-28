@@ -107,22 +107,22 @@
 
   Expected: FAIL because the canary parser/runner is absent.
 
-- [ ] **Step 3: Pin the official CLI**
+- [x] **Step 3: Pin the official CLI**
 
   Add exact dev dependency `@aws/agentcore: 0.30.0`; do not use the legacy Python starter toolkit. Generate declarative `agentcore.json` and CDK assets under `apps/life-manager/agentcore/`. Commit generated infrastructure only after review; never commit `.env.local`, account IDs, tokens, or signed URLs.
 
-- [ ] **Step 4: Implement a read-only runtime**
+- [x] **Step 4: Implement a read-only runtime**
 
   The runtime accepts `{ tenant_id, job_id, release_sha, probe: "read_only" }`, emits its isolated filesystem/session identifiers, and exits without network effects. It does not import a second business implementation.
 
-- [ ] **Step 5: Validate and package locally**
+- [x] **Step 5: Validate and package locally**
 
   ```bash
-  npx agentcore validate
-  npx agentcore package
+  npx agentcore validate --directory . --json
+  node scripts/agentcore-cloud-canary-package.js
   ```
 
-  Expected: valid pinned config and reproducible package; no AWS mutation yet.
+  The pinned CLI `package` command delegates to Ink without terminating in a non-interactive shell. The repository wrapper calls the same exported `ConfigIO`, `resolveCodeLocation`, `validateAgentExists`, and `packCodeZipSync` APIs and exits deterministically. Expected: valid pinned config and reproducible package contents; archive bytes may differ because the upstream ZIP writer embeds timestamps. No AWS mutation yet.
 
 - [ ] **Step 6: Deploy the CL00 canary**
 
@@ -536,8 +536,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A02 | done | Provider-neutral browser lease; Steel adapter integration | `5be0ff8551`; focused tests 79/79 |
 | A03 | done | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
 | A04 | done | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
-| A05 | **next** | Read-only canary runtime package | reproducible local package; no AWS mutation |
-| A06 | todo | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
+| A05 | done | Read-only canary runtime package | Runtime 3/3, canary/package 10/10, CDK 1/1, content manifest 178/178 identical, production dependency audits 0; no AWS mutation |
+| A06 | **next** | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
 | A08 | todo | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
 | A09 | todo | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |

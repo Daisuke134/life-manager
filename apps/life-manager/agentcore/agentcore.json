@@ -7,7 +7,23 @@
     "agentcore:created-by": "agentcore-cli",
     "agentcore:project-name": "LifeManagerCloud"
   },
-  "runtimes": [],
+  "runtimes": [
+    {
+      "name": "cloud_canary",
+      "description": "Disposable read-only CL00 isolation probe",
+      "build": "CodeZip",
+      "entrypoint": "main.js",
+      "codeLocation": "agentcore/app/cloud-canary/",
+      "runtimeVersion": "NODE_22",
+      "networkMode": "PUBLIC",
+      "protocol": "HTTP",
+      "authorizerType": "AWS_IAM",
+      "lifecycleConfiguration": {
+        "idleRuntimeSessionTimeout": 900,
+        "maxLifetime": 900
+      }
+    }
+  ],
   "memories": [],
   "knowledgeBases": [],
   "credentials": [],

@@ -6,7 +6,7 @@
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
-**Current cursor:** provider decision、same-kernel unit groundwork、browser lease classificationは完了。次はCL00のTokyo read-only provider proofであり、まだAgentCore本番実装完了ではない。
+**Current cursor:** provider decision、same-kernel unit groundwork、browser lease classification、read-only canaryのlocal packageは完了。次はCL00のTokyo Runtime/Browser/Profile/Identity実環境canaryであり、まだAgentCore本番実装完了ではない。
 
 ## 1. このspecが固定すること
 
