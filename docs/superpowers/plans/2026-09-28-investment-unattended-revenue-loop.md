@@ -54,6 +54,7 @@ For generational wealth, the compounding target is explicit: at a hypothetical 8
 - Alpacaのinclusive 4時間windowが49本になる実データ形状を受け入れる修正をcommit `205630e820`としてpush済み。Alpaca suite `148/148`がgreen。ただしLife Managerのproduction releaseにまだ載ったとは扱わない。
 - 2026-09-29のread-only runtime readbackでは、registry契約は確認できるが、`selected-strategy.json`は存在せず、deterministic selectionは`NO_STRATEGY` / `validation_reports_missing`。LaunchAgentの現在releaseは`ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`で、投資のselectorを含む`205630e8208b54bb3a0760f79f04edb13a2abefe`の祖先ではない。LaunchAgent stateは`not running`。
 - 同readbackの最新runtime eventは`host_admission_deferred:resource_capacity_busy`、`status=blocked`、`effect_status=unknown`、`exit_code=75`、`next_action=retry_after_eligibility`。`multiple_processes=true`も残る。これはP&L、往復、自然terminal wakeの証拠ではなく、runtime health未完了の証拠である。
+- **候補戦略の公式replay（2026-09-29）**: read-only Alpaca paper BTC/USDC 5分足は `6,855` bars（返却範囲 `2026-08-30T00:00:00Z`–`2026-09-28T15:30:00Z`、raw SHA-256 `283ca45e9b14e8573120b7a3d73bba8b51700878626097465f4349d66801c5a0`）。reversionはholdout `-$0.89` / 12 trades、trendは `-$0.08` / 1 tradeで、両方とも費用後holdoutと9点sensitivity gateに失敗した。これは口座P&Lではなく、StrategyCard選定を止める証拠である。
 
 ```mermaid
 flowchart LR
@@ -112,10 +113,10 @@ flowchart LR
 
 Life Managerのregistry/state receipt must expose `run_id`, `owner_id=alpaca-investment-live`, `occurrence_id`, `release_sha`, loaded entrypoint, cadence, state root, phase, command, `exit_code`, `effect`, official `readback`, `provider_receipt_id`, `evidence_refs`, `error_class`, `retryable`, and `next_action`.
 
-- [ ] **Step 1: Verify the Life Manager contract.** Read the registry entry and current state; require the expected 300-second cadence, `skills/alpaca-investment/run.py`, effect reconcile, and the release containing `205630e820`. Read-only result: registry contract passes, but the currently loaded release is `ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`, not the investment release, and the LaunchAgent is `not running`; hold as `strategy_release_missing`.
+- [ ] **Step 1: Verify the Life Manager contract.** Read the registry entry and current state; require the expected 300-second cadence, `skills/alpaca-investment/run.py`, effect reconcile, and the release containing the latest investment validation boundary (`2b5ea444b7`). Read-only result: registry contract passes, but the currently loaded release is `ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`, not the investment release, and the LaunchAgent is `not running`; hold as `strategy_release_missing`.
 - [ ] **Step 2: Remove runtime blockers.** Resolve the current `resource_capacity_busy` deferrals and any active duplicate writer; investigate the historical `No space left on device` and `alpaca_crypto_history_invalid` evidence. Keep the cap at `$100` and do not manually wake the loop. Current evidence is blocked admission plus `multiple_processes=true`; no restart or runtime mutation was performed.
 - [ ] **Step 3: Verify one natural Life Manager wake.** Require one terminal event with the expected release, single writer, pre-effect journal, official broker readback, durable state receipt, and Telegram delivery. A deferred, install-only, or typed hold is not a trade sample. No qualifying event exists in the current readback.
-- [ ] **Step 4: Update the three spec files.** Record the exact Life Manager event, release, blocker/readback, and whether the next task is natural P&L verification. The read-only result is recorded here, in the primary investment plan, and in the SSOT; Task 8 remains incomplete.
+- [x] **Step 4: Update the three spec files.** Record the exact Life Manager event, release, blocker/readback, and whether the next task is natural P&L verification. The read-only result is recorded here, in the primary investment plan, and in the SSOT; Task 8 remains incomplete.
 
 ### Task 3: Prove one natural unattended runtime wake
 
@@ -222,9 +223,9 @@ Life Managerのregistry/state receipt must expose `run_id`, `owner_id=alpaca-inv
 
 ## Execution order and next cursor
 
-The actual execution order is `① Life Manager runtime health → ② natural Alpaca wake → ③ official cost-complete P&L/report → ④ conditional sample gate → ⑤ one-step promotion → ⑥ Hyperliquid read-only/shadow → ⑦ Solana read-only/paper → ⑧ tiny canary only after positive evidence → ⑨ rolling $10k verification → ⑩ settled-surplus wealth ledger`.
+The actual execution order is `① Life Manager runtime health (NO_TRADE-safe) → ② produce a passing release-pinned StrategyCard report → ③ natural Alpaca wake → ④ official cost-complete P&L/report → ⑤ conditional 30-round-trip sample gate → ⑥ one-step promotion → ⑦ Hyperliquid read-only/shadow → ⑧ Solana read-only/paper → ⑨ tiny canary only after positive evidence → ⑩ rolling $10k verification → ⑪ settled-surplus wealth ledger`. The current two cards fail step ②, so steps ③–⑪ remain closed.
 
-The finite cross-venue code task is complete at `3a4a6cacae`, and the Alpaca data-window fix is pushed at `205630e820`. The immediate cursor is **Task 2 Step 1: verify Life Manager's loaded release and repair the current runtime blockers**. The read-only check found the registry row but no selected strategy, a non-investment loaded release, `not running`, and blocked capacity events; no qualifying natural wake exists. The `29` number is conditional evidence collection, not a command to execute 29 trades.
+The finite cross-venue code task is complete at `3a4a6cacae`, and the current validation-boundary commits are `ba235e66c0` / `2b5ea444b7`. The immediate cursor is **Task 2 Step 1: verify Life Manager's loaded release and repair the current runtime blockers**, while the strategy gate remains a separate fail-closed dependency because both current cards are rejected. The read-only check found the registry row but no selected strategy, a non-investment loaded release, `not running`, and blocked capacity events; no qualifying natural wake exists. The `29` number is conditional evidence collection, not a command to execute 29 trades.
 
 ## Completion definition
 

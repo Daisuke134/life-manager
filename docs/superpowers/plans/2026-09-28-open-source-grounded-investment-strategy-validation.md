@@ -119,6 +119,7 @@
 - [x] **Step 4: Add validation gates.** Use chronological `60% train / 20% validation / 20% holdout` with no shuffle. A candidate can become `paper` only if holdout net is positive after costs, max drawdown is within the card, no lookahead is detected, and at least 5 of 9 one-step neighboring parameter configurations retain positive net P&L with the median positive. Otherwise return `decision=rejected` with the failed gate; do not invent a new StrategyCard status.
 - [x] **Step 5: Run focused and full investment-core tests.** Focused validation `8/8`, investment-core discovery `82/82`, and `py_compile` pass; the evaluator returns sanitized reports, stores nothing in the repo, and imports no credentials/provider effects. Later runtime code owns persistence under the external Life Manager state root.
 - [x] **Step 6: Commit.** Commit `e990d03c22` is pushed on the dedicated investment branch.
+- [x] **Step 7: Close the official-data boundary.** The evaluator now supports the declared Alpaca indicator expressions, supplies `entry_price`/`age_bars` only while a position is open, and builds features from contiguous official-bar segments without filling missing five-minute bars. Core discovery is `91/91`, Alpaca discovery is `164/164`, and commits `ba235e66c0` and `2b5ea444b7` are pushed. No credential, order, or provider-effect code was added to the evaluator.
 
 ### Task 4: Replace Alpaca free-form selection with declared candidates
 
@@ -209,6 +210,8 @@
 - [x] **Step 4: Record the selected card or `NO_STRATEGY` in the primary plan, detailed plan, and SSOT.** Current read-only state has no complete validation reports and no `selected-strategy.json`; the deterministic result is `NO_STRATEGY` / `validation_reports_missing`, so no card or effect permission is selected.
 - [x] **Step 5: Commit and push the evidence boundary.** Commits `b1b050793e` and `8bee56babb` are pushed on the dedicated investment branch; no order, signing, funding, or capital-cap change occurred.
 
+**Official candidate replay (`2026-09-29`)**: read-only Alpaca paper-data queries covered BTC/USDC 5-minute bars from `2026-08-30T00:00:00Z` through the latest returned bar `2026-09-28T15:30:00Z` (`6,855` bars, `22` bounded queries, raw SHA-256 `283ca45e9b14e8573120b7a3d73bba8b51700878626097465f4349d66801c5a0`). With the declared fee/slippage model, `alpaca-btc-5m-reversion-v1` measured `30/8/12` train/validation/holdout trades and holdout net `-$0.89`; `alpaca-btc-5m-trend-v1` measured `7/5/1` and holdout net `-$0.08`. Both are `decision=rejected` for `holdout_net_non_positive` and incomplete nine-point sensitivity. No candidate is selected, no validation report is persisted as a passing report, and the runtime selector remains fail-closed `NO_STRATEGY`.
+
 ### Task 8: Resume Life Manager unattended runtime only after strategy selection
 
 **Files:**
@@ -220,10 +223,10 @@
 
 - A natural event must expose `strategy_id`, `release_sha`, loaded argv/env, `run_id`, `occurrence_id`, official provider readback, cost-complete P&L, durable receipt, Telegram provider ID, `error_class`, `retryable`, and `next_action`.
 
-- [ ] **Step 1: Verify the selected strategy release is loaded.** A stale release or missing card is a typed hold, not a sample. Read-only result (`2026-09-29`): the registry contract is present (`300s`, `skills/alpaca-investment/run.py`, `alpaca-investment-live`), but `selected-strategy.json` is absent and deterministic selection remains `NO_STRATEGY` / `validation_reports_missing`. The loaded LaunchAgent release is `ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`; it is not an ancestor of the investment release `205630e8208b54bb3a0760f79f04edb13a2abefe` and does not contain the selector. The typed result is `strategy_release_missing`.
+- [ ] **Step 1: Verify the selected strategy release is loaded.** A stale release or missing card is a typed hold, not a sample. Read-only result (`2026-09-29`): the registry contract is present (`300s`, `skills/alpaca-investment/run.py`, `alpaca-investment-live`), but `selected-strategy.json` is absent and deterministic selection remains `NO_STRATEGY` / `validation_reports_missing`. The loaded LaunchAgent release is `ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`; it is not the latest investment-branch commit `2b5ea444b7` and does not contain the selector. The typed result is `strategy_release_missing`.
 - [ ] **Step 2: Repair current `resource_capacity_busy`, duplicate-writer, stale-release, and active state blockers.** No manual wake, restart, funding, or cap increase. Read-only result: the latest runtime events include `host_admission_deferred:resource_capacity_busy`, `status=blocked`, `effect_status=unknown`, `exit_code=75`, `next_action=retry_after_eligibility`; repeatability still reports `multiple_processes=true`. The current LaunchAgent readback is `not running`, so no runtime mutation was performed in this investment lane.
 - [ ] **Step 3: Verify one natural terminal wake and replay-zero delivery.** No qualifying wake exists after the release readback: the latest observed event is an install-plan event, not a natural terminal investment run. Deferred/typed-hold events do not count as a trade sample or P&L receipt.
-- [ ] **Step 4: Record the exact runtime evidence in all investment specs.** This read-only result is recorded in the primary plan, unattended-runtime plan, and SSOT; the cursor remains Task 8 until a selected release and a qualifying natural terminal wake exist.
+- [x] **Step 4: Record the exact runtime evidence in all investment specs.** This read-only result is recorded in the primary plan, unattended-runtime plan, and SSOT; Task 8 remains incomplete until a selected release and a qualifying natural terminal wake exist.
 
 ### Task 9: Measure the selected Alpaca strategy, then cross-venue evidence
 

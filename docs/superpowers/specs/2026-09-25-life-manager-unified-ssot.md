@@ -554,6 +554,7 @@ TODO（何を・どう直すか）
 - [ ] 8-3 receipt id 付きのループ別 P&L を毎日出す
 - [ ] 8-4 投資アダプタの段階的な追加（Foundation spec 3186-3212 行の ladder: read-only scout → 過去データでの評価 → paper → 本番口座での shadow → 最小額の live canary → 公式の決済確認 → 再現性の確認 → 上限付きの拡大、または rollback）。現状は `alpaca-investment-live`（株と24時間の crypto）だけが live で、最新公式readbackは往復1回 net -$0.15、拡大は禁止（`net_negative_and_statistically_unsupported`）
   - [~] 8-4a Alpaca: 最新の公式readbackは往復1回、net -0.15 USD（realized -0.10、unrealized -0.05、fees 0.01、slippage 0.00）。統計的な根拠はなく、30往復ゲートの1/30。拡大は禁止のまま。モデル/cloud のコストは8-2待ち
+  - [~] 8-4a research gate（2026-09-29）: 公式paper BTC/USDC 5分足のread-only replayは6,855 bars（2026-08-30T00:00:00Z–2026-09-28T15:30:00Z、raw SHA-256 `283ca45e9b14e8573120b7a3d73bba8b51700878626097465f4349d66801c5a0`）。reversionはholdout net -$0.89 / 12 trades、trendは -$0.08 / 1 tradeで、両方cost-complete holdoutと9点sensitivity gateに不合格。これは口座P&Lではなく、選定を止める証拠。選択結果は`NO_STRATEGY`のまま。
   - [ ] 8-4b Polymarket（`pm-decision-loop` / `pm-live-trade`）: admission 待ちを解消し、同じ ladder の現在の段を readback する
   - [ ] 8-4c Hyperliquid: read-only scout → paper → shadow。signing key は credential SSOT で管理する。`hyperliquid-trading-agent` のリポジトリはライセンスが無く監査もされていないので、参考にするだけでコードは使わない
   - [ ] 8-4d 株（Alpaca 以外の venue を含む）: 同じ ladder
@@ -561,16 +562,17 @@ TODO（何を・どう直すか）
   - [ ] 8-4g cross-venue/rolling: Life Manager runtimeのowner/runtime admission receipt（entrypoint、cadence、state root、release、公式readback）を取得するまで、30日計測・資金供給・promotionを開始しない。最新監査ではcross-venue registry row、owner cadence receipt、launchd label、daily state receiptが未確認。`apps/life-manager/investment-core/cross_venue_run.py` の有限read-only entrypointは実装済みだが、owner admission済みとは扱わない
 **Investment remaining TODO（2026-09-29、canonical、未完了だけ）**: Life Managerが投資loopのownerである。公開研究・OSS・公式venue仕様の調査と研究台帳は完了済みなので、以下の残TODOには再掲しない。上にある旧`8-4`監査行、完了済みtask、旧agent label表現は履歴・証拠メモであり、この一覧の代わりに使わない。実行順の正本は [`docs/superpowers/plans/2026-09-28-open-source-grounded-investment-strategy-validation.md`](../plans/2026-09-28-open-source-grounded-investment-strategy-validation.md) である。
 
-1. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。
-2. **Natural official P&L proof** — pre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
-3. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixtureは数えない。
-4. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
-5. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
-6. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
-7. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
-8. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
+1. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。strategy未選定中は`NO_TRADE`安全境界で確認する。
+2. **Passing StrategyCard and deterministic selection** — 現行2カードは公式replayでholdout netがreversion `-$0.89`、trend `-$0.08`となり不合格。新しい候補を根拠・cost・holdout・sensitivity付きで検証し、通過したreleaseだけを選択する。目的: 赤字戦略を自動運転・資金投入しない。
+3. **Natural official P&L proof** — 選定後にpre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
+4. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixture・historical replayは数えない。
+5. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
+6. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
+7. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
+8. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
+9. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
 
-**Current cursor**: `1. Life Manager runtime health`。Task 7のdeterministic selectionは実装・focused selection `8/8`・investment-core `89/89`・Alpaca `162/162`・commit `b1b050793e` / `8bee56babb`まで完了したが、read-only現状にはcomplete validation reportが無く、選定結果は`NO_STRATEGY`（`validation_reports_missing`）、selected card/releaseは無い。Life Managerのregistry契約（`alpaca-investment-live`、300秒、`skills/alpaca-investment/run.py`）は確認できる一方、LaunchAgentは`not running`、loaded releaseは`ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`で投資selectorを含むreleaseではなく、最新イベントは`resource_capacity_busy`のblocked（`effect_status=unknown`、`exit_code=75`）である。よってTask 8 Step 1–3は未完了で、自然terminal wake、公式P&L、30往復サンプルは増えていない。Hyperliquid bounded carryはTask 5、Solana explicit exitsはTask 6として完了済み。どのcardも承認済みlive戦略ではない。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryは残TODOが通るまで実施しない。旧agent label表現はactive dependencyにしない。
+**Current cursor**: `1. Life Manager runtime health`。Task 7のdeterministic selection実装と現行検証器は完了したが、2026-09-29の公式replayでreversion/trendの両カードがholdout net不合格となったため、通過するStrategyCard/releaseは無く、選定結果は`NO_STRATEGY`（runtime readbackは`validation_reports_missing`）、selected card/releaseも無い。Life Managerのregistry契約（`alpaca-investment-live`、300秒、`skills/alpaca-investment/run.py`）は確認できる一方、LaunchAgentは`not running`、loaded releaseは`ffddd3c8dd72fa312177f34b193b2cfb1b65ccd9`で投資selectorを含む最新境界commit `2b5ea444b7`ではなく、最新イベントは`resource_capacity_busy`のblocked（`effect_status=unknown`、`exit_code=75`）である。よってTODO 1–3は未完了で、自然terminal wake、公式P&L、30往復サンプルは増えていない。Hyperliquid bounded carryはTask 5、Solana explicit exitsはTask 6として完了済み。どのcardも承認済みlive戦略ではない。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryは残TODOが通るまで実施しない。旧agent label表現はactive dependencyにしない。
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）
