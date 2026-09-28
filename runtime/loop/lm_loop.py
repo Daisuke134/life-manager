@@ -1350,6 +1350,146 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
     return set(candidates)
 
 
+FENCE_RECONCILE_LOG = Path(os.path.expanduser(
+    "~/.local/state/life-manager/lm-fence-reconciler/reconcile-calls.jsonl"))
+DIAGNOSIS_DETAIL_CHARS = 600
+
+
+def _last_adapter_calls(log_path: Path) -> dict[str, dict]:
+    """Latest lm-fence-reconciler adapter call per fenced occurrence."""
+    latest: dict[str, dict] = {}
+    try:
+        with log_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(row, dict) and isinstance(row.get("occurrence_id"), str):
+                    latest[row["occurrence_id"]] = row
+    except OSError:
+        return {}
+    return latest
+
+
+def _adapter_verdict(call: dict) -> dict:
+    """Project the adapter's own provider-side readback out of its stdout tail."""
+    tail = call.get("stdout_tail") if isinstance(call.get("stdout_tail"), str) else ""
+    detail: dict = {}
+    marker = None
+    for line in tail.splitlines():
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict):
+                detail = value
+        elif "=" in line and " " not in line:
+            marker = line
+    keep = ("reason", "verified", "proof_type", "resolved", "official_readback_ref",
+            "provider_receipt_id", "platform_status", "admission_state", "evidence")
+    if not detail:
+        # The reconciler keeps only a tail, so the JSON head is often cut off.
+        for key, raw in re.findall(r'"(\w+)": ("(?:[^"\\]|\\.)*"|true|false|null|-?\d+)', tail):
+            if key in keep:
+                detail[key] = json.loads(raw)
+    return {
+        "adapter_exit_code": call.get("exit_code"),
+        "closed": call.get("closed"),
+        "marker": marker,
+        **{key: detail[key] for key in keep if key in detail},
+        **({} if detail.get("reason") else {"stdout_tail": tail[-DIAGNOSIS_DETAIL_CHARS:]}),
+    }
+
+
+def effect_unknown_diagnosis(loop_id: str, entry: dict, occurrences: tuple[str, ...],
+                             *, journal_rows: list[dict] | None,
+                             adapter_calls: dict[str, dict]) -> dict:
+    """Explain the newest live effect fence: cause run, provider state, next step."""
+    occurrence_id = occurrences[-1]
+    cause = None
+    if journal_rows is not None:
+        matching = [row for row in journal_rows if row.get("occurrence_id") == occurrence_id]
+        terminal = [row for row in matching if row.get("status") != "running"]
+        chosen = (terminal or matching or [None])[-1]
+        if chosen is not None:
+            detail = chosen.get("error_detail")
+            cause = {
+                "run_id": chosen.get("run_id"),
+                "timestamp": chosen.get("timestamp"),
+                "release_sha": chosen.get("release_sha"),
+                "failed_phase": chosen.get("phase"),
+                "status": chosen.get("status"),
+                "error_class": chosen.get("error_class"),
+                "exit_code": chosen.get("exit_code"),
+                "error_detail": (detail[-DIAGNOSIS_DETAIL_CHARS:]
+                                 if isinstance(detail, str) else None),
+                "effect_identity_status": chosen.get("effect_identity_status"),
+                "evidence_refs": chosen.get("evidence_refs"),
+            }
+    call = adapter_calls.get(occurrence_id)
+    has_adapter = isinstance(entry.get("effect_reconcile"), dict)
+    provider_state = _adapter_verdict(call) if call else None
+    if not has_adapter:
+        next_action = ("no_readback_adapter: add effect_reconcile to config/loop-registry.json "
+                       "or close with an official provider receipt")
+    elif call is None:
+        next_action = "await_lm_fence_reconciler_pass"
+    elif call.get("closed"):
+        next_action = "closed_by_adapter"
+    else:
+        reason = (provider_state or {}).get("reason") or (provider_state or {}).get("marker")
+        next_action = f"adapter_held:{reason}" if reason else "adapter_held:inspect_provider_state"
+    return {
+        "fenced_occurrences": len(occurrences),
+        "occurrence_id": occurrence_id,
+        "cause_run": cause if cause is not None else (
+            "journal_unavailable" if journal_rows is None else "cause_event_not_in_current_journal"),
+        "provider_state": provider_state if provider_state is not None else (
+            "no_adapter" if not has_adapter else "adapter_not_run_yet"),
+        "next_action": next_action,
+    }
+
+
+def _attach_effect_unknown_diagnosis(rows: list[dict], registry: dict,
+                                     occurrences: dict[str, tuple[str, ...]]) -> list[dict]:
+    fenced = [row for row in rows if occurrences.get(row.get("loop_id"))]
+    if not fenced:
+        return rows
+    adapter_calls = _last_adapter_calls(FENCE_RECONCILE_LOG)
+    wanted_by_path: dict[Path, set[str]] = {}
+    for row in fenced:
+        state_root = registry["loops"].get(row["loop_id"], {}).get("state_root")
+        if isinstance(state_root, str) and state_root:
+            path = Path(os.path.expanduser(state_root)) / "events.jsonl"
+            wanted_by_path.setdefault(path, set()).add(occurrences[row["loop_id"]][-1])
+    journals: dict[Path, list[dict] | None] = {}
+    occurrence_field = re.compile(r'"occurrence_id": ?"([^"]+)"')
+    for path, wanted in wanted_by_path.items():
+        # Parse only rows for the fences being explained; journals are large.
+        try:
+            with path.open(encoding="utf-8") as handle:
+                journals[path] = [
+                    json.loads(line) for line in handle
+                    if (match := occurrence_field.search(line)) and match.group(1) in wanted
+                ]
+        except (OSError, UnicodeError, ValueError):
+            journals[path] = None
+    for row in fenced:
+        loop_id = row["loop_id"]
+        entry = registry["loops"].get(loop_id, {})
+        state_root = entry.get("state_root")
+        journal_rows = None
+        if isinstance(state_root, str) and state_root:
+            journal_rows = journals.get(Path(os.path.expanduser(state_root)) / "events.jsonl")
+        row["admission_effect_unknown_diagnosis"] = effect_unknown_diagnosis(
+            loop_id, entry, occurrences[loop_id],
+            journal_rows=journal_rows, adapter_calls=adapter_calls)
+    return rows
+
+
 def snapshot(registry: dict, target: str) -> list[dict]:
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
@@ -1357,18 +1497,20 @@ def snapshot(registry: dict, target: str) -> list[dict]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         loaded, disabled, events, releases, _ = collect_live(
             selected_registry, full_inventory=False)
-        return status_rows(
+        return _attach_effect_unknown_diagnosis(status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
             admission_effect_unknown=admission_unknown_owners,
-            admission_effect_unknown_occurrences=admission_unknown_occurrences)
+            admission_effect_unknown_occurrences=admission_unknown_occurrences),
+            registry, admission_unknown_occurrences)
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
         admission_effect_unknown=admission_unknown_owners,
         admission_effect_unknown_occurrences=admission_unknown_occurrences)
-    return _select(rows, target)
+    return _attach_effect_unknown_diagnosis(
+        _select(rows, target), registry, admission_unknown_occurrences)
 
 
 def browser_resolution(registry: dict, target: str, *, browser_registry: str | None = None,
