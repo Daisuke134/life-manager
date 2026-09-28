@@ -719,7 +719,9 @@ def test_live_payloads_fetches_activity_with_management_key(monkeypatch: pytest.
     assert payloads["openrouter_activity"] == {"data": []}
 
 
-def test_live_payloads_skips_activity_without_management_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_payloads_skips_activity_without_management_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     module = load_module()
     observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
     monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
@@ -728,11 +730,70 @@ def test_live_payloads_skips_activity_without_management_key(monkeypatch: pytest
     monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
     monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
     monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {"data": {}})
+    monkeypatch.setenv("LIFE_MANAGER_ENV_FILE", str(tmp_path / "missing.env"))
     monkeypatch.delenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", raising=False)
 
     payloads = module._live_payloads(Path("/tmp"), observed)
 
     assert payloads["openrouter_activity"] == {"_error": "key_unavailable"}
+
+
+def test_live_payloads_reads_management_key_from_life_manager_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    calls = []
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "CAPAFY_OPENROUTER_MANAGEMENT_KEY=mgmt-from-file\n"
+        "CAPAFY_HOST_OPENROUTER_KEY=host-from-file\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("LIFE_MANAGER_ENV_FILE", str(env_file))
+    monkeypatch.delenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", raising=False)
+    monkeypatch.delenv("CAPAFY_HOST_OPENROUTER_KEY", raising=False)
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(
+        module,
+        "_openrouter_data",
+        lambda path, token="": calls.append((path, token)) or {"data": []},
+    )
+
+    module._live_payloads(Path("/tmp"), observed)
+
+    assert ("/activity", "mgmt-from-file") in calls
+    assert ("/key", "host-from-file") in calls
+
+
+def test_live_payloads_prefers_process_management_key_over_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    calls = []
+    env_file = tmp_path / ".env"
+    env_file.write_text("CAPAFY_OPENROUTER_MANAGEMENT_KEY=file-key\n", encoding="utf-8")
+    monkeypatch.setenv("LIFE_MANAGER_ENV_FILE", str(env_file))
+    monkeypatch.setenv("CAPAFY_OPENROUTER_MANAGEMENT_KEY", "process-key")
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(
+        module,
+        "_openrouter_data",
+        lambda path, token="": calls.append((path, token)) or {"data": []},
+    )
+
+    module._live_payloads(Path("/tmp"), observed)
+
+    assert ("/activity", "process-key") in calls
 
 
 def test_token_reads_the_publisher_runtime_config(tmp_path, monkeypatch):

@@ -29,6 +29,41 @@ SKILL_STATS_CAP = 60  # ponytail: sequential per-agent calls, raise if catalog g
 SKILL_STATS_DELAY_SECONDS = 0.15
 
 
+def _runtime_env() -> dict[str, str]:
+    """Read simple Life Manager dotenv assignments without executing the file."""
+    configured = os.environ.get("LIFE_MANAGER_ENV_FILE")
+    if configured:
+        path = Path(configured).expanduser()
+    else:
+        state_home = os.environ.get(
+            "LIFE_MANAGER_STATE_HOME", str(Path.home() / ".local/state/life-manager")
+        )
+        path = Path(state_home).expanduser() / ".env"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        name = name.strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        values[name] = value
+    return values
+
+
 def _money(value: Any) -> str | None:
     try:
         amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -985,6 +1020,7 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
                    *, seller_start_date: dt.date | None = None) -> dict[str, dict]:
     token = _token(repo_root)
     web_token = _web_token()
+    runtime_env = _runtime_env()
     if not token:
         return {name: {"_error": "access_token_unavailable"} for name in SOURCE_NAMES}
     start = (observed.date() - dt.timedelta(days=89)).isoformat()
@@ -1050,14 +1086,18 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
     payloads["model_prices"] = (
         {row["id"]: row.get("pricing", {}) for row in model_rows if isinstance(row, dict) and row.get("id")}
         if isinstance(model_rows, list) else {})
-    key = os.environ.get("CAPAFY_HOST_OPENROUTER_KEY", "")
+    key = os.environ.get("CAPAFY_HOST_OPENROUTER_KEY") or runtime_env.get(
+        "CAPAFY_HOST_OPENROUTER_KEY", ""
+    )
     key_result = _openrouter_data("/key", key) if key else {"_error": "key_unavailable"}
     key_data = _data(key_result) if _ok(key_result) else None
     payloads["openrouter_usage"] = (
         {"data": {"usage_monthly": key_data.get("usage_monthly")}}
         if isinstance(key_data, dict) else {"_error": "key_usage_unavailable"})
     # Real billed spend (the host key gets 403 on /activity; only the management key can read it).
-    management_key = os.environ.get("CAPAFY_OPENROUTER_MANAGEMENT_KEY", "")
+    management_key = os.environ.get("CAPAFY_OPENROUTER_MANAGEMENT_KEY") or runtime_env.get(
+        "CAPAFY_OPENROUTER_MANAGEMENT_KEY", ""
+    )
     payloads["openrouter_activity"] = (
         _openrouter_data("/activity", management_key) if management_key else {"_error": "key_unavailable"})
     return payloads
