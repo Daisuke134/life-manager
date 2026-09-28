@@ -561,20 +561,19 @@ TODO（何を・どう直すか）
   - [ ] 8-4g cross-venue/rolling: `lm-lead` のowner/runtime admission receipt（entrypoint、cadence、state root、release、公式readback）を取得するまで、30日計測・資金供給・promotionを開始しない。最新監査ではcross-venue registry row、owner cadence receipt、launchd label、daily state receiptが未確認。`apps/life-manager/investment-core/cross_venue_run.py` の有限read-only entrypointは実装済みだが、owner admission済みとは扱わない
 **Investment remaining TODO（2026-09-28、canonical、未完了だけ）**: Life Managerが投資loopのownerである。公開研究・OSS・公式venue仕様の調査と研究台帳は完了済みなので、以下の残TODOには再掲しない。上にある旧`8-4`監査行、完了済みtask、`lm-lead`表現は履歴・証拠メモであり、この一覧の代わりに使わない。実行順の正本は [`docs/superpowers/plans/2026-09-28-open-source-grounded-investment-strategy-validation.md`](../plans/2026-09-28-open-source-grounded-investment-strategy-validation.md) である。
 
-1. **Alpaca declared policy** — BTC/USDC専用のreversion/trend候補をpure policy化し、free-form model選択を外す。目的: 何を買い、いつ売るかを固定する。
-2. **Hyperliquid bounded carry** — BTC/ETH allowlist、funding−fee−slippage−その他costのnet判定、hedge mismatch exitを実装する。目的: 高APR altcoin追跡を防ぐ。
-3. **Solana explicit exits** — mirror-sale、hard stop、time stop、token delta、fee receipt、replay-zeroを実装する。目的: entryだけで損失を放置するloopを防ぐ。
-4. **Deterministic strategy selection** — validation reportから1つのcard、または`NO_STRATEGY`だけを選び、release SHAに固定する。目的: 根拠のないAI判断で注文しない。
-5. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。
-6. **Natural official P&L proof** — pre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
-7. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixtureは数えない。
-8. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
-9. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
-10. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
-11. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
-12. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
+1. **Hyperliquid bounded carry** — BTC/ETH allowlist、funding−fee−slippage−その他costのnet判定、hedge mismatch exitを実装する。目的: 高APR altcoin追跡を防ぐ。
+2. **Solana explicit exits** — mirror-sale、hard stop、time stop、token delta、fee receipt、replay-zeroを実装する。目的: entryだけで損失を放置するloopを防ぐ。
+3. **Deterministic strategy selection** — validation reportから1つのcard、または`NO_STRATEGY`だけを選び、release SHAに固定する。目的: 根拠のないAI判断で注文しない。
+4. **Life Manager runtime health** — selected release、single-writer、capacity、stale state、effect fenceを自然wakeで確認・修正する。目的: babysittingなしでloopを動かす。
+5. **Natural official P&L proof** — pre-effect journal、provider readback、durable receipt、fee込みnet P&L、通知、replay-zeroを1自然runで証明する。目的: 実際に稼働し、いくら儲かったかを確認する。
+6. **Selected Alpaca 30-round-trip sample** — cardとcapを固定し、自然に完了したround tripだけを`30/30`へ数える。目的: 戦略固定後の再現性を測る。wake回数・paper結果・fixtureは数えない。
+7. **Cross-venue receipts and promotion** — 日次receiptを揃え、deterministic gate通過時だけcapを1段階上げる。目的: 収益と昇格を公式証拠に結びつける。
+8. **Hyperliquid shadow / 14-day evidence** — funded leg前にread-only/shadowでfunding、hedge、cost、reconciliationを確認する。目的: carryが費用後に残るかを測る。
+9. **Solana paper / canary** — prior positive venue、explicit exit、complete RPC receiptの後だけpaperから最小canaryへ進む。目的: 最も高リスクなvenueを最後に限定する。
+10. **Rolling `$10,000/month` verification** — official realized net P&Lのrolling 30日だけで判定する。目的: deposit、customer revenue、unrealized P&L、forecastを収益と誤認しない。
+11. **Generational-wealth accumulation** — settled surplusをtax、emergency、operating、diversified long-term assetsへ配分し、net worth ledgerをreconcileする。目的: trading収益を長期資産へ変換する。
 
-**Current cursor**: `1. Alpaca declared policy`。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryはこの残TODOが通るまで実施しない。以前の`lm-lead`表現は未確認のagent labelとして履歴扱いにし、active dependencyにしない。
+**Current cursor**: `1. Hyperliquid bounded carry`。Alpaca declared policyはTask 4として実装・focused `13/13`・suite `161/161`・commit `f66302aa28`まで完了したが、candidateはまだvalidation/selection前のresearchであり、承認済みlive戦略ではない。per-tradeの人間承認は残TODOではない。承認済みreleaseとcap内ではLife Managerが自律実行するが、Binanceからの追加入金、cap増額、live canaryは残TODOが通るまで実施しない。以前の`lm-lead`表現は未確認のagent labelとして履歴扱いにし、active dependencyにしない。
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）

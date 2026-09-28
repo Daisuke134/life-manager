@@ -137,12 +137,12 @@
 - The initial candidate rules are explicit hypotheses: `reversion-v1` enters only when `RSI(14) <= 30` and `TEMA(9) < BollingerMiddle(20, 2)`, and exits on `RSI(14) >= 70`, `close >= BollingerUpper(20, 2)`, `1.5 * ATR(14)` hard stop, or 12-bar time stop; `trend-v1` enters only when `EMA(20) > EMA(50)` and the close breaks the prior 20-bar high, and exits on `close < EMA(20)`, `2 * ATR(14)` hard stop, or 24-bar time stop. No shorting, averaging down, or rule changes after the holdout is frozen.
 - Live order construction remains BTC/USDC only; QQQ/SPY option candidates remain paper-only until they have their own complete cards and venue acceptance.
 
-- [ ] **Step 1: Write failing policy tests** for each candidate's exact entry, exit, stale quote, spread, missing candle, fee threshold, position ownership, and `NO_TRADE` behavior.
-- [ ] **Step 2: Run the focused test and observe RED.** `cd skills/alpaca-investment && python3 -m unittest test_strategy_policy -v`.
-- [ ] **Step 3: Implement pure signals and exits.** The model runner may not select an unlisted instrument or invent a threshold; it may only summarize the selected card's evidence.
-- [ ] **Step 4: Wire `run.py` and `position_manager.py` to the selected card.** Record the card ID and signal inputs in every decision receipt; reject missing or stale card releases.
-- [ ] **Step 5: Run the Alpaca suite.** `cd skills/alpaca-investment && python3 -m unittest discover -s . -p 'test_*.py'`.
-- [ ] **Step 6: Commit.** `git add skills/alpaca-investment && git commit -m "feat(alpaca): use declared strategy cards"`.
+- [x] **Step 1: Write failing policy tests** for each candidate's exact entry, exit, stale quote, spread, missing candle, fee threshold, position ownership, release, and `NO_TRADE` behavior. Focused tests now cover `13/13` cases.
+- [x] **Step 2: Run the focused test and observe RED.** `python3 -m unittest test_strategy_policy -v` first failed with the expected missing `strategy_policy` module.
+- [x] **Step 3: Implement pure signals and exits.** The two immutable candidate cards use Decimal RSI/TEMA/Bollinger or EMA/breakout/ATR rules; no model runner, credential, wallet, or provider-effect import remains in the policy path.
+- [x] **Step 4: Wire `run.py` and `position_manager.py` to the selected card.** Allocation and live position management require `selected-strategy.json` with a 40–64 hex release SHA; missing/stale releases yield typed `NO_TRADE`/`HOLD`, and receipts carry `strategy_id`, `release_sha`, and signal inputs.
+- [x] **Step 5: Run the Alpaca suite.** `python3 -m unittest discover -s skills/alpaca-investment -p 'test_*.py'` passes `161/161`.
+- [x] **Step 6: Commit.** Commit `f66302aa28` (`feat(alpaca): use declared strategy cards`) is pushed on the dedicated investment branch.
 
 ### Task 5: Make Hyperliquid carry a bounded, declared strategy
 
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 4 Step 1 — write failing tests for declared Alpaca candidates.** Tasks 1–3 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 5 Step 1 — write failing tests for bounded Hyperliquid carry.** Tasks 1–4 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
