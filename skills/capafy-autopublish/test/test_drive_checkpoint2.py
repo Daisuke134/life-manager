@@ -883,6 +883,221 @@ def test_raw_cp2_falls_back_to_display_model_fix_when_hosted_key_already_configu
     assert fix_calls == ["DeepSeek V4.1 Flash"]
 
 
+_LISTING_MD = """Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: a, b, c
+
+| cycle | price | cap | trial |
+|---|---:|---|---|
+| week | $3.99 | 40 | Free Trial 24h / 3 requests |
+
+## Title
+Ad Hook Lab
+
+## shortDescription
+Short.
+
+## welcomeMessage
+Hi, I write hooks. Example: "A $49/month meal-planning app."
+
+## detailedDescription
+Detailed body.
+"""
+
+
+def test_parse_listing_conversation_fields_extracts_welcome_and_example(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    welcome, test_input = module._parse_listing_conversation_fields(str(listing))
+    assert welcome == 'Hi, I write hooks. Example: "A $49/month meal-planning app."'
+    assert test_input == "A $49/month meal-planning app."
+
+
+def test_parse_listing_conversation_fields_returns_none_for_missing_file() -> None:
+    module = load_module()
+    welcome, test_input = module._parse_listing_conversation_fields("/no/such/LISTING.md")
+    assert welcome is None
+    assert test_input is None
+
+
+def test_raw_fill_workspace_conversation_fields_fills_only_empty_fields_and_saves(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+    calls = []
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": False}
+            if "workspace-field-count" in expression:
+                if "資料整理アシスタントです" in expression:
+                    return {"ok": True, "value": ""}
+                if "画像をアップロードして希望する結果を説明する" in expression:
+                    return {"ok": True, "value": "already set"}
+                if "韻を踏んだキャッチーな広告コピー" in expression:
+                    return {"ok": True, "value": ""}
+                if "たくさん買って" in expression:
+                    return {"ok": True, "value": ""}
+                if "OpenAI" in expression and "Anthropic" in expression:
+                    return {"ok": True, "value": ""}
+            if "workspace-focus-count" in expression:
+                return {"ok": True}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": False, "x": 5, "y": 6}
+            if "submit-button-count" in expression:
+                return {"ok": True, "label": "draft", "text": "下書きを保存"}
+            if "draft-save-count" in expression:
+                return {"ok": True, "x": 3, "y": 4, "disabled": False}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+        def press_enter(self):
+            calls.append(("press_enter", None))
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+    inserted = [p["text"] for (m, p) in calls if m == "Input.insertText"]
+    assert inserted.count('Hi, I write hooks. Example: "A $49/month meal-planning app."') == 1
+    assert inserted.count("A $49/month meal-planning app.") == 2  # test_case_1 + test_case_2
+    assert inserted.count("openrouter.ai") == 1
+    assert ("press_enter", None) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 3.0, "y": 4.0, "button": "left", "clickCount": 1}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 5.0, "y": 6.0, "button": "left", "clickCount": 1}) in calls
+
+
+def test_raw_fill_workspace_conversation_fields_checks_dpa_checkbox_even_when_text_fields_are_filled(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+    calls = []
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": False}
+            if "workspace-field-count" in expression:
+                return {"ok": True, "value": "already set"}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": False, "x": 5, "y": 6}
+            if "submit-button-count" in expression:
+                return {"ok": True, "label": "draft", "text": "下書きを保存"}
+            if "draft-save-count" in expression:
+                return {"ok": True, "x": 3, "y": 4, "disabled": False}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 5.0, "y": 6.0, "button": "left", "clickCount": 1}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 3.0, "y": 4.0, "button": "left", "clickCount": 1}) in calls
+
+
+def test_raw_fill_workspace_conversation_fields_never_clicks_an_already_submit_labeled_button(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": False}
+            if "workspace-field-count" in expression:
+                return {"ok": True, "value": "already set"}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": False, "x": 5, "y": 6}
+            if "submit-button-count" in expression:
+                return {"ok": True, "label": "submit", "text": "審査に提出"}
+            pytest.fail(f"must not look for the draft-save button once labelled submit: {expression}")
+
+        def call(self, method, params=None):
+            if method == "Input.dispatchMouseEvent":
+                assert (params["x"], params["y"]) == (5.0, 6.0), "must only click the DPA checkbox, never the submit button"
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+
+
+def test_raw_fill_workspace_conversation_fields_leaves_checked_dpa_checkbox_alone(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": False}
+            if "workspace-field-count" in expression:
+                return {"ok": True, "value": "already set"}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": True, "x": 5, "y": 6}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, *_a, **_k):
+            pytest.fail("must not click anything when nothing needs filling/checking")
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+
+
+def test_raw_fill_workspace_conversation_fields_is_noop_when_all_filled(tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    class _Page:
+        def evaluate(self, expression):
+            if "role=tab" in expression or "Agent Workspace" in expression:
+                return {"ok": False}
+            if "workspace-field-count" in expression:
+                return {"ok": True, "value": "already set"}
+            if "dpa-checkbox-count" in expression:
+                return {"ok": True, "checked": True, "x": 5, "y": 6}
+            pytest.fail(f"must not focus/save when already filled: {expression}")
+
+        def call(self, *_a, **_k):
+            pytest.fail("must not click/type when already filled")
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), str(listing)) is True
+
+
+def test_raw_fill_workspace_conversation_fields_returns_false_when_listing_unparsable() -> None:
+    module = load_module()
+
+    class _Page:
+        def evaluate(self, *_a, **_k):
+            pytest.fail("must not touch the DOM when LISTING can't be parsed")
+
+        def call(self, *_a, **_k):
+            pytest.fail("must not touch the DOM when LISTING can't be parsed")
+
+    assert module._raw_fill_workspace_conversation_fields(_Page(), "/no/such/LISTING.md") is False
+
+
+def test_raw_cp2_runs_workspace_fields_fix_via_listing_path_env(monkeypatch, tmp_path) -> None:
+    module = load_module()
+    listing = tmp_path / "LISTING.md"
+    listing.write_text(_LISTING_MD, encoding="utf-8")
+
+    def raise_hydrate_timeout(_page):
+        raise RuntimeError("provider path and detected-keys button did not hydrate before deadline")
+
+    monkeypatch.setattr(module, "_raw_page_targets", lambda *_a: [{"webSocketDebuggerUrl": "ws://127.0.0.1:1/x"}])
+    monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _FakePage())
+    monkeypatch.setattr(module, "_wait_raw_navigation", lambda *_a: None)
+    monkeypatch.setattr(module, "_ensure_raw_provider_section", raise_hydrate_timeout)
+    monkeypatch.setattr(module, "_raw_configure_hosted_key", lambda *_a: pytest.fail("must not fill an already-configured card"))
+    monkeypatch.setenv("CAPAFY_LISTING_PATH", str(listing))
+    workspace_calls = []
+    monkeypatch.setattr(
+        module, "_raw_fill_workspace_conversation_fields",
+        lambda _page, path: workspace_calls.append(path) or True,
+    )
+
+    assert module._raw_cp2("https://capafy.ai/developer/createAgent?token=t&page=review", "secret", "http://localhost:9222") is True
+    assert workspace_calls == [str(listing)]
+
+
 class _FakePage:
     def call(self, *_a, **_k):
         return {}
