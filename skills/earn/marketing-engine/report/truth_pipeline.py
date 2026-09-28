@@ -77,6 +77,22 @@ def build_commands(
                 str(state),
             ]
         )
+    # product_daily/portfolio_weekly read the metrics loop's own
+    # business-outcomes.jsonl (revenue, MRR, subs, trials, installs,
+    # proceeds), not this pipeline's post-metrics/publication state.
+    metrics_state = home / ".local/state/life-manager/marketing-metrics-daily/state"
+    for kind in ("product_daily", "portfolio_weekly"):
+        commands.append(
+            [
+                python,
+                str(owner_cli),
+                "sweep",
+                "--kind",
+                kind,
+                "--state-root",
+                str(metrics_state),
+            ]
+        )
     return commands
 
 

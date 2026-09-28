@@ -27,7 +27,7 @@ class TruthPipelineTest(unittest.TestCase):
         self.assertIn("native_metrics.py", rendered[1])
         self.assertEqual(
             [command[command.index("--kind") + 1] for command in commands[2:]],
-            ["action", "checkpoint", "incident", "experiment"],
+            ["action", "checkpoint", "incident", "experiment", "product_daily", "portfolio_weekly"],
         )
         self.assertNotIn("apify", " ".join(rendered).lower())
 
@@ -60,8 +60,13 @@ class TruthPipelineTest(unittest.TestCase):
         )
         self.assertIn(str(state_root / "evidence/metrics/native-metrics-latest.json"), rendered)
         self.assertEqual(
-            [command[command.index("--state-root") + 1] for command in commands[2:]],
+            [command[command.index("--state-root") + 1] for command in commands[2:6]],
             [str(state_root / "state")] * 4,
+        )
+        metrics_state = home / ".local/state/life-manager/marketing-metrics-daily/state"
+        self.assertEqual(
+            [command[command.index("--state-root") + 1] for command in commands[6:]],
+            [str(metrics_state)] * 2,
         )
         self.assertNotIn("/read-only-release/skills/earn/marketing-engine/state", rendered)
         self.assertNotIn("/read-only-release/skills/earn/marketing-engine/evidence", rendered)

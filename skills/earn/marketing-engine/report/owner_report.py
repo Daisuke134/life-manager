@@ -26,7 +26,10 @@ from product_router import PRODUCT_ID_ALIASES, canonical_product_id  # noqa: E40
 
 SCHEMA_VERSION = "marketing.owner-report.v1"
 DELIVERY_SCHEMA_VERSION = "marketing.owner-delivery.v1"
-PRODUCTS = ("anicca-ios", "honne-ai", "ebook-ja", "ebook-en")
+PRODUCTS = (
+    "anicca-ios", "honne-ai", "breath-reset", "sleep-ritual",
+    "desk-stretch-timer", "micro-mood", "ebook-ja", "ebook-en",
+)
 KINDS = (
     "action",
     "checkpoint",
@@ -610,8 +613,37 @@ def _download_count(row: dict) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def _installs_7d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int | None, str | None]:
-    """Sum verified ASC first-time downloads over the 7 most recent eligible snapshots."""
+def _proceeds_total(row: dict) -> float | None:
+    """Read one day's verified ASC developer proceeds total, or None if unmeasured.
+
+    A verified day with sales activity in more than one currency cannot be
+    summed into one number without misrepresenting value, so it is treated
+    as unmeasured for this rollup (the per-day evidence still has the split).
+    """
+
+    sources = row.get("sources") if isinstance(row.get("sources"), dict) else {}
+    sales = sources.get("app_store_sales") if isinstance(sources.get("app_store_sales"), dict) else {}
+    if sales.get("status") != "available":
+        return None
+    proceeds = (sales.get("data") or {}).get("proceeds")
+    if not isinstance(proceeds, dict):
+        return None
+    if not proceeds:
+        return 0.0
+    if len(proceeds) > 1:
+        return None
+    value = next(iter(proceeds.values()))
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _window_sum(
+    rows: list[tuple[int, dict]],
+    as_of: dt.datetime,
+    window: int,
+    extractor: Callable[[dict], float | int | None],
+    empty_reason: str,
+) -> tuple[float | int | None, str | None]:
+    """Sum a verified per-day metric over the N most recent eligible snapshots."""
 
     eligible = sorted(
         (
@@ -621,15 +653,33 @@ def _installs_7d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int 
         ),
         key=lambda pair: pair[0],
         reverse=True,
-    )[:7]
+    )[:window]
     if not eligible:
         return None, "no_business_snapshot"
-    counts = [_download_count(row) for _, row in eligible]
-    known = [count for count in counts if count is not None]
+    values = [extractor(row) for _, row in eligible]
+    known = [value for value in values if value is not None]
     if not known:
-        return None, "no_verified_download_report"
+        return None, empty_reason
     total = sum(known)
     return total, ("partial_window" if len(known) < len(eligible) else None)
+
+
+def _installs_7d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int | None, str | None]:
+    """Sum verified ASC first-time downloads over the 7 most recent eligible snapshots."""
+
+    return _window_sum(rows, as_of, 7, _download_count, "no_verified_download_report")
+
+
+def _installs_28d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[int | None, str | None]:
+    """Sum verified ASC first-time downloads over the 28 most recent eligible snapshots."""
+
+    return _window_sum(rows, as_of, 28, _download_count, "no_verified_download_report")
+
+
+def _proceeds_28d(rows: list[tuple[int, dict]], as_of: dt.datetime) -> tuple[float | None, str | None]:
+    """Sum verified ASC developer proceeds over the 28 most recent eligible snapshots."""
+
+    return _window_sum(rows, as_of, 28, _proceeds_total, "no_verified_sales_report")
 
 
 def _business_facts(row: dict) -> dict:
@@ -642,6 +692,14 @@ def _business_facts(row: dict) -> dict:
     active = _chart_value(rc_data, "actives", "Actives")
     if active is None:
         active = _first_number(rc_data, ("active_subscriptions", "actives", "Actives"))
+    active_trials = _chart_value(rc_data, "trials", "Active Trials")
+    revenue_chart = (rc_data.get("charts") or {}).get("revenue") if isinstance(rc_data, dict) else None
+    revenue_28d = (
+        revenue_chart.get("window_sum")
+        if isinstance(revenue_chart, dict) and isinstance(revenue_chart.get("window_sum"), (int, float))
+        and not isinstance(revenue_chart.get("window_sum"), bool)
+        else None
+    )
     facts: dict = {
         "business_date": row.get("business_date"),
         "snapshot_id": row.get("snapshot_id"),
@@ -649,6 +707,8 @@ def _business_facts(row: dict) -> dict:
         "mrr_source": "revenuecat" if revenuecat.get("status") == "available" and mrr is not None else None,
         "mrr_reason": None,
         "active_subscriptions": active,
+        "active_trials": active_trials,
+        "revenue_28d": revenue_28d if revenuecat.get("status") == "available" else None,
         "sources": {},
         "paid_orders": None,
         "money_value": None,
@@ -757,6 +817,8 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
                 "mrr_source": None,
                 "mrr_reason": "no_business_snapshot",
                 "active_subscriptions": None,
+                "active_trials": None,
+                "revenue_28d": None,
                 "paid_orders": None,
                 "money_value": None,
                 "money_currency": None,
@@ -766,6 +828,10 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
                 "money_reason": "no_business_snapshot",
                 "installs_7d": None,
                 "installs_7d_reason": "no_business_snapshot",
+                "installs_28d": None,
+                "installs_28d_reason": "no_business_snapshot",
+                "proceeds_28d": None,
+                "proceeds_28d_reason": "no_business_snapshot",
                 "sources": {},
             },
             evidence_refs=[evidence_ref],
@@ -773,6 +839,8 @@ def _daily_events(root: pathlib.Path, product_id: str, as_of: dt.datetime) -> li
     index, row = latest
     facts = _business_facts(row)
     facts["installs_7d"], facts["installs_7d_reason"] = _installs_7d(rows, as_of)
+    facts["installs_28d"], facts["installs_28d_reason"] = _installs_28d(rows, as_of)
+    facts["proceeds_28d"], facts["proceeds_28d_reason"] = _proceeds_28d(rows, as_of)
     evidence_ref = _ref("business-outcomes.jsonl", index)
     existing = _existing_owner_report_for_evidence(
         root, kind="product_daily", product_id=product_id, evidence_ref=evidence_ref
@@ -1012,6 +1080,9 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
                 "product_id": product_id,
                 "mrr": None,
                 "mrr_reason": "no_business_snapshot",
+                "active_subscriptions": None,
+                "active_trials": None,
+                "revenue_28d": None,
                 "money_value": None,
                 "money_currency": None,
                 "money_minor": None,
@@ -1020,15 +1091,24 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
                 "money_reason": "no_business_snapshot",
                 "installs_7d": None,
                 "installs_7d_reason": "no_business_snapshot",
+                "installs_28d": None,
+                "installs_28d_reason": "no_business_snapshot",
+                "proceeds_28d": None,
+                "proceeds_28d_reason": "no_business_snapshot",
             })
             continue
         index, row = latest
         facts = _business_facts(row)
         installs_7d, installs_7d_reason = _installs_7d(rows, as_of)
+        installs_28d, installs_28d_reason = _installs_28d(rows, as_of)
+        proceeds_28d, proceeds_28d_reason = _proceeds_28d(rows, as_of)
         product = {
             "product_id": product_id,
             "mrr": facts.get("mrr"),
             "mrr_reason": facts.get("mrr_reason"),
+            "active_subscriptions": facts.get("active_subscriptions"),
+            "active_trials": facts.get("active_trials"),
+            "revenue_28d": facts.get("revenue_28d"),
             "money_value": facts.get("money_value"),
             "money_currency": facts.get("money_currency"),
             "money_minor": facts.get("money_minor"),
@@ -1038,6 +1118,10 @@ def _portfolio_event(root: pathlib.Path, as_of: dt.datetime) -> list[dict]:
             "money_reason": facts.get("money_reason"),
             "installs_7d": installs_7d,
             "installs_7d_reason": installs_7d_reason,
+            "installs_28d": installs_28d,
+            "installs_28d_reason": installs_28d_reason,
+            "proceeds_28d": proceeds_28d,
+            "proceeds_28d_reason": proceeds_28d_reason,
         }
         money_buckets = facts.get("money_buckets")
         if isinstance(money_buckets, list) and len(money_buckets) > 1:
@@ -1148,6 +1232,12 @@ def render_japanese(event: dict) -> str:
         money_buckets = facts.get("money_buckets")
         if mrr is not None:
             lines.append(f"MRRは{_number(mrr)} USD（RevenueCat）。")
+            if facts.get("revenue_28d") is not None:
+                lines.append(f"直近28日の売上は{_number(facts['revenue_28d'])} USD（RevenueCat）。")
+            if facts.get("active_subscriptions") is not None:
+                lines.append(f"有料課金者数は{facts['active_subscriptions']}人。")
+            if facts.get("active_trials") is not None:
+                lines.append(f"トライアル中は{facts['active_trials']}人。")
         elif isinstance(money_buckets, list) and len(money_buckets) > 1:
             amounts = "、".join(
                 _money_bucket_text(bucket)
@@ -1181,6 +1271,12 @@ def render_japanese(event: dict) -> str:
         installs_7d = facts.get("installs_7d")
         if installs_7d is not None:
             lines.append(f"直近7日の新規ダウンロード数は{installs_7d}件（App Store Connect）。")
+        installs_28d = facts.get("installs_28d")
+        if installs_28d is not None:
+            lines.append(f"直近28日の新規ダウンロード数は{installs_28d}件（App Store Connect）。")
+        proceeds_28d = facts.get("proceeds_28d")
+        if proceeds_28d is not None:
+            lines.append(f"直近28日のApple収益は{_number(proceeds_28d)}（App Store Connect）。")
     elif kind == "incident":
         source_gaps = facts.get("source_gaps")
         if isinstance(source_gaps, list) and source_gaps:
@@ -1220,6 +1316,12 @@ def render_japanese(event: dict) -> str:
             money_buckets = item.get("money_buckets")
             if mrr is not None:
                 detail = f"MRR {mrr} USD"
+                if item.get("revenue_28d") is not None:
+                    detail += f"・28日売上 {_number(item['revenue_28d'])} USD"
+                if item.get("active_subscriptions") is not None:
+                    detail += f"・有料 {item['active_subscriptions']}人"
+                if item.get("active_trials") is not None:
+                    detail += f"・トライアル {item['active_trials']}人"
             elif isinstance(money_buckets, list) and len(money_buckets) > 1:
                 amounts = "、".join(
                     _money_bucket_text(bucket)
@@ -1246,7 +1348,21 @@ def render_japanese(event: dict) -> str:
                 detail = _reason_text(item.get("money_reason") or item.get("mrr_reason"))
             if item.get("installs_7d") is not None:
                 detail += f"・直近7日DL {item['installs_7d']}件"
+            if item.get("installs_28d") is not None:
+                detail += f"・直近28日DL {item['installs_28d']}件"
+            if item.get("proceeds_28d") is not None:
+                detail += f"・28日Apple収益 {_number(item['proceeds_28d'])}"
             lines.append(f"{item_product}: {detail}")
+
+        totals = [item.get("revenue_28d") for item in facts.get("products", []) if item.get("revenue_28d") is not None]
+        install_totals = [item.get("installs_28d") for item in facts.get("products", []) if item.get("installs_28d") is not None]
+        if totals or install_totals:
+            summary = []
+            if totals:
+                summary.append(f"28日売上合計 {_number(sum(totals))} USD")
+            if install_totals:
+                summary.append(f"28日DL合計 {sum(install_totals)}件")
+            lines.append("ポートフォリオ合計: " + "・".join(summary))
 
     lines.extend(["", "確認情報"])
     lines.append(f"message_key={event['message_key']}")
