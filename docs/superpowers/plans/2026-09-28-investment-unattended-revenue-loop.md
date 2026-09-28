@@ -4,7 +4,7 @@
 
 **Goal:** 投資loopを人間の手動wakeなしで動かし、公式provider receiptから全コスト控除後のrealized net P&Lを測定し、正の証拠がある時だけ一段ずつ資本を増やす。`$10,000/month`は予測ではなく、rolling 30-day official net receiptで初めて達成とする。
 
-**Architecture:** Alpaca、Hyperliquid、Solanaはそれぞれのeffect ownerを維持する。`investment-core`は注文・署名・送金をせず、各ownerの公式状態をcanonical `VenueSnapshot`へ変換し、fee/funding/borrow/slippage/gas/model costを一度だけ控除してreportする。`lm-lead`だけがregistry、cadence、release/apply、runtime admissionを所有し、このlaneはread-only evidence spineと投資仕様を所有する。
+**Architecture:** Alpaca、Hyperliquid、Solanaはそれぞれのeffect ownerを維持する。`investment-core`は注文・署名・送金をせず、各ownerの公式状態をcanonical `VenueSnapshot`へ変換し、fee/funding/borrow/slippage/gas/model costを一度だけ控除してreportする。Life Manager runtimeがregistry、cadence、release/apply、runtime executionを所有し、このlaneは投資コード・read-only evidence spine・投資仕様を所有する。
 
 **Tech Stack:** Python 3.14、stdlib `decimal`/`json`/`unittest`、既存のAlpaca official readback、Hyperliquid official `/info`、Solana RPC/Jupiter receipt、既存Telegram outbox、append-only state。
 
@@ -24,7 +24,7 @@
 - Solanaはread-only scout → paper → exactly one `$2.00` canary、累積`$3.00` ceiling。先行venueの再現可能なpositive netなしにcanaryを開けない。
 - `unknown`、`effect_unknown`、cost欠損、重複receipt、delivery uncertainはゼロや成功に変換せずhold/blockする。
 - productionのmanual wake、manual restart、fabricated receipt、duplicate schedulerを進捗と数えない。
-- このlaneは`config/loop-registry.json`、`runtime/loop`、`runtime/host`、`bin/`、他agentのworktree、Capafy、PromptBaseを変更しない。runtime admissionは`lm-lead`に依頼する。
+- このlaneは他agentのworktree、Capafy、PromptBaseを変更しない。Life Manager runtimeのregistry/apply/host制御は専用runtime手順で扱い、投資laneから別のagentへ依頼する設計にはしない。
 - owner wallet/口座から外部へ資金を出す操作、Binance transfer、wallet creation、signed orderはこの計画では実行しない。
 
 ## Review Focus
@@ -41,13 +41,14 @@
 - Hyperliquidはofficial account value、withdrawable、positions、funding rows、non-funding rowsが0。これは「$0利益」ではなく、P&L receiptが無い状態。
 - Solanaは`scout_unknown`、候補0、effectなし。live transaction receiptは無い。
 - cross-venue daily receiptは0件。rolling 30-day netは`unknown/daily_receipt_missing`で、`$10,000` gapは数値化できない。
-- `cross_venue_run.py`のowner-ready read-only入口と仕様更新、およびcanonical snapshotのfail-closed validationはcommit `3a4a6cacae` としてpush済み。`test_cross_venue_run` 5件とinvestment-core全体66件がgreen。
-- `lm-lead`へのadmission receipt依頼（Task 2 Step 1）は送信済みだが、entrypoint/cadence/state root/release/provider acknowledgementを含む返答は未着。`2026-09-28T13:03:28Z`のinbox readbackも`No new messages`だった。これは「仕事が終わった」証拠ではない。
+- Life Managerのregistryには`alpaca-investment-live`が登録され、cadenceは300秒、entrypointは`skills/alpaca-investment/run.py`、effect reconcileは`skills/alpaca-investment/effect_reconcile.py`。投資系registry entryとして確認できるのは現在これだけで、Hyperliquid/SolanaはまだLife Manager loopとして登録されていない。
+- runtime stateには自然wakeの履歴があるが、最新イベントは`resource_capacity_busy`でdeferred。repeatabilityには`multiple_processes=true`が残り、過去ログには`No space left on device`もある。したがって「Life Managerがloopを持つ」は事実だが、「健全な無人運転」は未証明。
+- Alpacaのinclusive 4時間windowが49本になる実データ形状を受け入れる修正をcommit `205630e820`としてpush済み。Alpaca suite `148/148`がgreen。ただしLife Managerのproduction releaseにまだ載ったとは扱わない。
 
 ```mermaid
 flowchart LR
     A["As-is\nAlpaca 1/30\nHL/Solana receiptなし"] --> B["Task 1\nfail-closed入口をcommit"]
-    B --> C["Task 2\nlm-lead admission receipt"]
+    B --> C["Task 2\nLife Manager runtime health"]
     C --> D["Task 3\nnatural unattended run"]
     D --> E["Task 4\n公式reconcile + daily report"]
     E --> F["Task 5\nAlpaca残り29往復 + 30日receipt"]
@@ -90,7 +91,7 @@ flowchart LR
 - [x] **Step 4: Run verification.** `python3 -m unittest test_cross_venue_run`と`python3 -m unittest discover -s . -p 'test_*.py'`を実行し、期待値はそれぞれ`5/5`、`66/66`。
 - [x] **Step 5: Commit and push.** `git fetch origin && git add ... && git commit -m "fix(investment): validate cross-venue snapshots before aggregation" && git push origin HEAD`を実行し、commit `3a4a6cacae` をprimary planとSSOTへ記録した。
 
-### Task 2: Owner admission receiptを取得する
+### Task 2: Life Manager runtime healthを確認・修復する
 
 **Files:**
 
@@ -99,12 +100,12 @@ flowchart LR
 
 **Interfaces:**
 
-`lm-lead` must return one structured admission receipt containing `run_id`, `owner_id`, `occurrence_id`, `release_sha`, loaded entrypoint, fixed redacted argv/env, cadence, state root, phase, command, `exit_code`, `effect`, official `readback`, `provider_receipt_id`, `evidence_refs`, `error_class`, `retryable`, and `next_action`.
+Life Managerのregistry/state receipt must expose `run_id`, `owner_id=alpaca-investment-live`, `occurrence_id`, `release_sha`, loaded entrypoint, cadence, state root, phase, command, `exit_code`, `effect`, official `readback`, `provider_receipt_id`, `evidence_refs`, `error_class`, `retryable`, and `next_action`.
 
-- [x] **Step 1: Send one owner handoff.** `agmsg`でcommit `3a4a6cacae`、固定entrypoint contract、exact receipt schemaを`lm-lead`へ送信した。owner runtimeはこのlaneから編集していない。
-- [ ] **Step 2: Read the owner response.** `2026-09-28T13:03:28Z`のinboxは`No new messages`。complete receiptは未着で、active session、registry row、lock file、intent、送信済みhandoffはadmission evidenceとして受け付けない。
-- [ ] **Step 3: Classify the result.** `admitted` must include provider acknowledgement; otherwise record the exact missing field and keep the investment lane closed.
-- [ ] **Step 4: Update the three spec files.** Record the receipt references, loaded SHA, current cursor, and whether the next task is natural runtime verification.
+- [ ] **Step 1: Verify the Life Manager contract.** Read the registry entry and current state; require the expected 300-second cadence, `skills/alpaca-investment/run.py`, effect reconcile, and the release containing `205630e820`. No `lm-lead` message or separate human owner is required.
+- [ ] **Step 2: Remove runtime blockers.** Resolve the current `resource_capacity_busy` deferrals and any active duplicate writer; investigate the historical `No space left on device` and `alpaca_crypto_history_invalid` evidence. Keep the cap at `$100` and do not manually wake the loop.
+- [ ] **Step 3: Verify one natural Life Manager wake.** Require one terminal event with the expected release, single writer, pre-effect journal, official broker readback, durable state receipt, and Telegram delivery. A deferred or typed hold is not a trade sample.
+- [ ] **Step 4: Update the three spec files.** Record the exact Life Manager event, release, blocker/readback, and whether the next task is natural P&L verification.
 
 ### Task 3: Prove one natural unattended runtime wake
 
@@ -115,10 +116,10 @@ flowchart LR
 
 **Acceptance:** one natural wake proves a single owner/writer, fixed release, pre-effect journal, official provider reconciliation, durable state receipt, and typed failure handling. No manual kick, restart, or duplicate scheduler is allowed in the evidence.
 
-- [ ] **Step 1: Wait for the admitted cadence, not a manual invocation.** Inspect the owner event and state receipt by read-only means.
+- [ ] **Step 1: Observe the Life Manager cadence, not a manual invocation.** Inspect the runtime event and state receipt by read-only means.
 - [ ] **Step 2: Verify the event fields.** Require `run_id`, `owner_id`, `occurrence_id`, `release_sha`, loaded argv/env, phase, command, exit code, effect, readback, and next action.
 - [ ] **Step 3: Verify financial truth.** Confirm official order/fill/account/cash readback and cost-complete P&L; `resource_capacity_busy`, `resource_effect_unknown`, stale release, or heartbeat/database failure must be typed hold/recovery, not a successful sample.
-- [ ] **Step 4: Record pass/fail in the specs.** If it fails, fix the failing owner boundary through `lm-lead`; do not count the wake as one of the 29 samples.
+- [ ] **Step 4: Record pass/fail in the specs.** If it fails, fix the Life Manager/runtime or investment-code boundary; do not count the wake as one of the 29 samples.
 
 ### Task 4: Connect automatic cross-venue reporting to natural receipts
 
@@ -130,7 +131,7 @@ flowchart LR
 
 **Acceptance:** one natural UTC report writes `cross-venue-YYYY-MM-DD.json`, delivers exactly one Telegram message through the outbox, stores the provider message ID, and makes a same-day replay without a second send. Missing inputs remain visible as unknown.
 
-- [ ] **Step 1: Supply canonical snapshots from the admitted owner.** Every venue snapshot must contain official `source_receipt_ids`, observed time, equity/free cash, gross P&L, all five cost fields, risk, and `measurement_status`.
+- [ ] **Step 1: Supply canonical snapshots from the Life Manager runtime.** Every venue snapshot must contain official `source_receipt_ids`, observed time, equity/free cash, gross P&L, all five cost fields, risk, and `measurement_status`.
 - [ ] **Step 2: Run the existing reporter tests.** `python3 -m unittest test_venue_snapshot test_net_pnl test_cross_venue_reporter test_cross_venue_run test_rolling_measurement` must pass.
 - [ ] **Step 3: Verify one natural delivered receipt.** Require `status=delivered`, a provider message ID, unique event key, and `measurement_status` that truthfully reflects missing/partial sources.
 - [ ] **Step 4: Verify replay-zero.** Read the same UTC day twice and prove no second Telegram provider ID or duplicate daily file was created.
@@ -211,8 +212,10 @@ flowchart LR
 
 ## Execution order and next cursor
 
-The execution order is strictly `Task 1 → Task 2 → Task 3 → Task 4 → Task 5 → Task 6 → Task 7 → Task 8 → Task 9 → Task 10`. Task 1 is complete at commit `3a4a6cacae`, and Task 2 Step 1 handoff is sent; the immediate cursor is **Task 2 Step 2: read one complete owner admission receipt or exact blocker**. The next external dependency is Task 2, but it is not a reason to manually wake a loop or claim revenue.
+The actual execution order is `① Life Manager runtime health → ② natural Alpaca wake → ③ official cost-complete P&L/report → ④ conditional sample gate → ⑤ one-step promotion → ⑥ Hyperliquid read-only/shadow → ⑦ Solana read-only/paper → ⑧ tiny canary only after positive evidence → ⑨ rolling $10k verification → ⑩ settled-surplus wealth ledger`.
+
+The finite cross-venue code task is complete at `3a4a6cacae`, and the Alpaca data-window fix is pushed at `205630e820`. The immediate cursor is **Task 2 Step 1: verify Life Manager's loaded release and repair the current runtime blockers**. The `29` number is conditional evidence collection, not a command to execute 29 trades.
 
 ## Completion definition
 
-This plan is complete only when Task 1–10 have their stated evidence. In particular, a green unit-test suite, an active `lm-lead` session, a funded wallet, 29 wake attempts, or a positive fixture does not complete the plan. Completion requires unattended natural operation, official cost-complete realized net P&L, the promotion receipts, the verified rolling `$10,000/month` result, and a separate settled-surplus wealth ledger.
+This plan is complete only when Task 1–10 have their stated evidence. In particular, a green unit-test suite, a registered loop, a funded wallet, 29 wake attempts, or a positive fixture does not complete the plan. Completion requires healthy Life Manager natural operation, official cost-complete realized net P&L, the promotion receipts, the verified rolling `$10,000/month` result, and a separate settled-surplus wealth ledger.

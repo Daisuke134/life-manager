@@ -6,7 +6,11 @@
 
 **Architecture:** Keep each venue as an effect owner: Alpaca owns Alpaca orders, Hyperliquid owns Hyperliquid deposits/orders, and Solana owns Solana transactions. Add one read-only portfolio evidence spine that normalises official receipts, subtracts every known cost exactly once, rejects unknown evidence, reports the gap to the target, and gates capital expansion. A separate treasury/cash engine records owner deposits, product revenue, investment P&L, costs, and reserves so owner cash flow is never mistaken for profit.
 
-**Tech Stack:** Existing Python investment core and `unittest` suites; Alpaca CLI and official account/activity/order readbacks; Hyperliquid Python SDK and `/info` API; Solana RPC plus Jupiter quote/swap receipts; append-only JSONL state; existing Telegram outbox; existing loop registry owned by lm-lead.
+**Tech Stack:** Existing Python investment core and `unittest` suites; Alpaca CLI and official account/activity/order readbacks; Hyperliquid Python SDK and `/info` API; Solana RPC plus Jupiter quote/swap receipts; append-only JSONL state; existing Telegram outbox; existing Life Manager loop registry.
+
+### Ownership correction (`2026-09-28`)
+
+Life Manager is the investment-loop owner. `config/loop-registry.json` confirms `alpaca-investment-live` with a 300-second cadence, `skills/alpaca-investment/run.py`, and an effect-reconcile entrypoint. The earlier `lm-lead` wording was an unverified agent label, not a required person or dependency; it is historical context only. The active order is Life Manager runtime health → natural wake → official P&L → conditional sample gate → one-step promotion.
 
 **Spec:** `docs/superpowers/specs/2026-09-01-alpaca-money-maximizer-design.md` §7.3 and §8 L18; `docs/superpowers/plans/2026-09-27-hyperliquid-carry-live-loop.md`; `docs/superpowers/plans/2026-09-27-solana-memecoin-copy-trading.md`; `docs/superpowers/plans/2026-09-27-cross-venue-capital-allocator-net-pnl.md`.
 
@@ -19,7 +23,7 @@
 - Solana begins read-only scout → paper replay → exactly one `$2.00` live canary with a hard cumulative `$3.00` ceiling; no user credential or target-wallet private key enters the repo.
 - Owner deposits and withdrawals are principal cash flow, never investment revenue; each venue's official receipt IDs are required for attribution.
 - Every live effect is journaled before submission, reconciled by official provider state, and made retry-safe; `effect_unknown` blocks new effects.
-- The loop never increases risk, leverage, cap, or destination from a Telegram message; registry/runtime changes are requested from lm-lead through the owner path.
+- The loop never increases risk, leverage, cap, or destination from a Telegram message; registry/runtime changes follow the Life Manager runtime path.
 - Use no new scheduler, generic strategy framework, second ledger, or dashboard until an existing boundary cannot satisfy the acceptance test.
 
 ## Review Focus
@@ -28,7 +32,7 @@
 - **Unknown cost treated as zero:** missing funding, fee, gas, slippage, or model-cost receipt must produce `partial`/`blocked`, never a profitable number.
 - **Cross-venue duplicate attribution:** one provider receipt ID or one cost line cannot be counted in two venue rows or in both venue and aggregate totals.
 - **Stale or non-authoritative provider data:** an old quote, paper receipt, UI projection, or incomplete API response must exclude the candidate from allocation.
-- **Capital ladder bypass:** a positive paper result, one lucky fill, or a projection cannot raise a cap; the next cap requires the named live sample, risk gates, and explicit owner/lm-lead promotion receipt.
+- **Capital ladder bypass:** a positive paper result, one lucky fill, or a projection cannot raise a cap; the next cap requires the named live sample, risk gates, and explicit Life Manager promotion receipt.
 
 ## As-Is Evidence
 
@@ -468,18 +472,18 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 ### Active implementation plan (`2026-09-28`)
 
-The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-investment-unattended-revenue-loop.md`](./2026-09-28-investment-unattended-revenue-loop.md). It is the execution-order companion to this primary investment plan: it does not broaden the lane, authorize funding, or transfer ownership of runtime files. Task 1 is complete at `3a4a6cacae`; Task 2 Step 1 handoff is sent; current cursor: **Task 2 Step 2**, read one complete owner admission receipt or exact blocker.
+The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-investment-unattended-revenue-loop.md`](./2026-09-28-investment-unattended-revenue-loop.md). It is the execution-order companion to this primary investment plan. Life Manager is the investment-loop owner: its registry already contains `alpaca-investment-live` at a 300-second cadence. Task 1 is complete at `3a4a6cacae`; the inclusive-window fix is pushed at `205630e820`; current cursor: **Task 2 Step 1**, verify the loaded Life Manager release and repair runtime blockers.
 
 ### Atomic investment TODO — canonical order
 
-1. **Owner admission receipt — not done.** Obtain one structured lm-lead receipt proving the loaded investment entrypoint, cadence, state root, redacted argv/env, release SHA, owner/occurrence, phase, exit/effect, and official provider acknowledgement. No local registry/runtime edit in this lane.
-2. **Unattended runtime — not done.** Prove the admitted loop wakes on its own schedule, has one owner and one writer, persists the pre-effect journal, and does not require manual kick/restart. `resource_capacity_busy`, `resource_effect_unknown`, stale release, and heartbeat/database failures must resolve to typed hold/recovery, not silent wake loss.
+1. **Life Manager runtime health — not done.** Verify the registered 300-second `alpaca-investment-live` loop loads the release containing `205630e820`; repair `resource_capacity_busy`, duplicate-writer, stale-state, and any active disk/runtime blockers. No manual wake and no capital increase.
+2. **Natural runtime proof — not done.** Prove one terminal Life Manager event with one writer, pre-effect journal, official broker readback, durable state receipt, and Telegram delivery. A deferred wake is not a trade sample.
 3. **Automatic reconciliation/reporting — code done, live proof not done.** Each natural wake must read official account/order/fill/fee/cash state, reconcile unknown effects, write a durable receipt, calculate cost-complete net P&L, and deliver an idempotent Telegram status. Unknown values remain unknown; no zero-fill.
-4. **Alpaca natural measurement — not done.** Keep the current `$100` cap and let the admitted loop generate the remaining `29` completed round trips automatically. Do not manually manufacture wakes, do not raise the cap, and do not infer profitability from the count. The gate requires positive net after all costs, no risk breach, complete receipts, and owner promotion evidence.
-5. **Cross-venue rolling measurement — not done.** After owner runtime is admitted, accumulate `30` delivered, measured UTC daily receipts with unique source IDs and complete venue/cost evidence. Until then rolling net P&L and target gap are `unknown`, not zero.
+4. **Alpaca strategy measurement — not done.** Keep the current `$100` cap. Only actual completed round trips count toward the conditional `30`-round-trip evidence gate; do not manufacture wakes or blindly force the remaining `29`. Stop on negative/unknown/effect-unknown evidence.
+5. **Cross-venue rolling measurement — not done.** After Life Manager produces valid venue receipts, accumulate `30` delivered, measured UTC daily receipts with unique source IDs and complete venue/cost evidence. Until then rolling net P&L and target gap are `unknown`, not zero.
 6. **One-step promotion — not done.** Review the measured evidence and authorized USD ledger; promote one venue/cap only if the deterministic gate passes. Negative, incomplete, stale, or unknown evidence means hold.
-7. **Hyperliquid — read-only done; unattended live stage not done.** Only after the owner receipt and explicit funding boundary, run the bounded delta-neutral leg (current leg cap `$25`), reconcile official state, and accumulate the required `14` daily net receipts. No Binance transfer now.
-8. **Solana — staged read-only done; canary not done.** Keep scout/paper/shadow first. Only after the earlier venue has reproducible positive net and an explicit owner-funded boundary may one `$2` canary run under the cumulative `$3` ceiling, followed by official transaction/token/gas readback.
+7. **Hyperliquid — not registered as a Life Manager investment loop.** Add read-only/shadow observation only after Alpaca runtime health and positive evidence. A `$25` delta-neutral live leg requires separate funding authorization and official reconciliation; no Binance transfer now.
+8. **Solana — not registered as a Life Manager investment loop.** Add scout/paper first. Only after a prior venue has reproducible positive net may one `$2` canary run under the cumulative `$3` ceiling with official transaction/token/gas readback.
 9. **Target verification — not done.** Claim `$10,000/month` only when the official rolling 30-day net receipt is `>= $10,000` after every cost. No forecast, fixture, deposit, unrealized P&L, or customer revenue substitutes for it.
 10. **Generational-wealth accumulation — not done.** After verified net cash exists, route it through tax/emergency reserves and an explicit contribution ledger, then diversify one measured capital step at a time. This is separate from trading revenue and is not currently funded by verified investment profit.
 
@@ -526,10 +530,10 @@ The detailed Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-inv
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
 |---|---|---|---|
-| Alpaca | One official round trip; fresh measured net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`); owner cash flow `$66.75`; `1/30`; 1,047 report wakes deferred by host admission | Cap `$100`; expansion false; promotion reject | owner admission → unattended soak/recovery → official readback/reporting; only then the loop automatically generates 29 more samples, followed by positive cost-complete evidence and owner-approved next cap |
-| Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
+| Alpaca | One official round trip; fresh measured net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`); owner cash flow `$66.75`; `1/30`; current runtime has deferred capacity events | Cap `$100`; expansion false; promotion reject | Life Manager runtime health → natural wake → official readback/reporting; only then conditionally collect the remaining sample, followed by positive cost-complete evidence and Life Manager promotion |
+| Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | register a Life Manager read-only/shadow loop after Alpaca health and positive evidence; explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
-| Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but default state has `0` persisted daily receipts and no complete live 30-day window | Read-only; expansion false | lm-lead cadence/owner-runtime receipt, then 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
+| Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but default state has `0` persisted daily receipts and no complete live 30-day window | Read-only; expansion false | Life Manager natural venue receipts, then 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
 | Treasury | CFO and canonical FinancialRecord bridges implemented; production last-result remains `partial`; isolated current Capafy replay produces `16` verified USD records / `$93.78` for September; fixed natural Capafy reconcile has last-30d net `$68.80`, actual cost `$43.61`, contribution `$11.43`, payout-able `$14.40`, paid `$0.00`; PromptBase publisher is ready but has no public listing/payout receipt; separate x402 ledger is `0.150000 USDC` for September / `0.180000 USDC` lifetime; Stripe and marketplace ledgers remain absent | No transfer; Capafy/PromptBase are not yet investment contributions or settled Treasury surplus | join Capafy revenue + actual cost + payout windows; obtain PromptBase listing/payout readback; accumulate 30 daily investment receipts; obtain authorized USD owner-flow, P&L, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; `$1M` generational-wealth target unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger and scheduled contribution evidence |
 
