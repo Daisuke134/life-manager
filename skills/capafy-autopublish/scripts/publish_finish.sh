@@ -245,16 +245,27 @@ except Exception: print('')")"
       esac
   fi
 
-  if [ "$CONFIG_STATE" = "0" ]; then
-    step "[5] CP2 key host (drive_checkpoint2.py, final review page)"
-    export CAPAFY_HOST_OPENROUTER_KEY="${CAPAFY_HOST_OPENROUTER_KEY:-$(grep '^CAPAFY_HOST_OPENROUTER_KEY=' "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null | cut -d= -f2-)}"
-    CP2="$PUBLISH_REVIEW_URL"
-    timeout 150 "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | grep -vE "Deprecation|warnings.warn" | tail -4
-    # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
-    # exit just before the server registers the hosted key -> a one-shot read false-dies.
-    poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
-    echo "is_confirmed_config_keys=1 ✓"
+  # Always run drive_checkpoint2.py before CP3, even when is_confirmed_config_keys
+  # is already 1: the Agent ワークスペース tab's welcome-message/input-placeholder/
+  # test-case fields have no server readback of their own and can still render
+  # empty on a resumed draft (2026-09-28, 6273179459 / 9466718786 — both already
+  # CP1+CP2-confirmed, yet the tab stayed finalReviewTabStatusInvalid and CP3
+  # never got a 審査に提出 button to click). drive_checkpoint2.py's hosted-key step
+  # is itself idempotent (treats "nothing fillable" as already configured), so
+  # re-running it when CONFIG_STATE=1 is safe.
+  step "[5] CP2 key host + workspace fields (drive_checkpoint2.py, final review page)"
+  export CAPAFY_HOST_OPENROUTER_KEY="${CAPAFY_HOST_OPENROUTER_KEY:-$(grep '^CAPAFY_HOST_OPENROUTER_KEY=' "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null | cut -d= -f2-)}"
+  export CAPAFY_LISTING_PATH="$LISTING"
+  if [ -z "$PUBLISH_REVIEW_URL" ]; then
+    PUBLISH_REVIEW_URL="$(refresh publish)"
   fi
+  [ -n "$PUBLISH_REVIEW_URL" ] || die "no final review URL available for CP2/workspace-field fix"
+  CP2="$PUBLISH_REVIEW_URL"
+  timeout 150 "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | grep -vE "Deprecation|warnings.warn" | tail -4
+  # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
+  # exit just before the server registers the hosted key -> a one-shot read false-dies.
+  poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
+  echo "is_confirmed_config_keys=1 ✓"
 fi
 
 # CP3 is skipped if the agent is ALREADY submitted (platform_status=1) — makes a

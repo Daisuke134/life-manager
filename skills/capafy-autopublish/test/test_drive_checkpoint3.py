@@ -216,6 +216,71 @@ def test_cp3_output_contains_no_url_or_token(monkeypatch, capsys) -> None:
     assert "secret" not in output
 
 
+def test_wait_and_submit_runs_workspace_field_fix_before_waiting_for_submit(monkeypatch, tmp_path) -> None:
+    """A resumed draft's Agent ワークスペース tab (welcome-message/
+    input-placeholder/test-case/DPA-checkbox) must be fixed in CP3's OWN page
+    session, immediately before the submit-button wait below -- the required
+    DPA checkbox has no separate save action that survives a reload, so
+    running the fix in a different CP2 process/navigation would lose it
+    (2026-09-28, 6273179459 / 9466718786)."""
+    module = load_module()
+    module.CP3_POLL_S = 0
+    listing = tmp_path / "LISTING.md"
+    listing.write_text("x", encoding="utf-8")
+    monkeypatch.setenv("CAPAFY_LISTING_PATH", str(listing))
+    calls = []
+    monkeypatch.setattr(
+        module, "_raw_fill_workspace_conversation_fields",
+        lambda _page, path: calls.append(path) or True,
+    )
+    page = _SubmitPage([
+        {"count": 1, "enabled": 1, "disabled": 0, "confirms": 0},
+        {"count": 1, "enabled": 0, "disabled": 1, "confirms": 0},
+    ])
+    page._module = module
+
+    module._wait_and_submit(page)
+
+    assert calls == [str(listing)]
+
+
+def test_wait_and_submit_skips_workspace_fix_without_a_listing_path(monkeypatch) -> None:
+    module = load_module()
+    module.CP3_POLL_S = 0
+    monkeypatch.delenv("CAPAFY_LISTING_PATH", raising=False)
+    monkeypatch.setattr(
+        module, "_raw_fill_workspace_conversation_fields",
+        lambda *_a: pytest.fail("must not run without a LISTING path"),
+    )
+    page = _SubmitPage([
+        {"count": 1, "enabled": 1, "disabled": 0, "confirms": 0},
+        {"count": 1, "enabled": 0, "disabled": 1, "confirms": 0},
+    ])
+    page._module = module
+
+    module._wait_and_submit(page)
+
+
+def test_wait_and_submit_tolerates_a_failed_best_effort_workspace_fix(monkeypatch, tmp_path) -> None:
+    module = load_module()
+    module.CP3_POLL_S = 0
+    listing = tmp_path / "LISTING.md"
+    listing.write_text("x", encoding="utf-8")
+    monkeypatch.setenv("CAPAFY_LISTING_PATH", str(listing))
+
+    def boom(*_a):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module, "_raw_fill_workspace_conversation_fields", boom)
+    page = _SubmitPage([
+        {"count": 1, "enabled": 1, "disabled": 0, "confirms": 0},
+        {"count": 1, "enabled": 0, "disabled": 1, "confirms": 0},
+    ])
+    page._module = module
+
+    module._wait_and_submit(page)  # must not raise -- best-effort only
+
+
 def test_version_form_opens_the_version_tab_once_before_filling() -> None:
     module = load_module()
     module.CP3_POLL_S = 0

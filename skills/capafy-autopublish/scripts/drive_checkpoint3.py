@@ -18,6 +18,7 @@ from drive_checkpoint2 import (
     _bounded_page_evaluate,
     _detect_cdp,
     _is_capafy_target_url,
+    _raw_fill_workspace_conversation_fields,
     _validate_cdp_base,
     _open_responsive_page,
     _single_redirect_location,
@@ -225,6 +226,25 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
 
 def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
     _fill_version_update_if_required(page, update_info)
+
+    # A resumed draft's Agent ワークスペース tab can still be missing its
+    # welcome-message/input-placeholder/test-case/AI-service-provider fields
+    # and its required DPA-agreement checkbox even after CP2 ran (2026-09-28,
+    # 6273179459 / 9466718786): checking that checkbox is what makes
+    # finalReviewSubmitButton switch from 下書きを保存 to 審査に提出 -- with
+    # no separate "save the completed draft" action surviving a reload, so
+    # this MUST run in CP3's own page session, immediately before the submit
+    # click below, not in a separate CP2 process/navigation. Best-effort: a
+    # fresh CP1-flow draft already has every field filled (a no-op here), and
+    # a missing/unreadable LISTING must never block a submit that would have
+    # otherwise hydrated on its own.
+    listing_path = os.environ.get("CAPAFY_LISTING_PATH", "").strip()
+    if listing_path:
+        try:
+            _raw_fill_workspace_conversation_fields(page, listing_path)
+        except Exception as workspace_error:
+            print(f"CP3 workspace-field fix: best-effort, did not complete ({workspace_error})")
+
     deadline = time.monotonic() + CP3_HYDRATE_TIMEOUT_S
     while time.monotonic() < deadline:
         state = _bounded_page_evaluate(page, SUBMIT_STATE_JS, deadline)

@@ -891,6 +891,200 @@ def _draft_save_button_expression():
     )
 
 
+def _draft_save_or_submit_button_expression():
+    """Read finalReviewSubmitButton's CURRENT label without clicking anything.
+    Same button element renders 下書きを保存 while the active tab is invalid
+    and 審査に提出/Submit for Review once every tab is valid -- distinguishing
+    the two is what lets the workspace-field fix stop safely instead of ever
+    clicking a real submit-for-review action (CP3 alone does that)."""
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const bs=[...document.querySelectorAll('button.finalReviewSubmitButton')].filter(visible);"
+        "if(bs.length!==1)return {ok:false,reason:'submit-button-count',count:bs.length};"
+        "const t=(bs[0].textContent||'').trim();"
+        "const label=['審査に提出','Submit for Review'].includes(t)?'submit':(t==='下書きを保存'?'draft':'unknown');"
+        "return {ok:true,label:label,text:t};"
+        "})()"
+    )
+
+
+def _workspace_conversation_field_expression(role):
+    """Locate one of the Agent ワークスペース tab's 会話の開始/テストケース
+    textareas by its fixed example placeholder (verified live, 2026-09-28,
+    Agents 6273179459 / 9466718786). These render EMPTY on a same-Agent
+    resumed draft's final review page even though CP1 already saved a real
+    welcome message + test input earlier in the flow -- nothing re-hydrates
+    them here, so the finalReviewSubmitButton stays labelled 下書きを保存
+    instead of 審査に提出."""
+    selectors = {
+        "welcome": "(x.placeholder||'').includes('資料整理アシスタントです')",
+        "input_placeholder": "(x.placeholder||'').includes('画像をアップロードして希望する結果を説明する')",
+        "test_case_1": "(x.placeholder||'').includes('韻を踏んだキャッチーな広告コピー')",
+        "test_case_2": "(x.placeholder||'').includes('たくさん買って')",
+        # AI service provider tag input -- REQUIRED per drive_cp1.py's own gotcha
+        # #7, and still empty live on both resumed drafts (2026-09-28,
+        # 6273179459 / 9466718786) even after the four textareas above were
+        # filled and saved.
+        "ai_service_provider": "(x.placeholder||'').includes('OpenAI')&&(x.placeholder||'').includes('Anthropic')",
+    }
+    if role not in selectors:
+        raise ValueError(role)
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input,textarea')].filter(x=>visible(x)&&({selectors[role]}));"
+        "if(xs.length!==1)return {ok:false,reason:'workspace-field-count',count:xs.length};"
+        "return {ok:true,value:xs[0].value};"
+        "})()"
+    )
+
+
+def _workspace_conversation_focus_expression(role):
+    selectors = {
+        "welcome": "(x.placeholder||'').includes('資料整理アシスタントです')",
+        "input_placeholder": "(x.placeholder||'').includes('画像をアップロードして希望する結果を説明する')",
+        "test_case_1": "(x.placeholder||'').includes('韻を踏んだキャッチーな広告コピー')",
+        "test_case_2": "(x.placeholder||'').includes('たくさん買って')",
+        "ai_service_provider": "(x.placeholder||'').includes('OpenAI')&&(x.placeholder||'').includes('Anthropic')",
+    }
+    if role not in selectors:
+        raise ValueError(role)
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        f"const xs=[...document.querySelectorAll('input,textarea')].filter(x=>visible(x)&&({selectors[role]}));"
+        "if(xs.length!==1)return {ok:false,reason:'workspace-focus-count',count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});x.focus();return {ok:true};"
+        "})()"
+    )
+
+
+def _parse_listing_conversation_fields(listing_path):
+    """Extract welcomeMessage (and its 'Example:' line as test_input) from a
+    catalog LISTING.md -- same parsing build_config.py uses to build CP1's
+    config.json. Returns (welcome, test_input); either may be None if the
+    file is missing/unparsable (never raises)."""
+    try:
+        text = open(listing_path, encoding="utf-8").read()
+    except OSError:
+        return None, None
+    m = re.search(r"## welcomeMessage\n(.+?)\n## detailedDescription", text, re.S)
+    welcome = m.group(1).strip() if m else None
+    test_input = None
+    if welcome:
+        ex = re.search(r'Example:\s*"?([^"\n]+)"?', welcome)
+        test_input = ex.group(1).strip() if ex else None
+    return welcome, test_input
+
+
+def _dpa_agreement_checkbox_expression():
+    """Locate the REQUIRED Capafy 'データ処理契約' (Data Processing Agreement)
+    checkbox next to the 主要モデル提供元 disclosure field (drive_cp1.py's own
+    gotcha #13: "DPA checkbox -- REQUIRED, red if unchecked"). Nothing in the
+    CP2 resume/llm_config path ever checks it, and it renders UNCHECKED on a
+    resumed draft (verified live 2026-09-28, 6273179459 / 9466718786) --
+    leaving finalReviewTabStatusInvalid even after every textarea above is
+    filled and saved."""
+    return (
+        "(() => {"
+        "const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);"
+        "const xs=[...document.querySelectorAll('input[type=checkbox].pricingTabAgreementCheckboxInput')].filter(visible);"
+        "if(xs.length!==1)return {ok:false,reason:'dpa-checkbox-count',count:xs.length};"
+        "const x=xs[0];x.scrollIntoView({block:'center'});const r=x.getBoundingClientRect();"
+        "return {ok:true,checked:x.checked,x:r.x+r.width/2,y:r.y+r.height/2};"
+        "})()"
+    )
+
+
+def _raw_fill_workspace_conversation_fields(page, listing_path):
+    """Fill the Agent ワークスペース tab's welcome-message / input-placeholder /
+    test-case / AI-service-provider fields from the catalog LISTING.md, and
+    check the REQUIRED DPA agreement checkbox, when a resumed draft's final
+    review page renders them empty/unchecked (LLM モデル and 推定実行時間
+    already have their own fixes above/below; only 会話の開始 + テストケース
+    + データ共有に関する申告 are missing here). Idempotent: a field that
+    already has a value/is already checked (a fresh CP1 flow already filled
+    it) is left untouched. Returns True if there was nothing to do or the
+    draft-save succeeded; False only if LISTING itself can't be parsed (this
+    fix is best-effort next to the hosted-key gate, which is the
+    authoritative is_confirmed_config_keys check)."""
+    welcome, test_input = _parse_listing_conversation_fields(listing_path)
+    if not welcome:
+        print(f"workspace conversation fields: LISTING unreadable/unparsable ({listing_path})")
+        return False
+
+    tab = page.evaluate(_WORKSPACE_TAB_EXPRESSION)
+    if isinstance(tab, dict) and tab.get("ok"):
+        for kind in ("mousePressed", "mouseReleased"):
+            page.call("Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1})
+        time.sleep(1)
+
+    example = test_input or welcome
+    values = {
+        "welcome": welcome,
+        "input_placeholder": example,
+        "test_case_1": example,
+        "test_case_2": example,
+        # tag-style input (Enter commits the chip) -- matches this pipeline's
+        # actual hosted provider (OpenRouter), same value drive_cp1.py's old
+        # CP1 form used for this exact field.
+        "ai_service_provider": "openrouter.ai",
+    }
+    filled_any = False
+    for role, value in values.items():
+        state = page.evaluate(_workspace_conversation_field_expression(role))
+        if not isinstance(state, dict) or not state.get("ok"):
+            continue  # field absent on this layout -- not fatal, skip it
+        if state.get("value"):
+            continue  # already filled -- never overwrite an existing value
+        focused = page.evaluate(_workspace_conversation_focus_expression(role))
+        if not isinstance(focused, dict) or not focused.get("ok"):
+            raise RuntimeError(f"workspace {role} focus failed ({focused})")
+        page.call("Input.insertText", {"text": value})
+        if role == "ai_service_provider":
+            page.press_enter()
+        filled_any = True
+
+    dpa = page.evaluate(_dpa_agreement_checkbox_expression())
+    if isinstance(dpa, dict) and dpa.get("ok") and not dpa.get("checked"):
+        for kind in ("mousePressed", "mouseReleased"):
+            page.call("Input.dispatchMouseEvent", {
+                "type": kind, "x": float(dpa["x"]), "y": float(dpa["y"]),
+                "button": "left", "clickCount": 1,
+            })
+        print("workspace DPA agreement checkbox: checked")
+        filled_any = True
+
+    if not filled_any:
+        print("workspace conversation fields: already filled")
+        return True
+
+    # The DPA checkbox's onChange can itself flip finalReviewSubmitButton's
+    # label from 下書きを保存 to 審査に提出 the instant the tab becomes valid
+    # (observed live, 2026-09-28) -- before any explicit save click. Never
+    # click it in that state (CP3 alone submits); the button's own commit
+    # already happened via the checkbox's onChange.
+    submit_state = page.evaluate(_draft_save_or_submit_button_expression())
+    if isinstance(submit_state, dict) and submit_state.get("ok") and submit_state.get("label") == "submit":
+        print("workspace conversation fields: tab already valid (審査に提出 visible) -- not clicking it")
+        return True
+
+    save = page.evaluate(_draft_save_button_expression())
+    if not isinstance(save, dict) or not save.get("ok"):
+        raise RuntimeError(f"ambiguous draft-save button ({save})")
+    if save.get("disabled"):
+        raise RuntimeError("draft-save button is disabled")
+    for kind in ("mousePressed", "mouseReleased"):
+        page.call("Input.dispatchMouseEvent", {
+            "type": kind, "x": float(save["x"]), "y": float(save["y"]),
+            "button": "left", "clickCount": 1,
+        })
+    print("workspace conversation fields: filled + draft saved")
+    time.sleep(3)
+    return True
+
+
 def _raw_fix_display_model(page, display_model):
     """Idempotently set the Agent card's "LLM モデル" display field to
     <display_model> (preferring a matching preset option over free text --
@@ -1096,12 +1290,23 @@ def _raw_cp2(cp2, key, cdp_base):
         if section_mode is not None:
             key_host_verified = _raw_configure_hosted_key(page, key, section_mode)
 
+        # Independent of the Hosted Key card and the display-model fix below:
+        # a resumed draft's Agent ワークスペース tab can render the
+        # welcome-message/input-placeholder/test-case fields empty even when
+        # the hosted key is already confirmed, which leaves the whole tab
+        # invalid and 審査に提出 never appears (2026-09-28, 6273179459 /
+        # 9466718786). Runs whenever a LISTING.md is known for this agent.
+        listing_path = os.environ.get("CAPAFY_LISTING_PATH", "").strip()
+        workspace_fields_ok = True
+        if listing_path:
+            workspace_fields_ok = _raw_fill_workspace_conversation_fields(page, listing_path)
+
         display_model = os.environ.get("CAPAFY_DISPLAY_MODEL", "").strip()
         if not display_model:
-            return key_host_verified
+            return key_host_verified and workspace_fields_ok
 
         display_verified = _raw_fix_display_model(page, display_model)
-        return key_host_verified and display_verified
+        return key_host_verified and workspace_fields_ok and display_verified
     finally:
         page.close()
 
