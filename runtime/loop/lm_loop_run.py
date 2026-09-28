@@ -21,7 +21,9 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
+from runtime.loop.lm_loop import (
+    _apply_lock, _label_apply_lock_path, _loaded_v2_release, _private_runtime_rows,
+)
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import (
@@ -191,7 +193,31 @@ def _append_recovery_intent(path: Path, intent: dict) -> None:
         os.close(descriptor)
 
 
-def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> bool:
+def _consecutive_failure_streak(event_path: Path, loop_id: str) -> int:
+    """Count the trailing run of consecutive terminal failures for one owner.
+
+    The just-appended terminal event for this run is already the newest row in
+    ``event_path``, so a fresh single failure reports 1. A journal read failure
+    or a private-file check miss falls back to 1 rather than blocking the
+    caller — the intent still enqueues, it just cannot yet prove a longer
+    streak, which is the safe (non-escalating) direction to be wrong in.
+    """
+    try:
+        rows = _private_runtime_rows(event_path)
+    except (OSError, ValueError):
+        return 1
+    streak = 0
+    for row in reversed(rows):
+        if row.get("loop_id") != loop_id or row.get("status") == "running":
+            continue
+        if row.get("status") != "fail":
+            break
+        streak += 1
+    return streak or 1
+
+
+def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path,
+                             event_path: Path) -> bool:
     classifier = release_root / "runtime/loop/recovery-intent-cli.mjs"
     if not classifier.is_file():
         raise RuntimeError("recovery intent classifier unavailable")
@@ -209,7 +235,7 @@ def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> 
         "effect_class": event["effect_class"],
         "effect_status": event["effect_status"],
         "blocker": event["blocker"],
-        "consecutive_failure_streak": 1,
+        "consecutive_failure_streak": _consecutive_failure_streak(event_path, event["loop_id"]),
         "threshold": 3,
         "evidence_refs": event["evidence_refs"],
     })
@@ -1258,7 +1284,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
         if terminal_saved and event is not None and _should_enqueue_recovery_intent(entry, event):
             try:
-                _enqueue_recovery_intent(release_root, event, scratch)
+                _enqueue_recovery_intent(release_root, event, scratch, event_path)
             except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
                 print(f"lm-loop-run: recovery intent append failed: {error}", file=sys.stderr)
         try:

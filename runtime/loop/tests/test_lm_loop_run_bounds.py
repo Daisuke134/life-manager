@@ -20,7 +20,7 @@ from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _apply_verified_effect_result,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
-    _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
+    _consecutive_failure_streak, _enqueue_recovery_intent, _persist_effect_identity, _resource_class,
     _heartbeat_loop, _run_admitted, _run_entrypoint, _runtime_limit,
     _sqlite_database_busy,
     _should_enqueue_recovery_intent, _terminal_outcome, _verified_effect_result,
@@ -1297,8 +1297,11 @@ def test_recovery_enqueue_is_replay_zero_and_fences_unknown_effect(tmp_path):
         "LIFE_MANAGER_RUNTIME_NODE": shutil.which("node"),
         "PATH": "/usr/bin:/bin",
     }):
-        assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
-        assert _enqueue_recovery_intent(Path(__file__).resolve().parents[3], event, tmp_path)
+        missing_event_path = tmp_path / "unused-events.jsonl"
+        assert _enqueue_recovery_intent(
+            Path(__file__).resolve().parents[3], event, tmp_path, missing_event_path)
+        assert _enqueue_recovery_intent(
+            Path(__file__).resolve().parents[3], event, tmp_path, missing_event_path)
     rows = [json.loads(line) for line in queue.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 1
     assert rows[0]["record_type"] == "recovery_intent"
@@ -1306,6 +1309,85 @@ def test_recovery_enqueue_is_replay_zero_and_fences_unknown_effect(tmp_path):
     assert rows[0]["action"] == "hold_effect_unknown"
     assert rows[0]["retryable"] is False
     assert rows[0]["mutates_external_effect"] is False
+
+
+def test_consecutive_failure_streak_counts_trailing_fails_for_one_owner(tmp_path):
+    from runtime.loop.runtime_event import append_runtime_event
+
+    event_path = tmp_path / "events.jsonl"
+    loop_id = "hf-gig-apply-reconcile"
+    for index in range(3):
+        append_runtime_event(event_path, build_runtime_event(
+            loop_id=loop_id, domain="earn", run_id=f"run-{index}",
+            release_sha="a" * 40, provider="deterministic", profile_alias=None,
+            effect_class="none", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1,
+        ))
+    assert _consecutive_failure_streak(event_path, loop_id) == 3
+
+    # A prior success resets the streak back to just the new failure.
+    append_runtime_event(event_path, build_runtime_event(
+        loop_id=loop_id, domain="earn", run_id="run-3",
+        release_sha="a" * 40, provider="deterministic", profile_alias=None,
+        effect_class="none", succeeded=True, blocker=None, exit_code=0,
+    ))
+    append_runtime_event(event_path, build_runtime_event(
+        loop_id=loop_id, domain="earn", run_id="run-4",
+        release_sha="a" * 40, provider="deterministic", profile_alias=None,
+        effect_class="none", succeeded=False, blocker="entrypoint_exit_1",
+        exit_code=1,
+    ))
+    assert _consecutive_failure_streak(event_path, loop_id) == 1
+
+    # A sibling owner's failures never inflate this owner's streak.
+    assert _consecutive_failure_streak(event_path, "unrelated-owner") == 1
+
+    # A missing journal is the conservative default, not a crash.
+    assert _consecutive_failure_streak(tmp_path / "missing.jsonl", loop_id) == 1
+
+
+def test_bounded_recovery_escalates_instead_of_repeating_reconcile_owner_forever(tmp_path):
+    """Regression for #5900: a real streak must reach the escalation threshold.
+
+    Before this fix, ``_enqueue_recovery_intent`` always reported
+    ``consecutive_failure_streak: 1``, so the classifier could never see
+    ``streak >= threshold`` and kept emitting the bounded ``reconcile_owner``
+    action forever -- the exact "exhausted bounded recovery" deadlock in the
+    issue. With the real trailing-failure count, a third consecutive failure
+    for the same owner must escalate instead of looping.
+    """
+    from runtime.loop.runtime_event import append_runtime_event
+
+    loop_id = "hf-gig-apply-reconcile"
+    event_path = tmp_path / "events.jsonl"
+    queue = tmp_path / "recovery" / "intents.jsonl"
+    release_sha = "b" * 40
+    for index in range(2):
+        append_runtime_event(event_path, build_runtime_event(
+            loop_id=loop_id, domain="earn", run_id=f"run-{index}",
+            release_sha=release_sha, provider="deterministic", profile_alias=None,
+            effect_class="none", succeeded=False, blocker="entrypoint_exit_1",
+            exit_code=1,
+        ))
+    third_event = build_runtime_event(
+        loop_id=loop_id, domain="earn", run_id="run-2",
+        release_sha=release_sha, provider="deterministic", profile_alias=None,
+        effect_class="none", succeeded=False, blocker="entrypoint_exit_1",
+        exit_code=1,
+    )
+    append_runtime_event(event_path, third_event)
+    with patch.dict(os.environ, {
+        "LIFE_MANAGER_RECOVERY_INTENTS_PATH": str(queue),
+        "LIFE_MANAGER_RUNTIME_NODE": shutil.which("node"),
+        "PATH": "/usr/bin:/bin",
+    }):
+        assert _enqueue_recovery_intent(
+            Path(__file__).resolve().parents[3], third_event, tmp_path, event_path)
+    rows = [json.loads(line) for line in queue.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["action"] == "escalate_repeated_failure"
+    assert rows[0]["reason"] == "bounded_retry_budget_exhausted"
+    assert rows[0]["retryable"] is False
 
 
 def test_recovery_enqueue_skips_success_admission_and_paid_owned_jobs():
