@@ -115,6 +115,14 @@ def rolling_30d(receipts: Iterable[Mapping[str, Any]], end_day: str) -> dict[str
 
     for day in expected_days:
         row = by_day[day]
+        if row.get("_load_error"):
+            return _failure(
+                result_base,
+                "blocked",
+                str(row.get("_load_error")),
+                affected_days=[day.isoformat()],
+                days_observed=WINDOW_DAYS,
+            )
         if row.get("status") != "delivered":
             return _failure(
                 result_base,

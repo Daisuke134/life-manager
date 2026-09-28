@@ -1,9 +1,10 @@
+import json
 import tempfile
 import unittest
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from cross_venue_reporter import render_daily_pnl, wake
+from cross_venue_reporter import load_daily_receipts, render_daily_pnl, wake
 from telegram_outbox import list_items
 from venue_snapshot import VenueSnapshot
 
@@ -144,6 +145,73 @@ class CrossVenueReporterTests(unittest.TestCase):
         self.assertEqual(receipt["aggregate"]["rolling_30d_net_pnl_usd"], "30.00")
         self.assertEqual(receipt["aggregate"]["target_gap_usd"], "9970.00")
         self.assertEqual(receipt["aggregate"]["rolling_owner_cash_flow_usd"], "1500.00")
+
+    def test_load_daily_receipts_reads_only_the_requested_window(self):
+        today = "2026-09-28"
+        end = date.fromisoformat(today)
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            expected_days = []
+            for offset in range(29, -1, -1):
+                day = (end - timedelta(days=offset)).isoformat()
+                expected_days.append(day)
+                (state / f"cross-venue-{day}.json").write_text(
+                    json.dumps({"day": day, "status": "delivered"}), encoding="utf-8"
+                )
+            outside = (end - timedelta(days=30)).isoformat()
+            (state / f"cross-venue-{outside}.json").write_text(
+                json.dumps({"day": outside, "status": "delivered"}), encoding="utf-8"
+            )
+
+            rows = load_daily_receipts(state, today)
+
+        self.assertEqual([row["day"] for row in rows], expected_days)
+        self.assertEqual(len(rows), 30)
+
+    def test_load_daily_receipts_marks_malformed_file_without_treating_it_as_missing(self):
+        today = "2026-09-28"
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            day = "2026-09-01"
+            (state / f"cross-venue-{day}.json").write_text("{not-json", encoding="utf-8")
+
+            rows = load_daily_receipts(state, today)
+
+        malformed = next(row for row in rows if row["day"] == day)
+        self.assertEqual(malformed["_load_error"], "daily_receipt_file_invalid")
+
+    def test_wake_replays_last_completed_persisted_window_when_daily_reader_is_not_injected(self):
+        today = "2026-09-28"
+        end = date.fromisoformat(today)
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            completed_end = end - timedelta(days=1)
+            for offset in range(29, -1, -1):
+                day = (completed_end - timedelta(days=offset)).isoformat()
+                (state / f"cross-venue-{day}.json").write_text(
+                    json.dumps({
+                        "day": day,
+                        "status": "delivered",
+                        "aggregate": {
+                            "measurement_status": "measured",
+                            "net_pnl_usd": "1.00",
+                            "owner_cash_flow_usd": "0.00",
+                            "source_receipt_ids": [f"persisted-{offset}"],
+                        },
+                    }), encoding="utf-8"
+                )
+
+            receipt = wake(
+                {"alpaca": lambda: snapshot()},
+                state,
+                today,
+                lambda _message: {"message_id": "telegram-persisted"},
+            )
+
+        self.assertEqual(receipt["aggregate"]["rolling_measurement_status"], "measured")
+        self.assertEqual(receipt["aggregate"]["rolling_reason"], "rolling_measurement_complete")
+        self.assertEqual(receipt["aggregate"]["rolling_period_end"], "2026-09-27")
+        self.assertEqual(receipt["aggregate"]["rolling_30d_net_pnl_usd"], "30.00")
 
 
 if __name__ == "__main__":

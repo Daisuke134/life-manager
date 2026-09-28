@@ -29,6 +29,10 @@ UTC days are present, delivered, measured, and source-receipt IDs are unique.
 Missing/partial/undelivered days return `unknown`; malformed or duplicate
 evidence returns `blocked`. Owner cash flow is summed as a separate field and
 never added to rolling net P&L. A numeric target gap is never zero-filled.
+When that reader is not supplied, `wake(...)` replays the persisted
+`cross-venue-YYYY-MM-DD.json` files for the last 30 *completed* UTC days. The
+current day is intentionally excluded until its delivery receipt is durable;
+the result records `rolling_period_end` so the measured window is explicit.
 
 Current source boundaries:
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 import json
 from pathlib import Path
@@ -68,6 +68,7 @@ def render_daily_pnl(aggregate: Mapping[str, Any], allocation: Mapping[str, Any]
         f"model cost: {_money(aggregate.get('model_cost_usd'))}",
         f"owner cash flow: {_money(aggregate.get('owner_cash_flow_usd'))}",
         f"net P&L: {_money(aggregate.get('net_pnl_usd'))}",
+        f"rolling period end: {aggregate.get('rolling_period_end') or '不明'}",
         f"rolling 30d net P&L: {_money(aggregate.get('rolling_30d_net_pnl_usd'))}",
         f"target gap ($10k/month): {_money(aggregate.get('target_gap_usd'))}",
         "",
@@ -122,6 +123,34 @@ def _base_receipt(day: str, aggregate: Mapping[str, Any], allocation: Mapping[st
     }
 
 
+def load_daily_receipts(state_dir: str | Path, end_day: str) -> list[dict[str, Any]]:
+    """Read persisted daily receipts for one rolling window without writing state."""
+    try:
+        parsed_end = date.fromisoformat(end_day)
+    except (TypeError, ValueError) as error:
+        raise ValueError("daily_receipt_day_invalid") from error
+    if parsed_end.isoformat() != end_day:
+        raise ValueError("daily_receipt_day_invalid")
+
+    state = Path(state_dir)
+    rows: list[dict[str, Any]] = []
+    for offset in range(29, -1, -1):
+        day = (parsed_end - timedelta(days=offset)).isoformat()
+        path = state / f"cross-venue-{day}.json"
+        if not path.exists():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            rows.append({"day": day, "_load_error": "daily_receipt_file_invalid"})
+            continue
+        if not isinstance(value, Mapping) or value.get("day") != day:
+            rows.append({"day": day, "_load_error": "daily_receipt_file_invalid"})
+            continue
+        rows.append(dict(value))
+    return rows
+
+
 def wake(
     readers: Mapping[str, Callable[[], Any]],
     state_dir: str | Path,
@@ -169,10 +198,15 @@ def wake(
         aggregate["unknown_venues"] = unknown
         aggregate["measurement_status"] = "partial" if aggregate.get("measurement_status") == "measured" else "unknown"
     daily_receipts = readers.get("__daily_receipts__")
+    auto_persisted_window = daily_receipts is None and "__rolling_30d_net_pnl_usd__" not in readers
+    rolling_end_day = today
+    if auto_persisted_window:
+        rolling_end_day = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
+        daily_receipts = load_daily_receipts(state, rolling_end_day)
     if daily_receipts is not None:
         try:
             daily_receipts = daily_receipts() if callable(daily_receipts) else daily_receipts
-            rolling_result = rolling_30d(daily_receipts, today)
+            rolling_result = rolling_30d(daily_receipts, rolling_end_day)
         except Exception as error:  # receipt boundary: preserve class, not provider text
             rolling_result = {
                 "measurement_status": "unknown",
@@ -183,6 +217,7 @@ def wake(
             }
         aggregate["rolling_measurement_status"] = rolling_result.get("measurement_status")
         aggregate["rolling_reason"] = rolling_result.get("reason")
+        aggregate["rolling_period_end"] = rolling_result.get("period_end")
         aggregate["rolling_30d_net_pnl_usd"] = rolling_result.get("net_pnl_usd")
         aggregate["rolling_owner_cash_flow_usd"] = rolling_result.get("owner_cash_flow_usd")
         aggregate["target_gap_usd"] = rolling_result.get("target_gap_usd")
@@ -192,6 +227,7 @@ def wake(
         rolling = readers.get("__rolling_30d_net_pnl_usd__")
         aggregate["rolling_measurement_status"] = "provided" if rolling is not None else "unknown"
         aggregate["rolling_reason"] = "provided_input" if rolling is not None else "daily_receipts_missing"
+        aggregate["rolling_period_end"] = today if rolling is not None else None
         aggregate["rolling_30d_net_pnl_usd"] = rolling
         aggregate["target_gap_usd"] = None
         if rolling is not None:

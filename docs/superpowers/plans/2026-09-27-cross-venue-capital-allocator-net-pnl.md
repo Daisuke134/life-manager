@@ -126,9 +126,9 @@ only `net_pnl_usd`, keeps owner cash flow separate, and returns no numeric resul
 for missing, partial, undelivered, malformed, or duplicate evidence.
 
 - [x] **Step 1: Add failing tests** for exact 30-day arithmetic, owner-flow separation, missing days, partial/undelivered days, duplicate days/receipt IDs, and invalid source numbers. RED observed with the missing module.
-- [x] **Step 2: Implement the Decimal-safe pure measurement function** and wire the explicit `__daily_receipts__` reader into the daily reporter; no filesystem, network, credential, or venue-effect import was added.
-- [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `4/4`, including a measured `$30.00` fixture and `$9,970.00` target gap.
-- [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** Current live venue receipts are not complete, so this data gate remains open.
+- [x] **Step 2: Implement the Decimal-safe pure measurement function** and wire both the explicit `__daily_receipts__` reader and the persisted completed-day replay into the daily reporter; malformed state is blocked and no filesystem, network, credential, or venue-effect import was added to the pure calculator.
+- [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `7/7`, including a measured `$30.00` fixture, `$9,970.00` target gap, malformed-file handling, and a persisted 30-completed-day replay.
+- [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** The reporter now measures the last completed UTC window; current live venue receipts are not complete, so this data gate remains open.
 
 ## Source references
 
