@@ -18,6 +18,7 @@ CAPACITY_STATUSES = KNOWN_STATUSES | frozenset({
     "pending_online", "audit_passed_pending_online",
 })
 CAPAFY_REVIEW_CAP = 5
+PLACEHOLDER_SUFFIX = " (LM generated — please review and edit before saving)"
 
 
 def _fail(message: str) -> int:
@@ -77,6 +78,13 @@ def main(argv: list[str] | None = None) -> int:
     if not title:
         return _fail("title must not be empty")
     title_matches = [agent for agent in agents if agent["name"] == title]
+    if not title_matches:
+        # A failed run leaves its draft under Capafy's placeholder name
+        # (title + PLACEHOLDER_SUFFIX). Resume that draft instead of creating a
+        # second one that would occupy another review slot.
+        title_matches = [agent for agent in agents
+                         if agent["name"] == title + PLACEHOLDER_SUFFIX
+                         and agent["agent_status"] in {"draft", "review_rejected"}]
     if len(title_matches) > 1:
         return _fail("exact title matches more than one Agent")
     expected_id = str(args.expected_agent_id or "").strip()
@@ -105,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         reuse_matches = [agent for agent in agents if agent["agent_id"] == reuse_id]
         if len(reuse_matches) != 1:
             return _fail("explicit reuse agent_id is not exactly one Agent")
-        if reuse_matches[0]["name"] != title:
+        if reuse_matches[0]["name"] not in {title, title + PLACEHOLDER_SUFFIX}:
             return _fail("explicit reuse Agent name does not match the requested title")
         if reuse_matches[0]["agent_status"] not in {"draft", "review_rejected"}:
             return _fail("explicit reuse Agent is not draft/review_rejected")
