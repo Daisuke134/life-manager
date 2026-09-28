@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "issue": 5898,
+  "current_release_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "failure_event": {
+    "loopId": "franklin-loop",
+    "ownerId": "franklin-loop",
+    "wakeId": "00MUGSS853CB437A82D740471D",
+    "runId": "18d887dbe8a77f78-99220",
+    "releaseSha": "74c69d01a382a9aaedf7e89c66fc44f272159629",
+    "failureLayer": "brain_transport"
+  },
+  "expected_outcome": {
+    "owner_id": "franklin-loop",
+    "occurrence_id": "franklin-loop:18d887dbe8a77f78-99220",
+    "action": "reconcile_owner",
+    "intent_reason": "bounded_owner_reconciliation",
+    "state": "blocked",
+    "reason": "release_sha_mismatch",
+    "next_action": "none",
+    "attempt": 0,
+    "before_event_id": null,
+    "after_event_id": null,
+    "command_exit_code": null,
+    "supervisor_exit_code": 0
+  }
+}
