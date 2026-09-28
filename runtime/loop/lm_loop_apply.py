@@ -26,6 +26,11 @@ _PRIVATE_LOG_LOOP_IDS = frozenset({
     "money-printer-symphony",
 })
 MANAGED_NODE_CANDIDATES = (Path("/opt/homebrew/bin/node"), Path("/usr/local/bin/node"))
+# The legacy Connector plist launched the source checkout. The immutable runner
+# receives its release exclusively from argv, so this inherited override expires.
+RETIRED_OWNER_ENVIRONMENT_KEYS = {
+    "life-manager-connector-native": ("LIFE_MANAGER_RELEASE_ROOT",),
+}
 
 
 def _managed_node(loop_id: str) -> str:
@@ -484,6 +489,9 @@ def install_one(item: dict, target: Path,
                 retired_environment_keys: tuple[str, ...] = (),
                 retired_operational_keys: tuple[str, ...] = ()) -> dict:
     label = item["label"]
+    retired_environment_keys = tuple(dict.fromkeys(
+        (*retired_environment_keys, *RETIRED_OWNER_ENVIRONMENT_KEYS.get(item["loop_id"], ()))
+    ))
     domain = f"gui/{os.getuid()}"
     service = f"{domain}/{label}"
     _ensure_runtime_roots(item["plist_bytes"])

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "fixture_id": "connector-release-binding-recovery",
+  "owner_id": "life-manager-connector-native",
+  "failure": {
+    "failure_layer": "entrypoint",
+    "outcome_reason": "release_sha_mismatch"
+  },
+  "legacy_environment": {
+    "LIFE_MANAGER_RELEASE_ROOT": "/immutable/releases/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "expected": {
+    "release_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "authoritative_status": "loaded-idle",
+    "stale_release_environment_removed": true
+  }
+}

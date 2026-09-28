@@ -1679,6 +1679,47 @@ class LmLoopApplyTest(unittest.TestCase):
         apply_registry(value, self.root, SHA, calls.append)
         self.assertEqual([item["loop_id"] for item in calls], ["life-manager-connector-native"])
 
+    def test_connector_reconcile_replaces_a_legacy_release_root_before_status_readback(self):
+        fixture = json.loads((ROOT / "runtime/loop/fixtures/self-heal/connector-release-binding-recovery.json").read_text())
+        value = registry("skills/connector/run.sh")
+        value["loops"][fixture["owner_id"]] = value["loops"].pop("example")
+        entry = value["loops"][fixture["owner_id"]]
+        entry["label"] = "ai.anicca.life-manager-connector-native"
+        (self.root / "skills/connector").mkdir(parents=True)
+        executable = self.root / "skills/connector/run.sh"
+        executable.write_text("#!/bin/sh\nexit 0\n")
+        executable.chmod(0o755)
+        for dependency in ("playwright-core", "jsqr"):
+            package = self.root / "apps/life-manager/node_modules" / dependency / "package.json"
+            package.parent.mkdir(parents=True)
+            package.write_text("{}\n")
+
+        rendered = build_apply_plan(value, self.root, fixture["expected"]["release_sha"])[0]
+        target = self.root / "connector.plist"
+        legacy = plistlib.loads(rendered["plist_bytes"])
+        legacy["EnvironmentVariables"].update(fixture["legacy_environment"])
+        target.write_bytes(plistlib.dumps(legacy))
+
+        def launchctl(args):
+            if args[0] == "print":
+                installed = plistlib.loads(target.read_bytes())
+                return 0, "arguments = {\n" + "\n".join(installed["ProgramArguments"]) + "\n}\n"
+            return 0, ""
+
+        result = install_one(rendered, target, launchctl, attempts=1, sleeper=lambda _: None)
+        installed = plistlib.loads(target.read_bytes())
+        status = lm_loop.status_rows(
+            value,
+            loaded={entry["label"]: {"pid": None, "last_exit": None}},
+            disabled={entry["label"]: False}, events={},
+            installed_releases={entry["label"]: lm_loop._release_from_plist(target)},
+        )[0]
+
+        self.assertTrue(result["ok"])
+        self.assertNotIn("LIFE_MANAGER_RELEASE_ROOT", installed["EnvironmentVariables"])
+        self.assertEqual(status["installed_release_sha"], fixture["expected"]["release_sha"])
+        self.assertEqual(status["launchd_state"], fixture["expected"]["authoritative_status"])
+
     def test_targeted_apply_ignores_unrelated_missing_entrypoint(self):
         calls = []
         installer = lambda item: calls.append(item) or item
