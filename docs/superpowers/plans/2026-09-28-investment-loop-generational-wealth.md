@@ -97,6 +97,18 @@ The current `$100` Alpaca cap at a hypothetical 10% net annual return produces a
 
 The observed x402 route average is `0.010000 USDC` per finalized receipt. As planning arithmetic only (not an FX conversion and not net profit), gross `10,000` units/month at that average would require `1,000,000` receipts/month. September's `15` verified receipts are `0.0015%` of that volume. The current x402 seller is therefore an evidence-producing seed, not yet a credible `$10k/month` engine; the next wealth-building bottleneck is verified USD cash generation and net-margin measurement, not sending more Binance capital.
 
+### Cash-engine scale math from the latest Capafy evidence
+
+The latest provider snapshot is a small operating-cash signal, not investment capital: 30-day provider net revenue is `$55.04`, actual model cost is `$43.61`, and the contribution proxy is `$11.43`. Holding that observed ratio constant only for sensitivity math:
+
+| Cash target | Approximate scale from current 30-day evidence | Implied provider net revenue | Implied model cost | Implied contribution |
+|---|---:|---:|---:|---:|
+| `$10,000/month` provider net revenue | `181.7x` | `$10,000` | `$7,923` | `$2,077` |
+| `$100,000/year` provider net revenue (`$8,333/month`) | `151.4x` | `$8,333` | `$6,603` | `$1,731` |
+| `$10,000/month` contribution proxy | `874.9x` | `$48,154` | `$38,154` | `$10,000` |
+
+These are arithmetic scenarios, not forecasts: the current sample is too small, MRR is unknown, payout is unsettled, and the cost/revenue windows are not perfectly period-matched. The operating plan is therefore to improve measured product volume and margin, then join provider revenue, actual model cost, payout, refunds, tax, and reserve receipts before routing any surplus to investments.
+
 ### Generational-wealth accumulation boundary
 
 `$10,000/month` is a realised net-profit target, not gross sales and not a promise. A separate planning target is `$1,000,000` net worth. The accumulation path is:
