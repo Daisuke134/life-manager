@@ -103,6 +103,14 @@
 
 trendのholdoutが僅かに正でも、頑健性gateが不成立なのでpaper/live候補へ昇格しない。これは口座P&Lではなく、既存カードを選択しないための追加証拠であり、新しいStrategyCardや追加資金の根拠にはしない。
 
+## Research-only ETF momentum candidate（2026-09-29）
+
+既存のBTC 5分足とは別の出典・timeframe・universeとして、Jegadeesh–Titmanの株式momentum研究を参考に、`SPY, QQQ, IWM, DIA, EFA, EEM, TLT, GLD`を固定した。各common sessionの126日前closeからのreturnが最大の1銘柄を選び、次sessionのopenで`$10`入り、21 session後のcloseで退出する。commissionは0、slippageは片側10bpと宣言し、chronological 60/20/20、`84/126/168 × 15/21/30`の9点gridを固定した。pure evaluatorは先にテストし、decision closeより前のデータだけをsignalへ使うこと、next-open entry、duplicate/missing/cost/empty-holdoutのfail-closedを固定した。
+
+公式Alpaca paperのIEX・split-adjusted daily barsは、8 symbolのcommon sessionsが2020-07-27〜2026-09-28の1,551件、canonical payload hashは`83d5ba8290d940f63880a2770f846a1addf19ea8632ce9ed626b73cf9490336a`だった。126/21の結果はtrain/validation/holdout `40/13/14` trades、netは`+$2.17 / +$2.21 / +$1.62`、holdout max drawdown `$1.25`、cost `$0.28`。9点gridは`9/9` positive、median holdout net `+$1.62`。片側slippage 25bpではholdout `+$1.20`、50bpでは`+$0.50`、100bpでは`-$0.90`。
+
+これはcandidate research evidenceであり、research-only `alpaca-etf-126d-momentum-v1`を作っただけである。standard validation report、runtime daily ingestion、position ownership、stock order constraints、official paper receipt、release-pinned selectionが未完なので、selected strategy・口座P&L・30往復・追加送金とは数えない。
+
 ## 現時点の結論
 
 - OSS・公開研究から得られたのは、候補ルールと検証規律であって、利益保証ではない。
