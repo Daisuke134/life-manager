@@ -92,10 +92,10 @@
 - Produces `render_daily_pnl(aggregate, allocation, day) -> str` including all cost components and `unknown` markers.
 - Produces `wake(readers, state_dir, today, send) -> dict`; it writes one aggregate receipt per UTC day, uses the existing Telegram outbox contract, and returns the provider message ID or a typed delivery-uncertain result.
 
-- [ ] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly.
-- [ ] **Step 4: Run the focused test and verify pass.**
+- [x] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
+- [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
+- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_reporter` passes `3/3`; same-day replay sends once and preserves the provider message ID.
 - [ ] **Step 5: Commit** `feat(investment): report cross-venue net pnl daily`.
 
 ### Task 5: Acceptance evidence and operator contract
