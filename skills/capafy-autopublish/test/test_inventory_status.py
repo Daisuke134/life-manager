@@ -114,8 +114,13 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     request = next(item for item in items if item["feature"] == "catalog:marketing-strategist")
     assert request["update_request"]["agent_id"] == "9563867391"
     assert request["icon"].endswith("icon.webp")
+    others = [item for item in items
+              if item.get("update_request") and item is not request]
     rows = [agent("9563867391", "online", name=request["title"],
                   latestAgentVersionId="2070737929294868480"),
+            *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
+                    latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
+              for item in others],
             agent("other", "under_review")]
     monkeypatch.setattr(module, "server_agents", lambda: rows)
 
