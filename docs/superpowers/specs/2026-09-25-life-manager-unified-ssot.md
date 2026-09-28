@@ -196,6 +196,12 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
 - 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
 
+**2026-09-29 08:2x JST 実測（この版で上書き）**
+- Capafy Instagram（X1）: Reel の生成と HyperFrames 検査は通過（#6134）。投稿は不可。旧アカウント capafy.skills8m4q2z は Instagram の scraping_warning（「自動化された操作の疑い」）で止められ、「閉じる」もエラーになる。自動の新規作成は 8 月に約 30 回連続で失敗。方針（Dais 2026-09-29）: Capafy の SNS はすべて Postiz API に寄せる。新しい IG アカウント（クリエイター）を作り、Postiz に接続して投稿する。旧アカウントでの自動投稿は止める。
+- 記事: 9/28 分は Substack JA/EN・note・aniccaai.com JA/EN で公開済み。article-daily の fence 18d98160 は aniccaai.com の公開ページ（200）で確認して閉じた。9/29 分は未公開。#6136 で「公開物ではないファイルを下書きと誤判定して再試行を止める」問題を直し、再試行は動いた。ただし 3 回ともモデルが「前日 run 20260928-132912 の X Article JA（x-editor-unreachable:no-editor）が未完了」を理由に作業を止めた。X 編集画面が使えない場合を終端 skip にする修正を進行中。
+- アプリ投稿 A1: carousel の修正後も、anicca の動画 lane が固定の hook 2〜4 本を回していた（@anicca.he で同じ文面が 6 回）。#6135 で anicca-ios の動画 9 lane すべてに Gemini の新しい文面生成を有効化。次の投稿を Postiz で確認する。
+- 共有 contract: #6061（Capafy 工場を critical_paid に）で lm-loop-contract が recovery_class_mismatch の RED になっていた。#6137 で priority を revenue に戻して GREEN（main 00cc2c9d で ok=true）。release 20260929T080502-00cc2c9d を本番に反映。
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
