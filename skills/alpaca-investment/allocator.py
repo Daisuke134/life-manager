@@ -10,7 +10,8 @@ from typing import Any
 
 from risk_policy import evaluate_entry
 from strategy_policy import (ACTION_ENTER, ACTION_NO_TRADE, ALLOWED_ACTIONS,
-                             BTC_SYMBOLS, CANONICAL_SYMBOL, evaluate,
+                             BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
+                             ETF_SYMBOLS, evaluate,
                              load_selected_card)
 
 
@@ -73,6 +74,14 @@ def build_candidates(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             "quote_age_seconds": _age_seconds(quote["quote_at"]),
             "spread_fraction": (ask - bid) / ask, "symbol": "QQQ",
         })
+    daily_bars = snapshot.get("daily_bars")
+    if isinstance(daily_bars, dict) and all(symbol in daily_bars for symbol in ETF_SYMBOLS):
+        for symbol in ETF_SYMBOLS:
+            candidates.append({
+                "asset_class": "us_equity", "candidate_ref": f"equity://{symbol}",
+                "max_loss_usd": 10.0, "quote_age_seconds": 0,
+                "spread_fraction": 0, "symbol": symbol,
+            })
     if snapshot["clock"].get("is_open") is True:
         quotes = sorted(snapshot["option_quotes"], key=lambda row: row["symbol"])
         for left, right in zip(quotes, quotes[1:]):
@@ -168,23 +177,33 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
                 "gate": "strategy_selection_mismatch",
                 "observed_at": observed_at,
             }
-    offered = next((row for row in candidates
-                    if row.get("asset_class") == "crypto"
-                    and row.get("symbol") in BTC_SYMBOLS), None)
+    policy = evaluate(snapshot, card)
+    if card.strategy_id == ETF_STRATEGY_ID:
+        if policy.get("action") == ACTION_NO_TRADE:
+            decision = {**policy, "candidate_ref": "NO_TRADE", "release_sha": release_sha}
+            gated = gate(snapshot, candidates, decision)
+            gated["observed_at"] = observed_at
+            return gated
+        offered = next((row for row in candidates
+                        if row.get("asset_class") == "us_equity"
+                        and row.get("symbol") == policy.get("symbol")), None)
+    else:
+        offered = next((row for row in candidates
+                        if row.get("asset_class") == "crypto"
+                        and row.get("symbol") in BTC_SYMBOLS), None)
     if offered is None:
         return {
             "action": ACTION_NO_TRADE,
             "strategy_id": card.strategy_id,
-            "signal_inputs": {},
+            "signal_inputs": policy.get("signal_inputs", {}),
             "reason": "candidate_not_offered",
-            "expected_cost_usd": None,
+            "expected_cost_usd": policy.get("expected_cost_usd"),
             "candidate_ref": "NO_TRADE",
             "release_sha": release_sha,
             "approved": False,
             "gate": "candidate_not_offered",
             "observed_at": observed_at,
         }
-    policy = evaluate(snapshot, card)
     decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
     gated = gate(snapshot, candidates, decision)
     gated["observed_at"] = observed_at
@@ -208,6 +227,11 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
         except (KeyError, TypeError, ValueError):
             return {**decision, "approved": False, "gate": "snapshot_invalid"}
         fixed_risk = evaluate_entry(snapshot.get("risk"), candidate["max_loss_usd"])
+        is_equity = candidate.get("asset_class") == "us_equity"
+        if is_equity and snapshot.get("mode") != "paper":
+            return {**decision, "approved": False,
+                    "gate": "live_etf_rejected" if snapshot.get("mode") == "live"
+                    else "paper_mode_required", "candidate": candidate}
         checks = {
             "quote_fresh": 0 <= candidate.get("quote_age_seconds", -1) <= MAX_QUOTE_AGE_SECONDS,
             "spread": candidate.get("spread_fraction", MAX_SPREAD_FRACTION + 1) <= MAX_SPREAD_FRACTION,
@@ -217,9 +241,15 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
             "position_slot": snapshot.get("positions") == 0,
             "order_slot": snapshot.get("open_orders") == 0,
             "intent_slot": snapshot.get("unresolved_intents") == 0,
-            "live_instrument": candidate.get("symbol") == CANONICAL_SYMBOL,
+            "instrument_allowed": (
+                candidate.get("symbol") in ETF_SYMBOLS if is_equity
+                else candidate.get("symbol") == CANONICAL_SYMBOL
+            ),
+            "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
         }
-        approved = all(checks.values()) and candidate.get("asset_class") == "crypto"
+        approved = all(checks.values()) and candidate.get("asset_class") in {
+            "crypto", "us_equity",
+        }
         return {**decision, "approved": approved, "candidate": candidate,
                 "checks": checks, "fixed_risk": fixed_risk,
                 "gate": "approved" if approved else "risk_rejected"}
@@ -257,6 +287,10 @@ def order_for(decision: dict[str, Any]) -> dict[str, Any]:
     if candidate["asset_class"] == "crypto":
         return {"asset_class": "crypto", "notional_usd": f"{candidate['max_loss_usd']:.2f}",
                 "side": "buy", "symbol": candidate["symbol"], "time_in_force": "gtc", "type": "market"}
+    if candidate["asset_class"] == "us_equity":
+        return {"asset_class": "us_equity", "notional_usd": f"{candidate['max_loss_usd']:.2f}",
+                "side": "buy", "symbol": candidate["symbol"],
+                "time_in_force": "day", "type": "market"}
     return {"asset_class": "option_spread", "limit_price": f"{candidate['max_loss_usd'] / 100:.2f}",
             "long_symbol": candidate["long_symbol"], "short_symbol": candidate["short_symbol"],
             "time_in_force": "day", "type": "limit"}

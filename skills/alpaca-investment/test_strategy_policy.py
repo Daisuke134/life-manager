@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from strategy_policy import candidate_cards, evaluate, load_selected_card
+from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_card
+from test_etf_policy import _snapshot as etf_snapshot
 
 
 NOW = "2026-01-01T04:00:00+00:00"
@@ -192,6 +194,51 @@ class StrategyPolicyTests(unittest.TestCase):
             }))
             with self.assertRaisesRegex(ValueError, "^strategy_release_stale$"):
                 load_selected_card(state)
+
+    def test_candidate_cards_include_the_canonical_etf_card(self):
+        card = candidate_cards()["alpaca-etf-126d-momentum-v1"]
+
+        self.assertEqual(card.to_mapping(), etf_strategy_card().to_mapping())
+        self.assertEqual(tuple(card.instruments), ETF_MOMENTUM_UNIVERSE)
+        self.assertEqual(card.timeframe, "1d")
+
+    def test_selected_etf_card_requires_exact_release_pinned_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            card = candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "release_sha": "b" * 40,
+                "strategy_id": card["strategy_id"],
+                "card": card,
+            }))
+
+            selected, release_sha = load_selected_card(state)
+
+        self.assertEqual(selected.strategy_id, "alpaca-etf-126d-momentum-v1")
+        self.assertEqual(release_sha, "b" * 40)
+
+    def test_selected_etf_card_rejects_mutated_sizing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            card = candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()
+            card["sizing_rule"]["notional_usd"] = "11.00"
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "release_sha": "b" * 40,
+                "strategy_id": "alpaca-etf-126d-momentum-v1",
+                "card": card,
+            }))
+
+            with self.assertRaisesRegex(ValueError, "^strategy_release_stale$"):
+                load_selected_card(state)
+
+    def test_etf_evaluate_dispatches_to_completed_session_policy(self):
+        result = evaluate(
+            etf_snapshot(), candidate_cards()["alpaca-etf-126d-momentum-v1"]
+        )
+
+        self.assertEqual(result["action"], "ENTER")
+        self.assertEqual(result["symbol"], "QQQ")
+        self.assertEqual(result["reason"], "top_momentum_next_session")
 
 
 if __name__ == "__main__":

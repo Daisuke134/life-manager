@@ -52,9 +52,9 @@
 **Files:**
 
 - Modify: `skills/alpaca-investment/strategy_policy.py`
-- Modify: `apps/life-manager/investment-core/allocator.py`
+- Modify: `skills/alpaca-investment/allocator.py`
 - Modify: `skills/alpaca-investment/test_strategy_policy.py`
-- Modify: `apps/life-manager/investment-core/test_strategy_selection.py`
+- Create: `skills/alpaca-investment/test_etf_allocator.py`
 - Modify: `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` after verification
 
 **Interfaces:**
@@ -64,11 +64,13 @@
 - `allocator.choose()` dispatches ETF snapshots to `etf_policy.evaluate()` and keeps BTC behavior unchanged.
 - `allocator.gate()` allows only paper ETF decisions; `allocator.order_for()` emits an explicit `asset_class="us_equity"` order shape.
 
-- [ ] **Step 1: Write failing regressions** for loading the selected ETF card, rejecting a stale/mutated ETF card, preserving BTC selection behavior, and refusing an ETF decision in live mode.
-- [ ] **Step 2: Run the focused tests and observe RED** with `python3 -m unittest test_strategy_policy` and the allocator test module.
-- [ ] **Step 3: Implement the smallest dispatch** by importing the pure ETF card/policy, preserving the existing BTC allow-list, and keeping live ETF orders fail-closed.
-- [ ] **Step 4: Run the focused allocator/selection suite** and record the selected-state readback as code-only until a release is built.
-- [ ] **Step 5: Commit and push** the release-pinned selection boundary; do not apply a production release from this worktree.
+- [x] **Step 1: Write failing regressions** for loading the selected ETF card, rejecting a stale/mutated ETF card, preserving BTC selection behavior, exposing the fixed ETF candidate universe, dispatching the pure policy, and refusing an ETF decision in live mode.
+- [x] **Step 2: Run the focused tests and observe RED**; the pre-implementation run failed on the missing ETF card/candidate/order branch.
+- [x] **Step 3: Implement the smallest dispatch** by importing the pure ETF card/policy, preserving the existing BTC allow-list, adding fixed ETF candidates when complete daily bars exist, and keeping live ETF orders fail-closed.
+- [x] **Step 4: Run the focused allocator/selection suite.** `test_strategy_policy test_etf_allocator` passes `21/21`; the complete Alpaca discovery suite passes `183/183`. The selected-state behavior is verified in temporary test state only; no production state was written.
+- [x] **Step 5: Commit and push** the release-pinned selection boundary as `c92d240299` plus the current dispatch changes; no production release was applied from this worktree.
+
+**Task 2 result:** The code boundary is complete, but the Life Manager production release still lacks the ETF files and no production `selected-strategy.json` exists. Task 5 remains required before this becomes a runtime or paper-receipt pass.
 
 ### Task 3: Completed daily-bar ingestion
 

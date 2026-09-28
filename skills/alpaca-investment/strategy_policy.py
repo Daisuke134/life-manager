@@ -21,6 +21,8 @@ _CORE = Path(__file__).resolve().parents[2] / "apps" / "life-manager" / "investm
 if str(_CORE) not in sys.path:
     sys.path.insert(0, str(_CORE))
 
+from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_card  # noqa: E402
+from etf_policy import evaluate as evaluate_etf_policy  # noqa: E402
 from strategy_cards import StrategyCard, validate_strategy_card  # noqa: E402
 
 
@@ -34,6 +36,8 @@ ALLOWED_ACTIONS = frozenset({ACTION_ENTER, ACTION_HOLD, ACTION_EXIT, ACTION_NO_T
 
 BTC_SYMBOLS = frozenset({"BTC/USDC", "BTC/USD", "BTCUSD", "BTCUSDC"})
 CANONICAL_SYMBOL = "BTC/USDC"
+ETF_STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
+ETF_SYMBOLS = tuple(ETF_MOMENTUM_UNIVERSE)
 MAX_QUOTE_AGE_SECONDS = Decimal("30")
 MAX_SPREAD_FRACTION = Decimal("0.15")
 BAR_SECONDS = 300
@@ -66,8 +70,8 @@ def _card_mapping(strategy_id: str, entry_rules: dict[str, Any],
 
 
 def candidate_cards() -> dict[str, StrategyCard]:
-    """Return the two immutable Alpaca hypotheses, never a mutable registry."""
-    return {
+    """Return immutable Alpaca hypotheses, never a mutable registry."""
+    cards = {
         "alpaca-btc-5m-reversion-v1": StrategyCard.from_mapping(_card_mapping(
             "alpaca-btc-5m-reversion-v1",
             {"all": ["rsi_14 <= 30", "tema_9 < bollinger_middle_20_2"]},
@@ -90,6 +94,8 @@ def candidate_cards() -> dict[str, StrategyCard]:
             "https://docs.freqtrade.io/en/stable/backtesting/",
         )),
     }
+    cards[ETF_STRATEGY_ID] = etf_strategy_card()
+    return cards
 
 
 def _fmt(value: Decimal) -> str:
@@ -388,6 +394,10 @@ def _allowed_card(card: StrategyCard) -> tuple[bool, str]:
         return False, "card_invalid"
     if card.status == "rejected":
         return False, "card_rejected"
+    if card.strategy_id == ETF_STRATEGY_ID:
+        if card.to_mapping() != etf_strategy_card().to_mapping():
+            return False, "card_scope_invalid"
+        return True, ""
     if card.venue != "alpaca" or card.timeframe != "5m":
         return False, "card_scope_invalid"
     instruments = tuple(card.instruments or ())
@@ -406,6 +416,8 @@ def evaluate(snapshot: Mapping[str, Any], card: StrategyCard) -> dict[str, Any]:
         raise TypeError("snapshot_mapping_required")
     if not isinstance(card, StrategyCard):
         raise TypeError("strategy_card_required")
+    if card.strategy_id == ETF_STRATEGY_ID:
+        return evaluate_etf_policy(snapshot, card)
     cost = _cost_usd(card)
     cost_text = _fmt(cost) if cost is not None else None
     valid, invalid_reason = _allowed_card(card)
@@ -520,5 +532,5 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
 
 __all__ = [
     "ALLOWED_ACTIONS", "StrategyCard", "build_validation_candles", "candidate_cards",
-    "evaluate", "load_selected_card",
+    "ETF_STRATEGY_ID", "ETF_SYMBOLS", "evaluate", "load_selected_card",
 ]
