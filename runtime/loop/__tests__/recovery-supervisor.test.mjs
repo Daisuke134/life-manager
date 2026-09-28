@@ -238,6 +238,32 @@ test('terminally skips its own intent without execution and then consumes one si
   assert.equal(selfOutcomes[0].reason, 'supervisor_self_recovery_excluded');
 });
 
+test('retains #5869 stale-release supervisor recovery as a terminal no-op', async () => {
+  const fixture = JSON.parse(await readFile(path.join(
+    HERE, '..', 'fixtures', 'self-heal', 'recovery-supervisor-stale-release.json',
+  ), 'utf8'));
+  const { queue, journal } = await files([fixture.recovery_intent]);
+  let executorCalls = 0;
+
+  const result = await consumeRecoveryIntentQueue({
+    queuePath: queue,
+    journalPath: journal,
+    supervisorOwnerId: fixture.recovery_intent.owner_id,
+    now: '2026-09-25T00:00:00.000Z',
+    executeIntent: async () => {
+      executorCalls += 1;
+      throw new Error('a supervisor must not reconcile itself');
+    },
+  });
+
+  assert.equal(result.state, fixture.expected.state);
+  assert.equal(result.reason, fixture.expected.reason);
+  assert.equal(executorCalls, fixture.expected.executor_calls);
+  const outcome = (await journalRows(journal)).at(-1);
+  assert.equal(outcome.release_sha, fixture.recovery_intent.release_sha);
+  assert.equal(outcome.budget_consumed, false);
+});
+
 test('production CLI derives its owner from the registry and terminally drains one old self intent', async () => {
   const { queue, journal } = await files([intent('old-self', 'life-manager-recovery-supervisor')]);
   const registry = path.join(path.dirname(queue), 'registry.json');
