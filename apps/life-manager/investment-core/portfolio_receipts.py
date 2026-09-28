@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping, Optional, Tuple
 
@@ -65,6 +65,7 @@ class VenueSnapshot:
     source_receipt_ids: Tuple[str, ...]
     risk: Optional[Mapping[str, Any]]
     measurement_status: Optional[str]
+    cost_evidence: Mapping[str, Tuple[str, ...]] = field(default_factory=dict)
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "VenueSnapshot":
@@ -90,6 +91,16 @@ class VenueSnapshot:
         risk = value.get("risk")
         if risk is not None and not isinstance(risk, Mapping):
             raise ValueError("risk_invalid")
+        raw_cost_evidence = value.get("cost_evidence") or {}
+        if not isinstance(raw_cost_evidence, Mapping):
+            raise ValueError("cost_evidence_invalid")
+        cost_evidence = {}
+        for field_name, evidence_ids in raw_cost_evidence.items():
+            if not isinstance(field_name, str) or not isinstance(evidence_ids, (list, tuple)):
+                raise ValueError("cost_evidence_invalid")
+            if any(not isinstance(item, str) or not item for item in evidence_ids):
+                raise ValueError("cost_evidence_invalid")
+            cost_evidence[field_name] = tuple(evidence_ids)
 
         numbers = {field: _number(value.get(field)) for field in _MONEY_FIELDS}
         venue = value.get("venue")
@@ -112,6 +123,7 @@ class VenueSnapshot:
             source_receipt_ids=tuple(receipt_ids),
             risk=risk,
             measurement_status=status,
+            cost_evidence=cost_evidence,
         )
 
     def validation_reason(self) -> Optional[str]:

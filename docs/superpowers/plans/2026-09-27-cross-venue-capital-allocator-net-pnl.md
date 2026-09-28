@@ -42,10 +42,10 @@
 - Produces `VenueSnapshot` with exact fields `venue`, `observed_at`, `equity_usd`, `free_cash_usd`, `gross_pnl_usd`, `trading_fees_usd`, `funding_or_borrow_usd`, `slippage_usd`, `gas_usd`, `model_cost_usd`, `source_receipt_ids`, `risk`, and `cost_evidence`.
 - Produces `normalize_receipts(venue, rows) -> VenueSnapshot | dict(status="unknown", reason=...)` and venue readers for Alpaca performance receipts, Hyperliquid carry JSONL, and the planned Solana copy-trade journal; readers accept paths/injected text and never credentials.
 
-- [ ] **Step 1: Write failing tests** for valid receipts, absent model cost, duplicate IDs, malformed numbers, and an effect-unknown row.
-- [ ] **Step 2: Run `cd apps/life-manager/investment-core && python3 -m unittest test_venue_snapshot` and verify failure.**
-- [ ] **Step 3: Implement decimal-safe normalization** while preserving `unknown` boundaries and the source receipt IDs.
-- [ ] **Step 4: Run the focused test and verify pass.**
+- [x] **Step 1: Write failing tests** for valid receipts, absent model cost, duplicate IDs, malformed numbers, and an effect-unknown row.
+- [x] **Step 2: Run `cd apps/life-manager/investment-core && python3 -m unittest test_venue_snapshot` and verify failure.** RED observed with missing `venue_receipts.py`.
+- [x] **Step 3: Implement decimal-safe normalization** while preserving `unknown` boundaries and the source receipt IDs. The existing canonical `portfolio_receipts.VenueSnapshot` is extended with per-cost evidence, and the compatibility adapter keeps latest equity/free cash while summing period P&L/cost rows.
+- [x] **Step 4: Run the focused test and verify pass.** `test_venue_snapshot` passes `5/5`; existing portfolio performance tests remain green.
 - [ ] **Step 5: Commit** `feat(investment): normalize cross-venue receipts`.
 
 ### Task 2: Fee/model-cost-net P&L aggregation
