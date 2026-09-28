@@ -134,9 +134,16 @@ if [ "$INITIAL_PLATFORM_STATUS" = "0" ]; then
   step "[2b] verify CP1 (fail-closed, polled)"
   # Short poll (not one-shot): the agentic CP1 save may still be registering server-side.
   poll is_confirmed_skills 1 6 5 || die "CP1 not confirmed (is_confirmed_skills!=1) — drive CP1 agentically first (CP1_AGENTIC.md)"
-  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
-    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
-    || die "official CP1 model/version differs from the prepared package"
+  # NOT a verify_cp1_model.py call here: the official Agent detail's `model` field
+  # is set exclusively by CP2 (drive_checkpoint2.py writes the OpenRouter provider's
+  # model into the hosted LLM Config -- confirmed live 2026-09-28, the current
+  # Capafy card UI has no Primary Model field on CP1's 基本情報/価格設定 tabs at
+  # all). `model` is legitimately null here on every first-time run_online publish,
+  # before CP2 runs at step [5]. Calling verify_cp1_model.py at this point made
+  # every fresh publish fail closed with CP1_MODEL=MISMATCH (Agent 4243672453,
+  # 2026-09-28) despite CP1 being genuinely done -- there was never a dropdown to
+  # miss. The real model gates are step [6] (post-CP2, before CP3) and FINAL
+  # VERIFY below, both of which run after CP2 has had a chance to set `model`.
   echo "is_confirmed_skills=1 ✓"
 
   PUBLISH_REVIEW_URL=""

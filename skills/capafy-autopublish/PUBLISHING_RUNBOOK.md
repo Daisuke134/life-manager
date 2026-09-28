@@ -5,8 +5,11 @@ Every step has a VERIFY gate. Never trust a local success/toast alone — confir
 publish-remote-status.
 
 ## Canonical LLM config
-- CP1 Primary Model (display) = the exact `model` in `<CONFIG_PATH>`.
-- CP2 LLM Config: Base URL **https://openrouter.ai/api/v1** · Model = the exact `model_id` in `<CONFIG_PATH>` · API Format **openai-responses** · Key **CAPAFY_HOST_OPENROUTER_KEY** ($LIFE_MANAGER_STATE_HOME/.env). The package output cap is `max_tokens` from the same config.
+- The official Agent detail's displayed `model` comes ONLY from CP2, not CP1 —
+  **verified live 2026-09-28: the current card UI has no Primary Model field on
+  either the 基本情報 or 価格設定 tab.** `verify_cp1_model.py` therefore only
+  makes sense AFTER CP2 has run; do not call/expect it to pass before that.
+- CP2 LLM Config: Base URL **https://openrouter.ai/api/v1** · Model = the exact `model_id` in `<CONFIG_PATH>` · API Format **openai-responses** · Key **CAPAFY_HOST_OPENROUTER_KEY** ($LIFE_MANAGER_STATE_HOME/.env). The package output cap is `max_tokens` from the same config. `drive_checkpoint2.py` writes this `model_id` into the hosted LLM Config, and that write is what the official `model` field reflects afterward.
 - The direct OpenRouter `/responses` probe verifies availability; Capafy Test Run verifies the hosted buyer path after review.
 
 ## Flow (one listing)
@@ -25,11 +28,19 @@ publish-remote-status.
    The wrapper emits `AGENT_ID=`, `AGENT_VERSION_ID=`, `EDIT_URL_FILE=`, and `CONFIG_PATH=`. Read the exact
    URL bytes from `EDIT_URL_FILE` for CP1; never reconstruct, append parameters, or
    print the URL. ★ NOTE: init selections do NOT set the card — the CARD MUST be filled in CP1. ★
-6. **CP1 (CloakBrowser)** — fill ALL of these or "提出を確認" silently fails:
-   - 基本情報: title (real-type), shortDescription (textarea[0]), detailedDescription (textarea[1]), **welcomeMessage (the "初回実行前にユーザーへ表示" textarea — REQUIRED, easy to miss)**, tags, privacy URL, category dropdown.
-   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle (placeholders: day 0.07/50, week 0.5/200, month 2/500) → **Primary Model = the exact `model` in `<CONFIG_PATH>`** → **test input (the "例：『たくさん買って…』" textarea — REQUIRED)** → **AI service provider field** → **select No Free Trial on EVERY plan (an unselected trial radio silently blocks save; enabled free trials are forbidden).**
-   - ★★ FAIL CLOSED (CP1_AGENTIC.md): before saving, run `cp1_agent.py state` with `CP1_EXPECTED_MODEL="<model>"` exported and confirm `modelDropdownVisible:true` and `modelSelected:true`. A saved card that "looks" done (toast, green tabs) but never had the dropdown touched is exactly how Agent 4243672453 reached official `model:null` — do not trust the toast alone for the model field. ★★
-   - Click **提出を確認**. ★ VERIFY GATE: page must reach `page=card-done` / "カードを保存しました". If still `page=edit`, a required field is empty/invalid — find the red error or empty input and fix; do NOT proceed. ★ Then run `verify_cp1_model.py --agent-id <ID> --version-id <AGENT_VERSION_ID> --model "<model>"` immediately — `CP1_MODEL=VERIFIED` before treating CP1 as done; `MISMATCH`/`UNKNOWN` means go back and reselect the dropdown.
+6. **CP1 (CloakBrowser)** — fill ALL of these or "提出を確認" silently fails. Fields
+   present vary by card version; always re-check `state` rather than assuming a
+   field from an older run still exists (verified 2026-09-28 on Agent 4243672453:
+   no welcomeMessage/test-input/AI-provider/Primary-Model fields at all — see
+   CP1_AGENTIC.md for the exact current layout):
+   - 基本情報: title, shortDescription, detailedDescription, tags, privacy URL,
+     support email, category, logo.
+   - If switching an EXISTING agent's hosted model (e.g. Sonnet → DeepSeek), a
+     third "Agent ワークスペース" tab appears requiring one click to re-confirm
+     the (already re-registered by `publish_prepare.sh`) skill — see
+     CP1_AGENTIC.md "Switching an EXISTING agent's hosted model".
+   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle → **select No Free Trial on EVERY plan (an unselected trial radio silently blocks save; enabled free trials are forbidden).**
+   - Click **提出を確認**. ★ VERIFY GATE: page must reach `page=card-done` / "カードを保存しました". If still `page=edit`, a required field is empty/invalid — find the red error or empty input and fix; do NOT proceed. ★ `is_confirmed_skills=true` is the CP1 done-gate; the `model` field is verified later, after CP2 (step 9 below), never before.
 7. **Finish through the 0.9.11 submit flow** with
    `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>` using the exact `AGENT_VERSION_ID` emitted by prepare.
    It first verifies CP1, then runs ordinary `publish-submit --action prepare`.
