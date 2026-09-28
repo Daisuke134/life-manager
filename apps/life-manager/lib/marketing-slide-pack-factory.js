@@ -201,6 +201,7 @@ async function generateSlidePackCandidates({
           familyId,
           apiKey: geminiApiKey,
           avoidTexts: avoidTextsByFamily[familyId] || [],
+          locale,
           ...(generateText ? { generateText } : {}),
         });
       } catch (error) {
@@ -227,9 +228,14 @@ async function generateSlidePackCandidates({
       const mediaRefs = mediaFiles.map((file) => objectStore.import(file).ref);
       mediaFiles.forEach((file) => fs.unlinkSync(file));
 
+      // Mirrors the adapter's own assertPack default exactly (see
+      // marketing-native-carousel-publication-adapter.js) so a freshly
+      // generated pack always satisfies whichever lane consumes it, whether
+      // or not that lane overrides lastSlideRole.
+      const resolvedLastSlideRole = lastSlideRole || (platform === "tiktok" ? "cta" : "body");
       const slides = texts.map((text, index) => ({
         position: index + 1,
-        role: index === 0 ? "hook" : (index === SLIDE_COUNT - 1 ? (lastSlideRole || "body") : "body"),
+        role: index === 0 ? "hook" : (index === SLIDE_COUNT - 1 ? resolvedLastSlideRole : "body"),
         text,
         media_ref: mediaRefs[index],
       }));
