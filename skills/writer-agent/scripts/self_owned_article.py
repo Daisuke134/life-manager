@@ -101,7 +101,15 @@ def _git(root: Path, *args: str) -> str:
     )
     if result.returncode != 0:
         raise SelfOwnedInvariant(result.stderr.strip() or "git command failed")
-    return result.stdout.strip()
+    # `git status --porcelain` lines legitimately start with a leading space
+    # (e.g. " M path" for a modified-not-staged file). A whole-output
+    # .strip() silently eats that leading space off the FIRST line only,
+    # shifting every caller's line[3:] slice and truncating the first dirty
+    # path by one character -- observed live: "apps/..." became "pps/...",
+    # which made an otherwise-identical file set fail the exact dirty-set
+    # comparison in stage_contracts/commit_contract. Only trailing
+    # whitespace/newlines are incidental to the command output.
+    return result.stdout.rstrip()
 
 
 def stage_contract(landing_root: Path, contract: dict) -> dict:
