@@ -142,7 +142,11 @@ def _should_enqueue_recovery_intent(entry: dict, event: dict) -> bool:
     if (entry.get("priority") == "critical_paid"
             or entrypoint.endswith("/paid-owner")
             or entrypoint.endswith("/paid-direct-owner")
-            or entrypoint == "runtime/loop/recovery-supervisor-cli.mjs"):
+            or entrypoint == "runtime/loop/recovery-supervisor-cli.mjs"
+            # Every wake already retries the cut; a bounded reconcile_owner restart can
+            # never resolve its own release_sha_mismatch, so queuing an intent only
+            # exhausts bounded recovery on a guaranteed-blocked outcome.
+            or entrypoint == "bin/reconcile-agent-runner-release.sh"):
         return False
     return True
 
