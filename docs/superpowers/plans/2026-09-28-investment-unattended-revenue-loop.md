@@ -42,7 +42,7 @@
 - Solanaは`scout_unknown`、候補0、effectなし。live transaction receiptは無い。
 - cross-venue daily receiptは0件。rolling 30-day netは`unknown/daily_receipt_missing`で、`$10,000` gapは数値化できない。
 - `cross_venue_run.py`のowner-ready read-only入口と仕様更新、およびcanonical snapshotのfail-closed validationはcommit `3a4a6cacae` としてpush済み。`test_cross_venue_run` 5件とinvestment-core全体66件がgreen。
-- `lm-lead`へのadmission receipt依頼（Task 2 Step 1）は送信済みだが、entrypoint/cadence/state root/release/provider acknowledgementを含む返答は未着。これは「仕事が終わった」証拠ではない。
+- `lm-lead`へのadmission receipt依頼（Task 2 Step 1）は送信済みだが、entrypoint/cadence/state root/release/provider acknowledgementを含む返答は未着。`2026-09-28T13:03:28Z`のinbox readbackも`No new messages`だった。これは「仕事が終わった」証拠ではない。
 
 ```mermaid
 flowchart LR
@@ -102,7 +102,7 @@ flowchart LR
 `lm-lead` must return one structured admission receipt containing `run_id`, `owner_id`, `occurrence_id`, `release_sha`, loaded entrypoint, fixed redacted argv/env, cadence, state root, phase, command, `exit_code`, `effect`, official `readback`, `provider_receipt_id`, `evidence_refs`, `error_class`, `retryable`, and `next_action`.
 
 - [x] **Step 1: Send one owner handoff.** `agmsg`でcommit `3a4a6cacae`、固定entrypoint contract、exact receipt schemaを`lm-lead`へ送信した。owner runtimeはこのlaneから編集していない。
-- [ ] **Step 2: Read the owner response.** Accept only a complete receipt; an active session, registry row, lock file, or intent is not sufficient evidence.
+- [ ] **Step 2: Read the owner response.** `2026-09-28T13:03:28Z`のinboxは`No new messages`。complete receiptは未着で、active session、registry row、lock file、intent、送信済みhandoffはadmission evidenceとして受け付けない。
 - [ ] **Step 3: Classify the result.** `admitted` must include provider acknowledgement; otherwise record the exact missing field and keep the investment lane closed.
 - [ ] **Step 4: Update the three spec files.** Record the receipt references, loaded SHA, current cursor, and whether the next task is natural runtime verification.
 
