@@ -586,7 +586,7 @@ function recentAccountReceipts(ledgerPath, integrationRef, windowDays, nowIso) {
 function assertFreshCaptionAndSlideText({ ledgerPath, integrationRef, captionSha256, textSha256, windowDays = FRESH_TEXT_WINDOW_DAYS, now }) {
   const recent = recentAccountReceipts(ledgerPath, integrationRef, windowDays, now);
   const dupe = recent.find((receipt) => receipt.caption_sha256 === captionSha256 || receipt.text_sha256 === textSha256);
-  if (dupe) fail(`marketing native carousel caption or slide text was already posted to this account within the last ${windowDays} days`);
+  if (dupe) fail(`marketing caption or slide text was already posted to this account within the last ${windowDays} days`);
 }
 
 async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
