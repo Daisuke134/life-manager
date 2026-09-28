@@ -48,7 +48,7 @@ print(json.dumps({
   "run_dir": "$RUN_DIR",
   "state_path": "$RUN_DIR/gates/publication-state.json",
   "ledger_path": "$STATE_DIR/articles.jsonl",
-  "initialization_pairs": ["note/ja"],
+  "initialization_pairs": ["note/ja", "substack/ja"],
   "eligible_pairs": [],
 }))
 PY
