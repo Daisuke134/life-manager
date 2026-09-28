@@ -40,6 +40,12 @@ no live scheduler or owner-path enablement is claimed. No funding, signing, regi
 The next effect-dependent step remains owner/lm-lead readback plus explicit funding; until then, this plan is a
 read-only/dry-run capability, not revenue evidence.
 
+## Current verification refresh (2026-09-28)
+
+- The complete offline `test_hyperliquid_carry` suite passes `69/69`. This verifies policy, journal, deposit-boundary, reconciliation, dry-wake, and fake-client effect fences; it does not prove a live order or profit.
+- The official read-only account boundary remains unchanged: Arbitrum wallet USDC/ETH `0`, Hyperliquid account value `0`, positions `0`, funding rows `0`, and non-funding ledger rows `0`. No deposit, signing, order, or live canary was performed.
+- The registry/runtime boundary remains open because the repository has no `hyperliquid-carry` registry row. The next executable step is still an owner/lm-lead runtime receipt plus explicit funding; the `$25` leg cap and capital-expansion hold remain unchanged.
+
 ## File Structure
 
 - `skills/earn/hyperliquid-carry/wallet.py`: load or create the agent wallet in the credential SSOT.
