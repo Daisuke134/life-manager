@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Newsletter Hook Lab icon</title>
+  <desc id="desc">A warm paper newsletter with a highlighted opening line and an envelope.</desc>
+  <rect width="256" height="256" rx="48" fill="#10233b"/>
+  <rect x="54" y="42" width="148" height="172" rx="16" fill="#fff7df"/>
+  <rect x="75" y="71" width="106" height="18" rx="9" fill="#ff765f"/>
+  <rect x="75" y="105" width="82" height="10" rx="5" fill="#193a5a"/>
+  <rect x="75" y="126" width="106" height="10" rx="5" fill="#193a5a" opacity=".75"/>
+  <rect x="75" y="147" width="94" height="10" rx="5" fill="#193a5a" opacity=".5"/>
+  <path d="M76 178h104v22H76z" fill="#4bc7b5"/>
+  <path d="m76 178 52 34 52-34" fill="none" stroke="#10233b" stroke-width="7" stroke-linejoin="round"/>
+  <circle cx="192" cy="59" r="15" fill="#4bc7b5"/>
+  <path d="M187 59h10M192 54v10" stroke="#10233b" stroke-width="4" stroke-linecap="round"/>
+</svg>
