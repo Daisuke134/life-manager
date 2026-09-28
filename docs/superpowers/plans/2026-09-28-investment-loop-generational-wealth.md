@@ -4,13 +4,22 @@
 
 **Goal:** Turn the current fragmented investment paths into a receipt-verified, fee/model-cost-net portfolio loop that can scale one measured capital step at a time toward `$10,000` realised net trading profit per month, while treating generational wealth as a separate capital-accumulation problem rather than promising returns.
 
-**Architecture:** Keep each venue as an effect owner: Alpaca owns Alpaca orders, Hyperliquid owns Hyperliquid deposits/orders, and Solana owns Solana transactions. Add one read-only portfolio evidence spine that normalises official receipts, subtracts every known cost exactly once, rejects unknown evidence, reports the gap to the target, and gates capital expansion. A separate treasury/cash engine records owner deposits, product revenue, investment P&L, costs, and reserves so owner cash flow is never mistaken for profit.
+**Architecture:** Keep each venue as an effect owner: Alpaca owns Alpaca orders, Hyperliquid owns Hyperliquid deposits/orders, and Solana owns Solana transactions. Add one read-only portfolio evidence spine that normalises official receipts, subtracts every known cost exactly once, rejects unknown evidence, reports the gap to the target, and returns a capital-expansion recommendation without changing capital. A separate treasury/cash engine records owner deposits, product revenue, investment P&L, costs, and reserves so owner cash flow is never mistaken for profit.
 
 **Tech Stack:** Existing Python investment core and `unittest` suites; Alpaca CLI and official account/activity/order readbacks; Hyperliquid Python SDK and `/info` API; Solana RPC plus Jupiter quote/swap receipts; append-only JSONL state; existing Telegram outbox; existing Life Manager loop registry.
 
 ### Ownership correction (`2026-09-28`)
 
-Life Manager is the investment-loop owner. `config/loop-registry.json` confirms `alpaca-investment-live` with a 300-second cadence, `skills/alpaca-investment/run.py`, and an effect-reconcile entrypoint. The earlier `lm-lead` wording was an unverified agent label, not a required person or dependency; it is historical context only. The active order is Life Manager runtime health → natural wake → official P&L → conditional sample gate → one-step promotion.
+Life Manager is the investment-loop runtime owner. `config/loop-registry.json` confirms `alpaca-investment-live` with a 300-second cadence, `skills/alpaca-investment/run.py`, and an effect-reconcile entrypoint. The earlier `lm-lead` wording was an unverified agent label, not a required person or dependency; it is historical context only. The active order starts with finishing and verifying the investment worktree, then Life Manager natural wake → official P&L → conditional sample measurement → cap review.
+
+### Scope correction: no external investment promotion gate (`2026-09-29`)
+
+The phrase “promotion gate” is not a person, agent, service, or prerequisite that owns this investment work. Two concrete code checks were previously conflated:
+
+- `skills/alpaca-investment/performance_gate.py` reads official performance and returns a recommendation. It cannot move money, raise a cap, submit an order, or authorize itself.
+- `./bin/lm-loop-contract` is a repository-wide catalog consistency command. It is not the investment manager and a failure in another loop does not stop investment-code development in this worktree.
+
+The manager/owner map is therefore: **Life Manager** owns runtime scheduling, release loading, and provider acknowledgement; **`alpaca-investment-live`** owns the Alpaca loop; **this investment worktree** owns investment code, tests, evidence, and this plan. No `lm-lead`, Claude session, or Capafy work is required for the source-side TODO below. A release handoff is a later operational step, not a reason to leave the investment implementation unfinished.
 
 ## Actual wealth architecture
 
@@ -660,4 +669,29 @@ The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca
 
 71. **Pure promotion-gate readback（2026-09-29）**: using the current official performance state (`net_pnl_usd=-0.15`, `completed_round_trips=1`, cap `$100`, official source receipt IDs), the pure `recommend_next_cap` gate evaluated requested cap `$1,000` and returned `status=reject`, `capital_expansion_allowed=false`, with reasons `net_non_positive`, `sample_insufficient`, `cost_unknown`, `drawdown_unknown`, and `venue_unhealthy`. This is progress in the investment control loop: it proves the cap remains closed without changing funds, orders, or runtime state.
 
-72. **Candidate-versus-installed proof（2026-09-29）**: candidate `HEAD=e35831019c` contains `alpaca-investment-live` admission `revenue/revenue` with `reconcile_queued_release=true`, plus `skills/alpaca-investment/etf_policy.py` and `apps/life-manager/investment-core/cross_venue_run.py`. Installed release `b79275cfed` contains the same entrypoint but `borrow/support`, no queued-release reconciliation, and neither investment boundary file. This proves the remaining gap is promotion of the investment candidate, not missing worktree code; no release bypass or production mutation was performed.
+72. **Candidate-versus-installed proof（2026-09-29）**: candidate `HEAD=e35831019c` contains `alpaca-investment-live` admission `revenue/revenue` with `reconcile_queued_release=true`, plus `skills/alpaca-investment/etf_policy.py` and `apps/life-manager/investment-core/cross_venue_run.py`. Installed release `b79275cfed` contains the same entrypoint but `borrow/support`, no queued-release reconciliation, and neither investment boundary file. This proves the installed release is stale; it does not prove that the source-side investment loop is finished.
+
+## Canonical remaining TODO after scope correction (`2026-09-29`)
+
+The entries above are historical readbacks. This section is the current source of truth. The investment worktree continues independently; no repository-wide check or other agent is a prerequisite for items 1–2.
+
+### Done
+
+- OSS/source survey, StrategyCard contract, cost-complete evaluator, ETF research card, ETF daily policy, daily-bar ingestion, paper order shape, ownership/reconcile, and fail-closed cross-venue reporter are implemented and pushed.
+- Candidate-side verification is green: Alpaca `200/200`, investment-core `101/101`, cross-venue focused boundary `27/27`, and candidate doctor `ok=true`.
+- The measured account result is still only `1/30` round trip and net `-$0.15`; this is not a profitable system and does not authorize more capital.
+
+### Remaining, in order
+
+1. **Finish the source-side investment loop connection.** The finite `apps/life-manager/investment-core/cross_venue_run.py` exists and is tested, but it is not invoked by `skills/alpaca-investment/run.py` and has no Life Manager-owned investment schedule/receipt path. Connect one owner path, canonical snapshot inputs, daily idempotent report, and failure receipt. Do not add a second ad-hoc scheduler.
+2. **Run investment-only verification after that connection.** Add focused failing tests first, implement the minimum wiring, then run the Alpaca and investment-core suites, `git diff --check`, and candidate doctor. Commit and push this branch.
+3. **Life Manager runtime handoff.** Life Manager loads the pushed candidate release and confirms the `alpaca-investment-live` row, fixed argv/env, single writer, and effect-reconcile path. This is the runtime manager's operational step; it is not a development blocker for steps 1–2.
+4. **One natural paper wake.** The loaded release must produce one official provider order/fill/account receipt, durable ownership state, and exactly one notification with replay-zero behavior. A manual run or test fixture does not count.
+5. **Official cost-complete P&L.** Reconcile order, fill, account, fees, slippage, model cost, owner cash flow, source IDs, and drawdown. Keep the current Alpaca cap at `$100`; if any value is unknown or negative, hold.
+6. **Natural Alpaca sample.** Accumulate only official, unattended completed round trips from `1/30` to `30/30`. Wake count, paper backtest, fixtures, and manual kicks never count as trades.
+7. **Cross-venue measurement.** Produce 30 complete UTC daily receipts for the venue snapshots and owner cash flow, with one Telegram provider ID per day and replay-zero. Keep Hyperliquid and Solana at read-only/shadow until their own evidence is complete.
+8. **Hyperliquid shadow and 14-day net evidence.** Measure funding, fees, slippage, model cost, and reconciliation before any owner-funded leg. No Binance transfer is part of the current TODO.
+9. **Solana paper then canary.** Require a prior reproducibly positive venue, explicit exits, and complete RPC receipts before the single `$2` canary under the `$3` cumulative ceiling.
+10. **Target and wealth accounting.** Claim `$10,000/month` only from an official rolling 30-day realized net receipt of at least `$10,000`; then separate tax/emergency/operating reserves and contribute settled surplus to diversified long-term assets.
+
+**Current cursor:** item 1, source-side cross-venue owner connection. **Manager:** Life Manager. **Investment loop owner:** `alpaca-investment-live`. **Not a dependency:** `lm-lead`, Claude/Capafy work, or a repository-wide “promotion gate.”

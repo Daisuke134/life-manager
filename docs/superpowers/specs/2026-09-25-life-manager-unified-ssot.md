@@ -665,4 +665,6 @@ TODO（何を・どう直すか）
 
 **純粋promotion gate readback（2026-09-29）**: 公式performance state（`net_pnl_usd=-0.15`、round trip `1`、cap `$100`、receipt IDsあり）でrequested cap `$1,000`を評価し、`status=reject`、`capital_expansion_allowed=false`。理由は`net_non_positive`、`sample_insufficient`、`cost_unknown`、`drawdown_unknown`、`venue_unhealthy`。cap・wallet・注文・runtime stateは変更していない。
 
-**candidate/install境界証拠（2026-09-29）**: candidate `e35831019c`は`revenue/revenue`・`reconcile_queued_release=true`・ETF policy/cross-venue entrypointあり。installed `b79275cfed`は`borrow/support`・queued reconciliationなし・両entrypointなし。したがって未完了はworktree実装ではなく、共有gate後の正式promotionである。bypass・送金・注文はしていない。
+**candidate/install境界証拠（2026-09-29）**: candidate `e35831019c`は`revenue/revenue`・`reconcile_queued_release=true`・ETF policy/cross-venue entrypointあり。installed `b79275cfed`は`borrow/support`・queued reconciliationなし・両entrypointなし。installed releaseは古いが、source-side investment loopの完了を意味しない。
+
+**投資scope correction（2026-09-29）**: `promotion gate`は担当者・agent・外部サービスではない。`skills/alpaca-investment/performance_gate.py`は公式performanceからcap判断のrecommendationを返すだけで、資金・注文・runtimeを変更しない。`./bin/lm-loop-contract`もrepository-wide catalog checkであり、投資worktree開発の停止条件ではない。runtime managerはLife Manager、投資loop ownerは`alpaca-investment-live`。現在の投資TODOは、テスト済み`apps/life-manager/investment-core/cross_venue_run.py`をLife Managerの単一owner wake/receipt経路へ接続し、テスト・push後、自然paper receipt → official cost-complete P&L → 30往復測定へ進むこと。CAPFY・他agentの作業は依存しない。
