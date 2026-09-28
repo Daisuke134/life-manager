@@ -113,12 +113,12 @@
 - `validate_series` returns `status`, `strategy_id`, `train`, `validation`, `holdout`, `trades`, `net_pnl_usd`, `fees_usd`, `slippage_usd`, `max_drawdown_usd`, `lookahead_detected`, `parameter_sensitivity`, `decision`.
 - The harness is finite and read-only. It must not import credentials, submit orders, or call venue effect functions.
 
-- [ ] **Step 1: Write failing tests** for train/holdout separation, a future-looking signal that is rejected, fee/slippage subtraction, no-trade output, duplicate candle timestamps, and a deterministic repeated run.
-- [ ] **Step 2: Run the focused test and observe RED.** `cd apps/life-manager/investment-core && python3 -m unittest test_strategy_validation -v`.
-- [ ] **Step 3: Implement a minimal event-driven evaluator.** Compute each signal only from candles at or before the decision timestamp; apply entry and exit costs separately; preserve `unknown` when required fields are absent.
-- [ ] **Step 4: Add validation gates.** Use chronological `60% train / 20% validation / 20% holdout` with no shuffle. A candidate can become `paper` only if holdout net is positive after costs, max drawdown is within the card, no lookahead is detected, and at least 5 of 9 one-step neighboring parameter configurations retain positive net P&L with the median positive. Otherwise return `decision=rejected` with `reason=insufficient_evidence` or the specific failed gate; do not invent a new StrategyCard status.
-- [ ] **Step 5: Run focused and full investment-core tests.** Store only sanitized reports under the external Life Manager state root; do not store secrets or provider credentials in the repo.
-- [ ] **Step 6: Commit.** `git add apps/life-manager/investment-core && git commit -m "feat(investment): validate strategy candidates out of sample"`.
+- [x] **Step 1: Write failing tests** for train/holdout separation, a future-looking signal that is rejected, fee/slippage subtraction, no-trade output, duplicate candle timestamps, and a deterministic repeated run.
+- [x] **Step 2: Run the focused test and observe RED.** `cd apps/life-manager/investment-core && python3 -m unittest test_strategy_validation -v`; RED was the expected missing-module failure before implementation.
+- [x] **Step 3: Implement a minimal event-driven evaluator.** Compute each signal only from candles at or before the decision timestamp; apply entry and exit costs separately; preserve `unknown` when required fields are absent.
+- [x] **Step 4: Add validation gates.** Use chronological `60% train / 20% validation / 20% holdout` with no shuffle. A candidate can become `paper` only if holdout net is positive after costs, max drawdown is within the card, no lookahead is detected, and at least 5 of 9 one-step neighboring parameter configurations retain positive net P&L with the median positive. Otherwise return `decision=rejected` with the failed gate; do not invent a new StrategyCard status.
+- [x] **Step 5: Run focused and full investment-core tests.** Focused validation `8/8`, investment-core discovery `82/82`, and `py_compile` pass; the evaluator returns sanitized reports, stores nothing in the repo, and imports no credentials/provider effects. Later runtime code owns persistence under the external Life Manager state root.
+- [x] **Step 6: Commit.** Commit `e990d03c22` is pushed on the dedicated investment branch.
 
 ### Task 4: Replace Alpaca free-form selection with declared candidates
 
@@ -253,7 +253,7 @@ The corrected order is:
 
 `① source/OSS evidence ledger → ② StrategyCard contract → ③ cost-complete out-of-sample validation → ④ Alpaca declared policy → ⑤ Hyperliquid bounded carry policy → ⑥ Solana explicit exits → ⑦ deterministic strategy selection → ⑧ Life Manager runtime health → ⑨ natural official P&L → ⑩ selected Alpaca 30-round-trip gate → ⑪ Hyperliquid shadow/14-day receipts → ⑫ Solana paper → ⑬ one-step promotion → ⑭ rolling $10,000 verification → ⑮ settled-surplus wealth ledger`.
 
-Current cursor: **Task 3 Step 1 — write failing tests for cost-complete out-of-sample validation.** Tasks 1–2 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
+Current cursor: **Task 4 Step 1 — write failing tests for declared Alpaca candidates.** Tasks 1–3 are complete and pushed; no strategy has been approved, no additional capital is authorized, and the old `1/30` result remains historical evidence from an unvalidated Alpaca policy rather than progress toward a new 30-trade sample.
 
 ## Completion Definition
 
