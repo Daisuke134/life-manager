@@ -588,6 +588,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 53. **Blocked audit (`2026-09-29`, third consecutive occurrence)**: the mandatory repository-wide contract gate remains RED on the unchanged Capafy `loops[12]` recovery-class mismatch; `origin/main` remains `d0a2f91635`, no investment PR exists, and production remains on `92f04c91…`. Investment candidate doctor and investment-specific tests pass, but this lane cannot safely or legitimately edit Capafy/shared promotion policy. The investment goal remains incomplete and awaits an external owner/state change before immutable release handoff.
 
+54. **External main/release movement without investment promotion (`2026-09-29`)**: `origin/main` is now `e0fd94a1a5` and production loaded release is `1105615058`, but that release contains no ETF boundary and retains investment `borrow/support` admission without queued-release reconciliation. Natural occurrence `alpaca-investment-live:18d993ba15e0a1f0-96273` remains a typed capacity defer with no provider receipt. The investment candidate still starts at `d0a2f91635`; it must be refreshed against current main before a valid promotion attempt, while the Capafy contract gate remains outside this lane.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |

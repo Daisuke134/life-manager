@@ -579,6 +579,8 @@ TODO（何を・どう直すか）
 **Promotion-gate correction（2026-09-29）**: 候補branchの`bin/lm-loop doctor`はPASSだが、repository-wide `./bin/lm-loop-contract`は`ok=false`で、`loops[12]`（Capafy）の`recovery_classes` mismatch（declared `deterministic,external_effect_owner` / observed `deterministic,external_effect_owner,read_only_external_owner`）を返す。候補のcatalog差分はゼロであり、これは投資変更ではない。投資laneからCapafyを修正・reconcileしないため、immutable release handoffはこのshared gateがgreenになるまで閉じる。
 
 **Blocked audit（2026-09-29、3回連続）**: repository-wide contract gateは同じCapafy `loops[12]` mismatchで3回連続RED、`origin/main`は`d0a2f91635`のまま、投資branchにはPRがなく、productionは旧release `92f04c91…`のままである。投資candidateのdoctor・investment registry testsはPASS済みだが、投資laneからCapafyやshared promotion gateを変更することは範囲外であり、安全な投資専用の次操作がない。外部ownerがcatalog/gateをgreenにするまでinvestment goalは未完了のまま保留する。
+
+**Latest external-state revalidation（2026-09-29）**: 外部ownerのmain/release更新により、`origin/main=e0fd94a1a5cf31a7bb7f85fae63d388caa21d71b`、loaded release=`110561505844ab79fc524273ae86250cda697d50`（marketing commit）へ進んだ。しかしloaded investment rowは依然`admission_class=borrow`・`priority=support`・`reconcile_queued_release=null`で、ETF `etf_policy.py` と `investment-core/cross_venue_run.py`もrelease内に存在しない。最新natural occurrence `alpaca-investment-live:18d993ba15e0a1f0-96273` は`resource_capacity_busy`・exit `75`・provider receiptなし。候補branchはまだ旧base `d0a2f91635`なので、次の投資側作業は最新mainをbaseにしたpromotion準備だが、repository-wide gateはなおCapafy mismatchでREDである。
 - [ ] 9-1 install → activation → 課金の attribution
 - [ ] 9-2 `/en` `/lm` `/income` の整合
 - [ ] 10-1 identity / credential の永続化と、ループの自動 enrollment（初回だけの設定で動く）
