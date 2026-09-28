@@ -46,7 +46,7 @@
 - [x] **Step 2: Run `node --test skills/earn/solana-memecoin-copytrade/test_wallet_journal.mjs` and verify it fails because the modules do not exist.** RED observed with missing `wallet.mjs`.
 - [x] **Step 3: Implement the wallet and journal contracts** using the existing credential-SSOT shape and atomic append; never print or serialize the secret.
 - [x] **Step 4: Run the focused test and verify all assertions pass.** `5/5` pass.
-- [ ] **Step 5: Commit** `feat(sol-copy): add agent wallet and durable copy journal`.
+- [x] **Step 5: Commit** `feat(sol-copy): add agent wallet and durable copy journal` (`e1c7935d87`).
 
 ### Task 2: Read-only scout using Solana RPC, GMGN, DexScreener, and Jupiter
 
@@ -60,11 +60,11 @@
 - Produces `parseTargetTransactions(rpcRows, targetAddress) -> Array<CopyEvent>` where each event has the confirmed source signature, slot, mint, source/destination amounts, observed owner, and observed timestamp.
 - Adapters are injected functions: `rpc.getSignatures`, `rpc.getTransaction`, `gmgn.readToken`, `dexscreener.readPairs`, and `jupiter.quote`; the default adapters use only public read endpoints and an optional agent-owned provider credential resolved outside the target-wallet config.
 
-- [ ] **Step 1: Write fixture-backed failing tests** for a valid swap, a transfer-only transaction, malformed RPC metadata, missing GMGN/DexScreener data, and a stale source event.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement source adapters and normalization**; keep provider responses as evidence and do not treat their PnL or security score as an execution approval.
-- [ ] **Step 4: Run the focused test and verify valid candidates are emitted only with RPC evidence.**
-- [ ] **Step 5: Commit** `feat(sol-copy): add read-only on-chain scout sources`.
+- [x] **Step 1: Write fixture-backed failing tests** for a valid swap, a transfer-only transaction, malformed RPC metadata, missing/disagreeing market data, stale/illiquid quotes, and duplicate source signatures.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `scout.mjs`.
+- [x] **Step 3: Implement source adapters and normalization**; keep provider responses as evidence and do not treat their PnL or security score as an execution approval. The default adapters use Solana confirmed JSON-RPC, DexScreener's public Solana token-pairs endpoint, Jupiter quote reads, and an explicitly configured GMGN token endpoint; absent or malformed provider data fails closed.
+- [x] **Step 4: Run the focused test and verify valid candidates are emitted only with RPC evidence.** `node --test skills/earn/solana-memecoin-copytrade/test_scout.mjs` passes `7/7`; a candidate requires one confirmed target-owned source delta plus both market providers and a bounded Jupiter quote.
+- [x] **Step 5: Commit** `feat(sol-copy): add read-only on-chain scout sources`.
 
 ### Task 3: Pure copy policy and paper replay
 

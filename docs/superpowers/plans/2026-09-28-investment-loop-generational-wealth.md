@@ -162,7 +162,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 2: Implement the pure ladder** with exact caps `$100 → $1,000 → $10,000 → $100,000`; require an explicit requested cap and preserve the existing `$10` trade / `$20` daily loss gates until a separately approved risk revision exists.
 - [x] **Step 3: Add receipt-backed promotion evidence** to the Telegram/report schema without exposing secrets or allowing a message to authorize promotion. The report is recommendation-only and always requires owner authorization.
 - [x] **Step 4: Run `cd skills/alpaca-investment && python3 -m unittest test_performance test_capital_ladder test_risk_policy` plus the existing investment suite, then run the app/skill parity check.** Focused tests pass `25/25`, app tests pass `3/3`, full investment discovery passes `147/147`, and parity is clean.
-- [ ] **Step 5: Commit** `feat(investment): gate capital ladder by measured net pnl`.
+- [x] **Step 5: Commit** `feat(investment): gate capital ladder by measured net pnl` (`3e6c81970d`).
 
 ### Task 4: Solana read-only scout → paper → `$2–3` canary
 
@@ -236,8 +236,8 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
 2. Hyperliquid read-only preflight is complete; obtain `lm-lead` owner/runtime receipt before any funding or canary.
 3. Task 1 canonical fee/model-cost net-P&L spine is implemented and verified (`fa710b6310`); its source contract is ready for venue adapters.
-4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified; keep the cap at `$100` until its live evidence is complete.
-5. Implement the Solana plan only through read-only scout and paper before the `$2` canary.
+4. Task 3 Alpaca capital-ladder recommendation gate is implemented and verified (`3e6c81970d`); keep the cap at `$100` until its live evidence is complete.
+5. Solana nested Task 1 wallet/journal and Task 2 read-only scout are implemented and focused-tested; continue to paper policy before the `$2` canary.
 6. Continue Alpaca measurement until the first 30-round-trip decision gate; no cap increase.
 7. Implement the allocator and treasury rollups.
 8. Return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
