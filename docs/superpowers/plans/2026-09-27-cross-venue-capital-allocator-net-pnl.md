@@ -74,10 +74,10 @@
 - Produces `build_candidates(snapshots, aggregate, caps) -> list[dict]` with `venue://<name>` references and only verified fields.
 - Produces `rank(candidates, available_capital, caps) -> dict` returning `action="allocate"|"hold"|"halt"`, ranked candidates, excluded reasons, and a single capital amount that stays inside the existing cap/cash/drawdown rules.
 
-- [ ] **Step 1: Write failing tests** for positive net versus unknown-cost candidates, stale venue exclusion, drawdown halt, cash reserve, deterministic tie-breaks, and capital-expansion denial below the sample threshold.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the pure ranking/gating layer**; do not call the existing model runner or any venue execution module from this file.
-- [ ] **Step 4: Run the focused test and verify pass.**
+- [x] **Step 1: Write failing tests** for positive net versus unknown-cost candidates, stale venue exclusion, drawdown halt, cash reserve, deterministic tie-breaks, and capital-expansion denial below the sample threshold.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_allocator.py`.
+- [x] **Step 3: Implement the pure ranking/gating layer**; do not call the existing model runner or any venue execution module from this file. Allocation is capped by reserve, current `$100` cap, drawdown, and sample thresholds; expansion remains false.
+- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_allocator` passes `6/6`; the module imports only the read-only net-P&L adapter.
 - [ ] **Step 5: Commit** `feat(investment): rank verified cross-venue capital`.
 
 ### Task 4: Daily aggregate report and finite read-only wake
