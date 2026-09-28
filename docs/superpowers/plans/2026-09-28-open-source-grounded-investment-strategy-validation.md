@@ -170,8 +170,11 @@
 - Modify: `skills/earn/solana-memecoin-copytrade/policy.mjs`
 - Modify: `skills/earn/solana-memecoin-copytrade/run.mjs`
 - Modify: `skills/earn/solana-memecoin-copytrade/receipt.mjs`
+- Modify: `skills/earn/solana-memecoin-copytrade/execute.mjs`
+- Modify: `skills/earn/solana-memecoin-copytrade/paper.mjs`
 - Modify: `skills/earn/solana-memecoin-copytrade/test_policy_paper.mjs`
 - Modify: `skills/earn/solana-memecoin-copytrade/test_live_canary.mjs`
+- Modify: `skills/earn/solana-memecoin-copytrade/test_run.mjs`
 
 **Interfaces:**
 
@@ -179,10 +182,10 @@
 - A copy entry requires a confirmed public-wallet swap, fresh Jupiter quote, both market-provider reads, minimum liquidity, price-impact limit, reserve, and duplicate fence.
 - A position exits on a confirmed target-wallet sale of the same mint, a fixed hard stop, or a fixed time stop. No averaging down. Every exit must have a verified token delta and fee receipt.
 
-- [ ] **Step 1: Write failing paper tests** for target sale, stop-loss, time-stop, stale target event, missing exit evidence, and replay-zero.
-- [ ] **Step 2: Implement the pure exit policy and paper receipts.** Keep live mode closed.
-- [ ] **Step 3: Run all Solana tests and a read-only scout.** `node --test skills/earn/solana-memecoin-copytrade/test_*.mjs`.
-- [ ] **Step 4: Commit.** `git add skills/earn/solana-memecoin-copytrade && git commit -m "fix(sol-copy): add explicit exits before canary"`.
+- [x] **Step 1: Write failing paper tests** for target sale, stop-loss, time-stop, stale target event, missing exit evidence, stale-event hard-stop precedence, and replay-zero. The pre-change RED showed entry-only `copy` behavior and no position exit evaluator; the focused policy/paper file now passes `14/14`.
+- [x] **Step 2: Implement the pure exit policy and paper receipts.** `copy_entry`, `mirror_exit`, `stop_exit`, and `time_exit` are explicit; held positions are evaluated before new entries; stale target evidence cannot suppress a hard/time stop; paper exits are source-signature replay-zero; receipt verification requires action, exact held/proceeds token deltas, confirmation, and fee. Live exits remain closed and direct live execution rejects them before send.
+- [x] **Step 3: Run all Solana tests and a read-only scout.** The complete nested suite passes `39/39` (`test_policy_paper` `14/14`, `test_live_canary` + `test_run` `12/12`, plus scout and wallet/journal tests). A fresh public-target `SOL_COPY_MODE=read_only` invocation returned `scout_unknown`, `0` candidates, no receipt, and no external effect; the previously saved sanitized evidence remains `20` rows.
+- [x] **Step 4: Commit.** Commit `6a19b08615` (`fix(sol-copy): add explicit exits before canary`) is pushed on the dedicated investment branch; no wallet funding, signing, or transaction occurred.
 
 ### Task 7: Select one strategy per venue by deterministic evidence
 
