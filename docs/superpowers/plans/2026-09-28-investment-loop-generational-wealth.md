@@ -578,6 +578,8 @@ The active Superpowers writing plan is [`docs/superpowers/plans/2026-09-28-open-
 
 48. **Main-ready investment release candidate (`2026-09-29`, pushed `5415939083`)**: started from `origin/main` `d0a2f91635` and transplanted only the investment code, Alpaca adapter, registry admission contract, and investment test fixture changes; unrelated Capafy/PromptBase work was excluded. Verification is Alpaca `200/200`, investment-core `101/101`, registry `124/124`, loop-contract gate `9/9`, runtime/loop `669/669`, adapter `15/15`, and fleet doctor PASS. This is a pushed source candidate, not an installed production release: no provider order, paper receipt, account readback, or P&L was created.
 
+49. **Latest production revalidation (`2026-09-29`)**: the investment label remains `classification=managed` with `missing_entrypoints=[]`, but the shared `lm-loop doctor` now returns `ok=false`, `registry_entries=164`, and `unmanaged_labels=8`. The loaded release is still `92f04c91fa594ae2209b2ff323fe9fdfa91e5b5e`; the latest natural occurrence `alpaca-investment-live:18d98c0df11c44e0-36365` is a typed `host_admission_deferred:resource_capacity_busy` with exit `75`, `effect_status=unknown`, no provider receipt, and `retry_after_eligibility`. This is a shared runtime/release-health blocker, not evidence of a trade or P&L. Do not edit sibling loops from the investment lane.
+
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
