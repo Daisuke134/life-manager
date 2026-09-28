@@ -49,7 +49,8 @@ flowchart LR
     APerf --> Allocator["read-only cross-venue\nallocator / daily report"]
     HLWait --> Allocator
     SolScout --> Allocator
-    CFO["CFO + ledger\npartial / USD 0 / 0.003 USDC historical"] --> Treasury
+    CFO["CFO + ledger\npartial / USD 0 / x402 Sep 0.15 USDC"] --> Treasury
+    X402["Railway x402 external inflow\nverified USDC cash / no FX"] --> Treasury
     Allocator --> Treasury["treasury rollup\npartial / fail closed"]
     Treasury --> Target["$10k/month\nnot achieved / no promotion"]
 ```
@@ -64,7 +65,7 @@ flowchart LR
 - The matching Hyperliquid official account readback is `accountValue=0.0`, `0` perp positions, `0` spot balances, `0` `userFunding` rows, and `0` non-funding ledger rows; there is no receipt from which to calculate carry net P&L.
 - The Solana loop is implemented through staged read-only/paper/live-gate boundaries. A fresh public-target scout returned `scout_unknown`, `0` candidates, `20` evidence rows, and no effect; no live transaction receipt exists.
 - The cross-venue allocator/reporter and treasury rollup are implemented as read-only code. The acceptance fixture measures aggregate net `$8.70` with owner cash flow `$100.00`, but it is test evidence, not revenue; live provider inputs remain partial and `capital_expansion_allowed` stays `false`.
-- The rolling measurement extension is implemented in `rolling_measurement.py` and is wired to both the explicit `__daily_receipts__` input and the reporter's persisted last-completed-day replay. It requires 30 delivered, measured UTC daily receipts with unique source IDs; the fixture is not live revenue and no numeric live rolling result exists yet.
+- The rolling measurement extension is implemented in `rolling_measurement.py` and is wired to both the explicit `__daily_receipts__` input and the reporter's persisted last-completed-day replay. It requires 30 delivered, measured UTC daily receipts with unique source IDs; the fixture is not live revenue and no numeric live rolling result exists yet. A read-only audit found zero persisted `cross-venue-YYYY-MM-DD.json` files under the default Life Manager state root, so the current gap is cadence/owner wiring plus complete cost receipts, not a fabricated zero-profit result.
 - The existing CFO producer can read Alpaca, Stripe, x402, marketplace, Capafy, mobile-app, and usage sources. Its fresh `2026-09-28` run has no USD customer-revenue receipts, a missing Stripe live credential, two missing marketplace payment ledgers, and `USD_API_EQUIV` estimates that are not provider bills; the new bridge keeps that state partial instead of claiming a measured cash surplus.
 - The external agent-economy state contains one settled x402 receipt with verified chain proof: `0.003 USDC` on `2026-08-24`. Separately, the x402 seller's finalized external-inflow ledger contains `18` unique Railway receipts totaling `0.180000 USDC` (`15` receipts / `0.150000 USDC` in `2026-09`). The duplicate agent-economy paths are byte-identical; these non-USD receipts are not converted into USD or investment P&L.
 - The Task 8 bridge replayed that same table as `evidence_status=partial`: `0` USD treasury receipts, `20` missing-source records, `7` excluded non-USD/API-estimate records, `15` explicit zero observations, and no investment-row leakage into customer cash. This is a measurement result, not a revenue result.
@@ -211,6 +212,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 4: Run focused tests, existing investment tests, and replay-zero checks**; prove the allocator cannot create a second order or reinterpret a deposit as revenue. Cross-venue acceptance/report suite passes `26/26`.
 - [x] **Step 5: Commit** `feat(investment): rank verified cross-venue net returns` via nested implementation commits through `d48e355e7b`.
 - [x] **Step 6: Add the 30-day rolling measurement producer**; `test_rolling_measurement` passes `5/5`, reporter passes `7/7`, the reporter replays the last 30 completed persisted days, missing/partial/duplicate evidence returns no numeric target gap, and owner cash flow remains separate. No current live 30-day result is claimed.
+- [ ] **Step 7: Accumulate 30 real delivered daily receipts**; default-state audit currently finds `0` persisted cross-venue receipts, Hyperliquid carry state is empty, and Solana evidence is blocked. lm-lead must provide the cadence/owner-runtime receipt, and every active venue must supply complete fee/funding/gas/model-cost evidence before the rolling number can become measured.
 
 ### Task 6: Treasury and generational-wealth cash engine
 
@@ -354,7 +356,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
 11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
 12. Task 12 is complete and pushed after the CFO wiring: x402 verification is healthy, the separate USDC adapter is measured, and the briefing keeps it outside USD Treasury.
-13. Current cursor: accumulate 30 delivered measured daily receipts through the rolling producer and obtain the authorized USD receipt/ledger; then return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
+13. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
 14. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
 15. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
 16. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
@@ -366,7 +368,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 | Alpaca | One official round trip; fresh measured net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`); owner cash flow `$66.75`; `1/30` round trips | Cap `$100`; expansion false; promotion reject | 29 additional completed round trips, positive cost-complete monthly evidence, and owner-approved next cap |
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
-| Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but no complete live 30-day window exists | Read-only; expansion false | 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
+| Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; rolling producer is wired but default state has `0` persisted daily receipts and no complete live 30-day window | Read-only; expansion false | lm-lead cadence/owner-runtime receipt, then 30 delivered measured daily receipts with unique source IDs and complete venue/customer/cost receipts |
 | Treasury | CFO and canonical FinancialRecord bridges implemented; fresh `2026-09-28` table is `partial`, USD bridge receipts `0`, missing `20`, excluded `7`; separate x402 ledger is measured at `0.150000 USDC` for September / `0.180000 USDC` lifetime and is now shown in a separate briefing section; Stripe live credential and several owner-written marketplace ledgers are absent | No transfer; no target claim | accumulate 30 daily receipts; obtain authorized USD revenue/refund/operating-cost, owner-flow, P&L, model-cost, tax/reserve receipts |
 | Goal | No official rolling monthly net receipt at or above `$10,000`; generational wealth unmeasured | S0 hold | verified monthly P&L plus accumulating treasury/net-worth ledger |
 
