@@ -234,7 +234,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - Modify: `docs/superpowers/plans/2026-09-28-investment-loop-generational-wealth.md` with the current cursor and receipts
 - Test/replay: all venue focused suites, loop contract, natural wake, provider readbacks
 
-- [x] **Step 1: Record S0 baseline**: Alpaca has one closed official round trip at `-$0.006970681885` and sealed projection `-$0.04`; Hyperliquid is unfunded with USDC/ETH `0`; Solana is implemented but its read-only scout is `scout_unknown` with `0` candidates and no effect; cross-venue and treasury are read-only with incomplete live receipts. No capital promotion.
+- [x] **Step 1: Record S0 baseline**: Alpaca has one closed official round trip; the fresh official replay is measured at net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`, fee `$0.01`, slippage `$0.00`) against owner cash flow `$66.75`; Hyperliquid is unfunded with USDC/ETH `0`; Solana is implemented but its read-only scout is `scout_unknown` with `0` candidates and no effect; cross-venue and treasury are read-only with incomplete live receipts. No capital promotion.
 - [x] **Step 2: Audit canary closure status**: Alpaca's entry/exit/fee receipt is closed; Hyperliquid has no funded entry/exit; Solana has no live canary; missing funding/gas/model-cost/customer-revenue inputs remain explicit and are not converted to zero.
 - [x] **Step 3: Evaluate the positive-month gate**: no official rolling monthly receipt reports `net_pnl_usd >= 10000`; S1 is withheld and one negative round trip cannot recommend expansion.
 - [x] **Step 4: Evaluate discrete-cap promotion**: no venue has the required positive, cost-complete, sample-qualified evidence or owner/lm-lead promotion receipt; current caps remain held with rollback/hold behavior.
@@ -282,6 +282,23 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 4: Run focused tests plus the full investment-core suite and update the treasury README/spec with the result.** FinancialRecord plus Treasury focused tests pass `13/13`, CFO bridge focused tests pass `5/5`, the combined focused run passes `18/18`, and full investment-core discovery passes `47/47`; the README documents the exact subject/currency boundary.
 - [x] **Step 5: Commit and push** `460eba8427` (`feat(investment): bridge canonical financial records to treasury`) before returning to the Hyperliquid/Solana external-effect gates.
 
+### Task 10: Repair Alpaca marked-NAV reconciliation without weakening the gate
+
+**Files:**
+- Modify: `skills/alpaca-investment/alpaca_cli.py`
+- Mirror: `apps/life-manager/investment-core/alpaca_cli.py`
+- Modify: `skills/alpaca-investment/test_performance.py`
+
+**Interfaces:**
+- Keeps the official account equity, position mark, fills, fees, quotes, and owner-transfer receipt as the source set.
+- Computes the realized component as `ending_nav - owner_cash_flow - official_unrealized_mark`, preventing a residual USDC mark from being counted twice. Missing, stale, duplicate, or inconsistent provider evidence remains blocked.
+
+- [x] **Step 1: Reproduce the failure with a marked residual-position fixture**; the old quantity-delta plus unrealized calculation failed the NAV identity as `live_performance_receipts_invalid`.
+- [x] **Step 2: Fix the app/skill adapter in parity** to use the provider's marked ending NAV as the authoritative total and preserve the existing fail-closed identity check.
+- [x] **Step 3: Run regression and full suites**; Alpaca discovery passes `147/147`, investment-core discovery passes `47/47`, app/skill `alpaca_cli.py` parity is clean, and `diff --check` passes.
+- [x] **Step 4: Re-run the official Alpaca read-only performance gate**; result is `measured`, one completed round trip, net `-$0.15`, realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`, owner cash flow `$66.75`, capital expansion `false`, promotion `reject`; no order was submitted.
+- [x] **Step 5: Commit and push** `10935021d1` (`fix(investment): reconcile marked alpaca nav exactly`).
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -293,16 +310,17 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 7. Cross-venue allocator/reporter/acceptance is implemented and pushed (`d48e355e7b`); capital expansion remains disabled.
 8. Task 8 is complete and pushed (`b756217a25`); the fresh CFO table remains `partial`, and the current subject ledger has only historical `0.003 USDC`, so no cash-surplus target claim is allowed.
 9. Task 9's canonical FinancialRecord bridge is implemented and pushed; current CFO-subject replay remains partial with no USD treasury receipt, and the second subject is blocked.
-10. Current cursor: return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
-11. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
-12. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
-13. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
+11. Current cursor: return to Hyperliquid only after owner/runtime receipt and explicit funding boundary; require 14 daily net receipts before expansion.
+12. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+13. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+14. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 
 ### Current S0 scoreboard
 
 | Lane | Current measured result | Capital/promotion state | Next required proof |
 |---|---|---|---|
-| Alpaca | One official round trip `-$0.006970681885`; sealed net projection `-$0.04`; `1/30` round trips | Cap `$100`; expansion false | 29 additional completed round trips, positive cost-complete monthly evidence, and owner-approved next cap |
+| Alpaca | One official round trip; fresh measured net `-$0.15` (realized `-$0.10`, unrealized `-$0.05`, fees `$0.01`, slippage `$0.00`); owner cash flow `$66.75`; `1/30` round trips | Cap `$100`; expansion false; promotion reject | 29 additional completed round trips, positive cost-complete monthly evidence, and owner-approved next cap |
 | Hyperliquid | Arbitrum wallet USDC `0`, ETH `0`; 19 read-only pairs, policy shortlist `PURR/ZEC/STABLE`; Hyperliquid equity/withdrawable/positions/funding rows `0` | Unfunded; market shortlist is not profit evidence | lm-lead owner/runtime receipt, explicit funding boundary, then 14 daily net receipts |
 | Solana copy | Read-only scout `scout_unknown`; `0` candidates; `20` evidence rows; effect `none` | Live canary not run; `$2/$3` gate remains closed | explicit owner-funded canary boundary and one confirmed receipt |
 | Cross-venue allocator | Fixture net `$8.70` with owner cash flow `$100.00`; live inputs incomplete | Read-only; expansion false | complete venue/customer/cost receipts with unique source IDs |
@@ -313,7 +331,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
 `Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
-The current order is `Task 9 canonical FinancialRecord bridge → Task 2/Task 4 effect gates → rolling measurement`. This closes the remaining read-only treasury boundary before any owner-funded effect; it does not change production registry, wallet state, or capital expansion.
+The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 2/Task 4 effect gates → rolling measurement`. Task 10 is now complete; the remaining effect gates still do not authorize funding, wallet mutation, or capital expansion.
 
 ## Source References
 
