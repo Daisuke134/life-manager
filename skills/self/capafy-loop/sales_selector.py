@@ -56,7 +56,38 @@ def _company_signal(path=COMPANY_RECEIPT):
         return None, None
 
 
-def select_signal(agents, company_orders, official_winner=None):
+ANALYTICS = STATE_HOME / "state/capafy-skill-analytics.json"
+
+
+def profit_winners(analytics, limit=3):
+    """Skills ranked by real 30d profit (net revenue minus OpenRouter actual cost).
+
+    Gross sales alone picked Hook Lab, which sells most but loses money on Sonnet
+    (2026-09-28: rev $19.91, cost $36.07). Cloning a loss-maker scales the loss.
+    """
+    rows = [r for r in (analytics or {}).get("per_skill_rows") or []
+            if _num(r.get("profit_30d_actual_usd")) > 0]
+    rows.sort(key=lambda r: (_num(r.get("profit_30d_actual_usd")),
+                             _num(r.get("stats_30d_orders"))), reverse=True)
+    return [{"agent_id": r.get("agent_id"), "name": r.get("name"),
+             "profit_30d_usd": r.get("profit_30d_actual_usd"),
+             "revenue_30d_usd": r.get("stats_30d_revenue_usd"),
+             "orders_30d": r.get("stats_30d_orders")} for r in rows[:limit]]
+
+
+def select_signal(agents, company_orders, official_winner=None, analytics=None):
+    profitable = profit_winners(analytics)
+    if profitable:
+        top_names = ", ".join(f"'{w['name']}' (+${w['profit_30d_usd']}/30d)" for w in profitable)
+        return {
+            "ok": True, "signal": "sales", "listings": len(agents), "company_orders": company_orders,
+            "winner": {"agent_id": profitable[0]["agent_id"], "name": profitable[0]["name"],
+                       "source": "real_profit_30d"},
+            "profit_winners": profitable, "attribution_status": "real_profit_30d",
+            "advice": f"Most profitable skills (net revenue minus actual model cost, 30d): {top_names}. "
+                      "Build the NEXT skill in one of these customer-job categories/styles, on the cheap "
+                      "hosted model (DeepSeek V4.1 Flash). Do not clone a best-seller that loses money.",
+        }
     ranked = sorted(agents, key=_score, reverse=True)
     total_sales = sum(_num(a.get("sales")) + _num(a.get("recentSales")) for a in agents)
     top = [
@@ -110,7 +141,11 @@ def main():
         print(json.dumps(out)); return 0
 
     company_orders, official_winner = _company_signal()
-    out = select_signal(agents, company_orders, official_winner)
+    try:
+        analytics = json.load(open(ANALYTICS))
+    except (OSError, ValueError):
+        analytics = None
+    out = select_signal(agents, company_orders, official_winner, analytics)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     json.dump(out, open(OUT, "w"), ensure_ascii=False, indent=2)
     print(json.dumps(out, ensure_ascii=False))
