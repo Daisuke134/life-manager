@@ -42,11 +42,11 @@
 - Produces `VenueSnapshot` with exact fields `venue`, `observed_at`, `equity_usd`, `free_cash_usd`, `gross_pnl_usd`, `trading_fees_usd`, `funding_or_borrow_usd`, `slippage_usd`, `gas_usd`, `model_cost_usd`, `source_receipt_ids`, `risk`, and `cost_evidence`.
 - Produces `normalize_receipts(venue, rows) -> VenueSnapshot | dict(status="unknown", reason=...)` and venue readers for Alpaca performance receipts, Hyperliquid carry JSONL, and the planned Solana copy-trade journal; readers accept paths/injected text and never credentials.
 
-- [ ] **Step 1: Write failing tests** for valid receipts, absent model cost, duplicate IDs, malformed numbers, and an effect-unknown row.
-- [ ] **Step 2: Run `cd apps/life-manager/investment-core && python3 -m unittest test_venue_snapshot` and verify failure.**
-- [ ] **Step 3: Implement decimal-safe normalization** while preserving `unknown` boundaries and the source receipt IDs.
-- [ ] **Step 4: Run the focused test and verify pass.**
-- [ ] **Step 5: Commit** `feat(investment): normalize cross-venue receipts`.
+- [x] **Step 1: Write failing tests** for valid receipts, absent model cost, duplicate IDs, malformed numbers, and an effect-unknown row.
+- [x] **Step 2: Run `cd apps/life-manager/investment-core && python3 -m unittest test_venue_snapshot` and verify failure.** RED observed with missing `venue_receipts.py`.
+- [x] **Step 3: Implement decimal-safe normalization** while preserving `unknown` boundaries and the source receipt IDs. The existing canonical `portfolio_receipts.VenueSnapshot` is extended with per-cost evidence, and the compatibility adapter keeps latest equity/free cash while summing period P&L/cost rows.
+- [x] **Step 4: Run the focused test and verify pass.** `test_venue_snapshot` passes `5/5`; existing portfolio performance tests remain green.
+- [x] **Step 5: Commit** `82fdbc5f44` (`feat(investment): normalize cross-venue receipts`).
 
 ### Task 2: Fee/model-cost-net P&L aggregation
 
@@ -58,11 +58,11 @@
 - Produces `aggregate(period_start, observed_at, snapshots, owner_cash_flow_usd) -> dict` with `gross_pnl_usd`, `trading_fees_usd`, `funding_or_borrow_usd`, `slippage_usd`, `gas_usd`, `model_cost_usd`, `owner_cash_flow_usd`, `net_pnl_usd`, `venue_rows`, `source_receipt_ids`, `measurement_status`, and `reason`.
 - Produces `venue_net(snapshot) -> dict` and rejects non-finite numbers, negative cost components, duplicate source IDs, and cash-flow-adjusted NAV mismatches.
 
-- [ ] **Step 1: Write failing tests** for exact net arithmetic, cash-flow adjustment, missing-cost unknown, duplicate receipt rejection, negative net, and aggregate receipt ordering.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the pure Decimal aggregation** and reuse the existing `performance.py` fail-closed conventions without weakening its schema.
-- [ ] **Step 4: Run the focused test and verify pass.**
-- [ ] **Step 5: Commit** `feat(investment): calculate fee and model-cost net pnl`.
+- [x] **Step 1: Write failing tests** for exact net arithmetic, cash-flow adjustment, missing-cost unknown, duplicate receipt rejection, negative net, and aggregate receipt ordering.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `net_pnl.py`; one fixture expectation also caught the full cost-vector arithmetic and was corrected to `-3.00`.
+- [x] **Step 3: Implement the pure Decimal aggregation** and reuse the existing `performance.py` fail-closed conventions without weakening its schema. The adapter returns per-venue rows, owner cash flow separately, and never turns a deposit into P&L.
+- [x] **Step 4: Run the focused test and verify pass.** `test_net_pnl`, `test_venue_snapshot`, and `test_portfolio_performance` pass `16/16`.
+- [x] **Step 5: Commit** `86e39e6fcc` (`feat(investment): calculate fee and model-cost net pnl`).
 
 ### Task 3: Deterministic cross-venue capital allocator
 
@@ -74,11 +74,11 @@
 - Produces `build_candidates(snapshots, aggregate, caps) -> list[dict]` with `venue://<name>` references and only verified fields.
 - Produces `rank(candidates, available_capital, caps) -> dict` returning `action="allocate"|"hold"|"halt"`, ranked candidates, excluded reasons, and a single capital amount that stays inside the existing cap/cash/drawdown rules.
 
-- [ ] **Step 1: Write failing tests** for positive net versus unknown-cost candidates, stale venue exclusion, drawdown halt, cash reserve, deterministic tie-breaks, and capital-expansion denial below the sample threshold.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the pure ranking/gating layer**; do not call the existing model runner or any venue execution module from this file.
-- [ ] **Step 4: Run the focused test and verify pass.**
-- [ ] **Step 5: Commit** `feat(investment): rank verified cross-venue capital`.
+- [x] **Step 1: Write failing tests** for positive net versus unknown-cost candidates, stale venue exclusion, drawdown halt, cash reserve, deterministic tie-breaks, and capital-expansion denial below the sample threshold.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_allocator.py`.
+- [x] **Step 3: Implement the pure ranking/gating layer**; do not call the existing model runner or any venue execution module from this file. Allocation is capped by reserve, current `$100` cap, drawdown, and sample thresholds; expansion remains false.
+- [x] **Step 4: Run the focused test and verify pass.** `test_cross_venue_allocator` passes `6/6`; the module imports only the read-only net-P&L adapter.
+- [x] **Step 5: Commit** `567862f202` (`feat(investment): rank verified cross-venue capital`).
 
 ### Task 4: Daily aggregate report and finite read-only wake
 
@@ -92,11 +92,12 @@
 - Produces `render_daily_pnl(aggregate, allocation, day) -> str` including all cost components and `unknown` markers.
 - Produces `wake(readers, state_dir, today, send) -> dict`; it writes one aggregate receipt per UTC day, uses the existing Telegram outbox contract, and returns the provider message ID or a typed delivery-uncertain result.
 
-- [ ] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly.
-- [ ] **Step 4: Run the focused test and verify pass.**
-- [ ] **Step 5: Commit** `feat(investment): report cross-venue net pnl daily`.
+- [x] **Step 1: Write failing tests** for report content, unknown cost visibility, venue ordering, same-day replay, outbox message-ID persistence, and the assertion that no venue submit/sign function is called.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `cross_venue_reporter.py`.
+- [x] **Step 3: Implement the read-only wake** with configurable state roots for Alpaca, Hyperliquid, and Solana; make the current branch's Hyperliquid journal and the future copy-trade journal optional readers that report missing sources explicitly. Missing owner cash-flow evidence remains `unknown`, not zero; outbox delivery uncertainty is persisted and not retried blindly.
+- [x] **Step 4: Run the focused test and verify pass.** The initial reporter slice passed `4/4`; after the rolling-window additions, the current `test_cross_venue_reporter` suite passes `7/7`, including same-day replay and provider-message-ID persistence.
+- [x] **Step 5: Commit** `e407769d43` (`feat(investment): report cross-venue net pnl daily`). The pure wake and reporter import shim are committed; owner-owned registry/cadence wiring and a natural owner-runtime receipt remain open.
+- [x] **Step 6: Add the finite owner entrypoint** in `cross_venue_run.py`. It loads canonical snapshot files without credentials or venue-effect imports, keeps missing standard venues `unknown`, requires source IDs for owner cash-flow evidence, and delegates idempotent delivery to `wake(...)`. Focused entrypoint tests pass `4/4`; the owner runtime still has to provide the fixed argv/env and natural receipt.
 
 ### Task 5: Acceptance evidence and operator contract
 
@@ -107,10 +108,34 @@
 **Interfaces:**
 - Documents the snapshot schema, source receipt requirements, fee/model-cost equation, unknown behavior, state paths, and the lm-lead registry request without editing registry/runtime files.
 
-- [ ] **Step 1: Add acceptance tests** for a fixture with Alpaca + Hyperliquid + Solana rows and verify the exact daily net breakdown and no execution side effect.
-- [ ] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.**
-- [ ] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.**
-- [ ] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
+- [x] **Step 1: Add acceptance tests** for a fixture with Alpaca + Hyperliquid + Solana rows and verify the exact daily net breakdown and no execution side effect. The fixture measures aggregate net `8.70` with owner cash flow `100.00`; ranking excludes the negative-net Solana row.
+- [x] **Step 2: Run the investment-core focused suite and the existing `performance.py` tests.** The current focused command (`test_venue_snapshot test_net_pnl test_cross_venue_allocator test_cross_venue_reporter test_cross_venue_acceptance test_rolling_measurement test_portfolio_performance`) passes `35/35` on the dedicated branch; this is implementation evidence, not live revenue evidence.
+- [x] **Step 3: Run one local read-only wake against current state; preserve the aggregate receipt and Telegram provider ID as evidence, or report the exact missing provider receipt.** Current Hyperliquid owner/runtime receipt and external Telegram provider acknowledgement are absent; no external send was attempted, and this remains an explicit boundary in `README.md`.
+- [x] **Step 4: Commit** `docs(investment): specify cross-venue net pnl contract`.
+
+### Rolling 30-day measurement extension
+
+**Files:**
+- Create: `apps/life-manager/investment-core/rolling_measurement.py`
+- Test: `apps/life-manager/investment-core/test_rolling_measurement.py`
+- Modify: `apps/life-manager/investment-core/cross_venue_reporter.py`
+
+`rolling_30d(receipts, end_day)` consumes only persisted daily report receipts.
+It requires the inclusive UTC window, confirmed delivery, measured daily
+aggregates, explicit owner cash flow, and unique provider receipt IDs. It sums
+only `net_pnl_usd`, keeps owner cash flow separate, and returns no numeric result
+for missing, partial, undelivered, malformed, or duplicate evidence.
+
+- [x] **Step 1: Add failing tests** for exact 30-day arithmetic, owner-flow separation, missing days, partial/undelivered days, duplicate days/receipt IDs, and invalid source numbers. RED observed with the missing module.
+- [x] **Step 2: Implement the Decimal-safe pure measurement function** and wire both the explicit `__daily_receipts__` reader and the persisted completed-day replay into the daily reporter; malformed state is blocked and no filesystem, network, credential, or venue-effect import was added to the pure calculator.
+- [x] **Step 3: Run focused tests.** `test_rolling_measurement` passes `5/5`; `test_cross_venue_reporter` passes `7/7`, including a measured `$30.00` fixture, `$9,970.00` target gap, malformed-file handling, and a persisted 30-completed-day replay.
+- [ ] **Step 4: Accumulate 30 real delivered daily receipts before reporting a numeric live rolling result.** The reporter now measures the last completed UTC window; current live venue receipts are not complete, so this data gate remains open.
+
+## Current live boundary (2026-09-28T12:51:49Z)
+
+- The implementation commits above are present and `cross_venue_run.py` is now an owner-ready finite executable entrypoint. The live producer is still not admitted: `config/loop-registry.json` has no cross-venue row, and no owner cadence/release receipt exists.
+- A host/state read-only audit found no cross-venue/rolling launchd label or plist and `0` persisted `cross-venue-YYYY-MM-DD.json` receipts under the default Life Manager state root. `rolling_30d([], "2026-09-28")` therefore returns `measurement_status=unknown`, `reason=daily_receipt_missing`, and `capital_expansion_allowed=false`.
+- The next action is an lm-lead owner/runtime admission receipt containing the loaded entrypoint, fixed argv/env, cadence, state root, release SHA, owner/occurrence, and provider acknowledgement. Do not edit registry/runtime files from this lane, fabricate a daily receipt, fund a venue, or report a numeric live rolling P&L before that boundary exists.
 
 ## Source references
 
