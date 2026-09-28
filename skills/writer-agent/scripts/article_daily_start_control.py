@@ -635,6 +635,39 @@ def _preflight_only_run(run_dir: Path, rows: list[dict[str, Any]], run_id: str) 
     } == {"strategy-consumption.json"}
 
 
+def _exhausted_empty_provider_failure(
+    state_dir: Path, run_dir: Path, run_id: str, rows: list[dict[str, Any]],
+) -> bool:
+    """Release a run whose provider failed every charged attempt in place.
+
+    Run 20260928-210313: the model refused three times, wrote no draft and
+    reached no destination, so the day stayed blocked.  A new identity is safe
+    only when the run has no ledger row and its directory is still
+    pre-publication empty.
+    """
+    if any(row.get("run_id") == run_id for row in rows):
+        return False
+    if run_dir.is_symlink() or not run_dir.is_dir():
+        return False
+    scripts = Path(__file__).resolve().parent
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    from article_generation_state import (  # pylint: disable=import-outside-toplevel
+        MAX_GENERATION_ATTEMPTS, _charged_attempt_count, _failed_before_publication,
+        prepublication_empty,
+    )
+
+    state = _regular_json(run_dir / "gates" / "generation-state.json")
+    if not state or state.get("run_id") != run_id:
+        return False
+    if not (state.get("status") == "provider-failed-safe" or _failed_before_publication(state)):
+        return False
+    if _charged_attempt_count(state) < int(state.get("maximum_attempts", MAX_GENERATION_ATTEMPTS)):
+        return False
+    safe, _ = prepublication_empty(run_dir, run_id, state_dir / "articles.jsonl")
+    return safe
+
+
 def _exhausted_prepublication_archive(
     state_dir: Path, run_dir: Path, run_id: str, rows: list[dict[str, Any]],
 ) -> bool:
@@ -1242,6 +1275,13 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
             "action": "skip-pending-worker",
             "run_id": run_id,
             "reason": "same-jst-day-owned-by-quality-repair",
+        }
+    if _exhausted_empty_provider_failure(state_dir, run_dir, run_id, rows):
+        return {
+            "action": "new",
+            "run_id": "",
+            "previous_run_id": run_id,
+            "reason": "same-jst-day-exhausted-empty-provider-failure",
         }
     if _exhausted_prepublication_archive(state_dir, run_dir, run_id, rows):
         return {
