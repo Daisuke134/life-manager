@@ -4,7 +4,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { experimentExternalCount, scoutIsFresh, summarizeOwnProducts } from '../store-improve.mjs';
+import {
+  experimentExternalCount,
+  normalizeVerifiedInflows,
+  scoutIsFresh,
+  summarizeOwnProducts,
+} from '../store-improve.mjs';
 
 const SERVED_PATHS = ['/web-search', '/funding-rates', '/funding-rate-arb', '/research'];
 const NOW = Date.parse('2026-07-18T12:00:00.000Z');
@@ -18,6 +23,8 @@ test('controller stays dependency-free in the rsynced Franklin runtime body', ()
   assert.match(source, /from ['"]\.\/llm-offers\.mjs['"]/, 'controller must import the pure offer catalog');
   assert.match(source, /import \{ CORE_PATHS, computeGaps \} from ['"]\.\/product-gaps\.mjs['"];/,
     'controller must share the product-gaps served-path catalog');
+  assert.match(source, /external-inflows-\$\{lower\}\.jsonl/,
+    'controller must source external rewards from the finalized inflow ledger');
   assert.doesNotMatch(source, /const CORE_PATHS =/,
     'controller must not drift a second served-path catalog');
 });
@@ -52,6 +59,44 @@ test('scoutIsFresh invalidates the old listing-only cache schema', () => {
     ts: now / 1_000,
     byCategory: [{ category: 'defi', count: 11, medianPriceUsd: 0.007 }],
   }, now), false);
+});
+
+test('verified inflow normalization accepts only finalized external settlement rows', () => {
+  const rows = normalizeVerifiedInflows([
+    {
+      observed_at: '2026-07-18T12:00:00.000Z',
+      offer_id: '/llm',
+      from: EXTERNAL,
+      status: 'success',
+      finalized: true,
+      external: true,
+      tx: `0x${'a'.repeat(64)}`,
+      usdc_atomic: '3000',
+    },
+    {
+      observed_at: '2026-07-18T12:01:00.000Z',
+      offer_id: '/research',
+      from: EXTERNAL,
+      status: 'success',
+      finalized: false,
+      external: true,
+    },
+    {
+      observed_at: '2026-07-18T12:02:00.000Z',
+      offer_id: '/research',
+      from: EXTERNAL,
+      status: 'success',
+      finalized: true,
+      external: false,
+    },
+  ]);
+
+  assert.deepEqual(rows, [{
+    ts: '2026-07-18T12:00:00.000Z',
+    route: '/llm',
+    payer: EXTERNAL,
+    settled: true,
+  }]);
 });
 
 test('scoutIsFresh accepts a recent demand-aware cache', () => {

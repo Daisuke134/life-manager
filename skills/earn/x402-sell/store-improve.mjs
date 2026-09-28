@@ -24,12 +24,46 @@ const SCOUT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const WAKE_MS = 120_000;
 
 function rowPath(row) {
-  return row?.route ?? row?.path ?? null;
+  return row?.route ?? row?.offer_id ?? row?.path ?? null;
 }
 
 function validTimestamp(value) {
   const timestamp = Date.parse(value ?? '');
   return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function isAddress(value) {
+  return /^0x[0-9a-f]{40}$/i.test(String(value ?? ''));
+}
+
+function isTransaction(value) {
+  return /^0x[0-9a-f]{64}$/i.test(String(value ?? ''));
+}
+
+function hasPositiveAtomicAmount(value) {
+  try { return BigInt(String(value)) > 0n; } catch { return false; }
+}
+
+// The local sales log is useful for demand/attempt telemetry, but the experiment reward must come
+// from the finalized external-inflow ledger that was checked against Base receipts. A settle log
+// with a missing payer, a non-finalized row, or a guessed amount is not a revenue observation.
+export function normalizeVerifiedInflows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => row?.external === true
+      && row?.finalized === true
+      && row?.status === 'success'
+      && typeof row?.offer_id === 'string'
+      && row.offer_id.startsWith('/')
+      && isAddress(row?.from)
+      && isTransaction(row?.tx)
+      && hasPositiveAtomicAmount(row?.usdc_atomic)
+      && validTimestamp(row?.observed_at) !== null)
+    .map((row) => ({
+      ts: row.observed_at,
+      route: row.offer_id,
+      payer: String(row.from).toLowerCase(),
+      settled: true,
+    }));
 }
 
 export function summarizeOwnProducts(salesRows, attemptRows, servedPaths, selfSet, now = Date.now()) {
@@ -45,7 +79,7 @@ export function summarizeOwnProducts(salesRows, attemptRows, servedPaths, selfSe
     const external = routeSales.filter((row) => row?.settled
       && !selfWallets.has(String(row?.payer || '').toLowerCase())).length;
     const firstSeenTs = [...routeSales, ...routeAttempts]
-      .map((row) => validTimestamp(row?.ts))
+      .map((row) => validTimestamp(row?.ts ?? row?.observed_at))
       .filter((value) => value !== null)
       .sort((a, b) => a - b)[0];
     const ageWakes = firstSeenTs === undefined
@@ -107,9 +141,11 @@ export function improve(env = process.env, now = Date.now()) {
 
   const lower = payTo.toLowerCase();
   const logStateDir = resolveStateDir(payTo, env);
-  const sales = readJsonl(join(logStateDir, `sales-${lower}.jsonl`));
+  const verifiedInflows = normalizeVerifiedInflows(
+    readJsonl(join(logStateDir, `external-inflows-${lower}.jsonl`)),
+  );
   const attempts = readJsonl(join(logStateDir, `attempts-${lower}.jsonl`));
-  const products = summarizeOwnProducts(sales, attempts, CORE_PATHS, new Set(SELF_WALLETS), now);
+  const products = summarizeOwnProducts(verifiedInflows, attempts, CORE_PATHS, new Set(SELF_WALLETS), now);
   const bandit = allocateBandit(products);
   const scout = loadScout(now, resolveX402StateDir(env), env);
   const ourCategories = new Set(CORE_PATHS.map(inferCategory));

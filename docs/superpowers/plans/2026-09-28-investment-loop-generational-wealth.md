@@ -360,6 +360,23 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 - [x] **Step 3: Run focused catalog/controller/server tests.** `product-gaps`, `store-improve`, and `serve-listen` pass `17/17`; no seller was restarted.
 - [x] **Step 4: Commit and push** the catalog alignment before moving to the next x402 revenue-evidence boundary.
 
+### Task 14: Drive x402 product rewards from finalized external inflows
+
+**Files:**
+- Modify: `skills/earn/x402-sell/store-improve.mjs`
+- Test: `skills/earn/x402-sell/__tests__/store-improve.test.mjs`
+- Read-only evidence: `~/.local/state/life-manager/x402-sell/external-inflows-<payTo>.jsonl`
+
+**Interfaces:**
+- Local `sales` and `attempts` logs remain demand telemetry only; experiment reward and per-route external counts come from the wallet-scoped finalized external-inflow ledger.
+- A reward row requires finalized successful Base settlement, external classification, a valid offer route, payer, transaction, positive atomic USDC amount, and observation timestamp.
+- Wallet-scoped reports remain separate: the Railway wallet's verified `/funding-rates` receipts cannot become Franklin1 sales or capital.
+
+- [x] **Step 1: Add a failing normalization test** for accepted finalized external rows and rejected non-finalized/internal rows; the initial run failed because the export did not exist.
+- [x] **Step 2: Implement the pure normalization and wire `store-improve` to `external-inflows-<payTo>.jsonl`; keep local attempts for demand/age only.**
+- [x] **Step 3: Run wallet-scoped read-only replay.** Franklin1 has no verified external inflow and remains a hold/drop recommendation; Railway has `18` verified `/funding-rates` receipts and keeps only that route. No wallet data is merged and no seller is restarted.
+- [x] **Step 4: Run the x402 suite, then commit and push this evidence-boundary change.** The full x402 suite passes `223/223`; commit/push is the remaining handoff step for this task.
+
 ## Current TODO Cursor
 
 1. Do not send more owner capital yet; the current measured evidence is negative/insufficient.
@@ -374,11 +391,12 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 10. Task 10's Alpaca marked-NAV reconciliation fix is implemented and pushed (`10935021d1`); the fresh official result remains negative and below the `30` round-trip gate.
 11. Task 11 source audit is complete except for the external USD receipt/owner ledger; current Treasury evidence remains partial. Historical/non-USD x402 receipts are now separately measured, not treated as USD.
 12. Task 12 is complete and pushed after the CFO wiring: x402 verification is healthy, the separate USDC adapter is measured, and the briefing keeps it outside USD Treasury.
-13. Task 13 x402 active-catalog alignment is implemented locally; commit/push it before taking the next revenue-evidence cursor.
-14. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
-15. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
-16. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
-17. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
+13. Task 13 x402 active-catalog alignment is implemented and pushed (`d989f44d58`).
+14. Task 14 x402 verified-inflow reward boundary is implemented and fully tested (`223/223`); commit/push it before taking the next revenue-evidence cursor.
+15. Current cursor: obtain lm-lead cadence/owner-runtime receipt for the finite cross-venue wake, then accumulate 30 delivered measured daily receipts and obtain the authorized USD receipt/ledger; return to Hyperliquid only after owner/runtime receipt and explicit funding boundary, with 14 daily net receipts required before expansion.
+16. Keep the Solana `$2/$3` live canary closed until an explicit owner-funding/runtime receipt and complete RPC verification exist.
+17. S0 scoreboard is recorded below; keep capital expansion disabled and promote only one measured step at a time after the external receipts arrive. Never chase the `$10k/month` number with leverage or blind deposits.
+18. The shared loop-contract gate still has a pre-existing Capafy `read_only_external_owner` declaration mismatch; resolve it through the Capafy owner/release path before treating the repository-wide gate as green.
 
 ### Current S0 scoreboard
 
@@ -408,7 +426,7 @@ No stage is automatic. A stage recommendation is data; a stage promotion is a se
 
 The original task order was `Task 1 → Task 2 full canary → Task 3`. The safe executable order was
 `Task 1 → Task 2 read-only evidence → Task 3 pure gate → Task 4 read-only/paper → Task 5 → Task 6 → Task 7 acceptance evaluation → Task 2/Task 4 effect gates`.
-The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 11 CFO source audit → Task 12 x402 inflow/CFO bridge → Task 13 active-catalog alignment → rolling measurement data accumulation → authorized USD receipt → Task 2/Task 4 effect gates`. Task 10, the read-only part of Task 11, Task 12, and Task 13 are complete; the remaining receipt/effect/data gates still do not authorize funding, wallet mutation, or capital expansion. Task 13 was inserted before rolling accumulation because the read-only x402 audit found that the controller's route catalog had drifted from the production seller and could misdirect product selection.
+The current order is `Task 9 canonical FinancialRecord bridge → Task 10 Alpaca marked-NAV reconciliation → Task 11 CFO source audit → Task 12 x402 inflow/CFO bridge → Task 13 active-catalog alignment → Task 14 verified-inflow rewards → rolling measurement data accumulation → authorized USD receipt → Task 2/Task 4 effect gates`. Task 10, the read-only part of Task 11, Task 12, and Task 13 are complete; Task 14 is implemented pending final suite/commit, and the remaining receipt/effect/data gates still do not authorize funding, wallet mutation, or capital expansion. Task 13 was inserted before rolling accumulation because the read-only x402 audit found that the controller's route catalog had drifted from the production seller and could misdirect product selection; Task 14 follows it because reward selection must use finalized wallet-scoped receipts rather than local settle telemetry.
 
 ## Source References
 
