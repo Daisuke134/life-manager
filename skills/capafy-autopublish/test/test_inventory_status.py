@@ -503,3 +503,17 @@ def test_ready_inventory_reads_demand_rank_from_catalog_listing(tmp_path: Path) 
     items = module.ready_inventory()
 
     assert items[0]["demand_rank"] == 1
+
+
+def test_profit_update_outranks_draft_resume_when_a_slot_is_free() -> None:
+    module = load_module()
+    request = {"agent_id": "8123079349", "from_version_id": "2099413428859719680",
+               "target_model_id": "deepseek/deepseek-v4.1-flash"}
+    update = {"agent_id": "8123079349", "feature": "catalog:hook-lab",
+              "title": "Hook Lab — Win the First 3 Seconds", "update_request": request}
+    draft = {"agent_id": "9466718786", "title": "Shorts Hook Lab"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
+
+    assert module.allocate_action(free, [], [], resumable_drafts=[draft], updates=[update])["action"] == "update_existing"
+    assert module.allocate_action(full, [], [], resumable_drafts=[draft], updates=[update])["action"] == "resume_draft"
