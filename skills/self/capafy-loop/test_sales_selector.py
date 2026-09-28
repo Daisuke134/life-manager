@@ -35,3 +35,19 @@ def test_no_company_or_agent_sales_remains_none() -> None:
     result = select_signal([agent("1", None, None)], company_orders=0)
 
     assert result["signal"] == "none"
+
+
+def test_winner_is_most_profitable_not_best_selling():
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location("ss", pathlib.Path(__file__).parent / "sales_selector.py")
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    analytics = {"per_skill_rows": [
+        {"agent_id": "hook", "name": "Hook Lab", "profit_30d_actual_usd": "-16.16", "stats_30d_orders": 11},
+        {"agent_id": "slide", "name": "Slide Maker", "profit_30d_actual_usd": "15.98", "stats_30d_orders": 2},
+        {"agent_id": "tiktok", "name": "TikTok Script Pro", "profit_30d_actual_usd": "11.85", "stats_30d_orders": 5},
+    ]}
+    official = {"source": "official_publisher_console", "agent_id": "hook", "name": "Hook Lab", "sales_usd": "34.88"}
+    out = mod.select_signal([], 67, official, analytics)
+    assert out["winner"]["name"] == "Slide Maker"
+    assert [w["name"] for w in out["profit_winners"]] == ["Slide Maker", "TikTok Script Pro"]
+    assert mod.select_signal([], 67, official, None)["winner"]["name"] == "Hook Lab"
