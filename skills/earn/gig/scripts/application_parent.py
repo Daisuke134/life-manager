@@ -59,6 +59,7 @@ def _load_shared(name: str):
 
 
 _COCONALA_OBSERVATION_MODULE = None
+_COCONALA_PLATFORM_MANIFEST_RUNTIME = None
 
 
 def _coconala_observation_module():
@@ -76,6 +77,23 @@ def _coconala_observation_module():
         spec.loader.exec_module(module)
         _COCONALA_OBSERVATION_MODULE = module
     return _COCONALA_OBSERVATION_MODULE
+
+
+def _coconala_platform_manifest_runtime():
+    """Load the read-only Meta Loop bridge only at the live Coconala boundary."""
+    global _COCONALA_PLATFORM_MANIFEST_RUNTIME
+    if _COCONALA_PLATFORM_MANIFEST_RUNTIME is None:
+        path = Path(__file__).with_name("coconala_platform_manifest_runtime.py")
+        spec = importlib.util.spec_from_file_location(
+            "coconala_platform_manifest_runtime_for_parent", path,
+        )
+        if spec is None or spec.loader is None:
+            raise ParentContractError("coconala_platform_manifest_runtime_unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        _COCONALA_PLATFORM_MANIFEST_RUNTIME = module
+    return _COCONALA_PLATFORM_MANIFEST_RUNTIME
 
 
 def default_opportunity_observation_root() -> Path:
@@ -127,6 +145,47 @@ def record_coconala_observation_source_failure(
     except OSError:
         # Preserve the collector's original failure; the parent still cannot mutate.
         return
+
+
+def record_live_coconala_platform_manifest_wake(
+    *,
+    evidence_dir: Path,
+    pass_id: str,
+    onboarding_path: Path | None = None,
+    candidate_root: Path | None = None,
+    run_root: Path | None = None,
+    observed_at: str | None = None,
+    source_discoverers: dict[str, Callable[..., object]] | None = None,
+) -> dict[str, object]:
+    """Persist one Coconala natural-wake platform manifest summary before effects."""
+    normalized_pass_id = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(pass_id)).strip("-") or "wake"
+    run_id = f"coconala-natural-{normalized_pass_id}"[:128]
+    try:
+        summary = _coconala_platform_manifest_runtime().run_coconala_platform_manifest_wake(
+            onboarding_path=onboarding_path,
+            candidate_root=candidate_root,
+            run_root=run_root,
+            run_id=run_id,
+            observed_at=observed_at,
+            source_discoverers=source_discoverers,
+        )
+    except Exception as error:  # noqa: BLE001 - parent must fence on durable source failure
+        raise ParentContractError(
+            f"coconala_platform_manifest_wake_failed:{type(error).__name__}"
+        ) from error
+    payload = {
+        "version": 1,
+        "status": summary["status"],
+        "pass_id": pass_id,
+        "run_id": run_id,
+        "read_only": True,
+        **summary,
+    }
+    try:
+        _atomic_json(evidence_dir / "platform-manifest-wake.json", payload)
+    except OSError as error:
+        raise ParentContractError("coconala_platform_manifest_evidence_write_failed") from error
+    return payload
 
 
 dom_contract = _load_shared("dom_contract")
@@ -5156,6 +5215,16 @@ def run_parent(
             _atomic_json(
                 evidence_dir / "application-observations.json",
                 collector.observation_payload(),
+            )
+            # The natural Coconala wake also emits a platform-level Meta Loop
+            # summary.  This is read-only sidecar evidence; the cycle never
+            # authorizes an application, reply, delivery, owner registration,
+            # or payment effect.
+            manifest_observed_at = snapshot.get("observed_at")
+            record_live_coconala_platform_manifest_wake(
+                evidence_dir=evidence_dir,
+                pass_id=pass_id,
+                observed_at=(manifest_observed_at if isinstance(manifest_observed_at, str) else None),
             )
             _record_planner_claims(intent_root, snapshot)
             # D2: a prior pass may have already paid for a planner call over this exact

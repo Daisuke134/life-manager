@@ -137,3 +137,36 @@ def test_application_parent_source_failure_is_explicit_and_read_only(tmp_path):
     )
     assert payload["status"] == "source_collect_failed"
     assert payload["next_action"] == "retry_authenticated_snapshot_read_only"
+
+
+def test_application_parent_platform_manifest_wake_writes_durable_summary(tmp_path):
+    onboarding_path = tmp_path / "coconala-onboarding.json"
+    states = (
+        "preflight", "authenticated", "email_verified", "sms_verified",
+        "seller_information", "identity_approved", "bank_registered",
+        "launchd_readback", "storefront_listing_readback",
+    )
+    onboarding_path.write_text(json.dumps({
+        "version": 2,
+        "platform": "coconala",
+        "states": {
+            state: {
+                "status": "complete" if state == "authenticated" else "pending",
+                "evidence_sha256": "c" * 64 if state == "authenticated" else None,
+            }
+            for state in states
+        },
+    }), encoding="utf-8")
+
+    payload = parent.record_live_coconala_platform_manifest_wake(
+        evidence_dir=tmp_path / "evidence",
+        pass_id="pass-platform-manifest-1",
+        onboarding_path=onboarding_path,
+        candidate_root=tmp_path / "candidates",
+        run_root=tmp_path / "runs",
+        observed_at="2026-09-30T10:01:00Z",
+    )
+
+    assert payload["status"] == "partial"
+    assert payload["pass_id"] == "pass-platform-manifest-1"
+    assert (tmp_path / "evidence" / "platform-manifest-wake.json").is_file()

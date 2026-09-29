@@ -200,6 +200,38 @@ def manifest_from_observation(raw: Any) -> dict[str, Any]:
     }
 
 
+def load_onboarding_observation(
+    path: str | Path,
+    *,
+    observed_at: str,
+    adapter_source_sha256: str,
+    source_url: str = "https://coconala.com/mypage",
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Read one existing onboarding receipt without creating or modifying it."""
+
+    receipt_path = Path(path).expanduser()
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        raise CoconalaPlatformManifestError("onboarding_source_missing")
+    try:
+        raw = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CoconalaPlatformManifestError("onboarding_source_invalid") from error
+    if not isinstance(raw, Mapping):
+        raise CoconalaPlatformManifestError("onboarding_source_invalid")
+    snapshot = {
+        "version": 2,
+        "platform": "coconala",
+        "observed_at": observed_at,
+        "source_url": source_url,
+        "adapter_source_sha256": adapter_source_sha256,
+        "evidence_refs": evidence_refs or ["private:coconala-onboarding.json"],
+        "onboarding": dict(raw),
+    }
+    manifest_from_observation(snapshot)
+    return snapshot
+
+
 class CoconalaPlatformManifestSource:
     """Inject one Coconala onboarding observation per wake, read-only."""
 
@@ -228,5 +260,6 @@ class CoconalaPlatformManifestSource:
 __all__ = [
     "CoconalaPlatformManifestError",
     "CoconalaPlatformManifestSource",
+    "load_onboarding_observation",
     "manifest_from_observation",
 ]

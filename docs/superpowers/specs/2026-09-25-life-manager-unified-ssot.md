@@ -2115,6 +2115,38 @@ platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_w
 `lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の証拠であり、production反映・provider receipt・公式readback・
 収益の証拠ではない。
 
+## 現在の正本cursor（2026-09-30、Coconala natural-wake接続後）
+
+`fix/source-reconcile-20260930`で、Coconalaの実稼働`application_parent.run_parent`がread-only snapshot後・planner/effect前に
+`record_live_coconala_platform_manifest_wake`を一度呼ぶ。既存の秘密情報を含まない
+`coconala-onboarding.json`を変更せず読み、`platform_manifest_cycle`へ渡し、candidate stateとMeta Loop run summaryを0600で保存する。
+未設定のLancers／CrowdWorks／Mercor sourceは`partial`として記録し、Coconala candidateもpolicy／funded／canary／economicsが
+unknownのため`hold`になる。応募・返信・納品・owner登録・決済はこのbridgeから呼ばない。
+
+この段階は「Coconala callerがreceipt経由でcycleへ接続された」状態であり、認証済みprovider collectorからのplatform snapshot注入、
+他3 platformの各自然wake caller接続、production release反映、provider receipt／公式readbackを完了扱いにしない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **未完（現在cursor）** Coconala onboarding receiptではなく、認証済みCoconala collectorのplatform-level read-only snapshotを
+   `record_live_coconala_platform_manifest_wake`へ注入し、同じ自然wakeでsnapshot hash・evidence refs・source failureを完全に束縛する。
+   案件`request_details`をplatform manifestへ混ぜず、失敗は`partial`／`hold`で止める。
+2. **未完** Lancers、CrowdWorks、Mercorの各自然wake callerにも同じread-only cycle接続を実装し、実collector snapshotを注入する。
+   各callerはprovider mutationを呼ばず、source欠落・認証なし・案件観測混入をtyped errorとしてdurableに残す。
+3. **未完** 全source接続をfocused／全affected suiteで受入し、最新mainへreconcile、main由来immutable releaseを作成する。
+   loaded SHA、plist argv/env、identity lease、rollback receiptを公式readbackで一致させるまでproduction完了と数えない。
+4. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserが
+   0の間は再送・正式納品・receiptなしのeffect fence解放をしない。
+5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+6. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+   canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+7. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
+   rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
+
+検証済み（このcursor）: Coconala natural-wake bridge focused 1件、Coconala関連193件、Marketplace Core 332件、
+Lancers／CrowdWorks／Mercor manifest各4件、compile、`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の
+証拠であり、実provider receipt、公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。
+
 ### 最新Meta Loop platform-manifest boundary — 2026-09-30
 
 - `platform_manifest_source.py` を追加し、platform-level manifestだけをshared candidate cycleへ渡す。
@@ -2328,7 +2360,7 @@ platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_w
   registry 176、mapped 102、shared job IDs 0）、`git diff --check`をPASSした。これはdurableなsource summaryの証拠であり、
   production scheduler稼働、provider receipt、RyuさんDMのofficial readback、応募・納品・成約・payout・収益の証拠ではない。
 
-### 原子TODO（Meta Loop durable wake summary後の正本）
+### 原子TODO（Meta Loop durable wake summary後の正本・旧cursor）
 
 1. **完了** bounded Meta Loop wakeの`empty`／`partial`／`ok`を、run id付きで冪等なdurable summaryへ保存する。
 2. **未完** Coconala／Lancers／CrowdWorks／Mercorの既存read-only Opportunity観測を、案件観測と混同せず、
@@ -2344,26 +2376,34 @@ platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_w
 
 ---
 
-## 現在の正本cursor（2026-09-30、最終追記）
+## 現在の正本cursor（2026-09-30、Coconala natural-wake接続後）
 
-専用branch `fix/source-reconcile-20260930` で、4 platformのread-only account/source-healthを
-platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_wake`で同じMeta Loop wakeへ束ねるところまで完了。
-案件Opportunity/listing/applicationはplatform候補へ昇格させず、未設定sourceは`partial`としてdurable記録する。
+`fix/source-reconcile-20260930`で、Coconalaの実稼働`application_parent.run_parent`がread-only snapshot後・planner/effect前に
+`record_live_coconala_platform_manifest_wake`を一度呼ぶ。既存の秘密情報を含まない
+`coconala-onboarding.json`を変更せず読み、`platform_manifest_cycle`へ渡し、candidate stateとMeta Loop run summaryを0600で保存する。
+未設定のLancers／CrowdWorks／Mercor sourceは`partial`として記録し、Coconala candidateもpolicy／funded／canary／economicsが
+unknownのため`hold`になる。応募・返信・納品・owner登録・決済はこのbridgeから呼ばない。
 
-### 原子TODO（この節が現在の順序の正本）
+この段階は「Coconala callerがreceipt経由でcycleへ接続された」状態であり、認証済みprovider collectorからのplatform snapshot注入、
+他3 platformの各自然wake caller接続、production release反映、provider receipt／公式readbackを完了扱いにしない。
 
-1. **未完** Coconala／Lancers／CrowdWorks／Mercorの各自然wake callerへcycleを接続し、実collectorのread-only snapshotを注入する。
-   source failure・認証なし・案件観測混入は`partial`／`hold`にし、応募・返信・納品・決済・owner登録を呼ばない。
-2. **未完** branchを最新mainへreconcileし、全acceptance PASS後にのみmain受入、immutable release、loaded SHA／plist argv-env／
-   identity lease／rollback receiptを公式readbackで確認する。productionはmain由来releaseだけを使う。
-3. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserがない間は
-   再送・正式納品・receiptなしのeffect fence解放をしない。
-4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission state欠落を0件にする。
-5. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+### 原子TODO（この節が最新の実行順正本）
+
+1. **未完（現在cursor）** Coconala onboarding receiptではなく、認証済みCoconala collectorのplatform-level read-only snapshotを
+   `record_live_coconala_platform_manifest_wake`へ注入し、同じ自然wakeでsnapshot hash・evidence refs・source failureを完全に束縛する。
+   案件`request_details`をplatform manifestへ混ぜず、失敗は`partial`／`hold`で止める。
+2. **未完** Lancers、CrowdWorks、Mercorの各自然wake callerにも同じread-only cycle接続を実装し、実collector snapshotを注入する。
+   各callerはprovider mutationを呼ばず、source欠落・認証なし・案件観測混入をtyped errorとしてdurableに残す。
+3. **未完** 全source接続をfocused／全affected suiteで受入し、最新mainへreconcile、main由来immutable releaseを作成する。
+   loaded SHA、plist argv/env、identity lease、rollback receiptを公式readbackで一致させるまでproduction完了と数えない。
+4. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserが
+   0の間は再送・正式納品・receiptなしのeffect fence解放をしない。
+5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+6. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
    canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
-6. **未完** Meta Loopのowner provisioning→canary/readback→rollback→settlement→quality/P&L feedbackをshared kernelへ接続し、
-   全gateと公式receiptを通ったplatformだけをpromoteする。
+7. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
+   rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
 
-検証済み: Marketplace Core 332件、Coconala関連61件、Lancers関連14件、CrowdWorks関連14件、Mercor関連16件、compile、
-`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の証拠であり、production反映・provider receipt・公式readback・
-収益の証拠ではない。
+検証済み（このcursor）: Coconala natural-wake bridge focused 1件、Coconala関連193件、Marketplace Core 332件、
+Lancers／CrowdWorks／Mercor manifest各4件、compile、`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の
+証拠であり、実provider receipt、公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。
