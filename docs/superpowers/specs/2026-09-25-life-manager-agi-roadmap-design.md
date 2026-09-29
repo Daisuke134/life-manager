@@ -411,3 +411,17 @@ SSOT とのつながり: AG11 は SSOT T12（自己改善）の最初の実例�
 | 2027年後半〜 | 規模の拡大 | 行動の世界モデル | 独立した再現 | M3 蒸留、資金があれば M4 | L3 → L4 |
 
 現在の cursor（トラック E）: **AG1**（Dais の承認待ち。計画書: `docs/superpowers/plans/2026-09-27-lm-eab-outcome-prediction-track.md`）
+
+### 13.6 訂正: eval は Claude Code 組み込みの `claude-api` skill の道具を使う（2026-09-29）
+
+§12 では「道具が未公開なので手順を自作する」と書いたが、誤り。Claude Code 2.1.282 に組み込まれた `claude-api` skill に `/claude-api build-eval`・`/claude-api hillclimb` があり、手順書は `shared/evals/{build-eval,eval-hillclimb,cost-hillclimb,eval-audit}.md` と報告ページの生成器（`report/build-report-lite.mjs`）。GitHub の `anthropics/skills` にはまだ無い（最新の commit は 9/24）。
+
+使い方の決定:
+- **AG9（反復試行と信頼区間）は自作しない。** hillclimb が、反復（reps）、学習用とテスト用の分割、ノイズの下限（2値の合格率なら 95% 区間の半幅 ≒ `1/sqrt(n·reps)`、例: 25件×2回で ±14点）、「山登りできる eval か」の事前確認（Step 0.5）を持つ。
+- **AG10・AG11 はこの道具で実行する。** 1回の eval で扱うのは1つの流れだけ（build-eval Step 0: "One flow per eval"）。最初の流れは Capafy の Skill 出品の判断。
+- **既存 eval の健康診断** は `eval-audit.md` の6項目で行う。
+- **制約:** build-eval は、入力の一覧と採点方法の2回、明示の承認を求める。LM のアプリは GPT を呼ぶので、Anthropic SDK のコードは LM のファイルに入れず、runner からアプリをそのまま呼ぶ。
+- **AG1（予測トラック）は残す。** 世界モデル（因果の理解）を測る専用の物差しで、この道具とは役割が違う。ただし、eval の山登りより後に回す。
+
+トラック E の新しい順序: ① `eval-audit` で既存 eval を診断 → ② `build-eval` で Capafy の流れ → ③ `hillclimb`（目標は費用、`cost-hillclimb.md` の順序）→ ④ 勝った変更を LM の release の経路で本番へ出し、承認率・売上を readback → ⑤ アプリ・Writer・PromptBase の流れへ広げる → ⑥ AG1 以降（AG2 の台帳は SSOT T6 の後）。
+現在の cursor（トラック E）: **① eval-audit**
