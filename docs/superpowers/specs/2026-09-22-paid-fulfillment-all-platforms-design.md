@@ -5812,3 +5812,23 @@ Current cursor: item 2 (safe disk-admission window). Items 1 and the Ryu
 customer delivery are complete; items 2–10 remain. The next external effect is
 not admissible until item 2 and the owner diagnosis in item 3 have concrete
 receipts.
+
+### Item 2 probe receipt — 2026-09-30 06:52 JST
+
+- [x] The current allow-listed cleanup owner was run once with the latest
+  cleanup implementation and full host inventory. Its durable
+  `last-receipt.json` reports `evaluated=3`, `preserved=3`,
+  `preserved_reasons={"open":3}`, `reclaimed=0`, and
+  `protected_deletions=0`; the three candidates were Codex cache,
+  `life-manager-daily-driver` cache, and npm npx cache. The updater probe also
+  preserved its target on probe ambiguity (`errors=1`); no process was killed.
+- [x] The before/after host readback stayed below the runtime admission floor
+  (`free_before=299294720`, `free_after=299266048` bytes in the receipt;
+  subsequent `df -k /` was about 300 MiB). No provider state, credential,
+  browser identity, evidence, JSONL state, or owned run was removed.
+- [ ] Item 2 is therefore still open: a safe admission window has not been
+  established. It can close only after the protected caches are naturally
+  closed or another allow-listed, unreferenced regenerable artifact is
+  proven closed and reclaimed, followed by a fresh `free_after >= 536870912`
+  readback. Do not force-close the Codex, browser, or Node owner merely to
+  satisfy this threshold.
