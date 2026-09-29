@@ -2496,3 +2496,20 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
 5. **未完** Freelancer／Upworkの専用identity auth、approved terms、funded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
 6. **未完** Meta Loopのscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
+
+## 現在の正本cursor（2026-09-30、Upwork source natural-wake接続後）
+
+- `fix/source-reconcile-20260930`のHEADは`99e1f6cf73`。Upworkについて、契約・transactions・withdrawalsのread-only証跡hash、認証account hash、profile readbackをplatform manifestへ投影する`upwork_platform_manifest.py`と、候補state／durable wakeへ保存するruntime bridgeを追加した。
+- `upwork_browser_provider.observe()`はread-only state構築後、reply／proposal／offer受諾／worker起動の前にmanifest bridgeを実行する。bridge失敗時は`upwork_platform_manifest_wake_failed:*`でfail-closedし、provider mutationへ進まない。案件本文、message本文、contract rows、proposal判断はmanifestへ渡さない。
+- 検証済み: Upwork関連`213 passed`、Upwork manifest／runtime focusedを含むprovider回帰、Marketplace Core`332 passed`、Python compile、`git diff --check`。これはsource/runtime契約の証拠であり、Upworkのproduction loaded SHA、provider receipt、応募・成約・payout・利益の証拠ではない。
+- capacity／ENOSPC sourceは同じbranchに既に取り込まれており、focused`24 passed`、disk-cleanup対象`6 passed`、runtime/loop全体`805 passed (576 subtests)`。ただしproduction `current/RELEASE.json`は`3975ae…`のままで、reserve配置と自然自己回復の公式readbackは未取得。status read-onlyでは279件中53件が`resource_capacity_busy`。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** Coconala／Lancers／CrowdWorks／Mercorのmanifest natural wakeと、Upworkのread-only manifest natural wakeをshared candidate／durable wakeへ接続する。全platform sourceは案件本文をmanifestへ混ぜず、gate未確認はholdにする。
+2. **未完（現在cursor）** Freelancerも同じread-only platform manifest契約へ接続する。provider規約でautomatic biddingの許可が確認できるまで、応募・message・owner登録はしない。
+3. **未完** branch全affected suiteを再実測し、main受入・immutable release・targeted apply・loaded SHA／plist／identity lease／rollback receipt・natural terminal・公式readbackを順に確認する。source PASSだけでproduction完了と数えない。
+4. **未完** capacity／ENOSPC修正をproductionへ反映後、effect-free scratchのreclaim／reserve retry／runtime evidence保存を自然runで実測する。53件のcapacity deferを成功扱いにせず、terminal event・recovery intent・admission stateをoccurrence単位で閉じる。
+5. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品・receiptなしのeffect fence解放はしない。
+6. **未完** Freelancer／Upworkのapproved terms、専用identity auth、source-complete inventory、funded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを満たすまでownerを有効化しない。
+7. **未完** Meta Loopをscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackまで接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
