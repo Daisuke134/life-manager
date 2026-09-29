@@ -216,6 +216,12 @@ if [ -n "$PREPARED" ]; then
   F_SKILL="$(basename "$F_SKILL_DIR")"
   if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then
     RC=0; echo "$TS create_fresh $F_ID: publish_finish completed (CP2 -> CP3)" >> "$LOG"
+    # Same healthy terminal as RESUMED above: one submission per pass is the goal, and the
+    # queue still holds more updates, so post-verdict stays PUBLISHABLE and the branch below
+    # would log BLOCKED and wake self-fix for a successful pass (live 2026-09-29 23:40, 1037238583).
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (SUBMITTED — $F_ID finished CP2/CP3 after prepare) ===" >> "$LOG"
+    exit 0
   else
     echo "$TS create_fresh $F_ID: publish_finish did not complete; draft resumes on a later pass" >> "$LOG"
   fi
