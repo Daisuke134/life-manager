@@ -862,3 +862,5 @@ The entries above are historical readbacks. This section is the current source o
 **cross-venue Telegram履歴readback（2026-09-29）**: provider設定のread-only `getMe`／`getChat`はPASSしたが、MTProto user履歴38件にoutbox本文SHAの一致は0件。delivery成功のreceiptではないため、旧occurrenceを解放せず、再送せず、paper terminal readbackを先に進める。
 
 **paper natural wake recovery（2026-09-29 10:37 UTC）**: capacity defer後のpaper occurrenceは`pass`へ復帰したが、Alpaca marketはまだclosed、QQQは`accepted`・zero-fill、provider receiptなし。重複注文はなく、INV-002のterminal readback待ちを維持する。
+
+**promotion gate readback（2026-09-29）**: 既存live公式performanceは`1/30` round trip、net `-$0.15`、fees `$0.01`、cap `$100`、promotion reject。理由は`net_non_positive`・`sample_insufficient`・`cost_unknown`・`venue_unhealthy`で、月次収益やcap増額の根拠にはしない。
