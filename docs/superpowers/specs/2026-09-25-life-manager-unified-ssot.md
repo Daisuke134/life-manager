@@ -796,6 +796,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 18:09 JST（UTC `09:09:23Z`）に現行スマホDM URLをread-onlyで再取得し、HTTP/UI readbackに成功した。最新シーケンスは seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41。14:41の最新要求は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」で、sellerの後続返信は0件、正式納品ボタンも未押下。証跡は `delivery/current-cycle-v719-dm-readback.json`。したがって、管理画面・公開サイトの修正readbackは完了していても、Ryuへの最終統合DMは未送信であり、Ryu案件はまだ完了ではない。
 - [x] 2026-09-29 18:14 JST（UTC `09:14:26Z`）に同じ現行スマホDM URLを再read-only確認したが、ページは再び`403 Forbidden`、入力欄0件だった。browser identity自体は到達可能（HTTP 200）だがprovider本文を取得できず、送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v720-dm-access-denial-readback.json`。v719が最後に成功した公式readbackであり、v720以後に新しい返信が来たかは未確認である。
 - [x] 2026-09-29 18:35 JST（UTC `09:35:48Z`）に、同じ現行スマホDM URLとCoconala専用session keepaliveをread-onlyで照合した。DMは`title/body=403 Forbidden`・入力欄0件、keepaliveは`logged_out=false`かつ`access_denied=true`で、provider access denialであることを独立確認した。送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v721-dm-access-denial-readback.json`。v719が最後の成功公式readbackであり、公式threadと入力欄が回復するまで再ログイン・再送・新着推測をしない。
+- [x] 2026-09-29 18:44 JST（UTC `09:44:12Z`）に、新しいleased tabで通常UIの3経路（スマホDM、dashboard、受信箱）をread-only確認した。3経路すべて`403 Forbidden`・入力欄0件、session keepaliveも`logged_out=false`・`access_denied=true`。未登録ブラウザ／別アカウントへの切替、送信POST、正式納品クリックは行っていない。証跡は `delivery/current-cycle-v722-dm-ui-access-denial-readback.json`。v719が最後の成功公式readbackであり、composerとpost-send readbackが回復するまでRyuへの送信は未完了。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
