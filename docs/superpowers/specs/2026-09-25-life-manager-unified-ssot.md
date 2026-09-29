@@ -1641,3 +1641,72 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] settlementをledgerへ記録する。完了条件: payout receipt。
 - [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
 - [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
+
+## Current cursor — 2026-09-30（reply pre-effect分類・外部readback境界）
+
+このsectionを現在の実測cursorとする。source PASS、production fleet PASS、provider
+receipt/readback、実収益を別々に扱う。production loopの停止・再起動、providerへの再送、
+effect unknownの手動解放は行わない。
+
+### 実測状態
+
+- production `current/RELEASE.json` はSHA `493017d36c9475e0d46c5b12733172f468b5bf05`。
+  `lm-loop doctor` は `ok=true`（registry 175）、`lm-loop-contract` は
+  `ok=true`（registry 175、mapped 102、shared job IDs 0）。これはregistry/release
+  整合性だけを証明し、provider納品・成約・payout・収益は証明しない。
+- RyuさんのDMは `current-cycle-v723-dm-send-readback.json` に送信操作1回、直後DOM
+  bubble 1件、正式納品ボタン未実行、再送なしがある。reload後の公式readbackは403で、
+  provider receiptは未取得。送信を再実行せず、403回復後もread-only確認だけを行う。
+- `bsk browsers --json` は `[]`。認証済みブラウザが0のため、Coconala公式readbackを
+  迂回backendで取得しない。接続が戻るまでRyuさんの状態は「一回送信のDOM証拠あり・
+  公式readback未確認」とする。
+- CoconalaはApply/Storefrontが `resource_effect_unknown`、Paidが
+  `resource_control_busy`、Reply/Reconcileが `entrypoint_exit_75`。CrowdWorksは
+  Replyが旧releaseのPID 2843で `entrypoint_exit_1`/effect unknown、Application/Paidも
+  provider receiptなし。Lancers Application/Paidは `entrypoint_exit_1`、Work-syncは
+  `entrypoint_exit_75`、Mercor Application/Paid/Replyはresource effect unknown。
+  いずれも「稼働表示」を成功・収益と数えない。
+- data volumeは約2.5 GiB空き・99%使用。disk cleanup receiptは`errors=1`（Sparkle
+  updater recovery）で、過去にENOSPCがstate/recovery書込みを壊した。認証・receipt・
+  state本体を手動削除しない。11 GiBを新しい完了条件にはしない。
+
+### 今回のsource変更
+
+専用branch `fix/reply-effect-classification-20260930` のcommit `61059af2e8`で、
+共通`reply_kernel.py`の終了分類を修正した。送信前markerが厳密に0600の
+`{"status":"pre_effect_failure","effect":0}`として残り、かつ結果のeffectが0の
+場合だけexit 75（再試行可能）とする。marker消失、symlink/所有者/権限不一致、
+mutate後の例外、readback不明、effect=1はexit 1のまま保持し、再送を許さない。
+共通kernel 296件、CrowdWorks 59件、Lancers 25件は全PASS。branchはpush済みだが、
+main・production releaseへは未反映である。
+
+LancersのWAF分類branch `fix/lancers-human-verification-20260929`（commit
+`854b4947d8`）もproduction未反映で、公開WAFは`lancers_human_verification_required`
+として外部送信なしで保持する。
+
+### 原子TODO（現在の実行順）
+
+1. **Ryu公式readback**: 認証済みブラウザ接続が戻ったときDMをread-onlyで開く。完了条件は
+   provider receipt/readback取得、または403の再現証拠保存。本文再送・正式納品ボタンは押さない。
+2. **source受入**: shared reply分類とLancers WAF分類を最新`origin/main`へreconcileする。
+   完了条件はfocused/full tests、`git diff --check`、`lm-loop-contract`のPASS。
+3. **immutable release**:受入済みmainからreleaseを作り、production apply ownerが空くまで待つ。
+   完了条件はcurrent SHA、plist argv/env、identity leaseの公式readback。
+4. **自然terminal**: Coconala/CrowdWorks/Lancers/Mercorのloaded-running ownerを停止・再起動
+   せず自然terminalまで待つ。完了条件は各occurrenceのterminal eventとnext action。
+5. **effect fence解消**: occurrenceごとにprovider receipt＋official readback、または厳密な
+   pre-effect proofを取得する。完了条件は`effect_status=verified/reconciled`または理由付きheld。
+   receiptなしのunknownは解放・再送しない。
+6. **容量自己修復**: ENOSPCを再現可能なテストで境界化し、allowlist済み再生成物だけを
+   cleanupする。完了条件はreceipt/recovery/state書込み成功とENOSPC再発なし。protected state、
+   credentials、provider historyは削除しない。
+7. **Freelancer/Upwork**: approved terms、専用identity auth、source-complete inventory、
+   funded contract/milestone、mutation authorization、payout readbackの順でgateを通す。
+   完了条件が揃うまでowner登録・応募・返信・納品を行わない。
+8. **Meta Loop**: discovery scheduler、candidate durable state、policy/adapter/funded gate、
+   owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。
+   完了条件はisolated canaryのprovider receipt、official readback、replay-zero、cost-complete
+   positive net P&Lであり、adapter存在やwake成功だけでは完了にしない。
+
+このcursorで、Ryuさんの一回送信証拠を保持しつつ重複送信を防ぎ、platformごとの不確実な
+外部効果を公式証拠で一つずつ閉じ、最後にのみMeta Loopへ昇格する。
