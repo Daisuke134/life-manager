@@ -404,7 +404,7 @@
 
   Join AgentCore runtime/browser usage, model tokens, Gateway/search/tool cost, Railway/Inngest/Supabase shared allocation, and Stripe fees. Estimated cost can reserve budget before a job; only provider readback settles it.
 
-- [ ] **Step 3: Implement no-card onboarding**
+- [x] **Step 3: Implement no-card onboarding**
 
   New tenants receive `free-v1`, one goal, and $1 activation credit. Choose the cheapest useful read-only first task. Do not show a checkout link before the first verified result.
 
@@ -569,8 +569,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A20 | done | AgentCore Identity provider and migration-on-use | focused 23/23; official API-key/M2M-OAuth command mapping; cross-tenant/human provider calls 0; verified-read-only migration ordering; PostgreSQL migration twice + RLS PASS; atomic revoke makes queued dead-letter, running external-effect reconcile, and active leases 0 |
 | A21 | provider-pending | Adversarial tenant/effect recovery suite | local adversarial 18/18 + dispatcher/envelope regression 13/13; forged provider/lease calls 0, redelivery effect 1, accepted ambiguity reconciles, stale lease exact release; real read-only/synthetic canaries pending activation |
 | A22 | done | Cost ledger and reservation/admission | focused 24/24; real PostgreSQL reserve/settle/replay/cap + reservation owner/TTL PASS; integer micros, provider receipt dedupe, unknown-cost hold, Free $0.50 + one-time $1 and Pro $12 caps; tenant/month contribution keeps user income separate |
-| A23 | **next** | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
-| A24 | todo | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero |
+| A23 | done | Natural no-card Free onboarding | focused 64/64; idempotent `free-v1` creation never downgrades Pro; active Free admits one goal; checkout requires server-read first verified AgentCore result; PostgreSQL migration replay + timestamp replay-zero PASS |
+| A24 | **next** | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero; apply cloud base migrations before the A23 migration |
 | A25 | todo | Internal + five-user phone-only cohort | isolation/effect/session/cost invariant breaches 0 |
 | A26 | todo | First live $49 Founding Pro receipt | Stripe readback, entitlement transition, actual tenant contribution row |
 | A27 | todo | 25-user cohort and four-journey field baseline | measured activation, D7/D30, conversion, p50/p75/p95 latency and cost replace assumptions |

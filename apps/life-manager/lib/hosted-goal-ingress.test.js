@@ -46,8 +46,8 @@ function fixture(overrides = {}) {
         return overrides.tenant || {
           uid: "tenant-a",
           telegram_chat_id: "chat-a",
-          phone: "phone-redacted",
-          paid: true,
+          phone: "phone-redacted", status: "active", plan_version: "free-v1",
+          active_goal_count: 0,
         };
       },
       secretProvider: createSecretProvider({ mode: "cloud", vault }),
@@ -62,7 +62,7 @@ function fixture(overrides = {}) {
   };
 }
 
-test("paid authenticated tenant enqueues one reference-only goal and replay is zero", async () => {
+test("active Free tenant enqueues its one reference-only goal and replay is zero", async () => {
   const f = fixture();
   const input = {
     scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" },
@@ -99,7 +99,7 @@ test("paid authenticated tenant enqueues one reference-only goal and replay is z
 test("unauthenticated unpaid cross-tenant and unhealthy-vault requests enqueue zero", async () => {
   const cases = [
     { input: { scope: { authenticated: false, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS } },
-    { input: { scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS }, tenant: { uid: "tenant-a", telegram_chat_id: "chat-a", paid: false } },
+    { input: { scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS }, tenant: { uid: "tenant-a", telegram_chat_id: "chat-a", status: "inactive", plan_version: "free-v1", active_goal_count: 0 } },
     { input: { scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-b" }, goal: goal(), nowMs: NOW_MS } },
     { input: { scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal({ uid: "tenant-b" }), nowMs: NOW_MS } },
     { input: { scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS }, vaultHealth: { ok: false } },
@@ -111,6 +111,19 @@ test("unauthenticated unpaid cross-tenant and unhealthy-vault requests enqueue z
     assert.equal(f.calls.filter(([kind]) => kind === "enqueue").length, 0);
     assert.equal(f.jobs.size, 0);
   }
+});
+
+test("Free rejects a second active goal before vault or queue while Founding Pro permits up to three", async () => {
+  const free = fixture({ tenant: { uid: "tenant-a", telegram_chat_id: "chat-a", status: "active", plan_version: "free-v1", active_goal_count: 1 } });
+  await assert.rejects(enqueueHostedGoal({
+    scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS,
+  }, free.deps), /active goal limit/i);
+  assert.equal(free.calls.some(([kind]) => kind === "enqueue"), false);
+
+  const pro = fixture({ tenant: { uid: "tenant-a", telegram_chat_id: "chat-a", status: "active", plan_version: "founding-pro-v1", active_goal_count: 2 } });
+  assert.equal((await enqueueHostedGoal({
+    scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" }, goal: goal(), nowMs: NOW_MS,
+  }, pro.deps)).created, true);
 });
 
 test("hosted ingress accepts healthy AgentCore Identity without reading a credential", async () => {

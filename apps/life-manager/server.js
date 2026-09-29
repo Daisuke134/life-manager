@@ -94,6 +94,7 @@ const { provisionAndStartAgentEconomy } = require("./lib/agent-economy-cloud-pro
 const { planProductOnboarding } = require("./lib/product-onboarding.js");
 const { ingestMentalOutcome } = require("./lib/mental-outcome-http.js");
 const { enqueueJob } = require("./lib/runtime-job-store.js");
+const { createFreeCloudTenant } = require("./lib/cloud-runtime-store.js");
 const { createAgentEconomyControlStore, economyReply } = require("./lib/agent-economy-control.js");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -129,6 +130,24 @@ function getInvestmentStateStore() {
     investmentStateStore = createInvestmentStateStore({ query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) });
   }
   return investmentStateStore;
+}
+async function ensureFreeCloudTenant(uid) {
+  const releaseSha = String(process.env.LM_AGENTCORE_RELEASE_SHA || "").trim();
+  if (!/^[a-f0-9]{40}$/.test(releaseSha)) return null;
+  getMoneyPrinterRuntimeStore();
+  return createFreeCloudTenant({ tenantId: uid, releaseSha }, {
+    query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool),
+  });
+}
+async function hasFirstVerifiedCloudResult(uid) {
+  getMoneyPrinterRuntimeStore();
+  const rows = (await moneyPrinterRuntimePool.query(`
+    SELECT first_verified_result_at
+    FROM public.lm_cloud_tenants
+    WHERE tenant_id = $1 AND status = 'active'
+    LIMIT 1
+  `, [uid])).rows;
+  return rows.length === 1 && Boolean(rows[0].first_verified_result_at);
 }
 function getCloudCitizenStore() {
   getMoneyPrinterRuntimeStore();
@@ -1364,6 +1383,7 @@ const server = http.createServer(async (req, res) => {
                 return getInvestmentStateStore().read(uid);
               },
               getEconomyState: (uid) => getAgentEconomyControlStore().read(uid),
+              hasFirstVerifiedResult: hasFirstVerifiedCloudResult,
             });
             if (outcome.handled) {
               console.log(`[slash] command=${slash.name} action=${outcome.action}${outcome.ok === false ? ` reason=${outcome.reason || "failed"}` : ""}${outcome.providerMessageId == null ? "" : ` provider_message_id=${outcome.providerMessageId}`}`);
@@ -1449,6 +1469,9 @@ const server = http.createServer(async (req, res) => {
           if (u.text) {
             // Native steps (name/phone) capture the typed value; web steps re-nudge; "done" → reply.
             const result = await handleOnboardingText(u.chatId, u.text, row, opts);
+            if (row && new Set(["done", "phone-skip", "call-enable", "call-skip"]).has(result)) {
+              await ensureFreeCloudTenant(row.uid);
+            }
             if (result === "done") {
               const res2 = await resolveTelegramReply(u.chatId, u.text);
               await sendMessage(LM_TG_TOKEN, u.chatId,

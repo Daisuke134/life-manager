@@ -87,6 +87,36 @@ test("refetches tenant and job, checks budget and release, atomically leases, th
   assert.deepEqual(invocation.request.input_refs, ["lm-resource://state/tenant-a/task-a"]);
 });
 
+test("only an envelope-verified first result unlocks the later checkout offer", async () => {
+  const marks = [];
+  const f = fixture({
+    async recordFirstVerifiedResult(input) { marks.push(input); },
+    runtimeClient: {
+      async invoke() {
+        return {
+          disposition: "completed", provider_request_id: "aws-request-a",
+          result: {
+            tenant_id: "tenant-a", job_id: "job-a", attempt: 1,
+            release_sha: RELEASE_SHA, status: "completed",
+            receipt_ref: "lm-resource://receipt/tenant-a/receipt-a",
+            evidence_sha256: "b".repeat(64), usage: [],
+          },
+        };
+      },
+    },
+  });
+  await f.dispatcher.dispatch(EVENT);
+  assert.deepEqual(marks, [{ tenantId: "tenant-a", jobId: "job-a", providerRequestId: "aws-request-a" }]);
+
+  marks.length = 0;
+  const unverified = fixture({
+    async recordFirstVerifiedResult(input) { marks.push(input); },
+    runtimeClient: { async invoke() { return { disposition: "completed", provider_request_id: "aws-request-b", result: { status: "completed" } }; } },
+  });
+  await unverified.dispatcher.dispatch(EVENT);
+  assert.deepEqual(marks, []);
+});
+
 test("never invokes for stale events, release mismatch, denied budget, or an occupied tenant lease", async () => {
   const scenarios = [
     { readJob: async () => ({ ...JOB, status: "completed" }), expected: "not_applicable" },

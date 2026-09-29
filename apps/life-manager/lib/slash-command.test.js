@@ -441,12 +441,20 @@ test("/stop with nothing stored and with a failed delete stay honest", async () 
 
 test("/subscribe returns the tenant-scoped Stripe link only after explicit request", async () => {
   const { sent, deps } = harness({ stripePaymentLink: "https://buy.stripe.com/test_life_manager" });
-  const outcome = await handleSlashCommand(parseSlashCommand("/subscribe"), { ...ROW, paid: false }, deps);
+  const outcome = await handleSlashCommand(parseSlashCommand("/subscribe"), { ...ROW, paid: false, first_verified_result_at: "2026-09-29T00:00:00Z" }, deps);
   assert.deepEqual(outcome, { handled: true, action: "subscribe", ok: true });
   assert.equal(sent.length, 1);
   const keyboard = sent[0].extra.reply_markup.inline_keyboard;
   assert.equal(keyboard[0][0].url, "https://buy.stripe.com/test_life_manager?client_reference_id=u1");
   assert.match(sent[0].text, /月額\$29/);
+});
+
+test("/subscribe never shows checkout before the first verified result", async () => {
+  const before = harness({ stripePaymentLink: "https://buy.stripe.com/test_life_manager" });
+  const outcome = await handleSlashCommand(parseSlashCommand("/subscribe"), { ...ROW, paid: false, first_verified_result_at: null }, before.deps);
+  assert.deepEqual(outcome, { handled: true, action: "subscribe", ok: false, reason: "value_first" });
+  assert.equal(before.sent[0].extra, undefined);
+  assert.doesNotMatch(before.sent[0].text, /buy\.stripe\.com|\$29/);
 });
 
 test("/subscribe on an already-paid row says so; unlinked chats never get checkout", async () => {

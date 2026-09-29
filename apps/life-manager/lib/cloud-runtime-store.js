@@ -53,6 +53,32 @@ async function saveCloudTenant(input, opts = {}) {
   return buildCloudTenant(rows[0]);
 }
 
+async function createFreeCloudTenant(input = {}, opts = {}) {
+  const candidate = buildCloudTenant({
+    tenantId: input.tenantId,
+    region: TOKYO_REGION,
+    releaseSha: input.releaseSha,
+    status: "active",
+    planVersion: "free-v1",
+  });
+  const { query } = database(opts);
+  const rows = (await query(`
+    INSERT INTO public.lm_cloud_tenants (
+      tenant_id, region, release_sha, status, plan_version
+    ) VALUES ($1,$2,$3,'active','free-v1')
+    ON CONFLICT (tenant_id) DO NOTHING
+    RETURNING tenant_id, region, release_sha, status, plan_version
+  `, [candidate.tenant_id, candidate.region, candidate.release_sha])).rows;
+  if (rows.length > 1) throw new Error("cloud Free tenant write failed");
+  if (rows.length === 1) return buildCloudTenant(rows[0]);
+  const existing = (await query(`
+    SELECT tenant_id, region, release_sha, status, plan_version
+    FROM public.lm_cloud_tenants WHERE tenant_id = $1 LIMIT 1
+  `, [candidate.tenant_id])).rows;
+  if (existing.length !== 1) throw new Error("cloud Free tenant readback failed");
+  return buildCloudTenant(existing[0]);
+}
+
 function database(opts = {}) {
   if (typeof opts.query === "function") return { query: opts.query };
   const connectionString = String(
@@ -233,6 +259,7 @@ module.exports = {
   buildBrowserProfile,
   buildUsageEntry,
   saveCloudTenant,
+  createFreeCloudTenant,
   acquireRuntimeLease,
   saveBrowserProfile,
   recordUsage,

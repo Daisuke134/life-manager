@@ -1,6 +1,7 @@
 "use strict";
 
 function paymentLink(opts = {}, scope = {}) {
+  if (scope.firstVerifiedResult !== true) return "";
   const value = String(
     opts.stripePaymentLink || opts.paymentLink
       || process.env.LM_STRIPE_PAYMENT_LINK || process.env.STRIPE_PAYMENT_LINK || "",

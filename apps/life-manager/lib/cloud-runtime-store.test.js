@@ -14,6 +14,7 @@ const {
   acquireRuntimeLease,
   saveBrowserProfile,
   recordUsage,
+  createFreeCloudTenant,
 } = require("./cloud-runtime-store.js");
 
 const MIGRATION = fs.readFileSync(path.join(
@@ -107,6 +108,26 @@ test("tenant mapping is one durable versioned row", async () => {
   }), tenant);
   assert.match(calls[0].sql, /ON CONFLICT \(tenant_id\) DO UPDATE/i);
   assert.deepEqual(calls[0].params, ["tenant-a", "ap-northeast-1", SHA, "active", "free-v1"]);
+});
+
+test("no-card tenant creation is idempotent Free and never downgrades an existing plan", async () => {
+  const existing = buildCloudTenant({
+    tenantId: "tenant-a", region: "ap-northeast-1", releaseSha: SHA,
+    status: "active", planVersion: "founding-pro-v1",
+  });
+  const calls = [];
+  const result = await createFreeCloudTenant({ tenantId: "tenant-a", releaseSha: SHA }, {
+    query: async (sql, params) => {
+      calls.push({ sql, params });
+      return { rows: /INSERT/i.test(sql) ? [] : [existing] };
+    },
+  });
+  assert.equal(result.plan_version, "founding-pro-v1");
+  assert.match(calls[0].sql, /INSERT INTO public\.lm_cloud_tenants/i);
+  assert.match(calls[0].sql, /'free-v1'/i);
+  assert.match(calls[0].sql, /ON CONFLICT \(tenant_id\) DO NOTHING/i);
+  assert.doesNotMatch(calls[0].sql, /DO UPDATE/i);
+  assert.equal(calls.length, 2);
 });
 
 test("browser profile and usage writes preserve exact tenant ownership and provider idempotency", async () => {

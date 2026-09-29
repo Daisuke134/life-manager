@@ -211,7 +211,17 @@ async function handleSlashCommand(parsed, row, deps = {}) {
       await send(deps.token, chatId, "先に /start からライフマネージャーを始めてください。");
       return { handled: true, action: "subscribe", ok: false, reason: "unlinked" };
     }
-    const checkout = paymentLink({ stripePaymentLink: deps.stripePaymentLink }, { uid: row.uid });
+    let firstVerified = Boolean(row.first_verified_result_at);
+    if (!firstVerified && typeof deps.hasFirstVerifiedResult === "function") {
+      try { firstVerified = await deps.hasFirstVerifiedResult(row.uid) === true; } catch { firstVerified = false; }
+    }
+    if (!firstVerified) {
+      await send(deps.token, chatId, "まずライフマネージャーが最初の結果を届けます。料金の案内は、結果を確認できた後にだけ表示します。");
+      return { handled: true, action: "subscribe", ok: false, reason: "value_first" };
+    }
+    const checkout = paymentLink({ stripePaymentLink: deps.stripePaymentLink }, {
+      uid: row.uid, firstVerifiedResult: true,
+    });
     if (!checkout) {
       await send(deps.token, chatId, "現在、購読リンクを開けません。少し時間をおいてもう一度お試しください。");
       return { handled: true, action: "subscribe", ok: false, reason: "link_unavailable" };

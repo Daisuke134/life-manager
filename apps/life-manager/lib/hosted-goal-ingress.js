@@ -2,6 +2,8 @@
 
 const { buildGoalWorkItem } = require("./goal-work-item.js");
 
+const ACTIVE_GOAL_LIMITS = Object.freeze({ "free-v1": 1, "founding-pro-v1": 3 });
+
 function dependencies(value) {
   if (
     !value || typeof value.loadTenant !== "function"
@@ -27,7 +29,14 @@ async function enqueueHostedGoal(input = {}, injected = {}) {
     !tenant || tenant.uid !== scope.tenantId
     || String(tenant.telegram_chat_id || "") !== scope.chatId
   ) throw new Error("hosted tenant scope mismatch");
-  if (tenant.paid !== true) throw new Error("hosted tenant entitlement required");
+  const planVersion = String(tenant.plan_version || "");
+  const goalLimit = ACTIVE_GOAL_LIMITS[planVersion];
+  if (tenant.status !== "active" || !goalLimit) throw new Error("hosted tenant entitlement required");
+  const activeGoalCount = Number(tenant.active_goal_count || 0);
+  if (!Number.isSafeInteger(activeGoalCount) || activeGoalCount < 0) {
+    throw new Error("hosted active goal count invalid");
+  }
+  if (activeGoalCount >= goalLimit) throw new Error("hosted active goal limit reached");
 
   const vault = await deps.secretProvider.health();
   if (!vault || vault.ok !== true || vault.mode !== "cloud"

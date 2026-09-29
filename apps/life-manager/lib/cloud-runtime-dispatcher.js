@@ -5,7 +5,7 @@ const {
   runtimeSessionId,
 } = require("./agentcore-runtime-client.js");
 const { decideAdmission } = require("./cloud-entitlement.js");
-const { validateRuntimeRequest } = require("./agentcore-runtime-envelope.js");
+const { validateRuntimeRequest, validateRuntimeResult } = require("./agentcore-runtime-envelope.js");
 const { createCloudCostLedger, createPostgresCloudCostStore } = require("./cloud-cost-ledger.js");
 
 const EVENT_FIELDS = Object.freeze(["tenant_id", "job_id"]);
@@ -151,7 +151,19 @@ function createCloudRuntimeDispatcher(options = {}) {
         releaseSha: deps.releaseSha,
         request,
       });
-      if (!reservation) return invoked;
+      const markVerifiedResult = async () => {
+        if (invoked.disposition !== "completed" || !invoked.result
+            || typeof deps.recordFirstVerifiedResult !== "function") return;
+        try { validateRuntimeResult(invoked.result, request); } catch { return; }
+        await deps.recordFirstVerifiedResult({
+          tenantId: id.tenantId, jobId: id.jobId,
+          providerRequestId: invoked.provider_request_id,
+        });
+      };
+      if (!reservation) {
+        await markVerifiedResult();
+        return invoked;
+      }
       if (invoked.disposition === "retry") {
         await deps.costLedger.release({ tenantId: id.tenantId, reservationRef: reservation.reservation_ref });
         return invoked;
@@ -164,6 +176,7 @@ function createCloudRuntimeDispatcher(options = {}) {
       if (settled.status === "reconciling") {
         return Object.freeze({ disposition: "reconcile", retryable: false, error_class: "CostUnknown" });
       }
+      await markVerifiedResult();
       return Object.freeze({ ...invoked, cost: settled });
     },
   });
@@ -320,6 +333,16 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     if (rows.length > 1) throw new Error("cloud runtime lease claim invalid");
     return { acquired: rows.length === 1, lease: rows[0] || null };
   };
+  const recordFirstVerifiedResult = async (input) => {
+    const rows = (await query(
+      "SELECT public.mark_lm_cloud_first_verified_result($1,$2,$3) AS first_verified_result_at",
+      [input.tenantId, input.jobId, input.providerRequestId],
+    )).rows;
+    if (rows.length !== 1 || !rows[0].first_verified_result_at) {
+      throw new Error("cloud first verified result readback invalid");
+    }
+    return rows[0].first_verified_result_at;
+  };
   let awsClient = options.awsClient;
   const awsBoundary = options.awsInvoke || (async (input) => {
     const {
@@ -370,6 +393,7 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     readBudget,
     decideAdmission,
     acquireLease,
+    recordFirstVerifiedResult,
     runtimeClient,
     costLedger,
   });
