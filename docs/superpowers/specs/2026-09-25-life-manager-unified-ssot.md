@@ -297,6 +297,52 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **（2026-09-29 23:1x 復元: 5ab82b6859 の上書きで消えた Capafy の節を戻した）**
 
+**Handover（2026-09-29 23:2x JST。新しい session はここから読む。これが実行順の正本）**
+
+進め方の変更（Dais 2026-09-29）: 自然 run を待って 1 つずつ失敗を見つけるのをやめる（今日は同じ「自然 run で確認」を 5 回言い、そのたびに別の原因で失敗した）。先に worktree で全段階（inventory → prepare → CP1 → CP2 → CP3 → final verify）を 1 回通して残りの失敗原因を全部出し、直してから自然 run で 1 回確かめて終わる。「成功」の返事は実物（plist の release、Capafy API、公開ページ、Postiz）で確かめてから信じる。
+
+現状（23:16）: 工場 capafy-loop-daily は 22:16 の失敗の fence 待ち（lm-fence-reconciler が 62 分後に自動解除）。宣伝 capafy-distribute-daily は読み戻し役入り release b4ab4ade（plist で確認）。23:03 の run は記事 https://aniccaai.com/blog/capafy-tiktok-script-pro-2026-09-29-h21 を公開、X は「capafy_x_post.py が実行枠内に結果を返さず、Postiz にも投稿なし」で failed。
+
+Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
+1. Capafy
+   - [ ] K0 worktree で工場の全段階を 1037238583（Football Match Analyst）で通し、残る失敗原因を全部出して直す
+   - [ ] K1 自然 run で 1037238583 が platform_status=1（Capafy API）
+   - [ ] K2 次の自然 run で次の Agent も platform_status=1（人の手なし）
+   - [ ] K3 宣伝の X 投稿が実行枠内に終わらない原因を直す（capafy_x_post の待ち時間とモデル実行の枠の関係）→ 自然 run の枠で記事 200 + X PUBLISHED
+   - [ ] K4 次の枠も人の手なしで記事と X
+   - [ ] K5 9/15 から審査中の 5 本: 9/28 の問い合わせへの返事を Gmail で確認、無ければ再送
+   - → Capafy 完了を記録
+2. PromptBase
+   - [ ] P5 04:20 の自然 run で次の 1 本が Pending（ダッシュボード）
+3. 全 loop 共通の土台
+   - [ ] F1 `lm-loop health`: 全 loop の状態・止まり理由・次の手・スキル別の今日の利益を 1 画面
+   - [ ] F2 `resource_effect_unknown` の多い owner に読み戻し役を付ける（capafy_distribute_fence_reconcile の写し）
+   - [ ] F3 `resource_capacity_busy`（処理枠の予約の偏り、7-6e）を直す
+   - [ ] F4 ディスク空き 10GB 以上（20 秒で 1GB 減る書き込み元を特定）
+4. モバイルアプリ
+   - [ ] C1 投稿ごとの計測を再開（post-metrics が 9/27 から止まっている）
+   - [ ] C2 再生 → プロフィール → ストア → インストールの表を毎日
+   - [ ] C3 ASO（売れているアプリを写す）
+   - [ ] C4 課金: 新規 4・有料 0 の原因を直す
+   - [ ] C5 工場の未公開 4 本を審査提出
+   - [ ] C6 Anicca iOS の Instagram 投稿 ERROR
+5. Writer
+   - [ ] W1 有料記事の売上（note / Substack）を毎日公式 readback
+   - [ ] W2 X で宣伝
+6. Ebook
+   - [ ] E1 KDP に出す  - [ ] E2 売上 readback
+7. アフィリエイト
+   - [ ] AF1 fence を公式 readback で閉じる  - [ ] AF2 紹介料 readback
+8. connector
+   - [ ] D1 カレンダー自動登録を自然 run で確認
+9. fundraiser
+   - [ ] FR1 カレンダー登録を自然 run で確認
+10. self-fix
+   - [ ] S1 修正役が repo の worktree で作業できるようにする（#6063）
+11. 仕上げ
+   - [ ] G1 全 loop green  - [ ] G2 自己修復の実証  - [ ] G3 自己改善の実証
+   - [ ] G4 loop 別損益（CFO が 0/3 で停止中）  - [ ] G5 Cloud  - [ ] G6 口座に入る利益で月 $10k  - [ ] G7 YC W27
+
 **状態（2026-09-29 23:14 JST）**: 工場 capafy-loop-daily = loaded-idle・fence 待ち（22:16 の失敗、lm-fence-reconciler が 23:18 頃に自動で閉じる設計）。宣伝 capafy-distribute-daily = 23:03 起動の run が終了し idle、読み戻し役入り release b4ab4ade へ切り替え中（初回 apply は実行中のため plist が af6e5011 のままだった。「apply=0」を実物で確かめずに信用しない）。14 主要 loop の実測（lm-loop status）: 全 job 正常は connector のみ。求職 0/7・fundraiser 0/1・CFO 0/3。お金の公式 readback があるのは Capafy（差し引き約 $49）とアプリ（MRR $20）だけ。観測・自己修復の不足: `lm-loop health` 未作成、self-fix は immutable release 内で動くためコードを直せない（#6063）。
 
 **Capafy だけを 1 つずつ閉じる（2026-09-29 23:0x JST、Dais: 1 つずつ。Capafy が閉じるまで他へ進まない）**
