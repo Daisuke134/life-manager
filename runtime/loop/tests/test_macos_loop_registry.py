@@ -82,6 +82,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])
         self.assertNotIn("alpaca-investment-shadow", registry["loops"])
+        self.assertIn("alpaca-investment-paper", registry["loops"])
         self.assertIn("alpaca-investment-live", registry["loops"])
         self.assertIn("ai.anicca.alpaca-investment", registry["retired_labels"])
         self.assertIn("ai.anicca.alpaca-investment-shadow", registry["retired_labels"])

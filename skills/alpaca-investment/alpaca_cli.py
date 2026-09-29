@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
-from etf_ownership import ETF_OWNER_ID, ETF_STRATEGY_ID, ETF_SYMBOLS
+from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
 
 
 CLI_VERSION = "0.0.14"
@@ -782,7 +782,7 @@ def submit_order(
             raise ValueError("alpaca_submit_readback_invalid")
         return result
     if order.get("asset_class") == "us_equity":
-        if owner_id != ETF_OWNER_ID or strategy_id != ETF_STRATEGY_ID:
+        if owner_id != investment_owner_id() or strategy_id != ETF_STRATEGY_ID:
             raise ValueError("etf_order_identity_invalid")
         expected = {"asset_class", "notional_usd", "side", "symbol", "time_in_force", "type"}
         try:

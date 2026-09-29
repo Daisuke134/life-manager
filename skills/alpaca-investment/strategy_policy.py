@@ -22,6 +22,7 @@ if str(_CORE) not in sys.path:
     sys.path.insert(0, str(_CORE))
 
 from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_card  # noqa: E402
+from etf_ownership import investment_owner_id  # noqa: E402
 from etf_policy import evaluate as evaluate_etf_policy  # noqa: E402
 from strategy_cards import StrategyCard, validate_strategy_card  # noqa: E402
 
@@ -406,7 +407,9 @@ def _allowed_card(card: StrategyCard) -> tuple[bool, str]:
     return True, ""
 
 
-def evaluate(snapshot: Mapping[str, Any], card: StrategyCard) -> dict[str, Any]:
+def evaluate(
+    snapshot: Mapping[str, Any], card: StrategyCard, *, owner_id: str | None = None,
+) -> dict[str, Any]:
     """Evaluate one declared card against one official snapshot.
 
     The result is intentionally a small, JSON-safe decision record.  It never
@@ -417,7 +420,9 @@ def evaluate(snapshot: Mapping[str, Any], card: StrategyCard) -> dict[str, Any]:
     if not isinstance(card, StrategyCard):
         raise TypeError("strategy_card_required")
     if card.strategy_id == ETF_STRATEGY_ID:
-        return evaluate_etf_policy(snapshot, card)
+        return evaluate_etf_policy(
+            snapshot, card, owner_id=owner_id or investment_owner_id(),
+        )
     cost = _cost_usd(card)
     cost_text = _fmt(cost) if cost is not None else None
     valid, invalid_reason = _allowed_card(card)

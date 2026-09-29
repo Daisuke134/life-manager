@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -60,13 +61,14 @@ ACCOUNT_READBACK = {
 class PaperEtfOrderBoundaryTest(unittest.TestCase):
     def test_paper_submit_accepts_exact_stock_order_and_validates_provider_identity(self):
         acknowledgement = {**PROVIDER_ORDER, "status": "new"}
-        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+        with patch.dict(os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"}), \
+                patch.object(alpaca_cli, "_context", return_value={}), patch.object(
             alpaca_cli, "_run", return_value=acknowledgement
         ) as run:
             result = alpaca_cli.submit_order(
                 credentials_path=Path("credentials"), cli_path=Path("alpaca"),
                 client_order_id=CLIENT_ID, order=ORDER, mode="paper",
-                owner_id=OWNER_ID, strategy_id=STRATEGY_ID,
+                owner_id="alpaca-investment-paper", strategy_id=STRATEGY_ID,
             )
 
         self.assertEqual(result, acknowledgement)

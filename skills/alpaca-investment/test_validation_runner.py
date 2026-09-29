@@ -115,6 +115,35 @@ class ValidationRunnerTests(unittest.TestCase):
                 refresh=True,
             )
 
+    def test_run_once_provisions_independent_live_and_paper_selection_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports_path = root / "reports.json"
+            live_selection = root / "live" / "selected-strategy.json"
+            paper_selection = root / "paper" / "selected-strategy.json"
+            history = _history(date(2026, 1, 1))
+            with patch.object(
+                validation_runner, "read_etf_daily_history", return_value=history
+            ), patch.object(
+                validation_runner, "build_report_from_history", return_value=_report()
+            ), patch.object(
+                validation_runner, "provision_selection", return_value={"status": "created"}
+            ) as provision:
+                result = validation_runner.run_once(
+                    reports_path=reports_path,
+                    selection_paths=[live_selection, paper_selection],
+                    credentials_path=Path("credentials"),
+                    cli_path=Path("alpaca"),
+                    release_sha="b" * 40,
+                    start_date=date(2026, 1, 1),
+                    end_date=date(2026, 1, 30),
+                )
+
+            self.assertEqual(result["selection_statuses"], ["created", "created"])
+            self.assertEqual(provision.call_count, 2)
+            self.assertEqual(provision.call_args_list[0].args[0], live_selection)
+            self.assertEqual(provision.call_args_list[1].args[0], paper_selection)
+
     def test_write_reports_is_atomic_and_private(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state" / "reports.json"

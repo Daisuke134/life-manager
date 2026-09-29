@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent
 CORE = ROOT.parents[1] / "apps" / "life-manager" / "investment-core"
@@ -106,6 +108,20 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertEqual(result["candidate"]["asset_class"], "us_equity")
         self.assertTrue(result["approved"])
         self.assertEqual(result["gate"], "approved")
+
+    def test_paper_owner_identity_is_not_live_owner(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ):
+            state = Path(directory) / "state"
+            _selected_state(state)
+            result = allocator.choose(
+                _snapshot("paper"), [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertTrue(result["approved"])
+        self.assertEqual(result["owner_id"], "alpaca-investment-paper")
 
     def test_live_etf_selection_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

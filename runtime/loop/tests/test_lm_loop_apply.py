@@ -1519,6 +1519,25 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertNotEqual(environment["ALPACA_INVESTMENT_PAPER_STATE_DIR"],
                             environment["ALPACA_INVESTMENT_LIVE_STATE_DIR"])
 
+    def test_alpaca_paper_plist_uses_distinct_owner_and_state(self):
+        value = registry()
+        entry = value["loops"].pop("example")
+        entry.update({
+            "effect_class": "money",
+            "state_root": "~/.local/state/life-manager/alpaca-investment-paper",
+        })
+        value["loops"]["alpaca-investment-paper"] = entry
+        rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        environment = rendered["EnvironmentVariables"]
+        self.assertEqual(environment["LIFE_MANAGER_INVESTMENT_MODE"], "paper")
+        self.assertEqual(environment["LIFE_MANAGER_INVESTMENT_OWNER_ID"],
+                         "alpaca-investment-paper")
+        self.assertEqual(
+            environment["ALPACA_INVESTMENT_PAPER_STATE_DIR"],
+            str(Path.home() / ".local/state/life-manager/alpaca-investment-paper"),
+        )
+        self.assertNotIn("ALPACA_INVESTMENT_LIVE_STATE_DIR", environment)
+
     def test_investment_validation_plist_uses_paper_credentials_and_state(self):
         value = registry()
         entry = value["loops"].pop("example")

@@ -88,6 +88,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         value["EnvironmentVariables"]["LIFE_MANAGER_BROWSER_TARGET_OWNER"] = entry["browser_target_owner"]
     if loop_id in {
         "alpaca-investment", "alpaca-investment-shadow", "alpaca-investment-live",
+        "alpaca-investment-paper",
         "investment-strategy-validation",
     }:
         mode = "shadow" if loop_id.endswith("-shadow") else "live" if loop_id.endswith("-live") else "paper"
@@ -101,6 +102,8 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 if mode == "paper" else str(
                     Path.home() / ".local/state/life-manager/alpaca-investment")),
         })
+        if loop_id in {"alpaca-investment-live", "alpaca-investment-paper"}:
+            value["EnvironmentVariables"]["LIFE_MANAGER_INVESTMENT_OWNER_ID"] = loop_id
         if mode == "shadow":
             value["EnvironmentVariables"].update({
                 "ALPACA_INVESTMENT_SHADOW_CREDENTIALS_FILE": str(

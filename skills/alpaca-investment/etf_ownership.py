@@ -14,9 +14,19 @@ from typing import Any
 
 
 ETF_OWNER_ID = "alpaca-investment-live"
+ETF_PAPER_OWNER_ID = "alpaca-investment-paper"
+ETF_OWNER_IDS = frozenset({ETF_OWNER_ID, ETF_PAPER_OWNER_ID})
 ETF_STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
 ETF_SYMBOLS = frozenset({"SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD"})
 CLIENT_ORDER_ID = re.compile(r"lm-ai-[0-9a-f]{24}")
+
+
+def investment_owner_id() -> str:
+    """Return the configured ETF owner, allowing only declared owner lanes."""
+    owner_id = os.environ.get("LIFE_MANAGER_INVESTMENT_OWNER_ID", ETF_OWNER_ID)
+    if owner_id not in ETF_OWNER_IDS:
+        raise ValueError("etf_owner_invalid")
+    return owner_id
 
 
 def _number(value: Any, *, positive: bool = False) -> Decimal:
@@ -193,7 +203,7 @@ def record_filled(
     source_receipt_ids: Sequence[str],
 ) -> dict[str, Any]:
     """Persist one filled paper entry, or return the same identity on replay."""
-    if owner_id != ETF_OWNER_ID or strategy_id != ETF_STRATEGY_ID:
+    if owner_id != investment_owner_id() or strategy_id != ETF_STRATEGY_ID:
         raise ValueError("etf_position_not_owned")
     if not CLIENT_ORDER_ID.fullmatch(client_order_id):
         raise ValueError("client_order_id_invalid")
@@ -246,4 +256,7 @@ def record_filled(
     return {**payload, "replay_zero": False}
 
 
-__all__ = ["ETF_OWNER_ID", "ETF_STRATEGY_ID", "ETF_SYMBOLS", "read_state", "record_filled"]
+__all__ = [
+    "ETF_OWNER_ID", "ETF_PAPER_OWNER_ID", "ETF_OWNER_IDS", "ETF_STRATEGY_ID",
+    "ETF_SYMBOLS", "investment_owner_id", "read_state", "record_filled",
+]

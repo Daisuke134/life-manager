@@ -19,7 +19,8 @@ from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
-from etf_ownership import ETF_OWNER_ID, ETF_STRATEGY_ID, read_state as read_etf_state
+from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
+from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_filled as record_etf_filled
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
@@ -220,7 +221,7 @@ def _reconcile_etf_intent(
     state_path: Path,
 ) -> dict:
     """Close an ETF effect only after fill, account, and ownership readback."""
-    if (intent.get("mode") != "paper" or intent.get("owner_id") != ETF_OWNER_ID
+    if (intent.get("mode") != "paper" or intent.get("owner_id") != investment_owner_id()
             or intent.get("strategy_id") != ETF_STRATEGY_ID
             or not isinstance(intent.get("order"), dict)
             or intent["order"].get("asset_class") != "us_equity"):
@@ -383,7 +384,9 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             risk_day_path=state / "risk-day.json", include_etf_bars=True)
         allocator_snapshot["mode"] = mode
         if mode == "paper":
-            etf_state = read_etf_state(state / "etf-owned-position.json")
+            etf_state = read_etf_state(
+                state / "etf-owned-position.json", owner_id=investment_owner_id(),
+            )
             allocator_snapshot["position"] = etf_state["position"]
             allocator_snapshot["last_decision_session"] = etf_state["last_decision_session"]
         if mode == "live":

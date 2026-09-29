@@ -255,7 +255,8 @@ def _release_sha(value: str | None) -> str:
 def run_once(
     *,
     reports_path: str | Path,
-    selection_path: str | Path,
+    selection_path: str | Path | None = None,
+    selection_paths: Sequence[str | Path] | None = None,
     credentials_path: Path | None = None,
     cli_path: Path | None = None,
     release_sha: str | None = None,
@@ -263,6 +264,17 @@ def run_once(
     end_date: date | None = None,
 ) -> dict[str, Any]:
     """Fetch, evaluate, persist, and provision one read-only validation cycle."""
+    if selection_paths is not None:
+        if selection_path is not None or isinstance(selection_paths, (str, bytes)) \
+                or not isinstance(selection_paths, Sequence):
+            raise ValueError("selection_path_ambiguous")
+        destinations = list(selection_paths)
+    elif selection_path is not None:
+        destinations = [selection_path]
+    else:
+        raise ValueError("selection_path_missing")
+    if not destinations or any(not isinstance(path, (str, Path)) for path in destinations):
+        raise ValueError("selection_path_invalid")
     resolved_release = _release_sha(release_sha)
     resolved_end = end_date or datetime.now(ZoneInfo("America/New_York")).date()
     resolved_start = start_date or (resolved_end - timedelta(days=HISTORY_CALENDAR_DAYS))
@@ -285,17 +297,21 @@ def run_once(
         completed_through_session=merged["completed_through_session"],
     )
     write_reports(reports_path, report)
-    selection = provision_selection(
-        selection_path,
-        reports_path,
-        runtime_release_sha=resolved_release,
-        refresh=True,
-    )
+    selections = [
+        provision_selection(
+            destination,
+            reports_path,
+            runtime_release_sha=resolved_release,
+            refresh=True,
+        )
+        for destination in destinations
+    ]
     return {
         "status": "ok",
         "report_id": report["report_id"],
         "report_decision": report["decision"],
-        "selection_status": selection["status"],
+        "selection_status": selections[0]["status"],
+        "selection_statuses": [selection["status"] for selection in selections],
         "chunks": len(ranges),
         "completed_through_session": merged["completed_through_session"],
     }
@@ -313,7 +329,7 @@ def _date_arg(value: str | None) -> date | None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reports-path", required=True)
-    parser.add_argument("--selection-path", required=True)
+    parser.add_argument("--selection-path", action="append", required=True)
     parser.add_argument("--credentials-path", type=Path)
     parser.add_argument("--cli-path", type=Path)
     parser.add_argument("--release-sha")
@@ -323,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = run_once(
             reports_path=args.reports_path,
-            selection_path=args.selection_path,
+            selection_paths=args.selection_path,
             credentials_path=args.credentials_path,
             cli_path=args.cli_path,
             release_sha=args.release_sha,
