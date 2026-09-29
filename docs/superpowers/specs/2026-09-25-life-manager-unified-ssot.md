@@ -206,6 +206,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 歯止め: 毎時の利益データでモデル代が売上の 30% を超えた Skill は、工場が値上げまたはモデル変更を自動で出す（最初の方針の後の安全網）。
 - 同じ方針を Writer（有料記事の価格）、Ebook（The Anicca Reset の価格・KDP 価格）、アプリ（サブスク価格）、PromptBase にも当てる。
 
+**Capafy 実測（2026-09-29 13:3x JST、公式 readback）**: ① 4243672453 = status 4（公開中）・DeepSeek。Hook Lab v1.0.3（DeepSeek）・Shorts Hook Lab・Ad Hook Lab・Customer Escalation Decision Deck が承認（status 4）→ Hook Lab の Sonnet 赤字は停止（1注文の費用は推定 $3.29→$0.30、実額は OpenRouter で後日確認）。Customer Renewal Evidence Brief は自己修復 agent が自分で提出（status 1、ただし hosted model は Sonnet のまま→承認後に DeepSeek 更新）。Slide Maker の DeepSeek 更新を工場が人の手なしで提出（13:25、status 1）。Hook Lab 値上げ（日 $3.99/週 $9.99/月 $19.99、#6167）は v1.0.4 下書き作成済みで次の run が提出。原因と修正: #6141 #6145 #6146 #6150 #6155 #6157 #6159 #6161（自己修復が worktree→PR→merge→release まで自分で行う）#6163 #6167。記事の Capafy 誘導が出なかった原因 = `.env` の ARTICLE_PRODUCT_ID 固定 → 解除（次の Capafy 日は 10/2）。残り（spec 順）: X2 → X3 → C4（全スキルを売れ筋の値段帯に、年額は CP1 未対応）→ C6 → C7 → アプリ。
+
 **Capafy 市場の全体調査（2026-09-29、`POST /agent/agents/search` 本文に query、50 キーワードで 1,025 Agent。自社ではなく他の出品者を見る）**
 - サブスク型の上位: CloneCut 11,926（週$12.99/月$29.99/年$149.99）、Ocup Football Analysis 3,069（週$14.99/月$29.99/年$99.99）、Serenity Stock Tracker 1,669（週$9.99/月$19.99/年$99.99）、HookAce 868（週$9.99/月$19.99/年$239.88）、Odeo Maker 626（週$19.99/月$29.99/年$199.99）。勝ち筋 = 週 $9.99〜19.99・月 $19.99〜29.99・**年額 $99〜239 を必ず持つ**・無料トライアルなし。
 - ダウンロード型の上位はほぼ無料（llm-real-video Free 3,337、Cinematic Realism Prompt Builder 1,055、3-Second Viral Hook Generator FREE 135）。有料は少数（Badr Studio $5 47本、llm-real-video Pro $29 30本）。（無料版→有料版の誘導は llm-real-video の 1 例だけで、移行人数の証拠がない。Dais 2026-09-29: 無料では売らない → 採用しない。）
