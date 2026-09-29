@@ -996,6 +996,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - source側の再検証は専用branch HEAD `8284fa846a`（remoteと同期済み）で実施した。`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 176、mapped 102、shared ID 0）、`./bin/lm-loop doctor` は `ok=true`（missing entrypoints 0、unmanaged labels 0）。Gig `1579 passed`、Lancers `269 passed`、CrowdWorks `276 passed`、Mercor `58 passed`、Python compile、`git diff --check` がPASSである。複数platformを一括pytestした初回収集は同名テストmoduleのimport衝突で失敗したが、platform単独の再実行で全てPASSした。
 - production read-only status（現行release `3975ae8996…`）は279 rowsで、`host_admission_deferred:resource_capacity_busy` 37件、`host_admission_deferred:resource_effect_unknown` 22件、`effect_status=unknown` 171件を返した。ルート空き容量は約2.0GiB。source branchのcapacity回帰はhost admission `134 passed`、runtime reserve `9 passed`、scratch `15 passed + 4 subtests`、gig disk guard/preflight `53 passed`である。production apply・停止・再起動はまだ行っていない。
 - immutable release境界の回帰（`test_cut_loop_release.py`＋pressure suite）は `22 passed`。branchはorigin/mainのancestorではないため、`cut-loop-release`の実release作成、`current`切替、production loop applyは実行していない。main受入と外部成果の公式readbackが揃うまで、この順序を維持する。
+- 同じproduction read-only probeで、Lancers専用CDP `9227` は29 page（うち28 pageが`Human Verification`、1 pageが`about:blank`）、CrowdWorks `9228` は契約メッセージpage＋新規タブ、Upwork `9233` はunavailableだった。応募・返信・納品、別profileへの切替、重複タブの削除は行っていない。source側のidentity lease／Human Verification hold修正をmain由来releaseへ反映してから、各providerの公式readbackを再取得する。
 
 ### Ryuの原子TODO（この節が最新の実行順正本）
 
