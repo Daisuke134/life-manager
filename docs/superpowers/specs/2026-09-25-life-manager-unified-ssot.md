@@ -2146,12 +2146,45 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
 
-**Atomic Todo最新正本（2026-09-30 05:29 JST）**:
+## 投資loop Atomic Todo正本（実行チェックリスト、2026-09-30 05:55 JST）
 
-- これは構想・目標・「29回回す」という抽象的な指示ではなく、1行=1操作、1つの完了条件、1つの証拠を持つ実行キューである。全行は上記の「展開済みAtomic Todo正本」に展開済みである。
-- 完了: `AT-01`〜`AT-12`の12行。
-- 未完: 277行。内訳は、`AT-13`〜`AT-21`の9行、`AT-22.1[2]`〜`AT-22.9[30]`の261行、`AT-23`〜`AT-29`の7行。
-- 現在cursor: `AT-13`。今実行する原子操作は「次のcompleted daily sessionのstrategy exit decision receiptを1件読む」だけである。完了条件は`reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`であること。`HOLD / hold_period_not_elapsed`、`NO_TRADE / decision_session_consumed`、wake回数、accepted、unrealized P&Lは完了にならない。
-- 最新receipt `7c2b2b696c66b1fc723fa38b8835bf219aa86c8d6bec9893d41943d84ab8b2de`（05:29 JST）は同じ`decision_session=2026-09-29`の`HOLD / hold_period_not_elapsed`、`held_sessions=1`である。よって`AT-13`未完、`AT-14`〜`AT-29`は未着手である。
-- 現在の検証済み実現投資収益は`$0/月`。QQQはpaperのopen positionであり、含み損益は収益ではない。`AT-13`完了前にexit order GET、P&L計算、Hyperliquid、Solana/Pump.fun、yield、canaryへ進まない。
-- `AT-24`と`AT-29`の判定完了までは、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額を行わない。今回のreadbackでは手動wake、注文、再送、送金、他agentのファイル変更を行っていない。
+この節が現在のTodoである。目標・構想・「29回wakeする」という指示ではない。各行は「1つの操作」「1つの完了条件」「1つの証拠」だけを持つ。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`は、直上の「展開済みAtomic Todo正本」に`n=2..30`の261行として個別展開済みである。
+
+### 完了済み
+
+- [x] `AT-01`〜`AT-12` — 12個のAtomic Todoを完了。個別の証拠は直上の「展開済みAtomic Todo正本」に固定する。
+
+### 現在の1件
+
+- [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
+
+最新receiptは`fbe76ca1df87a6638255e1785d25f09d0d0db9e7d6da7fb4b2b345561cad3372`（05:51 JST）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
+
+### 後続の原子キュー
+
+- [ ] `QUEUE AT-14` — AT-13で指定されたexit orderをAlpaca公式GETで1回読む。完了条件: terminal status。証拠: broker receipt。
+- [ ] `QUEUE AT-15` — exit後のaccountとpositionをAlpaca公式GETで1回読む。完了条件: QQQ qtyがexit receiptと整合。証拠: account/position readback。
+- [ ] `QUEUE AT-16` — entry/exit receiptからgross cash-flow P&Lを1回計算する。完了条件: receiptから再計算可能。証拠: gross P&L row。
+- [ ] `QUEUE AT-17` — feeとslippageの公式値を1回記録する。完了条件: 両方が数値または公式`0`。証拠: cost row。
+- [ ] `QUEUE AT-18` — model costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] `QUEUE AT-19` — cost-complete net P&Lを1回計算する。完了条件: 未知のcostなしで再計算可能。証拠: net P&L row。
+- [ ] `QUEUE AT-20` — 同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] `QUEUE AT-21` — qualified round tripを測定台帳へ1行追加する。完了条件: receipt・net P&L・replay-zeroを含む1行。証拠: measurement ledger row。
+- [ ] `QUEUE AT-22.1[n]` — `n=2..30`の各round tripでstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] `QUEUE AT-22.2[n]` — `n=2..30`の各round tripでexit orderをAlpaca公式GETで1回読む。完了条件: terminal status。証拠: broker receipt。
+- [ ] `QUEUE AT-22.3[n]` — `n=2..30`の各round tripでexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] `QUEUE AT-22.4[n]` — `n=2..30`の各round tripでgross cash-flow P&Lを1回計算する。完了条件: 再計算可能。証拠: gross P&L row。
+- [ ] `QUEUE AT-22.5[n]` — `n=2..30`の各round tripでfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] `QUEUE AT-22.6[n]` — `n=2..30`の各round tripでmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] `QUEUE AT-22.7[n]` — `n=2..30`の各round tripでcost-complete net P&Lを1回計算する。完了条件: 未知のcostなしで再計算可能。証拠: net P&L row。
+- [ ] `QUEUE AT-22.8[n]` — `n=2..30`の各round tripでeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] `QUEUE AT-22.9[n]` — `n=2..30`の各round tripでqualified round tripを台帳へ1行追加する。完了条件: `n`のledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] `QUEUE AT-23` — measurement ledgerのqualified countを1回readbackする。完了条件: `30/30`をledgerから再計算可能。証拠: counter readback。
+- [ ] `QUEUE AT-24` — qualified `30/30`後のpromotion判定を1回計算する。完了条件: drawdown・venue health・cost completenessを含む判定receipt。証拠: promotion receipt。
+- [ ] `QUEUE AT-25` — Hyperliquidをshadowで1回観測する。完了条件: provider mutationなしでcandidate・想定fill・costが揃う。証拠: shadow receipt。
+- [ ] `QUEUE AT-26` — Solana/Pump.funをpaperで1回観測する。完了条件: 無署名・無fundingでcandidateと公式readbackが揃う。証拠: paper receipt。
+- [ ] `QUEUE AT-27` — yield候補をshadowで1回観測する。完了条件: depositなしでrate・risk・feeが揃う。証拠: shadow receipt。
+- [ ] `QUEUE AT-28` — 追加venueのrolling net P&Lを1回比較する。完了条件: ETF・perp・meme・yieldの公式receipt付き比較表。証拠: venue report。
+- [ ] `QUEUE AT-29` — bounded canaryの可否を1回計算する。完了条件: 全条件と`canary_allowed`が明示された判定receipt。証拠: promotion receipt。
+
+未完は277行（`AT-13`〜`AT-21`の9行、`AT-22.1[2]`〜`AT-22.9[30]`の261行、`AT-23`〜`AT-29`の7行）。現在cursorは`AT-13`であり、`AT-13`完了前に`AT-14`以降を飛ばさない。検証済み実現投資収益は`$0/月`で、QQQはpaperのopen positionである。`AT-24`と`AT-29`の判定完了まではlive注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額を行わない。
