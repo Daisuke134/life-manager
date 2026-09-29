@@ -721,6 +721,15 @@ TODO（何を・どう直すか）
 
 最新の投資専用再検証はAlpaca `243/243`、`./bin/lm-loop-contract ok=true`（catalog `14`、registry `174`、mapped `101`、errors `[]`）、`git diff --check` PASS、worktree clean。生成された作業用`risk-day.json`は除去した。PR #6186のFAILは投資差分外の共有`Loop control contracts`と`OSS self-contained boundary`であり、投資laneはそれらを修正しない。既存QQQ paper orderは`accepted`・`filled_qty=0`で再送せず、実現利益は`$0`。**現在cursorは、投資sourceの検証完了から、required gate green後のmain統合・immutable release・Life Manager apply/readbackへ進むこと。**
 
+**投資laneの状態分類と報告規則（2026-09-29）**: 外部依存を投資全体の`blocked`と呼ばない。
+
+- `investment_self_owned_blocked`: 投資差分または投資owner pathの自己所有コードに再現可能な失敗があり、観測・修正・回帰テストが残っている状態。この場合だけ投資コードの修正をcursorにする。
+- `external_gate_pending`: 投資差分外のrequired check、共有catalog、別agent所有ファイルが原因でmain統合だけが待ち状態。投資sourceは`ready`として扱い、外部ファイルを編集せず、投資のread-only検証・spec更新・次のhandoff準備を続ける。
+- `provider_pre_effect_hold`: provider注文・送金・wallet mutationの前にadmission/capacity/fenceで安全停止した状態。これは失敗でも利益でもなく、注文再送せず公式readbackまたはowner pathの次アクションを記録する。
+- `source_ready_handoff_pending`: 投資コード、focused/full tests、契約検証がPASSし、main由来immutable releaseとLife Manager apply/readbackだけが未実施の状態。今回の投資laneはこれに該当する。
+
+今後の進捗報告は必ず`scope`、`state`、`self-owned next action`、`external dependency`、`can_continue`を分けて書く。「投資がblocked」と総称せず、自己所有の修正が無い場合は「投資sourceは継続可能。外部gate待ち」と記録する。spec上の分類は報告の誤りを防ぐガードレールであり、実際の判定は毎回、差分・owner・公式readbackを再確認して行う。
+
 **最新PR gate readback（2026-09-29）**: `origin/main=bbc73eda12`を取り込んだ投資HEAD `a2e101807c`のSecurity Scan `36545115133`は、投資Python/unittest、PII、shell、gitleaks、TruffleHog、agent instruction、startup contextをPASSした。FAILは`manifest_inventory_mismatch skills/capafy-autopublish`、`forbidden_source_root skills/earn/capafy-marketing/capafy-distribute-daily.sh`、および共有fixtureの`capafy-loop-daily` rendered priority `revenue`対fixture `critical_paid`である。投資差分に該当ファイルはなく、投資laneはCapafy/共有fixtureを変更しない。
 
 ## 6. 不変の制約
