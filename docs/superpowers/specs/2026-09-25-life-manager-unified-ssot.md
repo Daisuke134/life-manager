@@ -1835,3 +1835,17 @@ job IDs 0）、`git diff --check`もPASS。branch
 9. **未完** Meta Loopをshared kernelへ接続し、discovery、candidate durable state、policy/adapter/funded
    gate、isolated canary、owner provisioning、rollback、settlement、quality/P&Lをprovider receipt・
    official readback・replay-zero・cost-complete positive net P&Lまで検証する。
+
+### 統合候補のsource acceptance readback
+
+- `fix/source-reconcile-20260930` の統合候補SHAは
+  `70fc242b6ff83f65f829aa068a3347db602f2949`。最新 `origin/main=
+  3975ae8996cab3325f514746a32c915f9935fddf` を祖先に持ち、Mercor owner復元と容量自己修復を同じ
+  候補へ統合している。main・productionへは未反映である。
+- suite別source検証はshared marketplace-core `296 passed`、Lancers `251 passed`、CrowdWorks
+  `254 passed`、Mercor `38 passed`、runtime registry/dispatch/reserve/scratch `195 passed・187
+  subtests`、disk-cleanup `93 passed`。`lm-loop-contract` は `ok=true`（catalog 14、registry 176、
+  mapped 102、shared job IDs 0）、compile、diff checkもPASSした。
+- これはsource acceptanceの証拠であり、production loaded SHA、provider receipt、official
+  readback、納品・成約・payout・収益の証拠ではない。production `current/RELEASE.json` は
+  `b26ab310a2083edd1bdfb477da40d9a670251a42`のまま、`bsk browsers --json`は`[]`である。
