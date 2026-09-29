@@ -299,6 +299,45 @@ class EtfReconciliationTest(unittest.TestCase):
         self.assertFalse(any(row.get("receipt_type") == "outcome" for row in rows))
         self.assertEqual(rows[-1]["status"], "reconciliation_pending")
 
+    def test_pending_readback_preserves_etf_identity_for_later_fill(self):
+        strategy_receipt = {
+            "owner_id": OWNER_ID,
+            "strategy_id": STRATEGY_ID,
+            "provider_order_id": "paper-order-1",
+        }
+        decision = {
+            "mode": "paper",
+            "strategy_id": STRATEGY_ID,
+            "owner_id": OWNER_ID,
+            "decision_session": "2026-09-29",
+            "source_receipt_ids": ["bars-receipt"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(ledger, decision, ORDER)
+            EFFECT.mark_started(ledger, sealed)
+            deferred = EFFECT.reconcile_started(
+                ledger,
+                lambda _: {**PROVIDER_ORDER, "status": "accepted", "filled_qty": "0"},
+            )
+            callbacks = []
+            recovered = EFFECT.reconcile_started(
+                ledger,
+                lambda _: PROVIDER_ORDER,
+                on_reconciled=lambda intent, order: callbacks.append((intent, order)) or strategy_receipt,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(deferred["deferred"], 1)
+        self.assertEqual(recovered["reconciled"], 1)
+        self.assertEqual(callbacks[0][0]["order"], ORDER)
+        self.assertEqual(callbacks[0][0]["owner_id"], OWNER_ID)
+        self.assertEqual(callbacks[0][0]["strategy_id"], STRATEGY_ID)
+        self.assertEqual(callbacks[0][0]["decision_session"], "2026-09-29")
+        self.assertEqual(callbacks[0][0]["source_receipt_ids"], ["bars-receipt"])
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"]
+        self.assertEqual(outcomes[-1]["strategy_receipt"], strategy_receipt)
+
     def test_zero_fill_terminal_failure_closes_without_strategy_callback(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "receipts.jsonl"
