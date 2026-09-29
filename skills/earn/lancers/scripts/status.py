@@ -29,6 +29,7 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 _ENDPOINT = "https://www.lancers.jp/work/search"
 _USER_AGENT = "anicca-lancers-public-discovery/1.0"
 _MAX_BODY_BYTES = 8 * 1024 * 1024
+_MAX_ERROR_BODY_BYTES = 256 * 1024
 _MAX_QUERY_LENGTH = 200
 # Lancers exposes its own category facet as a path. Measured 2026-09-07 with type[]=project: one
 # category page returns 12-30 project postings where one keyword returns 3, so five category
@@ -51,6 +52,33 @@ class LancersProviderError(RuntimeError):
 
 def _fail(code: str) -> None:
     raise LancersProviderError(code) from None
+
+
+def _is_human_verification_body(body: bytes) -> bool:
+    """Recognize the provider's WAF challenge without retaining or exposing its body."""
+
+    if not isinstance(body, bytes):
+        return False
+    folded = body.lower()
+    return any(
+        marker in folded
+        for marker in (
+            b"<title>human verification</title>",
+            b"verify that you're not a robot",
+            b"awswafintegration",
+            b"challenge.js",
+            b"captcha.js",
+        )
+    )
+
+
+def _read_error_body(error: urllib.error.HTTPError) -> bytes:
+    """Read only a bounded HTTP error prefix for provider-boundary classification."""
+
+    try:
+        return error.read(_MAX_ERROR_BODY_BYTES)
+    except (OSError, ValueError):
+        return b""
 
 
 def _clean_text(value: str) -> str:
@@ -461,10 +489,6 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
                 _fail("lancers_http_error")
             if client_url is not None and final_url != client_url:
                 _fail("lancers_http_error")
-            if status in {401, 403, 429}:
-                _fail("lancers_provider_blocked")
-            if not isinstance(status, int) or status < 200 or status >= 300:
-                _fail("lancers_http_error")
             chunks: List[bytes] = []
             total = 0
             while total <= _MAX_BODY_BYTES:
@@ -476,9 +500,17 @@ def fetch_public_html(*, query: Optional[str], limit: int, timeout: float, categ
                 if total > _MAX_BODY_BYTES:
                     _fail("lancers_response_too_large")
             body = b"".join(chunks)
+            if _is_human_verification_body(body):
+                _fail("lancers_human_verification_required")
+            if status in {401, 403, 429}:
+                _fail("lancers_provider_blocked")
+            if not isinstance(status, int) or status < 200 or status >= 300:
+                _fail("lancers_http_error")
     except LancersProviderError:
         raise
     except urllib.error.HTTPError as error:
+        if _is_human_verification_body(_read_error_body(error)):
+            _fail("lancers_human_verification_required")
         if error.code in {401, 403, 429}:
             _fail("lancers_provider_blocked")
         _fail("lancers_http_error")

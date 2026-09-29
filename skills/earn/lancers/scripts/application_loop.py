@@ -185,7 +185,11 @@ FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for t
 RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
 PENDING_CONTINUE_ERRORS = frozenset({
     "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
+    "human_verification_required",
 })
+DISCOVERY_PROVIDER_RETRYABLE_ERRORS = {
+    "lancers_human_verification_required": "human_verification_required",
+}
 SKIP_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # A row the planner declined to judge is not a row it refused. Measured 2026-09-07: 15 of the
 # reports in eight consecutive wakes were `invalid` and they were the same postings each time --
@@ -1111,9 +1115,11 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                     error, opportunities = observed.get("error"), observed.get("opportunities", [])
                     if observed.get("ok") is not True and not (error == "no_normalized_opportunities" and "opportunities" in observed and not opportunities):
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error or "") else "discovery_failed"
+                        clean_error = DISCOVERY_PROVIDER_RETRYABLE_ERRORS.get(clean_error, clean_error)
                         result = ApplicationLoopResult(False, error=clean_error)
                     elif error is not None and error != "no_normalized_opportunities":
-                        result = ApplicationLoopResult(False, error=error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed")
+                        clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed"
+                        result = ApplicationLoopResult(False, error=DISCOVERY_PROVIDER_RETRYABLE_ERRORS.get(clean_error, clean_error))
                     elif isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence): result = ApplicationLoopResult(False, error="discovery_failed")
                     elif not opportunities: result = ApplicationLoopResult(True, reason="no_eligible_project", observed_count=int(observed.get("observed_count") or 0), already_decided_count=int(observed.get("already_decided_count") or 0))
                     else:
@@ -1191,6 +1197,8 @@ def main(argv: Optional[Sequence[str]] = None, *, discovery: Optional[Callable[.
         delivery = reporter.notify_application_wake(result)
         if delivery.delivery_uncertain or delivery.pre_send_failed:
             return 1
+    if not args.reconcile_only and result.get("error") == "human_verification_required":
+        return 75
     return 0 if result["ok"] or _durable_uncertain_pending(result, Path(args.state_path)) else 1
 
 __all__ = ["AGENT_RUNNER", "AGENT_RUNNER_PATH", "ApplicationLoopResult", "DEFAULT_EVIDENCE_DIR", "DEFAULT_EVIDENCE_ROOT", "DEFAULT_STATE_PATH", "PLANNER_SCHEMA", "SCHEMA_PATH", "application_tick", "build_planner_prompt", "invoke_planner", "main", "run_application_loop", "run_loop", "run_once", "run_reconcile_only", "status", "validate_decisions"]
