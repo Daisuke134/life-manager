@@ -1303,3 +1303,22 @@ Ryuさんの公式送信証跡は、`browser_identity=coconala:kosuke`、事前�
 6. Freelancer・Upworkはapproved automation terms、account auth、source-complete inventory、funded contract/milestone、mutation authorizationを満たしてからowner登録する。
 7. 共通analyticsをplatform横断で完成させ、receipt単位のgross/net P&L、品質、コスト、返信・成約・納品率をself-improve evaluatorへ接続する。
 8. Meta Loopのdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackを接続し、client workが継続的に実測収益を生む状態を確認する。`$10,000/月`等は公式receipt付きcost-complete net P&Lが得られるまで目標であり、実績ではない。
+
+**最新検証cursor（2026-09-29T13:20:24Z、旧cursorを上書き）**: 退役済みで物理的に残っていた `ai.anicca.job-search-mercor-browser.plist` を、対象labelだけに限定した `/Users/anicca/loops/current/bin/lm-loop apply` で削除した。`launchctl` の対象サービスは元から未loadedであり、他label・他browserを変更していない。直後のproduction readbackは `doctor ok=true`、`missing_entrypoints=[]`、`retired_installed_labels=[]`、`unmanaged_labels=[]`。production `current` は `/Users/anicca/loops/releases/20260929T221805-af6e5011` で、これはmain由来のreleaseであり、この専用branchのsource変更をproductionへ反映したことを意味しない。
+
+同じreadbackで `./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）。source/runtime検証は Python `runtime/loop/tests` **684 passed**、Node `apps/life-manager/lib/loop-adapter-registry.test.js` **15 passed**、`git diff --check` PASS。これはfleet契約とsource品質の証拠であり、provider納品・成約・収益の証拠ではない。
+
+Gigの実稼働readbackでは、Coconala（`gig-coconala`）のApplyが `resource_effect_unknown`、Replyが `entrypoint_exit_75`、Storefrontが `resource_effect_unknown` で、Paidはprovider作用なしの実行状態。Lancers／CrowdWorks／Mercorも複数laneが `effect_status=unknown` またはentrypoint/capacity deferで、対象外作用の全laneで `provider_receipt_id=null`、`official_readback_ref=null`。したがって、unknownを成功へ昇格せず、effect fenceを保持する。Ryuさんについては `current-cycle-v723-dm-send-readback.json` の通り、統合本文を公式DMへ一度だけ送信し、DOM bubble 1件を確認済み、正式納品ボタンは未実行、再読み込みの公式readbackは403でblocked、再送はしていない。403回復後もread-only確認だけを行う。
+
+**理想状態（self-healing／observability／収益）**: 各platformは別々のone-off agentではなく、同一shared kernelのadapter設定として `discover → qualify → propose/message → accept/funded → deliver → provider receipt/official readback → payout → cost-complete P&L → quality feedback` を実行する。通常のlogin/session/wake/reconcile/retryはno-human-loop、KYC等provider必須境界だけを例外にする。全wakeは `run_id`、`owner_id`、`occurrence_id`、`release_sha`、phase、failure layer、error class、next action、evidence refsを構造化して保存し、provider receiptとofficial readbackを同一occurrenceへ結び付ける。pre-effectはbounded retry、effect unknownはfence保持、反復失敗はdead-letter/escalate、成功した変更だけをimmutable release→isolated canary→promotionする。platform横断の品質・費用・gross/net P&Lを同じschemaで集計し、replay-zeroとcost-complete net P&Lを通った改善だけをshared skill/kernelへ昇格する。Meta Loopは候補発見だけでowner登録せず、policy・adapter・funded work・official canary/readback・positive unit economicsの全gate、durable candidate state、owner provisioning、rollback、settlement feedbackまで完了して初めて新platformを有効化する。
+
+**残TODO（完了までの順序）**:
+
+1. 最新 `origin/main`（現在 `0ca7da8777`）との差分を専用branchでreconcileする。Gig／Meta Loop安全修正を失わず、production loopを停止・再起動しない。
+2. generated fixture、required checks、contract、observability/recovery testsをreconcile後に再実行し、source PASSとproduction/provider PASSを別々に記録する。
+3. 受入済みsourceだけをmainへ統合し、main由来immutable releaseを作成する。各ownerを一つずつtarget applyし、loaded SHA、argv/env、identity lease、自然terminalをreadbackする。
+4. CoconalaのApply／Paid／Reply／Storefrontを一つずつeffect fence付きで公式readbackまで閉じる。Ryuさんへは再送しない。
+5. Lancers、CrowdWorks、Mercorのentrypoint・capacity・lock・identity問題をowner単位で解消し、proposal/thread/Paid/deliveryのprovider receiptとofficial readbackをoccurrence単位で取得する。receiptなしのeffect unknownは解放しない。
+6. Freelancerはapproved terms→account auth→source-complete inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationを満たしてからowner登録する。現時点で両platformの収益owner完了は未確認。
+7. Meta Loopのdiscovery producer/scheduler、candidate state durable store、promotion後owner provisioning、bounded rollback、settlement／quality／P&L feedbackをshared kernelへ接続する。現状はpromotion gateまでで、発見から収益確定までの自律loopは未完了。
+8. 全platformでprovider receipt付き納品・payout・cost-complete net P&Lを取得し、replay-zeroと品質gateを満たしてから実測収益を報告する。目標額を実績として扱わず、receiptがない限り「稼働中」を「稼いだ」と報告しない。
