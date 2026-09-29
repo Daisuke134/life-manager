@@ -3221,3 +3221,24 @@ host空き容量は約256MiBで、共通floor 512MiBを下回る。production lo
 5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization、完全inventory、実adapter、canary、rollback、settlement、replay-zeroを取得する。
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
 7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、loaded SHA、deferred/terminal receipt、cleanup容量回復、provider公式readbackを確認する。
+
+## 現在の正本cursor（2026-09-30、platform回帰全体の再実測後・EOF最新）
+
+上記EOF cursor以降、容量条件を明示したplatform回帰と通常条件の主要回帰を現行HEADで再実測した。これが最新の受入証跡である。
+
+- `runtime/host/tests/test_disk_admission.py`＋`runtime/loop/tests/test_lm_loop_run_bounds.py`＋`test_lm_loop_apply.py`: 通常条件で`271 passed, 31 subtests passed`。
+- `skills/self/disk-cleanup/tests/test_disk_cleanup.py`: 一括`95 passed`。
+- `skills/earn/gig/tests`: `1584 passed`。
+- `skills/earn/lancers/tests`: `270 passed`、`skills/earn/crowdworks/tests`: `277 passed`、`skills/earn/mercor/tests`: `59 passed`、`skills/_shared/marketplace-core/tests`: `356 passed`。compile、`git diff --check`、`lm-loop-contract ok=true`も再確認した。
+- これらはコード・loop bridge・disk cleanupの受入証拠であり、Lancers Human Verification解除、Coconala RyuさんDM送信receipt、provider外部効果、main統合、production applyの証拠ではない。
+- 回帰後の空き容量は約423MiBでfloor 512MiB未満。production旧版cleanupは依然として旧SHAで、branch `fix/source-reconcile-20260930`の早期gateは未反映である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** production旧版を直接編集せず、branch全回帰（Gig、Lancers、CrowdWorks、Mercor、Marketplace Core、disk cleanup、契約）をpush済み証跡として受入条件へ固定する。
+2. **未完** LancersのHuman Verification解除後、同じshared browser ownerで公式read-only preflightを2回通し、現行schemaの`contracts.json`を生成する。自動突破・手編集・応募はしない。
+3. **未完** Coconala専用browser tabでthread `10107358`の最新受信・添付・公式履歴をreadbackし、画像復元、女の子検索変更、相互リンク等を一つの最終本文へ統合する。
+4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一thread公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization、完全inventory、実adapter、canary、rollback、settlement、replay-zeroを取得する。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
+7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、loaded SHA、deferred/terminal receipt、cleanup容量回復、provider公式readbackを確認する。
