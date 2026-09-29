@@ -307,3 +307,85 @@ def test_platform_candidate_lifecycle_rejects_unknown_provider_before_readback(t
             run_id="lifecycle-invalid-1", observed_at="2026-09-30T06:06:30Z",
         )
     assert called is False
+
+
+def test_registered_lifecycle_adapter_requires_account_bound_auth_context():
+    registry = cycle.PlatformLifecycleAdapterRegistry(
+        {"crowdworks": lambda context: _LifecycleAdapter()}
+    )
+
+    with pytest.raises(cycle.PlatformManifestCycleError, match="account_context_invalid"):
+        registry.resolve("crowdworks", {})
+
+
+def test_registered_lifecycle_adapter_rejects_missing_provider_without_effect():
+    registry = cycle.PlatformLifecycleAdapterRegistry({})
+
+    with pytest.raises(cycle.PlatformManifestCycleError, match="adapter_missing:coconala"):
+        registry.resolve(
+            "coconala",
+            {"account_id": "coconala-owner", "authorization_receipt_ref": "auth://coconala/1"},
+        )
+
+
+def test_registered_lifecycle_adapter_delegates_only_valid_adapter(tmp_path):
+    candidate_store = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    lifecycle_store = lifecycle_store_module.MetaLoopLifecycleStore(tmp_path / "lifecycle")
+    enrollment.evaluate_and_record_candidate(
+        _promoted_candidate(), candidate_store,
+        candidate_id="listing:promoted", observed_at="2026-09-30T06:05:00Z",
+        source_url="https://example.test/listing:promoted", snapshot_sha256="d" * 64,
+    )
+    calls = []
+
+    def factory(context):
+        calls.append(dict(context))
+        return _LifecycleAdapter()
+
+    registry = cycle.PlatformLifecycleAdapterRegistry({"coconala": factory})
+    result = cycle.run_registered_platform_candidate_lifecycle(
+        candidate_store,
+        lifecycle_store,
+        registry,
+        provider="coconala",
+        candidate_id="listing:promoted",
+        account_context={
+            "account_id": "coconala-owner",
+            "authorization_receipt_ref": "auth://coconala/1",
+        },
+        run_id="wake-registered",
+        observed_at="2026-09-30T06:00:00Z",
+    )
+
+    assert result["status"] == "settled"
+    assert calls == [{
+        "account_id": "coconala-owner",
+        "authorization_receipt_ref": "auth://coconala/1",
+    }]
+
+
+def test_registered_lifecycle_adapter_rejects_incomplete_adapter_before_candidate_readback(tmp_path):
+    class _Incomplete:
+        def provision_owner(self, candidate):
+            return {}
+
+    registry = cycle.PlatformLifecycleAdapterRegistry(
+        {"coconala": lambda context: _Incomplete()}
+    )
+    candidate_store = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    lifecycle_store = lifecycle_store_module.MetaLoopLifecycleStore(tmp_path / "lifecycle")
+
+    with pytest.raises(cycle.PlatformManifestCycleError, match="adapter_invalid:canary_readback"):
+        cycle.run_registered_platform_candidate_lifecycle(
+            candidate_store,
+            lifecycle_store,
+            registry,
+            provider="coconala",
+            candidate_id="listing:promoted",
+            account_context={
+                "account_id": "coconala-owner",
+                "authorization_receipt_ref": "auth://coconala/1",
+            },
+            run_id="wake-invalid-adapter",
+            observed_at="2026-09-30T06:00:00Z",
+        )

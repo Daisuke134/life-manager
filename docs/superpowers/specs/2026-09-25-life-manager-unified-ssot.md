@@ -2763,3 +2763,19 @@ Meta Loopのread-only manifest wakeから、candidate storeの最新recordを一
 4. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
 5. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 6. **未完** Ryuさんの既存DMは再送せず、相互リンク入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
+## 現在の正本cursor（2026-09-30、account-bound lifecycle adapter registry追加後）
+
+`platform_manifest_cycle.py`に、明示登録されたprovider factoryだけを解決する`PlatformLifecycleAdapterRegistry`と、`run_registered_platform_candidate_lifecycle`を追加した。factory解決前に候補を読まず、`account_id`と`authorization_receipt_ref`がない呼び出しは拒否し、未登録providerは`adapter_missing:<provider>`でholdする。解決されたadapterにも`provision_owner`、`canary_readback`、`rollback_owner`、`settle`の4操作を要求する。これは実providerのreceiptを作るものではなく、未接続・未認証のproviderをowner効果へ進ませない共通境界である。
+
+- 検証済み: platform manifest cycle `16 passed`、Marketplace Core `350 passed`、Gig platform-manifest回帰 `21 passed`、compile、`git diff --check`。source branchのみ変更し、main／production／provider owner／実資金は未変更。
+- 実環境の候補storeはCrowdWorksの`hold / collect_missing_gates`だけで、lifecycle eventsは未作成。したがって現時点でsettledを名乗れるplatformはない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Coconala／Lancers／CrowdWorks／Mercorの各factoryを、実際のaccount-bound authorization receiptとprovider公式readbackへ接続する。registryのテストadapterやローカルreceiptは実adapter完了の証拠にしない。
+2. **未完** providerごとのcanary/readbackを閉じ、owner／rollback／settlementの公式receiptを自然runで取得する。Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract・mutation authorizationが揃うまでhold。
+3. **未完** lifecycle storeへplanned→terminalまたはrollbackをoccurrence単位で永続化し、同じcandidateのreplay-zeroを公式readbackで確認する。
+4. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+5. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+6. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。

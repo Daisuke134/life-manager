@@ -44,6 +44,9 @@ except ModuleNotFoundError:  # pragma: no cover - direct module loading fallback
 
 PLATFORM_PROVIDERS = ("coconala", "lancers", "crowdworks", "mercor")
 SUPPORTED_PLATFORM_PROVIDERS = PLATFORM_PROVIDERS + ("upwork", "freelancer")
+_LIFECYCLE_ADAPTER_OPERATIONS = (
+    "provision_owner", "canary_readback", "rollback_owner", "settle",
+)
 
 
 class PlatformManifestCycleError(ValueError):
@@ -52,6 +55,57 @@ class PlatformManifestCycleError(ValueError):
 
 class MissingPlatformManifestSource(RuntimeError):
     """A declared platform has no read-only source configured for this wake."""
+
+
+class PlatformLifecycleAdapterRegistry:
+    """Resolve only explicitly registered, account-bound lifecycle adapters.
+
+    A manifest wake never constructs an owner adapter implicitly.  Callers must
+    provide a provider-specific factory and an account-bound authorization
+    receipt in the same invocation; missing registrations remain a typed hold.
+    """
+
+    def __init__(self, factories: Mapping[str, Any]):
+        if not isinstance(factories, Mapping):
+            raise PlatformManifestCycleError("adapter_registry_invalid")
+        unknown = set(factories).difference(SUPPORTED_PLATFORM_PROVIDERS)
+        if unknown:
+            raise PlatformManifestCycleError("adapter_provider_invalid")
+        if any(not callable(factory) for factory in factories.values()):
+            raise PlatformManifestCycleError("adapter_factory_invalid")
+        self._factories = dict(factories)
+
+    @staticmethod
+    def _account_context(account_context: Mapping[str, Any]) -> dict[str, str]:
+        if not isinstance(account_context, Mapping):
+            raise PlatformManifestCycleError("account_context_invalid")
+        normalized: dict[str, str] = {}
+        for name in ("account_id", "authorization_receipt_ref"):
+            value = account_context.get(name)
+            if not isinstance(value, str) or not value.strip() or "\x00" in value:
+                raise PlatformManifestCycleError("account_context_invalid")
+            normalized[name] = value.strip()
+        return normalized
+
+    def resolve(self, provider: str, account_context: Mapping[str, Any]) -> Any:
+        if not isinstance(provider, str) or provider not in SUPPORTED_PLATFORM_PROVIDERS:
+            raise PlatformManifestCycleError("provider_invalid")
+        context = self._account_context(account_context)
+        factory = self._factories.get(provider)
+        if factory is None:
+            raise PlatformManifestCycleError(f"adapter_missing:{provider}")
+        try:
+            adapter = factory(dict(context))
+        except PlatformManifestCycleError:
+            raise
+        except Exception as error:
+            raise PlatformManifestCycleError(
+                f"adapter_factory_failed:{type(error).__name__}"
+            ) from error
+        for operation in _LIFECYCLE_ADAPTER_OPERATIONS:
+            if not callable(getattr(adapter, operation, None)):
+                raise PlatformManifestCycleError(f"adapter_invalid:{operation}")
+        return adapter
 
 
 def _missing_source(provider: str):
@@ -152,11 +206,40 @@ def run_platform_candidate_lifecycle(
     )
 
 
+def run_registered_platform_candidate_lifecycle(
+    candidate_store: Any,
+    lifecycle_store: Any,
+    registry: PlatformLifecycleAdapterRegistry,
+    *,
+    provider: str,
+    candidate_id: str,
+    account_context: Mapping[str, Any],
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Resolve an account-bound adapter before reading or effecting a candidate."""
+
+    if not isinstance(registry, PlatformLifecycleAdapterRegistry):
+        raise PlatformManifestCycleError("adapter_registry_invalid")
+    adapter = registry.resolve(provider, account_context)
+    return run_platform_candidate_lifecycle(
+        candidate_store,
+        lifecycle_store,
+        adapter,
+        provider=provider,
+        candidate_id=candidate_id,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+
+
 __all__ = [
     "MissingPlatformManifestSource",
     "PLATFORM_PROVIDERS",
     "SUPPORTED_PLATFORM_PROVIDERS",
+    "PlatformLifecycleAdapterRegistry",
     "PlatformManifestCycleError",
     "run_platform_candidate_lifecycle",
+    "run_registered_platform_candidate_lifecycle",
     "run_platform_manifest_wake",
 ]
