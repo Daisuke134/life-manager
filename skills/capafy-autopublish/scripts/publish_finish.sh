@@ -284,7 +284,7 @@ except Exception: print('')")"
   [ -n "$PUBLISH_REVIEW_URL" ] || die "no final review URL available for CP2/workspace-field fix"
   CP2="$PUBLISH_REVIEW_URL"
   timeout 150 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
-    "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | grep -vE "Deprecation|warnings.warn" | tail -4
+    "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | { grep -vE "Deprecation|warnings.warn" || true; } | tail -4 || true
   # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
   # exit just before the server registers the hosted key -> a one-shot read false-dies.
   poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"

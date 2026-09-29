@@ -14,9 +14,9 @@ DeepSeek V4.1 Flash model swap + reprice.
 ## week $4.99/month $9.99 on Sonnet.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| day | $2.99 | 10 | No Free Trial |
-| week | $7.99 | 25 | No Free Trial |
-| month | $19.99 | 60 | No Free Trial |
+| day | $1.99 | 10 | No Free Trial |
+| week | $4.99 | 25 | No Free Trial |
+| month | $9.99 | 60 | No Free Trial |
 
 ## Title
 TikTok Script Pro — Hook-First Short Videos
