@@ -833,6 +833,29 @@
         "timeout_seconds": 120
       }
     },
+    "capafy-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9229,
+        "profile": "~/.local/state/anicca/capafy/browser-profile"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "growth",
+      "effect_class": "none",
+      "entrypoint": "skills/capafy-autopublish/scripts/browser-owner",
+      "label": "ai.anicca.capafy-browser",
+      "log_root": "~/.local/state/life-manager/capafy-browser/logs",
+      "provider_route": "deterministic",
+      "resource_class": "browser",
+      "state_root": "~/.local/state/life-manager/capafy-browser"
+    },
     "capafy-distribute-daily": {
       "admission_class": "revenue",
       "cadence": {
