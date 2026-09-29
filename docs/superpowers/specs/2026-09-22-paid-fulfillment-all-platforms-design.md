@@ -6013,3 +6013,22 @@ there is still no authorization to stop, kill, or restart an active owner.
 - [ ] Item 4 remains open until the pushed source is integrated through the
   main-derived immutable-release path and its provenance is independently
   read back. Production remains on the old SHA above.
+
+### Item 3 admission database lock repair — 2026-09-30 07:19 JST
+
+- [x] The old-release logs repeatedly showed `sqlite3.OperationalError:
+  database is locked` and `control_busy`. Source inspection found that
+  `sqlite3.Connection.__exit__` commits or rolls back but does not close the
+  connection; every admission `with _database(...)` therefore retained a file
+  handle until garbage collection, allowing lock chains to accumulate.
+- [x] `runtime/host/resource_admission.py` now uses an owner-local
+  `_AdmissionConnection` whose transaction exit always closes, and explicitly
+  sets `PRAGMA busy_timeout=5000`. The existing transaction/rollback behavior
+  and fail-closed contention results remain unchanged.
+- [x] The new close regression plus the full resource-admission suite pass
+  (`135 passed`). Loop integration suites pass `376 passed, 31 subtests passed`.
+  No live database, owner, process, or provider state was mutated.
+- [ ] This source repair is not live until item 4's main-derived immutable
+  release and item 5's separately gated owner transition. Production still
+  points at the old SHA and may continue emitting the old lock evidence until
+  that transition occurs.

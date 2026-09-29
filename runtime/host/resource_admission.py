@@ -45,6 +45,16 @@ DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
 CONNECTOR_OBSERVATION_OWNER = "life-manager-connector-native"
 
 
+class _AdmissionConnection(sqlite3.Connection):
+    """Close durable admission connections when their transaction scope ends."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 class _ProcBsdInfo(ctypes.Structure):
     """Darwin's fixed PROC_PIDTBSDINFO record (sys/proc_info.h)."""
 
@@ -405,8 +415,9 @@ def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
 
 
 def _database(path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(path, timeout=5.0)
+    connection = sqlite3.connect(path, timeout=5.0, factory=_AdmissionConnection)
     os.chmod(path, 0o600)
+    connection.execute("PRAGMA busy_timeout=5000")
     connection.execute("PRAGMA journal_mode=DELETE")
     connection.execute("PRAGMA synchronous=FULL")
     version = connection.execute("PRAGMA user_version").fetchone()[0]

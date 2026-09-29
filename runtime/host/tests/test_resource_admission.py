@@ -417,6 +417,15 @@ def test_database_waits_for_transient_sqlite_writer_lock(tmp_path):
     assert "error" not in result
 
 
+def test_database_context_closes_connection_after_commit(tmp_path):
+    database = tmp_path / "admission-v2.sqlite3"
+    with admission._database(database) as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS close_probe(value INTEGER)")
+
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        connection.execute("SELECT 1")
+
+
 def test_browser_migration_keeps_legacy_table_on_conflicting_owner(tmp_path):
     database = tmp_path / "admission-v2.sqlite3"
     with sqlite3.connect(database) as connection:
