@@ -114,6 +114,17 @@ def _select_with_option(page, option_text: str):
     raise RuntimeError(f"no_select_offers_option:{option_text}")
 
 
+def _select_first_matching(page, needle: str):
+    """Pick the first option containing `needle` in whichever <select> offers one."""
+    selects = page.locator("select")
+    for i in range(selects.count()):
+        opts = selects.nth(i).evaluate("e => Array.from(e.options).map(o => o.textContent.trim())")
+        for opt in opts:
+            if needle in opt:
+                selects.nth(i).select_option(label=opt)
+                return
+    raise RuntimeError(f"no_select_offers_option_containing:{needle}")
+
 def _wait_for_select_count(page, minimum: int, timeout_ms: int = 10000) -> None:
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
@@ -158,7 +169,9 @@ def _fill_step2(page, listing) -> None:
     # "Prompt template" is the buyer-hidden field the whole SKILL.md (prefixed
     # with a "[VAR]: value" example-input line) is pasted into.
     page.locator("textarea").nth(0).fill(listing.prompt_instructions)
-    _select_with_option(page, "5 Sonnet")
+    # PromptBase renames Claude versions (5 Sonnet -> 5.5 Sonnet, live 2026-09-30); take
+    # whichever current option is a Sonnet rather than pinning one label.
+    _select_first_matching(page, "Sonnet")
     page.wait_for_timeout(300)
 
     # "Example outputs" requires exactly 4 filled entries before PromptBase's
@@ -292,6 +305,28 @@ def _resolve_recaptcha_or_stop(page, evidence_dir: Path) -> None:
     raise RuntimeError("recaptcha_requires_human_verification")
 
 
+def _matching_draft_url(page, title: str) -> str | None:
+    """prompt-edit URL of an existing *Draft* card with this title, if any.
+
+    PromptBase allows only 2 pending prompts + drafts and offers no delete, so
+    failed attempts' drafts blocked every new listing at step 1 (2026-09-30).
+    Like Capafy's resume_draft, finish that draft instead of opening /sell.
+    The dashboard is already loaded by _already_visible_in_dashboard.
+    """
+    from readback import title_key
+    links = page.eval_on_selector_all(
+        "a[href*='prompt-edit/']",
+        """els => els.map(a => {
+            let card = a; for (let i = 0; i < 6 && card.parentElement; i++) card = card.parentElement;
+            return [a.href, (a.textContent || '').trim(), (card.innerText || '')];
+        })""",
+    )
+    for href, text, card_text in links:
+        if text and title_key(text) == title_key(title) and "\nDraft\n" in f"\n{card_text}\n":
+            return href
+    return None
+
+
 def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -331,8 +366,16 @@ def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> 
                 result.update(ok=False, reason="already_visible_in_dashboard")
                 return result
 
-            _ensure_step1(page)
-            _fill_step1(page, listing)
+            draft_url = _matching_draft_url(page, listing.title)
+            if draft_url:
+                result["resumed_draft"] = draft_url
+                page.goto(draft_url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(4000)
+                if _current_step(page) != "2/3":
+                    raise RuntimeError(f"draft_not_at_step2:{_current_step(page)}:{draft_url}")
+            else:
+                _ensure_step1(page)
+                _fill_step1(page, listing)
             _fill_step2(page, listing)
             _resolve_recaptcha_or_stop(page, evidence_dir)
 
