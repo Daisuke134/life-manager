@@ -9,6 +9,8 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 MODULE_PATH = SCRIPTS / "coconala_opportunity_adapter.py"
 SNAPSHOT_PATH = SCRIPTS / "application_snapshot.py"
+STORE_PATH = Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "opportunity_observation_store.py"
+RUNNER_PATH = Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "opportunity_discovery.py"
 
 
 def _load(path: Path, name: str):
@@ -21,6 +23,8 @@ def _load(path: Path, name: str):
 
 adapter = _load(MODULE_PATH, "coconala_opportunity_adapter_test")
 snapshot = _load(SNAPSHOT_PATH, "coconala_application_snapshot_for_adapter_test")
+observation_store = _load(STORE_PATH, "coconala_observation_store_for_adapter_test")
+discovery_runner = _load(RUNNER_PATH, "coconala_discovery_runner_for_adapter_test")
 ULID = "01KYPJ0M0ACF4DBAFSJVFN9K24"
 
 
@@ -116,3 +120,23 @@ def test_invalid_snapshot_or_unknown_opportunity_fails_closed():
         adapter.opportunities_from_snapshot({})
     with pytest.raises(adapter.CoconalaDiscoveryError, match="opportunity_not_found"):
         adapter.inspect_from_snapshot(_snapshot(), "request:999")
+
+
+def test_coconala_adapter_feeds_the_shared_read_only_runner(tmp_path):
+    read_only = adapter.CoconalaSnapshotAdapter(_snapshot())
+    store = observation_store.OpportunityObservationStore(tmp_path / "observations")
+
+    result = discovery_runner.run_opportunity_discovery(
+        read_only,
+        lambda _opportunity, _detail: {
+            "decision": "hold",
+            "reasons": ["workflow_not_evaluated"],
+            "evidence_refs": ["snapshot://coconala/pass-1"],
+            "next_action": "evaluate_workflow",
+        },
+        store,
+    )
+
+    assert result["inspected"] == 1
+    assert result["held"] == 1
+    assert store.latest("coconala", "request:2")["next_action"] == "evaluate_workflow"
