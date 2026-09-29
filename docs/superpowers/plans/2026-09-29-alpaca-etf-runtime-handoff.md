@@ -224,3 +224,9 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - The canonical `cut-loop-release.sh` path refuses `LOOPS_ACTIVATE_CURRENT=1` for a SHA that is not an ancestor of `origin/main`. The full investment candidate `fdf877074f` is therefore correctly `pushed-not-on-main`; no direct candidate activation was attempted.
 - Production `current` remains `1abb1ae845`. It still returns `unknown loop id` for `alpaca-investment-paper` and `investment-cross-venue-report`, and the loaded live owner has no provider/readback receipt for its latest pre-effect admission defer.
 - This is the Life Manager release boundary, not a Capafy/Claude dependency. **Current cursor: INV-001-B — accepted source → immutable main release → one natural paper order/fill/account receipt.**
+
+### Production handoff completed; natural paper evidence remains open (2026-09-29)
+
+- PR #6186 is merged at main `f30eba5244841f5761fa3b5ebe886782a39a3b43`. Immutable release `/Users/anicca/loops/releases/20260929T191325-f30eba52` is `release_paths=ALL` and contains the paper, live, validation, and cross-venue owners.
+- The normal Life Manager owner path target-applied all four investment owners. Loaded arguments and release SHA read back exactly; no Capafy/PromptBase label was targeted.
+- **INV-001-B is complete.** The next cursor is **INV-002**: wait for a natural `alpaca-investment-paper` wake and collect one official order/fill/account/position/provider receipt. Do not manually kick, transfer funds, submit a live ETF order, or count the old pass as a new sample.

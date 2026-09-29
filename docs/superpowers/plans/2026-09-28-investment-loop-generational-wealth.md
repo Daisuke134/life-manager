@@ -844,6 +844,8 @@ The entries above are historical readbacks. This section is the current source o
 
 **投資cursor更新（2026-09-29 JST）**: 現在の`origin/main`は`5d8a135b62e370136262e18f045042cfbf3c2bf3`、production `current`は`/Users/anicca/loops/releases/20260929T140708-5d8a135b`。4つの投資registry row（live / paper / cross-venue report / strategy validation）は現行releaseに存在する。Alpaca公式readbackで、過去のpaper/live effect-unknown occurrenceは後続注文なしを確認し、両方の`effect_reconcile.py`は`PASS`。ただし最新paper wake `alpaca-investment-paper:18d9b3cf090ebdb0-4847`は`resource_capacity_busy`でprovider effect前にexit `75`となったため、paper receiptも利益もまだない。
 
+**Main merge後のproduction handoff（2026-09-29）**: PR #6186をmain `f30eba5244841f5761fa3b5ebe886782a39a3b43`へ統合し、immutable release `/Users/anicca/loops/releases/20260929T191325-f30eba52`を作成した。Life Manager owner pathでvalidation、paper、live、cross-venueの4 ownerだけをtarget applyし、全件`ok=true`・loaded release SHA/argv/env readback PASS。Alpaca旧effect-unknownは公式「occurrence後の注文なし」でresolveし、cross-venue旧occurrenceは証拠不足のためheld。**Current cursor: INV-002 — 自然paper wakeでorder/fill/account/position/provider receiptを1件取得。** 実現投資収益、cost-complete P&L、資金供給、live order、wallet mutationはまだない。
+
 **原因とsource修正**: 実DBに歴史的`effect_unknown=8,985`行が残る中、公式provider readbackを担当する`lm-fence-reconciler`が通常data-plane admission枠を要求していた。これがfence回収と投資paper wakeの共有枠飢餓を作っていた。`fix/investment-fence-reconciler-20260929`で、外部効果なしの`lm-fence-reconciler`を`CONTROL_PLANE_SAFETY_LOOPS`へ追加し、既存テストで安全loopがdata-plane admissionを取らない契約を固定した。focused `2/2`、registry `124/124`、loop bounds `104/104`、`lm-loop-contract ok=true`。source修正は未だPR/main/releaseへ未反映であり、ここを完了するまで本番paperの再試行はしない。
 
 **残りTODO（実行順）**:
