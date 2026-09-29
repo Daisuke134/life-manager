@@ -1971,6 +1971,30 @@ job IDs 0）、`git diff --check`もPASS。branch
 5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、settlement、
    cost-complete P&L。
 
+### 最新案件read-only discovery runner — 2026-09-30
+
+- `fix/source-reconcile-20260930` の `11e62d404a` で、
+  `skills/_shared/marketplace-core/scripts/opportunity_discovery.py` と
+  `opportunity_observation_store.py` を追加した。runnerはadapterの`discover()`と`inspect()`、
+  純粋なjudgeだけを呼び、`eligible|hold`、reasons、evidence refs、next actionを0600 JSONLへ
+  冪等保存する。submit、reply、deliver、payment、owner登録、effect/readbackは呼び出さない。
+- discovery件数上限、案件identity（provider/id/source URL）、inspect hash一致、判定shape、
+  source破損、same-snapshot replayをfail-closedで検証する。Coconala snapshot adapterとの実接続を
+  含む対象テスト338件と`lm-loop-contract ok=true`（catalog 14、registry 176、mapped 102、shared
+  job IDs 0）をPASSした。
+- これはCoconalaの保存済みsnapshotを共通観測stateへ写像したsource証拠であり、production browserの
+  最新取得、RyuさんDMの公式receipt/readback、応募・納品・成約・payout・収益の証拠ではない。
+
+### 原子TODO（案件read-only runner後）
+
+1. **完了** Coconala snapshot → shared Opportunity → inspect/judge → durable observation。
+2. **未完** Coconalaの実browser snapshot collectorをこのrunnerへread-only接続し、natural wakeの
+   `inspected/eligible/held/next_action`を保存する。認証済みsessionがない場合は`held`にし、応募しない。
+3. **未完** Lancers、CrowdWorks、Mercorの既存read-only discover/fetchを同じOpportunity契約へ接続する。
+4. **未完** main受入・immutable release・loaded SHA readback、RyuさんDMと各platformの公式receipt/readback。
+5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、settlement、
+   cost-complete P&L。
+
 ### 最新Coconala opportunity adapter — 2026-09-30
 
 - `fix/source-reconcile-20260930` の `ae08911756` で、既存のCoconala application snapshotを
