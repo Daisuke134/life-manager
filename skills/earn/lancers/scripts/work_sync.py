@@ -766,6 +766,7 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
             result = _read_surfaces(page, verified_proposals, [])
             result["reply_action"] = {"status": "owned_by_reply_lane"}
             _write_state(Path(state_path).with_name("contracts.json"), {
+                "logged_in": logged_in,
                 "source_complete": True,
                 "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "board_count": result["board_count"],

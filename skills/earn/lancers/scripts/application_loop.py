@@ -183,7 +183,7 @@ ID_RE = re.compile(r"^[0-9]+$")
 KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
-RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
+RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed", "platform_manifest_wake_failed"})
 PENDING_CONTINUE_ERRORS = frozenset({
     "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
     "human_verification_required",
@@ -211,6 +211,18 @@ application_tick = _load("_anicca_lancers_application_loop_tick", APPLICATION_TI
 lancers_opportunity_observation = _load(
     "_anicca_lancers_opportunity_observation", OPPORTUNITY_OBSERVATION_PATH,
 )
+_LANCERS_PLATFORM_MANIFEST_RUNTIME = None
+
+
+def _lancers_platform_manifest_runtime():
+    """Load the read-only Meta Loop bridge only at the live Lancers boundary."""
+    global _LANCERS_PLATFORM_MANIFEST_RUNTIME
+    if _LANCERS_PLATFORM_MANIFEST_RUNTIME is None:
+        _LANCERS_PLATFORM_MANIFEST_RUNTIME = _load(
+            "_anicca_lancers_platform_manifest_runtime",
+            HERE / "lancers_platform_manifest_runtime.py",
+        )
+    return _LANCERS_PLATFORM_MANIFEST_RUNTIME
 
 
 def _write_observation_summary(path: Path, payload: Mapping[str, object]) -> None:
@@ -278,6 +290,44 @@ def record_lancers_observation_source_failure(
         "error": str(error)[:200],
         "next_action": "retry_lancers_public_snapshot_read_only",
     })
+
+
+def record_live_lancers_platform_manifest_wake(
+    *,
+    evidence_dir: Path,
+    pass_id: str,
+    contracts_path: Path | None = None,
+    candidate_root: Path | None = None,
+    run_root: Path | None = None,
+    observed_at: str | None = None,
+    source_discoverers: dict[str, Callable[..., object]] | None = None,
+) -> dict[str, object]:
+    """Persist one Lancers natural-wake platform manifest before any effect."""
+    normalized_pass_id = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(pass_id)).strip("-") or "wake"
+    run_id = f"lancers-natural-{normalized_pass_id}"[:128]
+    try:
+        summary = _lancers_platform_manifest_runtime().run_lancers_platform_manifest_wake(
+            contracts_path=contracts_path,
+            candidate_root=candidate_root,
+            run_root=run_root,
+            run_id=run_id,
+            observed_at=observed_at,
+            source_discoverers=source_discoverers,
+        )
+    except Exception as error:  # noqa: BLE001 - no effect after an unrecorded source
+        raise RuntimeError(
+            f"lancers_platform_manifest_wake_failed:{type(error).__name__}"
+        ) from error
+    payload = {
+        "version": 1,
+        "status": summary["status"],
+        "pass_id": pass_id,
+        "run_id": run_id,
+        "read_only": True,
+        **summary,
+    }
+    _write_observation_summary(Path(evidence_dir) / "platform-manifest-wake.json", payload)
+    return payload
 
 @dataclass(frozen=True)
 class ApplicationLoopResult:
@@ -1184,11 +1234,27 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
         result = ApplicationLoopResult(True, reason=capacity_reason, unresolved_project_id=quarantined_project_id)
         if output_stream is not None: _emit(result, output_stream)
         return result.to_dict()
+    production_wake = (
+        discoverer is None and discovery is None and planner is None
+        and safety_verifier is None and submitter is None and query is None
+    )
     root = Path(evidence_root if evidence_root is not None else evidence_dir or DEFAULT_EVIDENCE_ROOT); result = ApplicationLoopResult(False, error="planner_runner_failed"); cleanup_failed = False; evidence: Optional[Path] = None
     try:
         try:
             _reset(root); evidence = root / f"run-{uuid.uuid4().hex}"; evidence.mkdir(mode=0o700, exist_ok=False); os.chmod(evidence, 0o700)
         except Exception: evidence = None
+        if evidence is not None and production_wake:
+            try:
+                record_live_lancers_platform_manifest_wake(
+                    evidence_dir=evidence,
+                    pass_id=evidence.name,
+                    contracts_path=Path(state_path).with_name("contracts.json"),
+                )
+            except Exception:
+                # Do not enter the provider discovery/effect path when the durable
+                # platform-level source boundary itself could not be recorded.
+                result = ApplicationLoopResult(False, error="platform_manifest_wake_failed")
+                evidence = None
         if evidence is not None:
             source = discoverer or discovery
             turns = _discovery_turn_count(

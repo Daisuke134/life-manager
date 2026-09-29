@@ -180,6 +180,42 @@ def manifest_from_observation(raw: Any) -> dict[str, Any]:
     }
 
 
+def load_contracts_observation(
+    path: str | Path,
+    *,
+    observed_at: str,
+    adapter_source_sha256: str,
+    source_url: str = "https://www.lancers.jp/mypage",
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Read the work-sync account state and discard opportunity/contract rows."""
+
+    contracts_path = Path(path).expanduser()
+    if contracts_path.is_symlink() or not contracts_path.is_file():
+        raise LancersPlatformManifestError("work_sync_source_missing")
+    try:
+        raw = json.loads(contracts_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise LancersPlatformManifestError("work_sync_source_invalid") from error
+    if not isinstance(raw, Mapping):
+        raise LancersPlatformManifestError("work_sync_source_invalid")
+    fields = {
+        "version": 1,
+        "platform": "lancers",
+        "observed_at": observed_at,
+        "source_url": source_url,
+        "adapter_source_sha256": adapter_source_sha256,
+        "logged_in": raw.get("logged_in"),
+        "source_complete": raw.get("source_complete"),
+        "board_count": raw.get("board_count"),
+        "required_reply_count": raw.get("required_reply_count"),
+        "unread_count": raw.get("unread_count"),
+        "evidence_refs": evidence_refs or ["private:lancers/contracts.json"],
+    }
+    manifest_from_observation(fields)
+    return fields
+
+
 class LancersPlatformManifestSource:
     """Inject one Lancers account observation per wake, read-only."""
 
@@ -208,5 +244,6 @@ class LancersPlatformManifestSource:
 __all__ = [
     "LancersPlatformManifestError",
     "LancersPlatformManifestSource",
+    "load_contracts_observation",
     "manifest_from_observation",
 ]
