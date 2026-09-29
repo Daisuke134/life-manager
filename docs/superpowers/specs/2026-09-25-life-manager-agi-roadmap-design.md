@@ -410,7 +410,7 @@ SSOT とのつながり: AG11 は SSOT T12（自己改善）の最初の実例�
 | 2027年4〜6月 | T15 月 $10k MRR | AG7 | ARC-AGI-4 | AG8（M2） | L2 → L3 |
 | 2027年後半〜 | 規模の拡大 | 行動の世界モデル | 独立した再現 | M3 蒸留、資金があれば M4 | L3 → L4 |
 
-現在の cursor（トラック E）: **AG1**（Dais の承認待ち。計画書: `docs/superpowers/plans/2026-09-27-lm-eab-outcome-prediction-track.md`）
+現在の cursor（トラック E）: §18 を参照（ここは旧版）
 
 ### 13.6 訂正: eval は Claude Code 組み込みの `claude-api` skill の道具を使う（2026-09-29）
 
@@ -424,7 +424,7 @@ SSOT とのつながり: AG11 は SSOT T12（自己改善）の最初の実例�
 - **AG1（予測トラック）は残す。** 世界モデル（因果の理解）を測る専用の物差しで、この道具とは役割が違う。ただし、eval の山登りより後に回す。
 
 トラック E の新しい順序: ① `eval-audit` で既存 eval を診断 → ② `build-eval` で Capafy の流れ → ③ `hillclimb`（目標は費用、`cost-hillclimb.md` の順序）→ ④ 勝った変更を LM の release の経路で本番へ出し、承認率・売上を readback → ⑤ アプリ・Writer・PromptBase の流れへ広げる → ⑥ AG1 以降（AG2 の台帳は SSOT T6 の後）。
-現在の cursor（トラック E）: **① eval-audit**
+現在の cursor（トラック E）: §18 を参照（ここは旧版）
 
 ## 14. お金を増やす自己改善の設計（全ループ共通。2026-09-29）
 
