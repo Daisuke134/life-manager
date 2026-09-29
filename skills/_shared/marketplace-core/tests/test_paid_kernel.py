@@ -138,6 +138,22 @@ def test_required_paid_handoff_allows_valid_funded_contract(tmp_path: Path) -> N
     assert state["intent"]["paid_handoff"]["handoff"]["funding_external_id"] == "funding-1"
 
 
+def test_required_paid_handoff_does_not_gate_pre_funding_acceptance(tmp_path: Path) -> None:
+    adapter = Adapter([observation("work-1")])
+
+    def accept(row: dict) -> dict:
+        return {"action": "accept", "payload": {"contract": row["work_id"]}}
+
+    result = paid.run_wake(
+        adapter=adapter, decide=accept, state_root=tmp_path,
+        require_paid_handoff=True,
+    )
+
+    assert result["failed"] == 0
+    assert result["effect"] == 1
+    assert "paid_handoff" not in adapter.effects[0]
+
+
 def test_required_paid_handoff_rejects_unaccepted_contract(tmp_path: Path) -> None:
     class OfferedAdapter(HandoffAdapter):
         def paid_handoff(self, work_id: str, context: dict) -> dict:

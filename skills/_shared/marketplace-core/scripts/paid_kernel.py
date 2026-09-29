@@ -26,6 +26,10 @@ from typing import Any, Callable, Mapping, Protocol
 
 
 MUTATIONS = frozenset({"answer", "submit", "formal_delivery", "cancel", "accept"})
+# ``accept`` is the pre-funding contract step.  It must remain possible to
+# accept a provider's official order before the buyer's escrow/funding
+# readback exists; the handoff gate applies only once Paid work can begin.
+FUNDED_MUTATIONS = frozenset(MUTATIONS - {"accept"})
 NO_EFFECT_CLASSIFICATIONS = frozenset({
     "completed", "awaiting_buyer", "reserved_for_owner", "satisfied_noop", "noop",
 })
@@ -385,7 +389,7 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         return _pending(row, reason)
 
     paid_handoff = None
-    if require_paid_handoff and action in MUTATIONS:
+    if require_paid_handoff and action in FUNDED_MUTATIONS:
         paid_handoff = _validate_paid_handoff(adapter, row, decision_context)
     intent = _intent(row, decision)
     if paid_handoff is not None:

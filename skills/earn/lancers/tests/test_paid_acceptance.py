@@ -15,6 +15,8 @@ import importlib.util
 from pathlib import Path
 import sys
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[4]
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -276,6 +278,115 @@ def test_terms_match_issues_exactly_one_accept_and_readback_closes(tmp_path: Pat
     assert result["effect"] == 1
     assert result["readback"] == 1
     assert result["items"][0]["status"] == "verified"
+
+
+def test_required_paid_handoff_keeps_pre_funding_acceptance_available(tmp_path: Path) -> None:
+    provider = FakeAcceptanceProvider()
+
+    def accept_then_confirm(intent: dict, detail: dict) -> None:
+        provider.accept_calls.append(dict(intent))
+        provider.confirmed = True
+
+    provider.accept_order = accept_then_confirm
+    adapter = _adapter(tmp_path, provider)
+
+    result = paid_kernel.run_wake(
+        adapter=adapter, decide=paid_adapter.decide,
+        state_root=tmp_path / "state", require_paid_handoff=True,
+    )
+
+    assert result["effect"] == 1
+    assert len(provider.accept_calls) == 1
+
+
+def test_paid_handoff_maps_a_funded_contract_and_buyer_thread() -> None:
+    module = paid_adapter
+    candidate = {
+        "source_kind": "project", "provider_id": "5605912",
+        "proposal_id": "27969614", "board_id": "board-1",
+        "detail_path": "/work/detail/5605912", "funding_status": "requires_detail_readback",
+    }
+
+    class FundedProvider:
+        def read_detail(self, _candidate):
+            return {
+                "provider_state": "funded", "project_id": "5605912",
+                "proposal_id": "27969614", "board_id": "board-1",
+                "buyer_event_id": "message-7", "buyer_context": "納品してください。",
+                "detail_body_sha256": "d" * 64,
+                "order_amount": {"kind": "fixed", "amount_jpy": 300},
+                "order_delivery_due_on": "2026-09-30",
+                "order_milestone_count": 1, "formal_delivery_required": True,
+            }
+
+    adapter = module.LancersPaidAdapter(
+        account_id="keiodaisuke",
+        inventory_reader=lambda: _snapshot([candidate]),
+        provider=FundedProvider(),
+        clock=lambda: "2026-09-29T00:00:00Z",
+    )
+    adapter.observe_active()
+    context = adapter.context("project:5605912")
+
+    bundle = adapter.paid_handoff("project:5605912", context)
+    assert bundle["contract"] == {
+        "schema_version": 1,
+        "record_type": "contract_receipt",
+        "platform": "lancers",
+        "application_external_id": "proposal:27969614",
+        "work_external_id": "project:5605912",
+        "contract_external_id": "project:5605912",
+        "status": "accepted",
+        "terms_sha256": "d" * 64,
+        "observed_at": "2026-09-29T00:00:00Z",
+    }
+    assert bundle["handoff"] == {
+        "schema_version": 1,
+        "record_type": "paid_handoff_receipt",
+        "platform": "lancers",
+        "thread_external_id": "board:board-1",
+        "contract_external_id": "project:5605912",
+        "funding_external_id": "escrow:project:5605912",
+        "scope_sha256": module._digest({
+            "source_kind": "project", "provider_id": "5605912",
+            "project_id": "5605912", "proposal_id": "27969614",
+            "buyer_event_id": "message-7", "buyer_context": "納品してください。",
+            "order_amount": {"kind": "fixed", "amount_jpy": 300},
+            "order_delivery_due_on": "2026-09-30",
+        }),
+        "artifact_requirement_sha256": module._digest({
+            "formal_delivery_required": True,
+            "order_amount": {"kind": "fixed", "amount_jpy": 300},
+            "order_delivery_due_on": "2026-09-30", "order_milestone_count": 1,
+        }),
+        "price_minor": 300,
+        "currency": "JPY",
+        "status": "funded",
+        "observed_at": "2026-09-29T00:00:00Z",
+    }
+
+
+def test_paid_handoff_fails_closed_before_funding_or_without_terms() -> None:
+    module = paid_adapter
+    candidate = {
+        "source_kind": "project", "provider_id": "5605912",
+        "proposal_id": "27969614", "board_id": "board-1",
+        "detail_path": "/work/detail/5605912", "funding_status": "requires_detail_readback",
+    }
+
+    class UnfundedProvider:
+        def read_detail(self, _candidate):
+            return {"provider_state": "requires_detail_readback", "project_id": "5605912"}
+
+    adapter = module.LancersPaidAdapter(
+        account_id="keiodaisuke", inventory_reader=lambda: _snapshot([candidate]),
+        provider=UnfundedProvider(), clock=lambda: "2026-09-29T00:00:00Z",
+    )
+    adapter.observe_active()
+    context = adapter.context("project:5605912")
+
+    with pytest.raises(RuntimeError, match="lancers_paid_handoff_unavailable"):
+        adapter.paid_handoff("project:5605912", context)
 
 
 def test_terms_mismatch_never_clicks_accept(tmp_path: Path) -> None:
