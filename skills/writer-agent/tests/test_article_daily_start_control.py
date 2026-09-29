@@ -442,6 +442,33 @@ class ArticleStartPolicyTest(unittest.TestCase):
                 self.assertEqual(START.decide(root, "2026-08-21")["action"], "block-incomplete")
 
     def test_terminalize_invalid_pair_under_shared_lock_then_quarantine(self):
+        # substack/en (an active pair) stands in for the pair carrying a
+        # stray intent target; x-article/ja moved to dormant 2026-09-29 and
+        # terminalize_pair now refuses any dormant pair on principle (a
+        # dormant pair never holds live/intent work to terminalize).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = self._duplicate_media_run(root)
+            state_path = run / "gates" / "publication-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["pairs"]["substack/en"] = {
+                "status": "intent",
+                "target": "https://x.example/draft/1",
+            }
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            before_ledger = (root / "articles.jsonl").read_bytes()
+            entry = QUARANTINE.terminalize_pair(
+                root, run.name, "substack/en", "duplicate-media-quarantine"
+            )
+            receipt = QUARANTINE.quarantine(root, run.name)
+            after = json.loads(state_path.read_text(encoding="utf-8"))
+            after_ledger = (root / "articles.jsonl").read_bytes()
+        self.assertEqual(entry["status"], "unavailable")
+        self.assertEqual(after["pairs"]["substack/en"]["target"], "https://x.example/draft/1")
+        self.assertEqual(after_ledger, before_ledger)
+        self.assertEqual(receipt["reason"], "duplicate-media")
+
+    def test_terminalize_refuses_dormant_pair(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             run = self._duplicate_media_run(root)
@@ -452,17 +479,10 @@ class ArticleStartPolicyTest(unittest.TestCase):
                 "target": "https://x.example/draft/1",
             }
             state_path.write_text(json.dumps(state), encoding="utf-8")
-            before_ledger = (root / "articles.jsonl").read_bytes()
-            entry = QUARANTINE.terminalize_pair(
-                root, run.name, "x-article/ja", "duplicate-media-quarantine"
-            )
-            receipt = QUARANTINE.quarantine(root, run.name)
-            after = json.loads(state_path.read_text(encoding="utf-8"))
-            after_ledger = (root / "articles.jsonl").read_bytes()
-        self.assertEqual(entry["status"], "unavailable")
-        self.assertEqual(after["pairs"]["x-article/ja"]["target"], "https://x.example/draft/1")
-        self.assertEqual(after_ledger, before_ledger)
-        self.assertEqual(receipt["reason"], "duplicate-media")
+            with self.assertRaises(QUARANTINE.QuarantineError):
+                QUARANTINE.terminalize_pair(
+                    root, run.name, "x-article/ja", "duplicate-media-quarantine"
+                )
 
     def test_quarantine_rejects_ambiguous_same_run_ledger_publication_flag(self):
         with tempfile.TemporaryDirectory() as tmp:

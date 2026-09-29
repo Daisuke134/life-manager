@@ -11,7 +11,6 @@ ACTIVE_REQUIRED_WITHOUT_ZENN = {
     ("note", "ja"),
     ("substack", "ja"),
     ("substack", "en"),
-    ("x-article", "ja"),
 }
 ACTIVE_REQUIRED_LIVE = ACTIVE_REQUIRED_WITHOUT_ZENN
 

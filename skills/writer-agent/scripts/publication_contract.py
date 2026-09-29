@@ -3,24 +3,38 @@
 from __future__ import annotations
 
 
-# These four destinations are the current publication obligation.  The order is
-# also the stable order used by plans and receipts.
+# These three destinations are the current publication obligation.  The order
+# is also the stable order used by plans and receipts.
 ACTIVE_PAIRS = (
     "note/ja",
     "substack/ja",
     "substack/en",
-    "x-article/ja",
 )
 
 # These configured destinations are dormant until a separately approved
 # dispatch contract enables them.  They receive durable skip receipts rather
 # than publication intents or failed/pending work.
+#
+# x-article/ja moved here 2026-09-29 (Dais): the X Articles editor is
+# permanently unreachable for our account (x-editor-unreachable, staged
+# 2026-09-28) and X distribution now goes through normal link posts via
+# Postiz instead. See NEWLY_DORMANT_PAIRS below for the one-time transition
+# handling this requires for already-persisted "active-four" runs.
 DORMANT_PAIRS = (
     "zenn-article/ja",
     "devto/en",
     "x-article/en",
     "x-post/ja",
+    "x-article/ja",
 )
+
+# Destinations that were required under a still-persisted "active-four"
+# contract label but became dormant in this contract revision. An
+# already-created run may be missing the key entirely (never staged before
+# the destination went dormant) or may carry a terminal non-skip status (e.g.
+# "unavailable" with a permanent-unavailable skip receipt) recorded before
+# the transition. Both shapes must still resume/terminate honestly.
+NEWLY_DORMANT_PAIRS = ("x-article/ja",)
 
 SUPPORTED_PAIRS = ACTIVE_PAIRS + DORMANT_PAIRS
 

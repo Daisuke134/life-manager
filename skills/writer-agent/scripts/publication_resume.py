@@ -94,6 +94,7 @@ from publication_contract import (
     ACTIVE_PAIRS,
     DORMANT_PAIRS,
     LEGACY_EXACT8_PAIRS,
+    NEWLY_DORMANT_PAIRS,
     SUPPORTED_PAIRS,
 )
 from substack_http import bytes_request as substack_bytes_request
@@ -1209,14 +1210,31 @@ class PublicationStore:
                 ):
                     return False
             return True
-        if keys != set(SUPPORTED_PAIRS):
+        if not set(required) <= keys:
             return False
         if not keys <= set(SUPPORTED_PAIRS):
+            return False
+        # A pair that only just became dormant may be entirely absent from an
+        # already-persisted "active-four"-labeled run (it never got staged
+        # before the transition). Every other configured pair must still be
+        # present exactly as before.
+        if (set(SUPPORTED_PAIRS) - keys) - set(NEWLY_DORMANT_PAIRS):
             return False
         for pair in keys - set(required):
             entry = pairs[pair]
             if not isinstance(entry, dict):
                 return False
+            if (
+                pair in NEWLY_DORMANT_PAIRS
+                and entry.get("status") == "unavailable"
+            ):
+                # A newly-dormant pair may also carry a pre-transition
+                # terminal "unavailable" entry (e.g. the permanent-unavailable
+                # skip receipt from mark_unavailable). That is closed history,
+                # not open work, exactly like a dormant skip.
+                if not isinstance(entry.get("skip_receipt"), dict):
+                    return False
+                continue
             receipt = entry.get("skip_receipt", {})
             if (
                 pair not in DORMANT_PAIRS
