@@ -2,7 +2,7 @@
 
 **Status:** T11 Cloud版のprovider・実行単位・状態所有・無料導線・販売条件の正本
 
-**Decision:** AWS Bedrock AgentCoreを隔離worker/browser/identity基盤として採用し、既存のRailway API、Inngest、Supabase PostgreSQL、Stripeを制御面として再利用する。
+**Decision:** Railway API、Inngest、Supabase PostgreSQL、Stripeをprovider-neutralな制御面として再利用する。AWS Bedrock AgentCoreは基準実装だが、CloudFormation、S3、CloudWatch Logs、Cost Explorerの購読が未有効なのでproduction採用を保留する。現在は同じ契約をDigitalOcean Managed Agents＋Steelで実測し、isolation、no-ask、browser continuity、teardown、公式cost receiptが全部通ったproviderを採用する。
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
