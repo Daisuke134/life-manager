@@ -103,12 +103,15 @@ CAPAFY_SKILL_SLUG="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys
 CAPAFY_LANDING_URL="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["landing_url"])')"
 CAPAFY_CT="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["ct"])')"
 CAPAFY_BUYER_PROBLEM="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("buyer_problem") or "")')"
-CTA_URL="${CAPAFY_LANDING_URL}?ct=${CAPAFY_CT}"
+# PromptBase links already carry ?via= (0% fee referral), so join ct with &.
+CT_SEP="?"; case "$CAPAFY_LANDING_URL" in *\?*) CT_SEP="&" ;; esac
+PRODUCT_LABEL="Capafy skill"; case "$CAPAFY_LANDING_URL" in https://promptbase.com/*) PRODUCT_LABEL="PromptBase prompt" ;; esac
+CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${CAPAFY_CT}"
 # The X post gets its OWN ct token (distinct from the article's) so Capafy's
 # traffic-sources dashboard reports aniccaai.com-article visits and X-post
 # visits as two separate rows instead of merging them under one token.
 X_CT="capafy-x-${CAPAFY_SKILL_SLUG}"
-X_CTA_URL="${CAPAFY_LANDING_URL}?ct=${X_CT}"
+X_CTA_URL="${CAPAFY_LANDING_URL}${CT_SEP}ct=${X_CT}"
 
 # The aniccaai.com blog slug is derived from date+skill (not the title), so
 # a retry on the same JST date always resolves to the exact same page
@@ -147,7 +150,7 @@ and must not touch skills/writer-agent/article-daily.sh, its state, or its
 publication ledgers.
 
 GOAL: write and publish ONE free (no paywall, no preview/paid split) English
-article promoting the Capafy skill "$CAPAFY_SKILL_SLUG" (buyer problem: $CAPAFY_BUYER_PROBLEM).
+article promoting the $PRODUCT_LABEL "$CAPAFY_SKILL_SLUG" (buyer problem: $CAPAFY_BUYER_PROBLEM).
 Follow $ARTICLE_ROOT/reference/CRAFT.md and the humanizer pass at
 $ARTICLE_ROOT/vendor/writing-skills/humanizer/SKILL.md for craft quality, and
 the IDENTITY / OPERATOR-IDENTIFIER rules in $ARTICLE_ROOT/SKILL.md (never
