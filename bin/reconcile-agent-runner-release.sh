@@ -150,8 +150,12 @@ provision_investment_manifest() {
 
 provision_investment_selection() {
   local release_root="$1"
-  local reports_path="${LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH:-}"
-  [ -n "$reports_path" ] || return 0
+  local release_sha="$2"
+  local configured_reports_path="${LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH:-}"
+  local reports_path="${configured_reports_path:-$release_root/apps/life-manager/investment-core/reviewed-validation-reports.json}"
+  if [ ! -f "$reports_path" ] && [ -z "$configured_reports_path" ]; then
+    return 0
+  fi
   local provisioner="$release_root/apps/life-manager/investment-core/provision_selection.py"
   if [ ! -f "$provisioner" ]; then
     printf 'agent-runner reconcile: configured investment validation reports have no selection provisioner\n' >&2
@@ -160,7 +164,8 @@ provision_investment_selection() {
   local selection_path="${LIFE_MANAGER_INVESTMENT_SELECTION_PATH:-$HOME/.local/state/life-manager/alpaca-investment-live/selected-strategy.json}"
   if ! "$runtime_python" "$provisioner" \
       --path "$selection_path" \
-      --reports "$reports_path"; then
+      --reports "$reports_path" \
+      --release-sha "$release_sha"; then
     printf 'agent-runner reconcile: investment strategy selection provisioning failed\n' >&2
     return 1
   fi
@@ -579,7 +584,7 @@ if ! provision_investment_manifest "$RELEASE_ROOT"; then
   printf 'agent-runner reconcile refused: investment owner manifest is not provisioned\n' >&2
   exit 1
 fi
-if ! provision_investment_selection "$RELEASE_ROOT"; then
+if ! provision_investment_selection "$RELEASE_ROOT" "$release_sha"; then
   printf 'agent-runner reconcile refused: investment strategy selection is not provisioned\n' >&2
   exit 1
 fi

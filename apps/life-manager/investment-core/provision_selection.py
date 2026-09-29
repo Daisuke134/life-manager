@@ -76,7 +76,11 @@ def _existing_selection_is_valid(value: Any) -> bool:
     return card.strategy_id == value["strategy_id"] and not validate_strategy_card(card)
 
 
-def _selection_payload(selection: dict[str, Any], source_reports: list[dict[str, Any]]) -> dict[str, Any]:
+def _selection_payload(
+    selection: dict[str, Any],
+    source_reports: list[dict[str, Any]],
+    runtime_release_sha: str | None = None,
+) -> dict[str, Any]:
     if selection.get("selection") != "selected":
         raise SelectionProvisionError("no_strategy_selected")
     report_id = selection.get("report_id")
@@ -96,6 +100,8 @@ def _selection_payload(selection: dict[str, Any], source_reports: list[dict[str,
     )
     if source is None:
         raise SelectionProvisionError("selected_strategy_invalid")
+    if runtime_release_sha is not None and not is_valid_release_sha(runtime_release_sha):
+        raise SelectionProvisionError("runtime_release_sha_invalid")
     expires_at = source.get("expires_at")
     if not isinstance(expires_at, str) or not expires_at.strip():
         raise SelectionProvisionError("validation_report_expiry_missing")
@@ -105,12 +111,12 @@ def _selection_payload(selection: dict[str, Any], source_reports: list[dict[str,
         raise SelectionProvisionError("validation_report_expiry_invalid") from error
     if expires.tzinfo is None or expires <= datetime.now(timezone.utc):
         raise SelectionProvisionError("validation_report_expired")
-    return {
+    payload = {
         "selection": "selected",
         "strategy_id": selection.get("strategy_id"),
         "venue": selection.get("venue"),
         "report_id": report_id,
-        "release_sha": selection.get("release_sha"),
+        "release_sha": runtime_release_sha or selection.get("release_sha"),
         "card": selection.get("card"),
         "holdout": selection.get("holdout"),
         "cost_model": selection.get("cost_model"),
@@ -118,9 +124,16 @@ def _selection_payload(selection: dict[str, Any], source_reports: list[dict[str,
         "observed_at": source.get("observed_at"),
         "expires_at": expires_at,
     }
+    if runtime_release_sha is not None:
+        payload["report_release_sha"] = selection.get("release_sha")
+    return payload
 
 
-def provision_selection(path: str | Path, reports_path: str | Path) -> dict[str, str]:
+def provision_selection(
+    path: str | Path,
+    reports_path: str | Path,
+    runtime_release_sha: str | None = None,
+) -> dict[str, str]:
     """Create a selected state once; never overwrite an existing owner state."""
     destination = Path(path).expanduser()
     if destination.is_symlink():
@@ -136,7 +149,7 @@ def provision_selection(path: str | Path, reports_path: str | Path) -> dict[str,
 
     reports = _read_reports(Path(reports_path).expanduser())
     selection = select_strategy(reports)
-    payload = _selection_payload(selection, reports)
+    payload = _selection_payload(selection, reports, runtime_release_sha)
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     destination.parent.chmod(0o700)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -148,9 +161,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--path", required=True)
     parser.add_argument("--reports", required=True)
+    parser.add_argument("--release-sha")
     args = parser.parse_args(argv)
     try:
-        result = provision_selection(args.path, args.reports)
+        result = provision_selection(args.path, args.reports, args.release_sha)
     except SelectionProvisionError as error:
         print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         return 1

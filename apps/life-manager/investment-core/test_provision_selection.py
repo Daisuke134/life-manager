@@ -53,6 +53,19 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
             self.assertEqual(stat.S_IMODE(destination.parent.stat().st_mode), 0o700)
 
+    def test_handoff_release_sha_overrides_evaluation_sha_and_preserves_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "state" / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+
+            provision_selection(destination, reports, runtime_release_sha="b" * 40)
+
+            payload = json.loads(destination.read_text(encoding="utf-8"))
+            self.assertEqual(payload["release_sha"], "b" * 40)
+            self.assertEqual(payload["report_release_sha"], "a" * 40)
+
     def test_rejected_reports_do_not_create_selection(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

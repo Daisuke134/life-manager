@@ -83,7 +83,8 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
 
     def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",),
                        labels=None, with_investment_provisioner=False,
-                       with_investment_selection_provisioner=False):
+                       with_investment_selection_provisioner=False,
+                       with_reviewed_validation_reports=False):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
         (release_dir / "bin").mkdir(parents=True)
         (release_dir / "config").mkdir(parents=True)
@@ -126,6 +127,10 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 ")\n",
                 encoding="utf-8",
             )
+            if with_reviewed_validation_reports:
+                (release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").write_text(
+                    "{\"reports\": []}\n", encoding="utf-8",
+                )
         if release_paths != "ALL":
             # `$CURRENT/bin/cut-loop-release.sh` is preferred over the source repo's; stub it as a
             # no-op so a sparse/candidate `current` (which forces `current_complete=0`) doesn't
@@ -286,6 +291,7 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 [
                     "--path", str(root / "state/selected-strategy.json"),
                     "--reports", str(root / "state/validation-reports.json"),
+                    "--release-sha", sha,
                 ],
             )
 
@@ -309,6 +315,32 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(self._apply_call_count(calls_log), 0)
+
+    def test_release_handoff_uses_release_reviewed_reports_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+                with_reviewed_validation_reports=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "selection-provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(marker)
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(marker.read_text(encoding="utf-8"))["argv"],
+                [
+                    "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"),
+                    "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                    "--release-sha", sha,
+                ],
+            )
 
     def test_descendant_holding_stdout_does_not_stall_the_apply(self):
         # A process started during apply that keeps stdout open made the first
