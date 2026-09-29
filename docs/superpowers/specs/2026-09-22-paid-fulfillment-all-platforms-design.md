@@ -6367,3 +6367,18 @@ ordering notes without declaring any external effect complete.
 12. **Final promotion — OPEN.** After all platform canaries and replay-zero
     checks pass, merge/admin-promote once, cut the main-derived immutable
     release, and read back every owner and provider receipt.
+
+### Latest main and external current-release readback — 2026-09-30 08:17 JST
+
+- [x] The dedicated branch was rebased successfully onto the latest
+  `origin/main` at `9a76dcc87dfe2e24958ef19f6a69f871df4dbef1`; the branch is
+  clean, pushed, and currently has no behind commits relative to `origin/main`.
+- [x] The live `/Users/anicca/loops/current` pointer is an external,
+  main-derived release at
+  `/Users/anicca/loops/releases/20260930T081405-9a76dcc8`, with source SHA
+  `9a76dcc87dfe2e24958ef19f6a69f871df4dbef1`. This release was not cut from
+  this branch and was not reverted or mutated here.
+- [ ] This external release readback does not prove that the dedicated branch
+  changes are live. Candidate capacity, provenance acceptance, live-owner
+  transition, provider readbacks, and final promotion remain open exactly as
+  listed in the atomic cursor above.
