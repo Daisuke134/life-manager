@@ -110,6 +110,57 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertTrue(result["approved"])
         self.assertEqual(result["gate"], "approved")
 
+    def test_paper_etf_entry_is_rejected_outside_regular_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            _selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot["clock"] = {"timestamp": NOW, "is_open": False}
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["regular_session"])
+        self.assertEqual(result["gate"], "risk_rejected")
+
+    def test_paper_etf_exit_is_rejected_outside_regular_session(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ), patch.object(allocator, "evaluate", return_value={
+            "action": "EXIT",
+            "strategy_id": ETF_ID,
+            "symbol": "QQQ",
+            "decision_session": "2026-09-29",
+            "entry_after_session": None,
+            "signal_inputs": {"held_symbol": "QQQ"},
+            "reason": "hold_sessions_elapsed",
+            "expected_cost_usd": "0.02",
+        }):
+            state = Path(directory) / "state"
+            _selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "clock": {"timestamp": NOW, "is_open": False},
+                "positions": 1,
+                "position": {
+                    "owner_id": "alpaca-investment-paper",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": "2026-09-01",
+                },
+            })
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["regular_session"])
+        self.assertEqual(result["gate"], "exit_rejected")
+
     def test_paper_owner_identity_is_not_live_owner(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(
             os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},

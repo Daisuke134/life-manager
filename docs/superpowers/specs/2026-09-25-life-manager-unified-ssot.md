@@ -1101,3 +1101,39 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **main統合後の投資production handoff（2026-09-29）**: PR #6186をsquash mergeし、mainは`f30eba5244841f5761fa3b5ebe886782a39a3b43`になった。main由来immutable release `/Users/anicca/loops/releases/20260929T191325-f30eba52`（`release_paths=ALL`）を作成し、`investment-strategy-validation`、`alpaca-investment-paper`、`alpaca-investment-live`、`investment-cross-venue-report`だけへtarget applyした。4件すべて`ok=true`で、loaded argvは同releaseの`bin/lm-loop-run`・loop ID・release rootを指し、`launchd_state=loaded-idle`、ownerは`life-manager`、paper/live/cross-venueのstate rootは分離されている。Capafy／PromptBaseのlabelはapply対象にしていない。
 
 **handoff後の収益readback（2026-09-29、read-only）**: 新release適用後もpaperの新しい公式filled order／provider receiptはまだなく、直近passは旧release由来である。liveは旧effect-unknownを公式Alpaca readback（occurrence後の注文なし）でresolveしたが、利益を生んだ取引ではない。cross-venueは旧occurrenceのdaily receiptとTelegram provider message IDが未結合のためfenceを解放していない。allocationは`$0.00`、rolling 30日net P&Lは`null`、capital expansionは`false`、Hyperliquid／Solana snapshotはmissing。したがって実現投資収益は`$0`、月次投資revenueは`$0`であり、次のcursorは`INV-002`（自然paper wakeでorder/fill/account/position/provider receiptを1件取得）である。
+
+**自然paper wakeの最新readback（2026-09-29、read-only）**: main由来release `20260929T191325-f30eba52`のLife Manager ownerが`alpaca-investment-paper:18d9c37320048000-84811`を自然実行し、loop eventは`pass`・exit `0`だった。ただし`provider_receipt_id=null`、`official_readback_ref=null`で、receiptには`effect_intent`／`broker_status=accepted`／`status=reconciliation_pending`が残った。公式Alpaca paper APIのGET照会では、対応する注文は`QQQ`・`buy`・notional `$10`・`status=accepted`・`filled_qty=0`・`filled_avg_price=null`であり、約定・round trip・利益はまだない。これはpaper注文の未確定effectであり、real moneyではない。blind retryはせず、公式terminal readbackとaccount／position readbackが揃うまでeffect fenceを保持する。既存のhistorical paper campaignの`realized_pnl_usd=-3.00`やresearch holdoutの`+$1.62`は、今回の自然paper収益でもcost-completeなreal revenueでもない。
+
+**現在の収益判定とTODO正本（2026-09-29）**: 検証済み実現投資収益は`$0`、月次投資revenueは`$0`、live注文・wallet mutation・Binance送金・yield depositは`0`。投資sourceは継続可能で、現在のcursorは`INV-002`（paper effect pending）である。残りは次の順序で進める。
+
+1. **[進行中 / INV-002]** 現在の`QQQ` paper注文を自然schedulerと公式Alpaca readbackでterminal状態へ確定する。fillが無ければ注文を再送せず、fillがあればentry／exit／account／position／provider receiptを同一occurrenceへ結び付ける。
+2. **[未完]** `investment-cross-venue-report`の旧occurrenceを、同一occurrenceの日次receipt・Telegram delivery・provider message IDが揃った場合だけreconcileする。証拠が無い間はheldのままにする。
+3. **[未完]** `investment-strategy-validation`のnatural runとpaperの完了round tripを取得する。`accepted`、wake回数、research/backtest値は利益に数えない。
+4. **[未完]** entry／exit、fee、slippage、funding／borrow、gas、model costを含むcost-complete net P&Lを確定する。どれかが`unknown`なら利益を報告しない。
+5. **[未完]** replay-zeroを確認したpositiveなcost-complete natural round tripを`30/30`測定する。それまではcap増額、Binance送金、live注文、meme coin署名、yield depositをしない。
+6. **[未完]** `30/30`後にだけbounded promotionを審査し、その後Hyperliquid、Solana／Pump.fun、yieldをshadow→paper→bounded canaryの順で比較する。rolling net P&Lが公式receiptから実測できた場合だけ月次収益を報告する。
+
+**自然reconcileの継続readback（2026-09-29 10:26 UTC）**: `alpaca-investment-paper`は同じ未確定effectに対して自然schedulerを再実行し、`NO_TRADE`・`reason=effect_fence`・exit `0`で終了した。新しいeffect intentや重複注文は作られていない。公式paper注文は引き続き`QQQ`・`accepted`・`filled_qty=0`・`filled_avg_price=null`で、次回eligible runは`300s`。これは安全な重複防止の実測であり、収益・約定・round tripではない。`investment-cross-venue-report`は`delivery_uncertain`、outbox attempt `1`、`provider_message_id=null`、allocation `$0.00`、rolling 30日net P&L `null`、Hyperliquid／Solana snapshot missingのままであるため、既存occurrenceはheldとする。
+
+**validation loopの自然実行状態（2026-09-29 10:28 UTC）**: `investment-strategy-validation`はLife Manager ownerで`loaded-idle`、installed releaseはmain由来だが、occurrence・terminal result・provider receiptはまだ無く、next eligibleは`interval:604800s`。手動wakeは自然測定に数えず、現時点ではこのTODOを未完のまま保持する。
+
+**cross-venue deliveryの追加readback（2026-09-29）**: 同じimmutable releaseのTelegram client設定は送信なしの`getMe`・`getChat`がPASSし、outbox本文は486文字・1 chunkだった。Telegram user MTProto履歴のread-only照合は履歴38件中、対象outbox本文SHAとの完全一致が`0`件だった。これはdelivery成功の公式receiptではなく、送信後の不確実性を安全に解消する陰性証拠にもならないため、旧occurrenceのfenceはheldのまま、再送も行わない。将来、occurrenceに結び付いたdaily receipt・outbox `delivered`・provider message IDの三者が揃った場合だけreconcileする。
+
+**paper自然wakeの再確認（2026-09-29 10:37 UTC）**: 直前の`host_admission_deferred:resource_capacity_busy`（exit `75`）後、次の`alpaca-investment-paper:18d9c44acda45dc0-42418`は`pass`・exit `0`へ復帰した。公式Alpaca readbackはmarket `is_open=false`、次回open `09:30 EDT`、QQQ注文`accepted`・`filled_qty=0`・`filled_avg_price=null`、positions空、provider receiptなし。capacity deferはprovider effect前で、今回の復帰も取引・利益ではない。INV-002は市場開場後の同一order terminal readbackまで継続する。
+
+**promotion gateの最新readback（2026-09-29）**: 既存live公式performance snapshotは`measurement_status=measured`だが、net P&L `-$0.15`（realized `-$0.10`、unrealized `-$0.05`、fees `$0.01`）、completed round trips `1/30`、current cap `$100`、`capital_expansion_allowed=false`。reject理由は`net_non_positive`、`sample_insufficient`、`cost_unknown`、`venue_unhealthy`。これは過去canaryの公式損益測定であり、月次収益ではない。cap増額・Binance送金・live注文の再開は行わない。
+
+**投資sourceの市場時間ゲート修正（2026-09-29）**: read-only code reviewで、`skills/alpaca-investment/allocator.py`の`us_equity` entry/exit gateがAlpaca clockの`is_open`を要求していないことを確認した。これが市場時間外にQQQ paper market orderが作成され得る自己所有の実装欠陥だった。既存のQQQ order（`lm-ai-d3935170807d46a7a5cde38e` / provider `24cc2687-f718-4019-83f1-b5928c47525c`）は再送・取消せず、公式状態`accepted`・`filled_qty=0`・`filled_avg_price=null`のまま自然reconcileに任せる。entry/exitの両方に`regular_session` gateを追加し、回帰テストを追加した。focused `8/8`、Alpaca全体`246/246`、investment-core`132/132`、`git diff --check`をPASSした。これはbranch上のsource修正であり、production release・provider effect・P&Lはまだ変わっていない。
+
+**投資収益の真実（同readback時点）**: 実現した月次収益は`$0`。paper accountの未約定注文は利益ではなく、research/backtestのholdout値も利益ではない。過去live公式snapshotはnet `-$0.15`、round trip `1/30`、cap `$100`でpromotion reject。したがって「今、投資loopが金を作っているか」への答えは**いいえ**であり、Binanceからの追加送金、wallet funding、live order、meme coin署名、yield depositはまだ行わない。
+
+**投資TODOの残り（現在の実行順・正本）**:
+
+1. このmarket-hours source修正とspec/planを専用branchへcommit・pushし、required checksを確認する。未releaseのsource PASSをproduction PASSと混同しない。
+2. required checksがgreenになったらmainへ統合し、main由来immutable releaseを作成する。Life Managerの通常owner pathで新releaseをapplyし、loaded SHA・argv/env・admissionをreadbackする。
+3. 新releaseのfence reconcilerを自然wakeさせ、旧cross-venue `effect_unknown` occurrenceに公式receipt/readbackがあるか確認する。証拠が無ければ解放・再送しない。
+4. その後、自然wakeで既存QQQ orderを再送せず、official terminal status（filledまたはcanceled/expired/rejected）とaccount/position/fill receiptを確認する。`accepted`やzero-fill pendingはsample・利益・round tripに数えない。
+5. `investment-strategy-validation`の自然receiptと`investment-cross-venue-report`の同一occurrence receiptを取得し、entry/exit fee、slippage、funding/borrow、gas、model costを含むcost-complete net P&Lを生成する。unknownは利益に数えない。
+6. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
+7. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
+8. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
