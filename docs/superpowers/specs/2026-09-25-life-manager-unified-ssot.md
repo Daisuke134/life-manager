@@ -309,7 +309,7 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
    - [x] K1 2026-09-29 23:40 JST の `lm-loop start` run で 1037238583（Football Match Analyst v1.0.1）が全段階（prepare → CP1 → CP2 exit 0 → CP3 → final verify → ledger）を通り platform_status=1・skills/config confirmed・model DeepSeek V4.1 Flash（Capafy API）。今日の 4 修正後の初の完走
    - [x] K1b（#60908370、release 20260929T235132-60908370 を plist で確認）提出成功なのに daily_loop が `BLOCKED — post-verdict=PUBLISHABLE` と表示し self-fix を呼ぶ誤判定を直す（post-verdict の再判定が成功を見ていない）
    - [~] K2 1 回目 ✅ 2026-09-30 00:12 の自然 run（起動なし）が 2264929931 Dissertation Discussion Humanizer v1.0.1 を platform_status=1・confirmed・DeepSeek V4.1 Flash（Capafy API、00:18 更新）。run は HEALTHY-IDLE / CAP_FULL（審査枠が満杯で正常待機）。2 回目は承認で枠が空いた後の自然 run で確認
-   - [ ] K3 宣伝の X 投稿が実行枠内に終わらない原因を直す（capafy_x_post の待ち時間とモデル実行の枠の関係）→ 自然 run の枠で記事 200 + X PUBLISHED
+   - [x] K3（#b26ab310、plist で release 20260930T003021-b26ab310 を確認）X 投稿を agent の外（wrapper）へ移した。worktree の h00 run で記事 https://aniccaai.com/blog/capafy-reels-hook-lab-2026-09-30-h00 = 200・ct 付き、X PUBLISHED https://twitter.com/selawmqt/status/2104956828748779987。K4 は 04:15 の自然 run（h03 枠）で確認（01:15 は h00 枠済みで重複せず skip が正しい）。旧記述: 宣伝の X 投稿が実行枠内に終わらない原因を直す（capafy_x_post の待ち時間とモデル実行の枠の関係）→ 自然 run の枠で記事 200 + X PUBLISHED
    - [ ] K4 次の枠も人の手なしで記事と X
    - [ ] K5 9/15 から審査中の 5 本: 9/28 の問い合わせへの返事を Gmail で確認、無ければ再送
    - → Capafy 完了を記録
