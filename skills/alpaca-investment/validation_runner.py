@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Run the bounded, paper-only ETF validation and refresh selected strategy state."""
 
 from __future__ import annotations
