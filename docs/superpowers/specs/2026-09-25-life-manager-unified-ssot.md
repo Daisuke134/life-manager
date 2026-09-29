@@ -3260,3 +3260,20 @@ platform回帰後、Coconala/Ryuさんの公式DM readbackを進めるため既�
 4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一thread公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
 5. **未完** Lancers Human Verification解除後の公式preflight 2回、全platformのaccount-bound authorization・実adapter・canary・rollback・settlement・replay-zeroを取得する。
 6. **未完** 空き容量をsafe allow-listで512MiB以上へ回復し、main受入→immutable release→targeted production apply後にcleanup natural terminalと旧`ENOSPC`非再発を確認する。
+
+## 現在の正本cursor（2026-09-30、extension未接続とcleanup 51回目再現後・EOF最新）
+
+最新read-only再確認では`bsk status --json`がdaemon稼働を返す一方、`browsers=[]`のままだった。`bsk doctor`もextension接続だけFAILで、CloakBrowser操作へ進めない。既存Coconala CDPはbrowser-skillの代替に使っていない。
+
+- production旧releaseの`ai.anicca.life-manager-disk-cleanup`は51回目の自然runを終え、`last exit code=1`。stderrはrecovery intent append、gc-trash rename、terminal eventの`ENOSPC`を再現した。空き容量は約316MiBで512MiB floor未満。
+- branch `c900d7f6db`はpush済みで、直前のplatform回帰証跡は全てPASS。ただし外部browser接続、Lancers Human Verification解除、Ryuさん公式DM receipt、main統合、production applyは未完。
+- provider効果: 今回0件。Coconala DM readback・送信・応募・納品は行っていない。`reconcile_unknown`を成功扱いにしない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** 既存Chromeの対象profileでBrowserSkill extensionを接続し、`bsk browsers --json`で対象instanceを確認する。daemon再起動・別backend切替・認証情報抽出はしない。
+2. **未完** 接続後、Coconala専用tabを作成または借用してthread `10107358`をread-only確認し、最新受信・添付・公式送信履歴を取得する。
+3. **未完** 画像復元、女の子検索変更、相互リンク等を一つの最終本文へ統合し、既存intentと重複しないeffect keyを確定する。
+4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一thread公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
+5. **未完** Lancers Human Verification解除後のpreflight 2回、全platformのaccount-bound authorization・実adapter・canary・rollback・settlement・replay-zeroを取得する。
+6. **未完** safe allow-listで空き容量を512MiB以上へ戻し、branchのimmutable releaseをmain受入後にproductionへ適用し、旧`ENOSPC`非再発を自然runで確認する。
