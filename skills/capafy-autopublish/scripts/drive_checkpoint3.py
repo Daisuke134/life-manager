@@ -30,7 +30,7 @@ from drive_checkpoint2 import (
 CP3_HOST = "capafy.ai"
 CP3_PATH = "/developer/createAgent"
 CP3_NAV_TIMEOUT_S = 10.0
-CP3_HYDRATE_TIMEOUT_S = 10.0
+CP3_HYDRATE_TIMEOUT_S = 30.0
 CP3_POLL_S = 0.25
 
 
@@ -141,7 +141,20 @@ SUBMIT_STATE_JS = """(() => {
   const all = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['審査に提出','Submit for Review'].includes((b.textContent || '').trim()));
   const enabled = all.filter(b => !b.disabled);
   const confirms = [...document.querySelectorAll('button')].filter(b => visible(b) && ['提出を確認','Confirm Submit'].includes((b.textContent || '').trim()));
-  return {count: all.length, enabled: enabled.length, disabled: all.filter(b => b.disabled).length, confirms: confirms.length};
+  const drafts = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','Save Draft'].includes((b.textContent || '').trim()));
+  return {count: all.length, enabled: enabled.length, disabled: all.filter(b => b.disabled).length, confirms: confirms.length, drafts: drafts.length};
+})()"""
+
+
+# Editing the version-update fields flips finalReviewSubmitButton to 下書き保存
+# until the draft is saved; only then does it read 審査に提出 again (TikTok
+# Script Pro 2844813315, 2026-09-29 14:50 JST: "did not hydrate before deadline").
+DRAFT_SAVE_CLICK_JS = """(() => {
+  const visible = b => !!(b.offsetWidth || b.offsetHeight || b.getClientRects().length);
+  const xs = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','Save Draft'].includes((b.textContent || '').trim()) && !b.disabled);
+  if (xs.length !== 1) return {ok:false, count:xs.length};
+  xs[0].click();
+  return {ok:true};
 })()"""
 
 
@@ -249,10 +262,17 @@ def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
     _fill_version_update_if_required(page, update_info)
 
     deadline = time.monotonic() + CP3_HYDRATE_TIMEOUT_S
+    draft_saved = False
     while time.monotonic() < deadline:
         state = _bounded_page_evaluate(page, SUBMIT_STATE_JS, deadline)
         if not isinstance(state, dict):
             raise RuntimeError("CP3 submit state unavailable")
+        if state.get("count", 0) == 0 and state.get("drafts") == 1 and not draft_saved:
+            saved = _bounded_page_evaluate(page, DRAFT_SAVE_CLICK_JS, deadline)
+            draft_saved = isinstance(saved, dict) and bool(saved.get("ok"))
+            print(f"CP3 saved pending draft edits before submit: {draft_saved}")
+            time.sleep(CP3_POLL_S)
+            continue
         if state.get("count", 0) > 1 or state.get("enabled", 0) > 1:
             raise RuntimeError(f"CP3 submit button is ambiguous: {state}")
         if state.get("count") == 1:
