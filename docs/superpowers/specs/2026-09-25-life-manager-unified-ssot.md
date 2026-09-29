@@ -19,7 +19,7 @@ PASS、replay-zero のreadbackが揃うまで未完了である。
 
 | room / buyer | 実測状態 | 判定 |
 |---|---|---|
-| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** 認証済みCoconala CDP targetが現在0件なので、先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
+| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** CDP targetはあるが現在のCoconalaページはHTTP `403 Forbidden`で、認証済みroom readbackになっていない。先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
 | Chii `18180857` | `WORK_REQUIRED`、`取引中`、v8、`formal_delivery_confirmed=false`。active feedback `0eb850e0…070edb9`、buyer-visible artifactはローカル上 `false`、直近skipは `pass_order_limit_reached`。queueが同一cycleを繰り返し選択している。 | **緊急のPaid手動reconcile対象。** 成果物生成だけでなく、購入者画面で見えるartifact、公式receipt/readback、必要なら一度だけformal deliveryを確認してから閉じる。 |
 | NPO rooms `18223833` / `18250352` | `取引中`、v16b/v15、next_action=`await_buyer_feedback`。既存artifact/readbackはあるが、active cycleはローカルstate上残る。 | 返信待ちとして保持。新規buyer指示の公式readbackが出た時だけ次のcycleへ進む。 |
 
