@@ -6267,3 +6267,15 @@ retried or resent.
   the named local Paid occurrence is not retried or reclassified from stale
   data. Next action is to restore/read the existing Mercor browser owner and
   obtain a fresh official snapshot before any contract or payment effect.
+
+### Mercor owner-state diagnosis — 2026-09-30 08:21 JST
+
+- [x] The supported launchd control-plane preflight currently passes for
+  `gui/501`, but there is no running Mercor browser or Mercor loop process in
+  the live process readback. Both Mercor launch agents are present under
+  `~/.local/state/anicca/job-search/disabled-launchagents/`.
+- [ ] This narrows the blocker from an unknown provider failure to an
+  externally disabled/unloaded Mercor owner. No enable, bootstrap, kickstart,
+  browser launch, or authentication action is performed in this pass because
+  it would mutate live launchd/browser state; the fresh official-inventory
+  TODO remains open.
