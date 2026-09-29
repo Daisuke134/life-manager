@@ -169,6 +169,18 @@ crowdworks_opportunity_observation = _module(
     "crowdworks_opportunity_observation",
     Path(__file__).with_name("opportunity_observation.py"),
 )
+_CROWDWORKS_PLATFORM_MANIFEST_RUNTIME = None
+
+
+def _crowdworks_platform_manifest_runtime():
+    """Load the read-only Meta Loop bridge at the live application boundary."""
+    global _CROWDWORKS_PLATFORM_MANIFEST_RUNTIME
+    if _CROWDWORKS_PLATFORM_MANIFEST_RUNTIME is None:
+        _CROWDWORKS_PLATFORM_MANIFEST_RUNTIME = _module(
+            "crowdworks_platform_manifest_runtime",
+            Path(__file__).with_name("crowdworks_platform_manifest_runtime.py"),
+        )
+    return _CROWDWORKS_PLATFORM_MANIFEST_RUNTIME
 
 
 def _write_observation_summary(path, payload):
@@ -230,6 +242,44 @@ def record_crowdworks_observation_source_failure(evidence_dir, pass_id, error):
         "error": str(error)[:200],
         "next_action": "retry_crowdworks_public_snapshot_read_only",
     })
+
+
+def record_live_crowdworks_platform_manifest_wake(
+    *,
+    snapshot,
+    evidence_dir,
+    pass_id,
+    candidate_root=None,
+    run_root=None,
+    observed_at=None,
+    source_discoverers=None,
+):
+    """Persist account/profile-only platform state before CrowdWorks job effects."""
+    normalized_pass_id = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(pass_id)).strip("-") or "wake"
+    run_id = f"crowdworks-natural-{normalized_pass_id}"[:128]
+    try:
+        summary = _crowdworks_platform_manifest_runtime().run_crowdworks_platform_manifest_wake(
+            snapshot=snapshot,
+            candidate_root=candidate_root,
+            run_root=run_root,
+            run_id=run_id,
+            observed_at=observed_at,
+            source_discoverers=source_discoverers,
+        )
+    except Exception as error:  # noqa: BLE001 - no provider effect after an unrecorded source
+        raise RuntimeError(
+            f"crowdworks_platform_manifest_wake_failed:{type(error).__name__}"
+        ) from error
+    payload = {
+        "version": 1,
+        "status": summary["status"],
+        "pass_id": pass_id,
+        "run_id": run_id,
+        "read_only": True,
+        **summary,
+    }
+    _write_observation_summary(Path(evidence_dir) / "platform-manifest-wake.json", payload)
+    return payload
 
 def _applied():
     """Projects already applied to or durably awaiting official reconciliation.
@@ -466,8 +516,26 @@ def main():
             browser=account._browser(account.CDP_URL);page=browser.contexts[0].new_page()
             try:
                 configured=profile.run_apply(page=page,receipt_path=STATE/"profile-receipt.json")
-                imported=_reconcile(page) if configured.get("ok") else 0
-                if not configured.get("ok"):
+                manifest_error = None
+                try:
+                    platform_runtime = _crowdworks_platform_manifest_runtime()
+                    platform_snapshot = platform_runtime.build_live_snapshot(
+                        authenticated=bool(ensured.authenticated),
+                        profile_readback=bool(configured.get("ok")),
+                        observed_at=now.isoformat(),
+                    )
+                    record_live_crowdworks_platform_manifest_wake(
+                        snapshot=platform_snapshot,
+                        evidence_dir=STATE / "platform-manifest-evidence" / f"run-{uuid.uuid4().hex}",
+                        pass_id=os.environ.get("LIFE_MANAGER_OCCURRENCE_ID") or f"run-{uuid.uuid4().hex}",
+                        observed_at=now.isoformat(),
+                    )
+                except Exception as error:
+                    manifest_error = error
+                imported=_reconcile(page) if configured.get("ok") and manifest_error is None else 0
+                if manifest_error is not None:
+                    result={"ok":False,"status":"platform_manifest_wake_failed","error":"platform_manifest_wake_failed","effect_delta":0}
+                elif not configured.get("ok"):
                     result={"ok":False,"status":configured.get("error","profile_incomplete"),"effect_delta":0}
                 else:
                     try:

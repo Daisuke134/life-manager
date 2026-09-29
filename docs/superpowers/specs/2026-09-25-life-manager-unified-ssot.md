@@ -2376,15 +2376,16 @@ Lancers／CrowdWorks／Mercor manifest各4件、compile、`lm-loop-contract ok=t
 
 ---
 
-## 現在の正本cursor（2026-09-30、Lancers natural-wake接続後）
+## 現在の正本cursor（2026-09-30、CrowdWorks natural-wake接続後）
 
-`fix/source-reconcile-20260930`で、CoconalaとLancersの自然wake入口をread-only Meta Loop cycleへ接続した。
-Coconalaは既存onboarding receiptを読み、Lancersは`work_sync`が保存する`contracts.json`からlogged-in／source-complete／board・reply・unread
-countだけを抽出する。案件・契約候補・本文はmanifestへ渡さず、未設定のCrowdWorks／Mercor sourceは`partial`としてdurableに記録する。
-両platformのpolicy／funded／canary／economicsはunknownのためcandidateは`hold`であり、このbridgeは応募・返信・納品・owner登録・決済を呼ばない。
+`fix/source-reconcile-20260930`で、Coconala、Lancers、CrowdWorksの自然wake入口をread-only Meta Loop cycleへ接続した。
+Coconalaは既存onboarding receipt、Lancersは`work_sync`が保存する`contracts.json`のlogged-in／source-complete／board・reply・unread
+count、CrowdWorksはlive pageのauthenticated／profile readbackを使う。案件・契約候補・本文はmanifestへ渡さず、未設定のMercor sourceは
+`partial`としてdurableに記録する。3 platformのpolicy／funded／canary／economicsはunknownのためcandidateは`hold`であり、bridgeは
+応募・返信・納品・owner登録・決済を呼ばない。
 
-この段階はCoconalaがreceipt経由、Lancersがwork-sync account snapshot経由で接続された状態であり、Coconalaの実collector直接注入、
-CrowdWorks／Mercorの各自然wake caller、production release反映、provider receipt／公式readbackを完了扱いにしない。
+この段階はCoconalaがreceipt経由、Lancersがwork-sync account snapshot経由、CrowdWorksがlive account/profile readback経由で接続された
+状態であり、Coconalaの実collector直接注入、Mercor自然wake caller、production release反映、provider receipt／公式readbackを完了扱いにしない。
 
 ### 原子TODO（この節が最新の実行順正本）
 
@@ -2393,18 +2394,21 @@ CrowdWorks／Mercorの各自然wake caller、production release反映、provider
    案件`request_details`をplatform manifestへ混ぜず、失敗は`partial`／`hold`で止める。
 2. **完了** Lancers `work_sync.run_tick`がlogged-in／source-complete／board・reply・unread stateを`contracts.json`へ保存し、
    application `run_loop`がprovider discovery/effect前にmanifest cycleへ渡す。案件・契約候補は除外し、source欠落はtyped `partial`とする。
-3. **未完** CrowdWorksとMercorの各自然wake callerにも同じread-only cycle接続を実装し、実collector snapshotを注入する。
-   各callerはprovider mutationを呼ばず、source欠落・認証なし・案件観測混入をdurableに残す。
-4. **未完** 全source接続をfocused／全affected suiteで受入し、最新mainへreconcile、main由来immutable releaseを作成する。
+3. **完了** CrowdWorks `application_owner.main`がlive account認証とprofile readbackからplatform snapshotを作り、案件探索・応募前にcycleへ渡す。
+   `jobs`／`opportunities`／契約本文は除外し、source failureはtyped `partial`として残す。
+4. **未完** Mercorの自然wake callerにも同じread-only cycle接続を実装し、実collector snapshotを注入する。source欠落・認証なし・
+   案件観測混入はdurableに残し、provider mutationを呼ばない。
+5. **未完** 全source接続をfocused／全affected suiteで受入し、最新mainへreconcile、main由来immutable releaseを作成する。
    loaded SHA、plist argv/env、identity lease、rollback receiptを公式readbackで一致させるまでproduction完了と数えない。
-5. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserが
+6. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserが
    0の間は再送・正式納品・receiptなしのeffect fence解放をしない。
-6. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
-7. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+7. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+8. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
    canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
-8. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
+9. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
    rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
 
 検証済み（このcursor）: Coconala natural-wake bridge focused 1件、Lancers natural-wake bridge focused 4件、Lancers全suite269件、
-Marketplace Core332件、compile、`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の証拠であり、実provider receipt、
+CrowdWorks natural-wake bridge focused 3件、CrowdWorks全suite276件、Marketplace Core332件、compile、`lm-loop-contract ok=true`、
+`git diff --check`。これはsource/runtime契約の証拠であり、実provider receipt、
 公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。
