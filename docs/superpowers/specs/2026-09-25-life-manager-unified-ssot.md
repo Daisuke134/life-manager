@@ -1417,3 +1417,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - occurrence journalの集計は履歴行を含むが、`agent/revenue/revenue`に`claimed=10505`、`queued=4299`があり、直近claimedには複数のagent/revenue ownerが存在する。これはhost全体のcapacity競合を示すreadbackであり、他ownerのコードやCapafyを投資TODOへ取り込む根拠にはしない。
 - 投資ownerは自動retryを継続する。`AT-13`の完了条件は変わらず、strategyが新しいdaily sessionで自然exit decisionを出し、そのdecision receiptを残すことだけである。手動wake、手動sell、再送、global scheduler変更は行わない。
 - 現在のAtomic Todo cursorは`AT-13`、完了済みは`AT-01`〜`AT-12`、残りは`AT-13`〜`AT-29`である。検証済み実現収益は引き続き`$0/月`であり、paperのunrealized P&Lは収益に数えない。
+
+**AT-13最新natural run readback（2026-09-30 00:38 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9d4c25e46f7c0-73187` はrelease SHA `b26ab310a2083edd1bdfb477da40d9a670251a42`で自然起動し、`exit_code=0`、`status=pass`、`next_action=none`になった。
+- decision receiptは`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`。同じcompleted sessionの重複判断を防ぐ正常なguardであり、新しいexit decisionではない。
+- QQQ positionは`status=open`、qty `0.013493253`のままで、exit order／exit provider receiptはない。したがって`AT-13`は未完、`AT-14`以降へ進めない。検証済み実現収益は引き続き`$0/月`である。
