@@ -841,7 +841,7 @@
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "resource_class": "agent",
-      "priority": "paid",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer/capafy-distribute"
     },
