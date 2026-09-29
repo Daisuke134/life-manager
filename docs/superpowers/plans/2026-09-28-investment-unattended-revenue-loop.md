@@ -401,3 +401,5 @@ This plan is complete only when Task 1–10 have their stated evidence. In parti
 6. replay-zeroと重複なしを保ちながら自然round tripを`30/30`測定する。paperの結果はlive昇格や収益保証ではない。
 7. `30/30`の正の実測が揃った後にだけ、最小capの一段階promotionを審査する。Hyperliquid、Solana/Pump.fun meme、yieldはその後のshadow/paper比較であり、今はfunding・署名・depositをしない。
 8. rolling cost-complete netが実際に積み上がった時だけ月次収益を報告する。`$10,000/月`とgenerational wealthは目標であって、現在の`$100` capやpaper注文からは導けない。
+
+**PR #6186 gate readback**: source branchのPR checksは、投資Python syntax/unittest、gitleaks、TruffleHog、PII、shell syntax、agent instruction、startup contextがPASSした。FAILは投資差分外の`OSS self-contained boundary`（`skills/capafy-autopublish`の`manifest_inventory_mismatch`）と`Loop control contracts`（共有fixtureの`capafy-loop-daily`でrendered priority `revenue`とfixture `critical_paid`が不一致）である。Capafy/共有fixtureを投資branchから変更して迂回しないため、PRは未merge、main由来immutable release・production apply・natural paper readbackは未実施。次の投資cursorは、外部ownerがそのgateを修正してmainへ反映した後にPR再確認→merge→immutable releaseである。

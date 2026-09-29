@@ -828,3 +828,5 @@ TODO（何を・どう直すか）
 6. replay-zeroで自然round tripを`30/30`測定する。これ以前のpaper利益やbacktestはpromotion根拠にしない。
 7. `30/30`の正の実測後にだけ最小capの一段階promotionを審査し、その後にHyperliquid/Solana/Pump.fun/yieldをshadow→paper→bounded canaryの順に比較する。
 8. 実際のcost-complete netがrollingで確認できた後にだけ月次収益を報告する。`$10,000/月`とgenerational wealthは目標であり、現在のpaper注文や`$100` capから保証されない。
+
+**PR #6186の現在状態**: 投資差分のPython syntax/unittest、gitleaks、TruffleHog、PII、shell syntax、agent instruction、startup contextはPASSしている。required gateのFAILは投資差分外の`OSS self-contained boundary`（`skills/capafy-autopublish`の`manifest_inventory_mismatch`）と`Loop control contracts`（共有fixtureで`capafy-loop-daily`のrendered priority `revenue`とfixture `critical_paid`が不一致）である。投資branchからCapafy/共有fixtureを変更して迂回しないため、PRは未統合、main由来release・production apply・natural paper readbackは未実施。外部gateがmainへ反映された後にPRを再確認し、その後にのみTODO 3へ進む。
