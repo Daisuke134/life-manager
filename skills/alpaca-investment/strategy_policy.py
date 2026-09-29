@@ -507,6 +507,15 @@ def load_selected_card(state: Path) -> tuple[StrategyCard, str]:
         raise ValueError("strategy_release_missing") from error
     if not isinstance(payload, Mapping):
         raise ValueError("strategy_release_invalid")
+    expires_at = payload.get("expires_at")
+    if not isinstance(expires_at, str) or not expires_at.strip():
+        raise ValueError("strategy_release_expiry_missing")
+    try:
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("strategy_release_expiry_invalid") from error
+    if expires.tzinfo is None or expires <= datetime.now(timezone.utc):
+        raise ValueError("strategy_release_expired")
     release_sha = payload.get("release_sha")
     card_payload = payload.get("card")
     if not isinstance(release_sha, str) or not _RELEASE_SHA.fullmatch(release_sha):

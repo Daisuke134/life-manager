@@ -191,6 +191,7 @@ class StrategyPolicyTests(unittest.TestCase):
                 "release_sha": "a" * 40,
                 "strategy_id": payload["strategy_id"],
                 "card": payload,
+                "expires_at": "2099-01-01T00:00:00Z",
             }))
             with self.assertRaisesRegex(ValueError, "^strategy_release_stale$"):
                 load_selected_card(state)
@@ -210,12 +211,40 @@ class StrategyPolicyTests(unittest.TestCase):
                 "release_sha": "b" * 40,
                 "strategy_id": card["strategy_id"],
                 "card": card,
+                "expires_at": "2099-01-01T00:00:00Z",
             }))
 
             selected, release_sha = load_selected_card(state)
 
         self.assertEqual(selected.strategy_id, "alpaca-etf-126d-momentum-v1")
         self.assertEqual(release_sha, "b" * 40)
+
+    def test_expired_selected_etf_release_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            card = candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "release_sha": "b" * 40,
+                "strategy_id": card["strategy_id"],
+                "card": card,
+                "expires_at": "2020-01-01T00:00:00Z",
+            }))
+
+            with self.assertRaisesRegex(ValueError, "^strategy_release_expired$"):
+                load_selected_card(state)
+
+    def test_selected_release_expiry_is_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            card = candidate_cards()["alpaca-etf-126d-momentum-v1"].to_mapping()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "release_sha": "b" * 40,
+                "strategy_id": card["strategy_id"],
+                "card": card,
+            }))
+
+            with self.assertRaisesRegex(ValueError, "^strategy_release_expiry_missing$"):
+                load_selected_card(state)
 
     def test_selected_etf_card_rejects_mutated_sizing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -226,6 +255,7 @@ class StrategyPolicyTests(unittest.TestCase):
                 "release_sha": "b" * 40,
                 "strategy_id": "alpaca-etf-126d-momentum-v1",
                 "card": card,
+                "expires_at": "2099-01-01T00:00:00Z",
             }))
 
             with self.assertRaisesRegex(ValueError, "^strategy_release_stale$"):

@@ -60,6 +60,7 @@ def _selected_state(path: Path) -> None:
         "release_sha": "c" * 40,
         "strategy_id": ETF_ID,
         "card": card,
+        "expires_at": "2099-01-01T00:00:00Z",
     }))
 
 
