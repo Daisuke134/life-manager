@@ -2477,3 +2477,22 @@ typed `partial`／candidate `hold`としてdurableに残し、manifest bridge自
 検証済み（このcursor）: Coconala/gig全suite1563件、Coconala manifest/runtime focused、application identity focused、Marketplace Core332件、
 Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoconala source/runtime契約の証拠であり、実provider receipt、
 公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。
+
+## 現在の正本cursor（2026-09-30、direct collector再検証後）
+
+- `fix/source-reconcile-20260930`のHEADは`463c3fcb0eb4761195faec6b3e821867d440024d`で、remote branchと一致する。
+  `origin/main`は`3975ae8996cab3325f514746a32c915f9935fddf`で、production `current/RELEASE.json`も同じmain SHAのままである。
+  branchの4-platform wiringはまだmainへ受入していないため、production loaded SHAを更新していない。
+- 再検証は、`websockets.exceptions`を先にimportした同一runtimeで`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q skills/earn/gig/tests`
+  を実行し、Coconala/gig全suite `1563 passed`。Marketplace Coreは`332 passed`。Python compile、`lm-loop-contract`（catalog 14／registry 176／mapped 102／shared job IDs 0）、
+  `git diff --check`もPASSした。これはsource/runtimeの証拠であり、production release、provider receipt、official readback、応募・納品・成約・payout・収益の証拠ではない。
+- `bsk browsers --json`は`[]`。したがってRyuさんDMの公式readbackは未取得であり、既存の一回送信を再送しない。正式納品ボタンも押さず、receiptなしでeffect fenceを解放しない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** Coconala direct collector snapshot →認証/profile projection→platform manifest→candidate evaluation／durable wakeの接続と、4-platform source/runtime回帰をPASSする。
+2. **未完（現在cursor）** branchをmainへ受入できるレビュー／checks状態にそろえ、全ユーザー成果（provider receipt、公式readback、capacity、funded work）が揃うまでmerge・immutable release・production applyを保留する。
+3. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readback、またはbrowser/session 0を根拠にした厳密なheld記録を取得する。再送・正式納品はしない。
+4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+5. **未完** Freelancer／Upworkの専用identity auth、approved terms、funded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+6. **未完** Meta Loopのscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
