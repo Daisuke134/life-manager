@@ -864,6 +864,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **ブラウザ割当・worktree境界の最新source readback（このbranch）**: Codexは専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-release-boundary-20260929`、branch `fix/lm-release-boundary-20260929`（remoteと同期済み、latest main `bbc73eda12…`をmerge済み）で作業し、未マージ・未productionである。loop→browserの宣言正本はrepo内 `config/loop-registry.json`、identity→profile/accountの正本はMac側 `~/.config/ai/registry/browsers.toml`、実行時のport/UUID再解決は `skills/browser/resolve_cdp_endpoint.py`、leaseは `skills/browser/browser-guard.sh`、保持付き入口は `skills/browser/with-browser.sh` である。
 
+**source acceptanceの再実測（2026-09-29、このbranch）**: `python3 -m pytest -q skills/browser/tests/test_cdp_endpoint.py skills/earn/lancers/tests/test_browser_attach_lock.py skills/earn/crowdworks/tests/test_provider_browser_lock.py` は `27 passed`、`python3 -m pytest -q runtime/loop/tests/test_entry_dispatch.py runtime/loop/tests/test_macos_loop_registry.py runtime/loop/tests/test_lm_loop_readonly.py` は `206 passed, 171 subtests passed`。`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 174、mapped 101）、`./bin/lm-loop doctor` は`ok=true`（unmanaged labels 0）。したがってsource側のfocused acceptanceは完了しているが、PR/main統合、immutable release、production loaded readbackは未完了である。
+
 | loop群 | 現在のbrowser/profile | identity登録 | 衝突境界 |
 |---|---|---|---|
 | Coconala `hf-gig-browser`; action `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `~/.cloak/profiles/gig-daily-driver`, 宣言9223（実portはDevToolsActivePort） | `coconala:kosuke`（browser UUIDを実測して一致確認） | Coconala DM・Paid・Application・Storefrontを同時に別profileへ向けない。Colors管理profileとは直列化し共有しない |
@@ -880,7 +882,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **残TODO（成果基準の順序）**:
 
-1. このbranchのsource acceptanceを再現可能なfocused test・`git diff --check`・`lm-loop-contract`で固定し、PR/checksを通す。AWS Provision Browserはsource registryで外部ownerに分類済みなので、production側doctorが同じ結果になることをimmutable release readbackで確認する。
+1. source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorはPASS済み。残りはPR/checksとmain統合であり、AWS Provision Browserがproduction側doctorでも同じ外部owner分類になることをimmutable release readbackで確認する。
 2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
 3. 403が解消した公式Coconala DMでRyuの最新threadをreadbackし、全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。403またはreceipt欠落なら送らない。
 4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、Coconala DM・Paid・Application・Storefrontのloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。
