@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import importlib.util
 from pathlib import Path
+
+import pytest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -22,6 +25,9 @@ candidate_store_module = _load(
 )
 run_store_module = _load(
     SCRIPTS / "meta_loop_run_store.py", "platform_cycle_run_store_test"
+)
+lifecycle_store_module = _load(
+    SCRIPTS / "meta_loop_lifecycle.py", "platform_cycle_lifecycle_store_test"
 )
 
 
@@ -185,3 +191,119 @@ def test_platform_manifest_cycle_rejects_provider_outside_supported_registry(tmp
         assert str(error) == "provider_registry_invalid"
     else:  # pragma: no cover
         raise AssertionError("unsupported provider must fail closed")
+
+
+class _LifecycleAdapter:
+    def __init__(self):
+        self.calls = []
+
+    def provision_owner(self, candidate):
+        self.calls.append("provision")
+        return {
+            "status": "provisioned", "owner_id": "owner-1",
+            "receipt_ref": "provider-receipt://coconala/owner-1",
+            "observed_at": "2026-09-30T06:06:00Z",
+        }
+
+    def canary_readback(self, candidate, owner):
+        self.calls.append("canary")
+        return {
+            "status": "verified", "receipt_ref": "provider-receipt://coconala/canary-1",
+            "replay_zero": True, "observed_at": "2026-09-30T06:07:00Z",
+        }
+
+    def rollback_owner(self, candidate, owner, reason):
+        self.calls.append("rollback")
+        return {
+            "status": "rolled_back", "receipt_ref": "provider-receipt://coconala/rollback-1",
+            "observed_at": "2026-09-30T06:08:00Z",
+        }
+
+    def settle(self, candidate, owner, canary):
+        self.calls.append("settle")
+        return {
+            "status": "settled", "receipt_ref": "provider-receipt://coconala/settlement-1",
+            "net_amount_minor": 100, "currency": "USD",
+            "observed_at": "2026-09-30T06:09:00Z",
+        }
+
+
+def _promoted_candidate():
+    item = _item("coconala")
+    candidate = deepcopy(item["candidate"])
+    candidate["policy"] = {
+        "status": "allowed", "source_url": "https://example.test/policy",
+        "observed_at": "2026-09-30T06:00:00Z",
+    }
+    candidate["funded_work"] = {
+        "status": "funded", "receipt_ref": "provider-receipt://coconala/funding-1",
+        "observed_at": "2026-09-30T06:01:00Z",
+    }
+    candidate["canary"] = {
+        "status": "verified", "official_receipt_ref": "provider-receipt://coconala/canary-0",
+        "replay_zero": True, "observed_at": "2026-09-30T06:02:00Z",
+    }
+    candidate["unit_economics"] = {
+        "status": "measured", "net_amount_minor": 100, "currency": "USD",
+        "evidence_refs": ["ledger://coconala/canary-0"],
+    }
+    return candidate
+
+
+def test_platform_candidate_lifecycle_holds_manifest_candidate_without_adapter_effect(tmp_path):
+    candidates = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    runs = run_store_module.MetaLoopRunStore(tmp_path / "runs")
+    lifecycle_store = lifecycle_store_module.MetaLoopLifecycleStore(tmp_path / "lifecycle")
+    cycle.run_platform_manifest_wake(
+        {"coconala": lambda: [_item("coconala")]}, candidates, runs,
+        providers=("coconala",), run_id="manifest-hold-1",
+        observed_at="2026-09-30T06:06:00Z",
+    )
+    adapter = _LifecycleAdapter()
+
+    result = cycle.run_platform_candidate_lifecycle(
+        candidates, lifecycle_store, adapter,
+        provider="coconala", candidate_id="platform:coconala",
+        run_id="lifecycle-hold-1", observed_at="2026-09-30T06:06:30Z",
+    )
+
+    assert result["status"] == "held"
+    assert adapter.calls == []
+
+
+def test_platform_candidate_lifecycle_delegates_promoted_record_to_shared_lifecycle(tmp_path):
+    candidates = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    lifecycle_store = lifecycle_store_module.MetaLoopLifecycleStore(tmp_path / "lifecycle")
+    enrollment.evaluate_and_record_candidate(
+        _promoted_candidate(), candidates,
+        candidate_id="listing:promoted", observed_at="2026-09-30T06:05:00Z",
+        source_url="https://example.test/listing:promoted", snapshot_sha256="d" * 64,
+    )
+    adapter = _LifecycleAdapter()
+
+    result = cycle.run_platform_candidate_lifecycle(
+        candidates, lifecycle_store, adapter,
+        provider="coconala", candidate_id="listing:promoted",
+        run_id="lifecycle-promote-1", observed_at="2026-09-30T06:06:30Z",
+    )
+
+    assert result["status"] == "settled"
+    assert adapter.calls == ["provision", "canary", "settle"]
+
+
+def test_platform_candidate_lifecycle_rejects_unknown_provider_before_readback(tmp_path):
+    called = False
+
+    class _CandidateStore:
+        def latest(self, provider, candidate_id):
+            nonlocal called
+            called = True
+            return None
+
+    with pytest.raises(cycle.PlatformManifestCycleError, match="provider_invalid"):
+        cycle.run_platform_candidate_lifecycle(
+            _CandidateStore(), object(), _LifecycleAdapter(),
+            provider="unknown", candidate_id="listing-1",
+            run_id="lifecycle-invalid-1", observed_at="2026-09-30T06:06:30Z",
+        )
+    assert called is False

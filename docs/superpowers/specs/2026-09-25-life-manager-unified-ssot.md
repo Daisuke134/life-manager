@@ -2747,3 +2747,19 @@ DMのcanonical UID readbackは10件を取得し、sellerは14:27・14:34・14:40
 6. **capacity自然run** ENOSPC修正をproductionで実測し、scratch reclaim・reserve retry・terminal event・recovery intent・admission stateをoccurrence単位で閉じる。
 7. **Freelancer／Upwork** approved terms・account-bound auth・完全official inventory・funded contract／milestone・mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
+## 現在の正本cursor（2026-09-30、manifest→lifecycle接続点追加後）
+
+Meta Loopのread-only manifest wakeから、candidate storeの最新recordを一件だけ読み、provider／candidate IDを再検証して共通`run_meta_loop_lifecycle`へ委譲する境界を`skills/_shared/marketplace-core/scripts/platform_manifest_cycle.py`へ追加した。wake自体は自動でowner効果を起こさず、adapterを明示注入した呼び出しだけがlifecycleへ進む。hold候補はadapterを呼ばず、promote候補だけがplanned fenceとreceipt検証を通る。
+
+- 検証済み: platform manifest cycle `8 passed`、Marketplace Core `346 passed`、compile、`git diff --check`、`lm-loop-contract ok=true`。既存のGig／runtime/loop回帰は前cursorのPASSを維持している。
+- source branch `fix/source-reconcile-20260930`の変更は未反映のsourceであり、main／production、provider owner、実資金、実収益は未変更・未確認である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** 各providerの実adapterを`run_platform_candidate_lifecycle`へ接続し、account-bound owner／canary／rollback／settlementの公式receiptを実測する。adapter未接続はholdとし、receiptを推測しない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorでprovider-specific canary/readbackを閉じ、Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract／mutation authorizationが揃うまでownerを有効化しない。
+3. **未完** platformごとの自然runでlifecycle storeのplanned／terminal／rollback／settled readbackとreplay-zeroをoccurrence単位で取得する。
+4. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+5. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+6. **未完** Ryuさんの既存DMは再送せず、相互リンク入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。

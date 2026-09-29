@@ -14,6 +14,7 @@ from typing import Any, Mapping
 
 
 _ENROLLMENT_PATH = Path(__file__).with_name("platform_enrollment.py")
+_LIFECYCLE_PATH = Path(__file__).with_name("meta_loop_lifecycle.py")
 try:
     from platform_enrollment import run_meta_loop_wake
 except ModuleNotFoundError:  # pragma: no cover - direct module loading fallback
@@ -26,6 +27,19 @@ except ModuleNotFoundError:  # pragma: no cover - direct module loading fallback
     sys.modules[_enrollment_spec.name] = _enrollment_module
     _enrollment_spec.loader.exec_module(_enrollment_module)
     run_meta_loop_wake = _enrollment_module.run_meta_loop_wake
+
+try:
+    from meta_loop_lifecycle import run_meta_loop_lifecycle
+except ModuleNotFoundError:  # pragma: no cover - direct module loading fallback
+    _lifecycle_spec = importlib.util.spec_from_file_location(
+        "platform_manifest_cycle_lifecycle", _LIFECYCLE_PATH,
+    )
+    if _lifecycle_spec is None or _lifecycle_spec.loader is None:
+        raise
+    _lifecycle_module = importlib.util.module_from_spec(_lifecycle_spec)
+    sys.modules[_lifecycle_spec.name] = _lifecycle_module
+    _lifecycle_spec.loader.exec_module(_lifecycle_module)
+    run_meta_loop_lifecycle = _lifecycle_module.run_meta_loop_lifecycle
 
 
 PLATFORM_PROVIDERS = ("coconala", "lancers", "crowdworks", "mercor")
@@ -102,10 +116,47 @@ def run_platform_manifest_wake(
     )
 
 
+def run_platform_candidate_lifecycle(
+    candidate_store: Any,
+    lifecycle_store: Any,
+    adapter: Any,
+    *,
+    provider: str,
+    candidate_id: str,
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Run one stored candidate through the shared provider lifecycle.
+
+    Manifest wakes remain read-only. This explicit boundary is the only shared
+    caller that may pass a promoted candidate to an injected provider adapter;
+    the adapter is still responsible for all provider effects and receipts.
+    """
+
+    if not isinstance(provider, str) or provider not in SUPPORTED_PLATFORM_PROVIDERS:
+        raise PlatformManifestCycleError("provider_invalid")
+    if not isinstance(candidate_id, str) or not candidate_id.strip():
+        raise PlatformManifestCycleError("candidate_id_invalid")
+    latest = getattr(candidate_store, "latest", None)
+    if not callable(latest):
+        raise PlatformManifestCycleError("candidate_store_invalid")
+    candidate = latest(provider, candidate_id)
+    if candidate is None:
+        raise PlatformManifestCycleError("candidate_not_found")
+    if not isinstance(candidate, Mapping):
+        raise PlatformManifestCycleError("candidate_record_invalid")
+    if candidate.get("provider") != provider or candidate.get("candidate_id") != candidate_id:
+        raise PlatformManifestCycleError("candidate_identity_mismatch")
+    return run_meta_loop_lifecycle(
+        candidate, adapter, lifecycle_store, run_id=run_id, observed_at=observed_at,
+    )
+
+
 __all__ = [
     "MissingPlatformManifestSource",
     "PLATFORM_PROVIDERS",
     "SUPPORTED_PLATFORM_PROVIDERS",
     "PlatformManifestCycleError",
+    "run_platform_candidate_lifecycle",
     "run_platform_manifest_wake",
 ]
