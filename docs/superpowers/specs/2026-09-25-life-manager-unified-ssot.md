@@ -906,6 +906,23 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
 7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
 
+## 5.5 投資OSS検証の再確認（2026-09-29）
+
+公式OSSの共通手順は、backtest/research → paper/dry-run → official readback付きの小額live検証であり、OSSやpaper損益自体は利益保証ではない。[Freqtrade](https://docs.freqtrade.io/en/stable/)はdry-runをlive前に要求し、[Hummingbot](https://github.com/hummingbot/hummingbot)はpaper tradeとlive executionを分離する。[LEAN](https://github.com/QuantConnect/Lean)と[QuantConnectのlive reconciliation docs](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation)はfill・fee・slippage・market impactの差を明記し、[Alpacaのpaper docs](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)はpaperがmarket impact等を再現しないと説明する。よって投資loopはweb上の成功談や29回の手動wakeを利益証拠にせず、`main由来immutable release → Life Manager自然paper receipt → cost-complete net P&L → 30 natural samples → bounded promotion`を維持する。
+
+最新の投資専用再検証はAlpaca `243/243`、`./bin/lm-loop-contract ok=true`（catalog `14`、registry `174`、mapped `101`、errors `[]`）、`git diff --check` PASS、worktree clean。生成された作業用`risk-day.json`は除去した。PR #6186のFAILは投資差分外の共有`Loop control contracts`と`OSS self-contained boundary`であり、投資laneはそれらを修正しない。既存QQQ paper orderは`accepted`・`filled_qty=0`で再送せず、実現利益は`$0`。**現在cursorは、投資sourceの検証完了から、required gate green後のmain統合・immutable release・Life Manager apply/readbackへ進むこと。**
+
+**投資laneの状態分類と報告規則（2026-09-29）**: 外部依存を投資全体の`blocked`と呼ばない。
+
+- `investment_self_owned_blocked`: 投資差分または投資owner pathの自己所有コードに再現可能な失敗があり、観測・修正・回帰テストが残っている状態。この場合だけ投資コードの修正をcursorにする。
+- `external_gate_pending`: 投資差分外のrequired check、共有catalog、別agent所有ファイルが原因でmain統合だけが待ち状態。投資sourceは`ready`として扱い、外部ファイルを編集せず、投資のread-only検証・spec更新・次のhandoff準備を続ける。
+- `provider_pre_effect_hold`: provider注文・送金・wallet mutationの前にadmission/capacity/fenceで安全停止した状態。これは失敗でも利益でもなく、注文再送せず公式readbackまたはowner pathの次アクションを記録する。
+- `source_ready_handoff_pending`: 投資コード、focused/full tests、契約検証がPASSし、main由来immutable releaseとLife Manager apply/readbackだけが未実施の状態。今回の投資laneはこれに該当する。
+
+今後の進捗報告は必ず`scope`、`state`、`self-owned next action`、`external dependency`、`can_continue`を分けて書く。「投資がblocked」と総称せず、自己所有の修正が無い場合は「投資sourceは継続可能。外部gate待ち」と記録する。spec上の分類は報告の誤りを防ぐガードレールであり、実際の判定は毎回、差分・owner・公式readbackを再確認して行う。
+
+**最新PR gate readback（2026-09-29）**: `origin/main=bbc73eda12`を取り込んだ投資HEAD `a2e101807c`のSecurity Scan `36545115133`は、投資Python/unittest、PII、shell、gitleaks、TruffleHog、agent instruction、startup contextをPASSした。FAILは`manifest_inventory_mismatch skills/capafy-autopublish`、`forbidden_source_root skills/earn/capafy-marketing/capafy-distribute-daily.sh`、および共有fixtureの`capafy-loop-daily` rendered priority `revenue`対fixture `critical_paid`である。投資差分に該当ファイルはなく、投資laneはCapafy/共有fixtureを変更しない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
@@ -1012,3 +1029,69 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 4. `alpaca-investment-paper`の自然wakeを1回取得し、paper order/fill/account/positionのprovider receiptを確認する。paperは利益・real revenue・live許可とは数えない。
 5. `investment-cross-venue-report`と`investment-strategy-validation`で、手数料・slippage・funding/borrow・gas・model cost込みのcost-complete net P&Lを生成する。unknownやpaper未完了ならpromotionしない。
 6. 最小capの自然round tripを`30/30`まで測定し、再現性・drawdown・replay-zeroを確認する。それまではcap増額、Binance送金、live ETF注文、meme-coin署名、yield depositを行わない。
+
+**投資注文reconciliationの正本状態（最新）**: Life Managerがruntime ownerであり、投資専用branch `fix/investment-order-reconciliation-20260929`がAlpaca paper注文の状態境界を修正している。旧実装はbroker `accepted`を`broker_reconciled`として閉じていたため、未約定注文が完了扱いになり得た。新実装は`accepted`/`new`/`pending_new`/`partially_filled`等を`reconciliation_pending`として保持し、`filled`かつ公式account/position readbackが揃った時だけstrategy receipt・ownership・P&Lへ進める。zero-fillの`canceled`/`expired`/`rejected`等はterminal failureとしてP&Lから除外し、positive partial fillは未解決のまま保持する。既存の誤った非終端outcomeは公式statusを再読して収束できる。Capafy、PromptBase、他agentの開発作業はこの投資scopeに含めない。
+
+**paper実測の現在値**: client order `lm-ai-d3935170807d46a7a5cde38e`／broker order `24cc2687-f718-4019-83f1-b5928c47525c`のQQQ `$10.00` paper orderは`accepted`、`filled_qty=0`、`filled_avg_price=null`、market closed/pre-open、positions/fills empty、cash/equity `$99,996.76`。従って実現損益`$0`、収益`$0`、live資金の増加なし。注文の再送、Binanceからの送金、wallet funding、live ETF注文はしない。
+
+**source verification**: Alpaca `243/243`、focused investment suites `68/68`、`./bin/lm-loop-contract` `ok=true`（catalog `14`、registry `173`、mapped `100`、errors `[]`）、`git diff --check` PASS。sourceは検証済みだが、PR/main統合、main由来immutable release、production apply、自然paper fill、cost-complete P&L、30 natural samplesは未完了。
+
+**投資TODOの実行順（この順序を正本とする）**:
+
+1. 投資sourceとspec/planをcommit・pushする。
+2. 投資PRのrequired checksを通し、green時だけmainへ統合する。差分外の失敗を迂回するために他agentのコードは触らない。
+3. main由来immutable releaseを作り、Life Managerの通常owner pathで`alpaca-investment-paper`へapplyし、release SHA・argv/env・admissionをreadbackする。
+4. natural wakeで既存orderを再送せず公式readbackする。`accepted`はpending、`filled`はownership、zero-fill terminalは失敗・P&Lなしとする。
+5. entry/exitの公式fillとaccount/position、全costを揃え、cost-complete net P&Lを作る。
+6. replay-zeroで自然round tripを`30/30`測定する。これ以前のpaper利益やbacktestはpromotion根拠にしない。
+7. `30/30`の正の実測後にだけ最小capの一段階promotionを審査し、その後にHyperliquid/Solana/Pump.fun/yieldをshadow→paper→bounded canaryの順に比較する。
+8. 実際のcost-complete netがrollingで確認できた後にだけ月次収益を報告する。`$10,000/月`とgenerational wealthは目標であり、現在のpaper注文や`$100` capから保証されない。
+
+**PR #6186の現在状態**: 投資差分のPython syntax/unittest、gitleaks、TruffleHog、PII、shell syntax、agent instruction、startup contextはPASSしている。required gateのFAILは投資差分外の`OSS self-contained boundary`（`skills/capafy-autopublish`の`manifest_inventory_mismatch`）と`Loop control contracts`（共有fixtureで`capafy-loop-daily`のrendered priority `revenue`とfixture `critical_paid`が不一致）である。投資branchからCapafy/共有fixtureを変更して迂回しないため、PRは未統合、main由来release・production apply・natural paper readbackは未実施。外部gateがmainへ反映された後にPRを再確認し、その後にのみTODO 3へ進む。
+
+**最新main同期後のPR状態**: `origin/main=dca9befebb1d4a2981b2a64b7e0dbbd9bebe0c95`を取り込み、investment HEAD `647ce19bd5`をpush済み。PR #6186の差分は投資source、投資tests、投資spec/planだけである。latest completed runのFAILは、投資外の`Loop control contracts`（`capafy-loop-daily` rendered `revenue`対fixture `critical_paid`）とOSSの`manifest_inventory_mismatch`／`forbidden_source_root`であり、投資branchでは修正しない。PR未merge、production release未適用。
+
+**公式paper readbackの現在値**: client order `lm-ai-d3935170807d46a7a5cde38e`／broker order `24cc2687-f718-4019-83f1-b5928c47525c`はQQQ buy market/day、`accepted`、`filled_qty=0`、`filled_avg_price=null`、fills/positionsなし。paper clockはclosed、account cash/equityは`$99,996.76`。同一orderは再送しない。production currentは`dca9befebb1d4a2981b2a64b7e0dbbd9bebe0c95`で、source branchの`reconciliation_pending`修正は未搭載。実現損益は`$0`であり、live資金・Binance・walletは変更なし。
+
+**最新source verification**: latest main sync後の`./bin/lm-loop-contract`は`ok=true`（catalog `14`、registry `174`、mapped `101`、shared job IDs `[]`）、投資focused suiteは`70/70 PASS`、worktreeはclean。source acceptanceは確認済みだが、PR gateの外部FAIL、main統合、immutable release、production apply、natural fill、cost-complete P&L、promotionは未完了。
+
+**PR #6186 latest completed run**: run `36540325738` at HEAD `186da23806`は投資Python syntax/unittest、PII、shell、gitleaks、TruffleHog、agent instruction、startup contextがPASS。FAILは投資差分外の2件のみで、`Loop control contracts`はrendered `capafy-loop-daily` priority `revenue`対fixture `critical_paid`、OSS gateは`manifest_inventory_mismatch skills/capafy-autopublish`と`forbidden_source_root skills/earn/capafy-marketing/capafy-distribute-daily.sh`。投資sourceを変更して迂回せず、PR未統合・production release/apply未実施。
+
+**最新main再同期後のauthoritative gate**: run `36540990041`（HEAD `1d71a39108`、base `1e8b3df93e`）はcompleted/failure。投資Python syntax/unittest、PII、shell、gitleaks、TruffleHog、agent instruction、startup contextはPASSし、FAILは投資外の`Loop control contracts`（rendered `capafy-loop-daily` priority `revenue`対fixture `critical_paid`）とOSS（`manifest_inventory_mismatch skills/capafy-autopublish`／`forbidden_source_root skills/earn/capafy-marketing/capafy-distribute-daily.sh`）のみ。投資sourceはgreenだが、PR未merge・production current未変更。
+
+**production currentの最新readback**: `current`は`/Users/anicca/loops/releases/20260929T171306-eada0da3`（SHA `eada0da38d38abb8ac411f26c279008a550f2c54`、`ancestor-of-origin-main`）へ進んだが、deployed Alpaca `effect_store.py`／`run.py`には投資branchの`reconciliation_pending`境界がない。PR #6186は未merge、QQQ paper注文は再送せず、公式状態は`accepted`・filled `0`・利益`$0`。必要な順序はrequired gate green→merge→最新main由来immutable release→Life Manager apply/readbackである。
+
+**投資pre-effect fence境界の自所有修正（2026-09-29）**: money effectの`alpaca-investment-live/paper`は、provider注文前の`observe`・allocator・内部エラーでexit `78`になった場合にもhostが`effect_unknown`としてfenceしていた。sourceは両investment loop IDをpre-effect hint allowlistへ追加し、`skills/alpaca-investment/run.py`はcampaign exitとallocationの`submit_order`直前にhintを`effect_attempted`へ不可逆に切り替える。したがって注文前の失敗はeffectなしで再queueでき、直前以後の失敗は公式readbackまでunknownを保持する。TDDのRED→GREENを確認し、Alpaca `244/244`、runtime bounds `105/105`、contract `ok=true`（catalog `14`、registry `174`、mapped `101`）を実測した。これはsource変更であり、production currentへはまだ反映していない。
+
+**投資runtime readbackとcursor（2026-09-29）**: 既存の`alpaca-investment-live:18d9b3f24e5fa398-10205`は公式provider receipt・official readbackが無く、`./bin/lm-loop pre-effect-reconcile alpaca-investment-live --dry-run`は`no_pre_effect_terminal`で解放対象なしを返す。`lm-fence-reconciler`はPASSだが、証拠なしのeffect-unknownを解放しない。現在の正本TODOは、source＋spec/plan commit/push → required gate green → main統合 → main由来immutable release → Life Manager apply/readback → natural paper provider receipt → cost-complete net P&L → `30/30`自然sample → bounded promotionである。paper注文・wake回数・SNS/referral・広告APYは利益や収益の証拠に数えず、注文再送・手動wake・Binance送金・wallet funding・live注文は行わない。
+
+**PR #6186 source push後のgate readback（2026-09-29）**: `3100a883f8`をpushしたSecurity Scan `36548119908`は、投資Python/unittest、gitleaks、TruffleHog、PII、shell、agent instruction、startup contextをPASSした。残るFAILは投資差分外のOSS 2件（`manifest_inventory_mismatch skills/capafy-autopublish`、`forbidden_source_root skills/earn/capafy-marketing/capafy-distribute-daily.sh`）と、共有fixtureの`capafy-loop-daily` rendered priority `revenue`対`critical_paid`である。これは投資sourceの自己所有FAILではないため、投資branchは外部ファイルを変更せず、PR未merge・main由来release未作成・production apply未実施のまま、`external_gate_pending`としてsource readbackとhandoff準備を継続する。
+
+**投資状態の誤分類防止（2026-09-29）**: 投資全体を`blocked`と報告できるのは、投資source/runtimeの再現可能な自己所有FAILに対してprobe・修正・追加観測を行っても安全な次手が無い場合だけである。投資差分外のrequired gate失敗は`external_gate_pending`とし、投資sourceの検証・spec更新・handoff準備は継続する。provider注文前でeffectが無いと確認できる失敗は`provider_pre_effect_hold`、注文試行後に公式receipt/readbackが不足する状態は`effect_unknown`とし、後者は再送しない。報告の必須項目は`scope`、`state`、`self-owned next action`、`external dependency`、`can_continue`。今回のPR #6186 run `36548687825`では投資側の検証はPASSし、Capafy/共有fixtureの外部3失敗のみだったため、投資laneは`external_gate_pending`であり、投資source作業を止める理由ではない。
+
+**投資レーン継続の強制規則（2026-09-29）**: `external_gate_pending`、他agentの作業中、別worktreeのFAIL、共有gateのFAILは、投資laneの停止理由にしない。各wakeは最初に`scope=investment`を固定し、投資側の未完TODOから自己所有の次の一手を一つ選んで実行する。外部依存を理由に「blocked」「誰かが直すまで待つ」と報告してはならない。`blocked`を使えるのは、(a)投資source/runtime自身の再現可能なFAIL、(b)その境界のprobe・原因特定・最小修正・追加観測、(c)安全な自己所有の次手が無い、の三条件をすべて満たす場合だけである。報告前に必ず`scope / state / self-owned next action / external dependency / can_continue`を埋め、`can_continue=true`ならその場で次の投資作業へ進む。この規則は、外部gateを投資の停止理由へ誤変換した今回の判断ミスを再発させないための実行契約である。
+
+**最新main同期後の投資readback（2026-09-29）**: `origin/main=f52eb46f5b`を投資branchへ同期し、merge HEADは`b6e51e29f8`。最新mainとの差分は投資source、投資tests、投資spec/planの11ファイルだけである。同期後もOSS self-contained gateは`skills/capafy-autopublish`のmanifest不一致と`skills/earn/capafy-marketing/capafy-distribute-daily.sh`のforbidden source rootでFAILし、共有loop registry testは`capafy-loop-daily`のrendered `revenue`対fixture `critical_paid`でFAILした。いずれも投資差分外であり、投資laneは`external_gate_pending`、投資sourceの検証・handoff準備は継続する。main統合、immutable release、production apply、natural paper receipt、P&Lは未完了である。
+
+**cross-venue effect境界の自所有修正（2026-09-29、未release）**: `investment-cross-venue-report`は、送信直前に`LIFE_MANAGER_RESULT_HINT_PATH`を`effect_attempted`へ変更し、日次receiptへ`LIFE_MANAGER_OCCURRENCE_ID`を保存するようにした。これで送信前のentrypoint失敗はpre-effectとして再queueでき、送信開始後はeffect-unknownを保持できる。`apps/life-manager/investment-core/cross_venue_effect_reconcile.py`をregistryの`effect_reconcile`へ接続し、同一occurrenceの日次receipt、Telegram outboxの`delivered`状態、provider message IDの三者が一致した場合だけprovider receiptとしてfenceを解放する。不確実な送信、未紐付け旧receipt、delivery uncertainは解放しない。source検証はcross-venue/runtime契約`25/25`、investment-core`134/134`、runtime bounds`106/106`、`./bin/lm-loop-contract ok=true`（catalog`14`、registry`174`、mapped`101`）。これはbranch上の修正で、production currentへは未反映、実注文・送金・wallet・P&Lは未変更である。次の投資cursorは、source/spec/planのpush → required gate再確認 → main由来immutable release → owner apply/readback → natural paper/provider receiptであり、Capafy側を待って投資source作業を止めない。
+
+**最新投資gateと収益readback（2026-09-29）**: PR #6186のrun`36551726796`はPython syntax/unittest、OSS self-contained、startup context、agent instruction、TruffleHog、gitleaks、PII、shellがPASSし、`Loop control contracts`だけがFAILした。原因は今回追加したregistryの`investment-cross-venue-report.effect_reconcile`が`runtime/loop/tests/fixtures/macos-loop-jobs.json`へ反映されていないbyte-stable fixture不一致であり、投資側の自己所有TODOとして扱う。Capafy修正を行う理由にはならない。branch`fix/investment-order-reconciliation-20260929`のsource/spec変更はpush済み（HEAD`28d617b294`）だが、PR未merge・production未反映である。
+
+**production収益の現在値（2026-09-29 read-only）**: `current`は`/Users/anicca/loops/releases/20260929T184713-2ffad523`（SHA`2ffad5237a6e956afb2eb3e29c6e0e5c985b29a2`、`ancestor-of-origin-main`）で、investment branchの`28d617b294`ではない。`alpaca-investment-paper`は最新wakeが`host_admission_deferred:resource_capacity_busy`・exit`75`・provider receiptなしで、直近の観測はpaper account cash/equity`$99,996.76`、positions`[]`、`performance-latest.json`なし、公式P&L receiptなし。`selected-strategy.json`のETF holdout`+$1.62`はresearch/backtestの値であり、実取引利益ではない。`investment-cross-venue-report`は旧releaseのoccurrence`18d9b91b8146a120-88953`が`entrypoint_exit_1`・`delivery_uncertain`・provider receipt/readbackなし、Hyperliquid/Solana snapshotもmissing、allocation`$0.00`、rolling 30d net P&L不明である。`investment-strategy-validation`はnatural run未実施である。従って検証済み投資収益は`$0`、real revenueは`$0`、Binance・wallet・live資金は未変更である。
+
+**投資TODOの残り（この順序が現在の正本）**:
+
+1. [完了] `runtime/loop/tests/fixtures/macos-loop-jobs.json`の投資レコード（`alpaca-investment-live`のpriority、`investment-cross-venue-report`のeffect_reconcile）をregistryと一致させた。local focused比較で残る差分は`capafy-distribute-daily`と`capafy-loop-daily`だけであり、Capafyレコードは変更しない。
+2. PR required checksがgreenになった場合だけmainへ統合する。FAILが投資外なら`external_gate_pending`として記録し、投資sourceの次TODOは継続する。
+3. main由来immutable releaseへcross-venue adapter、occurrence binding、Alpaca reconciliation、pre-effect fence修正を載せ、Life Manager owner pathへapplyしてloaded release SHA・argv/env・admissionをreadbackする。
+4. 既存のlive/cross-venue `effect_unknown`を再送せず、公式provider receipt/readbackがあるものだけoccurrence単位でreconcileする。証拠が無いものはheldのままにする。
+5. `investment-strategy-validation`のnatural runと`alpaca-investment-paper`のnatural wakeを取得し、strategy selection、order status、fill、account、position、provider receiptを揃える。`accepted`やpaper wake回数は利益と数えない。
+6. fill後のentry/exit、fee、slippage、funding/borrow、gas、model costを全て含むcost-complete net P&Lを生成する。まだreal revenueとして報告しない。
+7. positiveなcost-complete natural round tripをreplay-zeroで`30/30`測定し、初めて最小capの一段階promotionを審査する。それまではBinance送金、live注文、meme coin署名、yield deposit、cap増額をしない。
+8. `30/30`後にHyperliquid、Solana/Pump.fun、yieldをshadow→paper→bounded canaryで比較し、rolling net P&Lが実測された場合だけ月次収益を報告する。
+
+**投資fixture同期後のgate状態（2026-09-29）**: `origin/main=acaadb2fbb74e67401d091f9bed4053af4162ec9`をbaseに取り込み、registryを正本として`runtime/loop/tests/fixtures/macos-loop-jobs.json`を再生成した。投資2行（`alpaca-investment-live`、`investment-cross-venue-report`）とmain側の全174行が一致し、`./bin/lm-loop-contract`は`ok=true`（catalog`14`、registry`174`、mapped`101`、shared job IDs`[]`）、`test_production_render_matches_byte_stable_fixture`もPASSした。Capafy／PromptBaseの実装は変更していない。
+
+**最新main同期後の投資gate（2026-09-29）**: merge commitは`cd729ea5de125fb94af8e46692616e90533d83cb`で、spec更新commit `b4291741150f91bc1ec269f0e8f68dcb5d8e9684`までbranchへpush済み。PR #6186のheadは`b429174115`、Security Scan run`36553020571`の9ジョブ（投資Python、Loop control、OSS、PII、gitleaks、TruffleHog、startup、shell、agent instruction）は全てPASS、CodeRabbitもPASS、merge stateは`CLEAN`である。PR統合・main由来immutable release・production apply・natural paper/provider receiptは未完了で、次の自己所有TODOはPRをmainへ統合してINV-001-BのLife Manager production handoffへ進むこと。branch固有差分にCapafy／PromptBaseのファイルはない。
+
+**投資収益readback再確認（2026-09-29、read-only）**: production currentは`/Users/anicca/loops/releases/20260929T184713-2ffad523`のままで、投資branchのsourceは未適用。Alpaca paper observationはcash/equity`$99,996.76`、positions`[]`、新規filled orderなし。`investment-cross-venue`の日次receiptは`delivery_uncertain`、allocation`$0.00`、`rolling_30d_net_pnl_usd=null`、`capital_expansion_allowed=false`、Hyperliquid／Solana snapshotはmissingである。したがって検証済み実現投資収益は`$0`、月次投資revenueは`$0`、Binance送金・wallet funding・live注文は未実施である。

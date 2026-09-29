@@ -14,6 +14,13 @@ from typing import Any
 
 OWNER_ID = "alpaca-investment-paper"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
+BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
+    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
+})
+BROKER_NONTERMINAL_STATUSES = frozenset({
+    "accepted", "accepted_for_bidding", "new", "partially_filled",
+    "pending_cancel", "pending_new", "pending_replace",
+})
 
 
 def _unknown(reason: str) -> dict[str, str]:
@@ -104,7 +111,6 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
         raise ValueError("paper_ledger_invalid")
     intents: dict[str, dict[str, Any]] = {}
     outcomes: dict[str, dict[str, Any]] = {}
-    provider_ids: set[str] = set()
     for row in rows:
         if not isinstance(row, Mapping):
             raise ValueError("paper_ledger_invalid")
@@ -127,16 +133,32 @@ def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
             effect_id = row.get("effect_id")
             if not isinstance(effect_id, str) or not effect_id:
                 raise ValueError("paper_outcome_invalid")
-            if effect_id in outcomes:
-                raise ValueError("paper_receipt_duplicate")
-            broker = row.get("broker")
-            if isinstance(broker, Mapping):
-                provider_id = broker.get("id")
-                if isinstance(provider_id, str) and provider_id:
-                    if provider_id in provider_ids:
-                        raise ValueError("paper_receipt_duplicate")
-                    provider_ids.add(provider_id)
+            # A legacy non-terminal broker outcome can be followed by the
+            # terminal official readback in the append-only ledger.  The latest
+            # outcome for one effect is authoritative; duplicate provider IDs
+            # across different effects remain invalid.
+            previous = outcomes.get(effect_id)
+            if previous is not None:
+                previous_broker = previous.get("broker")
+                current_broker = row.get("broker")
+                previous_status = previous_broker.get("status") \
+                    if isinstance(previous_broker, Mapping) else None
+                current_status = current_broker.get("status") \
+                    if isinstance(current_broker, Mapping) else None
+                if (previous_status not in BROKER_NONTERMINAL_STATUSES
+                        or current_status not in ({"filled"} | BROKER_TERMINAL_FAILURE_STATUSES)):
+                    raise ValueError("paper_receipt_duplicate")
             outcomes[effect_id] = dict(row)
+    provider_ids: set[str] = set()
+    for row in outcomes.values():
+        broker = row.get("broker")
+        if not isinstance(broker, Mapping):
+            continue
+        provider_id = broker.get("id")
+        if isinstance(provider_id, str) and provider_id:
+            if provider_id in provider_ids:
+                raise ValueError("paper_receipt_duplicate")
+            provider_ids.add(provider_id)
     return list(intents.values()), outcomes
 
 
@@ -156,12 +178,17 @@ def _closed_round_trips(
         outcome = outcomes.get(effect_id)
         if outcome is None:
             raise ValueError("paper_effect_unresolved")
-        if outcome.get("mode") != "paper" or outcome.get("paper") is not True \
-                or outcome.get("outcome") != "broker_reconciled":
+        if outcome.get("mode") != "paper" or outcome.get("paper") is not True:
             raise ValueError("paper_outcome_invalid")
         broker = outcome.get("broker")
         if not isinstance(broker, Mapping):
             raise ValueError("paper_provider_receipt_invalid")
+        if outcome.get("outcome") == "broker_terminal_failure":
+            continue
+        if outcome.get("outcome") != "broker_reconciled":
+            raise ValueError("paper_outcome_invalid")
+        if broker.get("status") != "filled":
+            raise ValueError("paper_effect_unresolved")
         if (broker.get("status") != "filled"
                 or broker.get("client_order_id") != intent.get("client_order_id")
                 or broker.get("symbol") != intent.get("order", {}).get("symbol")

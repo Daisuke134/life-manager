@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 import json
+import os
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -114,14 +115,32 @@ def _provider_message_id(response: Any) -> str | None:
     return None
 
 
-def _base_receipt(day: str, aggregate: Mapping[str, Any], allocation: Mapping[str, Any], unknown: list[dict[str, str]], event_key: str) -> dict[str, Any]:
-    return {
+def _mark_effect_attempted() -> None:
+    """Record the irreversible boundary before calling the Telegram provider."""
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
+    if not hint_path:
+        return
+    _atomic_json(Path(hint_path), {"status": "effect_attempted", "effect": 1})
+
+
+def _base_receipt(
+    day: str,
+    aggregate: Mapping[str, Any],
+    allocation: Mapping[str, Any],
+    unknown: list[dict[str, str]],
+    event_key: str,
+    occurrence_id: str | None = None,
+) -> dict[str, Any]:
+    receipt = {
         "day": day,
         "event_key": event_key,
         "aggregate": dict(aggregate),
         "allocation": dict(allocation),
         "unknown_venues": unknown,
     }
+    if isinstance(occurrence_id, str) and occurrence_id:
+        receipt["occurrence_id"] = occurrence_id
+    return receipt
 
 
 def load_daily_receipts(state_dir: str | Path, end_day: str) -> list[dict[str, Any]]:
@@ -157,6 +176,7 @@ def wake(
     state_dir: str | Path,
     today: str,
     send: Callable[[str], Any],
+    occurrence_id: str | None = None,
 ) -> dict[str, Any]:
     state = Path(state_dir)
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -249,7 +269,9 @@ def wake(
     message = render_daily_pnl(aggregate, allocation, today)
     database = state / "telegram-outbox.sqlite3"
     event_key = f"cross-venue-daily:{today}"
-    receipt = _base_receipt(today, aggregate, allocation, unknown, event_key)
+    receipt = _base_receipt(
+        today, aggregate, allocation, unknown, event_key, occurrence_id
+    )
     if isinstance(manifest_status, str) and manifest_status:
         receipt["input_manifest_status"] = manifest_status
     try:
@@ -273,6 +295,10 @@ def wake(
         _atomic_json(receipt_path, receipt)
         return receipt
     try:
+        pending_receipt = dict(receipt)
+        pending_receipt["status"] = "delivery_pending"
+        _atomic_json(receipt_path, pending_receipt)
+        _mark_effect_attempted()
         response = send(message)
         provider_id = _provider_message_id(response)
         if provider_id is None:

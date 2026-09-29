@@ -277,6 +277,104 @@ class EtfOwnershipTest(unittest.TestCase):
 
 
 class EtfReconciliationTest(unittest.TestCase):
+    def test_nonterminal_broker_order_stays_unresolved_until_filled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID},
+                ORDER,
+            )
+            EFFECT.mark_started(ledger, sealed)
+            callbacks = []
+            result = EFFECT.reconcile_started(
+                ledger,
+                lambda _: {**PROVIDER_ORDER, "status": "accepted", "filled_qty": "0"},
+                on_reconciled=lambda intent, order: callbacks.append((intent, order)),
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(result, {"pending": 1, "reconciled": 0, "unresolved": 1, "deferred": 1})
+        self.assertEqual(callbacks, [])
+        self.assertFalse(any(row.get("receipt_type") == "outcome" for row in rows))
+        self.assertEqual(rows[-1]["status"], "reconciliation_pending")
+
+    def test_zero_fill_terminal_failure_closes_without_strategy_callback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID},
+                ORDER,
+            )
+            EFFECT.mark_started(ledger, sealed)
+            result = EFFECT.reconcile_started(
+                ledger,
+                lambda _: {**PROVIDER_ORDER, "status": "canceled", "filled_qty": "0"},
+                on_reconciled=lambda *_: self.fail("terminal zero-fill must not invoke strategy callback"),
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(result, {"pending": 1, "reconciled": 1, "unresolved": 0})
+        self.assertEqual(rows[-1]["outcome"], "broker_terminal_failure")
+
+    def test_partial_terminal_order_stays_unresolved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID},
+                ORDER,
+            )
+            EFFECT.mark_started(ledger, sealed)
+            result = EFFECT.reconcile_started(
+                ledger,
+                lambda _: {**PROVIDER_ORDER, "status": "canceled", "filled_qty": "0.01"},
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(result["reconciled"], 0)
+        self.assertEqual(result["unresolved"], 1)
+        self.assertEqual(result["deferred"], 1)
+        self.assertEqual(rows[-1]["reason"], "partial_fill_requires_reconciliation")
+
+    def test_legacy_nonterminal_outcome_reopens_and_later_filled_readback_wins(self):
+        strategy_receipt = {
+            "receipt": {"provider_order_id": "paper-order-1", "owner_id": OWNER_ID},
+            "account_readback": {"clock": {"observed_at": "2026-09-29T14:31:05Z"}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID},
+                ORDER,
+            )
+            EFFECT.mark_started(ledger, sealed)
+            with ledger.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({
+                    "broker": {**PROVIDER_ORDER, "status": "accepted", "filled_qty": "0"},
+                    "effect_id": sealed["effect_id"], "outcome": "broker_reconciled",
+                    "mode": "paper", "paper": True, "receipt_type": "outcome",
+                }) + "\n")
+            deferred = EFFECT.reconcile_started(
+                ledger,
+                lambda _: {**PROVIDER_ORDER, "status": "accepted", "filled_qty": "0"},
+            )
+            recovered = EFFECT.reconcile_started(
+                ledger,
+                lambda _: PROVIDER_ORDER,
+                on_reconciled=lambda *_: strategy_receipt,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(deferred["deferred"], 1)
+        self.assertEqual(deferred["unresolved"], 1)
+        self.assertEqual(recovered["reconciled"], 1)
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"]
+        self.assertEqual(outcomes[-1]["broker"]["status"], "filled")
+        self.assertEqual(outcomes[-1]["strategy_receipt"], strategy_receipt)
+
     def test_effect_callback_runs_before_outcome_and_can_replay_safely(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "receipts.jsonl"
