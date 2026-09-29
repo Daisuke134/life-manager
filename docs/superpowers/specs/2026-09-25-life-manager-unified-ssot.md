@@ -1118,3 +1118,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **validation loopの自然実行状態（2026-09-29 10:28 UTC）**: `investment-strategy-validation`はLife Manager ownerで`loaded-idle`、installed releaseはmain由来だが、occurrence・terminal result・provider receiptはまだ無く、next eligibleは`interval:604800s`。手動wakeは自然測定に数えず、現時点ではこのTODOを未完のまま保持する。
 
 **cross-venue deliveryの追加readback（2026-09-29）**: 同じimmutable releaseのTelegram client設定は送信なしの`getMe`・`getChat`がPASSし、outbox本文は486文字・1 chunkだった。Telegram user MTProto履歴のread-only照合は履歴38件中、対象outbox本文SHAとの完全一致が`0`件だった。これはdelivery成功の公式receiptではなく、送信後の不確実性を安全に解消する陰性証拠にもならないため、旧occurrenceのfenceはheldのまま、再送も行わない。将来、occurrenceに結び付いたdaily receipt・outbox `delivered`・provider message IDの三者が揃った場合だけreconcileする。
+
+**paper自然wakeの再確認（2026-09-29 10:37 UTC）**: 直前の`host_admission_deferred:resource_capacity_busy`（exit `75`）後、次の`alpaca-investment-paper:18d9c44acda45dc0-42418`は`pass`・exit `0`へ復帰した。公式Alpaca readbackはmarket `is_open=false`、次回open `09:30 EDT`、QQQ注文`accepted`・`filled_qty=0`・`filled_avg_price=null`、positions空、provider receiptなし。capacity deferはprovider effect前で、今回の復帰も取引・利益ではない。INV-002は市場開場後の同一order terminal readbackまで継続する。
