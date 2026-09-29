@@ -40,6 +40,47 @@ class LoopScratchTest(unittest.TestCase):
             no_effect_loop_ids={"job"})
         starts.assert_called_once_with()
 
+    def test_enospc_uses_runtime_reserve_when_no_stale_scratch_exists(self) -> None:
+        first = OSError(errno.ENOSPC, "No space left on device")
+        second = OSError(errno.ENOSPC, "No space left on device")
+        created = (Path("/tmp/recovered"), 11, 12)
+        reserve_restored = False
+        with tempfile.TemporaryDirectory() as directory:
+            reserve = Path(directory) / "reserve" / ".runtime-reserve"
+            reserve.parent.mkdir()
+            reserve.write_bytes(b"\0" * 512 * 1024)
+            reserve.chmod(0o600)
+            with (mock.patch.dict(os.environ, {
+                            "LIFE_MANAGER_RUNTIME_RESERVE_PATH": str(reserve)}),
+                  mock.patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                             side_effect=[first, second, created]) as reset,
+                  mock.patch("runtime.loop.lm_loop_run.scratch_gc",
+                             return_value={"removed": 0}),
+                  mock.patch("runtime.loop.lm_loop_run.process_starts",
+                             return_value={}),
+                  mock.patch("runtime.loop.lm_loop_run.time.time_ns",
+                             return_value=1234)):
+                run_id, scratch, parent_fd, run_fd = _create_loop_scratch_with_recovery(
+                    Path("/state"), "job", "run", effect_class="none")
+                reserve_restored = reserve.stat().st_size == 512 * 1024
+
+        self.assertEqual(run_id, "run-capacity-retry-4d2")
+        self.assertEqual((scratch, parent_fd, run_fd), created)
+        self.assertEqual(reset.call_count, 3)
+        self.assertTrue(reserve_restored)
+
+    def test_effectful_enospc_never_reclaims_or_retries(self) -> None:
+        first = OSError(errno.ENOSPC, "No space left on device")
+        with (mock.patch("runtime.loop.lm_loop_run.reset_loop_scratch",
+                         side_effect=first) as reset,
+              mock.patch("runtime.loop.lm_loop_run.scratch_gc") as gc,
+              self.assertRaises(OSError) as caught):
+            _create_loop_scratch_with_recovery(
+                Path("/state"), "job", "run", effect_class="message")
+        self.assertEqual(caught.exception.errno, errno.ENOSPC)
+        reset.assert_called_once()
+        gc.assert_not_called()
+
     def test_partial_owner_write_stays_protected_when_disk_is_full(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"

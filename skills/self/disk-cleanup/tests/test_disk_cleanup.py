@@ -1905,6 +1905,29 @@ def test_run_once_records_inventory_summary(tmp_path: Path, monkeypatch) -> None
     assert receipt["inventory_roots"] == 2
 
 
+def test_run_once_provisions_runtime_reserve(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        disk_cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 0, "root_count": 0, "gaps": []}},
+    )
+    state = tmp_path / "state"
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=state,
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (12 * GiB, 100 * GiB),
+    )
+
+    result = governor.run_once()
+
+    reserve = state / ".runtime-reserve"
+    assert result["runtime_reserve_ready"] is True
+    assert reserve.is_file()
+    assert stat.S_IMODE(reserve.stat().st_mode) == 0o600
+    assert reserve.stat().st_size == 512 * 1024
+
+
 def test_run_once_never_blocks_producers_even_below_eleven_gib(tmp_path: Path, monkeypatch) -> None:
     state = tmp_path / "state"
     state.mkdir()

@@ -35,6 +35,7 @@ from runtime.loop.runtime_event import (
     build_runtime_start_event,
     validate_runtime_event,
 )
+from runtime.loop.runtime_reserve import retry_on_enospc
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -182,32 +183,45 @@ def _valid_recovery_intent(value: object, event: dict) -> bool:
 
 
 def _append_recovery_intent(path: Path, intent: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.fchmod(descriptor, 0o600)
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
-        needle = intent["intent_id"].encode("utf-8")
-        os.lseek(descriptor, 0, os.SEEK_SET)
-        with os.fdopen(os.dup(descriptor), "rb") as existing:
-            for line in existing:
-                if needle not in line:
-                    continue
+    def append_once() -> None:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+        append_start: int | None = None
+        try:
+            os.fchmod(descriptor, 0o600)
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            needle = intent["intent_id"].encode("utf-8")
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            with os.fdopen(os.dup(descriptor), "rb") as existing:
+                for line in existing:
+                    if needle not in line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        continue
+                    if isinstance(row, dict) and row.get("intent_id") == intent["intent_id"]:
+                        return
+            append_start = os.fstat(descriptor).st_size
+            if append_start:
+                os.lseek(descriptor, -1, os.SEEK_END)
+                if os.read(descriptor, 1) != b"\n":
+                    os.write(descriptor, b"\n")
+            os.write(descriptor, (json.dumps(intent, ensure_ascii=True, sort_keys=True,
+                                             separators=(",", ":")) + "\n").encode("utf-8"))
+            os.fsync(descriptor)
+        except OSError:
+            if append_start is not None:
                 try:
-                    row = json.loads(line)
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    continue
-                if isinstance(row, dict) and row.get("intent_id") == intent["intent_id"]:
-                    return
-        if os.fstat(descriptor).st_size:
-            os.lseek(descriptor, -1, os.SEEK_END)
-            if os.read(descriptor, 1) != b"\n":
-                os.write(descriptor, b"\n")
-        os.write(descriptor, (json.dumps(intent, ensure_ascii=True, sort_keys=True,
-                                         separators=(",", ":")) + "\n").encode("utf-8"))
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+                    os.ftruncate(descriptor, append_start)
+                    os.fsync(descriptor)
+                except OSError:
+                    pass
+            raise
+        finally:
+            os.close(descriptor)
+
+    retry_on_enospc(append_once)
 
 
 def _enqueue_recovery_intent(release_root: Path, event: dict, scratch: Path) -> bool:
@@ -356,7 +370,12 @@ def _create_loop_scratch_with_recovery(
         if (not isinstance(result, dict)
                 or not isinstance(result.get("removed"), int)
                 or result["removed"] < 1):
-            raise
+            retry_run_id = f"{run_id}-capacity-retry-{time.time_ns():x}"
+            scratch, parent_fd, run_fd = retry_on_enospc(
+                lambda: reset_loop_scratch(
+                    state_root, loop_id, retry_run_id, effect_class=effect_class)
+            )
+            return retry_run_id, scratch, parent_fd, run_fd
         retry_run_id = f"{run_id}-capacity-retry-{time.time_ns():x}"
         scratch, parent_fd, run_fd = reset_loop_scratch(
             state_root, loop_id, retry_run_id, effect_class=effect_class)
@@ -370,16 +389,19 @@ def unprotect_loop_scratch(run_fd: int) -> None:
 
 
 def _atomic_json(path: Path, value: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(value, handle, sort_keys=True, separators=(",", ":")); handle.write("\n")
-            handle.flush(); os.fsync(handle.fileno())
-        os.chmod(name, 0o600); os.replace(name, path)
-    finally:
-        try: os.unlink(name)
-        except FileNotFoundError: pass
+    def write_once() -> None:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(value, handle, sort_keys=True, separators=(",", ":")); handle.write("\n")
+                handle.flush(); os.fsync(handle.fileno())
+            os.chmod(name, 0o600); os.replace(name, path)
+        finally:
+            try: os.unlink(name)
+            except FileNotFoundError: pass
+
+    retry_on_enospc(write_once)
 
 
 class EffectIdentityResult(NamedTuple):
@@ -1128,9 +1150,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if admission_effect_scope(entry) == "occurrence":
                 enqueue_kwargs["effect_scope"] = "occurrence"
             ticket, admission_reason = (
-                _admission_with_retry(lambda: enqueue_durable_resource(
+                retry_on_enospc(lambda: _admission_with_retry(
+                    lambda: enqueue_durable_resource(
                         resource_class, loop_id, **enqueue_kwargs)
-                ) if durable else (None, "legacy")
+                )) if durable else (None, "legacy")
             )
         except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -1290,8 +1313,10 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                             and not (pre_effect_hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True
-                    dispatch_after_release = _release_with_retry(
-                        lambda: release_and_reserve_resource(claim, **release_options)
+                    dispatch_after_release = retry_on_enospc(
+                        lambda: _release_with_retry(
+                            lambda: release_and_reserve_resource(claim, **release_options)
+                        )
                     )
                 else:
                     release_resource(claim)
@@ -1383,10 +1408,10 @@ def main(argv: list[str] | None = None) -> int:
         effect_identity_status = None
         if entry.get("effect_class") != "none" and return_code != 0:
             try:
-                identity_result = _persist_effect_identity(
+                identity_result = retry_on_enospc(lambda: _persist_effect_identity(
                     scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
                     claimed_occurrence_id,
-                )
+                ))
                 effect_identity_status = identity_result.status
                 effect_identity_ref = identity_result.ref
             except (OSError, ValueError) as error:
