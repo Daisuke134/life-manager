@@ -1084,9 +1084,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **投資TODOの残り（この順序が現在の正本）**:
 
 1. [完了] `runtime/loop/tests/fixtures/macos-loop-jobs.json`の投資レコード（`alpaca-investment-live`のpriority、`investment-cross-venue-report`のeffect_reconcile）をregistryと一致させた。local focused比較で残る差分は`capafy-distribute-daily`と`capafy-loop-daily`だけであり、Capafyレコードは変更しない。
-2. PR required checksがgreenになった場合だけmainへ統合する。FAILが投資外なら`external_gate_pending`として記録し、投資sourceの次TODOは継続する。
-3. main由来immutable releaseへcross-venue adapter、occurrence binding、Alpaca reconciliation、pre-effect fence修正を載せ、Life Manager owner pathへapplyしてloaded release SHA・argv/env・admissionをreadbackする。
-4. 既存のlive/cross-venue `effect_unknown`を再送せず、公式provider receipt/readbackがあるものだけoccurrence単位でreconcileする。証拠が無いものはheldのままにする。
+2. [完了] PR required checks（run`36553592382`の9ジョブ）をPASSさせ、PR #6186をmainへ統合した。merge commitは`f30eba5244841f5761fa3b5ebe886782a39a3b43`。
+3. [完了] main由来immutable release `20260929T191325-f30eba52`へcross-venue adapter、occurrence binding、Alpaca reconciliation、pre-effect fence修正を載せ、Life Manager owner pathで4投資loopへtarget applyした。loaded release SHA・argv/env・admissionをreadback済み。
+4. [部分完了] 既存のlive/cross-venue `effect_unknown`を再送せず、公式provider receipt/readbackがあるものだけoccurrence単位でreconcileする。Alpaca旧occurrenceは公式`alpaca-orders-none-after`でresolve済み、cross-venue旧occurrenceはdaily receipt/provider message IDが無いためheldのままにする。
 5. `investment-strategy-validation`のnatural runと`alpaca-investment-paper`のnatural wakeを取得し、strategy selection、order status、fill、account、position、provider receiptを揃える。`accepted`やpaper wake回数は利益と数えない。
 6. fill後のentry/exit、fee、slippage、funding/borrow、gas、model costを全て含むcost-complete net P&Lを生成する。まだreal revenueとして報告しない。
 7. positiveなcost-complete natural round tripをreplay-zeroで`30/30`測定し、初めて最小capの一段階promotionを審査する。それまではBinance送金、live注文、meme coin署名、yield deposit、cap増額をしない。
@@ -1097,3 +1097,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **最新main同期後の投資gate（2026-09-29）**: merge commitは`cd729ea5de125fb94af8e46692616e90533d83cb`で、spec更新commit `b4291741150f91bc1ec269f0e8f68dcb5d8e9684`までbranchへpush済み。PR #6186のheadは`b429174115`、Security Scan run`36553020571`の9ジョブ（投資Python、Loop control、OSS、PII、gitleaks、TruffleHog、startup、shell、agent instruction）は全てPASS、CodeRabbitもPASS、merge stateは`CLEAN`である。PR統合・main由来immutable release・production apply・natural paper/provider receiptは未完了で、次の自己所有TODOはPRをmainへ統合してINV-001-BのLife Manager production handoffへ進むこと。branch固有差分にCapafy／PromptBaseのファイルはない。
 
 **投資収益readback再確認（2026-09-29、read-only）**: production currentは`/Users/anicca/loops/releases/20260929T184713-2ffad523`のままで、投資branchのsourceは未適用。Alpaca paper observationはcash/equity`$99,996.76`、positions`[]`、新規filled orderなし。`investment-cross-venue`の日次receiptは`delivery_uncertain`、allocation`$0.00`、`rolling_30d_net_pnl_usd=null`、`capital_expansion_allowed=false`、Hyperliquid／Solana snapshotはmissingである。したがって検証済み実現投資収益は`$0`、月次投資revenueは`$0`、Binance送金・wallet funding・live注文は未実施である。
+
+**main統合後の投資production handoff（2026-09-29）**: PR #6186をsquash mergeし、mainは`f30eba5244841f5761fa3b5ebe886782a39a3b43`になった。main由来immutable release `/Users/anicca/loops/releases/20260929T191325-f30eba52`（`release_paths=ALL`）を作成し、`investment-strategy-validation`、`alpaca-investment-paper`、`alpaca-investment-live`、`investment-cross-venue-report`だけへtarget applyした。4件すべて`ok=true`で、loaded argvは同releaseの`bin/lm-loop-run`・loop ID・release rootを指し、`launchd_state=loaded-idle`、ownerは`life-manager`、paper/live/cross-venueのstate rootは分離されている。Capafy／PromptBaseのlabelはapply対象にしていない。
+
+**handoff後の収益readback（2026-09-29、read-only）**: 新release適用後もpaperの新しい公式filled order／provider receiptはまだなく、直近passは旧release由来である。liveは旧effect-unknownを公式Alpaca readback（occurrence後の注文なし）でresolveしたが、利益を生んだ取引ではない。cross-venueは旧occurrenceのdaily receiptとTelegram provider message IDが未結合のためfenceを解放していない。allocationは`$0.00`、rolling 30日net P&Lは`null`、capital expansionは`false`、Hyperliquid／Solana snapshotはmissing。したがって実現投資収益は`$0`、月次投資revenueは`$0`であり、次のcursorは`INV-002`（自然paper wakeでorder/fill/account/position/provider receiptを1件取得）である。
