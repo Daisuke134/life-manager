@@ -2141,6 +2141,30 @@ job IDs 0）、`git diff --check`もPASS。branch
 7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
    settlement・cost-complete positive net P&L。
 
+### 最新CrowdWorks platform-manifest source — 2026-09-30
+
+- `skills/earn/crowdworks/scripts/crowdworks_platform_manifest.py` を追加し、CrowdWorksのread-only account/profile状態
+  （authenticated、source-complete、profile readback）を`platform:crowdworks` manifestへ変換する。公開job、project、
+  listing、request snapshotは明示的に拒否し、案件Opportunity runnerとplatform enrollmentを分離する。
+- adapter source hash、observed time、公式source URL、account/profile evidenceを束縛する。policy、funded work、official
+  canary/readback、unit economicsは`unknown`のままなのでcandidate cycleはholdし、認証やprofile存在だけでpromotionしない。
+  provider mutation、応募、返信、納品、決済、owner登録は呼ばない。
+- CrowdWorks platform manifest focused 4件、既存CrowdWorks adapter/observation 10件、Marketplace Core 329件、compile、
+  `lm-loop-contract`、`git diff --check`をPASSした。これはread-only account manifestのsource証拠であり、provider receipt、
+  公式readback、実応募・成約・payout・収益の証拠ではない。
+
+### 原子TODO（CrowdWorks platform-manifest source後の正本）
+
+1. **完了** Coconala onboarding observation → platform manifest → candidate evaluation／durable wake summary。
+2. **完了** Lancers account/work-sync observation → platform manifest → candidate evaluation／durable wake summary。
+3. **完了** CrowdWorks account/profile observation → platform manifest → candidate evaluation／durable wake summary。
+4. **未完** Mercorのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+5. **未完** source branchをmainへ受入し、immutable release、loaded SHA／plist／identity lease／rollback receiptを公式readbackで確認する。
+6. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・
+   receiptなしのeffect fence解放はしない。
+7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
+   settlement・cost-complete positive net P&L。
+
 ### 最新Lancers platform-manifest source — 2026-09-30
 
 - `skills/earn/lancers/scripts/lancers_platform_manifest.py` を追加し、Lancersのread-only account/work-sync状態
