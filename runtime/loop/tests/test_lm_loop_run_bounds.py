@@ -966,7 +966,8 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
     for loop_id in ("life-manager-release-reconciler", "life-manager-recovery-supervisor",
-                    "life-manager-disk-cleanup", "capafy-loop-healthcheck"):
+                    "life-manager-disk-cleanup", "capafy-loop-healthcheck",
+                    "lm-fence-reconciler"):
         receipt = tmp_path / f"receipt-{loop_id}"
         with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
               patch("runtime.loop.lm_loop_run.durable_protocol_version",

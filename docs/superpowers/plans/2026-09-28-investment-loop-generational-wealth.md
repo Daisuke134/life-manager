@@ -841,3 +841,16 @@ The entries above are historical readbacks. This section is the current source o
 **Latest-main synchronization（2026-09-29）**: `origin/main=209b5dc131400c5103cf600399b8150ce72bfd3e` adds only two Capafy readback lines to the shared SSOT. It merged cleanly into the investment branch as `59caf3c0bf`; after the merge, investment-core `130/130`, Solana `42/42`, contract `ok=true` (`14/173/100`), and `git diff --check` pass. This is base/source evidence only: no PR merge, production release, paper receipt, provider P&L, funding, or order occurred. **Cursor: newest PR gate → main-derived immutable release → natural paper receipt.**
 
 **Latest owner readback（2026-09-29）**: production remains on `/Users/anicca/loops/releases/20260929T125257-751b6bef`; `alpaca-investment-live` is loaded-idle but its newest occurrence `18d9b0dfbc122c50-92300` is a pre-effect `host_admission_deferred:resource_capacity_busy` with exit `75`, no provider receipt, and no official readback. Paper, cross-venue, and validation loop IDs are still unknown in production. PR head `a6797f1511` run `36522790031` has already failed the same external OSS/PII gates while other checks continue. No order, funding, wallet mutation, paper receipt, P&L, or revenue occurred. **Cursor: external required gate → merge → paper/cross-venue immutable release → natural paper receipt.**
+
+**投資cursor更新（2026-09-29 JST）**: 現在の`origin/main`は`5d8a135b62e370136262e18f045042cfbf3c2bf3`、production `current`は`/Users/anicca/loops/releases/20260929T140708-5d8a135b`。4つの投資registry row（live / paper / cross-venue report / strategy validation）は現行releaseに存在する。Alpaca公式readbackで、過去のpaper/live effect-unknown occurrenceは後続注文なしを確認し、両方の`effect_reconcile.py`は`PASS`。ただし最新paper wake `alpaca-investment-paper:18d9b3cf090ebdb0-4847`は`resource_capacity_busy`でprovider effect前にexit `75`となったため、paper receiptも利益もまだない。
+
+**原因とsource修正**: 実DBに歴史的`effect_unknown=8,985`行が残る中、公式provider readbackを担当する`lm-fence-reconciler`が通常data-plane admission枠を要求していた。これがfence回収と投資paper wakeの共有枠飢餓を作っていた。`fix/investment-fence-reconciler-20260929`で、外部効果なしの`lm-fence-reconciler`を`CONTROL_PLANE_SAFETY_LOOPS`へ追加し、既存テストで安全loopがdata-plane admissionを取らない契約を固定した。focused `2/2`、registry `124/124`、loop bounds `104/104`、`lm-loop-contract ok=true`。source修正は未だPR/main/releaseへ未反映であり、ここを完了するまで本番paperの再試行はしない。
+
+**残りTODO（実行順）**:
+
+1. source修正をPR gate通過後にmainへmerge。
+2. main由来immutable releaseをcutし、Life Manager通常owner pathで`lm-fence-reconciler`をapply/readback。
+3. fence reconcilerの自然wakeで公式receipt/readbackをoccurrence単位に取得。手動DB削除・blind retryは禁止。
+4. `alpaca-investment-paper`の自然wakeでpaper order/fill/account/position receiptを1件取得。
+5. cross-venue reportとstrategy validationで全コスト控除後のnet P&Lを確定。`unknown`は利益に数えない。
+6. 最小capの自然round tripを`30/30`まで測定し、初めて次のcap promotionをowner-approved gateへ出す。Binance送金・live注文・meme-coin署名・yield depositはその前に行わない。
