@@ -12,6 +12,8 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from runtime.loop.runtime_reserve import retry_on_enospc
+
 
 REQUIRED_FIELDS = {
     "version", "event_id", "timestamp", "loop_id", "domain", "run_id", "phase",
@@ -379,21 +381,35 @@ def _contains_event_id(fd: int, event_id: str) -> bool:
 
 def append_runtime_event(path: Path, event: dict) -> None:
     validate_runtime_event(event)
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     data = (json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
-    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.fchmod(fd, 0o600)
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        rotate_jsonl_locked(fd, path)
-        if _contains_event_id(fd, event["event_id"]):
-            return
-        size = os.fstat(fd).st_size
-        if size:
-            os.lseek(fd, -1, os.SEEK_END)
-            if os.read(fd, 1) != b"\n":
-                os.write(fd, b"\n")
-        os.write(fd, data)
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+
+    def append_once() -> None:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+        append_start: int | None = None
+        try:
+            os.fchmod(fd, 0o600)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            rotate_jsonl_locked(fd, path)
+            if _contains_event_id(fd, event["event_id"]):
+                return
+            append_start = os.fstat(fd).st_size
+            if append_start:
+                os.lseek(fd, -1, os.SEEK_END)
+                if os.read(fd, 1) != b"\n":
+                    os.write(fd, b"\n")
+            os.write(fd, data)
+            os.fsync(fd)
+        except OSError:
+            # A short append must not be retried on top of a partial JSON row.
+            if append_start is not None:
+                try:
+                    os.ftruncate(fd, append_start)
+                    os.fsync(fd)
+                except OSError:
+                    pass
+            raise
+        finally:
+            os.close(fd)
+
+    retry_on_enospc(append_once)

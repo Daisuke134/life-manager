@@ -28,6 +28,12 @@ from pathlib import Path
 from typing import Callable
 
 from host_inventory import FULL_INVENTORY_BUDGET_SECONDS, collect_host_inventory
+# Direct launchd execution puts this file's directory, not the repository root,
+# on sys.path.  Add the immutable source root before importing the shared helper.
+_REPO_ROOT = str(Path(__file__).resolve().parents[3])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from runtime.loop.runtime_reserve import ensure_runtime_reserve
 
 GiB = 1024**3
 FULL_INVENTORY_INTERVAL_SECONDS = 3600
@@ -1316,6 +1322,13 @@ class HostDiskGovernor:
     def run_once(self) -> dict[str, object]:
         deadline = self.clock() + GOVERNOR_BUDGET_SECONDS
         free_before, _ = self.usage()
+        configured_reserve = os.environ.get("LIFE_MANAGER_RUNTIME_RESERVE_PATH", "").strip()
+        runtime_reserve = (
+            Path(configured_reserve).expanduser()
+            if configured_reserve and Path(configured_reserve).expanduser().is_absolute()
+            else self.state_dir / ".runtime-reserve"
+        )
+        runtime_reserve_ready = ensure_runtime_reserve(runtime_reserve)
         health = self._checked_bootstrap_health()
         if health.get("status") not in {"ok", "not-applicable"}:
             result: dict[str, object] = {
@@ -1331,6 +1344,7 @@ class HostDiskGovernor:
                 "free_before": free_before,
                 "free_after": free_before,
                 "preserved_reasons": {"gui-bootstrap-health-failure": 1},
+                "runtime_reserve_ready": runtime_reserve_ready,
             }
             self._receipt(result)
             return result
@@ -1387,6 +1401,9 @@ class HostDiskGovernor:
             result["inventory_gaps"] = len(inventory["coverage"]["gaps"])
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             result["inventory_error"] = type(exc).__name__
+        if not runtime_reserve_ready:
+            runtime_reserve_ready = ensure_runtime_reserve(runtime_reserve)
+        result["runtime_reserve_ready"] = runtime_reserve_ready
         self._receipt(result)
         result["free_before"] = free_before
         return result
