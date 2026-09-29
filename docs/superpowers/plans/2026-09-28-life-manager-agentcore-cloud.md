@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS registration is active. Console root login with MFA, CLI STS authentication, and the Tokyo AgentCore Runtime, Browser, Browser Profile, and Workload Identity list APIs all return successfully. The temporary bypass is removed. Immediate order returns from `A11` to the blocked dependency path: `A06 -> A07 -> A11`. A06 remains incomplete until real canary resources are created, invoked, stopped, and read back; control-plane reachability alone is not a canary pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06 is externally blocked, not done, and no deployment retry is allowed before an official AWS response. Immediate order is `A11 -> A12 -> A14 -> A15 -> A16` while the existing activation case remains inside its stated response window, then `A06 -> A07 -> A13` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -552,12 +552,12 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A03 | done | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
 | A04 | done | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
 | A05 | done | Read-only canary runtime package | Runtime 3/3, canary/package 10/10, CDK 1/1, content manifest 178/178 identical, production dependency audits 0; no AWS mutation |
-| A06 | **next** | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0; AWS account and all four Tokyo control-plane list APIs verified reachable |
+| A06 | external-blocked | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0; CloudFormation and S3 must first return active official readback |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
 | A08 | done | Tenant/runtime/profile/usage schema tests | RED: missing store/entitlement modules and migration; contracts cover cross-tenant refs, duplicate receipts, second active runtime, integer micros, RLS, and immutable usage |
 | A09 | done | Migration and durable stores | store 5/5; PostgreSQL migration replay, tenant/job FK, single lease, receipt dedupe, immutable usage, RLS, role boundary, and failed-transaction rollback PASS |
 | A10 | done | Versioned `free-v1` and `founding-pro-v1` policy | pure admission 3/3; Task 3 unit 8/8 and PostgreSQL seeded-policy readback PASS |
-| A11 | todo | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
+| A11 | **next** | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
 | A12 | todo | Thin AgentCore wrapper over existing kernel | no duplicated business rule; local canonical parity PASS |
 | A13 | todo | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash |
 | A14 | todo | Runtime SDK client and dispatcher tests | budget/release/lease checks occur before provider call |
