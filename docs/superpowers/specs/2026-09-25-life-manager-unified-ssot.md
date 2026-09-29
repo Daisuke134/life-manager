@@ -904,6 +904,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **CrowdWorks read-only natural probe（2026-09-29 19:32 JST）**: branchの`crowdworks:dais` identity／`crowdworks-revenue-reply` target ownerでleaseを取得し、provider受信APIの読み取りだけを1回実行した。`items`／`pagination`のshape検証を通過し、125スレッドを取得してleaseを解放した。これは返信送信・契約承諾・納品のreceiptではない。productionの`751b6bef…`旧reply ownerに残る`entrypoint_exit_1`／`official_readback_required`は、今回のread-only成功だけでは解消扱いにせず、identity joinを含むmain由来immutable releaseのloaded natural runと公式thread readbackを次のgateにする。
 
+**Lancers read-only natural probe（2026-09-29 19:33 JST）**: branchの`lancers:dais` identity／`lancers-revenue-negotiate` target ownerでleaseを取得し、返信adapterの受信観測だけを1回実行した。専用CDP `9227` のprovider画面がHuman Verificationであるため、adapterは`human_verification_required`を返して副作用なしに停止した。旧productionの`provider_response_invalid`を成功・応募・返信の証拠に昇格しない。検証解除後にのみ同じadapterで公式thread readbackへ進む。
+
 **本番境界の最新readback（2026-09-29 19:02 JST）**: `origin/main=04a56df3e74d…`、production `current=/Users/anicca/loops/releases/20260929T185817-acaadb2f`（SHA `acaadb2fbb74…`、main ancestor）へ進んだ。`hf-gig-browser` と `hf-gig-paid-direct` は `installed/event_release_sha=acaadb2f…` へ揃い、browserは`loaded-running`、Paidは`loaded-idle`でeffect前の自然wake待ち。`hf-gig-reply-detector`、`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`は旧releaseのままで、共有`release-reconciler`のfleet applyが順次更新中（同じownerへ重ねてapplyしない）。Ryuのv723 DMは一度だけ送信済みだが、再読み込み後のprovider永続readbackは403のため未確認。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
 
 **残TODO（成果基準の順序）**:
