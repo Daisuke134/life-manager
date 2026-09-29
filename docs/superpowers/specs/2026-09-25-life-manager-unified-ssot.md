@@ -2143,3 +2143,30 @@ job IDs 0）、`git diff --check`もPASS。branch
    既存の一回送信を維持し、再送・正式納品・receiptなしのeffect fence解放はしない。
 5. **未完** capacity自然run、Freelancer／Upworkのauth・funded contract、canary、rollback、settlement、
    cost-complete positive net P&Lを検証する。
+
+### 最新Meta Loop durable wake summary — 2026-09-30
+
+- `run_meta_loop_wake(...)` を追加し、既存のbounded `run_discovery_cycle(...)`を一回だけ実行した結果を、
+  専用の`MetaLoopRunStore`へappend-only・冪等に保存する。保存項目は`run_id`、`observed_at`、`status`、
+  source数、候補処理数、persist/duplicate/promote/hold数、`source_errors`、候補別`next_actions`である。
+- run summaryは専用0600 JSONLとlockへ保存し、同一`run_id`・同一内容はduplicate、同一`run_id`・異なる内容は
+  conflictとしてfail-closedにする。`empty`（正常な候補ゼロ）と`partial`（source障害）をdurableに区別する。
+- wake wrapperはrun idと時刻を先に検証し、candidate評価・store保存以外のprovider submit、reply、deliver、owner登録、
+  決済を呼ばない。候補がOpportunity案件であっても、platform candidateのpromotion evidenceへ自動昇格させない。
+- focused scheduler test 3件を含むMarketplace Core 325件、compile、`lm-loop-contract`（`ok=true`、catalog 14、
+  registry 176、mapped 102、shared job IDs 0）、`git diff --check`をPASSした。これはdurableなsource summaryの証拠であり、
+  production scheduler稼働、provider receipt、RyuさんDMのofficial readback、応募・納品・成約・payout・収益の証拠ではない。
+
+### 原子TODO（Meta Loop durable wake summary後の正本）
+
+1. **完了** bounded Meta Loop wakeの`empty`／`partial`／`ok`を、run id付きで冪等なdurable summaryへ保存する。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorの既存read-only Opportunity観測を、案件観測と混同せず、
+   platform candidate evaluationへsource adapterとして接続する。policy、adapter、funded work、canary、unit economicsの
+   各evidenceを欠落なく集め、候補promotionは全gate PASS時だけにする。
+3. **未完** `fix/source-reconcile-20260930`をmainへ受入し、main由来immutable release、loaded SHA、plist argv/env、
+   identity lease、rollback receiptを公式readbackで一致させる。source test PASSだけでproduction完了と数えない。
+4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由を取得する。
+   既存の一回送信を維持し、再送・正式納品・receiptなしのeffect fence解放はしない。
+5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
+   isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。

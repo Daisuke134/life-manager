@@ -17,6 +17,7 @@ from typing import Any, Mapping
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
 _CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _RECEIPT = re.compile(r"^provider-receipt://[^/]+/[^/]+$")
 _DISCOVERY_ITEM_FIELDS = frozenset({
@@ -356,10 +357,63 @@ def run_discovery_cycle(
     return summary
 
 
+def run_meta_loop_wake(
+    sources: Mapping[str, Any],
+    candidate_store: Any,
+    run_store: Any,
+    *,
+    run_id: str,
+    observed_at: str,
+    max_candidates_per_source: int = 50,
+) -> dict[str, Any]:
+    """Run one bounded discovery wake and persist its summary durably.
+
+    The wake only reuses :func:`run_discovery_cycle`: sources remain read-only,
+    candidate evidence is evaluated by the existing fail-closed gates, and the
+    separate run store receives the resulting summary for replay/readback.
+    No provider mutation or owner registration is performed here.
+    """
+
+    run_id = _text(run_id, "run_id_invalid")
+    if _RUN_ID.fullmatch(run_id) is None:
+        raise EnrollmentError("run_id_invalid")
+    observed_at = _timestamp(observed_at, "observed_at_invalid")
+    record = getattr(run_store, "record", None)
+    if not callable(record):
+        raise EnrollmentError("run_store_invalid")
+    summary = run_discovery_cycle(
+        sources,
+        candidate_store,
+        max_candidates_per_source=max_candidates_per_source,
+    )
+    payload = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "observed_at": observed_at,
+        "status": summary["status"],
+        "sources": summary["sources"],
+        "inspected": summary["inspected"],
+        "persisted": summary["persisted"],
+        "duplicates": summary["duplicates"],
+        "promoted": summary["promoted"],
+        "held": summary["held"],
+        "source_errors": summary["source_errors"],
+        "next_actions": summary["next_actions"],
+    }
+    run_persistence = record(payload)
+    return {
+        **summary,
+        "run_id": run_id,
+        "observed_at": observed_at,
+        "run_persistence": run_persistence,
+    }
+
+
 __all__ = [
     "EnrollmentError",
     "REQUIRED_ACTIONS",
     "evaluate_platform_candidate",
     "evaluate_and_record_candidate",
     "run_discovery_cycle",
+    "run_meta_loop_wake",
 ]
