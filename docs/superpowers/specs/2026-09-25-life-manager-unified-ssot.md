@@ -2831,6 +2831,20 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
 
+## 現在の正本cursor（2026-09-30、Lancers preflight再実測後）
+
+2026-09-30 05:24 JSTに、既存stateを変更せず`work_sync.py --json --preflight`を再実行した。公式read-only結果は`ok=false`、`atom=ELZ-L01`、`failed_read=1`、`logged_in=true`、`error=human_verification_required`、終了コード75で、前回と同じHuman Verification画面である。応募・返信・納品・再送は0件。認証済みreceiptが存在しても、公式readbackがHuman Verificationで止まっている間はprovider効果へ進めない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式Human Verificationが解除された自然runで、同じaccountのread-only preflightを2回通し、現行`contracts.json`を生成する。自動突破・手編集・応募はしない。
+2. **未完** Lancersの`submit_proposal` receiptをlifecycle全体の認証と見なさず、owner／canary／rollback／settlementの別公式receiptを接続する。
+3. **未完** Coconala／CrowdWorks／Mercorのaccount-bound receiptと公式readbackを取得し、6 runtime callerから共通authorization境界へ渡す。
+4. **未完** Upwork／Freelancerのapproved mutation、完全inventory、funded contract／milestone、全action receiptを取得する。
+5. **未完** providerごとのplanned→terminalまたはrollback→settled、公式receipt、replay-zeroを自然runで取得する。
+6. **未完** 全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
+
 ## 履歴cursor（2026-09-30、Gig全回帰と容量ガード再実測後）
 
 この節が直前のcursorを更新する。`fix/source-reconcile-20260930`ではsource errorを安全なmachine codeとして永続化する変更（`16735319e8`）をpush済みである。テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
