@@ -11,6 +11,7 @@ import re
 import sys
 import time
 import tempfile
+import uuid
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -164,6 +165,71 @@ work_fit = _module("marketplace_work_fit",
                    Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "work_fit.py")
 listing_catalog = _module("marketplace_listing_catalog",
                           Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "listing_catalog.py")
+crowdworks_opportunity_observation = _module(
+    "crowdworks_opportunity_observation",
+    Path(__file__).with_name("opportunity_observation.py"),
+)
+
+
+def _write_observation_summary(path, payload):
+    """Atomically retain the read-only observation result for this wake."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", dir=path.parent, prefix=f".{path.name}.", delete=False, encoding="utf-8",
+        ) as handle:
+            temporary = Path(handle.name)
+            os.fchmod(handle.fileno(), 0o600)
+            json.dump(dict(payload), handle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def record_crowdworks_live_observation(
+    snapshot, decisions, *, evidence_dir, pass_id, store_root=None,
+):
+    """Persist one public CrowdWorks snapshot before the application effect."""
+    try:
+        summary = crowdworks_opportunity_observation.observe_crowdworks_opportunities(
+            dict(snapshot),
+            dict(decisions),
+            store_root=store_root or Path(
+                os.environ.get("GIG_OPPORTUNITY_OBSERVATION_ROOT")
+                or (Path.home() / "gig" / "opportunity-observations")
+            ).expanduser(),
+            evidence_ref=f"snapshot://crowdworks/{pass_id}/public-discovery.json",
+        )
+    except Exception as error:  # noqa: BLE001 - no apply after an unobserved wake
+        raise RuntimeError(
+            f"crowdworks_opportunity_observation_failed:{type(error).__name__}"
+        ) from error
+    payload = {"version": 1, "status": "success", "pass_id": pass_id, **summary}
+    _write_observation_summary(Path(evidence_dir) / "opportunity-observation-summary.json", payload)
+    return payload
+
+
+def record_crowdworks_observation_source_failure(evidence_dir, pass_id, error):
+    """Record a typed read-only source failure instead of treating it as an empty board."""
+    _write_observation_summary(Path(evidence_dir) / "opportunity-observation-summary.json", {
+        "version": 1,
+        "status": "source_collect_failed",
+        "pass_id": pass_id,
+        "read_only": True,
+        "error_class": type(error).__name__ if isinstance(error, BaseException) else "ProviderError",
+        "error": str(error)[:200],
+        "next_action": "retry_crowdworks_public_snapshot_read_only",
+    })
 
 def _applied():
     """Projects already applied to or durably awaiting official reconciliation.
@@ -220,10 +286,22 @@ def _work_fit_verdict(job_id, title, body):
     return verdicts[str(job_id)]
 
 
-def _candidate(page, listings, groups):
+def _crowdworks_snapshot(opportunities, already_applied_ids, observed_at):
+    """Bind the existing bounded public-job read to the shared snapshot boundary."""
+    return {
+        "ok": True,
+        "platform": "crowdworks",
+        "observed_at": observed_at,
+        "opportunities": list(opportunities),
+        "already_applied_ids": sorted(str(value) for value in already_applied_ids),
+    }
+
+
+def _candidate(page, listings, groups, observed_at=None):
     """Walk a slice of the board and return the first posting a catalogue tier can serve."""
     ordered = list(groups)
-    seen = _applied(); already = len(seen); # Every way out of the loop below is counted. Measured 2026-09-07: one wake reported
+    applied_ids = _applied()
+    seen = set(applied_ids); already = len(seen); # Every way out of the loop below is counted. Measured 2026-09-07: one wake reported
     # inspected=63 against counters summing to 26, so 37 postings were looked at and dropped with
     # nothing said about them -- the same anonymous refusal that cost a day on Lancers, one level
     # up. `unreadable` is a posting whose page would not load; `out_of_time` is the search budget
@@ -232,6 +310,20 @@ def _candidate(page, listings, groups):
     # Postings we looked at seriously and still declined. Reporting every search hit would be noise;
     # a job that matched the listing and was then declined is a decision worth telling Dais about.
     declined = []
+    observed_jobs = []
+    decision_rows = []
+    if not isinstance(observed_at, str) or not observed_at.strip():
+        observed_at = datetime.now(timezone.utc).isoformat()
+
+    def _inspection_meta():
+        return {
+            "inspected": len(seen) - already,
+            **rejected,
+            "declined": declined,
+            "snapshot": _crowdworks_snapshot(observed_jobs, applied_ids, observed_at),
+            "decisions": list(decision_rows),
+        }
+
     deadline = time.monotonic() + SEARCH_BUDGET_SECONDS
     for listing in ordered:
         if time.monotonic() > deadline:
@@ -244,7 +336,7 @@ def _candidate(page, listings, groups):
         for link in links:
             if time.monotonic() > deadline:
                 rejected["out_of_time"] += len(ordered) - ordered.index(listing)
-                return None,None,None,{"inspected":len(seen)-already,**rejected,"declined":declined}
+                return None,None,None,_inspection_meta()
             match=re.search(r"/public/jobs/([0-9]+)(?:[?#]|$)",link.get("href","") if isinstance(link,dict) else "")
             if match is None:continue
             job_id,title=match.group(1),link.get("title","")
@@ -256,13 +348,24 @@ def _candidate(page, listings, groups):
                 rejected["unreadable"]+=1
                 _decline(declined,job_id,title,f"募集ページを読み込めませんでした（{type(error).__name__}）")
                 continue
+            detail=text[text.find("仕事の詳細"):text.find("クライアント情報")] if "仕事の詳細" in text and "クライアント情報" in text else text
+            observed_jobs.append({
+                "external_id": job_id,
+                "title": re.sub(r"\s+", " ", title).strip() or f"案件{job_id}",
+                "description": detail.strip() or text.strip() or f"CrowdWorks公開案件 {job_id}",
+                "category": _category(text) or "未分類",
+                "url": f"https://crowdworks.jp/public/jobs/{job_id}",
+                "observed_at": observed_at,
+                "budget_type": "hourly" if "仕事の概要 時間単価制" in text else ("contest" if "仕事の概要 コンペ" in text else "fixed"),
+                "currency": "JPY",
+            })
+            decision_rows.append({"request_id": job_id, "business_class": "not_submit_required"})
             # 本人確認未提出 clients are why the 2026-09-02 scout had 9 applicants and 0 contracts.
             # Half of CrowdWorks clients are 本人確認未提出, including real companies with reviews. What
             # made the 2026-09-02 scout worthless was unverified AND unproven: 0 reviews, 0 contracts.
             if "このお仕事の募集は終了しています" in text or ("本人確認未提出" in text and "0件のレビュー" in text):rejected["closed_or_unverified"]+=1;continue
             # Match the posting itself, not the sidebar and footer: whole-page matching pulled in a
             # 医療事務 job because unrelated navigation text mentioned our nouns.
-            detail=text[text.find("仕事の詳細"):text.find("クライアント情報")] if "仕事の詳細" in text and "クライアント情報" in text else ""
             # A competition is not the fixed-price proposal workflow this adapter can submit. Its
             # official form requires a finished contest artifact upload before any contract; do not
             # misname that as a broken normal proposal form and stop the whole wake on it.
@@ -301,8 +404,9 @@ def _candidate(page, listings, groups):
                 rejected["judge_unavailable" if reason == "judge_unavailable" else "not_workable"]+=1
                 _decline(declined,job_id,title,f"募集文の「{evidence_quote}」が対応できない条件（{reason}）に当たります" if evidence_quote else f"対応できない条件（{reason}）に当たります")
                 continue
-            return {"external_id":job_id,"title":re.sub(r"\s+"," ",title).strip()},matched,tier,{"inspected":len(seen)-already,**rejected,"declined":declined}
-    return None,None,None,{"inspected":len(seen)-already,**rejected,"declined":declined}
+            decision_rows[-1] = {"request_id": job_id, "business_class": "submit_required"}
+            return {"external_id":job_id,"title":re.sub(r"\s+"," ",title).strip()},matched,tier,_inspection_meta()
+    return None,None,None,_inspection_meta()
 
 def _proposal(listing, tier):
     return "\n".join((
@@ -365,16 +469,48 @@ def main():
                 imported=_reconcile(page) if configured.get("ok") else 0
                 if not configured.get("ok"):
                     result={"ok":False,"status":configured.get("error","profile_incomplete"),"effect_delta":0}
-                elif (candidate_result:=_candidate(page,_listings(),_groups(now, group_cursor)))[0] is None:
-                    result={"ok":True,"status":"profile_complete_no_eligible_open_job","imported_applications":imported,"inspected_jobs":candidate_result[3],"effect_delta":0}
                 else:
-                    candidate,listing,tier,_inspected=candidate_result
-                    if tier.get("pricing_mode") == "hourly":
-                        tick=application.execute_hourly_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),hourly_rate_minor=tier["hourly_rate_minor"],weekly_limit_hours=tier["weekly_limit_hours"],expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
+                    try:
+                        candidate_result = _candidate(
+                            page,
+                            _listings(),
+                            _groups(now, group_cursor),
+                            observed_at=now.isoformat(),
+                        )
+                    except Exception as error:
+                        evidence_dir = STATE / "opportunity-observation-evidence" / f"run-{uuid.uuid4().hex}"
+                        try:
+                            record_crowdworks_observation_source_failure(evidence_dir, evidence_dir.name, error)
+                        except Exception:
+                            # The provider boundary remains fail-closed even if the local
+                            # evidence volume is itself unavailable.
+                            pass
+                        result={"ok":False,"status":"discovery_failed","error":"discovery_failed","effect_delta":0}
                     else:
-                        due=(date.today()+timedelta(days=int(tier.get("delivery_days",7)))).isoformat()
-                        tick=application.execute_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),proposed_amount_minor=tier["price_jpy"],delivery_due_on=due,expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
-                    result={**tick.to_dict(),"status":"verified" if tick.application_verified else tick.error or tick.reason,"effect_delta":1 if tick.submitted else 0}
+                        inspection = candidate_result[3] if isinstance(candidate_result[3], dict) else {}
+                        snapshot = inspection.get("snapshot")
+                        try:
+                            if isinstance(snapshot, dict):
+                                evidence_dir = STATE / "opportunity-observation-evidence" / f"run-{uuid.uuid4().hex}"
+                                record_crowdworks_live_observation(
+                                    snapshot,
+                                    {"decisions": inspection.get("decisions", [])},
+                                    evidence_dir=evidence_dir,
+                                    pass_id=evidence_dir.name,
+                                )
+                        except Exception as error:
+                            result={"ok":False,"status":"opportunity_observation_failed","error":"opportunity_observation_failed","effect_delta":0}
+                        else:
+                            if candidate_result[0] is None:
+                                result={"ok":True,"status":"profile_complete_no_eligible_open_job","imported_applications":imported,"inspected_jobs":inspection,"effect_delta":0}
+                            else:
+                                candidate,listing,tier,_inspected=candidate_result
+                                if tier.get("pricing_mode") == "hourly":
+                                    tick=application.execute_hourly_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),hourly_rate_minor=tier["hourly_rate_minor"],weekly_limit_hours=tier["weekly_limit_hours"],expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
+                                else:
+                                    due=(date.today()+timedelta(days=int(tier.get("delivery_days",7)))).isoformat()
+                                    tick=application.execute_application(page=page,opportunity=candidate,proposal_text=_proposal(listing,tier),proposed_amount_minor=tier["price_jpy"],delivery_due_on=due,expire_period_days=7,state_path=TRANSACTION,ledger_writer=_append,now=lambda:datetime.now(timezone.utc).isoformat(),account_ready=lambda:True)
+                                result={**tick.to_dict(),"status":"verified" if tick.application_verified else tick.error or tick.reason,"effect_delta":1 if tick.submitted else 0}
             finally:
                 page.close()
     # Reporting is a separate owner (crowdworks-revenue-report). Apply owns submissions only, so a
