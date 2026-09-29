@@ -2578,3 +2578,18 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 5. **未完** RyuさんDMの既存一回送信のprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品はしない。
 6. **未完** Freelancer／Upworkのfunded contract／milestone→mutation authorization→isolated canary→rollback→settlement→cost-complete positive net P&Lを検証してからownerを有効化する。
 7. **未完** Meta Loopを全platformでscheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&Lまで公式receipt付きで閉じる。
+
+## 現在の正本cursor（2026-09-30、Freelancer外部前提再検証）
+
+- source branch HEADは`db287f12ee`でclean／push済み。production `current/RELEASE.json`はmain SHA `3975ae8996cab3325f514746a32c915f9935fddf`のまま。
+- read-only実測: `bsk browsers --json`は`[]`、`~/.config/anicca/gig/freelancer-oauth2.json`は不存在、private authorization storeはmode `0600`だがFreelancer receiptは`0`、`~/.cloak/profiles/gig-freelancer-r1`はmode `0700`の候補profileに留まり、Freelancer browser identity／active ownerは無い。`lm-loop doctor`は全体としてPASSだが、これはFreelancer認証やprovider effectの証明ではない。
+- したがって、Freelancerの次の実行条件はprovider-approved automation terms→account-bound auth receipt→identity／projects／milestones／payments／payoutsのcomplete official readback→funded projectであり、これらが揃うまで応募・message・owner登録・production applyを行わない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **未完（外部前提）** Freelancerのterms／auth receipt／complete official readback／funded projectを取得する。公開bid watcher、推測URL、偽receiptで補完しない。
+2. **未完** branch全体のmain受入→immutable release→targeted apply→loaded SHA／plist／identity lease／rollback receipt→natural terminal→公式readback。
+3. **未完** capacity／ENOSPC修正をproduction自然runで実測し、`resource_capacity_busy`を成功扱いにしない。
+4. **未完** RyuさんDMの既存一回送信のprovider receipt／official readbackを取得する。再送・正式納品はしない。
+5. **未完** Upwork／Freelancerのfunded contract／milestone→mutation authorization→canary→rollback→settlement→positive net P&L。
+6. **未完** Meta Loop全platformのscheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&L。
