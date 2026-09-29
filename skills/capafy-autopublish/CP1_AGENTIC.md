@@ -14,7 +14,7 @@ positional price/cap script scrambles values → price tab red → card never sa
 because a human-like agent verifies each step by looking.
 
 ## Lease the browser — NEVER probe a port directly
-Capafy's seller session lives on the shared identity `coconala:kosuke` (declared
+Capafy's seller session lives on its own identity `capafy:kosuke` (declared
 in `~/.config/ai/registry/browsers.toml`; override with `CAPAFY_BROWSER_IDENTITY`
 only for a deliberately different leased identity). `cp1_agent.py` refuses to
 guess a debugging port (the 2026-07-26 incident: `:9222` turned out to be a proxy
@@ -24,7 +24,7 @@ a save silently never landed). Wrap **every** call through
 command, verifies its CDP UUID, exports `CLOAK_CDP_BASE_URL`/`CDP` for the child,
 and releases on exit — you do not call `browser-guard.sh` yourself.
 
-If the identity is busy (another loop is driving `coconala:kosuke` right now),
+If the identity is busy (another loop is driving `capafy:kosuke` right now),
 `with-browser.sh` waits up to `BROWSER_WAIT_SECONDS` (default 300s) and then exits
 `75` — a retryable resource-busy signal, not a bug. Skip this pass and let the
 next scheduled drainer run retry; do not fall back to a bare port.
@@ -34,7 +34,7 @@ next scheduled drainer run retry; do not fall back to a bare port.
 SHOT=<scratchpad>/cp1.png
 CP1_EXPECTED_MODEL="<the exact model in CONFIG_PATH>" \
 CP1_SHOT=$SHOT \
-  bash skills/browser/with-browser.sh coconala:kosuke -- \
+  bash skills/browser/with-browser.sh capafy:kosuke -- \
   scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
 ```
 `CP1_EXPECTED_MODEL` bakes an `expectedModel`/`modelDropdownVisible`/`modelSelected`
