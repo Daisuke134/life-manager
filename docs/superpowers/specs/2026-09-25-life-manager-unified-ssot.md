@@ -2027,3 +2027,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 自動retryのoccurrence `alpaca-investment-paper:18d9dfa6edb950a8-30309` は03:57 JSTに`exit_code=0`、`status=pass`、release SHA `3975ae8996cab3325f514746a32c915f9935fddf`で完了した。schedulerは03:59 JST時点でloaded、`runs=54`、`last exit code=0`、`StartInterval=300`である。
 - 最新decision receipt `280c261b25eabc2c5f89c5b54cba202e5f027cc4db58f37e91f57c014aa93d5a` は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。QQQのexit order／exit fill／provider receiptは生成されていない。
 - `AT-13`は未完、cursorは`AT-13`のまま、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionが生成されるまで、手動wake・手動sell・再送・送金はしない。
+
+**AT-13最新natural retry readback（2026-09-30 04:03 JST）**:
+
+- 04:02 JSTのscheduler run `alpaca-investment-paper:18d9dff28767e318-41131` は`host_admission_deferred:resource_capacity_busy`（exit 75）で、`effect_identity_status=not_written`、provider receiptなしだった。これはprovider effect前の自動retry対象である。
+- 自動retry `alpaca-investment-paper:18d9dff57fb74e80-41516` は04:03 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。schedulerはloaded、`runs=56`、直近exit `0`、release SHA `3975ae8996cab3325f514746a32c915f9935fddf`である。
+- 新しいdecision receipt `b5d80dec79dec9aa5824085af61f41ba5f3896afe542a083d0b5a9faedf6fbff` は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。QQQはopenのままでexit order／exit fill／provider receiptはない。
+- `AT-13`は未完、cursorは変わらず、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionが出るまで、手動wake・手動sell・再送・送金はしない。
