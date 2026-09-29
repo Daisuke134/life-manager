@@ -1581,3 +1581,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 新しいdecision receipt `3103b3a00080778bf32cf837431ad2462bcf42b1306bc9db23eb886e77d1fec6`（`2026-09-29T17:18:12Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。exit order／exit fillはないため、`AT-13`は未完である。
 - paper公式read-only observation（`2026-09-29T13:18:08-04:00`）は`clock.is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、cash `$99,986.77`、equity `$99,996.70`、QQQ long `qty=0.013493253`、market value `$9.929955`、unrealized P&L `-$0.060045`、open/closed orders count `3`を返した。新規order・資金移動はない。
 - `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionのexit decision receiptが出るまで、manual wake、manual sell、再送、送金はしない。
+
+**AT-13最新natural retry readback（2026-09-30 02:24 JST）**:
+
+- admission defer後の自然retry occurrence `alpaca-investment-paper:18d9da8c68cf6630-66600`は`2026-09-29T17:24:09Z`（02:24 JST）に`exit_code=0`／`status=pass`／`next_action=none`で終了した。直前の`18d9da86879d7170-65815`はprovider effect前の`host_admission_deferred:resource_capacity_busy`（exit `75`、`effect_identity_status=not_written`、provider receiptなし）であり、自動retryで回復した。
+- 最新decision receipt `d7c20028da8dff8f00ad4a3c9330102eaa44c5d1227b6c6bf5176dbd7ff97714`（`2026-09-29T17:24:06Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。新しいcompleted daily sessionのexit reasonではなく、exit order／exit fill／provider receiptは生成されていない。
+- schedulerはloaded、current release SHA `3975ae8996cab3325f514746a32c915f9935fddf`、`StartInterval=300`、`runs=24`、直近exit `0`である。これは自然retryが動作している証拠であり、利益発生やAT-13完了の証拠ではない。
+- `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionのexit decision receiptが出るまで、manual wake、manual sell、再送、送金はしない。
