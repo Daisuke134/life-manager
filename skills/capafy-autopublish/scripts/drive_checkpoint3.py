@@ -141,7 +141,7 @@ SUBMIT_STATE_JS = """(() => {
   const all = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['審査に提出','Submit for Review'].includes((b.textContent || '').trim()));
   const enabled = all.filter(b => !b.disabled);
   const confirms = [...document.querySelectorAll('button')].filter(b => visible(b) && ['提出を確認','Confirm Submit'].includes((b.textContent || '').trim()));
-  const drafts = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','Save Draft'].includes((b.textContent || '').trim()));
+  const drafts = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','下書きを保存','Save Draft'].includes((b.textContent || '').trim()));
   return {count: all.length, enabled: enabled.length, disabled: all.filter(b => b.disabled).length, confirms: confirms.length, drafts: drafts.length};
 })()"""
 
@@ -151,7 +151,7 @@ SUBMIT_STATE_JS = """(() => {
 # Script Pro 2844813315, 2026-09-29 14:50 JST: "did not hydrate before deadline").
 DRAFT_SAVE_CLICK_JS = """(() => {
   const visible = b => !!(b.offsetWidth || b.offsetHeight || b.getClientRects().length);
-  const xs = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','Save Draft'].includes((b.textContent || '').trim()) && !b.disabled);
+  const xs = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','下書きを保存','Save Draft'].includes((b.textContent || '').trim()) && !b.disabled);
   if (xs.length !== 1) return {ok:false, count:xs.length};
   xs[0].click();
   return {ok:true};
@@ -192,7 +192,7 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
     while time.monotonic() < deadline:
         state = page.evaluate("""(() => {
           const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-          const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''}`));
+          const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
           const submit = [...document.querySelectorAll('button')].some(b => visible(b) && ['審査に提出','Submit for Review'].includes((b.textContent || '').trim()));
           if (xs.length === 0) return {ok:true, hydrated:submit, required:false};
           if (xs.length !== 1) return {ok:false, count:xs.length};
@@ -205,9 +205,11 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
             # An update version's review page opens on 基本情報; the change-note
             # textarea (and then 審査に提出) only appears under バージョン
             # (live, Hook Lab v1.0.3, 2026-09-28).
-            version_tab_clicked = True
             clicked = page.evaluate(_VERSION_TAB_CLICK)
             if isinstance(clicked, dict) and clicked.get("ok"):
+                # Only once the tab exists: a one-shot look on a still-hydrating
+                # page never retried (live, Hook Lab v1.0.4, 2026-09-29).
+                version_tab_clicked = True
                 time.sleep(1)
                 continue
         time.sleep(CP3_POLL_S)
@@ -220,18 +222,30 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
     update_info = str(update_info or "").strip()
     if not update_info:
         raise RuntimeError("CP3 version update description is required")
-    inserted = page.evaluate("""(() => {
-      const value=%s;
+    # Real key input: Capafy ignores a JS value-setter here, and only typed text
+    # flips the button to 審査に提出 (live, Hook Lab v1.0.4, 2026-09-29). The state
+    # probe above already focused and selected the textarea.
+    box = page.evaluate("""(() => {
       const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''}`));
+      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
       if (xs.length !== 1) return {ok:false,count:xs.length};
-      const x=xs[0];
-      const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;
-      setter.call(x,value);
-      x.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:value}));
-      x.dispatchEvent(new Event('change',{bubbles:true}));
-      return {ok:true,value:x.value};
-    })()""" % json.dumps(update_info))
+      xs[0].scrollIntoView({block:'center'});
+      const r = xs[0].getBoundingClientRect();
+      return {ok:true, x:r.left + r.width / 2, y:r.top + r.height / 2};
+    })()""")
+    if not isinstance(box, dict) or not box.get("ok"):
+        raise RuntimeError(f"CP3 version update field not clickable: {box}")
+    for kind in ("mousePressed", "mouseReleased"):
+        page.call("Input.dispatchMouseEvent", {"type": kind, "x": float(box["x"]), "y": float(box["y"]), "button": "left", "clickCount": 1})
+    time.sleep(0.3)
+    page.call("Input.insertText", {"text": update_info})
+    time.sleep(0.5)
+    inserted = page.evaluate("""(() => {
+      const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
+      if (xs.length !== 1) return {ok:false,count:xs.length};
+      return {ok:true,value:xs[0].value};
+    })()""")
     if not isinstance(inserted, dict) or not inserted.get("ok") or inserted.get("value") != update_info:
         raise RuntimeError(f"CP3 version update description did not persist: {inserted}")
     time.sleep(0.5)
