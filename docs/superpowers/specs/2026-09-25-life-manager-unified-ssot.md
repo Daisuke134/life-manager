@@ -2622,7 +2622,7 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 
 この節は、上記に残る過去cursorの記録を履歴として保持しつつ、現在の実測状態を上書きする。
 
-- source branch `fix/source-reconcile-20260930` のHEADは `1a40ecbeed` でclean／remote同期済み。`origin/main` とproduction `current/RELEASE.json` は `3975ae8996…` のままで、source変更はproductionへ未反映。
+- source branch `fix/source-reconcile-20260930` のHEADは `2eee0ba678` でclean／remote同期済み。`origin/main` とproduction `current/RELEASE.json` は `3975ae8996…` のままで、source変更はproductionへ未反映。
 - Ryuさんのcanonical DM URL（`/smartphone/direct_messages/10107358?uid=2564121`）を既存Coconala identityでread-only再取得した。最新列は seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41、14:41以後のseller返信なし。証跡は `/Users/anicca/gig/trajectory/ryu-readback-20260930/uid-ryu_dm_uid.json`。送信・正式納品操作は今回行っていない。
 - `current-cycle-v723-dm-send-readback.json` は過去の送信クリック1回＋直後DOM bubbleだけを示し、reload後403でprovider永続receiptが無い。canonical再readbackにも本文が無いため、v723を永続送信完了と扱わず、再送もしない。
 - 公開 `colors-hachioji.com` と `content-api.php` は6コンセプト、12プロフィール、5有料オプション、WEB予約導線をread-only確認済み。`mutualLinks=[]`で実URL／バナーは未登録。専用管理画面はログインフォームで、credential SSOTに管理パスワードがないため書き込み未実施。
