@@ -134,3 +134,77 @@ def test_live_coconala_wake_uses_collector_snapshot_without_onboarding_receipt(t
     assert {row["source"] for row in result["source_errors"]} == {
         "lancers", "crowdworks", "mercor",
     }
+
+
+def test_coconala_candidate_lifecycle_uses_account_bound_registry(tmp_path):
+    cycle = runtime._CYCLE or runtime._modules()[1]
+    candidates_module = runtime._CANDIDATE_STORE or runtime._modules()[2]
+    candidate_store = candidates_module.CandidateStateStore(tmp_path / "candidates")
+    candidate_store.record({
+        "schema_version": 1,
+        "provider": "coconala",
+        "candidate_id": "platform:coconala",
+        "observed_at": "2026-09-30T15:00:00Z",
+        "source_url": "https://coconala.com",
+        "snapshot_sha256": "b" * 64,
+        "decision": "promote",
+        "gates": {
+            "policy": "pass", "adapter": "pass", "funded_work": "pass",
+            "canary": "pass", "unit_economics": "pass",
+        },
+        "reasons": [],
+        "evidence_refs": ["coconala://candidate/observed"],
+        "next_action": "provision_owner_after_release_readback",
+        "idempotency_key": "marketplace-candidate:v1:coconala:platform:coconala:" + "b" * 64,
+    })
+
+    calls = []
+
+    class Adapter:
+        def provision_owner(self, candidate):
+            calls.append("provision")
+            return {
+                "status": "provisioned", "owner_id": "owner-1",
+                "receipt_ref": "provider-receipt://coconala/owner-1",
+                "observed_at": "2026-09-30T15:00:01Z",
+            }
+
+        def canary_readback(self, candidate, owner):
+            calls.append("canary")
+            return {
+                "status": "verified", "receipt_ref": "provider-receipt://coconala/canary-1",
+                "replay_zero": True,
+                "observed_at": "2026-09-30T15:00:02Z",
+            }
+
+        def rollback_owner(self, candidate, owner, reason):
+            calls.append("rollback")
+            return {
+                "status": "rolled_back", "receipt_ref": "provider-receipt://coconala/rollback-1",
+                "observed_at": "2026-09-30T15:00:03Z",
+            }
+
+        def settle(self, candidate, owner, canary):
+            calls.append("settle")
+            return {
+                "status": "settled", "receipt_ref": "provider-receipt://coconala/settlement-1",
+                "net_amount_minor": 1000, "currency": "JPY",
+                "observed_at": "2026-09-30T15:00:04Z",
+            }
+
+    registry = cycle.PlatformLifecycleAdapterRegistry({"coconala": lambda context: Adapter()})
+    result = runtime.run_coconala_candidate_lifecycle(
+        candidate_root=tmp_path / "candidates",
+        lifecycle_root=tmp_path / "lifecycle",
+        registry=registry,
+        account_context={
+            "account_id": "coconala-owner-1",
+            "authorization_receipt_ref": "auth://coconala/receipt-1",
+        },
+        candidate_id="platform:coconala",
+        run_id="coconala-lifecycle-1",
+        observed_at="2026-09-30T15:00:00Z",
+    )
+
+    assert result["status"] == "settled"
+    assert calls == ["provision", "canary", "settle"]

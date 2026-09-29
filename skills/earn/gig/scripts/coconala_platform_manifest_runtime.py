@@ -36,10 +36,11 @@ _COCONALA = None
 _CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
+_LIFECYCLE_STORE = None
 
 
 def _modules():
-    global _COCONALA, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    global _COCONALA, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
     if _COCONALA is None:
         _COCONALA = _load(HERE.with_name("coconala_platform_manifest.py"), "coconala_manifest_runtime_source")
     if _CYCLE is None:
@@ -48,7 +49,11 @@ def _modules():
         _CANDIDATE_STORE = _load(CORE / "platform_candidate_store.py", "platform_manifest_runtime_candidates")
     if _RUN_STORE is None:
         _RUN_STORE = _load(CORE / "meta_loop_run_store.py", "platform_manifest_runtime_runs")
-    return _COCONALA, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    if _LIFECYCLE_STORE is None:
+        _LIFECYCLE_STORE = _load(
+            CORE / "meta_loop_lifecycle.py", "platform_manifest_runtime_lifecycle",
+        )
+    return _COCONALA, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
 
 
 def default_onboarding_path() -> Path:
@@ -82,7 +87,7 @@ def run_coconala_platform_manifest_wake(
 ) -> dict[str, Any]:
     """Run one Coconala natural-wake source through the four-platform cycle."""
 
-    coconala, cycle, candidate_store_module, run_store_module = _modules()
+    coconala, cycle, candidate_store_module, run_store_module, _ = _modules()
     onboarding = Path(onboarding_path).expanduser() if onboarding_path is not None else default_onboarding_path()
     root = default_manifest_root()
     candidates = candidate_store_module.CandidateStateStore(
@@ -124,8 +129,41 @@ def run_coconala_platform_manifest_wake(
     )
 
 
+def run_coconala_candidate_lifecycle(
+    *,
+    candidate_root: str | Path,
+    lifecycle_root: str | Path,
+    registry: Any,
+    account_context: Mapping[str, Any],
+    candidate_id: str,
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Promote one stored Coconala candidate through an injected registry.
+
+    The registry and account context are explicit inputs so a natural manifest
+    wake cannot infer credentials or silently perform a provider effect.  A
+    missing/unverified Coconala factory remains a typed registry hold.
+    """
+
+    _, cycle, candidate_store_module, _, lifecycle_store_module = _modules()
+    candidates = candidate_store_module.CandidateStateStore(candidate_root)
+    lifecycle = lifecycle_store_module.MetaLoopLifecycleStore(lifecycle_root)
+    return cycle.run_registered_platform_candidate_lifecycle(
+        candidates,
+        lifecycle,
+        registry,
+        provider="coconala",
+        candidate_id=candidate_id,
+        account_context=account_context,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+
+
 __all__ = [
     "default_manifest_root",
     "default_onboarding_path",
+    "run_coconala_candidate_lifecycle",
     "run_coconala_platform_manifest_wake",
 ]
