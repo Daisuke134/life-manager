@@ -2128,3 +2128,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - natural retryのdecision receipt `ca1c7e90760fae63eac1522b24d25dde766174bd6c6a6610cdc87f75ad7ad3e6`（`recorded_at=2026-09-29T20:10:32Z`）は、前回と同じ`decision_session=2026-09-29`、`action=HOLD`、`reason=hold_period_not_elapsed`を返した。
 - これは同一daily sessionの重複retryであり、新しい測定session・exit order・fillではない。qualified exitがないため`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`を維持する。
+
+**AT-13 shared-admission ownership readback（2026-09-30 05:17 JST）**:
+
+- `resource_control_busy`の現在の所有者は投資ownerではない。`lsof`で、PID `44038`（`runtime.loop.lm_loop apply`、cwdはcurrent release）が共有`/Users/anicca/loops/.admission-protocol.lock`を保持し、`release-reconciler`のfleet applyを実行中であることを確認した。
+- `release-reconciler/fleet-apply-last-output.log`にはowner timeout、`admission rebind refused: effect_unknown`、`No space left on device`が記録されている。Data volumeの空きは約`326MiB`、投資owner stateは約`940KiB`である。これは共有hostのadmission／容量境界であり、投資strategy・Alpaca provider effectではない。
+- 投資occurrence `alpaca-investment-paper:18d9e3ee3a8ac790-42407`はprovider effect前の`resource_control_busy` deferで、注文・約定・資金移動はない。lockの手削除、他processのkill、admission迂回は行わず、投資ownerのnatural retryをread-onlyで監視する。`AT-13`未完、実現投資収益は`$0/月`である。
