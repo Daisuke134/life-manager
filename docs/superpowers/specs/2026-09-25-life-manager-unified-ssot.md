@@ -2141,6 +2141,32 @@ job IDs 0）、`git diff --check`もPASS。branch
 7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
    settlement・cost-complete positive net P&L。
 
+### 最新Mercor platform-manifest source — 2026-09-30
+
+- `skills/earn/mercor/scripts/mercor_platform_manifest.py` を追加し、Mercor reply/source-health observationのうち
+  account identity（ハッシュ化）、source-complete、Gmail freshness、contract-readback状態だけを`platform:mercor`
+  manifestへ変換する。applications、inspected listings、jobs、requests、contractsの行は入力として拒否し、案件観測を
+  platform promotion evidenceへ昇格させない。
+- adapter source hash、observed time、公式source URL、secret-free health evidenceを束縛し、policy、funded work、official
+  canary/readback、unit economicsは`unknown`のまま保持する。candidate cycleはholdし、Gmail freshnessやaccount identityだけで
+  owner登録・promotionしない。provider mutationは呼ばない。
+- Mercor platform manifest focused 4件、既存Mercor adapter/observation 12件、Marketplace Core 329件、compile、
+  `lm-loop-contract`、`git diff --check`をPASSした。これはread-only source-health manifestの証拠であり、Mercor provider
+  receipt、公式readback、実応募・契約・payout・収益の証拠ではない。
+
+### 原子TODO（Mercor platform-manifest source後の正本）
+
+1. **完了** Coconala onboarding observation → platform manifest → candidate evaluation／durable wake summary。
+2. **完了** Lancers account/work-sync observation → platform manifest → candidate evaluation／durable wake summary。
+3. **完了** CrowdWorks account/profile observation → platform manifest → candidate evaluation／durable wake summary。
+4. **完了** Mercor source-health observation → platform manifest → candidate evaluation／durable wake summary。
+5. **未完** 4 platformのproduction source wiringをmainへ受入し、immutable release、loaded SHA／plist／identity lease／rollback
+   receiptを公式readbackで確認する。source test PASSだけでproduction完了と数えない。
+6. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・
+   receiptなしのeffect fence解放はしない。
+7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
+   settlement・cost-complete positive net P&L。
+
 ### 最新CrowdWorks platform-manifest source — 2026-09-30
 
 - `skills/earn/crowdworks/scripts/crowdworks_platform_manifest.py` を追加し、CrowdWorksのread-only account/profile状態
