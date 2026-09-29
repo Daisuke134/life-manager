@@ -6032,3 +6032,20 @@ there is still no authorization to stop, kill, or restart an active owner.
   release and item 5's separately gated owner transition. Production still
   points at the old SHA and may continue emitting the old lock evidence until
   that transition occurs.
+
+### Live admission readback after source repair — 2026-09-30 07:25 JST
+
+- [x] A read-only `PRAGMA integrity_check` on the live admission database
+  returns `ok` with `journal_mode=delete`. No rows, locks, reservations, or
+  provider state were changed by this probe.
+- [x] The current database still contains historical fences (including
+  Coconala Apply/Storefront and other platform occurrences) and one live
+  `lancers-revenue-application` reservation. These are not cleared by the
+  source repair; each effectful occurrence still requires its own proof.
+- [x] The old release reconciler occurrence
+  `life-manager-release-reconciler:18d9e9bf4f0cc0c0-81972` was observed
+  running and remained running after a bounded 45-second read-only wait. No
+  restart or signal was sent.
+- [ ] This confirms the next blocker is promotion/live owner state, not an
+  unverified source test. Item 4 (main-derived immutable release) remains the
+  current cursor; item 5–10 remain downstream.
