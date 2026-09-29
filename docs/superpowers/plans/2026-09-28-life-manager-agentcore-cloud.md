@@ -287,7 +287,7 @@
 
 **Produces:** job-scoped browser sessions, agent-owned tenant/provider profiles, zero-human execution, tenant-bound live observation/emergency stop, and terminal exclusion of human-principal-only opportunities.
 
-- [ ] **Step 1: Write RED browser/profile tests**
+- [x] **Step 1: Write RED browser/profile tests**
 
   Assert profile lookup is tenant/provider scoped and agent-owned, concurrent owners cannot start a second session, profile save happens only after verified completion, and failed release retains reconciliation data.
 
@@ -299,7 +299,7 @@
 
   Require a tenant-bound opaque viewer ref, read-only activity stream, and emergency stop. Cross-tenant viewer refs fail before provider calls. If optional break-glass writing is enabled, it must first stop the agent writer under the same lease generation, record `manual_external`, exclude the result from automated success/revenue, and never create a resume callback.
 
-- [ ] **Step 3: Implement the AgentCore driver**
+- [x] **Step 3: Implement the AgentCore driver**
 
   Map the existing provider-neutral browser contract onto StartBrowserSession, automation WebSocket, SaveBrowserSessionProfile, and StopBrowserSession. Accept only server-owned profile refs and agent-owned principals; never expose AWS credentials or raw profile data.
 
@@ -563,8 +563,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A14 | done | Runtime SDK client and dispatcher tests | 46/46 focused tests; tenant/job refetch, release, budget, atomic lease, deterministic session, bounded timeout, and zero-provider-call rejection paths |
 | A15 | done | One Inngest cloud-job function | 49/49 focused tests; `lm/cloud.job`, tenant concurrency 1, IDs-only event, atomic PostgreSQL job/tenant lease claim before AWS |
 | A16 | provider-pending | Crash/cold-start recovery | local fake crash + real PostgreSQL PASS: checkpoint preserved, no-effect attempt 2, external effect reconciles, duplicate effect 0; real AgentCore repeat pending |
-| A17 | **next** | AgentCore Browser Profile adapter | agent-owned tenant/provider profile and exact session release |
-| A18 | todo | No-human browser policy, shared-browser observation, and legacy-state migration | human credential/callback/provider effect 0; phone/web live view + emergency stop; cross-tenant view 0; optional break-glass excluded from automated success/revenue; stored `handoff_required` closes `not_applicable` without replay |
+| A17 | done | AgentCore Browser Profile adapter | 8/8 focused tests; tenant/provider agent-owned lookup, one writer lease, verified-only profile save, exact stop/release, reconciliation retention, official AWS command mapping |
+| A18 | **next** | No-human browser policy, shared-browser observation, and legacy-state migration | human credential/callback/provider effect 0; phone/web live view + emergency stop; cross-tenant view 0; optional break-glass excluded from automated success/revenue; stored `handoff_required` closes `not_applicable` without replay |
 | A19 | todo | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
 | A20 | todo | AgentCore Identity provider and migration-on-use | agent-owned opaque refs only; human refs rejected; revoke closes dependent jobs without asking |
 | A21 | todo | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |
