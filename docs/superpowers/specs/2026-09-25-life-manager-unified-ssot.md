@@ -1280,3 +1280,26 @@ Ryuさんの公式送信証跡は、`browser_identity=coconala:kosuke`、事前�
 5. Lancers・CrowdWorks・Mercorのentrypoint／capacity／lock問題を各ownerで解消し、proposal／thread／Paidの公式receiptをoccurrence単位で取得する。receiptのないeffect fenceは解放しない。
 6. Freelancerはapproved terms→account auth→inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationを満たしてからowner登録する。
 7. Meta Loopのdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement／P&L feedbackをshared kernelへ接続する。promotion gate以外は未完了である。
+
+**Self-healing／Observability／Revenueの理想契約（未完了項目を含む正本）**: Life Managerの各client-work laneは個別patchではなく、同じshared kernelの一つのinstanceとして、`discover → qualify → propose/message → accept/funded → deliver → official readback → payout → cost-complete P&L → quality feedback`を完走する。通常のlogin/session、wake、diagnostic、pre-effect retry、reconcileはno-human-loopで実行し、KYC・法的本人確認などproviderが要求する外部必須境界だけを例外とする。`pass`、PID、loaded-running、画面表示だけは収益と数えず、provider receiptとofficial readbackが揃ったeffectだけを売上・納品・成約としてledgerへ確定する。
+
+理想の観測契約は、全wakeで`schema_version`、`kind`、`loop_id`、`owner_id`、`wake_id`、`run_id`、`occurrence_id`、`release_sha`、phase、attempt、duration、status、failure_layer、error_class、next_action、evidence_refsを構造化して残し、`provider_receipt_id`と`official_readback_ref`を同一occurrenceへ結び付ける。CLI（`doctor`、`status all`、`status <id> --explain`、`pre-effect-reconcile --dry-run`、bounded `reconcile`、`lm-loop-contract`）は全agentの共通診断面とし、dashboardはledger／provider readbackの代替にしない。収益analyticsはplatform別と全体の両方で、opportunity数、応募数、返信率、funded率、納品受理率、gross/net revenue、provider fee、model/tool cost、latency、quality、repeat率、failure class、effect confidenceを集計する。
+
+自己修復は失敗層ごとにboundedにする。pre-effect／runtime／capacityは同一owner・同一release・loaded-idle制約で再concileし、effect unknown（応募・返信・納品・決済）はfenceを保持して公式readbackなしに再送しない。反復unknownはescalate/dead-letterし、任意の自己編集や無制限retryをしない。コード改善はcandidate→focused eval→immutable release→isolated canary→exact health→rollbackの順で、外部effect ownerを未検証のまま自動promotionしない。
+
+理想の自己改善は、全platformのreceipt・quality・P&Lを同じschemaで評価し、勝ち筋を候補化し、replay-zero・cost-complete net P&L・品質gateを通った変更だけをshared skill/kernelへ昇格する。現在の実装はstructured status、effect fence、bounded recovery intent、deterministic（effect none）向けpromotion、harness/evaluator基盤までであり、外部effect owner全体の自動修復・横断P&L feedback・Meta Loopのdiscoveryからsettlementまでの接続は未完了である。
+
+**最新read-only検証と残TODO（このsectionが旧Gig cursorを上書き）**: branchは専用`fix/lm-release-boundary-20260929`、remote `main`は`36b65e1f98`、production `current`は`/Users/anicca/loops/releases/20260929T211034-36b65e1f`。`./bin/lm-loop-contract`は`ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）。`doctor`は`ok=false`で、missing entrypointは0だがretired installed label `ai.anicca.job-search-mercor-browser`が残っている。これは診断可能なfleet/release境界の不整合であり、provider成功の証拠ではない。
+
+同じreadbackで、Coconala Applyは`resource_effect_unknown`、Paidは`pass`だがeffect none、Replyは`entrypoint_exit_1`、Storefrontは`resource_effect_unknown`。LancersはApplication／Paidが`entrypoint_exit_1`、Negotiateはpassだが`effect_status=unknown`、Storefrontは`resource_effect_unknown`。CrowdWorksはApplicationがpassだがeffect unknown、Paidがcapacity busy、Replyが`entrypoint_exit_1`。MercorのApplication／Paid／Replyはresource effect unknown。対象laneのprovider receipt／official readbackは未取得である。Freelancer／Upwork ownerはdisabledである。RyuさんはDM URLで本文を1回送信しDOMバブル1件を確認済み、公式reloadは403、再送しない。
+
+残TODO（理想状態までの実行順）は以下で固定する。
+
+1. retired installed labelを含むfleet/release境界を診断し、最新remote `main`との差分をreconcileする。production loopを停止・再起動せず、branch固有のGig／Meta安全修正を失わない。
+2. generated fixture、required checks、contract、observability/recovery testsを再実行し、source PASSとproduction PASSを分離して記録する。
+3. 受入済みsourceからimmutable releaseを作成し、Gig各ownerへ一つずつtarget applyする。loaded SHA、argv/env、identity lease、自然terminal、provider receipt、official readbackを確認する。
+4. Coconala 4 laneをeffect fenceを守ってreadbackまで閉じる。RyuさんDMは再送せず、403はprovider復旧後にread-only確認する。
+5. Lancers・CrowdWorks・Mercorのentrypoint、capacity、lock、identity問題をowner単位で解消し、proposal/thread/Paid/deliveryの公式receiptをoccurrence単位で取得する。
+6. Freelancer・Upworkはapproved automation terms、account auth、source-complete inventory、funded contract/milestone、mutation authorizationを満たしてからowner登録する。
+7. 共通analyticsをplatform横断で完成させ、receipt単位のgross/net P&L、品質、コスト、返信・成約・納品率をself-improve evaluatorへ接続する。
+8. Meta Loopのdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackを接続し、client workが継続的に実測収益を生む状態を確認する。`$10,000/月`等は公式receipt付きcost-complete net P&Lが得られるまで目標であり、実績ではない。
