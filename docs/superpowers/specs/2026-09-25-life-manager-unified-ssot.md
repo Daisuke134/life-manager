@@ -1347,3 +1347,19 @@ Gigの実稼働readbackでは、Coconala（`gig-coconala`）のApplyが `resourc
 **最新の投資owner readback（2026-09-29 11:52 UTC以降）**: `current`は引き続き`bd7d35e29c` releaseである。`alpaca-investment-paper`はexit`75`・`host_admission_deferred:resource_capacity_busy`、`alpaca-investment-live`はexit`75`・`host_admission_deferred:resource_control_busy`で、どちらもprovider effect前・provider receiptなし・retryableである。新注文や再送は発生していない。cross-venue旧occurrenceは公式receiptなしの`effect_unknown`保持、fencer/cross-venue/strategyの旧SHA表示は自動fleet apply完了待ちである。したがって、検証済み実現投資収益は今も`$0/月`である。
 
 **残TODOの実行カーソル**: 1) 自動fleet apply完了と残り3 ownerの新SHA readback、2) fencer natural wakeで公式receiptを再確認、3) paper/liveの自然retryを観測、4) 既存QQQのterminal fill/account/position readback、5) strategy/cross-venue receipt結合、6) 全コスト込みP&L、7) positive natural round trip`30/30`、8) その後だけ追加venueのshadow→paper→bounded canary。`30/30`前のBinance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
+
+**merge後の最新source／受入cursor（2026-09-29T13:31:47Z、旧cursorを上書き）**: 最新`origin/main` `0ca7da87777e2d86c180c0166997f12d598f7b46`を専用branch `fix/lm-release-boundary-20260929`へreconcileし、merge commit `5ebcdc43466a7e521d0e4632863cd2c548e97fb4`をpushした。Capafyのmain変更（`capafy-browser`を含む）とGig／Metaのeffect-fence変更を同じbranchへ保持し、fixtureはmerged registryから再生成した。production `current`は`/Users/anicca/loops/releases/20260929T221805-af6e5011`のままで、専用branch sourceはproductionへ未反映である。
+
+merge後の検証は、runtime loop全体 **684 passed**、Node adapter **15 passed**、Gig pytest **1541 passed**、marketplace-core **294 passed**、Lancers **247 passed**、Mercor **37 passed**、runtime contract対象 **317 passed**、`./bin/lm-loop-contract` **ok=true**（catalog 14、registry 175、mapped 102、shared job IDs 0）、`doctor` **ok=true**（missing/retired/unmanaged各0）、`git diff --check` PASS。これらはsource/fleet契約の証拠であり、provider納品・成約・payout・収益の証拠ではない。
+
+Capafyのmain変更に対する既存`skills/capafy-autopublish/test`は、別agentの作業中変更とテスト期待値の不一致で **25件中2 failure・1 error**（runner task-class／prompt contract／occupied=5文言）となった。これはこのbranchのGig／Meta所有範囲外なのでCapafyコードを勝手に変更せず、`external_gate_pending`として記録する。Capafy gateがgreenになるまで、branch全体をproductionへpromoteしない。
+
+**次の実行順**:
+
+1. Capafy ownerが外部gateを修正した後、同じmerge branchでCapafy test、runtime、contractを再実行する。Gig／Metaのsourceは再変更しない。
+2. 全required checksがgreenになったsourceだけをmainへ統合し、main由来immutable releaseを作成する。これはproduction applyの前提であり、branch PASSだけでは納品完了としない。
+3. release後、CoconalaのApply／Paid／Reply／Storefrontを一つずつtarget applyし、loaded SHA・argv/env・browser identity lease・natural terminalをreadbackする。RyuさんDMは再送しない。
+4. Coconala各laneでprovider receiptとofficial readbackが取れた場合だけeffectをverifiedへ昇格する。403、capacity、entrypoint、effect_unknownはfence保持・bounded recoveryとし、盲目的再送をしない。
+5. Lancers、CrowdWorks、Mercorを同じoccurrence／receipt契約で閉じ、Freelancer／Upworkはapproved terms・専用identity・funded contract/milestone・payout readbackの順でowner登録する。
+6. Meta Loopにdiscovery scheduler、candidate durable state、promotion後owner provisioning、rollback、settlement／quality／P&L feedbackを接続する。promotion gateだけでは自律収益loop完了ではない。
+7. 全platformでreceipt単位のgross/net P&Lと品質を集計し、replay-zero・cost-complete net P&Lを通った改善だけをshared kernelへ昇格する。
