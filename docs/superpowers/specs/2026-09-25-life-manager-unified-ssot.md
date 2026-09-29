@@ -1249,3 +1249,18 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 4. LancersはHuman Verification解除後、CrowdWorksは`LOCK_NB` defer後の公式proposal/thread/Paid receipt、Mercorは専用identityのendpoint→auth→funded handoffを確認する。receiptなしのeffect fenceは解放しない。
 5. Freelancerはprovider-approved automation terms→account-bound auth→source-complete inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationの順で整えてからownerを登録する。現時点で両platformにactive ownerはない。
 6. Meta Loopの残りは、platform discovery producer／scheduler、candidate stateのdurable保存、promotion後のowner provisioning、canary失敗時rollback、settlement／P&L feedbackを同じshared kernelへ接続すること。現在はpromotion gateのみ実装済みで、これらは未完了である。
+
+**最新readbackによる残TODO上書き（current cursor）**: この専用source branchのHEADは`11cdb19f35`、最新`origin/main`は`9b36d3d21a`である。`origin/main`は投資docs更新を含む別進行であり、branch固有のGig／Meta Loop安全修正とは差分があるため、blind mergeせず差分をreconcileしてからrequired checksへ進む。production `current`は`/Users/anicca/loops/releases/20260929T204319-bd7d35e2`（release SHA `bd7d35e29c`）で、branch固有sourceは未反映である。
+
+Gigのread-only owner readbackは、Coconala Applyが`resource_effect_unknown`、Paidが`resource_capacity_busy`、Replyが`entrypoint_exit_75`、Storefrontが`resource_effect_unknown`。LancersはApplicationが`resource_capacity_busy`、Negotiateがpassだが`effect_status=unknown`、Paidが`entrypoint_exit_1`、Storefrontが`resource_effect_unknown`。CrowdWorksはApplication／Paidが`effect_status=unknown`、Replyが`entrypoint_exit_1`。MercorはApplication／Paid／Replyが`resource_effect_unknown`。対象全てで`provider_receipt_id=null`かつ`official_readback_ref=null`であり、成功・収益・納品完了とは扱わない。Freelancer／Upworkはactive owner未登録のままである。
+
+Ryuさんの送信証跡は、`send_click_count=1`、同一本文の事前重複0件、直後DOMバブル1件、正式納品ボタン未実行。再読み込みの公式readbackは`403 Forbidden`でblockedなので、再送せずread-only確認だけを行う。
+
+この時点の残TODO（実行順）は次のとおり。
+
+1. 最新`origin/main`との差分をreconcileし、Gig／Meta Loopのsource・generated fixture・required checksを再確認する。production loopは停止・再起動しない。
+2. 全ownerのsource受入条件が揃った後、main統合→main由来immutable release→target applyへ進み、loaded SHA・identity lease・自然terminal・公式receipt/readbackをlaneごとに確認する。
+3. Coconala 4 laneを一つずつreadbackし、effect unknown／capacity／entrypoint failureを解消する。Ryuさんへは再送せず、403は復旧後もread-onlyで確認する。
+4. Lancers・CrowdWorks・Mercorは、各providerの認証境界・lock/capacity defer・公式proposal/thread/Paid receiptを同一occurrenceへ結び付け、receiptなしのfenceを解放しない。
+5. Freelancerはapproved terms→account auth→inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationの順で整えてからowner登録する。
+6. Meta Loopにdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement／P&L feedbackを実装する。現在はpromotion gateのみ実装済みである。
