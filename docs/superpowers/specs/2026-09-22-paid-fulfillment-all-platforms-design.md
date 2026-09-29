@@ -6049,3 +6049,24 @@ there is still no authorization to stop, kill, or restart an active owner.
 - [ ] This confirms the next blocker is promotion/live owner state, not an
   unverified source test. Item 4 (main-derived immutable release) remains the
   current cursor; item 5–10 remain downstream.
+
+### Latest old-release owner readback — 2026-09-30 07:26 JST
+
+- [x] Coconala Apply occurrence
+  `hf-gig-apply-direct:18d9eb0bffb33100-22081` and Storefront occurrence
+  `hf-gig-storefront-direct:18d9eb04c9fd3148-21451` both reached terminal
+  `host_admission_deferred:resource_effect_unknown` on their old releases;
+  neither has a provider receipt, so neither is retried or cleared.
+- [x] The Paid owner has a newer old-release execution still running, while its
+  previous terminal occurrence was `host_admission_deferred:resource_control_busy`.
+  This is not proof of delivery or publication.
+- [x] The previous reconciler occurrence
+  `life-manager-release-reconciler:18d9e8752dfc1a48-47905` failed with the
+  recorded growth-owner timeout/starvation set; the newer
+  `18d9e9bf4f0cc0c0-81972` remains running. No signal or restart was issued.
+- [x] Host capacity is now about `3.8 GB` free and the admission database still
+  returns `integrity_check=ok`; this changes the immediate capacity observation
+  but does not install the source fixes or clear historical effect fences.
+- [ ] The next executable cursor remains item 4: integrate the pushed source
+  through main, cut an immutable release, and only then perform the separately
+  gated owner transition.
