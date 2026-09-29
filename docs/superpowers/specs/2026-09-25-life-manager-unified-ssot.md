@@ -2643,6 +2643,8 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 
 この節が直前のcursorを上書きする。候補discover／gate／durable wakeの後段に、provider-neutralなpromotion lifecycle境界を追加した。実装は`skills/_shared/marketplace-core/scripts/meta_loop_lifecycle.py`、回帰は`skills/_shared/marketplace-core/tests/test_meta_loop_lifecycle.py`である。
 
+- source branch `fix/source-reconcile-20260930` はcommit `89219a17c0`でclean／remote同期済み。main／productionは変更していない。
+
 - `promote`かつpolicy／adapter／funded_work／canary／unit_economicsの全gateが`pass`の候補だけがowner処理へ進む。hold候補やgate欠落はprovider callbackを呼ばず、`held`と次アクションを保存する。
 - provider effectの前にprivate append-only `planned` fenceを書き、owner provisioning後はprovider receiptを検証する。plannedがterminal receiptなしで残った再wakeは`reconcile_required`として止まり、ownerを再実行しない。
 - canary/readbackが`verified`かつ`replay_zero=true`でない場合、settlementへ進まずrollbackを試みる。rollback receiptが取れれば`rolled_back`、取れなければowner receiptを保持した`rollback_required`として公式readback→rollbackを次アクションにする。
