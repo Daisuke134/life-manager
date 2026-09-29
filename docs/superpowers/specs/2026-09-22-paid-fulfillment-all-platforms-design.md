@@ -6594,3 +6594,47 @@ ordering notes without declaring any external effect complete.
 12. **Final promotion — OPEN.** Merge/admin-promote once, cut the immutable
     main-derived release, read back every owner/provider receipt, and only then
     declare the full platform set complete.
+
+### Repaired candidate acceptance readback — 2026-09-30 08:41 JST
+
+- [x] The candidate's own `/bin/lm-loop-contract` returned `ok=true` with
+  `catalog_loops=14`, `registry_jobs=176`, `mapped_jobs=102`, and empty
+  `shared_job_ids`/`errors`.
+- [x] Running the Coconala candidate tests from the immutable candidate itself
+  returned `362 passed`. The only output warning was pytest's inability to
+  create a cache file inside the intentionally read-only release; no test
+  failed and no release file became writable.
+- [x] A direct source readback proves the boundary: current
+  `/Users/anicca/loops/releases/20260930T083257-d33687c9` does not contain the
+  DOM repair, while candidate
+  `/Users/anicca/loops/releases/20260930T083531-7ae557ff` does. Therefore the
+  live loop has not yet received the fix, and no claim of production repair is
+  made.
+- [ ] Main integration/provenance and the controlled live transition remain
+  open. No Coconala send, reply, delivery, payment, browser restart, or owner
+  restart was performed in this acceptance pass.
+
+### Atomic current cursor — 2026-09-30 08:41 JST
+
+1. **Ryu Coconala DM — DONE.** One send with official readback; never resend.
+2. **Reply DOM-race repair — DONE ON CANDIDATE.** Source, candidate tests,
+   contract, and immutable readback pass; live current is intentionally old.
+3. **Main integration/provenance — OPEN.** The branch is pushed and based on
+   latest main, but candidate provenance remains `pushed-not-yet-on-main`.
+4. **Live transition — OPEN.** Use only the controlled owner transition after
+   the required high-risk approval; preserve the shared browser/profile.
+5. **Coconala Reply natural readback — OPEN.** Run read-only on the repaired
+   main-derived release and record replay-zero, without touching Ryu.
+6. **Coconala Apply/Storefront/Paid canaries — OPEN.** Each needs a separate
+   official provider receipt and replay-zero.
+7. **Coconala unknown fences — OPEN.** Resolve only with occurrence-bound
+   official evidence.
+8. **CrowdWorks/Lancers/Mercor — OPEN.** Reconcile provider locks,
+   Human Verification, and disabled-owner conditions before effects.
+9. **Upwork/Freelancer — OPEN.** Restore authenticated inventory, verify
+   funded terms, and run no-effect canaries.
+10. **Shared registration/Meta Loop — OPEN.** Enable after every platform's
+    telemetry, recovery, idempotency, and receipt checks pass.
+11. **Final promotion — OPEN.** Merge/admin-promote once, cut main-derived
+    immutable release, read back every owner/provider receipt, and only then
+    declare completion.
