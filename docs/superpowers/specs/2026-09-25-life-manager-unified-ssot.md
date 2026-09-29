@@ -3242,3 +3242,21 @@ host空き容量は約256MiBで、共通floor 512MiBを下回る。production lo
 5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization、完全inventory、実adapter、canary、rollback、settlement、replay-zeroを取得する。
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
 7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、loaded SHA、deferred/terminal receipt、cleanup容量回復、provider公式readbackを確認する。
+
+## 現在の正本cursor（2026-09-30、CloakBrowser接続状態確認後・EOF最新）
+
+platform回帰後、Coconala/Ryuさんの公式DM readbackを進めるため既定のCloakBrowser経路を確認した。`bsk status --json`はdaemon `0.3.1`／protocol `1.3`の稼働を返したが、`browsers=[]`でextension接続は0件だった。`bsk doctor`もdaemon/IPC/protocolはPASS、`extension connected`だけFAILだった。
+
+- browser操作: browser-skillの規約に従い、CDPをbskの代替として使わず、tab navigation・DM readback・送信を行っていない。
+- Coconala: 公式thread `10107358`の最新受信・添付・履歴、Ryuさんへの一度限りの送信receiptは未取得。既存stateは`reconcile_unknown`のままで、重複再送していない。
+- branch: `8fa94f2311`をpush済み。Gig `1584 passed`、Lancers `270 passed`、CrowdWorks `277 passed`、Mercor `59 passed`、Marketplace Core `356 passed`、disk-cleanup `95 passed`、loop bounds/apply `271 passed, 31 subtests passed`、contract `ok=true`。
+- 容量: 回帰後の空きは約423MiBで512MiB floor未満。production旧releaseは未反映なので、production applyは行っていない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** CloakBrowser extensionを同じ既存browser instanceへ接続できる状態に戻し、`bsk browsers --json`で対象instanceを確認する。daemon再起動・別backendへの切替・認証情報抽出はしない。
+2. **未完** 接続後、Coconala専用tabを作成または借用してthread `10107358`をread-only確認し、最新受信・添付・公式送信履歴を取得する。
+3. **未完** 最新要求（画像復元、女の子検索変更、相互リンク等）を一つの最終本文へ統合し、既存intentと重複しないeffect keyを確定する。
+4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一thread公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
+5. **未完** Lancers Human Verification解除後の公式preflight 2回、全platformのaccount-bound authorization・実adapter・canary・rollback・settlement・replay-zeroを取得する。
+6. **未完** 空き容量をsafe allow-listで512MiB以上へ回復し、main受入→immutable release→targeted production apply後にcleanup natural terminalと旧`ENOSPC`非再発を確認する。
