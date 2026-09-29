@@ -766,6 +766,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] v711の同値在籍保存round-tripを実行し、管理画面の保存handler、content API公式readback、プロフィール全体の値・キー形状一致、相互リンク不変、正式納品操作なしを確認した。readback: `delivery/current-cycle-v709-profile-roundtrip.json`。
 - [x] v711の全項目公式HTTPS readbackを実行し、認証済み管理画面11項目、公開12ルートのデスクトップ／モバイル、content API、空相互リンクの非表示を確認した。readback: `delivery/current-cycle-v711-full-browser-readback.json`。
 - [x] 現行CoconalaスマホDMの返信入力を旧`#DirectMessageBody`だけでなく、厳格な`textarea.message-input`にも対応した。複数候補・想定外要素は送信せず、`unexpected_message_input_count`／`unexpected_message_input`として証跡化する。productionへの反映と公式送信readbackは未完了。
+- [x] 受信カードから観測済みのスマホDM URL（`uid`付き）を保持し、状態キーはcanonicalのまま返信browserだけが同じ公式URLを再利用する経路を追加した。旧URLへの強制フォールバックを避け、UID・origin・path・queryを厳格検証する。focused adapter 33件、gig全体1535件PASS。production immutable releaseへの反映と公式送信readbackは未完了。
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
 - [x] 2026-09-29 16:17 JST（UTC 07:17）の現行スマホDM再読で、取得できた最新10件は9/29 14:33〜14:41を含み、最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。添付2件はHTTP 200で取得・hash固定済み。readbackは `delivery/current-cycle-v712-dm-readback.json`。
 - [x] 直前の4経路プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM、旧DM URL、受信箱、ダッシュボードが `403 Forbidden` を返した。これはログイン切れではなくprovider access denialとして扱う安全境界を `session_vault.py` と `session_vault_tick.sh` に追加し、再ログイン・再送を抑止する。現行スマホDM URLは後続readbackで回復したが、旧URLは依然403のため返信経路は旧URLを使用しない。

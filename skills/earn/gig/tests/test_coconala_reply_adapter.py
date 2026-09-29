@@ -261,6 +261,28 @@ def test_modern_smartphone_direct_message_route_is_canonicalized():
     assert rows[0]["talkroom_url"] == (
         "https://coconala.com/mypage/direct_message/10107358"
     )
+    assert rows[0]["browser_thread_url"] == (
+        "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+    )
+
+
+def test_reply_browser_accepts_uid_bound_smartphone_thread_url():
+    modern = "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+
+    assert adapter_module.reply_browser.direct_message_path(modern) == (
+        "/mypage/direct_message/10107358"
+    )
+
+
+def test_adapter_reuses_observed_browser_thread_url(tmp_path):
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path,
+        inventory_reader=lambda: [],
+    )
+    modern = "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+    adapter._thread_urls["10107358"] = modern
+
+    assert adapter._thread_url("10107358") == modern
 
 
 def test_modern_dom_contract_is_present_in_both_message_readers():

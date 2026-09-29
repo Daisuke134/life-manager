@@ -294,7 +294,6 @@ def direct_message_path(thread_url: str) -> str:
     if (
         parsed.scheme != "https"
         or parsed.hostname not in {"coconala.com", "www.coconala.com"}
-        or parsed.query
         or parsed.fragment
     ):
         raise ValueError("invalid Coconala thread URL")
@@ -304,6 +303,13 @@ def direct_message_path(thread_url: str) -> str:
     )
     if not match:
         raise ValueError("unexpected Coconala direct-message path")
+    if parsed.query:
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        if not parsed.path.startswith("/smartphone/") or len(query) != 1:
+            raise ValueError("invalid Coconala thread URL")
+        key, value = query[0]
+        if key != "uid" or re.fullmatch(r"[1-9]\d*", value or "") is None:
+            raise ValueError("invalid Coconala thread URL")
     return f"/mypage/direct_message/{match.group(1)}"
 
 

@@ -3359,6 +3359,11 @@ def inquiries_from_dom(dom: dict[str, Any]) -> list[dict[str, Any]]:
     }
     for row in rows:
         card = cards_by_id.get(str(row.get("talkroom_id") or ""), {})
+        browser_thread_url = _browser_direct_message_url(
+            card.get("browser_thread_url") or card.get("talkroom_url")
+        )
+        if browser_thread_url is not None:
+            row["browser_thread_url"] = browser_thread_url
         digest = str(card.get("preview_sha256") or "")
         if re.fullmatch(r"[0-9a-f]{64}", digest):
             row["preview_sha256"] = digest
@@ -3378,6 +3383,31 @@ def inquiries_from_dom(dom: dict[str, Any]) -> list[dict[str, Any]]:
         if identity is not None:
             row["last_message_identity_sha256"] = identity
     return rows
+
+
+def _browser_direct_message_url(value: Any) -> str | None:
+    """Keep only the authenticated modern DM route needed to reopen a thread."""
+    parsed = urlsplit(str(value or ""))
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"coconala.com", "www.coconala.com"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+    ):
+        return None
+    match = re.fullmatch(
+        r"/smartphone/direct_messages/([A-Za-z0-9_-]+)/?", parsed.path
+    )
+    if match is None:
+        return None
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    uid = query.get("uid")
+    if set(query) != {"uid"} or not isinstance(uid, list) or len(uid) != 1:
+        return None
+    if re.fullmatch(r"[1-9]\d*", uid[0] or "") is None:
+        return None
+    return f"https://coconala.com/smartphone/direct_messages/{match.group(1)}?uid={uid[0]}"
 
 
 _HEAD_ONLY_INQUIRY_FIELDS = (
@@ -4685,6 +4715,14 @@ DIRECT_MESSAGE_EXPRESSION = (
         "完了予定日\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",
         "完了予定日\\s*[：:]?\\s*(20\\d{2}[\\\\/-]\\d{1,2}[\\\\/-]\\d{1,2}|20\\d{2}年\\d{1,2}月\\d{1,2}日)",
     )
+)
+
+# Preserve the authenticated modern route in the card metadata.  The generic
+# inquiry normalizer still exposes the canonical legacy URL for state keys, but
+# the reply adapter must reopen the route that the provider actually served.
+MESSAGES_EXPRESSION = MESSAGES_EXPRESSION.replace(
+    r"const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`https://coconala.com/mypage/direct_message/${m[1]}`:null}catch(_){return null}};",
+    r"const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);if(u.origin!=='https://coconala.com'||!m)return null;if(u.pathname.startsWith('/smartphone/')){const uid=u.searchParams.get('uid');if(!uid||!/^[1-9]\d*$/.test(uid))return null;return `https://coconala.com/smartphone/direct_messages/${m[1]}?uid=${uid}`}return `https://coconala.com/mypage/direct_message/${m[1]}`;}catch(_){return null}};",
 )
 
 if __name__ == "__main__":
