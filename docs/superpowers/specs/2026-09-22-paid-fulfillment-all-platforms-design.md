@@ -6101,7 +6101,8 @@ retried or resent.
 ### Item 4 candidate refresh — 2026-09-30 07:32 JST
 
 - [x] After the append-only acceptance receipt, the candidate was rebuilt from
-  the current pushed `HEAD` (`3fccbd4420deae9d14f873f47196a989f246e4f4`) at
+  the pushed `HEAD` at build time
+  (`3fccbd4420deae9d14f873f47196a989f246e4f4`) at
   `/tmp/lm-release-candidate.kmuo3G/`. The manifest again reports
   `provenance=pushed-not-yet-on-main`, zero writable regular files, and
   `current_exists=false`; production remains on `3975ae8996...`.
