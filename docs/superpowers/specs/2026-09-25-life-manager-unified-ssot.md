@@ -301,6 +301,12 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **進捗（2026-09-29 22:xx JST、Capafy 専用ブラウザ）**: A1〜A7 ✅（#6230 = 8f1fdd3a）。A1 lancers の browser-owner を写し（root の段数だけ置き場所に合わせて 4→3）、A2 registry・catalog（continuous_service 追加）・fixture 再生成（tests 127 pass、contract ok）、A3 browsers.toml に `capafy:kosuke`（Coconala から capafy.ai を外す）、A4 capafy.ai の cookie 17 個と localStorage（`auth-storage` ほか）だけを Coconala の保存から移し、専用ブラウザで販売者画面がログイン済みで開くことを確認、A5 既定 identity を `capafy:kosuke`、A6 1500 秒の応急処置を戻す、A7 もう 1 つの真因を修正: publish_finish が HOME を publisher home に移した後に with-browser を呼ぶため、browser-guard が browsers.toml と `~/.cloak/leases` を見つけられず acquire を 150 秒繰り返して exit 124（ドライバー出力なし）。with-browser だけに operator HOME を渡す。実証: 下書き 7686597754（YouTube Script Writer v1.0.3）が CP2 → CP3 → platform_status=1・skills/config confirmed・model DeepSeek V4.1 Flash（Capafy API）。残り: A8 release を capafy-browser と capafy-loop-daily に apply（実行中）→ A9 工場の自然 run が人の手なしで次を申請することを公式 readback で確認。
 
+**現在地と順番（2026-09-29 22:3x JST。この順に 1 つずつ。cursor = A9）**
+- A1〜A8 ✅ Capafy 専用ブラウザ `capafy-browser`（release 8f1fdd3a、loaded-running、専用 port、ログイン済み）。工場も同じ release 系列に反映済み。
+- A9 🔄 工場が人の手なしで次の Agent を審査に出すことを Capafy API で確認する。途中で見つけて直したもの: (1) publish_finish の HOME 移動で lease が取れず CP2 exit 124（#8f1fdd3a、7686597754 を platform_status=1 まで出して実証）、(2) 申請 lock の持ち主が分からない → 持ち主を記録（#a1018689）、(3) 同じ Agent を再準備するとリリースの読み取り専用アイコンを上書きできず `icon copy failed`（#af6e5011、cp -f + chmod 600、使い捨てファイルで再現と修正を確認）。今、1037238583（Football Match Analyst）の下書きで確認中。**A9 が公式 readback で通るまで Capafy 完了と言わない。**
+- 次の順番: B ディスク 10GB 以上（今 2.5GB）→ C アプリ（C1 投稿ごとの計測再開 → C2 流れの表 → C3 ASO → C4 課金 → C5 工場の 4 本 → C6 Anicca iOS の IG エラー）→ W Writer（有料記事の売上 readback → X）→ E Ebook（KDP → 売上 readback）→ F アフィリエイト（fence を公式に閉じる → 紹介料 readback）→ D connector（カレンダー自動登録）→ E1' fundraiser（カレンダー登録）→ S self-fix の worktree 化 → G1 全 loop green → G2 自己修復の実証 → G3 自己改善 → G4 loop 別損益 → G5 Cloud → G6 口座に入る利益で月 $10k → G7 YC W27。
+- PromptBase は P5（次の 04:20 の自然 run で次の 1 本が Pending）を監視のみ。
+
 **Atomic TODO（2026-09-29 21:xx JST。上から順に 1 つずつ。各行 = 1 つの確認できる作業。これが実行順の正本）**
 
 A. Capafy 専用ブラウザ（lancers-revenue-browser の写し。自己流なし）
