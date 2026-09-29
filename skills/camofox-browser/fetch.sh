@@ -58,7 +58,10 @@ PY
   [ -f "$TEMP_ROOT/source/LICENSE" ]
   [ -f "$TEMP_ROOT/source/package-lock.json" ]
   [ -f "$TEMP_ROOT/source/server.js" ]
-  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts)
+  # This helper is consumed through command substitution by start.sh. Keep its
+  # stdout machine-readable: npm's progress/audit output must not become part
+  # of CAMOFOX_DIR.
+  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts >&2)
   if [ -e "$FINAL_ROOT" ]; then
     rm -rf "$FINAL_ROOT"
   fi
