@@ -7,10 +7,19 @@ import pytest
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "platform_enrollment.py"
+STORE_MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "platform_candidate_store.py"
 
 
 def _module():
     spec = importlib.util.spec_from_file_location("marketplace_platform_enrollment_test", MODULE_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _store_module():
+    spec = importlib.util.spec_from_file_location("marketplace_platform_candidate_store_test", STORE_MODULE_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -128,3 +137,97 @@ def test_receipts_must_be_bound_to_the_candidate_provider():
                 "observed_at": "2026-09-29T00:01:00Z",
             },
         ))
+
+
+class _RecordingStore:
+    def __init__(self):
+        self.records = []
+
+    def record(self, value):
+        self.records.append(value)
+        return {"status": "appended", "record": value}
+
+
+def test_evaluation_can_be_persisted_without_opening_a_provider_transport():
+    module = _module()
+    store = _RecordingStore()
+
+    result = module.evaluate_and_record_candidate(
+        _candidate(),
+        store,
+        candidate_id="listing-123",
+        observed_at="2026-09-29T00:03:00Z",
+        source_url="https://example.test/listing-123",
+        snapshot_sha256="b" * 64,
+        evidence_refs=["provider-receipt://example-market/canary-1"],
+    )
+
+    assert result["evaluation"]["decision"] == "promote"
+    assert result["persistence"]["status"] == "appended"
+    assert store.records[0]["provider"] == "example-market"
+    assert store.records[0]["decision"] == "promote"
+    assert store.records[0]["gates"] == {
+        "policy": "pass",
+        "adapter": "pass",
+        "funded_work": "pass",
+        "canary": "pass",
+        "unit_economics": "pass",
+    }
+    assert store.records[0]["reasons"] == []
+
+
+def test_held_evaluation_is_persisted_with_a_next_action_and_no_owner_permission():
+    module = _module()
+    store = _RecordingStore()
+
+    result = module.evaluate_and_record_candidate(
+        _candidate(policy={
+            "status": "unknown",
+            "source_url": "https://example.test/automation-policy",
+            "observed_at": "2026-09-29T00:00:00Z",
+        }),
+        store,
+        candidate_id="listing-124",
+        observed_at="2026-09-29T00:03:00Z",
+        source_url="https://example.test/listing-124",
+        snapshot_sha256="c" * 64,
+    )
+
+    assert result["evaluation"]["owner_registration_allowed"] is False
+    assert store.records[0]["decision"] == "hold"
+    assert store.records[0]["next_action"] == "collect_missing_gates"
+    assert store.records[0]["reasons"] == ["policy_not_allowed"]
+
+
+def test_invalid_candidate_is_not_persisted():
+    module = _module()
+    store = _RecordingStore()
+
+    with pytest.raises(module.EnrollmentError):
+        module.evaluate_and_record_candidate(
+            {"version": 1, "provider": "example-market"},
+            store,
+            candidate_id="listing-125",
+            observed_at="2026-09-29T00:03:00Z",
+            source_url="https://example.test/listing-125",
+            snapshot_sha256="d" * 64,
+        )
+    assert store.records == []
+
+
+def test_evaluation_writes_the_real_durable_store(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+
+    module.evaluate_and_record_candidate(
+        _candidate(),
+        store,
+        candidate_id="listing-126",
+        observed_at="2026-09-29T00:03:00Z",
+        source_url="https://example.test/listing-126",
+        snapshot_sha256="e" * 64,
+    )
+
+    persisted = store.latest("example-market", "listing-126")
+    assert persisted is not None
+    assert persisted["decision"] == "promote"

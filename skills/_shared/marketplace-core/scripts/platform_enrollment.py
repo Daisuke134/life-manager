@@ -16,6 +16,7 @@ from typing import Any, Mapping
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
+_CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _RECEIPT = re.compile(r"^provider-receipt://[^/]+/[^/]+$")
 REQUIRED_ACTIONS = (
@@ -192,4 +193,69 @@ def evaluate_platform_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["EnrollmentError", "REQUIRED_ACTIONS", "evaluate_platform_candidate"]
+def evaluate_and_record_candidate(
+    candidate: Mapping[str, Any],
+    store: Any,
+    *,
+    candidate_id: str,
+    observed_at: str,
+    source_url: str,
+    snapshot_sha256: str,
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Evaluate a candidate and persist only the resulting state envelope.
+
+    ``store`` is deliberately a tiny dependency with one ``record`` method.
+    The function does not know how to discover, register, or contact a
+    provider; a store implementation may only persist the already-evaluated
+    evidence.
+    """
+
+    evaluation = evaluate_platform_candidate(candidate)
+    candidate_id = _text(candidate_id, "candidate_id_invalid")
+    if _CANDIDATE_ID.fullmatch(candidate_id) is None:
+        raise EnrollmentError("candidate_id_invalid")
+    observed_at = _timestamp(observed_at, "observed_at_invalid")
+    source_url = _text(source_url, "source_url_invalid")
+    if not source_url.startswith("https://"):
+        raise EnrollmentError("source_url_invalid")
+    snapshot_sha256 = _hash(snapshot_sha256, "snapshot_sha256_invalid")
+    if evidence_refs is None:
+        evidence_refs = []
+    if not isinstance(evidence_refs, list) or any(
+        not isinstance(item, str) or not item.strip() for item in evidence_refs
+    ):
+        raise EnrollmentError("evidence_refs_invalid")
+    record = {
+        "schema_version": 1,
+        "provider": evaluation["provider"],
+        "candidate_id": candidate_id,
+        "observed_at": observed_at,
+        "source_url": source_url,
+        "snapshot_sha256": snapshot_sha256,
+        "decision": evaluation["decision"],
+        "gates": evaluation["gates"],
+        "reasons": evaluation["reasons"],
+        "evidence_refs": [item.strip() for item in evidence_refs],
+        "next_action": (
+            "provision_owner_after_release_readback"
+            if evaluation["decision"] == "promote"
+            else "collect_missing_gates"
+        ),
+        "idempotency_key": (
+            f"marketplace-candidate:v1:{evaluation['provider']}:{candidate_id}:{snapshot_sha256}"
+        ),
+    }
+    try:
+        record_result = store.record(record)
+    except AttributeError as error:
+        raise EnrollmentError("candidate_store_invalid") from error
+    return {"evaluation": evaluation, "persistence": record_result}
+
+
+__all__ = [
+    "EnrollmentError",
+    "REQUIRED_ACTIONS",
+    "evaluate_platform_candidate",
+    "evaluate_and_record_candidate",
+]
