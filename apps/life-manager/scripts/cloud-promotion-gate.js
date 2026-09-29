@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -15,6 +16,17 @@ const REQUIRED_MIGRATIONS = Object.freeze([
   "2026-09-29-lm-cloud-cost-reservations.sql",
   REQUIRED_MIGRATION,
 ]);
+
+function migrationManifestSha256() {
+  const hash = crypto.createHash("sha256");
+  const directory = path.resolve(__dirname, "../migrations");
+  for (const filename of REQUIRED_MIGRATIONS) {
+    hash.update(filename);
+    hash.update("\0");
+    hash.update(fs.readFileSync(path.join(directory, filename)));
+  }
+  return hash.digest("hex");
+}
 
 function usage() { return "usage: cloud-promotion-gate.js --input PATH [--output PATH]"; }
 
@@ -56,7 +68,7 @@ function evaluatePromotionCandidate(input = {}) {
   if (!record(migration) || migration.latest_version !== REQUIRED_MIGRATION
       || JSON.stringify(migration.ordered_versions) !== JSON.stringify(REQUIRED_MIGRATIONS)
       || migration.applied !== true || migration.replay_safe !== true
-      || !SHA256.test(String(migration.manifest_sha256 || ""))) reasons.push("migration_unverified");
+      || migration.manifest_sha256 !== migrationManifestSha256()) reasons.push("migration_unverified");
 
   const agentcore = input.agentcore;
   if (!record(agentcore) || agentcore.region !== "ap-northeast-1"
@@ -108,4 +120,4 @@ if (require.main === module) {
   catch (error) { process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 1; }
 }
 
-module.exports = { REQUIRED_MIGRATION, REQUIRED_MIGRATIONS, evaluatePromotionCandidate, main };
+module.exports = { REQUIRED_MIGRATION, REQUIRED_MIGRATIONS, migrationManifestSha256, evaluatePromotionCandidate, main };
