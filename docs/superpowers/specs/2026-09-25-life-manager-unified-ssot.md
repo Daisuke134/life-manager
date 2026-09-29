@@ -310,7 +310,7 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
    - [x] K1b（#60908370、release 20260929T235132-60908370 を plist で確認）提出成功なのに daily_loop が `BLOCKED — post-verdict=PUBLISHABLE` と表示し self-fix を呼ぶ誤判定を直す（post-verdict の再判定が成功を見ていない）
    - [~] K2 1 回目 ✅ 2026-09-30 00:12 の自然 run（起動なし）が 2264929931 Dissertation Discussion Humanizer v1.0.1 を platform_status=1・confirmed・DeepSeek V4.1 Flash（Capafy API、00:18 更新）。run は HEALTHY-IDLE / CAP_FULL（審査枠が満杯で正常待機）。2 回目は承認で枠が空いた後の自然 run で確認
    - [x] K3（#b26ab310、plist で release 20260930T003021-b26ab310 を確認）X 投稿を agent の外（wrapper）へ移した。worktree の h00 run で記事 https://aniccaai.com/blog/capafy-reels-hook-lab-2026-09-30-h00 = 200・ct 付き、X PUBLISHED https://twitter.com/selawmqt/status/2104956828748779987。K4 は 04:15 の自然 run（h03 枠）で確認（01:15 は h00 枠済みで重複せず skip が正しい）。旧記述: 宣伝の X 投稿が実行枠内に終わらない原因を直す（capafy_x_post の待ち時間とモデル実行の枠の関係）→ 自然 run の枠で記事 200 + X PUBLISHED
-   - [ ] K4 次の枠も人の手なしで記事と X
+   - [x] K4 自然 run 2 回連続（人の手なし）: 04:15（h03）YouTube Script Writer 記事 200 + X PUBLISHED https://twitter.com/selawmqt/status/2105015427059552735、07:15（h06）Marketing Strategist 記事 200 + X PUBLISHED https://twitter.com/selawmqt/status/2105060956237906168（公開ページと ledger で確認）。宣伝ループ完了。工場は 07:30 も CAP_FULL で正常待機（K2 の 2 回目は Capafy の審査枠解放待ち＝K5）
    - [~] K5 support@capafy.ai は 9/28 18:08 に返信（技術チームへ escalate、枠を早く解放すると回答）。9/30 時点でも 5 本は under_review のまま枠を塞ぎ、工場は CAP_FULL で待機 → 2026-09-30 00:4x に同スレッドへ催促を送信（message_id 1a0edce6b43329e1）。返事と 5 本の状態を監視（進む条件にはしない）
    - → Capafy 完了を記録
 2. PromptBase
