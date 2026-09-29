@@ -129,4 +129,6 @@ fi
 [[ "$(scalar "SELECT count(*) FROM public.lm_runtime_jobs;")" == "2" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_runtime_leases;")" == "1" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_usage_ledger;")" == "1" ]]
-echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 rls=5 browser_access=0 rollback=1'
+[[ "$(scalar "SELECT limits_json->>'monthly_cost_cap_usd_micros' FROM public.lm_plan_entitlements WHERE plan_version='free-v1';")" == "500000" ]]
+[[ "$(scalar "SELECT limits_json->>'monthly_cost_cap_usd_micros' FROM public.lm_plan_entitlements WHERE plan_version='founding-pro-v1';")" == "12000000" ]]
+echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 plans=2 rls=5 browser_access=0 rollback=1'

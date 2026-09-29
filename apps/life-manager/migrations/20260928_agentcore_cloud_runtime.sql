@@ -13,6 +13,20 @@ CREATE TABLE IF NOT EXISTS public.lm_plan_entitlements (
   effective_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 
+INSERT INTO public.lm_plan_entitlements(plan_version, plan, limits_json)
+VALUES
+  (
+    'free-v1',
+    'free',
+    '{"active_goals":1,"scheduled_wakes_per_day":1,"browser_minutes_per_month":10,"monthly_cost_cap_usd_micros":500000,"activation_credit_usd_micros":1000000,"external_spend_usd_micros":0}'::jsonb
+  ),
+  (
+    'founding-pro-v1',
+    'founding_pro',
+    '{"active_goals":3,"scheduled_wakes_per_day":12,"browser_minutes_per_month":null,"monthly_cost_cap_usd_micros":12000000,"activation_credit_usd_micros":0,"external_spend_usd_micros":0}'::jsonb
+  )
+ON CONFLICT (plan_version) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS public.lm_cloud_tenants (
   tenant_id text PRIMARY KEY CHECK (char_length(tenant_id) BETWEEN 1 AND 200),
   region text NOT NULL CHECK (region = 'ap-northeast-1'),
