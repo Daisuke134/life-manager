@@ -196,6 +196,13 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
 - 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
 
+**TODO 順序（Dais 2026-09-29 09:3x JST 指示。この版が正本、以前の順序を上書き）**
+- 順序: 1 Capafy → 2 モバイルアプリ → 3 Writer（記事、traffic link で各商品に誘導）→ 4 PromptBase → 5 Ebooks（自社サイト + Amazon KDP）→ 6 affiliate → 7 connector → 8 fundraiser → 9 self-fix
+- Capafy Instagram（X1）は後回し（Dais 指示: 時間がかかるなら商品の出荷を優先）。作成の仕組みは #6143 で修正済み。旧アカウントは退役済み、交代要求は出してある。
+- 方針: 共有マーケティング（記事 + SNS で全商品に配信）と software factory（新商品の出荷 + 既存商品の改善）を全カテゴリに適用する。目標はカテゴリごと月 $10k 以上、Life Manager 全体で $10M 以上、YC W27 で資金調達。
+- X: 記事のリンク付き通常投稿を Postiz の X 連携で流す（X Article の編集画面はアカウントで使えないため skip。#6140）。
+- 現在の位置: 1 Capafy（X2 記事、X3 Japanese Humanizer 提出、TikTok Script Pro の説明文と価格）
+
 **TODO 順序の変更（2026-09-29 08:3x JST、この版が正本）**
 - 理由（公式 readback）: 直近28日の売上は、アプリ = RevenueCat revenue $32・MRR $20・有効サブスク 5・新規ユーザー 61。PromptBase = $0（Reels Hook Lab は審査待ちと画像認証で止まり中）。Capafy の Skill 別売上は30日 $80.78、実利益 $21.75。すでに課金が発生していてユーザーも入っているアプリを先に伸ばす方が、全体の売上が早く増える。
 - 旧順序: 1 Capafy → 2 PromptBase → 3 自社メディア → 4 モバイルアプリ → 5 connector → 6 fundraiser → 7 self-fix
