@@ -8,6 +8,13 @@ const SHA40 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const REQUIRED_EVIDENCE = Object.freeze(["cl00", "cl01", "cl02", "cl03", "cl04"]);
 const REQUIRED_MIGRATION = "2026-09-29-lm-cloud-free-onboarding.sql";
+const REQUIRED_MIGRATIONS = Object.freeze([
+  "20260928_agentcore_cloud_runtime.sql",
+  "2026-09-29-lm-agent-identity-refs.sql",
+  "2026-09-29-lm-browser-no-human.sql",
+  "2026-09-29-lm-cloud-cost-reservations.sql",
+  REQUIRED_MIGRATION,
+]);
 
 function usage() { return "usage: cloud-promotion-gate.js --input PATH [--output PATH]"; }
 
@@ -47,6 +54,7 @@ function evaluatePromotionCandidate(input = {}) {
 
   const migration = input.migration;
   if (!record(migration) || migration.latest_version !== REQUIRED_MIGRATION
+      || JSON.stringify(migration.ordered_versions) !== JSON.stringify(REQUIRED_MIGRATIONS)
       || migration.applied !== true || migration.replay_safe !== true
       || !SHA256.test(String(migration.manifest_sha256 || ""))) reasons.push("migration_unverified");
 
@@ -100,4 +108,4 @@ if (require.main === module) {
   catch (error) { process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 1; }
 }
 
-module.exports = { REQUIRED_MIGRATION, evaluatePromotionCandidate, main };
+module.exports = { REQUIRED_MIGRATION, REQUIRED_MIGRATIONS, evaluatePromotionCandidate, main };

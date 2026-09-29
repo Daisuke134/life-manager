@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { evaluatePromotionCandidate, REQUIRED_MIGRATION } = require("./cloud-promotion-gate.js");
+const { evaluatePromotionCandidate, REQUIRED_MIGRATION, REQUIRED_MIGRATIONS } = require("./cloud-promotion-gate.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
 const CANDIDATE = "9".repeat(40);
@@ -19,7 +19,8 @@ function validInput() {
     local_manifest: { complete: true, release_sha: CANDIDATE, sha256: HASH },
     evidence: Object.fromEntries(["cl00", "cl01", "cl02", "cl03", "cl04"].map((gate) => [gate,
       { status: "verified", release_sha: CANDIDATE, ref: `evidence://${gate}/receipt` }])),
-    migration: { latest_version: REQUIRED_MIGRATION, applied: true, replay_safe: true, manifest_sha256: HASH },
+    migration: { latest_version: REQUIRED_MIGRATION, ordered_versions: [...REQUIRED_MIGRATIONS],
+      applied: true, replay_safe: true, manifest_sha256: HASH },
     agentcore: { region: "ap-northeast-1", config_sha256: HASH, expected_config_sha256: HASH },
     sessions: { old_release_active: 0, current_release_active: 1 },
     cost: { cap_breaches: 0, unsettled_unknown: 0, within_plan_caps: true },
@@ -44,6 +45,8 @@ test("each required promotion boundary independently blocks", () => {
     ["cl03_unverified", (x) => { delete x.evidence.cl03; }],
     ["cl04_unverified", (x) => { x.evidence.cl04 = null; }],
     ["migration_unverified", (x) => { x.migration.replay_safe = false; }],
+    ["migration_unverified", (x) => { x.migration.ordered_versions.splice(0, 1); }],
+    ["migration_unverified", (x) => { x.migration.ordered_versions.reverse(); }],
     ["agentcore_config_mismatch", (x) => { x.agentcore.expected_config_sha256 = "b".repeat(64); }],
     ["old_release_sessions_active", (x) => { x.sessions.old_release_active = 1; }],
     ["cost_gate_failed", (x) => { x.cost.unsettled_unknown = 1; }],
