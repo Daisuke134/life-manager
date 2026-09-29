@@ -2814,6 +2814,23 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 7. **未完** productionのcapacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 8. **未完** Ryuさんは既存DMを再送せず、相互リンクの実URL・表示名・バナー入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
 
+## 現在の正本cursor（2026-09-30、private authorization store実測後）
+
+`~/.config/anicca/gig/authorizations.json`をmode `600`のままread-only照合した。Lancersには`submit_proposal`の`approved_browser` receiptがあり、現時点の`authorize` decisionから共通`authorized_account_context`を生成できる。ただしLancers公式preflightは`human_verification_required`のため、これだけでは応募・owner登録・納品の公式効果を証明しない。Upworkは`propose`／`message`／`accept_offer`／`deliver_milestone`がdeniedで、inspect／payments／payoutsのread-only receiptも期限切れである。Coconala／CrowdWorks／Mercorのreceiptはstoreに無く、認証を推測しない。
+
+- 検証済み: receipt store mode `600`、provider/action/state/transport/期限のread-only表示、Lancers decision→共通context変換。秘密値・account値・hash本文は出力していない。
+- provider effect: 今回0件。Lancersのhuman verificationを迂回していない。DM再送、応募、納品、loop再起動、production反映はしていない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式human-verification解除後、同じapproved receiptと現行accountでread-only preflightを2回通し、公式contracts readbackを現行schemaへ保存する。
+2. **未完** Lancersの`submit_proposal` receiptを応募単体の認証証拠として扱い、lifecycle owner登録に必要なreadback・canary・rollback・settlementの別receiptが揃うまでowner効果へ進ませない。
+3. **未完** Coconala／CrowdWorks／Mercorのaccount-bound receiptと公式readbackを取得し、各runtime callerから`authorized_account_context`へ渡す。推測hash・fixtureは禁止。
+4. **未完** Upwork／Freelancerのapproved mutation、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
+5. **未完** providerごとのplanned→terminalまたはrollback→settled、公式receipt、replay-zeroを自然runで取得する。
+6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
+
 ## 履歴cursor（2026-09-30、Gig全回帰と容量ガード再実測後）
 
 この節が直前のcursorを更新する。`fix/source-reconcile-20260930`ではsource errorを安全なmachine codeとして永続化する変更（`16735319e8`）をpush済みである。テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
