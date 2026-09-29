@@ -41,6 +41,10 @@ from upwork_message_effect import SealedUpworkMessageEffect  # noqa: E402
 from upwork_sealed_effect import (  # noqa: E402
     SealedUpworkProposalEffect, active_upwork_browser_account,
 )
+from upwork_platform_manifest import build_live_snapshot  # noqa: E402
+from upwork_platform_manifest_runtime import (  # noqa: E402
+    run_upwork_platform_manifest_wake,
+)
 from upwork_transport import UpworkTransport  # noqa: E402
 from workflow_executor import general_agent_workflow  # noqa: E402
 from work_event_projector import _read_jsonl  # noqa: E402
@@ -79,6 +83,31 @@ DEFAULT_SEARCH_CURSOR = Path.home() / "gig/state/upwork-search-cursor.json"
 DEFAULT_OFFER_EVIDENCE = Path.home() / "gig/state/upwork-offer-gate"
 DEFAULT_INBOX_LEDGER = Path.home() / "gig/state/upwork-inbox.jsonl"
 DEFAULT_NEGOTIATION_EVIDENCE = Path.home() / "gig/state/upwork-negotiation-planner"
+
+
+def record_upwork_platform_manifest_wake(
+    state: dict[str, Any],
+    *,
+    account_id: str,
+    run_id: str,
+    candidate_root: Path | None = None,
+    run_root: Path | None = None,
+) -> dict[str, Any]:
+    """Record account/source health before any Upwork provider mutation."""
+
+    adapter_source = Path(__file__).resolve().parents[1] / "upwork_platform_manifest.py"
+    snapshot = build_live_snapshot(
+        state,
+        account_id=account_id,
+        adapter_source_sha256=hashlib.sha256(adapter_source.read_bytes()).hexdigest(),
+    )
+    return run_upwork_platform_manifest_wake(
+        snapshot=snapshot,
+        candidate_root=candidate_root,
+        run_root=run_root,
+        run_id=run_id,
+        observed_at=str(state["observed_at"]),
+    )
 DEFAULT_OWNER_PROFILE = Path.home() / ".config/anicca/gig/owner-profile.json"
 DEFAULT_GIG_DIR = Path.home() / "gig"
 DEFAULT_PROJECTS_ROOT = DEFAULT_GIG_DIR / "projects"
@@ -1364,6 +1393,19 @@ async def observe(
         ],
         "evidence_sha256": artifacts,
     }
+    try:
+        account_id = active_upwork_browser_account(
+            DEFAULT_RECEIPT_PATH, datetime.now(timezone.utc), "inspect",
+        )
+        state["platform_manifest"] = record_upwork_platform_manifest_wake(
+            state,
+            account_id=account_id,
+            run_id=f"{pass_id}-platform-manifest",
+        )
+    except Exception as error:  # noqa: BLE001 - fail closed before provider effects
+        raise ValueError(
+            f"upwork_platform_manifest_wake_failed:{type(error).__name__}"
+        ) from error
     state["contract_owners"] = resume_active_contract_workers(state["active_contracts"])
     state["negotiation_intents"] = []
     for head in inbox_reconciliation["heads"]:

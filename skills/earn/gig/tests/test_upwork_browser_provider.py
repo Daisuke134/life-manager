@@ -26,8 +26,46 @@ from upwork_browser_provider import (  # noqa: E402
     parse_inventory,
     parse_messages,
     parse_stable_entities,
+    record_upwork_platform_manifest_wake,
     reconcile_terminal_transitions,
 )
+
+
+def test_upwork_platform_manifest_wake_hashes_account_before_bridge(tmp_path, monkeypatch):
+    calls = []
+
+    def bridge(**kwargs):
+        calls.append(kwargs)
+        return {"status": "ok", "inspected": 1, "held": 1}
+
+    monkeypatch.setattr(provider, "run_upwork_platform_manifest_wake", bridge)
+    state = {
+        "version": 1,
+        "provider": "upwork",
+        "observed_at": "2026-09-30T04:10:00Z",
+        "evidence_sha256": {
+            "contracts": "c" * 64,
+            "transactions": "d" * 64,
+            "withdrawals": "e" * 64,
+            "working-style": "f" * 64,
+        },
+        "active_contracts": [{"id": "private-contract-body"}],
+    }
+
+    result = record_upwork_platform_manifest_wake(
+        state,
+        account_id="private-account-id",
+        run_id="upwork-manifest-test",
+        candidate_root=tmp_path / "candidates",
+        run_root=tmp_path / "runs",
+    )
+
+    assert result["status"] == "ok"
+    assert len(calls) == 1
+    snapshot = calls[0]["snapshot"]
+    assert snapshot["account_id_sha256"] != "private-account-id"
+    assert "private-account-id" not in repr(snapshot)
+    assert "private-contract-body" not in repr(snapshot)
 
 
 def test_application_decision_persists_without_blocking_on_reporter(tmp_path, monkeypatch):
