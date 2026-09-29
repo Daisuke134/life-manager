@@ -1409,3 +1409,11 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 新releaseのnatural occurrence `alpaca-investment-paper:18d9d47359194658-54799` は`exit_code=0`／`pass`だったが、decisionは`NO_TRADE / decision_session_consumed`、exit order／provider receiptは生成されなかった。QQQは`open`のままであり、`AT-13`は未完である。
 - 新release上のAlpaca公式GET（read-only、2026-09-30 00:34 JST）はpaper account cash `$99,986.77`、equity `$99,986.72`、QQQ long qty `0.013493253`、avg entry `$740.37`、current `$737.559`、unrealized P&L `-$0.03793`、open/closed orders count `3`を返した。exit orderはなく、realized net P&Lではない。
 - 次の1件は`AT-13`のみ。手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
+
+**Atomic Todo admission診断（2026-09-30 JST）**:
+
+- `alpaca-investment-paper`のregistry設定は`resource_class=agent`、`admission_class=revenue`、`priority=revenue`であり、投資ownerの優先度欠落は確認されない。
+- admission DBのread-only snapshotでは投資ownerのreservationは空で、直近のdeferはprovider effect前に`host_admission_deferred:resource_capacity_busy`となっている。したがって、このdeferは注文失敗・資金損失・投資sourceのFAILではない。
+- occurrence journalの集計は履歴行を含むが、`agent/revenue/revenue`に`claimed=10505`、`queued=4299`があり、直近claimedには複数のagent/revenue ownerが存在する。これはhost全体のcapacity競合を示すreadbackであり、他ownerのコードやCapafyを投資TODOへ取り込む根拠にはしない。
+- 投資ownerは自動retryを継続する。`AT-13`の完了条件は変わらず、strategyが新しいdaily sessionで自然exit decisionを出し、そのdecision receiptを残すことだけである。手動wake、手動sell、再送、global scheduler変更は行わない。
+- 現在のAtomic Todo cursorは`AT-13`、完了済みは`AT-01`〜`AT-12`、残りは`AT-13`〜`AT-29`である。検証済み実現収益は引き続き`$0/月`であり、paperのunrealized P&Lは収益に数えない。
