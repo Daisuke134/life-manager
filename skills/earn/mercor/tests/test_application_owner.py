@@ -54,6 +54,14 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     )
 
 
+def test_mercor_browser_owner_is_dedicated_and_port_owned():
+    source = (ROOT / "skills/earn/mercor/scripts/browser-owner").read_text()
+    assert 'MERCOR_BROWSER_PROFILE:-$HOME/.browser-harness-profile/mercor-google-20260822b' in source
+    assert '--port 9334 --profile "$profile" --owner mercor-revenue-browser' in source
+    assert '--remote-debugging-port=9334' in source
+    assert 'runtime/host/browser_port_owner.py' in source
+
+
 def test_owner_only_requests_email_auth_after_confirmed_logout():
     source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
     assert 'AUTH_STATUS=' in source

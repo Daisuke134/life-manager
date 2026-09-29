@@ -5,7 +5,6 @@
     "ai.anicca.crowdworks.fulfillment",
     "ai.anicca.crowdworks.negotiation",
     "ai.anicca.crowdworks.storefront",
-    "ai.anicca.job-search-mercor-browser",
     "ai.anicca.provision-browser.buyma.na-l5-client",
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
@@ -2942,6 +2941,29 @@
       "log_root": "~/.local/state/life-manager/marketing-weekly-review/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/marketing-weekly-review"
+    },
+    "mercor-revenue-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9334,
+        "profile": "~/.browser-harness-profile/mercor-google-20260822b"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/mercor/scripts/browser-owner",
+      "label": "ai.anicca.job-search-mercor-browser",
+      "log_root": "~/.local/state/life-manager/mercor-revenue-browser/logs",
+      "provider_route": "deterministic",
+      "resource_class": "browser",
+      "state_root": "~/.local/state/life-manager/mercor-revenue-browser"
     },
     "mercor-revenue-application": {
       "adapter": "exec",

@@ -1075,6 +1075,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "profile": "~/.local/state/anicca/lancers/browser-profile",
         })
 
+    def test_mercor_browser_declares_browser_resource_class(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["mercor-revenue-browser"]
+        self.assertEqual(row.get("resource_class"), "browser")
+        self.assertEqual(row["browser_owner"], {
+            "cdp_port": 9334,
+            "profile": "~/.browser-harness-profile/mercor-google-20260822b",
+        })
+        self.assertEqual(row["label"], "ai.anicca.job-search-mercor-browser")
+
     def test_hf_gig_browser_declares_browser_resource_class(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["hf-gig-browser"]
