@@ -351,6 +351,8 @@ def run_discovery_cycle(
             })
     if summary["source_errors"]:
         summary["status"] = "partial"
+    elif summary["inspected"] == 0:
+        summary["status"] = "empty"
     return summary
 
 

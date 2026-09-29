@@ -323,3 +323,19 @@ def test_discovery_cycle_reports_source_failure_without_mutating_other_sources(t
         "next_action": "retry_source_read_only",
     }]
     assert store.latest("example-market", "listing-130") is not None
+
+
+def test_discovery_cycle_marks_no_candidate_wake_as_empty_not_success(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+
+    result = module.run_discovery_cycle(
+        {"empty-source": lambda: []},
+        store,
+    )
+
+    assert result["status"] == "empty"
+    assert result["inspected"] == 0
+    assert result["persisted"] == 0
+    assert result["held"] == 0
+    assert result["next_actions"] == []

@@ -2121,3 +2121,25 @@ job IDs 0）、`git diff --check`もPASS。branch
 7. **未完** Meta Loopのscheduler/discovery → candidate durable state → policy/adapter/funded gate → owner provisioning →
    isolated canary/readback → rollback → settlement → quality/P&L feedbackをshared kernelへ接続し、成功した改善だけを
    共通skillへ昇格する。
+
+### 最新Meta Loop empty-wake invariant — 2026-09-30
+
+- `run_discovery_cycle(...)` は、sourceが正常に空候補を返したwakeを`status=empty`と記録する。
+  候補ゼロを`ok`や`promote`として扱わず、`inspected=0`、`persisted=0`、`held=0`、`next_actions=[]`を返す。
+  source取得・iteration失敗がある場合は従来どおり`partial`とし、`retry_source_read_only`を保持する。
+- 変更はread-only discoveryの集計だけで、provider submit／reply／deliver／owner登録／決済は呼ばない。
+  source候補の実platform adapterをcandidate promotion gateへ接続する作業、receipt/readback、main/releaseは未完了である。
+- enrollment 13件、candidate store 8件、compile、`git diff --check`をPASSした。これはsource契約の証拠であり、
+  productionのscheduler稼働、provider receipt、成約、payout、収益の証拠ではない。
+
+### 原子TODO（Meta Loop empty-wake後の正本）
+
+1. **完了** 候補ゼロwakeを`empty`、source障害を`partial`として区別し、誤った成功扱いを防ぐ。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorの既存read-only adapter出力をMeta Loopのcandidate
+   evaluation cycleへ接続し、snapshot hash・evidence refs・next actionをcandidate durable stateへ渡す。
+3. **未完** `fix/source-reconcile-20260930`をmainへ受入し、main由来immutable release、loaded SHA、plist argv/env、
+   identity lease、rollback receiptを公式readbackで一致させる。
+4. **未完** RyuさんDMおよび各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由を取得する。
+   既存の一回送信を維持し、再送・正式納品・receiptなしのeffect fence解放はしない。
+5. **未完** capacity自然run、Freelancer／Upworkのauth・funded contract、canary、rollback、settlement、
+   cost-complete positive net P&Lを検証する。
