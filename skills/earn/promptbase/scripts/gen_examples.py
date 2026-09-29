@@ -26,14 +26,18 @@ EXAMPLES_DIR = Path.home() / ".local/state/life-manager/state/promptbase-example
 CLAUDE_BIN = os.environ.get("ARTICLE_CLAUDE_BIN") or str(Path.home() / ".local/bin/claude")
 
 
-def _claude(prompt: str) -> str:
-    # stdin, not argv: SKILL.md starts with "---", which the CLI parses as a flag.
+def _claude(prompt: str, system: str = "You are a helpful assistant. Answer in natural, complete English.") -> str:
+    # Run outside the repo with no user settings: the operator's ~/.claude config
+    # (reply-in-Japanese, terse style, hooks) leaked into the 2026-09-29 examples and
+    # PromptBase declined Reels Hook Lab ("outputs repeat the system prompt").
     out = subprocess.run(
-        [CLAUDE_BIN, "-p", "--model", "sonnet"], input=prompt,
-        capture_output=True, text=True, timeout=600, check=True,
+        [CLAUDE_BIN, "-p", "--model", "sonnet", "--setting-sources", "", "--system-prompt", system],
+        input=prompt, capture_output=True, text=True, timeout=600, check=True, cwd="/tmp",
     ).stdout.strip()
     if not out:
         raise RuntimeError("claude returned empty output")
+    if any("\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff" for ch in out):
+        raise RuntimeError("example output contains Japanese; operator config leaked")
     return out
 
 
@@ -59,7 +63,7 @@ def generate(catalog_dir: Path) -> list[dict]:
     examples = [{"input": _clean(first_in), "output": first_out.strip()}]
     for text in inputs[:3]:
         text = _clean(str(text))
-        output = _claude(skill_md + "\n\n---\nBuyer input:\n" + text)
+        output = _claude(text, system=skill_md)
         examples.append({"input": text, "output": output})
     if len({e["output"] for e in examples}) != 4:
         raise RuntimeError("examples are not 4 distinct outputs")
