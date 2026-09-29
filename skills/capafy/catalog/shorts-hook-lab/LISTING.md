@@ -11,7 +11,7 @@ Demand rank: 2
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 10 | No Free Trial |
-| month | $19.99 | 25 | No Free Trial |
+| month | $10.00 | 25 | No Free Trial |
 | year | $99.99 | 144 | No Free Trial |
 
 ## Title

@@ -37,7 +37,7 @@ MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "deepseek/deepseek-v4.1-flas
 CDP_ATTACH_TIMEOUT_MS = int(os.environ.get("CP2_CDP_ATTACH_TIMEOUT_MS", "15000"))
 RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))
-RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "15"))
+RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "45"))
 RAW_SECTION_POLL_S = float(os.environ.get("CP2_SECTION_POLL_S", "0.25"))
 _CP2_RESOLVE_RETRIES = int(os.environ.get("CP2_RESOLVE_RETRIES", "3"))
 _CP2_RESOLVE_RETRY_DELAY_S = float(os.environ.get("CP2_RESOLVE_RETRY_DELAY_S", "5"))
@@ -627,7 +627,13 @@ def _raw_configure_llm_form(page, key):
     state = page.evaluate(_llm_config_form_expression())
     if not isinstance(state, dict) or not state.get("ok"):
         raise RuntimeError(f"ambiguous llm config hosted-key form ({state})")
+    # The vendor button renders a moment after the base-URL field (live 2026-09-29,
+    # 8123079349: count 0 right after the tab click, present a few seconds later).
+    deadline = time.monotonic() + 20.0
     vendor = page.evaluate(_llm_config_vendor_state_expression())
+    while (not isinstance(vendor, dict) or not vendor.get("ok")) and time.monotonic() < deadline:
+        time.sleep(1.0)
+        vendor = page.evaluate(_llm_config_vendor_state_expression())
     if not isinstance(vendor, dict) or not vendor.get("ok"):
         raise RuntimeError(f"ambiguous llm config vendor picker ({vendor})")
     if vendor.get("text") != "OpenRouter":
@@ -729,9 +735,11 @@ def _ensure_raw_provider_section(page):
             # A resumed review page opens on 基本情報; the hosted-key fields live
             # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
             # Look once: a page that already shows the form has no such tab.
-            workspace_tab_clicked = True
             tab = _bounded_page_evaluate(page, _WORKSPACE_TAB_EXPRESSION, deadline)
             if isinstance(tab, dict) and tab.get("ok"):
+                # Mark clicked only once the tab exists: on a still-hydrating page the
+                # tab is absent and a one-shot look never retried (live 2026-09-29).
+                workspace_tab_clicked = True
                 for kind in ("mousePressed", "mouseReleased"):
                     _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
                 time.sleep(1)

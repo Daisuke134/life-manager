@@ -16,8 +16,8 @@ rejection trap; STRIPPED here. ★ No browsing, no live data, no invented metric
 ## (from_version_id unchanged vs live) has not been submitted yet, so the table is safe to extend.
 | cycle | price | cap | trial |
 |---|---|---|---|
-| week  | $9.99  | 36 | No Free Trial |
-| month | $24.99 | 80 | No Free Trial |
+| week  | $6.99  | 36 | No Free Trial |
+| month | $12.99 | 80 | No Free Trial |
 | year  | $149.99 | 960 | No Free Trial |
 
 ## Title
