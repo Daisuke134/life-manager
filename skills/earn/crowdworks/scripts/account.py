@@ -12,7 +12,14 @@ import json, os, re, shlex, signal, subprocess, sys, tempfile, time, uuid
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, TextIO
 from urllib.parse import parse_qsl, urlsplit
-PLATFORM="crowdworks"; CDP_PORT=9228; CDP_URL=f"http://127.0.0.1:{CDP_PORT}"
+_CDP_ENDPOINT_PATH = Path(__file__).resolve().parents[3] / "browser" / "cdp_endpoint.py"
+_CDP_ENDPOINT_SPEC = importlib.util.spec_from_file_location("anicca_crowdworks_cdp_endpoint", _CDP_ENDPOINT_PATH)
+if _CDP_ENDPOINT_SPEC is None or _CDP_ENDPOINT_SPEC.loader is None:
+    raise RuntimeError("cdp_endpoint_unavailable")
+_cdp_endpoint = importlib.util.module_from_spec(_CDP_ENDPOINT_SPEC)
+sys.modules[_CDP_ENDPOINT_SPEC.name] = _cdp_endpoint
+_CDP_ENDPOINT_SPEC.loader.exec_module(_cdp_endpoint)
+PLATFORM="crowdworks"; CDP_URL=_cdp_endpoint.configured_cdp_endpoint("http://127.0.0.1:9228"); CDP_PORT=_cdp_endpoint.endpoint_port(CDP_URL)
 PROFILE_DIR=str(Path("~/.local/state/anicca/crowdworks/browser-profile").expanduser()); DEFAULT_STATE_PATH=Path("~/.local/state/anicca/crowdworks/account.json").expanduser()
 SESSION_VAULT_DIR=str(Path("~/.local/state/anicca/crowdworks/session-vault").expanduser()); SESSION_VAULT_PORT=str(CDP_PORT); VAULT_DIR=SESSION_VAULT_DIR
 LOGIN_URL="https://crowdworks.jp/login"; DASHBOARD_URL="https://crowdworks.jp/dashboard"; PASSWORD_RESET_URL="https://crowdworks.jp/password_reset_requests/new"; PASSWORD_RESET_COMPLETE_URL="https://crowdworks.jp/password_reset_requests/complete"; SIGNUP_URL="https://crowdworks.jp/user/new_email"

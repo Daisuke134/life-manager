@@ -256,9 +256,9 @@ def _apply_page(page:Any,config:Mapping[str,Any],now:Any)->dict[str,Any]:
 def _new_page(browser:Any)->Any:
     try: contexts=getattr(browser,"contexts"); return contexts[0].new_page() if contexts else None
     except Exception: return None
-def _defaults()->tuple[Any,Any]:
+def _defaults()->tuple[Any,Any,str]:
     name="crowdworks_profile_account"; spec=importlib.util.spec_from_file_location(name,Path(__file__).with_name("account.py"))
-    module=importlib.util.module_from_spec(spec); sys.modules[name]=module; spec.loader.exec_module(module); return module._owner,module._browser
+    module=importlib.util.module_from_spec(spec); sys.modules[name]=module; spec.loader.exec_module(module); return module._owner,module._browser,module.CDP_URL
 def _write_receipt(path:Path,payload:Mapping[str,Any])->None:
     try:
         path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
@@ -275,7 +275,7 @@ def run_observe(*,browser:Any=None,page:Any=None,browser_factory:Any=None,owners
         # A caller-supplied page already carries a live browser; acquiring another one here starts a
         # second Playwright runtime in the same process and throws, which is what made every
         # profile-gated application tick fail with the generic profile_apply_failed.
-        if browser is None and page is None: owner,factory=_defaults(); (ownership_checker or owner)() or _fail("browser_ownership_conflict"); browser=(browser_factory or factory)("http://127.0.0.1:9228")
+        if browser is None and page is None: owner,factory,cdp_url=_defaults(); (ownership_checker or owner)() or _fail("browser_ownership_conflict"); browser=(browser_factory or factory)(cdp_url)
         created=page or _new_page(browser); created or _fail("browser_page_unavailable")
         return observe_page(created)
     except ProfileError as error: return {"ok":False,"platform":PLATFORM,"error":error.code}
@@ -290,7 +290,7 @@ def run_apply(*,config_path:Path|str=DEFAULT_CONFIG_PATH,browser:Any=None,page:A
         # A caller-supplied page already carries a live browser; acquiring another one here starts a
         # second Playwright runtime in the same process and throws, which is what made every
         # profile-gated application tick fail with the generic profile_apply_failed.
-        if browser is None and page is None: owner,factory=_defaults(); (ownership_checker or owner)() or _fail("browser_ownership_conflict"); browser=(browser_factory or factory)("http://127.0.0.1:9228")
+        if browser is None and page is None: owner,factory,cdp_url=_defaults(); (ownership_checker or owner)() or _fail("browser_ownership_conflict"); browser=(browser_factory or factory)(cdp_url)
         created=page or _new_page(browser); created or _fail("browser_page_unavailable")
         result=_apply_page(created,config,now)
         if receipt_path is not None: _write_receipt(Path(receipt_path),{key:result[key] for key in ("provider_employee_id","intent_hash","changed_fields","profile_effect_count","avatar_effect_count","official_public_url","component_counts","component_hashes","timestamp","status")})
