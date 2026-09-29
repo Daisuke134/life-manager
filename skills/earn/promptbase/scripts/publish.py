@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -147,7 +148,10 @@ def _fill_step1(page, listing) -> None:
     _click_text(page, "Next: Prompt File")
     page.wait_for_timeout(1200)
     if _current_step(page) != "2/3":
-        raise RuntimeError(f"step1_did_not_advance:{_current_step(page)}")
+        # Name the reason PromptBase shows (the 2026-09-30 04:20 and 08:30 runs failed here with none).
+        notes = [ln.strip() for ln in page.inner_text("body").splitlines()
+                 if re.search(r"please|must|already|required|invalid|error|too (long|short)|maximum|reached", ln, re.I)]
+        raise RuntimeError(f"step1_did_not_advance:{_current_step(page)}:{' | '.join(notes)[:300]}")
 
 
 def _fill_step2(page, listing) -> None:
