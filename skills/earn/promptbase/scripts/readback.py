@@ -98,11 +98,24 @@ def parse_sales(text: str) -> dict:
     return {"sales_count": count, "net_usd": round(net_total, 2), "by_item": by_item}
 
 
+def title_key(title: str) -> str:
+    """Compare titles as PromptBase renders them: the dashboard drops the em dash
+    and title-cases words ("Reels Hook Lab Win The Cover Frame" for our
+    "Reels Hook Lab — Win the Cover Frame"), so exact equality never matched."""
+    return "".join(ch for ch in title.lower() if ch.isalnum())
+
+
+_STATUS_RANK = ["Approved", "Pending", "Scheduled", "Disputed", "Declined", "Draft", "Archived"]
+
+
 def status_for_title(text: str, title: str) -> str | None:
-    for status, card_title in parse_dashboard_cards(text):
-        if card_title == title:
-            return _STATUS_MAP.get(status, status.lower())
-    return None
+    # One title can have several cards (old drafts plus the submitted one); report the furthest.
+    found = [status for status, card_title in parse_dashboard_cards(text)
+             if title_key(card_title) == title_key(title)]
+    if not found:
+        return None
+    best = min(found, key=lambda st: _STATUS_RANK.index(st) if st in _STATUS_RANK else len(_STATUS_RANK))
+    return _STATUS_MAP.get(best, best.lower())
 
 
 def run(endpoint: str) -> dict:
