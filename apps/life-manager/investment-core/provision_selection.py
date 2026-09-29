@@ -52,13 +52,8 @@ def _read_reports(path: Path) -> list[dict[str, Any]]:
     return reports
 
 
-def _existing_selection_is_valid(value: Any) -> bool:
-    if not isinstance(value, dict):
-        return False
-    selection = value.get("selection")
-    if selection == "no_strategy":
-        return value.get("strategy_id") == "NO_STRATEGY"
-    if selection != "selected":
+def _existing_selected_shape_is_valid(value: Any) -> bool:
+    if not isinstance(value, dict) or value.get("selection") != "selected":
         return False
     if not isinstance(value.get("report_id"), str) or not value["report_id"].strip():
         return False
@@ -74,6 +69,36 @@ def _existing_selection_is_valid(value: Any) -> bool:
     except (TypeError, ValueError):
         return False
     return card.strategy_id == value["strategy_id"] and not validate_strategy_card(card)
+
+
+def _existing_selection_expiry_status(value: dict[str, Any]) -> str:
+    expires_at = value.get("expires_at")
+    if not isinstance(expires_at, str) or not expires_at.strip():
+        return "invalid"
+    try:
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except ValueError:
+        return "invalid"
+    if expires.tzinfo is None:
+        return "invalid"
+    if expires <= datetime.now(timezone.utc):
+        return "expired"
+    return "future"
+
+
+def _existing_selection_is_valid(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value.get("selection") == "no_strategy":
+        return value.get("strategy_id") == "NO_STRATEGY"
+    return _existing_selected_shape_is_valid(value) and _existing_selection_expiry_status(value) == "future"
+
+
+def _existing_selection_is_expired(value: Any) -> bool:
+    return (
+        _existing_selected_shape_is_valid(value)
+        and _existing_selection_expiry_status(value) == "expired"
+    )
 
 
 def _selection_payload(
@@ -134,7 +159,7 @@ def provision_selection(
     reports_path: str | Path,
     runtime_release_sha: str | None = None,
 ) -> dict[str, str]:
-    """Create a selected state once; never overwrite an existing owner state."""
+    """Create selected state, preserving valid state and rotating expired state."""
     destination = Path(path).expanduser()
     if destination.is_symlink():
         raise SelectionProvisionError("selection_symlink_refused")
@@ -143,9 +168,10 @@ def provision_selection(
             existing = json.loads(destination.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise SelectionProvisionError("existing_selection_invalid") from error
-        if not _existing_selection_is_valid(existing):
+        if _existing_selection_is_valid(existing):
+            return {"status": "existing", "path": str(destination)}
+        if not _existing_selection_is_expired(existing):
             raise SelectionProvisionError("existing_selection_invalid")
-        return {"status": "existing", "path": str(destination)}
 
     reports = _read_reports(Path(reports_path).expanduser())
     selection = select_strategy(reports)

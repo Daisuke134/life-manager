@@ -107,6 +107,29 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(result["status"], "existing")
             self.assertEqual(destination.read_bytes(), before)
 
+    def test_expired_selection_is_replaced_by_fresh_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+            provision_selection(destination, reports, runtime_release_sha="a" * 40)
+
+            expired = json.loads(destination.read_text(encoding="utf-8"))
+            expired["expires_at"] = "2020-01-01T00:00:00Z"
+            destination.write_text(json.dumps(expired), encoding="utf-8")
+            reports.write_text(
+                json.dumps([_report(report_id="fresh-report")]),
+                encoding="utf-8",
+            )
+
+            result = provision_selection(destination, reports, runtime_release_sha="b" * 40)
+
+            self.assertEqual(result["status"], "created")
+            payload = json.loads(destination.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_id"], "fresh-report")
+            self.assertEqual(payload["release_sha"], "b" * 40)
+
     def test_invalid_existing_selection_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
