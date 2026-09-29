@@ -6108,3 +6108,15 @@ retried or resent.
   `current_exists=false`; production remains on `3975ae8996...`.
 - [ ] The main-integration/provenance gate remains open. No production owner
   mutation is inferred from this candidate-only build.
+
+### Source acceptance recheck — 2026-09-30 07:45 JST
+
+- [x] With the release Python 3.14 and the real macOS temporary directory
+  (`/private/var/folders/.../T`, not the `/tmp` symlink),
+  `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`
+  completes with `Ran 689 tests` and `OK`.
+- [x] The earlier 9-test failure was reproduced as a harness-path error:
+  forcing `TMPDIR=/tmp/...` made the migration tests correctly reject the
+  symlink component `/tmp`; no source change was made for that false failure.
+- [ ] This strengthens source acceptance only. The main-integration and
+  main-derived immutable production-release gates remain open.
