@@ -213,6 +213,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 歯止め: 毎時の利益データでモデル代が売上の 30% を超えた Skill は、工場が値上げまたはモデル変更を自動で出す（最初の方針の後の安全網）。
 - 同じ方針を Writer（有料記事の価格）、Ebook（The Anicca Reset の価格・KDP 価格）、アプリ（サブスク価格）、PromptBase にも当てる。
 
+**Capafy 実測（2026-09-29 18:1x JST、公式 readback）**: 自分の Agent 52 本 = 公開中 44・審査中 7・下書き 1（Capafy API `agentStatus`）。お金（毎時集計 15:07 JST 時点）: 売上累計 $100.76（100 件）→ 取り分 $74.64 → 今月 API 実費 $25.50 → 差し引き $49.14。未払い残高 $20.26・振込可能 $14.40・振込済み $0。
+- 済み: Hook Lab v1.0.4 審査提出（platform_status=1、#6199: CP2/CP3 のタブ再試行・待ち時間・「下書きを保存」表記・変更履歴はキー入力）。工場の詰まり解消 → 17:57 の実行は次の Agent 9563867391 の DeepSeek 切り替えへ進行中。宣伝 3 時間ごと本番（#6197、d697d18f、1:15 から 3 時間おき 8 回、2 本目 TikTok Script Pro の記事 200 + X PUBLISHED）。値上げ取り消し（#6200、キュー 19 本で値上げ 0 本を API で確認、DeepSeek 切り替えは残す）。利益の日次 Telegram（#6195）。
+- 残り（Capafy）: 1 17:57 の工場実行が審査提出まで行くか公式確認 2 毎時集計が 15:07 から止まっている原因を直す 3 審査中 7 本の承認を待たず、次の Agent を工場が作り続けるか確認。
+
 **Dais 決定（2026-09-29 17:2x JST）と残り ToDo の順番**
 - 開発の流れ: 変更は worktree の中で実物（worktree のスクリプトを直接実行）を動かして確認し、成果がそろってから main へ 1 回だけ merge → release。小さな修正ごとに main へ入れて本番で試すのはやめる（17:0x までの #6190/#6191 は本番で試した。前例: 不正な priority "paid" が全 loop を止めた）。
 - 観測性: `lm-loop status` は 278 loop・約 4 秒・JSON のみ（実測 17:2x: 正常 170 / 停止 108 = effect_unknown 41・capacity_busy 39・exit_1 22）。→ `lm-loop health` を追加: 1 画面の表（loop・最終実行・結果・停止理由・次の手）と、スキル別の今日の成果（公開数・売上）。
@@ -271,10 +275,12 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - アプリ投稿 A1: carousel の修正後も、anicca の動画 lane が固定の hook 2〜4 本を回していた（@anicca.he で同じ文面が 6 回）。#6135 で anicca-ios の動画 9 lane すべてに Gemini の新しい文面生成を有効化。次の投稿を Postiz で確認する。
 - 共有 contract: #6061（Capafy 工場を critical_paid に）で lm-loop-contract が recovery_class_mismatch の RED になっていた。#6137 で priority を revenue に戻して GREEN（main 00cc2c9d で ok=true）。release 20260929T080502-00cc2c9d を本番に反映。
 
+**Capafy 完了（2026-09-29 18:3x JST、公式 readback）**: 閉じる条件 X2 = 宣伝ループの記事 2 本（aniccaai.com 200、ct=capafy-distribute-*）、X3 = Japanese Humanizer 3332784488 v1.0.1 platform_status=4（承認・公開中）。X1（Capafy IG）は Dais の指示で後回し。工場・宣伝（3 時間ごと）・毎時集計・日次利益 Telegram は loop で回る。承認・売上・工場の各 run は監視のみで、次へ進む条件にしない。cursor は下の 2（PromptBase）。
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
-3. 記事・自社メディア: M4 Zenn・dev.to・X の再開。M1〜M3 は完了。
+3. 記事・自社メディア: M4 X の再開（Zenn・dev.to はやらない: Dais 2026-09-29）。M1〜M3 は完了。
 4. モバイルアプリ: A1 同じ文面の繰り返し投稿を止める（carousel 6 lane は #6127 で反映済み。修正後の最初の投稿 = Affirmation Girl 09:15 JST を Postiz で確認待ち。YouTube Daily Affirmation App は別パイプラインで修正中）→ A2 投稿 → App Store の流れを測る → A3 ASO → A4 オンボーディング → 課金の指標 → A5 アプリの中身・工場の 4 本。
 5. connector: N1 カレンダーへの自動登録を Google Calendar で確認。
 6. fundraiser: F1 自然 run でカレンダー登録を確認。
