@@ -1698,3 +1698,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 後続の自然retry occurrence `alpaca-investment-paper:18d9def96854b298-9684`は`2026-09-30T03:45:07Z`（03:45 JST）に`exit_code=0`／`status=pass`／`next_action=none`で終了した。schedulerはloaded、`StartInterval=300`、`runs=50`、直近exit `0`である。
 - 最新decision receipt `da8c5199e3d142154785fadb07c450201989239358998a8dc7b69b9780a06d7c`（`2026-09-29T18:45:05Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。公式paper observationは`clock.is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、cash `$99,986.77`、equity `$99,996.74`、QQQ long `qty=0.013493253`、market value `$9.965983`、unrealized P&L `-$0.024017`を返した。exit order／exit fill／provider receiptはない。
 - `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。これはpaper含み損益であり、実現収益ではない。新しいcompleted daily sessionのexit decision receiptが出るまで、manual wake、manual sell、再送、送金はしない。
+
+**AT-13 ownership state再確認（2026-09-30 03:47 JST）**:
+
+- `etf-owned-position.json`は`status=open`、symbol `QQQ`、position qty `0.013493253`、entry client order `lm-ai-d3935170807d46a7a5cde38e`、entry provider order `24cc2687-f718-4019-83f1-b5928c47525c`を保持している。exit client order／exit provider orderのfieldはまだなく、AT-14に読む対象は存在しない。
+- 最新cursorは`AT-13`、paper mode、検証済み実現投資収益は`$0/月`のままである。entry stateをexit済みへ書き換えず、手動sell・手動wake・再送はしない。
