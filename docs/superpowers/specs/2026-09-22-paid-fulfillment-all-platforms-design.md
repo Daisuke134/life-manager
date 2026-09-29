@@ -5864,3 +5864,16 @@ receipts.
   owner mutation is approved/executed, after which each new occurrence must
   persist host-admission, owner, entrypoint, provider receipt, and official
   readback evidence. No fence release or blind retry is allowed before that.
+
+### Item 4 source-boundary check — 2026-09-30 06:56 JST
+
+- [x] `git fetch origin --prune` confirms this dedicated branch is based on
+  the current `origin/main` (`3975ae8996cab3325f514746a32c915f9935fddf`) and
+  contains the shared lifecycle/disk/observability changes plus the append-only
+  spec receipts. `./bin/lm-loop-contract` passes with
+  `catalog_loops=14`, `registry_jobs=176`, `mapped_jobs=102`, no shared job
+  IDs, and no errors.
+- [ ] Item 4 is not complete: no immutable production release has been built
+  from a merged main, and no production release pointer has been changed. The
+  branch remains the review/acceptance source; production still points to the
+  old SHA above.
