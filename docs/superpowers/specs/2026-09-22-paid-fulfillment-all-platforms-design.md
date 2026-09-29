@@ -6070,3 +6070,27 @@ there is still no authorization to stop, kill, or restart an active owner.
 - [ ] The next executable cursor remains item 4: integrate the pushed source
   through main, cut an immutable release, and only then perform the separately
   gated owner transition.
+
+### Item 4 candidate-release readback — 2026-09-30 07:30 JST
+
+- [x] `git merge-tree --messages origin/main HEAD` reports no conflict
+  messages; the dedicated branch is clean and is `origin/main` plus 135
+  commits. `git diff --check origin/main...HEAD` passes and
+  `./bin/lm-loop-contract` returns `ok=true` with
+  `catalog_loops=14`, `registry_jobs=176`, `mapped_jobs=102`, and no shared
+  IDs or errors.
+- [x] A complete candidate release was cut from `HEAD` with
+  `LOOPS_ACTIVATE_CURRENT=0` in `/tmp/lm-release-candidate.aVEfUv/`.
+  Its manifest records SHA `e822f6663209c110daca6700d377f6a325d31874`,
+  `provenance=pushed-not-yet-on-main`, and the required bin/config/runtime,
+  shared marketplace, gig-platform, job-search, and disk-cleanup paths.
+  The candidate has zero writable regular files and contains the key source
+  repairs. The production `current` symlink was not touched.
+- [ ] This does not close item 4: the candidate is intentionally not eligible
+  for production activation until the branch is integrated through `main` and
+  a main-derived immutable release is cut. The installed production manifest
+  remains SHA `3975ae8996cab3325f514746a32c915f9935fddf`.
+
+Current cursor remains item 4's main-integration/provenance gate. No live owner
+was stopped, restarted, signalled, or changed, and no provider effect was
+retried or resent.
