@@ -6178,3 +6178,20 @@ retried or resent.
 - [ ] No cross-platform fence is cleared by this result. Each occurrence
   still requires exact provider-history reconciliation and an official receipt
   before any retry or submission.
+
+### Paid-owner fence classification — 2026-09-30 07:51 JST
+
+- [x] Read-only admission lookup maps the named provider occurrences to
+  `crowdworks-revenue-paid` and `lancers-revenue-paid`; their exact rows are
+  `state=claimed,effect_unknown=1`. The corresponding dry-runs find 10 and 4
+  unprovable rows respectively, all `no_pre_effect_terminal`.
+- [x] `mercor-revenue-paid` has zero `effect_unknown` rows; the named
+  `mercor-revenue-paid:18d82d9cd75db960-67523` row is already
+  `state=released,effect_unknown=0`. This removes it from the local fence
+  queue, but does not by itself prove an official provider effect.
+- [x] The admission database remains `integrity_check=ok`; the only current
+  reservation is an unrelated `life-manager-anicca-ai-youtube` reservation.
+  No admission row was changed by these probes.
+- [ ] Next provider reconciliation cursor is CrowdWorks Paid, then Lancers
+  Paid, one exact occurrence at a time; Mercor still needs fresh official
+  inventory/readback before any new effect.
