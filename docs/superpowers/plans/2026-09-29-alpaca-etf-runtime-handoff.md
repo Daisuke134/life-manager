@@ -144,3 +144,11 @@
 ## Completion definition
 
 This plan is complete only when Tasks 1–5 have their stated evidence. A passing unit suite, an in-memory selector, a loaded registry row, or a paper backtest does not complete the plan. Live ETF trading, Binance funding, capital expansion, and the $10,000/month claim remain closed until the separate investment SSOT gates pass.
+
+### Latest source synchronization (2026-09-29)
+
+- `origin/main=d3e302adac50568b38b4fc081895aaa446b7ea57` was merged into the investment branch as `561c22d20b`; the merge contained only the concurrent writer change and preserved the investment boundary.
+- After the merge, investment-core discovery passed `125/125`, Alpaca discovery passed `211/211`, the selected runtime suites passed `293/293`, `./bin/lm-loop-contract` returned `ok=true` with `registry_jobs=172` and `errors=[]`, and `./bin/lm-loop doctor` returned `ok=true` with no missing or unmanaged entries.
+- The byte-stable runtime fixture was regenerated from the canonical registry renderer after the new `investment-strategy-validation` row was found at the wrong list position; the focused production-render regression and the full runtime suite now pass.
+- This is source/candidate evidence only. The production `current` release remains the older immutable release, the candidate is not on `origin/main`, and no production selected state, natural paper order/fill receipt, provider P&L, funding, wallet, or live order exists.
+- **Current cursor remains Step 1b / INV-001-B:** verify the installed Life Manager release and exact loaded argv/env through the normal owner path, then observe one natural paper wake. Steps 1b–4 remain unchecked until those external readbacks exist.
