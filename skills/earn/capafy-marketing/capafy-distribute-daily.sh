@@ -190,18 +190,14 @@ DESTINATIONS:
    touches that paid pipeline. If this command exits non-zero, record
    status="blocked" with its stderr as the reason, skip step 2 entirely
    (there is no live URL to link to), and still run the ledger write below.
-2. X, REAL POST (not a draft) -- only if step 1 published. Build one short
-   caption containing the aniccaai.com URL from step 1's JSON output ("url")
-   and this SEPARATE Capafy link:
+2. X caption only -- only if step 1 published. Write ONE short caption that
+   contains the aniccaai.com URL from step 1's JSON output ("url") and this
+   SEPARATE Capafy link:
    $X_CTA_URL
-   Then run exactly:
-     python3 $SELF_DIR/capafy_x_post.py --caption "<caption>" \\
-       --integration-id "\$POSTIZ_X_INTEGRATION_ID"
-   This creates the post via Postiz, promotes it out of draft, and polls
-   Postiz's own readback until state=="PUBLISHED" before printing success --
-   it never reports success on a QUEUE/DRAFT/ERROR state. If
-   POSTIZ_X_INTEGRATION_ID or POSTIZ_API_KEY is not set, or the command exits
-   non-zero, record that as skipped/failed with the reason and continue.
+   to the file $RUN_DIR/x-caption.txt (plain text, nothing else). Do NOT run
+   capafy_x_post.py yourself: the wrapper posts it after you exit, because
+   your per-command timeout killed its Postiz readback mid-run (2026-09-29
+   h21). In the receipt, record "x" as {"status": "pending_wrapper"}.
 3. dev.to, Zenn, Substack: SKIP all three (Dais decision 2026-09-29 -- we do
    not publish to dev.to or Zenn; Substack is still paid-subscription only
    per $ARTICLE_ROOT/SKILL.md). Do not build a publish path to any of them
@@ -232,6 +228,34 @@ RC=$?
 echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
 # The agent CLI exits 1 even after a fully published run (live 2026-09-29 h15:
 # receipt published + ledger written, exit 1). The ledger is the effect truth.
+# X post runs here, outside the agent (same move as daily_loop.sh's prepare: the
+# agent's per-command timeout killed the up-to-10-min Postiz readback, h21 x=failed).
+CAPTION_FILE="$RUN_DIR/x-caption.txt"
+if [ -s "$CAPTION_FILE" ] && [ -n "${POSTIZ_X_INTEGRATION_ID:-}" ]; then
+  X_OUT="$(python3 "$SELF_DIR/capafy_x_post.py" --caption "$(cat "$CAPTION_FILE")" \
+    --integration-id "$POSTIZ_X_INTEGRATION_ID" 2>>"$LOG" | tail -1)" || true
+  echo "capafy-distribute-daily: x post: ${X_OUT:0:300}" >>"$LOG"
+  X_OUT="$X_OUT" LEDGER="$LEDGER" SLOT="$SLOT" LEDGER_TOOL="$SELF_DIR/capafy_distribute_ledger.py" python3 - <<'PY' >>"$LOG" 2>&1 || true
+import json, os, subprocess, sys
+ledger, slot = os.environ["LEDGER"], os.environ["SLOT"]
+try:
+    entry = json.load(open(ledger)).get(slot) or {}
+except (OSError, ValueError):
+    entry = {}
+try:
+    out = json.loads(os.environ.get("X_OUT") or "{}")
+except ValueError:
+    out = {}
+post = out.get("post") or {}
+if out.get("action") == "published":
+    x = {"status": "PUBLISHED", "post_id": out.get("post_id"), "url": post.get("releaseURL")}
+else:
+    x = {"status": "failed", "reason": "capafy_x_post.py did not confirm PUBLISHED"}
+entry.setdefault("destinations", {})["x"] = x
+subprocess.run([sys.executable, os.environ["LEDGER_TOOL"], "record", "--ledger", ledger,
+                "--date", slot, "--json", json.dumps(entry)], check=True)
+PY
+fi
 POST_RC=0
 python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
 [ "$POST_RC" -eq 10 ] && exit 0
