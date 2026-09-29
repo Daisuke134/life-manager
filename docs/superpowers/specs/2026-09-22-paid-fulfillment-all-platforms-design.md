@@ -6535,3 +6535,62 @@ ordering notes without declaring any external effect complete.
 13. **Final promotion — OPEN.** Merge/admin-promote once, cut the immutable
     main-derived release, read back every owner/provider receipt, and only then
     declare the platform set complete.
+
+### Main rebase and repaired candidate release readback — 2026-09-30 08:38 JST
+
+- [x] The dedicated branch was rebased without conflicts onto the latest
+  `origin/main` at `d33687c91b5013719f52a5d22c5240840bc3148e` and force-pushed
+  with lease. The repaired branch HEAD is
+  `7ae557ff84539c836de669e7fa46277b1b09a4a0`, a pushed descendant of that
+  main commit.
+- [x] The external release builder completed its own main release and moved
+  `/Users/anicca/loops/current` to
+  `/Users/anicca/loops/releases/20260930T083257-d33687c9`. This is not the
+  repaired branch and was not changed by this worktree.
+- [x] A non-activating candidate was cut from the repaired branch at
+  `/Users/anicca/loops/releases/20260930T083531-7ae557ff` with
+  `LOOPS_ACTIVATE_CURRENT=0`. Its manifest reports the exact branch SHA,
+  `provenance=pushed-not-yet-on-main`, and `release_paths=ALL`.
+- [x] Candidate readback reports `102M`, zero writable regular files, zero
+  writable directories, and valid links for all five dependency-bearing
+  `node_modules` roots. The candidate contains
+  `DOM_EVALUATION_RETRY_ATTEMPTS=40` and `evaluate_json_text`; the repair is
+  therefore present in the immutable candidate.
+- [x] The production `current` pointer remained the external main release
+  throughout candidate creation. No browser, owner, Coconala state, or
+  provider effect was changed.
+- [ ] Candidate activation is intentionally still closed because its
+  provenance is `pushed-not-yet-on-main`. Main integration/provenance
+  acceptance and the required live-owner transition remain the next gates.
+
+### Atomic current cursor — 2026-09-30 08:38 JST
+
+1. **Ryu Coconala DM — DONE.** Sent once and persisted by official readback;
+   never resend.
+2. **Reply DOM-race repair — DONE ON BRANCH AND CANDIDATE.** Tests and
+   immutable candidate readback pass; live current does not contain it.
+3. **Main integration/provenance — OPEN.** Accept the pushed branch into
+   `origin/main` only after the required review/acceptance gate, then verify a
+   new candidate manifest reports `ancestor-of-origin-main`.
+4. **Live transition — OPEN.** After the required high-risk approval, use only
+   `launchctl-safe` to point the relevant owners at the main-derived release;
+   do not kill or force-restart the shared browser/profile.
+5. **Coconala Reply — OPEN.** Run one natural read-only/readback pass from the
+   repaired main-derived release and record `replay_zero`; do not resend Ryu.
+6. **Coconala Apply, Storefront, and Paid — OPEN.** Run each separately on the
+   immutable release and obtain official provider readback plus replay-zero.
+7. **Coconala unknown fences — OPEN.** Resolve Apply and Storefront
+   `effect_unknown` only with occurrence-bound official evidence.
+8. **CrowdWorks and Lancers — OPEN.** Reconcile exact occurrences only after
+   provider locks/Human Verification allow an official readback; never bypass
+   verification or retry from local absence.
+9. **Mercor — OPEN.** Restore the disabled owner and obtain a fresh
+   identity-bound inventory.
+10. **Upwork/Freelancer — OPEN.** Restore account-bound observers, verify
+    funded contract/milestone terms, and run no-effect canaries.
+11. **Shared registration/Meta Loop — OPEN.** Enable only after every
+    platform's source-complete canary, telemetry, recovery, idempotency, and
+    receipt checks pass.
+12. **Final promotion — OPEN.** Merge/admin-promote once, cut the immutable
+    main-derived release, read back every owner/provider receipt, and only then
+    declare the full platform set complete.
