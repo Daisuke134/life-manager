@@ -1401,4 +1401,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `/Users/anicca/.local/state/life-manager/alpaca-investment-paper/etf-owned-position.json` が作成され、owner `alpaca-investment-paper`、strategy `alpaca-etf-126d-momentum-v1`、symbol `QQQ`、position qty `0.013493253`が公式positionと一致した。これで`AT-11`を完了した。
 - `campaign.json`のreadbackは既存のclosed SPY campaignを正常に読め、natural occurrenceはpassになった。新規provider mutationはなく、これで`AT-12`を完了した。campaign snapshotの過去損益は投資loopのrealized P&Lには数えない。
 - strategy receiptのposition statusは`open`、`replay_zero=false`、unrealized P&Lは`-$0.032924`である。entryだけでround trip／realized net P&Lではないため、検証済み実現収益は引き続き`$0/月`。
+- その後の自然 occurrence `alpaca-investment-paper:18d9d3aa8b3e6510-10456` は`exit_code=0`／`pass`だったが、decisionは`NO_TRADE`、reasonは`decision_session_consumed`で、exit order／exit receiptは生成されなかった。これは同じcompleted sessionの重複判断を避ける正常な結果であり、`AT-13`は未完のままである。
 - 次の1件は`AT-13`のみ。手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
