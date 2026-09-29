@@ -54,7 +54,11 @@ def build_payload(*, integration_id: str, caption: str, scheduled_at: str) -> di
             {
                 "integration": {"id": integration_id},
                 "value": [{"content": caption, "image": []}],
-                "settings": {},
+                # Postiz 400s an X post without these (same as skills/x-repost/scripts/x_post.py).
+                "settings": {
+                    "__type": "x", "who_can_reply_post": "everyone",
+                    "made_with_ai": True, "paid_partnership": False,
+                },
             }
         ],
     }
@@ -83,8 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--integration-id", required=True)
     parser.add_argument("--api-key", default=None, help="defaults to $POSTIZ_API_KEY")
     parser.add_argument("--scheduled-at", default=None, help="ISO-8601 UTC; defaults to now")
-    parser.add_argument("--readback-attempts", type=int, default=5)
-    parser.add_argument("--readback-interval-seconds", type=float, default=2.0)
+    parser.add_argument("--readback-attempts", type=int, default=40)  # Postiz QUEUE -> PUBLISHED took ~1 min live (2026-09-29)
+    parser.add_argument("--readback-interval-seconds", type=float, default=15.0)
     parser.add_argument("--dry-run", action="store_true", help="build and print the payload, no HTTP call")
     args = parser.parse_args(argv)
 
