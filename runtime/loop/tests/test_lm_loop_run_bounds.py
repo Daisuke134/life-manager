@@ -2044,6 +2044,21 @@ def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
     killpg.assert_called_once_with(43210, signal.SIGTERM)
 
 
+def test_entrypoint_treats_permission_denied_signal_forward_as_already_exited(monkeypatch):
+    class Process:
+        pid = 43210
+        def poll(self): return None
+        def wait(self, timeout=None): return 0
+
+    def launch(*_args, **_kwargs):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return Process()
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.subprocess.Popen", launch)
+    with patch("runtime.loop.lm_loop_run.os.killpg", side_effect=PermissionError):
+        assert _run_entrypoint(["/bin/true"], timeout_seconds=1) == 75
+
+
 def test_cancelled_before_atomic_handoff_never_starts_child():
     with patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch:
         assert _run_entrypoint(["/bin/true"], cancelled=lambda: True) == 75

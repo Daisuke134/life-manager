@@ -228,6 +228,77 @@ def test_inventory_uses_visible_target_for_dynamic_direct_inbox(monkeypatch, tmp
     assert rows[0]["talkroom_id"] == "12"
 
 
+def test_modern_smartphone_direct_message_route_is_canonicalized():
+    dom = {
+        "url": "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121",
+        "title": "メッセージ | マイページ | ココナラ",
+        "container_present": True,
+        "coverage_complete": True,
+        "termination_reason": "fixed_point",
+        "cards_count": 1,
+        "cards": [{
+            "talkroom_url": "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121",
+            "preview_sha256": "a" * 64,
+            "last_message_identity_sha256": "b" * 64,
+        }],
+    }
+
+    adapter_module.snapshot.validate_page_identity(
+        dom, expected_url="https://coconala.com/mypage/direct_message/10107358",
+        expected_title="メッセージ",
+    )
+    rows = adapter_module.snapshot.inquiries_from_dom({
+        **dom,
+        "url": adapter_module.snapshot.MESSAGES_URL,
+        "title": "メッセージ | マイページ | ココナラ",
+        "cards": [{
+            **dom["cards"][0],
+            "talkroom_url": "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121",
+        }],
+    })
+
+    assert rows[0]["talkroom_id"] == "10107358"
+    assert rows[0]["talkroom_url"] == (
+        "https://coconala.com/mypage/direct_message/10107358"
+    )
+    assert rows[0]["browser_thread_url"] == (
+        "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+    )
+
+
+def test_reply_browser_accepts_uid_bound_smartphone_thread_url():
+    modern = "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+
+    assert adapter_module.reply_browser.direct_message_path(modern) == (
+        "/mypage/direct_message/10107358"
+    )
+
+
+def test_adapter_reuses_observed_browser_thread_url(tmp_path):
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path,
+        inventory_reader=lambda: [],
+    )
+    modern = "https://coconala.com/smartphone/direct_messages/10107358?uid=2564121"
+    adapter._thread_urls["10107358"] = modern
+
+    assert adapter._thread_url("10107358") == modern
+
+
+def test_modern_dom_contract_is_present_in_both_message_readers():
+    assert ".bl_messages-list" in adapter_module.snapshot.MESSAGES_EXPRESSION
+    assert ".bl_message" in adapter_module.snapshot.DIRECT_MESSAGE_EXPRESSION
+    assert "/smartphone/direct_messages/" in adapter_module.snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION
+
+
+def test_fill_expression_supports_current_smartphone_message_input():
+    expression = adapter_module.reply_browser.fill_expression("返信本文")
+
+    assert "textarea.message-input" in expression
+    assert "const controls=legacy.length?legacy:modern;" in expression
+    assert "input.classList.contains('message-input')" in expression
+
+
 def test_inbox_403_is_classified_as_provider_access_denied():
     with pytest.raises(
         adapter_module.snapshot.CollectorUnhealthy,

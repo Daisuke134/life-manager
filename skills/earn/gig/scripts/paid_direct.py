@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Recover verified paid remote answers through existing delivery boundaries."""
 from __future__ import annotations
-import argparse, errno, fcntl, hashlib, json, mimetypes, os, re, shutil, signal, stat, subprocess, sys, tempfile, threading, time, zipfile
+import argparse, errno, fcntl, hashlib, importlib.util, json, mimetypes, os, re, shutil, signal, stat, subprocess, sys, tempfile, threading, time, zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
@@ -213,6 +213,76 @@ class Failure(RuntimeError):
         self.detail = detail
 
 def _load(path: Path) -> Any: return json.loads(path.read_text(encoding="utf-8"))
+
+
+_COCONALA_ADAPTER_MODULE = None
+_MARKETPLACE_CONTRACTS_MODULE = None
+
+
+def _load_coconala_adapter(adapter_path: Path | None = None):
+    global _COCONALA_ADAPTER_MODULE
+    if _COCONALA_ADAPTER_MODULE is not None and adapter_path is None:
+        return _COCONALA_ADAPTER_MODULE
+    path = (adapter_path or (HERE / "coconala_paid_adapter.py")).expanduser().resolve()
+    if path != HERE.joinpath("coconala_paid_adapter.py").resolve():
+        raise Failure("paid_handoff", "coconala_paid_adapter_path_invalid")
+    spec = importlib.util.spec_from_file_location("paid_direct_coconala_adapter", path)
+    if spec is None or spec.loader is None:
+        raise Failure("paid_handoff", "coconala_paid_adapter_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    _COCONALA_ADAPTER_MODULE = module
+    return module
+
+
+def _load_marketplace_contracts():
+    global _MARKETPLACE_CONTRACTS_MODULE
+    if _MARKETPLACE_CONTRACTS_MODULE is not None:
+        return _MARKETPLACE_CONTRACTS_MODULE
+    path = HERE.parents[2] / "_shared/marketplace-core/scripts/contracts.py"
+    spec = importlib.util.spec_from_file_location("paid_direct_marketplace_contracts", path)
+    if spec is None or spec.loader is None:
+        raise Failure("paid_handoff", "marketplace_contracts_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    _MARKETPLACE_CONTRACTS_MODULE = module
+    return module
+
+
+def _validate_required_paid_handoff(
+    item: dict[str, Any], adapter_path: Path | None = None,
+) -> dict[str, Any]:
+    """Validate Coconala's canonical handoff immediately before any effect.
+
+    The legacy Coconala owner keeps its provider-specific preparation and
+    browser/readback code, but it must pass the same shared receipt contract as
+    every other Paid owner before a send/cancel/delivery child is started.
+    """
+    if not isinstance(item, dict):
+        raise Failure("paid_handoff", "paid_handoff_item_invalid")
+    room = _text(item.get("talkroom_id"))
+    if not room:
+        raise Failure("paid_handoff", "paid_handoff_item_invalid")
+    try:
+        adapter_module = _load_coconala_adapter(adapter_path)
+        adapter = adapter_module.CoconalaPaidAdapter(
+            account_id="coconala-primary",
+            inventory_reader=lambda: [], refresh_reader=lambda row: row,
+            context_reader=lambda row: row, effect_runner=lambda intent: None,
+            readback_reader=lambda intent: {"verified": False},
+        )
+        adapter._items[room] = dict(item)
+        bundle = adapter.paid_handoff(room, item)
+        _load_marketplace_contracts().validate_paid_handoff(
+            bundle["handoff"], bundle["contract"],
+        )
+    except Failure:
+        raise
+    except Exception as error:
+        raise Failure("paid_handoff", str(error) or type(error).__name__) from error
+    return dict(bundle)
 
 def _receipt_reserve_path(directory: Path) -> Path:
     return directory / ".receipt-reserve"
@@ -6423,6 +6493,13 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         owner_stop = _stop_for_owner_policy(args, item, output)
         if owner_stop is not None:
             return owner_stop
+        if getattr(args, "require_paid_handoff", False):
+            proof = _validate_required_paid_handoff(
+                prepared, getattr(args, "coconala_paid_adapter", None),
+            )
+            existing = prepared.get("paid_handoff")
+            if existing is not None and existing != proof:
+                raise Failure("paid_handoff_toctou")
         if prepared.get("_paid_mode") == "file":
             return _write_file_effect(args, item_path, output, prepared)
         room, feedback = _text(item.get("talkroom_id")), _text(item.get("buyer_feedback_sha256"))
@@ -6555,7 +6632,7 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         _write(output, {"status": "failed", "talkroom_id": room, "failed": 1, "failed_step": error.step if isinstance(error, Failure) else "remote_resume", "effect": sent_effect, "readback": 0}); return 1
 
 def _child_command(args, phase, item, output):
-    return [sys.executable, str(HERE / "paid_direct.py"), phase, str(item), "--output", str(output),
+    command = [sys.executable, str(HERE / "paid_direct.py"), phase, str(item), "--output", str(output),
             "--evidence-dir", str(args.evidence_dir), "--projects-root", str(args.projects_root), "--collector", str(args.collector),
             "--answer-browser", str(args.answer_browser), "--formal-browser", str(args.formal_browser),
             "--cancel-browser", str(args.cancel_browser),
@@ -6564,6 +6641,13 @@ def _child_command(args, phase, item, output):
             "--dm-collector", str(args.dm_collector),
             "--agent-runner", str(args.agent_runner), "--runner-schema", str(args.runner_schema),
             "--artifact-schema", str(args.artifact_schema), "--today", args.today]
+    if getattr(args, "require_paid_handoff", False):
+        command.extend((
+            "--require-paid-handoff",
+            "--coconala-paid-adapter",
+            str(getattr(args, "coconala_paid_adapter", HERE / "coconala_paid_adapter.py")),
+        ))
+    return command
 
 def _prepare_command(args, item, output):
     return _child_command(args, "--effect-item", item, output)
@@ -6661,6 +6745,19 @@ def _run_paid_item(args, room: str, item_file: Path, prepared_file: Path,
     if prepare.returncode or prepared.get("_paid_prepare_status") != "prepared":
         step = _text(prepared.get("failed_step")) or "remote_resume"
         return {"talkroom_id": room, "status": "failed", "failed_step": step}, 0, 0, 1, step
+    if getattr(args, "require_paid_handoff", False):
+        try:
+            proof = _validate_required_paid_handoff(
+                prepared, getattr(args, "coconala_paid_adapter", None),
+            )
+            prepared = {**prepared, "paid_handoff": proof}
+            _write(prepared_file, prepared)
+        except Failure as error:
+            return {
+                "talkroom_id": room,
+                "status": "failed",
+                "failed_step": error.step,
+            }, 0, 0, 1, error.step
     checkpoint = effect_file.with_name(effect_file.stem + "-checkpoint.json")
     try:
         _write(checkpoint, {
@@ -7342,6 +7439,8 @@ def _parser():
     parser.add_argument("--dm-collector", type=Path, default=HERE / "coconala_dm_collect.py")
     parser.add_argument("--runner-schema", type=Path, default=HERE.parent / "schemas/gig_step_result.schema.json")
     parser.add_argument("--artifact-schema", type=Path, default=HERE.parent / "schemas/paid_file_judgement.schema.json")
+    parser.add_argument("--require-paid-handoff", action="store_true")
+    parser.add_argument("--coconala-paid-adapter", type=Path, default=HERE / "coconala_paid_adapter.py")
     parser.add_argument("--decision-schema", type=Path, default=HERE.parent / "schemas/paid_work_decision.schema.json")
     parser.add_argument("--telegram-database", type=Path, default=DEFAULT_TELEGRAM_DATABASE)
     parser.add_argument("--telegram-receipt-dir", type=Path, default=DEFAULT_TELEGRAM_RECEIPTS)
@@ -7352,7 +7451,7 @@ def _parser():
 
 def _main(argv=None) -> int:
     args = _parser().parse_args(argv)
-    for name in ("output", "evidence_dir", "projects_root", "collector", "run_with_cdp_lock", "answer_browser", "formal_browser", "cancel_browser", "delivery_evidence_dir", "cdp_lock_dir", "context_compiler", "dm_collector", "agent_runner", "runner_schema", "artifact_schema", "decision_schema"): setattr(args, name, getattr(args, name).expanduser().resolve())
+    for name in ("output", "evidence_dir", "projects_root", "collector", "run_with_cdp_lock", "answer_browser", "formal_browser", "cancel_browser", "delivery_evidence_dir", "cdp_lock_dir", "context_compiler", "dm_collector", "agent_runner", "runner_schema", "artifact_schema", "coconala_paid_adapter", "decision_schema"): setattr(args, name, getattr(args, name).expanduser().resolve())
     args.cdp_helper = args.cdp_helper.expanduser(); args.lock_file = args.lock_file.expanduser().resolve() if args.lock_file else args.evidence_dir / ".paid-direct.lock"
     if args.write_item: return _write_one(args, args.write_item.expanduser().resolve(), args.output)
     if args.effect_item: return _prepare_one(args, args.effect_item.expanduser().resolve(), args.output)

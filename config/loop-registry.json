@@ -1,5 +1,6 @@
 {
   "external_labels": [
+    "ai.anicca.provision-browser.aws.life-manager-cloud-provision",
     "ai.anicca.crowdworks.acquisition",
     "ai.anicca.crowdworks.fulfillment",
     "ai.anicca.crowdworks.negotiation",
@@ -1240,6 +1241,8 @@
     },
     "hf-gig-apply-direct": {
       "admission_class": "revenue",
+      "browser_identity": "coconala:kosuke",
+      "browser_target_owner": "hf-gig-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1259,6 +1262,8 @@
     },
     "hf-gig-apply-reconcile": {
       "admission_class": "revenue",
+      "browser_identity": "coconala:kosuke",
+      "browser_target_owner": "hf-gig-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1349,6 +1354,8 @@
     "hf-gig-paid-direct": {
       "admission_class": "revenue",
       "adapter": "exec",
+      "browser_identity": "coconala:kosuke",
+      "browser_target_owner": "hf-gig-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1372,6 +1379,8 @@
     "hf-gig-reply-detector": {
       "admission_class": "revenue",
       "adapter": "exec",
+      "browser_identity": "coconala:kosuke",
+      "browser_target_owner": "hf-gig-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1393,6 +1402,8 @@
     },
     "hf-gig-storefront-direct": {
       "admission_class": "revenue",
+      "browser_identity": "coconala:kosuke",
+      "browser_target_owner": "hf-gig-browser",
       "cadence": {
         "start_interval_seconds": 60
       },

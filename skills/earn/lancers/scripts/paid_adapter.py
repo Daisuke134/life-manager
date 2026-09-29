@@ -60,6 +60,10 @@ _REPLY_GROUNDING = _load_shared(
     "lancers_paid_reply_grounding",
     HERE.parents[2] / "_shared/marketplace-core/scripts/reply_grounding.py",
 )
+_PAID_HANDOFF = _load_shared(
+    "lancers_shared_paid_handoff",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/paid_handoff.py",
+)
 
 DEFAULT_CANDIDATE_PROFILE = Path.home() / ".config/anicca/job-search/profile.json"
 DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/crowdworks/public-profile.json"
@@ -414,6 +418,7 @@ class LancersPaidAdapter:
                 "contract": dict(candidate),
                 "boards": list(snapshot.get("boards", [])),
                 "finance": dict(snapshot.get("finance", {})),
+                "observed_at": observed_at,
             }
         self._contexts = contexts
         return rows
@@ -451,6 +456,94 @@ class LancersPaidAdapter:
 
     def _current_detail(self, work_id: str) -> Mapping[str, Any]:
         return self._detail(self.context(work_id))
+
+    def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Map one official funded Lancers detail to the shared Paid contract.
+
+        The provider has no portable funding object ID in its detail response;
+        the verified escrow state and project ID therefore form the stable
+        ``escrow:<contract_id>`` reference.  Ambiguous/non-fixed prices and
+        missing official terms are rejected rather than guessed.
+        """
+        if not isinstance(context, Mapping):
+            raise RuntimeError("lancers_paid_handoff_unavailable")
+        contract = self._detail(context)
+        if contract.get("provider_state") != "funded":
+            raise RuntimeError("lancers_paid_handoff_unavailable")
+        source_kind = contract.get("source_kind")
+        provider_id = contract.get("provider_id")
+        project_id = contract.get("project_id") or provider_id
+        proposal_id = contract.get("proposal_id")
+        board_id = contract.get("board_id")
+        terms_sha256 = contract.get("detail_body_sha256")
+        amount = contract.get("order_amount")
+        observed_at = context.get("observed_at") or contract.get("observed_at")
+        if (
+            not isinstance(source_kind, str) or not source_kind.strip()
+            or not isinstance(provider_id, str) or not provider_id.strip()
+            or not isinstance(project_id, str) or not project_id.strip()
+            or not isinstance(terms_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", terms_sha256)
+            or not isinstance(amount, Mapping)
+            or amount.get("kind") != "fixed"
+            or type(amount.get("amount_jpy")) is not int
+            or amount.get("amount_jpy") < 1
+            or not isinstance(observed_at, str) or not observed_at.strip()
+        ):
+            raise RuntimeError("lancers_paid_handoff_unavailable")
+
+        contract_id = contract.get("contract_external_id")
+        if not isinstance(contract_id, str) or not contract_id.strip():
+            contract_id = f"{source_kind.strip()}:{provider_id.strip()}"
+        application_id = contract.get("application_external_id")
+        if not isinstance(application_id, str) or not application_id.strip():
+            if isinstance(proposal_id, str) and proposal_id.strip():
+                application_id = f"proposal:{proposal_id.strip()}"
+            else:
+                application_id = f"application:{source_kind.strip()}:{provider_id.strip()}"
+        funding_id = contract.get("funding_external_id")
+        if not isinstance(funding_id, str) or not funding_id.strip():
+            funding_id = f"escrow:{contract_id.strip()}"
+        thread_id = (
+            f"board:{board_id.strip()}" if isinstance(board_id, str) and board_id.strip()
+            else f"work:{work_id.strip()}"
+        )
+        scope_sha256 = contract.get("scope_sha256")
+        if not isinstance(scope_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", scope_sha256):
+            scope_sha256 = _digest({
+                "source_kind": source_kind.strip(), "provider_id": provider_id.strip(),
+                "project_id": project_id.strip(), "proposal_id": proposal_id,
+                "buyer_event_id": contract.get("buyer_event_id"),
+                "buyer_context": contract.get("buyer_context"),
+                "order_amount": dict(amount),
+                "order_delivery_due_on": contract.get("order_delivery_due_on"),
+            })
+        artifact_requirement_sha256 = contract.get("artifact_requirement_sha256")
+        if (not isinstance(artifact_requirement_sha256, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", artifact_requirement_sha256)):
+            artifact_requirement_sha256 = _digest({
+                "formal_delivery_required": contract.get("formal_delivery_required"),
+                "order_amount": dict(amount),
+                "order_delivery_due_on": contract.get("order_delivery_due_on"),
+                "order_milestone_count": contract.get("order_milestone_count"),
+            })
+        try:
+            return _PAID_HANDOFF.build_paid_handoff(
+                platform="lancers",
+                application_external_id=application_id.strip(),
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id.strip(),
+                funding_external_id=funding_id.strip(),
+                thread_external_id=thread_id,
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=amount["amount_jpy"],
+                currency="JPY",
+                observed_at=observed_at.strip(),
+            )
+        except _PAID_HANDOFF.PaidHandoffMappingError as error:
+            raise RuntimeError("lancers_paid_handoff_unavailable") from error
 
     def mutate(self, intent: dict[str, Any]) -> None:
         if self.provider is None:

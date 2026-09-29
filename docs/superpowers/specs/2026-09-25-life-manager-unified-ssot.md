@@ -188,6 +188,18 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **Handover（2026-09-28 10:5x JST。この順が正本。新しい session はここから）**
 
+**共通 Paid 境界の実装カーソル（このbranch）**
+- 個別顧客の例外実装ではなく、`skills/_shared/marketplace-core` に provider-independent な `PaidHandoffReceipt` 契約と `validate_paid_handoff` を追加する。Reply/Negotiation の thread、accepted `ContractReceipt`、funding id、scope、artifact 要件、金額、通貨を同じ記録に束ね、provider と contract の不一致・未承諾契約・未funded statusを fail-closed にする。
+- 共通 `paid_kernel` に `--require-paid-handoff` / `require_paid_handoff=True` の必須ゲートを追加した。必須モードではhookを持たないadapter、未承諾contract、invalid handoffはeffect=0で止まり、valid proofはmutation前にintentへ保存する。Lancers/CrowdWorksのowner配線はこのbranchに追加済みだが、production releaseへの適用はまだである。
+- `accept` は仮払い前の契約承諾なのでfunded handoffの対象外とし、`answer` / `submit` / `formal_delivery` / `cancel`だけをfunded必須mutationとして扱う。これにより「採用承諾 → 仮払い → Paid納品」の段階を共通kernelで表現できる。
+- Coconala adapter (`skills/earn/gig/scripts/coconala_paid_adapter.py`) は、orders-only の初回snapshotから targeted talkroom readbackへ更新し、構造化価格・取引状態・talkroom証跡・要件digestが揃った場合だけ `ContractReceipt` / `PaidHandoffReceipt` を生成する。fundingまたはscope証跡が欠けた場合は `coconala_paid_handoff_unavailable` で止まる。既存の `paid_direct.py` ownerにも `--require-paid-handoff` を配線し、送信・納品・キャンセル子プロセスを起動する直前にこのcanonical receiptを再検証するところまで、このbranchで完了した。これはproduction releaseを適用した証明ではなく、共通kernelへの完全移行・immutable release・公式canaryは未完了である。
+- Lancers adapter (`skills/earn/lancers/scripts/paid_adapter.py`) は、公式detailの `provider_state=funded`、固定金額、terms digest、buyer threadを同じcanonical receiptへ写像する。仮払い未確認・曖昧な金額・terms digest欠落は `lancers_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
+- CrowdWorks adapter (`skills/earn/crowdworks/scripts/paid_adapter.py`) は、公式contract bodyから一意の固定報酬額とterms digestを読み、milestone/form/document要件とbuyer threadをcanonical receiptへ写像する。時間単価・範囲価格・価格/terms欠落は `crowdworks_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
+- Mercor adapter (`skills/earn/mercor/scripts/paid_adapter.py`) は、契約の `active` / `contracted` 状態やタイトルからfundingを推測しない。公式snapshotに明示された正規化 `paid_handoff`（funding、固定金額、通貨、terms/scope/artifact digest、buyer thread、観測時刻）が全て揃った時だけcanonical receiptへ写像し、欠ければ `mercor_paid_handoff_unavailable` で止まる。現行snapshotにはその証跡が無いため、Mercor mutationはまだhuman-requiredのままである。写像後の形状検証はCoconala・Lancers・CrowdWorks・Freelancer・Upworkと同じ `skills/_shared/marketplace-core/scripts/paid_handoff.py` を使い、日時やハッシュ規則をMercorだけで再実装しない。
+- Freelancer/Upworkには `skills/earn/gig/scripts/providers/*_paid_adapter.py` と共有 `skills/_shared/marketplace-core/scripts/paid_handoff.py` を追加した。Freelancerのfunded milestone、Upworkのfunded milestone・明示通貨、buyer thread、scope、artifact要件が揃った場合だけ同じcanonical receiptへ写像し、未funded・通貨推測・証跡欠落はfail-closedにする。これはadapter境界とfocused testsの完了であり、account-bound auth、source-complete live inventory、owner登録、production canaryは未完了である。
+- 現在は schema / typed parser / validator / kernel gate / 6 platformの薄いadapter境界 / 共通handoff builder / focused tests まで。各provider固有コードは公式事実の取得とprovider IDの翻訳だけを担当し、契約形式・証跡検証・effect fenceは共通kernelが担当する。既存4 platformのPaid owner配線はbranchにあり、Freelancer/Upworkはowner未登録のadapter境界だけである。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
+- 次の順序: (1) branchの既存owner gateをimmutable releaseへ適用し公式canary、(2) Freelancer/Upworkのaccount-bound auth・source-complete inventory・funded contractを確立、(3) 公式 receipt・replay-zero を各providerで確認、(4) payout receiptをCFO ledgerへ接続、(5) Meta Loopから同じconformance gateで新platformをenrollする。
+
 進捗（2026-09-28 13:2x JST、Claude）:
 - 1 ✅ 下書き 4243672453（AI Evaluation Failure Triage Brief）は審査提出済み。公式 readback: platform_status=1、audit_status=2、is_confirmed_skills/config_keys=true、package_uploaded=true（04:08Z）。CP1 に Primary Model 欄は実在しない（model は CP2 で決まる）ため、verify_cp1_model は CP2 後と最終確認で呼ぶ（#6066・#6068〜#6070）。catalog の未公開分は DeepSeek V4.1 Flash（19件）、Claude 指定の10件は公開済み・審査中で据え置き。
 - 1 追記: Capafy `GET /agent/agents/{id}` の model は 4243672453=`deepseek/deepseek-v4.1-flash`、4813383030=`DeepSeek V4.1 Flash`（05:1xZ）。
@@ -221,7 +233,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 開発の流れ: 変更は worktree の中で実物（worktree のスクリプトを直接実行）を動かして確認し、成果がそろってから main へ 1 回だけ merge → release。小さな修正ごとに main へ入れて本番で試すのはやめる（17:0x までの #6190/#6191 は本番で試した。前例: 不正な priority "paid" が全 loop を止めた）。
 - 観測性: `lm-loop status` は 278 loop・約 4 秒・JSON のみ（実測 17:2x: 正常 170 / 停止 108 = effect_unknown 41・capacity_busy 39・exit_1 22）。→ `lm-loop health` を追加: 1 画面の表（loop・最終実行・結果・停止理由・次の手）と、スキル別の今日の成果（公開数・売上）。
 - 目標の定義（Dais 2026-09-29 17:3x）: $10k MRR = **銀行口座に入る利益**（売上 − プラットフォーム手数料 − API 費用）。売上総額ではない。現在 Capafy 30日: 総額 $80.78 → 手数料後 $64.62 → モデル代 $42.99 → **利益 約 $21.63**。この利益をスキル別に毎日 Telegram へ報告する（いまの C6 日次報告はキュー・撤退候補だけで利益額がない → 追加する）。
-- ブラウザ（Dais 2026-09-29 17:3x）: 専用ブラウザは作らない。割り当ての正本 `~/.config/ai/registry/browsers.toml`（identity=サイト×アカウント、1 identity 1 profile、`browser-guard.sh` の lease で同時使用を防ぐ）。`coconala:kosuke` を実際に使う loop は Capafy だけ（実測 2026-09-29: gig loop は別の daily-driver Chrome を `skills/earn/gig/scripts/cdp_lock.sh` で使う。gig の listing_inventory/listing_archive は identity を書くがどの loop からも呼ばれていない。browsers.toml の owner=gig-loop は古い記載）。Hook Lab CP2 の停止はブラウザ待ちではなかった（ボタン判定のタイミング）。
+- ブラウザ（Dais 2026-09-29 17:3x）: 専用ブラウザは作らない。割り当ての正本 `~/.config/ai/registry/browsers.toml`（identity=サイト×アカウント、1 identity 1 profile、`browser-guard.sh` の lease で同時使用を防ぐ）。現物readbackでは`coconala:kosuke`は`gig-daily-driver`・9223で稼働し、CapafyとCoconala Gigが同じseller identityを**leaseで直列共有**する。Gigの`hf-gig-browser` process、`session_vault_tick.sh`、Coconala browser testsがこの対応を示すため、「Gigは別のdaily-driver Chrome」という直前記述はsource/live stateと矛盾し、採用しない。`cdp_lock.sh`はGig内部のtab/phase直列化であり、identityの代替ではない。Hook Lab CP2の停止はブラウザ待ちではなかった（ボタン判定のタイミング）。
 - 残り順: 0 スキル別の利益（銀行に入る額）を毎日 Telegram へ 1 宣伝ループを 3 時間ごと・Agent ローテーション（ledger を日付→枠キーへ） 2 Hook Lab CP2 のベンダーボタン待ち → 審査提出 3 申請順を新 Agent 優先 4 `lm-loop health` 5 effect_unknown 41 件を証拠付きで閉じる 6 アプリ 7 connector 8 fundraiser 9 self-fix worktree 化。
 
 **実測（2026-09-29 17:1x JST、公式 readback）宣伝ループ（capafy-distribute-daily）初公開**: 無料英語記事 https://aniccaai.com/blog/capafy-reels-hook-lab-2026-09-29 = HTTP 200、本文に `ct=capafy-distribute-reels-hook-lab`（ledger 2026-09-29 aniccaai=published）。X = Postiz `PUBLISHED` https://twitter.com/selawmqt/status/2104845436683202788（アカウント「sela | AI Tools」、`POSTIZ_X_INTEGRATION_ID` を marketing.env に設定。今日の X は同じ capafy_x_post.py の手動実行＝自然実行ではない。明日 07:15 の自然実行で両方を確認する）。修正: #6190 公開確認を最大15分待つ（deploy は約5分）、#6191 X 投稿に Postiz の X 設定を付けて 400 を解消し、QUEUE→PUBLISHED を最大10分待つ。fence 2 件は証拠付きで閉じた（16:21 run = pre-effect、16:51 run = 公開の公式 readback）。Hook Lab v1.0.4 の CP2 停止原因 = 出力が空で `grep -v` が 1 を返し `set -e` で無言終了、実エラーは `vendor-button-count 0`（ワークスペースタブ表示直後に判定、少し待てば OpenRouter ボタンは存在）→ 次に修正。
@@ -276,6 +288,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 共有 contract: #6061（Capafy 工場を critical_paid に）で lm-loop-contract が recovery_class_mismatch の RED になっていた。#6137 で priority を revenue に戻して GREEN（main 00cc2c9d で ok=true）。release 20260929T080502-00cc2c9d を本番に反映。
 
 **Capafy 完了（2026-09-29 18:3x JST、公式 readback）**: 閉じる条件 X2 = 宣伝ループの記事 2 本（aniccaai.com 200、ct=capafy-distribute-*）、X3 = Japanese Humanizer 3332784488 v1.0.1 platform_status=4（承認・公開中）。X1（Capafy IG）は Dais の指示で後回し。工場・宣伝（3 時間ごと）・毎時集計・日次利益 Telegram は loop で回る。承認・売上・工場の各 run は監視のみで、次へ進む条件にしない。cursor は下の 2（PromptBase）。
+
+**進捗（2026-09-29 19:0x JST、公式 readback）**
+- PromptBase: 公式画面 = Hook Lab Win The First 3 Seconds が Approved（販売中）、Reels Hook Lab 2 件は Draft（未提出。ledger の submitted_pending_review は誤記録で、readback が draft に直した）、売上 No sales yet。P3 ✅ #2ffad523（readback が Sales タブを読み ledger の sales_usd と `state/promptbase-sales.json` を書く。worktree で実行し sales_count=0 を確認）。P4 🔄 branch `feat/promptbase-distribute-p4`（3 時間ごとの宣伝ローテーションに `promptbase-hook-lab` を追加、リンクは手数料 0% の `?via=keipanda`、ct は & で連結）。worktree で h18 枠を実行中 → 記事 200 と X PUBLISHED を確認したら merge。Reels Hook Lab の提出は reCAPTCHA の画像問題で止まる（回避しない。ループが毎日再試行し、画像問題が出た時だけ Dais へ）。
+- モバイルアプリ A1 ✅: Postiz 直近 24 時間 26 投稿で同じアカウント内の文面重複 0。例外 1 件 = Anicca iOS（Instagram）が ERROR。次は A2（投稿 → App Store の流れを測る）。
 
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
@@ -626,6 +642,10 @@ TODO（何を・どう直すか）
 - [x] 7-1 loop hardening の merge / release（#5875 → 以後の release）
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
+  - [x] 7-3a 既存Coconala Paid ownerへ `--require-paid-handoff` と `coconala_paid_adapter.py` を配線し、effect前にcanonical funded receiptをfail-closed検証する（branch `fix/lm-release-boundary-20260929`、focused tests PASS）
+- [ ] 7-3b immutable releaseへ適用し、Coconala Paid owner の公式readback・receipt・replay-zeroをcanaryで確認する（Ryuの個別Storefront修正とは別のPaid owner gate）
+- [x] 7-3c client artifact restore の共通契約を追加した。`skills/earn/gig/scripts/client_artifact_restore.py` が注文元を問わず、購入者提供アセットの順序・画像hash・アニメーション不変・管理画面復元操作・公式readback・replay-zeroを検証し、`delivery_project._validated_accepted_artifact` が `requirements/client-artifact-restore.json` のある案件をreadbackなしで完了扱いにしない。focused tests 5件 PASS。
+- [x] 7-3d Ryu案件の契約manifest/readbackを `gig/projects/18211957/requirements/client-artifact-restore.json` と `delivery/client-artifact-restore-readback.json` に保存し、共通validatorで errors=[] を実測した。
 - [ ] **7-0 Lancers 案件 5605912（順序変更で最優先）**。Life Manager の応募 loop が自力で応募し（proposal `27969614`、`application_verified: true`）、2026-09-25 にクライアントに採用された。題名は「【継続1件2,000円〜】観光・お出かけのお得術に関する Instagram 用フィード画像作成」。現在は Lancers の段階 (4) 発注者決定。
   - [x] 7-0a **Life Manager が自分で承諾した**（2026-09-26 23:42 JST）。公式の証拠は Lancers のメール「プロジェクトの承諾を受け付けました」（Gmail thread 1a0de2ac486336de）。承諾した条件は ¥300（固定）・納期 2026-09-30・proposal 27969614 で、提案と一致した。ここまでに外した壁: fence（#5930/#5951）、CDP 接続の競合（#5932）、heartbeat（#5941）、描画待ち（#5937）、404 の提案（#5938）、全件スキャン（#5943）、ダイアログの競合（#5953）、スレッドの競合（#5956/#5961）、二重の接続（#5958）、readback の仮払い待ち（#5963）
   - [x] 7-0a の readback 修正: 仮払い待ちの案件は「作業中」タブに出ない。全提案一覧を読むように変えた（#5965）
@@ -640,14 +660,25 @@ TODO（何を・どう直すか）
   - [ ] 7-4b `storefront_pre_effect_reconcile.py` が `runtime_event_shape_invalid` で拒否する。原因: storefront の wake は、前の occurrence の report を次の wake の run_id で出すので、run_id で探すと別 occurrence の pass を拾う。terminal を occurrence_id で探すように直す
 - [ ] 7-5 Coconala Apply の occurrence `hf-gig-apply-direct:18d88651ee0bf088-46308`（effect_unknown）を公式 readback で閉じる。`hf-gig-apply-reconcile` は毎回 `one_to_one_occurrence_intent_mapping_not_present` で何もしない（2026-09-27 実測）。occurrence と intent の対応付けを直す
 - [~] 7-6 CrowdWorks の fence: reply 562件中497件、application 14件中13件を公式 readback で閉じた（lm-crowdworks）。残り: application 1（本物の応募）、Paid 4、reply 67、report 1
+  - [x] 7-6f Paid ownerに共通 `--require-paid-handoff` を配線し、funded receipt無しのmutationをkernelでfail-closedにした。
+  - [ ] 7-6g immutable releaseへ適用し、CrowdWorks公式contractのcanary・readback・replay-zeroを確認する。
   - [ ] 7-6b reply が thread 305321876 で毎 wake `crowdworks_contract_ownership_unknown` になり、新しい fence を作り続けている。修正 PR #5967（lm-crowdworks、review 中）
   - [x] 7-6c `crowdworks-revenue-application` の停止を解除した（2026-09-27 05:2x JST）。原因は capacity ではなく、admission の `priorities.next_eligible_at=inf` が 49.7h 残っていたこと（`lm-loop stop` の後に start/resume が無い。loop は loaded + scheduled のまま）。`resume_durable` で解除し、次の run `18d8f8970e014ea8-16557` が pass（CrowdWorks job 13481330、proposal 307154814、50,000円、application_verified）。09-24 以来の CrowdWorks の応募
   - [x] 7-6d #5982（`a5c33db1`）: apply が label を bootstrap したら `resume_durable` を呼ぶ。stop 後の apply で admission が suspend のまま残る穴を閉じた（649 tests OK）。旧記述: loaded + scheduled なのに `next_eligible_at=inf` の owner を `lm-fence-reconciler` か supervisor が検知し、`resume_durable` する
   - [ ] 7-6e admission の予約の偏り: 2分間の実測で、予約が平均 6.7/8 枠を占め、実行中は平均 0.8。同じ4 owner（hf-gig-apply-reconcile、buddha-tiktok、lancers-revenue-work-sync、founder-loop-cadence）が約96%の時間予約を持っている。hf-gig-apply-reconcile は1日 2,260 occurrence（5分 cadence なら 288）。実測（2026-09-27 06:0x JST）: hf-gig-apply-reconcile は cadence 300秒なのに直近1時間で 25 run（中央値の間隔 84秒）、全部 pass で処理対象なし。release_and_reserve の dispatch（kickstart）で cadence 外に起動されている。深刻度は低い（主要な収益 owner は動いている）ので T5-G-4 の後に回す
 - [ ] 7-7 Lancers の funded inventory を確認する（現状は残高 ¥0、funded 0件）
+  - [x] 7-7a Paid ownerに共通 `--require-paid-handoff` を配線した。
+  - [ ] 7-7b funded contractが実際に存在する時に公式receipt・納品readback・replay-zeroをcanaryで確認する。
 - [ ] 7-8 Freelancer: account-bound auth → inventory → funded project
+  - [x] 7-8a Freelancer funded milestoneを共通`PaidHandoffReceipt`へ写像するadapter境界を追加した（focused tests PASS、owner未登録）
+  - [ ] 7-8b account-bound auth・source-complete inventory・provider-approved automatic-bid policy・owner/canaryを完了する
 - [ ] 7-9 Upwork: account-bound auth → inventory → funded contract
+  - [x] 7-9a Upwork funded milestoneを共通`PaidHandoffReceipt`へ写像するadapter境界を追加した（通貨を推測しない、focused tests PASS、owner未登録）
+  - [ ] 7-9b account-bound auth・source-complete inventory・current mutation receipts・owner/canaryを完了する
 - [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）
+  - [x] 7-10a 共通 `PaidHandoffReceipt` へのfail-closed adapter境界を追加した（公式snapshotの明示handoffのみ受理）。
+  - [ ] 7-10b 公式UI/APIのfunding・固定価格・scope・artifact要件・buyer threadをobserverへ追加し、canonical receiptの公式readbackを取る。
+  - [x] 7-10c Mercor ownerへ `--require-paid-handoff` を配線した。receipt・replay-zeroの公式canaryとimmutable release適用は未完了。
 - [ ] 7-11 crash recovery を確認する
 - [ ] 7-12 replay-zero を確認する
 
@@ -720,6 +751,160 @@ TODO（何を・どう直すか）
 **投資candidate最新同期（2026-09-29）**: `origin/main=20753ada4c`のYouTube marketing修正をmerge `84400303e7`で取り込み、投資core・ETF policy・cross-venue・registryを保持した。candidateはpush済みだが、`./bin/lm-loop-contract`はCapafy `loops[12]` mismatchでRED、loaded releaseは`110561...`の`borrow/support`でETF/cross-venue未搭載。gate greenまでinvestment release handoffは行わない。
 
 **投資lane再開run最終audit（2026-09-29）**: current candidate `e9b9a66b66`のAlpaca `200/200`、investment-core `101/101`、doctor PASSを確認。shared contract gateは同じCapafy mismatch、loaded release/admissionは旧`borrow/support`、host DBはinvestment reservation 0・stale claim 0、自然wakeはprovider effect前defer。投資lane内の安全な修正と証拠化は尽くし、external gate greenなしにrelease bypass・DB操作・資金投入は行わない。
+### Ryu の Coconala DM 修正（DM thread `10107358`）
+
+Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘は Coconala の公式DM `10107358` を唯一の返信先とし、同じ修正版を一度だけ返信する。正式納品ボタンは押さない。
+
+最新指摘（2026-09-27、ユーザー提示の公式画面）:
+
+- 送信済みのコンセプト画像を、購入者が管理画面から変更できないため、購入者提供の6枚（`IMG_5859.jpeg`〜`IMG_5864.jpeg`）へ差し替える。
+- ジャンル順は `業界未経験 → 学生 → 素人 → お姉さん → 人妻 → ぽっちゃり` を維持する。
+- アニメーションは変更せず、元の状態へ戻す。
+
+現在の証拠と境界:
+
+- [x] v705（2026-09-25）の公開readbackは、有料オプション5件・通常オプション削除・ジャンル画像6枚の一致を確認済み。
+- [x] v706（2026-09-29）で購入者提供の6枚を本番へ復元した。認証付きFTPSで `content-overrides.json` の `genreSlides` をJPEG原本へ戻し、管理画面に6件の復元操作を追加した。アニメーション（3000ms / 220ms / 3600ms）は変更していない。
+- [x] v706の公式readback: `delivery/current-cycle-v706-concept-restore-readback.json`（FTPS）と `delivery/current-cycle-v706-concept-browser-readback.json`（CloakBrowser/CDP）。公開ページは6枚の順序・label・原本画像一致、3秒後に2枚目へ遷移、管理画面は6枚のpreview・6個の復元ボタン・cache bustを確認済み。
+- [x] v706を共通client-artifact restore契約へ写像し、validatorの結果は `errors=[]`。manifestのhash、6枚のlabel/path/hash、animation hash、管理画面6操作、公式readback ID、replay-zeroを固定した。
+- [x] 2026-09-29にCoconala公式DM `10107358` をCDPで再読し、Ryuの最後の「よろしくお願いします」（9/29 13:37）に、こちらの13:44返信が付いていることを確認した。その後、購入者から新しい指摘が来たため、この時点の「未返信なし」は現在の状態を表さない。
+- [~] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）と返信入力（`textarea.message-input`）を実装し、旧URLへ正規化する回帰テストを追加した（commit `aa9446817c`、focused suite `197 passed`）。2026-09-29 16:17 JST（UTC 07:17）に現行スマホDM URL（`/smartphone/direct_messages/10107358?uid=2564121`）から公式readbackを再取得し、10件・添付2件・最新購入者文14:41を `delivery/current-cycle-v712-dm-readback.json` と `source/dm/thread-10107358-full.json` に保存した。残りは現行URL＋UIDを返信経路へ接続し、immutable release反映後に受信・返信・重複guardを同じ公式DMで一度だけ検証すること。
+- [x] すべてのサイト修正をv706へまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得した。
+- [x] v706の修正内容・管理画面リンク・公開リンクを含む完成報告をDMへ一度だけ送信した。POST HTTP 200、送信後の公式DM本文readback、重複ガード、正式納品ボタン非押下を `delivery/current-cycle-v706-dm-readback.json` に保存した。これは下記の新指摘を含まないため、現時点の最終納品とは扱わない。重複送信は禁止。
+
+### 最新DMで再発した未解決事項（2026-09-29 14:20〜14:41 JST）
+
+14:20〜14:21の根拠はユーザーが提示したCoconala公式通知画面（`/tmp/codex-remote-attachments/01a0c46d-9411-75f2-b5ea-c7c677b34efd/88A72201-98C6-4862-AC49-0521098BABB2/1-写真1.jpg`）。14:33〜14:41は公式DMをCDPで再読したreadback `gig/projects/18211957/delivery/current-cycle-v708-dm-readback.json` が根拠である。ローカルの `source/dm/thread-10107358-full.json` は2026-08-29時点の古いスナップショットで、これらを含まない。
+
+- **Ryu-DM-NEW-1（修正済み）**: 「この女の子を探すってやつは変えることはできませんか？」をライブDOMでtitle対象と特定し、`Colors｜八王子デリヘル`へ変更した。
+- **Ryu-DM-NEW-2（修正・readback済み）**: 「女の子の画像を設定するところです」に対し、12名のメイン画像1枚＋写真5枚を管理画面から選択・保存できる経路へ修正し、在籍・出勤・ランキング・プロフィール・予約の同一API参照をreadbackした。
+- **Ryu-DM-NEW-3（総合readback済み）**: 管理画面11項目→公開12ルート（デスクトップ／モバイル）→content APIを同一データ経路で読み戻し、`delivery/current-cycle-v711-full-browser-readback.json` の全checksをPASSした。
+- **Ryu-DM-NEW-4（管理機能修正済み・実データ待ち）**: 9/29 14:33〜14:41の相互リンク要求に対し、管理画面から多数のリンクを追加・編集・並べ替え・公開できる機能を実装・readbackした。実際のURL／バナー画像は未提供のため、実データ登録だけ入力待ち。
+- [x] 2026-09-29 15:05 JST（UTC 06:05:11.922Z）に公式DMをCDPで再読し、14:33〜14:41の新着5件（購入者3件、こちら2件）と添付URLを取得した。追加送信・正式納品ボタン操作はしていない。readback: `delivery/current-cycle-v708-dm-readback.json`。
+- [x] 2026-09-29 15:16〜15:29 JSTにv709〜v711を本番へ反映した。titleを`Colors｜八王子デリヘル`へ変更し、TOP／HOME下部の相互リンク枠、複数行の相互リンク管理、12名分のメイン画像＋写真5枚入力、WEB予約文言編集を追加した。FTPS readback: `delivery/current-cycle-v709-deploy-readback.json`。
+- [x] v711の公式HTTPS browser readbackで、公開title・cache bust・空相互リンクの非表示、在籍12名・出勤・ランキング・プロフィール画像、管理画面の12×1メイン＋12×5写真入力、相互リンク追加／保存、WEB予約文言編集を確認した。readback: `delivery/current-cycle-v709-browser-readback.json`。正式納品・DM送信は実行していない。
+- [x] v711の同値在籍保存round-tripを実行し、管理画面の保存handler、content API公式readback、プロフィール全体の値・キー形状一致、相互リンク不変、正式納品操作なしを確認した。readback: `delivery/current-cycle-v709-profile-roundtrip.json`。
+- [x] v711の全項目公式HTTPS readbackを実行し、認証済み管理画面11項目、公開12ルートのデスクトップ／モバイル、content API、空相互リンクの非表示を確認した。readback: `delivery/current-cycle-v711-full-browser-readback.json`。
+- [x] 現行CoconalaスマホDMの返信入力を旧`#DirectMessageBody`だけでなく、厳格な`textarea.message-input`にも対応した。複数候補・想定外要素は送信せず、`unexpected_message_input_count`／`unexpected_message_input`として証跡化する。productionへの反映と公式送信readbackは未完了。
+- [x] 受信カードから観測済みのスマホDM URL（`uid`付き）を保持し、状態キーはcanonicalのまま返信browserだけが同じ公式URLを再利用する経路を追加した。旧URLへの強制フォールバックを避け、UID・origin・path・queryを厳格検証する。focused adapter 33件、gig全体1535件PASS。production immutable releaseへの反映と公式送信readbackは未完了。
+- [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
+- [x] 2026-09-29 16:17 JST（UTC 07:17）の現行スマホDM再読で、取得できた最新10件は9/29 14:33〜14:41を含み、最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。添付2件はHTTP 200で取得・hash固定済み。readbackは `delivery/current-cycle-v712-dm-readback.json`。
+- [x] 直前の4経路プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM、旧DM URL、受信箱、ダッシュボードが `403 Forbidden` を返した。これはログイン切れではなくprovider access denialとして扱う安全境界を `session_vault.py` と `session_vault_tick.sh` に追加し、再ログイン・再送を抑止する。現行スマホDM URLは後続readbackで回復したが、旧URLは依然403のため返信経路は旧URLを使用しない。
+- [x] 本番ログの `browser_port_owner.py:forward → os.killpg → PermissionError: [Errno 1] Operation not permitted`（release `20260929T154252-aac42b89` / `20260929T144819-1e3ee016`）を、子process group終了時のraceとして特定した。browser ownerと親の`runtime/loop/lm_loop_run.py`の両方で `_forward_process_group_signal()` が `ProcessLookupError` と `PermissionError` を既に終了したgroupとして吸収し、各回帰テストを追加した。これは旧releaseの障害記録であり、現行本番の状態は下記の最新readbackを正本とする。修正release反映後のbrowser readbackを取るまで、Ryuの公式DMへ送信しない。
+- [x] 2026-09-29 16:50 JST（UTC `07:50:31.300Z`）のfresh read-only probeでは、同じ現行スマホDM URLがCDP endpoint到達後にページ`title/body=403 Forbidden`を返した。これはログイン画面ではなくprovider access denialであり、`delivery/current-cycle-v713-dm-access-denial-readback.json`へ保存・再読検証した。送信・正式納品クリックは0件。403中は旧URLへ迂回せず、修正release反映とprovider readback回復後にだけ一度送る。
+- [x] 2026-09-29 17:03 JST（UTC `08:03:08.300Z`）に同じ公式URLを再度read-only probeしたが、CDP endpoint到達後もページ`title/body=403 Forbidden`で回復していなかった。`delivery/current-cycle-v714-dm-access-denial-readback.json`へ保存し、送信・正式納品クリックは0件のまま維持した。再ログイン・旧URL迂回・重複送信はしない。
+- [x] 2026-09-29 17:08 JST（UTC `08:08:13Z`）のproduction readbackでは、`/Users/anicca/loops/current` は `/Users/anicca/loops/releases/20260929T170751-8a9f1dcb`（SHA `8a9f1dcb84…`、別main由来release）を指す。`ai.anicca.hf-gig-browser` は `active count=0`・`state=spawn scheduled`・`last exit code=78: EX_CONFIG`、CDP `9223` は未接続だった。これは今回のbranchの修正が本番反映済みという意味ではなく、RyuのDM送信経路が回復した証拠でもない。送信・正式納品クリックは0件のまま維持する。
+- [x] 2026-09-29 17:14 JST（UTC `08:14:03.929786Z`）の再readbackでは、`current` が `eada0da3`へ進んだ一方、`hf-gig-browser` は旧 `8a9f1dcb`をloaded-runningのまま保持していた。CDP `9223`は到達可能でbrowser UUIDの衝突は0だが、loop eventのloaded SHAは旧値、公式receipt/readbackはnull。これは**release drift**であり、修正branchのloaded証明ではない。証跡は `delivery/current-cycle-v717-production-release-drift-readback.json`。Ryuへの送信・正式納品クリックは0件。
+- [x] 2026-09-29 18:05 JST（UTC `09:05:53Z`）の再read-only probeでは、Coconalaのroot、受信箱、DM `10107358`、旧DM pathの全てが`title/body=403 Forbidden`を返し、入力欄0件だった。`coconala:kosuke`のbrowser UUIDは`14d6c112-60a5-48b9-8ffb-905dc32ef8aa`で到達可能だが、provider access denialのため送信は実行していない。証跡は `delivery/current-cycle-v718-dm-access-denial-readback.json`。v711 Colors側の相互リンク管理機能readbackはPASS済みで、次の安全な外部効果は公式DMが回復した後の一回送信だけである。
+- [x] v718の403は一時的なprovider access denialとして記録する。後続の公式DM再readbackで現行URLは回復したため、v718を現在の未確認根拠として扱わない。
+- [x] 2026-09-29 18:09 JST（UTC `09:09:23Z`）に現行スマホDM URLをread-onlyで再取得し、HTTP/UI readbackに成功した。最新シーケンスは seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41。14:41の最新要求は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」で、sellerの後続返信は0件、正式納品ボタンも未押下。証跡は `delivery/current-cycle-v719-dm-readback.json`。したがって、管理画面・公開サイトの修正readbackは完了していても、Ryuへの最終統合DMは未送信であり、Ryu案件はまだ完了ではない。
+- [x] 2026-09-29 18:14 JST（UTC `09:14:26Z`）に同じ現行スマホDM URLを再read-only確認したが、ページは再び`403 Forbidden`、入力欄0件だった。browser identity自体は到達可能（HTTP 200）だがprovider本文を取得できず、送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v720-dm-access-denial-readback.json`。v719が最後に成功した公式readbackであり、v720以後に新しい返信が来たかは未確認である。
+- [x] 2026-09-29 18:35 JST（UTC `09:35:48Z`）に、同じ現行スマホDM URLとCoconala専用session keepaliveをread-onlyで照合した。DMは`title/body=403 Forbidden`・入力欄0件、keepaliveは`logged_out=false`かつ`access_denied=true`で、provider access denialであることを独立確認した。送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v721-dm-access-denial-readback.json`。v719が最後の成功公式readbackであり、公式threadと入力欄が回復するまで再ログイン・再送・新着推測をしない。
+- [x] 2026-09-29 18:44 JST（UTC `09:44:12Z`）に、新しいleased tabで通常UIの3経路（スマホDM、dashboard、受信箱）をread-only確認した。3経路すべて`403 Forbidden`・入力欄0件、session keepaliveも`logged_out=false`・`access_denied=true`。未登録ブラウザ／別アカウントへの切替、送信POST、正式納品クリックは行っていない。証跡は `delivery/current-cycle-v722-dm-ui-access-denial-readback.json`。v719が最後の成功公式readbackであり、composerとpost-send readbackが回復するまでRyuへの送信は未完了。
+
+### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
+
+根拠はTalkroomの `source/talkroom/messages.jsonl`（購入者メッセージ）と、上記の公式DM通知画面である。「sellerが修正した」と書いたメッセージは完了証拠ではない。下表の「証拠あり」は対応するreadbackファイルがあるもの、「再検証」は最新の画像設定経路を直した後に同じブラウザ操作で読み戻す必要があるものを示す。
+
+| ID | 購入者が指摘した失敗・要求 | 現在の判定 |
+|---|---|---|
+| R-01 | 女の子画像が実際に使われている仕組みが不明／管理画面が「ファイル未選択」／女の子ごとの画像設定 | **実装・同値保存readback完了**。v711でプロフィール別メイン1枚＋写真5枚の選択・保存・再読込経路を追加し、12名の公式readbackを確認。新しい購入者画像のアップロード実データは未提供 |
+| R-02 | 「女の子を探す」の文言を変更したい | **完了（title対象）**。ライブ公開titleを`Colors｜八王子デリヘル`へ変更し、旧titleの残存なしをFTPS／HTTPSで確認 |
+| R-03 | 出勤・在籍・ランキングの画像が切れる／左右余白／画像が小さい | **完了**。v711全項目readbackで公開在籍・出勤・ランキング画像をデスクトップ／モバイル双方で確認 |
+| R-04 | 在籍の質問・回答5件、写真5件、全オプション○△×、女の子追加を一画面にまとめたい | **完了**。v711管理画面readbackで12カード、質問・写真5件・通常／有料オプション・追加導線を確認 |
+| R-05 | 出勤は在籍キャストだけをプルダウンで選ぶ／名前変更を公開・出勤へ反映 | **完了**。v711管理画面と公開出勤・在籍・予約の同一プロフィールreadbackを確認 |
+| R-06 | 有料5項目を通常オプションから分離し、女の子ごとに設定。複数追加で他が消えない。2,000円欄を削除 | **完了**。v711在籍管理画面・プロフィール公開・同値保存round-tripで女の子別5項目と既存値保持を確認 |
+| R-07 | 料金コース・交通費・有料オプションが消える／編集欄がない | **完了**。v711管理画面の料金編集と公開料金・交通費・プロフィール有料オプションを確認 |
+| R-08 | WEB予約の文言を素人でも編集、公開中内容を管理画面に表示、TOP/メニューから遷移、出勤時間と連動 | **完了**。v711管理画面の文言編集・公開内容表示と、公開TOP／メニュー／予約フォーム／出勤連動を確認 |
+| R-09 | ご利用案内・禁止事項・求人・アンケートが空欄／現在入力が見えず編集できない | **完了**。v711管理画面全項目の現在値・編集欄・保存公開導線と公開4ルートを確認 |
+| R-10 | 求人・口コミ・写メ日記の位置、バナーの重複・切れ、公式LINEリンクが動かない | **完了（現状仕様）**。v711で求人・口コミ・写メ日記の枠とバナーをデスクトップ／モバイルで確認。口コミ・写メ日記は現在データ空の状態をreadbackへ記録し、外部LINE URL未設定は未接続として表示 |
+| R-11 | 総合・コンセプト別ランキングが設定できない／表示されない | **完了**。v711管理画面のランキング編集と公開総合・6コンセプト絞り込み、画像表示を確認 |
+| R-12 | TOPの6コンセプト画像の原本・順序・アニメーションを戻す | v706のFTPS/CDP公式readbackで**完了**（ただし女の子プロフィール画像とは別物） |
+| R-13 | LINE・Instagram・X、デリヘル媒体等の外部連携 | 媒体側の権限・審査・仕様待ち。**未完了（外部依存）**。承認前に完了扱いしない |
+| R-14 | 何度も未反映・画面差分が出る、全部確認してから一度だけ送ってほしい | v706送信の重複ガードは証拠あり。ただし最新DMで再指摘されたため、**総合readbackと新DM collector対応が未完了** |
+| R-15 | 無料掲載用の相互リンクが多数あるため、購入者自身が管理画面からバナーリンクを追加できるようにしたい | **管理機能実装・UI readback完了**。複数行の表示名・URL・バナー・掲載位置・順序・公開状態を追加／編集／削除できる。実URL・バナー未提供のため、実データ公開readbackは残り |
+
+### Ryuの残TODO（この順番を正本とする）
+
+1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、現行の送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信は0件で、このターンは送信していない。
+2. [x] **文言の正しい対象を特定して修正**した。購入者が指したライブtitleを`八王子デリヘル`へ変更し、公開titleと旧文言不在をreadbackした。
+3. [x] **女の子画像設定を根本修正**した。各プロフィールのメイン画像1枚＋写真5枚、原子的保存、再読込、キー形状保持、12名の公式readbackを確認した。新しい購入者画像を登録する場合だけ入力待ち。
+4. [x] **公開側のprofile画像参照を同一データへ接続**した。在籍・出勤・ランキング・プロフィールの同一profile画像を公式browser readbackした。WEB予約プレビューは既存の同一content API経路を確認済み。写メ日記は現在データが空のため、実データ表示は別途入力待ち。
+5. [x] **R-03〜R-11の全項目を同一変更後に再実測**した。`delivery/current-cycle-v711-full-browser-readback.json`で、認証済み管理画面11項目→公開12ルート（デスクトップ／モバイル）→content APIを読み戻し、全checks PASS。口コミ・写メ日記は空データの現状を明示的に記録した。
+6. [x] **R-15の相互リンク管理を実装**した。管理画面で複数行の追加・編集・削除・並べ替え、表示名・遷移URL・バナー・掲載位置・公開状態、HTTPS URL検証を追加した。実URL・バナー受領後に保存→再読込→公開readbackを行う。
+7. **R-13の外部連携は権限・審査・仕様が揃った媒体だけを個別に接続**し、未提供の媒体は未完了として明示する。
+8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`、`textarea.message-input`、`/smartphone/direct_messages/<id>?uid=<own_uid>`の受信readback・focused 196 testsは完了。残りは返信adapterが現行URLを選び、immutable release反映後に、公式readback JSONで返信・重複guardを同じthreadで検証する。
+9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
+
+現行スマホDMの14:33〜14:41を含むreadbackは `v712` と `v719` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。`v719` が現在の公式DM状態の正本であり、sellerの14:41後返信0件を確認している。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712/v719はいずれも修正・納品完了の証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
+
+### ブラウザ・loop・worktreeの対応表と衝突境界
+
+ブラウザの正本は二層に分かれる。loopとlaunchdの宣言は `config/loop-registry.json`、ログイン済みidentityとprofileの対応はMac側の `~/.config/ai/registry/browsers.toml` である。ポート番号だけをidentityとして扱わず、実行時はprofile内の `DevToolsActivePort` とbrowser UUIDを `skills/browser/resolve_cdp_endpoint.py` で再解決する。leaseは `skills/browser/browser-guard.sh`、実行中の保持は `skills/browser/with-browser.sh` が唯一の入口である。
+
+現行の主要な対応は次の通り。`hf-gig-browser` → `coconala:kosuke` → `~/.cloak/profiles/gig-daily-driver`（宣言ポート9223）、`lancers-revenue-browser` → `~/.local/state/anicca/lancers/browser-profile`（9227）、`crowdworks-revenue-browser` → `~/.local/state/anicca/crowdworks/browser-profile`（9228）、`affiliate-browser` → `~/.cloak/profiles/affiliate/en`（9324）、`affiliate-impact-browser` → `~/.cloak/profiles/affiliate/impact-en`（9327）、`affiliate-x-browser` → `~/.cloak/profiles/affiliate/x-en`（9326）、`life-manager-daily-driver` → `interactive:dais` → `~/.cloak/profiles/daily-driver`（9222）である。RyuのCoconala DMは `coconala:kosuke` を使い、Colorsサイト管理は別identity `colors-hachioji:owner-18211957`（`~/.cloak/profiles/colors-hachioji-owner-18211957`）を使う。両者を同時に同一profileへ接続しない。
+
+宣言済みownerとaction loopの関係は次の通り。`browser_owner` がある行だけがprofile/CDPの所有者で、下段のaction loopは現在provider adapter内部でそのownerを選ぶため、registryにidentityが明示されていない（ここが残TODOであり、推測で別profileを割り当てない）。
+
+| platform / loop群 | 宣言済みbrowser owner | profile / CDP | 現在の明示性 |
+|---|---|---|---|
+| Coconala: `hf-gig-browser` | `coconala:kosuke` | `~/.cloak/profiles/gig-daily-driver` / 9223 | owner明示。実port/UUIDはresolver |
+| Coconala action: `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `coconala:kosuke` → `hf-gig-browser` | 上記 | **sourceで明示＋with-browser lease**。main由来releaseのnatural readbackは未完了 |
+| Lancers: `lancers-revenue-browser` | Lancers専用owner | `~/.local/state/anicca/lancers/browser-profile` / 9227 | ownerのみ明示 |
+| Lancers action: `application`, `negotiate`, `paid`, `storefront`, `work-sync` | 上記をadapterが選択 | 上記 | **未明示**。Human Verification中は再送しない |
+| CrowdWorks: `crowdworks-revenue-browser` | CrowdWorks専用owner | `~/.local/state/anicca/crowdworks/browser-profile` / 9228 | ownerのみ明示 |
+| CrowdWorks action: `application`, `reply`, `paid`, `report` | 上記をadapterが選択 | 上記 | **未明示**。公式readbackなしのeffect unknownを成功扱いしない |
+| Mercor / Freelancer / Upwork | 登録済みbrowser ownerなし | — | adapter境界のみ。active loop・account-bound identity未完了 |
+| Colors管理（Ryu案件のサイト側） | `colors-hachioji:owner-18211957` | `~/.cloak/profiles/colors-hachioji-owner-18211957` / 動的port | Coconala profileと共有禁止 |
+
+`config/loop-registry.json` はloop→ownerの宣言、`~/.config/ai/registry/browsers.toml` はidentity→profile/accountの宣言であり、どちらか一方だけを更新してはならない。
+
+衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。Coconala actionはsourceでregistry identity joinとlease wrapperへ移行したが、main由来releaseのloaded/natural readbackは未完了である。Lancers/CrowdWorksはidentity未登録でprovider固定port依存が残るため、未登録identityを推測で追加せず、静的衝突検査とresolver接続を別TODOとして扱う。
+
+開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは現行URLのreadbackには成功したが、14:41後の最終返信未完了である。
+
+残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(c) v719で確認した同じ公式DMへRyuの全要求を一つに統合して一度だけ送信、(d) 全platform loopの暗黙browser依存を明示identityへ収束、である。送信はこのread-only確認ターンでは実行していない。
+
+現行source readback（2026-09-29 JST）は、専用worktreeのbranch `fix/lm-release-boundary-20260929`（remoteと同期済み、最新 `origin/main=bbc73eda12…`をmerge済み、PRなし）である。重点runtime `289 passed / 177 subtests`、registry/read-only focused test `163 passed / 171 subtests`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）、`git diff --check`もPASSである。外部owner `ai.anicca.provision-browser.aws.life-manager-cloud-provision`をregistryへ明示したため、source側`./bin/lm-loop doctor`は`ok=true`になった。productionは旧releaseのままなので、production側doctorのreadbackはimmutable release昇格後に行う。
+
+横断owner readback（`delivery/current-cycle-v715-platform-owner-readback.json`）では、Coconalaのreply/Paidはruntime passでもApply/Storefrontは`resource_effect_unknown`、LancersのApplication/Negotiate/Paidは`entrypoint_exit_1`（Negotiateの根因は`provider_response_invalid`）、CrowdWorksはbrowser/replyが失敗しApplication/Paidは公式readbackなし、MercorのApplication/Reply/Paidは`resource_effect_unknown`である。Freelancer/Upworkはadapterだけでactive registry ownerがなく、全platform完了とは扱わない。`effect_status=unknown`を成功に昇格せず、各providerの公式readback adapterとimmutable release適用が残る。
+
+Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verification-readback.json` では、9227の全pageが`title=Human Verification`・`url=https://www.lancers.jp/mypage`を返した。したがって`provider_response_invalid`は現時点でJSON API仕様変更と断定せず、providerのbot検証画面をJSONとして読もうとした境界として扱う。captcha/検証の迂回、ログイン再実行、応募・返信の再送はせず、検証完了後の公式readbackを待つ。
+
+**Lancersのsource診断修正（このbranch、production未反映）**: `skills/earn/lancers/scripts/work_sync.py` のJSON fetch境界が、HTTP失敗時のdocument title/bodyにHuman Verification等のmarkerを検出した場合、`provider_response_invalid`ではなく型付き`human_verification_required`を返すようにした。`reply_adapter`も同じ理由をobservation boundaryとして`effect=0`・pendingに分類し、work-syncのexitは75（provider mutationなし）にする。captcha bypass・再ログイン・再送は行わない。focused testsはLancers `23 passed`、Paid/owner `32 passed`。main統合・immutable release・9227 natural readbackは未完了。
+
+**Lancers／CrowdWorks endpoint projectionのsource修正（このbranch、production未反映）**: `skills/browser/cdp_endpoint.py`がlease wrapperの`CLOAK_CDP_BASE_URL`をlocalhost／http／valid portへ検証し、未設定時だけprovider既定値へ戻す。投影値を採用するには`LIFE_MANAGER_BROWSER_IDENTITY`と`LIFE_MANAGER_BROWSER_TARGET_OWNER`の両方が必要で、片側でも欠ければ`browser_identity_join_missing`でfail-closedする。Lancers `application_tick.py`のCDP URL／attach lock、CrowdWorks `account.py`のCDP URL／port、profile applyのfactory endpointがこの値を使う。許可外endpointは`browser_endpoint_invalid`でfail-closedする。これは固定port除去のsource基盤であり、`browsers.toml`のidentity登録、registryの`browser_identity`／`browser_target_owner` join、main由来releaseのnatural readbackは未完了。
+
+**Coconala action leaseのsource修正（このbranch、production未反映）**: `config/loop-registry.json`の`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`、`hf-gig-paid-direct`、`hf-gig-reply-detector`に、`browser_identity=coconala:kosuke`と`browser_target_owner=hf-gig-browser`を両方宣言した。registry validator/schemaは片側だけのjoinを拒否する。`runtime/loop/entry_dispatch.py`のdispatch、Paid owner、Reply ownerは`skills/browser/with-browser.sh`を通じてidentity leaseを保持し、leaseが返すCDP endpointから`CDP_DAILY_DRIVER_PORT`・`SESSION_VAULT_PORT`・`GIG_CDP_HEALTH_URL`を再導出する。これによりCoconala action同士の同時接続と古い固定portへの再接続をfail-closedにする。registry/dispatch `169 passed / 171 subtests`、browser preflight `15 passed / 6 subtests`、Paid/Storefront `318 passed`、Apply `153 passed / 31 subtests`、contract `ok=true`。main統合・immutable release・production loaded readbackは未完了。
+**Coconala action leaseのsource修正（このbranch、production未反映）**: `config/loop-registry.json`の`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`、`hf-gig-paid-direct`、`hf-gig-reply-detector`に、`browser_identity=coconala:kosuke`と`browser_target_owner=hf-gig-browser`を両方宣言した。registry validator/schemaは片側だけのjoinを拒否する。`runtime/loop/entry_dispatch.py`のdispatch、Paid owner、Reply ownerは`skills/browser/with-browser.sh`を通じてidentity leaseを保持し、leaseが返すCDP endpointから`CDP_DAILY_DRIVER_PORT`・`SESSION_VAULT_PORT`・`GIG_CDP_HEALTH_URL`を再導出する。これによりCoconala action同士の同時接続と古い固定portへの再接続をfail-closedにする。さらに、実稼働が確認できたAWS Provision Browser labelを`external_labels`へ追加し、未管理labelを削除せずdoctorのowner分類へ収束させた。registry/dispatch `169 passed / 171 subtests`、browser preflight `15 passed / 6 subtests`、Paid/Storefront `318 passed`、Apply `153 passed / 31 subtests`、contract `ok=true`。main統合・immutable release・production loaded readbackは未完了。
+
+**ブラウザ割当・worktree境界の最新source readback（このbranch）**: Codexは専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-release-boundary-20260929`、branch `fix/lm-release-boundary-20260929`（remoteと同期済み、latest main `bbc73eda12…`をmerge済み）で作業し、未マージ・未productionである。loop→browserの宣言正本はrepo内 `config/loop-registry.json`、identity→profile/accountの正本はMac側 `~/.config/ai/registry/browsers.toml`、実行時のport/UUID再解決は `skills/browser/resolve_cdp_endpoint.py`、leaseは `skills/browser/browser-guard.sh`、保持付き入口は `skills/browser/with-browser.sh` である。
+
+**source acceptanceの再実測（2026-09-29、このbranch）**: `python3 -m pytest -q skills/browser/tests/test_cdp_endpoint.py skills/earn/lancers/tests/test_browser_attach_lock.py skills/earn/crowdworks/tests/test_provider_browser_lock.py` は `27 passed`、`python3 -m pytest -q runtime/loop/tests/test_entry_dispatch.py runtime/loop/tests/test_macos_loop_registry.py runtime/loop/tests/test_lm_loop_readonly.py` は `206 passed, 171 subtests passed`。`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 174、mapped 101）、`./bin/lm-loop doctor` は`ok=true`（unmanaged labels 0）。したがってsource側のfocused acceptanceは完了しているが、PR/main統合、immutable release、production loaded readbackは未完了である。
+
+| loop群 | 現在のbrowser/profile | identity登録 | 衝突境界 |
+|---|---|---|---|
+| Coconala `hf-gig-browser`; action `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `~/.cloak/profiles/gig-daily-driver`, 宣言9223（実portはDevToolsActivePort） | `coconala:kosuke`（browser UUIDを実測して一致確認） | Coconala DM・Paid・Application・Storefrontを同時に別profileへ向けない。Colors管理profileとは直列化し共有しない |
+| Lancers `lancers-revenue-browser`; action `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `~/.local/state/anicca/lancers/browser-profile`, 宣言9227 | **未登録**（`browsers.toml`にLancers identityがない） | action sourceはleaseが投影する`CLOAK_CDP_BASE_URL`を検証・採用できるが、registry identity joinは未登録。Human Verification中は再送しない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
+| CrowdWorks `crowdworks-revenue-browser`; action `application`, `reply`, `paid`, `report` | `~/.local/state/anicca/crowdworks/browser-profile`, 宣言9228 | **未登録**（`browsers.toml`にCrowdWorks identityがない） | account／profile／PaidのCDP sourceはlease endpointを検証・採用できるが、registry identity joinは未登録。公式readbackなしのeffect unknownを成功扱いしない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
+| Mercor / Freelancer / Upwork | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
+| Affiliate growth `affiliate-browser`, `affiliate-impact-browser`, `affiliate-x-browser` | `~/.cloak/profiles/affiliate/{en,impact-en,x-en}`, 宣言9324/9327/9326 | ownerはregistryにあるが、platform identityの個別登録は未確認 | 各profileを相互共有しない。契約work系へ流用せず、既存affiliate ownerのlease境界を維持する |
+| PromptBase `promptbase-loop-daily` / system connector `life-manager-connector-native` | 専用ownerなし。`interactive:dais` identity joinをそれぞれのtarget loopで宣言 | `interactive:dais`（target loop単位） | Coconala/Lancers/CrowdWorksのprofileへ接続しない。public mutationはeffect fenceとofficial readbackが前提 |
+| RyuのColors管理 | `~/.cloak/profiles/colors-hachioji-owner-18211957`, 動的port | `colors-hachioji:owner-18211957` | Coconala `coconala:kosuke` と同じprofile/CDPを同時に触らない |
+
+この表は「実際に現在どこへ接続するか」と「まだ衝突安全を証明できない箇所」を分けたものだ。Coconala actionはregistryのidentity joinを宣言し、`entry_dispatch.py`・Paid owner・Reply ownerが`with-browser.sh`のleaseを取得してから子processを起動する。leaseが返す実endpointからchild向けのCDP/health環境変数を再導出するため、古い固定portへ黙って再接続しない。main由来releaseでのloaded/natural readbackはまだ未完了である。Lancers/CrowdWorksへ未登録identityを推測で作らず、`browsers.toml`の正式登録、adapterの固定port除去、`resolve_cdp_endpoint.py`＋leaseの自然run、UUID衝突readbackを一つの変更として行う。
+
+**本番境界の最新readback**: production `current` は `/Users/anicca/loops/releases/20260929T172908-d697d18f`（SHA `d697d18fa8…`）。`lm-loop status`では`hf-gig-browser`の直近eventが旧`eada0da3…`、`hf-gig-apply-reconcile`も`eada0da3…`、Paid/Replyはさらに旧release、Storefrontは`8a9f1dcb…`で、Coconala action全体にloaded-release driftが残る。fresh read-onlyの`browser-guard status`では`coconala:kosuke`が`gig-daily-driver`／9223／browser UUIDへ到達し、到達性と衝突なしを確認できる。これは現在の同一identity内衝突が観測されなかったことを示すが、source修正版のofficial receipt/readbackやproduction loaded証明ではない。Lancersの`lancers-revenue-application`とCrowdWorksの`crowdworks-revenue-application`は、identity join未登録のため`browser_join_missing`でfail-closedする。production旧releaseの`lm-loop doctor`には未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision`が残る。Ryu DMの最終統合返信・正式納品クリックは0件である。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
+
+**残TODO（成果基準の順序）**:
+
+1. source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorはPASS済み。残りはPR/checksとmain統合であり、AWS Provision Browserがproduction側doctorでも同じ外部owner分類になることをimmutable release readbackで確認する。
+2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
+3. provider access denialが解消し、公式Coconala DMのreadbackが再び成功した後、Ryuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。送信後に同じ公式threadのseller後続1件・重複0件をreadbackする。403中は送信しない。
+4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、Coconala DM・Paid・Application・Storefrontのloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。
+5. Lancers/CrowdWorksのidentityを正式登録し、registryのidentity joinを追加して固定9227/9228依存をlease endpointへ切り替える。source adapterのendpoint projectionは済み。Human Verification・provider denial・effect unknownを型付きpendingとして保持し、公式receiptなしの再送を禁止する。
+6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
+7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 

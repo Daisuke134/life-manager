@@ -117,6 +117,41 @@ DM_THREAD_EXPRESSION = r'''(()=>{
   });
 })()'''
 
+# Coconala's smartphone DM page uses ``.bl_messages-list``/``.bl_message`` and
+# ``/smartphone/direct_messages/<id>``.  Keep the legacy expression above for
+# old pages, but make the collector prefer the same canonical message shape on
+# the current page as well.
+DM_THREAD_EXPRESSION = r'''(()=>{
+  const title=document.title;
+  const modern=!!document.querySelector('.bl_messages-list');
+  const container=document.querySelector('.js_thread-wrapper')||document.querySelector('.bl_messages-list');
+  const legacyRows=!modern&&container?[...container.querySelectorAll('.threadColomun')].filter(row=>row.querySelector('.threadMessage')):[];
+  const rows=modern?[...container.querySelectorAll('.bl_message')]:legacyRows;
+  const path=a=>{try{const u=new URL(a.href,location.origin),m=u.pathname.match(/^\/(?:users|smartphone\/users)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`/users/${m[1]}`:null}catch(_){return null}};
+  const absolute=value=>{try{return new URL(value,location.origin).href}catch(_){return null}};
+  const ownLegacy=document.querySelector('.sidebar-profile a[href*="/users/"]');
+  const own=path(ownLegacy)||'/users/0';
+  const counterpart=((document.querySelector('.bl_direct-message-fixed-header')?.innerText||'').split('\n')[0]||'').trim()||null;
+  const messages=rows.map(row=>{
+    const mine=modern&&row.classList.contains('modi_my-message');
+    const author=modern?row.querySelector('.user-icon[href*="/users/"],a[href*="/smartphone/users/"]'):row.querySelector('.threadUser a[href*="/users/"]');
+    const time=modern?row.querySelector('.message-created'):row.querySelector('.threadPostTime');
+    const body=modern?row.querySelector('.js-translateMessageOriginalMessage,.message'):row.querySelector('.js-translateMessageOriginalMessage,.threadMessage');
+    const scope=modern?(row.querySelector('.comment-detail')||row):(row.querySelector('.threadMessage')||row);
+    const attachments=[];
+    const push=(url,filename)=>{if(!url||attachments.some(item=>item.url===url))return;attachments.push({url,filename:(filename||'').trim()||null});};
+    [...scope.querySelectorAll('a[href]')].forEach(anchor=>{
+      if(anchor.closest('.threadUser,.user-icon'))return;
+      const href=absolute(anchor.getAttribute('href'));if(!href||/^(mailto:|javascript:)/i.test(anchor.getAttribute('href')||''))return;
+      if(/\/users\//.test(href))return;
+      if(/(?:uploaded_files|attachment|download|file|\.(?:png|jpe?g|gif|pdf|zip|xlsx?|docx?|pptx?|csv|txt|psd|ai|svg|mp4|mov))(?:[/?#]|$)/i.test(href)||!!anchor.getAttribute('download'))push(href,anchor.getAttribute('download')||anchor.innerText);
+    });
+    [...scope.querySelectorAll('img[src]')].forEach(image=>{if(image.closest('.threadUser,.user-icon'))return;const source=absolute(image.getAttribute('src'));if(source&&!/(?:coconala_profile|\/icon|avatar|emoji|blank\.(?:gif|png))/i.test(source))push(source,image.getAttribute('alt'));});
+    return {message_id:row.getAttribute('data-message-id')||row.id||null,author_path:path(author)||(mine?own:null),author_name:((author&&author.innerText||'').trim()||(!mine?counterpart:'')||null),sent_at:(time&&time.innerText||'').trim()||null,body:(body&&body.innerText)||'',attachments};
+  }).filter(row=>row.author_path);
+  return JSON.stringify({url:location.href,title,container_present:!!container,not_found_present:/404|ページが見つかりません|お探しのページ/.test(title)||!!document.querySelector('[class*="not-found"],[class*="notFound"]'),error_present:/エラー|error|メンテナンス/i.test(title)||!!document.querySelector('[class*="error-page"],[class*="errorPage"]'),own_user_path:own,messages});
+})()'''
+
 
 class DmCollectError(ValueError):
     """The direct message could not be collected in a form we can trust."""

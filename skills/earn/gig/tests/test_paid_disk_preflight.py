@@ -31,6 +31,94 @@ def test_paid_browser_diagnostics_use_private_data_redactor():
     assert paid.redact_prompt_text("password:secret-value") == "password:[REDACTED]"
 
 
+def test_shared_coconala_handoff_is_validated_before_effect():
+    paid = _load_paid()
+    item = {
+        "talkroom_id": "18211957",
+        "contract_id": "talkroom:18211957",
+        "talkroom_state": "取引中",
+        "price_jpy": 1000,
+        "price_source": "structured_order_label",
+        "talkroom_evidence_sha256": "b" * 64,
+        "buyer_feedback_sha256": "a" * 64,
+        "requirements_sha256": "c" * 64,
+        "talkroom_observed_at": "2026-09-07T00:00:00Z",
+    }
+
+    proof = paid._validate_required_paid_handoff(item)
+
+    assert proof["handoff"]["status"] == "funded"
+    assert proof["handoff"]["funding_external_id"] == "order:talkroom:18211957"
+    assert proof["handoff"]["artifact_requirement_sha256"] == "c" * 64
+
+
+def test_shared_coconala_handoff_rejects_missing_funding_fields():
+    paid = _load_paid()
+    with pytest.raises(paid.Failure, match="paid_handoff"):
+        paid._validate_required_paid_handoff({"talkroom_id": "18211957"})
+
+
+def test_coconala_paid_child_command_propagates_shared_handoff_gate(tmp_path):
+    paid = _load_paid()
+    adapter = PAID_PATH.parent / "coconala_paid_adapter.py"
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        projects_root=tmp_path / "projects",
+        collector=tmp_path / "collector.py",
+        answer_browser=tmp_path / "answer.py",
+        formal_browser=tmp_path / "formal.py",
+        cancel_browser=tmp_path / "cancel.py",
+        delivery_evidence_dir=tmp_path / "delivery",
+        cdp_helper=tmp_path / "cdp.py",
+        context_compiler=tmp_path / "context.py",
+        dm_collector=tmp_path / "dm.py",
+        agent_runner=tmp_path / "runner.py",
+        runner_schema=tmp_path / "runner.schema.json",
+        artifact_schema=tmp_path / "artifact.schema.json",
+        today="2026-09-29",
+        require_paid_handoff=True,
+        coconala_paid_adapter=adapter,
+    )
+
+    command = paid._child_command(args, "--effect-item", tmp_path / "item.json", tmp_path / "out.json")
+
+    assert "--require-paid-handoff" in command
+    assert command[command.index("--coconala-paid-adapter") + 1] == str(adapter)
+
+
+def test_coconala_paid_parent_gate_fails_before_effect_checkpoint(tmp_path, monkeypatch):
+    paid = _load_paid()
+    item_file = tmp_path / "item.json"
+    prepared_file = tmp_path / "item-prepared.json"
+    effect_file = tmp_path / "item-result.json"
+    item_file.write_text("{}", encoding="utf-8")
+
+    def fake_run(_command, **_kwargs):
+        prepared_file.write_text(json.dumps({
+            "_paid_prepare_status": "prepared",
+            "talkroom_id": "18211957",
+        }), encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(paid, "_run_bounded", fake_run)
+    monkeypatch.setattr(paid, "_prepare_command", lambda *_args: ["--effect-item"])
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda _args, owner=None: os.environ.copy())
+
+    args = SimpleNamespace(
+        require_paid_handoff=True,
+        coconala_paid_adapter=PAID_PATH.parent / "coconala_paid_adapter.py",
+        cdp_lock_dir=tmp_path / "cdp",
+    )
+    row, effect, readback, failed, step = paid._run_paid_item(
+        args, "18211957", item_file, prepared_file, effect_file,
+    )
+
+    assert row == {"talkroom_id": "18211957", "status": "failed", "failed_step": "paid_handoff"}
+    assert effect == readback == 0
+    assert failed == 1 and step == "paid_handoff"
+    assert not effect_file.with_name("item-result-checkpoint.json").exists()
+
+
 def test_paid_output_write_consumes_owner_receipt_reserve_once_on_enospc(
     tmp_path, monkeypatch,
 ):

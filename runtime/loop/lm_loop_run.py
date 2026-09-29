@@ -743,6 +743,13 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
 ENTRYPOINT_STDERR_TAIL_MAX_BYTES = 2048
 
 
+def _forward_process_group_signal(pgid: int, signum: int) -> None:
+    try:
+        os.killpg(pgid, signum)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     timeout_seconds: float | None = None,
                     termination_grace_seconds: float = 15,
@@ -761,10 +768,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
         if process is None:
             pending.append(signum)
         elif process.poll() is None:
-            try:
-                os.killpg(process.pid, signum)
-            except ProcessLookupError:
-                pass
+            _forward_process_group_signal(process.pid, signum)
 
     for signum in watched:
         previous[signum] = signal.signal(signum, forward)
@@ -814,10 +818,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     process.wait(timeout=termination_grace_seconds)
                 except subprocess.TimeoutExpired:
                     if process.poll() is None:
-                        try:
-                            os.killpg(process.pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
+                        _forward_process_group_signal(process.pid, signal.SIGKILL)
                     process.wait()
                 return 75
             wait_timeout = 0.25
@@ -829,10 +830,7 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                         process.wait(timeout=termination_grace_seconds)
                     except subprocess.TimeoutExpired:
                         if process.poll() is None:
-                            try:
-                                os.killpg(process.pid, signal.SIGKILL)
-                            except ProcessLookupError:
-                                pass
+                            _forward_process_group_signal(process.pid, signal.SIGKILL)
                         process.wait()
                     return 124
                 wait_timeout = min(wait_timeout, remaining)

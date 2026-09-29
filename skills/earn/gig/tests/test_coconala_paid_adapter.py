@@ -56,6 +56,27 @@ def test_refresh_uses_official_targeted_reader() -> None:
     assert adapter.observe_one("18211957")["latest_event_id"] == "b" * 64
 
 
+def test_inventory_accepts_the_orders_only_snapshot_before_targeted_readback() -> None:
+    module = load()
+    preliminary = {
+        "talkroom_id": "18211957",
+        "status": "paid",
+        "snapshot_captured_at": "2026-09-07T00:00:00Z",
+    }
+    adapter = module.CoconalaPaidAdapter(
+        account_id="seller-1", inventory_reader=lambda: [preliminary],
+        refresh_reader=lambda row: {**row, **item()},
+        context_reader=lambda row: {}, effect_runner=lambda intent: None,
+        readback_reader=lambda intent: {"verified": False},
+    )
+
+    assert adapter.observe_active() == [{
+        "provider": "coconala", "account_id": "seller-1", "work_id": "18211957",
+        "latest_event_id": "2026-09-07T00:00:00Z", "provider_state": "paid",
+        "observed_at": "2026-09-07T00:00:00Z",
+    }]
+
+
 def test_mutation_and_readback_remain_adapter_owned() -> None:
     module = load()
     effects = []
@@ -104,6 +125,86 @@ def test_shared_decision_maps_existing_terminal_and_wait_states() -> None:
            "remaining_work": ["obtain access"]}
 
 
+def test_paid_handoff_maps_only_an_official_funded_order() -> None:
+    module = load()
+    source = {
+        **item(),
+        "contract_id": "talkroom:18211957",
+        "status": "paid",
+        "price_jpy": 1000,
+        "price_source": "structured_order_label",
+        "talkroom_state": "取引中",
+        "talkroom_evidence_sha256": "b" * 64,
+    }
+    adapter = module.CoconalaPaidAdapter(
+        account_id="seller-1", inventory_reader=lambda: [source],
+        refresh_reader=lambda row: dict(row), context_reader=lambda row: {
+            "_paid_prepare_status": "prepared",
+            "buyer_feedback_sha256": "a" * 64,
+            "requirements_sha256": "c" * 64,
+        }, effect_runner=lambda intent: None,
+        readback_reader=lambda intent: {"verified": False},
+    )
+    adapter.observe_active()
+
+    assert adapter.paid_handoff("18211957", {
+        "buyer_feedback_sha256": "a" * 64,
+        "requirements_sha256": "c" * 64,
+    }) == {
+        "contract": {
+            "schema_version": 1,
+            "record_type": "contract_receipt",
+            "platform": "coconala",
+            "application_external_id": "direct-order:talkroom:18211957",
+            "work_external_id": "18211957",
+            "contract_external_id": "talkroom:18211957",
+            "status": "accepted",
+            "terms_sha256": "b" * 64,
+            "observed_at": "2026-09-07T00:00:00Z",
+        },
+        "handoff": {
+            "schema_version": 1,
+            "record_type": "paid_handoff_receipt",
+            "platform": "coconala",
+            "thread_external_id": "18211957",
+            "contract_external_id": "talkroom:18211957",
+            "funding_external_id": "order:talkroom:18211957",
+            "scope_sha256": "a" * 64,
+            "artifact_requirement_sha256": "c" * 64,
+            "price_minor": 1000,
+            "currency": "JPY",
+            "status": "funded",
+            "observed_at": "2026-09-07T00:00:00Z",
+        },
+    }
+
+
+def test_paid_handoff_fails_closed_without_official_funding_or_scope() -> None:
+    module = load()
+    source = {
+        **item(),
+        "contract_id": "talkroom:18211957",
+        "status": "unknown",
+        "price_jpy": 1000,
+        "price_source": "structured_order_label",
+        "talkroom_evidence_sha256": "b" * 64,
+    }
+    adapter = module.CoconalaPaidAdapter(
+        account_id="seller-1", inventory_reader=lambda: [source],
+        refresh_reader=lambda row: dict(row), context_reader=lambda row: {},
+        effect_runner=lambda intent: None,
+        readback_reader=lambda intent: {"verified": False},
+    )
+    adapter.observe_active()
+
+    try:
+        adapter.paid_handoff("18211957", {})
+    except RuntimeError as error:
+        assert str(error) == "coconala_paid_handoff_unavailable"
+    else:
+        raise AssertionError("Coconala handoff was accepted without funded scope proof")
+
+
 def test_default_build_reuses_paid_direct_runtime_without_copying_owner(tmp_path: Path) -> None:
     module = load()
     adapter, decide = module.build([
@@ -118,6 +219,13 @@ def test_default_build_reuses_paid_direct_runtime_without_copying_owner(tmp_path
         "action": "noop", "classification": "satisfied_noop"
     }
     assert adapter.context_reader.__self__.paid.__file__.endswith("/paid_direct.py")
+
+
+def test_coconala_paid_owner_enables_shared_funded_handoff_gate() -> None:
+    owner = PATH.parent / "paid-direct-owner"
+    source = owner.read_text(encoding="utf-8")
+    assert "--require-paid-handoff" in source
+    assert "coconala_paid_adapter.py" in source
 
 
 def test_bridge_maps_only_auth_navigation_failure_to_inventory_wait(tmp_path: Path) -> None:

@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
 """Mercor boundary for the shared marketplace Paid kernel."""
 from __future__ import annotations
-import argparse, hashlib, json
+import argparse, hashlib, importlib.util, json
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from typing import Any, Mapping
 from urllib.parse import urlparse
+
+
+def _load_paid_handoff_builder():
+    path = Path(__file__).resolve().parents[3] / "_shared/marketplace-core/scripts/paid_handoff.py"
+    spec = importlib.util.spec_from_file_location("mercor_shared_paid_handoff", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("mercor_paid_handoff_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_PAID_HANDOFF = _load_paid_handoff_builder()
 
 ACTIVE_STATES = frozenset({"selected", "contracted", "authorized_work", "work_submitted", "needs_human", "provider_review_required"})
 TERMINAL_STATES = frozenset({"accepted", "paid_settled", "bank_matched", "revenue_recorded", "rejected"})
@@ -93,6 +107,63 @@ class MercorPaidAdapter:
         if work_id not in self._contexts: self._inventory()
         try: return dict(self._contexts[work_id])
         except KeyError: raise RuntimeError("mercor_paid_work_unavailable") from None
+
+    def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Map an explicit official Mercor funded handoff to the shared contract.
+
+        The current Mercor observer exposes contract identity and status, but not
+        enough payment/task detail to safely infer a Paid mutation.  A future
+        official observer may therefore attach a normalized ``paid_handoff``
+        object to the contract snapshot.  Every required field is mandatory;
+        this boundary never derives funding, price, scope, or artifact terms
+        from a title, email, or an ``active`` status.
+        """
+        if not isinstance(work_id, str) or not work_id.strip() or not isinstance(context, Mapping):
+            raise RuntimeError("mercor_paid_handoff_unavailable")
+        latest = context.get("latest")
+        official = latest.get("official_contract") if isinstance(latest, Mapping) else None
+        paid = official.get("paid_handoff") if isinstance(official, Mapping) else None
+        if not isinstance(official, Mapping) or not isinstance(paid, Mapping):
+            raise RuntimeError("mercor_paid_handoff_unavailable")
+        if not isinstance(latest, Mapping) or latest.get("work_id") != work_id.strip():
+            raise RuntimeError("mercor_paid_handoff_unavailable")
+
+        def _identifier(name: str) -> str:
+            value = paid.get(name)
+            if not isinstance(value, str) or not value.strip():
+                raise RuntimeError("mercor_paid_handoff_unavailable")
+            return value.strip()
+
+        contract_id = _identifier("contract_external_id")
+        funding_id = _identifier("funding_external_id")
+        thread_id = _identifier("thread_external_id")
+        terms_sha256 = _identifier("terms_sha256")
+        scope_sha256 = _identifier("scope_sha256")
+        artifact_requirement_sha256 = _identifier("artifact_requirement_sha256")
+        observed_at = _identifier("observed_at")
+        if paid.get("status") != "funded" or type(paid.get("price_minor")) is not int or paid["price_minor"] < 1:
+            raise RuntimeError("mercor_paid_handoff_unavailable")
+        currency = paid.get("currency")
+        if not isinstance(currency, str) or not re.fullmatch(r"[A-Z]{3}", currency):
+            raise RuntimeError("mercor_paid_handoff_unavailable")
+        try:
+            return _PAID_HANDOFF.build_paid_handoff(
+                platform="mercor",
+                application_external_id=f"application:{work_id.strip()}",
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id,
+                funding_external_id=funding_id,
+                thread_external_id=thread_id,
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=paid["price_minor"],
+                currency=currency,
+                observed_at=observed_at,
+            )
+        except _PAID_HANDOFF.PaidHandoffMappingError as error:
+            raise RuntimeError("mercor_paid_handoff_unavailable") from error
+
     def mutate(self, intent): raise RuntimeError("mercor_human_submission_required")
     def readback(self, intent): return {"verified":False, "authoritative_absent":False}
 

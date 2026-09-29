@@ -32,6 +32,13 @@ def _process_group_exists(pgid: int) -> bool:
         return True
 
 
+def _forward_process_group_signal(pgid: int, signum: int) -> None:
+    try:
+        os.killpg(pgid, signum)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def _terminate_process_group(pgid: int, grace_seconds: float = 2.0) -> None:
     """Best-effort: make sure the process group we spawned is gone.
 
@@ -301,10 +308,7 @@ def run(args: argparse.Namespace) -> int:
             _write_receipt(profile_receipt_path, payload)
 
             def forward(signum: int, _frame: object) -> None:
-                try:
-                    os.killpg(child.pid, signum)
-                except ProcessLookupError:
-                    pass
+                _forward_process_group_signal(child.pid, signum)
 
             previous = {}
             for signum in (signal.SIGTERM, signal.SIGINT):

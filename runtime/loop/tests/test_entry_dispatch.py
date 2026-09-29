@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop import entry_dispatch
-from runtime.loop.entry_dispatch import command_for
+from runtime.loop.entry_dispatch import command_for, command_with_browser_lease
 
 
 class EntryDispatchTest(unittest.TestCase):
@@ -282,6 +282,30 @@ class EntryDispatchTest(unittest.TestCase):
         self.assertEqual(storefront[-1:], ['--effect'])
         self.assertNotIn('--auto-cadence', storefront)
         self.assertNotIn('--full-interval-seconds', storefront)
+
+    def test_browser_identity_wraps_dispatch_in_the_registered_lease(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            wrapper = root / 'skills/browser/with-browser.sh'
+            wrapper.parent.mkdir(parents=True)
+            wrapper.write_text('#!/bin/sh\n')
+            wrapper.chmod(0o755)
+            command = [str(root / 'skills/earn/gig/scripts/application_direct.py'), '--all-eligible']
+            wrapped = command_with_browser_lease(
+                command, root, {
+                    "LIFE_MANAGER_BROWSER_IDENTITY": "coconala:kosuke",
+                    "LIFE_MANAGER_BROWSER_TARGET_OWNER": "hf-gig-browser",
+                },
+            )
+            self.assertEqual(wrapped, [
+                str(wrapper), 'coconala:kosuke', '--', *command,
+            ])
+
+    def test_dispatch_without_identity_keeps_command_unchanged(self):
+        command = ['/release/bin/example']
+        self.assertEqual(
+            command_with_browser_lease(command, Path('/release'), {}), command,
+        )
 
     def test_coconala_reply_no_longer_has_a_handwritten_dispatch(self):
         with self.assertRaisesRegex(ValueError, 'no dispatch command'):

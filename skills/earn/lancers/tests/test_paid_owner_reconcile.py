@@ -10,6 +10,10 @@ ROOT = Path(__file__).resolve().parents[4]
 OWNER = ROOT / "skills/earn/lancers/scripts/paid-owner"
 
 
+def test_paid_owner_requires_shared_funded_handoff_gate() -> None:
+    assert "--require-paid-handoff" in OWNER.read_text(encoding="utf-8")
+
+
 def test_lancers_paid_owner_reconciles_after_kernel_and_report(tmp_path: Path) -> None:
     fake_root = tmp_path / "repo"
     fake_owner = fake_root / "skills/earn/lancers/scripts/paid-owner"
