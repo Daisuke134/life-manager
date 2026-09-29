@@ -1137,3 +1137,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
 7. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
 8. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
+
+**main統合・immutable release readback（2026-09-29 10:59 UTC）**: PR `#6214`はSecurity Scan 9ジョブ全PASS後、merge commit `47ddce0eb7faf1074c960250b481527b214b9e61`としてmainへ統合された。Life Managerの通常reconcilerがmain由来immutable release `/Users/anicca/loops/releases/20260929T195223-47ddce0e`を作成し、`current`を同SHAへ切り替えた。`alpaca-investment-live`と`alpaca-investment-paper`はloaded SHA `47ddce0eb7`、natural occurrenceは`pass`へ進んだが、provider receipt・official readbackはまだnullであり、注文・fill・利益ではない。`investment-cross-venue-report`と`investment-strategy-validation`のplistは旧SHA `d7c7b444a8`のままで、fleet applyの後続処理が未完了である。実現収益は引き続き`$0/月`、過去live公式snapshotはnet`-$0.15`・round trip`1/30`。
+
+**現在cursor（実行順）**: (1) 自動fleet apply完了後にcross-venue/strategy-validationのloaded SHAとargv/envをreadback、(2) fence reconcilerで旧cross-venue `effect_unknown`を公式receiptなしに解放しない、(3) 市場開場後に同一QQQ orderのterminal status・account/position/fillを公式readback、(4) cost-complete net P&L、(5) `30/30` natural round trips。資金追加・Binance送金・wallet funding・live注文・meme coin署名・yield depositは引き続き禁止する。
