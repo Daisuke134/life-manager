@@ -614,10 +614,15 @@ def inquiries_from_dom(dom: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         href = str(card.get("talkroom_url") or "")
         parsed = urlsplit(href)
-        match = re.fullmatch(r"/(talkrooms|mypage/direct_message)/([A-Za-z0-9_-]+)", parsed.path.rstrip("/"))
+        match = re.fullmatch(
+            r"/(talkrooms|mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
+            parsed.path.rstrip("/"),
+        )
         if not match:
             continue
         route, talkroom_id = match.groups()
+        if route == "smartphone/direct_messages":
+            route = "mypage/direct_message"
         if talkroom_id in seen:
             continue
         seen.add(talkroom_id)

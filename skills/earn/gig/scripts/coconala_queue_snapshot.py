@@ -349,22 +349,24 @@ JST = ZoneInfo("Asia/Tokyo")
 ORDERS_EXPRESSION = r'''JSON.stringify({url:location.href,title:document.title,cards:[...document.querySelectorAll("a[href*='/talkrooms/']")].map(a=>a.closest('.d-providerTalkroomCassette')).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).map(card=>{const room=card.querySelector("a[href*='/talkrooms/']");const title=card.querySelector('.d-providerTalkroomCassetteSpHeading_title')||room;const lines=card.innerText.split('\n').map(x=>x.trim()).filter(Boolean);const priceNode=card.querySelector('.d-providerTalkroomCassettePrice_price')||[...card.querySelectorAll('.d-providerTalkroomCassetteSpDetail_info')].find(x=>x.querySelector('.d-providerTalkroomCassetteSpDetail_yenIcon'));const priceText=priceNode?(priceNode.innerText||'').trim():null;return {text:card.innerText,talkroom_url:room&&room.href,buyer:lines[1]||'',title:(title&&title.innerText.trim())||lines[0]||'',price_text:priceText,price_source:priceText?'structured_order_label':'missing_structured_price'}})})'''
 ORDERS_ONLY_EXPRESSION = r'''(()=>{const container=document.querySelector('.d-transactionListProviderMain')||document.querySelector('main.c-layoutMypage #c-main .c-content');const cards=container?[...container.querySelectorAll("a[href*='/talkrooms/']")].map(a=>a.closest('.d-providerTalkroomCassette')).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).map(card=>{const room=card.querySelector("a[href*='/talkrooms/']");const title=card.querySelector('.d-providerTalkroomCassetteSpHeading_title')||room;const lines=card.innerText.split('\n').map(x=>x.trim()).filter(Boolean);const priceNode=card.querySelector('.d-providerTalkroomCassettePrice_price')||[...card.querySelectorAll('.d-providerTalkroomCassetteSpDetail_info')].find(x=>x.querySelector('.d-providerTalkroomCassetteSpDetail_yenIcon'));const priceText=priceNode?(priceNode.innerText||'').trim():null;return {text:card.innerText,talkroom_url:room&&room.href,buyer:lines[1]||'',title:(title&&title.innerText.trim())||lines[0]||'',price_text:priceText,price_source:priceText?'structured_order_label':'missing_structured_price'}}):[];const empty_state_present=cards.length===0&&!!container&&[...container.querySelectorAll('[data-testid="order-empty"],[data-testid="empty-state"],[data-testid="empty"],[data-order-state="empty"],[class*="empty"],[class*="Empty"]')].some(x=>/(?:受注|取引中|該当).*(?:ありません|なし)/.test((x.innerText||'').trim()));return JSON.stringify({url:location.href,title:document.title,container_present:!!container,empty_state_present,cards})})()'''
 QUOTES_EXPRESSION = r'''JSON.stringify({url:location.href,title:document.title,cards:[...document.querySelectorAll("a[href*='/customize/requests/']")].map(a=>a.closest('.d-transactionListProviderMain_item')||a.closest('li')||a.parentElement).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).map(card=>{const req=card.querySelector("a[href*='/customize/requests/']");const buyer=card.querySelector("a[href*='/users/']");const proposal=card.querySelector("a[href*='/customize/offers/add/']");return {text:card.innerText,request_url:req&&req.href,buyer:buyer&&buyer.innerText.trim(),title:req&&req.innerText.trim(),proposal_url:proposal&&proposal.href}})})'''
-MESSAGES_EXPRESSION = r'''(()=>{const title=document.title;const cards=[...document.querySelectorAll("a.c-messageItemWrap[href*='/mypage/direct_message/']")].map(room=>({talkroom_url:room.href,title:'purchase_preorder_message',last_message_side:'',unread:!!room.querySelector('[aria-label*="未読"],[class*="unread"],[class*="Unread"]')}));return JSON.stringify({url:location.href,title,container_present:!!document.querySelector('main.c-layoutMypage #c-main .c-content'),not_found_present:/404|ページが見つかりません|お探しのページ/.test(title)||!!document.querySelector('[class*="not-found"],[class*="notFound"]'),error_present:/エラー|error|メンテナンス/i.test(title)||!!document.querySelector('[class*="error-page"],[class*="errorPage"]'),cards})})()'''
+MESSAGES_EXPRESSION = r'''(()=>{const title=document.title;const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`https://coconala.com/mypage/direct_message/${m[1]}`:null}catch(_){return null}};const root=document.querySelector('main.c-layoutMypage #c-main .c-content')||document.querySelector('.bl_messages-list')||document.body;const anchors=[...root.querySelectorAll("a.c-messageItemWrap[href*='/mypage/direct_message/'],a.c-messageItemWrap[href*='/smartphone/direct_messages/'],a[href*='/smartphone/direct_messages/']")];const cards=anchors.map(room=>{const url=canonical(room.href);if(!url)return null;const card=room.closest('.c-messageItemWrap,li,article,[data-message-id],[data-direct-message-id]')||room;return {talkroom_url:url,title:'purchase_preorder_message',counterparty_name:((card.innerText||'').split('\n')[0]||'').trim().slice(0,100),last_message_side:'',unread:!!card.querySelector('[aria-label*="未読"],[class*="unread"],[class*="Unread"]')}}).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.talkroom_url===x.talkroom_url)===i);return JSON.stringify({url:location.href,title,container_present:!!(document.querySelector('main.c-layoutMypage #c-main .c-content')||document.querySelector('.bl_messages-list')),not_found_present:/404|ページが見つかりません|お探しのページ/.test(title)||!!document.querySelector('[class*="not-found"],[class*="notFound"]'),error_present:/エラー|error|メンテナンス/i.test(title)||!!document.querySelector('[class*="error-page"],[class*="errorPage"]'),cards})})()'''
 B1_MESSAGES_EXPRESSION = r'''JSON.stringify({url:location.href,title:document.title,not_found:/ご指定のページが見つかりませんでした|ページが見つかりません/.test((document.title||'')+' '+(document.querySelector('h1')?.innerText||'')),cards:[...document.querySelectorAll("a[href*='/talkrooms/']")].map(a=>a.closest('li[data-talkroom-id],li,[data-talkroom-id]')||a.parentElement).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).map(card=>{const room=card.querySelector("a[href*='/talkrooms/']");const text=(card.innerText||'').trim();const unread=!!card.querySelector('[aria-label*="未読"],[class*="unread"],[class*="Unread"]');const declared=(card.getAttribute('data-last-message-side')||'').toLowerCase();const messages=[...card.querySelectorAll('.d-talkroomMessage')].filter(m=>{const owner=m.closest('li[data-talkroom-id],li,[data-talkroom-id]');return !owner||owner===card});const last=messages[messages.length-1];const lastSide=declared==='buyer'||declared==='seller'?declared:(last?(last.classList.contains('d-talkroomMessage-isOthers')?'buyer':'seller'):'');return {talkroom_url:room&&room.href,title:(room&&room.innerText||text.split('\\n')[0]||'').trim(),last_message_side:lastSide,unread}})})'''
 B1_INBOX_COVERAGE_EXPRESSION = r'''(async()=>{const sleep=ms=>new Promise(r=>setTimeout(r,ms)),direct=false,sel=direct?"a[href*='/talkrooms/']":"a[href*='/talkrooms/']",root=document.querySelector('main.c-layoutMypage #c-main .c-content')||document.body,records=new Map();let stable=0,iterations=0,lastHeight=-1,lastKeys='';const read=()=>[...document.querySelectorAll(sel)].map(a=>{const card=direct?a:(a.closest('li[data-talkroom-id],li,[data-talkroom-id]')||a.parentElement),room=direct?a:card?.querySelector("a[href*='/talkrooms/']"),url=room?.href||a.href;if(!url)return null;const text=(card?.innerText||'').trim(),messages=[...(card?.querySelectorAll('.d-talkroomMessage')||[])],last=messages[messages.length-1],declared=(card?.getAttribute('data-last-message-side')||'').toLowerCase();return {talkroom_url:url,title:direct?'purchase_preorder_message':(room?.innerText||text.split('\n')[0]||'').trim(),last_message_side:direct?'':(declared==='buyer'||declared==='seller'?declared:(last?.classList.contains('d-talkroomMessage-isOthers')?'buyer':'seller')),unread:!!card?.querySelector('[aria-label*="未読"],[class*="unread"],[class*="Unread"]')}}).filter(Boolean);for(;iterations<20&&stable<2;iterations++){for(const row of read())records.set(new URL(row.talkroom_url,location.origin).pathname,row);const keys=[...records.keys()].sort().join('|'),height=Math.max(root.scrollHeight,document.body.scrollHeight);stable=keys===lastKeys&&height===lastHeight?stable+1:0;lastKeys=keys;lastHeight=height;window.scrollTo(0,document.body.scrollHeight);await sleep(100)}const container=root,text=(container.innerText||'').trim(),empty_state_present=/^(メッセージはありません|メッセージがありません|該当するメッセージはありません)$/.test(text)||!!container.querySelector('[data-testid="message-empty"],[data-message-state="empty"]');const rows=[...records.values()];return JSON.stringify({cards:rows,cards_count:rows.length,empty_state_present,coverage_complete:stable>=2,termination_reason:rows.length===0&&empty_state_present?'empty_state':'fixed_point',iterations})})()'''
 DIRECT_MESSAGE_EXPRESSION = r'''(()=>{const title=document.title;const container=document.querySelector('.js_thread-wrapper');const rows=container?[...container.querySelectorAll('.threadColomun')]:[];const messageRows=rows.filter(row=>row.querySelector('.threadMessage'));const own=document.querySelector('.sidebar-profile a[href*="/users/"]');const path=a=>a?new URL(a.href,location.origin).pathname:null;const messages=messageRows.map(row=>{const author=row.querySelector('.threadUser a[href*="/users/"]');const time=row.querySelector('.threadPostTime');const body=row.querySelector('.js-translateMessageOriginalMessage')||row.querySelector('.threadMessage');return{message_id:row.getAttribute('data-message-id')||row.id||null,author_path:path(author),sent_at:(time&&time.innerText||'').trim()||null,body:(body&&body.innerText)||''}});const estimate_url=([...document.querySelectorAll('a[href]')].map(a=>path(a)).find(value=>/^\/direct_offers\/add\/[A-Za-z0-9_-]+$/.test(value||''))||null);const service_urls=[...new Set([...document.querySelectorAll('a[href]')].map(a=>path(a)).filter(value=>/^\/services\/\d+$/.test(value||'')))];const structured_offers=[...rows.flatMap(row=>[...row.querySelectorAll('.message-customize')].map(card=>({card,row})))].map(({card,row})=>{const offer=card.closest('.threadMessage')||card;const link=offer.querySelector('.customize-title-link[href]');const text=(offer.innerText||'').replace(/\s+/g,' ').trim();const titleNode=offer.querySelector('.customize-title');const contentNode=offer.querySelector('p.customize-content.wa_add-mt-4')||offer.querySelector('.customize-content');const price=(text.match(/提案額\s*([0-9][0-9,]*)\s*円/)||[])[1];const completion=(text.match(/完了予定日\s*(20\d{2}[\\/-]\d{1,2}[\\/-]\d{1,2}|20\d{2}年\d{1,2}月\d{1,2}日)/)||[])[1]||null;const time=row.querySelector('.threadPostTime');return{offer_url:path(link),message_kind:(card.querySelector('.message-customize-title')||card).innerText.includes('見積り提案をしました')?'見積り提案をしました':'',title:(titleNode&&titleNode.innerText||'').trim()||null,content:(contentNode&&contentNode.innerText||'').trim()||null,price_jpy:price?Number(price.replace(/,/g,'')):null,completion_date:completion?completion.replace(/[年月]/g,'-').replace('日','').replace(/\//g,'-'):null,sent_at:(time&&time.innerText||'').trim()||null}}).filter(card=>card.offer_url||card.message_kind);return JSON.stringify({url:location.href,title,container_present:!!container,not_found_present:/404|ページが見つかりません|お探しのページ/.test(title)||!!document.querySelector('[class*="not-found"],[class*="notFound"]'),error_present:/エラー|error|メンテナンス/i.test(title)||!!document.querySelector('[class*="error-page"],[class*="errorPage"]'),own_user_path:path(own),estimate_url,service_urls,structured_offers,messages})})()'''
+DIRECT_MESSAGE_EXPRESSION = r'''(()=>{const title=document.title;const modern=!!document.querySelector('.bl_messages-list');const container=document.querySelector('.js_thread-wrapper')||document.querySelector('.bl_messages-list');const path=a=>{try{const u=new URL(a.href,location.origin),m=u.pathname.match(/^\/(?:users|smartphone\/users)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`/users/${m[1]}`:null}catch(_){return null}};const legacyRows=!modern&&container?[...container.querySelectorAll('.threadColomun')].filter(row=>row.querySelector('.threadMessage')):[];const modernRows=modern?[...container.querySelectorAll('.bl_message')]:[];const rows=modern?modernRows:legacyRows;const ownLegacy=document.querySelector('.sidebar-profile a[href*="/users/"]');const own=path(ownLegacy)||'/users/0';const messages=rows.map((row,index)=>{const mine=modern&&row.classList.contains('modi_my-message');const author=modern?row.querySelector('.user-icon[href*="/users/"],a[href*="/smartphone/users/"]'):row.querySelector('.threadUser a[href*="/users/"]');const time=modern?row.querySelector('.message-created'):row.querySelector('.threadPostTime');const body=modern?row.querySelector('.js-translateMessageOriginalMessage,.message'):row.querySelector('.js-translateMessageOriginalMessage,.threadMessage');return{message_id:row.getAttribute('data-message-id')||row.id||null,author_path:path(author)||(mine?own:null),sent_at:(time&&time.innerText||'').trim()||null,body:(body&&body.innerText)||''}}).filter(row=>row.author_path);const estimate_url=([...document.querySelectorAll('a[href]')].map(a=>path(a)?null:new URL(a.href,location.origin).pathname).find(value=>/^\/direct_offers\/(?:add|edit)\/[A-Za-z0-9_-]+$/.test(value||''))||null;const service_urls=[...new Set([...document.querySelectorAll('a[href]')].map(a=>{try{return new URL(a.href,location.origin).pathname}catch(_){return null}}).filter(value=>/^\/services\/\d+$/.test(value||'')))];const structured_offers=legacyRows.flatMap(row=>[...row.querySelectorAll('.message-customize')].map(card=>{const offer=card.closest('.threadMessage')||card;const link=offer.querySelector('.customize-title-link[href]');const text=(offer.innerText||'').replace(/\s+/g,' ').trim();const titleNode=offer.querySelector('.customize-title');const contentNode=offer.querySelector('p.customize-content.wa_add-mt-4')||offer.querySelector('.customize-content');const price=(text.match(/提案額\s*([0-9][0-9,]*)\s*円/)||[])[1];const completion=(text.match(/完了予定日\s*(20\d{2}[\\/-]\d{1,2}[\\/-]\d{1,2}|20\d{2}年\d{1,2}月\d{1,2}日)/)||[])[1]||null;const time=row.querySelector('.threadPostTime');return{offer_url:link?new URL(link.href,location.origin).pathname:null,message_kind:(card.querySelector('.message-customize-title')||card).innerText.includes('見積り提案をしました')?'見積り提案をしました':'',title:(titleNode&&titleNode.innerText||'').trim()||null,content:(contentNode&&contentNode.innerText||'').trim()||null,price_jpy:price?Number(price.replace(/,/g,'')):null,completion_date:completion?completion.replace(/[年月]/g,'-').replace('日','').replace(/\//g,'-'):null,sent_at:(time&&time.innerText||'').trim()||null}}).filter(card=>card.offer_url||card.message_kind));return JSON.stringify({url:location.href,title,container_present:!!container,not_found_present:/404|ページが見つかりません|お探しのページ/.test(title)||!!document.querySelector('[class*="not-found"],[class*="notFound"]'),error_present:/エラー|error|メンテナンス/i.test(title)||!!document.querySelector('[class*="error-page"],[class*="errorPage"]'),own_user_path:own,estimate_url,service_urls,structured_offers,messages})})()'''
 DIRECT_INBOX_COVERAGE_EXPRESSION = r'''(async()=>{
 const sleep=ms=>new Promise(r=>setTimeout(r,ms)),
 isB1=location.pathname==='/message'&&new URL(location.href).searchParams.get('fromMyPage')==='true',
 direct=location.pathname==='/message'&&!isB1,
-sel=direct?"a.c-messageItemWrap[href*='/mypage/direct_message/']":null,
+sel=direct?"a.c-messageItemWrap[href*='/mypage/direct_message/'],a.c-messageItemWrap[href*='/smartphone/direct_messages/'],a[href*='/smartphone/direct_messages/']":null,
 records=new Map(),pageLimit=10,hydrationDeadline=Date.now()+1500;
+const canonical=value=>{try{const u=new URL(value,location.origin),m=u.pathname.match(/^\/(?:mypage\/direct_message|smartphone\/direct_messages)\/([A-Za-z0-9_-]+)\/?$/);return u.origin==='https://coconala.com'&&m?`https://coconala.com/mypage/direct_message/${m[1]}`:null}catch(_){return null}};
 let pagesObserved=0,iterations=0,terminationReason='pagination_limit',paginationNextPresent=null,
  paginationContainerPresent=false,paginationCurrentPresent=false,paginationTerminalProven=false,
  paginationCurrentPage=null,paginationHighestPage=null,pageCounts=[];
 const digest=async text=>{const data=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(data)].map(x=>x.toString(16).padStart(2,'0')).join('')};
 const read=async()=>sel?await Promise.all([...document.querySelectorAll(sel)].map(async a=>{
- const card=a,room=a,url=room?.href||a.href;
+ const card=a.closest('.c-messageItemWrap,li,article,[data-message-id],[data-direct-message-id]')||a,room=a,url=canonical(room?.href||a.href);
  if(!url)return null;
  const preview=(card?.innerText||'').trim();
  const message=a.__vue__?._props?.message||null,
@@ -491,6 +493,24 @@ def load_connector_manifest(path: Path = CONNECTOR_MANIFEST_PATH) -> dict[str, A
     return value
 
 
+def _direct_message_path(path: str) -> tuple[str, str] | None:
+    """Return the canonical route and id for either Coconala DM URL shape."""
+    match = re.fullmatch(
+        r"/(?:mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
+        path.rstrip("/"),
+    )
+    if match is None:
+        return None
+    return (f"/mypage/direct_message/{match.group(1)}", match.group(1))
+
+
+def _same_direct_message_path(current_path: str, expected_path: str) -> bool:
+    """Accept the modern smartphone route when the canonical route was requested."""
+    current = _direct_message_path(current_path)
+    expected = _direct_message_path(expected_path)
+    return current is not None and expected is not None and current == expected
+
+
 def validate_page_identity(
     dom: dict[str, Any], *, expected_url: str, expected_title: str
 ) -> None:
@@ -506,7 +526,7 @@ def validate_page_identity(
         raise CollectorUnhealthy("not_found")
     if dom.get("error_present") is True or re.search(r"エラー|error|メンテナンス", title, re.I):
         raise CollectorUnhealthy("error_page")
-    if current_path != expected_path:
+    if current_path != expected_path and not _same_direct_message_path(current_path, expected_path):
         raise CollectorUnhealthy("unexpected_url")
     if expected_title not in title:
         raise CollectorUnhealthy("unexpected_title")
@@ -523,7 +543,12 @@ def navigation_state_ready(loaded: dict[str, Any], expected_url: str | None = No
     already usable.  The URL/path and non-blank guard remain fail-closed.
     """
     current_url = str(loaded.get("url") or "")
-    reached_expected = not expected_url or urlsplit(current_url).path == urlsplit(expected_url).path
+    reached_expected = not expected_url or (
+        urlsplit(current_url).path == urlsplit(expected_url).path
+        or _same_direct_message_path(
+            urlsplit(current_url).path, urlsplit(expected_url).path,
+        )
+    )
     return (
         reached_expected
         and current_url not in ("", "about:blank")
@@ -3328,7 +3353,7 @@ def inquiries_from_dom(dom: dict[str, Any]) -> list[dict[str, Any]]:
         match.group(1): card
         for card in dom.get("cards", []) if isinstance(card, dict)
         for match in [re.fullmatch(
-            r"/(?:talkrooms|mypage/direct_message)/([A-Za-z0-9_-]+)",
+            r"/(?:talkrooms|mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
             urlsplit(str(card.get("talkroom_url") or "")).path.rstrip("/"),
         )] if match
     }
@@ -3494,7 +3519,7 @@ def direct_message_event(
     official_context_provider: Any = None,
 ) -> dict[str, Any]:
     """Return bounded reply identity for the latest direct-message row."""
-    validate_page_identity(dom, expected_url=expected_url, expected_title="メッセージ詳細")
+    validate_page_identity(dom, expected_url=expected_url, expected_title="メッセージ")
     messages = dom.get("messages") if isinstance(dom.get("messages"), list) else []
     if not messages:
         result = {
@@ -3546,7 +3571,7 @@ def direct_message_event(
         )
     identity_fields = last.get("last_message_identity_fields")
     expected_thread_id_match = re.fullmatch(
-        r"/(?:talkrooms|mypage/direct_message)/([A-Za-z0-9_-]+)",
+        r"/(?:talkrooms|mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
         urlsplit(expected_url).path.rstrip("/"),
     )
     expected_thread_id = (
@@ -4177,7 +4202,7 @@ def main() -> int:
                 match.group(1): card["unread"]
                 for card in messages_dom.get("cards", []) if isinstance(card, dict)
                 for match in [re.fullmatch(
-                    r"/(?:talkrooms|mypage/direct_message)/([A-Za-z0-9_-]+)",
+                    r"/(?:talkrooms|mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
                     urlsplit(str(card.get("talkroom_url") or "")).path.rstrip("/"),
                 )] if match and type(card.get("unread")) is bool
             }

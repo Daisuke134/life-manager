@@ -252,7 +252,10 @@ def thread_state(
     service_ids = {match.group(1) for value in service_urls
                    if (match := re.fullmatch(r"/services/(\d+)", str(value or "")))}
     path = urlsplit(expected_url).path
-    match = re.fullmatch(r"/mypage/direct_message/([A-Za-z0-9_-]+)", path)
+    match = re.fullmatch(
+        r"/(?:mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
+        path,
+    )
     if not match:
         raise collector.CollectorUnhealthy("unexpected_url")
     fingerprint = hashlib.sha256(
@@ -285,7 +288,10 @@ def direct_message_path(thread_url: str) -> str:
         or parsed.fragment
     ):
         raise ValueError("invalid Coconala thread URL")
-    match = re.fullmatch(r"/mypage/direct_message/([A-Za-z0-9_-]+)", parsed.path)
+    match = re.fullmatch(
+        r"/(?:mypage/direct_message|smartphone/direct_messages)/([A-Za-z0-9_-]+)",
+        parsed.path,
+    )
     if not match:
         raise ValueError("unexpected Coconala direct-message path")
     return f"/mypage/direct_message/{match.group(1)}"
@@ -326,12 +332,16 @@ def submit_expression(thread_url: str, outgoing_hash: str) -> str:
         "const inspect=()=>{"
         "if(location.origin!==expectedOrigin)"
         "return{ok:false,error:'unexpected_page_origin'};"
-        "const controls=[...document.querySelectorAll("
+        "const legacy=[...document.querySelectorAll("
         "'[name=\"data[DirectMessage][body]\"]')];"
+        "const modern=[...document.querySelectorAll('textarea.message-input')];"
+        "const controls=legacy.length?legacy:modern;"
         "if(controls.length!==1)"
         "return{ok:false,error:'unexpected_message_control_count'};"
         "const input=controls[0];"
-        "if(input.tagName!=='TEXTAREA'||input.id!=='DirectMessageBody')"
+        "if(input.tagName!=='TEXTAREA'"
+        "||(!legacy.length&&!input.classList.contains('message-input'))"
+        "||(legacy.length&&input.id!=='DirectMessageBody'))"
         "return{ok:false,error:'unexpected_message_input'};"
         "const form=input.form;"
         "if(!form)return{ok:false,error:'missing_message_form'};"
