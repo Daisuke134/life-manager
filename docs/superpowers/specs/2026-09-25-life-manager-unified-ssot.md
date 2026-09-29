@@ -213,6 +213,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 歯止め: 毎時の利益データでモデル代が売上の 30% を超えた Skill は、工場が値上げまたはモデル変更を自動で出す（最初の方針の後の安全網）。
 - 同じ方針を Writer（有料記事の価格）、Ebook（The Anicca Reset の価格・KDP 価格）、アプリ（サブスク価格）、PromptBase にも当てる。
 
+**実測（2026-09-29 14:4x JST）**: 売上 = Capafy 30日 総額 $80.78・手数料後 $64.62・モデル代 $42.99・利益 $21.63（Hook Lab の DeepSeek 化前の赤字を含む）、アプリ（RevenueCat）MRR $20・28日売上 $32・有効サブスク 5。**月 $10k MRR には未達（約 1%）**。② は未確認: 値上げ更新の下書き（TikTok Script Pro v1.0.2・Hook Lab v1.0.4）が status 0 のまま。原因（別の更新を次々始めて下書きが増える）は #6167 で修正し本番 5d8a135b。自己修復の成功後 20h 待ちも #6167 で解消。14:29 の定期起動は自動 release 反映中の owner deploy lock で `resource_control_busy` 延期 → 次の自然起動の公式 readback で確認する。③ は本番で確認済み（fence 65 件すべて `admission_effect_unknown_diagnosis` に原因 run・失敗手順・provider 状態・次の手）。
+
 **Capafy 実測（2026-09-29 13:3x JST、公式 readback）**: ① 4243672453 = status 4（公開中）・DeepSeek。Hook Lab v1.0.3（DeepSeek）・Shorts Hook Lab・Ad Hook Lab・Customer Escalation Decision Deck が承認（status 4）→ Hook Lab の Sonnet 赤字は停止（1注文の費用は推定 $3.29→$0.30、実額は OpenRouter で後日確認）。Customer Renewal Evidence Brief は自己修復 agent が自分で提出（status 1、ただし hosted model は Sonnet のまま→承認後に DeepSeek 更新）。Slide Maker の DeepSeek 更新を工場が人の手なしで提出（13:25、status 1）。Hook Lab 値上げ（日 $3.99/週 $9.99/月 $19.99、#6167）は v1.0.4 下書き作成済みで次の run が提出。原因と修正: #6141 #6145 #6146 #6150 #6155 #6157 #6159 #6161（自己修復が worktree→PR→merge→release まで自分で行う）#6163 #6167。記事の Capafy 誘導が出なかった原因 = `.env` の ARTICLE_PRODUCT_ID 固定 → 解除（次の Capafy 日は 10/2）。残り（spec 順）: X2 → X3 → C4（全スキルを売れ筋の値段帯に、年額は CP1 未対応）→ C6 → C7 → アプリ。
 
 **Capafy 市場の全体調査（2026-09-29、`POST /agent/agents/search` 本文に query、50 キーワードで 1,025 Agent。自社ではなく他の出品者を見る）**
