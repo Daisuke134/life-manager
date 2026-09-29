@@ -2644,6 +2644,7 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 - Coconala modern DM collectorの`estimate_url`抽出式に閉じ括弧が1つ不足しており、公式readbackが`SyntaxError`で停止していた。式を修復し、JavaScript構文回帰テストを追加した。
 - 修復後、認証済みCoconala DMのcanonical UID URLをread-onlyで再取得できた。collectorは過去分を含む10件を正規化し、sellerは14:27・14:34・14:40、buyerは14:33・14:36・14:41で、最新はbuyer 14:41。今回の実行では送信・正式納品をしていない。
 - 既存のcanonical公式readback証跡は`/Users/anicca/gig/trajectory/ryu-readback-20260930/uid-ryu_dm_uid.json`。送信本文のprovider永続receiptを新規発行したわけではないため、既存の一回送信を再送しない。
+- v723送信試行の本文hash `701e871577cf19e3f8e1b7e438a80cf8a7e92226384b4a7fcddf179cf03c2c5d` は、今回の公式10件の本文hash集合に存在しない。したがって、過去のseller返信3件をv723本文のreceiptと取り違えない。
 - 検証済み: Coconala/gig全suite`1580 passed`、reply adapter＋shared kernel`68 passed`、Python compile、`lm-loop-contract ok=true`、`git diff --check`。source変更はproductionへ未反映。
 
 ### 最終原子TODO（この節が最新の実行順正本）
