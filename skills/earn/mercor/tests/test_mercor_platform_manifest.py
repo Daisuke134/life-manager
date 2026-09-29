@@ -98,4 +98,3 @@ def test_mercor_platform_source_persists_meta_loop_wake_summary(tmp_path):
     assert result["status"] == "ok"
     assert result["held"] == 1
     assert runs.latest("mercor-wake-1")["held"] == 1
-
