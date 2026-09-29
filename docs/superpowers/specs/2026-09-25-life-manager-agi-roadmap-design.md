@@ -571,32 +571,49 @@ Capafy の30日の純売上 $55.04、モデルの費用 $43.61、貢献利益の
 
 現在の cursor（トラック E）: §18 に移動（§17.4 は §18 で上書き）
 
-## 18. トラック E の TODO（1手ずつ。この章が正本で、§13.6・§17.4 を上書きする。2026-09-29）
+## 18. トラック E の TODO（1手ずつ。この章が正本で、§13.6・§17.4 を上書きする。2026-09-29 改訂）
 
-どこから始めるか: **最初の eval と山登りは gig の E-reply（お客さんへの返信）。** 理由: Dais の指定（gig から）。材料と実際の失敗例がそろっている（§16）。eval は本番から切り離して作れるので、Codex のループの修理と並行できる。2本目は Capafy の E-product（売上と費用の実データがあり、費用を下げれば利益に直結する。§14.3）。本番での答え合わせ（S7）だけは、Codex の修理が終わってから行う。
+順序変更の記録: 旧順序は gig の E-reply が最初（Dais の希望による）。Dais の指示「希望を除いて、どこから始めるべきか」に従い、お金の観点だけで比べ直した。新順序は Capafy の E-product が最初、gig はその後。
+
+どこから始めるか（比較。Capafy の金額は agmsg の codex-money-printer 報告 2026-09-28 11:14Z・11:22Z からの引用で、この章の筆者は読み戻していない）:
+
+| 軸 | Capafy（商品） | gig（返信・応募） | アプリ（宣伝） | 記事 |
+|---|---|---|---|---|
+| 実際の売上 | あり（9月の売上 $68.80、純額 約 $55、83件） | 決済の確認なし | RevenueCat $32／28日、MRR $20 | 紐付けなし |
+| 費用の山登りの効き目 | 大（モデル代 $43.61 に対し貢献利益 約 $11.43） | 小 | 小 | 小 |
+| 正解つきのデータ | 公開 49本・売れた 6本 | 応募 413・返信 72・受注 4 | 少ない | 少ない |
+| 本番での答え合わせの速さ | 毎時（スキル別の利益 receipt、#6072） | 台帳が 8/12 から停止・修理中 | 遅い | 遅い |
+| ループの状態 | 稼働中（工場が自動で提出） | Codex が修理中 | 稼働中 | 稼働中 |
+
+Capafy で AI が判断している場所は2つ:
+- **売っている商品の実行時:** お客さんが Skill を使うたびに、ホストのモデル（`skills/capafy-autopublish/scripts/build_config.py` 27行 `deepseek/deepseek-v4.1-flash`、`drive_checkpoint2.py` 36行 `CAPAFY_HOSTED_MODEL_ID`、OpenRouter）を私たちのキーで呼ぶ。モデル代の出どころ。
+- **工場の出品の判断:** `skills/capafy-autopublish/scripts/daily_loop.sh` 209行の `agent_runner --task-class application-lane-agent`（どの Skill を作り、どう出品するか）。
+
+注意: Capafy は統合 SSOT の最優先で、lm-lead の系統が作業している。本番の Skill や工場の設定を変える前に、agmsg で調整する。
 
 | # | やること | 場所・道具 | できるもの | 完了の条件 |
 |---|---|---|---|---|
-| S0-1 | 最新の origin/main から worktree と branch `feat/gig-reply-eval` を作る | `git worktree add` | 作業場所 | `scripts/verify-source-boundary.sh` PASS |
-| S0-2 | agmsg で lm-lead と Codex のループ担当に、範囲（eval のファイルだけ）を伝える | agmsg チーム `lm` | 連絡の記録 | 送信できた |
-| S1-1 | 既存の eval を点検する: 生活領域の6本、`skills/earn/gig/evals/estimate_authorization_eval.py`、`skills/self/self-improve/gig/evaluator.py` | `claude-api` skill の `eval-audit.md` の6項目 | 点検の報告（spec に追記） | 各 eval の判定（残す／直す／山登りに使えない） |
-| S1-2 | `evaluator.py` を直す: 最新行（累計）を使う、列 `jpy` を読む、率と円を別々の指標にする、円は receipt で決済を確認できたものだけ | `skills/self/self-improve/gig/`（テストを先に書く） | 正しい gig の物差し | テスト PASS |
-| S2-1 | 返信の判断を呼ぶ場所を確かめる（`reply_composer.py` の `composition_prompt` と、`agent_runner.py --task-class composition-agent`） | 読むだけ | 呼び出しの手順のメモ | ファイルと行番号が spec にある |
-| S2-2 | 問題を集める: §16.3 の6つの型（断られた・確認の質問・直接の質問・詳しい依頼・最後がこちら・途絶えた）を5〜10件ずつ、計30〜50件。要約して伏せ字にする。各問題に `platform` と「なぜ難しいか」を1行 | `~/gig/reply-transcripts.jsonl`、DLQ、`connector-outbox.sqlite3`（読むだけ） | `skills/earn/gig/evals/reply/cases.jsonl` | 30件以上。個人情報なし |
+| S0-1 | 最新の origin/main から worktree と branch `feat/capafy-product-eval` を作る | `git worktree add` | 作業場所 | `scripts/verify-source-boundary.sh` PASS |
+| S0-2 | agmsg で lm-lead と Codex に範囲（eval のファイルだけ、本番の Skill と工場は変えない）を伝える | agmsg チーム `lm` | 連絡の記録 | 送信できた |
+| S1-1 | 既存の eval を点検する: 生活領域の6本、`skills/earn/gig/evals/estimate_authorization_eval.py`、`skills/self/self-improve/gig/evaluator.py`、Capafy の `lint_listing.py` | `claude-api` skill の `eval-audit.md` | 点検の報告（spec に追記） | 各 eval の判定（残す／直す／山登りに使えない） |
+| S1-2 | Capafy の金額を自分で読み戻す: スキル別の 30日の売上・モデル代・利益（毎時の receipt、#6072） | 読むだけ | 基準の数字 | spec に出所つきで記録 |
+| S2-1 | 対象の Skill を1本決める: 売れている6本のうち、30日の売上とモデル代が最も大きいもの | S1-2 の数字 | 対象の決定 | 理由つきで spec に記録 |
+| S2-2 | 問題を集める: その Skill に来る現実的な依頼を30〜50件（本番の利用記録があれば要約して伏せ字、なければ出品ページの用途から作り、合成と明記）。各問題に「なぜ難しいか」を1行 | 利用記録、出品ページ | `apps/life-manager/eval/capafy-product/<skill>/cases.jsonl` | 30件以上。個人情報なし |
 | S2-3 | **確認①:** 問題の一覧を1ページの HTML にする | build-eval Step 1 | `report.html` | Dais か Claude の承認 |
-| S2-4 | 採点を作る: コードの判定（送る／送らないの判断、禁止表現、文字数）と、はい／いいえのチェックリスト（型ごとの項目は §16.3） | build-eval Step 2 | `skills/earn/gig/evals/reply/grader.py` | 同じ答えを2回採点して判定が一致する |
+| S2-4 | 採点を作る: コードの判定（出力の形・長さ・禁止表現）と、成果物の質のはい／いいえのチェックリスト。同じ答えを2回採点して一致を確認 | build-eval Step 2 | `grader.py` | 判定が一致する |
 | S2-5 | **確認②:** 5件を採点した結果を1ページにする | build-eval | `report.html` | 承認 |
-| S2-6 | 実行役を作る: 本番と同じ `composition_prompt` と `agent_runner.py` を呼ぶ。送信はしない。`--confirm-model-calls` が無いと動かない | `estimate_authorization_eval.py` の作りを型にする | `skills/earn/gig/evals/reply/run.py` | 1件で実際のモデルの応答を読み戻せる |
-| S2-7 | 基準点を取る: 点数、ブレ幅（95% 区間）、1件あたりの費用、伸びしろ（95% 未満か） | build-eval Step 3、報告ページの生成器 | 基準の報告 | 数字が spec にある |
+| S2-6 | 実行役を作る: その Skill の `SKILL.md` とホストのモデル（OpenRouter）で実行し、トークン数と費用を記録する。`--confirm-model-calls` が無いと動かない。本番の Skill は変えない | runner-scaffold | `run.py` | 1件で実際の応答と費用を読み戻せる |
+| S2-7 | 基準点を取る: 点数、ブレ幅（95% 区間）、1件あたりの費用、伸びしろ（95% 未満か） | build-eval Step 3 | 基準の報告 | 数字が spec にある |
 | S2-8 | eval 一式を PR で main に入れる | PR → merge | main 上の eval | merge commit |
-| S3-1 | 山登り（目標は費用）: 学習用とテスト用に分け、モデルと effort → 指示文の無駄の削除、の順に1手ずつ | `/claude-api hillclimb`、`cost-hillclimb.md` | 候補の設定と報告 | テスト用で質がブレ幅内に保たれ、費用が下がる |
-| S3-2 | 山登り（目標は質）: 失敗の多い型（例: 断られた後の売り込み）の根本原因を指示文で直す | `/claude-api hillclimb` | 候補の指示文 | テスト用の点がブレ幅を超えて上がる |
-| S3-3 | 勝った変更を、agmsg と PR でループの担当に提案する（ループのファイルへ直接 merge しない） | agmsg、PR | 提案 | 担当の受け取り |
-| S4 | E-apply（応募・提案文・価格）で S2〜S3 をくり返す。材料は応募 413件 | `application_planner.py` の `planner_prompt` | 2本目の eval | S2-8 と同じ |
-| S5 | E-product（Capafy）で S2〜S3 をくり返す。材料は公開 49本・売れた 6本 | Capafy の工場 | 3本目の eval | 同上 |
-| S6 | E-promo（記事・SNS・アプリの宣伝） | — | 4本目の eval | 同上 |
-| S7 | 本番での答え合わせ: 採用した変更の前後で、返信できた割合・返信率・受注率・費用・決済された円を比べる（Codex のループ修理の後） | 台帳、receipt | 前後の比較 | 数字が spec にある |
-| S8 | LM-EAB で gig の1か月を採点できる入力を作る（CFO のループ別 P&L、SSOT T8 とつなぐ） | `apps/life-manager/eval/economic-autonomy/` | gig の episode | 実データで採点できる |
+| S3-1 | 山登り（目標は費用）: 学習用とテスト用に分け、モデル（OpenRouter の候補）と effort → `SKILL.md` の無駄の削除、の順に1手ずつ | `/claude-api hillclimb`、`cost-hillclimb.md` | 候補の設定と報告 | テスト用で質がブレ幅内に保たれ、費用が下がる |
+| S3-2 | 山登り（目標は質）: 失敗の多い点を `SKILL.md` で直す | `/claude-api hillclimb` | 候補の `SKILL.md` | テスト用の点がブレ幅を超えて上がる |
+| S3-3 | 勝った変更を、agmsg と PR で lm-lead に提案する | agmsg、PR | 提案 | 受け取り |
+| S3-4 | 本番での答え合わせ: 採用の前後で、その Skill の毎時 receipt の売上・モデル代・利益を比べる | 毎時 receipt | 前後の比較 | 数字が spec にある |
+| S4 | Capafy の工場の出品の判断（`daily_loop.sh` 209行）で S2〜S3 をくり返す。材料は公開 49本・売れた 6本 | — | 2本目の eval | S2-8 と同じ |
+| S5 | gig の E-reply（§16.3 の6つの型、材料は `~/gig/reply-transcripts.jsonl` など）。本番での答え合わせは Codex の修理の後 | — | 3本目の eval | 同上 |
+| S6 | gig の E-apply（応募 413件）。S1-2 と同じく、先に `skills/self/self-improve/gig/evaluator.py` を直す | — | 4本目の eval | 同上 |
+| S7 | E-promo（記事・SNS・アプリの宣伝） | — | 5本目の eval | 同上 |
+| S8 | LM-EAB で1ループの1か月を採点できる入力を作る（最初は Capafy。CFO のループ別 P&L、SSOT T8 とつなぐ） | `apps/life-manager/eval/economic-autonomy/` | 実データの episode | 採点できる |
 | S9 | LM が毎週、自分で eval と山登りを回し、`gate.js` が合格させた変更だけを残す | 既存の self-improve と gate | 自動の自己改善 | 人の操作なしで1回回る |
 | S10 | 予測トラック（AG1） | §11・計画書 | — | 計画書の完了条件 |
 
