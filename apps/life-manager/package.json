@@ -36,6 +36,7 @@
     "browser-matrix:production-e2e": "node scripts/browser-matrix-production-e2e.js"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "3.1141.0",
     "@browserbasehq/stagehand": "3.7.1",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",

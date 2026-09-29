@@ -31,6 +31,7 @@ const {
 } = require("../scheduler.js");
 const { inProcessLoopsOn } = require("../lib/maybe-start-loops.js");
 const { runInvestmentDryRun } = require("../lib/investment-dry-run.js");
+const { createProductionCloudRuntimeDispatcher } = require("../lib/cloud-runtime-dispatcher.js");
 
 // ── Single-writer guard ───────────────────────────────────────────────────────
 // The startup module owns this predicate. Sweepers no-op whenever in-process loops own writes,
@@ -145,6 +146,22 @@ function makeInvestmentDryRunHandler(runOnce = runInvestmentDryRun) {
   return async ({ step }) => step.run("investment-dry-run", () => runOnce());
 }
 
+function makeCloudJobHandler(dispatch) {
+  if (typeof dispatch !== "function") throw new Error("cloud job dispatcher unavailable");
+  return async ({ event, step }) => {
+    const data = event && event.data;
+    return step.run("dispatch-cloud-job", () => dispatch(data));
+  };
+}
+
+let productionCloudDispatcher;
+function dispatchProductionCloudJob(data) {
+  if (!productionCloudDispatcher) {
+    productionCloudDispatcher = createProductionCloudRuntimeDispatcher();
+  }
+  return productionCloudDispatcher.dispatch(data);
+}
+
 // ── Wired Inngest functions (real scheduler.js per-user fns) ──────────────────
 
 const sweepWake = inngest.createFunction(
@@ -203,7 +220,25 @@ const investmentCloudDryRun = inngest.createFunction(
   makeInvestmentDryRunHandler()
 );
 
-const functions = [sweepWake, wakeUser, sweepTravel, travelUser, sweepAsk, askUser, investmentCloudDryRun];
+const cloudJob = inngest.createFunction(
+  {
+    id: "cloud-job",
+    triggers: [{ event: "lm/cloud.job" }],
+    concurrency: { key: "event.data.tenant_id", limit: 1 },
+  },
+  makeCloudJobHandler(dispatchProductionCloudJob),
+);
+
+const functions = [
+  sweepWake,
+  wakeUser,
+  sweepTravel,
+  travelUser,
+  sweepAsk,
+  askUser,
+  investmentCloudDryRun,
+  cloudJob,
+];
 
 module.exports = {
   functions,
@@ -215,6 +250,7 @@ module.exports = {
   makeTravelUserHandler,
   makeAskUserHandler,
   makeInvestmentDryRunHandler,
+  makeCloudJobHandler,
   // exported for tests
   inProcessLoopsOn,
 };

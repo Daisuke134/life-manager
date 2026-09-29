@@ -264,7 +264,7 @@
 
   Keep the AWS SDK behind an injected client. Never log payloads or signed endpoints. Map AWS transient failures to bounded retry; map ambiguous post-invoke failures to reconcile, not a blind second invocation.
 
-- [ ] **Step 4: Add one Inngest function**
+- [x] **Step 4: Add one Inngest function**
 
   Add `lm/cloud.job` with `concurrency.key = event.data.tenant_id` and limit 1. Events contain only tenant/job identifiers. The handler refetches state and calls the dispatcher.
 
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06 and A13 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A11, A12, and A14 are complete; immediate order is `A15 -> A16` while the existing activation case remains inside its stated response window, then `A06 -> A07 -> A13` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06 and A13 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A11, A12, A14, and A15 are complete; immediate order is `A16` while the existing activation case remains inside its stated response window, then `A06 -> A07 -> A13` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -561,8 +561,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A12 | done | Thin AgentCore wrapper over existing kernel | wrapper 2/2 plus envelope/host 7/7; persisted canonical receipt and evidence hash exactly match local host |
 | A13 | external-blocked | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash after AWS service activation |
 | A14 | done | Runtime SDK client and dispatcher tests | 46/46 focused tests; tenant/job refetch, release, budget, atomic lease, deterministic session, bounded timeout, and zero-provider-call rejection paths |
-| A15 | **next** | One Inngest cloud-job function | tenant concurrency 1; event carries IDs only |
-| A16 | todo | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
+| A15 | done | One Inngest cloud-job function | 49/49 focused tests; `lm/cloud.job`, tenant concurrency 1, IDs-only event, atomic PostgreSQL job/tenant lease claim before AWS |
+| A16 | **next** | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
 | A17 | todo | AgentCore Browser Profile adapter | agent-owned tenant/provider profile and exact session release |
 | A18 | todo | No-human browser policy, shared-browser observation, and legacy-state migration | human credential/callback/provider effect 0; phone/web live view + emergency stop; cross-tenant view 0; optional break-glass excluded from automated success/revenue; stored `handoff_required` closes `not_applicable` without replay |
 | A19 | todo | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |

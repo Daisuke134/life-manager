@@ -4,7 +4,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { runtimeSessionId } = require("./agentcore-runtime-client.js");
-const { createCloudRuntimeDispatcher } = require("./cloud-runtime-dispatcher.js");
+const {
+  createCloudRuntimeDispatcher,
+  createProductionCloudRuntimeDispatcher,
+} = require("./cloud-runtime-dispatcher.js");
 
 const RELEASE_SHA = "a".repeat(40);
 const EVENT = Object.freeze({ tenant_id: "tenant-a", job_id: "job-a" });
@@ -113,3 +116,52 @@ test("rejects events carrying mutable job data instead of tenant/job identifiers
   assert.equal(f.invokes(), 0);
 });
 
+test("production wiring reads current rows then atomically claims the job and tenant lease before AWS", async () => {
+  const calls = [];
+  const taskRef = "lm-resource://state/tenant-a/task-a";
+  const wakeRef = "lm-resource://state/tenant-a/wake-a";
+  const dispatcher = createProductionCloudRuntimeDispatcher({
+    releaseSha: RELEASE_SHA,
+    runtimeArn: "arn:aws:bedrock-agentcore:ap-northeast-1:000000000000:runtime/life-manager",
+    leaseOwner: "dispatcher-production",
+    requestedCostUsdMicros: 20_000,
+    async query(sql, params) {
+      calls.push(["sql", sql, params]);
+      if (/FROM public\.lm_cloud_tenants/i.test(sql)) return { rows: [TENANT] };
+      if (/FROM public\.lm_runtime_jobs/i.test(sql) && !/WITH claimed_job/i.test(sql)) {
+        return { rows: [{
+          tenant_id: "tenant-a", job_id: "job-a", status: "queued", attempt: 0,
+          input_refs: { wake_ref: wakeRef, task_ref: taskRef },
+        }] };
+      }
+      if (/FROM public\.lm_cloud_usage_ledger/i.test(sql)) {
+        return { rows: [{ settled_monthly: "0", settled_all_time: "0", active_leases: "0" }] };
+      }
+      if (/WITH claimed_job/i.test(sql)) {
+        return { rows: [{
+          tenant_id: "tenant-a", job_id: "job-a", attempt: 1,
+          runtime_session_id: params[3], lease_owner: params[4],
+          lease_expires_at: params[5], generation: 1,
+        }] };
+      }
+      throw new Error("unexpected SQL");
+    },
+    async awsInvoke(command) {
+      calls.push(["aws", command]);
+      return {
+        response: { status: "completed" },
+        provider_request_id: "provider-request-a",
+      };
+    },
+  });
+
+  const result = await dispatcher.dispatch(EVENT);
+
+  assert.equal(result.disposition, "completed");
+  assert.deepEqual(calls.map(([kind]) => kind), ["sql", "sql", "sql", "sql", "aws"]);
+  const claimSql = calls[3][1];
+  assert.match(claimSql, /WITH claimed_job AS[\s\S]*UPDATE public\.lm_runtime_jobs/i);
+  assert.match(claimSql, /INSERT INTO public\.lm_cloud_runtime_leases/i);
+  assert.deepEqual(calls[4][1].payload.input_refs, [taskRef]);
+  assert.equal(calls[4][1].payload.wake_id, "wake-a");
+});

@@ -75,10 +75,40 @@ test("server.js imports serve from inngest/node (not inngest/express) — FIND-0
 test("inngest/functions.js exports a functions array", () => {
   const mod = require("../inngest/functions.js");
   assert.ok(Array.isArray(mod.functions), "functions export must be an array");
-  assert.strictEqual(mod.functions.length, 7, "must export exactly 7 Inngest functions");
+  assert.strictEqual(mod.functions.length, 8, "must export exactly 8 Inngest functions");
   const investment = mod.functions.find((fn) => fn.opts && fn.opts.id === "investment-cloud-dry-run");
   assert.ok(investment);
   assert.deepStrictEqual(investment.opts.triggers, [{ cron: "*/5 * * * *" }]);
+});
+
+test("cloud-job is tenant-serialized and triggered only by lm/cloud.job", () => {
+  const mod = require("../inngest/functions.js");
+  const cloud = mod.functions.find((fn) => fn.opts && fn.opts.id === "cloud-job");
+  assert.ok(cloud);
+  assert.deepStrictEqual(cloud.opts.triggers, [{ event: "lm/cloud.job" }]);
+  assert.deepStrictEqual(cloud.opts.concurrency, {
+    key: "event.data.tenant_id",
+    limit: 1,
+  });
+});
+
+test("cloud-job handler passes tenant/job identifiers only through one durable step", async () => {
+  const { makeCloudJobHandler } = require("../inngest/functions.js");
+  const calls = [];
+  const handler = makeCloudJobHandler(async (value) => {
+    calls.push(value);
+    return { disposition: "completed" };
+  });
+  const { step, calls: stepCalls } = fakeStep();
+
+  const result = await handler({
+    event: { data: { tenant_id: "tenant-a", job_id: "job-a" } },
+    step,
+  });
+
+  assert.deepStrictEqual(result, { disposition: "completed" });
+  assert.deepStrictEqual(calls, [{ tenant_id: "tenant-a", job_id: "job-a" }]);
+  assert.deepStrictEqual(stepCalls.run, ["dispatch-cloud-job"]);
 });
 
 // Helper: build a fake step object that records calls
