@@ -15,6 +15,7 @@ SKILLS = SKILLS_ROOT
 REPO = SKILLS_ROOT.parent
 STATUS_PATH = HERE / "status.py"
 APPLICATION_TICK_PATH = HERE / "application_tick.py"
+OPPORTUNITY_OBSERVATION_PATH = HERE / "opportunity_observation.py"
 AGENT_RUNNER = REPO / "runtime" / "agent-runner" / "agent_runner.py"
 AGENT_RUNNER_PATH = AGENT_RUNNER
 PLANNER_SCHEMA = SKILLS_ROOT / "gig-work" / "schemas" / "application_decisions.schema.json"
@@ -207,6 +208,76 @@ def _load(name: str, path: Path) -> Any:
 
 status = _load("_anicca_lancers_application_loop_status", STATUS_PATH)
 application_tick = _load("_anicca_lancers_application_loop_tick", APPLICATION_TICK_PATH)
+lancers_opportunity_observation = _load(
+    "_anicca_lancers_opportunity_observation", OPPORTUNITY_OBSERVATION_PATH,
+)
+
+
+def _write_observation_summary(path: Path, payload: Mapping[str, object]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", dir=path.parent, prefix=f".{path.name}.", delete=False, encoding="utf-8",
+        ) as handle:
+            temporary = Path(handle.name)
+            os.fchmod(handle.fileno(), 0o600)
+            json.dump(dict(payload), handle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def record_lancers_live_observation(
+    snapshot: Mapping[str, object],
+    decisions: Mapping[str, object],
+    *,
+    evidence_dir: Path,
+    pass_id: str,
+    store_root: Path | None = None,
+) -> dict[str, object]:
+    """Persist one public discovery snapshot before the Lancers effect boundary."""
+    try:
+        summary = lancers_opportunity_observation.observe_lancers_opportunities(
+            dict(snapshot),
+            dict(decisions),
+            store_root=store_root or Path(
+                os.environ.get("GIG_OPPORTUNITY_OBSERVATION_ROOT")
+                or (Path.home() / "gig" / "opportunity-observations")
+            ).expanduser(),
+            evidence_ref=f"snapshot://lancers/{pass_id}/public-discovery.json",
+        )
+    except Exception as error:  # noqa: BLE001 - no submit after an unobserved wake
+        raise RuntimeError(
+            f"lancers_opportunity_observation_failed:{type(error).__name__}"
+        ) from error
+    payload = {"version": 1, "status": "success", "pass_id": pass_id, **summary}
+    _write_observation_summary(Path(evidence_dir) / "opportunity-observation-summary.json", payload)
+    return payload
+
+
+def record_lancers_observation_source_failure(
+    evidence_dir: Path, pass_id: str, error: BaseException | str,
+) -> None:
+    """Persist a typed public-source failure without treating it as an empty market."""
+    _write_observation_summary(Path(evidence_dir) / "opportunity-observation-summary.json", {
+        "version": 1,
+        "status": "source_collect_failed",
+        "pass_id": pass_id,
+        "read_only": True,
+        "error_class": type(error).__name__ if isinstance(error, BaseException) else "ProviderError",
+        "error": str(error)[:200],
+        "next_action": "retry_lancers_public_snapshot_read_only",
+    })
 
 @dataclass(frozen=True)
 class ApplicationLoopResult:
@@ -921,7 +992,7 @@ def _rank_eligible_by_buyer_quality(eligible: Sequence[tuple[Mapping[str, object
         ranked.append(((0 if budget >= 50000 else 1, -budget, applicants, index), item))
     return [item for _key, item in sorted(ranked, key=lambda value: value[0])]
 
-def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence: Path, planner: Optional[Callable[..., object]], safety_verifier: Optional[Callable[..., object]], submitter: Optional[Callable[..., object]], state_path: Path) -> ApplicationLoopResult:
+def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence: Path, planner: Optional[Callable[..., object]], safety_verifier: Optional[Callable[..., object]], submitter: Optional[Callable[..., object]], state_path: Path, observed_snapshot: Optional[Mapping[str, object]] = None) -> ApplicationLoopResult:
     observed_count = len(rows)
     pre_filter_by_id = {str(row["external_id"]): row for row in rows if isinstance(row, Mapping) and isinstance(row.get("external_id"), str)}
     try:
@@ -960,6 +1031,28 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
             except Exception: invalid_ids.append(project_id)
         invalid_ids.extend(project_id for project_id in rows_by_id if project_id not in decisions and project_id not in invalid_ids)
     except Exception: return _batch_summary(ApplicationLoopResult(False, error="planner_contract_invalid", planner_expected_count=len(rows), planner_returned_count=returned, decision_reports=tuple(skip_reports) or None), observed_count, 0, (), ())
+    if observed_snapshot is not None:
+        try:
+            record_lancers_live_observation(
+                observed_snapshot,
+                {"decisions": list(decisions.values())},
+                evidence_dir=evidence,
+                pass_id=evidence.name,
+            )
+        except Exception:
+            return _batch_summary(
+                ApplicationLoopResult(
+                    False,
+                    error="opportunity_observation_failed",
+                    planner_expected_count=len(rows),
+                    planner_returned_count=returned,
+                    decision_reports=tuple(skip_reports) or None,
+                ),
+                observed_count,
+                0,
+                (),
+                (),
+            )
     try: _cache_no_effect(decisions, rows_by_id, state_path, invalid_ids)
     except Exception:
         # This cache only avoids re-planning hard-prohibited listings.  Receipt and
@@ -1107,17 +1200,45 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                 if turns > 1:
                     turn_evidence = evidence / f"turn-{turn + 1}"
                     turn_evidence.mkdir(mode=0o700, exist_ok=False)
+                source_error: BaseException | None = None
                 try:
                     observed = source(query=query if query is not None else _discovery_query(tick_value), limit=MAX_OPPORTUNITIES, timeout=timeout) if source is not None or query is not None else (_run_exhaustive_discovery(timeout, tick_value) if exhaustive else _run_default_discovery(tick_value, timeout, Path(state_path), frozenset(wake_seen_ids)))
-                except Exception: observed = None
-                if observed is None or not isinstance(observed, Mapping): result = ApplicationLoopResult(False, error="discovery_failed")
+                except Exception as caught:
+                    source_error = caught
+                    observed = None
+                if observed is None or not isinstance(observed, Mapping):
+                    try:
+                        record_lancers_observation_source_failure(
+                            turn_evidence,
+                            evidence.name,
+                            source_error or "discovery_result_invalid",
+                        )
+                    except Exception:
+                        pass
+                    result = ApplicationLoopResult(False, error="discovery_failed")
                 else:
                     error, opportunities = observed.get("error"), observed.get("opportunities", [])
                     if observed.get("ok") is not True and not (error == "no_normalized_opportunities" and "opportunities" in observed and not opportunities):
+                        try:
+                            record_lancers_observation_source_failure(
+                                turn_evidence,
+                                evidence.name,
+                                str(error or "discovery_failed"),
+                            )
+                        except Exception:
+                            pass
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error or "") else "discovery_failed"
                         clean_error = DISCOVERY_PROVIDER_RETRYABLE_ERRORS.get(clean_error, clean_error)
                         result = ApplicationLoopResult(False, error=clean_error)
                     elif error is not None and error != "no_normalized_opportunities":
+                        try:
+                            record_lancers_observation_source_failure(
+                                turn_evidence,
+                                evidence.name,
+                                str(error),
+                            )
+                        except Exception:
+                            pass
                         clean_error = error if isinstance(error, str) and re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", error) else "discovery_failed"
                         result = ApplicationLoopResult(False, error=DISCOVERY_PROVIDER_RETRYABLE_ERRORS.get(clean_error, clean_error))
                     elif isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence): result = ApplicationLoopResult(False, error="discovery_failed")
@@ -1144,7 +1265,16 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
                             try: today = _tick_date(tick_value)
                             except Exception: result = ApplicationLoopResult(False, error="planner_contract_invalid")
                             else:
-                                result = _plan_and_submit(fresh, today, turn_evidence, planner, safety_verifier, submitter, Path(state_path))
+                                result = _plan_and_submit(
+                                    fresh,
+                                    today,
+                                    turn_evidence,
+                                    planner,
+                                    safety_verifier,
+                                    submitter,
+                                    Path(state_path),
+                                    observed_snapshot=observed,
+                                )
                                 result = replace(result, observed_count=max(result.observed_count or 0, int(observed.get("observed_count") or 0)), already_decided_count=int(observed.get("already_decided_count") or 0))
                 observed_total = max(observed_total, result.observed_count or 0) if source is None and query is None else observed_total + (result.observed_count or 0)
                 decision_reports.extend(result.decision_reports or ())

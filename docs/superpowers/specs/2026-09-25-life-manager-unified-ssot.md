@@ -2034,3 +2034,30 @@ job IDs 0）、`git diff --check`もPASS。branch
 8. **未完** Freelancer／Upworkのapproved terms・専用identity・funded contract／milestone・
    mutation authorization・payout readback、isolated canary、rollback、settlement、cost-complete positive
    net P&Lを検証する。
+
+### 最新Lancers read-only Opportunity／natural wake接続 — 2026-09-30
+
+- 既存の公開HTML `status.run_discovery()` と `lancers_adapter.normalize_projects()` の出力を、
+  `skills/earn/lancers/scripts/opportunity_adapter.py` の `LancersSnapshotAdapter`／`LancersSnapshotSource`
+  で共有`Opportunity`／identity-bound `inspect()`へ写像した。案件ID・canonical URL・本文scope・content hashを
+  同じsnapshotへ束縛し、既応募IDはdiscoverから除外する。browser、credential、応募、返信、納品、決済は呼ばない。
+- `application_loop`のnatural wakeは、planner判断後・Lancers応募effect前に共有observation storeへ保存する。
+  `submit_required`は`eligible`、未判断・禁止は`hold`、保存失敗は応募前に停止する。公開discoverのWAF／provider
+  failureは空市場に変換せず、`source_collect_failed`と再試行actionをevidenceへ残す。
+- Lancers adapter／observationのfocused test、既存Lancers suite、shared Marketplace Core、Coconala連携を含む
+  合計657件、compile、`lm-loop-contract`（`ok=true`、catalog 14、registry 176、mapped 102、shared job IDs 0）、
+  `git diff --check`をPASSした。これはsource側の証拠であり、Lancersのprovider receipt、公式readback、実応募、
+  成約、payout、収益を証明しない。
+
+### 原子TODO（Lancers接続後の正本）
+
+1. **完了** Lancers公開discover → shared Opportunity／inspect → planner-grounded observationを自然wakeへ接続し、
+   WAF・provider failureを`source_collect_failed`として扱う。
+2. **未完** CrowdWorksの既存read-only discover/fetchを同じOpportunity／inspect／observation契約へ接続する。
+3. **未完** Mercorの既存read-only discover/fetchを同じ契約へ接続する。
+4. **未完** Coconala・Lancers・CrowdWorks・Mercorのsource branchをmainへ受入し、immutable release、loaded SHA、
+   plist argv/env、identity lease、rollback receiptを公式readbackで一致させる。
+5. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。重複送信・
+   正式納品・receiptなしのeffect fence解放はしない。
+6. **未完** capacity自然run、Freelancer／Upworkのfunded/auth gate、isolated canary、rollback、settlement、
+   cost-complete positive net P&Lを検証する。
