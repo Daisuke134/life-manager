@@ -1752,3 +1752,42 @@ job IDs 0）、`git diff --check`もPASS。branch
 8. **Meta Loopをshared kernelへ接続** — discovery scheduler、candidate durable state、policy/adapter/funded gate、isolated canary、owner provisioning、rollback、settlement、quality/P&L evaluatorを接続し、provider receipt・official readback・replay-zero・cost-complete positive net P&Lを通った改善だけを共通skill/kernelへ昇格する。
 
 **完了判定:** loopの稼働表示、source test、adapter存在、DOM表示、accepted状態、backtest、future revenueは完了・収益の証拠ではない。各外部作用は同一`occurrence_id`にprovider receiptとofficial readbackが揃った時だけverified/reconciledとする。検証済み収益は現時点で`$0`。
+
+### 最新capacity readback — 2026-09-30
+
+- 最新`origin/main`は`cd9a546b0558ee6dcef4f5543fbe25db401b28b4`。production
+  `current/RELEASE.json`は`b26ab310a2083edd1bdfb477da40d9a670251a42`のままで、capacity修正は
+  productionへ未反映である。
+- `/Users/anicca`では空き容量が約`1.4 GiB`。過去ログの失敗境界はprovider作用ではなく、
+  ENOSPC時にscratch、terminal `events.jsonl`、recovery intent、admission DBが同じ通常領域へ
+  書き込み、自己観測と回復の証拠を失うことだった。protected state、credential、provider履歴は
+  削除していない。
+- 専用branch `fix/capacity-selfheal-20260930` のremote SHAは
+  `a66e971788f11e3b7b66ccf96fce2937299e3f3f`。`runtime_reserve.py`の0600 regular-file reserveを
+  ENOSPCまたはSQLiteのdisk-full時だけ一回消費し、書込みを一回だけ再試行して復元する。
+  JSONLの部分行は元の長さへtruncateしてから再試行する。reserve不在・symlink・不正mode・復元
+  失敗は元のエラーのままfail-closedとする。effectful scratchはGC・reserve再試行をせず、
+  effect-free scratchだけallowlist済みGC後にbounded retryする。disk-cleanupはhealthyなwakeで
+  reserveを再生成する。
+- 検証はruntime capacity/reserve関連`156 passed`＋`4 subtests`、disk-cleanup`93 passed`、
+  `./bin/lm-loop-contract ok=true`（catalog 14、registry 175、mapped 102、shared job IDs 0）、
+  `git diff --check`、Python compileをPASSした。これはsource品質の証拠であり、production自然run
+  やprovider receiptの証拠ではない。
+
+### 原子TODOの更新（capacity実装後）
+
+1. **未完** main受入: source-reconcileとcapacity branchをPR/checksでmainへ統合する。完了条件は
+   最新main上のfocused/full tests、contract、diff checkがPASSすること。
+2. **未完** immutable release/apply: main由来releaseを作り、loaded SHA、plist argv/env、state
+   path、identity lease、rollback receiptをtarget ownerごとにreadbackする。強制restartはしない。
+3. **未完** capacity自然run: reserve付きterminal/recovery/admission書込みがproductionで成功し、
+   terminal event失敗0、protected deletion0、global stop0を確認する。ENOSPCを理由にeffect unknownを
+   解放しない。
+4. **未完** RyuさんDM: 認証済みbrowserが戻った時だけread-onlyで公式receipt/readbackまたは403再現を
+   保存する。送信1回、正式納品0回、再送0回を維持する。
+5. **未完** Coconala/Lancers/CrowdWorks/Mercor: occurrenceごとに自然terminal、provider receipt、
+   official readbackまたは厳密なheld理由を閉じる。receiptなしの応募・返信・納品は再送しない。
+6. **未完** Freelancer/Upwork: approved terms、専用identity、funded contract/milestone、mutation
+   authorization、payout readbackを揃えた後だけowner登録する。
+7. **未完** Meta Loop: discovery、candidate durable state、policy/adapter/funded gate、isolated
+   canary、owner provisioning、rollback、settlement、quality/P&Lをshared kernelへ接続する。
