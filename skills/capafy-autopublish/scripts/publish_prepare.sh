@@ -105,7 +105,9 @@ ICON_COPY="$CAPAFY_PUBLISH_HOME/icon.${ICON##*.}"
 # An existing Agent never prepared on this host (Slide Maker 8828622062, 2026-09-29)
 # has no publisher home yet; create it instead of failing the update.
 mkdir -p "$CAPAFY_PUBLISH_HOME" || die "could not create publisher HOME"
-cp "$ICON" "$ICON_COPY" || die "icon copy failed"
+# Release files are 0444 and cp keeps that mode, so the second prepare of the same
+# Agent could not overwrite its own copy (live 2026-09-29, 1037238583). Replace it.
+cp -f "$ICON" "$ICON_COPY" && chmod 600 "$ICON_COPY" || die "icon copy failed"
 ICON="$ICON_COPY"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
   || die "build_config failed"
