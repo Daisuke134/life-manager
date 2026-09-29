@@ -1322,3 +1322,28 @@ Gigの実稼働readbackでは、Coconala（`gig-coconala`）のApplyが `resourc
 6. Freelancerはapproved terms→account auth→source-complete inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationを満たしてからowner登録する。現時点で両platformの収益owner完了は未確認。
 7. Meta Loopのdiscovery producer/scheduler、candidate state durable store、promotion後owner provisioning、bounded rollback、settlement／quality／P&L feedbackをshared kernelへ接続する。現状はpromotion gateまでで、発見から収益確定までの自律loopは未完了。
 8. 全platformでprovider receipt付き納品・payout・cost-complete net P&Lを取得し、replay-zeroと品質gateを満たしてから実測収益を報告する。目標額を実績として扱わず、receiptがない限り「稼働中」を「稼いだ」と報告しない。
+
+**最新source修正とproduction handoffの状態（2026-09-29、投資scopeのみ）**: PR `#6219`で、`lm-fence-reconciler`のwake cap時に金融domain（`alpaca-investment-live`、`alpaca-investment-paper`、`investment-cross-venue-report`）を非金融adapterより先に処理する修正をmainへ統合した。mainは`bd7d35e29cfe9cb953375b72ae9fe91c629c958b`で、fencer `20/20`、readonly/run-bounds `37/37`、runtime loop全体`683/683`、`./bin/lm-loop-contract ok=true`、`git diff --check`を確認済みである。これはsourceの完了であり、金銭効果・注文・送金・wallet mutationではない。
+
+現行production `current`はまだ`/Users/anicca/loops/releases/20260929T195223-47ddce0e`（SHA `47ddce0eb7faf1074c960250b481527b214b9e61`）で、`bd7d35e29c`を含む新immutable releaseへは未切替である。既存のLife Manager release reconcilerが同じfleet applyを実行中なので、停止・重複起動・手動wakeはしない。新releaseが作成されたら、まずfencerと4投資ownerのloaded SHA、argv/env、natural occurrenceをreadbackする。
+
+**現在の収益判定（2026-09-29、最新read-only）**: いいえ、投資loopはまだ検証済みの金を作っていない。月次の検証済み実現投資収益は`$0/月`である。過去live公式snapshotはnet`-$0.15`（realized`-$0.10`、unrealized`-$0.05`、fees`$0.01`）、completed round trips`1/30`、cap`$100`、`capital_expansion_allowed=false`である。paperのQQQ注文は`accepted`・`filled_qty=0`・`filled_avg_price=null`、provider receipt/official readbackはnullで、約定・round trip・利益ではない。cross-venue旧occurrenceは`effect_unknown`のまま、`pre-effect-reconcile --dry-run`は`resolved=[]`・`unprovable=no_pre_effect_terminal`であり、strategy validationはnatural occurrence未実行である。Binance送金、wallet funding、live注文、meme coin署名、yield depositは未実施である。
+
+**残TODO（現在の実行順・正本、2026-09-29）**:
+
+1. **新immutable releaseの作成とowner readback**: main`bd7d35e29c`由来のreleaseを作成し、`current`切替後に`lm-fence-reconciler`、`alpaca-investment-paper`、`alpaca-investment-live`、`investment-cross-venue-report`、`investment-strategy-validation`のloaded SHA・argv/env・admissionを確認する。完了条件は新SHAのproduction readbackであり、source mergeだけでは完了にしない。
+2. **自然fence readback**: 新releaseのfencer natural wakeで旧cross-venue occurrenceを再確認する。公式receipt/readbackが無い間はheldを維持し、解放・再送しない。目的は二重送信と不確実な効果の誤計上を防ぐこと。
+3. **既存QQQのterminal readback**: 市場時間内のnatural paper wakeで同じ注文を再送せず、`filled`または`canceled/expired/rejected`、account、position、fill、provider receiptを取得する。`accepted`やwake回数は利益に数えない。
+4. **live admission retryの観測**: `alpaca-investment-live`の自然eligibilityでprovider effect前のcapacity deferから復帰するか確認する。新しい注文・手動wake・資金追加は行わない。
+5. **strategy/cross-venue証拠の結合**: `investment-strategy-validation`のnatural occurrenceと、cross-venueの日次receipt・outbox delivery・provider message IDを同一occurrenceへ結合する。欠落証拠があればP&Lへ進めない。
+6. **cost-complete net P&L**: entry/exit、fee、slippage、funding/borrow、gas、model costをreceipt単位で一度だけ控除し、net P&L・drawdown・venue healthを確定する。unknownが一つでもあれば利益を報告しない。
+7. **30/30測定とpromotion判定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。完了まではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
+8. **追加venueの段階評価**: `30/30`後にHyperliquid shadow → Solana/Pump.fun paper → yield shadow → bounded canaryの順で比較する。公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、保証された収益ではない。
+
+**release切替後の最新readback（2026-09-29 11:47 UTC以降）**: 自動reconcilerが`current`を`/Users/anicca/loops/releases/20260929T204319-bd7d35e2`（SHA `bd7d35e29cfe9cb953375b72ae9fe91c629c958b`）へ切り替え、release内に`priority_owners`の金融優先修正が存在することを確認した。`alpaca-investment-paper`と`alpaca-investment-live`は新SHAをloaded済みでnatural passだが、provider receipt/official readbackはnullであり、注文・約定・利益ではない。`lm-fence-reconciler`、`investment-cross-venue-report`、`investment-strategy-validation`はreadback時点で旧SHA表示で、自動fleet applyが継続中であるため、同じownerへ重複applyしない。実現投資収益は引き続き`$0/月`である。
+
+この時点の次cursorは、(1) 自動fleet apply完了後に残り3 ownerのloaded SHAをreadback、(2) 新SHAのfencer natural wake、(3) 既存QQQのterminal readback、(4) cost-complete P&L、(5) `30/30` natural round trips、の順である。cross-venue旧occurrenceは公式receiptなしに解放・再送せず、Binance送金・wallet funding・live注文・meme coin署名・yield depositはまだ実施しない。
+
+**最新の投資owner readback（2026-09-29 11:52 UTC以降）**: `current`は引き続き`bd7d35e29c` releaseである。`alpaca-investment-paper`はexit`75`・`host_admission_deferred:resource_capacity_busy`、`alpaca-investment-live`はexit`75`・`host_admission_deferred:resource_control_busy`で、どちらもprovider effect前・provider receiptなし・retryableである。新注文や再送は発生していない。cross-venue旧occurrenceは公式receiptなしの`effect_unknown`保持、fencer/cross-venue/strategyの旧SHA表示は自動fleet apply完了待ちである。したがって、検証済み実現投資収益は今も`$0/月`である。
+
+**残TODOの実行カーソル**: 1) 自動fleet apply完了と残り3 ownerの新SHA readback、2) fencer natural wakeで公式receiptを再確認、3) paper/liveの自然retryを観測、4) 既存QQQのterminal fill/account/position readback、5) strategy/cross-venue receipt結合、6) 全コスト込みP&L、7) positive natural round trip`30/30`、8) その後だけ追加venueのshadow→paper→bounded canary。`30/30`前のBinance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。

@@ -12,7 +12,7 @@ and calls this tool again — looping until the real success signal
 appears.
 
 This tool never probes a hardcoded debugging port. The Capafy seller session
-lives on the shared identity `coconala:kosuke` (registry:
+lives on its own identity `capafy:kosuke` (registry:
 ~/.config/ai/registry/browsers.toml); every caller MUST run this script under
 `skills/browser/with-browser.sh <identity> -- ...`, which leases the identity,
 verifies its CDP UUID, and exports CLOAK_CDP_BASE_URL/CDP for this process.
@@ -78,10 +78,10 @@ def _acquire_cdp_lock():
             time.sleep(0.2)
 
 
-# The identity coconala:kosuke banks the Capafy seller session (registry:
+# The identity capafy:kosuke banks the Capafy seller session (registry:
 # ~/.config/ai/registry/browsers.toml).  Override only for a deliberately
 # different leased identity, never to point at an ad-hoc port.
-CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "coconala:kosuke").strip() or "coconala:kosuke"
+CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "capafy:kosuke").strip() or "capafy:kosuke"
 
 
 def _detect_cdp():

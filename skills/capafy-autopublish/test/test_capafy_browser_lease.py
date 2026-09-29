@@ -7,7 +7,7 @@ probed `for port in (9222, 9223)`. Port 9222 is Dais's personal, interactive
 Chrome (registry: ~/.config/ai/registry/browsers.toml) -- loops must never
 touch it. The fix: resolve only from an already-leased endpoint
 (CP1_CDP_URL / CLOAK_CDP_BASE_URL / CDP, the env vars skills/browser/
-with-browser.sh exports after leasing identity coconala:kosuke), and fail
+with-browser.sh exports after leasing identity capafy:kosuke), and fail
 closed (exit 75, retryable) instead of guessing a port.
 """
 from __future__ import annotations
@@ -91,7 +91,7 @@ def test_cp1_agent_main_fails_closed_75_when_not_leased(monkeypatch, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"] == "capafy_browser_not_leased"
     assert payload["retryable"] is True
-    assert payload["identity"] == "coconala:kosuke"
+    assert payload["identity"] == "capafy:kosuke"
 
 
 class _FakeLock:
@@ -127,7 +127,7 @@ def test_drive_checkpoint2_require_cdp_exits_75_when_not_leased(monkeypatch, cap
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"] == "capafy_browser_not_leased"
     assert payload["retryable"] is True
-    assert payload["identity"] == "coconala:kosuke"
+    assert payload["identity"] == "capafy:kosuke"
 
 
 def test_drive_checkpoint2_require_cdp_returns_the_leased_endpoint(monkeypatch):
@@ -154,7 +154,7 @@ def test_capafy_browser_identity_defaults_to_coconala_kosuke(monkeypatch):
     for module_name in ("cp1_agent", "drive_checkpoint2"):
         monkeypatch.delenv("CAPAFY_BROWSER_IDENTITY", raising=False)
         module = _load(module_name)
-        assert module.CAPAFY_BROWSER_IDENTITY == "coconala:kosuke"
+        assert module.CAPAFY_BROWSER_IDENTITY == "capafy:kosuke"
 
 
 def test_capafy_browser_identity_is_overridable(monkeypatch):
