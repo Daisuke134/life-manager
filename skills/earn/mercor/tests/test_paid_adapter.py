@@ -2,7 +2,7 @@ import importlib.util, json, sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import pytest
-ROOT=Path(__file__).resolve().parents[4]; PATH=ROOT/"skills/earn/mercor/scripts/paid_adapter.py"
+ROOT=Path(__file__).resolve().parents[4]; PATH=ROOT/"skills/earn/mercor/scripts/paid_adapter.py"; OWNER=ROOT/"skills/earn/mercor/scripts/paid-owner"
 def load():
     spec=importlib.util.spec_from_file_location("mercor_paid_adapter_test",PATH); module=importlib.util.module_from_spec(spec); sys.modules[spec.name]=module; spec.loader.exec_module(module); return module
 def event(state,event_id="event-1"): return {"work_id":"work-1","event_id":event_id,"state":state,"evidence_ref":"https://work.mercor.com/jobs/work-1","observed_at":"2026-09-07T00:00:00Z"}
@@ -76,3 +76,6 @@ def test_human_submission_is_wait():
     m=load(); decision=m.decide({"provider_state":"authorized_work"}); assert decision["action"]=="wait" and decision["remaining_work"]
 def test_submitted_is_noop():
     m=load(); assert m.decide({"provider_state":"work_submitted"})=={"action":"noop","classification":"awaiting_buyer"}
+
+def test_paid_owner_requires_shared_funded_handoff_gate():
+    assert "--require-paid-handoff" in OWNER.read_text(encoding="utf-8")

@@ -649,7 +649,7 @@ TODO（何を・どう直すか）
 - [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）
   - [x] 7-10a 共通 `PaidHandoffReceipt` へのfail-closed adapter境界を追加した（公式snapshotの明示handoffのみ受理）。
   - [ ] 7-10b 公式UI/APIのfunding・固定価格・scope・artifact要件・buyer threadをobserverへ追加し、canonical receiptの公式readbackを取る。
-  - [ ] 7-10c receipt・replay-zeroをcanaryで確認してから、Mercor ownerへ `--require-paid-handoff` を適用する。
+  - [x] 7-10c Mercor ownerへ `--require-paid-handoff` を配線した。receipt・replay-zeroの公式canaryとimmutable release適用は未完了。
 - [ ] 7-11 crash recovery を確認する
 - [ ] 7-12 replay-zero を確認する
 
