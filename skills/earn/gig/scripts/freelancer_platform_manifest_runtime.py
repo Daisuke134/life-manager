@@ -29,10 +29,11 @@ _FREELANCER = None
 _CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
+_LIFECYCLE_STORE = None
 
 
 def _modules():
-    global _FREELANCER, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    global _FREELANCER, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
     if _FREELANCER is None:
         _FREELANCER = _load(
             HERE.with_name("freelancer_platform_manifest.py"),
@@ -44,7 +45,11 @@ def _modules():
         _CANDIDATE_STORE = _load(CORE / "platform_candidate_store.py", "freelancer_manifest_runtime_candidates")
     if _RUN_STORE is None:
         _RUN_STORE = _load(CORE / "meta_loop_run_store.py", "freelancer_manifest_runtime_runs")
-    return _FREELANCER, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    if _LIFECYCLE_STORE is None:
+        _LIFECYCLE_STORE = _load(
+            CORE / "meta_loop_lifecycle.py", "freelancer_manifest_runtime_lifecycle",
+        )
+    return _FREELANCER, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
 
 
 def default_manifest_root() -> Path:
@@ -58,7 +63,7 @@ def run_freelancer_platform_manifest_wake(
     run_root: str | Path | None = None, run_id: str,
     observed_at: str | None = None, source_discoverers: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    freelancer, cycle, candidate_store_module, run_store_module = _modules()
+    freelancer, cycle, candidate_store_module, run_store_module, _ = _modules()
     root = default_manifest_root()
     candidates = candidate_store_module.CandidateStateStore(
         candidate_root if candidate_root is not None else root / "candidates",
@@ -81,4 +86,35 @@ def run_freelancer_platform_manifest_wake(
     )
 
 
-__all__ = ["default_manifest_root", "run_freelancer_platform_manifest_wake"]
+def run_freelancer_candidate_lifecycle(
+    *,
+    candidate_root: str | Path,
+    lifecycle_root: str | Path,
+    registry: Any,
+    account_context: Mapping[str, Any],
+    candidate_id: str,
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Promote one stored Freelancer candidate through an injected registry."""
+
+    _, cycle, candidate_store_module, _, lifecycle_store_module = _modules()
+    candidates = candidate_store_module.CandidateStateStore(candidate_root)
+    lifecycle = lifecycle_store_module.MetaLoopLifecycleStore(lifecycle_root)
+    return cycle.run_registered_platform_candidate_lifecycle(
+        candidates,
+        lifecycle,
+        registry,
+        provider="freelancer",
+        candidate_id=candidate_id,
+        account_context=account_context,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+
+
+__all__ = [
+    "default_manifest_root",
+    "run_freelancer_candidate_lifecycle",
+    "run_freelancer_platform_manifest_wake",
+]
