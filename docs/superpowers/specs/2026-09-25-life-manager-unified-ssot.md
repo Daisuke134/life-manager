@@ -1357,11 +1357,11 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | `AT-06` | 完了 | paper ownerのloaded SHAをreadbackする | loaded SHA、argv/env、state rootがreleaseと一致。証拠はplist readback |
 | `AT-07` | 完了（再試行中） | 次のnatural paper wakeを待つ | 新release由来のoccurrence `alpaca-investment-paper:18d9d34693900ed0-97688` が出た。証拠はloop event |
 | `AT-08` | 完了 | 既存QQQのclient orderを公式GETする | status `filled`、filled qty `0.013493253`、filled price `$740.37`を取得。証拠はAlpaca公式GET |
-| `AT-09` | 未完（次のnatural admission後） | QQQ effectのbroker outcomeを読む | `client_order_id`とprovider receiptが同じeffectにある。証拠はreceipt row |
-| `AT-10` | 未完 | QQQ effectのstrategy receiptを読む | `strategy_receipt`が同じeffectにある。証拠はreceipt row |
-| `AT-11` | 未完 | ETF ownership stateを読む | `etf-owned-position.json`のowner、strategy、symbol、qtyが公式positionと一致。証拠はstate file |
-| `AT-12` | 未完 | natural runのcampaign結果を読む | `campaign_read`でexit `0`、provider mutationなし。証拠はloop event |
-| `AT-13` | 未完 | strategyが自然exitを出すまで待つ | 手動sellなしでexit decisionが出る。証拠はdecision receipt |
+| `AT-09` | 完了 | QQQ effectのbroker outcomeを読む | effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4` にclient/provider receiptがある。証拠はoutcome receipt row |
+| `AT-10` | 完了 | QQQ effectのstrategy receiptを読む | 同じeffectのoutcomeに`strategy_receipt`がある。証拠はreceipt row |
+| `AT-11` | 完了 | ETF ownership stateを読む | `etf-owned-position.json`のowner、strategy、symbol、qtyが公式positionと一致。証拠はstate file |
+| `AT-12` | 完了 | natural runのcampaign結果を読む | occurrence `18d9d3576a0110a8-330` がexit `0`／pass。証拠はloop event |
+| `AT-13` | 未完（次のnatural exit待ち） | strategyが自然exitを出すまで待つ | 手動sellなしでexit decisionが出る。証拠はdecision receipt |
 | `AT-14` | 未完 | exit orderを公式GETする | exit orderがterminal statusになる。証拠はbroker receipt |
 | `AT-15` | 未完 | exit後のaccountとpositionを公式GETする | QQQ qtyとcash/equityがexit receiptと一致。証拠はaccount/position readback |
 | `AT-16` | 未完 | 1 round tripのentry/exit cash flowを計算する | gross P&Lがreceiptから再計算できる。証拠はP&L row |
@@ -1381,7 +1381,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **Atomic Todoの安全境界**: `AT-01`〜`AT-24`が完了するまで、Binanceからの送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は実行しない。`AT-25`〜`AT-29`もshadow/paper観測が先であり、公式cost-complete rolling net P&Lなしに月次収益を報告しない。現在の検証済み実現収益は`$0/月`である。
 
-**現在cursor**: `AT-09`。新releaseのnatural wakeは出たが、`host_admission_deferred:resource_capacity_busy`（exit `75`、`retryable=true`、`effect_identity_status=not_written`、`provider_receipt_id=null`）でprovider effect前に再試行待ちになった。次は手動wake・注文・売却ではなく、次のnatural eligibilityでAT-09〜AT-12をreadbackする。
+**現在cursor**: `AT-13`。natural retryがadmissionを通過し、既存QQQのbroker outcome・strategy receipt・ownership state・campaign passをreadback済み。positionは`status=open`で、次は手動sellではなくstrategyのnatural exitを待つ。
 
 **最新Atomic Todo readback（2026-09-30 JST）**:
 
@@ -1391,5 +1391,14 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `alpaca-investment-paper`だけをapplyし、install event `02d24ef82971b0071be94b28`、loaded argv、`LIFE_MANAGER_RELEASE_SHA`、paper mode、owner固有state rootをreadbackした。他owner、Capafy、Binance、wallet、live注文には触れていない。
 - 新releaseの自然run `18d9d34693900ed0-97688` は `2026-09-30 00:10 JST` に発生したが、host capacity deferでprovider effectを実行していない。新規order、provider receipt、資金移動はない。これは失敗した注文ではなく、再試行可能な起動前deferである。
 - 既存QQQのAlpaca paper公式readbackは、order status `filled`、provider order id `24cc2687-f718-4019-83f1-b5928c47525c`、client order id `lm-ai-d3935170807d46a7a5cde38e`、qty `0.013493253`、平均約定 `$740.37`、account cash `$99,986.77`、equity `$99,996.75`、unrealized P&L `-$0.011065`だった。ただしentryのみで、exit済みのround tripやrealized net P&Lではない。
-- `AT-09`〜`AT-12`は、natural admissionが通って同じeffectのbroker outcome・strategy receipt・ownership state・campaign exitを取得するまで未完である。`exit 75`やpaper/unrealized値は利益に数えない。
+- 前段の`exit 75` defer readback時点では`AT-09`〜`AT-12`は未完だったが、その後のnatural reconcileで完了した（下記の最新readbackが優先）。`exit 75`やpaper/unrealized値は利益に数えない。
 - 検証済み実現投資収益は現在 `$0/月`。`$10,000/月`とgenerational wealthは目標であり、現時点の実測利益ではない。
+
+**最新natural reconcile readback（2026-09-30 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9d3576a0110a8-330` は release SHA `493017d36c9475e0d46c5b12733172f468b5bf05` で自然起動し、`exit_code=0`、`status=pass`、`next_action=none`になった。
+- outcome receipt は同じ effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4` に、client order id `lm-ai-d3935170807d46a7a5cde38e`、provider order id `24cc2687-f718-4019-83f1-b5928c47525c`、filled qty `0.013493253`、平均約定 `$740.37`、`strategy_receipt`を保持している。これで`AT-09`と`AT-10`を完了した。
+- `/Users/anicca/.local/state/life-manager/alpaca-investment-paper/etf-owned-position.json` が作成され、owner `alpaca-investment-paper`、strategy `alpaca-etf-126d-momentum-v1`、symbol `QQQ`、position qty `0.013493253`が公式positionと一致した。これで`AT-11`を完了した。
+- `campaign.json`のreadbackは既存のclosed SPY campaignを正常に読め、natural occurrenceはpassになった。新規provider mutationはなく、これで`AT-12`を完了した。campaign snapshotの過去損益は投資loopのrealized P&Lには数えない。
+- strategy receiptのposition statusは`open`、`replay_zero=false`、unrealized P&Lは`-$0.032924`である。entryだけでround trip／realized net P&Lではないため、検証済み実現収益は引き続き`$0/月`。
+- 次の1件は`AT-13`のみ。手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
