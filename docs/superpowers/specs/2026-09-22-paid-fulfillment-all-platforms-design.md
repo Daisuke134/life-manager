@@ -5933,3 +5933,35 @@ receipts.
   `8f1fdd3a6216b6fd2039575f36be8feacbc0b2a3`, the current production pointer
   remains `3975ae8996cab3325f514746a32c915f9935fddf`, and the new ordering has
   no natural production receipt yet.
+
+### Item 2 source self-healing cleanup — 2026-09-30 07:10 JST
+
+- [x] The source cleanup now handles an exact allow-listed cache root that is
+  itself open: it keeps the open root and every open/protected/symlink child,
+  while reclaiming only closed, regenerable, unreferenced children. Injected
+  `lsof` probes keep the previous fail-closed behavior; the child sweep is
+  enabled only for the real global open-path snapshot and the exact cache
+  allow-list.
+- [x] A focused regression covers an open Codex cache root containing one open
+  file and one closed file. The open file remains, the closed file is removed,
+  and `protected_deletions=0`.
+- [x] The source cleanup was run once after the ENOSPC fixture reproduction and
+  reclaimed `347586040` bytes, moving `free_before=186343424` to
+  `free_after=572334080` with `runtime_reserve_ready=true`. It preserved
+  `open=4`, `protected_path=2530`, and `symlink=2`, with
+  `protected_deletions=0`; one updater probe remained conservatively preserved.
+  No process, provider state, credential, evidence, JSONL state, or owned run
+  was stopped or deleted.
+- [x] The full disk-cleanup suite passes `96 passed`. A second read-only cleanup
+  refresh leaves the durable receipt at `free_after=614379520` and
+  `runtime_reserve_ready=true`; the latest receipt records `reclaimed=0` because
+  the closed children were already removed.
+- [ ] This closes the source-side item-2 admission work only. Production still
+  points at the old release, so item 3 (live-owner boundary diagnosis) and
+  item 4/5 (immutable release and approved live transition) remain open. The
+  cleanup must remain fail-closed when capacity or open-path evidence is
+  unavailable.
+
+Current cursor after the source cleanup repair: item 3. The next safe action is
+to reconcile the live owner boundary against a main-derived immutable release;
+there is still no authorization to stop, kill, or restart an active owner.

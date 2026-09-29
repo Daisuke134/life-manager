@@ -321,6 +321,16 @@ def _default_lsof(path: Path) -> str:
     return "probe-error"
 
 
+def _path_is_open_from_snapshot(path: Path, opened: frozenset[str]) -> bool:
+    """Check one path against the single global lsof snapshot."""
+    try:
+        root = str(path.resolve())
+    except OSError:
+        return True
+    prefix = root + "/"
+    return any(entry == root or entry.startswith(prefix) for entry in opened)
+
+
 def _default_bootstrap_health(home: Path, state_dir: Path) -> dict[str, object]:
     """Read-only Directory Services and launchd preflight for the real Mac user."""
     if sys.platform != "darwin":
@@ -731,6 +741,102 @@ class HostDiskGovernor:
                 except OSError:
                     return "descendant_probe_error"
         return "descendant_probe_error" if errors else None
+
+    def _reclaim_closed_cache_children(
+        self, cache: Path, *, deadline: float | None = None
+    ) -> dict[str, object]:
+        """Reclaim closed descendants while an allow-listed cache root is open."""
+        result: dict[str, object] = {
+            "reclaimed": 0,
+            "preserved": 0,
+            "errors": 0,
+            "preserved_reasons": {},
+        }
+        reasons: dict[str, int] = result["preserved_reasons"]  # type: ignore[assignment]
+
+        def preserve(reason: str) -> None:
+            result["preserved"] = int(result["preserved"]) + 1
+            reasons[reason] = reasons.get(reason, 0) + 1
+
+        opened = _open_paths()
+        if opened is None:
+            result["errors"] = 1
+            preserve("cache_open_probe_error")
+            return result
+
+        def visit(path: Path) -> None:
+            if deadline is not None and self.clock() >= deadline:
+                preserve("probe-budget-exhausted")
+                return
+            try:
+                if path.is_symlink():
+                    preserve("symlink")
+                    return
+                if self._protected(path):
+                    preserve("protected_path")
+                    return
+                is_directory = path.is_dir()
+            except OSError:
+                result["errors"] = int(result["errors"]) + 1
+                preserve("cache_child_probe_error")
+                return
+
+            if _path_is_open_from_snapshot(path, opened):
+                if not is_directory:
+                    preserve("open")
+                    return
+                try:
+                    children = sorted(path.iterdir())
+                except OSError:
+                    result["errors"] = int(result["errors"]) + 1
+                    preserve("cache_child_probe_error")
+                    return
+                for child in children:
+                    visit(child)
+                return
+
+            if is_directory:
+                descendant_state = self._protected_descendant(path, deadline=deadline)
+                if descendant_state == "protected_descendant":
+                    try:
+                        children = sorted(path.iterdir())
+                    except OSError:
+                        result["errors"] = int(result["errors"]) + 1
+                        preserve("cache_child_probe_error")
+                        return
+                    for child in children:
+                        visit(child)
+                    return
+                if descendant_state is not None:
+                    result["errors"] += descendant_state == "descendant_probe_error"
+                    preserve(descendant_state)
+                    return
+
+            before = _bytes(path, deadline=deadline, clock=self.clock)
+            if before is None:
+                preserve("probe-budget-exhausted")
+                return
+            try:
+                self._remove_tree(path) if is_directory else path.unlink()
+            except OSError:
+                result["errors"] = int(result["errors"]) + 1
+                preserve("remove_failed")
+                return
+            if path.exists() or path.is_symlink():
+                result["errors"] = int(result["errors"]) + 1
+                preserve("path_still_present")
+                return
+            result["reclaimed"] = int(result["reclaimed"]) + before
+
+        try:
+            children = sorted(cache.iterdir())
+        except OSError:
+            result["errors"] = 1
+            preserve("cache_child_probe_error")
+            return result
+        for child in children:
+            visit(child)
+        return result
 
     def _allowlisted_candidate(self, path: Path, item: dict) -> bool:
         """Require discovery proof and an exact regenerable path family."""
@@ -1154,6 +1260,20 @@ class HostDiskGovernor:
                 preserve("probe-budget-exhausted")
                 continue
             if state != "confirmed-closed":
+                if (
+                    state == "open"
+                    and self.lsof is _default_lsof
+                    and item.get("owner") in EXACT_CACHE_ROOTS
+                ):
+                    child_result = self._reclaim_closed_cache_children(
+                        path, deadline=deadline
+                    )
+                    result["reclaimed"] += int(child_result["reclaimed"])
+                    result["preserved"] += int(child_result["preserved"])
+                    result["errors"] += int(child_result["errors"])
+                    for reason, count in dict(child_result["preserved_reasons"]).items():
+                        reasons[reason] = reasons.get(reason, 0) + int(count)
+                    continue
                 result["errors"] += state == "probe-error"
                 preserve(state)
                 continue

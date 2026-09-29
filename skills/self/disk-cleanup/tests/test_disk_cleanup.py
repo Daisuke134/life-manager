@@ -1533,6 +1533,42 @@ def test_exact_cache_probe_fails_closed_when_global_lsof_reports_stderr(tmp_path
     disk_cleanup._open_paths.cache_clear()
 
 
+def test_open_exact_cache_reclaims_only_closed_regenerable_children(
+    tmp_path: Path, monkeypatch
+) -> None:
+    cache = tmp_path / "Library/Caches/Codex"
+    cache.mkdir(parents=True)
+    open_file = cache / "open-entry"
+    closed_file = cache / "closed-entry"
+    open_file.write_bytes(b"o" * 32)
+    closed_file.write_bytes(b"c" * 64)
+    monkeypatch.setattr(
+        disk_cleanup,
+        "_open_paths",
+        lambda: frozenset({str(open_file)}),
+    )
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        usage=lambda: (0, 1),
+    )
+
+    result = governor.sweep(
+        [{
+            "path": cache,
+            "class": "regenerable_output",
+            "owner": "codex-cache",
+            "discovery": "allowlisted",
+        }]
+    )
+
+    assert cache.exists()
+    assert open_file.exists()
+    assert not closed_file.exists()
+    assert result["reclaimed"] == 64
+    assert result["protected_deletions"] == 0
+
+
 def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)
