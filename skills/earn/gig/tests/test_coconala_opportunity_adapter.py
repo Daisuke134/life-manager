@@ -123,7 +123,7 @@ def test_invalid_snapshot_or_unknown_opportunity_fails_closed():
 
 
 def test_coconala_adapter_feeds_the_shared_read_only_runner(tmp_path):
-    read_only = adapter.CoconalaSnapshotAdapter(_snapshot())
+    read_only = adapter.CoconalaSnapshotSource(lambda: _snapshot())
     store = observation_store.OpportunityObservationStore(tmp_path / "observations")
 
     result = discovery_runner.run_opportunity_discovery(
@@ -140,3 +140,30 @@ def test_coconala_adapter_feeds_the_shared_read_only_runner(tmp_path):
     assert result["inspected"] == 1
     assert result["held"] == 1
     assert store.latest("coconala", "request:2")["next_action"] == "evaluate_workflow"
+
+
+def test_snapshot_source_loads_the_authenticated_snapshot_once_per_wake():
+    calls = 0
+
+    def load_snapshot():
+        nonlocal calls
+        calls += 1
+        return _snapshot()
+
+    source = adapter.CoconalaSnapshotSource(load_snapshot)
+
+    [opportunity] = source.discover()
+    inspected = source.inspect(opportunity.opportunity_id)
+
+    assert inspected.opportunity == opportunity
+    assert calls == 1
+
+
+def test_snapshot_source_maps_collector_failure_to_read_only_error():
+    def load_snapshot():
+        raise RuntimeError("browser session unavailable")
+
+    source = adapter.CoconalaSnapshotSource(load_snapshot)
+
+    with pytest.raises(adapter.CoconalaDiscoveryError, match="snapshot_collect_failed"):
+        source.discover()

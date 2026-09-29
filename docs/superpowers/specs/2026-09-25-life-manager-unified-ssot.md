@@ -1995,7 +1995,7 @@ job IDs 0）、`git diff --check`もPASS。branch
 5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、settlement、
    cost-complete P&L。
 
-### 最新Coconala opportunity adapter — 2026-09-30
+### 最新Coconala opportunity adapter／collector source bridge — 2026-09-30
 
 - `fix/source-reconcile-20260930` の `ae08911756` で、既存のCoconala application snapshotを
   shared `Opportunity`/`OpportunityDetail`へ変換する純粋な
@@ -2007,14 +2007,28 @@ job IDs 0）、`git diff --check`もPASS。branch
 - 無効snapshot、未知案件ID、上限超過はfail-closed。Coconala adapter/provider contractのfocused
   testは16件PASSした。これはsource-side read-only境界の証拠であり、実アカウントのprovider receipt、
   RyuさんDMの公式readback、応募・納品・収益を証明しない。
+- 今回のsource bridgeで、既存の認証済みcollectorを`CoconalaSnapshotSource`の`snapshot_loader`として
+  注入でき、同じwakeではsnapshotを一度だけ取得して`discover()`／`inspect()`へ渡す。CDP/sessionの管理は
+  collectorに残し、bridge自身はbrowser、応募、返信、納品、決済を呼ばない。collector例外は
+  `snapshot_collect_failed`へfail-closedで変換する。
+- Coconala adapter 7件、Marketplace Core＋Coconala adapter＋provider adapter 340件、
+  `lm-loop-contract`（`ok=true`、catalog 14、registry 176、mapped 102、shared job IDs 0）、compile、
+  `git diff --check`をPASSした。source bridgeのテストPASSは、実browserの現在状態、provider receipt、公式
+  readback、応募・納品・成約・payout・収益の証拠ではない。production loaded SHAは未変更である。
 
-### 原子TODO（Coconala read-only adapter後）
+### 原子TODO（collector source bridge後の正本）
 
-1. **完了** Coconala snapshotをshared opportunity contractへ写像し、未応募・募集中のdiscoverと
-   identity-bound inspectをテストした。
-2. **未完** opportunity用の共通read-only discovery runnerを作り、Coconala adapterをsourceとして
-   `inspected/eligible/held/next_action`をdurableに記録する。応募・返信・納品はrunnerから呼べない。
-3. **未完** Lancers、CrowdWorks、Mercorも同じOpportunity/inspect契約へ一つずつ写像する。
-4. **未完** main受入・immutable release・loaded SHA readback、RyuさんDMと各platformの公式receipt/readback。
-5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、settlement、
-   cost-complete P&L。
+1. **完了** Coconalaの既存snapshot collectorを一回取得・identity-bound inspect・shared read-only runnerへ
+   渡すsource bridgeを追加し、collector失敗を応募なしの型付きエラーへ閉じた。
+2. **未完** natural wakeの実装箇所で、実際の`CdpSnapshotCollector` callbackをこのsourceへ接続し、同じwakeの
+   observation storeへ`inspected/eligible/held/next_action`を書き込む。認証sessionが無い場合は候補を作らず
+   `held`または`source_collect_failed`として残す。外部mutationは行わない。
+3. **未完** Lancers、CrowdWorks、Mercorの既存read-only discover/fetchを同じOpportunity／inspect契約へ
+   一つずつ接続する。
+4. **未完** source branchをmainへ受入し、main由来immutable release、loaded SHA／plist argv-env／identity
+   lease／rollback receiptを公式readbackで一致させる。source test PASSだけでproduction完了と数えない。
+5. **未完** RyuさんDMおよび各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。
+   送信1回、正式納品0回、receiptなしの再送・effect fence解放0を維持する。
+6. **未完** capacity自然run、Freelancer／Upworkのapproved terms・専用identity・funded contract／milestone・
+   mutation authorization・payout readback、isolated canary、rollback、settlement、cost-complete positive
+   net P&Lを検証する。

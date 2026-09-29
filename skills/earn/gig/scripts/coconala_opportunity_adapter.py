@@ -151,9 +151,47 @@ class CoconalaSnapshotAdapter:
         return inspect_from_snapshot(self._snapshot, opportunity_id)
 
 
+class CoconalaSnapshotSource:
+    """Read-only bridge from the existing authenticated collector to the shared runner.
+
+    ``snapshot_loader`` is deliberately injected: the existing browser collector owns
+    CDP/session lifecycle, while this source owns one immutable snapshot per wake.  A
+    failed collector is converted to a typed discovery error and cannot fall through to
+    an empty candidate list or any provider mutation.
+    """
+
+    def __init__(self, snapshot_loader: Any, *, max_items: int = 40):
+        if not callable(snapshot_loader):
+            raise CoconalaDiscoveryError("snapshot_loader_invalid")
+        if type(max_items) is not int or not 1 <= max_items <= 40:
+            raise CoconalaDiscoveryError("discovery_bound_invalid")
+        self._snapshot_loader = snapshot_loader
+        self._max_items = max_items
+        self._adapter: CoconalaSnapshotAdapter | None = None
+
+    def _loaded(self) -> CoconalaSnapshotAdapter:
+        if self._adapter is not None:
+            return self._adapter
+        try:
+            snapshot = self._snapshot_loader()
+        except CoconalaDiscoveryError:
+            raise
+        except Exception as error:  # noqa: BLE001 - typed at the read-only boundary
+            raise CoconalaDiscoveryError("snapshot_collect_failed") from error
+        self._adapter = CoconalaSnapshotAdapter(snapshot, max_items=self._max_items)
+        return self._adapter
+
+    def discover(self) -> list[Opportunity]:
+        return self._loaded().discover()
+
+    def inspect(self, opportunity_id: str) -> OpportunityDetail:
+        return self._loaded().inspect(opportunity_id)
+
+
 __all__ = [
     "CoconalaDiscoveryError",
     "CoconalaSnapshotAdapter",
+    "CoconalaSnapshotSource",
     "inspect_from_snapshot",
     "opportunities_from_snapshot",
 ]
