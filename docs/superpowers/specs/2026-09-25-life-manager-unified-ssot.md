@@ -2530,6 +2530,22 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 6. **未完** Upwork／Freelancerのfunded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを満たすまでownerを有効化しない。
 7. **未完** Meta Loopのscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackを全platformへ一般化する。
 
+## 現在の正本cursor（2026-09-30、明示platform registry一般化後）
+
+- `fix/source-reconcile-20260930`のHEADは`e80df75629`。shared `platform_manifest_cycle.py`は既存4 platformを既定値として保持しつつ、`providers=(...)`を明示指定すればUpwork／Freelancerを同じbounded cycleへ追加できる。未設定sourceはtyped `partial`、未知providerはfail-closedであり、provider mutationは呼ばない。
+- Upwork／Freelancer runtimeは個別`run_meta_loop_wake`ではなく、このshared cycleを使う。新規providerごとに独自schedulerを複製しない。
+- 検証済み: registry cycle `5 passed`、Upwork／Freelancer manifest runtime `11 passed`、全gig`1575 passed`、Marketplace Core＋runtime/loop`1137 passed (576 subtests)`、compile、contract、diff。source/runtimeの証拠であり、production apply、provider receipt、収益の証拠ではない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** 既存4 platform＋Upwork＋Freelancerを、明示registry付きのshared Meta Loop cycleへ載せられるsource/runtime境界を作る。
+2. **未完（現在cursor）** Freelancerのauthenticated inventory collector/callerを接続し、approved automation terms・identity・official inventoryの全readbackが揃わない限りholdを維持する。
+3. **未完** branch全体をmainへ受入できるchecksへそろえ、main由来immutable release→targeted apply→loaded SHA／plist／identity lease／rollback receipt→natural terminal→公式readbackを完了する。
+4. **未完** capacity／ENOSPC修正をproductionへ反映し、effect-free scratch reclaim／reserve retry／runtime evidenceを自然runで実測する。
+5. **未完** RyuさんDMの既存一回送信のprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品はしない。
+6. **未完** Upwork／Freelancerのfunded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを確認してからownerを有効化する。
+7. **未完** Meta Loop scheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&Lを全platformで公式receipt付きに閉じる。
+
 ## 現在の正本cursor（2026-09-30、Freelancer契約後の全体回帰）
 
 - `fix/source-reconcile-20260930`のHEADは`f75798b847`でremote branchと一致する。Coconala／Lancers／CrowdWorks／Mercor／Upworkの自然wake sourceと、Freelancerのread-only manifest／runtime契約がsource側にある。
