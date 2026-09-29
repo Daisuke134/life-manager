@@ -2054,6 +2054,12 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `lm-loop status --json`は`admission_effect_unknown=false`、occurrences `[]`、`stale_event=resource_effect_unknown_resolved`を返した。04:21 JSTの新しいdefer eventは履歴として残るが、provider effectはなく、fenceは現在解放済みである。
 - これはentry/exitや利益の証拠ではない。新しいcompleted daily sessionのexit decision receiptはまだなく、`AT-13`は未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`である。次はmanual wakeではなくnatural scheduler retryを待つ。
 
+**AT-13 fence解放後natural retry readback（2026-09-30 04:27 JST）**:
+
+- fence解放後の04:26 JST attempt `alpaca-investment-paper:18d9e13c4ae49eb8-75535` は一時的に`host_admission_deferred:resource_capacity_busy`（exit 75）になったが、effect identityは書かれておらずprovider receiptもない。
+- 自動retry `alpaca-investment-paper:18d9e13f2cc2c128-76629` は04:27 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。schedulerは`runs=62`、直近exit `0`で、fence解放後の通常natural pathが復旧した。
+- 新しいdecision receipt `a034d00d539970708b06445ca33b13edc2698dc9100151b39c59fc7540b0c8c6`は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`である。exit order／exit fill／provider receiptはなく、`AT-13`は未完、実現投資収益は`$0/月`である。
+
 **AT-13公式paper clock readback（2026-09-30 04:05 JST）**:
 
 - 公式paper observationのclockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、`next_open=2026-09-30T09:30:00-04:00`（22:30 JST）である。したがって現在は、`2026-09-29`のcompleted daily sessionがまだ確定する前である。
