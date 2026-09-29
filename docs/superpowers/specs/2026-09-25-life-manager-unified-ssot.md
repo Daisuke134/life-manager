@@ -2513,3 +2513,19 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 5. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品・receiptなしのeffect fence解放はしない。
 6. **未完** Freelancer／Upworkのapproved terms、専用identity auth、source-complete inventory、funded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを満たすまでownerを有効化しない。
 7. **未完** Meta Loopをscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackまで接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
+
+## 現在の正本cursor（2026-09-30、Freelancer manifest契約追加後）
+
+- `fix/source-reconcile-20260930`のHEADは`203826d3d1`。FreelancerにもUpworkと同じplatform-level read-only manifest／runtimeを追加した。identity／projects／payments／payoutsのsource hashとaccount hashだけを投影し、automatic-bid policy、funded work、canary、economicsは`unknown`のままholdする。
+- Freelancerの公開bid watcherは認証済みinventoryではないため、まだこのmanifest callerへ接続していない。認証・provider-approved automation terms・source-complete official readbackが揃うまで、応募・message・owner登録はしない。
+- 検証済み: Freelancer manifest/runtime `5 passed`、既存Freelancer readiness／transport `43 passed`、Python compile、`git diff --check`。これはsource契約の証拠であり、Freelancerのauth、funded contract、provider receipt、canary、payout、利益の証拠ではない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** Freelancerのplatform manifest schema／hold gate／単独durable wake runtimeを追加する。公開案件やbid行をplatform evidenceへ昇格させない。
+2. **未完（現在cursor）** Freelancerのapproved automation terms、専用identity auth、source-complete official inventory（identity／projects／milestones／payments／payouts）をread-only callerへ接続する。欠落時はpartial／holdで止める。
+3. **未完** branch全affected suiteを再実測し、main受入・immutable release・targeted apply・loaded SHA／plist／identity lease／rollback receipt・natural terminal・公式readbackを順に確認する。
+4. **未完** capacity／ENOSPC修正をproductionへ反映後、effect-free scratch reclaim／reserve retry／runtime evidence保存を自然runで実測する。`resource_capacity_busy`を成功扱いにしない。
+5. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品はしない。
+6. **未完** Upwork／Freelancerのfunded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを満たすまでownerを有効化しない。
+7. **未完** Meta Loopのscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackを全platformへ一般化する。
