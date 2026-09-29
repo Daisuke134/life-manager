@@ -928,6 +928,22 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorは専用`mercor:dais`のresolver readback→account-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
 7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
 
+**最新Codex readback／Coconala effect fence境界（2026-09-29、専用worktree）**: Ryuさんへの最新統合本文は、最新DM要求を一つにまとめ、正規identity `coconala:kosuke` から送信クリック1回だけ実行した。正式納品ボタンは押していない。同一本文の事前重複は0件、直後の公式DOMバブルは1件で、再送は禁止する。再読み込み後の`403 Forbidden`でprovider永続readbackだけが未確認であり、これは未送信の根拠ではない。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。
+
+同じ誤判定を全platformで繰り返さないため、`hf-gig-apply-direct` の`effect_unknown`が`no_readback_adapter`で止まっていた根因を切り分けた。既存の応募readback scriptをgeneric fence loopから直接起動すると、browser identityが環境へ渡らず、登録済みprofileを安全にleaseできない。今回のsource修正は、`skills/earn/gig/scripts/coconala_application_effect_reconcile.py`を追加し、(1) admission DBとintentの1対1対応をブラウザなしで確認、(2) exact targetがある時だけ `skills/browser/with-browser.sh coconala:kosuke -- ...application_occurrence_reconcile.py` を呼び、(3) live ownerがidentityを保持している時は`BROWSER_WAIT_SECONDS=0`で即時defer、(4) identityの自動provisionを行わず、(5)送信・再送・正式納品を一切しない、という境界にした。`hf-gig-storefront-direct`は既存のlocal-only `storefront_pre_effect_reconcile.py`をregistryへ接続した。registryのgenerated fixtureも再生成済みである。
+
+source検証は `skills/earn/gig/tests` **1541 passed**、Coconala adapter／fence／registry focused suite **148 passed, 183 subtests passed**、`./bin/lm-loop-contract` **ok=true**（catalog 14、registry 174、mapped 101、shared job IDs 0）、`git diff --check`、Python syntaxがPASS。変更はworktree `.../.worktrees/lm-release-boundary-20260929` / branch `fix/lm-release-boundary-20260929`にあり、origin/main `47ddce0e…`を取り込んだが、まだmainへ統合・immutable release化・production applyしていない。したがって本番の旧`hf-gig-paid-direct`等を停止・再起動せず、現在のCoconala browser leaseを奪わない。
+
+直近のproduction readbackでは`current=/Users/anicca/loops/releases/20260929T195223-47ddce0e`（`RELEASE.json` ref `47ddce0e…`）。ただしaction labelは同一ではない。`hf-gig-browser`／`hf-gig-reply-detector`／`hf-gig-storefront-direct`は`47ddce0e…`、`hf-gig-apply-direct`は`287d913c…`、`hf-gig-apply-reconcile`／`hf-gig-paid-direct`は`acaadb2f…`のloaded SHAである。Paid processは現在も`coconala:kosuke` leaseを保持しているため、今回のCodexは停止・再起動・lease奪取をしていない。新adapterはsourceだけで、productionで有効になったとは報告しない。
+
+**この境界の残TODO（成果順）**:
+
+1. [進行中] 上記wrapper・registry・fixture・focused tests・specを専用branchへcommit/pushし、required checksを通す。
+2. [未完] PRをmainへ統合し、main由来immutable releaseを作成する。productionへは一度に全体適用せず、Coconalaの各action ownerを一つずつ対象限定applyする。
+3. [未完] 各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを確認する。`effect_unknown`は公式receiptなしに解放せず、現在のlive paid loopのleaseを奪わない。
+4. [未完] Coconala DMが403から回復した後、Ryuスレッドをread-onlyで一度だけ再取得し、v723本文のprovider永続receiptを確認する。確認できなくても再送しない。
+5. [未完] Coconalaの後にLancers・CrowdWorks・Mercor・Freelancer・Upworkを同じshared kernel（identity→funded handoff→effect fence→公式receipt→settlement/P&L）へ順に接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
+
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
 公式OSSの共通手順は、backtest/research → paper/dry-run → official readback付きの小額live検証であり、OSSやpaper損益自体は利益保証ではない。[Freqtrade](https://docs.freqtrade.io/en/stable/)はdry-runをlive前に要求し、[Hummingbot](https://github.com/hummingbot/hummingbot)はpaper tradeとlive executionを分離する。[LEAN](https://github.com/QuantConnect/Lean)と[QuantConnectのlive reconciliation docs](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation)はfill・fee・slippage・market impactの差を明記し、[Alpacaのpaper docs](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)はpaperがmarket impact等を再現しないと説明する。よって投資loopはweb上の成功談や29回の手動wakeを利益証拠にせず、`main由来immutable release → Life Manager自然paper receipt → cost-complete net P&L → 30 natural samples → bounded promotion`を維持する。

@@ -1259,6 +1259,14 @@
       },
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/coconala_application_effect_reconcile.py"
+        ],
+        "occurrence_flag": null,
+        "resolve_flag": null,
+        "timeout_seconds": 900
+      },
       "entrypoint": "runtime/loop/entry_dispatch.py",
       "label": "ai.anicca.hf-gig-apply-direct",
       "log_root": "~/.local/state/life-manager/coconala/apply/logs",
@@ -1420,6 +1428,14 @@
       },
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/storefront_pre_effect_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": null,
+        "timeout_seconds": 900
+      },
       "entrypoint": "runtime/loop/entry_dispatch.py",
       "label": "ai.anicca.hf-gig-storefront-direct",
       "log_root": "~/.local/state/life-manager/coconala/storefront/logs",
