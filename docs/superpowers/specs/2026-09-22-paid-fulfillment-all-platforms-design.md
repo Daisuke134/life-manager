@@ -6002,3 +6002,14 @@ there is still no authorization to stop, kill, or restart an active owner.
   `3975ae8996cab3325f514746a32c915f9935fddf`; no launchd owner was stopped,
   restarted, or changed. The next cursor is item 4: main-derived immutable
   release acceptance and provenance, before any live transition.
+
+### Shared platform acceptance recheck — 2026-09-30 07:16 JST
+
+- [x] The source branch re-ran the platform suites without provider effects:
+  Gig `1584 passed`, Lancers `270 passed`, CrowdWorks `277 passed`, Mercor
+  `59 passed`, and shared marketplace-core `356 passed`.
+- [x] These are source/contract gates only. They do not authorize a provider
+  submission, release merge, launchd mutation, or customer delivery claim.
+- [ ] Item 4 remains open until the pushed source is integrated through the
+  main-derived immutable-release path and its provenance is independently
+  read back. Production remains on the old SHA above.
