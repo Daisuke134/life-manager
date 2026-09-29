@@ -299,3 +299,35 @@ flowchart LR
 | A7 | 介入を少ない割合でランダムに外す（micro-randomization）。安全ゲートと上限つき | JITAI・HeartSteps の設計 | 外した回と外さなかった回の差が台帳から計算できる |
 | A8 | 小型の自前予測モデル v0 を台帳から学習し、GPT の予測と比べる | A2 の台帳、§6 の M1/M2 | held_out で Brier が GPT 以上に良い |
 
+
+## 12. eval の作り方と山登り（hillclimbing）
+
+出所: Lance Martin "Automating eval design and hillclimbing with Claude"（2026-09-28） https://claude.dev/blog/automating-eval-design-and-hillclimbing/ 。`claude-api` skill の `build-eval` と `hillclimb` の手順。
+
+### 12.1 記事の原則と LM の現状（2026-09-29 実測）
+
+| 原則（記事） | LM の現状 | 判定 |
+|---|---|---|
+| タスクは本番を映す | LM-EAB は fixture 4件。生活領域 eval は手書きケース | 未達。本番の occurrence・失敗（SSOT の uncovered 13件）から作る |
+| 強いモデル・多い思考ほど点が上がる | 生活領域 eval は決定的なルールのコードを採点しており、モデルを測っていない | 未達。A1 の予測トラックはモデルの予測を採点するので満たせる |
+| 最強のモデルでも 100% 未満の余地 | `run-{phy,men,calendar,intent,late,relation}-eval.js` は 19/19・15/15・21/21・18/18・12/12・10/10、**すべて 100%** | 余地ゼロ。回帰テストとして残し、山登りには使わない |
+| 実行ごとのばらつきが小さい | 採点は決定的 | 達成 |
+| 今のモデルが失敗するものだけを集めない | — | ケースを入れる時に「なぜ難しいか」を1行書く |
+| 学習用とテスト用を分ける | LM-EAB に `tuning` / `held_out` がある | 達成（そのまま使う） |
+| 答えをモデルの手の届かない所に置く | `agent-contract/gate.js` が eval ディレクトリなどを候補の編集から守る | 達成（そのまま使う） |
+| 失敗の内容をプロンプトに貼らない | 規則なし | gate に追加する（A5） |
+| ノイズより大きい改善だけを採用し、信頼区間で報告 | 反復試行・信頼区間は未実装（Foundation spec の次の一手 4） | A9 で足す |
+
+### 12.2 LM への当てはめ
+
+- **山登りする面:** 各ループの `SKILL.md`・プロンプト・モデルと effort の選択。安く変えられて、元に戻せて、点数の変化の原因が分かる面に限る。ハーネスのコードを自由に書き換える山登りはしない（記事の「attributable」「cheap iteration」）。
+- **最初の目標は費用:** 成果を保ったまま費用を下げる。LM の利益の定義（settled revenue − cost）に直結し、自己資金化（SSOT T13）を早める。
+- **RSI-1 の具体的な手順にする:** 候補の生成 → tuning で採点 → held_out で確認 → ノイズより大きい改善だけを gate が昇格させる → rollback を残す。既存の `skills/self/self-improve/*/evaluator.py` と `agent-contract/gate.js` をそのまま使う。
+
+### 12.3 追加 TODO（§11.4 に続く）
+
+| # | タスク | 既存の土台 | 完了の証拠 |
+|---|---|---|---|
+| A9 | 反復試行と信頼区間: 同じケースを N 回走らせ、平均と 95% 区間を出す。ノイズの幅を記録する | LM-EAB `run.js`、A1 `run.js` | 2回の独立した実行で区間が重なる |
+| A10 | 本番由来のケース: SSOT の uncovered failure と effect_unknown の occurrence から、ループの判断を問うケースを作る（モデルの出力を採点する）。各ケースに「なぜ難しいか」を1行 | `lm-loop status`、台帳、receipt | tuning / held_out の両方に10件以上。最強のモデルでも 100% 未満 |
+| A11 | 1ループで費用の山登りを1回: 対象は `SKILL.md` とモデル・effort の選択だけ | A9・A10、gate | held_out で成果が落ちず、費用が下がり、差がノイズより大きい |
