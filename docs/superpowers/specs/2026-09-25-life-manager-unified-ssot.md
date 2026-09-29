@@ -944,6 +944,19 @@ source検証は `skills/earn/gig/tests` **1541 passed**、Coconala adapter／fen
 4. [未完] Coconala DMが403から回復した後、Ryuスレッドをread-onlyで一度だけ再取得し、v723本文のprovider永続receiptを確認する。確認できなくても再送しない。
 5. [未完] Coconalaの後にLancers・CrowdWorks・Mercor・Freelancer・Upworkを同じshared kernel（identity→funded handoff→effect fence→公式receipt→settlement/P&L）へ順に接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
 
+**最新Codex readback／Lancers pre-effect fence境界（2026-09-29、同じ専用worktree）**: 次platformのsource-only修正として、応募・交渉・掲載の3 owner（`lancers-revenue-application`、`lancers-revenue-negotiate`、`lancers-revenue-storefront`）に、shared `reconcile_pre_effect_hint.py`をregistryの`effect_reconcile`として接続した。アダプタはprovider/browserへ接続せず、同一owner・同一occurrenceに束縛されたprivate marker `loop-tmp/<owner>/<run>/entrypoint-result.json`が、厳密に`{"status":"pre_effect_failure","effect":0}`、uid一致・mode `0600`・regular file・nlink `1`で存在する場合だけ`expected_state=claimed`のreconcileを許す。marker欠落、別occurrence、effect `1`、symlink、不正shapeは`effect_unknown`のまま保持し、再送しない。`lancers-revenue-paid`の既存paid adapterやbrowser leaseは変更していない。
+
+Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-contract`は **ok=true**（catalog `14`、registry `174`、mapped `101`、shared job IDs `0`）、py_compileと`git diff --check`もPASS。generated `runtime/loop/tests/fixtures/macos-loop-jobs.json`はregistryから再生成済み。変更はまだ専用branch `fix/lm-release-boundary-20260929`のsource段階で、main統合・immutable release・production apply/readbackは未実施。したがってLancersのlive providerへ送信・応募・掲載を実行したとは報告せず、既存のeffect_unknownをこのsource変更だけで解放しない。
+
+**Lancers追加後の残TODO（成果順）**:
+
+1. [進行中] Coconala wrapperとLancers shared adapter、registry、fixture、tests、specを同じ専用branchへcommit/pushし、required checksを通す。
+2. [未完] PRをmainへ統合し、main由来immutable releaseを作成する。productionはCoconala/Lancersのaction ownerを一つずつtarget applyし、既存live leaseを奪わない。
+3. [未完] 各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを確認する。pre-effect markerだけで解放できるものと、provider公式receiptが必要なものを分離する。
+4. [未完] Coconala Ryu DMはv723本文を再送せず、403回復後にread-only provider永続receiptを一度だけ確認する。
+5. [未完] Lancersのapplication/negotiate/storefront/paidを自然wakeで検証し、応募・交渉・掲載・決済の各effectを同一occurrenceの公式receiptへ結び付ける。
+6. [未完] CrowdWorks・Mercor・Freelancer・Upworkを同じshared kernelへ順に接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
+
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
 公式OSSの共通手順は、backtest/research → paper/dry-run → official readback付きの小額live検証であり、OSSやpaper損益自体は利益保証ではない。[Freqtrade](https://docs.freqtrade.io/en/stable/)はdry-runをlive前に要求し、[Hummingbot](https://github.com/hummingbot/hummingbot)はpaper tradeとlive executionを分離する。[LEAN](https://github.com/QuantConnect/Lean)と[QuantConnectのlive reconciliation docs](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation)はfill・fee・slippage・market impactの差を明記し、[Alpacaのpaper docs](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)はpaperがmarket impact等を再現しないと説明する。よって投資loopはweb上の成功談や29回の手動wakeを利益証拠にせず、`main由来immutable release → Life Manager自然paper receipt → cost-complete net P&L → 30 natural samples → bounded promotion`を維持する。

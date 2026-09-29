@@ -1630,6 +1630,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-application"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 600,
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -1678,6 +1688,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-storefront"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 300,
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -1727,6 +1747,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-negotiate"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 300,
       "resource_class": "agent",
       "admission_class": "revenue",
