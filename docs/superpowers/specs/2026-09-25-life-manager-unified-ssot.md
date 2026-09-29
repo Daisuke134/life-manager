@@ -195,7 +195,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - Coconala adapter (`skills/earn/gig/scripts/coconala_paid_adapter.py`) は、orders-only の初回snapshotから targeted talkroom readbackへ更新し、構造化価格・取引状態・talkroom証跡・要件digestが揃った場合だけ `ContractReceipt` / `PaidHandoffReceipt` を生成する。fundingまたはscope証跡が欠けた場合は `coconala_paid_handoff_unavailable` で止まる。これはadapter境界の実装であり、`hf-gig-paid-direct` のproduction ownerを共通kernelへ切り替えた証明ではない。
 - Lancers adapter (`skills/earn/lancers/scripts/paid_adapter.py`) は、公式detailの `provider_state=funded`、固定金額、terms digest、buyer threadを同じcanonical receiptへ写像する。仮払い未確認・曖昧な金額・terms digest欠落は `lancers_paid_handoff_unavailable` で止まる。現時点ではLancers ownerへの `--require-paid-handoff`適用はまだ行っていない。
 - CrowdWorks adapter (`skills/earn/crowdworks/scripts/paid_adapter.py`) は、公式contract bodyから一意の固定報酬額とterms digestを読み、milestone/form/document要件とbuyer threadをcanonical receiptへ写像する。時間単価・範囲価格・価格/terms欠落は `crowdworks_paid_handoff_unavailable` で止まる。現時点ではCrowdWorks ownerへの `--require-paid-handoff`適用はまだ行っていない。
-- 現在は schema / typed parser / validator / kernel gate / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
+- Mercor adapter (`skills/earn/mercor/scripts/paid_adapter.py`) は、契約の `active` / `contracted` 状態やタイトルからfundingを推測しない。公式snapshotに明示された正規化 `paid_handoff`（funding、固定金額、通貨、terms/scope/artifact digest、buyer thread、観測時刻）が全て揃った時だけcanonical receiptへ写像し、欠ければ `mercor_paid_handoff_unavailable` で止まる。現行snapshotにはその証跡が無いため、Mercor mutationはまだhuman-requiredのままである。
+- 現在は schema / typed parser / validator / kernel gate / Coconala・Lancers・CrowdWorks・Mercor のadapter境界 / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
 - 次の順序: (1) provider-neutral Paid entrypoint でこの validator を必須化、(2) Coconala/Lancers/CrowdWorks/Mercor/Freelancer/Upwork の adapter を同じ契約へ写像、(3) 公式 receipt・replay-zero を各 provider で canary、(4) main → immutable release → label readback。
 
 進捗（2026-09-28 13:2x JST、Claude）:
@@ -642,6 +643,9 @@ TODO（何を・どう直すか）
 - [ ] 7-8 Freelancer: account-bound auth → inventory → funded project
 - [ ] 7-9 Upwork: account-bound auth → inventory → funded contract
 - [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）
+  - [x] 7-10a 共通 `PaidHandoffReceipt` へのfail-closed adapter境界を追加した（公式snapshotの明示handoffのみ受理）。
+  - [ ] 7-10b 公式UI/APIのfunding・固定価格・scope・artifact要件・buyer threadをobserverへ追加し、canonical receiptの公式readbackを取る。
+  - [ ] 7-10c receipt・replay-zeroをcanaryで確認してから、Mercor ownerへ `--require-paid-handoff` を適用する。
 - [ ] 7-11 crash recovery を確認する
 - [ ] 7-12 replay-zero を確認する
 

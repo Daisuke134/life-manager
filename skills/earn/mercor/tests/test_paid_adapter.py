@@ -22,6 +22,41 @@ def test_official_empty_contract_inventory_is_available(tmp_path):
 def test_official_active_contract_becomes_paid_work_item(tmp_path):
     m=load(); s=tmp_path/"snapshot"; snapshot(s,[{"jobId":"job-1","title":"Japanese Writer","status":"active"}]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
     row=a.observe_active()[0]; assert row["work_id"]=="job-1" and row["provider_state"]=="contracted"
+
+def _funded_contract():
+    return {
+        "jobId": "job-1", "title": "Japanese Writer", "status": "active",
+        "paid_handoff": {
+            "status": "funded", "contract_external_id": "contract:job-1",
+            "funding_external_id": "escrow:job-1", "thread_external_id": "thread:job-1",
+            "scope_sha256": "a" * 64, "artifact_requirement_sha256": "b" * 64,
+            "terms_sha256": "c" * 64, "price_minor": 12000, "currency": "USD",
+            "observed_at": "2026-09-08T09:00:00Z",
+        },
+    }
+
+def test_official_funded_contract_maps_to_shared_paid_handoff(tmp_path):
+    m=load(); s=tmp_path/"snapshot"; snapshot(s,[_funded_contract()]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
+    a.observe_active(); result=a.paid_handoff("job-1", a.context("job-1"))
+    assert result["contract"] == {
+        "schema_version": 1, "record_type": "contract_receipt", "platform": "mercor",
+        "application_external_id": "application:job-1", "work_external_id": "job-1",
+        "contract_external_id": "contract:job-1", "status": "accepted",
+        "terms_sha256": "c" * 64, "observed_at": "2026-09-08T09:00:00Z",
+    }
+    assert result["handoff"]["funding_external_id"] == "escrow:job-1"
+    assert result["handoff"]["price_minor"] == 12000
+    assert result["handoff"]["currency"] == "USD"
+
+def test_contract_without_explicit_funded_handoff_fails_closed(tmp_path):
+    m=load(); s=tmp_path/"snapshot"; snapshot(s,[{"jobId":"job-1","title":"Japanese Writer","status":"active"}]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
+    a.observe_active()
+    with pytest.raises(RuntimeError, match="mercor_paid_handoff_unavailable"): a.paid_handoff("job-1", a.context("job-1"))
+
+def test_unfunded_explicit_handoff_fails_closed(tmp_path):
+    m=load(); s=tmp_path/"snapshot"; value=_funded_contract(); value["paid_handoff"]["status"]="authorized"; snapshot(s,[value]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
+    a.observe_active()
+    with pytest.raises(RuntimeError, match="mercor_paid_handoff_unavailable"): a.paid_handoff("job-1", a.context("job-1"))
 def test_newer_official_contract_state_wins_over_older_work_event(tmp_path):
     m=load(); s=tmp_path/"snapshot"; snapshot(s,[{"jobId":"work-1","status":"active"}]); p=tmp_path/"events"; p.write_text(json.dumps(event("accepted"))+"\n"); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=p)
     assert a.observe_active()[0]["provider_state"]=="contracted"
