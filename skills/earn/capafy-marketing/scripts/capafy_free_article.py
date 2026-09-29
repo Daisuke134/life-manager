@@ -28,7 +28,7 @@ contract behaviour is untouched by this loop.
   capafy_free_article.py publish --draft-file article-en.md --slug SLUG \\
       --cta-url URL --landing-root DIR --remote origin --branch main \\
       --base-url https://aniccaai.com [--date 2026-09-29] \\
-      [--retries 5] [--retry-interval-seconds 3]
+      [--retries 60] [--retry-interval-seconds 15]
 """
 from __future__ import annotations
 
@@ -155,7 +155,7 @@ def _default_fetch(url: str) -> str:
 
 def publish(
     *, draft_path: Path, slug: str, cta_url: str, landing_root: Path, remote: str, branch: str,
-    base_url: str, date: str | None = None, retries: int = 5, retry_interval_seconds: float = 3.0,
+    base_url: str, date: str | None = None, retries: int = 60, retry_interval_seconds: float = 15.0,
     fetch=None,
 ) -> dict:
     markdown_text = Path(draft_path).read_text(encoding="utf-8")
@@ -210,8 +210,8 @@ def main(argv: list[str] | None = None) -> int:
     publish_p.add_argument("--branch", required=True)
     publish_p.add_argument("--base-url", required=True)
     publish_p.add_argument("--date", default=None)
-    publish_p.add_argument("--retries", type=int, default=5)
-    publish_p.add_argument("--retry-interval-seconds", type=float, default=3.0)
+    publish_p.add_argument("--retries", type=int, default=60)  # GitHub Actions deploy takes ~5 min; 15 s polls cover 15 min
+    publish_p.add_argument("--retry-interval-seconds", type=float, default=15.0)
     args = parser.parse_args(argv)
 
     result = publish(
