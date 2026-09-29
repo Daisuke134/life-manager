@@ -1112,3 +1112,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 4. **[未完]** entry／exit、fee、slippage、funding／borrow、gas、model costを含むcost-complete net P&Lを確定する。どれかが`unknown`なら利益を報告しない。
 5. **[未完]** replay-zeroを確認したpositiveなcost-complete natural round tripを`30/30`測定する。それまではcap増額、Binance送金、live注文、meme coin署名、yield depositをしない。
 6. **[未完]** `30/30`後にだけbounded promotionを審査し、その後Hyperliquid、Solana／Pump.fun、yieldをshadow→paper→bounded canaryの順で比較する。rolling net P&Lが公式receiptから実測できた場合だけ月次収益を報告する。
+
+**自然reconcileの継続readback（2026-09-29 10:26 UTC）**: `alpaca-investment-paper`は同じ未確定effectに対して自然schedulerを再実行し、`NO_TRADE`・`reason=effect_fence`・exit `0`で終了した。新しいeffect intentや重複注文は作られていない。公式paper注文は引き続き`QQQ`・`accepted`・`filled_qty=0`・`filled_avg_price=null`で、次回eligible runは`300s`。これは安全な重複防止の実測であり、収益・約定・round tripではない。`investment-cross-venue-report`は`delivery_uncertain`、outbox attempt `1`、`provider_message_id=null`、allocation `$0.00`、rolling 30日net P&L `null`、Hyperliquid／Solana snapshot missingのままであるため、既存occurrenceはheldとする。
