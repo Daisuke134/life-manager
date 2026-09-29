@@ -2041,6 +2041,12 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - これはprovider effect前のhost admission deferであり、注文・再送・資金移動・新しいdecision receiptは発生していない。`next_action=retry_after_eligibility`に従い自然retryを継続する。
 - 最新decisionは`NO_TRADE / decision_session_consumed`（`decision_session=2026-09-28`）のままで、`AT-13`は未完、cursor不変、検証済み実現投資収益は`$0/月`である。
 
+**AT-13 effect-fence diagnosis readback（2026-09-30 04:20 JST）**:
+
+- `config/loop-registry.json`には`alpaca-investment-paper.effect_reconcile`（`skills/alpaca-investment/effect_reconcile.py --mode paper --occurrence-id`）が存在する。したがって現在の状態は「readback adapterがない」ではない。
+- `lm-fence-reconciler`の最新natural passは04:12:52 JST（release SHA `3975ae8996cab3325f514746a32c915f9935fddf`）であり、04:16 JSTに生成されたoccurrence `alpaca-investment-paper:18d9e0b04d6e1628-59151`より前である。current occurrenceに対するadapter callはまだ記録されていない。
+- fenceは公式paper readbackまたはpre-effect proofが得られるまで保持される。無条件のclear、manual wake、手動sell、再送はしない。`AT-13`は未完、実現投資収益は`$0/月`である。
+
 **AT-13公式paper clock readback（2026-09-30 04:05 JST）**:
 
 - 公式paper observationのclockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、`next_open=2026-09-30T09:30:00-04:00`（22:30 JST）である。したがって現在は、`2026-09-29`のcompleted daily sessionがまだ確定する前である。
