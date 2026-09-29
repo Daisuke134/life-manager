@@ -102,3 +102,76 @@ def test_reply_owner_invokes_manifest_before_reply_kernel():
     assert "--platform-manifest-evidence-dir" in source
     assert "--auth-readback" in source
     assert source.index("--platform-manifest-evidence-dir") < source.index("reply_kernel.py")
+
+
+def test_mercor_candidate_lifecycle_uses_account_bound_registry(tmp_path):
+    cycle = runtime._CYCLE or runtime._modules()[1]
+    candidates_module = runtime._CANDIDATE_STORE or runtime._modules()[2]
+    candidate_store = candidates_module.CandidateStateStore(tmp_path / "candidates")
+    candidate_store.record({
+        "schema_version": 1,
+        "provider": "mercor",
+        "candidate_id": "platform:mercor",
+        "observed_at": "2026-09-30T15:30:00Z",
+        "source_url": "https://work.mercor.com",
+        "snapshot_sha256": "e" * 64,
+        "decision": "promote",
+        "gates": {
+            "policy": "pass", "adapter": "pass", "funded_work": "pass",
+            "canary": "pass", "unit_economics": "pass",
+        },
+        "reasons": [],
+        "evidence_refs": ["mercor://candidate/observed"],
+        "next_action": "provision_owner_after_release_readback",
+        "idempotency_key": "marketplace-candidate:v1:mercor:platform:mercor:" + "e" * 64,
+    })
+
+    calls = []
+
+    class Adapter:
+        def provision_owner(self, candidate):
+            calls.append("provision")
+            return {
+                "status": "provisioned", "owner_id": "owner-1",
+                "receipt_ref": "provider-receipt://mercor/owner-1",
+                "observed_at": "2026-09-30T15:30:01Z",
+            }
+
+        def canary_readback(self, candidate, owner):
+            calls.append("canary")
+            return {
+                "status": "verified", "receipt_ref": "provider-receipt://mercor/canary-1",
+                "replay_zero": True, "observed_at": "2026-09-30T15:30:02Z",
+            }
+
+        def rollback_owner(self, candidate, owner, reason):
+            calls.append("rollback")
+            return {
+                "status": "rolled_back", "receipt_ref": "provider-receipt://mercor/rollback-1",
+                "observed_at": "2026-09-30T15:30:03Z",
+            }
+
+        def settle(self, candidate, owner, canary):
+            calls.append("settle")
+            return {
+                "status": "settled", "receipt_ref": "provider-receipt://mercor/settlement-1",
+                "net_amount_minor": 1000, "currency": "USD",
+                "observed_at": "2026-09-30T15:30:04Z",
+            }
+
+    registry = cycle.PlatformLifecycleAdapterRegistry({"mercor": lambda context: Adapter()})
+    result = runtime.run_mercor_candidate_lifecycle(
+        candidate_root=tmp_path / "candidates",
+        lifecycle_root=tmp_path / "lifecycle",
+        registry=registry,
+        account_context={
+            "account_id": "mercor-owner-1",
+            "authorization_receipt_ref": "auth://mercor/receipt-1",
+        },
+        candidate_id="platform:mercor",
+        run_id="mercor-lifecycle-1",
+        observed_at="2026-09-30T15:30:00Z",
+    )
+
+    assert result["status"] == "settled"
+    assert calls == ["provision", "canary", "settle"]

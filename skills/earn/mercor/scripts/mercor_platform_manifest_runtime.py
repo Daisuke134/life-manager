@@ -37,10 +37,11 @@ _MERCOR = None
 _CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
+_LIFECYCLE_STORE = None
 
 
 def _modules():
-    global _MERCOR, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    global _MERCOR, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
     if _MERCOR is None:
         _MERCOR = _load(HERE.with_name("mercor_platform_manifest.py"), "mercor_manifest_runtime_source")
     if _CYCLE is None:
@@ -51,7 +52,11 @@ def _modules():
         )
     if _RUN_STORE is None:
         _RUN_STORE = _load(CORE / "meta_loop_run_store.py", "mercor_manifest_runtime_runs")
-    return _MERCOR, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    if _LIFECYCLE_STORE is None:
+        _LIFECYCLE_STORE = _load(
+            CORE / "meta_loop_lifecycle.py", "mercor_manifest_runtime_lifecycle",
+        )
+    return _MERCOR, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
 
 
 def default_manifest_root() -> Path:
@@ -145,7 +150,7 @@ def run_mercor_platform_manifest_wake(
     source_discoverers: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run one Mercor source-health observation through the four-provider cycle."""
-    mercor, cycle, candidate_store_module, run_store_module = _modules()
+    mercor, cycle, candidate_store_module, run_store_module, _ = _modules()
     root = default_manifest_root()
     candidates = candidate_store_module.CandidateStateStore(
         candidate_root if candidate_root is not None else root / "candidates",
@@ -170,8 +175,36 @@ def run_mercor_platform_manifest_wake(
     )
 
 
+def run_mercor_candidate_lifecycle(
+    *,
+    candidate_root: str | Path,
+    lifecycle_root: str | Path,
+    registry: Any,
+    account_context: Mapping[str, Any],
+    candidate_id: str,
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Promote one stored Mercor candidate through an injected registry."""
+
+    _, cycle, candidate_store_module, _, lifecycle_store_module = _modules()
+    candidates = candidate_store_module.CandidateStateStore(candidate_root)
+    lifecycle = lifecycle_store_module.MetaLoopLifecycleStore(lifecycle_root)
+    return cycle.run_registered_platform_candidate_lifecycle(
+        candidates,
+        lifecycle,
+        registry,
+        provider="mercor",
+        candidate_id=candidate_id,
+        account_context=account_context,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+
+
 __all__ = [
     "build_live_snapshot",
     "default_manifest_root",
+    "run_mercor_candidate_lifecycle",
     "run_mercor_platform_manifest_wake",
 ]
