@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 profile="${CAPAFY_BROWSER_PROFILE:-$HOME/.local/state/anicca/capafy/browser-profile}"
 renderer_limit="${CAPAFY_BROWSER_RENDERER_LIMIT:-8}"
 case "$renderer_limit" in ''|*[!0-9]*) exit 64 ;; esac

@@ -17,7 +17,7 @@ the Hosted Key section above is already saved/collapsed (idempotent: it is
 independent of the hosted-key step and is a no-op if already correct).
 
 Usage: drive_checkpoint2.py <CP2_review_url>
-Requires: the shared CloakBrowser identity `coconala:kosuke` (registry:
+Requires: its own CloakBrowser identity `capafy:kosuke` (registry:
 ~/.config/ai/registry/browsers.toml) LEASED via skills/browser/with-browser.sh
 (never probe a hardcoded port directly), plus CAPAFY_HOST_OPENROUTER_KEY in env.
 CAPAFY_ACCESS_TOKEN in env is required only to verify CAPAFY_DISPLAY_MODEL.
@@ -82,9 +82,9 @@ def _target_url_key(url):
     return (parts.scheme.lower(), parts.netloc.lower(), parts.path, query)
 
 
-# The identity coconala:kosuke banks the Capafy seller session (registry:
+# The identity capafy:kosuke banks the Capafy seller session (registry:
 # ~/.config/ai/registry/browsers.toml).
-CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "coconala:kosuke").strip() or "coconala:kosuke"
+CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "capafy:kosuke").strip() or "capafy:kosuke"
 
 
 def _detect_cdp():

@@ -11,11 +11,6 @@ set -euo pipefail
 # Keep driver output when `timeout` kills a browser step; buffered stdout was lost
 # and CP2 failures in the factory had no reason (live 2026-09-29 18:10, 9563867391).
 export PYTHONUNBUFFERED=1
-# The outer timeout also covers waiting for the coconala:kosuke browser lease,
-# which the gig paid loop (hf-gig-paid-direct) holds for 10+ minutes at a time
-# (live 2026-09-29 20:38: CP2 exit 124 after 150 s, no driver output). The
-# drivers carry their own page deadlines, so only the lease wait grows here.
-CP_BROWSER_TIMEOUT_S="${CAPAFY_CP_BROWSER_TIMEOUT_S:-1500}"
 
 ID="${1:?agent-id required}"
 SKILL_NAME="${2:?skill-name required}"
@@ -25,10 +20,10 @@ EXPECTED_AGENT_VERSION_ID="${4:-}"
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$AUTO/vendor/capafy-publisher"
 BROWSER_SKILL="$(cd "$AUTO/../browser" && pwd)"
-# Capafy's seller session lives on this shared identity (registry:
+# Capafy's seller session lives on its own identity (registry:
 # ~/.config/ai/registry/browsers.toml) — CP2/CP3 must lease it, never probe a
 # hardcoded debugging port (the 2026-07-26 :9222/:9223 collision).
-CAPAFY_BROWSER_IDENTITY="${CAPAFY_BROWSER_IDENTITY:-coconala:kosuke}"
+CAPAFY_BROWSER_IDENTITY="${CAPAFY_BROWSER_IDENTITY:-capafy:kosuke}"
 export CAPAFY_BROWSER_IDENTITY
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 CAPAFY_PUBLISH_HOME_BASE="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
@@ -292,7 +287,7 @@ except Exception: print('')")"
   [ -n "$PUBLISH_REVIEW_URL" ] || die "no final review URL available for CP2/workspace-field fix"
   CP2="$PUBLISH_REVIEW_URL"
   CP2_RC=0
-  CP2_OUT="$(timeout "$CP_BROWSER_TIMEOUT_S" bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
+  CP2_OUT="$(timeout 150 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
     "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1)" || CP2_RC=$?
   printf '%s\n' "$CP2_OUT" | { grep -vE "Deprecation|warnings.warn" || true; } | tail -4
   echo "CP2 driver exit=$CP2_RC (124=timeout; lease/driver errors print above)"
@@ -340,7 +335,7 @@ case "$POST_CP2_STATUS" in
   fi
   echo "CP3 submit attempt 1"
   VERSION_UPDATE_INFO="Updated the Agent package and workflow for this review submission."
-  CP3_OUT="$(timeout "$CP_BROWSER_TIMEOUT_S" bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
+  CP3_OUT="$(timeout 90 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
     "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
     printf '%s\n' "$CP3_OUT" | grep -vE "Deprecation|warnings.warn" | tail -5
     die "CP3 raw submit failed; do not retry an uncertain external effect"
