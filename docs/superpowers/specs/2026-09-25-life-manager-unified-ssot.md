@@ -1791,3 +1791,42 @@ job IDs 0）、`git diff --check`もPASS。branch
    authorization、payout readbackを揃えた後だけowner登録する。
 7. **未完** Meta Loop: discovery、candidate durable state、policy/adapter/funded gate、isolated
    canary、owner provisioning、rollback、settlement、quality/P&Lをshared kernelへ接続する。
+
+### 最新Mercor owner修正と原子TODO
+
+- `origin/main` は `3975ae8996cab3325f514746a32c915f9935fddf`。production の
+  `current/RELEASE.json` は `b26ab310a2083edd1bdfb477da40d9a670251a42` のままであり、source変更は
+  productionへ未反映である。
+- `mercor:dais` identityは専用profile `~/.browser-harness-profile/mercor-google-20260822b`・9334を
+  指しているが、registryにそのbrowser ownerが無く、application/replyが存在しないownerへjoinしていた。
+- `fix/source-reconcile-20260930` の `3e71d7f769bc82e81fc8787f932d23cf8a0f8283` で
+  `mercor-revenue-browser`（label `ai.anicca.job-search-mercor-browser`、resource_class `browser`、
+  profile/9334、port-owner付きentrypoint）をactive registryへ復元し、旧labelをexternalから外した。
+  application/replyの `browser_identity=mercor:dais` と `browser_target_owner=mercor-revenue-browser`
+  が同じactive ownerへ解決する。source branchはrebase済みだが、main・productionへ未統合である。
+- 検証はMercor/registry/dispatch `209 passed`・`183 subtests`、`lm-loop-contract` は
+  `ok=true`（catalog 14、registry 176、mapped 102、shared job IDs 0）、shell syntax、
+  `git diff --check`をPASSした。これはsource契約の証拠であり、Mercorのprovider receipt・official
+  readback・収益の証拠ではない。
+
+### 原子TODO（このカーソルの実行順）
+
+1. **完了** Mercorのactive browser ownerをregistryへ復元し、application/replyのidentity joinを
+   解決する。完了条件はregistry、専用profile/port、owner entrypoint、focused testsの一致。
+2. **未完** source branchをrebase後のSHAでremoteへpushし、remote headとlocal headを一致させる。
+3. **未完** capacity branchを最新mainへrebaseし、Mercor修正と衝突なく両方のfocused/full tests・contractを
+   PASSさせる。
+4. **未完** source branchをmainへ受入し、main由来immutable releaseを作る。完了条件はcurrent SHA、
+   plist argv/env、state path、identity leaseの公式readback一致。強制restartはしない。
+5. **未完** RyuさんDMを認証済みCoconala browserでread-only確認する。provider receipt/readbackまたは
+   403再現証拠を保存し、送信1回・正式納品0回・再送0回を維持する。
+6. **未完** Coconala、Lancers、CrowdWorks、Mercorの各application/reply・negotiate・paid・storefront・
+   work-sync/report occurrenceを自然terminalまで待ち、provider receipt＋official readback、または
+   厳密なheld理由で閉じる。receiptなしの外部送信・再送・effect fence解放はしない。
+7. **未完** capacity修正をproductionへ反映し、ENOSPC自然runでterminal event/recovery intent/admission
+   stateの書込み成功、protected deletion 0、global stop 0を確認する。
+8. **未完** Freelancer/Upworkはapproved terms、専用identity auth、funded contract/milestone、mutation
+   authorization、payout readbackが全て揃ったplatformだけowner登録・応募・返信を有効化する。
+9. **未完** Meta Loopをshared kernelへ接続し、discovery、candidate durable state、policy/adapter/funded
+   gate、isolated canary、owner provisioning、rollback、settlement、quality/P&Lをprovider receipt・
+   official readback・replay-zero・cost-complete positive net P&Lまで検証する。
