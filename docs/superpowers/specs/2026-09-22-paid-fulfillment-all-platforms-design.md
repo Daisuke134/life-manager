@@ -5877,3 +5877,26 @@ receipts.
   from a merged main, and no production release pointer has been changed. The
   branch remains the review/acceptance source; production still points to the
   old SHA above.
+
+### Reconciler starvation root-cause fix — 2026-09-30 07:08 JST
+
+- [x] The production stderr and fleet-apply owner log showed repeated timeouts
+  for slow `life-manager-*` growth publishers before the Coconala `hf-gig-*`
+  owners were reached; the bounded fleet budget then ended with
+  `changed=0`, `skipped=163`, and `errors=11`. The source plan was using plain
+  loop_id order, so alphabetically earlier growth owners starved later
+  contract owners.
+- [x] Added one deterministic ordering rule in
+  `bin/reconcile-agent-runner-release.sh`: `domain=earn` first, then
+  `financial`, `growth`, and `system`; within a domain it preserves
+  `priority`, `admission_class`, and loop_id ordering. This makes contract
+  Apply/Storefront/Reply owners reachable within the existing bounded budget
+  without changing locks, timeouts, effect fences, or provider actions.
+- [x] Added a regression test proving an earn/revenue owner is applied before
+  an alphabetically earlier growth/revenue owner. The full
+  `test_reconcile_agent_runner_release_fleet_apply.py` suite passes `18/18`,
+  and `bash -n bin/reconcile-agent-runner-release.sh` passes.
+- [ ] This fix is source-only until item 4/5: production's reconciler still
+  runs release `8f1fdd3a6216b6fd2039575f36be8feacbc0b2a3` and must not be
+  claimed repaired until a main-derived immutable release, a natural
+  reconciler receipt, and Coconala owner/readback evidence are present.
