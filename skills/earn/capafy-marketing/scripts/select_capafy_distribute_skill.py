@@ -75,11 +75,13 @@ def select_for_date(
     analytics: dict | None,
     date: dt.date,
     channel: str = "capafy-distribute",
+    slot: int = 0,
 ) -> dict:
     ranked = rank_skills(products_cfg, analytics)
     if not ranked:
         raise ValueError("no capafy-skills configured to rotate")
-    slug = ranked[date.toordinal() % len(ranked)]
+    # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
+    slug = ranked[(date.toordinal() * 8 + slot) % len(ranked)]
     skill = products_cfg["products"]["capafy-skills"]["skills"][slug]
     return {
         "date": date.isoformat(),
@@ -101,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--products", required=True)
     parser.add_argument("--analytics", help="capafy-skill-analytics.json path (optional)")
     parser.add_argument("--channel", default="capafy-distribute")
+    parser.add_argument("--slot", type=int, default=0, help="3-hour JST slot 0-7")
     args = parser.parse_args(argv)
 
     products_cfg = json.loads(Path(args.products).read_text(encoding="utf-8"))
@@ -113,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.date
         else dt.datetime.now(tz=JST).date()
     )
-    result = select_for_date(products_cfg, analytics, date, channel=args.channel)
+    result = select_for_date(products_cfg, analytics, date, channel=args.channel, slot=args.slot)
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

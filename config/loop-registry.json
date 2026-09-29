@@ -824,10 +824,16 @@
     "capafy-distribute-daily": {
       "admission_class": "revenue",
       "cadence": {
-        "calendar_interval": {
-          "Hour": 7,
-          "Minute": 15
-        }
+        "calendar_interval": [
+          {"Hour": 1, "Minute": 15},
+          {"Hour": 4, "Minute": 15},
+          {"Hour": 7, "Minute": 15},
+          {"Hour": 10, "Minute": 15},
+          {"Hour": 13, "Minute": 15},
+          {"Hour": 16, "Minute": 15},
+          {"Hour": 19, "Minute": 15},
+          {"Hour": 22, "Minute": 15}
+        ]
       },
       "cleanup": {
         "max_age_days": 14,
