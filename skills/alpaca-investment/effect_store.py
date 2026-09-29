@@ -144,20 +144,25 @@ def _completed_without_strategy_receipt(
     rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Find filled broker outcomes whose strategy-specific readback was never recorded."""
-    latest_intent: dict[str, dict[str, Any]] = {}
+    intents: dict[str, list[dict[str, Any]]] = {}
     latest_outcome: dict[str, dict[str, Any]] = {}
     for row in rows:
         effect_id = row.get("effect_id")
         if not isinstance(effect_id, str):
             continue
         if row.get("receipt_type") == "effect_intent":
-            latest_intent[effect_id] = row
+            intents.setdefault(effect_id, []).append(row)
         elif row.get("receipt_type") == "outcome":
             latest_outcome[effect_id] = row
     candidates: list[dict[str, Any]] = []
     for effect_id, outcome in latest_outcome.items():
         broker = outcome.get("broker")
-        intent = latest_intent.get(effect_id)
+        intent = next((row for row in reversed(intents.get(effect_id, []))
+                       if isinstance(row.get("order"), dict)
+                       and isinstance(row.get("owner_id"), str)
+                       and isinstance(row.get("strategy_id"), str)
+                       and isinstance(row.get("decision_session"), str)
+                       and isinstance(row.get("source_receipt_ids"), list)), None)
         if (outcome.get("outcome") != "broker_reconciled"
                 or not isinstance(broker, dict)
                 or broker.get("status") != "filled"
