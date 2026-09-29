@@ -23,6 +23,7 @@ from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
+from paper_performance import write_paper_performance
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
 from review_status import read_receipt as read_application_status
@@ -535,6 +536,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         _atomic_json(state / "risk-latest.json", allocator_snapshot["risk"])
         _atomic_json(state / "observation-latest.json", observation)
         _atomic_json(state / "campaign.json", campaign)
+        if mode == "paper":
+            # This is a reporting-only read of the append-only effect ledger.
+            # Missing fees/slippage/model costs remain partial and never become
+            # a numeric zero or a promotion signal.
+            write_paper_performance(state, observation, allocator_snapshot["risk"])
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
