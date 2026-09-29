@@ -1334,11 +1334,11 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 7. **[未完] replay-zeroを確認したpositiveなnatural round tripを`30/30`測定する。** 完了まではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
 8. **[未完] `30/30`後に追加venueを段階評価する。** Hyperliquid shadow → Solana／Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、現在の実測から保証されない。
 
-**現在cursor**: `AT-13`。完了済みは`AT-01`〜`AT-12`。以下のAtomic Todoだけが、投資loopの残作業と実行順である。
+**旧cursor記録（履歴）**: `AT-13`。完了済みは`AT-01`〜`AT-12`。この下の旧表は履歴であり、実行には使わない。実行順の正本は後述の「展開済みAtomic Todo正本」である。
 
-**Atomic Todo正本（実行キュー、2026-09-30 JST）**: この節だけが投資loopの実行順の正本である。Atomic Todoは「1項目=1つの実行またはreadback」「完了条件は1つ」「証拠は1つ」とする。完了済み項目は残りのTodoに再掲しない。`$10,000/月`、millionaire、generational wealth、`30/30`は目標または判定ゲートであり、Todoの完了や利益を意味しない。
+**旧Atomic Todo（履歴。実行不可、2026-09-30 JST）**: この表は展開前のテンプレートを保存した履歴である。1項目ずつ実行する正本ではない。実行順は後述の「展開済みAtomic Todo正本」を使う。
 
-**完了台帳（実行不要）**:
+**旧完了台帳（履歴）**:
 
 | ID | 完了した1操作 | 証拠 |
 |---|---|---|
@@ -1350,7 +1350,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | `AT-09`〜`AT-10` | broker outcomeとstrategy receiptを同一effectで確認した | effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4` |
 | `AT-11`〜`AT-12` | ETF ownership stateとcampaign natural passを確認した | `etf-owned-position.json`、occurrence `18d9d3576a0110a8-330` |
 
-**残りのAtomic Todo（この順番。1行につき操作は1つだけ）**:
+**旧残りTodo（履歴。下記の新しい正本を使う）**:
 
 `[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は前の行が完了するまで実行しない待機項目である。下表は説明用の構想ではなく、投資loopの実行キューそのものである。現在実行対象なのは`AT-13`だけであり、自然なcompleted daily sessionが出るまで手動操作はしない。
 
@@ -1383,6 +1383,309 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | [ ] `QUEUE` | 25 | `AT-29` | bounded canaryの可否を1回計算する | 実資金を使う前の最終判定をする | 全条件と`canary_allowed`が明示される | promotion receipt |
 
 `AT-22.1[n]`〜`AT-22.9[n]`は、`n=2`から`n=30`まで、前のqualified ledger rowが完成した後にだけ同じ順序で1回ずつ実行する反復テンプレートである。これは29回wakeするTodoではない。自然に完了したround tripだけを1件とし、wake回数、accepted、unrealized P&L、backtest値は数えない。
+
+**展開済みAtomic Todo正本（投資loop実行キュー、2026-09-30 JST）**:
+
+ここだけが現在の実行順の正本である。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。1行は1操作、完了条件は1つ、証拠は1つ。`AT-22.1[2]`のような番号も省略せず、全29回分を展開している。
+
+**完了済み（実行不要）**:
+
+- [x] `AT-01` — PR `#6246`のrequired checksをreadbackした。証拠: required checksの成功記録。
+- [x] `AT-02` — PR `#6246`をmainへmergeした。証拠: merge SHA `96791636efd4c55f0bc5a7287d422da35ea963cd`。
+- [x] `AT-03` — merge後のrelease入力SHAを固定した。証拠: SHA `493017d36c9475e0d46c5b12733172f468b5bf05`。
+- [x] `AT-04` — 固定SHAからimmutable releaseを作成した。証拠: `/Users/anicca/loops/releases/20260930T000442-493017d3`。
+- [x] `AT-05` — `alpaca-investment-paper`へpaper owner applyを実行した。証拠: install event `02d24ef82971b0071be94b28`。
+- [x] `AT-06` — loaded SHA・argv/env・state rootをreadbackした。証拠: paper ownerのplist/readback。
+- [x] `AT-07` — natural paper wakeを1回readbackした。証拠: occurrence `18d9d3576a0110a8-330`。
+- [x] `AT-08` — 既存QQQ entry orderをAlpaca公式GETでreadbackした。証拠: filled qty `0.013493253`、平均約定 `$740.37`。
+- [x] `AT-09` — broker outcomeをstrategy effectへ照合した。証拠: effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4`。
+- [x] `AT-10` — strategy receiptを同一effectへ照合した。証拠: 同一effectのstrategy receipt。
+- [x] `AT-11` — ETF ownership stateを公式positionへ照合した。証拠: `etf-owned-position.json`。
+- [x] `AT-12` — campaign natural passをreadbackした。証拠: occurrence `18d9d3576a0110a8-330`。
+
+**未完了（この順番）**:
+
+- [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-14`** — AT-13で指定されたexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-15`** — exit後のaccountとpositionをAlpaca公式GETで1回読む。完了条件: QQQ qtyがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-16`** — entry/exit receiptからgross cash-flow P&Lを1回計算する。完了条件: gross P&Lをreceiptから再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-17`** — feeとslippageの公式値を1回記録する。完了条件: 両方が数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-18`** — model costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-19`** — cost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-20`** — 同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-21`** — qualified round tripを測定台帳へ1行追加する。完了条件: 1行にreceipt・net P&L・replay-zeroがある。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[2]`** — 2回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[2]`** — 2回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[2]`** — 2回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[2]`** — 2回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[2]`** — 2回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[2]`** — 2回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[2]`** — 2回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[2]`** — 2回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[2]`** — 2回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[3]`** — 3回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[3]`** — 3回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[3]`** — 3回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[3]`** — 3回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[3]`** — 3回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[3]`** — 3回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[3]`** — 3回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[3]`** — 3回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[3]`** — 3回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[4]`** — 4回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[4]`** — 4回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[4]`** — 4回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[4]`** — 4回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[4]`** — 4回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[4]`** — 4回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[4]`** — 4回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[4]`** — 4回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[4]`** — 4回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[5]`** — 5回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[5]`** — 5回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[5]`** — 5回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[5]`** — 5回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[5]`** — 5回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[5]`** — 5回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[5]`** — 5回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[5]`** — 5回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[5]`** — 5回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[6]`** — 6回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[6]`** — 6回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[6]`** — 6回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[6]`** — 6回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[6]`** — 6回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[6]`** — 6回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[6]`** — 6回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[6]`** — 6回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[6]`** — 6回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[7]`** — 7回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[7]`** — 7回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[7]`** — 7回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[7]`** — 7回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[7]`** — 7回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[7]`** — 7回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[7]`** — 7回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[7]`** — 7回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[7]`** — 7回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[8]`** — 8回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[8]`** — 8回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[8]`** — 8回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[8]`** — 8回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[8]`** — 8回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[8]`** — 8回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[8]`** — 8回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[8]`** — 8回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[8]`** — 8回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[9]`** — 9回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[9]`** — 9回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[9]`** — 9回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[9]`** — 9回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[9]`** — 9回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[9]`** — 9回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[9]`** — 9回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[9]`** — 9回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[9]`** — 9回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[10]`** — 10回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[10]`** — 10回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[10]`** — 10回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[10]`** — 10回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[10]`** — 10回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[10]`** — 10回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[10]`** — 10回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[10]`** — 10回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[10]`** — 10回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[11]`** — 11回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[11]`** — 11回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[11]`** — 11回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[11]`** — 11回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[11]`** — 11回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[11]`** — 11回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[11]`** — 11回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[11]`** — 11回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[11]`** — 11回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[12]`** — 12回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[12]`** — 12回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[12]`** — 12回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[12]`** — 12回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[12]`** — 12回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[12]`** — 12回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[12]`** — 12回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[12]`** — 12回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[12]`** — 12回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[13]`** — 13回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[13]`** — 13回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[13]`** — 13回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[13]`** — 13回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[13]`** — 13回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[13]`** — 13回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[13]`** — 13回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[13]`** — 13回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[13]`** — 13回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[14]`** — 14回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[14]`** — 14回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[14]`** — 14回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[14]`** — 14回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[14]`** — 14回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[14]`** — 14回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[14]`** — 14回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[14]`** — 14回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[14]`** — 14回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[15]`** — 15回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[15]`** — 15回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[15]`** — 15回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[15]`** — 15回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[15]`** — 15回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[15]`** — 15回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[15]`** — 15回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[15]`** — 15回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[15]`** — 15回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[16]`** — 16回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[16]`** — 16回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[16]`** — 16回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[16]`** — 16回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[16]`** — 16回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[16]`** — 16回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[16]`** — 16回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[16]`** — 16回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[16]`** — 16回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[17]`** — 17回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[17]`** — 17回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[17]`** — 17回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[17]`** — 17回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[17]`** — 17回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[17]`** — 17回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[17]`** — 17回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[17]`** — 17回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[17]`** — 17回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[18]`** — 18回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[18]`** — 18回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[18]`** — 18回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[18]`** — 18回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[18]`** — 18回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[18]`** — 18回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[18]`** — 18回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[18]`** — 18回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[18]`** — 18回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[19]`** — 19回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[19]`** — 19回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[19]`** — 19回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[19]`** — 19回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[19]`** — 19回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[19]`** — 19回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[19]`** — 19回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[19]`** — 19回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[19]`** — 19回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[20]`** — 20回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[20]`** — 20回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[20]`** — 20回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[20]`** — 20回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[20]`** — 20回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[20]`** — 20回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[20]`** — 20回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[20]`** — 20回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[20]`** — 20回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[21]`** — 21回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[21]`** — 21回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[21]`** — 21回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[21]`** — 21回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[21]`** — 21回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[21]`** — 21回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[21]`** — 21回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[21]`** — 21回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[21]`** — 21回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[22]`** — 22回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[22]`** — 22回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[22]`** — 22回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[22]`** — 22回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[22]`** — 22回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[22]`** — 22回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[22]`** — 22回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[22]`** — 22回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[22]`** — 22回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[23]`** — 23回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[23]`** — 23回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[23]`** — 23回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[23]`** — 23回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[23]`** — 23回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[23]`** — 23回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[23]`** — 23回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[23]`** — 23回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[23]`** — 23回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[24]`** — 24回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[24]`** — 24回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[24]`** — 24回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[24]`** — 24回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[24]`** — 24回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[24]`** — 24回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[24]`** — 24回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[24]`** — 24回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[24]`** — 24回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[25]`** — 25回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[25]`** — 25回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[25]`** — 25回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[25]`** — 25回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[25]`** — 25回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[25]`** — 25回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[25]`** — 25回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[25]`** — 25回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[25]`** — 25回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[26]`** — 26回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[26]`** — 26回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[26]`** — 26回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[26]`** — 26回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[26]`** — 26回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[26]`** — 26回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[26]`** — 26回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[26]`** — 26回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[26]`** — 26回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[27]`** — 27回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[27]`** — 27回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[27]`** — 27回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[27]`** — 27回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[27]`** — 27回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[27]`** — 27回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[27]`** — 27回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[27]`** — 27回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[27]`** — 27回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[28]`** — 28回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[28]`** — 28回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[28]`** — 28回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[28]`** — 28回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[28]`** — 28回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[28]`** — 28回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[28]`** — 28回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[28]`** — 28回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[28]`** — 28回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[29]`** — 29回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[29]`** — 29回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[29]`** — 29回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[29]`** — 29回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[29]`** — 29回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[29]`** — 29回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[29]`** — 29回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[29]`** — 29回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[29]`** — 29回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-22.1[30]`** — 30回目のstrategy exit decision receiptを1件読む。完了条件: 新しいcompleted daily sessionのqualified exit receipt。証拠: exit decision receipt。
+- [ ] **QUEUE `AT-22.2[30]`** — 30回目のexit orderをAlpaca公式GETで1回読む。完了条件: orderがterminal status。証拠: broker receipt。
+- [ ] **QUEUE `AT-22.3[30]`** — 30回目のexit後accountとpositionを1回読む。完了条件: positionがexit receiptと整合。証拠: account/position readback。
+- [ ] **QUEUE `AT-22.4[30]`** — 30回目のgross cash-flow P&Lを1回計算する。完了条件: gross P&Lを再計算可能。証拠: gross P&L row。
+- [ ] **QUEUE `AT-22.5[30]`** — 30回目のfeeとslippageを1回記録する。完了条件: 数値または公式`0`。証拠: cost row。
+- [ ] **QUEUE `AT-22.6[30]`** — 30回目のmodel costを1回記録する。完了条件: 数値または根拠付き`0`。証拠: model-cost row。
+- [ ] **QUEUE `AT-22.7[30]`** — 30回目のcost-complete net P&Lを1回計算する。完了条件: 未知のcostがなく再計算可能。証拠: net P&L row。
+- [ ] **QUEUE `AT-22.8[30]`** — 30回目の同じeffectをreplayしてreadbackする。完了条件: duplicate orderとduplicate ledgerが`0`。証拠: replay result。
+- [ ] **QUEUE `AT-22.9[30]`** — 30回目のqualified round tripを台帳へ1行追加する。完了条件: そのnのledger rowが1行だけ存在。証拠: measurement ledger row。
+- [ ] **QUEUE `AT-23`** — measurement ledgerのqualified countを1回readbackする。完了条件: countをledgerから再計算可能。証拠: counter readback。
+- [ ] **QUEUE `AT-24`** — qualified `30/30`後のpromotion判定を1回計算する。完了条件: drawdown・venue health・cost completenessを含む判定と`canary_allowed`が明示。証拠: promotion receipt。
+- [ ] **QUEUE `AT-25`** — Hyperliquidをshadowで1回観測する。完了条件: provider mutationなしでcandidate・想定fill・costが揃う。証拠: shadow receipt。
+- [ ] **QUEUE `AT-26`** — Solana/Pump.funをpaperで1回観測する。完了条件: 無署名・無fundingでcandidateと公式readbackが揃う。証拠: paper receipt。
+- [ ] **QUEUE `AT-27`** — yield候補をshadowで1回観測する。完了条件: depositなしでrate・risk・feeが揃う。証拠: shadow receipt。
+- [ ] **QUEUE `AT-28`** — 追加venueのrolling net P&Lを1回比較する。完了条件: 公式receipt付き比較表が1つ完成。証拠: venue report。
+- [ ] **QUEUE `AT-29`** — bounded canaryの可否を1回計算する。完了条件: 全条件と`canary_allowed`が明示。証拠: promotion receipt。
+
+**実行規則**: cursorより後ろは先行項目が完了するまで実行しない。natural runのNO_TRADE、wake回数、accepted、unrealized P&L、backtest値はqualified round tripに数えない。`AT-24`と`AT-29`の判定が終わるまで、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は行わない。
+
+**現在cursor**: `AT-13`。最新decisionは`NO_TRADE / decision_session_consumed`でQQQはopen、したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
 
 **現在の1件**: `AT-13`。最新receiptは同じsessionの`NO_TRADE / decision_session_consumed`で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
 
