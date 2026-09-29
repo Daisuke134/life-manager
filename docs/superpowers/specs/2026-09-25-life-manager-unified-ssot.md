@@ -41,11 +41,17 @@ authorization-code/device flow、refresh token、session lease/renewal、再認�
 対象外に型付けする。これは「人を呼ぶ」ための待機ではなく、別の正規auth経路へ切り替える
 ための診断状態である。
 
-### Coconalaの顧客状態（ローカルstate。公式live roomの代替ではない）
+### Coconalaの顧客状態（ローカルstate。公式live message space/talkroomの代替ではない）
+
+**Ryuの経路訂正（2026-09-29）:** Ryuの最新案件はCoconalaのmessage spaceにある
+Reply/Negotiation案件であり、Paidのtalkroom/formal-delivery案件ではない。したがって
+Ryuへの処理は `message-space read → reply/negotiation判定 → 一度だけ送信 → message-space
+readback → funded contractが成立した時だけPaidへhandoff` とする。過去のroom-shapedな
+ローカルstateは履歴または未確認値として保持し、Ryuをtalkroom納品ownerへ投入しない。
 
 | room / buyer | 実測状態 | 判定 |
 |---|---|---|
-| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** CDP probeは一時的にHTTP `403 Forbidden` pageを返した後、現在は`about:blank`だけになっており、認証済みroom readbackになっていない。先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
+| Ryu `18211957`（message space） | 旧ローカルstateには `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`、active feedback `e5959bdd…f5de5d` が残るが、これは最新message-spaceの公式readbackではない。 | **Reply/Negotiationで再取得が必要。** message spaceの最新本文・送信履歴をread-only取得し、同一指示なら再送せず、新規指示なら全項目を一つのreply occurrenceに統合して一度だけ送る。Paid formal-deliveryボタンは対象外。 |
 | Chii `18180857` | `WORK_REQUIRED`、`取引中`、v8、`formal_delivery_confirmed=false`。active feedback `0eb850e0…070edb9`、buyer-visible artifactはローカル上 `false`、直近skipは `pass_order_limit_reached`。queueが同一cycleを繰り返し選択している。 | **緊急のPaid手動reconcile対象。** 成果物生成だけでなく、購入者画面で見えるartifact、公式receipt/readback、必要なら一度だけformal deliveryを確認してから閉じる。 |
 | NPO rooms `18223833` / `18250352` | `取引中`、v16b/v15、next_action=`await_buyer_feedback`。既存artifact/readbackはあるが、active cycleはローカルstate上残る。 | 返信待ちとして保持。新規buyer指示の公式readbackが出た時だけ次のcycleへ進む。 |
 
@@ -90,9 +96,10 @@ provider/auth/fence failure）、settled revenue−costである。
 1. **本番release境界を修復**: `origin/main=5a71af45c1` からimmutable releaseを
    1つ切り、Paid/Reply/Negotiationを含む全labelへapplyし、loaded SHA・自然run・
    official readback・replay-zeroを記録する。欠落している`d150e4…`参照を放置しない。
-2. **Coconalaの認証済みCDPを復旧**: 既存CloakBrowser/CDPだけを使い、Ryu roomを
-   read-onlyで再取得する。active hashが本当に新規なら、全指示を一つに統合して
-   1回だけ手動処理し、official seller receiptを保存する。新規でなければ送信しない。
+2. **Coconalaの認証済みCDPを復旧**: 既存CloakBrowser/CDPだけを使い、Ryuのmessage
+   spaceをread-onlyで再取得する。active hashが本当に新規なら、全指示を一つの
+   Reply/Negotiation occurrenceに統合して一回だけ送信し、message-spaceのofficial
+   receipt/readbackを保存する。新規でなければ送信しない。Paid formal-deliveryは行わない。
 3. **ChiiをPaid ownerで閉じる**: v8のactive feedbackを入力に、実作業→demo/artifact
    →buyer-visible画面→provider receipt/readback→必要なformal delivery→acceptance
    の順で一回だけ進める。`pass_order_limit_reached`で再選択だけを繰り返さない。
@@ -127,8 +134,8 @@ As-Is、To-Be、実行順、現在cursor、残TODOの正本である。下記の
 `skills/earn/gig/TODO.md` は実装詳細・過去の証跡を読むための参照であり、状態やTODOを
 二重管理しない。CapafyとInvestmentの作業treeは別ownerの境界として保持する。
 
-Life Manager自身のloopは本番stateのownerであり、Ryu room `18211957` への確認前の再送禁止と
-正式納品ボタン非押下を維持する。
+Life Manager自身のloopは本番stateのownerであり、Ryu message-space thread `18211957`
+へのreadback確認前の再送禁止と、Paid formal-deliveryボタン非押下を維持する。
 
 ## 0. 原則: No human in loop
 
@@ -169,7 +176,7 @@ Life Manager はアシスタントではなくマネージャー。Grok bot、Mu
 3. Paid を merge し、衝突を次のように解く。
    - `lm_loop.py`: 両方残す。Paid の occurrence単位 dict を返す `_admission_effect_unknown_occurrences` と互換wrapper `_admission_effect_unknown_owners` を採用し、読み取りは Foundation の `_read_admission_rows` に寄せる。Foundation の `_legacy_pending_admission_identity` はそのまま残す。全呼び出し元を `rg` で確認する。
    - squash済み10ファイル: main 版を土台にし、#5854 以後の Paid commit（`a751a1f91f` account binding、`0acb25bb50` automatic-bid policy、`cb1cb48677` stale funded inventory 拒否、`a882779ead` receipt-reserve など）の差分だけを載せ直す。
-   - Paid spec / gig TODO: Paid HEAD 版を採り、main 側にだけある Ryu receipt 追記を取り込む。
+   - Paid spec / gig TODO: Paid HEAD 版を採り、main 側にだけある Ryu reply receipt 追記を取り込む。
 4. `runtime/loop/tests`、`skills/earn/gig/tests`、`skills/self/disk-cleanup/tests` を実行する。
 5. 1つのPRにまとめ、#5868 は superseded として閉じる。admin merge する。
 6. main から immutable release を1つ切り、label ごとに apply して readback する（release を切るだけでは label は切り替わらない）。
@@ -191,7 +198,7 @@ Pass はライフサイクル上の投影で、settled revenue ではない。�
 | 9 | Capafy | 8/2/5/0/1 | effect/capacity | creator earnings は観測済み、paid-out **0** |
 | 10 | CFO | 3/0/3/0/0 | message/payout の effect-unknown | 検証済み財務snapshotなし |
 | 11 | Writer | 7/2/5/0/0 | capacity/effect/FIFO | 一部は公式readbackあり、支払いの帰属なし |
-| 12 | Coconala | 7/3/1/3/0 | browser/Paid/Storefront の失敗と fence | Ryu は手動完了（収益の証明ではない） |
+| 12 | Coconala | 7/3/1/3/0 | browser/Paid/Storefront の失敗と fence | Ryuの過去手動完了（収益の証明ではない） |
 | 13 | CrowdWorks | 5/0/1/4/0 | entrypoint 143/1、effect_unknown（application 44、Paid 1、reply 201、report 1） | Paid 納品・支払い receipt なし |
 | 14 | Lancers | 7/2/3/2/0 | fence、timeout、storefront/work-sync | 残高 **¥0**、funded 0件（過去の ¥150,000 は提案のみ） |
 
@@ -669,7 +676,7 @@ TODO（何を・どう直すか）
   - 既知の穴: admission の identity（admission_class / priority）を変えると、古い queued occurrence が `occurrence identity changed` で毎 wake 例外になる。今回は `cancel_effect_free_queued_owner` で手で取り消した。apply 時に自動で片付ける修正が必要
   - CrowdWorks の 13 件（#5930 期の自動 close で no-effect 証明が無いもの）は再 fence しない（API が無く、occurrence は terminal で replay の危険は無い）。lm-crowdworks が公式 readback で確認する
 
-**T7 Paid（Paid spec の順番。Ryu room 18211957 には触らない）**
+**T7 Paid（Paid spec の順番。Ryu message-space thread 18211957 はPaid対象外）**
 - [x] 7-1 loop hardening の merge / release（#5875 → 以後の release）
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
@@ -727,6 +734,8 @@ TODO（何を・どう直すか）
 
 ## 6. 不変の制約
 
-- Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
+- Ryu message-space thread `18211957` はReply/Negotiation ownerだけが扱う。message-spaceの
+  最新readback前は再送せず、Paid formal-deliveryボタンは押さない。funded contractの
+  公式readbackが出た時だけ、新しいoccurrenceとしてPaidへhandoffする。
 - `unknown` / `effect_unknown` / `circuit_open` / `wake_boundary_failed` は再送の許可ではない。
 - `launchctl` の変更は `bin/launchctl-safe` 経由だけで行う。
