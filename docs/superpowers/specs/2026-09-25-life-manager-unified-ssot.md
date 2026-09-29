@@ -1447,3 +1447,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `/Users/anicca/loops/current`は`/Users/anicca/loops/releases/20260930T010308-3975ae89`を指すが、上記最新paper eventのloaded SHAは`b26ab310…`である。symlink変更だけをloaded release反映とは扱わず、次のofficial loaded readbackが必要である。
 - cost-complete source修正はbranch `feat/investment-paper-pnl-20260930`のcommit `d0dcb53a72`へpush済みで、投資focused suite `254/254`と`git diff --check`がPASSした。ただしPR／main merge／immutable release／paper applyは未実施なので、productionのP&Lや`AT-17`〜`AT-19`の完了証拠にはしない。
 - `AT-13`は未完、cursorは変わらない。検証済み実現投資収益は`$0/月`であり、paper unrealized P&Lは収益に数えない。手動sell、手動wake、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
+
+**cost-complete source候補readback（2026-09-30 01:10 JST）**:
+
+- 投資source branch `feat/investment-paper-pnl-20260930`のcommit `d0dcb53a72`をpushし、PR `#6259`を作成した。変更範囲は`skills/alpaca-investment/`と投資planだけで、Capafy・PromptBase・wallet・Binance・live注文には触れていない。
+- 公式order／FILL／CFEE readback、execution quote、deterministic ETF model cost、cost-complete net P&Lのfocused implementationは、投資adapter suite `254/254`、`./bin/lm-loop-contract`（`ok=true`、catalog `14`、registry `175`、mapped `102`、shared job IDs `0`）、`git diff --check`をPASSした。
+- PRはrequired checks待ちで、main merge・immutable release・production applyは未実施である。したがってこのsource候補は`AT-17`〜`AT-19`の将来実測を可能にする準備であり、現在のpaper P&L・実現収益・`AT-13`完了を意味しない。
