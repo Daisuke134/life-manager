@@ -112,4 +112,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseArgs, runCli, writePrivate };
+module.exports = { commandBoundary, parseArgs, runCli, writePrivate };
