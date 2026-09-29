@@ -1,0 +1,6 @@
+name: life-manager-infrastructure-canary
+description: Model-free read-only provider isolation and browser-profile continuity proof.
+agent: none
+size: mars-1vcpu-1gb
+idle_timeout: 5m
+egress: []

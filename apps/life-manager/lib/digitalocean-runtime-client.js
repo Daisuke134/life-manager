@@ -45,6 +45,37 @@ function createDigitalOceanRuntimeClient(options = {}) {
       ], "create"), "create");
       return Object.freeze({ session_id: sessionId(output), raw: output });
     },
+    async createBareCanary(input = {}) {
+      const name = String(input.name || "");
+      const specPath = String(input.specPath || "");
+      if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(name)
+          || !path.isAbsolute(specPath) || /[\r\n\0]/.test(specPath)) {
+        throw new Error("DigitalOcean bare canary input invalid");
+      }
+      const output = parseJson(await invoke([
+        "harness-runtime", "create", "--spec", specPath, "--name", name,
+        "--interactive=false", "-o", "json",
+      ], "bare create"), "bare create");
+      return Object.freeze({ session_id: sessionId(output), raw: output });
+    },
+    async exec(id, argv) {
+      if (!SESSION_ID.test(String(id || "")) || !Array.isArray(argv) || argv.length === 0
+          || argv.length > 64 || argv.some((arg) => typeof arg !== "string" || !arg
+            || arg.length > 8_192 || arg.includes("\0"))) {
+        throw new Error("DigitalOcean exec input invalid");
+      }
+      const output = parseJson(await invoke([
+        "harness-runtime", "exec", id, "--timeout", "120", "-o", "json", "--", ...argv,
+      ], "exec"), "exec");
+      const exitCode = output.exit_code ?? output.exitCode ?? output.ExitCode;
+      const stdout = output.stdout ?? output.Stdout ?? "";
+      const stderr = output.stderr ?? output.Stderr ?? "";
+      if (!Number.isInteger(exitCode) || typeof stdout !== "string" || typeof stderr !== "string") {
+        throw new Error("DigitalOcean exec receipt invalid");
+      }
+      if (exitCode !== 0) throw new Error("DigitalOcean guest command failed");
+      return Object.freeze({ exit_code: exitCode, stdout, stderr });
+    },
     async show(id) {
       if (!SESSION_ID.test(String(id || ""))) throw new Error("DigitalOcean session id invalid");
       const output = parseJson(await invoke(["harness-runtime", "show", id, "-o", "json"], "show"), "show");
