@@ -5670,3 +5670,232 @@ revenue owner and is not permission to send.
   and CrowdWorks/Lancers/Freelancer/Upwork have no active Paid loop that can be
   called complete. Registry presence alone is not completion; require a loaded
   owner plus official effect/readback/replay-zero.
+## Runtime Status Refresh — 2026-09-30 (Ryu DM read-only reconciliation; current cursor)
+
+- [x] The existing `life-manager-daily-driver` owner is running with the
+  `daily-driver` profile and official CloakBrowser CDP `localhost:9222`. Its
+  owner receipt is `owner=life-manager-daily-driver`, `port=9222`; the current
+  tab was `about:blank` before the read-only navigation. `bsk` extension state is
+  not used as the Coconala gate.
+- [x] The existing collector read `https://coconala.com/smartphone/direct_messages/10107358`
+  through that owner without clicking or sending. Authenticated seller identity
+  was `/users/2564121`; the thread contained 10 messages. The latest buyer
+  message is `2026-09-29 14:41:37` and requests that the reciprocal-link area be
+  self-service because there are many links. The latest seller message is the
+  prior acknowledgement at `2026-09-29 14:40:32`. Readback content digest:
+  `accf8ed5bd6265bc8d18958350b1fed573348964bad906cbdd5581f84d1d244c`.
+- [x] The same readback confirms that the latest buyer requirements are not
+  satisfied by the last seller acknowledgement: the management UI still needs
+  the girl's-image setting and a self-service, multi-entry reciprocal-link
+  editor; the visible wording change is `女の子を探す` → `八王子デリヘル`.
+- [ ] Do not send or press formal delivery for Ryu yet. First implement the
+  complete accumulated Ryu requirement set (paid-option/per-girl behavior,
+  WEB予約 wording and image behavior, original concept-image restoration,
+  girl's-image management, and multi-entry reciprocal links), then obtain
+  authenticated management-screen and public WEB予約 readbacks. Compose one
+  final Japanese DM containing all verified fixes and send it exactly once;
+  record the official seller-message readback before declaring Ryu complete.
+- [ ] After Ryu's single verified send, close the Coconala gate with one
+  controlled natural no-op/readback/replay-zero pass for Apply and Storefront;
+  never use the generic Paid wake as proof of Ryu delivery.
+- [ ] Reconcile the remaining exact unknown provider fences by occurrence and
+  official history: CrowdWorks `18d62cf32eb0c678-48194`, Lancers
+  `18d81967220136f8-89928`, and Mercor `18d82d9cd75db960-67523`. No retry or
+  blanket release is admissible from stale terminal events.
+- [ ] Keep CrowdWorks `63568785` pending until the buyer supplies the lesson/
+  answer material; the four completed rows need no resend. Keep Lancers closed
+  until a real funded `ContractReceipt`; refresh Mercor until a fresh official
+  funded inventory/final submission is observed.
+- [ ] Activate Freelancer and Upwork only in this order: fresh account-bound
+  authorization → official source-complete inventory → positive funded
+  project/contract and milestone → exactly one disabled owner → zero-spend
+  canary → funded delivery/payment/payout/crash-recovery/replay-zero readback →
+  enable. Their source adapters are tested, but live credentials and funded
+  evidence are still absent.
+- [ ] Promote the shared lifecycle/disk-admission/browser-observability changes
+  only through latest-main → acceptance PASS → immutable release. The current
+  production release still shows recurring ENOSPC/terminal-event failures, so
+  it cannot be called self-healing until the new release has a natural-run
+  receipt, official provider readback, and replay-zero for each enabled owner.
+
+## Runtime Status Refresh — 2026-09-30 (Ryu v724 official DM receipt; current cursor)
+
+- [x] The latest accumulated Ryu requirement set was already implemented and
+  read back on the official Colors HTTPS surfaces before the DM send: title
+  wording, original six concept images/order, per-girl image controls, paid
+  option separation/persistence, WEB予約 editor/current-form preview, and
+  multi-entry reciprocal-link editor. The v711 authenticated management/public
+  readback passed the corresponding checks.
+- [x] The prior v723 attempt was not treated as a receipt because it only showed
+  a transient DOM bubble and its reload returned `403 Forbidden`. After a fresh
+  normal Coconala login using the existing seller-owned credential SSOT, the
+  official thread readback proved the v723 body was absent; no duplicate body
+  was present before the new send.
+- [x] One consolidated final Japanese DM was then sent from the authenticated
+  Coconala DM composer. Formal delivery was not pressed. The durable evidence
+  is `/Users/anicca/gig/projects/18211957/delivery/current-cycle-v724-dm-send-readback.json`:
+  message SHA256 `65e95d8c47556151cd7d2fddd9f31e1cfde99785580b0e5c9b9885271a4f2559`.
+- [x] Post-reload official readback at `https://coconala.com/smartphone/direct_messages/10107358?uid=2564121`
+  shows the exact body once (`latest seller timestamp 9/30 06:47`,
+  `exact_body_containing_rows=1`). No second click or resend occurred. Ryu's
+  DM delivery is therefore complete; do not send again.
+- [ ] Next cursor is Coconala platform reconciliation, not Ryu: execute one
+  controlled natural no-op/readback/replay-zero pass for Apply and Storefront,
+  and keep the generic Paid wake separate from the Ryu receipt.
+- [ ] Then reconcile the remaining provider fences by exact occurrence
+  (CrowdWorks `18d62cf32eb0c678-48194`, Lancers `18d81967220136f8-89928`,
+  Mercor `18d82d9cd75db960-67523`) before any retry or blanket release.
+
+## Runtime Status Refresh — 2026-09-30 (atomic TODO cursor after v724)
+
+Evidence first: `/Users/anicca/loops/current/RELEASE.json` still points to
+`3975ae8996cab3325f514746a32c915f9935fddf`, not this branch's shared lifecycle
+and disk-admission changes. The Aqua readback shows Apply, Storefront, Paid,
+and Apply-reconcile owners installed, but Apply and Storefront last exited
+`75/EX_TEMPFAIL`; Paid is still running the old release and its latest stderr
+contains repeated `OSError: [Errno 28] No space left on device`, while the
+state log also contains `database is locked`, `control_busy`, and stale-owner
+release deferrals. `df -k /` reports only `289316 KiB` free against the
+`536870912`-byte admission requirement. Therefore “installed” is not “working”
+and Coconala is not yet a completed platform gate.
+
+The exact next work is atomic and ordered; do not skip an item or declare a
+later item complete from source tests alone:
+
+1. [x] Preserve the single official Ryu v724 DM receipt. Do not resend, press
+   formal delivery, or create another message for the same accumulated body.
+2. [ ] Establish a safe disk-admission window: read the cleanup manifest and
+   protected-run references, reclaim only regenerated unreferenced artifacts,
+   then record before/after free bytes and the cleanup receipt. Never delete
+   provider state, credentials, evidence, or an owned run to make space.
+3. [ ] Diagnose and close the live-owner boundary: correlate the latest
+   Apply/Storefront/Paid occurrence, `.owner.json`, host-admission result,
+   entrypoint result, and launchd exit. Resolve the `resource_effect_unknown`,
+   `resource_capacity_busy`, `database is locked`, and stale-owner paths in
+   source or state recovery; do not release a fence without an official
+   readback.
+4. [ ] Build an immutable release from latest main containing the shared
+   marketplace lifecycle, account-bound authorization, disk admission,
+   cleanup allow-list, and browser-observability changes. Run the focused test
+   suites, `./bin/lm-loop-contract`, compile checks, and the release provenance
+   check; commit and push before any production transition.
+5. [ ] Obtain the required approval for the live-owner mutation, then apply
+   that immutable release through the supported launchd-safe path. Record the
+   exact release SHA and owner labels; do not raw-`launchctl`, kill, or restart
+   an active owner.
+6. [ ] Run one controlled natural no-op/readback/replay-zero pass for Coconala
+   Apply and Storefront separately. A Paid `pass` is not proof of Storefront
+   publication or of Ryu delivery. Record provider receipt, official readback,
+   effect, and replay-zero for each owner.
+7. [ ] Reconcile the exact remaining unknown provider occurrences (CrowdWorks
+   `18d62cf32eb0c678-48194`, Lancers `18d81967220136f8-89928`, Mercor
+   `18d82d9cd75db960-67523`) one at a time from official history. Retry only
+   after the occurrence boundary and effect state are known; never blanket
+   release or duplicate an uncertain effect.
+8. [ ] Keep CrowdWorks `63568785` buyer-material-gated; do not submit or
+   resend its four completed rows. Keep Lancers closed until a real funded
+   `ContractReceipt` exists. Refresh Mercor until a fresh official funded
+   inventory/final-submission readback exists.
+9. [ ] Activate Freelancer and Upwork only after, in order, fresh
+   account-bound authorization, source-complete official inventory, positive
+   funded project/contract and milestone, exactly one disabled owner, a
+   zero-spend canary, funded delivery/payment/payout/crash-recovery/replay-zero
+   readback, and then enablement.
+10. [ ] Promote the meta-loop only after every enabled platform has the same
+    lifecycle contract: observe → decide → effect fence → official readback →
+    replay-zero → structured telemetry → recovery. The meta-loop must not
+    infer success from registry presence, local tests, or a stale launchd
+    process.
+
+Current cursor: item 2 (safe disk-admission window). Items 1 and the Ryu
+customer delivery are complete; items 2–10 remain. The next external effect is
+not admissible until item 2 and the owner diagnosis in item 3 have concrete
+receipts.
+
+### Item 2 probe receipt — 2026-09-30 06:52 JST
+
+- [x] The current allow-listed cleanup owner was run once with the latest
+  cleanup implementation and full host inventory. Its durable
+  `last-receipt.json` reports `evaluated=3`, `preserved=3`,
+  `preserved_reasons={"open":3}`, `reclaimed=0`, and
+  `protected_deletions=0`; the three candidates were Codex cache,
+  `life-manager-daily-driver` cache, and npm npx cache. The updater probe also
+  preserved its target on probe ambiguity (`errors=1`); no process was killed.
+- [x] The before/after host readback stayed below the runtime admission floor
+  (`free_before=299294720`, `free_after=299266048` bytes in the receipt;
+  subsequent `df -k /` was about 300 MiB). No provider state, credential,
+  browser identity, evidence, JSONL state, or owned run was removed.
+- [ ] Item 2 is therefore still open: a safe admission window has not been
+  established. It can close only after the protected caches are naturally
+  closed or another allow-listed, unreferenced regenerable artifact is
+  proven closed and reclaimed, followed by a fresh `free_after >= 536870912`
+  readback. Do not force-close the Codex, browser, or Node owner merely to
+  satisfy this threshold.
+
+### Item 3 boundary correlation — 2026-09-30 06:54 JST
+
+- [x] Apply's latest event is occurrence
+  `hf-gig-apply-direct:18d9e90f2ce5e158-62302`, release
+  `287d913c1c76ceeaee04255f9ac63fb8c086d5f8`, and it transitions directly
+  from `execute/running` to `report/blocked`, exit `75`,
+  `host_admission_deferred:resource_effect_unknown`, with no official receipt
+  and no persisted occurrence directory. Its launchd owner is not running and
+  points at release `20260925T180341-287d913c`.
+- [x] Storefront's latest event is occurrence
+  `hf-gig-storefront-direct:18d9e938937802d8-65833`, old release
+  `3975ae8996cab3325f514746a32c915f9935fddf`, and it transitions directly
+  from `execute/running` to `report/blocked`, exit `75`, with
+  `effect_identity_status=not_written`, no official receipt, and no persisted
+  occurrence directory. Its launchd owner is not running and points at the
+  old `20260930T010308-3975ae89` release.
+- [x] Paid's latest observed occurrence
+  `hf-gig-paid-direct:18d9e7f67f484a90-36152` is a deterministic no-effect
+  `pass` on the same old release; it proves neither Storefront publication nor
+  any customer delivery. Its earlier stderr still records `ENOSPC` while
+  writing the receipt reserve. Apply-reconcile is also installed on the old
+  release and currently not running.
+- [x] The current official release file is still
+  `3975ae8996cab3325f514746a32c915f9935fddf`; therefore the new source-side
+  admission/cleanup fixes are not live. The missing occurrence directories
+  behind the event `evidence_refs` are an evidence-persistence defect, not
+  proof that an effect happened.
+- [ ] Item 3 remains open until the immutable new release is built and the
+  owner mutation is approved/executed, after which each new occurrence must
+  persist host-admission, owner, entrypoint, provider receipt, and official
+  readback evidence. No fence release or blind retry is allowed before that.
+
+### Item 4 source-boundary check — 2026-09-30 06:56 JST
+
+- [x] `git fetch origin --prune` confirms this dedicated branch is based on
+  the current `origin/main` (`3975ae8996cab3325f514746a32c915f9935fddf`) and
+  contains the shared lifecycle/disk/observability changes plus the append-only
+  spec receipts. `./bin/lm-loop-contract` passes with
+  `catalog_loops=14`, `registry_jobs=176`, `mapped_jobs=102`, no shared job
+  IDs, and no errors.
+- [ ] Item 4 is not complete: no immutable production release has been built
+  from a merged main, and no production release pointer has been changed. The
+  branch remains the review/acceptance source; production still points to the
+  old SHA above.
+
+### Reconciler starvation root-cause fix — 2026-09-30 07:08 JST
+
+- [x] The production stderr and fleet-apply owner log showed repeated timeouts
+  for slow `life-manager-*` growth publishers before the Coconala `hf-gig-*`
+  owners were reached; the bounded fleet budget then ended with
+  `changed=0`, `skipped=163`, and `errors=11`. The source plan was using plain
+  loop_id order, so alphabetically earlier growth owners starved later
+  contract owners.
+- [x] Added one deterministic ordering rule in
+  `bin/reconcile-agent-runner-release.sh`: `domain=earn` first, then
+  `financial`, `growth`, and `system`; within a domain it preserves
+  `priority`, `admission_class`, and loop_id ordering. This makes contract
+  Apply/Storefront/Reply owners reachable within the existing bounded budget
+  without changing locks, timeouts, effect fences, or provider actions.
+- [x] Added a regression test proving an earn/revenue owner is applied before
+  an alphabetically earlier growth/revenue owner. The full
+  `test_reconcile_agent_runner_release_fleet_apply.py` suite passes `18/18`,
+  and `bash -n bin/reconcile-agent-runner-release.sh` passes.
+- [ ] This fix is source-only until item 4/5: production's reconciler still
+  runs release `8f1fdd3a6216b6fd2039575f36be8feacbc0b2a3` and must not be
+  claimed repaired until a main-derived immutable release, a natural
+  reconciler receipt, and Coconala owner/readback evidence are present.

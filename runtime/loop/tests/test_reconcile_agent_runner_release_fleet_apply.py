@@ -82,7 +82,8 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         return repo, sha
 
     def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",),
-                       labels=None, with_investment_provisioner=False,
+                       labels=None, entry_overrides=None,
+                       with_investment_provisioner=False,
                        with_investment_selection_provisioner=False,
                        with_reviewed_validation_reports=False):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
@@ -91,11 +92,14 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         (release_dir / "RELEASE.json").write_text(
             json.dumps({"sha": sha, "release_paths": release_paths}))
         labels = labels or {}
+        entry_overrides = entry_overrides or {}
+        loops = {}
+        for loop_id in loop_ids:
+            entry = {"label": labels[loop_id]} if loop_id in labels else {}
+            entry.update(entry_overrides.get(loop_id, {}))
+            loops[loop_id] = entry
         (release_dir / "config" / "loop-registry.json").write_text(json.dumps({
-            "loops": {
-                loop_id: ({"label": labels[loop_id]} if loop_id in labels else {})
-                for loop_id in loop_ids
-            },
+            "loops": loops,
             "retired_labels": [],
         }))
         lm_loop = release_dir / "bin" / "lm-loop"
@@ -674,6 +678,40 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertLess(
                 calls_text.index("target=aaa-owner"), calls_text.index("target=zzz-owner"),
                 "a prior failure for an unrelated sha must not reorder this run")
+
+    def test_earn_revenue_owners_are_applied_before_growth_owners(self):
+        """Revenue contract owners must not starve behind slow growth publishers."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root,
+                sha,
+                loop_ids=("aaa-growth", "zzz-contract"),
+                entry_overrides={
+                    "aaa-growth": {
+                        "domain": "growth", "admission_class": "revenue",
+                        "priority": "revenue",
+                    },
+                    "zzz-contract": {
+                        "domain": "earn", "admission_class": "revenue",
+                        "priority": "revenue",
+                    },
+                },
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls_text = calls_log.read_text()
+            self.assertLess(
+                calls_text.index("target=zzz-contract"),
+                calls_text.index("target=aaa-growth"),
+                "earn/revenue owners must run before growth owners",
+            )
 
 
 if __name__ == "__main__":
