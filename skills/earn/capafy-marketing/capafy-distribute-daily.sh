@@ -27,15 +27,26 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ARTICLE_ROOT="${ARTICLE_ROOT:-$(cd "$SCRIPT_DIR/../../writer-agent" && pwd -P)}"
 # shellcheck source=../writer-agent/scripts/writer-runtime-env.sh
 source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
+# writer-runtime-env derives the self-owned site checkout from this loop's own
+# state dir, which has no checkout (first live run 2026-09-29: FileNotFoundError
+# .../capafy-distribute/checkouts/self-owned-landing). Publish through the Writer's
+# existing checkout; capafy_free_article.py refuses a dirty worktree, and the two
+# loops run at different times (article-daily 06:00, this loop 07:15 JST).
+ARTICLE_SELF_OWNED_LANDING_ROOT="${CAPAFY_DISTRIBUTE_LANDING_ROOT:-$HOME/.local/state/life-manager/writer/checkouts/self-owned-landing}"
+export ARTICLE_SELF_OWNED_LANDING_ROOT
 
-# POSTIZ_API_KEY lives in ~/.openclaw/.env (a different loop's credential
-# file); load it only to fill in POSTIZ_API_KEY if life-manager's own .env
-# (already loaded above by writer-runtime-env.sh) did not already set one,
-# reusing the same repo-owned dotenv loader rather than a second parser.
-if [ -z "${POSTIZ_API_KEY:-}" ] && [ -f "$HOME/.openclaw/.env" ]; then
-  # shellcheck source=/dev/null
-  source "$LIFE_MANAGER_REPO/apps/life-manager/scripts/lib/load-env-file.sh"
-  lm_load_env_file "$HOME/.openclaw/.env"
+# Postiz: use Life Manager's own key from private/marketing.env (the same one the
+# mobile-app loops use). The legacy ~/.openclaw/.env is refused by the shared env
+# loader ("refusing to load env file beneath a legacy runtime root", first live run
+# 2026-09-29 16:18 JST).
+if [ -z "${POSTIZ_API_KEY:-}" ]; then
+  _lm_marketing_env="${LIFE_MANAGER_MARKETING_ENV_FILE:-$HOME/.local/state/life-manager/private/marketing.env}"
+  if [ -f "$_lm_marketing_env" ]; then
+    # shellcheck source=/dev/null
+    source "$LIFE_MANAGER_REPO/apps/life-manager/scripts/lib/load-env-file.sh"
+    lm_load_env_file "$_lm_marketing_env"
+  fi
+  [ -n "${LM_POSTIZ_API_KEY:-}" ] && export POSTIZ_API_KEY="$LM_POSTIZ_API_KEY"
 fi
 
 CAPAFY_DISTRIBUTE_STATE_DIR="${CAPAFY_DISTRIBUTE_STATE_DIR:-$WRITER_STATE_DIR/capafy-distribute}"
