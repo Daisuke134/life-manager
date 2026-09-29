@@ -5832,3 +5832,35 @@ receipts.
   proven closed and reclaimed, followed by a fresh `free_after >= 536870912`
   readback. Do not force-close the Codex, browser, or Node owner merely to
   satisfy this threshold.
+
+### Item 3 boundary correlation — 2026-09-30 06:54 JST
+
+- [x] Apply's latest event is occurrence
+  `hf-gig-apply-direct:18d9e90f2ce5e158-62302`, release
+  `287d913c1c76ceeaee04255f9ac63fb8c086d5f8`, and it transitions directly
+  from `execute/running` to `report/blocked`, exit `75`,
+  `host_admission_deferred:resource_effect_unknown`, with no official receipt
+  and no persisted occurrence directory. Its launchd owner is not running and
+  points at release `20260925T180341-287d913c`.
+- [x] Storefront's latest event is occurrence
+  `hf-gig-storefront-direct:18d9e938937802d8-65833`, old release
+  `3975ae8996cab3325f514746a32c915f9935fddf`, and it transitions directly
+  from `execute/running` to `report/blocked`, exit `75`, with
+  `effect_identity_status=not_written`, no official receipt, and no persisted
+  occurrence directory. Its launchd owner is not running and points at the
+  old `20260930T010308-3975ae89` release.
+- [x] Paid's latest observed occurrence
+  `hf-gig-paid-direct:18d9e7f67f484a90-36152` is a deterministic no-effect
+  `pass` on the same old release; it proves neither Storefront publication nor
+  any customer delivery. Its earlier stderr still records `ENOSPC` while
+  writing the receipt reserve. Apply-reconcile is also installed on the old
+  release and currently not running.
+- [x] The current official release file is still
+  `3975ae8996cab3325f514746a32c915f9935fddf`; therefore the new source-side
+  admission/cleanup fixes are not live. The missing occurrence directories
+  behind the event `evidence_refs` are an evidence-persistence defect, not
+  proof that an effect happened.
+- [ ] Item 3 remains open until the immutable new release is built and the
+  owner mutation is approved/executed, after which each new occurrence must
+  persist host-admission, owner, entrypoint, provider receipt, and official
+  readback evidence. No fence release or blind retry is allowed before that.
