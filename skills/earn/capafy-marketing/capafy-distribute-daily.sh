@@ -226,5 +226,10 @@ ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
     "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
     "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
-echo "capafy-distribute-daily: model pass exit=$RC date=$JST_DATE skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
+echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
+# The agent CLI exits 1 even after a fully published run (live 2026-09-29 h15:
+# receipt published + ledger written, exit 1). The ledger is the effect truth.
+POST_RC=0
+python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
+[ "$POST_RC" -eq 10 ] && exit 0
 exit "$RC"
