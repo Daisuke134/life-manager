@@ -2871,6 +2871,23 @@ branch `fix/source-reconcile-20260930`では、`runtime/loop/lm_loop_run.py`が�
 6. **未完** Upwork／Freelancerはapproved mutation・account auth・完全inventory・funded contract／milestone・action receiptが揃うまでholdする。
 7. **未完** 全checksと外部receipt後のみmain受入→immutable release→targeted production apply。Ryuさんの既存DMは重複再送せず、公式receiptが揃う場合だけ三面readbackする。
 
+## 現在の正本cursor（2026-09-30、disk-cleanup回帰分割実測後・最新）
+
+host空き容量は約248MiBで、512MiB floor未満のためproduction cleanup natural runは未完のまま。実装回帰は容量依存境界を分割して実測し、通常ケース70件、receipt/ENOSPCケース15件、canary/bootstrap/run_onceケース10件、合計95件を全てPASSした。全件を1プロセスで連続実行する場合だけ、hostのreserve累積でENOSPCになるため、これはテスト実装失敗ではなく容量ゲートの証拠として扱う。
+
+- production read-only: cleanup `runs=46`、`last exit code=1`、allow-list候補はCodex cache・daily-driver cache・npx cacheの3件だが全てopen。dependency bundle orphanは0件。
+- branch: `947532c285`がpush済みで、scratch前disk preflight、lock競合deferred、dependency bundle allow-listを含む。production current releaseは旧SHAのまま。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** productionの空き容量をsafe allow-listだけで512MiB以上へ回復し、disk admission `ready`をread-only確認する。open cache、browser profile、cookie、protected state、稼働loopは停止・削除しない。
+2. **未完** branch全checksのpartitioned PASS証跡後、immutable releaseを作り、applyが空いている時間にtargeted production applyする。loaded SHAとcleanup runnerの75/deferred readbackを保存する。
+3. **未完** cleanup natural runの公式receipt、protected deletion 0、容量floor到達を確認する。
+4. **未完** Lancers Human Verification解除後に公式preflightを2回通し、`contracts.json`を公式readbackから再生成する。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound receipt、公式readback、実adapter lifecycle receipt、replay-zeroを接続する。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、action receiptを揃える。
+7. **未完** 全checksと外部receipt後のみmain受入→immutable release→targeted production apply。Ryuさんの既存DMは再送せず、公式receiptが揃った場合だけ三面readbackする。
+
 ## 現在の正本cursor（2026-09-30、scratch前disk preflight追加後・最新）
 
 production自然runで、旧releaseのcleanup workerがapply lock競合後にscratch/recovery intentへ進み、`No space left on device`で終了する事実を確認した。branchではfinite loopのdisk preflightを`_run_admitted`だけでなく、lock取得後・entrypoint検証後・scratch生成前にも実行する。低容量または判定不能時は`disk_headroom_low`／`disk_headroom_unavailable`をstderrへ出して75/deferredで閉じ、scratch、resource claim、child start、effect identity、recovery intent、外部効果を作らない。continuous ownerは従来どおり対象外である。
