@@ -36,6 +36,7 @@ from runtime.loop.runtime_event import (
     validate_runtime_event,
 )
 from runtime.loop.runtime_reserve import retry_on_enospc
+from runtime.host.disk_admission import disk_headroom_ok
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
@@ -794,6 +795,14 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
     return False, False, f"entrypoint_exit_{return_code}"
 
 
+def _disk_preflight_reason() -> str | None:
+    """Return a safe host-capacity reason before a finite child is started."""
+    try:
+        return None if disk_headroom_ok() else "disk_headroom_low"
+    except Exception:  # noqa: BLE001 - the admission boundary must fail closed
+        return "disk_headroom_unavailable"
+
+
 # A failing entrypoint's own stderr is the only first-hand evidence of why it
 # died (see the en-card-instagram investigation: hundreds of entrypoint_exit_1
 # failures with nothing durable to read afterwards, because the per-run
@@ -1105,6 +1114,18 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         # stderr inherited exactly as before capture existed for every other
         # owner -- no capture here.
         return _run_entrypoint(command, env=env, timeout_seconds=None)
+    if env.get("LIFE_MANAGER_DISK_PREFLIGHT") == "1":
+        try:
+            disk_reason = _disk_preflight_reason()
+        except Exception:  # noqa: BLE001 - preserve the fail-closed boundary
+            disk_reason = "disk_headroom_unavailable"
+        if disk_reason is not None:
+            if not isinstance(disk_reason, str) or SAFE_RESULT_HINT.fullmatch(disk_reason) is None:
+                disk_reason = "disk_headroom_unavailable"
+            _atomic_json(receipt, {
+                "status": "deferred", "effect": 0, "reason": disk_reason,
+            })
+            return 75
     try:
         minimum_free = int(os.environ.get("LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT", "15"))
     except ValueError:
@@ -1259,7 +1280,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 heartbeat_thread.start()
 
         child_env = {key: value for key, value in env.items()
-                     if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
+                     if key not in {
+                         "LIFE_MANAGER_OCCURRENCE_ID",
+                         "LIFE_MANAGER_RESULT_HINT_PATH",
+                         "LIFE_MANAGER_DISK_PREFLIGHT",
+                     }}
         if hint_allowed:
             hint_path = receipt.parent / "entrypoint-result.json"
             child_env["LIFE_MANAGER_RESULT_HINT_PATH"] = str(hint_path)
@@ -1393,6 +1418,7 @@ def main(argv: list[str] | None = None) -> int:
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "LIFE_MANAGER_RUN_ID": run_id,
+            "LIFE_MANAGER_DISK_PREFLIGHT": "1",
             "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=occurrence_id, on_claimed=record_claimed,

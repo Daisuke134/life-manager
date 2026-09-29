@@ -2813,6 +2813,26 @@ Coconalaの公式profile readback（`https://coconala.com/users/2564121`）を�
 6. **未完** production capacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。稼働中browser profileを停止・削除して容量を捏造しない。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力が届いた場合だけ、管理画面・公開ページ・APIを同一値でreadbackし、receiptが取れない送信を完了扱いにしない。
 
+## 現在の正本cursor（2026-09-30、Lancers preflight再実測と共有disk admission後・最新）
+
+Lancers公式preflightをread-onlyで再実行した。CDP `localhost:9227`の`/json/version`と`/json/list`はHTTP 200で、公式ページのtitleは`Human Verification`だったが、Playwrightの`connect_over_cdp`は2回timeoutし、preflight結果は`ok=false`、`atom=ELZ-L01`、`failed_read=1`、`error=browser_connect_failed`、`logged_in=false`となった。別の稼働中Lancers workerが共有attach lockを保持していたため、二重attach・loop再起動・Human Verification迂回は行っていない。
+
+同時にhost空き容量は約256MiBで、共通floor 512MiBを下回る。production logには`No space left on device`、recovery intent append失敗、provider workerの`browser_connect_failed`が記録されていた。これをprovider効果や応募失敗とは扱わない。
+
+- 実装: `runtime/loop/lm_loop_run.py`のfinite child起動前に共有disk preflightを接続した。低容量時はprovider browser attach・resource claim・child start前に`status=deferred`、`effect=0`、`reason=disk_headroom_low`をhost receiptへ保存し、終了コード75で再試行可能にする。preflight用envはchildへ漏らさない。
+- 検証済み: disk-preflight回帰1件、`runtime/loop/tests/test_lm_loop_run_bounds.py` `108 passed`、`git diff --check`予定。providerへの新規効果は0件。
+- 未完: 空き容量回復後のLancers公式Human Verification自然run、同一accountのpreflight 2回、`contracts.json`公式readback、Coconala等のaction receipt、実adapter lifecycle receipt、production release/apply。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** productionの空き容量を安全に回復し、共通disk admissionが`ready`を返すことをread-onlyで確認する。稼働中browser profile・cookie・protected stateは停止・削除しない。
+2. **未完** LancersのHuman Verification解除後、同一accountの公式read-only preflightを2回通し、現行schemaの`contracts.json`を再生成する。自動突破・手編集・応募はしない。
+3. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readbackを取得し、各runtimeの共通authorization境界へ渡す。
+4. **未完** providerごとの実adapter factoryをcanary・rollback・settlement・official receipt・replay-zeroへ接続する。fixture/local receiptでpromoteしない。
+5. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。
+
 ## 現在の正本cursor（2026-09-30、account-bound authorization decision境界追加後）
 
 `platform_manifest_cycle.py`の共通lifecycle入口を、任意の`authorization_receipt_ref`だけでは通さないようにした。runtime callerは、provider固有の認証store（既存の`provider_authorization.authorize`等）が返した`approved_api`または`approved_browser` decisionを必須で渡し、そのdecisionの64桁receipt hashと`authorization-receipt://sha256/<hash>`が一致した場合だけadapter factoryへ進む。`unknown`、`denied`、`approved_assisted`、期限切れ・不正hash・参照不一致はprovider effect前にfail-closedする。これはローカルfixtureのsettled結果や実provider receiptを作るものではない。
@@ -2978,3 +2998,23 @@ Coconalaの公式profile readback（`https://coconala.com/users/2564121`）を�
 5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
 6. **未完** production capacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。稼働中browser profileを停止・削除して容量を捏造しない。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力が届いた場合だけ、管理画面・公開ページ・APIを同一値でreadbackし、receiptが取れない送信を完了扱いにしない。
+
+## 現在の正本cursor（2026-09-30、Lancers preflight再実測と共有disk admission後・最終）
+
+Lancers公式preflightをread-onlyで再実行した。CDP `localhost:9227`の`/json/version`と`/json/list`はHTTP 200で、公式ページのtitleは`Human Verification`だったが、Playwrightの`connect_over_cdp`は2回timeoutし、preflight結果は`ok=false`、`atom=ELZ-L01`、`failed_read=1`、`error=browser_connect_failed`、`logged_in=false`となった。別の稼働中Lancers workerが共有attach lockを保持していたため、二重attach・loop再起動・Human Verification迂回は行っていない。
+
+host空き容量は約256MiBで、共通floor 512MiBを下回る。production logには`No space left on device`、recovery intent append失敗、provider workerの`browser_connect_failed`が記録された。これはprovider効果や応募失敗ではない。
+
+- 実装: `runtime/loop/lm_loop_run.py`のfinite child起動前に共有disk preflightを接続した。低容量時はprovider browser attach・resource claim・child start前に`status=deferred`、`effect=0`、`reason=disk_headroom_low`をhost receiptへ保存し、終了コード75で再試行可能にする。preflight用envはchildへ漏らさない。
+- 検証済み: disk-preflight回帰、`runtime/loop/tests/test_lm_loop_run_bounds.py`＋`test_lm_loop_apply.py` `261 passed, 31 subtests passed`、disk admission `8 passed`、compile、`git diff --check`、`lm-loop-contract ok=true`。providerへの新規効果は0件。
+- 未完: 空き容量回復後のLancers公式Human Verification自然run、同一accountのpreflight 2回、`contracts.json`公式readback、Coconala等のaction receipt、実adapter lifecycle receipt、production release/apply。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** productionの空き容量を安全に回復し、共通disk admissionが`ready`を返すことをread-onlyで確認する。稼働中browser profile・cookie・protected stateは停止・削除しない。
+2. **未完** LancersのHuman Verification解除後、同一accountの公式read-only preflightを2回通し、現行schemaの`contracts.json`を再生成する。自動突破・手編集・応募はしない。
+3. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readbackを取得し、各runtimeの共通authorization境界へ渡す。
+4. **未完** providerごとの実adapter factoryをcanary・rollback・settlement・official receipt・replay-zeroへ接続する。fixture/local receiptでpromoteしない。
+5. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。

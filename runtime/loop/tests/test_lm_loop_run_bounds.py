@@ -186,6 +186,35 @@ def test_capacity_busy_blocker_is_only_emitted_before_any_claim_or_child_start(t
     assert blocker in PRE_EFFECT_ADMISSION_BLOCKERS
 
 
+def test_disk_preflight_defers_before_resource_claim_or_child_start(tmp_path):
+    """A low-disk host must not attach a provider browser or claim capacity."""
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    with (patch.dict(os.environ, {"LIFE_MANAGER_DISK_PREFLIGHT": "1"}),
+          patch("runtime.loop.lm_loop_run._disk_preflight_reason",
+                return_value="disk_headroom_low"),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource") as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        return_code = _run_admitted(
+            ["/bin/true"], entry, "lancers-revenue-work-sync",
+            {"LIFE_MANAGER_DISK_PREFLIGHT": "1"}, receipt,
+        )
+
+    assert return_code == 75
+    assert json.loads(receipt.read_text()) == {
+        "status": "deferred", "effect": 0, "reason": "disk_headroom_low",
+    }
+    enqueue.assert_not_called()
+    claim.assert_not_called()
+    run.assert_not_called()
+
+
 def test_fifo_wait_blocker_is_only_emitted_before_any_child_start(tmp_path):
     """Regression sibling to the capacity_busy case: the claim-side fifo_wait
     reason is only reachable when claim_durable_resource itself failed to
