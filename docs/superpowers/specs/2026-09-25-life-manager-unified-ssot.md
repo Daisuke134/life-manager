@@ -748,7 +748,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] v706の公式readback: `delivery/current-cycle-v706-concept-restore-readback.json`（FTPS）と `delivery/current-cycle-v706-concept-browser-readback.json`（CloakBrowser/CDP）。公開ページは6枚の順序・label・原本画像一致、3秒後に2枚目へ遷移、管理画面は6枚のpreview・6個の復元ボタン・cache bustを確認済み。
 - [x] v706を共通client-artifact restore契約へ写像し、validatorの結果は `errors=[]`。manifestのhash、6枚のlabel/path/hash、animation hash、管理画面6操作、公式readback ID、replay-zeroを固定した。
 - [x] 2026-09-29にCoconala公式DM `10107358` をCDPで再読し、Ryuの最後の「よろしくお願いします」（9/29 13:37）に、こちらの13:44返信が付いていることを確認した。その後、購入者から新しい指摘が来たため、この時点の「未返信なし」は現在の状態を表さない。
-- [~] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）と返信入力（`textarea.message-input`）を実装し、旧URLへ正規化する回帰テストを追加した（commit `aa9446817c`、focused suite `197 passed`）。残りは本番immutable releaseへ反映後、同じ公式DMの受信・返信・重複guardをライブreadbackしてdurable JSONへ保存すること。
+- [~] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）と返信入力（`textarea.message-input`）を実装し、旧URLへ正規化する回帰テストを追加した（commit `aa9446817c`、focused suite `197 passed`）。2026-09-29 16:17 JST（UTC 07:17）に現行スマホDM URL（`/smartphone/direct_messages/10107358?uid=2564121`）から公式readbackを再取得し、10件・添付2件・最新購入者文14:41を `delivery/current-cycle-v712-dm-readback.json` と `source/dm/thread-10107358-full.json` に保存した。残りは現行URL＋UIDを返信経路へ接続し、immutable release反映後に受信・返信・重複guardを同じ公式DMで一度だけ検証すること。
 - [x] すべてのサイト修正をv706へまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得した。
 - [x] v706の修正内容・管理画面リンク・公開リンクを含む完成報告をDMへ一度だけ送信した。POST HTTP 200、送信後の公式DM本文readback、重複ガード、正式納品ボタン非押下を `delivery/current-cycle-v706-dm-readback.json` に保存した。これは下記の新指摘を含まないため、現時点の最終納品とは扱わない。重複送信は禁止。
 
@@ -767,8 +767,8 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] v711の全項目公式HTTPS readbackを実行し、認証済み管理画面11項目、公開12ルートのデスクトップ／モバイル、content API、空相互リンクの非表示を確認した。readback: `delivery/current-cycle-v711-full-browser-readback.json`。
 - [x] 現行CoconalaスマホDMの返信入力を旧`#DirectMessageBody`だけでなく、厳格な`textarea.message-input`にも対応した。複数候補・想定外要素は送信せず、`unexpected_message_input_count`／`unexpected_message_input`として証跡化する。productionへの反映と公式送信readbackは未完了。
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
-- [x] 直近の公式DM再確認でも、取得できた最新5件は9/29 14:33〜14:41で変化なし。最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。その後の再試行はCoconala側の403で終わったため、14:41より後の受信が無いとは断定しない。
-- [x] 2026-09-29の再プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM `10107358`、旧DM URL、受信箱、ダッシュボードの公式ページ本体がすべて `403 Forbidden` を返した。証跡は `/Users/anicca/gig/trajectory/ryu-dm-probe/01-dm10107358.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/legacy-legacy.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/inbox-inbox.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/dash-dash.json`。このため14:41以降の受信内容・送信可否・公式readbackは未確定で、再送はしない。
+- [x] 2026-09-29 16:17 JST（UTC 07:17）の現行スマホDM再読で、取得できた最新10件は9/29 14:33〜14:41を含み、最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。添付2件はHTTP 200で取得・hash固定済み。readbackは `delivery/current-cycle-v712-dm-readback.json`。
+- [x] 直前の4経路プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM、旧DM URL、受信箱、ダッシュボードが `403 Forbidden` を返した。これはログイン切れではなくprovider access denialとして扱う安全境界を `session_vault.py` と `session_vault_tick.sh` に追加し、再ログイン・再送を抑止する。現行スマホDM URLは後続readbackで回復したが、旧URLは依然403のため返信経路は旧URLを使用しない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -801,10 +801,10 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 5. [x] **R-03〜R-11の全項目を同一変更後に再実測**した。`delivery/current-cycle-v711-full-browser-readback.json`で、認証済み管理画面11項目→公開12ルート（デスクトップ／モバイル）→content APIを読み戻し、全checks PASS。口コミ・写メ日記は空データの現状を明示的に記録した。
 6. [x] **R-15の相互リンク管理を実装**した。管理画面で複数行の追加・編集・削除・並べ替え、表示名・遷移URL・バナー・掲載位置・公開状態、HTTPS URL検証を追加した。実URL・バナー受領後に保存→再読込→公開readbackを行う。
 7. **R-13の外部連携は権限・審査・仕様が揃った媒体だけを個別に接続**し、未提供の媒体は未完了として明示する。
-8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`と`/smartphone/direct_messages/<id>`の実装・focused 196 testsは完了。immutable release反映後に、公式readback JSONで受信・返信・重複guardを同じthreadで検証する。
+8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`、`textarea.message-input`、`/smartphone/direct_messages/<id>?uid=<own_uid>`の受信readback・focused 196 testsは完了。残りは返信adapterが現行URLを選び、immutable release反映後に、公式readback JSONで返信・重複guardを同じthreadで検証する。
 9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
 
-公式CDPによる14:33〜14:41のreadbackは保存済みだが、collectorのDOM前提は古く、自動収集経路は未完了である。直近の公式4経路プローブはすべて `403 Forbidden` で、認証済み表示だけでは公式readback可能とは判定できない。13:44返信のreadbackは14:20以降の指摘を含まず、v708も新着の取得証拠であって修正・納品証拠ではない。ローカルの旧DM JSONも2026-08-29時点で、9/27以降の指摘を含まない。
+現行スマホDMの14:33〜14:41を含むreadbackは `v712` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712は修正・納品証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
 ## 6. 不変の制約
 
