@@ -80,6 +80,16 @@ function createHostAdapter(mode, options = {}) {
       }),
     });
   };
+  const executeReferencedTask = async (taskRef, expectedJobId) => {
+    const task = await read("state", taskRef);
+    if (!task || task.tenant_id !== tenantId) {
+      throw new Error("cloud edition referenced task tenant identity mismatch");
+    }
+    if (!expectedJobId || task.task_id !== expectedJobId) {
+      throw new Error("cloud edition referenced task job identity mismatch");
+    }
+    return executeTask(task);
+  };
   return Object.freeze({
     mode,
     tenantId,
@@ -88,6 +98,7 @@ function createHostAdapter(mode, options = {}) {
     readState: async (ref) => read("state", ref),
     readReceipt: async (ref) => read("receipt", ref),
     executeTask,
+    executeReferencedTask,
   });
 }
 

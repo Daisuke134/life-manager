@@ -1,0 +1,21 @@
+{
+  "name": "life-manager-agentcore-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/main.test.js",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "bedrock-agentcore": "0.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.3",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

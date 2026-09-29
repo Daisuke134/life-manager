@@ -201,17 +201,17 @@
 
 **Produces:** an AgentCore transport wrapper that validates identity/release/budget, calls the existing CommonJS kernel, and returns a bounded result envelope.
 
-- [ ] **Step 1: Write RED envelope tests**
+- [x] **Step 1: Write RED envelope tests**
 
   Reject missing tenant/job/attempt/wake/release IDs, payloads over the limit, inline credentials, unapproved SHA, and result envelopes without receipt/evidence/cost fields.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
   ```bash
   node --test lib/agentcore-runtime-envelope.test.js lib/cloud-edition-host-adapter.test.js
   ```
 
-- [ ] **Step 3: Implement the wrapper, not a second agent**
+- [x] **Step 3: Implement the wrapper, not a second agent**
 
   `main.ts` performs protocol translation only. Business execution remains `executeBusinessTask()` and existing loop adapters. The wrapper receives reference-only input and emits:
 
@@ -228,7 +228,7 @@
   }
   ```
 
-- [ ] **Step 4: Run local transport parity**
+- [x] **Step 4: Run local transport parity**
 
   Invoke the wrapper locally with the literal CL01 fixture and compare the full canonical receipt/evidence hash to the local host adapter.
 
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06 is externally blocked, not done, and no deployment retry is allowed before an official AWS response. Immediate order is `A11 -> A12 -> A14 -> A15 -> A16` while the existing activation case remains inside its stated response window, then `A06 -> A07 -> A13` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06 and A13 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A11 and A12 are complete; immediate order is `A14 -> A15 -> A16` while the existing activation case remains inside its stated response window, then `A06 -> A07 -> A13` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -558,9 +558,9 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A09 | done | Migration and durable stores | store 5/5; PostgreSQL migration replay, tenant/job FK, single lease, receipt dedupe, immutable usage, RLS, role boundary, and failed-transaction rollback PASS |
 | A10 | done | Versioned `free-v1` and `founding-pro-v1` policy | pure admission 3/3; Task 3 unit 8/8 and PostgreSQL seeded-policy readback PASS |
 | A11 | done | AgentCore envelope contract | 7/7 focused tests; inline secrets, foreign tenant refs, wrong SHA, oversized input, incomplete receipt/evidence/usage, fractional micros, and extra output all rejected |
-| A12 | **next** | Thin AgentCore wrapper over existing kernel | no duplicated business rule; local canonical parity PASS |
-| A13 | todo | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash |
-| A14 | todo | Runtime SDK client and dispatcher tests | budget/release/lease checks occur before provider call |
+| A12 | done | Thin AgentCore wrapper over existing kernel | wrapper 2/2 plus envelope/host 7/7; persisted canonical receipt and evidence hash exactly match local host |
+| A13 | external-blocked | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash after AWS service activation |
+| A14 | **next** | Runtime SDK client and dispatcher tests | budget/release/lease checks occur before provider call |
 | A15 | todo | One Inngest cloud-job function | tenant concurrency 1; event carries IDs only |
 | A16 | todo | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
 | A17 | todo | AgentCore Browser Profile adapter | agent-owned tenant/provider profile and exact session release |
