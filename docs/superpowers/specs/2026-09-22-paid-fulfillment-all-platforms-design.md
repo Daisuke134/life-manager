@@ -6326,3 +6326,44 @@ retried or resent.
   provider lock is naturally free; then obtain occurrence-window proposal
   history before any `--resolve` operation. Do not force-close the browser or
   release any fence from this busy result.
+
+### Atomic current cursor — 2026-09-30 08:55 JST
+
+This section is the current execution cursor and supersedes earlier unchecked
+ordering notes without declaring any external effect complete.
+
+1. **Ryu Coconala DM — DONE.** The latest consolidated answer was sent once
+   and persisted by official readback. Never resend it.
+2. **Release capacity — OPEN.** Recover enough disk for a complete immutable
+   dependency bundle, then cut a candidate from pushed `HEAD` with
+   `LOOPS_ACTIVATE_CURRENT=0` and verify zero writable release files.
+3. **Main provenance — OPEN.** Confirm the candidate is derived from the
+   latest `origin/main`; do not activate a pushed-only branch.
+4. **Live transition — OPEN.** After the required high-risk approval, use only
+   `launchctl-safe` to transition owners; never raw `launchctl`, kill, or
+   restart the provider/browser owners.
+5. **Coconala natural verification — OPEN.** Run Apply, Storefront, and Paid
+   separately on the immutable release; record official readback and
+   replay-zero for each.
+6. **Coconala unresolved fences — OPEN.** Apply and Storefront each have one
+   unprovable `effect_unknown`; obtain occurrence-bound official evidence
+   before any retry or release. Paid has no local unknown row, but still needs
+   the natural official readback.
+7. **CrowdWorks — OPEN.** Paid's current inventory is not bound to the exact
+   unknown occurrence; Application is temporarily `provider_browser_busy`.
+   Reconcile one occurrence at a time only after the provider lock is free.
+8. **Lancers — OPEN.** Paid/Application official surfaces are at Human
+   Verification; wait for the existing owner to reach an authenticated
+   surface. Do not bypass verification or retry effects.
+9. **Mercor — OPEN.** The owner is disabled/unloaded and the identity-bound
+   endpoint is unavailable; obtain a fresh official inventory before any
+   contract/payment action.
+10. **Upwork/Freelancer — OPEN.** Their current owners/inventories are absent
+    or stale. Restore each account-bound observer, verify funded contract and
+    milestone terms, then run a no-effect canary before registration.
+11. **Meta Loop — OPEN.** Enable only after the shared lifecycle, telemetry,
+    recovery, idempotency, and provider readbacks pass on the preceding
+    platforms.
+12. **Final promotion — OPEN.** After all platform canaries and replay-zero
+    checks pass, merge/admin-promote once, cut the main-derived immutable
+    release, and read back every owner and provider receipt.
