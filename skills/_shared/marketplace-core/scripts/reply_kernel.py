@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import tempfile
 from typing import Any, Callable, Mapping, Protocol
 
@@ -170,6 +171,26 @@ def _prepare_pre_effect_hint(max_workers: int) -> Path | None:
 def _clear_pre_effect_hint(path: Path | None) -> None:
     if path is not None:
         path.unlink(missing_ok=True)
+
+
+def _pre_effect_failure_proven(path: Path | None) -> bool:
+    """Return true only while the owner still proves no mutation was attempted.
+
+    The host uses this marker to release a claim without inventing an external
+    effect.  Treat malformed, replaced, symlinked, or differently-owned files
+    as unknown so an exit code can never downgrade a possible send.
+    """
+    if path is None:
+        return False
+    try:
+        info = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            return False
+        return json.loads(path.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0}
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
 
 
 def _guard_effect_callback(callback, hint: Path | None):
@@ -739,6 +760,22 @@ def _chat_id(value: str, config: Path | None) -> str:
     return ""
 
 
+def _entrypoint_exit_code(result: Mapping[str, Any]) -> int:
+    """Classify only a proven pre-effect failure as retryable exit 75."""
+    try:
+        failed = int(result.get("failed", 0))
+        effect = int(result.get("effect", 0))
+    except (TypeError, ValueError):
+        return 1
+    if failed <= 0:
+        return 0
+    hint_value = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    hint = Path(hint_value).expanduser() if hint_value else None
+    if effect == 0 and _pre_effect_failure_proven(hint):
+        return 75
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider-adapter", required=True, type=Path)
@@ -778,7 +815,7 @@ def main(argv: list[str] | None = None) -> int:
                       max_workers=args.max_workers, notify=notify,
                       human_notify=human_notify)
     _write(args.output.expanduser().resolve(), result)
-    return int(result["failed"] > 0)
+    return _entrypoint_exit_code(result)
 
 
 if __name__ == "__main__":
