@@ -2141,6 +2141,30 @@ job IDs 0）、`git diff --check`もPASS。branch
 7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
    settlement・cost-complete positive net P&L。
 
+### 最新Lancers platform-manifest source — 2026-09-30
+
+- `skills/earn/lancers/scripts/lancers_platform_manifest.py` を追加し、Lancersのread-only account/work-sync状態
+  （logged-in、source-complete、board/reply/unread counters）を`platform:lancers` manifestへ変換する。公開案件の
+  `opportunities`／`projects`／`listings`は入力として拒否し、案件Opportunity runnerとplatform enrollmentを分離する。
+- adapter source hash、observed time、公式source URL、account-state evidenceを束縛し、policy、funded work、official
+  canary/readback、unit economicsは`unknown`のまま保持する。したがってMeta Loopのcandidate cycleは必ずholdし、
+  account loginやboard数だけでpromotionしない。provider mutationは呼ばない。
+- Lancers platform manifest focused 4件、既存Lancers adapter/observation 10件、Marketplace Core 329件、compile、
+  `lm-loop-contract`、`git diff --check`をPASSした。これはread-only account manifestのsource証拠であり、provider receipt、
+  公式readback、実応募・成約・payout・収益の証拠ではない。
+
+### 原子TODO（Lancers platform-manifest source後の正本）
+
+1. **完了** Coconala onboarding observation → platform manifest → candidate evaluation／durable wake summary。
+2. **完了** Lancers account/work-sync observation → platform manifest → candidate evaluation／durable wake summary。
+3. **未完** CrowdWorksのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+4. **未完** Mercorのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+5. **未完** source branchをmainへ受入し、immutable release、loaded SHA／plist／identity lease／rollback receiptを公式readbackで確認する。
+6. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・
+   receiptなしのeffect fence解放はしない。
+7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
+   settlement・cost-complete positive net P&L。
+
 ### 最新Mercor read-only Opportunity／pass-result接続 — 2026-09-30
 
 - 既存`apps/job-search-loop/job_search_loop/mercor_pass.py`のbounded pass結果
