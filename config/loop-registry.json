@@ -71,6 +71,33 @@
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/investment-cross-venue"
     },
+    "investment-strategy-validation": {
+      "adapter": "python",
+      "admission_class": "borrow",
+      "cadence": {
+        "start_interval_seconds": 604800
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [
+        "--reports-path",
+        "~/.local/state/life-manager/alpaca-investment-validation/reviewed-validation-reports.json",
+        "--selection-path",
+        "~/.local/state/life-manager/alpaca-investment-live/selected-strategy.json"
+      ],
+      "domain": "financial",
+      "effect_class": "none",
+      "entrypoint": "skills/alpaca-investment/validation_runner.py",
+      "label": "ai.anicca.investment-strategy-validation",
+      "log_root": "~/.local/state/life-manager/alpaca-investment-validation/logs",
+      "resource_class": "deterministic",
+      "priority": "support",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 3600,
+      "state_root": "~/.local/state/life-manager/alpaca-investment-validation"
+    },
     "compute-proxy": {
       "adapter": "exec",
       "cadence": {"keep_alive": true},

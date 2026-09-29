@@ -36,7 +36,21 @@ class InvestmentRuntimeContractTests(unittest.TestCase):
         investment = next(loop for loop in self.catalog["loops"] if loop["id"] == "investment")
         self.assertIn("alpaca-investment-live", investment["job_ids"])
         self.assertIn("investment-cross-venue-report", investment["job_ids"])
-        self.assertEqual(investment["recovery_classes"], ["external_effect_owner"])
+        self.assertIn("investment-strategy-validation", investment["job_ids"])
+        self.assertEqual(investment["recovery_classes"], ["deterministic", "external_effect_owner"])
+
+    def test_life_manager_owns_a_weekly_read_only_validation_job(self):
+        job = self.registry["loops"]["investment-strategy-validation"]
+        self.assertEqual(job["adapter"], "python")
+        self.assertEqual(job["entrypoint"], "skills/alpaca-investment/validation_runner.py")
+        self.assertEqual(job["cadence"], {"start_interval_seconds": 604800})
+        self.assertEqual(job["domain"], "financial")
+        self.assertEqual(job["effect_class"], "none")
+        self.assertEqual(job["provider_route"], "deterministic")
+        self.assertEqual(job["resource_class"], "deterministic")
+        self.assertEqual(job["runtime_timeout_seconds"], 3600)
+        self.assertIn("--reports-path", job["command"])
+        self.assertIn("--selection-path", job["command"])
 
 
 if __name__ == "__main__":
