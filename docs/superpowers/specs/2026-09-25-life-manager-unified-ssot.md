@@ -994,6 +994,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - 2026-09-30の公開read-only crawlでは、`https://colors-hachioji.com/` に6ジャンル・12プロフィール・出勤表示・WEB予約導線が現行公開されていることを確認した。`https://colors-hachioji.com/content-api.php` の公式JSONでも、コンセプト6枚の順序／原本パス、有料オプション5件、女の子別option state、予約文言を確認した。実際の `mutualLinks` 配列は空であり、相互リンクの実データ登録だけは未完了である。取得時刻・本文は外部ログへ保存せず、個人連絡先をspecへ複製しない。
 - 同日、専用identity `colors-hachioji:owner-18211957`（profile `~/.cloak/profiles/colors-hachioji-owner-18211957`、CDP `62610`）の管理画面を読み取り確認したが、`https://colors-hachioji.com/admin.php` は「管理用パスワードを入力してください」というログインフォームを返した。credential SSOT（mode `0600`）にこの店舗の管理パスワードは存在しないため、ログイン・保存・公開操作は行っていない。v711の認証済み管理画面artifactは過去readbackであり、現時点の認証証拠ではない。
 - source側の再検証は専用branch HEAD `8284fa846a`（remoteと同期済み）で実施した。`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 176、mapped 102、shared ID 0）、`./bin/lm-loop doctor` は `ok=true`（missing entrypoints 0、unmanaged labels 0）。Gig `1579 passed`、Lancers `269 passed`、CrowdWorks `276 passed`、Mercor `58 passed`、Python compile、`git diff --check` がPASSである。複数platformを一括pytestした初回収集は同名テストmoduleのimport衝突で失敗したが、platform単独の再実行で全てPASSした。
+- production read-only status（現行release `3975ae8996…`）は279 rowsで、`host_admission_deferred:resource_capacity_busy` 37件、`host_admission_deferred:resource_effect_unknown` 22件、`effect_status=unknown` 171件を返した。ルート空き容量は約2.0GiB。source branchのcapacity回帰はhost admission `134 passed`、runtime reserve `9 passed`、scratch `15 passed + 4 subtests`、gig disk guard/preflight `53 passed`である。production apply・停止・再起動はまだ行っていない。
 
 ### Ryuの原子TODO（この節が最新の実行順正本）
 
