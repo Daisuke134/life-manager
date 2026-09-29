@@ -2139,3 +2139,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - PID `44038`は終了したが、共有`/Users/anicca/loops/.admission-protocol.lock`はPID `45712`（同じ`runtime.loop.lm_loop apply`）へ引き継がれている。投資ownerのschedulerは`runs=76`、`last exit code=75: EX_TEMPFAIL`である。
 - 投資receiptは引き続き`decision_session=2026-09-29`の`HOLD / hold_period_not_elapsed`が最新であり、`AT-13`未完、exit order／fill／provider receiptなし、実現投資収益`$0/月`である。共有applyのlockを操作せず、自然retryを継続する。
+
+**AT-13 shared-lock recovery readback（2026-09-30 05:23 JST）**:
+
+- 共有applyが終了した後のoccurrence `alpaca-investment-paper:18d9e43fec8dfa38-48276`は05:21:45 JSTに`resource_capacity_busy`（provider effect前）でdeferされたが、natural retry `alpaca-investment-paper:18d9e44ab463e428-49248`は05:22:42 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。
+- decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
+- したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
