@@ -2115,6 +2115,32 @@ job IDs 0）、`git diff --check`もPASS。branch
 5. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
    settlement・cost-complete positive net P&L。
 
+### 最新Coconala platform-manifest source — 2026-09-30
+
+- `skills/earn/gig/scripts/coconala_platform_manifest.py` を追加し、既存のsecret-free onboarding observationを
+  `platform:coconala`のshared manifestへ変換する。入力はアカウント／setup状態だけで、案件`request_details`や
+  `opportunities`を受け付けない。adapter source hash、observed time、Coconala source URL、onboarding evidence refsを
+  同じcandidateへ束縛する。
+- policy、funded work、official canary/readback、unit economicsは観測されていないため`unknown`のままにし、
+  `run_discovery_cycle`／`run_meta_loop_wake`では必ず`hold`と`collect_missing_gates`になる。ローカルonboarding完了や
+  adapter存在をprovider receipt・収益・promotionと解釈しない。browser、応募、返信、納品、決済、owner登録は呼ばない。
+- Coconala関連61件（既存57件＋platform manifest 4件）、Marketplace Core 329件、compile、`lm-loop-contract`、
+  `git diff --check`をPASSした。これはCoconalaのread-only manifest接続の証拠であり、実アカウントのprovider receipt、
+  RyuさんDM公式readback、production反映、成約・payout・収益の証拠ではない。
+
+### 原子TODO（Coconala platform-manifest source後の正本）
+
+1. **完了** Coconala onboarding observation → platform manifest → candidate evaluation／durable wake summaryを接続し、
+   未確認gateをholdする。
+2. **未完** Lancersのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+3. **未完** CrowdWorksのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+4. **未完** Mercorのplatform-level read-only状態を同じmanifest契約へ接続する。案件Opportunityは混ぜない。
+5. **未完** source branchをmainへ受入し、immutable release、loaded SHA／plist／identity lease／rollback receiptを公式readbackで確認する。
+6. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・
+   receiptなしのeffect fence解放はしない。
+7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
+   settlement・cost-complete positive net P&L。
+
 ### 最新Mercor read-only Opportunity／pass-result接続 — 2026-09-30
 
 - 既存`apps/job-search-loop/job_search_loop/mercor_pass.py`のbounded pass結果
