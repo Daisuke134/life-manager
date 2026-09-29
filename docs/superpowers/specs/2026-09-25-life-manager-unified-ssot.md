@@ -2089,6 +2089,32 @@ job IDs 0）、`git diff --check`もPASS。branch
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
 
+---
+
+## 現在の正本cursor（2026-09-30、最終追記）
+
+専用branch `fix/source-reconcile-20260930` の最新commitは `39e6cf8c2a`。4 platformのread-only account/source-healthを
+platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_wake`で同じMeta Loop wakeへ束ねるところまで完了。
+案件Opportunity/listing/applicationはplatform候補へ昇格させず、未設定sourceは`partial`としてdurable記録する。
+
+### 原子TODO（この節が現在の順序の正本）
+
+1. **未完** Coconala／Lancers／CrowdWorks／Mercorの各自然wake callerへcycleを接続し、実collectorのread-only snapshotを注入する。
+   source failure・認証なし・案件観測混入は`partial`／`hold`にし、応募・返信・納品・決済・owner登録を呼ばない。
+2. **未完** branchを最新mainへreconcileし、全acceptance PASS後にのみmain受入、immutable release、loaded SHA／plist argv-env／
+   identity lease／rollback receiptを公式readbackで確認する。productionはmain由来releaseだけを使う。
+3. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserがない間は
+   再送・正式納品・receiptなしのeffect fence解放をしない。
+4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission state欠落を0件にする。
+5. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+   canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+6. **未完** Meta Loopのowner provisioning→canary/readback→rollback→settlement→quality/P&L feedbackをshared kernelへ接続し、
+   全gateと公式receiptを通ったplatformだけをpromoteする。
+
+検証済み: Marketplace Core 332件、Coconala関連61件、Lancers関連14件、CrowdWorks関連14件、Mercor関連16件、compile、
+`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の証拠であり、production反映・provider receipt・公式readback・
+収益の証拠ではない。
+
 ### 最新Meta Loop platform-manifest boundary — 2026-09-30
 
 - `platform_manifest_source.py` を追加し、platform-level manifestだけをshared candidate cycleへ渡す。
@@ -2315,3 +2341,29 @@ job IDs 0）、`git diff --check`もPASS。branch
 5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
+
+---
+
+## 現在の正本cursor（2026-09-30、最終追記）
+
+専用branch `fix/source-reconcile-20260930` の最新commitは `39e6cf8c2a`。4 platformのread-only account/source-healthを
+platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_wake`で同じMeta Loop wakeへ束ねるところまで完了。
+案件Opportunity/listing/applicationはplatform候補へ昇格させず、未設定sourceは`partial`としてdurable記録する。
+
+### 原子TODO（この節が現在の順序の正本）
+
+1. **未完** Coconala／Lancers／CrowdWorks／Mercorの各自然wake callerへcycleを接続し、実collectorのread-only snapshotを注入する。
+   source failure・認証なし・案件観測混入は`partial`／`hold`にし、応募・返信・納品・決済・owner登録を呼ばない。
+2. **未完** branchを最新mainへreconcileし、全acceptance PASS後にのみmain受入、immutable release、loaded SHA／plist argv-env／
+   identity lease／rollback receiptを公式readbackで確認する。productionはmain由来releaseだけを使う。
+3. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。認証済みbrowserがない間は
+   再送・正式納品・receiptなしのeffect fence解放をしない。
+4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission state欠落を0件にする。
+5. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+   canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+6. **未完** Meta Loopのowner provisioning→canary/readback→rollback→settlement→quality/P&L feedbackをshared kernelへ接続し、
+   全gateと公式receiptを通ったplatformだけをpromoteする。
+
+検証済み: Marketplace Core 332件、Coconala関連61件、Lancers関連14件、CrowdWorks関連14件、Mercor関連16件、compile、
+`lm-loop-contract ok=true`、`git diff --check`。これはsource/runtime契約の証拠であり、production反映・provider receipt・公式readback・
+収益の証拠ではない。
