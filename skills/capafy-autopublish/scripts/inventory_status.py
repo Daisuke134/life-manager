@@ -251,6 +251,28 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     occupied = (normalized.get("counts") or {}).get("occupied")
     if not isinstance(occupied, int) or isinstance(occupied, bool) or occupied < 0:
         return {"verdict": "SERVER_UNREADABLE"}
+    # A same-Agent update whose first pass already publish-init'd a new draft
+    # version must be RESUMED to completion before any other action -- including
+    # starting a DIFFERENT queued update. Without this, each pass's "updates"
+    # check below only matches a target still online on from_version_id; once
+    # publish_prepare.sh flips that target to draft, it drops out of `updates`
+    # and the highest-revenue check picks the NEXT queued update instead, which
+    # itself becomes an abandoned draft next pass. 2026-09-29: Hook Lab ->
+    # Slide Maker -> TikTok Script Pro, three orphan update drafts in 40
+    # minutes, none finished, none reaching review. `resumable_drafts` already
+    # contains this row (same repo_catalog title, agentStatus=draft); only its
+    # priority relative to `updates` needed to change. Never create a second
+    # draft for the same UPDATE.json.
+    update_in_progress = [row for row in resumable_drafts if row.get("update_request")]
+    if update_in_progress:
+        item = min(update_in_progress, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "resume in-progress same-Agent update draft before starting another",
+            "action": "resume_draft",
+            "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
     # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
     # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
     # re-selected every wake while three slots sat empty and Hook Lab's

@@ -29,6 +29,15 @@ a "generating + fingerprint FROZEN → KILL (hung)" "$(dec 1 hashA hashA)" 'KILL
 a "not generating (idle/errored) → KILL" "$(dec 0 hashA hashB)" 'KILL'
 a "first check (prev=none) generating → CONTINUE" "$(dec 1 hashA none)" 'CONTINUE'
 
+echo "(E) FIND-036 blocker-changed (SUCCESS backoff must not mute a genuinely new blocker)"
+bchg(){ bash "$SF" --blocker-changed "$1" "$2" >/dev/null 2>&1 && echo CHANGED || echo SAME; }
+a "same blocker, same ids → SAME (stay backed off)" \
+  "$(bchg "agent 8123079349 draft v1.0.4 same-Agent update stuck" "agent 8123079349 draft v1.0.4 same-Agent update stuck")" 'SAME'
+a "same blocker CLASS, different ids/timestamp → SAME (normalized)" \
+  "$(bchg "agent 8123079349 draft v1.0.4 stuck at 2026-09-29T12:29:00Z" "agent 2844813315 draft v1.0.2 stuck at 2026-09-29T13:51:00Z")" 'SAME'
+a "genuinely different failure text → CHANGED (bypass SUCCESS backoff)" \
+  "$(bchg "publisher lock: same-Agent source version changed for 8123079349" "key-health gate FAIL: OpenRouter balance under \$20")" 'CHANGED'
+
 echo "(C) FIND-026/031 real lock acquire/steal via hc_acquire_lock"
 source "$H/healthcheck-lib.sh"; now=$(date +%s)
 D="$(mktemp -d)"; LK="$D/.lk"
