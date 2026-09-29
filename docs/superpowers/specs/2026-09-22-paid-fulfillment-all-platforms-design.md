@@ -6195,3 +6195,14 @@ retried or resent.
 - [ ] Next provider reconciliation cursor is CrowdWorks Paid, then Lancers
   Paid, one exact occurrence at a time; Mercor still needs fresh official
   inventory/readback before any new effect.
+
+### Exact Paid occurrence readback — 2026-09-30 07:52 JST
+
+- [x] `reconcile_paid_no_effect` was run read-only for
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` and
+  `lancers-revenue-paid:18d81967220136f8-89928`. Both return exit 75 with
+  `exact_paid_zero_effect_proof_unavailable`, empty `evidence_refs`,
+  `provider_receipt_id=null`, and `official_readback_ref=null`.
+- [ ] Both exact fences remain closed with next action
+  `obtain_occurrence_bound_readback`; no state, receipt, or provider action was
+  changed by the probe.
