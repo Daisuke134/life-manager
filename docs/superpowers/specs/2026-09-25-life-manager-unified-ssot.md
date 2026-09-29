@@ -2020,3 +2020,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - paper APIの公式read-only `order list --status all`は3件を返した。investment-owned entryはclient order `lm-ai-d3935170807d46a7a5cde38e`／provider order `24cc2687-f718-4019-83f1-b5928c47525c`の`QQQ buy / filled`（filled qty `0.013493253`、filled average `$740.37`）1件である。
 - 同一覧にQQQの`side=sell`、exit client order、exit provider orderはなく、追加注文・再送・資金移動は発生していない。したがってAT-14の「AT-13で指定されたexit orderを読む」対象はまだ存在しない。
 - `AT-13`未完、cursor不変、paper mode、検証済み実現投資収益は`$0/月`である。公式order readbackはpaper取引の存在を示すだけで、実現収益を示さない。
+
+**AT-13最新natural retry readback（2026-09-30 03:59 JST）**:
+
+- 03:56 JSTのoccurrence `alpaca-investment-paper:18d9dfa0c2397a58-29483` は`host_admission_deferred:resource_capacity_busy`（exit 75）で、`effect_identity_status=not_written`、provider receiptなしだった。起動前deferであり、注文・再送・資金移動はない。
+- 自動retryのoccurrence `alpaca-investment-paper:18d9dfa6edb950a8-30309` は03:57 JSTに`exit_code=0`、`status=pass`、release SHA `3975ae8996cab3325f514746a32c915f9935fddf`で完了した。schedulerは03:59 JST時点でloaded、`runs=54`、`last exit code=0`、`StartInterval=300`である。
+- 最新decision receipt `280c261b25eabc2c5f89c5b54cba202e5f027cc4db58f37e91f57c014aa93d5a` は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。QQQのexit order／exit fill／provider receiptは生成されていない。
+- `AT-13`は未完、cursorは`AT-13`のまま、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionが生成されるまで、手動wake・手動sell・再送・送金はしない。
