@@ -297,6 +297,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **（2026-09-29 23:1x 復元: 5ab82b6859 の上書きで消えた Capafy の節を戻した）**
 
+**状態（2026-09-29 23:14 JST）**: 工場 capafy-loop-daily = loaded-idle・fence 待ち（22:16 の失敗、lm-fence-reconciler が 23:18 頃に自動で閉じる設計）。宣伝 capafy-distribute-daily = 23:03 起動の run が終了し idle、読み戻し役入り release b4ab4ade へ切り替え中（初回 apply は実行中のため plist が af6e5011 のままだった。「apply=0」を実物で確かめずに信用しない）。14 主要 loop の実測（lm-loop status）: 全 job 正常は connector のみ。求職 0/7・fundraiser 0/1・CFO 0/3。お金の公式 readback があるのは Capafy（差し引き約 $49）とアプリ（MRR $20）だけ。観測・自己修復の不足: `lm-loop health` 未作成、self-fix は immutable release 内で動くためコードを直せない（#6063）。
+
 **Capafy だけを 1 つずつ閉じる（2026-09-29 23:0x JST、Dais: 1 つずつ。Capafy が閉じるまで他へ進まない）**
 - 作る（工場 capafy-loop-daily）: 今日の自然 run 26 回中 24 回が途中で BLOCKED。原因 4 つを修正済み: Coconala とのブラウザ取り合い（専用 capafy-browser、#6230）、HOME 移動で lease 不可（#8f1fdd3a）、lock 持ち主不明（#a1018689）、読み取り専用アイコン上書き不可（#af6e5011）。22:16 の失敗の fence は lm-fence-reconciler が 62 分後（23:18 頃）に自動で閉じる設計（too_recent を readback で確認）。
 - 売る（宣伝 capafy-distribute-daily）: 17:04 の exit 1 の fence に読み戻し役が無く、19:15 と 22:15 の自然 run が走っていなかった。23:0x に公開ページの公式 readback で閉じ、読み戻し役 capafy_distribute_fence_reconcile.py を追加（#b4ab4ade、IG の写し、本物の GitHub commit・公開ページ・Postiz で effected と判定を確認）。
