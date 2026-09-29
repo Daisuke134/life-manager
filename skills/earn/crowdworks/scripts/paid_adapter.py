@@ -71,6 +71,16 @@ def _digest(value: Mapping[str, Any]) -> str:
                                      separators=(",", ":")).encode()).hexdigest()
 
 
+def _fixed_price_from_contract_body(body: str) -> int | None:
+    """Read one unambiguous fixed-price amount from the official contract body."""
+    if not isinstance(body, str) or "時間単価" in body or "〜" in body or "～" in body:
+        return None
+    matches = re.findall(r"固定報酬制\s*([1-9][0-9]{0,2}(?:,[0-9]{3})*)\s*円", body)
+    if len(matches) != 1:
+        return None
+    return int(matches[0].replace(",", ""))
+
+
 def _google_form_url(value: str) -> bool:
     return google_form.is_google_form_url(value)
 
@@ -517,6 +527,22 @@ class CrowdWorksPaidAdapter:
             normalized_urls = sorted(set(form_urls))
             result["form_urls"] = normalized_urls
             result["form_url"] = result.get("form_url") if len(normalized_urls) == 1 else None
+        price = raw.get("price_minor")
+        if price is not None:
+            if type(price) is not int or price < 1:
+                raise RuntimeError("crowdworks_paid_contract_terms_invalid")
+            result["price_minor"] = price
+        for key in ("currency", "contract_terms_sha256", "scope_sha256",
+                    "artifact_requirement_sha256", "funding_external_id",
+                    "contract_external_id", "application_external_id"):
+            value = raw.get(key)
+            if value is None:
+                continue
+            if not isinstance(value, str) or not value.strip():
+                raise RuntimeError("crowdworks_paid_contract_terms_invalid")
+            if key.endswith("sha256") and not re.fullmatch(r"[0-9a-f]{64}", value):
+                raise RuntimeError("crowdworks_paid_contract_terms_invalid")
+            result[key] = value.strip()
         return result
 
     def _list_contracts(self) -> list[dict[str, str]]:
@@ -647,11 +673,14 @@ class CrowdWorksPaidAdapter:
             application_date = self._receipt_application_date(title, proposal_id)
         if match is None:
             raise RuntimeError("crowdworks_paid_task_unavailable")
+        price_minor = _fixed_price_from_contract_body(body)
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                 "milestone_id": match.group(1), "form_urls": form_urls,
                 "form_url": form_urls[0] if len(form_urls) == 1 else None,
                 "proposal_id": proposal_id, "application_date": application_date,
                 "buyer_context": body, **buyer_event,
+                "price_minor": price_minor, "currency": "JPY",
+                "contract_terms_sha256": hashlib.sha256(body.encode()).hexdigest(),
                 "document_urls": document_urls, **artifact}
 
     @staticmethod
@@ -913,7 +942,9 @@ class CrowdWorksPaidAdapter:
                                                   "application_date", "buyer_context", "message_thread_id",
                                                   "buyer_event_id", "buyer_event_at", "form_candidates",
                                                   "ignored_form_urls", "document_urls", "artifact_required",
-                                                  "artifact_access", "artifact_content", "artifact_verified")}
+                                                  "artifact_access", "artifact_content", "artifact_verified",
+                                                  "price_minor", "currency", "contract_terms_sha256",
+                                                  "scope_sha256", "artifact_requirement_sha256")}
         stable["completed_form_urls"] = sorted(item.get("completed_form_urls") or [])
         observed = {"provider": "crowdworks", "account_id": self.account_id,
                     "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
@@ -1287,12 +1318,102 @@ class CrowdWorksPaidAdapter:
                     candidates = []
                 if candidates:
                     item = self._cache_update({**item, "form_candidates": candidates})
-            return {"contract": dict(item), "delivery": {
+            return {"contract": dict(item), "observed_at": item.get("observed_at") or _now(), "delivery": {
                 "formal_delivery_authorized": item["provider_state"] == "funded",
                 "form_required": bool(item.get("form_urls") or item.get("form_url")),
             }}
         finally:
             self.close()
+
+    def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Map one official funded CrowdWorks contract to the shared Paid boundary."""
+        if not isinstance(context, Mapping):
+            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+        contract = context.get("contract")
+        if not isinstance(contract, Mapping) or contract.get("provider_state") != "funded":
+            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+        price = contract.get("price_minor")
+        terms_sha256 = contract.get("contract_terms_sha256")
+        if (
+            type(price) is not int or price < 1
+            or not isinstance(terms_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", terms_sha256)
+        ):
+            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+        contract_id = contract.get("contract_external_id")
+        if not isinstance(contract_id, str) or not contract_id.strip():
+            contract_id = f"contract:{work_id.strip()}"
+        proposal_id = contract.get("proposal_id")
+        application_id = contract.get("application_external_id")
+        if not isinstance(application_id, str) or not application_id.strip():
+            application_id = (
+                f"proposal:{proposal_id.strip()}"
+                if isinstance(proposal_id, str) and proposal_id.strip()
+                else f"application:crowdworks:{work_id.strip()}"
+            )
+        funding_id = contract.get("funding_external_id")
+        if not isinstance(funding_id, str) or not funding_id.strip():
+            funding_id = f"escrow:{contract_id.strip()}"
+        thread = contract.get("message_thread_id")
+        thread_id = (
+            f"thread:{thread.strip()}" if isinstance(thread, str) and thread.strip()
+            else f"contract:{work_id.strip()}"
+        )
+        scope_sha256 = contract.get("scope_sha256")
+        if not isinstance(scope_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", scope_sha256):
+            scope_sha256 = _digest({
+                "work_id": work_id.strip(), "title": contract.get("title"),
+                "client": contract.get("client"),
+                "message_thread_id": contract.get("message_thread_id"),
+                "buyer_event_id": contract.get("buyer_event_id"),
+                "buyer_context": contract.get("buyer_context"),
+                "proposal_id": proposal_id,
+            })
+        artifact_requirement_sha256 = contract.get("artifact_requirement_sha256")
+        if (not isinstance(artifact_requirement_sha256, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", artifact_requirement_sha256)):
+            artifact_requirement_sha256 = _digest({
+                "milestone_id": contract.get("milestone_id"),
+                "form_urls": contract.get("form_urls") or ([contract.get("form_url")]
+                                                              if contract.get("form_url") else []),
+                "document_urls": contract.get("document_urls") or [],
+                "artifact_required": contract.get("artifact_required"),
+                "artifact_access": contract.get("artifact_access"),
+                "artifact_verified": contract.get("artifact_verified"),
+            })
+        observed_at = context.get("observed_at") or contract.get("observed_at") or _now()
+        if not isinstance(observed_at, str) or not observed_at.strip():
+            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+        currency = contract.get("currency") or "JPY"
+        if currency != "JPY":
+            raise RuntimeError("crowdworks_paid_handoff_unavailable")
+        return {
+            "contract": {
+                "schema_version": 1,
+                "record_type": "contract_receipt",
+                "platform": "crowdworks",
+                "application_external_id": application_id.strip(),
+                "work_external_id": work_id.strip(),
+                "contract_external_id": contract_id.strip(),
+                "status": "accepted",
+                "terms_sha256": terms_sha256,
+                "observed_at": observed_at.strip(),
+            },
+            "handoff": {
+                "schema_version": 1,
+                "record_type": "paid_handoff_receipt",
+                "platform": "crowdworks",
+                "thread_external_id": thread_id,
+                "contract_external_id": contract_id.strip(),
+                "funding_external_id": funding_id.strip(),
+                "scope_sha256": scope_sha256,
+                "artifact_requirement_sha256": artifact_requirement_sha256,
+                "price_minor": price,
+                "currency": currency,
+                "status": "funded",
+                "observed_at": observed_at.strip(),
+            },
+        }
 
     def _receipt_path(self, form_sha256: str) -> Path:
         if self.state_path is None:

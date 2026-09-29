@@ -87,6 +87,13 @@ def load_kernel():
     return module
 
 
+def test_fixed_price_parser_rejects_hourly_and_ranges():
+    module = load()
+    assert module._fixed_price_from_contract_body("固定報酬制 50,000円") == 50000
+    assert module._fixed_price_from_contract_body("固定報酬制 50,000円〜100,000円") is None
+    assert module._fixed_price_from_contract_body("時間単価制 2,000円") is None
+
+
 def test_two_official_active_contracts_normalize_to_unique_stable_observations():
     module = load()
     adapter = module.CrowdWorksPaidAdapter(
@@ -220,6 +227,56 @@ def test_funded_contract_decides_one_form_then_one_milestone_submission():
     assert action["payload"] == {"form_url": "https://forms.gle/abc123",
                                   "form_sha256": hashlib.sha256(b"https://forms.gle/abc123").hexdigest(),
                                   "milestone_id": "13798056", "buyer_event_id": "427573234"}
+
+
+def test_paid_handoff_maps_only_a_funded_contract_with_official_terms_and_price():
+    module = load()
+    contract = {
+        **funded(),
+        "message_thread_id": "304340335",
+        "buyer_context": "制作物を納品してください。",
+        "price_minor": 50000,
+        "currency": "JPY",
+        "contract_terms_sha256": "a" * 64,
+        "artifact_required": True,
+        "artifact_verified": True,
+        "document_urls": ["https://docs.google.com/document/d/1234567890123456/edit"],
+    }
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+
+    bundle = adapter.paid_handoff("63570481", {
+        "contract": contract,
+        "delivery": {"formal_delivery_authorized": True, "form_required": True},
+        "observed_at": "2026-09-29T00:00:00Z",
+    })
+
+    assert bundle["contract"] == {
+        "schema_version": 1,
+        "record_type": "contract_receipt",
+        "platform": "crowdworks",
+        "application_external_id": "application:crowdworks:63570481",
+        "work_external_id": "63570481",
+        "contract_external_id": "contract:63570481",
+        "status": "accepted",
+        "terms_sha256": "a" * 64,
+        "observed_at": "2026-09-29T00:00:00Z",
+    }
+    assert bundle["handoff"]["thread_external_id"] == "thread:304340335"
+    assert bundle["handoff"]["contract_external_id"] == "contract:63570481"
+    assert bundle["handoff"]["funding_external_id"] == "escrow:contract:63570481"
+    assert bundle["handoff"]["price_minor"] == 50000
+    assert bundle["handoff"]["currency"] == "JPY"
+    assert bundle["handoff"]["status"] == "funded"
+
+
+def test_paid_handoff_fails_closed_when_price_or_terms_are_missing():
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    with pytest.raises(RuntimeError, match="crowdworks_paid_handoff_unavailable"):
+        adapter.paid_handoff("63570481", {
+            "contract": {**funded(), "provider_state": "funded"},
+            "observed_at": "2026-09-29T00:00:00Z",
+        })
 
 
 def test_funded_contract_without_labeled_official_application_date_waits_truthfully():
