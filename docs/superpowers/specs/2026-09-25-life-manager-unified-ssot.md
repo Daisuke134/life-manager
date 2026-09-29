@@ -1506,3 +1506,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 新しいdecision receipt `784a4f81a77bb6502baba554b8d60d9505e85c007a1d5fae9abdbc6cbf0db273`（`2026-09-29T16:32:23Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit order／provider receiptはない。
 - 同時点のpaper observationはcash `$99,986.77`、equity `$99,996.71`、QQQ long `qty=0.013493253`、market value `$9.943583`、unrealized P&L `-$0.046417`、`clock.is_open=true`である。paper含み損益は実現収益ではない。
 - `AT-13`の完了条件は未達、cursorは変わらない。検証済み実現投資収益は`$0/月`であり、手動wake・手動sell・再送はしない。
+
+**AT-13 scheduler natural retry readback（2026-09-30 01:38 JST）**:
+
+- `launchctl-safe print`でpaper ownerの`runs=7`、`active count=1`を確認した。occurrence `alpaca-investment-paper:18d9d80646169010-85915`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然起動した。
+- 同occurrenceは`2026-09-29T16:37:47Z`に`exit_code=75`、`status=blocked`、`next_action=retry_after_eligibility`、`blocker=host_admission_deferred:resource_capacity_busy`で終了した。`provider_receipt_id=null`、`official_readback_ref=null`でprovider effect前のdeferであり、新規注文・約定・資金移動はない。
+- このrunでは新しいdecision receiptは生成されず、最新decisionは`784a4f81a77bb6502baba554b8d60d9505e85c007a1d5fae9abdbc6cbf0db273`の`NO_TRADE / decision_session_consumed`（`decision_session=2026-09-28`）のままである。`AT-13`未完、cursor不変、実現投資収益`$0/月`である。
