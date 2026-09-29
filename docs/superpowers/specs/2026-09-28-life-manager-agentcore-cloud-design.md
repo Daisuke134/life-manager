@@ -6,7 +6,7 @@
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
-**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWSはservice subscription未完了、DigitalOceanはAPI token未取得だが、Railway CLI/accountと既存Steel serviceは利用可能である。Railway Sandbox CLIは利用可能だがexperimentalであり、最初のread-only listはMac Data volume残量575 MiBによる`No space left on device`で未完了である。次は安全にlocal headroomを戻し、Railway Sandbox＋Steelで実provider receiptを取る。local PASSをcloud完了とは数えない。
+**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWS Account APIは`PENDING_ACTIVATION`を返し、signup画面はFree planの支払方法登録step 3/5で`You have reached your limit of attempts to add a payment method`を返す。Support caseは開設済みであり、解除またはexact safe retry instructionまでカードを再送しない。DigitalOceanはAPI token未取得だが、Railway CLI/accountと既存Steel serviceは利用可能である。Railway Sandbox CLIは利用可能だがexperimentalであり、最初のread-only listはMac Data volume残量575 MiBによる`No space left on device`で未完了である。次は安全にlocal headroomを戻し、Railway Sandbox＋Steelで実provider receiptを取る。local PASSをcloud完了とは数えない。
 
 ### 0.1 固定済みの完成architecture
 
@@ -157,7 +157,7 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 6. Tokyo regionがあり、GA、CloudFormation対応である。
 7. 既存のNode business kernel、PostgreSQL job protocol、Inngest、Stripeを捨てずに接続できる。
 
-ただし「設計上の最善」と「今すぐ出荷できる最短」は同じではない。現在のAWS accountはroot/IAMと東京AgentCore control planeだけが利用でき、CloudFormation=`OptInRequired`、S3=`NotSignedUp`、CloudWatch Logs/Cost Explorer=`SubscriptionRequiredException`を返す。これはLife Managerの審査否決ではなく、AWS accountの標準service subscriptionが未完了の状態である。S3 evidence、CloudWatch trace、Cost Explorer receiptが無いまま本番に出すと、成功証拠、障害原因、原価を確定できない。そのためAWS解除を待たず、既に認証済みで同じcontrol plane/private networkを使えるRailway Sandbox＋既存Steelを先にcanaryする。
+ただし「設計上の最善」と「今すぐ出荷できる最短」は同じではない。現在のAWS accountはroot/IAMと東京AgentCore control planeだけが利用できる一方、Account APIは`PENDING_ACTIVATION`、CloudFormation=`OptInRequired`、S3=`NotSignedUp`、CloudWatch Logs/Cost Explorer=`SubscriptionRequiredException`を返す。signup画面で原因を実測すると、Free planからpaid planへ進む支払方法登録step 3/5がAWS側のattempt limitで一時lockされている。これはLife Managerの審査否決でも、各serviceへ個別に$2を払う問題でもない。AWSはcard verificationで最大$1を3–5日一時保留する場合があるが、現在はその認証を再送できない。Support caseによる解除またはexact safe retry instructionを待ち、同じcard submissionを繰り返さない。S3 evidence、CloudWatch trace、Cost Explorer receiptが無いまま本番に出すと、成功証拠、障害原因、原価を確定できない。そのためAWS解除を待たず、既に認証済みで同じcontrol plane/private networkを使えるRailway Sandbox＋既存Steelを先にcanaryする。
 
 Railway案は以前の「tenantごとに常駐Railway serviceを作る」案ではない。jobごとに隔離Sandboxをcreateし、同一kernel SHAをexecし、checkpoint/evidenceを書き、destroyする。browser login continuityだけを既存Steel profileへ分離する。これによりAWSほど一社完結ではないが、新しいscheduler、database、billing、VM orchestrator、browser stackを作り直さずに済む。
 
