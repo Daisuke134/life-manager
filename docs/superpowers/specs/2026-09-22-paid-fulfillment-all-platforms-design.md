@@ -5718,3 +5718,31 @@ revenue owner and is not permission to send.
   production release still shows recurring ENOSPC/terminal-event failures, so
   it cannot be called self-healing until the new release has a natural-run
   receipt, official provider readback, and replay-zero for each enabled owner.
+
+## Runtime Status Refresh — 2026-09-30 (Ryu v724 official DM receipt; current cursor)
+
+- [x] The latest accumulated Ryu requirement set was already implemented and
+  read back on the official Colors HTTPS surfaces before the DM send: title
+  wording, original six concept images/order, per-girl image controls, paid
+  option separation/persistence, WEB予約 editor/current-form preview, and
+  multi-entry reciprocal-link editor. The v711 authenticated management/public
+  readback passed the corresponding checks.
+- [x] The prior v723 attempt was not treated as a receipt because it only showed
+  a transient DOM bubble and its reload returned `403 Forbidden`. After a fresh
+  normal Coconala login using the existing seller-owned credential SSOT, the
+  official thread readback proved the v723 body was absent; no duplicate body
+  was present before the new send.
+- [x] One consolidated final Japanese DM was then sent from the authenticated
+  Coconala DM composer. Formal delivery was not pressed. The durable evidence
+  is `/Users/anicca/gig/projects/18211957/delivery/current-cycle-v724-dm-send-readback.json`:
+  message SHA256 `65e95d8c47556151cd7d2fddd9f31e1cfde99785580b0e5c9b9885271a4f2559`.
+- [x] Post-reload official readback at `https://coconala.com/smartphone/direct_messages/10107358?uid=2564121`
+  shows the exact body once (`latest seller timestamp 9/30 06:47`,
+  `exact_body_containing_rows=1`). No second click or resend occurred. Ryu's
+  DM delivery is therefore complete; do not send again.
+- [ ] Next cursor is Coconala platform reconciliation, not Ryu: execute one
+  controlled natural no-op/readback/replay-zero pass for Apply and Storefront,
+  and keep the generic Paid wake separate from the Ryu receipt.
+- [ ] Then reconcile the remaining provider fences by exact occurrence
+  (CrowdWorks `18d62cf32eb0c678-48194`, Lancers `18d81967220136f8-89928`,
+  Mercor `18d82d9cd75db960-67523`) before any retry or blanket release.
