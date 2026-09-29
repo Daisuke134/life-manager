@@ -206,6 +206,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 歯止め: 毎時の利益データでモデル代が売上の 30% を超えた Skill は、工場が値上げまたはモデル変更を自動で出す（最初の方針の後の安全網）。
 - 同じ方針を Writer（有料記事の価格）、Ebook（The Anicca Reset の価格・KDP 価格）、アプリ（サブスク価格）、PromptBase にも当てる。
 
+**Capafy 競合の実測（2026-09-29、capafy.ai 公開ページ・読み取りのみ）**: 売れ筋は2型。(a) 追跡・分析型（金融・スポーツ・動画生成）は月額固定 $8〜20・無料トライアルなし・販売数 500〜12k（CloneCut 11.9k、Ocup Football Analysis $8.33/月 3,069、Serenity Stock Tracker $8.33/月 1,669、Alpha Consensus $10.83/月 533）。(b) 生成型（hook・台本・文章）は日/週の小額 $2〜10（HookAce $9.99/週 868、Viralume $6.99/日、SEO Content Writer $6.99/日）。自社の単価: Hook Lab は Sonnet で1注文約 $3.29 のモデル代、DeepSeek V4.1 Flash なら推定約 $0.30。モデル代を手数料後売上の 15% 以下にする最低価格は約 $2.50。
+- 値付けの決定: Hook Lab = 日 $3.99 / 週 $9.99（HookAce に合わせる）/ 月 $19.99（DeepSeek 版承認後すぐ更新）。YouTube Script Writer・TikTok Script Pro の日額は $3.99 以上。Marketing Strategist は週 $9.99〜13.98。Slide Maker は据え置き（$9.99/週・$24.99/月で売れている）。Japanese Humanizer は有料化（無料配布をやめる）。
+- 勝ち筋: 自社の Football Match Analyst・Portfolio Tracker は (a) 型。月額固定 $8〜20 に合わせて集客を寄せる。
+
 **既存商品の正しい仕組み（2026-09-29、コードで確認。新しく作ると書かない）**
 - Writer loop（`skills/writer-agent/SKILL.md`・`article-daily.sh`）: 記事そのものを売って稼ぐ。note は無料試し読み→有料 ¥500、Substack は有料購読（無料には試し読み）、aniccaai.com は preview＋paid 分割。Zenn・dev.to は全文無料の集客面。出版社・企業の有料依頼も対象。読者が実際に払った額で次のテーマを選ぶ。他商品へのリンクは追加の役割。
 - Ebook（`~/anicca-monk-factory/MASTER_PLAN.md`・`skills/earn/marketing-engine/registry/products/ebook-*.json`）: 「The Anicca Reset」（EN $10.99 aniccaai.com/monk、JA 版あり）を自社 checkout（Stripe prod_UQ2LTH66Rwict4 / prod_UQ2LrpVy4b1bAY）で販売中。Amazon KDP は `direct_live_kdp_unavailable`（KDP 認証なし）→ Ebook の TODO は KDP 接続。集客は monk factory（monk アバター動画を多数アカウント・多言語で配信、EN は HeyGen、watercolor/yangmun monk 等）。原則「配信チャネルは大量生産、商品は 4 つ（ebook・newsletter /letter /tegami・web app・iOS app）に固定」。
