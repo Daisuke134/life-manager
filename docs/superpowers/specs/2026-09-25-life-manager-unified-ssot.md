@@ -30,6 +30,17 @@ source-complete packetに固定、(3) profile/実績にない主張を除外し�
 保存、(5) offer受諾とfunded milestoneを公式readbackしてからPaid ownerへhandoff、
 である。招待が無料でも、proposal送信は外部effectなのでeffect fenceとdedupeは必要。
 
+### 認証の方針更新 — 人間はKYCだけ（2026-09-29）
+
+「初回ログイン/OAuthを人が行う」は採用しない。Life Managerがcredential SSOT、OAuth
+authorization-code/device flow、refresh token、session lease/renewal、再認証・復旧を
+自分で実行し、公式のauth receipt/readbackを保存する。KYC・法定本人確認だけが人間の
+一回限りの境界であり、通常ログイン、OAuth同意、MFA更新、CAPTCHA解決を人間に委譲する
+設計は不許可とする。プロバイダが自動認証を認めず、KYC以外の手動操作を要求する場合は
+規約を迂回せず、`provider_manual_auth_required` としてそのプロバイダ/案件を自動化
+対象外に型付けする。これは「人を呼ぶ」ための待機ではなく、別の正規auth経路へ切り替える
+ための診断状態である。
+
 ### Coconalaの顧客状態（ローカルstate。公式live roomの代替ではない）
 
 | room / buyer | 実測状態 | 判定 |
@@ -98,9 +109,11 @@ provider/auth/fence failure）、settled revenue−costである。
 7. **CloudWorks/CrowdWorksとLancersを再検証**: application/reply/negotiate/paidの
    各occurrenceをprovider receiptで閉じ、Lancersはfresh funded inventoryが出るまで
    Paidを開けない。既存の`entrypoint_exit_75/143`やeffect_unknownを一括retryしない。
-8. **Freelancer/Upwork/Mercorを個別gate**: account-bound auth→source-complete
+8. **Freelancer/Upwork/Mercorを個別gate**: Life Managerの自動auth bootstrap（credential
+   SSOT→login/OAuth→refresh/session lease→auth receipt/readback）→source-complete
    inventory→funded contract/milestone→mutation/policy receipt→one owner→canaryの
-   順で進める。空inventoryのままloopを登録しない。
+   順で進める。KYC以外の人手操作を要求するproviderは`provider_manual_auth_required`
+   として対象外にし、空inventoryのままloopを登録しない。
 9. **Meta-loopの最小実装**: funnel ledger・失注分類・bounded patch/fixture・focused
    test・canary/readback・rollbackを共通runtimeに追加し、最初は既存Paid/Replyの
    demo未提出を検出するread-only evaluatorで検証する。Capafy/Investmentの作業treeは
@@ -206,7 +219,9 @@ flowchart LR
 - **ループの健康の定義:** 全行が `healthy` か、型付きの fence（安全な次アクションが記録済み）のどちらか。`unknown` は診断cursorであり、再送の許可ではない。
 - **利益の定義:** ループごとに `settled_customer_revenue - refunds - measured cost`。CFO が provider receipt と照合して算出する。Pass やログは利益ではない。
 - **役割分担:** model は提案する。identity・計算・dedupe・spend cap・rollback は決定的なコードが持つ。
-- **Dais の手間:** 最初の bootstrap と、法的に必要な KYC/OAuth/CAPTCHA だけにする。
+- **Dais の手間:** 法的に必要なKYC・本人確認だけにする。初回bootstrap、ログイン、OAuth、
+  refresh、MFA更新、CAPTCHA解決はLife Managerが行い、正規の自動経路が無いproviderは
+  `provider_manual_auth_required` として対象外にする。
 - **経済目標:** 検証済み net MRR USD 10K → 自己資金化 → YC W27 用の証拠 → AGI/UBI 研究。証拠なしに達成を主張しない。
 
 ## 5. 過去TODOの証跡（2026-09-25〜09-28。実行順・状態は冒頭の現在cursorが優先）
@@ -339,7 +354,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 7. self-fix: S1 修正役が worktree で作業できるようにする（issue #6063）。
 8. その後: 全 loop を green → 自己修復 → 自己改善 → Cloud 版・LM-EAB → 月 $10k MRR。
 
-**Capafy + PromptBase の To-Be（2026-09-28 Dais と合意）**: 人は何もしない。(1) Capafy は審査枠が空くたびに売れる型の新 Skill を自動提出（✅ 完成）。(2) PromptBase に同じ Skill を 1 日 1 件（reCAPTCHA だけ Dais）。(3) 記事（Substack・note・Zenn・X・aniccaai.com）が毎日出て、各 Skill の Capafy / PromptBase ページへ誘導。open-seo（無料）で検索語を選ぶ。Instagram でも使い方を見せる。(4) Skill 別・流入元別の売上 − 費用 = 利益を毎日 Telegram（✅ 数字は毎時取得済み）。(5) 赤字は安い model へ、売れない型は止め、売れた型を増やす判断を LM が自分で行う（C6）。
+**Capafy + PromptBase の To-Be（2026-09-28 Dais と合意）**: 人は何もしない。(1) Capafy は審査枠が空くたびに売れる型の新 Skill を自動提出（✅ 完成）。(2) PromptBase に同じ Skill を 1 日 1 件（CAPTCHAが出た場合は人手で解かず、正規API/別providerへ切替または型付き延期）。(3) 記事（Substack・note・Zenn・X・aniccaai.com）が毎日出て、各 Skill の Capafy / PromptBase ページへ誘導。open-seo（無料）で検索語を選ぶ。Instagram でも使い方を見せる。(4) Skill 別・流入元別の売上 − 費用 = 利益を毎日 Telegram（✅ 数字は毎時取得済み）。(5) 赤字は安い model へ、売れない型は止め、売れた型を増やす判断を LM が自分で行う（C6）。
 
 TODO の分け方（Dais 2026-09-28 14:3x JST）: Capafy と PromptBase は別のお店なので別の TODO。記事・自社メディアは両方を宣伝する共通の集客。新しい販売先の調査は今はしない。
 
@@ -354,21 +369,21 @@ Capafy の TODO（この順）: C1 ✅ 失敗の自動立て直し / C2 ✅ Hook
 - A4 オンボーディング → 課金の指標（場所ごと）。
 - A5 アプリの中身の改善・工場の未公開 4 本は、集客が回ってから。
 
-PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 ✅ 毎日 1 件、人の手なしで出品する loop promptbase-loop-daily（#6117、毎日 04:20 JST、release 9c9ca53d で loaded-idle を readback）。reCAPTCHA は解かない: 画像の問題が出た日は captcha_challenge_deferred を記録して翌日再試行。初回 2026-09-28 は reels-hook-lab で画像の問題が出て deferred。出品フォームの実バグ 3 件（見本出力 4 件必須・テンプレートの [ ] ごとの値・提出ダイアログで固まる）を修正済み / P3 売上の毎日の読み戻し（loop の最初の手順。初回 run の実データで確認）/ P4 記事から PromptBase への誘導。
+PromptBase の TODO（この順）: P1 ✅ Hook Lab 公開（2026-09-28）/ P2 ✅ 毎日 1 件、人の手なしで出品する loop promptbase-loop-daily（#6117、毎日 04:20 JST、release 9c9ca53d で loaded-idle を readback）。CAPTCHA は人手で解かない: 画像の問題が出た日は `provider_manual_auth_required` を記録し、正規API/別providerへ切替または延期。初回 2026-09-28 は reels-hook-lab で画像の問題が出て deferred。出品フォームの実バグ 3 件（見本出力 4 件必須・テンプレートの [ ] ごとの値・提出ダイアログで固まる）を修正済み / P3 売上の毎日の読み戻し（loop の最初の手順。初回 run の実データで確認）/ P4 記事から PromptBase への誘導。
 
 記事・自社メディア（共通の集客）の TODO（この順）: M1 ✅ 記事 loop 復旧（note・Substack）/ M2 🔧 aniccaai.com: sitemap のブログ 0→47 本・RSS 404→200・robots に sitemap（anicca-products #414 merge、live readback）、毎日の記事を aniccaai.com にも出す（#6116 merge、今日の JA/EN 2 本が live 200）。残り: 自社ページで CTA リンクが落ちる（原稿にはある）→ 修正中 / M3 ✅ open-seo の検索語を Capafy の日の記事に（#6114、core term 必須、無料クレジット残り 317）/ M4 Zenn・dev.to・X の再開。
 
 **Capafy の残り TODO（この順が正本。1つずつ、公式 readback で閉じる）**
 
-順序変更（2026-09-28 20:xx JST）: 旧 C3→C4→C5、新 C3→C5→C4。理由: 公開 49 本のうち売れているのは 6 本（Hook Lab・Slide Maker・Marketing Strategist・Academic Humanizer・TikTok Script Pro・YouTube Script Writer）、30 日の有料注文は約 20 件で、止まっているのは供給ではなく流入。売上ゼロ 43 本の整理（C4）より先に、売れている型へ流入を作る（C5: SNS・SEO・PromptBase・trafficSources の日次計測）。現在の cursor: C3（PromptBase 自動出品を作成中、Shorts Hook Lab の再提出を工場に任せる）。C2 は Hook Lab v1.0.3 の承認と実利益の黒字化待ち。
+順序変更（2026-09-28 20:xx JST）: 旧 C3→C4→C5、新 C3→C5→C4。理由: 公開 49 本のうち売れているのは 6 本（Hook Lab・Slide Maker・Marketing Strategist・Academic Humanizer・TikTok Script Pro・YouTube Script Writer）、30 日の有料注文は約 20 件で、止まっているのは供給ではなく流入。売上ゼロ 43 本の整理（C4）より先に、売れている型へ流入を作る（C5: SNS・SEO・PromptBase・trafficSources の日次計測）。現在の cursor: C3（PromptBase 自動出品を作成中、Shorts Hook Lab の再提出を工場に任せる）。C2 は Hook Lab v1.0.3 の承認と実利益の黒字化待ち。CAPTCHAは人手で解かず、正規自動経路が無い場合は`provider_manual_auth_required`で延期する。
 
 | # | 内容 | 完了の証拠 | 状態 |
 |---|---|---|---|
 | C1 | 申請の自己回復: Shorts Hook Lab（Agent 9466718786）が CP2 で「provider path / detected-keys が期限内に出ない」で失敗し下書きのまま。fence を lm-fence-reconciler が人の手なしで close し、次の wake の `resume_draft` が同じ下書きを CP3 まで出す | reconcile-calls.jsonl の closed=true、publish-remote-status platform_status=1・全 confirmed | 完了扱い（Dais: 1 本の壊れた draft に固執しない）。失敗した申請は fence→reconciler close→次の wake で自動再開される。Shorts Hook Lab 9466718786 は draft のまま（他に仕事が無い時だけ再開）。今日の承認: Reels Hook Lab・Board Update Deck Builder・AI Evaluation Triage・Marketing Strategist 新版 |
 | C2 | Hook Lab の赤字: 1回 約4.5万 input token（30日 132 req・費用 $20.31 > 手取り $19.91）の原因を特定し、費用を下げる（入力の縮小・安い model の新版）か値上げ | 改善後の per-skill cost/request と profit_30d > 0 | ✅ 完了（Dais 2026-09-28: 承認は Capafy の時間なので待たない）。Hook Lab v1.0.3（DeepSeek）審査提出を readback で確認（platform_status=1）。黒字化は毎時 receipt の profit_30d_actual_usd が自動で示す（監視のみ、作業なし） |
-| C3 | 利益の出るスキルを出し続ける: 勝ち型の順（Hook Lab 系 → 金融の要約 → スポーツ分析）で候補を切らさない。PromptBase にも同じ型（Hook Lab は 2026-09-28 公開済み、次は Reels / Shorts 版） | Capafy 審査提出・PromptBase 公開の readback | ✅ 完了（2026-09-28 12:57Z readback）: 工場の run が Ad Hook Lab 6273179459 を draft から決定的に CP2→CP3 提出（platform_status=1・audit_status=1・全 confirmed、LLM 費用 0）。修正: #6099 空き枠で新規を draft 再開より優先、#6102 ワークスペース必須欄（ウェルカムメッセージ・プレースホルダー・テストケース・AI 提供元・データ処理契約チェック）を listing から埋める、#6103 publish_prepare/publish_finish を agent の外で実行（agent の per-command timeout で kill されていた）、#6104 CP3 で必須欄を先に埋める。残り draft（Shorts 9466718786・Customer Escalation 8822853032・Customer Renewal 4973250899）は 15 分 wake で自動提出。PromptBase: publisher #6098（最後の reCAPTCHA は Dais） |
+| C3 | 利益の出るスキルを出し続ける: 勝ち型の順（Hook Lab 系 → 金融の要約 → スポーツ分析）で候補を切らさない。PromptBase にも同じ型（Hook Lab は 2026-09-28 公開済み、次は Reels / Shorts 版） | Capafy 審査提出・PromptBase 公開の readback | ✅ 完了（2026-09-28 12:57Z readback）: 工場の run が Ad Hook Lab 6273179459 を draft から決定的に CP2→CP3 提出（platform_status=1・audit_status=1・全 confirmed、LLM 費用 0）。修正: #6099 空き枠で新規を draft 再開より優先、#6102 ワークスペース必須欄（ウェルカムメッセージ・プレースホルダー・テストケース・AI 提供元・データ処理契約チェック）を listing から埋める、#6103 publish_prepare/publish_finish を agent の外で実行（agent の per-command timeout で kill されていた）、#6104 CP3 で必須欄を先に埋める。残り draft（Shorts 9466718786・Customer Escalation 8822853032・Customer Renewal 4973250899）は 15 分 wake で自動提出。PromptBase: CAPTCHAは人手で解かず、正規自動経路が無い場合は`provider_manual_auth_required`で延期 |
 | C4 | 既存スキルを儲かるように直す: 売上ゼロ 42/48 本を、勝ち型の説明文・価格・トライアルに書き直すか取り下げて枠を空ける。赤字スキルは値上げか費用削減 | 各版の readback と per-skill profit の推移 | 未着手 |
-| C5 | 集客（共通部品）: Capafy の流入元（https://capafy.ai/developer/trafficSources）を毎日取得し、SNS 投稿と SEO（https://github.com/every-app/open-seo）でスキルへ流入を作る。Writer / Affiliate / アプリ / LM / Capafy で共通の marketing 部品として作る | trafficSources の日次 readback、流入元別の注文 | 進行中（cursor、2026-09-28 13:3xZ）。済: (a) 流入元を毎時 receipt に（#6106、/app/developer/traffic-sources/v2/{visits,sales}/stats）。30日: 訪問 5,417・有料 26 件 $68.80・トライアル 59・購入率 約0.5%。流入元: Capafy 内検索 2,443→17 件、直接 929→2、AI 検索 894→0（外部流入ほぼゼロ）。(b) 記事 loop（article-daily、公開先 Substack JA/EN・note・Zenn・X・aniccaai.com）が 9/19 から fence で停止していた → Substack/note の公式 RSS で 9/19 12:10Z 以降の公開なしを確認し pre-effect で close、再開。進行中: open-seo は無料のみ（Dais: 支払いなし。ホスト版の無料トライアル・無料の GSC 連携・無料ツール、必要なら self-host）。残り: 記事から売れているスキル（Hook Lab 系・Slide Maker・Marketing Strategist）へ Capafy の導線を入れる → open-seo で検索語を選ぶ → Capafy IG の復旧（LoginRequired）→ PromptBase 1 日 1 件（reCAPTCHA は Dais）→ 流入元別の注文を毎日 Telegram |
+| C5 | 集客（共通部品）: Capafy の流入元（https://capafy.ai/developer/trafficSources）を毎日取得し、SNS 投稿と SEO（https://github.com/every-app/open-seo）でスキルへ流入を作る。Writer / Affiliate / アプリ / LM / Capafy で共通の marketing 部品として作る | trafficSources の日次 readback、流入元別の注文 | 進行中（cursor、2026-09-28 13:3xZ）。済: (a) 流入元を毎時 receipt に（#6106、/app/developer/traffic-sources/v2/{visits,sales}/stats）。30日: 訪問 5,417・有料 26 件 $68.80・トライアル 59・購入率 約0.5%。流入元: Capafy 内検索 2,443→17 件、直接 929→2、AI 検索 894→0（外部流入ほぼゼロ）。(b) 記事 loop（article-daily、公開先 Substack JA/EN・note・Zenn・X・aniccaai.com）が 9/19 から fence で停止していた → Substack/note の公式 RSS で 9/19 12:10Z 以降の公開なしを確認し pre-effect で close、再開。進行中: open-seo は無料のみ（Dais: 支払いなし。ホスト版の無料トライアル・無料の GSC 連携・無料ツール、必要なら self-host）。残り: 記事から売れているスキル（Hook Lab 系・Slide Maker・Marketing Strategist）へ Capafy の導線を入れる → open-seo で検索語を選ぶ → Capafy IG の復旧（自動login/refreshが必要、手動loginはしない）→ PromptBase 1 日 1 件（CAPTCHAは人手で解かず、正規自動経路が無ければ延期）→ 流入元別の注文を毎日 Telegram |
 | C6 | 分析の閉ループ: 流入元・スキル別利益・転換を毎日見て、LM が次に作る・直すスキルを自分で選ぶ | 日次レポートの数字 → 次の行動の記録 | 未着手 |
 | C7 | 実行枠の配分（7-6e）: gig 等の agent が枠を埋め Capafy が待たされる。ROI 順の配分 | 毎時 wake が capacity_busy で飛ばない | 未着手（15 分 wake で暫定回避） |
 - 5 アプリ As-Is（2026-09-28 06:2xZ、ASC API `appStoreVersions` / RevenueCat / Postiz を readback）:
@@ -532,7 +547,7 @@ TODO（何を・どう直すか）
 20. T8 ループ別 P&L: 各 occurrence を 露出 → 行動 → 公式 receipt → 入金 → 返金 → payout → コスト（model・browser・cloud・provider）に結び付け、毎日 receipt id 付きで出す（8-1 入金 adapter、8-2 cost adapter、8-3 日次 P&L）
 21. 商用 loop が利益を学ぶ: Affiliate、Mobile Apps/Capafy、Writer/Product、Gig、Investment、x402 を P&L につなぐ。SNS はアカウントごとに題材・本文・CTA・画像を回す。重複投稿・クリック・含み益・model の判断をお金として数えない
 22. 8-4 投資の段階的拡大: read-only scout → 過去データ評価 → paper → shadow → 最小額 live canary → 公式決済確認 → 再現性 → 上限付き拡大 or rollback。Alpaca → Polymarket → Hyperliquid → 株 → ミームコイン（今は利益が出ないので live 拡大は禁止）
-23. T10 one-shot capability capsule（製品として配れる形）: identity・capability・credential の参照、不変の policy、onboarding の版、loop への自動登録を永続化する。目標設定や日常の承認は聞かない。provider の KYC/CAPTCHA/OAuth だけは初回に明示する
+23. T10 one-shot capability capsule（製品として配れる形）: identity・capability・credential の参照、不変の policy、onboarding の版、loop への自動登録を永続化する。目標設定や日常の承認は聞かない。人間に明示するのはproviderのKYC・法定本人確認だけ。OAuth・login・refresh・MFA・CAPTCHAは自動auth bootstrapで処理し、正規自動経路が無いproviderは`provider_manual_auth_required`として対象外にする
 24. T11 **Cloud 版（有料で売る Life Manager）**。同じ実装を2つのモードで出す（Foundation spec「Life Manager exposes two deployment modes」、CL01〜CL05）
     - Local 版: 自分の Mac/Linux で動くセルフホスト版。開発・自前運用・復旧用。今動いているのはこれ
     - Cloud 版: 制御面・tenant ごとの永続ストア・worker pool・Steel Browser（クラウドの仮想ブラウザ）がすべて cloud で24時間動く。利用者に要るのはスマホと Telegram/アプリだけ（phone-only が既定）。業務コードは fork せず、host adapter だけが違う
@@ -540,7 +555,7 @@ TODO（何を・どう直すか）
     - [ ] CL01 承認済みの同じ business-kernel SHA を tenant 分離の Cloud host adapter に載せる
     - [ ] CL02 tenant A が tenant B の credential・browser session・state・receipt を読めないことを証明する
     - [ ] CL03 Steel Browser の session lease/release が2つ目の owner や古い lease を残さないことを証明する
-    - [ ] CL04 スマホだけ（Telegram）で 状態確認 → human gate → 再開 → readback が1回通ることを証明する
+    - [ ] CL04 スマホだけ（Telegram）で 状態確認 → KYC gate（必要な場合のみ）→ 自動再開 → readback が1回通ることを証明する
     - [ ] CL05 同じ SHA で Cloud gate を実行し、公式 readback と replay-zero を確認する（local と同じ capsule・evidence hash）
     - [ ] R01 Cloud 版のサブスク課金を始め、公式の有料サブスク receipt を1件確認する
     - 昇格は immutable source と契約だけをコピーし、tenant ごとに新しい state を作る。local の credential・browser session・可変ログはコピーしない
