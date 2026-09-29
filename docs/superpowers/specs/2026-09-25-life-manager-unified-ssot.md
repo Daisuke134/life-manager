@@ -1404,4 +1404,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - その後の自然 occurrence `alpaca-investment-paper:18d9d3aa8b3e6510-10456` は`exit_code=0`／`pass`だったが、decisionは`NO_TRADE`、reasonは`decision_session_consumed`で、exit order／exit receiptは生成されなかった。これは同じcompleted sessionの重複判断を避ける正常な結果であり、`AT-13`は未完のままである。
 - 最新 occurrence `alpaca-investment-paper:18d9d3ffbd7309c8-25238` も`exit_code=0`／`pass`だが、同じ`NO_TRADE / decision_session_consumed`であり、QQQは`open`のまま。paper unrealized P&Lは`-$0.052489`で、realized net P&Lではない。
 - 追加のAlpaca公式GET（read-only、2026-09-30 00:25 JST）はpaper account cash `$99,986.77`、equity `$99,996.71`、QQQ long qty `0.013493253`、avg entry `$740.37`、current `$736.41`、unrealized P&L `-$0.053434`を返した。marketはopenで、exit orderは存在しない。
+- その後のnatural occurrence `alpaca-investment-paper:18d9d45468740878-37106` は`exit=75`、`host_admission_deferred:resource_capacity_busy`、`retry_after_eligibility`となった。`effect_identity_status=not_written`かつprovider receiptなしで、provider effect前のdeferである。`AT-13`のexit証拠ではない。
 - 次の1件は`AT-13`のみ。手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
