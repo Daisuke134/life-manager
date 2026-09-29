@@ -94,7 +94,7 @@ local版とCloud版の差は「誰が起こすか」「どこで隔離実行す�
 | [AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-overview.html) | inbound identity、outbound OAuth/API keyを一元管理し、credentialをmodel contextへ置かない | **採用** |
 | [AgentCore pricing](https://aws.amazon.com/bedrock/agentcore/pricing/) | 最低料金・前払いなし。Runtime V2はCPU $0.1276/vCPU-hour、memory $0.0169/GB-hour、BrowserはCPU $0.0895/vCPU-hour、memory $0.00945/GB-hour | 無料枠をhard budgetで実現可能 |
 | [DigitalOcean Managed Agents](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/concepts/architecture/) | 1 session = 1 microVM、pause/resume、Chromium、Action Gateway、tenantごとにsessionを作れる | runner-up |
-| [DigitalOcean limits](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/limits/) / [triggers](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/how-to/run-agents-with-triggers/) | 最大100 sessions、run lifecycle webhookなし、live previewなし、VPCなし。unattended triggerは`ask`を使わず、policyでallow/denyする | no-askはLife Managerと整合するが、scale、lifecycle readback、tenant別login stateの独立管理の確認不足によりrunner-up |
+| [DigitalOcean limits](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/limits/) / [triggers](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/how-to/run-agents-with-triggers/) / [environment spec](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/reference/environment-spec/) | public preview、最大100 active sessions、pause中もslotを使う。fresh/reuse trigger、VPC/subnet、egress allowlist、明示allow/denyを持つ。triggerで`ask`はcreate時拒否されるが、reuse sessionに残ったruntime promptはauto-approvedされ得るため`ask`を安全策にしてはいけない | AWS activation期限超過後の実測fallback。`allow`＋明示`deny`、HITL reject、remove後list 0、billing recordを必須にする |
 | [Google Agent Platform](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview) | managed runtime、sessions、memory、computer use、sandbox、IAMを持つ | 強い代替。ただし本調査でtenant別のagent-owned browser profile/identity契約を確認できず不採用 |
 | [Microsoft Foundry Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/overview) | hosted container、session state、VM-isolated sandbox、managed identityを持つ | 強い代替。ただしmanaged browser profileとagent-owned outbound identityが一体化していないため不採用 |
 | [E2B persistence](https://e2b.dev/docs/sandbox/persistence) | filesystemとmemoryをpause/resumeできる | compute部品として優秀だが、tenant別identity/browser profile/audit/control planeを自作するため不採用 |
@@ -116,7 +116,7 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 6. Tokyo regionがあり、GA、CloudFormation対応である。
 7. 既存のNode business kernel、PostgreSQL job protocol、Inngest、Stripeを捨てずに接続できる。
 
-DigitalOcean Managed Agentsは概念的には非常に近く、unattended triggerが`ask`を持たない点はLife ManagerのNo-human-loopと整合する。しかし現行の同時session上限、run lifecycle webhook/VPCの欠如、tenant別login stateをephemeral workerから独立して管理する契約を確認できない点からproductionの第一選択にはしない。provider adapter境界を維持し、これらの実測契約が揃えば再評価する。
+DigitalOcean Managed Agentsは概念的には非常に近く、microVM、pause/resume、Chromium、VPC、egress、credential broker、fresh/reuse triggerを持つ。pauseはcompute課金を止めるがactive-session slotは解放しない。Insightsのtoken/resource値は運用指標であり、正確な支出はbilling recordを正本にする。triggerの`ask`は安全停止ではないため、Life Managerは`ask` 0、`allow`＋明示`deny`、headless HITL rejectだけを許す。AWSの24時間support期限超過とfresh `OptInRequired` / `NotSignedUp` readbackにより、DigitalOcean＋Steel compatibility canaryを開始するが、tenant別login continuity、remove後teardown、session別cost joinが実測PASSするまではproductionへ切り替えない。
 
 競合runtimeの詳細な事実、推定、非公開部分、Life Managerへの採否は[`docs/research/cloud-agent-runtime-benchmark.md`](../../research/cloud-agent-runtime-benchmark.md)を正本とする。Meta Muse本体をMuse ConnectorやMuse Codeと混同しない。
 
@@ -333,7 +333,7 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 
 - Browser互換性canaryがAgentCoreで失敗したproviderだけ、既存Steel adapterを限定fallbackとして再評価する。
 - AgentCore outageはjobをretry/reconcileへ戻す。即座に別providerへ二重送信しない。
-- DigitalOceanへの変更は、必要session数、agent-owned tenant別login continuity、VPC、lifecycle readback、決定的allow/deny policyが全部確認できた場合だけ行う。
+- DigitalOceanへの変更は、必要session数、agent-owned tenant別login continuity、lifecycle readback、決定的allow/deny policy、remove後active session 0、billing recordのtenant/job joinが全部確認できた場合だけ行う。VPC/egressは現行environment specで利用可能だが、canaryで実挙動を確認する。
 - provider変更後もPostgreSQLのjob/receipt/effect contractとbusiness-kernel SHAは変えない。
 
 ## 10. 非目標

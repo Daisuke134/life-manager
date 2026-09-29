@@ -1,0 +1,29 @@
+name: life-manager-provider-canary
+description: Read-only provider compatibility proof; no user credential, approval, or external effect.
+agent: codex
+size: mars-1vcpu-1gb
+idle_timeout: 5m
+secrets:
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+egress:
+  - api.openai.com
+permissions:
+  default: allow
+  rules:
+    - tool: bash
+      match: { command: "rm -rf *" }
+      action: deny
+      enforcement: strict
+    - tool: bash
+      match: { command: "sudo *" }
+      action: deny
+      enforcement: strict
+    - tool: bash
+      match: { command: "curl *" }
+      action: deny
+      enforcement: strict
+    - tool: bash
+      match: { command: "wget *" }
+      action: deny
+      enforcement: strict
+mode: interactive
