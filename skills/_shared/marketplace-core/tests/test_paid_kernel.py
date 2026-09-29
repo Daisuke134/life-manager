@@ -60,6 +60,37 @@ class Adapter:
         return dict(self.readbacks.get(intent["effect_key"], {"verified": False}))
 
 
+class HandoffAdapter(Adapter):
+    def paid_handoff(self, work_id: str, context: dict) -> dict:
+        return {
+            "contract": {
+                "schema_version": 1,
+                "record_type": "contract_receipt",
+                "platform": "fixture",
+                "application_external_id": "application-1",
+                "work_external_id": work_id,
+                "contract_external_id": "contract-1",
+                "status": "accepted",
+                "terms_sha256": "a" * 64,
+                "observed_at": "2026-09-07T00:00:00Z",
+            },
+            "handoff": {
+                "schema_version": 1,
+                "record_type": "paid_handoff_receipt",
+                "platform": "fixture",
+                "thread_external_id": "thread-1",
+                "contract_external_id": "contract-1",
+                "funding_external_id": "funding-1",
+                "scope_sha256": "b" * 64,
+                "artifact_requirement_sha256": "c" * 64,
+                "price_minor": 1000,
+                "currency": "USD",
+                "status": "funded",
+                "observed_at": "2026-09-07T00:00:01Z",
+            },
+        }
+
+
 class _NullLock:
     def __enter__(self): return self
     def __exit__(self, *_args): return None
@@ -76,6 +107,55 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert first["effect"] == 1 and first["readback"] == 1
     assert second["effect"] == 0 and second["readback"] == 1
     assert len(adapter.effects) == 1
+
+
+def test_required_paid_handoff_blocks_mutation_without_provider_proof(tmp_path: Path) -> None:
+    adapter = Adapter([observation("work-1")])
+
+    result = paid.run_wake(
+        adapter=adapter, decide=submit, state_root=tmp_path,
+        require_paid_handoff=True,
+    )
+
+    assert result["failed"] == 1
+    assert result["effect"] == 0
+    assert result["items"][0]["error_detail"] == "paid_handoff_adapter_unavailable"
+    assert adapter.effects == []
+
+
+def test_required_paid_handoff_allows_valid_funded_contract(tmp_path: Path) -> None:
+    adapter = HandoffAdapter([observation("work-1")])
+
+    result = paid.run_wake(
+        adapter=adapter, decide=submit, state_root=tmp_path,
+        require_paid_handoff=True,
+    )
+
+    assert result["failed"] == 0
+    assert result["effect"] == 1
+    assert len(adapter.effects) == 1
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert state["intent"]["paid_handoff"]["handoff"]["funding_external_id"] == "funding-1"
+
+
+def test_required_paid_handoff_rejects_unaccepted_contract(tmp_path: Path) -> None:
+    class OfferedAdapter(HandoffAdapter):
+        def paid_handoff(self, work_id: str, context: dict) -> dict:
+            bundle = super().paid_handoff(work_id, context)
+            bundle["contract"]["status"] = "offered"
+            return bundle
+
+    adapter = OfferedAdapter([observation("work-1")])
+
+    result = paid.run_wake(
+        adapter=adapter, decide=submit, state_root=tmp_path,
+        require_paid_handoff=True,
+    )
+
+    assert result["failed"] == 1
+    assert result["effect"] == 0
+    assert "contract_not_accepted" in result["items"][0]["error_detail"]
+    assert adapter.effects == []
 
 
 def test_verified_effect_replays_zero_when_only_provider_digest_changes(
