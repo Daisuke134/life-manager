@@ -32,15 +32,29 @@ test("checked-in canary policy contains no ask and denies bounded dangerous comm
   assert.deepEqual(spec.egress, ["api.openai.com"]);
 });
 
-test("canary is unattended reject-on-HITL and returns only provider session identity", async () => {
+test("canary is unattended reject-on-HITL, injects the model key by file reference, and returns only provider session identity", async () => {
   const f = fixture({ responses: [{ exitCode: 0, stdout: JSON.stringify({ id: "sess_canary1", status: "ready" }) }] });
-  assert.deepEqual(await f.client.createCanary({ name: "lm-canary-a", specPath: "/release/agents.yaml", prompt: "Run read-only proof" }), {
+  assert.deepEqual(await f.client.createCanary({
+    name: "lm-canary-a", specPath: "/release/agents.yaml", prompt: "Run read-only proof",
+    secretPath: "/private/openai.key",
+  }), {
     session_id: "sess_canary1", raw: { id: "sess_canary1", status: "ready" },
   });
   assert.equal(f.calls[0].binary, "/safe/doctl");
   assert.deepEqual(f.calls[0].args, ["harness-runtime", "create", "--spec", "/release/agents.yaml", "--name", "lm-canary-a",
-    "--prompt", "Run read-only proof", "--on-hitl", "reject", "--interactive=false", "-o", "json"]);
-  assert.doesNotMatch(JSON.stringify(f.calls), /approve|resume-on-topoff|token|secret/i);
+    "--prompt", "Run read-only proof", "--secret", "OPENAI_API_KEY=@/private/openai.key",
+    "--on-hitl", "reject", "--interactive=false", "-o", "json"]);
+  assert.doesNotMatch(JSON.stringify(f.calls), /approve|resume-on-topoff|sk-/i);
+});
+
+test("canary refuses to create without an absolute secret-file reference", async () => {
+  for (const secretPath of [undefined, "relative.key", "/private/key\n--access-token=bad"]) {
+    const f = fixture();
+    await assert.rejects(f.client.createCanary({
+      name: "lm-canary-a", specPath: "/release/agents.yaml", prompt: "Run read-only proof", secretPath,
+    }), /input invalid/i);
+    assert.equal(f.calls.length, 0);
+  }
 });
 
 test("show binds exact session and teardown requires list readback zero", async () => {

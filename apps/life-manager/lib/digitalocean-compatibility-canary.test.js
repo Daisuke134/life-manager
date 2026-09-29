@@ -36,8 +36,19 @@ test("bounded canary proves every cutover invariant then tears down and reads co
   const f = fixture();
   const result = await runDigitalOceanCompatibilityCanary({ name: "lm-canary" }, f.deps);
   assert.equal(result.provider, "digitalocean-managed-agents");
+  assert.deepEqual(result.before_balance, { balance: "10.00" });
+  assert.deepEqual(result.after_balance, { balance: "9.99" });
+  assert.deepEqual(result.teardown, { removed: true, session_id: "sess_canary1" });
   assert.deepEqual(f.calls, ["balance", "create", "show:sess_canary1", "logs:sess_canary1", "verify",
     "remove:sess_canary1", "balance", "cleanup:sess_canary1"]);
+});
+
+test("successful proof is not returned when exact teardown fails", async () => {
+  const f = fixture({
+    client: { async remove() { f.calls.push("remove:sess_canary1"); throw new Error("remove failed"); } },
+  });
+  await assert.rejects(runDigitalOceanCompatibilityCanary({ name: "lm-canary" }, f.deps), /remove failed/);
+  assert.equal(f.calls.at(-1), "remove:sess_canary1");
 });
 
 test("failed proof still removes the exact session and records bounded cost", async () => {

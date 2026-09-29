@@ -1,5 +1,7 @@
 "use strict";
 
+const path = require("node:path");
+
 const SESSION_ID = /^sess_[A-Za-z0-9_-]+$/;
 
 function parseJson(output, label) {
@@ -32,11 +34,14 @@ function createDigitalOceanRuntimeClient(options = {}) {
       const name = String(input.name || "");
       const specPath = String(input.specPath || "");
       const prompt = String(input.prompt || "");
+      const secretPath = String(input.secretPath || "");
       if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(name)) throw new Error("DigitalOcean canary name invalid");
-      if (!specPath || !prompt || prompt.length > 2_000) throw new Error("DigitalOcean canary input invalid");
+      if (!specPath || !prompt || prompt.length > 2_000 || !path.isAbsolute(secretPath)
+          || /[\r\n\0]/.test(secretPath)) throw new Error("DigitalOcean canary input invalid");
       const output = parseJson(await invoke([
         "harness-runtime", "create", "--spec", specPath, "--name", name,
-        "--prompt", prompt, "--on-hitl", "reject", "--interactive=false", "-o", "json",
+        "--prompt", prompt, "--secret", `OPENAI_API_KEY=@${secretPath}`,
+        "--on-hitl", "reject", "--interactive=false", "-o", "json",
       ], "create"), "create");
       return Object.freeze({ session_id: sessionId(output), raw: output });
     },
