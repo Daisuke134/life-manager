@@ -6279,3 +6279,19 @@ retried or resent.
   browser launch, or authentication action is performed in this pass because
   it would mutate live launchd/browser state; the fresh official-inventory
   TODO remains open.
+
+### Candidate release disk-capacity readback — 2026-09-30 08:31 JST
+
+- [x] A non-activating candidate build from the pushed `HEAD` was attempted
+  with an isolated temporary `LOOPS_ROOT`; production `current`, launchd
+  owners, and provider state were untouched.
+- [x] The build stopped during the dependency bundle with `ENOSPC` while host
+  free space was approximately `388 MiB`. The partially created candidate
+  directory was explicitly identified as `/tmp/lm-release-candidate.9hGvvb`
+  and removed; the unrelated `/tmp/lm-release-candidate.OUq8K7` scratch
+  directory was also removed. No production or protected state path was
+  targeted. Host free space read back at approximately `1.8 GiB` afterward.
+- [ ] A full immutable candidate still needs to be cut only after the disk
+  admission floor and dependency-bundle capacity are both satisfied. This is
+  a release-build capacity gate, not evidence that the source tests or the
+  provider workflows passed in production.
