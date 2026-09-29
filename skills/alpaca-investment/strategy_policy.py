@@ -19,7 +19,9 @@ from typing import Any
 
 _CORE = Path(__file__).resolve().parents[2] / "apps" / "life-manager" / "investment-core"
 if str(_CORE) not in sys.path:
-    sys.path.insert(0, str(_CORE))
+    # Keep investment-skill modules authoritative; use the shared core only as
+    # a fallback for modules that are intentionally not duplicated here.
+    sys.path.append(str(_CORE))
 
 from etf_momentum import ETF_MOMENTUM_UNIVERSE, strategy_card as etf_strategy_card  # noqa: E402
 from etf_ownership import investment_owner_id  # noqa: E402

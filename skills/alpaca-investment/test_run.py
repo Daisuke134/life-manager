@@ -58,9 +58,18 @@ class InvestmentModeTest(unittest.TestCase):
         script = """
 import inspect
 import sys
+from pathlib import Path
 sys.path.insert(0, 'skills/alpaca-investment')
 import run
 assert 'on_reconciled' in inspect.signature(run.reconcile_started).parameters
+skill_root = Path('skills/alpaca-investment').resolve()
+for module_name in (
+    'alpaca_cli', 'campaign', 'control', 'effect_store', 'etf_ownership',
+    'paper_performance', 'position_manager', 'reporter', 'review_status',
+    'risk_day', 'risk_policy',
+):
+    module_path = Path(sys.modules[module_name].__file__).resolve()
+    assert module_path.parent == skill_root, (module_name, module_path)
 """
         result = subprocess.run(
             [sys.executable, "-c", script],

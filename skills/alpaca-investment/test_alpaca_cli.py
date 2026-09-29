@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -147,6 +148,31 @@ class EtfDailyBarsTests(unittest.TestCase):
         self.assertEqual(value["completed_through_session"], COMPLETED_SESSIONS[-1].isoformat())
         self.assertEqual(value["daily_bars"]["QQQ"][0]["c"], "100")
         daily.assert_called_once()
+
+    def test_paper_allocator_skips_unsupported_wallet_transfers_endpoint(self):
+        account = {"cash": "100", "equity": "100", "last_equity": "100"}
+        responses = [
+            account, CLOCK,
+            [],  # cash activities
+            [],  # trade activities
+            [{"symbol": "USDCUSD", "market_value": "0", "unrealized_pl": "0"}],
+            0, {"price": "100", "timestamp": CLOCK["timestamp"]}, [],
+            {"tradable": False, "status": "inactive"},
+            {"bid": "99", "ask": "100", "quote_at": CLOCK["timestamp"]}, [],
+        ]
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            alpaca_cli.os.environ, {"LIFE_MANAGER_INVESTMENT_MODE": "paper"},
+        ), patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=responses,
+        ) as run:
+            value = alpaca_cli.read_allocator_snapshot(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                risk_day_path=Path(directory) / "risk-day.json",
+            )
+
+        self.assertEqual(value["risk"]["cash_flow_ny_day_usd"], "0")
+        self.assertFalse(any(call.args[1][:2] == ["api", "GET"]
+                             for call in run.call_args_list))
 
 
 class EtfDailyHistoryTests(unittest.TestCase):
