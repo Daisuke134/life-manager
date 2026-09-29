@@ -36,12 +36,22 @@ def _validated(value: str) -> tuple[str, int]:
     return value.rstrip("/"), port
 
 
-def configured_cdp_endpoint(default: str, *, environment: str = "CLOAK_CDP_BASE_URL") -> str:
+def configured_cdp_endpoint(
+    default: str,
+    *,
+    environment: str = "CLOAK_CDP_BASE_URL",
+    require_identity_join: bool = False,
+) -> str:
     """Return the lease endpoint, or the provider default when no lease is projected."""
     fallback, _ = _validated(default)
     candidate = os.environ.get(environment, "").strip()
     if not candidate:
         return fallback
+    if require_identity_join and (
+        not os.environ.get("LIFE_MANAGER_BROWSER_IDENTITY", "").strip()
+        or not os.environ.get("LIFE_MANAGER_BROWSER_TARGET_OWNER", "").strip()
+    ):
+        raise ValueError("browser_identity_join_missing")
     endpoint, _ = _validated(candidate)
     return endpoint
 

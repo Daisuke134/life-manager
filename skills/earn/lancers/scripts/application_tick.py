@@ -31,7 +31,9 @@ if _CDP_ENDPOINT_SPEC is None or _CDP_ENDPOINT_SPEC.loader is None:
 _cdp_endpoint = importlib.util.module_from_spec(_CDP_ENDPOINT_SPEC)
 sys.modules[_CDP_ENDPOINT_SPEC.name] = _cdp_endpoint
 _CDP_ENDPOINT_SPEC.loader.exec_module(_cdp_endpoint)
-CDP_URL = _cdp_endpoint.configured_cdp_endpoint("http://127.0.0.1:9227")
+CDP_URL = _cdp_endpoint.configured_cdp_endpoint(
+    "http://127.0.0.1:9227", require_identity_join=True,
+)
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
 PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
 SHARED_BROWSER_LOCK_TIMEOUT_SECONDS = 60.0

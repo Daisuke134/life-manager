@@ -40,5 +40,22 @@ def test_untrusted_lease_endpoint_fails_closed(monkeypatch, value):
         MODULE.configured_cdp_endpoint("http://127.0.0.1:9227")
 
 
+def test_projected_endpoint_requires_the_identity_join_when_requested(monkeypatch):
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:51731")
+    monkeypatch.delenv("LIFE_MANAGER_BROWSER_IDENTITY", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_BROWSER_TARGET_OWNER", raising=False)
+    with pytest.raises(ValueError, match="browser_identity_join_missing"):
+        MODULE.configured_cdp_endpoint("http://127.0.0.1:9227", require_identity_join=True)
+
+
+def test_projected_endpoint_accepts_a_complete_identity_join(monkeypatch):
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:51731")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_IDENTITY", "lancers:dais")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_TARGET_OWNER", "lancers-revenue-browser")
+    assert MODULE.configured_cdp_endpoint(
+        "http://127.0.0.1:9227", require_identity_join=True,
+    ) == "http://127.0.0.1:51731"
+
+
 def test_endpoint_port_is_derived_from_the_leased_url():
     assert MODULE.endpoint_port("http://[::1]:51731") == 51731

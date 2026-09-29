@@ -91,6 +91,8 @@ def test_playwright_connect_has_a_bounded_timeout():
 
 def test_crowdworks_account_uses_a_browser_lease_endpoint_when_projected(monkeypatch):
     monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:51731")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_IDENTITY", "crowdworks:dais")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_TARGET_OWNER", "crowdworks-revenue-browser")
     account = _account()
     assert account.CDP_URL == "http://127.0.0.1:51731"
     assert account.CDP_PORT == 51731
