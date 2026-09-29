@@ -164,14 +164,17 @@ def _fill_step2(page, listing) -> None:
     # textarea is where each entry is typed; clicking "Add example +" commits
     # the current text as one of the 4 and clears the box for the next one
     # (confirmed via "Examples uploaded: N/4" incrementing after each click).
-    # All 4 reuse the same real, verified example_output -- honest (never
-    # fabricated) even though repeated, since build_listing.py extracts only
-    # one verified input/output pair per catalog skill.
+    # PromptBase rejects 4 identical outputs ("Some of your example outputs
+    # are the same", live 2026-09-29), so each slot gets its own real example
+    # from evidence/examples.json (gen_examples.py).
+    examples = listing.examples or []
+    if len({e["output"] for e in examples}) != 4:
+        raise RuntimeError("need_4_distinct_examples:run gen_examples.py")
     example_output_el = page.locator("textarea[placeholder='Paste your output here']")
     if example_output_el.count() == 0:
         raise RuntimeError("example_output_field_missing")
-    for _ in range(4):
-        example_output_el.first.fill(listing.example_output)
+    for example in examples:
+        example_output_el.first.fill(example["output"])
         page.wait_for_timeout(300)
         add_example_btn = page.get_by_text("Add example", exact=False)
         if add_example_btn.count() == 0:
@@ -195,9 +198,15 @@ def _fill_step2(page, listing) -> None:
     # literal "[ADD: your number]") gets a generic, clearly-labeled
     # placeholder instead of a fabricated concrete value.
     variable_inputs = page.locator("input[type=text]")
+    input_row = 0
     for i in range(variable_inputs.count()):
         el = variable_inputs.nth(i)
         placeholder = el.get_attribute("placeholder") or ""
+        if placeholder == INPUT_VARIABLE_LABEL:
+            # One such box per example row, in row order.
+            el.fill(examples[min(input_row, 3)]["input"])
+            input_row += 1
+            continue
         # No square brackets allowed in the value itself (verified live
         # 2026-09-28: PromptBase's own validation rejects "Remove all square
         # brackets from your example inputs" for any that contain one).
@@ -341,18 +350,23 @@ def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> 
             # no-op, with the page still sitting on /sell. Absence of an
             # exception is not evidence of a real submission; poll for the
             # one URL shape that is.
+            # Live 2026-09-29: a real submit can also stay on /sell and show
+            # step 3/3 "Prompt Uploaded ... We are now reviewing your prompt"
+            # (dashboard then lists it as Pending), so that page text counts too.
             deadline = time.time() + 10
             final_url = page.url
-            while time.time() < deadline and "prompt-edit/" not in final_url:
+            uploaded = False
+            while time.time() < deadline and "prompt-edit/" not in final_url and not uploaded:
                 page.wait_for_timeout(500)
                 final_url = page.url
+                uploaded = "We are now reviewing your prompt" in page.inner_text("body")
 
             page.screenshot(path=str(evidence_dir / "after_submit.png"), full_page=True)
             (evidence_dir / "after_submit_text.txt").write_text(page.inner_text("body")[:6000])
 
-            if "prompt-edit/" not in final_url:
+            if "prompt-edit/" not in final_url and not uploaded:
                 raise RuntimeError(f"submit_did_not_confirm:final_url={final_url}")
-            promptbase_id = final_url.rstrip("/").rsplit("/", 1)[-1]
+            promptbase_id = final_url.rstrip("/").rsplit("/", 1)[-1] if "prompt-edit/" in final_url else ""
 
             row = {
                 "slug": listing.slug,
