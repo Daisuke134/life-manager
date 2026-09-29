@@ -6156,3 +6156,15 @@ retried or resent.
   live-owner mutation and does not install a release. The installed pointer
   and owner processes remain on the old production releases until item 4's
   main-derived release and item 5's separate approval are both satisfied.
+
+### Coconala pre-effect dry-run readback — 2026-09-30 07:50 JST
+
+- [x] The source runtime evaluated the live admission ledger with
+  `pre-effect-reconcile <loop> --dry-run` for Apply, Storefront, and Paid.
+  Apply and Storefront each have exactly one unprovable `effect_unknown` row
+  with reason `no_pre_effect_terminal`; neither has a resolvable proof.
+  Paid has zero unknown rows. The dry-run wrote no receipt and changed no
+  admission state.
+- [ ] The two unresolved fences therefore remain closed. They cannot be
+  cleared or retried from local event absence; they require the approved
+  immutable-release transition followed by official provider/readback evidence.
