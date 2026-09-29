@@ -24,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger as ledger_mod  # noqa: E402
 
 PROMPTS_URL = "https://promptbase.com/account?view=prompts"
+SALES_URL = "https://promptbase.com/account?view=sales"
+SUMMARY_PATH = Path.home() / ".local/state/life-manager/state/promptbase-sales.json"
 
 _STATUSES = {
     "Approved",
@@ -63,6 +65,39 @@ def parse_dashboard_cards(text: str) -> list[tuple[str, str]]:
     return cards
 
 
+def _money(cell: str) -> float | None:
+    cell = cell.strip().replace(",", "")
+    if not cell.startswith("$"):
+        return None
+    try:
+        return float(cell[1:])
+    except ValueError:
+        return None
+
+
+def parse_sales(text: str) -> dict:
+    """Sales tab rows render as tab-separated lines: Amount, Net, Status, Item, ...
+    ponytail: column order read from the live header (2026-09-29, zero sales);
+    re-check against the first real sale row."""
+    if "No sales yet" in text:
+        return {"sales_count": 0, "net_usd": 0.0, "by_item": {}}
+    by_item: dict[str, dict] = {}
+    count, net_total = 0, 0.0
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.split("\t")]
+        if len(cells) < 4:
+            continue
+        amount, net = _money(cells[0]), _money(cells[1])
+        if amount is None or net is None:
+            continue
+        item = by_item.setdefault(cells[3], {"sales": 0, "net_usd": 0.0})
+        item["sales"] += 1
+        item["net_usd"] = round(item["net_usd"] + net, 2)
+        count += 1
+        net_total += net
+    return {"sales_count": count, "net_usd": round(net_total, 2), "by_item": by_item}
+
+
 def status_for_title(text: str, title: str) -> str | None:
     for status, card_title in parse_dashboard_cards(text):
         if card_title == title:
@@ -86,6 +121,9 @@ def run(endpoint: str) -> dict:
             page.goto(PROMPTS_URL, wait_until="domcontentloaded", timeout=20000)
             page.wait_for_timeout(2000)
             text = page.inner_text("body")
+            page.goto(SALES_URL, wait_until="domcontentloaded", timeout=20000)
+            page.wait_for_timeout(3000)
+            sales = parse_sales(page.inner_text("body"))
         finally:
             page.close()
 
@@ -95,12 +133,15 @@ def run(endpoint: str) -> dict:
         if not title:
             continue
         new_status = status_for_title(text, title)
-        if new_status is None or new_status == row.get("status"):
+        item_sales = sales["by_item"].get(title, {"net_usd": 0.0})["net_usd"]
+        if new_status is None or (new_status == row.get("status") and item_sales == row.get("sales_usd")):
             continue
-        ledger_mod.update_status(slug, status=new_status, checked_at=checked_at)
+        ledger_mod.update_status(slug, status=new_status, checked_at=checked_at, sales=item_sales)
         updates.append({"slug": slug, "old_status": row.get("status"), "new_status": new_status})
 
-    return {"ok": True, "checked": len(rows), "updates": updates}
+    SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SUMMARY_PATH.write_text(json.dumps({"observed_at": checked_at, "source": SALES_URL, **sales}, indent=2) + "\n")
+    return {"ok": True, "checked": len(rows), "updates": updates, "sales": sales}
 
 
 def _main() -> int:
