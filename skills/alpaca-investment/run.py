@@ -49,6 +49,13 @@ def _atomic_json(path: Path, value: dict) -> None:
             pass
 
 
+def _mark_external_effect_attempted() -> None:
+    """Invalidate the host's pre-effect proof immediately before submission."""
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
+    if hint:
+        _atomic_json(Path(hint), {"status": "effect_attempted", "effect": 1})
+
+
 def _retry_allowed(stage: str, effect_attempted: bool, attempt: int) -> bool:
     return stage != "telegram_deliver" and not effect_attempted and attempt < 2
 
@@ -385,6 +392,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         return 0
                     sealed = seal(state / "receipts.jsonl", exit_decision, order)
                     mark_started(state / "receipts.jsonl", sealed)
+                    _mark_external_effect_attempted()
                     effect_attempted = True
                     submit_order(credentials_path=credentials_path, cli_path=cli_path,
                                  client_order_id=sealed["client_order_id"], order=order)
@@ -517,6 +525,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                             "status": "entry_pending", "symbol": "BTCUSD",
                             "entry_timestamp": allocator_snapshot["clock"]["timestamp"]})
                         _atomic_json(state / "live-owned-position.json", marker)
+                    _mark_external_effect_attempted()
                     effect_attempted = True
                     submit_kwargs = {
                         "credentials_path": credentials_path,

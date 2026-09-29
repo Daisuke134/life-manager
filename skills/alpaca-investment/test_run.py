@@ -511,6 +511,51 @@ class ShadowReadOnlyTest(unittest.TestCase):
 
 
 class LiveRunTest(unittest.TestCase):
+    def test_submit_marks_effect_attempted_before_provider_mutation(self):
+        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+            "clock": {"observed_at": "2026-09-10T08:00:00Z"},
+            "open_and_closed_orders_count": 0,
+            "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
+        snapshot = {"account": {"cash": "0", "equity": "66"},
+            "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
+            "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
+            "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}
+        decision = {"approved": True, "candidate_ref": "crypto://BTC/USDC",
+            "candidate": {"asset_class": "crypto"}, "gate": "approved",
+            "observed_at": "2026-09-10T08:00:00Z"}
+        order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
+            "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hint = root / "entrypoint-result.json"
+            hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+            hint.chmod(0o600)
+
+            def submit_and_check(**_kwargs):
+                self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                    "status": "effect_attempted", "effect": 1,
+                })
+                return {"submitted_at": "now"}
+
+            with patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(root / "credentials.json"),
+                "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(root / "state"),
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+            }, clear=True), \
+                patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0}), \
+                patch.object(MODULE, "observe", return_value=observation), \
+                patch.object(MODULE, "read_allocator_snapshot", return_value=snapshot), \
+                patch.object(MODULE, "read_crypto_history", return_value={}), \
+                patch.object(MODULE, "build_candidates", return_value=[]), \
+                patch.object(MODULE, "choose", return_value=decision), \
+                patch.object(MODULE, "order_for", return_value=order), \
+                patch.object(MODULE, "evaluate_entry", return_value={"approved": True}), \
+                patch.object(MODULE, "allocation_gate", return_value={"approved": True}), \
+                patch.object(MODULE, "submit_order", side_effect=submit_and_check), \
+                patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
+                self.assertEqual(MODULE.main(wake_id="live-entry-hint"), 0)
+
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
         observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},
