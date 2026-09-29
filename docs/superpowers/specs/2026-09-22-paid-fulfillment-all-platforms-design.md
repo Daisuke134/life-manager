@@ -6252,3 +6252,18 @@ retried or resent.
   readback after the existing account owner reaches an authenticated,
   non-verification surface, then reconcile this exact occurrence before any
   effect.
+
+### Mercor Paid official-inventory refresh — 2026-09-30 08:18 JST
+
+- [x] The identity-bound Mercor resolver was queried read-only for
+  `mercor:dais`; it returned `reachable=false,error_class=endpoint_unavailable`.
+  No browser, login, assessment, contract, or payment action was attempted.
+- [x] The newest persisted official contract snapshot is
+  `official-readback-20260920T0200Z.json`, observed at
+  `2026-09-20T02:00:16.883761Z`, with `contracts=[]`. The persisted snapshot
+  is older than the current reconciliation window and is not a fresh
+  funded-contract readback.
+- [ ] Mercor Paid remains gated on a fresh identity-bound official inventory;
+  the named local Paid occurrence is not retried or reclassified from stale
+  data. Next action is to restore/read the existing Mercor browser owner and
+  obtain a fresh official snapshot before any contract or payment effect.
