@@ -525,3 +525,48 @@ Capafy の30日の純売上 $55.04、モデルの費用 $43.61、貢献利益の
 - 7日を超えて pending のものは、理由つきで閉じるか再試行に回り、放置されない。
 - 同じスレッドの action を重複して開かない。
 - 断られたスレッドは終わりの状態になり、生成が止まる。
+
+## 17. eval の構成: 全員共通 × 仕事の種類ごと × エージェントごとの細則（Dais と合意 2026-09-29）
+
+### 17.1 担当の境界
+
+- **この AGI トラックの担当（eval・benchmark・自己改善）:** `skills/earn/gig/evals/`、`apps/life-manager/eval/`、`skills/self/self-improve/` の下だけを編集する。ループ本体のコード（例: `skills/earn/gig/scripts/reply_detector.py`・`reply_composer.py`・`application_parent.py`）は編集しない。
+- **ループの修理（Coconala の pending 226件の滞留、添付ファイル、重複して開く action、断られた後の終わりの状態）:** 別のエージェント（Codex）の担当。§16 の「仕組みの失敗」はそちらへ渡し、こちらでは直さない。
+- 山登りで勝った変更（プロンプト・モデルの選択）は、agmsg と PR でループの担当へ提案する。ループのファイルへ直接 merge しない。
+- eval は本番から切り離して動く（fixture を入力にして、本番と同じ prompt 関数と `runtime/agent-runner/agent_runner.py` を呼ぶ。送信はしない）。そのため、ループの修理を待たずに作れる。待つ必要があるのは本番での答え合わせだけ。
+
+### 17.2 3段の構成
+
+| 段 | 中身 | 対象 | 既存のもの |
+|---|---|---|---|
+| ① 全員共通 | 成績表（LM-EAB: 決済された純利益、人の介入なし、二重の送信なし、費用の記録漏れなし）、共通の禁止（行っていない行動を「済み」と書かない、など）、実行役・採点・報告ページの共通の型 | 全ループ | `apps/life-manager/eval/economic-autonomy/`、`claude-api` skill の `shared/evals/`（runner-scaffold、report builder） |
+| ② 仕事の種類ごと（**本体**） | 1本の eval で1種類の仕事だけを測る（build-eval Step 0 "One flow per eval"）。複数のプラットフォームの問題を1つの eval に混ぜ、各問題に `platform` の印を付ける | その種類の仕事をする全ループ | gig の `estimate_authorization_eval.py`（実行役の型） |
+| ③ エージェントごとの細則 | その場所だけの決まりを、コードの判定として足す（例: Coconala の提案文は 200〜3000 字） | 1つのループ | `passprep.py` の `enforce_proposal_form_constraints`、`application_parent.py` の `_price_within_official_bounds` |
+
+②をプラットフォームをまたいで作ると、**汎化を測れる**: あるプラットフォームの問題で山登りし、見ていない別のプラットフォームの問題を held_out にする（§10.4 の領域移転と同じ考え方）。新しいループを作ったときは、そのプラットフォームの問題を足すだけで同じ eval が使える（§14 の meta loop）。
+
+### 17.3 仕事の種類（②の eval の一覧と材料）
+
+| # | 仕事の種類 | 対象のループ | 最初の材料（実測） |
+|---|---|---|---|
+| E-reply | お客さんへの返信 | Coconala・Lancers・CrowdWorks・（将来）Upwork | `~/gig/reply-transcripts.jsonl` 1071行と DLQ（Coconala のみ。§16）。型は §16.3 の6つ |
+| E-apply | 応募するか・提案文・価格 | 同上 | `~/gig/gig-funnel.jsonl` の最終行: 応募 413・返信 72・受注 4（§15）。判断の場所は `application_parent.py` 4620〜4641行と `application_planner.py` 484行の `planner_prompt` |
+| E-product | 商品を作り、説明文と価格を付ける | Capafy・PromptBase・電子書籍 | Capafy の公開 49本のうち売れた 6本（統合 SSOT） |
+| E-promo | 宣伝の文章 | 記事・SNS 投稿・アプリの宣伝 | 記事と投稿の公開記録 |
+
+### 17.4 実行順（トラック E の正本。§13.6 の順序を上書きする）
+
+1. 最新の origin/main から worktree `feat/gig-reply-eval` を作り、agmsg でループの担当へ範囲（eval のファイルだけ）を伝える。
+2. `eval-audit`: 生活領域の6本（すべて 100%）、`estimate_authorization_eval.py`、`skills/self/self-improve/gig/evaluator.py` を点検する。
+3. `evaluator.py` を直す: 最新の行（累計）を使う、列 `jpy` を読む、率と円を別々の指標にする。円は receipt で決済を確認できたものだけを数える。
+4. ①の共通の型: `claude-api` skill の runner-scaffold を土台にし、gig の実行役の型（`--confirm-model-calls`）を合わせる。
+5. E-reply: 問題を30〜50件（§16.3 の6つの型 × 5〜10件、要約・伏せ字）→ 確認①（入力の一覧）→ 採点（コードの判定＋はい／いいえのチェックリスト、同じ答えを2回採点して一致を確認）→ 確認②（5件）→ 基準点・ブレ幅・費用・伸びしろ → PR。
+6. E-reply の山登り（費用 → 質）。勝った変更は agmsg と PR でループの担当へ提案する。
+7. E-apply、E-product、E-promo の順に同じことをする。
+8. LM-EAB で gig の1か月を採点できる入力を作る（CFO のループ別 P&L、SSOT T8 とつなぐ）。
+9. LM が毎週、自分で eval と山登りを回し、`gate.js` が合格させた変更だけが残る形にする。
+10. 予測トラック（AG1）。
+
+確認①②は、最初の E-reply だけ Dais に見せ、それ以降は Claude が行う（Dais の返事が来るまで、推奨として扱う）。
+
+現在の cursor（トラック E）: **1**（Dais の着手の承認待ち）
