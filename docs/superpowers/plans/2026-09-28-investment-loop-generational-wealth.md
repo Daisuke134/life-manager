@@ -864,3 +864,12 @@ The entries above are historical readbacks. This section is the current source o
 **paper natural wake recovery（2026-09-29 10:37 UTC）**: capacity defer後のpaper occurrenceは`pass`へ復帰したが、Alpaca marketはまだclosed、QQQは`accepted`・zero-fill、provider receiptなし。重複注文はなく、INV-002のterminal readback待ちを維持する。
 
 **promotion gate readback（2026-09-29）**: 既存live公式performanceは`1/30` round trip、net `-$0.15`、fees `$0.01`、cap `$100`、promotion reject。理由は`net_non_positive`・`sample_insufficient`・`cost_unknown`・`venue_unhealthy`で、月次収益やcap増額の根拠にはしない。
+
+**追加source修正とcursor更新（2026-09-29）**: `skills/alpaca-investment/allocator.py`のETF `us_equity` entry/exit gateにAlpaca clockの`is_open`条件を追加した。原因は市場時間外にもQQQ paper market orderを承認できる自己所有の実装欠陥で、既存の`accepted`・zero-fill注文は再送・取消せず自然reconcileに残す。回帰テストを含むfocused `8/8`、Alpaca `246/246`、investment-core `132/132`、`git diff --check`がPASS。sourceは未releaseであり、現時点の実現月次収益は`$0`、既存live公式snapshotはnet `-$0.15`・`1/30` round trip。次の実行順は以下の通り。
+
+1. source修正・spec・planをcommit/pushし、required checksを確認する。
+2. green後にmainへ統合し、main由来immutable releaseを作成、Life Manager通常owner pathでapply/readbackする。
+3. 自然wakeで既存QQQ orderを再送せず、official terminal statusとaccount/position/fill receiptを取得する。
+4. strategy validation/cross-venueのoccurrence receiptを揃え、全cost込みnet P&Lを確定する。
+5. replay-zeroのpositive natural round tripを`30/30`測定するまで、cap増額・Binance送金・live・meme coin・yield depositを行わない。
+6. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。

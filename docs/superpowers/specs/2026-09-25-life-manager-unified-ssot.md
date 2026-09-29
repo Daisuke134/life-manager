@@ -1122,3 +1122,17 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **paper自然wakeの再確認（2026-09-29 10:37 UTC）**: 直前の`host_admission_deferred:resource_capacity_busy`（exit `75`）後、次の`alpaca-investment-paper:18d9c44acda45dc0-42418`は`pass`・exit `0`へ復帰した。公式Alpaca readbackはmarket `is_open=false`、次回open `09:30 EDT`、QQQ注文`accepted`・`filled_qty=0`・`filled_avg_price=null`、positions空、provider receiptなし。capacity deferはprovider effect前で、今回の復帰も取引・利益ではない。INV-002は市場開場後の同一order terminal readbackまで継続する。
 
 **promotion gateの最新readback（2026-09-29）**: 既存live公式performance snapshotは`measurement_status=measured`だが、net P&L `-$0.15`（realized `-$0.10`、unrealized `-$0.05`、fees `$0.01`）、completed round trips `1/30`、current cap `$100`、`capital_expansion_allowed=false`。reject理由は`net_non_positive`、`sample_insufficient`、`cost_unknown`、`venue_unhealthy`。これは過去canaryの公式損益測定であり、月次収益ではない。cap増額・Binance送金・live注文の再開は行わない。
+
+**投資sourceの市場時間ゲート修正（2026-09-29）**: read-only code reviewで、`skills/alpaca-investment/allocator.py`の`us_equity` entry/exit gateがAlpaca clockの`is_open`を要求していないことを確認した。これが市場時間外にQQQ paper market orderが作成され得る自己所有の実装欠陥だった。既存のQQQ order（`lm-ai-d3935170807d46a7a5cde38e` / provider `24cc2687-f718-4019-83f1-b5928c47525c`）は再送・取消せず、公式状態`accepted`・`filled_qty=0`・`filled_avg_price=null`のまま自然reconcileに任せる。entry/exitの両方に`regular_session` gateを追加し、回帰テストを追加した。focused `8/8`、Alpaca全体`246/246`、investment-core`132/132`、`git diff --check`をPASSした。これはbranch上のsource修正であり、production release・provider effect・P&Lはまだ変わっていない。
+
+**投資収益の真実（同readback時点）**: 実現した月次収益は`$0`。paper accountの未約定注文は利益ではなく、research/backtestのholdout値も利益ではない。過去live公式snapshotはnet `-$0.15`、round trip `1/30`、cap `$100`でpromotion reject。したがって「今、投資loopが金を作っているか」への答えは**いいえ**であり、Binanceからの追加送金、wallet funding、live order、meme coin署名、yield depositはまだ行わない。
+
+**投資TODOの残り（現在の実行順・正本）**:
+
+1. このmarket-hours source修正とspec/planを専用branchへcommit・pushし、required checksを確認する。未releaseのsource PASSをproduction PASSと混同しない。
+2. required checksがgreenになったらmainへ統合し、main由来immutable releaseを作成する。Life Managerの通常owner pathで新releaseをapplyし、loaded SHA・argv/env・admissionをreadbackする。
+3. 新releaseの自然wakeで既存QQQ orderを再送せず、official terminal status（filledまたはcanceled/expired/rejected）とaccount/position/fill receiptを確認する。`accepted`やzero-fill pendingはsample・利益・round tripに数えない。
+4. `investment-strategy-validation`の自然receiptと`investment-cross-venue-report`の同一occurrence receiptを取得し、entry/exit fee、slippage、funding/borrow、gas、model costを含むcost-complete net P&Lを生成する。unknownは利益に数えない。
+5. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
+6. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
+7. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
