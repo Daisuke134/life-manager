@@ -858,3 +858,5 @@ The entries above are historical readbacks. This section is the current source o
 6. 最小capの自然round tripを`30/30`まで測定し、初めて次のcap promotionをowner-approved gateへ出す。Binance送金・live注文・meme-coin署名・yield depositはその前に行わない。
 
 **最新natural readback（2026-09-29 10:28 UTC）**: paper loopは自然schedulerで既存QQQ effectを再送せず`effect_fence`として保持し、公式paper注文は`accepted`・`filled_qty=0`・`filled_avg_price=null`。paper収益は`$0`で、terminal fill／round tripは未取得。cross-venueは`delivery_uncertain`・provider message IDなし・allocation `$0`・rolling net P&L不明。strategy validationはloadedだがoccurrence未実施で、next eligibleは`604800s`。現在cursorはpaperの公式terminal readbackであり、手動wake・blind retry・Binance送金・live注文は行わない。
+
+**cross-venue Telegram履歴readback（2026-09-29）**: provider設定のread-only `getMe`／`getChat`はPASSしたが、MTProto user履歴38件にoutbox本文SHAの一致は0件。delivery成功のreceiptではないため、旧occurrenceを解放せず、再送せず、paper terminal readbackを先に進める。
