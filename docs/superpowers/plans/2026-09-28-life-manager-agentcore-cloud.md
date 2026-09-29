@@ -152,7 +152,7 @@
 
 **Produces:** one durable mapping and budget ledger, while keeping `lm_runtime_jobs` as the only job queue/state machine.
 
-- [ ] **Step 1: Write RED schema/contract tests**
+- [x] **Step 1: Write RED schema/contract tests**
 
   Require these tenant-scoped records:
 
@@ -168,7 +168,7 @@
 
   Test composite foreign keys, RLS/tenant predicates, one active runtime per tenant, immutable usage rows, and idempotent provider receipt IDs.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
   ```bash
   node --test lib/cloud-runtime-store.test.js lib/cloud-entitlement.test.js
@@ -554,8 +554,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A05 | done | Read-only canary runtime package | Runtime 3/3, canary/package 10/10, CDK 1/1, content manifest 178/178 identical, production dependency audits 0; no AWS mutation |
 | A06 | waiting_provider | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0; authenticated AWS case owns payment-attempt-limit clearance |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
-| A08 | **next** | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
-| A09 | todo | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
+| A08 | done | Tenant/runtime/profile/usage schema tests | RED: missing store/entitlement modules and migration; contracts cover cross-tenant refs, duplicate receipts, second active runtime, integer micros, RLS, and immutable usage |
+| A09 | **next** | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
 | A10 | todo | Versioned `free-v1` and `founding-pro-v1` policy | pure admission tests PASS |
 | A11 | todo | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
 | A12 | todo | Thin AgentCore wrapper over existing kernel | no duplicated business rule; local canonical parity PASS |
