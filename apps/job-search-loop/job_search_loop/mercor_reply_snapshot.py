@@ -7,10 +7,12 @@ import asyncio
 from collections import deque
 from datetime import datetime, timezone
 from email.utils import getaddresses
+import importlib.util
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 from urllib.parse import urlsplit
 
@@ -24,6 +26,22 @@ ENDPOINTS = {
     "contracts": "https://aws.api.mercor.com/work/jobs",
     "interviews": "https://coil.mercor.com/work/interviews?isComplete=1",
 }
+
+
+def _load_platform_manifest_runtime():
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "skills" / "earn" / "mercor" / "scripts" / "mercor_platform_manifest_runtime.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "mercor_platform_manifest_runtime_for_reply", path,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("mercor_platform_manifest_runtime_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _direct_capture_expression(names: list[str]) -> str:
@@ -488,12 +506,73 @@ def snapshot(*, ws_url: str, gmail_account: str, gog: str,
     return value
 
 
+def _write_platform_manifest_summary(path: Path, payload: dict[str, object]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, path)
+    os.chmod(path, 0o600)
+
+
+def record_mercor_live_platform_manifest_wake(
+    reply_snapshot: dict[str, object],
+    *,
+    account_id: str,
+    auth_readback: dict[str, object],
+    evidence_dir: Path,
+    pass_id: str,
+    candidate_root: Path | None = None,
+    run_root: Path | None = None,
+) -> dict[str, object]:
+    """Persist account/source-health state before the Reply kernel can send."""
+    runtime = _load_platform_manifest_runtime()
+    observed_at = str(reply_snapshot.get("observed_at") or "")
+    normalized = "".join(
+        character if character.isalnum() or character in "_.:-" else "-"
+        for character in str(pass_id)
+    ).strip("-") or "wake"
+    run_id = f"mercor-natural-{normalized}"[:128]
+    snapshot = runtime.build_live_snapshot(
+        reply_snapshot=reply_snapshot,
+        account_id=account_id,
+        auth_readback=auth_readback,
+        observed_at=observed_at,
+    )
+    summary = runtime.run_mercor_platform_manifest_wake(
+        snapshot=snapshot,
+        candidate_root=candidate_root,
+        run_root=run_root,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+    payload = {
+        "version": 1,
+        "status": summary["status"],
+        "pass_id": pass_id,
+        "run_id": run_id,
+        "read_only": True,
+        **summary,
+    }
+    _write_platform_manifest_summary(Path(evidence_dir) / "platform-manifest-wake.json", payload)
+    return payload
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ws", required=True)
     parser.add_argument("--gmail-account", required=True)
     parser.add_argument("--gog", default=os.environ.get("JOB_SEARCH_GOG", "gog"))
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--auth-readback", type=Path)
+    parser.add_argument("--platform-manifest-evidence-dir", type=Path)
+    parser.add_argument("--platform-manifest-pass-id", default="")
+    parser.add_argument("--platform-manifest-candidate-root", type=Path)
+    parser.add_argument("--platform-manifest-run-root", type=Path)
     args = parser.parse_args(argv)
     previous_gmail = None
     previous_gmail_observed_at = None
@@ -522,6 +601,31 @@ def main(argv=None) -> int:
                          encoding="utf-8")
     os.chmod(temporary, 0o600)
     os.replace(temporary, args.output)
+    if args.platform_manifest_evidence_dir is not None:
+        auth_readback: dict[str, object] = {}
+        if args.auth_readback is not None and args.auth_readback.is_file():
+            try:
+                loaded = json.loads(args.auth_readback.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                loaded = {}
+            if isinstance(loaded, dict):
+                auth_readback = loaded
+        try:
+            record_mercor_live_platform_manifest_wake(
+                value,
+                account_id=args.gmail_account,
+                auth_readback=auth_readback,
+                evidence_dir=args.platform_manifest_evidence_dir,
+                pass_id=args.platform_manifest_pass_id or args.output.stem,
+                candidate_root=args.platform_manifest_candidate_root,
+                run_root=args.platform_manifest_run_root,
+            )
+        except Exception as error:  # noqa: BLE001 - no Reply effect after an unrecorded source
+            print(
+                f"mercor_platform_manifest_wake_failed:{type(error).__name__}",
+                file=sys.stderr,
+            )
+            return 75
     print(json.dumps({"ok": True, "observed_at": value["observed_at"],
                       "gmail": len(value["gmail"])}, sort_keys=True))
     return 0

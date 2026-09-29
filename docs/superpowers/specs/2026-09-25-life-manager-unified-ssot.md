@@ -2412,3 +2412,42 @@ count、CrowdWorksはlive pageのauthenticated／profile readbackを使う。案
 CrowdWorks natural-wake bridge focused 3件、CrowdWorks全suite276件、Marketplace Core332件、compile、`lm-loop-contract ok=true`、
 `git diff --check`。これはsource/runtime契約の証拠であり、実provider receipt、
 公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。
+
+## 現在の正本cursor（2026-09-30、Mercor natural-wake接続後）
+
+`fix/source-reconcile-20260930`で、4 platformのread-only platform manifestを各自然wakeの実行境界へ接続した。Coconalaは
+既存onboarding receipt、Lancersは`work_sync`が保存するaccount/work-sync snapshot、CrowdWorksはlive account/profile
+readback、Mercorは認証済みreply snapshot（公式API source health、Gmail freshness、contract readback）を使う。案件一覧、応募、
+契約本文、Gmail本文はplatform manifestへ渡さず、Opportunity／Reply／Paidの各loopに留める。
+
+Mercorでは`mercor_reply_snapshot.py`がsnapshotを保存した直後、`reply-owner`がcommit-cookiesとReply kernelへ進む前に、
+`mercor_platform_manifest_runtime.py`を呼ぶ。projectionはaccount identityをhash化したevidence、認証status、Gmail freshness、
+contract readback、source-completeだけを残す。manifestの記録が失敗した場合はexit 75でReply kernelを実行しない。候補評価は
+policy／adapter／funded work／canary／unit economicsが未確認なのでholdのままであり、natural wake接続だけでpromotionや収益を
+主張しない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **未完（現在cursor）** Coconala onboarding receiptではなく、認証済みCoconala collectorのplatform-level read-only snapshotを
+   `record_live_coconala_platform_manifest_wake`へ注入する。`request_details`や案件本文を混ぜず、snapshot hash・evidence refs・
+   source failureをdurableに束縛し、失敗は`partial`／`hold`で止める。
+2. **完了** Lancers `work_sync.run_tick` → `application_loop.run_loop`のprovider discovery/effect前にmanifest cycleを実行する。
+   logged-in／source-complete／board・reply・unread stateだけを渡し、案件・契約候補は除外する。
+3. **完了** CrowdWorks `application_owner.main`がlive account認証・profile readbackからsnapshotを作り、案件探索・応募effect前に
+   manifest cycleへ渡す。jobs／opportunities／契約本文は除外する。
+4. **完了** Mercor `reply-owner`が認証済みreply snapshotからaccount/source-health projectionを作り、Reply kernelのsend effect前に
+   manifest cycleへ渡す。applications／inspected listings／contractsの行やGmail本文をplatform evidenceに昇格させない。
+5. **未完** このbranchの4 platform wiringを最新mainへreconcileし、全affected suite PASS後にmain由来immutable releaseを作る。
+   production loaded SHA、plist argv/env、identity lease、rollback receiptを公式readbackで一致させるまでproduction完了と数えない。
+6. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。現在の認証済み
+   browser/sessionは0なので、再送・正式納品・receiptなしのeffect fence解放をしない。
+7. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+8. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+   canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+9. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
+   rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
+
+検証済み（このcursor）: Mercor runtime focused 4件、Mercor suite 58件、job-search-loop Mercor subset 183件、Lancers全suite269件、
+CrowdWorks全suite276件、Coconala/gig全suite1560件、Marketplace Core332件、Python compile、`zsh -n`、`lm-loop-contract ok=true`、
+`git diff --check`。これはsource/runtime契約の証拠であり、実provider receipt、公式readback、production loaded SHA、応募・返信・
+納品・成約・payout・収益の証拠ではない。

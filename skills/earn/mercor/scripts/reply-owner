@@ -12,6 +12,8 @@ source "$ROOT/skills/earn/mercor/scripts/browser-env.sh"
 # instead of creating another logged-out context or touching the same page.
 TASK="mercor-revenue-application"
 SNAPSHOT="$STATE_ROOT/official-snapshot.json"
+MANIFEST_PASS_ID="reply-$(date +%Y%m%d-%H%M%S)-$$"
+MANIFEST_EVIDENCE="$STATE_ROOT/platform-manifest-evidence/$MANIFEST_PASS_ID"
 LEASE_JSON="$STATE_ROOT/browser-lease.json"
 SESSION_READBACK_JSON="$STATE_ROOT/session-readback.json"
 TOKEN="" GENERATION=""
@@ -69,7 +71,10 @@ if [[ -z "$ACCOUNT" ]]; then
 fi
 if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   -m job_search_loop.mercor_reply_snapshot --ws "$WS" --gmail-account "$ACCOUNT" \
-  --gog /opt/homebrew/bin/gog --output "$SNAPSHOT"; then
+  --gog /opt/homebrew/bin/gog --output "$SNAPSHOT" \
+  --auth-readback "$SESSION_READBACK_JSON" \
+  --platform-manifest-evidence-dir "$MANIFEST_EVIDENCE" \
+  --platform-manifest-pass-id "$MANIFEST_PASS_ID"; then
   pre_effect_failure
   exit 75
 fi
