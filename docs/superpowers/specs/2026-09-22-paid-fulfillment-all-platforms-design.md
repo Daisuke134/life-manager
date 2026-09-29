@@ -6443,3 +6443,24 @@ ordering notes without declaring any external effect complete.
 15. **Final promotion — OPEN.** Cut the main-derived immutable release, read
     back every owner/provider receipt, and only then declare the platform set
     complete.
+
+### Coconala Paid natural-wake readback — 2026-09-30 08:22 JST
+
+- [x] The currently running Coconala Paid wake completed on the installed old
+  release `20260930T010308-3975ae89`; the final evidence is
+  `/Users/anicca/gig/evidence/paid-direct-live/latest.json` with
+  `status=pending`, `observed=3`, `actionable=1`, `effect=0`, `readback=2`,
+  `failed=0`, and `pending=1`.
+- [x] `18180857` reached a durable blocked result after the paid owner finished:
+  its official result says 20 unique DM sends were reconciled, 280 remain, the
+  TikTok browser recovery is pending, and Coconala itself was not operated.
+  The item has no Coconala send or formal-delivery effect in this wake.
+- [x] `18250352` and `18223833` are `awaiting_buyer` with
+  `send_performed=false` and `deduplicated=true`; their official talkroom
+  readbacks were retained. No duplicate send occurred.
+- [ ] This proves only the old-release natural wake result. It does not prove
+  the candidate source is live, nor does it close the Coconala Paid natural
+  verification gate. The next Coconala action remains a main-derived release
+  canary with official readback; the blocked TikTok-owned item remains a
+  separate cross-loop dependency and must not trigger a duplicate Coconala
+  operation.
