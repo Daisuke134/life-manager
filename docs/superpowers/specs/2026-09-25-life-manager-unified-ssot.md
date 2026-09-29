@@ -1487,3 +1487,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 最新decision receipt `e47add26158383bb6202f3afec23b10e2ec0d9efff43f4185841ccd511ff91b9`（`2026-09-29T16:20:56Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit orderは生成されていない。これはAT-13のexit条件を満たさない。
 - 最新Alpaca公式paper observation（`2026-09-29T16:20:55Z`）は`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`、cash `$99,986.77`、equity `$99,996.71`、QQQ long `qty=0.013493253`、unrealized P&L `-$0.047631`である。paper含み損益は実現投資収益ではない。
 - `AT-13`は未完、cursorは変わらない。次に記録すべきものは、市場close後の新しいcompleted daily sessionから出るstrategy exit decision receipt 1件だけである。手動wake、手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。検証済み実現投資収益は`$0/月`のままである。
+
+**AT-13 natural retry readback（2026-09-30 01:26 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9d767ba48df00-68569`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然起動したが、`2026-09-29T16:26:08Z`に`exit_code=75`、`status=blocked`、`next_action=retry_after_eligibility`、`blocker=host_admission_deferred:resource_capacity_busy`で終了した。
+- `effect_identity_status=not_written`、`provider_receipt_id=null`、`official_readback_ref=null`であり、provider effect前のdeferである。新規注文、約定、資金移動、strategy exit receiptは発生していない。
+- 最新decisionは引き続き`e47add26158383bb6202f3afec23b10e2ec0d9efff43f4185841ccd511ff91b9`の`NO_TRADE / decision_session_consumed`（`decision_session=2026-09-28`）である。`AT-13`の完了条件は未達、cursorは変わらない。検証済み実現投資収益は`$0/月`であり、手動wake・手動sell・再送はしない。
