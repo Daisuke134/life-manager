@@ -768,6 +768,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 現行CoconalaスマホDMの返信入力を旧`#DirectMessageBody`だけでなく、厳格な`textarea.message-input`にも対応した。複数候補・想定外要素は送信せず、`unexpected_message_input_count`／`unexpected_message_input`として証跡化する。productionへの反映と公式送信readbackは未完了。
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
 - [x] 直近の公式DM再確認でも、取得できた最新5件は9/29 14:33〜14:41で変化なし。最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。その後の再試行はCoconala側の403で終わったため、14:41より後の受信が無いとは断定しない。
+- [x] 2026-09-29の再プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM `10107358`、旧DM URL、受信箱、ダッシュボードの公式ページ本体がすべて `403 Forbidden` を返した。証跡は `/Users/anicca/gig/trajectory/ryu-dm-probe/01-dm10107358.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/legacy-legacy.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/inbox-inbox.json`、`/Users/anicca/gig/trajectory/ryu-route-probe/dash-dash.json`。このため14:41以降の受信内容・送信可否・公式readbackは未確定で、再送はしない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -803,7 +804,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`と`/smartphone/direct_messages/<id>`の実装・focused 196 testsは完了。immutable release反映後に、公式readback JSONで受信・返信・重複guardを同じthreadで検証する。
 9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
 
-一時的なHTTP `403 Forbidden`は再読時に解消した。公式CDPによる14:33〜14:41のreadbackは保存済みだが、collectorのDOM前提は古く、自動収集経路は未完了である。13:44返信のreadbackは14:20以降の指摘を含まず、v708も新着の取得証拠であって修正・納品証拠ではない。ローカルの旧DM JSONも2026-08-29時点で、9/27以降の指摘を含まない。
+公式CDPによる14:33〜14:41のreadbackは保存済みだが、collectorのDOM前提は古く、自動収集経路は未完了である。直近の公式4経路プローブはすべて `403 Forbidden` で、認証済み表示だけでは公式readback可能とは判定できない。13:44返信のreadbackは14:20以降の指摘を含まず、v708も新着の取得証拠であって修正・納品証拠ではない。ローカルの旧DM JSONも2026-08-29時点で、9/27以降の指摘を含まない。
 
 ## 6. 不変の制約
 
