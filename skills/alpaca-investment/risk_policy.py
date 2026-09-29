@@ -13,7 +13,7 @@ CAPITAL_CAP = Decimal("100.00")
 TRADE_LOSS_CAP = Decimal("10.00")
 DAILY_LOSS_CAP = Decimal("20.00")
 MAX_AGE_SECONDS = Decimal("30")
-MAX_FUTURE_SKEW_SECONDS = Decimal("5")
+MAX_FUTURE_SKEW_SECONDS = Decimal("10")
 CAPITAL_LADDER_USD = tuple(Decimal(value) for value in ("100", "1000", "10000", "100000"))
 LADDER_MIN_ROUND_TRIPS = 30
 
