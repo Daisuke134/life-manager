@@ -1497,3 +1497,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `AT-13`の完了条件は未達、cursorは変わらない。検証済み実現投資収益は`$0/月`であり、手動wake・手動sell・再送はしない。
 
 **AT-13 scheduler readback（2026-09-30 01:27 JST）**: `launchctl-safe print gui/501/ai.anicca.alpaca-investment-paper`で、paper ownerはloaded、current release SHAは`3975ae8996cab3325f514746a32c915f9935fddf`、`StartInterval=300`、`runs=4`、`last exit code=0`を確認した。`state=not running`は周期wake間の待機状態であり、停止や投資sourceのFAILではない。手動kickstart・再起動はしない。`AT-13`のcursorと実現収益`$0/月`は変わらない。
+
+**AT-13 fresh Alpaca公式paper readback（2026-09-30 01:29 JST）**: paper-onlyの公式API GET（clock/account/position/order count、order mutationなし）を実行した。`clock.is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、account cash `$99,986.77`、equity `$99,996.72`、QQQ long `qty=0.013493253`、平均entry `$740.37`、current `$737.17`、market value `$9.946821`、unrealized P&L `-$0.043179`、all orders count `3`だった。exit orderはなく、最新decisionも`NO_TRADE / decision_session_consumed`（`decision_session=2026-09-28`）のままである。これはpaper含み損益であり、realized net P&Lではないため、`AT-13`未完・実現収益`$0/月`を維持する。
