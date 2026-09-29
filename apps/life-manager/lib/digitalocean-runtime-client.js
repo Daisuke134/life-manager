@@ -58,6 +58,44 @@ function createDigitalOceanRuntimeClient(options = {}) {
       ], "bare create"), "bare create");
       return Object.freeze({ session_id: sessionId(output), raw: output });
     },
+    async createAgentCanary(input = {}) {
+      const name = String(input.name || "");
+      const specPath = String(input.specPath || "");
+      const secretPath = String(input.secretPath || "");
+      const repo = String(input.repo || "");
+      if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(name)
+          || !path.isAbsolute(specPath) || /[\r\n\0]/.test(specPath)
+          || !path.isAbsolute(secretPath) || /[\r\n\0]/.test(secretPath)
+          || !/^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/.test(repo)) {
+        throw new Error("DigitalOcean agent canary input invalid");
+      }
+      const output = parseJson(await invoke([
+        "harness-runtime", "create", "--spec", specPath, "--name", name,
+        "--gh-repo", repo, "--secret", `OPENAI_API_KEY=@${secretPath}`,
+        "--interactive=false", "-o", "json",
+      ], "agent create"), "agent create");
+      return Object.freeze({ session_id: sessionId(output), raw: output });
+    },
+    async prompt(id, prompt) {
+      if (!SESSION_ID.test(String(id || "")) || typeof prompt !== "string" || !prompt
+          || prompt.length > 4_000 || prompt.includes("\0")) {
+        throw new Error("DigitalOcean prompt input invalid");
+      }
+      let output = parseJson(await invoke([
+        "harness-runtime", "prompt", id, prompt, "--on-hitl", "reject",
+        "--timeout", "300", "-o", "json",
+      ], "prompt"), "prompt");
+      if (Array.isArray(output) && output.length === 1) [output] = output;
+      const receiptId = output && (output.session_id || output.SessionID);
+      const runId = output && (output.run_id || output.RunID);
+      const status = output && String(output.status || output.Status || "").toLowerCase();
+      const text = output && (output.text ?? output.Text);
+      if (receiptId !== id || typeof runId !== "string" || !runId
+          || status !== "completed" || typeof text !== "string" || !text) {
+        throw new Error("DigitalOcean prompt receipt invalid");
+      }
+      return Object.freeze({ session_id: id, run_id: runId, status, text });
+    },
     async exec(id, argv) {
       if (!SESSION_ID.test(String(id || "")) || !Array.isArray(argv) || argv.length === 0
           || argv.length > 64 || argv.some((arg) => typeof arg !== "string" || !arg

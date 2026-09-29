@@ -92,6 +92,36 @@ test("bare exec rejects foreign identity, unsafe argv shape, and nonzero guest e
   await assert.rejects(failed.client.exec("sess_bare1", ["false"]), /guest command failed/i);
 });
 
+test("agent parity session clones one bounded repository and prompts with reject-on-HITL", async () => {
+  const f = fixture({ responses: [
+    { exitCode: 0, stdout: JSON.stringify({ id: "sess_agent1", status: "ready" }) },
+    { exitCode: 0, stdout: JSON.stringify({ session_id: "sess_agent1", run_id: "run_1",
+      status: "completed", text: "{\"replay_zero\":true}" }) },
+  ] });
+  assert.equal((await f.client.createAgentCanary({
+    name: "lm-agent-a", specPath: "/release/agents.yaml", secretPath: "/private/openai.key",
+    repo: "Daisuke134/life-manager",
+  })).session_id, "sess_agent1");
+  assert.deepEqual(await f.client.prompt("sess_agent1", "Run exact fixture"), {
+    session_id: "sess_agent1", run_id: "run_1", status: "completed", text: "{\"replay_zero\":true}",
+  });
+  assert.deepEqual(f.calls[0].args, ["harness-runtime", "create", "--spec", "/release/agents.yaml",
+    "--name", "lm-agent-a", "--gh-repo", "Daisuke134/life-manager", "--secret",
+    "OPENAI_API_KEY=@/private/openai.key", "--interactive=false", "-o", "json"]);
+  assert.deepEqual(f.calls[1].args, ["harness-runtime", "prompt", "sess_agent1", "Run exact fixture",
+    "--on-hitl", "reject", "--timeout", "300", "-o", "json"]);
+});
+
+test("agent prompt rejects foreign session identity and nonterminal output", async () => {
+  for (const output of [
+    { session_id: "sess_other", run_id: "run_1", status: "completed", text: "{}" },
+    { session_id: "sess_agent1", run_id: "run_1", status: "running", text: "{}" },
+  ]) {
+    const f = fixture({ responses: [{ exitCode: 0, stdout: JSON.stringify(output) }] });
+    await assert.rejects(f.client.prompt("sess_agent1", "Run exact fixture"), /prompt receipt invalid/i);
+  }
+});
+
 test("show binds exact session and teardown requires list readback zero", async () => {
   const f = fixture({ responses: [
     { exitCode: 0, stdout: JSON.stringify({ session_id: "sess_canary1", status: "paused" }) },
