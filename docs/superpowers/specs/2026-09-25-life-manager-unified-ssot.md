@@ -1317,13 +1317,13 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. **[未完] `30/30`測定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。それまではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
 7. **[未完] 追加venue段階評価**: `30/30`後にHyperliquid shadow → Solana／Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、保証ではない。
 
-**カーソル**: 現在は`INV-002a campaign_position_scope`。次に行う投資作業は、QQQを動かすことではなく、上記scope回帰テストと最小source修正である。修正がreleaseされ自然runが通るまで、paperの旧QQQ entryは資産台帳・P&L・promotionへ結合済みと扱わない。
+**履歴カーソル（実行キューではない）**: `INV-002a campaign_position_scope`は、後続の自然reconcileで完了した過去のsource修正である。以下の古い`残TODOの正本`は履歴として保持し、現在の実行順には使わない。現在の実行キューは、下の`Atomic Todo正本`だけである。
 
 **投資source修正の実装readback（2026-09-29）**: `fix/investment-campaign-position-scope-20260929`（commit `a9910ba72c90527d1af59078a3387e60e3254d82`、PR `#6246`）で`INV-002a`を実装した。変更は投資source内に限定し、(a) paper ETF台帳にある自所有シンボルだけをclosed SPY campaignの外部positionとして許可し、未知・未所有シンボルは`campaign_position_scope_invalid`でfail-closedする、(b) 旧形式のfilled `broker_reconciled` outcomeを公式provider GETで再照合し、`client_order_id`・`strategy_receipt`・`etf-owned-position.json`を復元する、(c) これらの回帰テストを追加する、の3点である。`test_campaign.py` 2件、`test_etf_execution.py` 22件、`test_run.py` 41件、`skills/alpaca-investment/test_*.py`全ファイル、`./bin/lm-loop-contract`（`ok=true`、catalog 14、registry 175、mapped 102、shared job IDs 0）、`git diff --check`は成功した。テストはprovider mutationを行っていない。PR required checksはこのreadback時点ではpendingであり、main／productionには未反映である。
 
 **投資収益の現在値（source修正後もproduction未反映）**: 検証済み実現収益は`$0/月`であり、投資loopが現在real moneyを生んでいるとは言えない。productionの旧releaseはpaper accountの既存QQQ entry（filled quantity `0.013493253`、平均約定価格 `$740.37`、直近readbackのunrealized P&L `-$0.023951`）を保持しているが、entry→exit round trip、cost-complete realized P&L、monthly revenueではない。Binance送金、wallet funding、live order、meme coin署名、yield deposit、cap増額は未実施である。source修正をcommitしたことやテストがgreenであることを利益と数えない。
 
-**残TODOの正本（source修正後の実行順）**:
+**履歴：旧残TODO（source修正直後のスナップショット）**:
 
 1. **[進行中] PR `#6246`のrequired checksを完了し、投資sourceだけをmainへsquash mergeする。** Capafy／PromptBase／他agentのFAILやファイルはこのTODOの対象外である。
 2. **[未完] main由来immutable releaseをcutし、`alpaca-investment-paper`だけを含む投資ownerへ通常owner pathでapplyする。** loaded release SHA、argv/env、admission、production state rootをreadbackする。providerへの新規注文・送金はこの段階で行わない。
@@ -1334,7 +1334,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 7. **[未完] replay-zeroを確認したpositiveなnatural round tripを`30/30`測定する。** 完了まではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
 8. **[未完] `30/30`後に追加venueを段階評価する。** Hyperliquid shadow → Solana／Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、現在の実測から保証されない。
 
-**現在cursor**: `INV-002a`のsource修正は実装・local検証・PR作成まで完了した。次の一手はPRのrequired checks確認とmain統合であり、investment loopの「完了」や「収益化完了」ではない。
+**現在cursor**: `AT-13`。完了済みは`AT-01`〜`AT-12`、未完了は`AT-13`〜`AT-29`。次の一手は、次のcompleted daily sessionに残るstrategy exit decision receiptを1件読むことだけである。
 
 **Atomic Todo正本（実行キュー、2026-09-30 JST）**: この節だけが投資loopの実行順の正本である。Atomic Todoは「1項目=1つの実行またはreadback」「完了条件は1つ」「証拠は1つ」とする。完了済み項目は残りのTodoに再掲しない。`$10,000/月`、millionaire、generational wealth、`30/30`は目標または判定ゲートであり、Todoの完了や利益を意味しない。
 
