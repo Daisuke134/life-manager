@@ -103,6 +103,10 @@ print(json.load(sys.stdin).get("telegram_summary",""))' 2>>"$LOG")"
   else
     echo "[c6] daily decision produced no output (non-fatal)" >>"$LOG"
   fi
+  # Goal metric = money that reaches the bank (earnings after Capafy's cut - API cost).
+  PROFIT_REPORT="$(python3 "$SCRIPT_DIR/capafy_profit_report.py" 2>>"$LOG")"
+  [ -n "$PROFIT_REPORT" ] && bash "$LIFE_MANAGER_RELEASE_ROOT/skills/_shared/send-telegram.sh" \
+    "$PROFIT_REPORT" >>"$LOG" 2>&1 || true
 fi
 
 # Keep the published ledger synchronized even when the publish queue is full.
