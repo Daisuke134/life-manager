@@ -729,6 +729,27 @@ TODO（何を・どう直すか）
 **投資candidate最新同期（2026-09-29）**: `origin/main=20753ada4c`のYouTube marketing修正をmerge `84400303e7`で取り込み、投資core・ETF policy・cross-venue・registryを保持した。candidateはpush済みだが、`./bin/lm-loop-contract`はCapafy `loops[12]` mismatchでRED、loaded releaseは`110561...`の`borrow/support`でETF/cross-venue未搭載。gate greenまでinvestment release handoffは行わない。
 
 **投資lane再開run最終audit（2026-09-29）**: current candidate `e9b9a66b66`のAlpaca `200/200`、investment-core `101/101`、doctor PASSを確認。shared contract gateは同じCapafy mismatch、loaded release/admissionは旧`borrow/support`、host DBはinvestment reservation 0・stale claim 0、自然wakeはprovider effect前defer。投資lane内の安全な修正と証拠化は尽くし、external gate greenなしにrelease bypass・DB操作・資金投入は行わない。
+### Ryu の Coconala DM 修正（DM thread `10107358`）
+
+Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘は Coconala の公式DM `10107358` を唯一の返信先とし、同じ修正版を一度だけ返信する。正式納品ボタンは押さない。
+
+最新指摘（2026-09-27、ユーザー提示の公式画面）:
+
+- 送信済みのコンセプト画像を、購入者が管理画面から変更できないため、購入者提供の6枚（`IMG_5859.jpeg`〜`IMG_5864.jpeg`）へ差し替える。
+- ジャンル順は `業界未経験 → 学生 → 素人 → お姉さん → 人妻 → ぽっちゃり` を維持する。
+- アニメーションは変更せず、元の状態へ戻す。
+
+現在の証拠と境界:
+
+- [x] v705（2026-09-25）の公開readbackは、有料オプション5件・通常オプション削除・ジャンル画像6枚の一致を確認済み。
+- [x] 2026-09-29の現行FTPS readbackは、`index.html`・`app.js`・`content-overrides.json`等の現行本番ファイルを認証付きで取得済み。公開APIも有料オプション5件とジャンル6件を返す。
+- [ ] v705以後のコンセプト画像・アニメーション修正を、管理画面と公開サイトの双方で公式readbackする。
+- [x] 2026-09-29にCoconala公式DM `10107358` をCDPで再読し、Ryuの最後の「よろしくお願いします」（9/29 13:37）に、こちらの13:44返信が付いていることを確認した。現時点で未返信の購入者メッセージはない。
+- [ ] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）を追加し、この公式readbackをdurable JSON証跡として保存する。
+- [ ] すべての修正を一つのリリースにまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得する。
+- [ ] 修正内容・管理画面リンク・公開リンクを含む返信をDMへ一度だけ送信し、送信後の公式メッセージIDと本文readbackを保存する。
+
+一時的なHTTP `403 Forbidden`は再読時に解消したが、collectorのDOM前提が古く、現行DMを自動収集できない。従って、13:44返信を最終納品返信とは扱わず、サイト修正・公式readback・一回だけの完成報告が終わるまで追加送信しない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
 ## 6. 不変の制約
 
