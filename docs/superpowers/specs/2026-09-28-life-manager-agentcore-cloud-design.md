@@ -2,11 +2,11 @@
 
 **Status:** T11 Cloud版のprovider・実行単位・状態所有・無料導線・販売条件の正本
 
-**Decision:** Cloud architectureは確定済みであり、再設計しない。Railway API、Inngest、Supabase PostgreSQL、Stripeをprovider-neutralな制御面として再利用し、仕事がある時だけtenant専用の隔離RuntimeとBrowserを起動する。AWS Bedrock AgentCore Runtime/Browser/Profile/Identityを基準実装とし、同じadapter契約のDigitalOcean Managed Agents＋Steelをfallback候補にする。AWSはCloudFormation、S3、CloudWatch Logs、Cost Explorerの購読が未有効なので現時点ではproductionへ出さない。先にlive isolation、no-ask、browser continuity、teardown、agent parity、公式cost receiptを全部通したproviderをv1で1つだけ採用する。provider選択が変わってもbusiness kernel、job state machine、database、billing、UXは変えない。
+**Decision:** Cloud architectureは確定済みであり、再設計しない。Railway API、Inngest、Supabase PostgreSQL、Stripeをprovider-neutralな制御面として再利用し、仕事がある時だけtenant専用の隔離RuntimeとBrowserを起動する。**v1の最短実測候補はRailway Sandbox＋既存Steel**とし、AWS Bedrock AgentCore Runtime/Browser/Profile/Identityを全部入りの基準実装、Browserbase Contextsをmanaged browser代替、DigitalOcean Managed Agentsを第三候補にする。AWSはCloudFormation、S3、CloudWatch Logs、Cost Explorerの購読が未有効なので待たず、既に認証済みのRailwayでlive canaryを先行する。live isolation、no-ask、browser continuity、teardown、agent parity、公式cost receiptを全部通した構成だけをv1へ採用する。provider選択が変わってもbusiness kernel、job state machine、database、billing、UXは変えない。
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
-**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWSはservice subscription未完了、DigitalOceanはAPI token未取得なので、実provider receiptだけが未完了である。local PASSをcloud完了とは数えない。
+**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWSはservice subscription未完了、DigitalOceanはAPI token未取得だが、Railway CLI/accountと既存Steel serviceは利用可能である。Railway Sandbox CLIは利用可能だがexperimentalであり、最初のread-only listはMac Data volume残量575 MiBによる`No space left on device`で未完了である。次は安全にlocal headroomを戻し、Railway Sandbox＋Steelで実provider receiptを取る。local PASSをcloud完了とは数えない。
 
 ### 0.1 固定済みの完成architecture
 
@@ -16,9 +16,9 @@ flowchart LR
   API --> PG[(Supabase PostgreSQL<br/>job・lease・checkpoint・receipt・cost)]
   API --> Q[Inngest<br/>schedule・retry・tenant concurrency 1]
   Q --> D[Cloud dispatcher<br/>release SHA・budget・effect fence]
-  D --> R[選定providerのtenant専用Runtime<br/>AWS AgentCore または DigitalOcean]
+  D --> R[tenant専用Runtime<br/>v1: Railway Sandbox候補]
   R --> K[既存Life Manager business kernel<br/>local/cloud共通]
-  R --> B[隔離Browser<br/>AgentCore Browser または Steel]
+  R --> B[隔離Browser<br/>v1: 既存Steel候補]
   B --> BP[tenant/provider別browser state]
   R --> ID[agent-owned identity / secret broker]
   K --> PG
@@ -29,21 +29,22 @@ flowchart LR
 - browserはagent-ownedで、tenantごとにwriter 1つ、cookie/local storageを次の有限jobへ継続する。
 - Runtimeは利用者ごとの永久VMではなく、active job中だけ専用container/microVMを持つ。
 - durable truthはVMのRAMではなくPostgreSQL、browser state、opaque identity ref、公式receiptに置く。
-- AWSとDigitalOceanを同時運用しない。実canaryを先に完走した1 providerだけをv1で採用する。
+- v1はRailway Sandbox＋Steelを先に実測し、一つの固定構成だけを採用する。AWS、Browserbase、DigitalOceanへ通常jobを同時送信しない。
 - 人間credential、approval、resume、CAPTCHA、KYCを通常jobの成功条件にしない。該当jobはterminal `not_applicable`にし、他のeligible jobを継続する。
 
 ### 0.2 残りTODO — この順序が正本
 
-1. **Provider credentialを確定する。** AWSの4サービスがofficial APIでactiveになるか、DigitalOceanのleast-privilege token（session lifecycle＋`billing:read`）とmodel keyをSSOTへ保存する。console loginだけでは完了にしない。
-2. **A24 infrastructure canaryをlive実行する。** 2 tenant session、workspace隔離、同一Chromium profile継続、no-ask、人間入力0、両session remove→list 0、前後残高を公式receiptで確認する。
-3. **A24 agent parityをlive実行する。** `HEAD == origin/main == candidate SHA`を満たすreleaseで既存business kernel fixtureを実行し、local/cloudのreceipt hashとevidence hash、replay-zeroを一致させる。
-4. **Immutable releaseをpromoteする。** CL00–CL04、provider receipt、cost、old session 0、rollback targetをpromotion gateへ渡し、main由来の1 releaseだけを選ぶ。
-5. **Production migrationを固定順で適用する。** runtime base → identity refs → no-human browser → cost reservations → Free onboarding。二回目のschema SHA一致と公式DB readbackを得る。
-6. **内部tenantでphone-only end-to-endを完走する。** no-card Free onboarding → goal → cloud job → verified result → Telegram report。human input 0、external spend 0、session leak 0を確認する。
-7. **A25で5人のFree cohortを完走する。** cross-tenant leak 0、duplicate effect 0、cost cap breach 0、unbounded session 0と、4 journeyのlatency/costを測る。
-8. **A26で最初の$49 Founding Proを販売する。** first verified result後だけcheckoutを提示し、Stripe receipt、entitlement、cancel/refund、1 user contributionを公式readbackする。
-9. **A27–A28で25人へ拡大し、eval/self-improvementを回す。** activation、retention、conversion、p50/p75/p95、actual cost、settled contributionを基準にcandidateをcanary/rollbackする。
-10. **A29でMuse Connectorを追加する。** Life Manager APIとcloud coreが安定した後のdistribution channelであり、runtimeの代替にはしない。
+1. **Macの実行余地を安全に戻す。** 保護対象とproject stateを触らず、再生成可能cache/logだけを特定して十分な空きを作り、`railway sandbox list --json`を再実行する。
+2. **Railway Sandbox provider adapterを最小追加する。** 既存Railway認証、TypeScript SDK/CLI、project private networkを使い、create/exec/checkpoint/destroy/list/cost readbackだけを既存provider contractへ写像する。business kernelを複製しない。
+3. **A24 infrastructure canaryをlive実行する。** Railwayで2 tenant sandbox、workspace隔離、既存Steelの同一profile継続、no-ask、人間入力0、両sandbox destroy→active 0、前後usageを公式readbackで確認する。
+4. **A24 agent parityをlive実行する。** `HEAD == origin/main == candidate SHA`を満たすreleaseで既存business kernel fixtureを実行し、local/cloudのreceipt hashとevidence hash、replay-zeroを一致させる。
+5. **Immutable releaseをpromoteする。** CL00–CL04、provider receipt、cost、old session 0、rollback targetをpromotion gateへ渡し、main由来の1 releaseだけを選ぶ。
+6. **Production migrationを固定順で適用する。** runtime base → identity refs → no-human browser → cost reservations → Free onboarding。二回目のschema SHA一致と公式DB readbackを得る。
+7. **内部tenantでphone-only end-to-endを完走する。** no-card Free onboarding → goal → cloud job → verified result → Telegram report。human input 0、external spend 0、session leak 0を確認する。
+8. **A25で5人のFree cohortを完走する。** cross-tenant leak 0、duplicate effect 0、cost cap breach 0、unbounded session 0と、4 journeyのlatency/costを測る。
+9. **A26で最初の$49 Founding Proを販売する。** first verified result後だけcheckoutを提示し、Stripe receipt、entitlement、cancel/refund、1 user contributionを公式readbackする。
+10. **A27–A28で25人へ拡大し、eval/self-improvementを回す。** activation、retention、conversion、p50/p75/p95、actual cost、settled contributionを基準にcandidateをcanary/rollbackする。
+11. **A29でMuse Connectorを追加する。** Life Manager APIとcloud coreが安定した後のdistribution channelであり、runtimeの代替にはしない。
 
 ## 1. このspecが固定すること
 
@@ -71,9 +72,9 @@ Life Managerは通常のjobで利用者に許可・承認・判断を求めな�
 
 ### 2.1 答え
 
-Life Managerにはクラウド計算機が必要である。ただし、**利用者ごとに24時間起動し続ける1台のVMは不要**である。
+Life Managerにはクラウド計算機が必要である。ただし、**利用者ごとに24時間起動し続ける1台のVMは不要**である。v1では既存制御面と同じRailwayのSandboxを有限job用のCloud Computerにする。
 
-各利用者は1つの「論理Cloud Computer」を持つ。仕事がある間だけ、そのtenant専用AgentCore microVMを起動する。同じtenantの仕事は同時に1件だけ実行する。停止中の正本はmicroVMのRAMではなく、Supabase PostgreSQL、S3 evidence、AgentCore Browser Profile、AgentCore Identityに置く。次のwakeではその状態から新しい隔離microVMを安全に再構成する。
+各利用者は1つの「論理Cloud Computer」を持つ。仕事がある間だけ、そのtenant専用Railway Sandbox VMを起動する。同じtenantの仕事は同時に1件だけ実行する。停止中の正本はVMのRAMではなく、Supabase PostgreSQL、object evidence、Steel browser profile、server-side secret vaultに置く。次のwakeではcheckpointまたはimmutable templateから新しい隔離VMを安全に再構成する。AWSへ移行してもこの所有境界は変えない。
 
 ```mermaid
 flowchart LR
@@ -81,23 +82,23 @@ flowchart LR
   API --> PG[(Supabase PostgreSQL<br/>tenant・goal・job・receipt・cost)]
   API --> Q[既存Inngest<br/>schedule・retry・tenant concurrency=1]
   Q --> D[Cloud dispatcher<br/>lease・budget・release SHA gate]
-  D --> R[AWS AgentCore Runtime V2<br/>active jobごとの専用microVM]
-  R --> G[API tools / AgentCore Gateway]
-  R --> B[AgentCore Browser<br/>job session]
+  D --> R[Railway Sandbox<br/>active jobごとの専用VM]
+  R --> G[既存API / MCP tools]
+  R --> B[既存Steel Browser<br/>job session]
   B <--> P[tenant/provider別<br/>Browser Profile]
-  R --> I[AgentCore Identity<br/>agent-owned OAuth/API credential]
-  R --> E[(S3 evidence / replay)]
+  R --> I[server-side vault<br/>agent-owned API credential]
+  R --> E[(object evidence / replay)]
   R --> PG
   PG --> S[Stripe entitlement + CFO P&L]
 ```
 
 ### 2.2 「ユーザーごとにVMか」の正確な答え
 
-- activeな実行中は、各AgentCore user sessionが専用microVMを持つ。
+- activeな実行中は、各tenant jobが専用Railway Sandbox VMを持つ。
 - idle中はmicroVMを保持しない。計算料金を止める。
 - tenantごとに同時active runtimeは最大1つ。同じ利用者の複数loopはqueueで直列化する。
 - Browserはruntimeとは別の隔離sessionで、ログイン状態だけtenant/provider別Browser Profileへ保存する。
-- 8時間を超える仕事は1つのVMに居座らせない。checkpointをPostgreSQL/S3へ書き、次の有限wakeへ分割する。
+- 長時間の仕事は1つのVMに居座らせない。checkpointをPostgreSQL/object storageへ書き、次の有限wakeへ分割する。
 - runtime session ID、browser session ID、profile IDは状態の参照であり、business truthではない。
 
 これはGrok BotやMuseの「自分専用クラウドコンピュータ」と同じ利用者体験を与えながら、永続VMのコストと単一障害点を避ける。
@@ -110,15 +111,15 @@ Cloud版は新しいagentをもう1体作らない。既存Life Managerのloop�
 
 | 既存のまま再利用するもの | Cloud用に追加する薄い境界 |
 |---|---|
-| goal、business rule、effect fence、receipt判定、`lm_runtime_jobs` state machine | AgentCore request/response envelope |
-| Inngestのwake/retryとtenant別直列化 | AgentCore runtime dispatcher |
+| goal、business rule、effect fence、receipt判定、`lm_runtime_jobs` state machine | provider-neutral request/response envelope |
+| Inngestのwake/retryとtenant別直列化 | Railway Sandbox runtime adapter |
 | PostgreSQLのjob/checkpoint/receipt | tenant→runtime/profile/usageのprovider ID map |
-| 既存browser task contract | AgentCore Browser adapter。Steelはcompatibility fallbackのみ |
+| 既存browser task contract | v1 Steel adapter。Browserbase/AgentCore Browserは同じcontractの代替 |
 | Stripe webhook entitlement | `free-v1` / `founding-pro-v1` admission policy |
 
 local版とCloud版の差は「誰が起こすか」「どこで隔離実行するか」「provider IDをどう保存するか」だけにする。business kernelをcopyしない。同じtask capsuleを同じkernel SHAへ渡し、canonical receipt/evidence hashが一致しなければCL01失敗である。
 
-`browser-session-lease`はprovider-neutral contractとしてtenantごとにbrowser ownerを1つへ制限する。既存Stagehand/Steel driverはそのcontractを利用できるが、AgentCore Browserの代替採用を意味せず、CL00で特定providerの互換性が失敗した場合だけ再評価する。
+`browser-session-lease`はprovider-neutral contractとしてtenantごとにbrowser ownerを1つへ制限する。既存Stagehand/Steel driverをv1 canaryで使い、実サイト互換性が失敗した場合だけBrowserbase Contexts、AWS解除後だけAgentCore Browserを同じcontractで再評価する。
 
 ## 3. 調査した選択肢
 
@@ -126,16 +127,19 @@ local版とCloud版の差は「誰が起こすか」「どこで隔離実行す�
 
 | 選択肢 | 確認した事実 | 判断 |
 |---|---|---|
-| [AWS Bedrock AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html) | 各user sessionは専用microVM。任意framework/model、最大8時間、非同期処理、消費量課金。GAでTokyo対応 | **採用** |
-| [AgentCore Browser](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-tool.html) / [Browser Profiles](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-profiles.html) | 隔離browser、agent-owned cookie/local storageをprofileへ保存、CloudTrail/recording | **採用** |
-| [AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-overview.html) | inbound identity、outbound OAuth/API keyを一元管理し、credentialをmodel contextへ置かない | **採用** |
+| [AWS Bedrock AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html) | 各user sessionは専用microVM。任意framework/model、最大8時間、非同期処理、消費量課金。GAでTokyo対応 | 全部入り基準。account解除後の移行候補 |
+| [AgentCore Browser](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-tool.html) / [Browser Profiles](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/browser-profiles.html) | 隔離browser、agent-owned cookie/local storageをprofileへ保存、CloudTrail/recording | 全部入り基準。account解除後の移行候補 |
+| [AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-overview.html) | inbound identity、outbound OAuth/API keyを一元管理し、credentialをmodel contextへ置かない | 全部入り基準。account解除後の移行候補 |
 | [AgentCore pricing](https://aws.amazon.com/bedrock/agentcore/pricing/) | 最低料金・前払いなし。Runtime V2はCPU $0.1276/vCPU-hour、memory $0.0169/GB-hour、BrowserはCPU $0.0895/vCPU-hour、memory $0.00945/GB-hour | 無料枠をhard budgetで実現可能 |
-| [DigitalOcean Managed Agents](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/concepts/architecture/) | 1 session = 1 microVM、pause/resume、Chromium、Action Gateway、tenantごとにsessionを作れる | runner-up |
+| [Railway Sandboxes](https://railway.com/sandboxes) / [pricing](https://railway.com/pricing) | API/CLI/TypeScript SDKで作る隔離Linux VM。checkpoint、fork、private network、自動破棄、4地域。CPUとmemoryは秒課金で各約$50/month相当、公式例の20分・1GB・平均0.3 vCPUは約$0.03。CLIはexperimental/API変更可能と明記 | **v1最短canary候補**。既存Railway account/control plane/Steelを再利用できるが、production採用はlive gate通過後だけ |
+| [Browserbase Contexts](https://docs.browserbase.com/platform/browser/core-features/contexts) / [pricing](https://www.browserbase.com/pricing) | cookie、localStorage、IndexedDB等を暗号化してsession間で永続化。managed browser、recording、proxy、CAPTCHA対応。100時間後は$0.12/browser-hourのplan例 | Steel実サイト互換性が落ちる場合のmanaged browser代替。Runtimeの代替ではない |
+| [DigitalOcean Managed Agents](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/concepts/architecture/) | 1 session = 1 microVM、pause/resume、Chromium、Action Gateway、tenantごとにsessionを作れる | 第三候補 |
 | [DigitalOcean limits](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/limits/) / [triggers](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/how-to/run-agents-with-triggers/) / [environment spec](https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/reference/environment-spec/) | public preview、最大100 active sessions、pause中もslotを使う。fresh/reuse trigger、VPC/subnet、egress allowlist、明示allow/denyを持つ。triggerで`ask`はcreate時拒否されるが、reuse sessionに残ったruntime promptはauto-approvedされ得るため`ask`を安全策にしてはいけない | AWS activation期限超過後の実測fallback。`allow`＋明示`deny`、HITL reject、remove後list 0、billing recordを必須にする |
-| [Google Agent Platform](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview) | managed runtime、sessions、memory、computer use、sandbox、IAMを持つ | 強い代替。ただし本調査でtenant別のagent-owned browser profile/identity契約を確認できず不採用 |
+| [Google Agent Platform](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale) | managed runtime、sessions、Memory Bank、evaluation、tracing、code/computer-use sandbox、IAMを持つ | 強い全部入り代替。ただしtenant別の永続browser login profile契約と単純なend-to-end原価を確認できずv1不採用 |
 | [Microsoft Foundry Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/overview) | hosted container、session state、VM-isolated sandbox、managed identityを持つ | 強い代替。ただしmanaged browser profileとagent-owned outbound identityが一体化していないため不採用 |
-| [E2B persistence](https://e2b.dev/docs/sandbox/persistence) | filesystemとmemoryをpause/resumeできる | compute部品として優秀だが、tenant別identity/browser profile/audit/control planeを自作するため不採用 |
-| [Daytona persistence](https://www.daytona.io/docs/en/persistence/) | persistent filesystem、VM memory pause/resume、snapshot/forkを持つ | 同上 |
+| [E2B persistence](https://e2b.dev/docs/sandbox/persistence) / [pricing](https://e2b.dev/pricing) | filesystemとmemoryをpause/resume。Hobbyは20 concurrent、Proは$150/月＋usage、100 concurrent、標準2 vCPU＋4GBは約$0.166/hour | compute部品として優秀だが、tenant別identity/browser profile/auditを別途組むため不採用 |
+| [Daytona persistence](https://www.daytona.io/docs/en/persistence/) / [pricing](https://www.daytona.io/pricing) | persistent filesystem、VM memory pause/resume、snapshot/fork。vCPU $0.0504/hour、memory $0.0162/GB-hour、秒課金 | 安いcompute部品だが、browser/identity/receipt統合を自作するため不採用 |
+| [Modal Sandboxes](https://modal.com/docs/guide/sandboxes) / [pricing](https://modal.com/pricing) | serverless sandbox、CPU/memory秒課金、Starterに月$30 compute | burst computeに強いが、browser profile/identity/product control planeは別途必要 |
 | [Fly Machines suspend/resume](https://fly.io/docs/reference/suspend-resume/) | Firecracker snapshotで高速resume、suspend中はstorage課金だけ。ただしsnapshotは保証されずcold start必須 | 運用責任が大きいため不採用 |
 | 自前Kubernetes/Firecracker + Steel | 最大の自由度 | isolation、patch、autoscale、browser、viewer、vault、auditを全部所有するためv1では不採用 |
 | [Meta Muse](https://ai.meta.com/muse/) / [security architecture](https://www.meta.com/help/1047255454427887/) | 各userに独立したpersistent isolated Linux VM、full shared browser、storage/CPU/memory、terminal/filesystem、自作tool、Secure Credentials Store、schedule/event background work、activity logを持つ | 直接借りるruntimeではないが、Life Managerのlogical computer、credential broker、shared-browser observabilityの主要benchmark |
@@ -153,6 +157,10 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 6. Tokyo regionがあり、GA、CloudFormation対応である。
 7. 既存のNode business kernel、PostgreSQL job protocol、Inngest、Stripeを捨てずに接続できる。
 
+ただし「設計上の最善」と「今すぐ出荷できる最短」は同じではない。現在のAWS accountはroot/IAMと東京AgentCore control planeだけが利用でき、CloudFormation=`OptInRequired`、S3=`NotSignedUp`、CloudWatch Logs/Cost Explorer=`SubscriptionRequiredException`を返す。これはLife Managerの審査否決ではなく、AWS accountの標準service subscriptionが未完了の状態である。S3 evidence、CloudWatch trace、Cost Explorer receiptが無いまま本番に出すと、成功証拠、障害原因、原価を確定できない。そのためAWS解除を待たず、既に認証済みで同じcontrol plane/private networkを使えるRailway Sandbox＋既存Steelを先にcanaryする。
+
+Railway案は以前の「tenantごとに常駐Railway serviceを作る」案ではない。jobごとに隔離Sandboxをcreateし、同一kernel SHAをexecし、checkpoint/evidenceを書き、destroyする。browser login continuityだけを既存Steel profileへ分離する。これによりAWSほど一社完結ではないが、新しいscheduler、database、billing、VM orchestrator、browser stackを作り直さずに済む。
+
 DigitalOcean Managed Agentsは概念的には非常に近く、microVM、pause/resume、Chromium、VPC、egress、credential broker、fresh/reuse triggerを持つ。pauseはcompute課金を止めるがactive-session slotは解放しない。Insightsのtoken/resource値は運用指標であり、正確な支出はbilling recordを正本にする。triggerの`ask`は安全停止ではないため、Life Managerは`ask` 0、`allow`＋明示`deny`、headless HITL rejectだけを許す。AWSの24時間support期限超過とfresh `OptInRequired` / `NotSignedUp` readbackにより、DigitalOcean＋Steel compatibility canaryを開始するが、tenant別login continuity、remove後teardown、session別cost joinが実測PASSするまではproductionへ切り替えない。
 
 DigitalOcean canaryは二段階にする。第一段は`agent: none`の2つのbare microVMを使い、model credentialなしでAのChromium localStorageを同じprofileから再読し、BからAのworkspaceが見えないこと、両sessionのexact remove→list 0、前後prepayment balanceを測る。第二段だけ実際のLife Manager agentとmodel credentialを使い、同じbusiness kernel receiptを検証する。これによりmodel vendor認証をinfrastructure isolationの前提にせず、自己申告ではないbrowser continuityとtenant isolationの証拠を先に得る。live実行は`billing:read`を含むleast-privilege DigitalOcean tokenがSSOTへ保存されてから一度だけ行い、token未取得のlocal testをprovider PASSと数えない。
@@ -166,11 +174,11 @@ DigitalOcean canaryは二段階にする。第一段は`agent: none`の2つのba
 | Railway API | Telegram/web ingress、auth済みtenant scope、goal/status/result | job進行、receipt判定 |
 | Inngest | cron/event wake、再試行、tenant concurrency=1 | effectが成功したかの判断 |
 | Supabase PostgreSQL | tenant、goal、`lm_runtime_jobs`、lease、checkpoint、receipt、entitlement、cost ledger | credential値、browser cookie平文 |
-| AgentCore Runtime V2 | 有限jobを同一business kernel SHAで実行 | 永久memory、最終receiptの自己申告 |
-| AgentCore Browser | job中の自律browser automation、provider readback、read-only live observation、emergency stop | 永続的なbusiness state、human resume dependency |
+| Railway Sandbox | 有限jobを同一business kernel SHAで隔離実行し、checkpoint/destroyする | 永久memory、最終receiptの自己申告 |
+| Steel Browser | job中の自律browser automation、provider readback、read-only live observation、emergency stop | 永続的なbusiness state、human resume dependency |
 | Browser Profile | tenant/provider別のagent-owned cookieとlocal storage | human credential、複数tenant共有、receipt |
-| AgentCore Identity | agent-owned OAuth refresh token/API key、agent identity | human credential、user goal、economic ledger |
-| S3 | artifact、screenshot、trace、session replay。DBにはhash/refだけ | query可能なjob state |
+| server-side secret vault | agent-owned OAuth refresh token/API key、agent identity | human credential、user goal、economic ledger |
+| object evidence storage | artifact、screenshot、trace、session replay。DBにはhash/refだけ | query可能なjob state |
 | Stripe | subscription/paymentの公式状態 | agent jobの成功 |
 | CFO ledger | provider receipt + revenue - 全cost | passログや予測利益 |
 
@@ -386,10 +394,10 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 
 ## 11. best / base / worst
 
-- **Best:** managed isolation/browser/identityがそのまま適合し、5人canaryから25人Free cohort、$49 Founding Proへ進む。
-- **Base:** 一部providerでbrowser互換性調整が必要だが、API優先とAgentCore Browserで大半を処理し、限定fallbackだけ追加する。
-- **Worst:** AgentCore Browserが主要収益providerで動かない。この場合もbusiness kernel、PostgreSQL job、Inngest、Stripeは残り、browser adapterだけSteel/E2Bへ差し替える。
+- **Best:** Railway Sandbox＋既存Steelがlive gateを全部通り、AWS待ちなしで5人canaryから25人Free cohort、$49 Founding Proへ進む。
+- **Base:** Steelの一部実サイト互換性だけ不足し、RuntimeはRailwayのままBrowserbase Contextsへbrowser adapterを差し替える。
+- **Worst:** Railway Sandboxのlifecycle/cost readbackが必要contractを満たさない。この場合もbusiness kernel、PostgreSQL job、Inngest、Stripeは残り、AWS解除後のAgentCoreまたはDigitalOceanへruntime adapterだけ差し替える。
 
-棄却案の最強論拠は、DigitalOcean Managed Agentsなら「tenantごとにpause可能なagent + workspace + Chromium」を最短で得られ、no-ask triggerもLife Managerと整合すること。ただし現時点のsession scale、lifecycle readback、tenant別login continuity、phone bootstrapの未確認が、既存control planeへ採用する利点より重い。
+棄却案の最強論拠は、AWS AgentCoreならRuntime、Browser Profile、Identity、CloudWatchを一社で揃えられ、長期の部品数が最少になること。ただしこのaccountで標準AWS serviceが未契約のままなので、「解除日不明の待ち時間」がv1の最大コストになる。
 
-**この判断が間違う最有力の筋:** AgentCoreの実サイトbrowser互換性、agent-owned login continuity、または実測unit costが、Life Managerの主要providerで実用にならないこと。したがってCL00を最初の有料実装前gateにする。
+**この判断が間違う最有力の筋:** Railway Sandboxの実測memory課金または既存Steelのlogin continuityが、AgentCore/Browserbaseより高価・不安定になること。したがってA24 live canaryで同じfixture、同じ時間、同じreceipt項目を測り、推測でpromoteしない。

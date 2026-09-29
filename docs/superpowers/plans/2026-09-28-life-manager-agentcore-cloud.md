@@ -1,12 +1,12 @@
-# Life Manager AgentCore Cloud Product Implementation Plan
+# Life Manager Cloud Product Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in AWS AgentCore, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
+**Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in the selected isolated cloud runtime, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
 
-**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies. A tenant-bound shared-browser view and emergency stop are observability controls; any optional break-glass writer is single-owner and excluded from automated success and revenue. Four user journeys emit comparable field telemetry; bounded self-improvement may lower latency/cost ratchets only after verified outcome, effect safety, tenant isolation, and settled contribution remain healthy.
+**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, Stripe billing, and provider-neutral runtime/browser/identity contracts. Run the first live proof on Railway Sandbox for active-job VM isolation and the existing Steel profile adapter for browser continuity; keep AWS AgentCore as the integrated benchmark and post-activation migration candidate. A tenant has at most one active runtime and browser writer lease; compute exists only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies. A tenant-bound shared-browser view and emergency stop are observability controls; any optional break-glass writer is single-owner and excluded from automated success and revenue. Four user journeys emit comparable field telemetry; bounded self-improvement may lower latency/cost ratchets only after verified outcome, effect safety, tenant isolation, and settled contribution remain healthy.
 
-**Tech Stack:** Node.js 20 CommonJS business kernel, TypeScript AgentCore entrypoint, `@aws/agentcore@0.30.0` pinned, AWS SDK v3, AgentCore Runtime/Browser/Identity, Inngest 4, PostgreSQL/Supabase, Stripe, S3, CloudWatch, `node:test`.
+**Tech Stack:** Node.js 20 CommonJS business kernel, TypeScript provider adapters, Railway Sandbox SDK/CLI, existing Steel/Stagehand browser adapter, Inngest 4, PostgreSQL/Supabase, Stripe, object evidence storage, `node:test`; the completed `@aws/agentcore@0.30.0` and AWS SDK v3 adapter remains the integrated benchmark.
 
 **Spec:** `docs/superpowers/specs/2026-09-28-life-manager-agentcore-cloud-design.md`
 
@@ -29,8 +29,8 @@
 ## Definition of done
 
 1. A user can onboard with only Telegram/web on a phone, no card, and receive one verified result.
-2. The same immutable business-kernel SHA runs locally and in AgentCore.
-3. Each active tenant run has a dedicated AgentCore microVM; idle tenants consume no runtime VM.
+2. The same immutable business-kernel SHA runs locally and in the selected cloud runtime.
+3. Each active tenant run has a dedicated isolated VM/microVM; idle tenants consume no runtime VM.
 4. Agent-owned browser login survives across jobs through a tenant/provider Browser Profile; no human credential is imported.
 5. Actions complete with zero credential requests, confirmations, approvals, required browser takeover, or resume steps. A user can observe and emergency-stop a browser from a phone. Optional break-glass control never counts as automated completion or revenue; human-principal-only opportunities are excluded without stopping other work.
 6. Cross-tenant access, duplicate execution, uncertain-effect replay, unbounded session, and budget overrun all fail closed.
@@ -523,7 +523,7 @@
 
 ## TODO order — do not reorder without measured evidence
 
-1. **CL00 real AgentCore provider proof** — decides whether the chosen runtime/browser actually works.
+1. **A24 real Railway Sandbox＋Steel provider proof** — decides whether the immediately available runtime/browser actually works; AWS CL00 remains the benchmark, not a wait gate.
 2. **Durable tenant/session/budget schema** — makes every later call tenant-safe and cost-bounded.
 3. **Same-kernel AgentCore packaging (CL01)** — prevents a second product implementation.
 4. **Inngest dispatcher + one tenant writer** — makes loops genuinely run in cloud.
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS CLI authentication, IAM, ECR, and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation and EC2 return `OptInRequired`, S3 returns `NotSignedUp`, CloudWatch Logs and Cost Explorer return `SubscriptionRequiredException`, and the support response window is exceeded. Therefore AWS is not currently production-eligible; A06, A13, the real-provider half of A16, A19, and A21 real-provider canaries remain externally pending. A17 through A20, A22, and A23 are complete. A21 local adversarial coverage is complete. Current cursor is A24: run the bounded DigitalOcean Managed Agents plus Steel compatibility canary against the same provider-neutral contract, while retaining AWS as a later comparison candidate. Adopt DigitalOcean only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, teardown, and official cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS CLI authentication, IAM, ECR, and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation and EC2 return `OptInRequired`, S3 returns `NotSignedUp`, CloudWatch Logs and Cost Explorer return `SubscriptionRequiredException`, and the support response window is exceeded. This is incomplete AWS service subscription, not a Life Manager rejection. AWS is not currently production-eligible; A06, A13, the real-provider half of A16, A19, and A21 real-provider canaries remain externally pending. A17 through A20, A22, and A23 are complete. A21 local adversarial coverage is complete. Current cursor is A24: first restore safe local disk headroom because the Data volume has 575 MiB free and the read-only Railway sandbox list returned local `No space left on device`; then use the already authenticated Railway account to map Railway Sandbox create/exec/checkpoint/destroy/list/cost readback onto the provider-neutral contract and run it with the existing Steel profile adapter. Railway Sandbox is experimental, so promote only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, teardown, and official cost receipts all pass. If Steel alone fails, compare Browserbase Contexts without replacing Railway Runtime. DigitalOcean remains third because its API token is unavailable and Managed Agents remains public preview. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
