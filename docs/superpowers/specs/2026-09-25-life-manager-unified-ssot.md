@@ -1192,3 +1192,17 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 6. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
 7. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
 8. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
+
+**最新のGig platform境界監査（2026-09-29、Codex専用worktree）**: 「adapterが存在する」ことを「platform loopが稼働している」ことと混同しない。`config/loop-registry.json` の現行`loops`（174件）にはFreelancer／Upworkのactive lifecycle ownerは存在せず、両者はsource-only readiness境界に留まる。Freelancerは`freelancer-actions.public.json`の全actionが`unknown`で、provider-approved automatic-bid terms、account-bound authorization receipt、source-complete official inventory、funded projectが未取得である。Upworkは専用identity `upwork:dais`のresolver境界とproposal／message／delivery等のprovider modules、`upwork_paid_adapter.py`／`upwork_readiness.py`は存在するが、専用endpointは`endpoint_unavailable`、account-bound probeは`authenticated=false`／`blocked_google_2fa`、保存inventoryはactive contract 0であり、funded contract・mutation authorization・active ownerがない。したがって両者の応募・返信・契約承諾・納品を「稼働中」と報告せず、funded contractと公式receiptが揃うまでowner登録・外部effectを行わない。
+
+同じ監査で、Freelancer／Upworkのreadiness・authorization・PaidHandoff focused testsは`45 passed`。これはfail-closedな入場条件の検証であり、外部アカウント認証・契約獲得・収益の証拠ではない。既存4 platformのsource修正（Coconala wrapper、Lancers pre-effect adapter、Mercor registry、CrowdWorks provider-lock non-blocking defer）はbranch `fix/lm-release-boundary-20260929` のHEAD `da9c4a0793`へcommit／push済みだが、main統合・immutable release・production apply・自然公式readbackは未完了である。CrowdWorksのlock競合は、reconcileがprovider lockを待ち続けて他ownerを詰まらせる根因を`LOCK_NB`即時deferへ修正しただけで、既存`effect_unknown`をreceiptなしに解放していない。
+
+**Ryuさん送信の不変証跡（最新）**: `delivery/current-cycle-v723-dm-send-readback.json` に、最新要求を統合した本文のSHA、`send_click_count=1`、事前同一本文0件、直後DOMバブル1件、正式納品ボタン未実行、再送なしを記録する。再読み込み後は`403 Forbidden`でprovider永続readbackだけが取得できない。403は未送信の証拠ではなく、同じ本文を別browserで再送する理由にもならない。Ryu room `18211957` は「最新内容を一つにまとめて一度だけ送信」が完了条件であり、以後はread-only確認のみとする。
+
+**次の実行cursor（このsectionが旧TODO記述に優先）**:
+
+1. branchのCoconala／Lancers／Mercor／CrowdWorks source変更をrequired checksで再確認し、mainへ統合可能なHEADを固定する。既存production loopを停止・再起動せず、live leaseを奪わない。
+2. main由来immutable releaseを作り、action ownerを一つずつtarget applyする。各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを測る。source PASSをproduction PASSと数えない。
+3. CoconalaはRyu本文を再送しない。403回復後にread-only provider永続receiptを一度だけ確認し、正式納品ボタンはloopから押さない。
+4. LancersはHuman Verification解除後、CrowdWorksはprovider-lock defer後の公式thread／proposal／Paid receiptを、Mercorは専用identityのendpoint→auth→funded handoffを、各々同一occurrenceへ結び付ける。receiptなしの`effect_unknown`は保持する。
+5. Freelancerはprovider-approved automation terms、認証receipt、source-complete inventory、funded projectの順、Upworkは専用identity auth、source-complete contract/payment/payout inventory、funded milestone、mutation authorizationの順で整えてから初めてowner登録する。最後にMeta Loop（platform discovery→policy/identity→adapter→funded canary→delivery→settlement→quality/P&L feedback）を同じshared kernelへ接続する。
