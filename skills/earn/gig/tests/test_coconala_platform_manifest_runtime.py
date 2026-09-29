@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -135,6 +136,46 @@ def test_live_coconala_wake_uses_collector_snapshot_without_onboarding_receipt(t
     assert {row["source"] for row in result["source_errors"]} == {
         "lancers", "crowdworks", "mercor",
     }
+
+
+def test_live_profile_snapshot_hashes_identity_and_persists_hold(tmp_path):
+    profile_url = "https://coconala.com/users/2564121"
+    snapshot = runtime.build_live_profile_snapshot(
+        profile_url=profile_url,
+        account_id_sha256="f2fa9de414238160851ec65d2c1129ec5784d3c7e5e8a9acd1015a8ace2d315d",
+        observed_at="2026-09-30T12:03:00Z",
+    )
+
+    assert snapshot["live_account"] == {
+        "version": 1,
+        "authenticated": True,
+        "source_complete": False,
+        "profile_readback": True,
+        "account_id_sha256": (
+            "f2fa9de414238160851ec65d2c1129ec5784d3c7e5e8a9acd1015a8ace2d315d"
+        ),
+    }
+    profile_hash = hashlib.sha256(profile_url.encode("utf-8")).hexdigest()
+    assert f"coconala://live/profile-url/sha256/{profile_hash}" in snapshot["evidence_refs"]
+    assert profile_url not in json.dumps(snapshot, ensure_ascii=False)
+
+    result = runtime.run_coconala_platform_manifest_wake(
+        live_snapshot=snapshot,
+        candidate_root=tmp_path / "candidates",
+        run_root=tmp_path / "runs",
+        run_id="coconala-profile-readback-1",
+        observed_at="2026-09-30T12:03:00Z",
+    )
+
+    assert result["status"] == "partial"
+    assert result["inspected"] == 1
+    assert result["held"] == 1
+    candidates = runtime._CANDIDATE_STORE or runtime._modules()[2]
+    record = candidates.CandidateStateStore(tmp_path / "candidates").latest(
+        "coconala", "platform:coconala",
+    )
+    assert record is not None
+    assert record["decision"] == "hold"
 
 
 def test_coconala_candidate_lifecycle_uses_account_bound_registry(tmp_path):

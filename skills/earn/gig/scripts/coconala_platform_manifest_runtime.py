@@ -14,8 +14,10 @@ import hashlib
 import importlib.util
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 
 HERE = Path(__file__).resolve()
@@ -37,6 +39,8 @@ _CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
 _LIFECYCLE_STORE = None
+_PROFILE_URL = re.compile(r"^/users/[0-9]+/?$")
+_HASH = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _modules():
@@ -74,6 +78,56 @@ def _adapter_source_sha256() -> str:
     return hashlib.sha256(HERE.with_name("coconala_platform_manifest.py").read_bytes()).hexdigest()
 
 
+def build_live_profile_snapshot(
+    *,
+    profile_url: str,
+    account_id_sha256: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Normalize an official profile readback without retaining its public URL.
+
+    A profile readback proves identity/profile visibility only.  The snapshot
+    therefore keeps ``source_complete`` false until a complete, account-bound
+    inventory and action authorization receipt are observed.
+    """
+
+    coconala, *_ = _modules()
+    if not isinstance(profile_url, str):
+        raise coconala.CoconalaPlatformManifestError("profile_url_invalid")
+    parsed = urlsplit(profile_url.strip())
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "coconala.com"
+        or parsed.query
+        or parsed.fragment
+        or _PROFILE_URL.fullmatch(parsed.path) is None
+    ):
+        raise coconala.CoconalaPlatformManifestError("profile_url_invalid")
+    if not isinstance(account_id_sha256, str) or _HASH.fullmatch(account_id_sha256) is None:
+        raise coconala.CoconalaPlatformManifestError("account_id_sha256_invalid")
+    profile_url_hash = hashlib.sha256(profile_url.strip().encode("utf-8")).hexdigest()
+    snapshot: dict[str, Any] = {
+        "version": 2,
+        "platform": "coconala",
+        "observed_at": observed_at,
+        "source_url": "https://coconala.com/mypage/dashboard_provider",
+        "adapter_source_sha256": _adapter_source_sha256(),
+        "evidence_refs": [
+            f"coconala://live/profile-url/sha256/{profile_url_hash}",
+        ],
+        "live_account": {
+            "version": 1,
+            "authenticated": True,
+            "source_complete": False,
+            "profile_readback": True,
+            "account_id_sha256": account_id_sha256,
+        },
+    }
+    # Validate the exact shape before handing it to a natural wake.
+    coconala.manifest_from_observation(snapshot)
+    return snapshot
+
+
 def run_coconala_platform_manifest_wake(
     *,
     onboarding_path: str | Path | None = None,
@@ -99,16 +153,24 @@ def run_coconala_platform_manifest_wake(
     seen_at = observed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     if live_snapshot is not None:
-        if authenticated_state is None:
-            raise ValueError("coconala_live_authenticated_state_required")
+        if "live_account" in live_snapshot:
+            if authenticated_state is not None:
+                raise ValueError("coconala_live_snapshot_auth_state_conflict")
 
-        def load_snapshot() -> dict[str, Any]:
-            return coconala.load_live_collector_observation(
-                live_snapshot,
-                authenticated_state=authenticated_state,
-                observed_at=seen_at,
-                adapter_source_sha256=_adapter_source_sha256(),
-            )
+            def load_snapshot() -> dict[str, Any]:
+                return dict(live_snapshot)
+
+        else:
+            if authenticated_state is None:
+                raise ValueError("coconala_live_authenticated_state_required")
+
+            def load_snapshot() -> dict[str, Any]:
+                return coconala.load_live_collector_observation(
+                    live_snapshot,
+                    authenticated_state=authenticated_state,
+                    observed_at=seen_at,
+                    adapter_source_sha256=_adapter_source_sha256(),
+                )
     else:
 
         def load_snapshot() -> dict[str, Any]:
@@ -164,6 +226,7 @@ def run_coconala_candidate_lifecycle(
 
 
 __all__ = [
+    "build_live_profile_snapshot",
     "default_manifest_root",
     "default_onboarding_path",
     "run_coconala_candidate_lifecycle",

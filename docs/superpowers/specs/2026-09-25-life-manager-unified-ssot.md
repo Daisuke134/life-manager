@@ -2794,6 +2794,25 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
 
+## 現在の正本cursor（2026-09-30、Coconala profile snapshot hold実装後）
+
+Coconalaの公式profile readback（`https://coconala.com/users/2564121`）を、raw URL・raw account IDを保存せず、profile URL hashと`account_id_sha256=f2fa9de414238160851ec65d2c1129ec5784d3c7e5e8a9acd1015a8ace2d315d`だけを含むlive snapshotへ正規化する`build_live_profile_snapshot`を追加した。profile identityは`authenticated=true`かつ`profile_readback=true`だが、完全inventory・action authorization receiptが無いため`source_complete=false`を固定し、natural wakeはcandidate storeへ`hold`を記録する。`promote`、応募、返信、納品、RyuさんDM再送は行わない。
+
+- 実装: `skills/earn/gig/scripts/coconala_platform_manifest_runtime.py`にprofile readback builderとprojected live snapshot経路を追加。collector snapshot経路との混同は`authenticated_state`併用時にfail-closedする。
+- 検証済み: Coconala runtime／manifest＋Marketplace Core回帰 `366 passed`、compile、`git diff --check`、`lm-loop-contract` `ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）。
+- provider effect: 今回0件。profile/dashboardの公式read-only evidenceはidentity証明であり、account-bound authorization receipt、funded work、canary、rollback、settlement、収益の証明ではない。
+- 未完: Coconala onboarding/action receipt、完全inventory、実provider adapter factory、公式lifecycle receipt、replay-zero、production apply。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式Human Verification解除後、同じaccountのread-only preflightを2回通し、現行schemaの`contracts.json`を公式readbackから再生成する。自動突破・手編集・応募はしない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readbackを取得し、各runtimeの共通authorization境界へ渡す。profile/dashboard readbackやfixtureはreceiptの代替にしない。
+3. **未完** providerごとの実adapter factoryを、planned→terminalまたはrollback→settled、canary、official receipt、replay-zeroへ接続する。registryのtest adapterやlocal receiptでpromoteしない。
+4. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+6. **未完** production capacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。稼働中browser profileを停止・削除して容量を捏造しない。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力が届いた場合だけ、管理画面・公開ページ・APIを同一値でreadbackし、receiptが取れない送信を完了扱いにしない。
+
 ## 現在の正本cursor（2026-09-30、account-bound authorization decision境界追加後）
 
 `platform_manifest_cycle.py`の共通lifecycle入口を、任意の`authorization_receipt_ref`だけでは通さないようにした。runtime callerは、provider固有の認証store（既存の`provider_authorization.authorize`等）が返した`approved_api`または`approved_browser` decisionを必須で渡し、そのdecisionの64桁receipt hashと`authorization-receipt://sha256/<hash>`が一致した場合だけadapter factoryへ進む。`unknown`、`denied`、`approved_assisted`、期限切れ・不正hash・参照不一致はprovider effect前にfail-closedする。これはローカルfixtureのsettled結果や実provider receiptを作るものではない。
@@ -2940,3 +2959,22 @@ Coconalaの公式`/mypage/user`をread-onlyで確認し、公開profile URLが`h
 5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
 6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
+## 現在の正本cursor（2026-09-30、Coconala profile snapshot hold実装後・最新）
+
+Coconalaの公式profile readback（`https://coconala.com/users/2564121`）を、raw URL・raw account IDを保存せず、profile URL hashと`account_id_sha256=f2fa9de414238160851ec65d2c1129ec5784d3c7e5e8a9acd1015a8ace2d315d`だけを含むlive snapshotへ正規化する`build_live_profile_snapshot`を追加した。profile identityは`authenticated=true`かつ`profile_readback=true`だが、完全inventory・action authorization receiptが無いため`source_complete=false`を固定し、natural wakeはcandidate storeへ`hold`を記録する。`promote`、応募、返信、納品、RyuさんDM再送は行わない。
+
+- 実装: `skills/earn/gig/scripts/coconala_platform_manifest_runtime.py`にprofile readback builderとprojected live snapshot経路を追加。collector snapshot経路との混同は`authenticated_state`併用時にfail-closedする。
+- 検証済み: Coconala runtime／manifest＋Marketplace Core回帰 `366 passed`、compile、`git diff --check`、`lm-loop-contract` `ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）。
+- provider effect: 今回0件。profile/dashboardの公式read-only evidenceはidentity証明であり、account-bound authorization receipt、funded work、canary、rollback、settlement、収益の証明ではない。
+- 未完: Coconala onboarding/action receipt、完全inventory、実provider adapter factory、公式lifecycle receipt、replay-zero、production apply。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式Human Verification解除後、同じaccountのread-only preflightを2回通し、現行schemaの`contracts.json`を公式readbackから再生成する。自動突破・手編集・応募はしない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readbackを取得し、各runtimeの共通authorization境界へ渡す。profile/dashboard readbackやfixtureはreceiptの代替にしない。
+3. **未完** providerごとの実adapter factoryを、planned→terminalまたはrollback→settled、canary、official receipt、replay-zeroへ接続する。registryのtest adapterやlocal receiptでpromoteしない。
+4. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+6. **未完** production capacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。稼働中browser profileを停止・削除して容量を捏造しない。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力が届いた場合だけ、管理画面・公開ページ・APIを同一値でreadbackし、receiptが取れない送信を完了扱いにしない。
