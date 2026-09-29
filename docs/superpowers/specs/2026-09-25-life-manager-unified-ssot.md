@@ -198,6 +198,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
 - 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
 
+**既存商品の正しい仕組み（2026-09-29、コードで確認。新しく作ると書かない）**
+- Writer loop（`skills/writer-agent/SKILL.md`・`article-daily.sh`）: 記事そのものを売って稼ぐ。note は無料試し読み→有料 ¥500、Substack は有料購読（無料には試し読み）、aniccaai.com は preview＋paid 分割。Zenn・dev.to は全文無料の集客面。出版社・企業の有料依頼も対象。読者が実際に払った額で次のテーマを選ぶ。他商品へのリンクは追加の役割。
+- Ebook（`~/anicca-monk-factory/MASTER_PLAN.md`・`skills/earn/marketing-engine/registry/products/ebook-*.json`）: 「The Anicca Reset」（EN $10.99 aniccaai.com/monk、JA 版あり）を自社 checkout（Stripe prod_UQ2LTH66Rwict4 / prod_UQ2LrpVy4b1bAY）で販売中。Amazon KDP は `direct_live_kdp_unavailable`（KDP 認証なし）→ Ebook の TODO は KDP 接続。集客は monk factory（monk アバター動画を多数アカウント・多言語で配信、EN は HeyGen、watercolor/yangmun monk 等）。原則「配信チャネルは大量生産、商品は 4 つ（ebook・newsletter /letter /tegami・web app・iOS app）に固定」。
+
 **最後までの全体の順序（Dais 2026-09-29 確認。この版が正本）**
 ① 商品で稼ぐ（Capafy → モバイルアプリ → Writer → PromptBase → Ebooks → affiliate）→ ② 14 loop を全部 green（土台: ディスク・release 反映・fence・admission）→ ③ **meta loop**（Life Manager が自分で新しい loop を作る: 新しい platform / 商品の規約と net value を判定 → 共通 runtime 上に薄い adapter を作る → 公式 effect を canary → 通ったものだけ promote。専用の scheduler / queue は作らない。正本: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md` の TODO #10、関連: `skills/earn/gig/TODO.md` の Coconala-to-meta-loop、`skills/earn/marketing-engine/README.md` の manifest 型 marketing loop）→ ④ 自己修復（T5）→ ⑤ 自己改善（T12。meta loop が作った loop も同じ評価器・canary・rollback で改善する）→ ⑥ loop 別の利益（T8）→ ⑦ Cloud・自己資金化（10-1・11-1・13-1・14-1）→ ⑧ 検証済み月 $10k MRR → YC W27 → AGI/UBI 研究。
 - 目標（Dais）: 全カテゴリで software factory（新商品の出荷 + 既存の改善）と共有マーケティングを回し、カテゴリごと月 $10k 以上、全体 $10M 以上。
