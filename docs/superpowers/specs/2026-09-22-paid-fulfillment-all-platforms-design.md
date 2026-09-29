@@ -6313,3 +6313,16 @@ retried or resent.
   terms, and only then run a no-effect canary and register the shared Paid
   lifecycle. No proposal, message, acceptance, delivery, or payment action
   is performed from the stale snapshots.
+
+### CrowdWorks Application official-history probe — 2026-09-30 08:52 JST
+
+- [x] The read-only `reconcile_application_no_submit.py` probe checked six
+  current `crowdworks-revenue-application` fences and returned exit 75 with
+  `provider_browser_busy` for all six. The existing CrowdWorks browser is
+  alive on CDP `9228` and is owned by the old `crowdworks-revenue-browser`;
+  the Paid owner currently holds the provider lock. No proposal list/detail
+  readback completed, and no admission row or provider state changed.
+- [ ] CrowdWorks Application remains unresolved. Retry only after the
+  provider lock is naturally free; then obtain occurrence-window proposal
+  history before any `--resolve` operation. Do not force-close the browser or
+  release any fence from this busy result.
