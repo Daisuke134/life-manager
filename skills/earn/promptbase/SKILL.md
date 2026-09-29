@@ -65,18 +65,18 @@ SKILL.md pasted as the buyer-hidden "prompt template", and a
 ## Running it (lease wrapper only — never a hardcoded port)
 
 ```bash
-ENDPOINT=$(/Users/anicca/.config/ai/bin/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
 python3 skills/earn/promptbase/scripts/publish.py \
   --catalog-dir skills/capafy/catalog/<slug> \
   --endpoint "$ENDPOINT"          # dry run: fills the wizard, stops before submit
   # add --confirm to actually submit once the dry-run screenshot looks right
-/Users/anicca/.config/ai/bin/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release interactive:dais
 ```
 
 ```bash
-ENDPOINT=$(/Users/anicca/.config/ai/bin/browser-guard.sh acquire interactive:dais) || exit 1
+ENDPOINT=$(skills/browser/browser-guard.sh acquire interactive:dais) || exit 1
 python3 skills/earn/promptbase/scripts/readback.py --endpoint "$ENDPOINT"
-/Users/anicca/.config/ai/bin/browser-guard.sh release interactive:dais
+skills/browser/browser-guard.sh release interactive:dais
 ```
 
 ## The PromptBase `/sell` wizard, as-observed (2026-09-28)

@@ -4,16 +4,18 @@ import errno
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 from skills._shared.lib.launchd_preflight import probe
 
 
 def runner_for(overrides=None):
     overrides = overrides or {}
+    directory_services_path = str(Path.home().parent / "anicca")
     defaults = {
         ("/usr/bin/id", "-u"): (0, "501\n", ""),
         ("/usr/bin/id", "-un"): (0, "anicca\n", ""),
-        ("/usr/bin/dscl", ".", "-read", "/Users/anicca", "UniqueID"): (0, "UniqueID: 501\n", ""),
+        ("/usr/bin/dscl", ".", "-read", directory_services_path, "UniqueID"): (0, "UniqueID: 501\n", ""),
         ("/bin/launchctl", "managername"): (0, "Aqua\n", ""),
         ("/bin/launchctl", "manageruid"): (0, "501\n", ""),
         ("/bin/launchctl", "managerpid"): (0, "1\n", ""),
@@ -49,7 +51,7 @@ def test_rejects_numeric_username_before_directory_services_lookup():
 
 
 def test_rejects_directory_services_failure():
-    command = ("/usr/bin/dscl", ".", "-read", "/Users/anicca", "UniqueID")
+    command = ("/usr/bin/dscl", ".", "-read", str(Path.home().parent / "anicca"), "UniqueID")
     result = probe(runner_for({command: (1, "", "eServerError")}))
     assert result["mutation_allowed"] is False
     assert "directory_services_unresolved" in result["errors"]

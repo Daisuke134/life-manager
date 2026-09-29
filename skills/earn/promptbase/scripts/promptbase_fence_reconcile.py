@@ -74,7 +74,9 @@ SNAPSHOT_DIR = Path(
     "~/.local/state/life-manager/state/promptbase-loop-daily-snapshots"
 ).expanduser()
 EVIDENCE_DIR = Path("~/.local/state/life-manager/reconciliation/evidence").expanduser()
-BROWSER_GUARD = Path("/Users/anicca/.config/ai/bin/browser-guard.sh")
+BROWSER_GUARD = Path(
+    os.environ.get("AI_BROWSER_GUARD", str(REPO_ROOT / "skills/browser/browser-guard.sh"))
+)
 BROWSER_IDENTITY = "interactive:dais"
 
 

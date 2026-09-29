@@ -594,7 +594,7 @@ Coconala Apply/Storefront remain unloaded with their open natural-wake gate.
 
 Mercor was then reconciled safely: the exact occurrence
 `mercor-revenue-paid:18d82d9cd75db960-67523` has the provider-owned marker
-`/Users/anicca/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
+`~/.local/state/anicca/job-search/mercor/shared-paid/runs/e9c7a5f5368845ac77a206830713db59fe13457b5701bbe026ea07fb71e1feb4.json`
 with `version=1`, `status=completed`, and `effect=0`. The supported resolver
 returned `verified=true/resolved=true`; the admission readback changed only
 that row from `claimed/effect_unknown=1` to `released/effect_unknown=0`. No
@@ -648,7 +648,7 @@ the saved official readback for request `5289988` matched it exactly
 occurrence was separately resolved by the runtime's strict pre-effect proof:
 the same run contains only host-admission `execute/running` plus
 `report/blocked`, with no `lm-effect://` evidence. Its receipt is
-`/Users/anicca/.local/state/life-manager/coconala/storefront/reconciliation/pre-effect-18d5fe8333276980-33952.json`.
+`~/.local/state/life-manager/coconala/storefront/reconciliation/pre-effect-18d5fe8333276980-33952.json`.
 The exact critical owners now have **zero** unknown rows for Coconala and one
 remaining claimed/effect-unknown row each for CrowdWorks, Lancers, and Mercor.
 No provider send, retry, or manual client resend was issued by these resolvers.
@@ -728,13 +728,13 @@ plus an exact provider receipt/readback wins; a stale status event never
 authorizes a retry or a blanket release.
 
 The Apply exception is recorded at
-`/Users/anicca/gig/apply-direct/gig-apply-direct-1790271122849734000-95320/refresh-evidence/confirmed-occurrence-reconcile-result.json`.
+`~/gig/apply-direct/gig-apply-direct-1790271122849734000-95320/refresh-evidence/confirmed-occurrence-reconcile-result.json`.
 Its exact receipt is
 `https://coconala.com/mypage/job_matching/applied/offers#request-5289988`.
 The resolver changed only `hf-gig-apply-direct:18d852199baadb90-95298` to
 `released/effect_unknown=0`; it did not touch the provider or any other row.
 The Storefront pre-effect exception is recorded at
-`/Users/anicca/.local/state/life-manager/coconala/storefront/reconciliation/pre-effect-18d5fe8333276980-33952.json`;
+`~/.local/state/life-manager/coconala/storefront/reconciliation/pre-effect-18d5fe8333276980-33952.json`;
 it proves no provider effect was started and changed only that exact admission
 fence to `released/effect_unknown=0`.
 
@@ -820,7 +820,7 @@ remain unresolved provider fences; disk recovery does not clear them.
   occurrence is `entrypoint_exit_143/effect_unknown` without a provider receipt;
   no retry or fence release was performed.
 - [x] A full immutable candidate release was cut at
-  `/Users/anicca/loops/releases/20260925T040819-c755377c` from pushed commit
+  `~/loops/releases/20260925T040819-c755377c` from pushed commit
   `c755377c9fd0fbb0d3dd5e11b232c33ba7a9c014`; its manifest says
   `provenance=pushed-not-yet-on-main`, its files are immutable, and the
   heartbeat fix is present.
