@@ -1479,3 +1479,11 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **PR `#6259` workflow終端readback（2026-09-30 01:16 JST）**: Security Scanは`conclusion=failure`で終了したが、投資関連のAgent instruction、Loop control、Python syntax + unittest、shell、PII、secret scanは全てPASS。唯一のFAILは`OSS self-contained boundary`で、GitHub logにも`manifest_inventory_mismatch	skills/capafy-autopublish`、exit code `1`と記録されている。PRは`OPEN / UNSTABLE`のままなのでmain merge・immutable release・production applyはしない。投資sourceの次のAtomic Todoは変わらず`AT-13`であり、実現収益は`$0/月`である。
 
 **AT-13 release/session診断（2026-09-30 01:17 JST）**: `allocation-latest.json`と最新decisionの`release_sha=5d8a135b…`は、`selected-strategy.json`に保存されたstrategy-cardのevidence SHAであり、loaded runtime SHAのreadbackではない。event側の`b26ab310…`およびcurrent symlinkの`3975ae89…`との違いは、今回の`decision_session_consumed`原因ではない。strategyの`signal_inputs.latest_session=2026-09-28`、entry positionの`decision_session=2026-09-28`で、次のcompleted daily session（市場close後の`2026-09-29`）がまだ確定していないため、同一sessionの再判定を正常に抑止している。`AT-13`は未完のまま、手動wake/sell/replayはしない。
+
+**AT-13最新natural readback（2026-09-30 01:22 JST）**:
+
+- `/Users/anicca/loops/current`はrelease `3975ae8996cab3325f514746a32c915f9935fddf`を指している。`alpaca-investment-paper`は同SHAで自然起動し、occurrence `18d9d71b4671a6a8-57951`が`2026-09-29T16:21:06Z`に`exit_code=0`／`status=pass`／`next_action=none`で終わった。
+- 直前のoccurrence `18d9d713bf7f1510-56869`は`host_admission_deferred:resource_capacity_busy`（exit `75`）だったが、provider effect前にdeferされ、`provider_receipt_id=null`、`official_readback_ref=null`、`effect_identity_status=not_written`である。新規注文・約定・資金移動はない。
+- 最新decision receipt `e47add26158383bb6202f3afec23b10e2ec0d9efff43f4185841ccd511ff91b9`（`2026-09-29T16:20:56Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit orderは生成されていない。これはAT-13のexit条件を満たさない。
+- 最新Alpaca公式paper observation（`2026-09-29T16:20:55Z`）は`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`、cash `$99,986.77`、equity `$99,996.71`、QQQ long `qty=0.013493253`、unrealized P&L `-$0.047631`である。paper含み損益は実現投資収益ではない。
+- `AT-13`は未完、cursorは変わらない。次に記録すべきものは、市場close後の新しいcompleted daily sessionから出るstrategy exit decision receipt 1件だけである。手動wake、手動sell、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。検証済み実現投資収益は`$0/月`のままである。
