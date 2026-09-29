@@ -748,7 +748,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] v706の公式readback: `delivery/current-cycle-v706-concept-restore-readback.json`（FTPS）と `delivery/current-cycle-v706-concept-browser-readback.json`（CloakBrowser/CDP）。公開ページは6枚の順序・label・原本画像一致、3秒後に2枚目へ遷移、管理画面は6枚のpreview・6個の復元ボタン・cache bustを確認済み。
 - [x] v706を共通client-artifact restore契約へ写像し、validatorの結果は `errors=[]`。manifestのhash、6枚のlabel/path/hash、animation hash、管理画面6操作、公式readback ID、replay-zeroを固定した。
 - [x] 2026-09-29にCoconala公式DM `10107358` をCDPで再読し、Ryuの最後の「よろしくお願いします」（9/29 13:37）に、こちらの13:44返信が付いていることを確認した。その後、購入者から新しい指摘が来たため、この時点の「未返信なし」は現在の状態を表さない。
-- [~] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）を実装し、旧URLへ正規化する回帰テストを追加した。残りは本番immutable releaseへ反映後、同じ公式DMの受信・返信・重複guardをライブreadbackしてdurable JSONへ保存すること。
+- [~] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）と返信入力（`textarea.message-input`）を実装し、旧URLへ正規化する回帰テストを追加した（commit `aa9446817c`、focused suite `197 passed`）。残りは本番immutable releaseへ反映後、同じ公式DMの受信・返信・重複guardをライブreadbackしてdurable JSONへ保存すること。
 - [x] すべてのサイト修正をv706へまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得した。
 - [x] v706の修正内容・管理画面リンク・公開リンクを含む完成報告をDMへ一度だけ送信した。POST HTTP 200、送信後の公式DM本文readback、重複ガード、正式納品ボタン非押下を `delivery/current-cycle-v706-dm-readback.json` に保存した。これは下記の新指摘を含まないため、現時点の最終納品とは扱わない。重複送信は禁止。
 
@@ -765,6 +765,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] v711の公式HTTPS browser readbackで、公開title・cache bust・空相互リンクの非表示、在籍12名・出勤・ランキング・プロフィール画像、管理画面の12×1メイン＋12×5写真入力、相互リンク追加／保存、WEB予約文言編集を確認した。readback: `delivery/current-cycle-v709-browser-readback.json`。正式納品・DM送信は実行していない。
 - [x] v711の同値在籍保存round-tripを実行し、管理画面の保存handler、content API公式readback、プロフィール全体の値・キー形状一致、相互リンク不変、正式納品操作なしを確認した。readback: `delivery/current-cycle-v709-profile-roundtrip.json`。
 - [x] v711の全項目公式HTTPS readbackを実行し、認証済み管理画面11項目、公開12ルートのデスクトップ／モバイル、content API、空相互リンクの非表示を確認した。readback: `delivery/current-cycle-v711-full-browser-readback.json`。
+- [x] 現行CoconalaスマホDMの返信入力を旧`#DirectMessageBody`だけでなく、厳格な`textarea.message-input`にも対応した。複数候補・想定外要素は送信せず、`unexpected_message_input_count`／`unexpected_message_input`として証跡化する。productionへの反映と公式送信readbackは未完了。
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
 - [x] 直近の公式DM再確認でも、取得できた最新5件は9/29 14:33〜14:41で変化なし。最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。その後の再試行はCoconala側の403で終わったため、14:41より後の受信が無いとは断定しない。
 
