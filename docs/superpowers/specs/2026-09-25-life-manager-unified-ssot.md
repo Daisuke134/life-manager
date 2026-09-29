@@ -1849,3 +1849,46 @@ job IDs 0）、`git diff --check`もPASS。branch
 - これはsource acceptanceの証拠であり、production loaded SHA、provider receipt、official
   readback、納品・成約・payout・収益の証拠ではない。production `current/RELEASE.json` は
   `b26ab310a2083edd1bdfb477da40d9a670251a42`のまま、`bsk browsers --json`は`[]`である。
+
+### 最新Meta Loop candidate state readback — 2026-09-30
+
+- `fix/source-reconcile-20260930` の `38cfc00f31` で、Meta Loopの候補評価だけを保存する
+  `skills/_shared/marketplace-core/scripts/platform_candidate_store.py` とテストを追加した。
+  これは発見、owner登録、応募、返信、納品、決済、ブラウザ操作を実行しない。
+- 保存レコードは `schema_version`、provider、candidate_id、観測時刻、HTTPSのsource URL、
+  snapshot SHA-256、`hold|promote`判定、5つのgate結果、reasons、evidence refs、next action、
+  deterministic idempotency keyだけを許可する。未知フィールド、秘密情報相当の自由形式、
+  不正識別子、非HTTPS、壊れたJSONL、途中で切れた末尾、0700でない保存先はfail-closedにする。
+- 保存は専用0700ディレクトリの0600 lock/state fileをfcntl lock、append、fsync、親directory fsync
+  で行う。同じ `provider/candidate_id/snapshot_sha256` の同一内容はduplicateとして一行のまま、
+  同じ冪等キーの異なる内容は `candidate_idempotency_conflict` で停止する。
+- 検証はcandidate store 8件、store＋enrollment 13件、Marketplace Core全体304件、
+  `./bin/lm-loop-contract`（`ok=true`、catalog 14、registry 176、mapped 102、shared job IDs 0）、
+  compile、`git diff --check`をPASSした。リポジトリ全体の `python3 -m pytest -q` は、既存の
+  `skills/_shared/__tests__/test_ytdlp_parse.py` がcollection時に `SystemExit(0)`するためpytest内部エラー
+  で完走しない。これは今回のcandidate storeが原因ではない。
+- productionは引き続き `current/RELEASE.json=b26ab310a2083edd1bdfb477da40d9a670251a42`、
+  `bsk browsers --json=[]`であり、main統合、immutable release、provider receipt、official
+  readback、RyuさんDMの公式readback、実収益をこの変更は証明しない。
+
+### 原子TODO（Meta Loop候補ストア完了後の正本）
+
+1. **完了** Meta Loop候補評価のdurable state。入力検証、冪等重複、衝突、破損末尾、権限境界の
+   focused testとsource pushが完了した。まだschedulerや外部作用とは接続しない。
+2. **未完** `fix/source-reconcile-20260930` をmainへ受入し、main由来immutable releaseを作る。
+   完了条件は統合後focused/full tests、contract、diff check、current SHA、plist argv/env、
+   identity lease、rollback receiptの公式readback一致。productionへは未反映。
+3. **未完** RyuさんDMを認証済みCoconala browserでread-only確認する。provider receipt/readback
+   または403再現証拠を保存する。送信1回、正式納品0回、再送0回を維持する。
+4. **未完** Coconala、Lancers、CrowdWorks、Mercorの全occurrenceを自然terminalまで待ち、
+   provider receipt＋official readback、または厳密なheld理由を閉じる。receiptなしの再送・effect
+   fence解放はしない。
+5. **未完** capacity自己修復をmain由来releaseへ反映し、production自然runでterminal event失敗0、
+   protected deletion 0、global stop 0を確認する。
+6. **未完** Freelancer/Upworkはapproved terms、専用identity auth、source-complete inventory、
+   funded contract/milestone、mutation authorization、payout readbackが全て揃ったplatformだけ
+   owner登録・応募・返信・納品を有効化する。
+7. **未完** Meta Loopのscheduler/discoveryが候補を上記storeへ記録し、policy/adapter/funded gate、
+   isolated canary（official receipt・readback・replay-zero）、owner provisioning、rollback、
+   settlement、quality/P&L feedbackをshared kernelへ接続する。positive net P&Lが確認できない候補は
+   `hold`のままとし、稼働表示やローカルテストだけでpromoteしない。
