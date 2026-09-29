@@ -2639,6 +2639,26 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
 
+## 現在の正本cursor（2026-09-30、Meta Loop lifecycle fence実装後）
+
+この節が直前のcursorを上書きする。候補discover／gate／durable wakeの後段に、provider-neutralなpromotion lifecycle境界を追加した。実装は`skills/_shared/marketplace-core/scripts/meta_loop_lifecycle.py`、回帰は`skills/_shared/marketplace-core/tests/test_meta_loop_lifecycle.py`である。
+
+- `promote`かつpolicy／adapter／funded_work／canary／unit_economicsの全gateが`pass`の候補だけがowner処理へ進む。hold候補やgate欠落はprovider callbackを呼ばず、`held`と次アクションを保存する。
+- provider effectの前にprivate append-only `planned` fenceを書き、owner provisioning後はprovider receiptを検証する。plannedがterminal receiptなしで残った再wakeは`reconcile_required`として止まり、ownerを再実行しない。
+- canary/readbackが`verified`かつ`replay_zero=true`でない場合、settlementへ進まずrollbackを試みる。rollback receiptが取れれば`rolled_back`、取れなければowner receiptを保持した`rollback_required`として公式readback→rollbackを次アクションにする。
+- settlementはprovider一致receipt、正のnet amount、ISO 4217 3文字currencyを要求する。完了時はowner／canary／settlement receipt、net、次のquality／payout readbackを同一eventへ保存する。
+- 同じcandidate snapshotはlifecycle keyで冪等化し、terminal後の再wakeは`duplicate`でprovider callbackを再実行しない。provider adapterの実装・認証・外部送信はこの共通層へ注入するだけで、共通層自身はtransportを持たない。
+- 検証済み: lifecycle `9 passed`、既存Coconala/gig `1580 passed`、reply adapter＋shared kernel `68 passed`、`lm-loop-contract ok=true`、compile、`git diff --check`。これはsource/runtimeの証拠であり、実provider owner、資金、production loaded SHA、実収益の証拠ではない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** 各provider adapterをこのlifecycleへ接続し、実アカウントのowner provisioning／canary/readback／rollback／settlement receiptをadapter別に取得する。transportを共通層へ複製しない。
+2. **未完** Freelancer／Upworkはapproved terms、account-bound auth、complete official inventory、funded contract／milestone、mutation authorizationが揃うまでowner callbackを有効化しない。
+3. **未完** 5 platform＋Upwork＋Freelancerのmanifest wakeからpromote候補を選び、lifecycle storeへ接続するread-only→canaryの自然runをplatformごとに行う。receiptなしのpromoteは禁止。
+4. **未完** branch全checksと外部成果証拠をそろえ、main受入→main由来immutable release→targeted production applyを行う。loaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式readback、replay-zeroをoccurrence単位で保存する。
+5. **未完** capacity／ENOSPC修正をproduction自然runで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateを閉じる。`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+6. **未完** Ryuさんは既存DMの再送をせず、相互リンク実URL／表示名／バナー入力が来た場合だけ管理画面・公開ページ・content APIを同一値でreadbackする。新規DMはcomposer・重複guard・送信後永続readback・provider receiptが同時に取れる場合に限り一度だけ行う。
+
 ## 最終正本cursor（2026-09-30、Ryu成果とDM状態を再統合した現在値）
 
 この節が直前までのcursorを上書きする。Ryu案件の既存実装は、v709/v711の認証済み管理画面・公開サイト・API readbackで確認済みである。現在不足しているのは、相互リンクに登録する実URL・表示名・バナー素材だけであり、管理画面機能そのものではない。公開APIの`mutual_links=[]`は、その入力が未提供である結果である。
