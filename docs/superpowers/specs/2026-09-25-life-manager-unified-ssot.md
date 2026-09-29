@@ -2,13 +2,105 @@
 
 > **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
 
-この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
-詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
+## 現在の実測カーソル — 2026-09-29 10:28 JST（Paid / Reply・Negotiation / Meta-loop）
 
-- Foundation/全体: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`（Whole-ship handover / AGI addendum / Whole-ship remaining TODO）
-- Paid: `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md` + `skills/earn/gig/TODO.md`（Canonical As-Is / To-Be snapshot）
+### 判定
 
-所有: Claude が Foundation・Paid 両方の唯一の開発owner（2026-09-25 Dais指示）。旧2つのCodexセッションの保護境界は解除。Life Manager 自身のloopは引き続き本番stateのownerであり、Ryu room `18211957` への再送禁止と正式納品ボタン非押下は維持する。
+**ソースのmergeは完了しているが、Gig全体の本番完了は未達。** `origin/main` は
+`5a71af45c1`（#6149）で、Paid hardening `5a28bfb762` と統合SSOT化
+`4af0ddacf8` を含む（`merge-base --is-ancestor` PASS）。一方、稼働側の
+`/Users/anicca/gig/releases/life-manager/current` は `bf2756…` を指し、
+install state は存在しない `d150e4…` を `repo_root` として記録している。
+従って、**mainのmergeを全labelのproduction apply/readback済みとは扱わない**。
+全labelの `loaded_release_sha = origin/main由来immutable release`、次回自然run
+PASS、replay-zero のreadbackが揃うまで未完了である。
+
+### Coconalaの顧客状態（ローカルstate。公式live roomの代替ではない）
+
+| room / buyer | 実測状態 | 判定 |
+|---|---|---|
+| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** 認証済みCoconala CDP targetが現在0件なので、先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
+| Chii `18180857` | `WORK_REQUIRED`、`取引中`、v8、`formal_delivery_confirmed=false`。active feedback `0eb850e0…070edb9`、buyer-visible artifactはローカル上 `false`、直近skipは `pass_order_limit_reached`。queueが同一cycleを繰り返し選択している。 | **緊急のPaid手動reconcile対象。** 成果物生成だけでなく、購入者画面で見えるartifact、公式receipt/readback、必要なら一度だけformal deliveryを確認してから閉じる。 |
+| NPO rooms `18223833` / `18250352` | `取引中`、v16b/v15、next_action=`await_buyer_feedback`。既存artifact/readbackはあるが、active cycleはローカルstate上残る。 | 返信待ちとして保持。新規buyer指示の公式readbackが出た時だけ次のcycleへ進む。 |
+
+### PaidとReply・Negotiationは「同じ仕事」ではない
+
+両者は同じ案件funnelを共有するが、外部effectの所有者は分ける。
+
+`opportunity → application → buyer reply/negotiation → official funded contract /
+milestone → artifact/demo → buyer-visible submission → formal delivery →
+acceptance/payment`
+
+- **Reply/Negotiation owner**: 契約前の質問、範囲・価格・納期の交渉、次の
+  handoffを管理する。funded contractが無い段階で、納品済みと誤表示したり、
+  Paidの正式納品effectを実行しない。
+- **Paid owner**: funded contract/milestoneを確認した後に制作・demo/artifactを
+  作り、購入者画面で見える状態にし、provider receipt/readbackを取得し、正式納品・
+  acceptance・payoutまで閉じる。ローカル生成PASSや「reply済み」だけでは完了にしない。
+- 共通化するのは `occurrence_id / effect fence / provider receipt / readback /
+  replay-zero` の契約だけ。送信transportと所有権は共有しない。
+
+現在のreply readback (`coconala/reply/latest.json`) は actionable=20、effect=0、
+failed=0、readback=170で、`reconcile_unknown`・`retry_backoff`・
+`provider_sending_unavailable` のpendingが残る。したがって「reply loopは正常、
+demoも自動納品済み」とは言えない。Coconala PaidのeventsもPASSだけでなく
+`host_admission_deferred` と `entrypoint_exit_1` が継続しており、案件単位の
+buyer-visible/readbackを別途閉じる必要がある。
+
+### Meta-loop（自己拡張）の位置づけ
+
+Meta-loopは、既存loopの不具合を隠すための新しいschedulerではない。まず現行loopを
+`healthy` または型付きfenceにし、Paid/Replyのfunnelを測れる状態にする。その上で
+Life Manager自身が、(1) provider規約・account-bound auth・net valueを判定、
+(2)共通runtime用の薄いadapterを生成、(3) effect-free canary、(4)公式effectと
+readback、(5) crash recovery/replay-zero、(6) evaluatorでpromote/rollbackを
+行う。新loopの自己登録、無制限のproposal、funded contract無しの納品は許可しない。
+Meta-loopの品質指標は `application→reply→funded→demo→buyer-visible→accepted→
+paid` の各転換率、失注理由（demo未提出、handoff欠落、unsupported claim、
+provider/auth/fence failure）、settled revenue−costである。
+
+### このtrackの残りTODO（実行順）
+
+1. **本番release境界を修復**: `origin/main=5a71af45c1` からimmutable releaseを
+   1つ切り、Paid/Reply/Negotiationを含む全labelへapplyし、loaded SHA・自然run・
+   official readback・replay-zeroを記録する。欠落している`d150e4…`参照を放置しない。
+2. **Coconalaの認証済みCDPを復旧**: 既存CloakBrowser/CDPだけを使い、Ryu roomを
+   read-onlyで再取得する。active hashが本当に新規なら、全指示を一つに統合して
+   1回だけ手動処理し、official seller receiptを保存する。新規でなければ送信しない。
+3. **ChiiをPaid ownerで閉じる**: v8のactive feedbackを入力に、実作業→demo/artifact
+   →buyer-visible画面→provider receipt/readback→必要なformal delivery→acceptance
+   の順で一回だけ進める。`pass_order_limit_reached`で再選択だけを繰り返さない。
+4. **Paidのskip/fence修正**: actionable cycleをorder limitで捨てず、
+   `effect_unknown`はoccurrence単位で診断し、再送前に公式receipt/no-effect proofを
+   取得する。`entrypoint_exit_1`・capacity/heartbeat failureの失敗境界を一つずつ
+   回帰テスト化する。
+5. **Reply/Negotiation→Paid handoffを実装・検証**: provider、thread、contract /
+   milestone、price/scope、artifact要求を同じ durable recordで結び、funded receipt
+   が出た時だけPaidへ一度だけ移す。返信は質問・交渉まで、demo納品はPaid ownerだけ。
+6. **Ryuの追加料金交渉を正しく扱う**: buyerの「追加作業・追加金額」はNegotiation
+   として範囲・価格・納期を確認し、公式にfunded contract/milestoneが成立するまで
+   制作・納品effectを出さない。成立後は新しいcontract_idの別occurrenceとしてPaidへ。
+7. **CloudWorks/CrowdWorksとLancersを再検証**: application/reply/negotiate/paidの
+   各occurrenceをprovider receiptで閉じ、Lancersはfresh funded inventoryが出るまで
+   Paidを開けない。既存の`entrypoint_exit_75/143`やeffect_unknownを一括retryしない。
+8. **Freelancer/Upwork/Mercorを個別gate**: account-bound auth→source-complete
+   inventory→funded contract/milestone→mutation/policy receipt→one owner→canaryの
+   順で進める。空inventoryのままloopを登録しない。
+9. **Meta-loopの最小実装**: funnel ledger・失注分類・bounded patch/fixture・focused
+   test・canary/readback・rollbackを共通runtimeに追加し、最初は既存Paid/Replyの
+   demo未提出を検出するread-only evaluatorで検証する。Capafy/Investmentの作業treeは
+   触らず、統合後に同じ契約を適用する。
+10. **収益の実証**: platform別のaccepted/delivered/payout receiptをCFO ledgerへ
+    joinし、settled revenue−measured costを出す。現時点で「数百万を稼いでいる」とは
+    言わず、証拠が揃った金額だけを報告する。
+
+この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口であり、
+As-Is、To-Be、実行順、現在cursor、残TODOの正本である。下記の旧specと
+`skills/earn/gig/TODO.md` は実装詳細・過去の証跡を読むための参照であり、状態やTODOを
+二重管理しない。CapafyとInvestmentの作業treeは別ownerの境界として保持する。
+
+Life Manager自身のloopは本番stateのownerであり、Ryu room `18211957` への確認前の再送禁止と
+正式納品ボタン非押下を維持する。
 
 ## 0. 原則: No human in loop
 
@@ -18,7 +110,7 @@ Life Manager はアシスタントではなくマネージャー。Grok bot、Mu
 - 判断は model が提案し、決定的な policy（金額、契約条件の一致、上限、重複防止、rollback）が確定させる。
 - 外部の coding agent（Claude Code、Codex のセッション）も同じく「人」の側。Life Manager が自分で直せるようになること（§5.1）が目標。
 
-## 1. 観測事実（2026-09-25 JST 実測）
+## 1. 参照用の過去観測（2026-09-25 JST 実測。現在cursorは冒頭が優先）
 
 | 項目 | 値 | 出所 |
 |---|---|---|
@@ -102,11 +194,12 @@ flowchart LR
 - **Dais の手間:** 最初の bootstrap と、法的に必要な KYC/OAuth/CAPTCHA だけにする。
 - **経済目標:** 検証済み net MRR USD 10K → 自己資金化 → YC W27 用の証拠 → AGI/UBI 研究。証拠なしに達成を主張しない。
 
-## 5. TODO（実行順・正本）
+## 5. 過去TODOの証跡（2026-09-25〜09-28。実行順・状態は冒頭の現在cursorが優先）
 
 順序変更の記録: 旧順序（Foundation spec:7092-7137）では、収益の帰属（旧9）が capsule（旧6）・cloud（旧7）・LM-EAB（旧8）の後だった。新順序では、ループごとの利益計測（新8）を capsule/cloud/LM-EAB より前に置く。理由は、利益が見えないと、どのループに資源を寄せるか・何を改善するかを判断できないため。Paid cursor は旧5の中身を新7として独立させた。
 
-現在の cursor: **7-0（Lancers 5605912、Dais の承諾待ち）と 5-11 / 5-12 を並行**
+旧cursor: **7-0（Lancers 5605912、Dais の承諾待ち）と 5-11 / 5-12 を並行**。これは履歴であり、
+現在のPaid/Reply/Negotiation cursorは冒頭の「このtrackの残りTODO」に従う。
 
 T5 の途中経過（2026-09-25 19:00 JST）:
 - 観測1: `life-manager-recovery-supervisor` は release 287d で毎 wake exit 1 になっていた。原因は、旧 release の intent を正しく `blocked: release_sha_mismatch` にした結果まで失敗として数えていたこと。#5879 で、この理由の blocked は exit 0 にした。他の理由の blocked は今までどおり exit 1。
