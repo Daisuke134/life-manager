@@ -5,6 +5,16 @@ description: Develop, fix, deploy, migrate, or retire macOS Life Manager loops w
 
 # Life Manager Loop Development
 
+## ★ Baked-in operating facts (Dais 2026-09-29 — read before any Life Manager work) ★
+
+1. **One SSOT.** TODO / order / state live only in `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`. Every other spec and `skills/earn/gig/TODO.md` is reference only. Never create another "SSOT".
+2. **Copy successful people first.** Every decision (price, model, plans, product idea, marketing format, app, investment) starts from what the top sellers on that platform do, never from our own listings or failures. Capafy market data: `POST /agent/agents/search` with JSON body `{"query":..,"page":1,"pageSize":30}` (1,025-agent sweep in `~/.local/state/life-manager/state/capafy-market-agents-*.json`). Keep this data refreshed continuously.
+3. **Charge more, spend less.** Default hosted model = cheap (DeepSeek V4.1 Flash). Price at the successful sellers' band (weekly $9.99-19.99, monthly $19.99-29.99, always a yearly plan). No product may lose money per order.
+4. **We are logged in forever. Never log in again.** Browser-to-platform mapping: `~/.config/ai/registry/browsers.toml` (lease with `skills/browser/browser-guard.sh acquire <identity>`). Logins are banked in `~/.cloak/vault/<profile>/auth-state.json` via `skills/browser/scripts/session_vault.py` (`SESSION_VAULT_PORT`, `SESSION_VAULT_DIR`). Read the mapping first. Capafy seller console = identity `coconala:kosuke` (gig-daily-driver). Never touch Dais's Chrome (`interactive:dais`).
+5. **Life Manager agents and Claude/Codex are browser-using agents.** If the UI can fix it now (e.g. stop a money leak), look at the real screen and act; do not over-engineer a pipeline for a 2-second fix.
+6. **Read the existing loop before describing it.** Writer earns by selling articles (note paywall, Substack paid, aniccaai.com preview+paid); Ebook = monk factory to "The Anicca Reset" via Stripe (Amazon KDP not yet connected); Capafy, apps, PromptBase already exist. Check `skills/<loop>/SKILL.md` and `skills/earn/marketing-engine/registry/products/*.json` first.
+7. **Reply to Dais in Japanese only.**
+
 Life Manager has one code source: GitHub `main`; one lifecycle registry:
 `config/loop-registry.json`; and one operator interface: `bin/lm-loop`. A loop
 owns business effects, not its plist, release selector, provider route, sibling
