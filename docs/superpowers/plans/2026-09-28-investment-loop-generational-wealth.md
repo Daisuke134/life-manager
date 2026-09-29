@@ -874,3 +874,5 @@ The entries above are historical readbacks. This section is the current source o
 5. strategy validation/cross-venueのoccurrence receiptを揃え、全cost込みnet P&Lを確定する。
 6. replay-zeroのpositive natural round tripを`30/30`測定するまで、cap増額・Binance送金・live・meme coin・yield depositを行わない。
 7. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。
+
+**main/release readback（2026-09-29 10:59 UTC）**: PR `#6214`をmerge commit `47ddce0eb7`でmainへ統合し、immutable release `20260929T195223-47ddce0e`を`current`へ切り替えた。live/paperは新SHAでnatural `pass`だがprovider receiptは無く、cross-venue/strategy-validationは旧SHAのためfleet apply完了待ち。次は残り2 ownerのloaded SHA/readback → fence公式readback → paper terminal readback → cost-complete P&L → `30/30`の順で進める。
