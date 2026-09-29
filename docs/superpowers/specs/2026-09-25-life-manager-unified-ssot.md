@@ -1271,3 +1271,18 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **既存QQQの公式terminal readback（2026-09-29 13:31 UTC）**: 再送・取消・手動wakeをせず、既存client order `lm-ai-d3935170807d46a7a5cde38e`をAlpaca paper APIのGETで照会した。broker order `24cc2687-f718-4019-83f1-b5928c47525c`は`QQQ` buy market/day、`status=filled`、`filled_qty=0.013493253`、`filled_avg_price=740.37`、submitted `2026-09-29T13:23:01.264042Z`である。公式accountはcash `$99,986.77`、equity `$99,996.75`、positionsはQQQ long `0.013493253`、market value `$9.984872`、unrealized P&L `-$0.005128`、clockはmarket openだった。これはpaperのentry fillを証明する公式readbackであり、real money・real revenue・完了round tripではない。owner event側の`provider_receipt_id`/`official_readback_ref`は未結合のため、同一orderの自然exitと公式terminal readbackが揃うまでP&L・利益・promotionには数えない。次は手動sellをせず、strategyが自然に生成するexitのterminal status・fill・account・positionをreadbackする。
 
 **cursor更新**: QQQのentry terminal readbackは完了したが、entry→exitのround tripは未完了である。TODO 3は「既存QQQのentry確認」から「同一positionの自然exitと公式readback」へ進んだ。残りは、(1)自動fleet applyのcurrent SHA統一、(2)自然fence/cross-venueの公式receipt、(3)QQQ自然exit、(4)live自然retryのprovider証拠、(5)strategy/cross-venue証拠結合、(6)全コスト込みP&L、(7)`30/30`、(8)追加venue段階評価の順である。
+
+**QQQ filled後の自所有bug readback（2026-09-29 13:32 UTC）**: 自然paper wakeは既存client order `lm-ai-d3935170807d46a7a5cde38e`について、Alpaca公式broker receipt `24cc2687-f718-4019-83f1-b5928c47525c`、`status=filled`、`filled_qty=0.013493253`、`filled_avg_price=740.37`を`broker_reconciled` outcomeへ記録した。これは同一注文の再送ではない。ただし`strategy_receipt`と`etf-owned-position.json`が作られなかった。原因は`skills/alpaca-investment/effect_store.py`の`mark_started`/`_pending_status`が最新の`effect_intent`行を作る際に`order`、`owner_id`、`strategy_id`、`decision_session`、`source_receipt_ids`を落とし、`run.py`のETF callbackが`intent.order.asset_class`を確認できずreturnしたことにある。これはCapafyや他agentの失敗ではなく、投資sourceの自所有bugである。
+
+**QQQ pending identity修正（2026-09-29）**: 回帰テストを先にRED（callbackの`order`欠落）で確認し、`mark_started`と`_pending_status`がplanned/intentの注文・strategy identityを保持する最小修正を実装した。`test_etf_execution.py`は`21/21` PASS、`skills/alpaca-investment/test_*.py`は全ファイル終了コード0、`git diff --check` PASS。修正commitは`e7fdc9e051`、PRは`#6236`で、現在productionには未反映。PRの`OSS self-contained boundary`は投資差分外の既存Capafy等パスでFAILしており、投資sourceのテスト失敗ではない。main統合・immutable release・自然再concileが完了するまで、このQQQ entryをstrategy/P&Lへ結合済みとは扱わない。
+
+**残TODOの実行カーソル更新（現在の正しい順序）**:
+
+1. **投資pending identity修正のmain反映**: PR `#6236`の投資関連CIとdiffを確認し、投資source修正をmain由来immutable releaseへ入れる。投資差分外のCapafy boundary failureは修正対象にしない。
+2. **既存QQQを再送せず再concile**: 修正版releaseの自然paper wakeで、既存filled orderを公式readbackし、`strategy_receipt`と`etf-owned-position.json`が作られたことを確認する。新規buy・手動wake・手動sellはしない。
+3. **QQQの自然exit**: strategyが定めたhold/exit条件で自然に生成した同一positionのexitについて、broker terminal status、fill、account、position、receiptを取得する。entry fillだけではround tripでも利益でもない。
+4. **自然fence/cross-venue証拠**: 旧cross-venue occurrenceは公式receipt/readbackがない限りheldを維持し、解放・再送しない。strategy validationと日次outboxのofficial evidenceも同一runへ結合する。
+5. **live自然retryのprovider証拠**: `alpaca-investment-live`のadmission deferから自然復帰した場合だけ公式receiptを記録する。wallet funding、Binance送金、live注文はまだしない。
+6. **cost-complete net P&L**: entry/exit、fee、slippage、funding/borrow、gas、model costをreceipt単位で一度だけ控除し、net P&L・drawdown・venue healthを確定する。unknownが一つでも利益を報告しない。
+7. **30/30測定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。それまではcap増額、meme coin署名、yield deposit、live拡大をしない。
+8. **追加venueの段階評価**: `30/30`後にHyperliquid shadow → Solana/Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり保証ではない。
