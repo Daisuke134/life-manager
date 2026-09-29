@@ -208,8 +208,8 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **Capafy 市場の全体調査（2026-09-29、`POST /agent/agents/search` 本文に query、50 キーワードで 1,025 Agent。自社ではなく他の出品者を見る）**
 - サブスク型の上位: CloneCut 11,926（週$12.99/月$29.99/年$149.99）、Ocup Football Analysis 3,069（週$14.99/月$29.99/年$99.99）、Serenity Stock Tracker 1,669（週$9.99/月$19.99/年$99.99）、HookAce 868（週$9.99/月$19.99/年$239.88）、Odeo Maker 626（週$19.99/月$29.99/年$199.99）。勝ち筋 = 週 $9.99〜19.99・月 $19.99〜29.99・**年額 $99〜239 を必ず持つ**・無料トライアルなし。
-- ダウンロード型の上位はほぼ無料（llm-real-video Free 3,337、Cinematic Realism Prompt Builder 1,055、3-Second Viral Hook Generator FREE 135）。有料は少数（Badr Studio $5 47本、llm-real-video Pro $29 30本）。勝ち筋 = **無料ダウンロード版を入口に、有料の Pro／サブスク版へ誘導**。自社 Japanese Humanizer（無料 download）も 28 本出ている。
-- 決定: (1) 全サブスク Skill を週 $9.99〜14.99・月 $19.99〜29.99 に上げ、年額 $99〜149 を追加（#6153 の予約も年額付きに作り直す）。(2) 売れ筋ごとに無料 download の軽量版を出して有料版へ誘導。(3) 値上げ後 1〜2 週の注文数で下げ判断もする。
+- ダウンロード型の上位はほぼ無料（llm-real-video Free 3,337、Cinematic Realism Prompt Builder 1,055、3-Second Viral Hook Generator FREE 135）。有料は少数（Badr Studio $5 47本、llm-real-video Pro $29 30本）。（無料版→有料版の誘導は llm-real-video の 1 例だけで、移行人数の証拠がない。Dais 2026-09-29: 無料では売らない → 採用しない。）
+- 決定: (1) 全サブスク Skill を週 $9.99〜14.99・月 $19.99〜29.99 に上げ、年額 $99〜149 を追加（#6153 の予約も年額付きに作り直す）。(2) 無料配布はしない（download 型も必ず有料。Japanese Humanizer も有料化）。(3) 値上げ後 1〜2 週の注文数で下げ判断もする。
 
 **Capafy 競合の実測（2026-09-29、capafy.ai 公開ページ・読み取りのみ）**: 売れ筋は2型。(a) 追跡・分析型（金融・スポーツ・動画生成）は月額固定 $8〜20・無料トライアルなし・販売数 500〜12k（CloneCut 11.9k、Ocup Football Analysis $8.33/月 3,069、Serenity Stock Tracker $8.33/月 1,669、Alpha Consensus $10.83/月 533）。(b) 生成型（hook・台本・文章）は日/週の小額 $2〜10（HookAce $9.99/週 868、Viralume $6.99/日、SEO Content Writer $6.99/日）。自社の単価: Hook Lab は Sonnet で1注文約 $3.29 のモデル代、DeepSeek V4.1 Flash なら推定約 $0.30。モデル代を手数料後売上の 15% 以下にする最低価格は約 $2.50。
 - 値付けの決定: Hook Lab = 日 $3.99 / 週 $9.99（HookAce に合わせる）/ 月 $19.99（DeepSeek 版承認後すぐ更新）。YouTube Script Writer・TikTok Script Pro の日額は $3.99 以上。Marketing Strategist は週 $9.99〜13.98。Slide Maker は据え置き（$9.99/週・$24.99/月で売れている）。Japanese Humanizer は有料化（無料配布をやめる）。
