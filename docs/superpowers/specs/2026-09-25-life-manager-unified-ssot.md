@@ -2617,3 +2617,24 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 4. **未完** RyuさんDMの既存一回送信のprovider receipt／official readbackを取得する。再送・正式納品はしない。
 5. **未完** Upwork／Freelancerのfunded contract／milestone→mutation authorization→canary→rollback→settlement→positive net P&L。
 6. **未完** Meta Loop全platformのscheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&L。
+
+## 最終正本cursor（2026-09-30、以降の判断はこの節を優先）
+
+この節は、上記に残る過去cursorの記録を履歴として保持しつつ、現在の実測状態を上書きする。
+
+- source branch `fix/source-reconcile-20260930` のHEADは `1a40ecbeed` でclean／remote同期済み。`origin/main` とproduction `current/RELEASE.json` は `3975ae8996…` のままで、source変更はproductionへ未反映。
+- Ryuさんのcanonical DM URL（`/smartphone/direct_messages/10107358?uid=2564121`）を既存Coconala identityでread-only再取得した。最新列は seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41、14:41以後のseller返信なし。証跡は `/Users/anicca/gig/trajectory/ryu-readback-20260930/uid-ryu_dm_uid.json`。送信・正式納品操作は今回行っていない。
+- `current-cycle-v723-dm-send-readback.json` は過去の送信クリック1回＋直後DOM bubbleだけを示し、reload後403でprovider永続receiptが無い。canonical再readbackにも本文が無いため、v723を永続送信完了と扱わず、再送もしない。
+- 公開 `colors-hachioji.com` と `content-api.php` は6コンセプト、12プロフィール、5有料オプション、WEB予約導線をread-only確認済み。`mutualLinks=[]`で実URL／バナーは未登録。専用管理画面はログインフォームで、credential SSOTに管理パスワードがないため書き込み未実施。
+- source gateは `lm-loop-contract ok=true`、doctor PASS、Gig 1579、Lancers 269、CrowdWorks 276、Mercor 58、capacity系・release builder 22 passed、compile／diff PASS。production statusは279 rows、capacity_busy 37、effect_unknown 22、effect_status unknown 171。
+
+### 最終原子TODO（この順序を実行正本とする）
+
+1. **Ryu外部入力待ち** 管理画面の正規認証情報、相互リンク実URL／バナー、必要な新画像を推測せず取得する。無い間はhold。
+2. **Ryu管理画面readback** 専用identityでログイン後、既存修正と実データを保存し、管理画面・公開ページ・content APIを同一値で再確認する。
+3. **Ryu DM効果** provider composer・重複guard・送信後永続readback・provider receiptが同時に取れる時だけ統合本文を一度だけ送る。正式納品は押さない。receipt不足なら再送しない。
+4. **main受入** branchの全checksと外部成果証拠が揃うまでmergeしない。揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式provider readback、replay-zeroを取得する。
+6. **capacity自然run** sourceのENOSPC修正をproductionで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
