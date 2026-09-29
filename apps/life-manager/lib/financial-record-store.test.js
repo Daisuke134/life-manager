@@ -150,3 +150,20 @@ test("cloud table is immutable, tenant-indexed and private to the service role",
   assert.match(WORKER_MIGRATION, /BEFORE UPDATE OR DELETE/i);
   assert.match(WORKER_MIGRATION, /END;\s*\$\$;/i);
 });
+
+test("Postgres store reads one tenant/month unit-economics snapshot without mixing user income", async () => {
+  const calls = [];
+  const store = createPostgresFinancialRecordStore({ query: async (sql, params) => {
+    calls.push({ sql, params });
+    if (/FROM public\.lm_financial_records/i.test(sql)) return { rows: [] };
+    if (/FROM public\.lm_cloud_usage_ledger/i.test(sql)) return { rows: [{ provider: "aws", resource: "runtime", cost_usd_micros: "100" }] };
+    if (/FROM public\.lm_cloud_cost_reservations/i.test(sql)) return { rows: [{ unsettled: "0" }] };
+    throw new Error("unexpected query");
+  } });
+  const report = await store.readCloudUnitEconomics({ subjectId: "tenant-a", monthStart: "2026-01-01" });
+  assert.equal(report.tenant_id, "tenant-a");
+  assert.equal(report.variable_cost_usd_micros, 100);
+  assert.equal(report.user_income_usd_micros, 0);
+  assert.equal(report.contribution_usd_micros, -100);
+  assert.ok(calls.every(({ params }) => params[0] === "tenant-a"));
+});

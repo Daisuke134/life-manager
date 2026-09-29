@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 const path = require("node:path");
 const { isDeepStrictEqual } = require("node:util");
 const { projectFinancialRecord } = require("./financial-record-contract.js");
+const { buildCloudUnitEconomicsReport } = require("./cloud-cost-ledger.js");
 
 let defaultPool;
 
@@ -158,6 +159,35 @@ function createPostgresFinancialRecordStore(options = {}) {
         ORDER BY occurred_at, record_id
       `, [input.subjectId, input.scope, input.since])).rows;
       return rows.map((row) => projectFinancialRecord(row.record));
+    },
+    async readCloudUnitEconomics(input = {}) {
+      const subjectId = String(input.subjectId || "").trim();
+      const monthStart = String(input.monthStart || "");
+      if (!subjectId || !/^\d{4}-\d{2}-01$/.test(monthStart)) throw new Error("unit economics scope invalid");
+      const start = `${monthStart}T00:00:00.000Z`;
+      const endDate = new Date(start);
+      endDate.setUTCMonth(endDate.getUTCMonth() + 1);
+      const end = endDate.toISOString();
+      const records = (await query(`
+        SELECT record FROM public.lm_financial_records
+        WHERE subject_id=$1 AND occurred_at >= $2::timestamptz AND occurred_at < $3::timestamptz
+        ORDER BY occurred_at,record_id
+      `, [subjectId,start,end])).rows.map((row) => projectFinancialRecord(row.record));
+      const usage = (await query(`
+        SELECT provider,resource,SUM(cost_usd_micros)::text AS cost_usd_micros
+        FROM public.lm_cloud_usage_ledger
+        WHERE tenant_id=$1 AND created_at >= $2::timestamptz AND created_at < $3::timestamptz
+        GROUP BY provider,resource ORDER BY provider,resource
+      `, [subjectId,start,end])).rows;
+      const unsettledRows = (await query(`
+        SELECT COUNT(*)::text AS unsettled FROM public.lm_cloud_cost_reservations
+        WHERE tenant_id=$1 AND month_start=$2::date AND status IN ('active','reconciling')
+      `, [subjectId,monthStart])).rows;
+      if (unsettledRows.length !== 1) throw new Error("unit economics cost state invalid");
+      return buildCloudUnitEconomicsReport({
+        tenantId: subjectId, monthStart, records, usage,
+        unsettledReservations: Number(unsettledRows[0].unsettled),
+      });
     },
   });
 }

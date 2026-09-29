@@ -400,7 +400,7 @@
 
   Use integer micros. Prove provider receipt dedupe, monthly boundary, activation credit one-time use, Free $0.50 cap, Pro $12 cap, and fail-closed behavior when cost is unknown.
 
-- [ ] **Step 2: Implement usage ingestion**
+- [x] **Step 2: Implement usage ingestion**
 
   Join AgentCore runtime/browser usage, model tokens, Gateway/search/tool cost, Railway/Inngest/Supabase shared allocation, and Stripe fees. Estimated cost can reserve budget before a job; only provider readback settles it.
 
@@ -412,7 +412,7 @@
 
   Before claim/invoke, reserve the estimated maximum. After readback, settle actual cost and release the remainder. If actual cost is unavailable, keep the reservation and reconcile; never assume zero.
 
-- [ ] **Step 5: Add unit economics report**
+- [x] **Step 5: Add unit economics report**
 
   Per tenant/month output subscription collected, internal company revenue, refunds, Stripe fees, each variable cost, allocated shared cost, and contribution. Keep user income in a separate column/ledger.
 
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, the real-provider half of A16, A19, and A21 real-provider canaries are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A17 through A20 are complete. A21 local adversarial coverage is complete, including pre-AWS reference validation added at the dispatcher boundary; its real-provider half remains pending. Immediate provider-independent cursor is A22; provider order remains `A06 -> A07 -> A13 -> A16(real) -> A19 -> A21(real)` as soon as readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, the real-provider half of A16, A19, and A21 real-provider canaries are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A17 through A20 and A22 are complete. A21 local adversarial coverage is complete; its real-provider half remains pending. Immediate provider-independent cursor is A23; provider order remains `A06 -> A07 -> A13 -> A16(real) -> A19 -> A21(real)` as soon as readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -568,8 +568,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A19 | external-blocked | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
 | A20 | done | AgentCore Identity provider and migration-on-use | focused 23/23; official API-key/M2M-OAuth command mapping; cross-tenant/human provider calls 0; verified-read-only migration ordering; PostgreSQL migration twice + RLS PASS; atomic revoke makes queued dead-letter, running external-effect reconcile, and active leases 0 |
 | A21 | provider-pending | Adversarial tenant/effect recovery suite | local adversarial 18/18 + dispatcher/envelope regression 13/13; forged provider/lease calls 0, redelivery effect 1, accepted ambiguity reconciles, stale lease exact release; real read-only/synthetic canaries pending activation |
-| A22 | **next** | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
-| A23 | todo | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
+| A22 | done | Cost ledger and reservation/admission | focused 24/24; real PostgreSQL reserve/settle/replay/cap + reservation owner/TTL PASS; integer micros, provider receipt dedupe, unknown-cost hold, Free $0.50 + one-time $1 and Pro $12 caps; tenant/month contribution keeps user income separate |
+| A23 | **next** | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
 | A24 | todo | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero |
 | A25 | todo | Internal + five-user phone-only cohort | isolation/effect/session/cost invariant breaches 0 |
 | A26 | todo | First live $49 Founding Pro receipt | Stripe readback, entitlement transition, actual tenant contribution row |

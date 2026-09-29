@@ -8,6 +8,8 @@ const {
   createCloudCostLedger,
   createMemoryCloudCostStore,
   createPostgresCloudCostStore,
+  buildCloudUnitEconomicsReport,
+  allocateSharedCost,
 } = require("./cloud-cost-ledger.js");
 const MIGRATION = fs.readFileSync(path.join(__dirname, "../migrations/2026-09-29-lm-cloud-cost-reservations.sql"), "utf8");
 
@@ -143,4 +145,50 @@ test("cost migration is private, tenant/job scoped, TTL-owned, and receipt-dedup
   assert.match(MIGRATION, /status='reconciling',expires_at=NULL/i);
   assert.match(MIGRATION, /ENABLE ROW LEVEL SECURITY/i);
   assert.match(MIGRATION, /REVOKE ALL ON TABLE public\.lm_cloud_cost_reservations FROM PUBLIC/i);
+});
+
+test("unit economics separates company revenue, every cost, contribution, and user income", () => {
+  const records = [
+    { scope: "business", kind: "business_revenue", direction: "credit", amount_minor: 4900, currency: "USD", source: { provider: "stripe", external_ref: "sub-1" }, verification: { status: "verified" } },
+    { scope: "business", kind: "business_revenue", direction: "credit", amount_minor: 1000, currency: "USD", source: { provider: "market", external_ref: "sale-1" }, verification: { status: "verified" } },
+    { scope: "business", kind: "business_cost", direction: "debit", amount_minor: 500, currency: "USD", source: { provider: "stripe", external_ref: "refund-1" }, verification: { status: "verified" } },
+    { scope: "business", kind: "fee", direction: "debit", amount_minor: 171, currency: "USD", source: { provider: "stripe", external_ref: "fee-1" }, verification: { status: "verified" } },
+    { scope: "personal", kind: "personal_income", direction: "credit", amount_minor: 2000, currency: "USD", source: { provider: "market", external_ref: "income-1" }, verification: { status: "verified" } },
+  ];
+  const report = buildCloudUnitEconomicsReport({
+    tenantId: "tenant-a", monthStart: "2026-01-01", records,
+    usage: [
+      { provider: "aws", resource: "runtime", cost_usd_micros: 120_000 },
+      { provider: "openai", resource: "model", cost_usd_micros: 80_000 },
+      { provider: "anicca-shared", resource: "railway", cost_usd_micros: 50_000 },
+    ],
+    unsettledReservations: 0,
+  });
+  assert.equal(report.subscription_collected_usd_micros, 49_000_000);
+  assert.equal(report.internal_company_revenue_usd_micros, 10_000_000);
+  assert.equal(report.refunds_usd_micros, 5_000_000);
+  assert.equal(report.stripe_fees_usd_micros, 1_710_000);
+  assert.equal(report.variable_cost_usd_micros, 200_000);
+  assert.equal(report.allocated_shared_cost_usd_micros, 50_000);
+  assert.equal(report.user_income_usd_micros, 20_000_000);
+  assert.equal(report.contribution_usd_micros, 52_040_000);
+  assert.deepEqual(report.variable_costs, [
+    { provider: "aws", resource: "runtime", cost_usd_micros: 120_000 },
+    { provider: "openai", resource: "model", cost_usd_micros: 80_000 },
+  ]);
+});
+
+test("unknown cost makes contribution unknown, and shared allocation preserves every micro", () => {
+  const report = buildCloudUnitEconomicsReport({
+    tenantId: "tenant-a", monthStart: "2026-01-01", records: [], usage: [], unsettledReservations: 1,
+  });
+  assert.equal(report.cost_state, "unknown");
+  assert.equal(report.contribution_usd_micros, null);
+  const allocated = allocateSharedCost(10, ["tenant-c", "tenant-a", "tenant-b"]);
+  assert.deepEqual(allocated, [
+    { tenant_id: "tenant-a", cost_usd_micros: 4 },
+    { tenant_id: "tenant-b", cost_usd_micros: 3 },
+    { tenant_id: "tenant-c", cost_usd_micros: 3 },
+  ]);
+  assert.equal(allocated.reduce((sum, row) => sum + row.cost_usd_micros, 0), 10);
 });

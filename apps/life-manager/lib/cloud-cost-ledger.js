@@ -258,4 +258,97 @@ function createPostgresCloudCostStore(options = {}) {
   });
 }
 
-module.exports = { createCloudCostLedger, createMemoryCloudCostStore, createPostgresCloudCostStore };
+function usdMinorToMicros(value) {
+  if (!value || value.currency !== "USD" || !Number.isSafeInteger(value.amount_minor) || value.amount_minor < 0) {
+    throw new Error("unit economics requires non-negative USD minor records");
+  }
+  const microsValue = value.amount_minor * 10_000;
+  if (!Number.isSafeInteger(microsValue)) throw new Error("unit economics amount overflow");
+  return microsValue;
+}
+
+function buildCloudUnitEconomicsReport(input = {}) {
+  const tenantId = text(input.tenantId, "unit economics tenant", 200);
+  const month = String(input.monthStart || "");
+  if (!/^\d{4}-\d{2}-01$/.test(month)) throw new Error("unit economics month invalid");
+  if (!Array.isArray(input.records) || !Array.isArray(input.usage)) throw new Error("unit economics inputs invalid");
+  const unsettled = micros(input.unsettledReservations, "unsettled reservations");
+  let subscription = 0;
+  let internalRevenue = 0;
+  let refunds = 0;
+  let stripeFees = 0;
+  let userIncome = 0;
+  const costs = new Map();
+  for (const record of input.records) {
+    if (!record || record.verification && record.verification.status !== "verified") continue;
+    const amount = usdMinorToMicros(record);
+    const provider = String(record.source && record.source.provider || "unknown");
+    const externalRef = String(record.source && record.source.external_ref || "");
+    if (record.scope === "personal" && record.kind === "personal_income") userIncome += amount;
+    else if (record.scope === "business" && record.kind === "business_revenue") {
+      if (provider === "stripe") subscription += amount;
+      else internalRevenue += amount;
+    } else if (record.scope === "business" && record.kind === "business_cost"
+        && provider === "stripe" && /^refund[-_:]/i.test(externalRef)) refunds += amount;
+    else if (record.scope === "business" && record.kind === "fee" && provider === "stripe") stripeFees += amount;
+    else if (record.scope === "business" && ["business_cost", "fee", "tax"].includes(record.kind)) {
+      const key = `financial:${provider}:${record.kind}`;
+      costs.set(key, (costs.get(key) || 0) + amount);
+    }
+  }
+  let shared = 0;
+  for (const item of input.usage) {
+    const provider = text(item.provider, "unit economics cost provider", 100);
+    const resource = text(item.resource, "unit economics cost resource", 200);
+    const amount = micros(Number(item.cost_usd_micros), "unit economics cost");
+    if (provider === "anicca-shared") shared += amount;
+    else {
+      const key = `${provider}:${resource}`;
+      costs.set(key, (costs.get(key) || 0) + amount);
+    }
+  }
+  const variableCosts = [...costs.entries()].map(([key, cost]) => {
+    const [provider, ...resource] = key.split(":");
+    return { provider, resource: resource.join(":"), cost_usd_micros: cost };
+  }).sort((a, b) => a.provider.localeCompare(b.provider) || a.resource.localeCompare(b.resource));
+  const variable = variableCosts.reduce((sum, row) => sum + row.cost_usd_micros, 0);
+  const known = unsettled === 0;
+  return Object.freeze({
+    tenant_id: tenantId,
+    month_start: month,
+    currency: "USD",
+    cost_state: known ? "settled" : "unknown",
+    subscription_collected_usd_micros: subscription,
+    internal_company_revenue_usd_micros: internalRevenue,
+    refunds_usd_micros: refunds,
+    stripe_fees_usd_micros: stripeFees,
+    variable_costs: Object.freeze(variableCosts.map(Object.freeze)),
+    variable_cost_usd_micros: variable,
+    allocated_shared_cost_usd_micros: shared,
+    contribution_usd_micros: known
+      ? subscription + internalRevenue - refunds - stripeFees - variable - shared
+      : null,
+    user_income_usd_micros: userIncome,
+  });
+}
+
+function allocateSharedCost(totalUsdMicros, tenantIds) {
+  const total = micros(totalUsdMicros, "shared cost");
+  if (!Array.isArray(tenantIds) || tenantIds.length === 0) throw new Error("shared cost tenants invalid");
+  const tenants = [...new Set(tenantIds.map((value) => text(value, "shared cost tenant", 200)))].sort();
+  if (tenants.length !== tenantIds.length) throw new Error("shared cost tenants duplicate");
+  const base = Math.floor(total / tenants.length);
+  const remainder = total % tenants.length;
+  return Object.freeze(tenants.map((tenantId, index) => Object.freeze({
+    tenant_id: tenantId,
+    cost_usd_micros: base + (index < remainder ? 1 : 0),
+  })));
+}
+
+module.exports = {
+  createCloudCostLedger,
+  createMemoryCloudCostStore,
+  createPostgresCloudCostStore,
+  buildCloudUnitEconomicsReport,
+  allocateSharedCost,
+};
