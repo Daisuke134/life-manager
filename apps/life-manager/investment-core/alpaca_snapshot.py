@@ -44,7 +44,10 @@ def build_alpaca_snapshot(
     account = _mapping(observation.get("account")) or {}
     snapshot_risk = dict(risk) if isinstance(risk, Mapping) else {}
     if "round_trips" not in snapshot_risk:
-        round_trips = performance.get("completed_round_trips")
+        round_trips = performance.get(
+            "completed_round_trips_total",
+            performance.get("completed_round_trips"),
+        )
         if isinstance(round_trips, int) and not isinstance(round_trips, bool):
             snapshot_risk["round_trips"] = round_trips
     if "drawdown_usd" not in snapshot_risk:

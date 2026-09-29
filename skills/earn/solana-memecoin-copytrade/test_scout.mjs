@@ -131,5 +131,6 @@ test("scout emits a candidate only with RPC and market evidence", async () => {
   assert.equal(result.candidates.length, 1);
   assert.equal(result.candidates[0].sourceSignature, "sig-swap");
   assert.equal(result.candidates[0].destinationMint, OUTPUT_MINT);
+  assert.equal(result.candidates[0].sourceAmountUsd, 2);
   assert.deepEqual(result.candidates[0].evidenceIds, ["sig-swap", "gmgn:So11111111111111111111111111111111111111112", "dex:So11111111111111111111111111111111111111112"]);
 });

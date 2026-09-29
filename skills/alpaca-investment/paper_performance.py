@@ -144,7 +144,7 @@ def _closed_round_trips(
     seen_source_ids: set[str] = set()
     completed: list[dict[str, Any]] = []
     events: list[tuple[
-        datetime, dict[str, Any], dict[str, Any], Mapping[str, Any], Mapping[str, Any]
+        datetime, dict[str, Any], dict[str, Any], Mapping[str, Any], Mapping[str, Any], tuple[str, ...]
     ]] = []
 
     for intent in intents:
@@ -179,11 +179,11 @@ def _closed_round_trips(
                 raise ValueError("paper_receipt_duplicate")
             seen_source_ids.add(receipt_id)
             source_ids.append(receipt_id)
-        events.append((timestamp, intent, outcome, broker, outcome["strategy_receipt"]))
+        events.append((timestamp, intent, outcome, broker, outcome["strategy_receipt"], tuple(ids)))
 
     events.sort(key=lambda item: item[0])
     open_positions: dict[str, dict[str, Any]] = {}
-    for _timestamp_value, intent, _outcome, broker, _strategy_receipt in events:
+    for _timestamp_value, intent, _outcome, broker, _strategy_receipt, event_source_ids in events:
         order = intent["order"]
         symbol = order.get("symbol")
         if not isinstance(symbol, str) or not symbol:
@@ -201,6 +201,7 @@ def _closed_round_trips(
                 "qty": qty,
                 "price": price,
                 "notional": qty * price,
+                "source_receipt_ids": list(event_source_ids),
             }
         elif side == "sell":
             entry = open_positions.pop(symbol, None)
@@ -209,6 +210,8 @@ def _closed_round_trips(
             completed.append({
                 "gross_pnl_usd": (price - entry["price"]) * qty,
                 "exposure_usd": entry["notional"],
+                "closed_at": _timestamp_value.isoformat(),
+                "source_receipt_ids": [*entry["source_receipt_ids"], *event_source_ids],
             })
         else:
             raise ValueError("paper_order_invalid")
@@ -239,12 +242,14 @@ def build_paper_performance(
         exposure = max((item["exposure_usd"] for item in completed), default=Decimal("0"))
         return {
             "completed_round_trips": len(completed),
+            "completed_round_trips_total": len(completed),
             "costs_status": "unknown",
             "fees_usd": None,
             "funding_or_borrow_usd": None,
             "gas_usd": None,
             "gross_exposure_usd": str(exposure),
             "gross_strategy_pnl_usd": str(gross),
+            "gross_strategy_pnl_total_usd": str(gross),
             "measurement_status": "partial",
             "mode": "paper",
             "model_cost_usd": None,
@@ -302,6 +307,52 @@ def write_paper_performance(
         return _unknown(str(error))
     result = build_paper_performance(rows, observation, risk)
     if result.get("measurement_status") == "partial":
+        prior: Mapping[str, Any] = {}
+        try:
+            raw_prior = json.loads((state / "performance-latest.json").read_text(encoding="utf-8"))
+            if isinstance(raw_prior, Mapping):
+                prior = raw_prior
+        except (OSError, json.JSONDecodeError):
+            prior = {}
+
+        completed, _source_ids = _closed_round_trips(rows)
+        prior_reported = prior.get("reported_order_receipt_ids")
+        if not isinstance(prior_reported, list) or any(
+            not isinstance(item, str) or not item for item in prior_reported
+        ):
+            prior_reported = [
+                item for item in prior.get("source_receipt_ids", [])
+                if isinstance(item, str) and item and not item.startswith("alpaca-account-readback:")
+            ] if isinstance(prior.get("source_receipt_ids"), list) else []
+        prior_reported_set = set(prior_reported)
+        new_rounds = [
+            item for item in completed
+            if not prior_reported_set.intersection(item.get("source_receipt_ids", []))
+        ]
+        daily_gross = sum((item["gross_pnl_usd"] for item in new_rounds), Decimal("0"))
+        daily_exposure = max((item["exposure_usd"] for item in new_rounds), default=Decimal("0"))
+        cumulative_order_ids = list(prior_reported)
+        for item in completed:
+            for receipt_id in item.get("source_receipt_ids", []):
+                if receipt_id not in cumulative_order_ids:
+                    cumulative_order_ids.append(receipt_id)
+        observed_at = result.get("observed_at")
+        account_receipt_id = f"alpaca-account-readback:{observed_at}"
+        daily_source_ids = [
+            *[receipt_id for item in new_rounds for receipt_id in item.get("source_receipt_ids", [])],
+            account_receipt_id,
+        ]
+        result = {
+            **result,
+            "completed_round_trips": len(new_rounds),
+            "completed_round_trips_total": len(completed),
+            "gross_exposure_usd": str(daily_exposure),
+            "gross_strategy_pnl_usd": str(daily_gross),
+            "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
+            "reported_order_receipt_ids": cumulative_order_ids,
+            "report_scope": "observation_delta",
+            "source_receipt_ids": daily_source_ids,
+        }
         _atomic_json(state / "performance-latest.json", result)
     return result
 

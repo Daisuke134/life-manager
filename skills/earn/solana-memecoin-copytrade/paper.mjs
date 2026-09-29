@@ -27,6 +27,10 @@ export async function paperApply(intent, quote, journalPath) {
     || typeof intent.sourceSignature !== "string" || !intent.sourceSignature
     || typeof intent.mint !== "string" || !intent.mint
     || (intent.action === "copy_entry" && Number(intent.amountUsd) !== 2)
+    || (intent.action === "copy_entry"
+      && (!Number.isFinite(Number(intent.sourceAmountUsd))
+        || Number(intent.sourceAmountUsd) <= 0
+        || Number(intent.sourceAmountUsd) > 2))
     || (EXIT_ACTIONS.has(intent.action) && (!intent.position || typeof intent.position !== "object"))) {
     return rejected("paper_intent_invalid", intent);
   }
@@ -54,6 +58,7 @@ export async function paperApply(intent, quote, journalPath) {
     action: intent.action,
     mint: intent.mint,
     amountUsd: Number.isFinite(Number(intent.amountUsd)) ? Number(intent.amountUsd) : null,
+    sourceAmountUsd: numberOrNull(intent.sourceAmountUsd),
     sourceSignature: intent.sourceSignature,
     targetAddress: intent.targetAddress || null,
     sourceMint: intent.sourceMint || intent.position?.mint || quote?.inputMint || null,
@@ -72,6 +77,7 @@ export async function paperApply(intent, quote, journalPath) {
     sourceSignature: intent.sourceSignature,
     mint: intent.mint,
     amountUsd: Number.isFinite(Number(intent.amountUsd)) ? Number(intent.amountUsd) : null,
+    sourceAmountUsd: numberOrNull(intent.sourceAmountUsd),
     ...(intent.action === "copy_entry" ? {
       position: {
         mint: intent.destinationMint || intent.mint,

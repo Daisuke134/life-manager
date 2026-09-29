@@ -179,9 +179,11 @@ function normalizeJupiter(value) {
   return { outAmount, priceImpactPct };
 }
 
-function marketCandidate(event, gmgn, dex, jupiter) {
+function marketCandidate(event, gmgn, dex, jupiter, sourcePriceUsd, sourceAmountUsd) {
   return {
     ...event,
+    sourcePriceUsd,
+    sourceAmountUsd,
     market: { gmgn, dexscreener: dex, jupiter },
     evidenceIds: [event.sourceSignature, `gmgn:${event.destinationMint}`, `dex:${event.destinationMint}`],
   };
@@ -271,10 +273,14 @@ export async function scout(targets, adapters, nowMs = Date.now(), options = {})
 
       let gmgnRaw;
       let dexRaw;
+      let sourceDexRaw;
       let jupiterRaw;
       try {
         gmgnRaw = await adapters.gmgn.readToken(event.destinationMint);
         dexRaw = await adapters.dexscreener.readPairs(event.destinationMint);
+        sourceDexRaw = event.sourceMint === event.destinationMint
+          ? dexRaw
+          : await adapters.dexscreener.readPairs(event.sourceMint);
         jupiterRaw = await adapters.jupiter.quote(event);
       } catch (error) {
         evidenceRows.push(evidence("market_provider_unavailable", { sourceSignature: signature, detail: errorReason(error, "provider_error") }));
@@ -283,9 +289,16 @@ export async function scout(targets, adapters, nowMs = Date.now(), options = {})
       }
       const gmgn = normalizeGmgn(gmgnRaw, event.destinationMint);
       const dex = normalizeDex(dexRaw, event.destinationMint);
+      const sourceDex = normalizeDex(sourceDexRaw, event.sourceMint);
       const jupiter = normalizeJupiter(jupiterRaw);
-      if (!gmgn || !dex) {
+      if (!gmgn || !dex || !sourceDex) {
         evidenceRows.push(evidence("market_provider_missing", { sourceSignature: signature, mint: event.destinationMint }));
+        hardUnknown = true;
+        continue;
+      }
+      const sourceAmountUsd = event.sourceAmount * sourceDex.priceUsd;
+      if (!Number.isFinite(sourceAmountUsd) || sourceAmountUsd <= 0) {
+        evidenceRows.push(evidence("source_amount_value_unknown", { sourceSignature: signature, mint: event.sourceMint }));
         hardUnknown = true;
         continue;
       }
@@ -301,7 +314,7 @@ export async function scout(targets, adapters, nowMs = Date.now(), options = {})
         hardUnknown = true;
         continue;
       }
-      candidates.push(marketCandidate(event, gmgn, dex, jupiter));
+      candidates.push(marketCandidate(event, gmgn, dex, jupiter, sourceDex.priceUsd, sourceAmountUsd));
       evidenceRows.push(evidence("candidate_market_confirmed", {
         sourceSignature: signature,
         mint: event.destinationMint,
@@ -316,4 +329,3 @@ export async function scout(targets, adapters, nowMs = Date.now(), options = {})
     evidence: evidenceRows,
   };
 }
-

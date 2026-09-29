@@ -1,6 +1,8 @@
 import { append, openIntent, readRows } from "./journal.mjs";
 import { verifyReceipt } from "./receipt.mjs";
 
+const LIVE_ENTRY_ENABLED = false;
+
 function rejected(reason, intent = {}) {
   return {
     kind: "receipt",
@@ -38,6 +40,7 @@ function journalIntent(intent, owner) {
     destinationMint: intent.destinationMint || intent.mint,
     sourceRawAmount: intent.sourceRawAmount,
     destinationRawAmount: intent.destinationRawAmount,
+    sourceAmountUsd: Number.isFinite(Number(intent.sourceAmountUsd)) ? Number(intent.sourceAmountUsd) : null,
     amountUsd: Number.isFinite(Number(intent.amountUsd)) ? Number(intent.amountUsd) : null,
     sourceSignature: intent.sourceSignature,
     targetAddress: intent.targetAddress || null,
@@ -61,6 +64,19 @@ export async function executeCanary(intent, quote, wallet, clients, journalPath)
   if (intent.liveGate !== true) return rejected("live_double_gate_missing", intent);
   if (intent.action !== "copy_entry") return rejected("live_exit_closed", intent);
   if (Number(intent.amountUsd) !== 2) return rejected("fixed_notional_required", intent);
+  const sourceAmountUsd = Number(intent.sourceAmountUsd);
+  const quoteSourceAmountUsd = Number(quote?.sourceAmountUsd);
+  if (!Number.isFinite(sourceAmountUsd) || sourceAmountUsd <= 0
+    || (quote?.sourceAmountUsd != null && (!Number.isFinite(quoteSourceAmountUsd) || quoteSourceAmountUsd <= 0))) {
+    return rejected("source_amount_value_unknown", intent);
+  }
+  if (sourceAmountUsd > 2 || (Number.isFinite(quoteSourceAmountUsd) && quoteSourceAmountUsd > 2)) {
+    return rejected("source_amount_exceeds_fixed_notional", intent);
+  }
+  if (Number.isFinite(quoteSourceAmountUsd) && Math.abs(sourceAmountUsd - quoteSourceAmountUsd) > 0.01) {
+    return rejected("source_amount_value_mismatch", intent);
+  }
+  if (!LIVE_ENTRY_ENABLED) return rejected("live_exit_closed", intent);
   const owner = wallet?.publicKey;
   const destinationMint = intent.destinationMint || intent.mint;
   if (!owner || !intent.intentId || !intent.sourceSignature || !intent.sourceMint || !destinationMint) {

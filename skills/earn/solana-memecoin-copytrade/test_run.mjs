@@ -18,6 +18,7 @@ function candidate(signature = "source-run-1") {
     destinationMint: MINT,
     sourceRawAmount: "1000000",
     destinationRawAmount: "900000",
+    sourceAmountUsd: 2,
     observedAtMs: NOW - 1_000,
     quoteObservedAtMs: NOW - 1_000,
     market: {
@@ -89,15 +90,22 @@ test("wake is daily-idempotent and does not advance mode automatically", async (
 
 test("wake fences a terminal effect_unknown and never retries live", async () => {
   const journal = await journalPath();
+  await append(journal, {
+    kind: "receipt",
+    status: "effect_unknown",
+    effect: "unknown",
+    sourceSignature: "prior-live-source",
+  });
   const testClients = clients({ executeResult: { status: "effect_unknown", effect: "unknown", reason: "token_delta_mismatch" } });
   const first = await wake({ mode: "live", liveGate: true, targets: [{ address: "target" }], clients: testClients, journalPath: journal, nowMs: NOW });
   const second = await wake({ mode: "live", liveGate: true, targets: [{ address: "target" }], clients: testClients, journalPath: journal, nowMs: NOW + 1_000 });
 
-  assert.equal(first.stage, "live");
+  assert.equal(first.stage, "fenced");
   assert.equal(first.receipt.status, "effect_unknown");
+  assert.equal(first.decision.reason, "effect_unknown_fence");
   assert.equal(second.stage, "fenced");
   assert.equal(second.decision.reason, "effect_unknown_fence");
-  assert.equal(testClients.calls.live, 1);
+  assert.equal(testClients.calls.live, 0);
 });
 
 test("live wake derives the cumulative canary ceiling from its journal", async () => {
@@ -133,8 +141,8 @@ test("live wake derives the cumulative canary ceiling from its journal", async (
     nowMs: NOW,
   });
 
-  assert.equal(result.decision.action, "skip");
-  assert.equal(result.decision.reason, "canary_budget_remaining_below_fixed_notional");
+  assert.equal(result.decision.action, "halt");
+  assert.equal(result.decision.reason, "live_exit_closed");
   assert.equal(testClients.calls.live, 0);
 });
 

@@ -177,6 +177,23 @@ class PaperPerformanceTests(unittest.TestCase):
             self.assertTrue(path.is_file())
             self.assertEqual(json.loads(path.read_text())["gross_strategy_pnl_usd"], "0.250")
 
+    def test_repeated_daily_observation_reports_delta_without_repeating_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            ledger = state / "receipts.jsonl"
+            ledger.write_text("".join(json.dumps(row) + "\n" for row in _rows()))
+
+            first = write_paper_performance(state, OBSERVATION, RISK)
+            later_observation = copy.deepcopy(OBSERVATION)
+            later_observation["clock"]["observed_at"] = "2026-10-21T14:31:10Z"
+            second = write_paper_performance(state, later_observation, RISK)
+
+            self.assertEqual(first["gross_strategy_pnl_usd"], "0.250")
+            self.assertEqual(second["gross_strategy_pnl_usd"], "0")
+            self.assertEqual(second["completed_round_trips"], 0)
+            self.assertEqual(second["completed_round_trips_total"], 1)
+            self.assertNotEqual(first["source_receipt_ids"], second["source_receipt_ids"])
+
 
 if __name__ == "__main__":
     unittest.main()

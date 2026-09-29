@@ -97,6 +97,13 @@ export function decide(snapshot, risk = {}) {
   if (snapshot.requestedAmountUsd != null && finite(snapshot.requestedAmountUsd) !== CANARY_NOTIONAL_USD) {
     return decision("skip", mint, 0, "fixed_notional_required", sourceSignature);
   }
+  const sourceAmountUsd = finite(snapshot.sourceAmountUsd);
+  if (sourceAmountUsd == null || sourceAmountUsd <= 0) {
+    return decision("halt", mint, 0, "source_amount_value_unknown", sourceSignature);
+  }
+  if (sourceAmountUsd > CANARY_NOTIONAL_USD) {
+    return decision("skip", mint, 0, "source_amount_exceeds_fixed_notional", sourceSignature);
+  }
   if (hasSeen(risk.seenSourceSignatures, sourceSignature)) {
     return decision("skip", mint, 0, "source_signature_duplicate", sourceSignature);
   }

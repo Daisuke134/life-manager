@@ -55,6 +55,7 @@ function intent(overrides = {}) {
     sourceRawAmount: "1000000",
     destinationRawAmount: "900000",
     amountUsd: 2,
+    sourceAmountUsd: 2,
     sourceSignature: "source-copy-1",
     createdAtMs: NOW,
     ...overrides,
@@ -67,6 +68,7 @@ const quote = {
   inAmount: "1000000",
   outAmount: "900000",
   priceImpactPct: 0.1,
+  sourceAmountUsd: 2,
 };
 
 function clientsFor({ after = balances("0", "900000") } = {}) {
@@ -147,35 +149,47 @@ test("live mode keeps every exit closed before a canary is authorized", async ()
   assert.deepEqual(await readRows(journal), []);
 });
 
-test("confirmed matching token deltas produce a verified receipt", async () => {
+test("live entry remains closed until a verified exit exists", async () => {
   const journal = await journalPath();
   const { clients, calls } = clientsFor();
   const result = await withLiveGate("1", () => executeCanary(intent(), quote, wallet(), clients, journal));
   const rows = await readRows(journal);
 
-  assert.equal(result.status, "verified");
-  assert.equal(result.signature, "live-signature-1");
-  assert.equal(result.feeLamports, 5_000);
-  assert.equal(calls.send, 1);
-  assert.equal(calls.confirm, 1);
-  assert.equal(calls.readTransaction, 1);
-  assert.deepEqual(calls.readBalances, ["before", "after"]);
-  assert.deepEqual(rows.map((row) => row.kind), ["intent", "receipt"]);
-  assert.equal(rows[1].status, "verified");
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "live_exit_closed");
+  assert.equal(calls.send, 0);
+  assert.equal(calls.confirm, 0);
+  assert.equal(calls.readTransaction, 0);
+  assert.deepEqual(calls.readBalances, []);
+  assert.deepEqual(rows, []);
 });
 
-test("a confirmed mismatched delta becomes effect_unknown without retry", async () => {
+test("live mode rejects a source trade larger than the fixed notional", async () => {
+  const journal = await journalPath();
+  const { clients, calls } = clientsFor();
+  const result = await withLiveGate("1", () => executeCanary(
+    intent({ sourceAmountUsd: 4 }),
+    { ...quote, sourceAmountUsd: 4 },
+    wallet(), clients, journal,
+  ));
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "source_amount_exceeds_fixed_notional");
+  assert.equal(calls.send, 0);
+  assert.deepEqual(await readRows(journal), []);
+});
+
+test("live entry does not reach send even when post-trade evidence would mismatch", async () => {
   const journal = await journalPath();
   const { clients, calls } = clientsFor({ after: balances("0", "800000") });
   const result = await withLiveGate("1", () => executeCanary(intent(), quote, wallet(), clients, journal));
   const rows = await readRows(journal);
 
-  assert.equal(result.status, "effect_unknown");
-  assert.equal(result.reason, "token_delta_mismatch");
-  assert.equal(calls.send, 1);
-  assert.equal(calls.confirm, 1);
-  assert.equal(rows[1].status, "effect_unknown");
-  assert.equal(rows[1].retry, false);
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "live_exit_closed");
+  assert.equal(calls.send, 0);
+  assert.equal(calls.confirm, 0);
+  assert.deepEqual(rows, []);
 });
 
 test("a confirmed exit requires the held-token delta, proceeds delta, and fee", () => {

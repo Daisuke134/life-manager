@@ -13,6 +13,7 @@ const NOW = 1_700_000_000_000;
 function candidate(overrides = {}) {
   return {
     sourceSignature: "sig-copy-1",
+    sourceAmountUsd: 2,
     observedAtMs: NOW - 1_000,
     destinationMint: "TokenMint11111111111111111111111111111111111",
     sourceMint: "So11111111111111111111111111111111111111112",
@@ -102,6 +103,13 @@ test("decide rejects duplicate source events and an existing open intent", () =>
   assert.equal(open.reason, "open_intent_exists");
 });
 
+test("decide fails closed when the observed source trade exceeds the fixed notional", () => {
+  const decision = decide(candidate({ sourceAmountUsd: 2.01 }), risk());
+
+  assert.equal(decision.action, "skip");
+  assert.equal(decision.reason, "source_amount_exceeds_fixed_notional");
+});
+
 test("paperApply journals an effect-free receipt with explicit simulated costs", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "sol-copy-paper-"));
   const journalPath = path.join(directory, "journal.jsonl");
@@ -111,6 +119,7 @@ test("paperApply journals an effect-free receipt with explicit simulated costs",
     mode: "paper",
     mint: candidate().destinationMint,
     amountUsd: 2,
+    sourceAmountUsd: 2,
     sourceSignature: "sig-copy-1",
     createdAtMs: NOW,
   };
@@ -144,6 +153,7 @@ test("paperApply is replay-zero for a repeated source signature", async () => {
     mode: "paper",
     mint: candidate().destinationMint,
     amountUsd: 2,
+    sourceAmountUsd: 2,
     sourceSignature: "sig-copy-2",
     createdAtMs: NOW,
   };

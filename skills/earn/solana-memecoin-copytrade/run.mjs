@@ -5,11 +5,11 @@ import { resolve } from "node:path";
 
 import { append, readRows } from "./journal.mjs";
 import { executeCanary } from "./execute.mjs";
-import { createLiveClients, createPublicAdapters } from "./sources.mjs";
+import { createPublicAdapters } from "./sources.mjs";
 import { scout } from "./scout.mjs";
 import { decide } from "./policy.mjs";
 import { paperApply } from "./paper.mjs";
-import { loadOrCreateAgentWallet, readTargets } from "./wallet.mjs";
+import { readTargets } from "./wallet.mjs";
 
 const VALID_MODES = new Set(["read_only", "paper", "live"]);
 const EXIT_ACTIONS = new Set(["mirror_exit", "stop_exit", "time_exit"]);
@@ -32,6 +32,7 @@ function makeIntent(mode, liveGate, candidate, decision, quote, nowMs, owner) {
     destinationMint,
     sourceRawAmount: candidate.sourceRawAmount,
     destinationRawAmount: String(quote.outAmount ?? quote.outputAmount ?? candidate.destinationRawAmount ?? ""),
+    sourceAmountUsd: candidate.sourceAmountUsd,
     amountUsd: decision.amountUsd,
     sourceSignature: candidate.sourceSignature,
     createdAtMs: nowMs,
@@ -53,8 +54,12 @@ function cumulativeLiveCanaryUsd(rows) {
     if (row?.kind !== "intent" || row.mode !== "live" || row.action !== "copy_entry"
       || typeof row.intentId !== "string" || seenIntents.has(row.intentId)) return total;
     seenIntents.add(row.intentId);
+    const sourceAmountUsd = Number(row.sourceAmountUsd);
     const amountUsd = Number(row.amountUsd);
-    return Number.isFinite(amountUsd) && amountUsd > 0 ? total + amountUsd : total;
+    if (!Number.isFinite(sourceAmountUsd) || sourceAmountUsd <= 0) return Number.POSITIVE_INFINITY;
+    return Number.isFinite(amountUsd) && amountUsd > 0
+      ? total + Math.max(amountUsd, sourceAmountUsd)
+      : total;
   }, 0);
 }
 
@@ -99,6 +104,7 @@ function defaultQuote(candidate) {
     outAmount: String(candidate.destinationRawAmount || market.outAmount || market.outputAmount || ""),
     priceImpactPct: market.priceImpactPct,
     priceUsd: market.priceUsd ?? candidate.market?.gmgn?.priceUsd ?? candidate.market?.dexscreener?.priceUsd,
+    sourceAmountUsd: candidate.sourceAmountUsd,
     simulatedFeeUsd: null,
     simulatedSlippageUsd: null,
   };
@@ -154,6 +160,21 @@ export async function wake({ mode = "read_only", liveGate = false, targets = [],
   if (mode === "live" && liveGate !== true) {
     const decision = { action: "halt", reason: "live_gate_missing", sourceSignature: null, mint: null, amountUsd: 0 };
     return { stage: mode, decision, receipt: null, report: await report(journalPath, nowMs, mode, decision, null, 0) };
+  }
+
+  if (mode === "live") {
+    const decision = { action: "halt", reason: "live_exit_closed", sourceSignature: null, mint: null, amountUsd: 0 };
+    const receipt = {
+      kind: "receipt",
+      status: "rejected",
+      effect: "none",
+      verified: false,
+      reason: "live_exit_closed",
+      retry: false,
+      intentId: null,
+      sourceSignature: null,
+    };
+    return { stage: mode, decision, receipt, report: await report(journalPath, nowMs, mode, decision, receipt, 0) };
   }
 
   const scoutFn = clients.scout
@@ -279,9 +300,21 @@ export async function main() {
   const targets = await readTargets(targetsPath);
   const journalPath = process.env.SOL_COPY_JOURNAL
     || path.join(os.homedir(), ".local", "state", "anicca", "solana-memecoin-copytrade", "journal.jsonl");
+  if (mode === "live") {
+    const result = await wake({
+      mode,
+      liveGate: process.env.SOL_COPY_LIVE === "1",
+      targets,
+      clients: {},
+      journalPath,
+      nowMs: Date.now(),
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return result;
+  }
   const adapters = createPublicAdapters();
-  const wallet = mode === "live" ? await loadOrCreateAgentWallet() : null;
-  const executionClients = mode === "live" ? await createLiveClients({ adapters, wallet }) : {};
+  const wallet = null;
+  const executionClients = {};
   const quoteFor = async (candidate) => {
     if (mode !== "live") return defaultQuote(candidate);
     const quote = await adapters.jupiter.quote(candidate);

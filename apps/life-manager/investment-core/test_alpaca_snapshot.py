@@ -66,6 +66,17 @@ class AlpacaSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["gas_usd"], "0.00")
         self.assertEqual(snapshot["model_cost_usd"], "0.00")
 
+    def test_snapshot_uses_cumulative_round_trip_count_when_daily_pnl_is_delta(self):
+        performance = {
+            **PERFORMANCE,
+            "completed_round_trips": 0,
+            "completed_round_trips_total": 4,
+        }
+
+        snapshot = self._builder()(performance, OBSERVATION, RISK)
+
+        self.assertEqual(snapshot["risk"]["round_trips"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()
