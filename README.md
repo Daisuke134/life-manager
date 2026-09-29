@@ -8,7 +8,7 @@ completed real-world actions, acts within delegated boundaries, verifies what ha
 in plain language with evidence in Telegram. Its mission is to make dependable care and agency continuously
 available and end suffering for humans and, ultimately, all living beings.
 
-| Group | What Life Manager manages through its loops |
+| Group | What Life Manager manages through its built-in Skills and runtime loops |
 |---|---|
 | **Daily** | Calendar, event and accelerator applications, job applications, priorities, and follow-through |
 | **Physical / Mental** | Routines, wellbeing, and continuity of care |
@@ -23,23 +23,45 @@ and converge on the same state, evidence, and human-readable reporting contracts
 Manager never guarantees wealth or investment returns, and it never reports an attempted action as completed
 without a receipt.
 
-## The 14 main product loops
+## Skills, agents, and loops
 
-Life Manager has fourteen user-facing product loops. A product loop is a capability,
+Life Manager is one durable general agent with built-in Skills. A **Skill** is a reusable
+capability with its policy, tools, evaluator, and receipt contract. An **Agent** is one
+durable execution owner for a concrete opportunity, customer, or task. A **Loop** is the
+runtime that wakes or resumes an Agent; it is not a separate intelligence. A provider
+**Adapter** contains only the platform-specific auth, transport, and official readback.
+The versioned procedure and evaluation rules for a Skill are its **Recipe**.
+
+Grok Bot, Muse, Codex, Claude, and similar workers are Agents or model workers that invoke
+Skills. They are not separate marketplace products. The public marketplace capability is
+one **Gig / Marketplace Earning Skill**: Coconala, Lancers, CrowdWorks, Upwork, Freelancer,
+and Mercor are provider adapters underneath it. The registry may keep separate loop IDs for
+admission, isolation, and rollback, but users should think of them as one Skill that starts
+working as soon as its provider auth/KYC, policy, and effect gates are complete. Starting a
+Skill means discovery and eligible work can begin; it is not a guarantee of a contract or
+income.
+
+## The 14 main product Skills (implemented by loops)
+
+Life Manager has fourteen user-facing product Skills. Each Skill is a capability,
 not necessarily one process: the lifecycle registry contains the smaller
 application, browser-owner, reporting, healthcheck, and reconciliation jobs that
-implement and support these 14 loops.
+implement and support these Skills.
 
-Loops 1–3 form the **Human Gig Work** family. Life Manager automates discovery,
+Rows 1–3 are one public Gig / Marketplace Earning Skill shown by provider adapter so each
+platform's rollout and receipts remain independently visible.
+
+Skills 1–3 form the **Human Gig Work** family. Life Manager automates discovery,
 screening, application, negotiation, delivery support, reconciliation, and
-reporting; a person participates only where the marketplace requires identity,
-an interview, approval, or final delivery.
+reporting. The only intended human boundary is legally required KYC/identity
+verification; a provider that requires other recurring manual actions is typed as
+unsupported until it exposes an authorized automated path.
 
-| # | Product loop | Representative current owners | What it does |
+| # | Product Skill / provider adapter | Representative current owners | What it does |
 |---:|---|---|---|
-| 1 | Gig — Coconala | `hf-gig-apply-direct`, `hf-gig-reply-detector`, `hf-gig-storefront-direct`, `hf-gig-paid-direct` | Finds suitable work, applies, negotiates, delivers, and verifies provider outcomes |
-| 2 | Gig — Lancers | `lancers-revenue-application`, `lancers-revenue-negotiate`, `lancers-revenue-storefront`, `lancers-revenue-paid`, `lancers-revenue-work-sync`, `lancers-revenue-telegram-report` | Runs the same earning lifecycle for Lancers and keeps applications, paid work, delivery, and reporting state consistent |
-| 3 | Gig — CrowdWorks | `crowdworks-revenue-application`, `crowdworks-revenue-report` | Applies to suitable CrowdWorks projects and reports evidence-backed outcomes |
+| 1 | Gig Skill — Coconala adapter | `hf-gig-apply-direct`, `hf-gig-reply-detector`, `hf-gig-storefront-direct`, `hf-gig-paid-direct` | Uses the shared Gig Skill to find suitable work, apply, negotiate, deliver, and verify provider outcomes |
+| 2 | Gig Skill — Lancers adapter | `lancers-revenue-application`, `lancers-revenue-negotiate`, `lancers-revenue-storefront`, `lancers-revenue-paid`, `lancers-revenue-work-sync`, `lancers-revenue-telegram-report` | Uses the same earning Skill with Lancers transport and receipt rules |
+| 3 | Gig Skill — CrowdWorks adapter | `crowdworks-revenue-application`, `crowdworks-revenue-report` | Uses the same earning Skill with CrowdWorks transport and evidence-backed outcomes |
 | 4 | Writer | `writer-opportunity-discovery`, `writer-opportunity-response`, `writer-money-sync`, `writer-report` | Finds paid writing work, responds, and records publisher and payment receipts |
 | 5 | Affiliate | `affiliate-loop`, `affiliate-source-refresh`, `affiliate-browser` | Finds and publishes attributable affiliate opportunities through an owned browser path |
 | 6 | Investment | `alpaca-investment` | Runs the risk-gated Alpaca shadow/live loop, reconciles orders, and reports every five-minute pass |
@@ -54,11 +76,11 @@ an interview, approval, or final delivery.
 
 ### Setup and start truth
 
-| Product loop | User setup | Current start path |
+| Product Skill | User setup | Current start path |
 |---|---|---|
-| Coconala Gig | Coconala login, work profile, Telegram | `./install.sh coconala` |
-| Lancers Gig | Lancers login and work profile | Managed production owner; public guided installer pending |
-| CrowdWorks Gig | CrowdWorks login and work profile | Managed production owner; public guided installer pending |
+| Coconala Gig | Coconala account/work profile; KYC only if officially required; Telegram | `./install.sh coconala` |
+| Lancers Gig | Lancers account/work profile; KYC only if officially required | Managed production owner; public guided installer pending |
+| CrowdWorks Gig | CrowdWorks account/work profile; KYC only if officially required | Managed production owner; public guided installer pending |
 | Writer | Publisher accounts and browser/API credentials | Registry jobs; public guided installer pending |
 | Affiliate | Affiliate-provider account and browser/API credentials | Registry jobs; public guided installer pending |
 | Investment / Alpaca | Alpaca API credentials and explicit `paper`, `shadow`, or `live` mode | `LIFE_MANAGER_INVESTMENT_MODE=paper python3 skills/alpaca-investment/run.py` |
