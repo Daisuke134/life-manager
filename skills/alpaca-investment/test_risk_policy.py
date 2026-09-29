@@ -128,6 +128,32 @@ class FixedRiskPolicyTest(unittest.TestCase):
         snapshot = self._provider_snapshot("2026-09-06T09:59:50.123456789-04:00")
         self.assertFalse(evaluate_entry(snapshot["risk"], "10.00", now=NOW)["approved"])
 
+    def test_small_provider_clock_lead_does_not_reject_fresh_risk(self):
+        snapshot = risk(
+            equity_pnl_ny_day_usd="-10.00",
+            official_pnl_ny_day_usd="-10.00",
+            observed_at="2026-09-06T14:00:03Z",
+            ny_day="2026-09-06",
+        )
+
+        result = evaluate_entry(snapshot, "10.00", now=NOW)
+
+        self.assertTrue(result["approved"])
+        self.assertTrue(result["checks"]["fresh"])
+
+    def test_provider_clock_lead_beyond_bound_rejects_freshness(self):
+        snapshot = risk(
+            equity_pnl_ny_day_usd="-10.00",
+            official_pnl_ny_day_usd="-10.00",
+            observed_at="2026-09-06T14:00:06Z",
+            ny_day="2026-09-06",
+        )
+
+        result = evaluate_entry(snapshot, "10.00", now=NOW)
+
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["fresh"])
+
     def test_boolean_open_order_count_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "^alpaca_allocator_shape_invalid$"):
             self._provider_snapshot(open_orders=False)
