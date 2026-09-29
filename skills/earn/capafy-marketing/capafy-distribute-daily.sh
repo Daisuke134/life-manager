@@ -72,13 +72,16 @@ fi
 SELF_DIR="$SCRIPT_DIR/scripts"
 LEDGER="$CAPAFY_DISTRIBUTE_STATE_DIR/ledger.json"
 JST_DATE="$(TZ=Asia/Tokyo date +%F)"
+# One article per 3-hour JST slot (8/day); SLOT is the idempotency key.
+SLOT_NUM=$(( 10#$(TZ=Asia/Tokyo date +%H) / 3 ))
+SLOT="${JST_DATE}-h$(printf '%02d' $((SLOT_NUM * 3)))"
 CHANNEL="${CAPAFY_DISTRIBUTE_CHANNEL:-capafy-distribute}"
 
 # --- idempotent per JST-date: never publish twice for the same day ---------
 CHECK_RC=0
-python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$JST_DATE" >>"$LOG" 2>&1 || CHECK_RC=$?
+python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || CHECK_RC=$?
 if [ "$CHECK_RC" -eq 10 ]; then
-  echo "capafy-distribute-daily: already published date=$JST_DATE, skipping (fail closed, no duplicate)" >>"$LOG"
+  echo "capafy-distribute-daily: already published slot=$SLOT, skipping (fail closed, no duplicate)" >>"$LOG"
   exit 0
 elif [ "$CHECK_RC" -ne 0 ]; then
   echo "capafy-distribute-daily: ledger check failed rc=$CHECK_RC" >>"$LOG"
@@ -89,7 +92,7 @@ fi
 PRODUCTS_CONFIG="${CAPAFY_DISTRIBUTE_PRODUCTS_CONFIG:-$ARTICLE_ROOT/config/products.json}"
 ANALYTICS_FILE="${CAPAFY_DISTRIBUTE_ANALYTICS_FILE:-$HOME/.local/state/life-manager/state/capafy-skill-analytics.json}"
 SELECTION_JSON="$(python3 "$SELF_DIR/select_capafy_distribute_skill.py" \
-  --date "$JST_DATE" --products "$PRODUCTS_CONFIG" \
+  --date "$JST_DATE" --slot "$SLOT_NUM" --products "$PRODUCTS_CONFIG" \
   --analytics "$ANALYTICS_FILE" --channel "$CHANNEL")" || {
   echo "capafy-distribute-daily: skill selection failed" >>"$LOG"
   exit 1
@@ -110,11 +113,11 @@ X_CTA_URL="${CAPAFY_LANDING_URL}?ct=${X_CT}"
 # The aniccaai.com blog slug is derived from date+skill (not the title), so
 # a retry on the same JST date always resolves to the exact same page
 # instead of depending on model-chosen title text for idempotency.
-FREE_ARTICLE_SLUG="capafy-${CAPAFY_SKILL_SLUG}-${JST_DATE}"
+FREE_ARTICLE_SLUG="capafy-${CAPAFY_SKILL_SLUG}-${SLOT}"
 FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
 [ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
-RUN_TS="capafy-distribute-$JST_DATE"
+RUN_TS="capafy-distribute-$SLOT"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
 mkdir -p "$RUN_DIR/gates"
 
@@ -123,7 +126,7 @@ mkdir -p "$RUN_DIR/gates"
 if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" = "1" ]; then
   RECEIPT_JSON="$(python3 -c 'import json,sys; print(json.dumps({"status":"dry_run","capafy_skill":sys.argv[1],"cta_url":sys.argv[2],"x_cta_url":sys.argv[3],"free_article_url":sys.argv[4],"run_dir":sys.argv[5]}))' \
     "$CAPAFY_SKILL_SLUG" "$CTA_URL" "$X_CTA_URL" "$FREE_ARTICLE_URL" "$RUN_DIR")"
-  python3 "$SELF_DIR/capafy_distribute_ledger.py" record --ledger "$LEDGER" --date "$JST_DATE" --json "$RECEIPT_JSON" >>"$LOG" 2>&1 || exit 1
+  python3 "$SELF_DIR/capafy_distribute_ledger.py" record --ledger "$LEDGER" --date "$SLOT" --json "$RECEIPT_JSON" >>"$LOG" 2>&1 || exit 1
   echo "capafy-distribute-daily: dry-run complete date=$JST_DATE skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
   exit 0
 fi
@@ -209,7 +212,7 @@ entry's status and url (or skip/failure reason) taken verbatim from the two
 commands' own JSON output above -- never invent a URL that was not printed by
 capafy_free_article.py or capafy_x_post.py. Then run:
   python3 $SELF_DIR/capafy_distribute_ledger.py record --ledger "$LEDGER" \\
-    --date "$JST_DATE" --json "\$(cat $RUN_DIR/gates/receipt.json)"
+    --date "$SLOT" --json "\$(cat $RUN_DIR/gates/receipt.json)"
 This ledger write is the ONLY thing that marks today done; if you exit before
 writing it, the next scheduled wake will retry today's date.
 PROMPT_EOF
@@ -223,5 +226,10 @@ ARTICLE_RUN_ID="$RUN_TS" ARTICLE_MODEL_LOG="$LOG" ARTICLE_RUN_DIR="$RUN_DIR" \
     "$ARTICLE_MODEL_AGENT_TIMEOUT_SECONDS" \
     "$ARTICLE_MODEL_RUNNER" agent --prompt-file "$PROMPT_FILE" >>"$LOG" 2>&1
 RC=$?
-echo "capafy-distribute-daily: model pass exit=$RC date=$JST_DATE skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
+echo "capafy-distribute-daily: model pass exit=$RC slot=$SLOT skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
+# The agent CLI exits 1 even after a fully published run (live 2026-09-29 h15:
+# receipt published + ledger written, exit 1). The ledger is the effect truth.
+POST_RC=0
+python3 "$SELF_DIR/capafy_distribute_ledger.py" check --ledger "$LEDGER" --date "$SLOT" >>"$LOG" 2>&1 || POST_RC=$?
+[ "$POST_RC" -eq 10 ] && exit 0
 exit "$RC"
