@@ -4,8 +4,9 @@ import path from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { readRows } from "./journal.mjs";
+import { append, readRows } from "./journal.mjs";
 import { wake } from "./run.mjs";
+import { paperApply } from "./paper.mjs";
 
 const NOW = 1_700_000_000_000;
 const MINT = "TokenMint11111111111111111111111111111111111";
@@ -40,7 +41,7 @@ function clients({ sourceSignature = "source-run-1", executeResult = null } = {}
     adapters,
     async scout() { calls.scout += 1; return { status: "ok", candidates: [candidate(sourceSignature)], evidence: [] }; },
     decide(snapshot) {
-      return { action: "copy", mint: snapshot.destinationMint, amountUsd: 2, reason: "test_copy", sourceSignature: snapshot.sourceSignature };
+      return { action: "copy_entry", mint: snapshot.destinationMint, amountUsd: 2, reason: "test_copy", sourceSignature: snapshot.sourceSignature };
     },
     quoteFor() {
       return {
@@ -99,3 +100,85 @@ test("wake fences a terminal effect_unknown and never retries live", async () =>
   assert.equal(testClients.calls.live, 1);
 });
 
+test("live wake derives the cumulative canary ceiling from its journal", async () => {
+  const journal = await journalPath();
+  await append(journal, {
+    kind: "intent",
+    intentId: "prior-live-intent",
+    mode: "live",
+    action: "copy_entry",
+    amountUsd: 2,
+    sourceSignature: "prior-live-source",
+  });
+  const testClients = {
+    ...clients(),
+    risk: {
+      solBalanceLamports: 20_000_000,
+      minSolReserveLamports: 10_000_000,
+      estimatedFeeLamports: 100_000,
+      maxSourceAgeMs: 15 * 60 * 1000,
+      maxQuoteAgeMs: 30_000,
+      minLiquidityUsd: 1_000,
+      maxPriceImpactPct: 2,
+    },
+  };
+  delete testClients.decide;
+
+  const result = await wake({
+    mode: "live",
+    liveGate: true,
+    targets: [{ address: "target" }],
+    clients: testClients,
+    journalPath: journal,
+    nowMs: NOW,
+  });
+
+  assert.equal(result.decision.action, "skip");
+  assert.equal(result.decision.reason, "canary_budget_remaining_below_fixed_notional");
+  assert.equal(testClients.calls.live, 0);
+});
+
+test("wake evaluates a held position before considering a new entry", async () => {
+  const journal = await journalPath();
+  const position = {
+    mint: MINT,
+    amountRaw: "900000",
+    entryPriceUsd: 1,
+    entryAtMs: NOW - 1_000,
+    sourceSignature: "source-run-entry-1",
+    exitMint: "So11111111111111111111111111111111111111112",
+  };
+  const result = await wake({
+    mode: "paper",
+    liveGate: false,
+    targets: [{ address: "target" }],
+    clients: {
+      async scout() {
+        return { status: "ok", candidates: [candidate("new-source-must-not-enter")] };
+      },
+      position,
+      exitSnapshot: { currentPriceUsd: 0.69 },
+      risk: { nowMs: NOW, hardStopPct: 0.30, maxHoldMs: 24 * 60 * 60 * 1000 },
+      exitQuoteFor() {
+        return {
+          inputMint: MINT,
+          outputMint: position.exitMint,
+          inAmount: position.amountRaw,
+          outAmount: "600000",
+          priceImpactPct: 0.2,
+          simulatedFeeUsd: 0.01,
+          simulatedSlippageUsd: 0.02,
+        };
+      },
+      paperApply,
+    },
+    journalPath: journal,
+    nowMs: NOW,
+  });
+  const rows = await readRows(journal);
+
+  assert.equal(result.decision.action, "stop_exit");
+  assert.equal(result.receipt.status, "paper");
+  assert.equal(result.receipt.action, "stop_exit");
+  assert.equal(rows.filter((row) => row.kind === "intent")[0].action, "stop_exit");
+});

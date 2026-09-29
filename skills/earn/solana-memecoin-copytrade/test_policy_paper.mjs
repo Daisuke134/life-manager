@@ -43,13 +43,13 @@ function risk(overrides = {}) {
   };
 }
 
-test("decide emits exactly the initial $2 copy size", () => {
+test("decide emits exactly the initial $2 copy-entry size", () => {
   const decision = decide(candidate(), risk());
 
   assert.equal(CANARY_NOTIONAL_USD, 2);
   assert.equal(CANARY_MAX_USD, 3);
   assert.deepEqual(decision, {
-    action: "copy",
+    action: "copy_entry",
     mint: candidate().destinationMint,
     amountUsd: 2,
     reason: "eligible_initial_canary",
@@ -107,7 +107,7 @@ test("paperApply journals an effect-free receipt with explicit simulated costs",
   const journalPath = path.join(directory, "journal.jsonl");
   const intent = {
     intentId: "intent-paper-1",
-    action: "copy",
+    action: "copy_entry",
     mode: "paper",
     mint: candidate().destinationMint,
     amountUsd: 2,
@@ -140,7 +140,7 @@ test("paperApply is replay-zero for a repeated source signature", async () => {
   const journalPath = path.join(directory, "journal.jsonl");
   const intent = {
     intentId: "intent-paper-2",
-    action: "copy",
+    action: "copy_entry",
     mode: "paper",
     mint: candidate().destinationMint,
     amountUsd: 2,
@@ -158,3 +158,121 @@ test("paperApply is replay-zero for a repeated source signature", async () => {
   assert.equal(rows.length, 2);
 });
 
+function heldPosition(overrides = {}) {
+  return {
+    mint: candidate().destinationMint,
+    amountRaw: "900000",
+    entryPriceUsd: 1,
+    entryAtMs: NOW - 10_000,
+    sourceSignature: "sig-copy-1",
+    exitMint: candidate().sourceMint,
+    ...overrides,
+  };
+}
+
+test("decide mirrors a confirmed sale of the same target mint", () => {
+  const decision = decide({
+    position: heldPosition(),
+    currentPriceUsd: 1.1,
+    targetSale: {
+      confirmed: true,
+      mint: candidate().destinationMint,
+      sourceSignature: "target-sale-1",
+      observedAtMs: NOW - 1_000,
+    },
+  }, risk());
+
+  assert.equal(decision.action, "mirror_exit");
+  assert.equal(decision.sourceSignature, "target-sale-1");
+  assert.equal(decision.mint, candidate().destinationMint);
+});
+
+test("decide emits a hard stop when current price breaches the fixed loss", () => {
+  const decision = decide({ position: heldPosition(), currentPriceUsd: 0.69 }, risk({ hardStopPct: 0.30 }));
+
+  assert.equal(decision.action, "stop_exit");
+  assert.equal(decision.reason, "hard_stop_breached");
+});
+
+test("decide emits a time stop after the fixed holding window", () => {
+  const decision = decide({
+    position: heldPosition({ entryAtMs: NOW - 25 * 60 * 60 * 1000 }),
+    currentPriceUsd: 1,
+  }, risk({ maxHoldMs: 24 * 60 * 60 * 1000 }));
+
+  assert.equal(decision.action, "time_exit");
+  assert.equal(decision.reason, "time_stop_reached");
+});
+
+test("decide skips a stale target sale event and does not invent an exit", () => {
+  const decision = decide({
+    position: heldPosition(),
+    currentPriceUsd: 1.1,
+    targetSale: {
+      confirmed: true,
+      mint: candidate().destinationMint,
+      sourceSignature: "target-sale-old",
+      observedAtMs: NOW - 901_000,
+    },
+  }, risk({ maxTargetAgeMs: 900_000 }));
+
+  assert.equal(decision.action, "skip");
+  assert.equal(decision.reason, "target_event_stale");
+});
+
+test("decide still honors a hard stop when a target event is stale", () => {
+  const decision = decide({
+    position: heldPosition(),
+    currentPriceUsd: 0.69,
+    targetSale: {
+      confirmed: true,
+      mint: candidate().destinationMint,
+      sourceSignature: "target-sale-old",
+      observedAtMs: NOW - 901_000,
+    },
+  }, risk({ maxTargetAgeMs: 900_000, hardStopPct: 0.30 }));
+
+  assert.equal(decision.action, "stop_exit");
+  assert.equal(decision.reason, "hard_stop_breached");
+});
+
+test("decide halts when a held position has no exit evidence", () => {
+  const decision = decide({ position: heldPosition() }, risk());
+
+  assert.equal(decision.action, "halt");
+  assert.equal(decision.reason, "exit_evidence_incomplete");
+});
+
+test("paperApply keeps exit source signatures replay-zero", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "sol-copy-paper-exit-replay-"));
+  const journalPath = path.join(directory, "journal.jsonl");
+  const intent = {
+    intentId: "intent-exit-1",
+    action: "mirror_exit",
+    mode: "paper",
+    mint: candidate().destinationMint,
+    amountUsd: 2,
+    sourceSignature: "target-sale-replay-1",
+    createdAtMs: NOW,
+    position: heldPosition(),
+  };
+  const quote = {
+    inputMint: candidate().destinationMint,
+    outputMint: candidate().sourceMint,
+    inAmount: "900000",
+    outAmount: "900000",
+    priceImpactPct: 0.1,
+    simulatedFeeUsd: 0.01,
+    simulatedSlippageUsd: 0.02,
+  };
+
+  const first = await paperApply(intent, quote, journalPath);
+  const second = await paperApply({ ...intent, intentId: "intent-exit-2" }, quote, journalPath);
+  const rows = await readRows(journalPath);
+
+  assert.equal(first.status, "paper");
+  assert.equal(first.action, "mirror_exit");
+  assert.equal(second.status, "rejected");
+  assert.equal(second.reason, "source_signature_duplicate");
+  assert.equal(rows.length, 2);
+});

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 
 import { readRows } from "./journal.mjs";
 import { executeCanary } from "./execute.mjs";
+import { verifyReceipt } from "./receipt.mjs";
 
 const OWNER = "Agent111111111111111111111111111111111111111";
 const SOURCE_MINT = "So11111111111111111111111111111111111111112";
@@ -46,6 +47,7 @@ function intent(overrides = {}) {
     intentId: "intent-live-1",
     mode: "live",
     liveGate: true,
+    action: "copy_entry",
     owner: OWNER,
     mint: DESTINATION_MINT,
     sourceMint: SOURCE_MINT,
@@ -134,6 +136,17 @@ test("live mode rejects any intent above the exact $2 canary size", async () => 
   assert.deepEqual(await readRows(journal), []);
 });
 
+test("live mode keeps every exit closed before a canary is authorized", async () => {
+  const journal = await journalPath();
+  const { clients, calls } = clientsFor();
+  const result = await withLiveGate("1", () => executeCanary(intent({ action: "mirror_exit" }), quote, wallet(), clients, journal));
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.reason, "live_exit_closed");
+  assert.equal(calls.send, 0);
+  assert.deepEqual(await readRows(journal), []);
+});
+
 test("confirmed matching token deltas produce a verified receipt", async () => {
   const journal = await journalPath();
   const { clients, calls } = clientsFor();
@@ -165,3 +178,62 @@ test("a confirmed mismatched delta becomes effect_unknown without retry", async 
   assert.equal(rows[1].retry, false);
 });
 
+test("a confirmed exit requires the held-token delta, proceeds delta, and fee", () => {
+  const exitIntent = intent({
+    intentId: "intent-exit-1",
+    action: "mirror_exit",
+    mint: SOURCE_MINT,
+    sourceMint: DESTINATION_MINT,
+    destinationMint: SOURCE_MINT,
+    sourceRawAmount: "900000",
+    destinationRawAmount: "1000000",
+    sourceSignature: "target-sale-1",
+    position: { mint: DESTINATION_MINT, amountRaw: "900000" },
+  });
+  const before = [
+    { owner: OWNER, mint: DESTINATION_MINT, rawAmount: "900000" },
+    { owner: OWNER, mint: SOURCE_MINT, rawAmount: "0" },
+  ];
+  const after = [
+    { owner: OWNER, mint: DESTINATION_MINT, rawAmount: "0" },
+    { owner: OWNER, mint: SOURCE_MINT, rawAmount: "1000000" },
+  ];
+  const tx = {
+    signature: "exit-signature-1",
+    confirmed: true,
+    meta: {
+      err: null,
+      fee: 5_000,
+      preTokenBalances: [
+        tokenBalance(0, OWNER, DESTINATION_MINT, "900000"),
+        tokenBalance(1, OWNER, SOURCE_MINT, "0"),
+      ],
+      postTokenBalances: [
+        tokenBalance(0, OWNER, DESTINATION_MINT, "0"),
+        tokenBalance(1, OWNER, SOURCE_MINT, "1000000"),
+      ],
+    },
+  };
+
+  const result = verifyReceipt(exitIntent, tx, before, after);
+
+  assert.equal(result.status, "verified");
+  assert.equal(result.feeLamports, 5_000);
+  assert.equal(result.evidence.action, "mirror_exit");
+});
+
+test("an exit without a fee receipt remains effect-unknown", () => {
+  const exitIntent = intent({
+    action: "stop_exit",
+    mint: SOURCE_MINT,
+    sourceMint: DESTINATION_MINT,
+    destinationMint: SOURCE_MINT,
+    sourceRawAmount: "900000",
+    destinationRawAmount: "1000000",
+    position: { mint: DESTINATION_MINT, amountRaw: "900000" },
+  });
+  const result = verifyReceipt(exitIntent, { confirmed: true, meta: { err: null } }, [], []);
+
+  assert.equal(result.status, "effect_unknown");
+  assert.equal(result.reason, "fee_unknown");
+});

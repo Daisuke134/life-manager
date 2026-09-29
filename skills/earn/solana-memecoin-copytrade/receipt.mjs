@@ -78,19 +78,32 @@ function result(status, reason, fields = {}) {
   };
 }
 
+const ENTRY_ACTION = "copy_entry";
+const EXIT_ACTIONS = new Set(["mirror_exit", "stop_exit", "time_exit"]);
+
 export function verifyReceipt(intent, transaction, beforeBalances, afterBalances) {
   if (!transaction || typeof transaction !== "object") return result("effect_unknown", "receipt_missing");
   if (!confirmed(transaction)) return result("rejected", "receipt_not_confirmed");
   if (transaction.meta?.err != null) return result("rejected", "transaction_failed");
 
+  const action = intent?.action;
   const owner = intent?.owner;
   const sourceMint = intent?.sourceMint;
   const destinationMint = intent?.destinationMint || intent?.mint;
   const expectedSource = toBigInt(intent?.sourceRawAmount);
   const expectedDestination = toBigInt(intent?.destinationRawAmount);
   const feeLamports = toBigInt(transaction.meta?.fee ?? transaction.feeLamports);
+  if (action !== ENTRY_ACTION && !EXIT_ACTIONS.has(action)) {
+    return result("rejected", "receipt_action_invalid", { feeLamports: feeLamports == null ? null : Number(feeLamports) });
+  }
   if (!owner || !sourceMint || !destinationMint || expectedSource == null || expectedDestination == null || expectedSource <= 0n || expectedDestination <= 0n) {
     return result("rejected", "receipt_intent_incomplete", { feeLamports: feeLamports == null ? null : Number(feeLamports) });
+  }
+  if (sourceMint === destinationMint) return result("rejected", "receipt_mints_not_distinct", { feeLamports: feeLamports == null ? null : Number(feeLamports) });
+  if (EXIT_ACTIONS.has(action)
+    && (!intent.position || intent.position.mint !== sourceMint
+      || String(intent.position.amountRaw) !== String(intent.sourceRawAmount))) {
+    return result("rejected", "receipt_exit_intent_incomplete", { feeLamports: feeLamports == null ? null : Number(feeLamports) });
   }
   if (feeLamports == null || feeLamports < 0n || feeLamports > BigInt(Number.MAX_SAFE_INTEGER)) {
     return result("effect_unknown", "fee_unknown", { evidence: { signature: transaction.signature || null } });
@@ -107,6 +120,7 @@ export function verifyReceipt(intent, transaction, beforeBalances, afterBalances
   const evidence = {
     signature: transaction.signature || null,
     owner,
+    action,
     sourceMint,
     destinationMint,
     expectedDeltas: mapToJson(expected),
@@ -121,4 +135,3 @@ export function verifyReceipt(intent, transaction, beforeBalances, afterBalances
     netUsd: Number.isFinite(Number(intent.realizedNetUsd)) ? Number(intent.realizedNetUsd) : null,
   };
 }
-

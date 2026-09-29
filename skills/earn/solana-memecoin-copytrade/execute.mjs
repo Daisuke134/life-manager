@@ -31,15 +31,16 @@ function journalIntent(intent, owner) {
     kind: "intent",
     intentId: intent.intentId,
     mode: "live",
-    action: "copy",
+    action: intent.action,
     owner,
     mint: intent.destinationMint || intent.mint,
     sourceMint: intent.sourceMint,
     destinationMint: intent.destinationMint || intent.mint,
     sourceRawAmount: intent.sourceRawAmount,
     destinationRawAmount: intent.destinationRawAmount,
-    amountUsd: 2,
+    amountUsd: Number.isFinite(Number(intent.amountUsd)) ? Number(intent.amountUsd) : null,
     sourceSignature: intent.sourceSignature,
+    targetAddress: intent.targetAddress || null,
     createdAtMs: intent.createdAtMs || null,
   };
 }
@@ -58,6 +59,7 @@ export async function executeCanary(intent, quote, wallet, clients, journalPath)
   if (!intent || typeof intent !== "object" || intent.mode !== "live") return rejected("live_mode_required", intent);
   if (process.env.SOL_COPY_LIVE !== "1") return rejected("live_gate_missing", intent);
   if (intent.liveGate !== true) return rejected("live_double_gate_missing", intent);
+  if (intent.action !== "copy_entry") return rejected("live_exit_closed", intent);
   if (Number(intent.amountUsd) !== 2) return rejected("fixed_notional_required", intent);
   const owner = wallet?.publicKey;
   const destinationMint = intent.destinationMint || intent.mint;
