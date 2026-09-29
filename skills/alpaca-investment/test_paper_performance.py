@@ -194,6 +194,27 @@ class PaperPerformanceTests(unittest.TestCase):
             self.assertEqual(second["completed_round_trips_total"], 1)
             self.assertNotEqual(first["source_receipt_ids"], second["source_receipt_ids"])
 
+    def test_repeated_paper_wake_keeps_same_day_pnl_until_daily_consumer_reads_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            ledger = state / "receipts.jsonl"
+            ledger.write_text("".join(json.dumps(row) + "\n" for row in _rows()))
+
+            first = write_paper_performance(state, OBSERVATION, RISK)
+            later_observation = copy.deepcopy(OBSERVATION)
+            later_observation["clock"]["observed_at"] = "2026-10-20T14:31:20Z"
+            second = write_paper_performance(state, later_observation, RISK)
+
+            self.assertEqual(first["gross_strategy_pnl_usd"], "0.250")
+            self.assertEqual(second["gross_strategy_pnl_usd"], "0.250")
+            self.assertEqual(second["completed_round_trips"], 1)
+            self.assertEqual(second["completed_round_trips_total"], 1)
+            self.assertNotEqual(first["source_receipt_ids"], second["source_receipt_ids"])
+            self.assertEqual(
+                json.loads((state / "performance-daily-2026-10-20.json").read_text())["gross_strategy_pnl_usd"],
+                "0.250",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

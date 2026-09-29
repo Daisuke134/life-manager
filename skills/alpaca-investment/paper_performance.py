@@ -6,7 +6,7 @@ import json
 import os
 import tempfile
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -42,6 +42,10 @@ def _timestamp(value: Any) -> datetime:
     if parsed.tzinfo is None:
         raise ValueError("paper_timestamp_invalid")
     return parsed
+
+
+def _utc_day(value: Any) -> str:
+    return _timestamp(value).astimezone(timezone.utc).date().isoformat()
 
 
 def _source_ids(intent: Mapping[str, Any], broker: Mapping[str, Any]) -> list[str]:
@@ -307,52 +311,38 @@ def write_paper_performance(
         return _unknown(str(error))
     result = build_paper_performance(rows, observation, risk)
     if result.get("measurement_status") == "partial":
-        prior: Mapping[str, Any] = {}
-        try:
-            raw_prior = json.loads((state / "performance-latest.json").read_text(encoding="utf-8"))
-            if isinstance(raw_prior, Mapping):
-                prior = raw_prior
-        except (OSError, json.JSONDecodeError):
-            prior = {}
-
         completed, _source_ids = _closed_round_trips(rows)
-        prior_reported = prior.get("reported_order_receipt_ids")
-        if not isinstance(prior_reported, list) or any(
-            not isinstance(item, str) or not item for item in prior_reported
-        ):
-            prior_reported = [
-                item for item in prior.get("source_receipt_ids", [])
-                if isinstance(item, str) and item and not item.startswith("alpaca-account-readback:")
-            ] if isinstance(prior.get("source_receipt_ids"), list) else []
-        prior_reported_set = set(prior_reported)
-        new_rounds = [
+        observed_at = result.get("observed_at")
+        observation_day = _utc_day(observed_at)
+        daily_rounds = [
             item for item in completed
-            if not prior_reported_set.intersection(item.get("source_receipt_ids", []))
+            if _utc_day(item.get("closed_at")) == observation_day
         ]
-        daily_gross = sum((item["gross_pnl_usd"] for item in new_rounds), Decimal("0"))
-        daily_exposure = max((item["exposure_usd"] for item in new_rounds), default=Decimal("0"))
-        cumulative_order_ids = list(prior_reported)
+        daily_gross = sum((item["gross_pnl_usd"] for item in daily_rounds), Decimal("0"))
+        daily_exposure = max((item["exposure_usd"] for item in daily_rounds), default=Decimal("0"))
+        cumulative_order_ids: list[str] = []
         for item in completed:
             for receipt_id in item.get("source_receipt_ids", []):
                 if receipt_id not in cumulative_order_ids:
                     cumulative_order_ids.append(receipt_id)
-        observed_at = result.get("observed_at")
         account_receipt_id = f"alpaca-account-readback:{observed_at}"
         daily_source_ids = [
-            *[receipt_id for item in new_rounds for receipt_id in item.get("source_receipt_ids", [])],
+            *[receipt_id for item in daily_rounds for receipt_id in item.get("source_receipt_ids", [])],
             account_receipt_id,
         ]
         result = {
             **result,
-            "completed_round_trips": len(new_rounds),
+            "completed_round_trips": len(daily_rounds),
             "completed_round_trips_total": len(completed),
             "gross_exposure_usd": str(daily_exposure),
             "gross_strategy_pnl_usd": str(daily_gross),
             "gross_strategy_pnl_total_usd": result.get("gross_strategy_pnl_usd"),
             "reported_order_receipt_ids": cumulative_order_ids,
-            "report_scope": "observation_delta",
+            "report_scope": "daily_accumulation",
+            "performance_day": observation_day,
             "source_receipt_ids": daily_source_ids,
         }
+        _atomic_json(state / f"performance-daily-{observation_day}.json", result)
         _atomic_json(state / "performance-latest.json", result)
     return result
 
