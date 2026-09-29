@@ -86,6 +86,9 @@ EFFECT_RESULT_HINT_ENTRYPOINTS = frozenset({
 # loop_id here once its entrypoint script provably tracks mutation attempts and
 # never writes the hint after one starts.
 PRE_EFFECT_HINT_LOOP_IDS = frozenset({
+    "alpaca-investment-live",
+    "alpaca-investment-paper",
+    "investment-cross-venue-report",
     "hf-gig-storefront-direct",
 })
 JAVASCRIPT_ENTRYPOINT_SUFFIXES = frozenset({".cjs", ".js", ".mjs"})

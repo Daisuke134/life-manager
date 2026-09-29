@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from datetime import date, datetime, timedelta, timezone
@@ -32,6 +33,51 @@ def snapshot(venue="alpaca", receipt_id=None):
 
 
 class CrossVenueReporterTests(unittest.TestCase):
+    def test_wake_marks_effect_attempted_immediately_before_sender(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            hint = state / "entrypoint-result.json"
+            hint.write_text(
+                json.dumps({"status": "pre_effect_failure", "effect": 0}) + "\n",
+                encoding="utf-8",
+            )
+            calls = []
+
+            def send(_message):
+                calls.append(True)
+                self.assertEqual(
+                    json.loads(hint.read_text(encoding="utf-8")),
+                    {"status": "effect_attempted", "effect": 1},
+                )
+                return {"message_id": "telegram-before-send"}
+
+            old = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH")
+            os.environ["LIFE_MANAGER_RESULT_HINT_PATH"] = str(hint)
+            try:
+                receipt = wake({"alpaca": lambda: snapshot()}, state, TODAY, send)
+            finally:
+                if old is None:
+                    os.environ.pop("LIFE_MANAGER_RESULT_HINT_PATH", None)
+                else:
+                    os.environ["LIFE_MANAGER_RESULT_HINT_PATH"] = old
+
+        self.assertEqual(receipt["status"], "delivered")
+        self.assertEqual(len(calls), 1)
+
+    def test_wake_binds_provider_receipt_to_runtime_occurrence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = wake(
+                {"alpaca": lambda: snapshot()},
+                Path(directory),
+                TODAY,
+                lambda _message: {"message_id": "telegram-occurrence"},
+                occurrence_id="investment-cross-venue-report:run-1",
+            )
+
+        self.assertEqual(
+            receipt["occurrence_id"], "investment-cross-venue-report:run-1"
+        )
+
     def test_render_includes_all_costs_and_unknown_markers_in_venue_order(self):
         message = render_daily_pnl(
             {

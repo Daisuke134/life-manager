@@ -25,6 +25,12 @@ class InvestmentRuntimeContractTests(unittest.TestCase):
         self.assertEqual(job["effect_class"], "message")
         self.assertEqual(job["admission_class"], "revenue")
         self.assertEqual(job["priority"], "revenue")
+        self.assertEqual(
+            job["effect_reconcile"]["argv"][0],
+            "apps/life-manager/investment-core/cross_venue_effect_reconcile.py",
+        )
+        self.assertEqual(job["effect_reconcile"]["occurrence_flag"], "--occurrence-id")
+        self.assertEqual(job["effect_reconcile"]["resolve_flag"], "--resolve")
         self.assertEqual(job["state_root"], "~/.local/state/life-manager/investment-cross-venue")
         self.assertEqual(job["command"][:2], ["--state-dir", "~/.local/state/life-manager/investment-cross-venue"])
         self.assertIn("--alpaca-state-dir", job["command"])
