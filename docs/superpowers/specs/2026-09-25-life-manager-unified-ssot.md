@@ -2561,3 +2561,20 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 5. **未完** RyuさんDMのprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品・receiptなしのeffect fence解放はしない。
 6. **未完** Upwork／Freelancerのfunded contract／milestone→mutation authorization→isolated canary→rollback→settlement→cost-complete positive net P&Lを検証してからownerを有効化する。
 7. **未完** Meta Loopを全platformへ一般化し、scheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&L feedbackを公式receipt付きで閉じる。
+
+## 現在の正本cursor（2026-09-30、Freelancer認証済みreadback caller接続後）
+
+- `fix/source-reconcile-20260930`のHEADは`5e6d9538ed`。Freelancerに`FreelancerTransport.read_inventory_observation`と`providers/freelancer_platform_provider.py`を追加し、inspect／read_payments／read_payoutsのaccount-bound receiptを先に検証してから、完全な公式readback bundleを正規inventoryへ変換する。
+- manifestへ渡すのはidentity／projects／payments／payoutsのroute別SHA-256とprofile hashだけで、アカウントID・契約行・案件本文・tokenは保存しない。normalized inventoryだけ、またはroute欠落・project ID不一致・currency policy欠落のbundleは`hold`／fail-closedにする。公開bid watcherはcaller経路へ接続していない。
+- Freelancer公式integration docsのautomatic bidder制限を満たすprovider-approved termsが無い間は、propose／message／owner登録を行わない。payments／payoutsの完全なprovider readback bundleを受け取れない場合も、URLを推測して補わずholdする。
+- 検証済み: Freelancer関連`47 passed`、Gig全体`1579 passed`、Marketplace Core＋runtime/loop`1139 passed (576 subtests)`、Python compile、`lm-loop-contract`、`git diff --check`。これはsource/runtimeの証拠であり、OAuth、実アカウントreceipt、provider readback、funded project、production apply、収益の証拠ではない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** Freelancerの認証済みreadback callerとroute別evidence hashをshared manifest／durable wakeへ接続する。公開bid watcherから応募へ昇格させない。
+2. **未完（外部前提）** Freelancerのprovider-approved automation terms、account-bound auth receipt、実アカウントのidentity／projects／milestones／payments／payouts公式readback、fresh source-complete inventoryを取得する。欠落時はholdを維持する。
+3. **未完** branch全体をmainへ受入できるchecksへそろえ、main由来immutable release→targeted apply→loaded SHA／plist／identity lease／rollback receipt→natural terminal→公式readbackを完了する。
+4. **未完** capacity／ENOSPC修正をproductionへ反映し、effect-free scratch reclaim／reserve retry／runtime evidenceを自然runで実測する。
+5. **未完** RyuさんDMの既存一回送信のprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品はしない。
+6. **未完** Freelancer／Upworkのfunded contract／milestone→mutation authorization→isolated canary→rollback→settlement→cost-complete positive net P&Lを検証してからownerを有効化する。
+7. **未完** Meta Loopを全platformでscheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&Lまで公式receipt付きで閉じる。
