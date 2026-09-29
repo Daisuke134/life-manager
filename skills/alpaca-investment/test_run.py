@@ -31,6 +31,17 @@ def _publisher_probe(root: Path) -> tuple[Path, Path]:
 
 
 class DeploymentProfileTest(unittest.TestCase):
+    def test_reconciliation_pending_is_a_hold_not_a_generic_failure(self):
+        self.assertTrue(MODULE._reconciliation_is_pending({
+            "pending": 1, "reconciled": 0, "unresolved": 1, "deferred": 1,
+        }))
+        self.assertFalse(MODULE._reconciliation_is_pending({
+            "pending": 1, "reconciled": 0, "unresolved": 1,
+        }))
+        self.assertFalse(MODULE._reconciliation_is_pending({
+            "pending": 0, "reconciled": 0, "unresolved": 0,
+        }))
+
     def test_accepts_only_exact_local_or_cloud(self):
         for value in ("local", "cloud"):
             with patch.dict(MODULE.os.environ, {

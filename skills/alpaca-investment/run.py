@@ -57,6 +57,17 @@ def _terminal_effect(effect_attempted: bool) -> str:
     return "unknown" if effect_attempted else "none"
 
 
+def _reconciliation_is_pending(value: object) -> bool:
+    if not isinstance(value, dict):
+        return False
+    deferred = value.get("deferred", 0)
+    unresolved = value.get("unresolved")
+    return (
+        isinstance(deferred, int) and not isinstance(deferred, bool) and deferred > 0
+        and unresolved == deferred
+    )
+
+
 def _error_code(error: Exception) -> str:
     value = str(error)
     if value in SAFE_ERROR_CODES:
@@ -409,7 +420,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 observed_at=allocator_snapshot["clock"]["timestamp"])
         unresolved = reconciliation.get("unresolved")
         if isinstance(unresolved, bool) or not isinstance(unresolved, int) or unresolved != 0:
-            raise ValueError("investment_unresolved_intent")
+            if not _reconciliation_is_pending(reconciliation):
+                raise ValueError("investment_unresolved_intent")
         allocator_snapshot["unresolved_intents"] = unresolved
         candidates = build_candidates(allocator_snapshot)
         stage = "allocation_decide"

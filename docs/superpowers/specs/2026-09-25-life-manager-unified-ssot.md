@@ -811,3 +811,20 @@ TODO（何を・どう直すか）
 4. `alpaca-investment-paper`の自然wakeを1回取得し、paper order/fill/account/positionのprovider receiptを確認する。paperは利益・real revenue・live許可とは数えない。
 5. `investment-cross-venue-report`と`investment-strategy-validation`で、手数料・slippage・funding/borrow・gas・model cost込みのcost-complete net P&Lを生成する。unknownやpaper未完了ならpromotionしない。
 6. 最小capの自然round tripを`30/30`まで測定し、再現性・drawdown・replay-zeroを確認する。それまではcap増額、Binance送金、live ETF注文、meme-coin署名、yield depositを行わない。
+
+**投資注文reconciliationの正本状態（最新）**: Life Managerがruntime ownerであり、投資専用branch `fix/investment-order-reconciliation-20260929`がAlpaca paper注文の状態境界を修正している。旧実装はbroker `accepted`を`broker_reconciled`として閉じていたため、未約定注文が完了扱いになり得た。新実装は`accepted`/`new`/`pending_new`/`partially_filled`等を`reconciliation_pending`として保持し、`filled`かつ公式account/position readbackが揃った時だけstrategy receipt・ownership・P&Lへ進める。zero-fillの`canceled`/`expired`/`rejected`等はterminal failureとしてP&Lから除外し、positive partial fillは未解決のまま保持する。既存の誤った非終端outcomeは公式statusを再読して収束できる。Capafy、PromptBase、他agentの開発作業はこの投資scopeに含めない。
+
+**paper実測の現在値**: client order `lm-ai-d3935170807d46a7a5cde38e`／broker order `24cc2687-f718-4019-83f1-b5928c47525c`のQQQ `$10.00` paper orderは`accepted`、`filled_qty=0`、`filled_avg_price=null`、market closed/pre-open、positions/fills empty、cash/equity `$99,996.76`。従って実現損益`$0`、収益`$0`、live資金の増加なし。注文の再送、Binanceからの送金、wallet funding、live ETF注文はしない。
+
+**source verification**: Alpaca `243/243`、focused investment suites `68/68`、`./bin/lm-loop-contract` `ok=true`（catalog `14`、registry `173`、mapped `100`、errors `[]`）、`git diff --check` PASS。sourceは検証済みだが、PR/main統合、main由来immutable release、production apply、自然paper fill、cost-complete P&L、30 natural samplesは未完了。
+
+**投資TODOの実行順（この順序を正本とする）**:
+
+1. 投資sourceとspec/planをcommit・pushする。
+2. 投資PRのrequired checksを通し、green時だけmainへ統合する。差分外の失敗を迂回するために他agentのコードは触らない。
+3. main由来immutable releaseを作り、Life Managerの通常owner pathで`alpaca-investment-paper`へapplyし、release SHA・argv/env・admissionをreadbackする。
+4. natural wakeで既存orderを再送せず公式readbackする。`accepted`はpending、`filled`はownership、zero-fill terminalは失敗・P&Lなしとする。
+5. entry/exitの公式fillとaccount/position、全costを揃え、cost-complete net P&Lを作る。
+6. replay-zeroで自然round tripを`30/30`測定する。これ以前のpaper利益やbacktestはpromotion根拠にしない。
+7. `30/30`の正の実測後にだけ最小capの一段階promotionを審査し、その後にHyperliquid/Solana/Pump.fun/yieldをshadow→paper→bounded canaryの順に比較する。
+8. 実際のcost-complete netがrollingで確認できた後にだけ月次収益を報告する。`$10,000/月`とgenerational wealthは目標であり、現在のpaper注文や`$100` capから保証されない。

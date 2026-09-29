@@ -7,11 +7,18 @@ import hashlib
 import json
 import os
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
 
 MODES = frozenset({"paper", "shadow", "live"})
+BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
+    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
+})
+UNRESOLVED_INTENT_STATUSES = frozenset({
+    "started", "reconciliation_blocked", "reconciliation_pending", "applied",
+})
 
 
 def _mode(value: Any) -> str:
@@ -102,14 +109,69 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
 
 
 def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    outcomes = {row.get("effect_id") for row in rows if row.get("receipt_type") == "outcome"}
+    latest_outcome: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row.get("receipt_type") == "outcome" and isinstance(row.get("effect_id"), str):
+            latest_outcome[row["effect_id"]] = row
     latest: dict[str, dict[str, Any]] = {}
     for row in rows:
         if row.get("receipt_type") == "effect_intent" and isinstance(row.get("effect_id"), str):
             latest[row["effect_id"]] = row
     return [row for effect_id, row in latest.items()
-            if row.get("status") in {"started", "reconciliation_blocked", "applied"}
-            and effect_id not in outcomes]
+            if row.get("status") in UNRESOLVED_INTENT_STATUSES
+            and not _outcome_closed(latest_outcome.get(effect_id))]
+
+
+def _filled_qty_positive(order: dict[str, Any]) -> bool:
+    value = order.get("filled_qty")
+    if value is None or value == "":
+        return False
+    try:
+        quantity = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return True
+    return quantity.is_finite() and quantity > 0
+
+
+def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
+    if not isinstance(outcome, dict):
+        return False
+    kind = outcome.get("outcome")
+    if kind == "broker_terminal_failure":
+        broker = outcome.get("broker")
+        return isinstance(broker, dict) and (
+            broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES
+            and not _filled_qty_positive(broker)
+        )
+    if kind == "broker_reconciled":
+        broker = outcome.get("broker")
+        if not isinstance(broker, dict):
+            return False
+        status = broker.get("status")
+        return status == "filled" or (
+            status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(broker)
+        )
+    return kind in {
+        "live_canary_verified", "live_canary_terminal_failure",
+        "live_close_verified", "live_close_terminal_failure",
+    }
+
+
+def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
+                    *, reason: str | None = None) -> None:
+    status = order.get("status")
+    _append_once(ledger, {
+        "client_order_id": intent["client_order_id"],
+        "broker_status": status,
+        "effect_id": intent["effect_id"],
+        "mode": intent.get("mode", "paper"),
+        "paper": intent.get("paper") is True,
+        "receipt_type": "effect_intent",
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 1,
+        "status": "reconciliation_pending",
+        **({"reason": reason} if reason else {}),
+    }, ("receipt_type", "effect_id", "status", "broker_status"))
 
 
 def unresolved_intent_count(ledger: Path) -> int:
@@ -153,6 +215,7 @@ def reconcile_started(
     if len(pending) > 1:
         raise ValueError("multiple_unresolved_intents")
     reconciled = 0
+    deferred = 0
     for intent in pending:
         mode = intent.get("mode")
         if mode is None:
@@ -169,6 +232,28 @@ def reconcile_started(
                 "schema_version": 1, "status": "reconciliation_blocked",
             }, ("receipt_type", "effect_id", "status"))
             raise ValueError("reconciliation_blocked")
+        status = order.get("status")
+        if status != "filled":
+            if status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(order):
+                _append_once(ledger, {
+                    "broker": order, "broker_receipt_id": order.get("id"),
+                    "broker_status": status,
+                    "client_order_id": intent["client_order_id"],
+                    "effect_id": intent["effect_id"], "outcome": "broker_terminal_failure",
+                    "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
+                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                    "schema_version": 1,
+                }, ("receipt_type", "effect_id", "outcome", "broker_status",
+                    "broker_receipt_id"))
+                reconciled += 1
+                continue
+            _pending_status(
+                ledger, intent, order,
+                reason="partial_fill_requires_reconciliation" if status in BROKER_TERMINAL_FAILURE_STATUSES
+                else None,
+            )
+            deferred += 1
+            continue
         strategy_receipt = None
         if on_reconciled is not None:
             # The callback owns any additional provider/account readback needed
@@ -184,13 +269,20 @@ def reconcile_started(
             "schema_version": 1, "status": "applied",
         }, ("receipt_type", "effect_id", "status"))
         outcome = {
-            "broker": order, "effect_id": intent["effect_id"], "outcome": "broker_reconciled",
+            "broker": order, "broker_receipt_id": order.get("id"),
+            "broker_status": status, "effect_id": intent["effect_id"],
+            "outcome": "broker_reconciled",
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
         }
         if strategy_receipt is not None:
             outcome["strategy_receipt"] = strategy_receipt
-        _append_once(ledger, outcome, ("receipt_type", "effect_id"))
+        _append_once(ledger, outcome, (
+            "receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id",
+        ))
         reconciled += 1
-    return {"pending": len(pending), "reconciled": reconciled,
-            "unresolved": unresolved_intent_count(ledger)}
+    result = {"pending": len(pending), "reconciled": reconciled,
+              "unresolved": unresolved_intent_count(ledger)}
+    if deferred:
+        result["deferred"] = deferred
+    return result

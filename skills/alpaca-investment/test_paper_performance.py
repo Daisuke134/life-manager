@@ -116,6 +116,77 @@ RISK = {"drawdown_usd": "0.00"}
 
 
 class PaperPerformanceTests(unittest.TestCase):
+    def test_pending_order_never_emits_numeric_pnl(self):
+        rows = _rows()
+        rows.pop(1)
+        rows[0]["status"] = "reconciliation_pending"
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "paper_effect_unresolved",
+        })
+
+    def test_legacy_accepted_outcome_is_superseded_by_later_filled_receipt(self):
+        rows = _rows()
+        accepted = copy.deepcopy(rows[1])
+        accepted["broker"] = {
+            **accepted["broker"], "status": "accepted", "filled_qty": "0",
+        }
+        accepted.pop("strategy_receipt")
+        rows = [rows[0], accepted, rows[1], *rows[2:]]
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result["completed_round_trips"], 1)
+        self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
+
+    def test_duplicate_outcome_for_same_effect_fails_closed(self):
+        rows = _rows()
+        rows.insert(2, copy.deepcopy(rows[1]))
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "paper_receipt_duplicate",
+        })
+
+    def test_zero_fill_terminal_failure_is_not_a_pnl_event(self):
+        failed_intent = {
+            "receipt_type": "effect_intent",
+            "effect_id": "failed-effect",
+            "status": "applied",
+            "mode": "paper",
+            "paper": True,
+            "owner_id": OWNER,
+            "strategy_id": STRATEGY,
+            "client_order_id": "lm-ai-" + "c" * 24,
+            "source_receipt_ids": ["alpaca://bars/failed"],
+            "order": {"asset_class": "us_equity", "side": "buy", "symbol": "SPY"},
+        }
+        failed_outcome = {
+            "receipt_type": "outcome",
+            "effect_id": "failed-effect",
+            "outcome": "broker_terminal_failure",
+            "mode": "paper",
+            "paper": True,
+            "recorded_at": "2026-09-29T14:00:00Z",
+            "broker": {
+                "id": "paper-failed", "client_order_id": "lm-ai-" + "c" * 24,
+                "status": "canceled", "symbol": "SPY", "side": "buy",
+                "filled_qty": "0",
+            },
+        }
+
+        result = build_paper_performance(
+            [failed_intent, failed_outcome, *_rows()], OBSERVATION, RISK
+        )
+
+        self.assertEqual(result["completed_round_trips"], 1)
+        self.assertEqual(result["gross_strategy_pnl_usd"], "0.250")
+
     def test_closed_round_trip_emits_gross_but_keeps_costs_unknown(self):
         result = build_paper_performance(_rows(), OBSERVATION, RISK)
 
