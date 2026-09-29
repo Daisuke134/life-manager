@@ -299,6 +299,18 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - PromptBase ✅: 作るループの本当の停止原因は reCAPTCHA ではなく「見本の出力が 4 つとも同じ」（自然 run の画面: "Some of your example outputs are the same"。reCAPTCHA は 9/28 に 30 分で 7 回連続送信した時だけ）。#93843feb: gen_examples.py が Claude で SKILL.md を 3 つの新しい入力で実行し、検証済み 1 件と合わせ 4 つの違う見本を state/promptbase-examples/<slug>.json に保存、publish が枠ごとに別の見本を入れ、"We are now reviewing your prompt" を提出成功と判定。worktree 実行で Reels Hook Lab がダッシュボード Pending（CAPTCHA なし）。promptbase-loop-daily と capafy-distribute-daily は release 93843feb。PromptBase は作る（promptbase-loop-daily）＋売る（distribute ローテーション）の 2 本で回る。AGENTS.md と loop-development skill に「スキル = 作るループ＋売るループ」の表を追加。
 - ディスク ⚠️（A2 の計測停止の原因）: 空き 350MB → 2.6GB（verify-loops-audit の古い loop-tmp、7 日超の Capafy IG 素材、大きい launchd log 5 本を末尾 2MB に切り詰め）。20:57 に 20 秒で 1.1GB 減る現象を観測、書き込み元は未特定（lsof の大きな書き込み中ファイルなし、ログは増えていない）。Data ボリューム 212.9GB のうちホーム約 90GB、/opt 12.7GB、/Applications 8.0GB、/private/var 5.1GB、/Library 3.3GB。`~/.cloak` は削除禁止のためブラウザのキャッシュは lease 経由の clearBrowserCache（6-9c）で扱う。次: 書き込み元を特定して止め、10GB 以上に戻す → 投稿ごとの計測（A2）を再開。
 
+**Capafy のブラウザを他の loop と同じ形にする（2026-09-29 21:xx JST、Dais 指示。cursor はここ）**
+- 観測: 各サイトには専用ブラウザを常駐させる「ブラウザ役」loop（`keep_alive`）が 1 本ずつあり、作業 loop はその port に接続するだけ（lancers-revenue-browser 9227、crowdworks-revenue-browser 9228、hf-gig-browser 9223、affiliate-* 9324〜9327、provision-browser.*）。Capafy 工場だけブラウザ役が無く、capafy.ai のログインを Coconala の `coconala:kosuke`（hf-gig-browser）に入れて借用していた。hf-gig-paid-direct が 10 分以上使う間に CP2 が 150 秒で exit 124 になり、19:04〜20:38 の工場 run が全部 BLOCKED。
+- 誤り: 21:0x に入れた「外側 timeout 1500 秒」（#5bc161c5）は他の loop と違う自己流の応急処置。下の C-B6 で戻す。
+- 手順（lancers の写し。自己流を入れない）:
+  - C-B1 `skills/capafy-autopublish/scripts/browser-owner` = `skills/earn/lancers/scripts/browser-owner` の写し（profile `~/.local/state/anicca/capafy/browser-profile`、専用 port、owner `capafy-browser`、`runtime/host/browser_port_owner.py` 経由）
+  - C-B2 `config/loop-registry.json` に `capafy-browser`（lancers-revenue-browser と同じ設定、`keep_alive: true`、label `ai.anicca.capafy-browser`）
+  - C-B3 `~/.config/ai/registry/browsers.toml` に `capafy:kosuke` を追加、`coconala:kosuke` の accounts から capafy.ai を外す
+  - C-B4 capafy.ai のログインを保存済み vault から専用 profile へ移す（再ログインしない）
+  - C-B5 Capafy の publish_finish.sh / cp1_agent.py / drive_checkpoint2.py の既定 identity を `capafy:kosuke` に変更
+  - C-B6 1500 秒の応急処置を戻す
+  - 完了の証拠: worktree で専用ブラウザが capafy.ai にログイン済みで開く → hf-gig-paid-direct が lease 中でも CP2 が待たずに通る → merge・release・apply → 工場 run で下書き 7686597754 が platform_status=1（公式 readback）
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
