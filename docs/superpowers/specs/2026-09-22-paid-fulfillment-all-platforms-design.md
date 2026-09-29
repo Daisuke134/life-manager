@@ -6086,6 +6086,9 @@ there is still no authorization to stop, kill, or restart an active owner.
   shared marketplace, gig-platform, job-search, and disk-cleanup paths.
   The candidate has zero writable regular files and contains the key source
   repairs. The production `current` symlink was not touched.
+- [x] The release-builder regression suite
+  `python3 -m unittest runtime.loop.tests.test_cut_loop_release` passes all
+  15 tests after the candidate build.
 - [ ] This does not close item 4: the candidate is intentionally not eligible
   for production activation until the branch is integrated through `main` and
   a main-derived immutable release is cut. The installed production manifest
