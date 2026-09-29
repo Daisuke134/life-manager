@@ -421,6 +421,41 @@ def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> No
     assert len(attempts) == 2
 
 
+def test_inspect_page_retries_empty_runtime_value_during_navigation(monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    calls = []
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *_args):
+            return False
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        calls.append((method, params["expression"]))
+        if params["expression"].startswith("JSON.stringify({url:location.href"):
+            return {"result": {"value": '{"url":"https://example.test","ready":"complete"}'}}
+        if len([row for row in calls if row[1] == "JSON.stringify({ok:true})"]) == 1:
+            return {"result": {"type": "undefined"}}
+        return {"result": {"value": '{"ok":true}'}}
+
+    async def no_wait(_seconds):
+        return None
+
+    monkeypatch.setattr(snapshot.websockets, "connect", lambda *_args, **_kwargs: Connection())
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", no_wait)
+
+    result = __import__("asyncio").run(snapshot.inspect_page(
+        "ws://example", "JSON.stringify({ok:true})", None,
+        "https://example.test",
+    ))
+
+    assert result == {"ok": True}
+    assert [row[1] for row in calls].count("JSON.stringify({ok:true})") == 2
+
+
 def test_default_tab_open_budget_covers_context_creation_and_cookie_seed(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     timeouts = []

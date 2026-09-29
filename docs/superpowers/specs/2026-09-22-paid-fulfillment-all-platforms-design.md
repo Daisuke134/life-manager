@@ -6464,3 +6464,74 @@ ordering notes without declaring any external effect complete.
   canary with official readback; the blocked TikTok-owned item remains a
   separate cross-loop dependency and must not trigger a duplicate Coconala
   operation.
+
+### Coconala Reply DOM-race repair and natural readback — 2026-09-30 08:35 JST
+
+- [x] The failure boundary was reproduced before changing code: after the
+  authenticated page reported the expected URL/ready state, `Runtime.evaluate`
+  could return no `result.value`, producing
+  `DOM expression did not return JSON text`. This is a navigation/execution-
+  context race, not a BrowserSkill session failure or a Coconala 403.
+- [x] The preceding host failure is separately identified as disk
+  `ENOSPC` while persisting the Coconala reply lease/DB recovery receipt. Disk
+  capacity was recovered by the protected release cleanup; production and
+  provider state were not mutated.
+- [x] A red test was added first in
+  `skills/earn/gig/tests/test_paid_remote_wait.py`. The source repair now
+  retries only an empty/transient execution-context result for a bounded
+  `40 × 250ms`, preserves non-transient JavaScript errors, maps exhausted
+  coverage reads back to `inbox_coverage_missing`, and keeps attachment
+  capture metadata-only when the optional capture expression never returns.
+- [x] Verification passed: focused Coconala suites `362/362`; full runtime
+  suite `689/689 OK`.
+- [x] A source-branch, read-only natural browser probe used the dynamically
+  resolved authenticated owner `coconala:kosuke` at `127.0.0.1:9223` with
+  `direct-inbox-head-only`; it returned `30` inquiries, including Ryu
+  `10107358`, with `read_only=true` and no send, reply, delivery, or payment
+  effect. Probe output was under a temporary `/tmp` directory and was not
+  treated as provider effect evidence.
+- [ ] The repair is not live yet: the installed Coconala reply launch agent
+  still points to the external old release
+  `20260930T010308-3975ae89`, while the current production pointer remains the
+  external main-derived release. Next action is to commit/push this source
+  repair, pass main provenance and immutable-release acceptance, then perform
+  one natural reply readback on the resulting release without replaying any
+  Ryu send.
+
+### Atomic current cursor — 2026-09-30 08:35 JST
+
+1. **Ryu Coconala DM — DONE.** The consolidated reply was sent once and
+   persisted by official readback. Never resend it.
+2. **Reply DOM-race source repair — DONE ON BRANCH.** The bounded
+   `Runtime.evaluate` retry and regression test pass; it is not yet in the live
+   immutable release.
+3. **Release provenance — OPEN.** Commit/push the repair, ensure the candidate
+   is derived from the latest `origin/main`, and reject any pushed-only
+   activation.
+4. **Live transition — OPEN.** After the required high-risk approval, use only
+   `launchctl-safe` for the owner transition; do not stop, kill, or force-restart
+   the shared Coconala browser/profile.
+5. **Coconala Reply — OPEN.** Run one natural read-only/readback pass on the
+   repaired immutable release and record `replay_zero`; no Ryu resend.
+6. **Coconala Apply/Storefront/Paid — OPEN.** Run each separately on the
+   immutable release, obtain official provider readback, and record
+   `replay_zero`; a running process is not completion.
+7. **Coconala unresolved fences — OPEN.** Reconcile the one Apply and one
+   Storefront `effect_unknown` only with occurrence-bound official evidence;
+   never retry from local absence.
+8. **CrowdWorks — OPEN.** Reconcile Paid's exact unknown occurrence and wait
+   for the existing Application provider lock to become naturally free before
+   any history readback.
+9. **Lancers — OPEN.** Obtain official history after the existing owner leaves
+   Human Verification; CAPTCHA/Human Verification bypass and retries remain
+   prohibited.
+10. **Mercor — OPEN.** Restore/read the existing owner and obtain a fresh
+    identity-bound official inventory before any contract/payment effect.
+11. **Upwork/Freelancer — OPEN.** Restore each account-bound observer, verify
+    funded contract/milestone terms, then run a no-effect canary.
+12. **Shared registration and Meta Loop — OPEN.** Register the common Paid
+    lifecycle only after every platform source-complete canary, telemetry,
+    recovery, idempotency, and provider receipt passes.
+13. **Final promotion — OPEN.** Merge/admin-promote once, cut the immutable
+    main-derived release, read back every owner/provider receipt, and only then
+    declare the platform set complete.

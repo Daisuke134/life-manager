@@ -2573,6 +2573,66 @@ async def call(
             event_sink.append(response)
 
 
+DOM_EVALUATION_RETRY_ATTEMPTS = 40
+DOM_EVALUATION_RETRY_DELAY_SECONDS = 0.25
+_TRANSIENT_RUNTIME_EVALUATION_MARKERS = (
+    "execution context was destroyed",
+    "cannot find context with specified id",
+    "context with specified id",
+)
+
+
+def _is_transient_runtime_evaluation_error(detail: str) -> bool:
+    lowered = detail.lower()
+    return any(marker in lowered for marker in _TRANSIENT_RUNTIME_EVALUATION_MARKERS)
+
+
+def _runtime_evaluation_detail(evaluated: dict[str, Any]) -> str | None:
+    details = evaluated.get("exceptionDetails")
+    if not isinstance(details, dict):
+        return None
+    exception = details.get("exception")
+    if isinstance(exception, dict):
+        detail = exception.get("description") or exception.get("value")
+    else:
+        detail = details.get("text")
+    return safe_text(detail, 500) or "Runtime.evaluate returned exceptionDetails"
+
+
+async def evaluate_json_text(
+    ws: Any, request_id: int, expression: str,
+) -> tuple[int, str]:
+    """Read a JSON-returning DOM expression across transient page contexts."""
+    last_error = "DOM expression did not return JSON text"
+    for attempt in range(DOM_EVALUATION_RETRY_ATTEMPTS):
+        try:
+            evaluated = await call(ws, request_id, "Runtime.evaluate", {
+                "expression": expression,
+                "returnByValue": True,
+                "awaitPromise": True,
+            })
+        except RuntimeError as error:
+            detail = str(error)
+            if not _is_transient_runtime_evaluation_error(detail):
+                raise
+            last_error = detail
+        else:
+            detail = _runtime_evaluation_detail(evaluated)
+            if detail is not None:
+                if not _is_transient_runtime_evaluation_error(detail):
+                    raise RuntimeError(f"DOM expression evaluation failed: {detail}")
+                last_error = detail
+            else:
+                raw = evaluated.get("result", {}).get("value")
+                if isinstance(raw, str):
+                    return request_id + 1, raw
+                last_error = "DOM expression did not return JSON text"
+        request_id += 1
+        if attempt + 1 < DOM_EVALUATION_RETRY_ATTEMPTS:
+            await asyncio.sleep(DOM_EVALUATION_RETRY_DELAY_SECONDS)
+    raise RuntimeError(last_error)
+
+
 def allowlisted_cdp_events(raw_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Strip a CDP trace to download/navigation evidence without auth material."""
     events: list[dict[str, Any]] = []
@@ -2935,15 +2995,7 @@ async def inspect_page(
             await asyncio.sleep(0.25)
         else:
             raise RuntimeError("authenticated tab did not finish navigation")
-        evaluated = await call(ws, request_id, "Runtime.evaluate", {
-            "expression": expression,
-            "returnByValue": True,
-            "awaitPromise": True,
-        })
-        request_id += 1
-        raw = evaluated.get("result", {}).get("value")
-        if not isinstance(raw, str):
-            raise RuntimeError("DOM expression did not return JSON text")
+        request_id, raw = await evaluate_json_text(ws, request_id, expression)
         value = json.loads(raw)
         selected_coverage_expression = (
             coverage_expression
@@ -2951,27 +3003,27 @@ async def inspect_page(
             else coverage_expression_for_route(expected_url)
         )
         if selected_coverage_expression is not None:
-            coverage = await call(ws, request_id, "Runtime.evaluate", {
-                "expression": selected_coverage_expression,
-                "returnByValue": True,
-                "awaitPromise": True,
-            })
-            request_id += 1
-            coverage_raw = coverage.get("result", {}).get("value")
-            if not isinstance(coverage_raw, str):
-                raise CollectorUnhealthy("inbox_coverage_missing")
+            try:
+                request_id, coverage_raw = await evaluate_json_text(
+                    ws, request_id, selected_coverage_expression,
+                )
+            except RuntimeError as error:
+                if str(error) != "DOM expression did not return JSON text":
+                    raise
+                raise CollectorUnhealthy("inbox_coverage_missing") from error
             value.update(json.loads(coverage_raw))
             if validate_coverage:
                 value["coverage_receipt"] = validate_inbox_coverage(value, previous_count)
         if capture_buyer_attachments:
-            captured = await call(ws, request_id, "Runtime.evaluate", {
-                "expression": TALKROOM_ATTACHMENT_EXPRESSION,
-                "returnByValue": True,
-                "awaitPromise": True,
-            })
-            request_id += 1
-            captured_raw = captured.get("result", {}).get("value")
-            captured_rows = json.loads(captured_raw) if isinstance(captured_raw, str) else []
+            try:
+                request_id, captured_raw = await evaluate_json_text(
+                    ws, request_id, TALKROOM_ATTACHMENT_EXPRESSION,
+                )
+            except RuntimeError as error:
+                if str(error) != "DOM expression did not return JSON text":
+                    raise
+                captured_raw = "[]"
+            captured_rows = json.loads(captured_raw)
             captured_by_reference = {
                 str(row.get("reference")): row
                 for row in captured_rows if isinstance(row, dict) and row.get("reference")
