@@ -252,7 +252,7 @@ ORPHANED_TERMINAL_MODEL_STATUSES = {
     "COMPLETED", "ALREADY_INVESTIGATED", "EXHAUSTED", "FAILED", "TIMEOUT",
 }
 
-ACTIVE_PUBLICATION_PAIRS = {"note/ja", "substack/ja", "substack/en", "x-article/ja"}
+ACTIVE_PUBLICATION_PAIRS = {"note/ja", "substack/ja", "substack/en"}
 
 
 def reclaim_stranded(

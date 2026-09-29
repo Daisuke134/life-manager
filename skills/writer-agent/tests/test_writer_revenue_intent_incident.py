@@ -1,7 +1,8 @@
 """Order 3: a failed revenue-set intent must become exactly one durable incident.
 
-The fixture uses the current active-four contract: three revenue-set pairs,
-four dormant skip receipts, and one non-blocking distribution pair. The open
+The fixture uses the persisted "active-four" contract label: three
+revenue-set pairs and five dormant skip receipts (x-article/ja moved from
+active/non-blocking-distribution to dormant 2026-09-29). The open
 ``resume-failure-circuit.json`` rows carry the observed publisher signatures.
 """
 
@@ -201,16 +202,22 @@ def test_rerunning_the_bridge_reuses_the_same_incident(tmp_path: Path) -> None:
         assert item["last_seen_at"] == "2026-08-07T14:15:00+09:00"
 
 
-def test_non_blocking_distribution_failure_is_recorded_but_distinguishable(
+def test_dormant_pair_failure_is_recorded_but_distinguishable(
     tmp_path: Path,
 ) -> None:
+    """x-article/ja moved from non-blocking-distribution to dormant (Dais
+    2026-09-29: the X Articles editor is permanently unreachable for our
+    account; X distribution now goes through Postiz link posts). A historical
+    fixture that still carries an open circuit for it must classify as
+    dormant, not blocking — a dormant pair was never a blocking one and
+    still is not."""
     module = _load_bridge()
     state_root = _fixture(tmp_path)
     module.bridge(state_root=state_root, run_id="daily-2026-08-07",
                   observed_at="2026-08-07T14:10:00+09:00")
 
     x_article = _incidents(state_root)["x-article/ja"]
-    assert x_article["revenue_role"] == "non-blocking-distribution"
+    assert x_article["revenue_role"] == "dormant"
     assert x_article["blocking"] is False
     assert x_article["error_signature"] == X_ARTICLE_SIGNATURE
     assert x_article["artifact_id"] == "daily-2026-08-07__x-article__ja"
