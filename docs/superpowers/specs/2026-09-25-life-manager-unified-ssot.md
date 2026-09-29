@@ -989,6 +989,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 - 今回の読み取り専用probeは既存の正規identity `coconala:kosuke` のCDP `9223` に一時hidden targetを作り、Coconala公式DM `https://coconala.com/smartphone/direct_messages/10107358` を再読した。送信、添付、正式納品ボタン操作は行っていない。
 - 公式DOMの最新表示は、seller `9/29 14:34`、buyer `14:36`、seller `14:40`、buyer `14:41` の順で、最後の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。このreadbackには14:41以後のseller返信は存在しない。証跡は `/Users/anicca/gig/trajectory/ryu-readback-20260930/01-ryu_dm.json`。
+- 購入者が指定したcanonical URL `https://coconala.com/smartphone/direct_messages/10107358?uid=2564121` でも同じDOM列を再確認した。UIDを省略したURLとの差分による表示漏れではない。証跡は `/Users/anicca/gig/trajectory/ryu-readback-20260930/uid-ryu_dm_uid.json`。
 - 同じ公式DMの過去ページをoffset 5〜105まで読み取り、旧要求（コンセプト6枚の原状復帰、ジャンル選択・女の子画像追加、WEB予約文言、相互リンク多数管理、各媒体自動更新等）を取得した。offset別DOM証跡は同じtrajectory配下に保存している。これは要求の根拠であり、修正済みの証拠ではない。
 - 既存のローカルartifact `current-cycle-v723-dm-send-readback.json` は「送信クリック1回＋直後のDOMバブル1件」を示すが、直後の再読み込みは403で、今回の公式readbackにはその本文が残っていない。したがってprovider側の永続receiptは未取得であり、v723を完了証拠に昇格させない。再送はしない。
 - 2026-09-30の公開read-only crawlでは、`https://colors-hachioji.com/` に6ジャンル・12プロフィール・出勤表示・WEB予約導線が現行公開されていることを確認した。`https://colors-hachioji.com/content-api.php` の公式JSONでも、コンセプト6枚の順序／原本パス、有料オプション5件、女の子別option state、予約文言を確認した。実際の `mutualLinks` 配列は空であり、相互リンクの実データ登録だけは未完了である。取得時刻・本文は外部ログへ保存せず、個人連絡先をspecへ複製しない。
