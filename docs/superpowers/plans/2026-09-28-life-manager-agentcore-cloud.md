@@ -396,7 +396,7 @@
 
 **Produces:** every job has actual model/runtime/browser/tool cost, and no Free or paid tenant can exceed its hard limit.
 
-- [ ] **Step 1: Write RED money tests**
+- [x] **Step 1: Write RED money tests**
 
   Use integer micros. Prove provider receipt dedupe, monthly boundary, activation credit one-time use, Free $0.50 cap, Pro $12 cap, and fail-closed behavior when cost is unknown.
 
