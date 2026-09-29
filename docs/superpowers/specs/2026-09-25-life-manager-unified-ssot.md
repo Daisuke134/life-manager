@@ -2833,6 +2833,26 @@ Lancers公式preflightをread-onlyで再実行した。CDP `localhost:9227`の`/
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。
 
+## 現在の正本cursor（2026-09-30、最新実測の統合）
+
+この節がEOFにある最新cursorであり、上の履歴節より優先する。容量回復、branch回帰、Lancers公式read-only、Coconala Ryuさんthread、production自然runを同じ順序で統合する。
+
+- **容量**: closedかつ再生成可能な`writer/checkouts/self-owned-landing/apps/landing/node_modules`（約1.4GiB、`package-lock.json`あり、open handleなし）のみを削除した直後は`free_bytes=586780672`、`required_bytes=536870912`、`headroom_ready=true`だった。しかしproduction旧版cleanup 49回目が自然起動し、`last exit code=1`、recovery intent append／gc-trash rename／terminal eventの`ENOSPC`を再現し、空き容量は約304MiBへ戻った。恒久回復ではない。
+- **branch**: `fix/source-reconcile-20260930`の最新commitは`ec37c9708a`でpush済み。`./bin/lm-loop-contract`は`ok=true`、disk admission `8 passed`、`LIFE_MANAGER_DISK_HEADROOM_KIB=0`でloop bounds/apply `263 passed, 31 subtests passed`。production `RELEASE.json`は旧SHA `3975ae8996...`で、branchはmain未統合。
+- **Lancers**: `localhost:9227`の公式tabは`https://www.lancers.jp/mypage`、title `Human Verification`。稼働中Work Syncも`browser_attach_busy`／`browser_connect_failed`で、応募・返信・納品効果は0件。shared browser lockを奪っていない。
+- **Coconala/Ryuさん**: `localhost:9222`は`about:blank`のみ。thread `10107358`は`reconcile_unknown`、`DOM expression did not return JSON text`、`provider_receipt_id`なし。保存intentは相互リンク部分だけで、最新の画像復元・女の子検索変更等を統合した最終本文・公式送信receiptではない。重複再送していない。
+- **削除範囲**: Gitの未参照`tmp_pack_*` 3個（約389MiB）と上記closed `node_modules`だけを削除した。browser profile、cookie、memory、protected state、production releaseは削除していない。`node_modules`はlockfileから再生成可能。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** branchの早期disk admission・lock競合deferred・dependency allow-listを含む受入証跡を維持し、production旧版を直接編集せずmain受入条件を閉じる。
+2. **未完** LancersのHuman Verification解除後、同じshared browser ownerで公式read-only preflightを2回通し、現行schemaの`contracts.json`を生成する。自動突破・手編集・応募はしない。
+3. **未完** Coconala専用browser tabをshared owner経由でread-only取得し、thread `10107358`の最新受信・添付・公式履歴を確認する。相互リンク、画像復元、女の子検索変更など全要求を一つの最終本文へ統合する。
+4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一threadの公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization、完全inventory、実adapter、canary、rollback、settlement、replay-zeroを取得する。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
+7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、loaded SHA、deferred/terminal receipt、cleanup容量回復、provider公式readbackを確認する。
+
 ## 現在の正本cursor（2026-09-30、production旧版cleanup自然runの容量不足を再確認）
 
 productionの`ai.anicca.life-manager-disk-cleanup`を停止・再起動せず、稼働中のapply終了後に自然に開始した47回目のrunをterminal readbackした。ownerは`/Users/anicca/loops/releases/20260930T010308-3975ae89/bin/lm-loop-run`（production `RELEASE.json`のSHA `3975ae8996cab3325f514746a32c915f9935fddf`）を実行しており、branch `fix/source-reconcile-20260930`の早期disk admissionはまだproductionへ反映されていない。
@@ -3181,3 +3201,23 @@ host空き容量は約256MiBで、共通floor 512MiBを下回る。production lo
 5. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。
+
+## 現在の正本cursor（2026-09-30、EOF最新・全証拠統合）
+
+この節がEOFにある最新cursorであり、上の履歴節より優先する。容量、branch、Lancers、Coconala/Ryuさん、productionの証拠を一つの実行順へ統合した。
+
+- **容量**: closedかつ再生成可能な`writer/checkouts/self-owned-landing/apps/landing/node_modules`（約1.4GiB、`package-lock.json`あり、open handleなし）だけを削除した直後は`free_bytes=586780672`、`required_bytes=536870912`、`headroom_ready=true`だった。production旧版cleanup 49回目が自然起動すると`last exit code=1`となり、recovery intent append・gc-trash rename・terminal eventの`ENOSPC`を再現し、空き容量は約304MiBへ戻った。
+- **branch**: `fix/source-reconcile-20260930`の最新pushは`ec37c9708a`。`./bin/lm-loop-contract`は`ok=true`、disk admission `8 passed`、`LIFE_MANAGER_DISK_HEADROOM_KIB=0`でloop bounds/apply `263 passed, 31 subtests passed`。production `RELEASE.json`は旧SHA `3975ae8996...`で、branchはmain未統合。
+- **Lancers**: CDP `localhost:9227`の公式tabは`https://www.lancers.jp/mypage`、title `Human Verification`。稼働中Work Syncは`browser_attach_busy`／`browser_connect_failed`で、応募・返信・納品効果は0件。
+- **Coconala/Ryuさん**: CDP `localhost:9222`は`about:blank`のみ。thread `10107358`は`reconcile_unknown`、`DOM expression did not return JSON text`、`provider_receipt_id`なし。保存intentは相互リンク部分だけで、最新要求を統合した最終本文・公式送信receiptではない。重複再送していない。
+- **削除範囲**: Gitの未参照`tmp_pack_*` 3個（約389MiB）と上記closed `node_modules`だけを削除した。browser profile、cookie、memory、protected state、production releaseは削除していない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** branchの早期disk admission・lock競合deferred・dependency allow-listを含む受入証跡を維持し、production旧版を直接編集せずmain受入条件を閉じる。
+2. **未完** LancersのHuman Verification解除後、同じshared browser ownerで公式read-only preflightを2回通し、現行schemaの`contracts.json`を生成する。自動突破・手編集・応募はしない。
+3. **未完** Coconala専用browser tabをshared owner経由でread-only取得し、thread `10107358`の最新受信・添付・公式履歴を確認する。画像復元、女の子検索変更、相互リンク等を一つの最終本文へ統合する。
+4. **未完** Ryuさんへ送る場合は一度だけ実行し、provider receipt・本文hash・同一thread公式readbackを直後に取得する。receiptなしの送信・納品・再送は完了扱いにしない。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization、完全inventory、実adapter、canary、rollback、settlement、replay-zeroを取得する。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを取得するまでholdする。
+7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、loaded SHA、deferred/terminal receipt、cleanup容量回復、provider公式readbackを確認する。
