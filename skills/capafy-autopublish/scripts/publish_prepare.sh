@@ -102,6 +102,9 @@ CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
 # Keep the icon with the Agent's publisher home. Recording the release path broke
 # every later resume once that immutable release was pruned (2026-09-28, 9466718786).
 ICON_COPY="$CAPAFY_PUBLISH_HOME/icon.${ICON##*.}"
+# An existing Agent never prepared on this host (Slide Maker 8828622062, 2026-09-29)
+# has no publisher home yet; create it instead of failing the update.
+mkdir -p "$CAPAFY_PUBLISH_HOME" || die "could not create publisher HOME"
 cp "$ICON" "$ICON_COPY" || die "icon copy failed"
 ICON="$ICON_COPY"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
