@@ -196,8 +196,9 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - Lancers adapter (`skills/earn/lancers/scripts/paid_adapter.py`) は、公式detailの `provider_state=funded`、固定金額、terms digest、buyer threadを同じcanonical receiptへ写像する。仮払い未確認・曖昧な金額・terms digest欠落は `lancers_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
 - CrowdWorks adapter (`skills/earn/crowdworks/scripts/paid_adapter.py`) は、公式contract bodyから一意の固定報酬額とterms digestを読み、milestone/form/document要件とbuyer threadをcanonical receiptへ写像する。時間単価・範囲価格・価格/terms欠落は `crowdworks_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
 - Mercor adapter (`skills/earn/mercor/scripts/paid_adapter.py`) は、契約の `active` / `contracted` 状態やタイトルからfundingを推測しない。公式snapshotに明示された正規化 `paid_handoff`（funding、固定金額、通貨、terms/scope/artifact digest、buyer thread、観測時刻）が全て揃った時だけcanonical receiptへ写像し、欠ければ `mercor_paid_handoff_unavailable` で止まる。現行snapshotにはその証跡が無いため、Mercor mutationはまだhuman-requiredのままである。
-- 現在は schema / typed parser / validator / kernel gate / Coconala・Lancers・CrowdWorks・Mercor のadapter境界 / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
-- 次の順序: (1) provider-neutral Paid entrypoint でこの validator を必須化、(2) Coconala/Lancers/CrowdWorks/Mercor/Freelancer/Upwork の adapter を同じ契約へ写像、(3) 公式 receipt・replay-zero を各 provider で canary、(4) main → immutable release → label readback。
+- Freelancer/Upworkには `skills/earn/gig/scripts/providers/*_paid_adapter.py` と共有 `skills/_shared/marketplace-core/scripts/paid_handoff.py` を追加した。Freelancerのfunded milestone、Upworkのfunded milestone・明示通貨、buyer thread、scope、artifact要件が揃った場合だけ同じcanonical receiptへ写像し、未funded・通貨推測・証跡欠落はfail-closedにする。これはadapter境界とfocused testsの完了であり、account-bound auth、source-complete live inventory、owner登録、production canaryは未完了である。
+- 現在は schema / typed parser / validator / kernel gate / Coconala・Lancers・CrowdWorks・Mercor・Freelancer・Upwork のadapter境界 / focused tests まで。既存4 platformのPaid owner配線はbranchにあり、Freelancer/Upworkはowner未登録のadapter境界だけである。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
+- 次の順序: (1) branchの既存owner gateをimmutable releaseへ適用し公式canary、(2) Freelancer/Upworkのaccount-bound auth・source-complete inventory・funded contractを確立、(3) 公式 receipt・replay-zero を各providerで確認、(4) payout receiptをCFO ledgerへ接続、(5) Meta Loopから同じconformance gateで新platformをenrollする。
 
 進捗（2026-09-28 13:2x JST、Claude）:
 - 1 ✅ 下書き 4243672453（AI Evaluation Failure Triage Brief）は審査提出済み。公式 readback: platform_status=1、audit_status=2、is_confirmed_skills/config_keys=true、package_uploaded=true（04:08Z）。CP1 に Primary Model 欄は実在しない（model は CP2 で決まる）ため、verify_cp1_model は CP2 後と最終確認で呼ぶ（#6066・#6068〜#6070）。catalog の未公開分は DeepSeek V4.1 Flash（19件）、Claude 指定の10件は公開済み・審査中で据え置き。
@@ -647,7 +648,11 @@ TODO（何を・どう直すか）
   - [x] 7-7a Paid ownerに共通 `--require-paid-handoff` を配線した。
   - [ ] 7-7b funded contractが実際に存在する時に公式receipt・納品readback・replay-zeroをcanaryで確認する。
 - [ ] 7-8 Freelancer: account-bound auth → inventory → funded project
+  - [x] 7-8a Freelancer funded milestoneを共通`PaidHandoffReceipt`へ写像するadapter境界を追加した（focused tests PASS、owner未登録）
+  - [ ] 7-8b account-bound auth・source-complete inventory・provider-approved automatic-bid policy・owner/canaryを完了する
 - [ ] 7-9 Upwork: account-bound auth → inventory → funded contract
+  - [x] 7-9a Upwork funded milestoneを共通`PaidHandoffReceipt`へ写像するadapter境界を追加した（通貨を推測しない、focused tests PASS、owner未登録）
+  - [ ] 7-9b account-bound auth・source-complete inventory・current mutation receipts・owner/canaryを完了する
 - [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）
   - [x] 7-10a 共通 `PaidHandoffReceipt` へのfail-closed adapter境界を追加した（公式snapshotの明示handoffのみ受理）。
   - [ ] 7-10b 公式UI/APIのfunding・固定価格・scope・artifact要件・buyer threadをobserverへ追加し、canonical receiptの公式readbackを取る。
