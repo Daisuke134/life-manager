@@ -39,6 +39,7 @@ ICONS = os.environ.get("CAPAFY_ICONS_DIR") or str(STATE_HOME / "assets/capafy/ic
 FEATURES = os.environ.get("CAPAFY_FEATURES_DIR") or str(STATE_HOME / "features")
 SKILLS = os.environ.get("CAPAFY_SKILLS_ROOT") or str(REPO_ROOT / "skills")
 CATALOG = os.environ.get("CAPAFY_CATALOG_DIR") or str(REPO_ROOT / "skills/capafy/catalog")
+ANALYTICS_PATH = os.environ.get("CAPAFY_ANALYTICS_PATH") or str(STATE_HOME / "state/capafy-skill-analytics.json")
 
 ONLINE = {"online"}
 READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
@@ -189,8 +190,44 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
     return {"readable": structurally_valid, "counts": counts, "agents": normalized}
 
 
+def load_revenue_by_agent(path=None):
+    """Best-effort {agent_id: 30d-revenue-usd} from the analytics snapshot, so
+    allocate_action can order same-Agent updates by demand instead of agent_id
+    string order. Missing/unreadable file or malformed rows just yield {} --
+    the caller's tie-break on agent_id keeps working with no revenue data.
+    """
+    try:
+        rows = json.load(open(path or ANALYTICS_PATH, encoding="utf-8")).get("per_skill_rows")
+        if not isinstance(rows, list):
+            return {}
+        out = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            agent_id = str(row.get("agent_id") or "").strip()
+            if not agent_id:
+                continue
+            try:
+                out[agent_id] = float(row.get("stats_30d_revenue_usd") or 0.0)
+            except (TypeError, ValueError):
+                continue
+        return out
+    except Exception:
+        return {}
+
+
+def update_priority_key(revenue_by_agent):
+    """Order queued same-Agent updates by 30d revenue descending (highest-demand
+    update ships first when a review slot is free), agent_id ascending to break
+    ties deterministically."""
+    def key(row):
+        agent_id = str(row.get("agent_id") or "")
+        return (-revenue_by_agent.get(agent_id, 0.0), agent_id)
+    return key
+
+
 def allocate_action(normalized, retries, publishable, resumable_drafts=None, recoveries=None,
-                    ready_to_publish=None, updates=None, stub_retries=None):
+                    ready_to_publish=None, updates=None, stub_retries=None, revenue_by_agent=None):
     """Choose at most one stable action without performing any platform write.
 
     An exact-title repository draft can be resumed in place even when all five
@@ -218,8 +255,12 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
     # re-selected every wake while three slots sat empty and Hook Lab's
     # DeepSeek update (cost > revenue on Sonnet) waited behind it.
+    #
+    # Among several queued updates, highest 30d revenue ships first (2026-09-29:
+    # four Sonnet->DeepSeek repricing updates queued at once; agent_id-string
+    # order picked an arbitrary one instead of the highest-demand agent).
     if updates and occupied < CAP:
-        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
         return {
             "verdict": "PUBLISHABLE",
@@ -301,7 +342,7 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "item": item,
         }
     if updates:
-        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
         return {
             "verdict": "PUBLISHABLE",
@@ -567,7 +608,7 @@ def main():
     ]
     v = allocate_action(
         normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=update_items, stub_retries=stub_retry_items,
+        updates=update_items, stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
 
     v.update({
