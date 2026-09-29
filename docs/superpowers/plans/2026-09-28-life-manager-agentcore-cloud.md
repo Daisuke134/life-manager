@@ -428,7 +428,7 @@
 
 **Produces:** one main-derived immutable AgentCore release, five phone-only tenants, and official replay/cost evidence.
 
-- [ ] **Step 1: Write RED promotion tests**
+- [x] **Step 1: Write RED promotion tests**
 
   Gate on merged main SHA, complete local manifest, CL00-CL04 evidence, migration version, AgentCore config hash, no active old release sessions, cost caps, and rollback target.
 
