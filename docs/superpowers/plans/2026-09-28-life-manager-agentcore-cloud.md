@@ -362,15 +362,15 @@
 
 **Produces:** direct evidence that the cloud product cannot cross tenant boundaries or duplicate an uncertain effect.
 
-- [ ] **Step 1: Add forged-reference cases**
+- [x] **Step 1: Add forged-reference cases**
 
   Cover state ref, receipt ref, runtime session, browser session, browser profile, Identity ref, S3 key, human credential input, approval callback, and resume callback. For every rejection, assert provider call count is zero.
 
-- [ ] **Step 2: Add lifecycle failure cases**
+- [x] **Step 2: Add lifecycle failure cases**
 
   Cover process crash before effect, crash after effect before receipt, AWS timeout after accepted invoke, browser disconnect, stale lease, deploy with old release, and Inngest redelivery.
 
-- [ ] **Step 3: Verify locally**
+- [x] **Step 3: Verify locally**
 
   ```bash
   node --test test/cloud/agentcore-tenant-isolation.test.js test/cloud/agentcore-effect-recovery.test.js test/tenant-isolation.test.js
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, the real-provider half of A16, and A19 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A17 through A20 are complete: AgentCore Browser lifecycle, deterministic no-human policy, tenant-bound observation/emergency stop, legacy-state migration, and agent-owned AgentCore Identity opaque refs with verified migration-on-use and revoke closure. Immediate provider-independent cursor is A21; provider order remains `A06 -> A07 -> A13 -> A16(real) -> A19` as soon as readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, the real-provider half of A16, A19, and A21 real-provider canaries are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A17 through A20 are complete. A21 local adversarial coverage is complete, including pre-AWS reference validation added at the dispatcher boundary; its real-provider half remains pending. Immediate provider-independent cursor is A22; provider order remains `A06 -> A07 -> A13 -> A16(real) -> A19 -> A21(real)` as soon as readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -567,8 +567,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A18 | done | No-human browser policy, shared-browser observation, and legacy-state migration | focused 49/49; real PostgreSQL migration twice PASS; human provider calls 0; tenant-bound opaque read-only viewer + emergency stop; break-glass excluded from success/revenue; legacy handoff closes `not_applicable` without replay |
 | A19 | external-blocked | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
 | A20 | done | AgentCore Identity provider and migration-on-use | focused 23/23; official API-key/M2M-OAuth command mapping; cross-tenant/human provider calls 0; verified-read-only migration ordering; PostgreSQL migration twice + RLS PASS; atomic revoke makes queued dead-letter, running external-effect reconcile, and active leases 0 |
-| A21 | **next** | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |
-| A22 | todo | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
+| A21 | provider-pending | Adversarial tenant/effect recovery suite | local adversarial 18/18 + dispatcher/envelope regression 13/13; forged provider/lease calls 0, redelivery effect 1, accepted ambiguity reconciles, stale lease exact release; real read-only/synthetic canaries pending activation |
+| A22 | **next** | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
 | A23 | todo | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
 | A24 | todo | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero |
 | A25 | todo | Internal + five-user phone-only cohort | isolation/effect/session/cost invariant breaches 0 |

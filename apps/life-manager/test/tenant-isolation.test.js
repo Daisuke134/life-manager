@@ -5,6 +5,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const { forEachUserSafe, tick, travelTick, askTickAll } = require("../scheduler.js");
+const { createCloudRuntimeDispatcher } = require("../lib/cloud-runtime-dispatcher.js");
 
 test("forEachUserSafe: a throwing tenant does NOT stop the others", async () => {
   const processed = [];
@@ -74,4 +75,26 @@ test("FIND-002: a hanging tenant is abandoned after the timeout, others still pr
     (u) => (u.uid === "hang" ? new Promise(() => {}) : Promise.resolve(processed.push(u.uid))),
     50);
   assert.deepStrictEqual(processed, ["ok"], "hung tenant abandoned after 50ms, ok processed");
+});
+
+test("cloud dispatch isolates a forged tenant while another tenant still invokes exactly once", async () => {
+  const sha = "a".repeat(40);
+  const invokes = [];
+  const make = (tenantId, ref) => createCloudRuntimeDispatcher({
+    releaseSha: sha, runtimeArn: "arn:runtime", requestedCostUsdMicros: 1,
+    async readTenant() { return { tenant_id: tenantId, release_sha: sha, status: "active", plan_version: "free-v1" }; },
+    async recoverExpired() { return {}; },
+    async readJob() { return { tenant_id: tenantId, job_id: "job", status: "queued", attempt: 1, wake_id: "wake", input_refs: { task_ref: ref } }; },
+    async readBudget() { return { settledCostUsdMicros: 0, reservedCostUsdMicros: 0, activationCreditRemainingUsdMicros: 1_000_000 }; },
+    decideAdmission() { return { decision: "allow" }; },
+    async acquireLease() { return { acquired: true }; },
+    runtimeClient: { async invoke() { invokes.push(tenantId); return { disposition: "completed" }; } },
+  });
+  const results = await Promise.allSettled([
+    make("tenant-a", "lm-resource://state/tenant-b/forged").dispatch({ tenant_id: "tenant-a", job_id: "job" }),
+    make("tenant-c", "lm-resource://state/tenant-c/valid").dispatch({ tenant_id: "tenant-c", job_id: "job" }),
+  ]);
+  assert.equal(results[0].status, "rejected");
+  assert.equal(results[1].status, "fulfilled");
+  assert.deepStrictEqual(invokes, ["tenant-c"]);
 });

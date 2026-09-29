@@ -40,7 +40,7 @@ const STATUSES = new Set([
   "policy_denied",
   "blocked",
 ]);
-const INPUT_KINDS = new Set(["state", "credential", "browser-session", "receipt"]);
+const INPUT_KINDS = new Set(["state", "credential", "browser-session", "receipt", "artifact"]);
 const MAX_ENVELOPE_BYTES = 16_384;
 
 function plainRecord(value, label) {

@@ -5,6 +5,7 @@ const {
   runtimeSessionId,
 } = require("./agentcore-runtime-client.js");
 const { decideAdmission } = require("./cloud-entitlement.js");
+const { validateRuntimeRequest } = require("./agentcore-runtime-envelope.js");
 
 const EVENT_FIELDS = Object.freeze(["tenant_id", "job_id"]);
 const RELEASE_SHA = /^[a-f0-9]{40}$/;
@@ -103,6 +104,15 @@ function createCloudRuntimeDispatcher(options = {}) {
         attempt: job.attempt,
         releaseSha: deps.releaseSha,
       });
+      const request = validateRuntimeRequest({
+        schema_version: 1,
+        tenant_id: id.tenantId,
+        job_id: id.jobId,
+        attempt: job.attempt,
+        wake_id: job.wake_id,
+        release_sha: deps.releaseSha,
+        input_refs: inputReferences(job),
+      }, { approvedReleaseSha: deps.releaseSha });
       const observed = now();
       const observedMs = observed instanceof Date ? observed.getTime() : Date.parse(observed);
       if (!Number.isFinite(observedMs)) throw new Error("cloud runtime clock invalid");
@@ -126,15 +136,7 @@ function createCloudRuntimeDispatcher(options = {}) {
         jobId: id.jobId,
         attempt: job.attempt,
         releaseSha: deps.releaseSha,
-        request: {
-          schema_version: 1,
-          tenant_id: id.tenantId,
-          job_id: id.jobId,
-          attempt: job.attempt,
-          wake_id: job.wake_id,
-          release_sha: deps.releaseSha,
-          input_refs: inputReferences(job),
-        },
+        request,
       });
     },
   });
@@ -146,14 +148,14 @@ function positiveInteger(value, label, fallback) {
   return parsed;
 }
 
-function wakeId(inputRefs) {
+function wakeId(inputRefs, tenantId) {
   const value = inputRefs && inputRefs.wake_ref;
   let parsed;
   try { parsed = new URL(String(value || "")); }
   catch { throw new Error("cloud runtime wake reference invalid"); }
   const parts = parsed.pathname.split("/").filter(Boolean).map(decodeURIComponent);
   if (parsed.protocol !== "lm-resource:" || parsed.hostname !== "state" || parts.length !== 2
-      || !parts[1]) {
+      || parts[0] !== tenantId || !parts[1]) {
     throw new Error("cloud runtime wake reference invalid");
   }
   return parts[1];
@@ -226,7 +228,7 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     return {
       ...rows[0],
       attempt: nextAttempt,
-      wake_id: wakeId(rows[0].input_refs),
+      wake_id: wakeId(rows[0].input_refs, tenantId),
     };
   };
   const readBudget = async ({ tenant_id: tenantId, plan_version: planVersion }) => {
