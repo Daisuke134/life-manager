@@ -54,6 +54,7 @@ composer = _load("crowdworks_paid_composer", SHARED / "reply_composer.py")
 grounding_module = _load("crowdworks_paid_grounding", SHARED / "reply_grounding.py")
 profile_module = _load("crowdworks_paid_profile", HERE / "profile.py")
 google_form = _load("crowdworks_paid_google_form", HERE / "google_form.py")
+paid_handoff = _load("crowdworks_shared_paid_handoff", SHARED / "paid_handoff.py")
 
 
 def _now() -> str:
@@ -1387,33 +1388,23 @@ class CrowdWorksPaidAdapter:
         currency = contract.get("currency") or "JPY"
         if currency != "JPY":
             raise RuntimeError("crowdworks_paid_handoff_unavailable")
-        return {
-            "contract": {
-                "schema_version": 1,
-                "record_type": "contract_receipt",
-                "platform": "crowdworks",
-                "application_external_id": application_id.strip(),
-                "work_external_id": work_id.strip(),
-                "contract_external_id": contract_id.strip(),
-                "status": "accepted",
-                "terms_sha256": terms_sha256,
-                "observed_at": observed_at.strip(),
-            },
-            "handoff": {
-                "schema_version": 1,
-                "record_type": "paid_handoff_receipt",
-                "platform": "crowdworks",
-                "thread_external_id": thread_id,
-                "contract_external_id": contract_id.strip(),
-                "funding_external_id": funding_id.strip(),
-                "scope_sha256": scope_sha256,
-                "artifact_requirement_sha256": artifact_requirement_sha256,
-                "price_minor": price,
-                "currency": currency,
-                "status": "funded",
-                "observed_at": observed_at.strip(),
-            },
-        }
+        try:
+            return paid_handoff.build_paid_handoff(
+                platform="crowdworks",
+                application_external_id=application_id.strip(),
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id.strip(),
+                funding_external_id=funding_id.strip(),
+                thread_external_id=thread_id,
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=price,
+                currency=currency,
+                observed_at=observed_at.strip(),
+            )
+        except paid_handoff.PaidHandoffMappingError as error:
+            raise RuntimeError("crowdworks_paid_handoff_unavailable") from error
 
     def _receipt_path(self, form_sha256: str) -> Path:
         if self.state_path is None:

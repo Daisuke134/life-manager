@@ -19,6 +19,21 @@ from typing import Any, Callable, Mapping
 HERE = Path(__file__).resolve().parent
 
 
+def _load_shared(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("coconala_paid_handoff_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_PAID_HANDOFF = _load_shared(
+    "coconala_shared_paid_handoff",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/paid_handoff.py",
+)
+
+
 class CoconalaPaidInventoryWait(RuntimeError):
     def __init__(self, reason: str, remaining_work: list[str]):
         super().__init__(reason)
@@ -161,33 +176,23 @@ class CoconalaPaidAdapter:
         funding_id = facts.get("funding_external_id")
         if not isinstance(funding_id, str) or not funding_id.strip():
             funding_id = f"order:{contract_id}"
-        return {
-            "contract": {
-                "schema_version": 1,
-                "record_type": "contract_receipt",
-                "platform": "coconala",
-                "application_external_id": application_id.strip(),
-                "work_external_id": work_id.strip(),
-                "contract_external_id": contract_id,
-                "status": "accepted",
-                "terms_sha256": terms_sha256,
-                "observed_at": observed_at.strip(),
-            },
-            "handoff": {
-                "schema_version": 1,
-                "record_type": "paid_handoff_receipt",
-                "platform": "coconala",
-                "thread_external_id": room.strip(),
-                "contract_external_id": contract_id,
-                "funding_external_id": funding_id.strip(),
-                "scope_sha256": scope_sha256,
-                "artifact_requirement_sha256": artifact_requirement_sha256,
-                "price_minor": price,
-                "currency": "JPY",
-                "status": "funded",
-                "observed_at": observed_at.strip(),
-            },
-        }
+        try:
+            return _PAID_HANDOFF.build_paid_handoff(
+                platform="coconala",
+                application_external_id=application_id.strip(),
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id,
+                funding_external_id=funding_id.strip(),
+                thread_external_id=room.strip(),
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=price,
+                currency="JPY",
+                observed_at=observed_at.strip(),
+            )
+        except _PAID_HANDOFF.PaidHandoffMappingError as error:
+            raise RuntimeError("coconala_paid_handoff_unavailable") from error
 
     def mutate(self, intent: dict[str, Any]) -> None:
         self.effect_runner(intent)

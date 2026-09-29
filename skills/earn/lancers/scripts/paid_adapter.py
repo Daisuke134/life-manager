@@ -60,6 +60,10 @@ _REPLY_GROUNDING = _load_shared(
     "lancers_paid_reply_grounding",
     HERE.parents[2] / "_shared/marketplace-core/scripts/reply_grounding.py",
 )
+_PAID_HANDOFF = _load_shared(
+    "lancers_shared_paid_handoff",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/paid_handoff.py",
+)
 
 DEFAULT_CANDIDATE_PROFILE = Path.home() / ".config/anicca/job-search/profile.json"
 DEFAULT_PROVIDER_PROFILE = Path.home() / ".config/anicca/crowdworks/public-profile.json"
@@ -523,33 +527,23 @@ class LancersPaidAdapter:
                 "order_delivery_due_on": contract.get("order_delivery_due_on"),
                 "order_milestone_count": contract.get("order_milestone_count"),
             })
-        return {
-            "contract": {
-                "schema_version": 1,
-                "record_type": "contract_receipt",
-                "platform": "lancers",
-                "application_external_id": application_id.strip(),
-                "work_external_id": work_id.strip(),
-                "contract_external_id": contract_id.strip(),
-                "status": "accepted",
-                "terms_sha256": terms_sha256,
-                "observed_at": observed_at.strip(),
-            },
-            "handoff": {
-                "schema_version": 1,
-                "record_type": "paid_handoff_receipt",
-                "platform": "lancers",
-                "thread_external_id": thread_id,
-                "contract_external_id": contract_id.strip(),
-                "funding_external_id": funding_id.strip(),
-                "scope_sha256": scope_sha256,
-                "artifact_requirement_sha256": artifact_requirement_sha256,
-                "price_minor": amount["amount_jpy"],
-                "currency": "JPY",
-                "status": "funded",
-                "observed_at": observed_at.strip(),
-            },
-        }
+        try:
+            return _PAID_HANDOFF.build_paid_handoff(
+                platform="lancers",
+                application_external_id=application_id.strip(),
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id.strip(),
+                funding_external_id=funding_id.strip(),
+                thread_external_id=thread_id,
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=amount["amount_jpy"],
+                currency="JPY",
+                observed_at=observed_at.strip(),
+            )
+        except _PAID_HANDOFF.PaidHandoffMappingError as error:
+            raise RuntimeError("lancers_paid_handoff_unavailable") from error
 
     def mutate(self, intent: dict[str, Any]) -> None:
         if self.provider is None:
