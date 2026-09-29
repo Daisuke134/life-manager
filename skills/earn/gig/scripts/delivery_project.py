@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import project_ledger
 import delivery_identity
 import delivery_cadence
+import client_artifact_restore
 
 
 def project_identity(item: dict[str, Any]) -> str:
@@ -347,6 +348,17 @@ def _validated_accepted_artifact(
         ):
             return None
     except (KeyError, OSError, ValueError, json.JSONDecodeError):
+        return None
+    # A project that declares a client-artifact restore contract is not
+    # accepted until its provider readback proves the ordered assets,
+    # unchanged animation, management restore controls, official receipt, and
+    # replay-zero.  Projects without the optional contract retain the legacy
+    # path so existing non-visual deliverables are not changed.
+    try:
+        restore_errors = client_artifact_restore.validate_project_readback(root)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if restore_errors:
         return None
     return stable, evidence_path
 

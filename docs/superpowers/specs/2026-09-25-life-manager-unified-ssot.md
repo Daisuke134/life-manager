@@ -623,7 +623,9 @@ TODO（何を・どう直すか）
 - [x] 7-2 disk admission floor の回復（T1）
 - [x] 7-3 Coconala Paid の effect なし wake / readback（`hf-gig-paid-direct`、run `18d89490bd4cc678-27339`、pass、release `beae3e37`）
   - [x] 7-3a 既存Coconala Paid ownerへ `--require-paid-handoff` と `coconala_paid_adapter.py` を配線し、effect前にcanonical funded receiptをfail-closed検証する（branch `fix/lm-release-boundary-20260929`、focused tests PASS）
-  - [ ] 7-3b immutable releaseへ適用し、Coconala公式readback・receipt・replay-zeroをcanaryで確認する
+- [ ] 7-3b immutable releaseへ適用し、Coconala Paid owner の公式readback・receipt・replay-zeroをcanaryで確認する（Ryuの個別Storefront修正とは別のPaid owner gate）
+- [x] 7-3c client artifact restore の共通契約を追加した。`skills/earn/gig/scripts/client_artifact_restore.py` が注文元を問わず、購入者提供アセットの順序・画像hash・アニメーション不変・管理画面復元操作・公式readback・replay-zeroを検証し、`delivery_project._validated_accepted_artifact` が `requirements/client-artifact-restore.json` のある案件をreadbackなしで完了扱いにしない。focused tests 5件 PASS。
+- [x] 7-3d Ryu案件の契約manifest/readbackを `gig/projects/18211957/requirements/client-artifact-restore.json` と `delivery/client-artifact-restore-readback.json` に保存し、共通validatorで errors=[] を実測した。
 - [ ] **7-0 Lancers 案件 5605912（順序変更で最優先）**。Life Manager の応募 loop が自力で応募し（proposal `27969614`、`application_verified: true`）、2026-09-25 にクライアントに採用された。題名は「【継続1件2,000円〜】観光・お出かけのお得術に関する Instagram 用フィード画像作成」。現在は Lancers の段階 (4) 発注者決定。
   - [x] 7-0a **Life Manager が自分で承諾した**（2026-09-26 23:42 JST）。公式の証拠は Lancers のメール「プロジェクトの承諾を受け付けました」（Gmail thread 1a0de2ac486336de）。承諾した条件は ¥300（固定）・納期 2026-09-30・proposal 27969614 で、提案と一致した。ここまでに外した壁: fence（#5930/#5951）、CDP 接続の競合（#5932）、heartbeat（#5941）、描画待ち（#5937）、404 の提案（#5938）、全件スキャン（#5943）、ダイアログの競合（#5953）、スレッドの競合（#5956/#5961）、二重の接続（#5958）、readback の仮払い待ち（#5963）
   - [x] 7-0a の readback 修正: 仮払い待ちの案件は「作業中」タブに出ない。全提案一覧を読むように変えた（#5965）
@@ -742,12 +744,13 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 現在の証拠と境界:
 
 - [x] v705（2026-09-25）の公開readbackは、有料オプション5件・通常オプション削除・ジャンル画像6枚の一致を確認済み。
-- [x] 2026-09-29の現行FTPS readbackは、`index.html`・`app.js`・`content-overrides.json`等の現行本番ファイルを認証付きで取得済み。公開APIも有料オプション5件とジャンル6件を返す。
-- [ ] v705以後のコンセプト画像・アニメーション修正を、管理画面と公開サイトの双方で公式readbackする。
+- [x] v706（2026-09-29）で購入者提供の6枚を本番へ復元した。認証付きFTPSで `content-overrides.json` の `genreSlides` をJPEG原本へ戻し、管理画面に6件の復元操作を追加した。アニメーション（3000ms / 220ms / 3600ms）は変更していない。
+- [x] v706の公式readback: `delivery/current-cycle-v706-concept-restore-readback.json`（FTPS）と `delivery/current-cycle-v706-concept-browser-readback.json`（CloakBrowser/CDP）。公開ページは6枚の順序・label・原本画像一致、3秒後に2枚目へ遷移、管理画面は6枚のpreview・6個の復元ボタン・cache bustを確認済み。
+- [x] v706を共通client-artifact restore契約へ写像し、validatorの結果は `errors=[]`。manifestのhash、6枚のlabel/path/hash、animation hash、管理画面6操作、公式readback ID、replay-zeroを固定した。
 - [x] 2026-09-29にCoconala公式DM `10107358` をCDPで再読し、Ryuの最後の「よろしくお願いします」（9/29 13:37）に、こちらの13:44返信が付いていることを確認した。現時点で未返信の購入者メッセージはない。
 - [ ] DM collectorの現行DOM対応（現行コンテナは`.bl_messages-list`）を追加し、この公式readbackをdurable JSON証跡として保存する。
-- [ ] すべての修正を一つのリリースにまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得する。
-- [ ] 修正内容・管理画面リンク・公開リンクを含む返信をDMへ一度だけ送信し、送信後の公式メッセージIDと本文readbackを保存する。
+- [x] すべてのサイト修正をv706へまとめ、公開readback（管理画面・公開ページ・画像・アニメーション）を取得した。
+- [x] 最終修正内容・管理画面リンク・公開リンクを含む完成報告をDMへ一度だけ送信した。POST HTTP 200、送信後の公式DM本文readback、重複ガード、正式納品ボタン非押下を `delivery/current-cycle-v706-dm-readback.json` に保存した。重複送信は禁止。
 
 一時的なHTTP `403 Forbidden`は再読時に解消したが、collectorのDOM前提が古く、現行DMを自動収集できない。従って、13:44返信を最終納品返信とは扱わず、サイト修正・公式readback・一回だけの完成報告が終わるまで追加送信しない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
