@@ -8,6 +8,8 @@ export CLOAK_TARGET_OWNERS_FILE="${CLOAK_TARGET_OWNERS_FILE:-$HOME/.cloak/vault/
 
 exec "$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
   "$PYTHON" "$ROOT/skills/earn/gig/scripts/paid_direct.py" \
+  --require-paid-handoff \
+  --coconala-paid-adapter "$ROOT/skills/earn/gig/scripts/coconala_paid_adapter.py" \
   --output "$GIG_ROOT/evidence/paid-direct-live/latest.json" \
   --evidence-dir "$GIG_ROOT/evidence/paid-direct-live" \
   --projects-root "$GIG_ROOT/projects" \

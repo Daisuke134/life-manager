@@ -221,6 +221,13 @@ def test_default_build_reuses_paid_direct_runtime_without_copying_owner(tmp_path
     assert adapter.context_reader.__self__.paid.__file__.endswith("/paid_direct.py")
 
 
+def test_coconala_paid_owner_enables_shared_funded_handoff_gate() -> None:
+    owner = PATH.parent / "paid-direct-owner"
+    source = owner.read_text(encoding="utf-8")
+    assert "--require-paid-handoff" in source
+    assert "coconala_paid_adapter.py" in source
+
+
 def test_bridge_maps_only_auth_navigation_failure_to_inventory_wait(tmp_path: Path) -> None:
     module = load()
 
