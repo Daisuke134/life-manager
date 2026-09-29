@@ -129,3 +129,9 @@
 - `https://pump.fun/join/x` is the official Pump.fun `join/[referralCode]` route with referral code `x`; the page links to `https://join.pump.fun/HSag/x` for app onboarding.
 - The page exposes no inviter name, token name, or Solana mint. Treat this URL as onboarding/referral context for the meme-coin lane, never as a token candidate or a live-trading authorization.
 - The staged acceptance remains read-only scout → paper replay → exactly one `$2.00` canary under the cumulative `$3.00` ceiling, with confirmed RPC evidence and explicit owner funding before signing.
+
+## Profitability research boundary
+
+- Some Pump.fun wallets do realize profits, but [CoinGecko's study](https://www.coingecko.com/research/publications/pump-fun-traders-are-making-a-comeback) is realized-PnL-only, nets flows at wallet level, uses derived USD prices, and leaves bot/wash trading unfiltered. Its April 2026 snapshot has 5.37% of wallets above `$1,000` profit; this is not a strategy guarantee.
+- [Pump.fun's official mechanics](https://pump.fun/docs/bonding-curve) make the economic loop explicit: buys move the price up, sells move it down, and larger trades suffer more price impact. [The official fee page](https://pump.fun/docs/fees) lists a 1.25% bonding-curve total fee. The paper/live policy must model these costs plus Solana fees and quote slippage.
+- Copying a profitable-looking wallet is not sufficient: [the 2026 copy-trading study](https://arxiv.org/abs/2601.08641) documents manipulative wallets, execution lag, and illiquidity as attack surfaces. A candidate requires confirmed source-owned swaps, independent market data, a bounded quote, and replay-zero identity before paper or live stages.
