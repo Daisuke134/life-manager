@@ -2078,6 +2078,14 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 自動retry `alpaca-investment-paper:18d9e23dcdae00d0-5415` は04:45 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。
 - decision receipt `e34afd1bc43f8b850ee33f2d93ebf2becadbc9875a2316102609565e64f334b8`は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit order／exit fill／provider receiptはない。`AT-13`未完、実現投資収益は`$0/月`である。
 
+**Atomic Todoの現在スナップショット（2026-09-30 04:47 JST）**:
+
+- ここでいうTodoは計画・目標・「29回回す」という指示ではなく、1行につき1操作だけを実行して1つの証拠で完了にする実行キューである。実行順の正本は直上の「展開済みAtomic Todo正本」だけである。
+- 完了済みは`AT-01`〜`AT-12`の12行。未完は277行: `AT-13`〜`AT-21`の9行、`AT-22.1[2]`〜`AT-22.9[30]`の261行、`AT-23`〜`AT-29`の7行。
+- 現在のTodoは`AT-13`の1行だけ: 次のcompleted daily sessionからstrategyのexit decision receiptを1件読む。`reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`なら完了、`NO_TRADE / decision_session_consumed`なら未完のまま次の自然sessionを待つ。手動sell・手動wake・再送はこの行を完了させない。
+- `AT-13`が完了するまで、`AT-14`〜`AT-29`は実行しない。したがって現在はexit orderのGET、P&L計算、30件測定、Hyperliquid、Solana/Pump.fun、yield、canaryを実行する段階ではない。
+- 現在の実測収益は検証済み実現投資収益`$0/月`。QQQ paperのunrealized P&Lは収益ではない。`AT-24`と`AT-29`が完了するまで、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は行わない。
+
 **AT-13公式paper clock readback（2026-09-30 04:05 JST）**:
 
 - 公式paper observationのclockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、`next_open=2026-09-30T09:30:00-04:00`（22:30 JST）である。したがって現在は、`2026-09-29`のcompleted daily sessionがまだ確定する前である。
