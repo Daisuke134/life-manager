@@ -6639,6 +6639,41 @@ ordering notes without declaring any external effect complete.
     immutable release, read back every owner/provider receipt, and only then
     declare completion.
 
+### Live owner versus repaired candidate divergence — 2026-09-30 08:39 JST
+
+- [x] The live Coconala Reply process is still executing the old immutable
+  release `20260930T010308-3975ae89`; its source has no
+  `evaluate_json_text` retry helper. The live `current` pointer is a separate
+  main release and is not what this launch agent invokes.
+- [x] The latest live reply receipt currently reports
+  `status=ok, observed=190, effect=0, readback=170, failed=8, pending=12`.
+  The failed rows contain the old `DOM expression did not return JSON text`
+  error. This is direct evidence that the repair has not reached the owner,
+  not evidence that a new send is required.
+- [x] The repaired candidate has already passed the same read-only inbox
+  natural readback with `30` inquiries and zero external effects.
+- [ ] Do not restart or switch the shared owner in this pass: an active
+  Coconala browser/profile and other reconciliation processes are present.
+  Main integration plus a controlled, approved owner transition is required
+  before the repaired live readback can be claimed.
+
+### Atomic current cursor — live divergence
+
+1. **Ryu Coconala DM — DONE.** Officially sent once; never resend.
+2. **Reply repair/candidate — DONE.** Candidate tests, contract, immutable
+   checks, and read-only browser readback pass.
+3. **Main integration — OPEN.** Candidate is pushed but not on `origin/main`.
+4. **Owner transition — OPEN/SAFETY GATE.** The active owner uses the old
+   release; switch only through the controlled procedure when the shared
+   browser/profile is safe to mutate.
+5. **Live Coconala Reply readback — OPEN.** Re-run once from the repaired
+   release and verify the old DOM error disappears; no Ryu resend.
+6. **Remaining platform canaries/fences — OPEN.** Apply, Storefront, Paid,
+   CrowdWorks, Lancers, Mercor, Upwork, and Freelancer remain as listed in
+   the preceding cursor.
+7. **Shared registration, Meta Loop, final promotion — OPEN.** These remain
+   downstream of all platform official receipts and replay-zero checks.
+
 ### Candidate Coconala Reply natural readback — 2026-09-30 08:38 JST
 
 - [x] The exact immutable candidate
