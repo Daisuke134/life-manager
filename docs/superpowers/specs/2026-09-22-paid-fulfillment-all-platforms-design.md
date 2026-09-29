@@ -6135,3 +6135,14 @@ retried or resent.
   that the source repair has not been promoted accidentally.
 - [ ] Item 4 remains the current cursor: main integration and provenance
   acceptance are required before any live-owner transition or provider retry.
+
+### Main-base refresh — 2026-09-30 07:46 JST
+
+- [x] `origin/main` advanced to `7130cfc433` through an unrelated docs-only
+  change. `git merge-tree --messages origin/main HEAD` showed no conflicts;
+  the dedicated branch was rebased onto that latest main and force-pushed with
+  lease. The branch is now `origin/main` plus 140 commits and remains clean.
+- [x] The rebase changed commit identities only; the shared lifecycle,
+  admission, cleanup, evidence, and platform source changes remain present.
+- [ ] The branch is still not merged and no PR exists. Item 4's user-outcome
+  gate and the production immutable-release transition remain open.
