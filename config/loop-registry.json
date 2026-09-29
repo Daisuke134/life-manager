@@ -143,6 +143,8 @@
     },
     "crowdworks-revenue-application": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "command": [],
@@ -211,6 +213,8 @@
     },
     "crowdworks-revenue-paid": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "runtime_timeout_seconds": 900,
       "cleanup": {"max_age_days": 14, "max_runs": 100},
@@ -240,6 +244,8 @@
     },
     "crowdworks-revenue-reply": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "command": [],
@@ -1584,6 +1590,8 @@
     },
     "lancers-revenue-application": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 60
       },
@@ -1630,6 +1638,8 @@
     },
     "lancers-revenue-storefront": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -1677,6 +1687,8 @@
     },
     "lancers-revenue-negotiate": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1700,6 +1712,8 @@
     },
     "lancers-revenue-paid": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1734,6 +1748,8 @@
     },
     "lancers-revenue-work-sync": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 300
