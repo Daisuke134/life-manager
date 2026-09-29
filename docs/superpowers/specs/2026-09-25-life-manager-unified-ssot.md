@@ -1946,3 +1946,27 @@ job IDs 0）、`git diff --check`もPASS。branch
 4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたはheld理由。
 5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、
    settlement、cost-complete P&L。
+
+### 最新Coconala opportunity adapter — 2026-09-30
+
+- `fix/source-reconcile-20260930` の `ae08911756` で、既存のCoconala application snapshotを
+  shared `Opportunity`/`OpportunityDetail`へ変換する純粋な
+  `skills/earn/gig/scripts/coconala_opportunity_adapter.py` を追加した。
+- `CoconalaSnapshotAdapter.discover()`はsnapshot契約を再検証し、募集中かつ未応募の案件だけを
+  `Opportunity(provider=coconala, currency=JPY, source_hash=content_sha256)`として返す。
+  `inspect()`は同一snapshot内の案件IDに束縛された本文scopeとcontent hashだけを返す。ブラウザ、
+  submit、reply、deliver、payment、owner登録は呼ばない。
+- 無効snapshot、未知案件ID、上限超過はfail-closed。Coconala adapter/provider contractのfocused
+  testは16件PASSした。これはsource-side read-only境界の証拠であり、実アカウントのprovider receipt、
+  RyuさんDMの公式readback、応募・納品・収益を証明しない。
+
+### 原子TODO（Coconala read-only adapter後）
+
+1. **完了** Coconala snapshotをshared opportunity contractへ写像し、未応募・募集中のdiscoverと
+   identity-bound inspectをテストした。
+2. **未完** opportunity用の共通read-only discovery runnerを作り、Coconala adapterをsourceとして
+   `inspected/eligible/held/next_action`をdurableに記録する。応募・返信・納品はrunnerから呼べない。
+3. **未完** Lancers、CrowdWorks、Mercorも同じOpportunity/inspect契約へ一つずつ写像する。
+4. **未完** main受入・immutable release・loaded SHA readback、RyuさんDMと各platformの公式receipt/readback。
+5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、settlement、
+   cost-complete P&L。
