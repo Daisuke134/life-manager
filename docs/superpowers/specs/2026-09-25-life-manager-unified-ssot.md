@@ -1304,3 +1304,17 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **最新natural paper retry readback（2026-09-29 14:12 UTC）**: `alpaca-investment-paper`は新release `b4ab4adeda3f23cfd23c643c65541b1dceeab55b`で自然起動し、run `18d9d01efb6ae5f0-46399`はexit `75`、`host_admission_deferred:resource_capacity_busy`、`next_action=retry_after_eligibility`となった。provider effect前のdeferなので注文・receipt・QQQ再送・strategy receipt・P&Lの変化は無い。`etf-owned-position.json`も未作成のままである。これはsource修正の失敗ではなく、次の自然eligibilityで再試行すべきhost admission結果である。手動wake・手動注文・手動sellはしない。
 
 **実行カーソル更新**: 1) paperの自然eligibility retryでcapacity deferから復帰し、既存QQQのstrategy receipt/所有台帳を作る、2) QQQ自然exit、3) cross-venue/fencer/strategy ownerの新SHAとofficial receipt、4) cost-complete P&L、5) `30/30`、6) 追加venue段階評価。
+
+**QQQ保有後のcampaign_read失敗の確定readback（2026-09-29 14:18 UTC）**: currentはimmutable release `b4ab4adeda3f23cfd23c643c65541b1dceeab55b`で、`alpaca-investment-paper`のnatural run `18d9d02757538c70-47952`は`entrypoint_exit_78`、stage `campaign_read`、effect `none`、provider receiptなしで終了した。provider mutation前の`database is locked`（別wakeのadmission defer）とは別に、current runの公式read-only probeを実行した。Alpaca paper APIはaccount cash `$99,986.77`、equity `$99,996.74`、QQQ long `0.013493253`、avg entry `$740.37`、current `$738.595`、unrealized P&L `-$0.023951`を返した。一方、SPY option campaign snapshotはcampaign symbolsのpositionsが空、fills `4`、`paper=true`だが、全positionsから抽出した`unexpected_positions=["QQQ"]`となった。`campaign.py:26-28`は`unexpected_positions`が空でない場合に`ValueError("campaign_position_scope_invalid")`を投げるため、`run.py`の`campaign_read`で止まることを再現した。したがって現在の自己所有FAILは「closedな旧SPY campaignのscope検査が、同じpaper口座でinvestment loopが保有するQQQを外部positionとして拒否すること」である。QQQは再送・取消・手動売却せず、`etf-owned-position.json`未生成、strategy receipt未結合、entry→exit round trip未完、実現収益 `$0/月`のまま保持する。Capafy／PromptBase／他agentの作業はこのFAILの原因でも修正対象でもない。
+
+**残TODOの正本（この順序で実行）**:
+
+1. **[次の自己所有修正] campaignとinvestment positionの所有scopeを分離する**: まずnatural runの回帰テストをREDで追加する。closed SPY campaignと、公式order/client identityで自所有を確認できるQQQ positionが同じpaper口座にある場合、campaignを再計算しつつQQQを`unexpected_positions`として誤拒否しないこと、未所有symbolは引き続きfail-closedすることを受入条件にする。最小修正を実装し、focused test → Alpaca全体test → loop contractの順で検証する。
+2. **[未完] immutable releaseと自然readback**: 修正をmain由来releaseへ載せ、`alpaca-investment-paper`の自然wakeで`campaign_read`を通過させる。既存QQQの公式order、fill、account、position、`client_order_id`、`strategy_receipt`、`etf-owned-position.json`を同一effectへ結合する。新規注文・手動wake・手動sellはしない。
+3. **[未完] QQQ自然exit**: strategyの通常exitだけを待ち、exitのterminal status、fill、account、position、broker receiptを公式readbackする。entry fillだけでは利益・round tripと数えない。
+4. **[未完] cross-venue／fence／strategy証拠**: 旧cross-venue occurrenceはdaily receipt・outbox delivery・provider message IDが同一occurrenceで揃うまでheldにする。欠落した証拠の解放・再送はしない。strategy-validationもnatural receiptを取得する。
+5. **[未完] cost-complete net P&L**: entry／exit、fee、slippage、funding／borrow、gas、model costをreceipt単位で控除し、net P&L・drawdown・venue healthを確定する。`unknown`が一つでもあれば利益を報告しない。
+6. **[未完] `30/30`測定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。それまではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
+7. **[未完] 追加venue段階評価**: `30/30`後にHyperliquid shadow → Solana／Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、保証ではない。
+
+**カーソル**: 現在は`INV-002a campaign_position_scope`。次に行う投資作業は、QQQを動かすことではなく、上記scope回帰テストと最小source修正である。修正がreleaseされ自然runが通るまで、paperの旧QQQ entryは資産台帳・P&L・promotionへ結合済みと扱わない。
