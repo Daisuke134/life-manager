@@ -786,6 +786,8 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 17:08 JST（UTC `08:08:13Z`）のproduction readbackでは、`/Users/anicca/loops/current` は `/Users/anicca/loops/releases/20260929T170751-8a9f1dcb`（SHA `8a9f1dcb84…`、別main由来release）を指す。`ai.anicca.hf-gig-browser` は `active count=0`・`state=spawn scheduled`・`last exit code=78: EX_CONFIG`、CDP `9223` は未接続だった。これは今回のbranchの修正が本番反映済みという意味ではなく、RyuのDM送信経路が回復した証拠でもない。送信・正式納品クリックは0件のまま維持する。
 - [x] 2026-09-29 17:14 JST（UTC `08:14:03.929786Z`）の再readbackでは、`current` が `eada0da3`へ進んだ一方、`hf-gig-browser` は旧 `8a9f1dcb`をloaded-runningのまま保持していた。CDP `9223`は到達可能でbrowser UUIDの衝突は0だが、loop eventのloaded SHAは旧値、公式receipt/readbackはnull。これは**release drift**であり、修正branchのloaded証明ではない。証跡は `delivery/current-cycle-v717-production-release-drift-readback.json`。Ryuへの送信・正式納品クリックは0件。
 - [x] 2026-09-29 18:05 JST（UTC `09:05:53Z`）の再read-only probeでは、Coconalaのroot、受信箱、DM `10107358`、旧DM pathの全てが`title/body=403 Forbidden`を返し、入力欄0件だった。`coconala:kosuke`のbrowser UUIDは`14d6c112-60a5-48b9-8ffb-905dc32ef8aa`で到達可能だが、provider access denialのため送信は実行していない。証跡は `delivery/current-cycle-v718-dm-access-denial-readback.json`。v711 Colors側の相互リンク管理機能readbackはPASS済みで、次の安全な外部効果は公式DMが回復した後の一回送信だけである。
+- [x] v718の403は一時的なprovider access denialとして記録する。後続の公式DM再readbackで現行URLは回復したため、v718を現在の未確認根拠として扱わない。
+- [x] 2026-09-29 18:09 JST（UTC `09:09:23Z`）に現行スマホDM URLをread-onlyで再取得し、HTTP/UI readbackに成功した。最新シーケンスは seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41。14:41の最新要求は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」で、sellerの後続返信は0件、正式納品ボタンも未押下。証跡は `delivery/current-cycle-v719-dm-readback.json`。したがって、管理画面・公開サイトの修正readbackは完了していても、Ryuへの最終統合DMは未送信であり、Ryu案件はまだ完了ではない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -811,7 +813,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 ### Ryuの残TODO（この順番を正本とする）
 
-1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。readbackは `delivery/current-cycle-v708-dm-readback.json`。このターンは送信していない。
+1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、現行の送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信は0件で、このターンは送信していない。
 2. [x] **文言の正しい対象を特定して修正**した。購入者が指したライブtitleを`八王子デリヘル`へ変更し、公開titleと旧文言不在をreadbackした。
 3. [x] **女の子画像設定を根本修正**した。各プロフィールのメイン画像1枚＋写真5枚、原子的保存、再読込、キー形状保持、12名の公式readbackを確認した。新しい購入者画像を登録する場合だけ入力待ち。
 4. [x] **公開側のprofile画像参照を同一データへ接続**した。在籍・出勤・ランキング・プロフィールの同一profile画像を公式browser readbackした。WEB予約プレビューは既存の同一content API経路を確認済み。写メ日記は現在データが空のため、実データ表示は別途入力待ち。
@@ -821,7 +823,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`、`textarea.message-input`、`/smartphone/direct_messages/<id>?uid=<own_uid>`の受信readback・focused 196 testsは完了。残りは返信adapterが現行URLを選び、immutable release反映後に、公式readback JSONで返信・重複guardを同じthreadで検証する。
 9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
 
-現行スマホDMの14:33〜14:41を含むreadbackは `v712` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712は修正・納品証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
+現行スマホDMの14:33〜14:41を含むreadbackは `v712` と `v719` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。`v719` が現在の公式DM状態の正本であり、sellerの14:41後返信0件を確認している。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712/v719はいずれも修正・納品完了の証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
 ### ブラウザ・loop・worktreeの対応表と衝突境界
 
@@ -846,9 +848,9 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。Coconala actionはsourceでregistry identity joinとlease wrapperへ移行したが、main由来releaseのloaded/natural readbackは未完了である。Lancers/CrowdWorksはidentity未登録でprovider固定port依存が残るため、未登録identityを推測で追加せず、静的衝突検査とresolver接続を別TODOとして扱う。
 
-開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは403のため最終返信未完了である。
+開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは現行URLのreadbackには成功したが、14:41後の最終返信未完了である。
 
-残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(c) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(d) 全platform loopの暗黙browser依存を明示identityへ収束、である。
+残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(c) v719で確認した同じ公式DMへRyuの全要求を一つに統合して一度だけ送信、(d) 全platform loopの暗黙browser依存を明示identityへ収束、である。送信はこのread-only確認ターンでは実行していない。
 
 現行source readback（2026-09-29 JST）は、専用worktreeのbranch `fix/lm-release-boundary-20260929`（remoteと同期済み、最新 `origin/main=bbc73eda12…`をmerge済み、PRなし）である。重点runtime `289 passed / 177 subtests`、registry/read-only focused test `163 passed / 171 subtests`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）、`git diff --check`もPASSである。外部owner `ai.anicca.provision-browser.aws.life-manager-cloud-provision`をregistryへ明示したため、source側`./bin/lm-loop doctor`は`ok=true`になった。productionは旧releaseのままなので、production側doctorのreadbackはimmutable release昇格後に行う。
 
@@ -879,13 +881,13 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 この表は「実際に現在どこへ接続するか」と「まだ衝突安全を証明できない箇所」を分けたものだ。Coconala actionはregistryのidentity joinを宣言し、`entry_dispatch.py`・Paid owner・Reply ownerが`with-browser.sh`のleaseを取得してから子processを起動する。leaseが返す実endpointからchild向けのCDP/health環境変数を再導出するため、古い固定portへ黙って再接続しない。main由来releaseでのloaded/natural readbackはまだ未完了である。Lancers/CrowdWorksへ未登録identityを推測で作らず、`browsers.toml`の正式登録、adapterの固定port除去、`resolve_cdp_endpoint.py`＋leaseの自然run、UUID衝突readbackを一つの変更として行う。
 
-**本番境界の最新readback**: production `current` は `/Users/anicca/loops/releases/20260929T172908-d697d18f`（SHA `d697d18fa8…`）。`lm-loop status`では`hf-gig-browser`の直近eventが旧`eada0da3…`、`hf-gig-apply-reconcile`も`eada0da3…`、Paid/Replyはさらに旧release、Storefrontは`8a9f1dcb…`で、Coconala action全体にloaded-release driftが残る。fresh read-onlyの`browser-guard status`では`coconala:kosuke`が`gig-daily-driver`／9223／browser UUID `14d6c112-60a5-48b9-8ffb-905dc32ef8aa`へ到達し、`reachable=true`、`http_status=200`、`websocket_url_valid=true`、`holder=""`、`collisions={}`である。`lm-loop browser resolve hf-gig-paid-direct`と`hf-gig-apply-reconcile`も同じidentity・owner・endpointを解決できた。これは現在の同一identity内衝突が観測されなかったことを示すが、source修正版のofficial receipt/readbackやproduction loaded証明ではない。Lancersの`lancers-revenue-application`とCrowdWorksの`crowdworks-revenue-application`は、identity join未登録のため`browser_join_missing`でfail-closedする。production旧releaseの`lm-loop doctor`には未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision`が残る。Ryu DM送信・正式納品クリックは0件である。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
+**本番境界の最新readback**: production `current` は `/Users/anicca/loops/releases/20260929T172908-d697d18f`（SHA `d697d18fa8…`）。`lm-loop status`では`hf-gig-browser`の直近eventが旧`eada0da3…`、`hf-gig-apply-reconcile`も`eada0da3…`、Paid/Replyはさらに旧release、Storefrontは`8a9f1dcb…`で、Coconala action全体にloaded-release driftが残る。fresh read-onlyの`browser-guard status`では`coconala:kosuke`が`gig-daily-driver`／9223／browser UUIDへ到達し、到達性と衝突なしを確認できる。これは現在の同一identity内衝突が観測されなかったことを示すが、source修正版のofficial receipt/readbackやproduction loaded証明ではない。Lancersの`lancers-revenue-application`とCrowdWorksの`crowdworks-revenue-application`は、identity join未登録のため`browser_join_missing`でfail-closedする。production旧releaseの`lm-loop doctor`には未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision`が残る。Ryu DMの最終統合返信・正式納品クリックは0件である。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
 
 **残TODO（成果基準の順序）**:
 
 1. source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorはPASS済み。残りはPR/checksとmain統合であり、AWS Provision Browserがproduction側doctorでも同じ外部owner分類になることをimmutable release readbackで確認する。
 2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
-3. 403が解消した公式Coconala DMでRyuの最新threadをreadbackし、全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。403またはreceipt欠落なら送らない。
+3. v719でreadback済みの公式Coconala DMでRyuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。送信後に同じ公式threadのseller後続1件・重複0件をreadbackする。
 4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、Coconala DM・Paid・Application・Storefrontのloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。
 5. Lancers/CrowdWorksのidentityを正式登録し、registryのidentity joinを追加して固定9227/9228依存をlease endpointへ切り替える。source adapterのendpoint projectionは済み。Human Verification・provider denial・effect unknownを型付きpendingとして保持し、公式receiptなしの再送を禁止する。
 6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
