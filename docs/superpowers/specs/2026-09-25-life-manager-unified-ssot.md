@@ -289,6 +289,10 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **Capafy 完了（2026-09-29 18:3x JST、公式 readback）**: 閉じる条件 X2 = 宣伝ループの記事 2 本（aniccaai.com 200、ct=capafy-distribute-*）、X3 = Japanese Humanizer 3332784488 v1.0.1 platform_status=4（承認・公開中）。X1（Capafy IG）は Dais の指示で後回し。工場・宣伝（3 時間ごと）・毎時集計・日次利益 Telegram は loop で回る。承認・売上・工場の各 run は監視のみで、次へ進む条件にしない。cursor は下の 2（PromptBase）。
 
+**進捗（2026-09-29 19:0x JST、公式 readback）**
+- PromptBase: 公式画面 = Hook Lab Win The First 3 Seconds が Approved（販売中）、Reels Hook Lab 2 件は Draft（未提出。ledger の submitted_pending_review は誤記録で、readback が draft に直した）、売上 No sales yet。P3 ✅ #2ffad523（readback が Sales タブを読み ledger の sales_usd と `state/promptbase-sales.json` を書く。worktree で実行し sales_count=0 を確認）。P4 🔄 branch `feat/promptbase-distribute-p4`（3 時間ごとの宣伝ローテーションに `promptbase-hook-lab` を追加、リンクは手数料 0% の `?via=keipanda`、ct は & で連結）。worktree で h18 枠を実行中 → 記事 200 と X PUBLISHED を確認したら merge。Reels Hook Lab の提出は reCAPTCHA の画像問題で止まる（回避しない。ループが毎日再試行し、画像問題が出た時だけ Dais へ）。
+- モバイルアプリ A1 ✅: Postiz 直近 24 時間 26 投稿で同じアカウント内の文面重複 0。例外 1 件 = Anicca iOS（Instagram）が ERROR。次は A2（投稿 → App Store の流れを測る）。
+
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
 2. PromptBase: P3 売上の毎日の読み戻し（promptbase-loop-daily の初回 run 04:20 JST で確認）→ P4 記事から PromptBase への誘導。P1・P2 は完了。
