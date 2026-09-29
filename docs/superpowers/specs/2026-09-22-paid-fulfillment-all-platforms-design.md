@@ -6295,3 +6295,21 @@ retried or resent.
   admission floor and dependency-bundle capacity are both satisfied. This is
   a release-build capacity gate, not evidence that the source tests or the
   provider workflows passed in production.
+
+### Upwork/Freelancer live-state readback — 2026-09-30 08:45 JST
+
+- [x] Upwork has no running browser or loop owner in the live process readback;
+  its launch agents are in the retired control-plane directory. The newest
+  persisted Upwork state is `upwork-free-loop.json` from 2026-08-26 and reports
+  `active_contracts=[]`, `active_proposals=1`, `can_submit_public_job=false`,
+  and `catalog_readback_state=forbidden`. This is stale state, not a current
+  authenticated funded-contract readback.
+- [x] No current Freelancer owner or authenticated inventory file exists in
+  the live state roots. The source readiness boundary therefore has no
+  account-bound contract/milestone snapshot to admit.
+- [ ] Upwork and Freelancer remain unregistered for Paid lifecycle effects.
+  Next actions are to restore each existing browser/account owner, obtain a
+  fresh official source-complete inventory, verify funded contract/milestone
+  terms, and only then run a no-effect canary and register the shared Paid
+  lifecycle. No proposal, message, acceptance, delivery, or payment action
+  is performed from the stale snapshots.
