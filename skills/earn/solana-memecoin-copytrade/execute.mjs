@@ -95,10 +95,10 @@ export async function executeCanary(intent, quote, wallet, clients, journalPath)
     const confirmation = await clients.confirm(signature);
     if (!confirmationSucceeded(confirmation)) {
       return await appendReceipt(journalPath, intent, {
-        status: "rejected",
-        effect: "none",
+        status: confirmation?.failed === true ? "rejected" : "effect_unknown",
+        effect: confirmation?.failed === true ? "none" : "unknown",
         verified: false,
-        reason: "confirmation_failed",
+        reason: confirmation?.failed === true ? "confirmation_failed" : "confirmation_unresolved",
         signature,
       });
     }
@@ -123,4 +123,3 @@ export async function executeCanary(intent, quote, wallet, clients, journalPath)
     });
   }
 }
-

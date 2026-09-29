@@ -1,6 +1,7 @@
 const DEFAULT_RPC_URL = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 const DEFAULT_DEXSCREENER_URL = "https://api.dexscreener.com/tokens/v1/solana";
 const DEFAULT_JUPITER_QUOTE_URL = process.env.JUPITER_QUOTE_URL || "https://lite-api.jup.ag/swap/v1/quote";
+const DEFAULT_JUPITER_SWAP_URL = process.env.JUPITER_SWAP_URL || "https://lite-api.jup.ag/swap/v1/swap";
 
 function requireUrl(value, name) {
   if (typeof value !== "string" || !/^https:\/\//.test(value)) throw new Error(`${name}_url_invalid`);
@@ -67,6 +68,54 @@ export function createPublicAdapters(options = {}) {
         maxSupportedTransactionVersion: 0,
       }], fetchImpl);
     },
+    async getBalance(address) {
+      const result = await rpcCall(rpcUrl, "getBalance", [address, { commitment: "confirmed" }], fetchImpl);
+      if (!Number.isSafeInteger(result?.value)) throw new Error("rpc_balance_invalid");
+      return result.value;
+    },
+    async getTokenBalances(owner, mints) {
+      if (!Array.isArray(mints) || mints.some((mint) => typeof mint !== "string" || !mint)) {
+        throw new Error("token_mints_invalid");
+      }
+      const rows = [];
+      for (const mint of [...new Set(mints)]) {
+        const result = await rpcCall(rpcUrl, "getTokenAccountsByOwner", [owner, { mint }, {
+          commitment: "confirmed",
+          encoding: "jsonParsed",
+        }], fetchImpl);
+        if (!Array.isArray(result?.value)) throw new Error("rpc_token_accounts_invalid");
+        let amount = 0n;
+        for (const account of result.value) {
+          const raw = account?.account?.data?.parsed?.info?.tokenAmount?.amount;
+          if (typeof raw !== "string" || !/^\d+$/.test(raw)) throw new Error("rpc_token_amount_invalid");
+          amount += BigInt(raw);
+        }
+        rows.push({ owner, mint, rawAmount: amount.toString() });
+      }
+      return rows;
+    },
+    async sendTransaction(signedBase64) {
+      if (typeof signedBase64 !== "string" || !signedBase64) throw new Error("signed_transaction_invalid");
+      const signature = await rpcCall(rpcUrl, "sendTransaction", [signedBase64, {
+        encoding: "base64",
+        skipPreflight: false,
+        maxRetries: 0,
+        preflightCommitment: "confirmed",
+      }], fetchImpl);
+      if (typeof signature !== "string" || !signature) throw new Error("provider_signature_missing");
+      return signature;
+    },
+    async getSignatureStatus(signature) {
+      const result = await rpcCall(rpcUrl, "getSignatureStatuses", [[signature], { searchTransactionHistory: true }], fetchImpl);
+      const status = result?.value?.[0];
+      if (!status) return { confirmed: false, failed: false, pending: true };
+      if (status.err != null) return { confirmed: false, failed: true, pending: false };
+      return {
+        confirmed: status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized",
+        failed: false,
+        pending: status.confirmationStatus == null,
+      };
+    },
   };
 
   const gmgn = {
@@ -110,3 +159,39 @@ export function createPublicAdapters(options = {}) {
 
 export const createDefaultAdapters = createPublicAdapters;
 
+export async function createLiveClients({ adapters, wallet, fetchImpl = globalThis.fetch, jupiterSwapUrl = DEFAULT_JUPITER_SWAP_URL } = {}) {
+  if (!adapters?.rpc || typeof wallet?.publicKey !== "string") throw new Error("live_clients_invalid");
+  const swapUrl = requireUrl(jupiterSwapUrl, "jupiter_swap");
+  const { VersionedTransaction } = await import("@solana/web3.js");
+  return {
+    async build(quote, { owner }) {
+      const { simulatedFeeUsd, simulatedSlippageUsd, ...quoteResponse } = quote || {};
+      const body = await fetchJson(swapUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse,
+          userPublicKey: owner,
+          dynamicComputeUnitLimit: true,
+          prioritizationFeeLamports: "auto",
+        }),
+      }, fetchImpl);
+      const encoded = body?.swapTransaction || body?.data?.swapTransaction;
+      if (typeof encoded !== "string" || !encoded) throw new Error("jupiter_transaction_missing");
+      try { return VersionedTransaction.deserialize(Buffer.from(encoded, "base64")); } catch { throw new Error("jupiter_transaction_invalid"); }
+    },
+    async send(signedTransaction) {
+      if (!signedTransaction || typeof signedTransaction.serialize !== "function") throw new Error("signed_transaction_invalid");
+      return adapters.rpc.sendTransaction(Buffer.from(signedTransaction.serialize()).toString("base64"));
+    },
+    async confirm(signature) {
+      return adapters.rpc.getSignatureStatus(signature);
+    },
+    async readTransaction(signature) {
+      return adapters.rpc.getTransaction(signature);
+    },
+    async readBalances({ owner: balanceOwner, intent }) {
+      return adapters.rpc.getTokenBalances(balanceOwner || wallet.publicKey, [intent.sourceMint, intent.destinationMint || intent.mint]);
+    },
+  };
+}

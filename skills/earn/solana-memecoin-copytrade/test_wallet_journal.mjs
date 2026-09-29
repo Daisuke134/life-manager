@@ -26,6 +26,19 @@ test("wallet creates once, preserves credentials, and returns no private key", a
   assert.equal(stored.credentials.filter((row) => row.service === SERVICE).length, 1);
 });
 
+test("wallet signs both legacy-style and versioned transaction interfaces", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "sol-copy-wallet-sign-"));
+  const ssot = path.join(directory, "credentials.json");
+  const wallet = await loadOrCreateAgentWallet(ssot);
+  let legacySigner;
+  let versionedSigner;
+  await wallet.signTransaction({ partialSign(keypair) { legacySigner = keypair; } });
+  await wallet.signTransaction({ sign(keypairs) { versionedSigner = keypairs[0]; } });
+
+  assert.equal(legacySigner.publicKey.toBase58(), wallet.publicKey);
+  assert.equal(versionedSigner.publicKey.toBase58(), wallet.publicKey);
+});
+
 test("wallet preserves an unrelated credential row", async () => {
   const root = await tempRoot();
   const ssot = path.join(root, "anicca", "credentials.json");
