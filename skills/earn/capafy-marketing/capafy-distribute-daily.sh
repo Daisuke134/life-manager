@@ -9,15 +9,17 @@
 #
 # Deliberately separate from skills/writer-agent/article-daily.sh rather than
 # a mode flag inside it (skills/loop-development/SKILL.md: a loop must not
-# modify another loop's code). article-daily.sh's own shared destination
-# contract (skills/writer-agent/scripts/publication_contract.py /
-# publication_resume.py) keeps devto/en dormant for THAT loop's own managed
-# state machine -- publishing dev.to for THIS loop goes straight to the
-# Dev.to API via scripts/capafy_devto_post.py (reusing devto.py's pure
-# frontmatter/HTTP helpers only, never publication_resume.py/
-# publication-guard.py, whose dormant-pair enforcement this PR does not
-# touch or bypass). aniccaai.com/Substack are still paid-only
-# (self_owned_article.py has no free path) and are skipped with a reason.
+# modify another loop's code).
+#
+# Dais decision 2026-09-29: dev.to and Zenn are no longer published to by
+# ANY loop. This loop's free article now goes to our own site instead --
+# scripts/capafy_free_article.py writes one fully public
+# apps/landing/data/research/<slug>.json page straight into the SAME landing
+# repo the Writer's self-owned publisher uses
+# (skills/writer-agent/scripts/self_owned_article.py), without touching that
+# module's paid preview/paid-split contract at all: it only reuses its pure
+# git/text helpers. Substack stays skipped (paid-subscription only, per
+# $ARTICLE_ROOT/SKILL.md).
 set -uo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 
@@ -26,11 +28,10 @@ ARTICLE_ROOT="${ARTICLE_ROOT:-$(cd "$SCRIPT_DIR/../../writer-agent" && pwd -P)}"
 # shellcheck source=../writer-agent/scripts/writer-runtime-env.sh
 source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh"
 
-# DEVTO_API_KEY/DEVTO_ACCOUNT_HANDLE live in life-manager's own .env (already
-# loaded above by writer-runtime-env.sh). POSTIZ_API_KEY lives in
-# ~/.openclaw/.env instead (a different loop's credential file); load it only
-# to fill in POSTIZ_API_KEY if life-manager's own .env did not already set
-# one, reusing the same repo-owned dotenv loader rather than a second parser.
+# POSTIZ_API_KEY lives in ~/.openclaw/.env (a different loop's credential
+# file); load it only to fill in POSTIZ_API_KEY if life-manager's own .env
+# (already loaded above by writer-runtime-env.sh) did not already set one,
+# reusing the same repo-owned dotenv loader rather than a second parser.
 if [ -z "${POSTIZ_API_KEY:-}" ] && [ -f "$HOME/.openclaw/.env" ]; then
   # shellcheck source=/dev/null
   source "$LIFE_MANAGER_REPO/apps/life-manager/scripts/lib/load-env-file.sh"
@@ -90,10 +91,17 @@ CAPAFY_CT="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(j
 CAPAFY_BUYER_PROBLEM="$(printf '%s' "$SELECTION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("buyer_problem") or "")')"
 CTA_URL="${CAPAFY_LANDING_URL}?ct=${CAPAFY_CT}"
 # The X post gets its OWN ct token (distinct from the article's) so Capafy's
-# traffic-sources dashboard reports dev.to-article visits and X-post visits
-# as two separate rows instead of merging them under one token.
+# traffic-sources dashboard reports aniccaai.com-article visits and X-post
+# visits as two separate rows instead of merging them under one token.
 X_CT="capafy-x-${CAPAFY_SKILL_SLUG}"
 X_CTA_URL="${CAPAFY_LANDING_URL}?ct=${X_CT}"
+
+# The aniccaai.com blog slug is derived from date+skill (not the title), so
+# a retry on the same JST date always resolves to the exact same page
+# instead of depending on model-chosen title text for idempotency.
+FREE_ARTICLE_SLUG="capafy-${CAPAFY_SKILL_SLUG}-${JST_DATE}"
+FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL:-}"
+[ -n "$FREE_ARTICLE_URL" ] && FREE_ARTICLE_URL="${FREE_ARTICLE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
 RUN_TS="capafy-distribute-$JST_DATE"
 RUN_DIR="$CAPAFY_DISTRIBUTE_STATE_DIR/runs/$RUN_TS"
@@ -102,12 +110,18 @@ mkdir -p "$RUN_DIR/gates"
 # --- dry-run: exercise every deterministic step above with no model/network
 # dispatch and no publish attempt. Used by tests. ------------------------
 if [ "${CAPAFY_DISTRIBUTE_DRY_RUN:-0}" = "1" ]; then
-  RECEIPT_JSON="$(python3 -c 'import json,sys; print(json.dumps({"status":"dry_run","capafy_skill":sys.argv[1],"cta_url":sys.argv[2],"x_cta_url":sys.argv[3],"run_dir":sys.argv[4]}))' \
-    "$CAPAFY_SKILL_SLUG" "$CTA_URL" "$X_CTA_URL" "$RUN_DIR")"
+  RECEIPT_JSON="$(python3 -c 'import json,sys; print(json.dumps({"status":"dry_run","capafy_skill":sys.argv[1],"cta_url":sys.argv[2],"x_cta_url":sys.argv[3],"free_article_url":sys.argv[4],"run_dir":sys.argv[5]}))' \
+    "$CAPAFY_SKILL_SLUG" "$CTA_URL" "$X_CTA_URL" "$FREE_ARTICLE_URL" "$RUN_DIR")"
   python3 "$SELF_DIR/capafy_distribute_ledger.py" record --ledger "$LEDGER" --date "$JST_DATE" --json "$RECEIPT_JSON" >>"$LOG" 2>&1 || exit 1
   echo "capafy-distribute-daily: dry-run complete date=$JST_DATE skill=$CAPAFY_SKILL_SLUG" >>"$LOG"
   exit 0
 fi
+
+# aniccaai.com is the live publish target below; the base URL is a pure
+# operator/dotenv value (see .env.example) required only once we are past
+# the dry-run short-circuit above.
+: "${ARTICLE_SELF_OWNED_BASE_URL:?ARTICLE_SELF_OWNED_BASE_URL is required (aniccaai.com base URL)}"
+FREE_ARTICLE_URL="${ARTICLE_SELF_OWNED_BASE_URL%/}/blog/${FREE_ARTICLE_SLUG}"
 
 # --- build the model pass prompt: one free English article + X link post --
 PROMPT_FILE="$RUN_DIR/prompt.txt"
@@ -131,29 +145,37 @@ it fails -- this hard safety gate is never skipped.
 The article body must contain exactly one Capafy CTA link, verbatim:
 $CTA_URL
 Do not invent a second Capafy link in the article body and do not send
-readers to any other product's checkout. The article needs YAML frontmatter
-with a non-empty "title" and a non-empty "tags" (comma-separated, 1-4 tags,
-dev.to's format) -- write $RUN_DIR/article-en.md with that frontmatter and
-the full free article body (no paywall, no preview/paid split, nothing held
-back).
+readers to any other product's checkout. Give the draft a single H1 title
+line ("# ...") -- write $RUN_DIR/article-en.md with that H1 and the full
+free article body (no paywall, no preview/paid split, nothing held back;
+YAML frontmatter is optional and ignored by the publish step below).
 
-DESTINATIONS (independent -- one failing never blocks the other):
-1. dev.to, FULL FREE PUBLIC POST (published:true) -- once article-en.md is
-   frozen, run exactly:
-     python3 $SELF_DIR/capafy_devto_post.py --draft-file $RUN_DIR/article-en.md
-   This calls the Dev.to API directly (DEVTO_API_KEY/DEVTO_ACCOUNT_HANDLE from
-   the environment already loaded), checks the account's own recent articles
-   for a title match first (never double-posts), creates the article
-   published:true, and reads it back (HTTP 200 + title match) before printing
-   its JSON result -- do not call devto.py's stage()/publish_existing() or
-   publication-guard.py directly, and do not edit
-   publication_contract.py/publication_resume.py to unblock them; this script
-   exists specifically so this loop never has to touch that shared state
-   machine. If DEVTO_API_KEY or DEVTO_ACCOUNT_HANDLE is missing, or the
-   command's stdout action is "duplicate-skip", record that outcome (not an
-   error) in the receipt and continue to X regardless of dev.to's result.
-2. X, REAL POST (not a draft) -- build one short caption containing the
-   dev.to URL from step 1 (when published) and this SEPARATE Capafy link:
+DESTINATIONS:
+1. aniccaai.com, FULL FREE PUBLIC PAGE (required -- step 2 depends on its
+   URL) -- once article-en.md is frozen, run exactly:
+     python3 $SELF_DIR/capafy_free_article.py publish \\
+       --draft-file $RUN_DIR/article-en.md \\
+       --slug $FREE_ARTICLE_SLUG \\
+       --cta-url "$CTA_URL" \\
+       --landing-root "$ARTICLE_SELF_OWNED_LANDING_ROOT" \\
+       --remote "$ARTICLE_SELF_OWNED_REMOTE" \\
+       --branch "$ARTICLE_SELF_OWNED_BRANCH" \\
+       --base-url "$ARTICLE_SELF_OWNED_BASE_URL" \\
+       --date "$JST_DATE"
+   This writes ONE plain public JSON page (no preview/paid split, unlike the
+   Writer's own self-owned paid articles) straight into the same landing
+   repo the Writer commits to, pushes it, then polls the live page at
+   $FREE_ARTICLE_URL until it reads back HTTP 200 with the title and the
+   Capafy CTA link both present, before printing its JSON result. Do not
+   call self_owned_article.py's build_contract/stage_contracts/resume
+   directly and do not edit that module's paid preview/paid-split contract
+   to unblock this -- this script exists specifically so this loop never
+   touches that paid pipeline. If this command exits non-zero, record
+   status="blocked" with its stderr as the reason, skip step 2 entirely
+   (there is no live URL to link to), and still run the ledger write below.
+2. X, REAL POST (not a draft) -- only if step 1 published. Build one short
+   caption containing the aniccaai.com URL from step 1's JSON output ("url")
+   and this SEPARATE Capafy link:
    $X_CTA_URL
    Then run exactly:
      python3 $SELF_DIR/capafy_x_post.py --caption "<caption>" \\
@@ -163,19 +185,18 @@ DESTINATIONS (independent -- one failing never blocks the other):
    it never reports success on a QUEUE/DRAFT/ERROR state. If
    POSTIZ_X_INTEGRATION_ID or POSTIZ_API_KEY is not set, or the command exits
    non-zero, record that as skipped/failed with the reason and continue.
-3. aniccaai.com and Substack: SKIP both. Neither has a free (non-paywalled)
-   publish path today ($ARTICLE_ROOT/scripts/self_owned_article.py requires a
-   non-empty paid section; Substack is paid-subscription only per
-   $ARTICLE_ROOT/SKILL.md). Do not build a new paywall-free path in this run;
-   record the skip and move on.
+3. dev.to, Zenn, Substack: SKIP all three (Dais decision 2026-09-29 -- we do
+   not publish to dev.to or Zenn; Substack is still paid-subscription only
+   per $ARTICLE_ROOT/SKILL.md). Do not build a publish path to any of them
+   in this run; record the skip and move on.
 
 Write the final receipt as JSON to $RUN_DIR/gates/receipt.json with keys
-status ("published" if at least one destination went live, "blocked" if the
-PII gate failed, "skipped" if every destination was skipped), capafy_skill,
-cta_url, x_cta_url, and a "destinations" object keyed by dev.to/x with each
+status ("published" if aniccaai.com went live, "blocked" if the PII gate or
+step 1 failed, "skipped" if step 1 itself was skipped), capafy_skill,
+cta_url, x_cta_url, and a "destinations" object keyed by aniccaai/x with each
 entry's status and url (or skip/failure reason) taken verbatim from the two
 commands' own JSON output above -- never invent a URL that was not printed by
-capafy_devto_post.py or capafy_x_post.py. Then run:
+capafy_free_article.py or capafy_x_post.py. Then run:
   python3 $SELF_DIR/capafy_distribute_ledger.py record --ledger "$LEDGER" \\
     --date "$JST_DATE" --json "\$(cat $RUN_DIR/gates/receipt.json)"
 This ledger write is the ONLY thing that marks today done; if you exit before
