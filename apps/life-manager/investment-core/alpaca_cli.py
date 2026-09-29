@@ -511,10 +511,12 @@ def read_live_performance_snapshot(
         fee_total = sum((abs(number(row["qty"])) * number(row["price"]) for row in fees), Decimal("0"))
         transfer_amount, transfer_usd = number(transfer["amount"]), number(transfer["usd_value"])
         position_qty, position_value = number(position["qty"]), number(position["market_value"])
-        realised_usdc = position_qty - transfer_amount
-        realised_usd = realised_usdc * number(position["current_price"])
         unrealised = number(position["unrealized_pl"])
         ending_nav = number(account["cash"]) + position_value
+        # The provider's marked ending NAV is authoritative. Valuing the
+        # position-quantity delta at the current mark and adding unrealized
+        # P&L double-counts the mark when the residual USDC position moves.
+        realised_usd = (ending_nav - transfer_usd) - unrealised
         if (transfer_amount <= 0 or transfer_usd <= 0
                 or abs(number(account["equity"]) - ending_nav) > Decimal("0.01")
                 or abs((realised_usd + unrealised) - (ending_nav - transfer_usd)) > Decimal("0.01")):

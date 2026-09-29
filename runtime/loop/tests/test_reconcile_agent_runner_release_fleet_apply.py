@@ -82,7 +82,9 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         return repo, sha
 
     def _make_release(self, root, sha, *, release_paths="ALL", loop_ids=("loop-a",),
-                       labels=None):
+                       labels=None, with_investment_provisioner=False,
+                       with_investment_selection_provisioner=False,
+                       with_reviewed_validation_reports=False):
         release_dir = root / "loops" / "releases" / f"rel-{sha}"
         (release_dir / "bin").mkdir(parents=True)
         (release_dir / "config").mkdir(parents=True)
@@ -99,6 +101,37 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
         lm_loop = release_dir / "bin" / "lm-loop"
         lm_loop.write_text(FAKE_LM_LOOP)
         lm_loop.chmod(lm_loop.stat().st_mode | stat.S_IEXEC)
+        if with_investment_provisioner:
+            provisioner = release_dir / "apps/life-manager/investment-core/provision_manifest.py"
+            provisioner.parent.mkdir(parents=True)
+            provisioner.write_text(
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "if os.environ.get('FAKE_PROVISION_FAIL') == '1':\n"
+                "    raise SystemExit(1)\n"
+                "Path(os.environ['FAKE_PROVISION_MARKER']).write_text("
+                "json.dumps({'argv': sys.argv[1:]})\n"
+                ")\n",
+                encoding="utf-8",
+            )
+        if with_investment_selection_provisioner:
+            provisioner = release_dir / "apps/life-manager/investment-core/provision_selection.py"
+            provisioner.parent.mkdir(parents=True, exist_ok=True)
+            provisioner.write_text(
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "if os.environ.get('FAKE_SELECTION_PROVISION_FAIL') == '1':\n"
+                "    raise SystemExit(1)\n"
+                "marker = Path(os.environ['FAKE_SELECTION_PROVISION_MARKER'])\n"
+                "calls = json.loads(marker.read_text()) if marker.exists() else []\n"
+                "calls.append({'argv': sys.argv[1:]})\n"
+                "marker.write_text(json.dumps(calls))\n",
+                encoding="utf-8",
+            )
+            if with_reviewed_validation_reports:
+                (release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").write_text(
+                    "{\"reports\": []}\n", encoding="utf-8",
+                )
         if release_paths != "ALL":
             # `$CURRENT/bin/cut-loop-release.sh` is preferred over the source repo's; stub it as a
             # no-op so a sparse/candidate `current` (which forces `current_complete=0`) doesn't
@@ -184,6 +217,148 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(self._apply_call_count(calls_log), 1,
                              "same release on the next tick must not re-apply")
+
+    def test_release_handoff_runs_investment_manifest_provisioner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_PROVISION_MARKER"] = str(marker)
+            env["LIFE_MANAGER_INVESTMENT_MANIFEST_PATH"] = str(
+                root / "state/inputs.json"
+            )
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(marker.read_text(encoding="utf-8"))["argv"],
+                [
+                    "--path", str(root / "state/inputs.json"),
+                    "--alpaca-state-dir",
+                    "~/.local/state/life-manager/alpaca-investment-live",
+                    "--available-capital-usd", "0",
+                ],
+            )
+
+    def test_failed_investment_manifest_provisioning_stops_owner_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_PROVISION_MARKER"] = str(root / "provision.json")
+            env["FAKE_PROVISION_FAIL"] = "1"
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+
+    def test_release_handoff_runs_investment_selection_provisioner_when_reports_configured(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "selection-provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(marker)
+            env["LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH"] = str(
+                root / "state/validation-reports.json"
+            )
+            env["LIFE_MANAGER_INVESTMENT_SELECTION_PATH"] = str(
+                root / "state/selected-strategy.json"
+            )
+            env["LIFE_MANAGER_INVESTMENT_PAPER_SELECTION_PATH"] = str(
+                root / "state/paper-selected-strategy.json"
+            )
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(marker.read_text(encoding="utf-8")),
+                [
+                    {"argv": [
+                        "--path", str(root / "state/selected-strategy.json"),
+                        "--reports", str(root / "state/validation-reports.json"),
+                        "--release-sha", sha,
+                    ]},
+                    {"argv": [
+                        "--path", str(root / "state/paper-selected-strategy.json"),
+                        "--reports", str(root / "state/validation-reports.json"),
+                        "--release-sha", sha,
+                    ]},
+                ],
+            )
+
+    def test_failed_investment_selection_provisioning_stops_owner_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(root / "selection-provision.json")
+            env["FAKE_SELECTION_PROVISION_FAIL"] = "1"
+            env["LIFE_MANAGER_INVESTMENT_VALIDATION_REPORTS_PATH"] = str(
+                root / "state/validation-reports.json"
+            )
+
+            result = self._run(env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(self._apply_call_count(calls_log), 0)
+
+    def test_release_handoff_uses_release_reviewed_reports_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, sha = self._make_repo(root)
+            release_dir = self._make_release(
+                root, sha, with_investment_selection_provisioner=True,
+                with_reviewed_validation_reports=True,
+            )
+            self._activate(root, release_dir)
+            calls_log = root / "calls.log"
+            marker = root / "selection-provision.json"
+            env = self._base_env(root, repo, calls_log=calls_log)
+            env["FAKE_SELECTION_PROVISION_MARKER"] = str(marker)
+
+            result = self._run(env)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                json.loads(marker.read_text(encoding="utf-8")),
+                [
+                    {"argv": [
+                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"),
+                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--release-sha", sha,
+                    ]},
+                    {"argv": [
+                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json"),
+                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--release-sha", sha,
+                    ]},
+                ],
+            )
 
     def test_descendant_holding_stdout_does_not_stall_the_apply(self):
         # A process started during apply that keeps stdout open made the first

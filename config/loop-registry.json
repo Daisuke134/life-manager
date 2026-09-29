@@ -14,6 +14,7 @@
   ],
   "loops": {
     "alpaca-investment-live": {
+      "reconcile_queued_release": true,
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -32,12 +33,99 @@
       "label": "ai.anicca.alpaca-investment-live",
       "log_root": "~/.local/state/life-manager/alpaca-investment-live/logs",
       "resource_class": "agent",
-      "admission_class": "borrow",
-      "priority": "support",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "coalesce_reserved_wakes": true,
       "coalesce_queued_wakes": true,
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/alpaca-investment-live"
+    },
+    "alpaca-investment-paper": {
+      "reconcile_queued_release": true,
+      "cadence": {
+        "start_interval_seconds": 300
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "financial",
+      "effect_class": "money",
+      "effect_reconcile": {
+        "argv": ["skills/alpaca-investment/effect_reconcile.py", "--mode", "paper"],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": null
+      },
+      "entrypoint": "skills/alpaca-investment/run.py",
+      "label": "ai.anicca.alpaca-investment-paper",
+      "log_root": "~/.local/state/life-manager/alpaca-investment-paper/logs",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "priority": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "provider_route": "shared-agent-runner",
+      "state_root": "~/.local/state/life-manager/alpaca-investment-paper"
+    },
+    "investment-cross-venue-report": {
+      "adapter": "python",
+      "cadence": {
+        "start_interval_seconds": 86400
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [
+        "--state-dir",
+        "~/.local/state/life-manager/investment-cross-venue",
+        "--manifest",
+        "~/.local/state/life-manager/investment-cross-venue/inputs.json",
+        "--alpaca-state-dir",
+        "~/.local/state/life-manager/alpaca-investment-live"
+      ],
+      "domain": "financial",
+      "effect_class": "message",
+      "entrypoint": "apps/life-manager/investment-core/cross_venue_run.py",
+      "label": "ai.anicca.investment-cross-venue-report",
+      "log_root": "~/.local/state/life-manager/investment-cross-venue/logs",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "priority": "revenue",
+      "reconcile_queued_release": true,
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "provider_route": "shared-agent-runner",
+      "state_root": "~/.local/state/life-manager/investment-cross-venue"
+    },
+    "investment-strategy-validation": {
+      "adapter": "python",
+      "admission_class": "borrow",
+      "cadence": {
+        "start_interval_seconds": 604800
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [
+        "--reports-path",
+        "~/.local/state/life-manager/alpaca-investment-validation/reviewed-validation-reports.json",
+        "--selection-path",
+        "~/.local/state/life-manager/alpaca-investment-live/selected-strategy.json",
+        "--selection-path",
+        "~/.local/state/life-manager/alpaca-investment-paper/selected-strategy.json"
+      ],
+      "domain": "financial",
+      "effect_class": "none",
+      "entrypoint": "skills/alpaca-investment/validation_runner.py",
+      "label": "ai.anicca.investment-strategy-validation",
+      "log_root": "~/.local/state/life-manager/alpaca-investment-validation/logs",
+      "resource_class": "deterministic",
+      "priority": "support",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 3600,
+      "state_root": "~/.local/state/life-manager/alpaca-investment-validation"
     },
     "compute-proxy": {
       "adapter": "exec",

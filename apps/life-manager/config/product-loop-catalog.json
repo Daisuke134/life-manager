@@ -77,10 +77,10 @@
     },
     {
       "id": "investment",
-      "job_ids": ["alpaca-investment-live"],
+      "job_ids": ["alpaca-investment-paper", "alpaca-investment-live", "investment-cross-venue-report", "investment-strategy-validation"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"investment","revenue_classes":["realized_investment"],"sources":{"funnel":{"adapter":"investment-order-reconciliation","implementation":"implemented"},"financial":{"adapter":"investment-financial-record","implementation":"partial"},"cost":{"adapter":"investment-financial-record","implementation":"partial"}}},
       "requirements": ["alpaca_credentials", "investment_mode"],
       "hosts": {

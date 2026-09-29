@@ -82,6 +82,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])
         self.assertNotIn("alpaca-investment-shadow", registry["loops"])
+        self.assertIn("alpaca-investment-paper", registry["loops"])
         self.assertIn("alpaca-investment-live", registry["loops"])
         self.assertIn("ai.anicca.alpaca-investment", registry["retired_labels"])
         self.assertIn("ai.anicca.alpaca-investment-shadow", registry["retired_labels"])
@@ -91,10 +92,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "alpaca-investment-live"
         ]
         self.assertEqual(row["resource_class"], "agent")
-        self.assertEqual(row["admission_class"], "borrow")
-        self.assertEqual(row["priority"], "support")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
+        self.assertTrue(row["reconcile_queued_release"])
 
     def test_fundraiser_declares_existing_admission_and_coalescing_contract(self):
         row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"][

@@ -21,7 +21,7 @@ SCRIPTS="$HERE/scripts"
 PY="${PY:-/opt/homebrew/bin/python3}"
 command -v "$PY" >/dev/null 2>&1 || PY=python3
 
-BROWSER_GUARD="/Users/anicca/.config/ai/bin/browser-guard.sh"
+BROWSER_GUARD="${AI_BROWSER_GUARD:-$REPO_ROOT/skills/browser/browser-guard.sh}"
 BROWSER_IDENTITY="interactive:dais"
 
 ENV_FILE="$HOME/.local/state/life-manager/.env"

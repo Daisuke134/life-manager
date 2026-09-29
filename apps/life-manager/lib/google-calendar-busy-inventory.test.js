@@ -175,7 +175,7 @@ test("an event Dais (self) declined is excluded, even though Google still return
             start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
             attendees: [
               { email: "someone@example.com", responseStatus: "accepted" },
-              { email: "keiodaisuke@gmail.com", self: true, responseStatus: "declined" },
+              { email: "owner@example.com", self: true, responseStatus: "declined" },
             ],
           },
         ];
@@ -195,12 +195,12 @@ test("an event Dais (self) accepted, or has not responded to, stays busy", async
           {
             CalendarID: "primary", id: "accepted-1", status: "confirmed",
             start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
-            attendees: [{ email: "keiodaisuke@gmail.com", self: true, responseStatus: "accepted" }],
+            attendees: [{ email: "owner@example.com", self: true, responseStatus: "accepted" }],
           },
           {
             CalendarID: "primary", id: "needs-action-1", status: "confirmed",
             start: { dateTime: "2026-08-05T11:00:00+09:00" }, end: { dateTime: "2026-08-05T12:00:00+09:00" },
-            attendees: [{ email: "keiodaisuke@gmail.com", self: true, responseStatus: "needsAction" }],
+            attendees: [{ email: "owner@example.com", self: true, responseStatus: "needsAction" }],
           },
         ];
       },
@@ -220,7 +220,7 @@ test("another attendee declining never frees Dais's own event", async () => {
             CalendarID: "primary", id: "guest-declined-1", status: "confirmed",
             start: { dateTime: "2026-08-05T09:00:00+09:00" }, end: { dateTime: "2026-08-05T10:00:00+09:00" },
             attendees: [
-              { email: "keiodaisuke@gmail.com", self: true, responseStatus: "accepted" },
+              { email: "owner@example.com", self: true, responseStatus: "accepted" },
               { email: "someone@example.com", responseStatus: "declined" },
             ],
           },

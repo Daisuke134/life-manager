@@ -41,7 +41,8 @@ def probe(runner: Runner = subprocess.run) -> dict:
     uid = uid_result.stdout.strip()
     username = user_result.stdout.strip()
     if uid.isdigit() and username and not username.isdigit():
-        run("directory_services", ["/usr/bin/dscl", ".", "-read", f"/Users/{username}", "UniqueID"])
+        directory_services_path = str(Path.home().parent / username)
+        run("directory_services", ["/usr/bin/dscl", ".", "-read", directory_services_path, "UniqueID"])
     else:
         observations["directory_services"] = {
             "argv": [], "returncode": 75, "stdout": "", "stderr": "username_unresolved"

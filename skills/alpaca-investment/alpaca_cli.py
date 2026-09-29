@@ -10,6 +10,7 @@ import stat
 import subprocess
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -17,21 +18,27 @@ from zoneinfo import ZoneInfo
 from risk_day import reconcile as reconcile_risk_day
 
 from risk_policy import parse_instant
+from etf_ownership import ETF_STRATEGY_ID, ETF_SYMBOLS, investment_owner_id
 
 
 CLI_VERSION = "0.0.14"
 PAPER_ENDPOINT = "https://paper-api.alpaca.markets/v2"
 LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
+ETF_DAILY_SYMBOLS = ("SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "GLD")
+ETF_DAILY_LOOKBACK_SESSIONS = 127
+ETF_HISTORY_MAX_CALENDAR_DAYS = 90
 MAX_CREDENTIAL_BYTES = 1_048_576
 MAX_OUTPUT_BYTES = 64 * 1024
+MAX_MULTI_BARS_OUTPUT_BYTES = 512 * 1024
 CLI_OPERATIONS = frozenset({
     "account_activity", "account_get", "api_GET", "asset_get", "clock_get", "data_crypto",
-    "data_latest-quotes", "data_latest-trade", "data_option", "order_list",
+    "data_latest-quotes", "data_latest-trade", "data_multi-bars", "data_option", "order_list",
     "order_submit", "position_list",
 })
 SAFE_ERROR_CODES = frozenset({
     "alpaca_allocator_risk_invalid", "alpaca_allocator_shape_invalid",
     "alpaca_crypto_history_invalid",
+    "alpaca_etf_daily_bars_invalid",
     "alpaca_cli_json_invalid", "alpaca_cli_output_too_large", "alpaca_cli_unavailable",
     "alpaca_cli_version_unpinned", "alpaca_credential_record_invalid",
     "alpaca_live_credentials_unavailable", "alpaca_paper_credentials_unavailable",
@@ -112,7 +119,9 @@ def _run(cli: Path, args: list[str], env: dict[str, str]) -> Any:
         raise ValueError(f"alpaca_cli_timeout:{operation}") from error
     if result.returncode != 0:
         raise ValueError(f"alpaca_cli_failed:{operation}")
-    if len(result.stdout) > MAX_OUTPUT_BYTES:
+    output_limit = (MAX_MULTI_BARS_OUTPUT_BYTES if operation == "data_multi-bars"
+                    else MAX_OUTPUT_BYTES)
+    if len(result.stdout) > output_limit:
         raise ValueError("alpaca_cli_output_too_large")
     try:
         return json.loads(result.stdout.decode("utf-8").strip())
@@ -182,8 +191,10 @@ def find_order_by_client_id(
     query = (
         f"first(.[]|select(.client_order_id=={json.dumps(client_order_id)})) // "
         "{found:false}|if .found==false then . else "
-        "{found:true,client_order_id:.client_order_id,status:.status,"
-        "filled_qty:.filled_qty,filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
+        "{found:true,id:.id,client_order_id:.client_order_id,status:.status,"
+        "symbol:.symbol,side:.side,type:.type,time_in_force:.time_in_force,"
+        "notional:.notional,qty:.qty,filled_qty:.filled_qty,"
+        "filled_avg_price:.filled_avg_price,submitted_at:.submitted_at} end"
     )
     result = _run(cli_path, [
         "order", "list", "--quiet", "--status", "all", "--limit", "500", "--jq", query,
@@ -241,8 +252,161 @@ def read_campaign_snapshot(
     }
 
 
+def _normalize_etf_daily_bars(
+    rows: Any,
+    clock: Mapping[str, Any],
+    *,
+    start_session: date | None = None,
+    end_session: date | None = None,
+    max_sessions: int | None = ETF_DAILY_LOOKBACK_SESSIONS,
+    minimum_sessions: int = ETF_DAILY_LOOKBACK_SESSIONS,
+) -> dict[str, Any]:
+    if not isinstance(rows, list) or not isinstance(clock, Mapping):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    is_open = clock.get("is_open")
+    if not isinstance(is_open, bool):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    try:
+        observed = parse_instant(clock["timestamp"])
+        current_session = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+
+    by_symbol: dict[str, dict[str, dict[str, str]]] = {}
+    try:
+        for item in rows:
+            if not isinstance(item, dict):
+                raise ValueError
+            symbol = item.get("symbol")
+            if symbol not in ETF_DAILY_SYMBOLS or symbol in by_symbol:
+                raise ValueError
+            raw_bars = item.get("bars")
+            if not isinstance(raw_bars, list) or not raw_bars:
+                raise ValueError
+            normalized: dict[str, dict[str, str]] = {}
+            previous_session: str | None = None
+            for raw in raw_bars:
+                if not isinstance(raw, dict):
+                    raise ValueError
+                timestamp = parse_instant(raw["t"])
+                session = timestamp.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+                session_date = date.fromisoformat(session)
+                if ((start_session is not None and session_date < start_session)
+                        or (end_session is not None and session_date > end_session)):
+                    raise ValueError
+                if session > current_session:
+                    raise ValueError
+                if is_open and session == current_session:
+                    continue
+                opening = Decimal(str(raw["o"]))
+                closing = Decimal(str(raw["c"]))
+                if (not opening.is_finite() or not closing.is_finite()
+                        or opening <= 0 or closing <= 0):
+                    raise ValueError
+                if previous_session is not None:
+                    if session == previous_session or session < previous_session:
+                        raise ValueError
+                normalized[session] = {
+                    "t": str(raw["t"]), "o": str(opening), "c": str(closing),
+                }
+                previous_session = session
+            if not normalized:
+                raise ValueError
+            by_symbol[symbol] = normalized
+        if set(by_symbol) != set(ETF_DAILY_SYMBOLS):
+            raise ValueError
+        common_sessions = set.intersection(*(set(rows_by_session) for rows_by_session in by_symbol.values()))
+        if len(common_sessions) < minimum_sessions:
+            raise ValueError
+        selected_sessions = sorted(common_sessions)
+        if max_sessions is not None:
+            selected_sessions = selected_sessions[-max_sessions:]
+        aligned = {
+            symbol: [by_symbol[symbol][session] for session in selected_sessions]
+            for symbol in ETF_DAILY_SYMBOLS
+        }
+        completed = selected_sessions[-1]
+        canonical = json.dumps(
+            {"symbols": ETF_DAILY_SYMBOLS, "completed_through_session": completed,
+             "daily_bars": aligned}, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+        source_hash = hashlib.sha256(canonical).hexdigest()
+    except (InvalidOperation, KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+    return {
+        "daily_bars": aligned,
+        "completed_through_session": completed,
+        "observed_at": clock["timestamp"],
+        "source_receipt_ids": [
+            f"alpaca://stock-bars/iex/split/{completed}/{source_hash}"
+        ],
+    }
+
+
+def read_etf_daily_bars(
+    *, credentials_path: Path, cli_path: Path, clock: Mapping[str, Any],
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Read a bounded, split-adjusted IEX daily ETF window without an effect."""
+    try:
+        observed = parse_instant(clock["timestamp"])
+        current_session = observed.astimezone(ZoneInfo("America/New_York")).date()
+        start = current_session - timedelta(days=260)
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+    context = env if env is not None else _context(credentials_path, cli_path)
+    rows = _run(cli_path, [
+        "data", "multi-bars", "--symbols", ",".join(ETF_DAILY_SYMBOLS),
+        "--start", start.isoformat(), "--end", current_session.isoformat(),
+        "--timeframe", "1Day", "--adjustment", "split", "--feed", "iex",
+        "--limit", "2000", "--sort", "asc", "--quiet", "--jq",
+        ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,c}))})",
+    ], context)
+    return _normalize_etf_daily_bars(rows, clock)
+
+
+def read_etf_daily_history(
+    *, credentials_path: Path, cli_path: Path, start: date, end: date,
+) -> dict[str, Any]:
+    """Read one bounded, paper-only, split-adjusted IEX daily ETF history chunk."""
+    if (not isinstance(start, date) or isinstance(start, datetime)
+            or not isinstance(end, date) or isinstance(end, datetime)
+            or end < start
+            or (end - start).days > ETF_HISTORY_MAX_CALENDAR_DAYS):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    context = _context(credentials_path, cli_path, mode="paper")
+    clock = _run(cli_path, [
+        "clock", "get", "--quiet", "--jq", "{is_open:.is_open,timestamp:.timestamp}",
+    ], context)
+    if not isinstance(clock, Mapping):
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    try:
+        observed = parse_instant(clock["timestamp"])
+        current_session = observed.astimezone(ZoneInfo("America/New_York")).date()
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("alpaca_etf_daily_bars_invalid") from error
+    if end > current_session:
+        raise ValueError("alpaca_etf_daily_bars_invalid")
+    rows = _run(cli_path, [
+        "data", "multi-bars", "--symbols", ",".join(ETF_DAILY_SYMBOLS),
+        "--start", start.isoformat(), "--end", end.isoformat(),
+        "--timeframe", "1Day", "--adjustment", "split", "--feed", "iex",
+        "--limit", "2000", "--sort", "asc", "--quiet", "--jq",
+        ".bars|to_entries|map({symbol:.key,bars:(.value|map({t,o,c}))})",
+    ], context)
+    return _normalize_etf_daily_bars(
+        rows,
+        clock,
+        start_session=start,
+        end_session=end,
+        max_sessions=None,
+        minimum_sessions=1,
+    )
+
+
 def read_allocator_snapshot(
     *, credentials_path: Path, cli_path: Path, risk_day_path: Path,
+    include_etf_bars: bool = False,
 ) -> dict[str, Any]:
     """Read only the official fields needed to offer trade candidates."""
     env = _context(credentials_path, cli_path)
@@ -346,10 +510,16 @@ def read_allocator_snapshot(
                 "ny_day": ny_day}
     except (KeyError, InvalidOperation, TypeError, ValueError) as error:
         raise ValueError("alpaca_allocator_risk_invalid") from error
-    return {"account": account, "available_cash_usd": str(available_cash),
+    result = {"account": account, "available_cash_usd": str(available_cash),
             "clock": clock, "crypto": crypto,
             "open_orders": orders, "option_quotes": options, "positions": len(risk_positions), "risk": risk,
             "qqq_asset": qqq_asset, "qqq_quote": qqq_quote, "spy": spy}
+    if include_etf_bars:
+        result.update(read_etf_daily_bars(
+            credentials_path=credentials_path, cli_path=cli_path,
+            clock=clock, env=env,
+        ))
+    return result
 
 
 def read_crypto_history(*, credentials_path: Path, cli_path: Path,
@@ -370,8 +540,10 @@ def read_crypto_history(*, credentials_path: Path, cli_path: Path,
     try:
         for row in rows:
             symbol, bars = row["symbol"], row["bars"]
+            # Alpaca's inclusive start/end query returns 49 five-minute bars
+            # for a four-hour window; reject only values beyond that bound.
             if symbol not in {"BTC/USDC", "ETH/USDC"} or symbol in result \
-                    or not isinstance(bars, list) or len(bars) > 48:
+                    or not isinstance(bars, list) or len(bars) > 49:
                 raise ValueError
             normalized = []
             previous_timestamp = None
@@ -511,10 +683,12 @@ def read_live_performance_snapshot(
         fee_total = sum((abs(number(row["qty"])) * number(row["price"]) for row in fees), Decimal("0"))
         transfer_amount, transfer_usd = number(transfer["amount"]), number(transfer["usd_value"])
         position_qty, position_value = number(position["qty"]), number(position["market_value"])
-        realised_usdc = position_qty - transfer_amount
-        realised_usd = realised_usdc * number(position["current_price"])
         unrealised = number(position["unrealized_pl"])
         ending_nav = number(account["cash"]) + position_value
+        # The provider's marked ending NAV is authoritative. Valuing the
+        # position-quantity delta at the current mark and adding unrealized
+        # P&L double-counts the mark when the residual USDC position moves.
+        realised_usd = (ending_nav - transfer_usd) - unrealised
         if (transfer_amount <= 0 or transfer_usd <= 0
                 or abs(number(account["equity"]) - ending_nav) > Decimal("0.01")
                 or abs((realised_usd + unrealised) - (ending_nav - transfer_usd)) > Decimal("0.01")):
@@ -560,6 +734,7 @@ def read_live_performance_snapshot(
 def submit_order(
     *, credentials_path: Path, cli_path: Path, client_order_id: str,
     order: dict[str, Any], mode: str | None = None,
+    owner_id: str | None = None, strategy_id: str | None = None,
 ) -> dict[str, Any]:
     """Submit one already-gated paper order or tightly bounded live crypto order."""
     if not re.fullmatch(r"lm-ai-[0-9a-f]{24}", client_order_id):
@@ -568,6 +743,8 @@ def submit_order(
     if mode == "shadow":
         raise ValueError("investment_mode_effect_forbidden")
     if mode == "live":
+        if order.get("asset_class") == "us_equity":
+            raise ValueError("live_etf_rejected")
         expected = {"asset_class", "side", "symbol", "time_in_force", "type"}
         if order.get("symbol") != "BTC/USDC" or order.get("asset_class") != "crypto" \
                 or order.get("type") != "market" or order.get("time_in_force") != "gtc":
@@ -604,8 +781,40 @@ def submit_order(
         if not isinstance(result, dict) or result.get("client_order_id") != client_order_id:
             raise ValueError("alpaca_submit_readback_invalid")
         return result
-    env = _context(credentials_path, cli_path, mode)
-    if order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
+    if order.get("asset_class") == "us_equity":
+        if owner_id != investment_owner_id() or strategy_id != ETF_STRATEGY_ID:
+            raise ValueError("etf_order_identity_invalid")
+        common = {"asset_class", "side", "symbol", "time_in_force", "type"}
+        if (order.get("symbol") not in ETF_SYMBOLS or order.get("type") != "market"
+                or order.get("time_in_force") != "day"):
+            raise ValueError("etf_order_shape_invalid")
+        if order.get("side") == "buy":
+            expected = common | {"notional_usd"}
+            try:
+                notional = Decimal(str(order.get("notional_usd")))
+                valid_shape = notional.is_finite() and notional == Decimal("10.00")
+            except InvalidOperation:
+                valid_shape = False
+            if set(order) != expected or not valid_shape:
+                raise ValueError("etf_order_shape_invalid")
+            args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
+                    "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
+                    "--time-in-force", "day", "--client-order-id", client_order_id]
+        elif order.get("side") == "sell":
+            expected = common | {"qty"}
+            try:
+                qty = Decimal(str(order.get("qty")))
+                valid_shape = qty.is_finite() and qty > 0 and qty.as_tuple().exponent >= -9
+            except InvalidOperation:
+                valid_shape = False
+            if set(order) != expected or not valid_shape:
+                raise ValueError("etf_order_shape_invalid")
+            args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
+                    "--qty", order["qty"], "--side", "sell", "--type", "market",
+                    "--time-in-force", "day", "--client-order-id", client_order_id]
+        else:
+            raise ValueError("etf_order_shape_invalid")
+    elif order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
         args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
                 "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
                 "--time-in-force", "gtc", "--client-order-id", client_order_id]
@@ -623,10 +832,37 @@ def submit_order(
                 "--client-order-id", client_order_id]
     else:
         raise ValueError("unsupported_order_shape")
+    env = _context(credentials_path, cli_path, mode)
     result = _run(cli_path, [*args, "--jq",
-        "{client_order_id,status,submitted_at,symbol,notional}"], env)
+        "{id,client_order_id,status,submitted_at,symbol,notional,qty,filled_qty,"
+        "filled_avg_price,side,type,time_in_force}"], env)
     if not isinstance(result, dict) or result.get("client_order_id") != client_order_id:
         raise ValueError("alpaca_submit_readback_invalid")
+    if order.get("asset_class") == "us_equity":
+        common_valid = (
+            result.get("symbol") in ETF_SYMBOLS
+            and result.get("symbol") == order.get("symbol")
+            and result.get("side") == order.get("side")
+            and result.get("type") == "market"
+            and result.get("time_in_force") == "day"
+            and isinstance(result.get("id"), str)
+            and bool(result["id"])
+        )
+        if order.get("side") == "buy":
+            try:
+                acknowledged_notional = Decimal(str(result.get("notional")))
+            except InvalidOperation:
+                acknowledged_notional = Decimal("0")
+            common_valid = common_valid and acknowledged_notional == Decimal("10.00")
+        else:
+            try:
+                acknowledged_qty = Decimal(str(result.get("qty")))
+                requested_qty = Decimal(str(order.get("qty")))
+            except InvalidOperation:
+                acknowledged_qty = requested_qty = Decimal("0")
+            common_valid = common_valid and acknowledged_qty == requested_qty
+        if not common_valid:
+            raise ValueError("alpaca_submit_readback_invalid")
     return result
 
 

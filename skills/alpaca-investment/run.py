@@ -19,6 +19,11 @@ from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
                           unresolved_intent_count)
+from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
+from etf_ownership import read_state as read_etf_state
+from etf_ownership import record_closed as record_etf_closed
+from etf_ownership import record_filled as record_etf_filled
+from paper_performance import write_paper_performance
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
 from review_status import read_receipt as read_application_status
@@ -209,6 +214,41 @@ def _owned_live_position(ownership: dict | None, observation: dict) -> None:
         raise ValueError("live_position_not_owned")
 
 
+def _reconcile_etf_intent(
+    intent: dict,
+    provider_order: dict,
+    *,
+    credentials_path: Path,
+    cli_path: Path,
+    state_path: Path,
+) -> dict:
+    """Close an ETF effect only after fill, account, and ownership readback."""
+    if (intent.get("mode") != "paper" or intent.get("owner_id") != investment_owner_id()
+            or intent.get("strategy_id") != ETF_STRATEGY_ID
+            or not isinstance(intent.get("order"), dict)
+            or intent["order"].get("asset_class") != "us_equity"):
+        raise ValueError("etf_order_identity_invalid")
+    account_readback = observe(credentials_path=credentials_path, cli_path=cli_path)
+    side = intent["order"].get("side")
+    if side == "sell":
+        record = record_etf_closed
+    elif side == "buy":
+        record = record_etf_filled
+    else:
+        raise ValueError("etf_order_shape_invalid")
+    receipt = record(
+        state_path,
+        owner_id=intent["owner_id"],
+        strategy_id=intent["strategy_id"],
+        decision_session=intent.get("decision_session"),
+        client_order_id=intent["client_order_id"],
+        order=provider_order,
+        account_readback=account_readback,
+        source_receipt_ids=intent.get("source_receipt_ids", []),
+    )
+    return {"receipt": receipt, "observation": account_readback}
+
+
 def _observe_and_sync_live_ownership(
         state: Path, credentials_path: Path, cli_path: Path) -> tuple[dict, dict | None]:
     with control_fence(state):
@@ -239,6 +279,24 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         credentials_path, state = _mode_paths(mode)
         deployment = _deployment()
         cli_path = Path(os.environ.get("ALPACA_CLI", "~/.local/bin/alpaca")).expanduser()
+        reconciled_observation: dict[str, dict] = {}
+
+        def on_reconciled(intent: dict, provider_order: dict) -> dict | None:
+            if intent.get("order", {}).get("asset_class") != "us_equity":
+                return
+            result = _reconcile_etf_intent(
+                intent,
+                provider_order,
+                credentials_path=credentials_path,
+                cli_path=cli_path,
+                state_path=state / "etf-owned-position.json",
+            )
+            reconciled_observation["value"] = result["observation"]
+            return {
+                "account_readback": result["observation"],
+                "receipt": result["receipt"],
+            }
+
         stage = "reconcile_started"
         reconciliation = reconcile_started(
             state / "receipts.jsonl",
@@ -247,6 +305,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 cli_path=cli_path,
                 client_order_id=client_order_id,
             ),
+            on_reconciled=on_reconciled,
         )
         stage = "control_read"
         control = read_control(state / "control.json")
@@ -272,6 +331,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 cli_path=cli_path,
             )
             ownership = None
+        if "value" in reconciled_observation:
+            observation = reconciled_observation["value"]
         stage = "campaign_read"
         campaign = (reconcile(read_campaign_snapshot(
             credentials_path=credentials_path, cli_path=cli_path, symbols=SYMBOLS))
@@ -333,7 +394,14 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         stage = "allocator_read"
         allocator_snapshot = read_allocator_snapshot(
             credentials_path=credentials_path, cli_path=cli_path,
-            risk_day_path=state / "risk-day.json")
+            risk_day_path=state / "risk-day.json", include_etf_bars=True)
+        allocator_snapshot["mode"] = mode
+        if mode == "paper":
+            etf_state = read_etf_state(
+                state / "etf-owned-position.json", owner_id=investment_owner_id(),
+            )
+            allocator_snapshot["position"] = etf_state["position"]
+            allocator_snapshot["last_decision_session"] = etf_state["last_decision_session"]
         if mode == "live":
             stage = "market_history_read"
             allocator_snapshot["crypto_history"] = read_crypto_history(
@@ -357,7 +425,13 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             decision = {"approved": position["action"] == "EXIT",
                         "candidate_ref": "position://BTCUSD", "gate": "position_exit" if position["action"] == "EXIT" else "position_hold",
                         "reason": position["reason"], "position_action": position["action"],
-                        "position_qty": position["qty"], "observed_at": allocator_snapshot["clock"]["timestamp"]}
+                        "policy_action": position.get("policy_action"),
+                        "strategy_id": position.get("strategy_id"),
+                        "signal_inputs": position.get("signal_inputs", {}),
+                        "expected_cost_usd": position.get("expected_cost_usd"),
+                        "release_sha": position.get("release_sha"),
+                        "position_qty": position["qty"],
+                        "observed_at": allocator_snapshot["clock"]["timestamp"]}
         else:
             if mode == "live" and ownership and ownership.get("status") in {"entry_pending", "closing"}:
                 decision = {"approved": False, "candidate_ref": "NO_TRADE",
@@ -368,6 +442,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         decision["deployment"] = deployment
         decision["mode"] = mode
         decision["risk"] = allocator_snapshot["risk"]
+        if decision.get("strategy_id") == ETF_STRATEGY_ID:
+            decision["source_receipt_ids"] = allocator_snapshot.get("source_receipt_ids", [])
         if effect != "none" and decision["approved"]:
             decision["approved"] = False
             decision["gate"] = "campaign_exit_used_effect_limit"
@@ -383,6 +459,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             if order is None:
                 effect = "none"
             else:
+                is_etf_order = order.get("asset_class") == "us_equity"
                 stage = "allocation_submit"
                 with control_fence(state) as current_control:
                     if current_control["paused"] or current_control["killed"]:
@@ -395,7 +472,15 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     # Re-read official slots under the exclusive effect fence so two
                     # overlapping wakes cannot both act on the same stale snapshot.
                     fresh = read_allocator_snapshot(credentials_path=credentials_path,
-                        cli_path=cli_path, risk_day_path=state / "risk-day.json")
+                        cli_path=cli_path, risk_day_path=state / "risk-day.json",
+                        include_etf_bars=True)
+                    fresh["mode"] = mode
+                    if mode == "paper":
+                        fresh_etf_state = read_etf_state(
+                            state / "etf-owned-position.json", owner_id=investment_owner_id(),
+                        )
+                        fresh["position"] = fresh_etf_state["position"]
+                        fresh["last_decision_session"] = fresh_etf_state["last_decision_session"]
                     fresh["unresolved_intents"] = unresolved_intent_count(state / "receipts.jsonl")
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or
@@ -405,10 +490,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     if mode == "live" and not live_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
-                    if mode == "live" and not live_positions:
+                    if mode in {"paper", "live"} and not live_positions:
                         refreshed = allocation_gate(fresh, build_candidates(fresh), decision)
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
+                        decision = {**decision, **refreshed}
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
@@ -416,14 +502,32 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         marker = (_closing_marker(ownership, sealed) if live_positions else {
                             "entry_client_order_id": sealed["client_order_id"],
                             "entry_effect_id": sealed["effect_id"], "entry_filled_qty": "0",
-                            "status": "entry_pending", "symbol": "BTCUSD"})
+                            "status": "entry_pending", "symbol": "BTCUSD",
+                            "entry_timestamp": allocator_snapshot["clock"]["timestamp"]})
                         _atomic_json(state / "live-owned-position.json", marker)
                     effect_attempted = True
-                    acknowledgement = submit_order(credentials_path=credentials_path, cli_path=cli_path,
-                        client_order_id=sealed["client_order_id"], order=order, mode=mode)
+                    submit_kwargs = {
+                        "credentials_path": credentials_path,
+                        "cli_path": cli_path,
+                        "client_order_id": sealed["client_order_id"],
+                        "order": order,
+                        "mode": mode,
+                    }
+                    if is_etf_order:
+                        submit_kwargs.update({
+                            "owner_id": decision.get("owner_id"),
+                            "strategy_id": decision.get("strategy_id"),
+                        })
+                    acknowledgement = submit_order(**submit_kwargs)
                 stage = "allocation_reconcile"
-                reconcile_started(state / "receipts.jsonl", lambda value: find_order_by_client_id(
-                    credentials_path=credentials_path, cli_path=cli_path, client_order_id=value))
+                reconciliation = reconcile_started(
+                    state / "receipts.jsonl",
+                    lambda value: find_order_by_client_id(
+                        credentials_path=credentials_path, cli_path=cli_path, client_order_id=value),
+                    on_reconciled=on_reconciled,
+                )
+                if "value" in reconciled_observation:
+                    observation = reconciled_observation["value"]
                 effect = sealed["effect_id"]
         else:
             if decision["approved"]:
@@ -436,6 +540,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         _atomic_json(state / "risk-latest.json", allocator_snapshot["risk"])
         _atomic_json(state / "observation-latest.json", observation)
         _atomic_json(state / "campaign.json", campaign)
+        if mode == "paper":
+            # This is a reporting-only read of the append-only effect ledger.
+            # Missing fees/slippage/model costs remain partial and never become
+            # a numeric zero or a promotion signal.
+            write_paper_performance(state, observation, allocator_snapshot["risk"])
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
