@@ -2089,6 +2089,32 @@ job IDs 0）、`git diff --check`もPASS。branch
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
 
+### 最新Meta Loop platform-manifest boundary — 2026-09-30
+
+- `platform_manifest_source.py` を追加し、platform-level manifestだけをshared candidate cycleへ渡す。
+  `platform:<provider>` identity、candidate provider、official HTTPS source、snapshot hash、observed time、
+  evidence refsを同一itemへ束縛し、loader snapshotはwake中一度だけ読む。
+- manifestに`opportunities`、`request_details`、`listings`、`jobs`、`requests`が含まれる場合は、案件観測を
+  platform promotion evidenceへ誤昇格させないため`opportunity_snapshot_rejected`でfail-closedにする。
+  `source_kind=platform`以外もcandidate cycleへ渡さない。provider-specific adapterのsubmit、reply、deliver、
+  owner登録、決済は呼ばない。
+- TDDのRED（source kind未対応で`discovery_item_invalid`）→GREENを確認し、Marketplace Core 329件、Coconala
+  57件、Lancers 10件、CrowdWorks 10件、Mercor 12件、compile、`lm-loop-contract`、`git diff --check`をPASSした。
+  これはmanifest境界のsource証拠であり、各platformの実アカウントreadback、provider receipt、収益、production反映の
+  証拠ではない。
+
+### 原子TODO（platform-manifest boundary後の正本）
+
+1. **完了** platform-level manifestを案件Opportunityから分離し、candidate cycleへidentity-boundで渡す共有境界を作った。
+2. **未完** Coconala、Lancers、CrowdWorks、Mercorそれぞれの実read-only adapterから、このmanifest契約を生成する。
+   案件一覧は別のOpportunity runnerへ残し、policy、adapter、funded work、canary、unit economicsのevidenceを
+   platform単位で別々に収集する。
+3. **未完** main受入・immutable release・loaded SHA／plist／identity lease／rollback receiptの公式readback。
+4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・
+   receiptなしのeffect fence解放はしない。
+5. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
+   settlement・cost-complete positive net P&L。
+
 ### 最新Mercor read-only Opportunity／pass-result接続 — 2026-09-30
 
 - 既存`apps/job-search-loop/job_search_loop/mercor_pass.py`のbounded pass結果

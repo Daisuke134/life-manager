@@ -21,8 +21,8 @@ _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _RECEIPT = re.compile(r"^provider-receipt://[^/]+/[^/]+$")
 _DISCOVERY_ITEM_FIELDS = frozenset({
-    "candidate", "candidate_id", "observed_at", "source_url", "snapshot_sha256",
-    "evidence_refs",
+    "source_kind", "candidate", "candidate_id", "observed_at", "source_url",
+    "snapshot_sha256", "evidence_refs",
 })
 REQUIRED_ACTIONS = (
     "discover",
@@ -323,8 +323,10 @@ def run_discovery_cycle(
                 or not set(item).issubset(_DISCOVERY_ITEM_FIELDS)
                 or not {"candidate", "candidate_id", "observed_at", "source_url", "snapshot_sha256"}
                 .issubset(item)
-            ):
-                raise EnrollmentError("discovery_item_invalid")
+                ):
+                    raise EnrollmentError("discovery_item_invalid")
+            if item.get("source_kind") not in {None, "platform"}:
+                raise EnrollmentError("discovery_source_kind_invalid")
             result = evaluate_and_record_candidate(
                 item["candidate"],
                 store,
