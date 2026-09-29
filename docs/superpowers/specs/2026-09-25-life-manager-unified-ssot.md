@@ -1363,3 +1363,5 @@ Capafyのmain変更に対する既存`skills/capafy-autopublish/test`は、別ag
 5. Lancers、CrowdWorks、Mercorを同じoccurrence／receipt契約で閉じ、Freelancer／Upworkはapproved terms・専用identity・funded contract/milestone・payout readbackの順でowner登録する。
 6. Meta Loopにdiscovery scheduler、candidate durable state、promotion後owner provisioning、rollback、settlement／quality／P&L feedbackを接続する。promotion gateだけでは自律収益loop完了ではない。
 7. 全platformでreceipt単位のgross/net P&Lと品質を集計し、replay-zero・cost-complete net P&Lを通った改善だけをshared kernelへ昇格する。
+
+**effect fence read-only再確認（2026-09-29、外部作用なしの推論は禁止）**: production `pre-effect-reconcile --dry-run` を対象ownerごとに実行した。`hf-gig-apply-direct` は `resolved=0 / unprovable=1`、`hf-gig-storefront-direct` は `0/1`、`lancers-revenue-application` は `0/65`、`lancers-revenue-negotiate` は `0/87`、`crowdworks-revenue-application` は `0/2`、`crowdworks-revenue-paid` は `0/8`、`mercor-revenue-application` は `0/1`、`mercor-revenue-paid` は `0/1`で、全て理由は `no_pre_effect_terminal`。従って外部作用なしを証明できず、provider receipt／official readbackなしのoccurrenceをresolve・再送してはいけない。次手は同一ownerの自然wakeと公式readbackであり、手動wake・browser再起動・重複送信ではない。
