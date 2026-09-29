@@ -6146,3 +6146,13 @@ retried or resent.
   admission, cleanup, evidence, and platform source changes remain present.
 - [ ] The branch is still not merged and no PR exists. Item 4's user-outcome
   gate and the production immutable-release transition remain open.
+
+### Live transition preflight readback — 2026-09-30 07:48 JST
+
+- [x] The supported `bin/launchctl-safe preflight` returns
+  `status=pass`, `mutation_allowed=true`, `managername=Aqua`,
+  `manageruid=501`, and an accessible `gui/501` domain with no errors.
+- [ ] This is only the control-plane preflight. It is not approval for a
+  live-owner mutation and does not install a release. The installed pointer
+  and owner processes remain on the old production releases until item 4's
+  main-derived release and item 5's separate approval are both satisfied.
