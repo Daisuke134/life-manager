@@ -152,3 +152,16 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - The byte-stable runtime fixture was regenerated from the canonical registry renderer after the new `investment-strategy-validation` row was found at the wrong list position; the focused production-render regression and the full runtime suite now pass.
 - This is source/candidate evidence only. The production `current` release remains the older immutable release, the candidate is not on `origin/main`, and no production selected state, natural paper order/fill receipt, provider P&L, funding, wallet, or live order exists.
 - **Current cursor remains Step 1b / INV-001-B:** verify the installed Life Manager release and exact loaded argv/env through the normal owner path, then observe one natural paper wake. Steps 1b–4 remain unchecked until those external readbacks exist.
+
+### Candidate readback after synchronization (2026-09-29)
+
+- Candidate `/Users/anicca/loops/releases/20260929T095928-19ece29f` has SHA `19ece29f3b59e33bd2b067a4edf2867bba74ccb0`, `provenance=pushed-not-yet-on-main`, and sparse paths `bin config apps/life-manager/investment-core skills/alpaca-investment runtime/loop skills/_shared`; `current` remains `/Users/anicca/loops/releases/20260929T094848-d3e302ad` at `d3e302adac50568b38b4fc081895aaa446b7ea57`.
+- The candidate contains `validation_runner.py`, `provision_selection.py`, `provision_manifest.py`, `cross_venue_run.py`, ETF policy/ownership, the three investment registry rows, and `reviewed-validation-reports.json`; all three investment helper `--help` boundaries pass and registry readback shows the expected `revenue` Alpaca/report owners plus the paper validation job.
+- The sparse candidate intentionally omits unrelated general Life Manager contract helper files, so the full contract gate is authoritative from the source branch (`ok=true`), not from executing a partial candidate. This is candidate proof, not an installed production readback.
+- Production selected state, loaded ETF boundary, natural paper order/fill, provider receipt, cost-complete P&L, funding, and live order remain absent. Step 1b is still open.
+
+### Latest production readback after candidate cut (2026-09-29)
+
+- Read-only `lm-loop status alpaca-investment-live` shows installed/event release `d3e302adac50568b38b4fc081895aaa446b7ea57`, `loaded-idle`, and the latest terminal boundary `host_admission_deferred:resource_capacity_busy` (`exit=75`, `retry_after_eligibility`). `effect_status=unknown`, `provider_receipt_id=null`, and `official_readback_ref=null`; therefore no paper or real provider transaction is counted.
+- Read-only `lm-loop status investment-cross-venue-report` returns `unknown loop id` against the current release. The production cross-venue state root and validation state root are absent, so no daily report, selected production state, or notification receipt exists.
+- Existing Alpaca account state remains `net_pnl_usd=-0.15`, `completed_round_trips=1`, `capital_expansion_allowed=false`; it is account readback, not proof that this candidate ran. `INV-001-B` remains open, and the next valid boundary is Life Manager's normal immutable-release handoff.
