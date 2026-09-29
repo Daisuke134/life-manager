@@ -2838,6 +2838,7 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 - テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
 - productionのENOSPC自然run、稼働loopの再起動、provider外部効果は未検証。production `current/RELEASE.json`はmain由来のままである。
 - Lancers実測は依然として`human_verification_required`でprovider効果0。旧`contracts.json`の`logged_in`欠落は補完せず、次の公式read-only preflightで再生成する。
+- 今回のread-only再観測でも`ELZ-L01`は`failed_read=1`、`logged_in=true`、`human_verification_required`。認証済みbrowserの正規URLは`https://www.lancers.jp/mypage`、titleは`Human Verification`で、本文は人間確認とセキュリティチェックの完了を要求する。自動突破・応募・返信・納品は行わない。
 
 ### 最終原子TODO（この節が唯一の実行順正本）
 
