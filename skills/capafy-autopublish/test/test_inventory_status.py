@@ -106,6 +106,34 @@ def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
     assert module.allocate_action(full, [], [fresh], updates=[update])["verdict"] == "CAP_FULL"
 
 
+def test_in_progress_update_draft_resumes_before_a_different_update_starts() -> None:
+    module = load_module()
+    # Hook Lab's first pass already publish-init'd a draft version (agentStatus
+    # flipped from online -> draft), so it no longer matches `updates` -- but it
+    # must still win over starting Slide Maker's update from scratch.
+    hook_lab_draft = {"agent_id": "8123079349", "feature": "catalog:hook-lab",
+                       "title": "Hook Lab — Win the First 3 Seconds",
+                       "update_request": {"agent_id": "8123079349", "from_version_id": "v-old",
+                                          "target_model_id": "deepseek/deepseek-v4.1-flash"}}
+    slide_maker_update = {"agent_id": "8828622062", "feature": "catalog:slide-maker",
+                           "title": "Slide Maker",
+                           "update_request": {"agent_id": "8828622062", "from_version_id": "v1",
+                                               "target_model_id": "deepseek/deepseek-v4.1-flash"}}
+    free = module.normalize_agents([agent("1", "under_review")])
+
+    decision = module.allocate_action(free, [], [], resumable_drafts=[hook_lab_draft], updates=[slide_maker_update])
+
+    assert decision["action"] == "resume_draft"
+    assert decision["action_key"] == "resume:8123079349"
+    assert decision["item"]["agent_id"] == "8123079349"
+
+    # A plain resumable draft with no update_request is unaffected: `updates`
+    # still outranks it (pre-existing 2026-09-28 rule).
+    plain_draft = {"agent_id": "999", "feature": "catalog:plain", "title": "Plain Draft"}
+    unaffected = module.allocate_action(free, [], [], resumable_drafts=[plain_draft], updates=[slide_maker_update])
+    assert unaffected["action"] == "update_existing"
+
+
 def test_multiple_updates_pick_highest_30d_revenue_first() -> None:
     module = load_module()
     low = {"agent_id": "1111111111", "feature": "catalog:low-revenue", "title": "Low Revenue Agent",
