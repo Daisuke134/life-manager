@@ -5670,3 +5670,51 @@ revenue owner and is not permission to send.
   and CrowdWorks/Lancers/Freelancer/Upwork have no active Paid loop that can be
   called complete. Registry presence alone is not completion; require a loaded
   owner plus official effect/readback/replay-zero.
+
+## Runtime Status Refresh — 2026-09-30 (Ryu DM read-only reconciliation; current cursor)
+
+- [x] The existing `life-manager-daily-driver` owner is running with the
+  `daily-driver` profile and official CloakBrowser CDP `localhost:9222`. Its
+  owner receipt is `owner=life-manager-daily-driver`, `port=9222`; the current
+  tab was `about:blank` before the read-only navigation. `bsk` extension state is
+  not used as the Coconala gate.
+- [x] The existing collector read `https://coconala.com/smartphone/direct_messages/10107358`
+  through that owner without clicking or sending. Authenticated seller identity
+  was `/users/2564121`; the thread contained 10 messages. The latest buyer
+  message is `2026-09-29 14:41:37` and requests that the reciprocal-link area be
+  self-service because there are many links. The latest seller message is the
+  prior acknowledgement at `2026-09-29 14:40:32`. Readback content digest:
+  `accf8ed5bd6265bc8d18958350b1fed573348964bad906cbdd5581f84d1d244c`.
+- [x] The same readback confirms that the latest buyer requirements are not
+  satisfied by the last seller acknowledgement: the management UI still needs
+  the girl's-image setting and a self-service, multi-entry reciprocal-link
+  editor; the visible wording change is `女の子を探す` → `八王子デリヘル`.
+- [ ] Do not send or press formal delivery for Ryu yet. First implement the
+  complete accumulated Ryu requirement set (paid-option/per-girl behavior,
+  WEB予約 wording and image behavior, original concept-image restoration,
+  girl's-image management, and multi-entry reciprocal links), then obtain
+  authenticated management-screen and public WEB予約 readbacks. Compose one
+  final Japanese DM containing all verified fixes and send it exactly once;
+  record the official seller-message readback before declaring Ryu complete.
+- [ ] After Ryu's single verified send, close the Coconala gate with one
+  controlled natural no-op/readback/replay-zero pass for Apply and Storefront;
+  never use the generic Paid wake as proof of Ryu delivery.
+- [ ] Reconcile the remaining exact unknown provider fences by occurrence and
+  official history: CrowdWorks `18d62cf32eb0c678-48194`, Lancers
+  `18d81967220136f8-89928`, and Mercor `18d82d9cd75db960-67523`. No retry or
+  blanket release is admissible from stale terminal events.
+- [ ] Keep CrowdWorks `63568785` pending until the buyer supplies the lesson/
+  answer material; the four completed rows need no resend. Keep Lancers closed
+  until a real funded `ContractReceipt`; refresh Mercor until a fresh official
+  funded inventory/final submission is observed.
+- [ ] Activate Freelancer and Upwork only in this order: fresh account-bound
+  authorization → official source-complete inventory → positive funded
+  project/contract and milestone → exactly one disabled owner → zero-spend
+  canary → funded delivery/payment/payout/crash-recovery/replay-zero readback →
+  enable. Their source adapters are tested, but live credentials and funded
+  evidence are still absent.
+- [ ] Promote the shared lifecycle/disk-admission/browser-observability changes
+  only through latest-main → acceptance PASS → immutable release. The current
+  production release still shows recurring ENOSPC/terminal-event failures, so
+  it cannot be called self-healing until the new release has a natural-run
+  receipt, official provider readback, and replay-zero for each enabled owner.
