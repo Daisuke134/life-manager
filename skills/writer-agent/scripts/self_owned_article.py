@@ -42,11 +42,24 @@ def _visible_chars(value: str) -> int:
     return len(re.sub(r"\s+", "", text))
 
 
-def _title(markdown: str) -> str:
+def _title(markdown: str, fallback: str = "") -> str:
     match = re.search(r"(?m)^#\s+(.+?)\s*$", markdown)
-    if not match:
-        raise SelfOwnedInvariant("article requires one H1 title")
-    return match.group(1).strip()
+    if match:
+        return match.group(1).strip()
+    # The EN draft of run 20260929-010128 carried its title only in
+    # frontmatter, which stranded the whole publication behind this check.
+    if fallback:
+        return fallback
+    raise SelfOwnedInvariant("article requires one H1 title")
+
+
+def _frontmatter_title(markdown: str) -> str:
+    value = markdown.replace("\r\n", "\n").strip()
+    if not value.startswith("---\n"):
+        return ""
+    end = value.find("\n---\n", 4)
+    match = re.search(r'(?m)^title:\s*["\']?(.+?)["\']?\s*$', value[4:end] if end > 0 else "")
+    return match.group(1).strip() if match else ""
 
 
 def _slug(title: str, lang: str, source: str) -> str:
@@ -107,7 +120,7 @@ def build_contract(
     if _visible_chars(preview) < minimum_preview_chars or not paid:
         raise SelfOwnedInvariant("public preview or paid body is insufficient")
     canonical = f"{preview}\n\n{paid}"
-    title = _title(source)
+    title = _title(source, _frontmatter_title(markdown))
     return {
         "slug": _slug(title, lang, canonical),
         "run_id": run_id,
