@@ -14,7 +14,7 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
-exec "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
+COMMAND=("$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
   --provider-adapter "$ROOT/skills/earn/gig/scripts/coconala_reply_adapter.py" \
   --state-root "$STATE_ROOT/kernel" \
   --output "$STATE_ROOT/latest.json" \
@@ -24,4 +24,10 @@ exec "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
   --runner "$ROOT/runtime/agent-runner/agent_runner.py" \
   --schema "$ROOT/skills/earn/gig/schemas/reply_semantic_judgement.schema.json" \
   --estimate-schema "$ROOT/skills/earn/gig/schemas/estimate_category_selection.schema.json" \
-  "$@"
+)
+
+if [[ -n "${LIFE_MANAGER_BROWSER_IDENTITY:-}" ]]; then
+  exec "$ROOT/skills/browser/with-browser.sh" \
+    "$LIFE_MANAGER_BROWSER_IDENTITY" -- "${COMMAND[@]}" "$@"
+fi
+exec "${COMMAND[@]}" "$@"

@@ -6,7 +6,7 @@ PYTHON="${HF_GIG_PYTHON:-$(command -v python3)}"
 GIG_ROOT="${GIG_STATE_DIR:-$HOME/gig}"
 export CLOAK_TARGET_OWNERS_FILE="${CLOAK_TARGET_OWNERS_FILE:-$HOME/.cloak/vault/gig-target-owners.json}"
 
-exec "$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
+COMMAND=("$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
   "$PYTHON" "$ROOT/skills/earn/gig/scripts/paid_direct.py" \
   --require-paid-handoff \
   --coconala-paid-adapter "$ROOT/skills/earn/gig/scripts/coconala_paid_adapter.py" \
@@ -14,5 +14,10 @@ exec "$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
   --evidence-dir "$GIG_ROOT/evidence/paid-direct-live" \
   --projects-root "$GIG_ROOT/projects" \
   --lock-file "$GIG_ROOT/.paid-direct.lock" \
-  --cdp-lock-dir "$GIG_ROOT/.cdp-gig.lock" \
-  "$@"
+  --cdp-lock-dir "$GIG_ROOT/.cdp-gig.lock")
+
+if [[ -n "${LIFE_MANAGER_BROWSER_IDENTITY:-}" ]]; then
+  exec "$ROOT/skills/browser/with-browser.sh" \
+    "$LIFE_MANAGER_BROWSER_IDENTITY" -- "${COMMAND[@]}" "$@"
+fi
+exec "${COMMAND[@]}" "$@"

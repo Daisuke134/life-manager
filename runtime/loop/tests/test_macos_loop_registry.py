@@ -1346,6 +1346,28 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 "interactive:dais" if field == "browser_identity" else "connector-native"
             )
 
+    def test_browser_identity_join_requires_both_sides(self):
+        for field in ("browser_identity", "browser_target_owner"):
+            value = {"schema_version": 2, "loops": {"example": entry()}}
+            value["loops"]["example"][field] = (
+                "interactive:dais" if field == "browser_identity" else "connector-native"
+            )
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ValueError, "browser identity join requires both fields",
+            ):
+                validate_registry(value)
+
+    def test_coconala_action_lanes_declare_the_gig_browser_join(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in (
+            "hf-gig-apply-direct", "hf-gig-apply-reconcile", "hf-gig-storefront-direct",
+            "hf-gig-paid-direct", "hf-gig-reply-detector",
+        ):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row["browser_identity"], "coconala:kosuke")
+                self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
+
     def test_render_is_byte_stable_for_loop_insertion_order(self):
         left = {"schema_version": 2, "loops": {"b": entry("ai.anicca.b"), "a": entry("ai.anicca.a")}}
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}

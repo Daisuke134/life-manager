@@ -150,6 +150,27 @@ def environment_for(loop_id: str, home: Path, base: dict[str, str]) -> dict[str,
     return environment
 
 
+def command_with_browser_lease(
+    command: list[str], root: Path, environment: dict[str, str],
+) -> list[str]:
+    """Wrap a browser action in the registered identity lease when declared.
+
+    The registry validator requires the identity/target-owner pair.  The target owner is
+    retained in the environment for runtime event attribution; the lease wrapper needs the
+    identity to resolve the profile-owned CDP endpoint and reject UUID collisions.
+    """
+    identity = environment.get("LIFE_MANAGER_BROWSER_IDENTITY", "").strip()
+    target_owner = environment.get("LIFE_MANAGER_BROWSER_TARGET_OWNER", "").strip()
+    if not identity and not target_owner:
+        return command
+    if not identity or not target_owner:
+        raise ValueError("browser identity join incomplete")
+    wrapper = root / "skills/browser/with-browser.sh"
+    if not wrapper.is_file() or not os.access(wrapper, os.X_OK):
+        raise ValueError("browser lease wrapper unavailable")
+    return [str(wrapper), identity, "--", *command]
+
+
 def main() -> int:
     loop_id = os.environ.get("LIFE_MANAGER_LOOP_ID", "")
     root = Path(__file__).resolve().parents[2]
@@ -157,6 +178,7 @@ def main() -> int:
         home = Path.home()
         command = command_for(loop_id, root, home)
         environment = environment_for(loop_id, home, os.environ)
+        command = command_with_browser_lease(command, root, environment)
     except ValueError as error:
         print(f"entry-dispatch: {error}", file=sys.stderr); return 78
     os.execve(command[0], command, environment)
