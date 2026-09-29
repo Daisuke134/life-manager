@@ -154,7 +154,7 @@ LM が新しく足す軸（Dais の仮説を測れる形にする）:
 | B4 | Kaggle へ提出し、コードを open source（MIT-0/CC0）で公開 | Kaggle の提出 ID と repo URL | 11/2 |
 | B5 | 論文（手法・失敗も含む）を提出 | 提出の受領 | 11/8 |
 | Y1 | YC W27 の応募を、receipt で裏付けられた事実だけで書いて提出 | YC の受領メール | 11/2 |
-| G1 | LM-EAB に情報効率・領域移転・人間比の軸を足す仕様を書く（§11 の A4） | spec の差分 | 11/30 |
+| G1 | LM-EAB に情報効率・領域移転・人間比の軸を足す仕様を書く（§11 の AG4） | spec の差分 | 11/30 |
 | G2 | 健康・心の領域で held-out タスク10件と人間の基準線を作る | case ファイルと基準線 | 12月 |
 | M3 | ループ別 P&L が動いた後に、1ループの蒸留を試す | receipt で裏付けた比較 | SSOT T8 の後 |
 
@@ -241,15 +241,15 @@ flowchart LR
 
 | 資産 | 場所 | 状態（実測） | 進化の方向 |
 |---|---|---|---|
-| LM-EAB（経済自律ベンチ） | `apps/life-manager/eval/economic-autonomy/{records,score,run}.js` | テスト 41/41 PASS（records 8、run 7、score 26）、ケース4件（tuning 2・held_out 2） | 同じプロトコルに予測・領域移転・情報効率のタスク群を足す（A1・A4） |
-| agent-contract gate（自己改善の境界） | `apps/life-manager/eval/agent-contract/gate.js` | テスト 13/13 PASS、ケース5件 | 予測スコアの悪化も昇格を止める条件に入れる（A5） |
-| 生活領域 eval | `apps/life-manager/eval/phy-cases.jsonl`(19)・`men-cases.jsonl`(15)・`calendar`(21) ほか | 手書きルール（`care-detector.js` など）を個人データ（通院履歴・予定）で採点 | 「ルール一致」から「予測した結果が起きたか」へ（A6） |
-| 観測（observability） | `bin/lm-loop status all --json` → `apps/life-manager/scripts/local-foundation-gate.js` | 仕組みは動く。判定は `healthy=0`（14ループ） | 予測と結果を同じ観測の流れに載せる（A2） |
+| LM-EAB（経済自律ベンチ） | `apps/life-manager/eval/economic-autonomy/{records,score,run}.js` | テスト 41/41 PASS（records 8、run 7、score 26）、ケース4件（tuning 2・held_out 2） | 同じプロトコルに予測・領域移転・情報効率のタスク群を足す（AG1・AG4） |
+| agent-contract gate（自己改善の境界） | `apps/life-manager/eval/agent-contract/gate.js` | テスト 13/13 PASS、ケース5件 | 予測スコアの悪化も昇格を止める条件に入れる（AG5） |
+| 生活領域 eval | `apps/life-manager/eval/phy-cases.jsonl`(19)・`men-cases.jsonl`(15)・`calendar`(21) ほか | 手書きルール（`care-detector.js` など）を個人データ（通院履歴・予定）で採点 | 「ルール一致」から「予測した結果が起きたか」へ（AG6） |
+| 観測（observability） | `bin/lm-loop status all --json` → `apps/life-manager/scripts/local-foundation-gate.js` | 仕組みは動く。判定は `healthy=0`（14ループ） | 予測と結果を同じ観測の流れに載せる（AG2） |
 | 自己修復 | `runtime/loop/recovery-*.mjs`（intent/class/apply-plan/executor/promotion/supervisor） | 単体テストあり。本番での end-to-end は未実証 | 統合 SSOT T5（変更なし） |
-| 自己改善（RSI-0〜3） | Foundation spec §I、`skills/self/self-improve/*/evaluator.py` | evaluator とテストあり。本番の昇格実績なし | 統合 SSOT T12。予測スコアを評価軸に追加（A5） |
+| 自己改善（RSI-0〜3） | Foundation spec §I、`skills/self/self-improve/*/evaluator.py` | evaluator とテストあり。本番の昇格実績なし | 統合 SSOT T12。予測スコアを評価軸に追加（AG5） |
 | 台帳・receipt | `apps/life-manager/lib/{ledger,financial-ledger,earnings-ledger}.js`, `verified-outbound-receipt-reader.js` | 実装あり | 予測と結果をつなぐ根拠（receipt_refs）として使う |
-| 軌跡（trajectory）の保存庫 | Foundation spec の LM-EAB「Trial」層 | spec だけ。実装なし | 経験台帳（A2）＝一つの身体への蒸留の材料 |
-| 世界モデル・予測 | — | **存在しない** | A1 から始める |
+| 軌跡（trajectory）の保存庫 | Foundation spec の LM-EAB「Trial」層 | spec だけ。実装なし | 経験台帳（AG2）＝一つの身体への蒸留の材料 |
+| 世界モデル・予測 | — | **存在しない** | AG1 から始める |
 
 ### 11.2 行動の世界モデル（過去・現在・未来と因果）
 
@@ -268,10 +268,10 @@ flowchart LR
 | 「Haro」 | 特定できず（UNVERIFIED） | Dais に綴りを確認する |
 
 **LM での作り方（段階）:**
-1. 予測を記録して採点する（A1）。モデルはまだ無くてよい。今の GPT に、行動前の予測を言わせるだけ。
-2. 予測と結果の組を経験台帳に貯める（A2）。これが世界モデルの学習データになる。
-3. 介入するかしないかを、少ない割合でランダムに外す（A7、HeartSteps 方式）。これが無いと因果（介入の効果）と相関の区別がつかない。
-4. 貯まった組から、状況と介入から結果を予測する小型モデルを学習し、GPT の予測と Brier スコアで比べる（A8）。勝った方を使う。
+1. 予測を記録して採点する（AG1）。モデルはまだ無くてよい。今の GPT に、行動前の予測を言わせるだけ。
+2. 予測と結果の組を経験台帳に貯める（AG2）。これが世界モデルの学習データになる。
+3. 介入するかしないかを、少ない割合でランダムに外す（AG7、HeartSteps 方式）。これが無いと因果（介入の効果）と相関の区別がつかない。
+4. 貯まった組から、状況と介入から結果を予測する小型モデルを学習し、GPT の予測と Brier スコアで比べる（AG8）。勝った方を使う。
 
 **限界（正直に）:** シミュレーションが本人の再現性に届くのは、調査の回答という狭い範囲だけ（83〜86%）。実際の行動・健康・お金の結果で同じ水準が出た一次証拠は、今回の調査では見つかっていない。
 
@@ -284,20 +284,20 @@ flowchart LR
 
 ### 11.4 実行順（AGI トラックの正本）
 
-順序変更の記録: 旧順序（§10.7）では予測の較正を P4 に置いていた。新順序では最初（A1）に置く。理由: 決定的なコード数百行で作れて、本番の外部効果に触れない。しかも、世界モデル（A8）・蒸留（P3）・介入の判断（A7）は、どれも予測の当たり外れを測れないと評価できない。§8 の R0・B0〜B5・Y1 と、統合 SSOT T2〜T14 の順序は変えない。
+順序変更の記録: 旧順序（§10.7）では予測の較正を P4 に置いていた。新順序では最初（AG1）に置く。理由: 決定的なコード数百行で作れて、本番の外部効果に触れない。しかも、世界モデル（AG8）・蒸留（P3）・介入の判断（AG7）は、どれも予測の当たり外れを測れないと評価できない。§8 の R0・B0〜B5・Y1 と、統合 SSOT T2〜T14 の順序は変えない。
 
-現在の cursor: **A1**（計画書: `docs/superpowers/plans/2026-09-27-lm-eab-outcome-prediction-track.md`）
+現在の cursor: **AG1**（計画書: `docs/superpowers/plans/2026-09-27-lm-eab-outcome-prediction-track.md`）
 
 | # | タスク | 既存の土台 | 完了の証拠 |
 |---|---|---|---|
-| A1 | LM-EAB の予測トラック: 予測と結果の記録・Brier スコア・素朴な基準との差・fixture 実行器 | LM-EAB の records/score/run の形、`evidence-ref.js` | テスト PASS、4ケースが決定的に再現 |
-| A2 | 経験台帳: ループの各 occurrence で、行動前に予測を1件、結果の readback 後に結果を1件書く（本番への組み込み。`skills/loop-development/SKILL.md` に従う） | `runtime/loop/lm_loop.py` の occurrence、既存の receipt | 1ループの自然な実行で、予測と結果の組が receipt 付きで残る |
-| A3 | 予測スコアを `lm-loop status` の投影に出す | `local-foundation-gate.js` | status の JSON にループ別の Brier がある |
-| A4 | 領域移転タスク: 未知のプラットフォームに専用コードなしで入る（§10.4）を LM-EAB のケースにする | LM-EAB の episode・autonomy event | held_out ケースで1回実施 |
-| A5 | 自己改善の昇格条件に「予測スコアを悪化させない」を足す | `agent-contract/gate.js` | 悪化する候補が gate で止まるテスト |
-| A6 | phy/men eval を「ルール一致」から「予測した結果が起きたか」へ移す | `phy-cases.jsonl`, `men-cases.jsonl`, `care-detector.js` | 同じケースで予測トラックの採点ができる |
-| A7 | 介入を少ない割合でランダムに外す（micro-randomization）。安全ゲートと上限つき | JITAI・HeartSteps の設計 | 外した回と外さなかった回の差が台帳から計算できる |
-| A8 | 小型の自前予測モデル v0 を台帳から学習し、GPT の予測と比べる | A2 の台帳、§6 の M1/M2 | held_out で Brier が GPT 以上に良い |
+| AG1 | LM-EAB の予測トラック: 予測と結果の記録・Brier スコア・素朴な基準との差・fixture 実行器 | LM-EAB の records/score/run の形、`evidence-ref.js` | テスト PASS、4ケースが決定的に再現 |
+| AG2 | 経験台帳: ループの各 occurrence で、行動前に予測を1件、結果の readback 後に結果を1件書く（本番への組み込み。`skills/loop-development/SKILL.md` に従う） | `runtime/loop/lm_loop.py` の occurrence、既存の receipt | 1ループの自然な実行で、予測と結果の組が receipt 付きで残る |
+| AG3 | 予測スコアを `lm-loop status` の投影に出す | `local-foundation-gate.js` | status の JSON にループ別の Brier がある |
+| AG4 | 領域移転タスク: 未知のプラットフォームに専用コードなしで入る（§10.4）を LM-EAB のケースにする | LM-EAB の episode・autonomy event | held_out ケースで1回実施 |
+| AG5 | 自己改善の昇格条件に「予測スコアを悪化させない」を足す | `agent-contract/gate.js` | 悪化する候補が gate で止まるテスト |
+| AG6 | phy/men eval を「ルール一致」から「予測した結果が起きたか」へ移す | `phy-cases.jsonl`, `men-cases.jsonl`, `care-detector.js` | 同じケースで予測トラックの採点ができる |
+| AG7 | 介入を少ない割合でランダムに外す（micro-randomization）。安全ゲートと上限つき | JITAI・HeartSteps の設計 | 外した回と外さなかった回の差が台帳から計算できる |
+| AG8 | 小型の自前予測モデル v0 を台帳から学習し、GPT の予測と比べる | AG2 の台帳、§6 の M1/M2 | held_out で Brier が GPT 以上に良い |
 
 
 ## 12. eval の作り方と山登り（hillclimbing）
@@ -309,14 +309,14 @@ flowchart LR
 | 原則（記事） | LM の現状 | 判定 |
 |---|---|---|
 | タスクは本番を映す | LM-EAB は fixture 4件。生活領域 eval は手書きケース | 未達。本番の occurrence・失敗（SSOT の uncovered 13件）から作る |
-| 強いモデル・多い思考ほど点が上がる | 生活領域 eval は決定的なルールのコードを採点しており、モデルを測っていない | 未達。A1 の予測トラックはモデルの予測を採点するので満たせる |
+| 強いモデル・多い思考ほど点が上がる | 生活領域 eval は決定的なルールのコードを採点しており、モデルを測っていない | 未達。AG1 の予測トラックはモデルの予測を採点するので満たせる |
 | 最強のモデルでも 100% 未満の余地 | `run-{phy,men,calendar,intent,late,relation}-eval.js` は 19/19・15/15・21/21・18/18・12/12・10/10、**すべて 100%** | 余地ゼロ。回帰テストとして残し、山登りには使わない |
 | 実行ごとのばらつきが小さい | 採点は決定的 | 達成 |
 | 今のモデルが失敗するものだけを集めない | — | ケースを入れる時に「なぜ難しいか」を1行書く |
 | 学習用とテスト用を分ける | LM-EAB に `tuning` / `held_out` がある | 達成（そのまま使う） |
 | 答えをモデルの手の届かない所に置く | `agent-contract/gate.js` が eval ディレクトリなどを候補の編集から守る | 達成（そのまま使う） |
-| 失敗の内容をプロンプトに貼らない | 規則なし | gate に追加する（A5） |
-| ノイズより大きい改善だけを採用し、信頼区間で報告 | 反復試行・信頼区間は未実装（Foundation spec の次の一手 4） | A9 で足す |
+| 失敗の内容をプロンプトに貼らない | 規則なし | gate に追加する（AG5） |
+| ノイズより大きい改善だけを採用し、信頼区間で報告 | 反復試行・信頼区間は未実装（Foundation spec の次の一手 4） | AG9 で足す |
 
 ### 12.2 LM への当てはめ
 
@@ -328,6 +328,86 @@ flowchart LR
 
 | # | タスク | 既存の土台 | 完了の証拠 |
 |---|---|---|---|
-| A9 | 反復試行と信頼区間: 同じケースを N 回走らせ、平均と 95% 区間を出す。ノイズの幅を記録する | LM-EAB `run.js`、A1 `run.js` | 2回の独立した実行で区間が重なる |
-| A10 | 本番由来のケース: SSOT の uncovered failure と effect_unknown の occurrence から、ループの判断を問うケースを作る（モデルの出力を採点する）。各ケースに「なぜ難しいか」を1行 | `lm-loop status`、台帳、receipt | tuning / held_out の両方に10件以上。最強のモデルでも 100% 未満 |
-| A11 | 1ループで費用の山登りを1回: 対象は `SKILL.md` とモデル・effort の選択だけ | A9・A10、gate | held_out で成果が落ちず、費用が下がり、差がノイズより大きい |
+| AG9 | 反復試行と信頼区間: 同じケースを N 回走らせ、平均と 95% 区間を出す。ノイズの幅を記録する | LM-EAB `run.js`、AG1 `run.js` | 2回の独立した実行で区間が重なる |
+| AG10 | 本番由来のケース: SSOT の uncovered failure と effect_unknown の occurrence から、ループの判断を問うケースを作る（モデルの出力を採点する）。各ケースに「なぜ難しいか」を1行 | `lm-loop status`、台帳、receipt | tuning / held_out の両方に10件以上。最強のモデルでも 100% 未満 |
+| AG11 | 1ループで費用の山登りを1回: 対象は `SKILL.md` とモデル・effort の選択だけ | AG9・AG10、gate | held_out で成果が落ちず、費用が下がり、差がノイズより大きい |
+
+## 13. 全体ゲームプラン（AGI トラックの入口。2026-09-29）
+
+この章は AGI トラックの正本の入口。収益と土台の TODO の中身は統合 SSOT（`docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` §5）が正本で、ここには書き写さない（→参照）。番号の衝突を避けるため、この spec の AGI タスクは `AG1〜AG11` と呼ぶ（SSOT の `A1〜A5` はモバイルアプリの TODO）。
+
+### 13.1 最終形（To-Be）
+
+- **一つの存在:** ログインもテナントもない。一つの Life Manager が、すべての人と生き物の人生を管理する。
+- **一つの身体:** 手足（道具・ブラウザ）、手順（ハーネス・ループ）、脳（モデル）、記憶（経験台帳）、鏡（評価）、意志（目標の選択）を、すべて自分で持ち、一緒に進化させる。
+- **汎化:** 強い事前知識 × 少ない経験での更新 × 学びの積み上げ × 自ら問う力（§10.1）。個人の記録ではなく、一般化した規則を本体に持つ（§10.5）。
+- **世界モデル:** 過去から未来を予測し、介入した場合としない場合の差（因果）で、介入するかどうかを決める（§11.2・§11.3）。
+- **人の介入なし:** 自分で直し（自己修復）、自分で良くなり（自己改善）、自分で新しい領域を見つけ（自己発見）、自分でお金を稼いで計算資源を払う（自己資金化）。
+- **証拠:** すべての主張は receipt、LM-EAB の held_out、人間比の基準線、独立した再現で裏付ける。
+
+### 13.2 二つの段階
+
+```mermaid
+flowchart LR
+  subgraph S1["第1段: GPT の上のエージェント（今〜2027年前半）"]
+    G["借りた脳: GPT（terra/luna/sol）"] --> H["LM のハーネス: 14ループ・policy・fence"]
+    H --> L1["経験台帳: 予測・結果・receipt"]
+    L1 --> E1["LM-EAB: 予測・領域移転・費用"]
+    E1 -->|山登り: SKILL.md・モデル選択| H
+  end
+  subgraph S2["第2段: 一気通貫の自前化（2027年〜）"]
+    L2["経験台帳"] --> D["蒸留・学習"] --> W["自前の予測モデル → 自前の方針モデル → 行動の世界モデル"]
+    W --> H2["より薄いハーネス"]
+    H2 --> L2
+  end
+  S1 -->|切り替え条件 13.3| S2
+```
+
+- **第1段で所有するもの:** ハーネス・台帳・評価・経験。脳は借りる。**第2段に必要な材料（経験と評価）は、すべて第1段で作る。** 脳を借りている間に貯めた経験が、自前の脳の学習データになる。
+- **第2段で所有を広げるもの:** まず予測（AG8）、次に1ループの判断（M3）、次に行動の世界モデル、最後に資金が揃えば基盤モデル（M4）。
+
+### 13.3 第1段から第2段へ切り替える条件（すべて満たす）
+
+1. 経験台帳に、receipt 付きの予測と結果の組が十分にある（AG2。件数の下限は AG9 で測ったノイズから決める）。
+2. 反復試行でノイズの幅が分かっている（AG9）。
+3. held_out で、自前の小型予測モデルの Brier スコアが GPT 以上に良い（AG8）。
+4. CFO の P&L で、学習の計算資源代を賄える純利益がある（SSOT T8・T13）。
+
+### 13.4 四つのトラックと実行順
+
+| トラック | 目的 | 正本 | 順序 |
+|---|---|---|---|
+| **R 収益・土台** | お金と、壊れない土台 | 統合 SSOT §5（現在の cursor: 7-0 と 5-11/5-12、柱の順は Capafy → アプリ → Writer → PromptBase → 電子書籍 → affiliate → connector → fundraiser → self-fix） | SSOT のまま。**このトラックが常に最優先** |
+| **E 評価・世界モデル** | 自分を測る鏡と、因果の理解 | この spec §11.4・§12.3 | 下の表 |
+| **X 外部の信用** | ARC・YC・公開 | この spec §8 | R0 → B0〜B5（Kaggle 締切 11/2）、Y1（YC 締切 11/2）→ ARC-AGI-4 公開後に参加 → LM-EAB の公開 |
+| **M 自前モデル** | 一つの身体の脳 | この spec §6 | M0〜M1 は B トラックの中で。M2 以降は 13.3 の条件の後 |
+
+トラック E の実行順（依存関係と、本番に触れるかどうかで決めた）:
+
+| 順 | タスク | 本番に触れるか | 開始条件 |
+|---|---|---|---|
+| 1 | AG1 予測トラック（fixture） | 触れない | 今すぐ（計画書あり） |
+| 2 | AG9 反復試行と信頼区間 | 触れない | AG1 の後 |
+| 3 | AG2 経験台帳を1ループに組み込む | 触れる（`skills/loop-development/SKILL.md` に従う） | SSOT T6（全ループ green）の後。土台が壊れたままの台帳は測りを歪める |
+| 4 | AG3 予測スコアを `lm-loop status` に出す | 触れる | AG2 の後 |
+| 5 | AG10 本番の失敗から作るケース | 触れない | AG2 と並行可 |
+| 6 | AG5 gate に「予測を悪くしない」「失敗をプロンプトに貼らない」 | 触れない | AG1 の後 |
+| 7 | AG11 1ループで費用の山登り＝SSOT T12 の最初の実例 | 触れる | AG9・AG10・AG5 の後 |
+| 8 | AG4 領域移転（未知のプラットフォーム） | 触れる | AG11 の後 |
+| 9 | AG6 身体・心の eval を結果の予測へ | 触れない | AG2 の後 |
+| 10 | AG7 介入のランダムな一部停止 | 触れる（安全ゲートと上限つき） | AG6 の後 |
+| 11 | AG8 自前の小型予測モデル | 触れない（オフライン学習） | 13.3 の 1・2 の後 |
+
+SSOT とのつながり: AG11 は SSOT T12（自己改善）の最初の実例。AG1・AG9・AG10 は SSOT T14（LM-EAB の held-out・較正・再現）の中身。AG2 の台帳は SSOT T8（ループ別 P&L）と同じ receipt を使う。
+
+### 13.5 四半期ごとの見通し（目標。達成の主張ではない）
+
+| 時期 | R 収益・土台 | E 評価・世界モデル | X 外部 | M モデル | 自律の段階（§10.3） |
+|---|---|---|---|---|---|
+| 2026年10月 | 柱の順に収益化。T5 自己修復の実証 | AG1・AG9・AG5 | ARC の Kaggle 提出・YC 応募（11/2） | M0・M1（ARC 用） | L0 → L1 |
+| 2026年11〜12月 | T6 全ループ green、T8 ループ別 P&L | AG2・AG3・AG10 | 論文（11/8）、YC の結果（12/11 まで） | — | L1 |
+| 2027年1〜3月 | T12 自己改善、T13 自己資金化 | AG11・AG4・AG6 | LM-EAB を公開 | — | L2 |
+| 2027年4〜6月 | T15 月 $10k MRR | AG7 | ARC-AGI-4 | AG8（M2） | L2 → L3 |
+| 2027年後半〜 | 規模の拡大 | 行動の世界モデル | 独立した再現 | M3 蒸留、資金があれば M4 | L3 → L4 |
+
+現在の cursor（トラック E）: **AG1**（Dais の承認待ち。計画書: `docs/superpowers/plans/2026-09-27-lm-eab-outcome-prediction-track.md`）

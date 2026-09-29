@@ -4,11 +4,11 @@
 
 **Goal:** Add a deterministic prediction track to the existing LM-EAB benchmark: loops pre-register outcome probabilities before acting, receipts resolve them afterwards, and a pure scorer reports Brier score and skill over the naive base rate.
 
-**Architecture:** A sibling package `apps/life-manager/eval/prediction/` that copies the LM-EAB contract style (exact-key validators, frozen records, fail-closed reason codes, fixture runner with SHA-256 pinned inputs). It is fixture-only in this plan; wiring predictions into live loops is roadmap item A2 and a separate plan.
+**Architecture:** A sibling package `apps/life-manager/eval/prediction/` that copies the LM-EAB contract style (exact-key validators, frozen records, fail-closed reason codes, fixture runner with SHA-256 pinned inputs). It is fixture-only in this plan; wiring predictions into live loops is roadmap item AG2 and a separate plan.
 
 **Tech Stack:** Node.js (repo uses v25; LM-EAB targets 20.19+), CommonJS, `node:test`, `node:crypto`, existing `apps/life-manager/lib/evidence-ref.js`.
 
-**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-agi-roadmap-design.md` §11.2 and §11.4 row A1
+**Spec:** `docs/superpowers/specs/2026-09-25-life-manager-agi-roadmap-design.md` §11.2 and §11.4 row AG1
 
 ## Global Constraints
 
@@ -993,7 +993,7 @@ git commit -m "feat(eval): add pinned outcome prediction corpus and runner"
 ### Task 4: Full focused verification and integration
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-25-life-manager-agi-roadmap-design.md` §11.4 (move cursor from A1 to A2 and record the evidence)
+- Modify: `docs/superpowers/specs/2026-09-25-life-manager-agi-roadmap-design.md` §11.4 (move cursor from AG1 to AG2 and record the evidence)
 
 - [ ] **Step 1: Run every prediction and LM-EAB test file separately**
 
@@ -1005,15 +1005,15 @@ Expected: prediction 6+7+3 = 16 pass; LM-EAB 8+7+26 = 41 pass; agent-contract 2+
 Run: `node apps/life-manager/eval/prediction/run.js > /tmp/p1.json; node apps/life-manager/eval/prediction/run.js > /tmp/p2.json; cmp /tmp/p1.json /tmp/p2.json && echo identical`
 Expected: `identical`
 
-- [ ] **Step 3: Update the spec cursor** — in §11.4 replace `現在の cursor: **A1**` with `現在の cursor: **A2**` and add one line under the table: `A1 完了: prediction 16/16・LM-EAB 41/41・agent-contract 13/13 PASS、corpus 4/4、2回の実行で出力が一致（Task 3 Step 8 の commit）。`
+- [ ] **Step 3: Update the spec cursor** — in §11.4 replace `現在の cursor: **AG1**` with `現在の cursor: **AG2**` and add one line under the table: `AG1 完了: prediction 16/16・LM-EAB 41/41・agent-contract 13/13 PASS、corpus 4/4、2回の実行で出力が一致（Task 3 Step 8 の commit）。`
 
 - [ ] **Step 4: Commit, push, PR, merge**
 
 ```bash
 bash scripts/verify-source-boundary.sh
 git add docs/superpowers/specs/2026-09-25-life-manager-agi-roadmap-design.md
-git commit -m "docs(agi): record A1 prediction track evidence and advance cursor"
+git commit -m "docs(agi): record AG1 prediction track evidence and advance cursor"
 git push -u origin feat/lm-eab-prediction-track
-gh pr create --title "feat(eval): LM-EAB outcome prediction track" --body "Implements roadmap A1. Fixture-only; no runtime or provider change."
+gh pr create --title "feat(eval): LM-EAB outcome prediction track" --body "Implements roadmap AG1. Fixture-only; no runtime or provider change."
 gh pr merge --admin --squash
 ```
