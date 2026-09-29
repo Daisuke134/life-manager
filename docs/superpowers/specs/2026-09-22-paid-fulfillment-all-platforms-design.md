@@ -5900,3 +5900,20 @@ receipts.
   runs release `8f1fdd3a6216b6fd2039575f36be8feacbc0b2a3` and must not be
   claimed repaired until a main-derived immutable release, a natural
   reconciler receipt, and Coconala owner/readback evidence are present.
+
+### Capacity boundary readback — 2026-09-30 07:12 JST
+
+- [x] `diskutil apfs list` reports the container at `99.9%` use with only
+  `264.0 MB` unallocated; `/System/Volumes/Data` has about `258 MB` free.
+  The mounted root is an Apple sealed, read-only, non-purgeable OS update
+  snapshot. `tmutil listlocalsnapshots /` reports no local Time Machine
+  snapshots. This explains why the allow-listed Life Manager cleanup pass
+  cannot manufacture the required admission floor.
+- [x] The three large allow-listed cache roots are currently held open by the
+  Codex service (PID 541), the existing CloakBrowser Chromium owner (PID
+  16230), and the Node MCP process (PID 17237). No process was stopped and no
+  cache was removed.
+- [ ] The capacity blocker is external to the repository: item 2 remains open
+  until an owner naturally closes or a separately authorized host-level
+  capacity action creates the admission window. Source changes must continue
+  to fail closed rather than weakening the floor or deleting protected data.
