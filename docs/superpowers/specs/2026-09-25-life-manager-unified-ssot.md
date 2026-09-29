@@ -1385,3 +1385,5 @@ Meta Loopの理想契約は候補発見で止めず、`candidate durable state �
 5. **Freelancer/Upworkを安全に有効化**: approved terms、専用identity auth、source-complete inventory、funded contract/milestone、mutation authorization、payout readbackの順でownerを登録する。funded境界前の応募・送信を成功扱いにしない。
 6. **Meta Loopを完成**: discovery scheduler、candidate durable store、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。候補を見つけただけで自動登録しない。
 7. **横断self-improvement**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通過した変更だけをshared skill/kernelへ昇格する。receiptの無い「稼働中」は収益と報告しない。
+
+**PR受入gateの追加readback（2026-09-29）**: 新PR `#6237` のOSS self-contained gateは、実装ではなく `docs/manifests/oss-merge-1-sources.json` のtracked inventoryが古いこと（Capafy 233→234、`skills/_shared` 186→189）でFAILした。tracked treeをverifierと同じ並び・SHA規則で再計算してmanifestを更新し、`node scripts/verify-oss-self-contained.mjs --json` は `ok=true`、OSS contract testは **12/12 PASS**、`git diff --check`もPASSになった。外部provider作用やproduction releaseは変更していない。次はこのcommit後のGitHub required checksを再確認し、全green後だけmain統合へ進む。
