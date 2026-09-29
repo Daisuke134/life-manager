@@ -1893,3 +1893,30 @@ job IDs 0）、`git diff --check`もPASS。branch
    isolated canary（official receipt・readback・replay-zero）、owner provisioning、rollback、
    settlement、quality/P&L feedbackをshared kernelへ接続する。positive net P&Lが確認できない候補は
    `hold`のままとし、稼働表示やローカルテストだけでpromoteしない。
+
+### 最新Meta Loop評価→candidate store接続 — 2026-09-30
+
+- `fix/source-reconcile-20260930` の `64eece768a` で、既存のenrollment gateに
+  `evaluate_and_record_candidate(...)` を追加した。これは候補を既存のpolicy/adapter/funded-work/
+  canary/unit-economics gateで評価し、decision、gate結果、reasons、next actionをcandidate storeへ
+  一度だけ渡す。provider transport、ブラウザ、応募、返信、納品、owner登録は呼び出さない。
+- `promote`でも次のactionは`provision_owner_after_release_readback`を記録するだけで、owner登録を
+  許可する副作用はない。`hold`は`collect_missing_gates`として保存し、無効候補はstore.recordを呼ばず
+  fail-closedにする。実ストアとの統合を含むenrollmentテスト17件、Marketplace Core全体308件、
+  `lm-loop-contract ok=true`（catalog 14、registry 176、mapped 102、shared job IDs 0）、compile、
+  diff checkをPASSした。
+- branch remote/localは`64eece768a`で一致し、origin/mainは`3975ae8996cab3325f514746a32c915f9935fddf`、
+  production currentもmain由来のままである。candidate変更はmain・productionへ未統合で、provider
+  receipt、official readback、RyuさんDMの公式readback、実収益は未確認である。
+
+### 原子TODO（評価接続後の次 cursor）
+
+1. **完了** candidate durable stateとenrollment評価の接続。評価結果がstoreに冪等保存され、holdは
+   owner登録へ進まず、無効入力は保存されないことをsource testで確認済み。
+2. **未完** Meta Loop discovery schedulerを実装する。provider-specificなdiscover/fetchだけを呼び、
+   取得したcandidate metadataを`evaluate_and_record_candidate`へ渡す。候補が無いwakeも成功扱いにせず、
+   inspected・persisted・held・next_actionをdurableに記録する。外部mutationはしない。
+3. **未完** main受入・immutable release・loaded SHA readback。source候補だけでproduction完了と数えない。
+4. **未完** RyuさんDM、Coconala、Lancers、CrowdWorks、Mercorのprovider receipt＋official readbackまたは
+   厳密なheld理由。再送・正式納品・effect fence解放はreceiptなしで行わない。
+5. **未完** capacity自然run、Freelancer/Upworkのfunded/auth gates、canary/rollback/settlement/P&L。
