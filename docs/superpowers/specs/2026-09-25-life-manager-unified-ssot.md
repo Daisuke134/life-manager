@@ -191,6 +191,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 **共通 Paid 境界の実装カーソル（このbranch）**
 - 個別顧客の例外実装ではなく、`skills/_shared/marketplace-core` に provider-independent な `PaidHandoffReceipt` 契約と `validate_paid_handoff` を追加する。Reply/Negotiation の thread、accepted `ContractReceipt`、funding id、scope、artifact 要件、金額、通貨を同じ記録に束ね、provider と contract の不一致・未承諾契約・未funded statusを fail-closed にする。
 - 共通 `paid_kernel` に `--require-paid-handoff` / `require_paid_handoff=True` の必須ゲートを追加した。必須モードではhookを持たないadapter、未承諾contract、invalid handoffはeffect=0で止まり、valid proofはmutation前にintentへ保存する。既存production adapterはまだflag未移行である。
+- Coconala adapter (`skills/earn/gig/scripts/coconala_paid_adapter.py`) は、orders-only の初回snapshotから targeted talkroom readbackへ更新し、構造化価格・取引状態・talkroom証跡・要件digestが揃った場合だけ `ContractReceipt` / `PaidHandoffReceipt` を生成する。fundingまたはscope証跡が欠けた場合は `coconala_paid_handoff_unavailable` で止まる。これはadapter境界の実装であり、`hf-gig-paid-direct` のproduction ownerを共通kernelへ切り替えた証明ではない。
 - 現在は schema / typed parser / validator / kernel gate / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
 - 次の順序: (1) provider-neutral Paid entrypoint でこの validator を必須化、(2) Coconala/Lancers/CrowdWorks/Mercor/Freelancer/Upwork の adapter を同じ契約へ写像、(3) 公式 receipt・replay-zero を各 provider で canary、(4) main → immutable release → label readback。
 
