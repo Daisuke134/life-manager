@@ -149,5 +149,80 @@ class EtfDailyBarsTests(unittest.TestCase):
         daily.assert_called_once()
 
 
+class EtfDailyHistoryTests(unittest.TestCase):
+    def _trim(self, response, end):
+        return [
+            {
+                **row,
+                "bars": [bar for bar in row["bars"] if bar["t"][:10] <= end.isoformat()],
+            }
+            for row in response
+        ]
+
+    def _read(self, response, *, start=START, end=COMPLETED_SESSIONS[60]):
+        response = self._trim(response, end)
+        with patch.object(alpaca_cli, "_context", return_value={}) as context, patch.object(
+            alpaca_cli, "_run", side_effect=[CLOCK, response]
+        ) as run:
+            value = alpaca_cli.read_etf_daily_history(
+                credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"),
+                start=start,
+                end=end,
+            )
+        return value, context, run
+
+    def test_history_uses_paper_context_and_returns_the_requested_completed_window(self):
+        value, context, run = self._read(_response())
+
+        context.assert_called_once_with(Path("credentials"), Path("alpaca"), mode="paper")
+        self.assertEqual(len(value["daily_bars"]["SPY"]), 61)
+        self.assertEqual(value["completed_through_session"], COMPLETED_SESSIONS[60].isoformat())
+        self.assertEqual(value["observed_at"], CLOCK["timestamp"])
+        self.assertEqual(run.call_count, 2)
+        operations = [call.args[1][:2] for call in run.call_args_list]
+        self.assertEqual(operations, [["clock", "get"], ["data", "multi-bars"]])
+        bars_args = run.call_args_list[1].args[1]
+        self.assertIn("--start", bars_args)
+        self.assertIn(START.isoformat(), bars_args)
+        self.assertIn("--end", bars_args)
+        self.assertIn(COMPLETED_SESSIONS[60].isoformat(), bars_args)
+
+    def test_history_rejects_range_larger_than_ninety_calendar_days(self):
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", return_value=CLOCK
+        ):
+            with self.assertRaisesRegex(ValueError, "^alpaca_etf_daily_bars_invalid$"):
+                alpaca_cli.read_etf_daily_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=date(2025, 1, 1), end=date(2025, 4, 2),
+                )
+
+    def test_history_rejects_future_end_without_fetching_bars(self):
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", return_value=CLOCK
+        ) as run:
+            with self.assertRaisesRegex(ValueError, "^alpaca_etf_daily_bars_invalid$"):
+                alpaca_cli.read_etf_daily_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=CURRENT_SESSION - timedelta(days=10),
+                    end=CURRENT_SESSION + timedelta(days=1),
+                )
+
+        self.assertEqual(run.call_count, 1)
+
+    def test_history_rejects_missing_symbol(self):
+        response = self._trim(_response(), COMPLETED_SESSIONS[60])
+        response.pop()
+        with patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", side_effect=[CLOCK, response]
+        ):
+            with self.assertRaisesRegex(ValueError, "^alpaca_etf_daily_bars_invalid$"):
+                alpaca_cli.read_etf_daily_history(
+                    credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                    start=START, end=COMPLETED_SESSIONS[60],
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

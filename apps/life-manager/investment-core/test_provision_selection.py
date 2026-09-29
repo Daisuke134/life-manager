@@ -107,6 +107,48 @@ class ProvisionSelectionTests(unittest.TestCase):
             self.assertEqual(result["status"], "existing")
             self.assertEqual(destination.read_bytes(), before)
 
+    def test_refresh_replaces_existing_selection_with_fresh_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+            provision_selection(destination, reports, runtime_release_sha="a" * 40)
+
+            reports.write_text(
+                json.dumps([_report(report_id="refreshed-report")]),
+                encoding="utf-8",
+            )
+            result = provision_selection(
+                destination,
+                reports,
+                runtime_release_sha="b" * 40,
+                refresh=True,
+            )
+
+            self.assertEqual(result["status"], "created")
+            payload = json.loads(destination.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_id"], "refreshed-report")
+            self.assertEqual(payload["release_sha"], "b" * 40)
+
+    def test_refresh_keeps_existing_selection_when_new_report_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reports = root / "reports.json"
+            destination = root / "selected-strategy.json"
+            reports.write_text(json.dumps([_report()]), encoding="utf-8")
+            provision_selection(destination, reports)
+            before = destination.read_bytes()
+
+            reports.write_text(
+                json.dumps([_report(report_id="rejected", net="0")]),
+                encoding="utf-8",
+            )
+            result = provision_selection(destination, reports, refresh=True)
+
+            self.assertEqual(result["status"], "existing")
+            self.assertEqual(destination.read_bytes(), before)
+
     def test_expired_selection_is_replaced_by_fresh_report(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

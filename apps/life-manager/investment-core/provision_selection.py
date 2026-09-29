@@ -158,24 +158,35 @@ def provision_selection(
     path: str | Path,
     reports_path: str | Path,
     runtime_release_sha: str | None = None,
+    *,
+    refresh: bool = False,
 ) -> dict[str, str]:
-    """Create selected state, preserving valid state and rotating expired state."""
+    """Create selected state, preserving valid state unless explicitly refreshing."""
     destination = Path(path).expanduser()
     if destination.is_symlink():
         raise SelectionProvisionError("selection_symlink_refused")
+    if runtime_release_sha is not None and not is_valid_release_sha(runtime_release_sha):
+        raise SelectionProvisionError("runtime_release_sha_invalid")
+    existing_valid = False
     if destination.exists():
         try:
             existing = json.loads(destination.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise SelectionProvisionError("existing_selection_invalid") from error
-        if _existing_selection_is_valid(existing):
+        existing_valid = _existing_selection_is_valid(existing)
+        if existing_valid and not refresh:
             return {"status": "existing", "path": str(destination)}
-        if not _existing_selection_is_expired(existing):
+        if not existing_valid and not _existing_selection_is_expired(existing):
             raise SelectionProvisionError("existing_selection_invalid")
 
-    reports = _read_reports(Path(reports_path).expanduser())
-    selection = select_strategy(reports)
-    payload = _selection_payload(selection, reports, runtime_release_sha)
+    try:
+        reports = _read_reports(Path(reports_path).expanduser())
+        selection = select_strategy(reports)
+        payload = _selection_payload(selection, reports, runtime_release_sha)
+    except SelectionProvisionError:
+        if refresh and existing_valid:
+            return {"status": "existing", "path": str(destination)}
+        raise
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     destination.parent.chmod(0o700)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -188,9 +199,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--path", required=True)
     parser.add_argument("--reports", required=True)
     parser.add_argument("--release-sha")
+    parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args(argv)
     try:
-        result = provision_selection(args.path, args.reports, args.release_sha)
+        result = provision_selection(
+            args.path,
+            args.reports,
+            args.release_sha,
+            refresh=args.refresh,
+        )
     except SelectionProvisionError as error:
         print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         return 1
