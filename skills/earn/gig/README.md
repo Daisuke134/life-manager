@@ -1,30 +1,4 @@
-# Life Manager Gig Skills — Coconala Skill Pack
-
-## Naming model
-
-Life Managerは一つの製品/control planeであり、platformごとの実装を別々の
-「巨大なagent」として増やさない。再利用境界は次の通り。
-
-| name | meaning | example |
-|---|---|---|
-| **Skill** | 再利用可能な能力。入力・出力・policy・評価を持つ | `coconala.message-space.reply` |
-| **Skill Pack** | 一つのprovider向けのSkill集合 | `Coconala Skill Pack`、`Upwork Skill Pack` |
-| **Agent** | 1顧客・1案件・1 occurrenceを担当するdurable owner | `Ryu Negotiation Agent` |
-| **Loop** | event/cadenceでAgentを起動・再開するruntime | `coconala-reply-loop` |
-| **Recipe** | Skillの手順・prompt・policy・evaluator・改善履歴のversion | `negotiation-recipe@v3` |
-| **Adapter** | provider固有の画面/API/auth/readback transport | `coconala.message-space.adapter` |
-
-### Ryuの正しい命名
-
-RyuはCoconalaのtalkroom Paid案件ではなく、message spaceのReply/Negotiation案件。
-したがって `Ryu Negotiation Agent` が
-`coconala.message-space.reply` と `coconala.message-space.negotiate` を使う。
-funded contractの公式readbackが出た場合だけ、別のPaid Agentが
-`coconala.talkroom.paid`を使う。message-spaceの返信とtalkroomの正式納品を同じSkillや
-同じoccurrenceに混ぜない。
-
-この命名により、platformごとに再発明するのはAdapterだけになり、Skill・Recipe・
-effect fence・receipt/readback・artifact factory・payout ledgerはLife Manager全体で共有する。
+# The Coconala loop
 
 > **Current onboarding boundary:** the Coconala package is a public beta. The public
 > Terminal command, dependency/Codex preparation, dedicated browser, official account
@@ -35,10 +9,10 @@ effect fence・receipt/readback・artifact factory・payout ledgerはLife Manage
 
 ### Product status
 
-This is the only marketplace Skill Pack currently offered as a one-command OSS public beta.
-All four business-lane Skills and their two supporting jobs are public. `gog` email onboarding
+This is the only marketplace money loop currently offered as a one-command OSS public beta.
+All four business lanes and their two supporting jobs are public. `gog` email onboarding
 has real send/inbox readback and the clean-HOME Terminal contract is verified. Upwork,
-Mercor, and other marketplace Skill Packs are not advertised as installable
+Mercor, and other marketplace loops are not advertised as installable
 OSS products yet, even where internal components exist.
 
 ### Accepted onboarding flow (external acceptance pending)
@@ -65,7 +39,7 @@ OSS products yet, even where internal components exist.
 7. Storefront imports existing listings or creates the first truthful listing when the
    official count is zero; the other lanes then operate without ordinary approval gates.
 
-From there, launchd keeps the dedicated browser and all four business-lane Skills running while
+From there, launchd keeps the dedicated browser and all four business lanes running while
 the Mac is on. The same browser profile and private session vault survive normal browser
 restarts. If Coconala expires the login, the flow reopens the official login page in that
 same profile, verifies recovery, and resumes; it never creates a replacement account.
@@ -84,14 +58,14 @@ After the code-owned OSS UX is complete, independent clean-device owners validat
 README without private coaching or copied credentials/configuration/browser/state. That
 evidence is not a current coding task and does not guarantee income or time to first sale.
 
-Four business-lane Skills run a [Coconala](https://coconala.com) seller account
+Four background jobs that run a [Coconala](https://coconala.com) seller account
 around the clock: they read the job board and apply, keep the storefront honest,
-answer buyers in message spaces before they buy, and work the orders that get
-paid for. Loop runtimes invoke these Skills on one Mac, as launchd user agents, driving one logged-in
+answer buyers who ask questions before they buy, and work the orders that get
+paid for. They run on one Mac, as launchd user agents, driving one logged-in
 browser. There is no marketplace API key or hosted service; the optional local
 semantic proxy is a private machine credential, never part of the package.
 
-Everything the Skill Pack needs is in this folder. `scripts/` is the code, `schemas/`
+Everything the loop needs is in this folder. `scripts/` is the code, `schemas/`
 the shapes it makes a model answer in, `config/` the catalogue and the job
 definitions, `agent-runner/` the engine that talks to the model, `evals/` the
 replays, `tests/` the tests.
@@ -100,7 +74,7 @@ replays, `tests/` the tests.
 |---|---|---|---|
 | apply | `ai.anicca.hf-gig-apply-direct` | 60s | Reads the public job board, proves which postings the installed AI/Mac/tool system can deliver, and submits an application with a proposal. |
 | storefront | `ai.anicca.hf-gig-storefront-direct` | 60s | Reads the seller's own listings and their view/inquiry counts, and edits the ones people look at and never contact. |
-| reply / negotiate | `ai.anicca.hf-gig-reply-detector` | continuous, 30s discovery | Watches message spaces/threads opened *before* purchase and answers the buyer's questions and estimate requests with two independent workers. |
+| negotiate | `ai.anicca.hf-gig-reply-detector` | continuous, 30s discovery | Watches talkrooms opened *before* purchase and answers the buyer's questions and estimate requests with two independent workers. |
 | paid | `ai.anicca.hf-gig-paid-direct` | 300s | Works orders that have been paid for: reads the requirement, builds or reviews the deliverable, and decides whether it is good enough to hand over. |
 
 Two more jobs support them:
