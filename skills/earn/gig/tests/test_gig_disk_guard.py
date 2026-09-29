@@ -428,7 +428,8 @@ def test_browser_script_preflights_before_profile_and_chromium_with_fixed_policy
     assert 'GIG_HOST_STATE_DIR="$HOME/.local/state/life-manager/state"' in script
     assert 'GIG_STATE_DIR="$HOME/gig"' in script
     assert 'runtime/host/browser_port_owner.py' in script
-    assert '--owner hf-gig-browser' in script
+    assert 'GIG_BROWSER_OWNER="${GIG_BROWSER_OWNER:-hf-gig-browser}"' in script
+    assert '--owner "$GIG_BROWSER_OWNER"' in script
     assert 'GIG_BROWSER_PORT_OWNED=1' in script
     assert "unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP" in script
     assert "unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR LIFE_MANAGER_HOST_STATE_DIR" in script

@@ -872,6 +872,41 @@ def test_partial_provider_pages_fail_closed(parser, text):
         parser(text)
 
 
+def test_browser_identity_resolution_returns_only_profile_owned_endpoint(tmp_path):
+    resolver = tmp_path / "resolver.py"
+    resolver.write_text(
+        "import json\n"
+        "print(json.dumps({\"identity\": \"upwork:dais\", \"profile\": \"/private/gig-upwork\","
+        " \"endpoint\": \"http://127.0.0.1:9233\", \"reachable\": True,"
+        " \"http_status\": 200, \"websocket_url_valid\": True}))\n",
+        encoding="utf-8",
+    )
+    resolved = provider.resolve_browser_identity(
+        "upwork:dais", registry=tmp_path / "browsers.toml", resolver=resolver,
+    )
+
+    assert resolved == {
+        "identity": "upwork:dais",
+        "profile": "/private/gig-upwork",
+        "endpoint": "http://127.0.0.1:9233",
+    }
+
+
+def test_browser_identity_resolution_rejects_unreachable_endpoint(tmp_path):
+    resolver = tmp_path / "resolver.py"
+    resolver.write_text(
+        "import json\n"
+        "print(json.dumps({\"identity\": \"upwork:dais\", \"reachable\": False,"
+        " \"error_class\": \"endpoint_unavailable\"}))\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="upwork_browser_identity_unavailable"):
+        provider.resolve_browser_identity(
+            "upwork:dais", registry=tmp_path / "browsers.toml", resolver=resolver,
+        )
+
+
 def test_launchd_job_is_zero_spend_and_runs_every_five_minutes(monkeypatch):
     import gig_release
 
@@ -897,13 +932,14 @@ def test_launchd_job_is_zero_spend_and_runs_every_five_minutes(monkeypatch):
     assert browser["ThrottleInterval"] == 30
     assert browser["ProcessType"] == "Interactive"
     job = jobs[upwork_index]
-    profile_index = job["program"].index("--browser-profile")
-    assert job["program"][profile_index + 1] == "{{HOME}}/.cloak/profiles/gig-upwork"
+    identity_index = job["program"].index("--browser-identity")
+    assert job["program"][identity_index + 1] == "upwork:dais"
     monkeypatch.setattr(gig_release, "OVERRIDES", Path("/nonexistent/install.json"))
     rendered_manifest, table = gig_release.settings(Path("/release"))
     rendered_browser = next(item for item in rendered_manifest["jobs"] if item["label"] == dedicated_label)
     rendered_env = gig_release.plist_for(rendered_browser, table)["EnvironmentVariables"]
-    assert rendered_env["CLOAK_CDP_BASE_URL"] == "http://127.0.0.1:9233"
+    assert rendered_env["GIG_BROWSER_OWNER"] == "upwork-revenue-browser"
+    assert rendered_env["SESSION_VAULT_DIR"] == str(Path.home() / ".cloak/vault/gig-upwork")
     assert rendered_env["CLOAK_BROWSER_LAUNCHD_LABEL"] == dedicated_label
 
     command = " ".join(job["program"]).lower()
@@ -912,7 +948,6 @@ def test_launchd_job_is_zero_spend_and_runs_every_five_minutes(monkeypatch):
     assert "upwork-candidates.public.json" in command
     assert "upwork-free-transitions.jsonl" in command
     assert all(term not in command for term in ("buy", "billing", "plus", "boost"))
-    cdp_index = job["program"].index("--cdp-base")
-    assert job["program"][cdp_index + 1] == "http://127.0.0.1:9233"
-    assert job["env"]["CLOAK_CDP_BASE_URL"] == "http://127.0.0.1:9233"
+    assert "--cdp-base" not in job["program"]
+    assert "CLOAK_CDP_BASE_URL" not in job["env"]
     assert job["env"]["CLOAK_BROWSER_LAUNCHD_LABEL"] == dedicated_label

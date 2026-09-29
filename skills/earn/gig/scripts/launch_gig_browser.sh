@@ -22,6 +22,7 @@ fi
 
 GIG_BROWSER_PORT="${GIG_BROWSER_PORT:-9223}"
 GIG_BROWSER_PROFILE="${GIG_BROWSER_PROFILE:-$HOME/.cloak/profiles/gig-daily-driver}"
+GIG_BROWSER_OWNER="${GIG_BROWSER_OWNER:-hf-gig-browser}"
 GIG_BROWSER_FINGERPRINT="${GIG_BROWSER_FINGERPRINT:-80136}"
 GIG_BROWSER_RENDERER_LIMIT="${GIG_BROWSER_RENDERER_LIMIT:-24}"
 
@@ -40,13 +41,13 @@ if [ "${GIG_BROWSER_PORT_OWNED:-0}" != 1 ]; then
       --state-dir "$GIG_BROWSER_PORT_STATE_DIR" \
       --port "$GIG_BROWSER_PORT" \
       --profile "$GIG_BROWSER_PROFILE" \
-      --owner hf-gig-browser \
+      --owner "$GIG_BROWSER_OWNER" \
       -- /usr/bin/env GIG_BROWSER_PORT_OWNED=1 "$0"
   fi
   exec /usr/bin/python3 -I "$PORT_OWNER" run \
     --port "$GIG_BROWSER_PORT" \
     --profile "$GIG_BROWSER_PROFILE" \
-    --owner hf-gig-browser \
+    --owner "$GIG_BROWSER_OWNER" \
     -- /usr/bin/env GIG_BROWSER_PORT_OWNED=1 "$0"
 fi
 mkdir -p "$GIG_BROWSER_PROFILE"
