@@ -1463,3 +1463,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - PR `#6259`は`OPEN / UNSTABLE`、`OSS self-contained boundary=FAIL`、`Loop control contracts`・security checks・Python suiteは一部pending。required checks完了・原因readback・main merge・production applyはまだない。
 
 **PR `#6259` check差分（2026-09-30 01:14 JST）**: `Python syntax + unittest`は`PASS`へ進んだが、Security Scan workflowはまだ`in_progress`。`OSS self-contained boundary`は`FAIL`のまま、`Loop control contracts`・gitleaks・TruffleHogはpendingである。投資sourceのrequired checks完了とは扱わず、Capafy等の範囲外FAILを修正せず、main merge・release・applyもしない。
+
+**PR/runtime再確認（2026-09-30 01:15 JST）**: PR `#6259`では`gitleaks=PASS`へ進んだが、`Loop control contracts`と`TruffleHog`はpending、`OSS self-contained boundary`はFAIL、Security Scan全体は`in_progress`である。runtime側の最新eventはrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`の`phase=plan`・`occurrence_id=null`であり、paper ownerのloaded natural occurrenceやprovider readbackではない。paper observationは依然としてQQQ open、`AT-13`未完、実現収益`$0/月`である。
