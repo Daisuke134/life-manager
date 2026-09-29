@@ -2753,7 +2753,7 @@ DMのcanonical UID readbackは10件を取得し、sellerは14:27・14:34・14:40
 Meta Loopのread-only manifest wakeから、candidate storeの最新recordを一件だけ読み、provider／candidate IDを再検証して共通`run_meta_loop_lifecycle`へ委譲する境界を`skills/_shared/marketplace-core/scripts/platform_manifest_cycle.py`へ追加した。wake自体は自動でowner効果を起こさず、adapterを明示注入した呼び出しだけがlifecycleへ進む。hold候補はadapterを呼ばず、promote候補だけがplanned fenceとreceipt検証を通る。
 
 - 検証済み: platform manifest cycle `8 passed`、Marketplace Core `346 passed`、compile、`git diff --check`、`lm-loop-contract ok=true`。既存のGig／runtime/loop回帰は前cursorのPASSを維持している。
-- source branch `fix/source-reconcile-20260930`の変更は未反映のsourceであり、main／production、provider owner、実資金、実収益は未変更・未確認である。
+- source branch `fix/source-reconcile-20260930`はcommit `bca6f213c0`でclean／remote同期済み。変更は未反映のsourceであり、main／production、provider owner、実資金、実収益は未変更・未確認である。
 
 ### 最終原子TODO（この節が唯一の実行順正本）
 
