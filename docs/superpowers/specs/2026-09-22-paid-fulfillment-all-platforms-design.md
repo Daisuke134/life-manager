@@ -6228,3 +6228,27 @@ retried or resent.
   `provider_receipt_id` or `official_readback_ref`; no retry or fence release
   is allowed. The next cursor is the corresponding Lancers Paid official
   history/readback, then a fresh approved occurrence-bound reconciliation.
+
+### Lancers Paid official readback — 2026-09-30 08:12 JST
+
+- [x] The Lancers Paid read-only inventory was attempted through the existing
+  adapter and existing CDP owner. Two attach attempts reached the live
+  browser boundary but returned `browser_connect_failed`; no provider write,
+  navigation effect, process restart, or fence mutation occurred.
+- [x] A separate read-only CDP probe confirms port `9227` is alive and owned
+  by `lancers-revenue-browser`, but all 42 listed Lancers page targets expose
+  the title `Human Verification` at `https://www.lancers.jp/mypage`. The
+  current owner is still the installed old release
+  `20260930T010308-3975ae89`; it was not stopped or restarted.
+- [x] The local exact occurrence
+  `lancers-revenue-paid:18d81967220136f8-89928` began at
+  `2026-09-24T00:13:02.623092Z` and ended one second later with
+  `entrypoint_exit_1`, `effect_status=unknown`. It has no provider receipt or
+  official readback binding.
+- [ ] Because the official surface is currently at Human Verification, the
+  Lancers provider history cannot be read safely. CAPTCHA/Human Verification
+  bypass is prohibited; the exact fence stays closed and no retry or
+  submission is allowed. Next action is to obtain a fresh official Lancers
+  readback after the existing account owner reaches an authenticated,
+  non-verification surface, then reconcile this exact occurrence before any
+  effect.
