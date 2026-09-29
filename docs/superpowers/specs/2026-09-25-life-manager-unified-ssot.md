@@ -205,6 +205,18 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - X3 Japanese Humanizer の $9.99 版が審査に提出される（publish-remote-status platform_status=1）
 - 監視のみ（進む条件ではない）: Hook Lab DeepSeek 版の承認と黒字化、Japanese Humanizer の承認、記事経由の注文数
 
+**値付けとモデルの方針（Dais 2026-09-29。全商品・既存も新規も最初から適用）: 安く作って高く売る。**
+- モデル: 既定は安くて十分な品質のモデル（DeepSeek V4.1 Flash 等）。Sonnet 級は使わない。例外は、同じ価格帯の売れている競合が明らかに高品質を必要とし、かつ価格でモデル代の数倍を回収できる時だけ。
+- 価格: 売れている出品者の価格をそのまま参考にし（成功者を真似る）、その上限側に置く。モデル代の数倍が入る価格にする。無料配布はしない（試用はプラン設計の無料トライアルだけ）。
+- 既存: Capafy の Sonnet 33 本は「DeepSeek 切り替え + 値上げ」を 1 本 1 回の更新にまとめ、売れている順（Slide Maker → TikTok Script Pro → Marketing Strategist → YouTube Script Writer → …）に審査枠が空き次第出す。Hook Lab は DeepSeek 版が審査中。Japanese Humanizer は $9.99 化を提出待ち。
+- 新規: 工場の既定を DeepSeek + 売れ筋の価格帯にする（既に DeepSeek 既定）。
+- 歯止め: 毎時の利益データでモデル代が売上の 30% を超えた Skill は、工場が値上げまたはモデル変更を自動で出す（最初の方針の後の安全網）。
+- 同じ方針を Writer（有料記事の価格）、Ebook（The Anicca Reset の価格・KDP 価格）、アプリ（サブスク価格）、PromptBase にも当てる。
+
+**既存商品の正しい仕組み（2026-09-29、コードで確認。新しく作ると書かない）**
+- Writer loop（`skills/writer-agent/SKILL.md`・`article-daily.sh`）: 記事そのものを売って稼ぐ。note は無料試し読み→有料 ¥500、Substack は有料購読（無料には試し読み）、aniccaai.com は preview＋paid 分割。Zenn・dev.to は全文無料の集客面。出版社・企業の有料依頼も対象。読者が実際に払った額で次のテーマを選ぶ。他商品へのリンクは追加の役割。
+- Ebook（`~/anicca-monk-factory/MASTER_PLAN.md`・`skills/earn/marketing-engine/registry/products/ebook-*.json`）: 「The Anicca Reset」（EN $10.99 aniccaai.com/monk、JA 版あり）を自社 checkout（Stripe prod_UQ2LTH66Rwict4 / prod_UQ2LrpVy4b1bAY）で販売中。Amazon KDP は `direct_live_kdp_unavailable`（KDP 認証なし）→ Ebook の TODO は KDP 接続。集客は monk factory（monk アバター動画を多数アカウント・多言語で配信、EN は HeyGen、watercolor/yangmun monk 等）。原則「配信チャネルは大量生産、商品は 4 つ（ebook・newsletter /letter /tegami・web app・iOS app）に固定」。
+
 **最後までの全体の順序（Dais 2026-09-29 確認。この版が正本）**
 ① 商品で稼ぐ（Capafy → モバイルアプリ → Writer → PromptBase → Ebooks → affiliate）→ ② 14 loop を全部 green（土台: ディスク・release 反映・fence・admission）→ ③ **meta loop**（Life Manager が自分で新しい loop を作る: 新しい platform / 商品の規約と net value を判定 → 共通 runtime 上に薄い adapter を作る → 公式 effect を canary → 通ったものだけ promote。専用の scheduler / queue は作らない。正本: `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md` の TODO #10、関連: `skills/earn/gig/TODO.md` の Coconala-to-meta-loop、`skills/earn/marketing-engine/README.md` の manifest 型 marketing loop）→ ④ 自己修復（T5）→ ⑤ 自己改善（T12。meta loop が作った loop も同じ評価器・canary・rollback で改善する）→ ⑥ loop 別の利益（T8）→ ⑦ Cloud・自己資金化（10-1・11-1・13-1・14-1）→ ⑧ 検証済み月 $10k MRR → YC W27 → AGI/UBI 研究。
 - 目標（Dais）: 全カテゴリで software factory（新商品の出荷 + 既存の改善）と共有マーケティングを回し、カテゴリごと月 $10k 以上、全体 $10M 以上。
