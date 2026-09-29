@@ -2212,3 +2212,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 最新receiptの`held_sessions=1`はこのpolicyの途中状態と一致する。したがって、現在の`HOLD`はAT-13のqualified exitではなく、strategyを変更したり手動exitを挿入したりしない。
 - 公式paper observationのclockは`observed_at=2026-09-29T17:03:08-04:00`、`is_open=false`、`next_open=2026-09-30T09:30:00-04:00`、`next_close=2026-09-30T16:00:00-04:00`である。次に判定可能なcompleted daily sessionはこの自然market sessionの終了後である。
 - このreadbackでは注文・約定・資金移動を行っていない。`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。
+
+**AT-13 official paper observation（2026-09-30 06:55 JST）**:
+
+- paper-onlyの公式read-only観測（CLI `0.0.14`）は`clock.is_open=false`、`observed_at=2026-09-29T17:55:51.231210297-04:00`、`next_open=2026-09-30T09:30:00-04:00`、`next_close=2026-09-30T16:00:00-04:00`を返した。注文mutationは行っていない。
+- accountは`status=ACTIVE`、cash `$99,986.77`、equity `$99,996.74`。QQQはlong、qty `0.013493253`、average entry `$740.37`、current `$739.09`、market value `$9.972728`、unrealized P&L `-$0.017272`で、まだopen positionである。
+- 最新decision receiptは引き続き`decision_session=2026-09-29`の`HOLD / hold_period_not_elapsed`であり、新しいqualified exit decision、exit order、fill、realized P&L、資金移動はない。`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`である。
+- `launchctl-safe print`のscheduler readbackはloaded、`StartInterval=300`、`runs=101`、`state=not running`、last exit `75: EX_TEMPFAIL`である。これは次の自然wakeを待つ状態であり、手動wake・再起動・手動sellはしない。
