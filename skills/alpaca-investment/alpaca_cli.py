@@ -434,10 +434,17 @@ def read_allocator_snapshot(
         "--direction", "asc", "--quiet", "--jq",
         "[.[]|{activity_type,date,net_amount}]",
     ], env)
-    crypto_transfers = _run(cli_path, [
-        "api", "GET", "/v2/wallets/transfers", "--quiet", "--jq",
-        "[.[]|{id,asset,usd_value,direction,status}]",
-    ], env)
+    if os.environ.get("LIFE_MANAGER_INVESTMENT_MODE") == "paper":
+        # The paper trading host exposes no wallet-transfer resource (it
+        # returns 404). Paper cash movements are already represented by the
+        # account CSD/CSW activities read above; keep the risk-day input empty
+        # instead of failing every paper wake on an unsupported read-only API.
+        crypto_transfers = []
+    else:
+        crypto_transfers = _run(cli_path, [
+            "api", "GET", "/v2/wallets/transfers", "--quiet", "--jq",
+            "[.[]|{id,asset,usd_value,direction,status}]",
+        ], env)
     trade_activities = _run(cli_path, [
         "account", "activity", "list", "--activity-types", "FILL",
         "--after", day_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
