@@ -91,6 +91,7 @@ class CoconalaReplyAdapter:
         self._contexts: dict[str, dict[str, Any]] = {}
         self._raw_threads: dict[str, dict[str, Any]] = {}
         self._receipts: dict[str, dict[str, str]] = {}
+        self._thread_urls: dict[str, str] = {}
 
     @staticmethod
     def _thread_owner(thread_id: str) -> str:
@@ -110,7 +111,13 @@ class CoconalaReplyAdapter:
                     snapshot.MESSAGES_EXPRESSION, None, hidden=False,
                 )
                 snapshot.validate_inbox_coverage(dom)
-                return snapshot.inquiries_from_dom(dom)
+                rows = snapshot.inquiries_from_dom(dom)
+                for row in rows:
+                    thread_id = str(row.get("talkroom_id") or "")
+                    browser_url = str(row.get("browser_thread_url") or "")
+                    if thread_id and browser_url:
+                        self._thread_urls[thread_id] = browser_url
+                return rows
             except snapshot.CollectorUnhealthy as error:
                 if str(error) not in transient or attempt == 1:
                     raise
@@ -136,8 +143,20 @@ class CoconalaReplyAdapter:
                 ) from error
         raise AssertionError("unreachable")
 
+    def _thread_url(self, thread_id: str) -> str:
+        candidate = self._thread_urls.get(thread_id)
+        if candidate:
+            try:
+                path = reply_browser.direct_message_path(candidate)
+            except ValueError:
+                candidate = None
+            else:
+                if path.rsplit("/", 1)[-1] == thread_id:
+                    return candidate
+        return f"https://coconala.com/mypage/direct_message/{thread_id}"
+
     def _read_thread(self, thread_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        url = f"https://coconala.com/mypage/direct_message/{thread_id}"
+        url = self._thread_url(thread_id)
         transient_read_errors = {
             "authenticated tab did not finish navigation",
             "collector_unhealthy:unexpected_title",
@@ -160,7 +179,7 @@ class CoconalaReplyAdapter:
         raise AssertionError("unreachable")
 
     def _send(self, thread_id: str, body: str, expected_event: str) -> dict[str, str]:
-        url = f"https://coconala.com/mypage/direct_message/{thread_id}"
+        url = self._thread_url(thread_id)
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
             owner=self._thread_owner(thread_id),
@@ -242,7 +261,7 @@ class CoconalaReplyAdapter:
         return self._raw_threads[thread_id]
 
     def official_application_context(self, thread_id: str) -> dict[str, Any] | None:
-        url = f"https://coconala.com/mypage/direct_message/{thread_id}"
+        url = self._thread_url(thread_id)
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
             owner=self._thread_owner(thread_id),
@@ -336,7 +355,7 @@ class CoconalaReplyAdapter:
         self, intent: Mapping[str, Any], terms: Mapping[str, Any], *, hidden: bool,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         payload = intent["payload"]
-        thread_url = f"https://coconala.com/mypage/direct_message/{intent['thread_id']}"
+        thread_url = self._thread_url(str(intent["thread_id"]))
         estimate_url = requested_estimate.sanitize_estimate_url(payload.get("_estimate_url"))
         if estimate_url is None:
             raise RuntimeError("coconala_estimate_url_invalid")
@@ -382,7 +401,7 @@ class CoconalaReplyAdapter:
             raise RuntimeError("coconala_estimate_composer_unavailable")
         payload = intent["payload"]
         semantic_terms = self._semantic_terms(payload)
-        thread_url = f"https://coconala.com/mypage/direct_message/{intent['thread_id']}"
+        thread_url = self._thread_url(str(intent["thread_id"]))
         estimate_url = requested_estimate.sanitize_estimate_url(payload.get("_estimate_url"))
         if estimate_url is None:
             raise RuntimeError("coconala_estimate_url_invalid")

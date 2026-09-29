@@ -60,6 +60,13 @@ def test_a_dead_gig_session_alerts_and_says_what_it_costs():
     assert "every Coconala application stops" in gig
 
 
+def test_a_provider_access_denial_alerts_without_claiming_login_expiry():
+    gig = _gig_block()
+    assert "GIG_DENIED" in gig
+    assert "access_denied" in gig
+    assert "provider access denied" in gig
+
+
 @pytest.mark.parametrize("url", ["https://coconala.com/mypage/dashboard"])
 def test_it_checks_a_page_that_requires_login(url):
     """A public page cannot tell logged in from logged out: Coconala sends anonymous users to /."""

@@ -36,7 +36,7 @@ ARTICLE_SELF_OWNED_LANDING_ROOT="${CAPAFY_DISTRIBUTE_LANDING_ROOT:-$HOME/.local/
 export ARTICLE_SELF_OWNED_LANDING_ROOT
 
 # Postiz: use Life Manager's own key from private/marketing.env (the same one the
-# mobile-app loops use). The legacy ~/.openclaw/.env is refused by the shared env
+# mobile-app loops use). A legacy user-level env file is refused by the shared env
 # loader ("refusing to load env file beneath a legacy runtime root", first live run
 # 2026-09-29 16:18 JST).
 if [ -z "${POSTIZ_API_KEY:-}" ]; then

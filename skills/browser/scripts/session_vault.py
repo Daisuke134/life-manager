@@ -330,6 +330,12 @@ def _logged_out_for(url, final, cookies, page_text=""):
     return redirected
 
 
+def _access_denied_for(page_text=""):
+    """Detect a provider access-denied page without treating it as credential expiry."""
+    lines = [line.strip().lower() for line in (page_text or "").splitlines() if line.strip()]
+    return bool(lines) and lines[0] in {"403 forbidden", "access denied"}
+
+
 async def _keepalive(urls):
     """Open each url in its own tab, wait for it to settle, and see where it ended up.
     A redirect to a /login or /signin URL means the server dropped the session. For
@@ -370,14 +376,23 @@ async def _keepalive(urls):
                 if "instagram.com" in url.lower():
                     cookies_res = await call("Storage.getCookies", {})
                     cookies = cookies_res.get("cookies", [])
-                page_text = ""
-                if "x.com" in url.lower():
-                    r = await call("Runtime.evaluate",
-                                   {"expression": "document.body ? document.body.innerText : ''",
-                                    "returnByValue": True}, sess=sess)
-                    page_text = r.get("result", {}).get("value", "") or ""
+                r = await call(
+                    "Runtime.evaluate",
+                    {
+                        "expression": "document.title + '\\n' + (document.body ? document.body.innerText : '')",
+                        "returnByValue": True,
+                    },
+                    sess=sess,
+                )
+                page_text = r.get("result", {}).get("value", "") or ""
                 logged_out = _logged_out_for(url, final, cookies, page_text)
-                results.append({"url": url, "final": final, "logged_out": logged_out})
+                access_denied = _access_denied_for(page_text)
+                results.append({
+                    "url": url,
+                    "final": final,
+                    "logged_out": logged_out,
+                    "access_denied": access_denied,
+                })
             finally:
                 try:
                     await call("Target.closeTarget", {"targetId": tid})
@@ -394,7 +409,13 @@ def keepalive(urls):
         return {"ok": False, "reason": "usage: keepalive <url> [url...]"}
     res = _run(_keepalive(urls))
     any_out = any(r["logged_out"] for r in res)
-    return {"ok": not any_out, "logged_out": any_out, "pages": res}
+    any_denied = any(r["access_denied"] for r in res)
+    return {
+        "ok": not any_out and not any_denied,
+        "logged_out": any_out,
+        "access_denied": any_denied,
+        "pages": res,
+    }
 
 
 # task #75 (2026-07-17): password re-login self-heal for X specifically. A keepalive-detected

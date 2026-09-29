@@ -44,6 +44,7 @@ _RECORD_TYPE_TO_SCHEMA = {
     "application_intent": "event.schema.json",
     "application_receipt": "event.schema.json",
     "contract_receipt": "event.schema.json",
+    "paid_handoff_receipt": "event.schema.json",
     "authorization_receipt": "event.schema.json",
     "qa_receipt": "event.schema.json",
     "payout_match_receipt": "event.schema.json",
@@ -137,6 +138,22 @@ class ContractReceipt:
 
 
 @dataclass(frozen=True)
+class PaidHandoffReceipt:
+    schema_version: int
+    record_type: str
+    platform: str
+    thread_external_id: str
+    contract_external_id: str
+    funding_external_id: str
+    scope_sha256: str
+    artifact_requirement_sha256: str
+    price_minor: int
+    currency: str
+    status: str
+    observed_at: str
+
+
+@dataclass(frozen=True)
 class AuthorizationReceipt:
     schema_version: int
     record_type: str
@@ -222,6 +239,7 @@ Contract = Union[
     ApplicationIntent,
     ApplicationReceipt,
     ContractReceipt,
+    PaidHandoffReceipt,
     AuthorizationReceipt,
     QAReceipt,
     PayoutMatchReceipt,
@@ -360,6 +378,7 @@ _EVENT_DEFINITION_BY_RECORD_TYPE = {
     "application_intent": "ApplicationIntent",
     "application_receipt": "ApplicationReceipt",
     "contract_receipt": "ContractReceipt",
+    "paid_handoff_receipt": "PaidHandoffReceipt",
     "authorization_receipt": "AuthorizationReceipt",
     "qa_receipt": "QAReceipt",
     "payout_match_receipt": "PayoutMatchReceipt",
@@ -524,6 +543,7 @@ _MODEL_BY_RECORD_TYPE: Dict[str, Type[Contract]] = {
     "application_intent": ApplicationIntent,
     "application_receipt": ApplicationReceipt,
     "contract_receipt": ContractReceipt,
+    "paid_handoff_receipt": PaidHandoffReceipt,
     "authorization_receipt": AuthorizationReceipt,
     "qa_receipt": QAReceipt,
     "payout_match_receipt": PayoutMatchReceipt,
@@ -582,6 +602,13 @@ def parse_contract_receipt(record: Mapping[str, Any]) -> ContractReceipt:
     parsed = parse_contract(record)
     if not isinstance(parsed, ContractReceipt):
         raise ContractValidationError(("$.record_type: expected contract_receipt",))
+    return parsed
+
+
+def parse_paid_handoff_receipt(record: Mapping[str, Any]) -> PaidHandoffReceipt:
+    parsed = parse_contract(record)
+    if not isinstance(parsed, PaidHandoffReceipt):
+        raise ContractValidationError(("$.record_type: expected paid_handoff_receipt",))
     return parsed
 
 
@@ -652,6 +679,33 @@ def validate_receipt_chain(values: Sequence[Mapping[str, object]]) -> Tuple[Cont
     return records
 
 
+def validate_paid_handoff(
+    handoff: Mapping[str, object],
+    contract: Mapping[str, object],
+) -> PaidHandoffReceipt:
+    """Validate the shared Reply/Negotiation-to-Paid boundary.
+
+    A provider adapter may emit this record only after its official funded
+    contract readback.  The caller supplies the accepted contract receipt so
+    a message thread cannot be handed to Paid under another provider or
+    contract identity.
+    """
+
+    parsed_handoff = parse_paid_handoff_receipt(handoff)
+    parsed_contract = parse_contract(contract)
+    if not isinstance(parsed_contract, ContractReceipt):
+        raise ContractValidationError(("$.contract: expected contract_receipt",))
+    errors = []
+    if parsed_handoff.platform != parsed_contract.platform:
+        errors.append("$.platform: handoff_contract_platform_mismatch")
+    if parsed_handoff.contract_external_id != parsed_contract.contract_external_id:
+        errors.append("$.contract_external_id: handoff_contract_id_mismatch")
+    if parsed_contract.status != "accepted":
+        errors.append("$.contract.status: contract_not_accepted")
+    _raise_validation(errors)
+    return parsed_handoff
+
+
 def parse_work_event(record: Mapping[str, Any]) -> WorkEvent:
     parsed = parse_contract(record)
     if not isinstance(parsed, WorkEvent):
@@ -694,6 +748,7 @@ __all__ = [
     "DeliveryIntent",
     "DeliveryReceipt",
     "Opportunity",
+    "PaidHandoffReceipt",
     "PaymentReceipt",
     "PayoutMatchReceipt",
     "QAReceipt",
@@ -713,6 +768,7 @@ __all__ = [
     "parse_qa_receipt",
     "parse_contract",
     "parse_contract_receipt",
+    "parse_paid_handoff_receipt",
     "parse_record",
     "record_to_dict",
     "schema_for_record",
@@ -721,6 +777,7 @@ __all__ = [
     "to_dict",
     "validate",
     "validate_contract",
+    "validate_paid_handoff",
     "validate_record",
     "validate_receipt_chain",
     "validator_for_record",

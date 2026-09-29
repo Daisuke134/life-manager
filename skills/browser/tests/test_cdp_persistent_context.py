@@ -200,11 +200,16 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
                 ["bash", str(ENSURE.with_name("with-browser.sh")), "buyma:test", "--",
                  "sh", "-c", 'test "$CDP" = http://127.0.0.1:54321 && '
                  'test "$CLOAK_CDP_BASE_URL" = http://127.0.0.1:54321 && '
+                 'test "$CDP_DAILY_DRIVER_PORT" = 54321 && '
+                 'test "$GIG_CDP_HEALTH_URL" = http://127.0.0.1:54321/json/version && '
+                 'test "$SESSION_VAULT_PORT" = 54321 && '
                  'test "$CLOAK_TARGET_OWNERS_FILE" = "$EXPECTED_TARGET_OWNERS"'],
                 env={**os.environ, "AI_BROWSER_GUARD": str(guard),
                      "AI_ENSURE_PROVISION_BROWSER": str(ensure),
                      "BROWSER_WAIT_SECONDS": "1", "HOME": str(root / "home"),
                      "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9223",
+                     "CDP_DAILY_DRIVER_PORT": "9223",
+                     "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9223/json/version",
                      "CLOAK_TARGET_OWNERS_FILE": str(root / "outer-loop-targets.json"),
                      "EXPECTED_TARGET_OWNERS": str(target_owners)},
                 capture_output=True, text=True, check=False, timeout=15,

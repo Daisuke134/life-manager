@@ -91,6 +91,16 @@ def test_non_instagram_domain_redirected_to_login_is_logged_out():
     assert sv._logged_out_for(url, final, cookies) is True
 
 
+def test_provider_403_is_access_denied_not_logged_out():
+    """A Coconala 403 must not be mistaken for a healthy authenticated page or a dead login."""
+    url = "https://coconala.com/mypage/dashboard"
+    final = url
+    page_text = "403 Forbidden\n403 Forbidden"
+
+    assert sv._logged_out_for(url, final, [], page_text) is False
+    assert sv._access_denied_for(page_text) is True
+
+
 def test_instagram_sessionid_on_wrong_domain_does_not_count():
     """A sessionid cookie scoped to a different domain must not satisfy the instagram check."""
     url = "https://www.instagram.com/"

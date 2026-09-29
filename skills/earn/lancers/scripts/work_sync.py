@@ -44,6 +44,7 @@ _SAFE_RUNTIME_FAILURES = {
     "browser_connect_failed",
     "browser_page_unavailable",
     "cleanup_failed",
+    "human_verification_required",
     "observer_unavailable",
 }
 
@@ -388,10 +389,12 @@ def _verified_proposals(state_path: Path) -> set[str]:
 
 def _fetch(page: Any, path: str) -> Any:
     value = page.evaluate(
-        """async (path) => { const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000); try { const response = await fetch(path, {method: "GET", credentials: "same-origin", signal: controller.signal}); const text = await response.text(); return response.ok && text.length <= 1048576 ? {ok: true, body: JSON.parse(text)} : {ok: false}; } catch (_) { return {ok: false}; } finally { clearTimeout(timer); } }""",
+        """async (path) => { const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 20000); try { const response = await fetch(path, {method: "GET", credentials: "same-origin", signal: controller.signal}); const text = await response.text(); const probe = `${document.title || ""}\n${text.slice(0, 2048)}`.toLowerCase(); const human = /human verification|verify (that )?you('re| are) human|captcha|robot check|security verification/.test(probe); if (response.ok && text.length <= 1048576) return {ok: true, body: JSON.parse(text)}; return {ok: false, error_class: human ? "human_verification_required" : null}; } catch (_) { return {ok: false}; } finally { clearTimeout(timer); } }""",
         path,
     )
     if not isinstance(value, Mapping) or value.get("ok") is not True:
+        if isinstance(value, Mapping) and value.get("error_class") == "human_verification_required":
+            raise SourceFailure("human_verification_required")
         raise SourceFailure("provider_response_invalid")
     return value.get("body")
 
@@ -792,10 +795,12 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
 
 
 def _worker_exit_code(result: Mapping[str, Any]) -> int:
-    if not result.get("ok") and result.get("error") == "browser_attach_busy":
+    if not result.get("ok") and result.get("error") in {
+        "browser_attach_busy", "human_verification_required",
+    }:
         # Transient, no-effect: the shared CDP attach lock timed out. exit 75
-        # (not 1) tells the runtime this is a retryable admission condition,
-        # not a hard failure.
+        # (not 1) tells the runtime this is a retryable provider-observation
+        # boundary, not a hard failure or a provider mutation.
         return 75
     return 0 if result.get("ok") else 1
 

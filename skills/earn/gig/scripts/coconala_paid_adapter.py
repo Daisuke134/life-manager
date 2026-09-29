@@ -10,12 +10,28 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import time
 from typing import Any, Callable, Mapping
 
 
 HERE = Path(__file__).resolve().parent
+
+
+def _load_shared(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("coconala_paid_handoff_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_PAID_HANDOFF = _load_shared(
+    "coconala_shared_paid_handoff",
+    HERE.parents[2] / "_shared/marketplace-core/scripts/paid_handoff.py",
+)
 
 
 class CoconalaPaidInventoryWait(RuntimeError):
@@ -49,8 +65,13 @@ class CoconalaPaidAdapter:
     def _normalize(self, source: Mapping[str, Any]) -> dict[str, Any]:
         required = {
             "work_id": source.get("talkroom_id"),
-            "latest_event_id": source.get("buyer_feedback_sha256"),
-            "provider_state": source.get("talkroom_state") or source.get("transaction_state"),
+            # The orders-only inventory is intentionally shallow.  It has no
+            # buyer-message digest until the targeted readback, so use the
+            # official snapshot timestamp only for the pre-targeted identity.
+            # ``observe_one`` replaces it with buyer_feedback_sha256 when the
+            # talkroom evidence is available.
+            "latest_event_id": source.get("buyer_feedback_sha256") or source.get("snapshot_captured_at"),
+            "provider_state": source.get("talkroom_state") or source.get("transaction_state") or source.get("status") or "unknown",
             "observed_at": source.get("talkroom_observed_at") or source.get("snapshot_captured_at"),
         }
         if not all(isinstance(value, str) and value.strip() for value in required.values()):
@@ -100,6 +121,78 @@ class CoconalaPaidAdapter:
         if not isinstance(value, Mapping):
             raise RuntimeError("coconala_paid_context_unavailable")
         return dict(value)
+
+    def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Map Coconala's official order readback to the shared Paid boundary.
+
+        Coconala does not expose a separate funding object in the received-order
+        snapshot.  The provider's structured order card, active transaction state,
+        and targeted talkroom evidence together are the funding readback.  The
+        deterministic ``order:<contract_id>`` reference preserves that mapping
+        without pretending it is a second provider receipt.
+        """
+        if not isinstance(context, Mapping):
+            raise RuntimeError("coconala_paid_handoff_unavailable")
+        source = self._item(work_id)
+        facts = dict(source)
+        # Official refreshed fields win over derived preparation context.  Context
+        # may add local, hash-bound scope/requirements that the targeted snapshot
+        # does not carry, but it cannot change the provider's funding facts.
+        for key, value in context.items():
+            if key not in facts or facts[key] in (None, ""):
+                facts[key] = value
+
+        room = facts.get("talkroom_id")
+        contract_id = facts.get("contract_id")
+        state = facts.get("talkroom_state") or facts.get("transaction_state")
+        price_source = facts.get("price_source")
+        price = facts.get("price_jpy")
+        observed_at = facts.get("talkroom_observed_at") or facts.get("observed_at")
+        terms_sha256 = facts.get("talkroom_evidence_sha256")
+        scope_sha256 = facts.get("scope_sha256") or facts.get("buyer_feedback_sha256")
+        artifact_requirement_sha256 = (
+            facts.get("artifact_requirement_sha256") or facts.get("requirements_sha256")
+        )
+        if (
+            not isinstance(room, str) or room.strip() != work_id.strip()
+            or not isinstance(contract_id, str) or not contract_id.strip()
+            or state not in {"取引中", "納品確認待ち"}
+            or not isinstance(price_source, str) or not price_source.startswith("structured")
+            or type(price) is not int or price < 1
+            or not isinstance(observed_at, str) or not observed_at.strip()
+            or not isinstance(terms_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", terms_sha256)
+            or not isinstance(scope_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", scope_sha256)
+            or not isinstance(artifact_requirement_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", artifact_requirement_sha256)
+        ):
+            raise RuntimeError("coconala_paid_handoff_unavailable")
+
+        contract_id = contract_id.strip()
+        application_id = facts.get("application_external_id") or facts.get("request_id")
+        if not isinstance(application_id, str) or not application_id.strip():
+            application_id = f"direct-order:{contract_id}"
+        funding_id = facts.get("funding_external_id")
+        if not isinstance(funding_id, str) or not funding_id.strip():
+            funding_id = f"order:{contract_id}"
+        try:
+            return _PAID_HANDOFF.build_paid_handoff(
+                platform="coconala",
+                application_external_id=application_id.strip(),
+                work_external_id=work_id.strip(),
+                contract_external_id=contract_id,
+                funding_external_id=funding_id.strip(),
+                thread_external_id=room.strip(),
+                terms_sha256=terms_sha256,
+                scope_sha256=scope_sha256,
+                artifact_requirement_sha256=artifact_requirement_sha256,
+                price_minor=price,
+                currency="JPY",
+                observed_at=observed_at.strip(),
+            )
+        except _PAID_HANDOFF.PaidHandoffMappingError as error:
+            raise RuntimeError("coconala_paid_handoff_unavailable") from error
 
     def mutate(self, intent: dict[str, Any]) -> None:
         self.effect_runner(intent)
