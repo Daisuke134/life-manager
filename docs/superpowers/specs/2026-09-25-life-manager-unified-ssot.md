@@ -1361,7 +1361,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | `AT-10` | 完了 | QQQ effectのstrategy receiptを読む | 同じeffectのoutcomeに`strategy_receipt`がある。証拠はreceipt row |
 | `AT-11` | 完了 | ETF ownership stateを読む | `etf-owned-position.json`のowner、strategy、symbol、qtyが公式positionと一致。証拠はstate file |
 | `AT-12` | 完了 | natural runのcampaign結果を読む | occurrence `18d9d3576a0110a8-330` がexit `0`／pass。証拠はloop event |
-| `AT-13` | 未完（次のnatural exit待ち） | strategyが自然exitを出すまで待つ | 手動sellなしでexit decisionが出る。証拠はdecision receipt |
+| `AT-13` | 未完（次のcompleted sessionで条件評価待ち） | 次のcompleted daily sessionでstrategyのexit条件を1回評価する | `ranked_symbol_changed`または`hold_sessions_elapsed`のexit decision receiptが出る。`NO_TRADE / decision_session_consumed`は未完 |
 | `AT-14` | 未完 | exit orderを公式GETする | exit orderがterminal statusになる。証拠はbroker receipt |
 | `AT-15` | 未完 | exit後のaccountとpositionを公式GETする | QQQ qtyとcash/equityがexit receiptと一致。証拠はaccount/position readback |
 | `AT-16` | 未完 | 1 round tripのentry/exit cash flowを計算する | gross P&Lがreceiptから再計算できる。証拠はP&L row |
