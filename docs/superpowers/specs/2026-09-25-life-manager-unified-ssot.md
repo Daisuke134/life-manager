@@ -188,6 +188,11 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **Handover（2026-09-28 10:5x JST。この順が正本。新しい session はここから）**
 
+**共通 Paid 境界の実装カーソル（このbranch）**
+- 個別顧客の例外実装ではなく、`skills/_shared/marketplace-core` に provider-independent な `PaidHandoffReceipt` 契約と `validate_paid_handoff` を追加する。Reply/Negotiation の thread、accepted `ContractReceipt`、funding id、scope、artifact 要件、金額、通貨を同じ記録に束ね、provider と contract の不一致・未承諾契約・未funded statusを fail-closed にする。
+- 現在は schema / typed parser / validator / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
+- 次の順序: (1) provider-neutral Paid entrypoint でこの validator を必須化、(2) Coconala/Lancers/CrowdWorks/Mercor/Freelancer/Upwork の adapter を同じ契約へ写像、(3) 公式 receipt・replay-zero を各 provider で canary、(4) main → immutable release → label readback。
+
 進捗（2026-09-28 13:2x JST、Claude）:
 - 1 ✅ 下書き 4243672453（AI Evaluation Failure Triage Brief）は審査提出済み。公式 readback: platform_status=1、audit_status=2、is_confirmed_skills/config_keys=true、package_uploaded=true（04:08Z）。CP1 に Primary Model 欄は実在しない（model は CP2 で決まる）ため、verify_cp1_model は CP2 後と最終確認で呼ぶ（#6066・#6068〜#6070）。catalog の未公開分は DeepSeek V4.1 Flash（19件）、Claude 指定の10件は公開済み・審査中で据え置き。
 - 1 追記: Capafy `GET /agent/agents/{id}` の model は 4243672453=`deepseek/deepseek-v4.1-flash`、4813383030=`DeepSeek V4.1 Flash`（05:1xZ）。

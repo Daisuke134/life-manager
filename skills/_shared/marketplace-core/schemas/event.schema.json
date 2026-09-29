@@ -13,6 +13,9 @@
       "$ref": "#/$defs/ContractReceipt"
     },
     {
+      "$ref": "#/$defs/PaidHandoffReceipt"
+    },
+    {
       "$ref": "#/$defs/AuthorizationReceipt"
     },
     {
@@ -237,6 +240,65 @@
         },
         "terms_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "PaidHandoffReceipt": {
+      "title": "MarketplacePaidHandoffReceipt",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "platform",
+        "thread_external_id",
+        "contract_external_id",
+        "funding_external_id",
+        "scope_sha256",
+        "artifact_requirement_sha256",
+        "price_minor",
+        "currency",
+        "status",
+        "observed_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "record_type": {
+          "const": "paid_handoff_receipt"
+        },
+        "platform": {
+          "$ref": "#/$defs/platform"
+        },
+        "thread_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "contract_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "funding_external_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifact_requirement_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "price_minor": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "currency": {
+          "$ref": "#/$defs/currency"
+        },
+        "status": {
+          "const": "funded"
         },
         "observed_at": {
           "$ref": "#/$defs/timestamp"

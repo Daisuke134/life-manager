@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+import contracts as marketplace_contracts  # noqa: E402
 from contracts import (  # noqa: E402
     AuthorizationReceipt,
     ContractValidationError,
@@ -155,6 +156,108 @@ class ContractReceiptTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ContractValidationError, "payout amount"):
             validate_receipt_chain(chain)
+
+    def test_paid_handoff_requires_funded_contract_identity(self):
+        contract = {
+            "schema_version": 1,
+            "record_type": "contract_receipt",
+            "platform": "coconala",
+            "application_external_id": "application-123",
+            "work_external_id": "work-123",
+            "contract_external_id": "contract-456",
+            "status": "accepted",
+            "terms_sha256": "a" * 64,
+            "observed_at": "2026-08-26T07:00:00Z",
+        }
+        handoff = {
+            "schema_version": 1,
+            "record_type": "paid_handoff_receipt",
+            "platform": "coconala",
+            "thread_external_id": "thread-789",
+            "contract_external_id": "contract-456",
+            "funding_external_id": "milestone-001",
+            "scope_sha256": "b" * 64,
+            "artifact_requirement_sha256": "c" * 64,
+            "price_minor": 50000,
+            "currency": "JPY",
+            "status": "funded",
+            "observed_at": "2026-08-26T07:05:00Z",
+        }
+
+        parsed = marketplace_contracts.validate_paid_handoff(handoff, contract)
+
+        self.assertEqual(type(parsed).__name__, "PaidHandoffReceipt")
+        self.assertEqual(parsed.thread_external_id, "thread-789")
+
+        missing_funding = copy.deepcopy(handoff)
+        del missing_funding["funding_external_id"]
+        with self.assertRaisesRegex(ContractValidationError, "funding_external_id"):
+            marketplace_contracts.parse_paid_handoff_receipt(missing_funding)
+
+        invalid_status = copy.deepcopy(handoff)
+        invalid_status["status"] = "negotiating"
+        with self.assertRaisesRegex(ContractValidationError, r"status: const_mismatch"):
+            marketplace_contracts.parse_paid_handoff_receipt(invalid_status)
+
+    def test_paid_handoff_rejects_contract_identity_mismatch(self):
+        contract = {
+            "schema_version": 1,
+            "record_type": "contract_receipt",
+            "platform": "lancers",
+            "application_external_id": "application-123",
+            "work_external_id": "work-123",
+            "contract_external_id": "contract-456",
+            "status": "accepted",
+            "terms_sha256": "a" * 64,
+            "observed_at": "2026-08-26T07:00:00Z",
+        }
+        handoff = {
+            "schema_version": 1,
+            "record_type": "paid_handoff_receipt",
+            "platform": "coconala",
+            "thread_external_id": "thread-789",
+            "contract_external_id": "contract-456",
+            "funding_external_id": "milestone-001",
+            "scope_sha256": "b" * 64,
+            "artifact_requirement_sha256": "c" * 64,
+            "price_minor": 50000,
+            "currency": "JPY",
+            "status": "funded",
+            "observed_at": "2026-08-26T07:05:00Z",
+        }
+
+        with self.assertRaisesRegex(ContractValidationError, "platform"):
+            marketplace_contracts.validate_paid_handoff(handoff, contract)
+
+    def test_paid_handoff_rejects_contract_without_accepted_status(self):
+        contract = {
+            "schema_version": 1,
+            "record_type": "contract_receipt",
+            "platform": "coconala",
+            "application_external_id": "application-123",
+            "work_external_id": "work-123",
+            "contract_external_id": "contract-456",
+            "status": "offered",
+            "terms_sha256": "a" * 64,
+            "observed_at": "2026-08-26T07:00:00Z",
+        }
+        handoff = {
+            "schema_version": 1,
+            "record_type": "paid_handoff_receipt",
+            "platform": "coconala",
+            "thread_external_id": "thread-789",
+            "contract_external_id": "contract-456",
+            "funding_external_id": "milestone-001",
+            "scope_sha256": "b" * 64,
+            "artifact_requirement_sha256": "c" * 64,
+            "price_minor": 50000,
+            "currency": "JPY",
+            "status": "funded",
+            "observed_at": "2026-08-26T07:05:00Z",
+        }
+
+        with self.assertRaisesRegex(ContractValidationError, "contract_not_accepted"):
+            marketplace_contracts.validate_paid_handoff(handoff, contract)
 
 
 if __name__ == "__main__":
