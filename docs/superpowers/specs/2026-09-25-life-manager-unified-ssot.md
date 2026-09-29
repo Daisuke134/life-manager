@@ -2066,6 +2066,12 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 自動retry `alpaca-investment-paper:18d9e19d41bd1e58-90016` は04:33 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。schedulerは`runs=64`、直近exit `0`である。
 - 新しいdecision receipt `76fb114bc5c5672d77195275a2c24430e62903ce78ad1cd269b33ec50287b4c4`は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit order／exit fill／provider receiptはない。`AT-13`は未完、実現投資収益は`$0/月`である。
 
+**AT-13最新natural pass readback（2026-09-30 04:39 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9e1e835403368-98244` は`exit_code=0`、`status=pass`、`next_action=none`で終端した。schedulerはloaded、`runs=65`、直近exit `0`である。
+- decision receipt `3928ad77c4101fc401c1d3c7042c12634fc293020f32b06126b53c29bd889a84`は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`である。QQQはopen、exit order／exit fill／provider receiptはない。
+- これは自然運転継続の証拠であり、qualified exitや実現利益の証拠ではない。`AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。
+
 **AT-13公式paper clock readback（2026-09-30 04:05 JST）**:
 
 - 公式paper observationのclockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、`next_open=2026-09-30T09:30:00-04:00`（22:30 JST）である。したがって現在は、`2026-09-29`のcompleted daily sessionがまだ確定する前である。
