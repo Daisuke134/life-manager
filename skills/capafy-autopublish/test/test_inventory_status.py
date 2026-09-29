@@ -528,3 +528,72 @@ def test_fresh_skill_outranks_draft_resume_when_a_slot_is_free() -> None:
 
     assert module.allocate_action(free, [], [fresh], resumable_drafts=[draft])["action"] == "create_fresh"
     assert module.allocate_action(full, [], [fresh], resumable_drafts=[draft])["action"] == "resume_draft"
+
+
+def test_allocator_retries_lm_generated_stub_draft_at_full_cap() -> None:
+    # 2026-09-29 measured: draft 4973250899 "Customer Renewal Evidence Brief (LM
+    # generated -- please review and edit before saving)" sat occupied at
+    # CAP_FULL forever because nothing title-matched the AI-generator's suffix.
+    # stub_retries reuses the SAME agent_id, so -- like resumable_drafts -- it
+    # must proceed even when all five slots are occupied.
+    module = load_module()
+    normalized = {"readable": True, "counts": {"occupied": 5}}
+    stub = {
+        "agent_id": "4973250899",
+        "title": "Customer Renewal Evidence Brief",
+        "feature": "catalog:customer-renewal-evidence-brief",
+        "icon": "/catalog/customer-renewal-evidence-brief/icon.png",
+        "listing": "/catalog/customer-renewal-evidence-brief/LISTING.md",
+        "skill": "/catalog/customer-renewal-evidence-brief/SKILL.md",
+        "source": "repo_catalog",
+    }
+
+    retried = module.allocate_action(normalized, [], [], stub_retries=[stub])
+
+    assert retried["verdict"] == "PUBLISHABLE"
+    assert retried["action"] == "retry_existing"
+    assert retried["action_key"] == "retry:4973250899"
+    assert retried["item"] == stub
+
+    blocked = module.allocate_action(normalized, [], [])
+    assert blocked == {"verdict": "CAP_FULL", "occupied": 5}
+
+
+def test_lm_generated_stub_draft_is_retried_end_to_end(monkeypatch, tmp_path, capsys) -> None:
+    # End-to-end via main(): a real repo_catalog title with a draft agent whose
+    # name carries Capafy's AI-generator suffix must resolve to retry_existing
+    # on that exact agent_id, even with all five slots occupied.
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    # Every catalog item carrying UPDATE.json needs its target Agent present and
+    # unchanged, or main() fails closed with SERVER_UNREADABLE (by design: an
+    # update target that vanished/moved must never be silently skipped).
+    update_rows = [
+        agent(item["update_request"]["agent_id"], "online", name=item["title"],
+              latestAgentVersionId=item["update_request"]["from_version_id"])
+        for item in module.ready_inventory() if item.get("update_request")
+    ]
+    stub_name = "Customer Renewal Evidence Brief" + module.PLACEHOLDER_SUFFIX
+    rows = [agent("4973250899", "draft", name=stub_name)] + [
+        agent(str(i), "under_review") for i in range(4)
+    ] + update_rows
+    monkeypatch.setattr(module, "server_agents", lambda: rows)
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+
+    assert decision["verdict"] == "PUBLISHABLE"
+    assert decision["action"] == "retry_existing"
+    assert decision["item"]["agent_id"] == "4973250899"
+    assert decision["item"]["title"] == "Customer Renewal Evidence Brief"
+
+    # An unrelated LM-generated stub (no matching repo title) must NOT be touched.
+    monkeypatch.setattr(module, "server_agents", lambda: [
+        agent("999", "draft", name="Totally Unrelated Idea" + module.PLACEHOLDER_SUFFIX),
+        *[agent(str(i), "under_review") for i in range(4)],
+        *update_rows,
+    ])
+    module.main()
+    untouched = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert untouched["verdict"] == "CAP_FULL"
