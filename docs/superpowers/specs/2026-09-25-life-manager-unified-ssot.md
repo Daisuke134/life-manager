@@ -2638,3 +2638,21 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 6. **capacity自然run** sourceのENOSPC修正をproductionで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateをoccurrence単位で閉じる。
 7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
+## 現在の正本cursor（2026-09-30、Coconala DM公式readback式修復後）
+
+- Coconala modern DM collectorの`estimate_url`抽出式に閉じ括弧が1つ不足しており、公式readbackが`SyntaxError`で停止していた。式を修復し、JavaScript構文回帰テストを追加した。
+- 修復後、認証済みCoconala DMのcanonical UID URLをread-onlyで再取得できた。collectorは過去分を含む10件を正規化し、sellerは14:27・14:34・14:40、buyerは14:33・14:36・14:41で、最新はbuyer 14:41。今回の実行では送信・正式納品をしていない。
+- 既存のcanonical公式readback証跡は`/Users/anicca/gig/trajectory/ryu-readback-20260930/uid-ryu_dm_uid.json`。送信本文のprovider永続receiptを新規発行したわけではないため、既存の一回送信を再送しない。
+- 検証済み: Coconala/gig全suite`1580 passed`、reply adapter＋shared kernel`68 passed`、Python compile、`lm-loop-contract ok=true`、`git diff --check`。source変更はproductionへ未反映。
+
+### 最終原子TODO（この節が最新の実行順正本）
+
+1. **Ryu外部入力待ち** 管理画面の正規認証情報、相互リンク実URL／バナー、必要な新画像を推測せず取得する。無い間はhold。
+2. **Ryu管理画面readback** 専用identityでログイン後、既存修正と実データを保存し、管理画面・公開ページ・content APIを同一値で再確認する。
+3. **Ryu DM効果** provider composer・重複guard・送信後永続readback・provider receiptが同時に取れる時だけ統合本文を一度だけ送る。正式納品は押さない。receipt不足なら再送しない。
+4. **main受入** branchの全checksと外部成果証拠が揃うまでmergeしない。揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式provider readback、replay-zeroを取得する。
+6. **capacity自然run** sourceのENOSPC修正をproductionで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
