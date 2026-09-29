@@ -1682,15 +1682,16 @@ Lancersの公開WAF本文はbounded readでmarkerを型付き
 `lancers_human_verification_required`へ分類し、外部送信なしで保持する。
 統合branchの全テストはshared marketplace-core 296件、Lancers 251件、CrowdWorks
 254件がPASSし、`lm-loop-contract`も`ok=true`（registry 175、mapped 102、shared
-job IDs 0）、`git diff --check`もPASS。branchはpush前で、main・production releaseへは
-未反映である。
+job IDs 0）、`git diff --check`もPASS。branch
+`fix/source-reconcile-20260930`はremote SHA `586beba225db6dd70df2aecd0165894ade72489e`
+へpush済みで、main・production releaseへは未反映である。
 
 ### 原子TODO（現在の実行順）
 
 1. **Ryu公式readback**: 認証済みブラウザ接続が戻ったときDMをread-onlyで開く。完了条件は
    provider receipt/readback取得、または403の再現証拠保存。本文再送・正式納品ボタンは押さない。
 2. **source branchをpushする**: `fix/source-reconcile-20260930`をremoteへpushする。
-   完了条件はremote headがローカルheadと一致すること。
+   完了条件はremote headがローカルheadと一致すること。**完了**（SHA一致）。
 3. **main受入**: source branchをPR/checks経由でmainへ統合する。
    完了条件は統合後mainのfocused/full tests、`git diff --check`、`lm-loop-contract`のPASS。
 4. **immutable release**:受入済みmainからreleaseを作り、production apply ownerが空くまで待つ。
