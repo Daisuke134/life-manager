@@ -1384,7 +1384,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 `AT-22.1[n]`〜`AT-22.9[n]`は、`n=2`から`n=30`まで、前のqualified ledger rowが完成した後にだけ同じ順序で1回ずつ実行する反復テンプレートである。これは29回wakeするTodoではない。自然に完了したround tripだけを1件とし、wake回数、accepted、unrealized P&L、backtest値は数えない。
 
-**展開済みAtomic Todo正本（投資loop実行キュー、2026-09-30 JST）**:
+**展開済みAtomic Todo正本（投資loop実行キュー、2026-09-30 06:52 JST）**:
 
 ここだけが現在の実行順の正本である。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。1行は1操作、完了条件は1つ、証拠は1つ。`AT-22.1[2]`のような番号も省略せず、全29回分を展開している。
 
@@ -1685,9 +1685,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **実行規則**: cursorより後ろは先行項目が完了するまで実行しない。natural runのNO_TRADE、wake回数、accepted、unrealized P&L、backtest値はqualified round tripに数えない。`AT-24`と`AT-29`の判定が終わるまで、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は行わない。
 
-**現在cursor**: `AT-13`。最新decisionは`NO_TRADE / decision_session_consumed`でQQQはopen、したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
+**現在cursor**: `AT-13`。最新receipt `8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8` は`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、QQQはopenである。したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
 
-**現在の1件**: `AT-13`。最新receiptは同じsessionの`NO_TRADE / decision_session_consumed`で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
+**現在の1件**: `AT-13`。最新receiptは`recorded_at=2026-09-29T21:03:10.291301Z`の`HOLD / hold_period_not_elapsed`で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
 
 **収益状態**: 検証済み実現投資収益は`$0/月`。現在のQQQはpaperのopen positionであり、unrealized P&Lは利益として数えない。live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は、`AT-24`までの実測ゲートと`AT-29`のcanary判定が完了するまで行わない。
 
@@ -2146,19 +2146,30 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
 
-## 投資loop Atomic Todo正本（実行チェックリスト、2026-09-30 05:55 JST）
+## 投資loop Atomic Todoステータス索引（実行正本は完全展開行、2026-09-30 06:52 JST）
 
-この節が現在のTodoである。目標・構想・「29回wakeする」という指示ではない。各行は「1つの操作」「1つの完了条件」「1つの証拠」だけを持つ。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`は、直上の「展開済みAtomic Todo正本」に`n=2..30`の261行として個別展開済みである。
+この節は現在位置の索引であり、実行するTodoの正本は上の「展開済みAtomic Todo正本」にある。目標・構想・「29回wakeする」という指示ではない。実行行は必ず「1つの操作」「1つの完了条件」「1つの証拠」を持つ。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`という`n`付き表記は概要であり、実行単位ではない。実行対象は`AT-22.1[2]`〜`AT-22.9[30]`の261個の個別行である。
 
 ### 完了済み
 
-- [x] `AT-01`〜`AT-12` — 12個のAtomic Todoを完了。個別の証拠は直上の「展開済みAtomic Todo正本」に固定する。
+- [x] `AT-01` — PR `#6246`のrequired checksをreadbackした。証拠: required checksの成功記録。
+- [x] `AT-02` — PR `#6246`をmainへmergeした。証拠: merge SHA `96791636efd4c55f0bc5a7287d422da35ea963cd`。
+- [x] `AT-03` — merge後のrelease入力SHAを固定した。証拠: SHA `493017d36c9475e0d46c5b12733172f468b5bf05`。
+- [x] `AT-04` — 固定SHAからimmutable releaseを作成した。証拠: `/Users/anicca/loops/releases/20260930T000442-493017d3`。
+- [x] `AT-05` — `alpaca-investment-paper`へpaper owner applyを実行した。証拠: install event `02d24ef82971b0071be94b28`。
+- [x] `AT-06` — loaded SHA・argv/env・state rootをreadbackした。証拠: paper ownerのplist/readback。
+- [x] `AT-07` — natural paper wakeを1回readbackした。証拠: occurrence `18d9d3576a0110a8-330`。
+- [x] `AT-08` — 既存QQQ entry orderをAlpaca公式GETでreadbackした。証拠: filled qty `0.013493253`、平均約定 `$740.37`。
+- [x] `AT-09` — broker outcomeをstrategy effectへ照合した。証拠: effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4`。
+- [x] `AT-10` — strategy receiptを同一effectへ照合した。証拠: 同一effectのstrategy receipt。
+- [x] `AT-11` — ETF ownership stateを公式positionへ照合した。証拠: `etf-owned-position.json`。
+- [x] `AT-12` — campaign natural passをreadbackした。証拠: occurrence `18d9d3576a0110a8-330`。
 
 ### 現在の1件
 
 - [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
 
-最新receiptは`fbe76ca1df87a6638255e1785d25f09d0d0db9e7d6da7fb4b2b345561cad3372`（05:51 JST）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
+最新receiptは`8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8`（recorded at 06:03 JST）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
 
 ### 後続の原子キュー
 
