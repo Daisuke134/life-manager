@@ -175,7 +175,7 @@
   bash test/postgres/agentcore-cloud-runtime.integration.sh
   ```
 
-- [ ] **Step 3: Implement the minimum migration/store**
+- [x] **Step 3: Implement the minimum migration/store**
 
   Reuse `lm_runtime_jobs`; do not create a second queue. Store provider IDs only after validating their tenant/job binding. Use integer USD micros, never floating-point money.
 
@@ -555,8 +555,8 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A06 | waiting_provider | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0; authenticated AWS case owns payment-attempt-limit clearance |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
 | A08 | done | Tenant/runtime/profile/usage schema tests | RED: missing store/entitlement modules and migration; contracts cover cross-tenant refs, duplicate receipts, second active runtime, integer micros, RLS, and immutable usage |
-| A09 | **next** | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
-| A10 | todo | Versioned `free-v1` and `founding-pro-v1` policy | pure admission tests PASS |
+| A09 | done | Migration and durable stores | store 5/5; PostgreSQL migration replay, tenant/job FK, single lease, receipt dedupe, immutable usage, RLS, role boundary, and failed-transaction rollback PASS |
+| A10 | **next** | Versioned `free-v1` and `founding-pro-v1` policy | pure admission tests PASS |
 | A11 | todo | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
 | A12 | todo | Thin AgentCore wrapper over existing kernel | no duplicated business rule; local canonical parity PASS |
 | A13 | todo | Real AgentCore kernel parity | same approved SHA and canonical receipt/evidence hash |

@@ -94,7 +94,39 @@ if "${PSQL[@]}" -c "SET ROLE authenticated; SELECT * FROM public.lm_cloud_usage_
   echo 'FAIL authenticated usage read accepted' >&2; exit 1
 fi
 
+"${PSQL[@]}" >/dev/null <<'SQL'
+DO $$
+DECLARE
+  secured integer;
+BEGIN
+  SELECT count(*) INTO secured
+  FROM pg_class
+  WHERE relname IN (
+    'lm_plan_entitlements', 'lm_cloud_tenants', 'lm_cloud_runtime_leases',
+    'lm_cloud_browser_profiles', 'lm_cloud_usage_ledger'
+  ) AND relrowsecurity;
+  IF secured <> 5 THEN RAISE EXCEPTION 'cloud RLS contract incomplete'; END IF;
+  IF NOT has_table_privilege('service_role', 'public.lm_cloud_tenants', 'SELECT')
+     OR NOT has_table_privilege('service_role', 'public.lm_cloud_runtime_leases', 'DELETE')
+     OR NOT has_table_privilege('service_role', 'public.lm_cloud_usage_ledger', 'INSERT')
+     OR has_table_privilege('service_role', 'public.lm_cloud_usage_ledger', 'UPDATE') THEN
+    RAISE EXCEPTION 'service role cloud privilege contract invalid';
+  END IF;
+END $$;
+SQL
+
+if "${PSQL[@]}" >/dev/null 2>&1 <<'SQL'
+BEGIN;
+ALTER TABLE public.lm_runtime_jobs ADD COLUMN cloud_failed_migration_marker text;
+SELECT 1 / 0;
+COMMIT;
+SQL
+then
+  echo 'FAIL migration rollback fixture unexpectedly committed' >&2; exit 1
+fi
+[[ "$(scalar "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_runtime_jobs' AND column_name='cloud_failed_migration_marker';")" == "0" ]]
+
 [[ "$(scalar "SELECT count(*) FROM public.lm_runtime_jobs;")" == "2" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_runtime_leases;")" == "1" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_usage_ledger;")" == "1" ]]
-echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 browser_access=0'
+echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 rls=5 browser_access=0 rollback=1'

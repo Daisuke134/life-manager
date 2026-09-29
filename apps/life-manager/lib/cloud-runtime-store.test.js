@@ -10,6 +10,7 @@ const {
   buildRuntimeLease,
   buildBrowserProfile,
   buildUsageEntry,
+  saveCloudTenant,
   acquireRuntimeLease,
   saveBrowserProfile,
   recordUsage,
@@ -92,6 +93,22 @@ test("runtime lease creation is tenant/job scoped and cannot be silently rebound
   assert.deepEqual(calls[0].params.slice(0, 2), ["tenant-a", "job-a"]);
 });
 
+test("tenant mapping is one durable versioned row", async () => {
+  const tenant = buildCloudTenant({
+    tenantId: "tenant-a", region: "ap-northeast-1", releaseSha: SHA,
+    status: "active", planVersion: "free-v1",
+  });
+  const calls = [];
+  assert.deepEqual(await saveCloudTenant(tenant, {
+    query: async (sql, params) => {
+      calls.push({ sql, params });
+      return { rows: [tenant] };
+    },
+  }), tenant);
+  assert.match(calls[0].sql, /ON CONFLICT \(tenant_id\) DO UPDATE/i);
+  assert.deepEqual(calls[0].params, ["tenant-a", "ap-northeast-1", SHA, "active", "free-v1"]);
+});
+
 test("browser profile and usage writes preserve exact tenant ownership and provider idempotency", async () => {
   const profile = buildBrowserProfile({
     tenantId: "tenant-a", provider: "agentcore", profileId: "profile-a",
@@ -126,6 +143,12 @@ test("browser profile and usage writes preserve exact tenant ownership and provi
   await assert.rejects(recordUsage(usage, {
     query: async (sql) => ({ rows: /INSERT/i.test(sql) ? [] : [] }),
   }), /collision|tenant/i);
+
+  assert.equal(buildUsageEntry({
+    ...usage,
+    quantity: "10",
+    cost_usd_micros: "12267",
+  }).cost_usd_micros, 12267);
 });
 
 test("migration defines one durable cloud contract without a second job queue", () => {
@@ -138,9 +161,15 @@ test("migration defines one durable cloud contract without a second job queue", 
   ]) {
     assert.match(MIGRATION, new RegExp(`CREATE TABLE IF NOT EXISTS public\\.${table}`, "i"));
   }
-  assert.doesNotMatch(MIGRATION, /CREATE TABLE[^;]*cloud[^;]*jobs/i);
+  assert.doesNotMatch(
+    MIGRATION,
+    /CREATE TABLE IF NOT EXISTS public\.lm_cloud_(?:runtime_)?jobs\b/i,
+  );
   assert.match(MIGRATION, /FOREIGN KEY \(job_id, tenant_id\)[\s\S]*lm_runtime_jobs \(job_id, tenant_id\)/i);
-  assert.match(MIGRATION, /provider_receipt_id[^;]*UNIQUE|UNIQUE[^;]*provider_receipt_id/i);
+  assert.match(
+    MIGRATION,
+    /provider_receipt_id\s+text\s+(?:PRIMARY KEY|UNIQUE)|UNIQUE[^;]*provider_receipt_id/i,
+  );
   assert.match(MIGRATION, /ENABLE ROW LEVEL SECURITY/i);
   assert.match(MIGRATION, /runtime leases are immutable|reject_lm_cloud_usage_mutation/i);
 });
