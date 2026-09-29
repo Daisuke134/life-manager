@@ -896,7 +896,7 @@ TODO（何を・どう直すか）
 
 **投資TODOの残り（この順序が現在の正本）**:
 
-1. `runtime/loop/tests/fixtures/macos-loop-jobs.json`の投資cross-venueレコードだけをregistryと一致させ、run`36551726796`を再実行する。Capafyレコードは変更しない。
+1. [完了] `runtime/loop/tests/fixtures/macos-loop-jobs.json`の投資レコード（`alpaca-investment-live`のpriority、`investment-cross-venue-report`のeffect_reconcile）をregistryと一致させた。local focused比較で残る差分は`capafy-distribute-daily`と`capafy-loop-daily`だけであり、Capafyレコードは変更しない。
 2. PR required checksがgreenになった場合だけmainへ統合する。FAILが投資外なら`external_gate_pending`として記録し、投資sourceの次TODOは継続する。
 3. main由来immutable releaseへcross-venue adapter、occurrence binding、Alpaca reconciliation、pre-effect fence修正を載せ、Life Manager owner pathへapplyしてloaded release SHA・argv/env・admissionをreadbackする。
 4. 既存のlive/cross-venue `effect_unknown`を再送せず、公式provider receipt/readbackがあるものだけoccurrence単位でreconcileする。証拠が無いものはheldのままにする。
@@ -904,3 +904,5 @@ TODO（何を・どう直すか）
 6. fill後のentry/exit、fee、slippage、funding/borrow、gas、model costを全て含むcost-complete net P&Lを生成する。まだreal revenueとして報告しない。
 7. positiveなcost-complete natural round tripをreplay-zeroで`30/30`測定し、初めて最小capの一段階promotionを審査する。それまではBinance送金、live注文、meme coin署名、yield deposit、cap増額をしない。
 8. `30/30`後にHyperliquid、Solana/Pump.fun、yieldをshadow→paper→bounded canaryで比較し、rolling net P&Lが実測された場合だけ月次収益を報告する。
+
+**投資fixture同期後のgate状態（2026-09-29）**: branchのcanonical registry renderとfixtureは投資2行について一致した。focused `test_production_render_matches_byte_stable_fixture`はなおFAILだが、local row comparisonで残る差分は`capafy-distribute-daily`と`capafy-loop-daily`のみである。`origin/main`のregistry renderとfixtureは一致しているため、これは最新main/Capafy側のbase同期を要する外部差分であり、投資fixtureをこれ以上広げて修正しない。次はfixture/specをpush → 最新mainを再readbackして同期 → PR checksを再実行 → green時だけmergeである。
