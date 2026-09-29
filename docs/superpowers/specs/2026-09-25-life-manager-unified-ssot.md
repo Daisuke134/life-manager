@@ -2532,7 +2532,7 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 
 ## 現在の正本cursor（2026-09-30、明示platform registry一般化後）
 
-- `fix/source-reconcile-20260930`のHEADは`e80df75629`。shared `platform_manifest_cycle.py`は既存4 platformを既定値として保持しつつ、`providers=(...)`を明示指定すればUpwork／Freelancerを同じbounded cycleへ追加できる。未設定sourceはtyped `partial`、未知providerはfail-closedであり、provider mutationは呼ばない。
+- `fix/source-reconcile-20260930`のHEADはspec更新を含む`76fa4f0992`（source実装cursorは`e80df75629`）。shared `platform_manifest_cycle.py`は既存4 platformを既定値として保持しつつ、`providers=(...)`を明示指定すればUpwork／Freelancerを同じbounded cycleへ追加できる。未設定sourceはtyped `partial`、未知providerはfail-closedであり、provider mutationは呼ばない。
 - Upwork／Freelancer runtimeは個別`run_meta_loop_wake`ではなく、このshared cycleを使う。新規providerごとに独自schedulerを複製しない。
 - 検証済み: registry cycle `5 passed`、Upwork／Freelancer manifest runtime `11 passed`、全gig`1575 passed`、Marketplace Core＋runtime/loop`1137 passed (576 subtests)`、compile、contract、diff。source/runtimeの証拠であり、production apply、provider receipt、収益の証拠ではない。
 
