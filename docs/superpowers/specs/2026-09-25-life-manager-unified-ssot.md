@@ -2145,3 +2145,13 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 共有applyが終了した後のoccurrence `alpaca-investment-paper:18d9e43fec8dfa38-48276`は05:21:45 JSTに`resource_capacity_busy`（provider effect前）でdeferされたが、natural retry `alpaca-investment-paper:18d9e44ab463e428-49248`は05:22:42 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
+
+**Atomic Todo最新正本（2026-09-30 05:29 JST）**:
+
+- これは構想・目標・「29回回す」という抽象的な指示ではなく、1行=1操作、1つの完了条件、1つの証拠を持つ実行キューである。全行は上記の「展開済みAtomic Todo正本」に展開済みである。
+- 完了: `AT-01`〜`AT-12`の12行。
+- 未完: 277行。内訳は、`AT-13`〜`AT-21`の9行、`AT-22.1[2]`〜`AT-22.9[30]`の261行、`AT-23`〜`AT-29`の7行。
+- 現在cursor: `AT-13`。今実行する原子操作は「次のcompleted daily sessionのstrategy exit decision receiptを1件読む」だけである。完了条件は`reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`であること。`HOLD / hold_period_not_elapsed`、`NO_TRADE / decision_session_consumed`、wake回数、accepted、unrealized P&Lは完了にならない。
+- 最新receipt `7c2b2b696c66b1fc723fa38b8835bf219aa86c8d6bec9893d41943d84ab8b2de`（05:29 JST）は同じ`decision_session=2026-09-29`の`HOLD / hold_period_not_elapsed`、`held_sessions=1`である。よって`AT-13`未完、`AT-14`〜`AT-29`は未着手である。
+- 現在の検証済み実現投資収益は`$0/月`。QQQはpaperのopen positionであり、含み損益は収益ではない。`AT-13`完了前にexit order GET、P&L計算、Hyperliquid、Solana/Pump.fun、yield、canaryへ進まない。
+- `AT-24`と`AT-29`の判定完了までは、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額を行わない。今回のreadbackでは手動wake、注文、再送、送金、他agentのファイル変更を行っていない。
