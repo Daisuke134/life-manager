@@ -834,3 +834,5 @@ TODO（何を・どう直すか）
 **最新main同期後のPR状態**: `origin/main=dca9befebb1d4a2981b2a64b7e0dbbd9bebe0c95`を取り込み、investment HEAD `647ce19bd5`をpush済み。PR #6186の差分は投資source、投資tests、投資spec/planだけである。latest completed runのFAILは、投資外の`Loop control contracts`（`capafy-loop-daily` rendered `revenue`対fixture `critical_paid`）とOSSの`manifest_inventory_mismatch`／`forbidden_source_root`であり、投資branchでは修正しない。PR未merge、production release未適用。
 
 **公式paper readbackの現在値**: client order `lm-ai-d3935170807d46a7a5cde38e`／broker order `24cc2687-f718-4019-83f1-b5928c47525c`はQQQ buy market/day、`accepted`、`filled_qty=0`、`filled_avg_price=null`、fills/positionsなし。paper clockはclosed、account cash/equityは`$99,996.76`。同一orderは再送しない。production currentは`dca9befebb1d4a2981b2a64b7e0dbbd9bebe0c95`で、source branchの`reconciliation_pending`修正は未搭載。実現損益は`$0`であり、live資金・Binance・walletは変更なし。
+
+**最新source verification**: latest main sync後の`./bin/lm-loop-contract`は`ok=true`（catalog `14`、registry `174`、mapped `101`、shared job IDs `[]`）、投資focused suiteは`70/70 PASS`、worktreeはclean。source acceptanceは確認済みだが、PR gateの外部FAIL、main統合、immutable release、production apply、natural fill、cost-complete P&L、promotionは未完了。
