@@ -207,6 +207,11 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - Production `current` is `/Users/anicca/loops/releases/20260929T110541-1abb1ae8`, which predates the investment candidate. `alpaca-investment-paper` and `investment-cross-venue-report` return `unknown loop id`; no paper state root or provider receipt exists. The loaded live owner has only a pre-effect `resource_capacity_busy` occurrence (`exit=75`, no provider/readback receipt).
 - Candidate packaging is complete. The active cursor remains `INV-001-B`: normal Life Manager owner-path handoff, then one natural paper order/fill/account receipt; no manual wake, transfer, or live ETF order.
 
+### Owner-path readback (`2026-09-29`)
+
+- The release reconciler applied the currently loaded main release to `alpaca-investment-live` with `rc=0`; the target release had no `alpaca-investment-paper` or `investment-cross-venue-report` rows, so neither owner could produce state or a receipt.
+- The fleet run itself reported two unrelated owner-apply errors and 37 skipped owners. No provider effect was attempted for investment. The full candidate remains outside the main-release handoff until its source is accepted into the normal main path.
+
 ### Production readback after durable-receipt candidate (`2026-09-29`)
 
 - The source branch is clean and pushed at `06c1c7958d`, while `current` remains `/Users/anicca/loops/releases/20260929T102203-5a71af45`; the durable-receipt candidate is not installed.
