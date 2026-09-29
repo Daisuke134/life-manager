@@ -106,6 +106,40 @@ def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
     assert module.allocate_action(full, [], [fresh], updates=[update])["verdict"] == "CAP_FULL"
 
 
+def test_multiple_updates_pick_highest_30d_revenue_first() -> None:
+    module = load_module()
+    low = {"agent_id": "1111111111", "feature": "catalog:low-revenue", "title": "Low Revenue Agent",
+           "update_request": {"agent_id": "1111111111", "from_version_id": "v1",
+                               "target_model_id": "deepseek/deepseek-v4.1-flash"}}
+    high = {"agent_id": "2222222222", "feature": "catalog:high-revenue", "title": "High Revenue Agent",
+            "update_request": {"agent_id": "2222222222", "from_version_id": "v2",
+                                "target_model_id": "deepseek/deepseek-v4.1-flash"}}
+    free = module.normalize_agents([agent("1", "under_review")])
+    revenue_by_agent = {"1111111111": 5.0, "2222222222": 50.0}
+
+    decision = module.allocate_action(free, [], [], updates=[low, high], revenue_by_agent=revenue_by_agent)
+
+    assert decision["action"] == "update_existing"
+    assert decision["item"]["agent_id"] == "2222222222"
+
+    # No revenue data (or a tie) falls back to agent_id ascending, same as before.
+    decision_no_data = module.allocate_action(free, [], [], updates=[low, high])
+    assert decision_no_data["item"]["agent_id"] == "1111111111"
+
+
+def test_load_revenue_by_agent_reads_analytics_snapshot(tmp_path) -> None:
+    module = load_module()
+    snapshot = tmp_path / "capafy-skill-analytics.json"
+    snapshot.write_text(json.dumps({"per_skill_rows": [
+        {"agent_id": "9563867391", "stats_30d_revenue_usd": "13.98"},
+        {"agent_id": "bad", "stats_30d_revenue_usd": "not-a-number"},
+        {"not_a_dict": True},
+    ]}))
+
+    assert module.load_revenue_by_agent(str(snapshot)) == {"9563867391": 13.98}
+    assert module.load_revenue_by_agent(str(tmp_path / "missing.json")) == {}
+
+
 def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_path, capsys) -> None:
     module = load_module()
     monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
@@ -117,7 +151,7 @@ def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_pa
     others = [item for item in items
               if item.get("update_request") and item is not request]
     rows = [agent("9563867391", "online", name=request["title"],
-                  latestAgentVersionId="2070737929294868480"),
+                  latestAgentVersionId=request["update_request"]["from_version_id"]),
             *[agent(item["update_request"]["agent_id"], "online", name=item["title"],
                     latestAgentVersionId="stale-" + item["update_request"]["from_version_id"])
               for item in others],
