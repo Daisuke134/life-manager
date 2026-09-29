@@ -1,5 +1,7 @@
 # Life Manager 統合SSOT — As-Is / To-Be / TODO
 
+> **正本はこの文書 1 本だけ（Dais 2026-09-29）。** 以前の `2026-09-15-life-manager-agent-architecture-refinement.md`（全体設計・meta loop #10）、`2026-09-22-paid-fulfillment-all-platforms-design.md`（Paid）、`skills/earn/gig/TODO.md`（gig TODO）と、`docs/superpowers/specs/` のほかの spec はすべて参照用。TODO・順序・状態はここだけを更新し、他のファイルに新しい TODO を書かない。
+
 この文書は Life Manager 全体（Foundation 14ループ + Paid fulfillment）の唯一の入口。
 詳細の正本は次の2つで、この文書は両者の統合・順序・現在cursorだけを持つ。
 
