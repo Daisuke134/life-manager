@@ -785,6 +785,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 17:03 JST（UTC `08:03:08.300Z`）に同じ公式URLを再度read-only probeしたが、CDP endpoint到達後もページ`title/body=403 Forbidden`で回復していなかった。`delivery/current-cycle-v714-dm-access-denial-readback.json`へ保存し、送信・正式納品クリックは0件のまま維持した。再ログイン・旧URL迂回・重複送信はしない。
 - [x] 2026-09-29 17:08 JST（UTC `08:08:13Z`）のproduction readbackでは、`/Users/anicca/loops/current` は `/Users/anicca/loops/releases/20260929T170751-8a9f1dcb`（SHA `8a9f1dcb84…`、別main由来release）を指す。`ai.anicca.hf-gig-browser` は `active count=0`・`state=spawn scheduled`・`last exit code=78: EX_CONFIG`、CDP `9223` は未接続だった。これは今回のbranchの修正が本番反映済みという意味ではなく、RyuのDM送信経路が回復した証拠でもない。送信・正式納品クリックは0件のまま維持する。
 - [x] 2026-09-29 17:14 JST（UTC `08:14:03.929786Z`）の再readbackでは、`current` が `eada0da3`へ進んだ一方、`hf-gig-browser` は旧 `8a9f1dcb`をloaded-runningのまま保持していた。CDP `9223`は到達可能でbrowser UUIDの衝突は0だが、loop eventのloaded SHAは旧値、公式receipt/readbackはnull。これは**release drift**であり、修正branchのloaded証明ではない。証跡は `delivery/current-cycle-v717-production-release-drift-readback.json`。Ryuへの送信・正式納品クリックは0件。
+- [x] 2026-09-29 18:05 JST（UTC `09:05:53Z`）の再read-only probeでは、Coconalaのroot、受信箱、DM `10107358`、旧DM pathの全てが`title/body=403 Forbidden`を返し、入力欄0件だった。`coconala:kosuke`のbrowser UUIDは`14d6c112-60a5-48b9-8ffb-905dc32ef8aa`で到達可能だが、provider access denialのため送信は実行していない。証跡は `delivery/current-cycle-v718-dm-access-denial-readback.json`。v711 Colors側の相互リンク管理機能readbackはPASS済みで、次の安全な外部効果は公式DMが回復した後の一回送信だけである。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
