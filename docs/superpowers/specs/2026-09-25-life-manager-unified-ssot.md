@@ -1730,3 +1730,25 @@ job IDs 0）、`git diff --check`もPASS。branch
 - `/Users/anicca`の空き容量は約1.2 GiB。disk cleanupは過去のENOSPCとSparkle updater
   recovery errorを記録しているが、protected state・credentials・provider履歴の削除は
   行っていない。11 GiBは完了条件にしない。
+
+### 最新実測と実行カーソル — 2026-09-30
+
+- `origin/main` と production `current/RELEASE.json` はともに
+  `b26ab310a2083edd1bdfb477da40d9a670251a42`。これはreleaseの整合性だけを示し、各providerの納品・契約・payoutを示さない。
+- 専用branch `fix/source-reconcile-20260930` はこのmainを基点にrebase済み。reply kernelとLancers WAF分類の変更はfocused test済みだが、main統合・production loaded readbackは未完了。branchのremote push readbackが次のsource gate。
+- `bsk browsers --json` は `[]`。RyuさんDM `10107358` は `current-cycle-v723-dm-send-readback.json` に送信クリック1回と直後DOM bubble 1件がある一方、reload後の公式readbackとprovider receiptは403で未取得。本文再送・正式納品ボタン・別backend迂回はしない。
+- 現在のGig系ownerは、Coconala Apply/Storefront/Paid/Reply/Reconcile、Lancers Application/Storefront/Negotiate/Paid/Work-sync、CrowdWorks Application/Paid/Reply/Report、Mercor Application/Paid/Replyのいずれも、provider receiptまたはofficial readbackが揃っていない。`effect_unknown`、`entrypoint_exit_1`、`entrypoint_exit_75`、`resource_capacity_busy`は成功へ昇格しない。
+- `/Users/anicca`の空きは約1.2 GiB。disk-cleanupの最新receiptは`reclaimed_bytes=0`で、ログには`terminal event failed: ENOSPC`、`recovery intent append failed: ENOSPC`、`unable to open database file`、`database is locked`、`scratch`のGC失敗が残る。根因はprovider作用ではなく、容量逼迫時にloop-tmp・terminal event・recovery intent・admission DBの書込みが同じ通常領域で競合して自己観測/回復を失うこと。protected state・credentials・provider履歴は削除しない。
+
+### 原子TODO（この順序を正本とする）
+
+1. **sourceを最新mainへ固定** — branch remote headが`origin/main`を祖先に持ち、focused test・`./bin/lm-loop-contract`・`git diff --check`がPASSすること。
+2. **main受入とimmutable release** — PR/checks green後にmainへ統合し、main由来releaseを作る。完了条件は`current/RELEASE.json`、plist argv/env、loaded SHAの一致。今はproductionへ反映しない。
+3. **Ryuさんの送信を重複なく確定** — 認証済みCoconala browserが戻った時だけDMをread-onlyで再読する。provider receipt/readback取得または403再現証拠の保存で完了。送信回数は1のまま、再送・正式納品クリックは0。
+4. **Coconala各ownerをoccurrence単位で閉じる** — Apply、Storefront、Paid、Reply、Reconcileを自然terminalまで待ち、provider receipt＋official readback、または厳密なpre-effect proofを取得する。`no_pre_effect_terminal`はheldのまま解放・再送しない。
+5. **Lancers/CrowdWorks/Mercorを同じ証拠契約で閉じる** — Application、Negotiate/Reply、Paid、Storefront/Work-sync/Reportをownerごとに診断し、Human Verification・capacity・entrypoint失敗を型付きheldへ保存する。公式receiptなしの応募・返信・納品は再実行しない。Mercor browser owner参照欠落もactive registry/identity leaseまで直す。
+6. **容量自己修復を実装・検証** — ENOSPC時もeffectful ownerはfail-closed、effect-free cleanupは安全なallowlistだけを回収し、terminal event・recovery intent・admission stateをreserve付きで保存できるようにする。完了条件は再現テスト、focused test、自然runで`terminal event=0失敗`・protected deletion=0・global stop=0。
+7. **Freelancer/Upworkをfunded境界後だけ有効化** — approved terms、専用identity auth、source-complete contract/payment inventory、funded contract/milestone、mutation authorization、payout readbackの順に揃ったplatformだけowner登録する。
+8. **Meta Loopをshared kernelへ接続** — discovery scheduler、candidate durable state、policy/adapter/funded gate、isolated canary、owner provisioning、rollback、settlement、quality/P&L evaluatorを接続し、provider receipt・official readback・replay-zero・cost-complete positive net P&Lを通った改善だけを共通skill/kernelへ昇格する。
+
+**完了判定:** loopの稼働表示、source test、adapter存在、DOM表示、accepted状態、backtest、future revenueは完了・収益の証拠ではない。各外部作用は同一`occurrence_id`にprovider receiptとofficial readbackが揃った時だけverified/reconciledとする。検証済み収益は現時点で`$0`。
