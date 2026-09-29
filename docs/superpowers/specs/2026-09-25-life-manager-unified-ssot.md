@@ -1867,7 +1867,8 @@ job IDs 0）、`git diff --check`もPASS。branch
   compile、`git diff --check`をPASSした。リポジトリ全体の `python3 -m pytest -q` は、既存の
   `skills/_shared/__tests__/test_ytdlp_parse.py` がcollection時に `SystemExit(0)`するためpytest内部エラー
   で完走しない。これは今回のcandidate storeが原因ではない。
-- productionは引き続き `current/RELEASE.json=b26ab310a2083edd1bdfb477da40d9a670251a42`、
+- productionは引き続き `current/RELEASE.json=3975ae8996cab3325f514746a32c915f9935fddf`（最新main由来、
+  candidate store commit `82bed5ef56`は未反映）、
   `bsk browsers --json=[]`であり、main統合、immutable release、provider receipt、official
   readback、RyuさんDMの公式readback、実収益をこの変更は証明しない。
 
