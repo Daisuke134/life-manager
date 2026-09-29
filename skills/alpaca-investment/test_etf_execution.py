@@ -462,6 +462,7 @@ class EtfReconciliationTest(unittest.TestCase):
 
         outcomes = [row for row in rows if row.get("receipt_type") == "outcome"]
         self.assertEqual(len(outcomes), 1)
+        self.assertEqual(outcomes[0]["client_order_id"], sealed["client_order_id"])
         self.assertEqual(outcomes[0]["strategy_receipt"], strategy_receipt)
 
     def test_run_reconciliation_callback_requires_provider_fill_and_account_readback(self):

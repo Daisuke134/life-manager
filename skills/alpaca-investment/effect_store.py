@@ -297,7 +297,8 @@ def reconcile_started(
         }, ("receipt_type", "effect_id", "status"))
         outcome = {
             "broker": order, "broker_receipt_id": order.get("id"),
-            "broker_status": status, "effect_id": intent["effect_id"],
+            "broker_status": status, "client_order_id": intent["client_order_id"],
+            "effect_id": intent["effect_id"],
             "outcome": "broker_reconciled",
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
