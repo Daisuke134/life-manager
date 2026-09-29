@@ -2779,3 +2779,17 @@ Meta Loopのread-only manifest wakeから、candidate storeの最新recordを一
 4. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
 5. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 6. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
+## 現在の正本cursor（2026-09-30、Lancers read-only preflight再照合後）
+
+Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行manifest schemaが必須とする`logged_in`を欠く旧形式だった。値を推測して補完せず、manifest loaderは`account_state_invalid`として候補を作らなかった。続けて現行work-syncの`--preflight`を実行したが、1回目の公式read-only観測で`human_verification_required`（`logged_in=true`）となり、Lancersへの応募・返信・納品などのprovider効果は0だった。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式human-verification状態が解消された次の自然runで、read-only preflightを2回完了し、現行schemaの`contracts.json`を再生成する。`logged_in`を推測・手編集しない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorの各factoryを、実際のaccount-bound authorization receiptとprovider公式readbackへ接続する。registryのテストadapterやローカルreceiptは実adapter完了の証拠にしない。
+3. **未完** providerごとのcanary/readbackを閉じ、owner／rollback／settlementの公式receiptを自然runで取得する。Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract・mutation authorizationが揃うまでhold。
+4. **未完** lifecycle storeへplanned→terminalまたはrollbackをoccurrence単位で永続化し、同じcandidateのreplay-zeroを公式readbackで確認する。
+5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
