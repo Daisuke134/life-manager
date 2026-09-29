@@ -1623,3 +1623,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 後続の自然retry occurrence `alpaca-investment-paper:18d9dc34b85777e8-14267`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で起動し、`2026-09-29T17:54:39Z`（02:54 JST）に`exit_code=0`／`status=pass`／`next_action=none`で終了した。schedulerはloaded、`StartInterval=300`、`runs=34`、直近exit `0`である。
 - 最新decision receipt `42bc0db896c17440a4b8d0f0a9167f6cd0abd60b9313f0bc7cf5a334ab16e8ab`（`2026-09-29T17:54:32Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。新しいcompleted daily sessionのexit reasonではなく、exit order／exit fill／provider receiptは生成されていない。
 - `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionのexit decision receiptが出るまで、manual wake、manual sell、再送、送金はしない。
+
+**AT-13 admission retry pending readback（2026-09-30 03:00 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9dc8291e72e48-23652`は`2026-09-29T17:59:40Z`（02:59 JST）にadmission段階で`exit_code=75`、`status=blocked`、`next_action=retry_after_eligibility`、`blocker=host_admission_deferred:resource_capacity_busy`となった。`effect_identity_status=not_written`、`provider_receipt_id=null`でprovider effect前のdeferであり、注文・約定・資金移動はない。
+- `launchctl-safe print`のreadbackは`active count=0`、`state=not running`、`runs=35`、`last exit code=75: EX_TEMPFAIL`を返した。これは自然retry待ちのscheduler状態であり、投資loop停止や`AT-13`完了を意味しない。
+- このdeferでは新しいdecision receiptは生成されていない。最新decisionは`42bc0db896c17440a4b8d0f0a9167f6cd0abd60b9313f0bc7cf5a334ab16e8ab`の`NO_TRADE / decision_session_consumed`のままで、cursorは`AT-13`、実現投資収益は`$0/月`である。手動wake、手動sell、再送、送金はしない。
