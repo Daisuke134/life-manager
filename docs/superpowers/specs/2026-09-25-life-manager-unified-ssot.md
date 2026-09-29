@@ -1920,3 +1920,29 @@ job IDs 0）、`git diff --check`もPASS。branch
 4. **未完** RyuさんDM、Coconala、Lancers、CrowdWorks、Mercorのprovider receipt＋official readbackまたは
    厳密なheld理由。再送・正式納品・effect fence解放はreceiptなしで行わない。
 5. **未完** capacity自然run、Freelancer/Upworkのfunded/auth gates、canary/rollback/settlement/P&L。
+
+### 最新Meta Loop bounded discovery cycle — 2026-09-30
+
+- `fix/source-reconcile-20260930` の `ba2afed6cf` で、`run_discovery_cycle(...)` を共通
+  enrollment kernelへ追加した。sourceを注入し、各sourceを候補数上限付きでread-only実行し、
+  `evaluate_and_record_candidate`へ渡す。providerのsubmit、reply、deliver、owner登録、決済はこの
+  cycleから呼べない。
+- summaryは`inspected`、`persisted`、`duplicates`、`promoted`、`held`、candidateごとの
+  `next_actions`を返す。source取得・iteration失敗は`partial`、`error_class`、
+  `retry_source_read_only`として記録し、他sourceの安全な候補処理を継続する。上限超過、不正source、
+  不正candidateは`EnrollmentError`でfail-closedにする。
+- replay実測を含むenrollmentテスト20件、Marketplace Core全体311件、`lm-loop-contract ok=true`
+  （catalog 14、registry 176、mapped 102、shared job IDs 0）、compile、diff checkをPASSした。
+  branch local/remoteは`ba2afed6cf`で一致し、main/productionへは未反映である。
+
+### 原子TODO（bounded discovery cycle後）
+
+1. **完了** candidate評価→durable store→bounded discovery cycle。read-only source失敗、上限、
+   duplicate、hold/promote、next actionが型付きで観測できる。
+2. **未完** 実platformの既存discover/fetch adapterをこのcycleへread-onlyで接続する。最初は
+   Coconala/Lancers/CrowdWorks/Mercorの既存観測経路から1つずつadapter contractへ写像し、候補metadata・
+   snapshot hash・evidence refsを欠落なく渡す。外部mutationは接続しない。
+3. **未完** main受入・immutable release・loaded SHA readback。source PASSだけでproduction完了と数えない。
+4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたはheld理由。
+5. **未完** capacity自然run、Freelancer/Upwork funded/auth gates、isolated canary、rollback、
+   settlement、cost-complete P&L。
