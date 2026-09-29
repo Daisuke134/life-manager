@@ -1454,3 +1454,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 公式order／FILL／CFEE readback、execution quote、deterministic ETF model cost、cost-complete net P&Lのfocused implementationは、投資adapter suite `254/254`、`./bin/lm-loop-contract`（`ok=true`、catalog `14`、registry `175`、mapped `102`、shared job IDs `0`）、`git diff --check`をPASSした。
 - PRはrequired checks待ちで、main merge・immutable release・production applyは未実施である。したがってこのsource候補は`AT-17`〜`AT-19`の将来実測を可能にする準備であり、現在のpaper P&L・実現収益・`AT-13`完了を意味しない。
 - PR `#6259`のSecurity Scan workflowはhead SHA `d0dcb53a72b22805528152e3d77d6a213212d327`で`in_progress`。`OSS self-contained boundary`は先行表示で`fail`、その他required checksはpending/passが混在しているが、workflow未完了で失敗ログを取得できないため原因・所有者は未確定である。投資laneからCapafy等の範囲外修正はせず、mergeもしない。
+
+**AT-13再確認（2026-09-30 01:13 JST）**:
+
+- 01:13 JST時点の最新natural occurrenceは`alpaca-investment-paper:18d9d6ac160977a8-40637`、release SHA `b26ab310a2083edd1bdfb477da40d9a670251a42`、`exit_code=0`、`status=pass`、`provider_receipt_id=null`である。直前のadmission deferはprovider effect前であり、新規注文ではない。
+- 最新decision receipt（16:12:58Z）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、exit orderなし。QQQは`qty=0.013493253`でopenのままなので、`AT-13`は未完である。
+- 最新公式paper observation（16:12:56Z）はcash `$99,986.77`、equity `$99,996.71`、QQQ current `$736.99`、market value `$9.944393`、unrealized P&L `-$0.045607`。これはpaper含み損益であり、実現収益ではない。
+- PR `#6259`は`OPEN / UNSTABLE`、`OSS self-contained boundary=FAIL`、`Loop control contracts`・security checks・Python suiteは一部pending。required checks完了・原因readback・main merge・production applyはまだない。
