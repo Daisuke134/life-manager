@@ -17,9 +17,12 @@ the Hosted Key section above is already saved/collapsed (idempotent: it is
 independent of the hosted-key step and is a no-op if already correct).
 
 Usage: drive_checkpoint2.py <CP2_review_url>
-Requires: CloakBrowser daemon on CDP :9222 (never close it), CAPAFY_HOST_OPENROUTER_KEY in env.
+Requires: the shared CloakBrowser identity `coconala:kosuke` (registry:
+~/.config/ai/registry/browsers.toml) LEASED via skills/browser/with-browser.sh
+(never probe a hardcoded port directly), plus CAPAFY_HOST_OPENROUTER_KEY in env.
 CAPAFY_ACCESS_TOKEN in env is required only to verify CAPAFY_DISPLAY_MODEL.
-Exit 0 + prints VERIFIED on success; exit 1 on failure (fail-closed).
+Exit 0 + prints VERIFIED on success; exit 1 on failure (fail-closed); exit 75
+if the browser identity is not leased (retryable).
 """
 import math
 import os, sys, time, json, urllib.request
@@ -79,21 +82,42 @@ def _target_url_key(url):
     return (parts.scheme.lower(), parts.netloc.lower(), parts.path, query)
 
 
+# The identity coconala:kosuke banks the Capafy seller session (registry:
+# ~/.config/ai/registry/browsers.toml).
+CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "coconala:kosuke").strip() or "coconala:kosuke"
+
+
 def _detect_cdp():
-    """CDP port drifts (observed 9222 -> 9223) — auto-detect instead of trusting
-    a hardcoded port (self-fix-capafy-loop, 2026-07-21)."""
-    override = os.environ.get("CP1_CDP_URL")
-    if override:
-        return _validate_cdp_base(override)
-    for port in (9222, 9223):
-        url = f"http://localhost:{port}"
-        try:
-            with urllib.request.urlopen(f"{url}/json/version", timeout=2) as r:
-                if r.status == 200:
-                    return url
-        except Exception:
-            continue
-    return "http://localhost:9222"
+    """Resolve the CDP endpoint ONLY from an already-leased identity.
+
+    Never probes hardcoded ports (9222/9223): the 2026-07-26 incident was
+    exactly that — :9222 turned out to be a proxy onto the SAME browser as
+    production :9223 (identical CDP UUID). A shared browser must be leased
+    first via skills/browser/with-browser.sh, which resolves the identity's
+    real endpoint and exports it as CLOAK_CDP_BASE_URL/CDP. CP1_CDP_URL is
+    kept for a caller that already resolved its own explicit leased endpoint.
+    Returns None (never a guessed port) if nothing is set.
+    """
+    for var in ("CP1_CDP_URL", "CLOAK_CDP_BASE_URL", "CDP"):
+        value = os.environ.get(var, "").strip()
+        if value:
+            return _validate_cdp_base(value)
+    return None
+
+
+def _require_cdp():
+    """Fail closed (exit 75, retryable) instead of guessing a port."""
+    cdp = _detect_cdp()
+    if cdp is None:
+        print(json.dumps({
+            "error": "capafy_browser_not_leased", "retryable": True,
+            "identity": CAPAFY_BROWSER_IDENTITY,
+            "detail": ("no leased CDP endpoint in env (CP1_CDP_URL/CLOAK_CDP_BASE_URL/CDP). "
+                       f"Run under skills/browser/with-browser.sh {CAPAFY_BROWSER_IDENTITY} -- "
+                       "...; refuses to probe 9222/9223 directly."),
+        }, ensure_ascii=False))
+        sys.exit(75)
+    return cdp
 
 
 def _load_playwright():
@@ -1344,7 +1368,7 @@ def main():
     if not key:
         print("ERR: CAPAFY_HOST_OPENROUTER_KEY missing"); sys.exit(1)
 
-    cdp = _detect_cdp()
+    cdp = _require_cdp()
     transport = os.environ.get("CP2_TRANSPORT", "raw").strip().lower()
     if transport != "playwright":
         try:
