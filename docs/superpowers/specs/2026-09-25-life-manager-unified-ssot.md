@@ -190,11 +190,11 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 
 **共通 Paid 境界の実装カーソル（このbranch）**
 - 個別顧客の例外実装ではなく、`skills/_shared/marketplace-core` に provider-independent な `PaidHandoffReceipt` 契約と `validate_paid_handoff` を追加する。Reply/Negotiation の thread、accepted `ContractReceipt`、funding id、scope、artifact 要件、金額、通貨を同じ記録に束ね、provider と contract の不一致・未承諾契約・未funded statusを fail-closed にする。
-- 共通 `paid_kernel` に `--require-paid-handoff` / `require_paid_handoff=True` の必須ゲートを追加した。必須モードではhookを持たないadapter、未承諾contract、invalid handoffはeffect=0で止まり、valid proofはmutation前にintentへ保存する。既存production adapterはまだflag未移行である。
+- 共通 `paid_kernel` に `--require-paid-handoff` / `require_paid_handoff=True` の必須ゲートを追加した。必須モードではhookを持たないadapter、未承諾contract、invalid handoffはeffect=0で止まり、valid proofはmutation前にintentへ保存する。Lancers/CrowdWorksのowner配線はこのbranchに追加済みだが、production releaseへの適用はまだである。
 - `accept` は仮払い前の契約承諾なのでfunded handoffの対象外とし、`answer` / `submit` / `formal_delivery` / `cancel`だけをfunded必須mutationとして扱う。これにより「採用承諾 → 仮払い → Paid納品」の段階を共通kernelで表現できる。
 - Coconala adapter (`skills/earn/gig/scripts/coconala_paid_adapter.py`) は、orders-only の初回snapshotから targeted talkroom readbackへ更新し、構造化価格・取引状態・talkroom証跡・要件digestが揃った場合だけ `ContractReceipt` / `PaidHandoffReceipt` を生成する。fundingまたはscope証跡が欠けた場合は `coconala_paid_handoff_unavailable` で止まる。これはadapter境界の実装であり、`hf-gig-paid-direct` のproduction ownerを共通kernelへ切り替えた証明ではない。
-- Lancers adapter (`skills/earn/lancers/scripts/paid_adapter.py`) は、公式detailの `provider_state=funded`、固定金額、terms digest、buyer threadを同じcanonical receiptへ写像する。仮払い未確認・曖昧な金額・terms digest欠落は `lancers_paid_handoff_unavailable` で止まる。現時点ではLancers ownerへの `--require-paid-handoff`適用はまだ行っていない。
-- CrowdWorks adapter (`skills/earn/crowdworks/scripts/paid_adapter.py`) は、公式contract bodyから一意の固定報酬額とterms digestを読み、milestone/form/document要件とbuyer threadをcanonical receiptへ写像する。時間単価・範囲価格・価格/terms欠落は `crowdworks_paid_handoff_unavailable` で止まる。現時点ではCrowdWorks ownerへの `--require-paid-handoff`適用はまだ行っていない。
+- Lancers adapter (`skills/earn/lancers/scripts/paid_adapter.py`) は、公式detailの `provider_state=funded`、固定金額、terms digest、buyer threadを同じcanonical receiptへ写像する。仮払い未確認・曖昧な金額・terms digest欠落は `lancers_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
+- CrowdWorks adapter (`skills/earn/crowdworks/scripts/paid_adapter.py`) は、公式contract bodyから一意の固定報酬額とterms digestを読み、milestone/form/document要件とbuyer threadをcanonical receiptへ写像する。時間単価・範囲価格・価格/terms欠落は `crowdworks_paid_handoff_unavailable` で止まる。Paid ownerには `--require-paid-handoff` を配線済みだが、immutable releaseへの適用と公式canaryは未完了。
 - Mercor adapter (`skills/earn/mercor/scripts/paid_adapter.py`) は、契約の `active` / `contracted` 状態やタイトルからfundingを推測しない。公式snapshotに明示された正規化 `paid_handoff`（funding、固定金額、通貨、terms/scope/artifact digest、buyer thread、観測時刻）が全て揃った時だけcanonical receiptへ写像し、欠ければ `mercor_paid_handoff_unavailable` で止まる。現行snapshotにはその証跡が無いため、Mercor mutationはまだhuman-requiredのままである。
 - 現在は schema / typed parser / validator / kernel gate / Coconala・Lancers・CrowdWorks・Mercor のadapter境界 / focused tests まで。まだ main merge、immutable release、production apply/readback はしていない。provider adapter が公式 funded readback 後にこの記録を出すことが次の接続条件。
 - 次の順序: (1) provider-neutral Paid entrypoint でこの validator を必須化、(2) Coconala/Lancers/CrowdWorks/Mercor/Freelancer/Upwork の adapter を同じ契約へ写像、(3) 公式 receipt・replay-zero を各 provider で canary、(4) main → immutable release → label readback。
@@ -635,11 +635,15 @@ TODO（何を・どう直すか）
   - [ ] 7-4b `storefront_pre_effect_reconcile.py` が `runtime_event_shape_invalid` で拒否する。原因: storefront の wake は、前の occurrence の report を次の wake の run_id で出すので、run_id で探すと別 occurrence の pass を拾う。terminal を occurrence_id で探すように直す
 - [ ] 7-5 Coconala Apply の occurrence `hf-gig-apply-direct:18d88651ee0bf088-46308`（effect_unknown）を公式 readback で閉じる。`hf-gig-apply-reconcile` は毎回 `one_to_one_occurrence_intent_mapping_not_present` で何もしない（2026-09-27 実測）。occurrence と intent の対応付けを直す
 - [~] 7-6 CrowdWorks の fence: reply 562件中497件、application 14件中13件を公式 readback で閉じた（lm-crowdworks）。残り: application 1（本物の応募）、Paid 4、reply 67、report 1
+  - [x] 7-6f Paid ownerに共通 `--require-paid-handoff` を配線し、funded receipt無しのmutationをkernelでfail-closedにした。
+  - [ ] 7-6g immutable releaseへ適用し、CrowdWorks公式contractのcanary・readback・replay-zeroを確認する。
   - [ ] 7-6b reply が thread 305321876 で毎 wake `crowdworks_contract_ownership_unknown` になり、新しい fence を作り続けている。修正 PR #5967（lm-crowdworks、review 中）
   - [x] 7-6c `crowdworks-revenue-application` の停止を解除した（2026-09-27 05:2x JST）。原因は capacity ではなく、admission の `priorities.next_eligible_at=inf` が 49.7h 残っていたこと（`lm-loop stop` の後に start/resume が無い。loop は loaded + scheduled のまま）。`resume_durable` で解除し、次の run `18d8f8970e014ea8-16557` が pass（CrowdWorks job 13481330、proposal 307154814、50,000円、application_verified）。09-24 以来の CrowdWorks の応募
   - [x] 7-6d #5982（`a5c33db1`）: apply が label を bootstrap したら `resume_durable` を呼ぶ。stop 後の apply で admission が suspend のまま残る穴を閉じた（649 tests OK）。旧記述: loaded + scheduled なのに `next_eligible_at=inf` の owner を `lm-fence-reconciler` か supervisor が検知し、`resume_durable` する
   - [ ] 7-6e admission の予約の偏り: 2分間の実測で、予約が平均 6.7/8 枠を占め、実行中は平均 0.8。同じ4 owner（hf-gig-apply-reconcile、buddha-tiktok、lancers-revenue-work-sync、founder-loop-cadence）が約96%の時間予約を持っている。hf-gig-apply-reconcile は1日 2,260 occurrence（5分 cadence なら 288）。実測（2026-09-27 06:0x JST）: hf-gig-apply-reconcile は cadence 300秒なのに直近1時間で 25 run（中央値の間隔 84秒）、全部 pass で処理対象なし。release_and_reserve の dispatch（kickstart）で cadence 外に起動されている。深刻度は低い（主要な収益 owner は動いている）ので T5-G-4 の後に回す
 - [ ] 7-7 Lancers の funded inventory を確認する（現状は残高 ¥0、funded 0件）
+  - [x] 7-7a Paid ownerに共通 `--require-paid-handoff` を配線した。
+  - [ ] 7-7b funded contractが実際に存在する時に公式receipt・納品readback・replay-zeroをcanaryで確認する。
 - [ ] 7-8 Freelancer: account-bound auth → inventory → funded project
 - [ ] 7-9 Upwork: account-bound auth → inventory → funded contract
 - [ ] 7-10 Mercor: inventory を確認する（現状 $0.00）

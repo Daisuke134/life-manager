@@ -3005,6 +3005,7 @@ def test_owner_uses_shared_kernel_and_provider_adapter_state_root():
     source = OWNER.read_text(encoding="utf-8")
     assert "skills/_shared/marketplace-core/scripts/paid_kernel.py" in source
     assert "skills/earn/crowdworks/scripts/paid_adapter.py" in source
+    assert "--require-paid-handoff" in source
     assert '--state-root "$STATE_ROOT/paid"' in source
     assert '--state-path "$STATE_ROOT/paid"' in source
     assert '--max-workers 1' in source
