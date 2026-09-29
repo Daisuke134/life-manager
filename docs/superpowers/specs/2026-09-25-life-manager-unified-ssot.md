@@ -1386,7 +1386,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 ## 投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）
 
-更新確認: `2026-09-30 08:43 JST`
+更新確認: `2026-09-30 08:48 JST`
 
 ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。
 
@@ -2148,7 +2148,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
 
-## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 08:43 JST）
+## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 08:48 JST）
 
 この節は最新の状態を読むための索引であり、Todo本体ではない。実行するTodoは上の「投資loop Atomic Todo（唯一の実行正本）」にある。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`という`n`付き表記は概要であり、実行単位ではない。実行対象は`AT-22.1[2]`〜`AT-22.9[30]`の261個の個別行である。
 
@@ -2171,7 +2171,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
 
-最新receiptは`93fc3ea279d5728aeb333115c901ad03f21a658f979c313bcf7822ed281e96b1`（`recorded_at=2026-09-29T23:42:38.683499Z`、08:43 JSTにreadback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
+最新receiptは`93fc3ea279d5728aeb333115c901ad03f21a658f979c313bcf7822ed281e96b1`（`recorded_at=2026-09-29T23:42:38.683499Z`、08:48 JSTに再readback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
 
 ### 後続の原子キュー
 
@@ -2275,3 +2275,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - d336 releaseからのnatural run `18d9ef363df11508-32978`は`2026-09-29T23:42:41.565665Z`に`phase=report`、`status=pass`、`exit_code=0`、`next_action=none`で終端した。証拠: event `c914b18c041fc71a38e242c1`、`lm-loop://alpaca-investment-paper/18d9ef363df11508-32978/summary.json`。
 - decision receipt `93fc3ea279d5728aeb333115c901ad03f21a658f979c313bcf7822ed281e96b1`は`decision_session=2026-09-29`、`action=HOLD`、`reason=hold_period_not_elapsed`を返した。同一daily sessionの自然retryであり、qualified exit、exit order、fill、realized P&Lではない。
 - `AT-13`未完、`AT-14`未開始、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。手動sell・手動wake・再送・送金は行わない。
+
+**AT-13 current immutable release handoff a273（2026-09-30 08:48 JST）**:
+
+- `/Users/anicca/loops/current`は`/Users/anicca/loops/releases/20260930T084654-a2735517`を指し、`RELEASE.json`の`sha/ref=a273551707cdd14f0efb9bc2c3d477e2810d9fe2`、`provenance=ancestor-of-origin-main`、`cut_at=2026-09-29T23:47:12Z`をreadbackした。`etf_policy.py`、`effect_reconcile.py`、`paper_performance.py`はいずれも存在する。
+- 最後のnatural pass eventはd336 release `18d9ef363df11508-32978`（`2026-09-29T23:42:41.565665Z`）のままで、a273 releaseからのnatural decision receipt、provider receipt、exit orderはまだない。これはrelease handoffの確認であり、`AT-13`のqualified exitやrealized P&Lの証拠ではない。
+- `AT-13`未完、`AT-14`未開始、cursorは`AT-13`、検証済み実現投資収益は`$0/月`である。次はa273からのnatural wakeをreadbackし、手動wake・注文・送金は行わない。
