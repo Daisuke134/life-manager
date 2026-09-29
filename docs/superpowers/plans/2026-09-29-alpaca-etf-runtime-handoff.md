@@ -201,6 +201,12 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - Pushed source `06aecf16a5` was cut as sparse candidate `/Users/anicca/loops/releases/20260929T105517-06aecf16` (`pushed-not-yet-on-main`); focused paper adapter tests pass `5/5`, full Alpaca passes `225/225`, investment-core `126/126`, contract and doctor pass. `current` is unchanged at `5a71af45`.
 - Step 1b remains open: the candidate is not installed, paper owner/state is absent in production, and no natural provider paper order/fill, cost-complete P&L, wallet mutation, Binance transfer, or live ETF order exists.
 
+### Latest-main full candidate readback (`2026-09-29`)
+
+- `origin/main=1abb1ae845` was merged into the pushed investment branch at `fdf877074f`. Full candidate `/Users/anicca/loops/releases/20260929T110856-fdf87707` is `release_paths=ALL` with `provenance=pushed-not-on-main`; its four investment rows, fixed argv, paper receipt tests `5/5`, runtime contract tests `4/4`, contract `ok=true`, and doctor PASS all read back.
+- Production `current` is `/Users/anicca/loops/releases/20260929T110541-1abb1ae8`, which predates the investment candidate. `alpaca-investment-paper` and `investment-cross-venue-report` return `unknown loop id`; no paper state root or provider receipt exists. The loaded live owner has only a pre-effect `resource_capacity_busy` occurrence (`exit=75`, no provider/readback receipt).
+- Candidate packaging is complete. The active cursor remains `INV-001-B`: normal Life Manager owner-path handoff, then one natural paper order/fill/account receipt; no manual wake, transfer, or live ETF order.
+
 ### Production readback after durable-receipt candidate (`2026-09-29`)
 
 - The source branch is clean and pushed at `06c1c7958d`, while `current` remains `/Users/anicca/loops/releases/20260929T102203-5a71af45`; the durable-receipt candidate is not installed.
