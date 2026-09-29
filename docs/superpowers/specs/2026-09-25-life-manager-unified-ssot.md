@@ -1386,7 +1386,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 ## 投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）
 
-更新確認: `2026-09-30 08:17 JST`
+更新確認: `2026-09-30 08:25 JST`
 
 ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。
 
@@ -2148,7 +2148,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
 
-## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 08:17 JST）
+## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 08:25 JST）
 
 この節は最新の状態を読むための索引であり、Todo本体ではない。実行するTodoは上の「投資loop Atomic Todo（唯一の実行正本）」にある。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`という`n`付き表記は概要であり、実行単位ではない。実行対象は`AT-22.1[2]`〜`AT-22.9[30]`の261個の個別行である。
 
@@ -2171,7 +2171,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
 
-最新receiptは`8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8`（receipt recorded at 06:03 JST、08:17 JSTに再readback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
+最新receiptは`8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8`（receipt recorded at 06:03 JST、08:25 JSTに再readback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
 
 ### 後続の原子キュー
 
@@ -2227,3 +2227,11 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - paper ownerのnatural attempt `18d9ed94b0bc50c8-11580`は`2026-09-29T23:12:29.734604Z`に`phase=execute`、`effect_status=started`として開始したが、同じrunのreport event `3c297695152c7af645e5222d`（`2026-09-29T23:12:29.839143Z`）は`status=blocked`、`blocker=host_admission_deferred:resource_effect_unknown`、`effect_class=money`、`effect_status=unknown`、`release_sha=3975ae8996cab3325f514746a32c915f9935fddf`で終端した。証拠: `lm-loop://alpaca-investment-paper/18d9ed94b0bc50c8-11580/summary.json`。
 - 直前のnatural attempts `18d9ec7cad8c55b0-82507`、`18d9ecc2c033b6e0-89096`、`18d9ed08c082e580-96909`も同じprovider effect前のadmission deferを記録している。これは注文・約定・provider receipt・P&Lではなく、paper effectを安全に開始できなかったruntime境界である。
 - strategy receiptは引き続き`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`であり、`AT-13`のqualified exit条件を満たさない。cursorは`AT-13`、`AT-14`は未開始、検証済み実現投資収益は`$0/月`のままである。手動wake・手動sell・再送・送金は行わない。
+
+**AT-13 official no-order readback and fence resolution（2026-09-30 08:25 JST）**:
+
+- 旧fence対象`alpaca-investment-paper:18d9e6f9c4fff9f0-14813`に対して、Alpaca公式GETをread-onlyで実行した。`queued_at=2026-09-29T21:08:17Z`以降のordersは0件、open ordersも0件で、`verified=true`、`proof_kind=official_alpaca_no_order`、`provider_receipt_id=alpaca-orders-none-after-2026-09-29T21:08:17Z`となった。
+- 公式readbackを再検証したうえで、同じoccurrenceだけを`effect_reconcile.py`でresolveし、`ALPACA_EFFECT_RECONCILE=PASS`となった。注文送信・再送・資金移動は行っていない。
+- resolve後の`lm-loop status`は`admission_effect_unknown=false`、`admission_effect_unknown_occurrences=[]`、`stale_event=resource_effect_unknown_resolved`を返し、`pre-effect-reconcile --dry-run`も`unprovable=[]`となった。旧fenceは解消済みである。
+- 最新のstrategy receiptは依然として`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`であり、qualified exit、exit order、fill、realized P&Lはない。`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`である。
+- 最後のnatural run `18d9ee181efd0518-50127`（release `9a76dcc87dfe2e24958ef19f6a69f871df4dbef1`）はprovider effect identityを書かずに`host_admission_deferred:resource_effect_unknown`、exit `75`、`retry_after_eligibility`で終端している。これは解消済み旧fenceとは別の新しいadmission retry対象であり、provider receiptはない。
