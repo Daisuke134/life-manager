@@ -1365,3 +1365,23 @@ Capafyのmain変更に対する既存`skills/capafy-autopublish/test`は、別ag
 7. 全platformでreceipt単位のgross/net P&Lと品質を集計し、replay-zero・cost-complete net P&Lを通った改善だけをshared kernelへ昇格する。
 
 **effect fence read-only再確認（2026-09-29、外部作用なしの推論は禁止）**: production `pre-effect-reconcile --dry-run` を対象ownerごとに実行した。`hf-gig-apply-direct` は `resolved=0 / unprovable=1`、`hf-gig-storefront-direct` は `0/1`、`lancers-revenue-application` は `0/65`、`lancers-revenue-negotiate` は `0/87`、`crowdworks-revenue-application` は `0/2`、`crowdworks-revenue-paid` は `0/8`、`mercor-revenue-application` は `0/1`、`mercor-revenue-paid` は `0/1`で、全て理由は `no_pre_effect_terminal`。従って外部作用なしを証明できず、provider receipt／official readbackなしのoccurrenceをresolve・再送してはいけない。次手は同一ownerの自然wakeと公式readbackであり、手動wake・browser再起動・重複送信ではない。
+
+**最新の自己修復・観測性・収益検証（2026-09-29T13:37:04Z、旧cursorを上書き）**: source branch `fix/lm-release-boundary-20260929` のHEADは `b4f7cba5666a600db82189a2019e7b70f929804a`、同期済み`origin/main`は `0ca7da87777e2d86c180c0166997f12d598f7b46`、production `current`は `/Users/anicca/loops/releases/20260929T221805-af6e5011`。production read-only `doctor` は `ok=true`（missing/retired/unmanaged各0、registry 175）、`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 175、mapped 102、shared job IDs 0）。これはfleet契約とentrypoint整合性の証拠であり、外部providerの納品・成約・payout・収益の証拠ではない。
+
+Capafyの外部gateは、実装を短いlaneへ戻すのではなく、現行契約を誤って要求していたテストを最小修正して閉じた。`skills/capafy-autopublish/test` は修正前25件中2 failure/1 errorだったが、失敗は (a) CP1/CP2/CP3に必要な `application-lane-agent` を旧 `tool-agent` と比較、(b) PUBLISHABLE時にagent内でなくbounded drainerを直接呼ぶ新境界を旧文字列で検索、(c) 正しいcap-full文の改行を正規表現が跨げない、の3つだった。Capafy runtime/sourceは変更せず、現行の長時間browser laneとCAP_FULL no-write fenceを検証するテストへ更新した。修正後はCapafy **25/25 PASS**、`skills/earn/marketing-engine/test_capafy_loop_wiring.py` **13/13 PASS**、`git diff --check` PASS。これはsource branchのgateであり、まだmain統合・immutable release・production promotionは行っていない。
+
+自己修復の理想契約は「失敗を再試行する」ではなく、`wake → structured event → pre-effect fence → provider receipt/official readback → reconcile or hold → bounded recovery → evaluator → immutable promotion`を全platform共通kernelで実行することとする。各eventは最低でも `run_id`、`owner_id`、`occurrence_id`、`release_sha`、loaded argv/env、phase、failure layer、error_class、retryable、effect、readback、provider_receipt_id、evidence_refs、next_action`を保存する。pre-effect失敗だけを同一occurrenceでbounded retryし、effect unknownはreceipt/readbackが揃うまでheld、同一原因の反復はdead-letterとowner別escalationへ送る。`unknown`を成功・収益へ昇格しない。
+
+収益の理想契約は、各platformが `discover → qualify → propose/message → accept/funded → deliver → official readback → payout → cost-complete net P&L → quality feedback` を同じschemaで記録すること。`online`、`under_review`、`accepted`、送信DOMの表示、wake回数、research/backtest値は収益ではない。provider receipt付きpayoutと、fee・slippage・funding/borrow・gas・model costを控除したpositive net P&Lだけを実績として報告する。RyuさんのCoconala DMは統合本文を一度だけDOMへ送信した証拠があり、公式reloadは403のためreadback未完了、重複送信は禁止のまま維持する。
+
+Meta Loopの理想契約は候補発見で止めず、`candidate durable state → policy/adapter qualification → funded work → isolated canary/readback → owner provisioning → rollback → settlement → quality/P&L feedback`まで通過した新platformだけを有効化すること。現在はeffect fence、structured evidence、platform enrollment gate、bounded recoveryの基盤はあるが、全platformのprovider receipt結合、Freelancer/Upworkのfunded owner、候補stateの完全な自動昇格、横断P&Lからshared skill/kernelへ戻すevaluatorは未完了である。
+
+**残TODO（現在の成果順・正本）**:
+
+1. **branch受入を確定**: 直近のCapafy 25/25、wiring 13/13、runtime/contract既存PASSを同じcommitへ記録し、専用branchをpushする。source PASSとproduction/provider PASSを別欄で保持する。
+2. **main→immutable release**: required checksがgreenになったsourceだけをmainへ統合し、main由来immutable releaseを作成する。production `current`を切り替えた後、loaded SHA、argv/env、identity lease、natural terminalをreadbackする。
+3. **Coconalaをeffect fence付きで閉じる**: Apply/Paid/Reply/Storefrontをoccurrence単位で公式receipt/readbackまで確認する。RyuさんDMは再送せず、403回復後にread-only確認だけを行う。
+4. **Lancers/CrowdWorks/Mercorを閉じる**: entrypoint、capacity、lock、identity問題をowner単位で直し、proposal/thread/Paid/deliveryのprovider receiptとofficial readbackを取得する。`no_pre_effect_terminal`のoccurrenceはresolve・再送しない。
+5. **Freelancer/Upworkを安全に有効化**: approved terms、専用identity auth、source-complete inventory、funded contract/milestone、mutation authorization、payout readbackの順でownerを登録する。funded境界前の応募・送信を成功扱いにしない。
+6. **Meta Loopを完成**: discovery scheduler、candidate durable store、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。候補を見つけただけで自動登録しない。
+7. **横断self-improvement**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通過した変更だけをshared skill/kernelへ昇格する。receiptの無い「稼働中」は収益と報告しない。
