@@ -8,6 +8,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 CORE = ROOT.parents[1] / "apps" / "life-manager" / "investment-core"
@@ -34,7 +35,7 @@ def _risk() -> dict[str, object]:
         "risk_day_ready": True,
         "unrealized_pnl_usd": "0",
         "observed_at": NOW,
-        "ny_day": "2026-09-28",
+        "ny_day": datetime.now(ZoneInfo("America/New_York")).date().isoformat(),
     }
 
 
