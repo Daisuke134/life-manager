@@ -361,6 +361,86 @@ async function invalidateBrowserAuthSession(input, opts = {}) {
   return rows.length === 1;
 }
 
+function createAgentIdentityRefStore(opts = {}) {
+  const { query } = database(opts);
+  return Object.freeze({
+    async put(row) {
+      if (!row || row.principal_kind !== "agent_owned") invalid();
+      const rows = (await query(`
+        INSERT INTO public.lm_agent_identity_refs (
+          identity_ref, tenant_id, provider, principal_kind, kind,
+          credential_provider_name, credential_provider_arn, state
+        ) VALUES ($1,$2,$3,'agent_owned',$4,$5,$6,'active')
+        ON CONFLICT (tenant_id, provider, kind) DO UPDATE
+        SET identity_ref = EXCLUDED.identity_ref,
+            credential_provider_name = EXCLUDED.credential_provider_name,
+            credential_provider_arn = EXCLUDED.credential_provider_arn,
+            state = 'active', revoked_at = NULL
+        RETURNING identity_ref
+      `, [
+        row.identity_ref, row.tenant_id, row.provider, row.kind,
+        row.credential_provider_name, row.credential_provider_arn,
+      ])).rows;
+      if (rows.length !== 1) throw new Error("agent identity ref put lost row");
+    },
+    async read(tenantId, identityRef) {
+      const rows = (await query(`
+        SELECT identity_ref, tenant_id, provider, principal_kind, kind,
+               credential_provider_name, credential_provider_arn, state
+        FROM public.lm_agent_identity_refs
+        WHERE tenant_id = $1 AND identity_ref = $2 AND state = 'active'
+        LIMIT 1
+      `, [tenantId, identityRef])).rows;
+      if (rows.length > 1) throw new Error("agent identity ref read returned multiple rows");
+      return rows[0] || null;
+    },
+    async revoke(tenantId, identityRef) {
+      const rows = (await query(`
+        UPDATE public.lm_agent_identity_refs
+        SET state = 'revoked', revoked_at = clock_timestamp()
+        WHERE tenant_id = $1 AND identity_ref = $2 AND state = 'active'
+        RETURNING identity_ref
+      `, [tenantId, identityRef])).rows;
+      if (rows.length > 1) throw new Error("agent identity ref revoke returned multiple rows");
+      return rows.length === 1;
+    },
+    async revokeAndCloseDependents(input) {
+      const rows = (await query(`
+        WITH revoked_ref AS (
+          UPDATE public.lm_agent_identity_refs
+          SET state = 'revoked', revoked_at = clock_timestamp()
+          WHERE tenant_id = $1 AND identity_ref = $2 AND state = 'active'
+          RETURNING identity_ref
+        ), closed_jobs AS (
+          UPDATE public.lm_runtime_jobs
+          SET status = CASE
+              WHEN status = 'running' AND effect_class <> 'none' THEN 'reconciling'
+              ELSE 'dead_letter'
+            END,
+            lease_owner = NULL,
+            lease_expires_at = NULL,
+            last_error_code = $3,
+            updated_at = clock_timestamp()
+          WHERE tenant_id = $1
+            AND input_refs @> jsonb_build_object('identity_ref', $2::text)
+            AND status IN ('queued', 'running')
+            AND EXISTS (SELECT 1 FROM revoked_ref)
+          RETURNING job_id
+        ), deleted_leases AS (
+          DELETE FROM public.lm_cloud_runtime_leases
+          WHERE tenant_id = $1 AND job_id IN (SELECT job_id FROM closed_jobs)
+          RETURNING job_id
+        )
+        SELECT EXISTS(SELECT 1 FROM revoked_ref) AS revoked,
+               (SELECT count(*)::integer FROM closed_jobs) AS closed,
+               (SELECT count(*)::integer FROM deleted_leases) AS leases_deleted
+      `, [input.tenantId, input.identityRef, "AGENT_IDENTITY_REVOKED"])).rows;
+      if (rows.length !== 1) throw new Error("agent identity revoke transaction lost result");
+      return { revoked: rows[0].revoked === true, closed: Number(rows[0].closed) };
+    },
+  });
+}
+
 module.exports = {
   BROWSER_AUTH_CONTEXT_EXPIRED_CODE,
   normalizeAuthOrigin,
@@ -371,4 +451,5 @@ module.exports = {
   readBrowserAuthSession,
   upsertBrowserAuthSession,
   invalidateBrowserAuthSession,
+  createAgentIdentityRefStore,
 };

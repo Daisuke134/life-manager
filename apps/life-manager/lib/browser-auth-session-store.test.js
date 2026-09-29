@@ -13,6 +13,7 @@ const {
   readBrowserAuthSession,
   upsertBrowserAuthSession,
   invalidateBrowserAuthSession,
+  createAgentIdentityRefStore,
 } = require("./browser-auth-session-store.js");
 
 const KEY_HEX = "11".repeat(32);
@@ -362,4 +363,34 @@ test("browser auth storage reads the design runtime key and ignores the retired 
     if (priorRetiredKey === undefined) delete process.env.LM_BROWSER_AUTH_CONTEXT_KEY_HEX;
     else process.env.LM_BROWSER_AUTH_CONTEXT_KEY_HEX = priorRetiredKey;
   }
+});
+
+test("agent identity refs are tenant-bound and revocation closes dependents without secret columns", async () => {
+  const calls = [];
+  const store = createAgentIdentityRefStore({
+    query: async (sql, params) => {
+      calls.push({ sql, params });
+      if (/INSERT INTO public\.lm_agent_identity_refs/i.test(sql)) return { rows: [{ identity_ref: params[0] }] };
+      if (/SELECT identity_ref/i.test(sql)) return { rows: [{
+        identity_ref: params[1], tenant_id: params[0], provider: "api", principal_kind: "agent_owned",
+        kind: "api_key", credential_provider_name: "provider-name", credential_provider_arn: "arn:provider", state: "active",
+      }] };
+      if (/WITH revoked_ref AS/i.test(sql)) return { rows: [{ revoked: true, closed: 2, leases_deleted: 1 }] };
+      if (/UPDATE public\.lm_agent_identity_refs/i.test(sql)) return { rows: [{ identity_ref: params[1] }] };
+      throw new Error("unexpected query");
+    },
+  });
+  const row = {
+    identity_ref: "lm-identity:opaque_ref_1", tenant_id: "tenant-1", provider: "api",
+    principal_kind: "agent_owned", kind: "api_key", credential_provider_name: "provider-name",
+    credential_provider_arn: "arn:provider",
+  };
+  await store.put(row);
+  assert.equal((await store.read("tenant-1", row.identity_ref)).tenant_id, "tenant-1");
+  assert.deepEqual(await store.revokeAndCloseDependents({ tenantId: "tenant-1", identityRef: row.identity_ref }), { revoked: true, closed: 2 });
+  assert.match(calls[1].sql, /WHERE tenant_id = \$1 AND identity_ref = \$2/i);
+  assert.match(calls[2].sql, /input_refs @> jsonb_build_object\('identity_ref', \$2::text\)/i);
+  assert.match(calls[2].sql, /AGENT_IDENTITY_REVOKED|last_error_code = \$3/i);
+  assert.match(calls[2].sql, /DELETE FROM public\.lm_cloud_runtime_leases/i);
+  assert.doesNotMatch(calls.map(({ sql }) => sql).join("\n"), /api_key_value|oauth_token|client_secret/i);
 });

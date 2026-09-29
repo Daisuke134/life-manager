@@ -30,7 +30,8 @@ async function enqueueHostedGoal(input = {}, injected = {}) {
   if (tenant.paid !== true) throw new Error("hosted tenant entitlement required");
 
   const vault = await deps.secretProvider.health();
-  if (!vault || vault.ok !== true || vault.mode !== "cloud" || vault.provider !== "vault") {
+  if (!vault || vault.ok !== true || vault.mode !== "cloud"
+      || !["vault", "agentcore-identity"].includes(vault.provider)) {
     throw new Error("hosted tenant vault unavailable");
   }
   const queued = await deps.enqueueJob({
@@ -51,7 +52,7 @@ async function enqueueHostedGoal(input = {}, injected = {}) {
     tenant_id: job.tenant_id,
     job_id: job.job_id,
     job_ref: `runtime-job://${encodeURIComponent(job.tenant_id)}/${encodeURIComponent(job.job_id)}`,
-    vault_provider: "vault",
+    vault_provider: vault.provider,
   });
 }
 

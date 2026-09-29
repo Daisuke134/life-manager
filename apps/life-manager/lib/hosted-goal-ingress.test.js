@@ -113,6 +113,22 @@ test("unauthenticated unpaid cross-tenant and unhealthy-vault requests enqueue z
   }
 });
 
+test("hosted ingress accepts healthy AgentCore Identity without reading a credential", async () => {
+  const f = fixture();
+  let identityCalls = 0;
+  f.deps.secretProvider = {
+    async health() { identityCalls += 1; return { ok: true, mode: "cloud", provider: "agentcore-identity" }; },
+    async resolveRef() { throw new Error("ingress must not resolve identity values"); },
+  };
+  const result = await enqueueHostedGoal({
+    scope: { authenticated: true, tenantId: "tenant-a", chatId: "chat-a" },
+    goal: goal(),
+    nowMs: NOW_MS,
+  }, f.deps);
+  assert.equal(result.vault_provider, "agentcore-identity");
+  assert.equal(identityCalls, 1);
+});
+
 test("one hosted tenant crosses vault queue worker receipt and replay-zero", async () => {
   const f = fixture();
   const input = {
