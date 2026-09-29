@@ -1428,3 +1428,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - `skills/alpaca-investment/etf_policy.py`の実装上、保有QQQのexit条件は「126日momentumの首位銘柄がQQQでなくなる」または「`held_sessions >= 21`」の二択である。どちらも満たさない場合のactionは`HOLD`である。
 - paper stateのentry sessionは`2026-09-28`。最新receiptの`decision_session`も`2026-09-28`で、まだ新しいcompleted daily sessionのexit判定証拠ではない。したがって、同じsessionの`decision_session_consumed`をexitと取り違えず、次のcompleted sessionでstrategy decision receiptを待つ。
+
+**投資scheduler復旧readback（2026-09-30 00:48 JST）**:
+
+- `alpaca-investment-paper`のLaunchAgentは一時`state=not running`／`last exit code=78: EX_CONFIG`となっていたが、ログの実原因は`No space left on device`だった。read-only確認時の空きは約`184MiB`で、投資コードの注文失敗やprovider損失ではない。
+- 再生成可能なcache `/Users/anicca/.npm/_npx`（約`662MiB`）だけをTrashへ移動し、source pathを空にした。空きは約`1.4GiB`へ回復した。投資state、spec、worktree、Capafy stateは削除していない。
+- live ownerの`alpaca-investment-live:18d9d4b103f3a978-69433`は公式Alpaca GETでqueued後の注文なし・open orderなしを`verified=true`として証明し、`effect_reconcile.py`が`ALPACA_EFFECT_RECONCILE=PASS`を返した。これは外部注文を発生させないfence解消であり、live注文・送金は行っていない。
+- paper ownerだけをsafe kickstartし、loaded release SHA `b26ab310a2083edd1bdfb477da40d9a670251a42`、mode `paper`、owner state rootをreadbackした。新occurrence `alpaca-investment-paper:18d9d552167746a8-88671`は`exit_code=0`／`status=pass`になり、decisionは`NO_TRADE / decision_session_consumed`。scheduler実行経路は復旧したが、`AT-13`のexit条件はまだ未達である。
