@@ -302,6 +302,31 @@ class EtfReconciliationTest(unittest.TestCase):
         self.assertEqual(again["unresolved"], 0)
         self.assertEqual(callbacks[0][1]["id"], "paper-order-1")
 
+    def test_strategy_receipt_is_persisted_with_broker_outcome(self):
+        strategy_receipt = {
+            "owner_id": OWNER_ID,
+            "provider_order_id": "paper-order-1",
+            "account_readback_at": "2026-09-29T14:31:05Z",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(
+                ledger,
+                {"mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID},
+                ORDER,
+            )
+            EFFECT.mark_started(ledger, sealed)
+            EFFECT.reconcile_started(
+                ledger,
+                lambda _: PROVIDER_ORDER,
+                on_reconciled=lambda *_: strategy_receipt,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"]
+        self.assertEqual(len(outcomes), 1)
+        self.assertEqual(outcomes[0]["strategy_receipt"], strategy_receipt)
+
     def test_run_reconciliation_callback_requires_provider_fill_and_account_readback(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(
             RUN, "observe", return_value=ACCOUNT_READBACK

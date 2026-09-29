@@ -281,7 +281,7 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         cli_path = Path(os.environ.get("ALPACA_CLI", "~/.local/bin/alpaca")).expanduser()
         reconciled_observation: dict[str, dict] = {}
 
-        def on_reconciled(intent: dict, provider_order: dict) -> None:
+        def on_reconciled(intent: dict, provider_order: dict) -> dict | None:
             if intent.get("order", {}).get("asset_class") != "us_equity":
                 return
             result = _reconcile_etf_intent(
@@ -292,6 +292,10 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 state_path=state / "etf-owned-position.json",
             )
             reconciled_observation["value"] = result["observation"]
+            return {
+                "account_readback": result["observation"],
+                "receipt": result["receipt"],
+            }
 
         stage = "reconcile_started"
         reconciliation = reconcile_started(

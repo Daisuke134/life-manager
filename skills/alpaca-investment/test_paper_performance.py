@@ -17,6 +17,20 @@ OWNER = "alpaca-investment-paper"
 STRATEGY = "alpaca-etf-126d-momentum-v1"
 
 
+def _strategy_receipt(provider_order_id: str, observed_at: str, positions: list[dict]) -> dict:
+    return {
+        "account_readback": {
+            "account": {"cash": "100000", "equity": "100000"},
+            "clock": {"observed_at": observed_at},
+            "positions": positions,
+        },
+        "receipt": {
+            "owner_id": OWNER,
+            "provider_order_id": provider_order_id,
+        },
+    }
+
+
 def _rows() -> list[dict]:
     return [
         {
@@ -49,6 +63,10 @@ def _rows() -> list[dict]:
                 "filled_qty": "0.025",
                 "filled_avg_price": "400",
             },
+            "strategy_receipt": _strategy_receipt(
+                "paper-entry", "2026-09-29T14:31:05Z",
+                [{"symbol": "QQQ", "qty": "0.025"}],
+            ),
         },
         {
             "receipt_type": "effect_intent",
@@ -80,6 +98,9 @@ def _rows() -> list[dict]:
                 "filled_qty": "0.025",
                 "filled_avg_price": "410",
             },
+            "strategy_receipt": _strategy_receipt(
+                "paper-exit", "2026-10-20T14:31:05Z", [],
+            ),
         },
     ]
 
@@ -130,6 +151,17 @@ class PaperPerformanceTests(unittest.TestCase):
         self.assertEqual(result, {
             "status": "unknown",
             "reason": "paper_receipt_duplicate",
+        })
+
+    def test_missing_official_account_readback_fails_closed(self):
+        rows = _rows()
+        rows[1].pop("strategy_receipt")
+
+        result = build_paper_performance(rows, OBSERVATION, RISK)
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "paper_strategy_receipt_missing",
         })
 
     def test_write_only_writes_a_closed_paper_measurement(self):

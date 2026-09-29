@@ -146,7 +146,7 @@ def reconcile_started(
     ledger: Path,
     find_order: Callable[[str], dict[str, Any] | None],
     *,
-    on_reconciled: Callable[[dict[str, Any], dict[str, Any]], None] | None = None,
+    on_reconciled: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any] | None] | None = None,
 ) -> dict[str, int]:
     rows = _rows(ledger)
     pending = _unresolved(rows)
@@ -169,22 +169,28 @@ def reconcile_started(
                 "schema_version": 1, "status": "reconciliation_blocked",
             }, ("receipt_type", "effect_id", "status"))
             raise ValueError("reconciliation_blocked")
+        strategy_receipt = None
         if on_reconciled is not None:
             # The callback owns any additional provider/account readback needed
             # for a strategy-specific receipt.  It runs before this effect is
             # closed so a missing fill or foreign position remains retry-fenced.
-            on_reconciled(intent, order)
+            strategy_receipt = on_reconciled(intent, order)
+            if strategy_receipt is not None and not isinstance(strategy_receipt, dict):
+                raise ValueError("strategy_receipt_invalid")
         _append_once(ledger, {
             "client_order_id": intent["client_order_id"], "effect_id": intent["effect_id"],
             "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": 1, "status": "applied",
         }, ("receipt_type", "effect_id", "status"))
-        _append_once(ledger, {
+        outcome = {
             "broker": order, "effect_id": intent["effect_id"], "outcome": "broker_reconciled",
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
-        }, ("receipt_type", "effect_id"))
+        }
+        if strategy_receipt is not None:
+            outcome["strategy_receipt"] = strategy_receipt
+        _append_once(ledger, outcome, ("receipt_type", "effect_id"))
         reconciled += 1
     return {"pending": len(pending), "reconciled": reconciled,
             "unresolved": unresolved_intent_count(ledger)}

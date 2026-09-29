@@ -55,6 +55,46 @@ def _source_ids(intent: Mapping[str, Any], broker: Mapping[str, Any]) -> list[st
     return [*raw, f"alpaca-order:{provider_id}"]
 
 
+def _validate_strategy_receipt(
+    strategy_receipt: Any,
+    *,
+    broker: Mapping[str, Any],
+    side: Any,
+    symbol: Any,
+    qty: Decimal,
+) -> None:
+    if not isinstance(strategy_receipt, Mapping):
+        raise ValueError("paper_strategy_receipt_missing")
+    receipt = strategy_receipt.get("receipt")
+    readback = strategy_receipt.get("account_readback")
+    if not isinstance(receipt, Mapping) or not isinstance(readback, Mapping):
+        raise ValueError("paper_strategy_receipt_missing")
+    if receipt.get("owner_id") != OWNER_ID:
+        raise ValueError("paper_owner_invalid")
+    provider_id = receipt.get("provider_order_id", receipt.get("close_provider_order_id"))
+    if provider_id != broker.get("id"):
+        raise ValueError("paper_strategy_receipt_mismatch")
+    account = readback.get("account")
+    clock = readback.get("clock")
+    positions = readback.get("positions")
+    if not isinstance(account, Mapping) or not isinstance(clock, Mapping) \
+            or not isinstance(positions, list):
+        raise ValueError("paper_account_readback_invalid")
+    _number(account.get("cash"))
+    _number(account.get("equity"))
+    _timestamp(clock.get("observed_at"))
+    matching = [row for row in positions
+                if isinstance(row, Mapping) and row.get("symbol") == symbol]
+    if side == "buy":
+        if len(matching) != 1 or _number(matching[0].get("qty"), positive=True) != qty:
+            raise ValueError("paper_account_readback_invalid")
+    elif side == "sell":
+        if matching:
+            raise ValueError("paper_account_readback_invalid")
+    else:
+        raise ValueError("paper_order_invalid")
+
+
 def _ledger_rows(rows: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
         raise ValueError("paper_ledger_invalid")
@@ -103,7 +143,9 @@ def _closed_round_trips(
     source_ids: list[str] = []
     seen_source_ids: set[str] = set()
     completed: list[dict[str, Any]] = []
-    events: list[tuple[datetime, dict[str, Any], dict[str, Any], Mapping[str, Any]]] = []
+    events: list[tuple[
+        datetime, dict[str, Any], dict[str, Any], Mapping[str, Any], Mapping[str, Any]
+    ]] = []
 
     for intent in intents:
         effect_id = intent["effect_id"]
@@ -122,17 +164,26 @@ def _closed_round_trips(
                 or broker.get("side") != intent.get("order", {}).get("side")):
             raise ValueError("paper_fill_invalid")
         timestamp = _timestamp(outcome.get("recorded_at"))
+        try:
+            filled_qty = _number(broker.get("filled_qty"), positive=True)
+        except ValueError as error:
+            raise ValueError("paper_fill_invalid") from error
+        _validate_strategy_receipt(
+            outcome.get("strategy_receipt"), broker=broker,
+            side=intent.get("order", {}).get("side"),
+            symbol=intent.get("order", {}).get("symbol"), qty=filled_qty,
+        )
         ids = _source_ids(intent, broker)
         for receipt_id in ids:
             if receipt_id in seen_source_ids:
                 raise ValueError("paper_receipt_duplicate")
             seen_source_ids.add(receipt_id)
             source_ids.append(receipt_id)
-        events.append((timestamp, intent, outcome, broker))
+        events.append((timestamp, intent, outcome, broker, outcome["strategy_receipt"]))
 
     events.sort(key=lambda item: item[0])
     open_positions: dict[str, dict[str, Any]] = {}
-    for _timestamp_value, intent, _outcome, broker in events:
+    for _timestamp_value, intent, _outcome, broker, _strategy_receipt in events:
         order = intent["order"]
         symbol = order.get("symbol")
         if not isinstance(symbol, str) or not symbol:
