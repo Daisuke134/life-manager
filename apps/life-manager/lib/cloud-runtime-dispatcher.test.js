@@ -126,6 +126,11 @@ test("production wiring reads current rows then atomically claims the job and te
     runtimeArn: "arn:aws:bedrock-agentcore:ap-northeast-1:000000000000:runtime/life-manager",
     leaseOwner: "dispatcher-production",
     requestedCostUsdMicros: 20_000,
+    costLedger: {
+      async reserve(input) { calls.push(["reserve", input]); return { decision: "allow", reservation_ref: "lm-cost:reservation-a" }; },
+      async settle(input) { calls.push(["settle", input]); return { status: "settled", actual_cost_usd_micros: 7 }; },
+      async release(input) { calls.push(["release", input]); return { released: true }; },
+    },
     async query(sql, params) {
       calls.push(["sql", sql, params]);
       if (/FROM public\.lm_cloud_tenants/i.test(sql)) return { rows: [TENANT] };
@@ -153,7 +158,7 @@ test("production wiring reads current rows then atomically claims the job and te
     async awsInvoke(command) {
       calls.push(["aws", command]);
       return {
-        response: { status: "completed" },
+        response: { status: "completed", usage: [{ cost_usd_micros: 7 }] },
         provider_request_id: "provider-request-a",
       };
     },
@@ -162,7 +167,7 @@ test("production wiring reads current rows then atomically claims the job and te
   const result = await dispatcher.dispatch(EVENT);
 
   assert.equal(result.disposition, "completed");
-  assert.deepEqual(calls.map(([kind]) => kind), ["sql", "sql", "sql", "sql", "sql", "aws"]);
+  assert.deepEqual(calls.map(([kind]) => kind), ["sql", "sql", "sql", "reserve", "sql", "aws", "settle"]);
   const claimSql = calls[4][1];
   assert.match(claimSql, /WITH claimed_job AS[\s\S]*UPDATE public\.lm_runtime_jobs/i);
   assert.match(claimSql, /INSERT INTO public\.lm_cloud_runtime_leases/i);
@@ -192,6 +197,11 @@ test("an expired no-effect claim resumes from the same checkpoint with a new att
     runtimeArn: "arn:aws:bedrock-agentcore:ap-northeast-1:000000000000:runtime/life-manager",
     leaseOwner: "dispatcher-recovery",
     requestedCostUsdMicros: 20_000,
+    costLedger: {
+      async reserve() { return { decision: "allow", reservation_ref: `lm-cost:attempt-${job.attempt + 1}` }; },
+      async settle(input) { return input.usage ? { status: "settled" } : { status: "reconciling" }; },
+      async release() { return { released: true }; },
+    },
     async query(sql, params) {
       if (/FROM public\.lm_cloud_tenants/i.test(sql)) return { rows: [TENANT] };
       if (/recover_lm_cloud_runtime_leases/i.test(sql)) {
@@ -237,7 +247,7 @@ test("an expired no-effect claim resumes from the same checkpoint with a new att
         throw Object.assign(new Error("worker died after claim"), { accepted: true });
       }
       return {
-        response: { status: "completed" },
+        response: { status: "completed", usage: [{ cost_usd_micros: 7 }] },
         provider_request_id: "provider-request-recovered",
       };
     },

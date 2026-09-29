@@ -6,6 +6,7 @@ const {
 } = require("./agentcore-runtime-client.js");
 const { decideAdmission } = require("./cloud-entitlement.js");
 const { validateRuntimeRequest } = require("./agentcore-runtime-envelope.js");
+const { createCloudCostLedger, createPostgresCloudCostStore } = require("./cloud-cost-ledger.js");
 
 const EVENT_FIELDS = Object.freeze(["tenant_id", "job_id"]);
 const RELEASE_SHA = /^[a-f0-9]{40}$/;
@@ -85,19 +86,30 @@ function createCloudRuntimeDispatcher(options = {}) {
       if (!Number.isSafeInteger(job.attempt) || job.attempt < 1 || !job.wake_id) {
         throw new Error("cloud runtime job attempt identity invalid");
       }
-      const budget = await deps.readBudget({ ...lookup, plan_version: tenant.plan_version });
-      const admission = deps.decideAdmission({
-        planVersion: tenant.plan_version,
-        tenantStatus: tenant.status,
-        manualHold: tenant.status === "manual_hold",
-        settledCostUsdMicros: budget.settledCostUsdMicros,
-        reservedCostUsdMicros: budget.reservedCostUsdMicros,
-        requestedCostUsdMicros: deps.requestedCostUsdMicros,
-        activationCreditRemainingUsdMicros: budget.activationCreditRemainingUsdMicros,
-      });
+      let reservation = null;
+      let admission;
+      if (deps.costLedger) {
+        admission = await deps.costLedger.reserve({
+          tenantId: id.tenantId, jobId: id.jobId, attempt: job.attempt,
+          planVersion: tenant.plan_version, tenantStatus: tenant.status,
+          estimatedMaxUsdMicros: deps.requestedCostUsdMicros,
+        });
+      } else {
+        const budget = await deps.readBudget({ ...lookup, plan_version: tenant.plan_version });
+        admission = deps.decideAdmission({
+          planVersion: tenant.plan_version,
+          tenantStatus: tenant.status,
+          manualHold: tenant.status === "manual_hold",
+          settledCostUsdMicros: budget.settledCostUsdMicros,
+          reservedCostUsdMicros: budget.reservedCostUsdMicros,
+          requestedCostUsdMicros: deps.requestedCostUsdMicros,
+          activationCreditRemainingUsdMicros: budget.activationCreditRemainingUsdMicros,
+        });
+      }
       if (!admission || admission.decision !== "allow") {
         return Object.freeze({ disposition: admission && admission.decision || "policy_denied" });
       }
+      if (deps.costLedger) reservation = admission;
       const sessionId = runtimeSessionId({
         tenantId: id.tenantId,
         jobId: id.jobId,
@@ -127,9 +139,10 @@ function createCloudRuntimeDispatcher(options = {}) {
         generation: job.attempt,
       });
       if (!claim || claim.acquired !== true) {
+        if (reservation) await deps.costLedger.release({ tenantId: id.tenantId, reservationRef: reservation.reservation_ref });
         return Object.freeze({ disposition: "duplicate" });
       }
-      return deps.runtimeClient.invoke({
+      const invoked = await deps.runtimeClient.invoke({
         runtimeArn: deps.runtimeArn,
         runtimeSessionId: sessionId,
         tenantId: id.tenantId,
@@ -138,6 +151,20 @@ function createCloudRuntimeDispatcher(options = {}) {
         releaseSha: deps.releaseSha,
         request,
       });
+      if (!reservation) return invoked;
+      if (invoked.disposition === "retry") {
+        await deps.costLedger.release({ tenantId: id.tenantId, reservationRef: reservation.reservation_ref });
+        return invoked;
+      }
+      const settled = await deps.costLedger.settle({
+        tenantId: id.tenantId, jobId: id.jobId, attempt: job.attempt,
+        reservationRef: reservation.reservation_ref,
+        usage: invoked.disposition === "completed" && invoked.result ? invoked.result.usage : null,
+      });
+      if (settled.status === "reconciling") {
+        return Object.freeze({ disposition: "reconcile", retryable: false, error_class: "CostUnknown" });
+      }
+      return Object.freeze({ ...invoked, cost: settled });
     },
   });
 }
@@ -328,6 +355,9 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     invoke: awsBoundary,
     timeoutMs: positiveInteger(options.timeoutMs, "cloud runtime timeout", 30_000),
   });
+  const costLedger = options.costLedger || createCloudCostLedger({
+    store: createPostgresCloudCostStore({ query }),
+  });
   return createCloudRuntimeDispatcher({
     releaseSha,
     runtimeArn,
@@ -341,6 +371,7 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     decideAdmission,
     acquireLease,
     runtimeClient,
+    costLedger,
   });
 }
 

@@ -408,7 +408,7 @@
 
   New tenants receive `free-v1`, one goal, and $1 activation credit. Choose the cheapest useful read-only first task. Do not show a checkout link before the first verified result.
 
-- [ ] **Step 4: Add deterministic admission**
+- [x] **Step 4: Add deterministic admission**
 
   Before claim/invoke, reserve the estimated maximum. After readback, settle actual cost and release the remainder. If actual cost is unavailable, keep the reservation and reconcile; never assume zero.
 

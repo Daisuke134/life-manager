@@ -122,8 +122,12 @@ function createMemoryCloudCostStore() {
 
 function createCloudCostLedger(options = {}) {
   const store = options.store;
-  for (const method of ["snapshot", "reserve", "reconcile", "settle"]) {
+  for (const method of ["reconcile", "settle"]) {
     if (!store || typeof store[method] !== "function") throw new Error(`cloud cost store ${method} unavailable`);
+  }
+  if (typeof store.reserveAtomic !== "function"
+      && (typeof store.snapshot !== "function" || typeof store.reserve !== "function")) {
+    throw new Error("cloud cost store reservation unavailable");
   }
   const now = typeof options.now === "function" ? options.now : Date.now;
   const refToken = typeof options.refToken === "function" ? options.refToken : crypto.randomUUID;
@@ -134,6 +138,15 @@ function createCloudCostLedger(options = {}) {
       const attempt = micros(input.attempt, "cloud cost attempt", true);
       const estimated = micros(input.estimatedMaxUsdMicros, "estimated cost", true);
       const nowMs = Number(now());
+      if (typeof store.reserveAtomic === "function") {
+        return Object.freeze(await store.reserveAtomic({
+          tenant_id: tenantId, job_id: jobId, attempt,
+          plan_version: input.planVersion, tenant_status: input.tenantStatus,
+          estimated_max_usd_micros: estimated,
+          reservation_ref: `lm-cost:${text(refToken(), "cloud cost reservation token", 200)}`,
+          now_ms: nowMs,
+        }));
+      }
       const snapshot = await store.snapshot(tenantId, nowMs);
       const activationTotal = input.planVersion === "free-v1" ? 1_000_000 : 0;
       const decision = decideCostReservation({
@@ -156,11 +169,12 @@ function createCloudCostLedger(options = {}) {
         month_start_ms: monthStart(nowMs),
         reserved_usd_micros: estimated,
       });
+      if (saved.created === false) return Object.freeze({ decision: "duplicate" });
       return Object.freeze({
         decision: "allow",
         reservation_ref: saved.row.reservation_ref,
         reserved_usd_micros: saved.row.reserved_usd_micros,
-        replay_zero: saved.created === false,
+        replay_zero: false,
       });
     },
     async settle(input = {}) {
@@ -184,7 +198,64 @@ function createCloudCostLedger(options = {}) {
         replay_zero: result.replay,
       });
     },
+    async release(input = {}) {
+      if (typeof store.release !== "function") throw new Error("cloud cost release unavailable");
+      const released = await store.release(
+        text(input.tenantId, "cloud cost tenant", 200),
+        text(input.reservationRef, "cloud cost reservation ref", 250),
+      );
+      return Object.freeze({ released: released === true });
+    },
   });
 }
 
-module.exports = { createCloudCostLedger, createMemoryCloudCostStore };
+function createPostgresCloudCostStore(options = {}) {
+  const query = options.query;
+  if (typeof query !== "function") throw new Error("cloud cost Postgres query unavailable");
+  return Object.freeze({
+    async reserveAtomic(input) {
+      const rows = (await query(
+        "SELECT * FROM public.reserve_lm_cloud_cost($1,$2,$3,$4,$5,$6,$7::timestamptz)",
+        [input.tenant_id,input.job_id,input.attempt,input.plan_version,input.estimated_max_usd_micros,
+          input.reservation_ref,new Date(input.now_ms).toISOString()],
+      )).rows;
+      if (rows.length !== 1) throw new Error("cloud cost reserve readback invalid");
+      const row = rows[0];
+      if (row.decision !== "allow") return { decision: row.decision };
+      return {
+        decision: "allow", reservation_ref: row.reservation_ref,
+        reserved_usd_micros: Number(row.reserved_usd_micros), replay_zero: row.replay_zero === true,
+      };
+    },
+    async reconcile(identity) {
+      const rows = (await query(
+        "SELECT * FROM public.reconcile_lm_cloud_cost($1,$2,$3,$4)",
+        [identity.tenant_id,identity.job_id,identity.attempt,identity.reservation_ref],
+      )).rows;
+      if (rows.length !== 1) throw new Error("cloud cost reconcile readback invalid");
+      return { reserved_usd_micros: Number(rows[0].held_usd_micros) };
+    },
+    async settle(identity, usage, nowMs) {
+      const rows = (await query(
+        "SELECT * FROM public.settle_lm_cloud_cost($1,$2,$3,$4,$5::jsonb,$6::timestamptz)",
+        [identity.tenant_id,identity.job_id,identity.attempt,identity.reservation_ref,
+          JSON.stringify(usage),new Date(nowMs).toISOString()],
+      )).rows;
+      if (rows.length !== 1) throw new Error("cloud cost settle readback invalid");
+      return {
+        row: {
+          reserved_usd_micros: Number(rows[0].actual_cost_usd_micros)+Number(rows[0].released_usd_micros),
+          actual_cost_usd_micros: Number(rows[0].actual_cost_usd_micros),
+          activation_credit_applied_usd_micros: Number(rows[0].activation_credit_applied_usd_micros),
+        },
+        replay: rows[0].replay_zero === true,
+      };
+    },
+    async release(tenantId, reservationRef) {
+      const rows = (await query("SELECT public.release_lm_cloud_cost($1,$2) AS released", [tenantId,reservationRef])).rows;
+      return rows.length === 1 && rows[0].released === true;
+    },
+  });
+}
+
+module.exports = { createCloudCostLedger, createMemoryCloudCostStore, createPostgresCloudCostStore };
