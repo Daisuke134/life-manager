@@ -1,5 +1,6 @@
 import json
 import importlib.util
+import subprocess
 import sys
 import tempfile
 import threading
@@ -53,6 +54,23 @@ class DeploymentProfileTest(unittest.TestCase):
 
 
 class InvestmentModeTest(unittest.TestCase):
+    def test_production_import_uses_reconciliation_callback_contract(self):
+        script = """
+import inspect
+import sys
+sys.path.insert(0, 'skills/alpaca-investment')
+import run
+assert 'on_reconciled' in inspect.signature(run.reconcile_started).parameters
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=ROOT.parents[1],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_requires_exact_mode_before_broker_access(self):
         for value in ("paper", "shadow", "live", None, "", " paper", "PAPER", "paper,live"):
             with self.subTest(value=value):
