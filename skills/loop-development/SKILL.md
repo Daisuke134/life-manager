@@ -14,6 +14,14 @@ description: Develop, fix, deploy, migrate, or retire macOS Life Manager loops w
 5. **Life Manager agents and Claude/Codex are browser-using agents.** If the UI can fix it now (e.g. stop a money leak), look at the real screen and act; do not over-engineer a pipeline for a 2-second fix.
 6. **Read the existing loop before describing it.** Writer earns by selling articles (note paywall, Substack paid, aniccaai.com preview+paid); Ebook = monk factory to "The Anicca Reset" via Stripe (Amazon KDP not yet connected); Capafy, apps, PromptBase already exist. Check `skills/<loop>/SKILL.md` and `skills/earn/marketing-engine/registry/products/*.json` first.
 7. **Reply to Dais in Japanese only.**
+8. **Every money skill = a build loop + a sell loop** (verified 2026-09-29; ids are `config/loop-registry.json` keys):
+
+   | Skill | Build loop (makes products) | Sell loop (brings buyers, `ct=` tracked) | Money readback |
+   |---|---|---|---|
+   | Capafy | `capafy-loop-daily` (every 15 min, submits agents) | `capafy-distribute-daily` (every 3 h: free aniccaai.com article + X via Postiz, rotates skills) | `capafy_hourly_reconcile` + daily bank-profit Telegram |
+   | PromptBase | `promptbase-loop-daily` (daily 04:20 JST, 4 distinct real examples per listing) | same `capafy-distribute-daily` rotation (`promptbase-hook-lab`, `?via=keipanda` = 0% fee) | `promptbase-sales.json` (Sales tab) |
+   | Writer (paid articles) | `article-daily` (06:00 JST; the article itself is the product) | the article + its X post | writer money ledger |
+   | Mobile apps | app factory (not yet re-verified) | `life-manager-anicca-*` / `life-manager-honne-*` posting lanes via Postiz | App Store Connect + RevenueCat in `business-outcomes.jsonl` |
 
 Life Manager has one code source: GitHub `main`; one lifecycle registry:
 `config/loop-registry.json`; and one operator interface: `bin/lm-loop`. A loop
