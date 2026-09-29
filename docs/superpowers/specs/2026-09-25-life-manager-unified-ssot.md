@@ -2831,6 +2831,24 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
 
+## 現在の正本cursor（2026-09-30、Coconala read-only seller dashboard確認後）
+
+既存の`life-manager-daily-driver` owner／`localhost:9222`の専用contextで、Coconalaの`/mypage/dashboard`と`/mypage/dashboard_provider`をread-only確認した。公式ページはログイン済みの`Kosuke｜教育研修PPT×AI活用` seller dashboardを返し、出品者ダッシュボードに取引中3件、応募中114件、今月販売額72,000円・販売件数6件・納品完了率66%・平均評価3.43が表示された。これはCoconala sessionと既存取引の公式readbackであり、Meta Loopのaccount-bound authorization receipt、owner lifecycle canary、settlement receiptではない。
+
+- 確認済み: daily-driverの正規CDP endpointは`localhost:9222`（IPv4の`127.0.0.1`ではない）。read-only tabは検査後にowner経由で閉じた。
+- 未確認: Coconala onboarding receipt、認証storeのCoconala action receipt、候補のfunded gate、provider-specific canary／rollback／settlement、replay-zero。
+- provider effect: 今回0件。Coconalaの応募・返信・納品・RyuさんへのDM再送はしていない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Coconala seller dashboardのreadbackをaccount identityの証拠として保存し、onboarding／action authorization receiptを推測せず、実receiptが得られるまでowner効果をholdする。
+2. **未完** LancersのHuman Verification解除後にpreflightを2回通し、現行`contracts.json`を公式readbackから生成する。
+3. **未完** Coconala／Lancers／CrowdWorks／Mercorの実adapter factoryを、account-bound receipt・公式canary・rollback・settlementへ接続する。
+4. **未完** Upwork／Freelancerのapproved mutation、完全inventory、funded contract／milestone、全action receiptを取得する。
+5. **未完** providerごとのplanned→terminalまたはrollback→settled、公式receipt、replay-zeroを自然runで取得する。
+6. **未完** 全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
+
 ## 現在の正本cursor（2026-09-30、Lancers preflight再実測後）
 
 2026-09-30 05:24 JSTに、既存stateを変更せず`work_sync.py --json --preflight`を再実行した。公式read-only結果は`ok=false`、`atom=ELZ-L01`、`failed_read=1`、`logged_in=true`、`error=human_verification_required`、終了コード75で、前回と同じHuman Verification画面である。応募・返信・納品・再送は0件。認証済みreceiptが存在しても、公式readbackがHuman Verificationで止まっている間はprovider効果へ進めない。
