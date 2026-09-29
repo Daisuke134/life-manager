@@ -2047,6 +2047,13 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `lm-fence-reconciler`の最新natural passは04:12:52 JST（release SHA `3975ae8996cab3325f514746a32c915f9935fddf`）であり、04:16 JSTに生成されたoccurrence `alpaca-investment-paper:18d9e0b04d6e1628-59151`より前である。current occurrenceに対するadapter callはまだ記録されていない。
 - fenceは公式paper readbackまたはpre-effect proofが得られるまで保持される。無条件のclear、manual wake、手動sell、再送はしない。`AT-13`は未完、実現投資収益は`$0/月`である。
 
+**AT-13 effect-fence official resolution readback（2026-09-30 04:25 JST）**:
+
+- fenced occurrence `alpaca-investment-paper:18d9e045a93b3208-50642`に対して`effect_reconcile.py --mode paper --readback-only`を実行し、公式Alpaca GETで`verified=true`、`proof_kind=official_alpaca_no_order`、`orders after queued=0`、`open orders=0`、provider proof `alpaca-orders-none-after-2026-09-29T19:08:14Z`を得た。
+- 同じ公式proofを使って通常reconcileを実行し、`ALPACA_EFFECT_RECONCILE=PASS`になった。read-only SQLiteで対象occurrenceは`state=released`、`effect_unknown=0`に変わった。
+- `lm-loop status --json`は`admission_effect_unknown=false`、occurrences `[]`、`stale_event=resource_effect_unknown_resolved`を返した。04:21 JSTの新しいdefer eventは履歴として残るが、provider effectはなく、fenceは現在解放済みである。
+- これはentry/exitや利益の証拠ではない。新しいcompleted daily sessionのexit decision receiptはまだなく、`AT-13`は未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`である。次はmanual wakeではなくnatural scheduler retryを待つ。
+
 **AT-13公式paper clock readback（2026-09-30 04:05 JST）**:
 
 - 公式paper observationのclockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`（05:00 JST）、`next_open=2026-09-30T09:30:00-04:00`（22:30 JST）である。したがって現在は、`2026-09-29`のcompleted daily sessionがまだ確定する前である。
