@@ -1,5 +1,6 @@
 {
   "external_labels": [
+    "ai.anicca.provision-browser.aws.life-manager-cloud-provision",
     "ai.anicca.crowdworks.acquisition",
     "ai.anicca.crowdworks.fulfillment",
     "ai.anicca.crowdworks.negotiation",
