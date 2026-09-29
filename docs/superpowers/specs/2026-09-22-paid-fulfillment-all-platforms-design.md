@@ -6685,6 +6685,21 @@ ordering notes without declaring any external effect complete.
   `20260930T010308-3975ae89`. Main integration and controlled transition stay
   open.
 
+### Latest candidate acceptance and readback — 2026-09-30 08:48 JST
+
+- [x] Candidate `/Users/anicca/loops/releases/20260930T084624-40bc4055`
+  passed the Coconala focused suite with `362 passed`; the only warning was
+  pytest cache creation being refused by the immutable release.
+- [x] The same candidate's hidden `direct-inbox-head-only` natural readback
+  returned `status=success`, `read_only=true`, `30` inquiries, and Ryu
+  `10107358` as `reply_required=false,next_action=observe`. No external effect
+  occurred.
+- [x] The candidate contract and immutable checks remain green after the
+  latest-main rebase; the DOM retry helper is present in the candidate.
+- [ ] This closes candidate acceptance only. It does not close main
+  integration, owner transition, live Reply replay-zero, or any other platform
+  canary/fence.
+
 ### Live owner versus repaired candidate divergence — 2026-09-30 08:39 JST
 
 - [x] The live Coconala Reply process is still executing the old immutable
