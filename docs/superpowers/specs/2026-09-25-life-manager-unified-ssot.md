@@ -1597,6 +1597,10 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] paidのofficial payment readbackを確認する。完了条件: payout receiptまたはheld。
 - [ ] work-syncの`entrypoint_exit_75`を診断する。完了条件: resource原因とnext actionが記録される。
 - [ ] telegram-reportのdelivery receiptを確認する。完了条件: message IDまたはheld。
+- [x] 公開探索のHTTP 405本文をread-only確認する。完了条件: AWS WAFの`Human Verification`／CAPTCHA markerを確認し、本文を保存しない。
+- [x] `lancers_human_verification_required`を型付きprovider境界へ実装する。完了条件: status discoveryがこのerrorを返し、application loopが外部作用なしで`human_verification_required`・exit 75になる。
+- [ ] hotfix `0a90600231` とspec更新をmainへ統合し、現行immutable releaseへ反映する。完了条件: release SHA、loaded argv、owner stateが一致する。
+- [ ] 検証解除後にLancers applicationの自然wakeを1回readbackする。完了条件: provider receipt／official readback、または理由付きheld。receiptなしの応募再送はしない。
 
 ### 3. CrowdWorks
 
