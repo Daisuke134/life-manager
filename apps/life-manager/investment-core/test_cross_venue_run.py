@@ -133,6 +133,10 @@ class CrossVenueRunTests(unittest.TestCase):
         self.assertEqual(receipt["status"], "delivered")
         self.assertEqual(receipt["provider_message_id"], "m-state")
         self.assertEqual(receipt["aggregate"]["net_pnl_usd"], "8.00")
+        self.assertIn(
+            f"alpaca-account-readback:{NOW}",
+            receipt["aggregate"]["source_receipt_ids"],
+        )
         self.assertEqual(
             [row["venue"] for row in receipt["aggregate"]["unknown_venues"]],
             ["hyperliquid", "solana"],

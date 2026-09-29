@@ -101,6 +101,54 @@ class AlpacaSnapshotTests(unittest.TestCase):
             "reason": "alpaca_daily_performance_missing",
         })
 
+    def test_daily_reader_rejects_payload_day_timestamp_mismatch(self):
+        module = importlib.import_module("alpaca_snapshot")
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "performance-daily-2026-09-28.json").write_text(json.dumps({
+                **PERFORMANCE,
+                "performance_day": "2026-09-28",
+                "observed_at": "2026-09-29T00:00:00Z",
+            }), encoding="utf-8")
+
+            result = module.read_alpaca_snapshot(
+                state,
+                performance_day="2026-09-28",
+            )
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "alpaca_daily_performance_timestamp_mismatch",
+        })
+
+    def test_daily_reader_accepts_legacy_latest_only_when_its_day_matches(self):
+        module = importlib.import_module("alpaca_snapshot")
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "performance-latest.json").write_text(json.dumps({
+                **PERFORMANCE,
+                "observed_at": "2026-09-28T23:59:00Z",
+            }), encoding="utf-8")
+            observation = {
+                **OBSERVATION,
+                "clock": {"observed_at": "2026-09-29T00:00:01Z"},
+            }
+            (state / "observation-latest.json").write_text(
+                json.dumps(observation), encoding="utf-8"
+            )
+            (state / "risk-latest.json").write_text(json.dumps(RISK), encoding="utf-8")
+
+            result = module.read_alpaca_snapshot(
+                state,
+                performance_day="2026-09-28",
+            )
+
+        self.assertEqual(result["gross_pnl_usd"], PERFORMANCE["gross_strategy_pnl_usd"])
+        self.assertIn(
+            "alpaca-account-readback:2026-09-29T00:00:01Z",
+            result["source_receipt_ids"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

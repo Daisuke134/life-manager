@@ -10,6 +10,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+CORE = ROOT.parents[1] / "apps" / "life-manager" / "investment-core"
+if str(CORE) not in sys.path:
+    sys.path.append(str(CORE))
 import performance
 import performance_gate
 import alpaca_cli
@@ -82,6 +85,79 @@ class NetPerformanceTest(unittest.TestCase):
             ledger.write_text(json.dumps(row) + "\n" + json.dumps(row) + "\n")
             with self.assertRaisesRegex(ValueError, "live_performance_round_trip_invalid"):
                 performance_gate._round_trip(ledger)
+
+    def test_live_gate_persists_a_day_keyed_performance_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            result = performance_gate.write_daily_performance(state, {
+                "measurement_status": "measured",
+                "observed_at": "2026-09-29T03:00:00Z",
+                "source_receipt_ids": ["fill-1"],
+            })
+
+            self.assertEqual(result["performance_day"], "2026-09-29")
+            self.assertEqual(result["report_scope"], "daily_accumulation")
+            self.assertEqual(
+                json.loads((state / "performance-daily-2026-09-29.json").read_text()),
+                result,
+            )
+            self.assertEqual(
+                json.loads((state / "performance-latest.json").read_text()),
+                result,
+            )
+
+    def test_live_gate_does_not_recount_the_same_round_trip_on_a_later_day(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            first = performance_gate.write_daily_performance(state, {
+                "measurement_status": "measured",
+                "observed_at": "2026-09-29T03:00:00Z",
+                "gross_strategy_pnl_usd": "1.00",
+                "source_receipt_ids": ["buy-1", "sell-1", "fee-1"],
+            })
+            second = performance_gate.write_daily_performance(state, {
+                "measurement_status": "measured",
+                "observed_at": "2026-09-30T03:00:00Z",
+                "gross_strategy_pnl_usd": "1.00",
+                "source_receipt_ids": ["buy-1", "sell-1", "fee-1"],
+            })
+
+            daily_files = sorted(state.glob("performance-daily-*.json"))
+
+        self.assertEqual([path.name for path in daily_files], [
+            "performance-daily-2026-09-29.json",
+        ])
+        self.assertTrue(first["daily_receipt_written"])
+        self.assertFalse(second["daily_receipt_written"])
+        self.assertTrue(second["daily_receipt_reused"])
+
+    def test_reused_latest_is_not_a_legacy_daily_receipt(self):
+        from alpaca_snapshot import read_alpaca_snapshot
+
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            performance_gate.write_daily_performance(state, {
+                "measurement_status": "measured",
+                "observed_at": "2026-09-29T03:00:00Z",
+                "source_receipt_ids": ["buy-1", "sell-1", "fee-1"],
+            })
+            performance_gate.write_daily_performance(state, {
+                "measurement_status": "measured",
+                "observed_at": "2026-09-30T03:00:00Z",
+                "source_receipt_ids": ["buy-1", "sell-1", "fee-1"],
+            })
+            (state / "observation-latest.json").write_text(json.dumps({
+                "account": {"cash": "100", "equity": "100"},
+                "clock": {"observed_at": "2026-09-30T03:00:01Z"},
+            }), encoding="utf-8")
+            (state / "risk-latest.json").write_text(json.dumps({}), encoding="utf-8")
+
+            result = read_alpaca_snapshot(state, performance_day="2026-09-30")
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "alpaca_daily_performance_missing",
+        })
 
     def test_official_adapter_reconciles_realized_with_marked_ending_nav(self):
         buy_client, sell_client = "lm-ai-" + "a" * 24, "lm-ai-" + "b" * 24

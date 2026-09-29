@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -100,6 +100,18 @@ def _read_mapping(path: Path) -> Mapping[str, Any] | None:
     return value if isinstance(value, Mapping) else None
 
 
+def _utc_day(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc).date().isoformat()
+
+
 def _read_performance(
     root: Path,
     performance_day: str | None,
@@ -117,12 +129,24 @@ def _read_performance(
         return None, "alpaca_performance_day_invalid"
     path = root / f"performance-daily-{performance_day}.json"
     if not path.is_file():
+        # Keep a narrow migration path for an older live gate that only wrote
+        # latest: it is acceptable only when its own observation is exactly
+        # the requested completed day, never when latest is a new-day record.
+        legacy = _read_mapping(root / "performance-latest.json")
+        if (legacy is not None
+                and legacy.get("performance_day") in (None, performance_day)
+                and legacy.get("daily_receipt_reused") is not True
+                and legacy.get("daily_receipt_written") is not False
+                and _utc_day(legacy.get("observed_at")) == performance_day):
+            return legacy, None
         return None, "alpaca_daily_performance_missing"
     performance = _read_mapping(path)
     if performance is None:
         return None, "alpaca_daily_performance_invalid"
     if performance.get("performance_day") != performance_day:
         return None, "alpaca_daily_performance_day_mismatch"
+    if _utc_day(performance.get("observed_at")) != performance_day:
+        return None, "alpaca_daily_performance_timestamp_mismatch"
     return performance, None
 
 
@@ -146,7 +170,17 @@ def read_alpaca_snapshot(
         observed_at = clock.get("observed_at") if isinstance(clock, Mapping) else None
         if not isinstance(observed_at, str) or not observed_at:
             return {"status": "unknown", "reason": "alpaca_observation_clock_missing"}
-        performance_for_snapshot = {**performance, "observed_at": observed_at}
+        readback_id = f"alpaca-account-readback:{observed_at}"
+        source_ids = performance.get("source_receipt_ids")
+        if not isinstance(source_ids, list):
+            return {"status": "unknown", "reason": "alpaca_source_receipts_invalid"}
+        if readback_id not in source_ids:
+            source_ids = [*source_ids, readback_id]
+        performance_for_snapshot = {
+            **performance,
+            "observed_at": observed_at,
+            "source_receipt_ids": source_ids,
+        }
     try:
         return build_alpaca_snapshot(performance_for_snapshot, observation, risk)
     except (TypeError, ValueError):

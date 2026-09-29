@@ -125,11 +125,14 @@ The manifest is the owner-to-reader boundary:
 When no explicit `--snapshot alpaca=...` is supplied, `alpaca_state_dir` lets
 the reader consume the prior completed UTC day's
 `performance-daily-YYYY-MM-DD.json` plus the latest observation and risk
-readbacks, without credentials or provider calls. The daily reader never
-falls back to a new-day `performance-latest.json`: if the completed-day
-receipt is missing or mismatched, Alpaca remains `unknown`. An explicit
-snapshot file wins over the state directory. If the manifest is absent,
-invalid, or a source file is missing, the daily receipt records
+readbacks, without credentials or provider calls. The live performance gate
+and the paper performance producer both write this day-keyed receipt. During
+migration, a legacy `performance-latest.json` is accepted only when its own
+observation day exactly matches the requested completed day; a new-day latest
+record is never used as the prior day. If the completed-day receipt is
+missing or mismatched, Alpaca remains `unknown`. An explicit snapshot file
+wins over the state directory. If the manifest is absent, invalid, or a source
+file is missing, the daily receipt records
 `input_manifest_status` as `missing` or `invalid`, keeps unavailable venues
 `unknown`, and uses no available capital. It never turns a missing input into
 `$0` profit. `configured` means only that the manifest was validly read; it
