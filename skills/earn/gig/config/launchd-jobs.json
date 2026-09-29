@@ -111,11 +111,10 @@
       "env": {
         "GIG_BROWSER_PORT": "9233",
         "GIG_BROWSER_PROFILE": "{{HOME}}/.cloak/profiles/gig-upwork",
+        "GIG_BROWSER_OWNER": "upwork-revenue-browser",
         "GIG_BROWSER_FINGERPRINT": "80138",
         "GIG_DISK_HEADROOM_KIB": "524288",
-        "GIG_IGNORE_DISK_PRESSURE_BLOCK": "1",
-        "GIG_IGNORE_DISK_WRITERS_STOP": "1",
-        "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9233",
+        "SESSION_VAULT_DIR": "{{HOME}}/.cloak/vault/gig-upwork",
         "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-upwork-browser"
       },
       "RunAtLoad": true,
@@ -131,10 +130,8 @@
       "program": [
         "{{PYTHON}}",
         "{{RELEASE}}/skills/earn/gig/scripts/providers/upwork_browser_provider.py",
-        "--cdp-base",
-        "http://127.0.0.1:9233",
-        "--browser-profile",
-        "{{HOME}}/.cloak/profiles/gig-upwork",
+        "--browser-identity",
+        "upwork:dais",
         "--candidates",
         "{{RELEASE}}/skills/earn/gig/config/upwork-candidates.public.json",
         "--transitions",
@@ -144,7 +141,6 @@
       ],
       "env": {
         "CLOAK_BROWSER_OWNER": "life-manager-upwork-free-loop",
-        "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9233",
         "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-upwork-browser"
       },
       "StartInterval": 300,

@@ -233,7 +233,7 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - 開発の流れ: 変更は worktree の中で実物（worktree のスクリプトを直接実行）を動かして確認し、成果がそろってから main へ 1 回だけ merge → release。小さな修正ごとに main へ入れて本番で試すのはやめる（17:0x までの #6190/#6191 は本番で試した。前例: 不正な priority "paid" が全 loop を止めた）。
 - 観測性: `lm-loop status` は 278 loop・約 4 秒・JSON のみ（実測 17:2x: 正常 170 / 停止 108 = effect_unknown 41・capacity_busy 39・exit_1 22）。→ `lm-loop health` を追加: 1 画面の表（loop・最終実行・結果・停止理由・次の手）と、スキル別の今日の成果（公開数・売上）。
 - 目標の定義（Dais 2026-09-29 17:3x）: $10k MRR = **銀行口座に入る利益**（売上 − プラットフォーム手数料 − API 費用）。売上総額ではない。現在 Capafy 30日: 総額 $80.78 → 手数料後 $64.62 → モデル代 $42.99 → **利益 約 $21.63**。この利益をスキル別に毎日 Telegram へ報告する（いまの C6 日次報告はキュー・撤退候補だけで利益額がない → 追加する）。
-- ブラウザ（Dais 2026-09-29 17:3x、20:5x 訂正）: 専用ブラウザは作らない。割り当ての正本 `~/.config/ai/registry/browsers.toml` と本 spec の Coconala 対応表（下の `hf-gig-*` 5 loop → `coconala:kosuke`）。**`coconala:kosuke` は Capafy 工場と gig 5 loop（reply-detector / paid-direct / apply-direct / apply-reconcile / storefront-direct）が lease で順番に共有する**（実測 20:48: `hf-gig-paid-direct` が 10 分以上保持）。17:3x の「Capafy だけ」は対応表を読まずに書いた誤り。Capafy の CP2/CP3 は lease 待ちを含む外側 timeout を 1500 秒にした（#5bc161c5。150 秒で exit 124 → 下書きが残り 19:04〜20:38 の工場 run がすべて BLOCKED だった）。
+- ブラウザ（Dais 2026-09-29 17:3x）: 専用ブラウザは作らない。割り当ての正本 `~/.config/ai/registry/browsers.toml`（identity=サイト×アカウント、1 identity 1 profile、`browser-guard.sh` の lease で同時使用を防ぐ）。現物readbackでは`coconala:kosuke`は`gig-daily-driver`・9223で稼働し、CapafyとCoconala Gigが同じseller identityを**leaseで直列共有**する。Gigの`hf-gig-browser` process、`session_vault_tick.sh`、Coconala browser testsがこの対応を示すため、「Gigは別のdaily-driver Chrome」という直前記述はsource/live stateと矛盾し、採用しない。`cdp_lock.sh`はGig内部のtab/phase直列化であり、identityの代替ではない。Hook Lab CP2の停止はブラウザ待ちではなかった（ボタン判定のタイミング）。
 - 残り順: 0 スキル別の利益（銀行に入る額）を毎日 Telegram へ 1 宣伝ループを 3 時間ごと・Agent ローテーション（ledger を日付→枠キーへ） 2 Hook Lab CP2 のベンダーボタン待ち → 審査提出 3 申請順を新 Agent 優先 4 `lm-loop health` 5 effect_unknown 41 件を証拠付きで閉じる 6 アプリ 7 connector 8 fundraiser 9 self-fix worktree 化。
 
 **実測（2026-09-29 17:1x JST、公式 readback）宣伝ループ（capafy-distribute-daily）初公開**: 無料英語記事 https://aniccaai.com/blog/capafy-reels-hook-lab-2026-09-29 = HTTP 200、本文に `ct=capafy-distribute-reels-hook-lab`（ledger 2026-09-29 aniccaai=published）。X = Postiz `PUBLISHED` https://twitter.com/selawmqt/status/2104845436683202788（アカウント「sela | AI Tools」、`POSTIZ_X_INTEGRATION_ID` を marketing.env に設定。今日の X は同じ capafy_x_post.py の手動実行＝自然実行ではない。明日 07:15 の自然実行で両方を確認する）。修正: #6190 公開確認を最大15分待つ（deploy は約5分）、#6191 X 投稿に Postiz の X 設定を付けて 400 を解消し、QUEUE→PUBLISHED を最大10分待つ。fence 2 件は証拠付きで閉じた（16:21 run = pre-effect、16:51 run = 公開の公式 readback）。Hook Lab v1.0.4 の CP2 停止原因 = 出力が空で `grep -v` が 1 を返し `set -e` で無言終了、実エラーは `vendor-button-count 0`（ワークスペースタブ表示直後に判定、少し待てば OpenRouter ボタンは存在）→ 次に修正。
@@ -294,72 +294,6 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - モバイルアプリ A1 ✅: Postiz 直近 24 時間 26 投稿で同じアカウント内の文面重複 0。例外 1 件 = Anicca iOS（Instagram）が ERROR。次は A2（投稿 → App Store の流れを測る）。
 
 **進捗（2026-09-29 19:1x JST、公式 readback）**: ① 4243672453 = status 4・model deepseek/deepseek-v4.1-flash・skills/config confirmed（Capafy API 再読）。③ lm-loop status の fence 67 loop に admission_effect_unknown_diagnosis（cause_run / fenced_occurrences / next_action / occurrence_id / provider_state）。PromptBase P4 ✅ #6208（04a56df3）: 記事 https://aniccaai.com/blog/capafy-promptbase-hook-lab-2026-09-29-h18 = 200、リンク `?via=keipanda&ct=capafy-distribute-promptbase-hook-lab`、X = Postiz PUBLISHED（QUEUE→PUBLISHED に約 13 分。worktree 実行を自分の branch 切り替えで途中終了させたため X は同じ capafy_x_post.py で手動投稿）。PromptBase の新規出品は reCAPTCHA 画像問題で無人では出せない（回避しない方針）→ 出品済み Hook Lab の宣伝のみ継続。アプリ A2 ✅ 測定は既存: anicca-ios ダウンロード（検索 2・App referrer 2）、RevenueCat 新規 4・有料 0・MRR $20.34、honne-ai ほぼ 0。次は A4（有料への転換）。
-
-**進捗（2026-09-29 21:0x JST、公式 readback）**
-- PromptBase ✅: 作るループの本当の停止原因は reCAPTCHA ではなく「見本の出力が 4 つとも同じ」（自然 run の画面: "Some of your example outputs are the same"。reCAPTCHA は 9/28 に 30 分で 7 回連続送信した時だけ）。#93843feb: gen_examples.py が Claude で SKILL.md を 3 つの新しい入力で実行し、検証済み 1 件と合わせ 4 つの違う見本を state/promptbase-examples/<slug>.json に保存、publish が枠ごとに別の見本を入れ、"We are now reviewing your prompt" を提出成功と判定。worktree 実行で Reels Hook Lab がダッシュボード Pending（CAPTCHA なし）。promptbase-loop-daily と capafy-distribute-daily は release 93843feb。PromptBase は作る（promptbase-loop-daily）＋売る（distribute ローテーション）の 2 本で回る。AGENTS.md と loop-development skill に「スキル = 作るループ＋売るループ」の表を追加。
-- ディスク ⚠️（A2 の計測停止の原因）: 空き 350MB → 2.6GB（verify-loops-audit の古い loop-tmp、7 日超の Capafy IG 素材、大きい launchd log 5 本を末尾 2MB に切り詰め）。20:57 に 20 秒で 1.1GB 減る現象を観測、書き込み元は未特定（lsof の大きな書き込み中ファイルなし、ログは増えていない）。Data ボリューム 212.9GB のうちホーム約 90GB、/opt 12.7GB、/Applications 8.0GB、/private/var 5.1GB、/Library 3.3GB。`~/.cloak` は削除禁止のためブラウザのキャッシュは lease 経由の clearBrowserCache（6-9c）で扱う。次: 書き込み元を特定して止め、10GB 以上に戻す → 投稿ごとの計測（A2）を再開。
-
-**進捗（2026-09-29 22:xx JST、Capafy 専用ブラウザ）**: A1〜A7 ✅（#6230 = 8f1fdd3a）。A1 lancers の browser-owner を写し（root の段数だけ置き場所に合わせて 4→3）、A2 registry・catalog（continuous_service 追加）・fixture 再生成（tests 127 pass、contract ok）、A3 browsers.toml に `capafy:kosuke`（Coconala から capafy.ai を外す）、A4 capafy.ai の cookie 17 個と localStorage（`auth-storage` ほか）だけを Coconala の保存から移し、専用ブラウザで販売者画面がログイン済みで開くことを確認、A5 既定 identity を `capafy:kosuke`、A6 1500 秒の応急処置を戻す、A7 もう 1 つの真因を修正: publish_finish が HOME を publisher home に移した後に with-browser を呼ぶため、browser-guard が browsers.toml と `~/.cloak/leases` を見つけられず acquire を 150 秒繰り返して exit 124（ドライバー出力なし）。with-browser だけに operator HOME を渡す。実証: 下書き 7686597754（YouTube Script Writer v1.0.3）が CP2 → CP3 → platform_status=1・skills/config confirmed・model DeepSeek V4.1 Flash（Capafy API）。残り: A8 release を capafy-browser と capafy-loop-daily に apply（実行中）→ A9 工場の自然 run が人の手なしで次を申請することを公式 readback で確認。
-
-**現在地と順番（2026-09-29 22:3x JST。この順に 1 つずつ。cursor = A9）**
-- A1〜A8 ✅ Capafy 専用ブラウザ `capafy-browser`（release 8f1fdd3a、loaded-running、専用 port、ログイン済み）。工場も同じ release 系列に反映済み。
-- A9 🔄 工場が人の手なしで次の Agent を審査に出すことを Capafy API で確認する。途中で見つけて直したもの: (1) publish_finish の HOME 移動で lease が取れず CP2 exit 124（#8f1fdd3a、7686597754 を platform_status=1 まで出して実証）、(2) 申請 lock の持ち主が分からない → 持ち主を記録（#a1018689）、(3) 同じ Agent を再準備するとリリースの読み取り専用アイコンを上書きできず `icon copy failed`（#af6e5011、cp -f + chmod 600、使い捨てファイルで再現と修正を確認）。今、1037238583（Football Match Analyst）の下書きで確認中。**A9 が公式 readback で通るまで Capafy 完了と言わない。**
-- 次の順番: B ディスク 10GB 以上（今 2.5GB）→ C アプリ（C1 投稿ごとの計測再開 → C2 流れの表 → C3 ASO → C4 課金 → C5 工場の 4 本 → C6 Anicca iOS の IG エラー）→ W Writer（有料記事の売上 readback → X）→ E Ebook（KDP → 売上 readback）→ F アフィリエイト（fence を公式に閉じる → 紹介料 readback）→ D connector（カレンダー自動登録）→ E1' fundraiser（カレンダー登録）→ S self-fix の worktree 化 → G1 全 loop green → G2 自己修復の実証 → G3 自己改善 → G4 loop 別損益 → G5 Cloud → G6 口座に入る利益で月 $10k → G7 YC W27。
-- PromptBase は P5（次の 04:20 の自然 run で次の 1 本が Pending）を監視のみ。
-
-**Atomic TODO（2026-09-29 21:xx JST。上から順に 1 つずつ。各行 = 1 つの確認できる作業。これが実行順の正本）**
-
-A. Capafy 専用ブラウザ（lancers-revenue-browser の写し。自己流なし）
-- [ ] A1 `skills/earn/lancers/scripts/browser-owner` を `skills/capafy-autopublish/scripts/browser-owner` に写し、profile・port・owner 名だけ変える
-- [ ] A2 `config/loop-registry.json` に `capafy-browser` を lancers-revenue-browser と同じ設定で追加
-- [ ] A3 `~/.config/ai/registry/browsers.toml` に `capafy:kosuke` を追加し、`coconala:kosuke` の accounts から capafy.ai を外す
-- [ ] A4 worktree で browser-owner を起動し、保存済み vault の capafy.ai ログイン状態を専用 profile に入れる（再ログインしない）→ capafy.ai の販売者画面がログイン済みで開くことを目で確認
-- [ ] A5 Capafy のスクリプト（publish_finish.sh / cp1_agent.py / drive_checkpoint2.py）の既定 identity を `capafy:kosuke` に変える
-- [ ] A6 #5bc161c5 の 1500 秒 timeout を元に戻す
-- [ ] A7 worktree で CP2 を実行し、hf-gig-paid-direct の使用中でも待たずに通ることを確認
-- [ ] A8 PR → merge → release → `capafy-browser` と `capafy-loop-daily` に apply
-- [ ] A9 工場を起動し、下書き 7686597754 が platform_status=1 になることを Capafy API で読み戻す → Capafy 完了
-
-B. ディスク（10GB 以上）
-- [ ] B1 20 秒で 1GB 減る書き込み元を特定する（空きの変化と同時刻のプロセス・ファイルを測る）
-- [ ] B2 その書き込みを止めるか、そのループ自身に後片付けさせる（他ループの写し）
-- [ ] B3 空き 10GB 以上を 1 時間保つことを確認
-
-C. モバイルアプリ
-- [ ] C1 A2 投稿ごとの計測を再開（tiktok-metrics が 9/27 から止まっている原因を直す）→ post-metrics.jsonl に今日の行が入ることを確認
-- [ ] C2 投稿ごとの「再生 → プロフィール → ストア → インストール」を 1 表にして毎日出す
-- [ ] C3 A3 ASO: 売れているアプリの検索語・スクショ・説明文を調べ、アニッチャと本音 AI に当てる（App Store Connect で反映を確認）
-- [ ] C4 A4 課金: 新規 4 人・有料 0 人の原因を RevenueCat と課金画面で調べ、売れているアプリの型に合わせて直す
-- [ ] C5 A5 工場の未公開 4 本（BreathReset / SleepRitual / Desk Stretch Timer / Micro Mood）の止まっている理由を ASC で確かめ、直して審査提出
-- [ ] C6 Anicca iOS の Instagram 投稿 ERROR を直す
-
-D. connector
-- [ ] D1 自動のカレンダー登録が Google Calendar に入ることを自然実行で確認
-
-E. fundraiser
-- [ ] E1 自然実行でカレンダー登録を確認
-
-F. self-fix
-- [ ] F1 修正役が repo の worktree で作業できるようにする（issue #6063）
-
-G. その後
-- [ ] G1 全 loop を green（正常 / 型付き fence / 意図した停止）
-- [ ] G2 自己修復を自然発生の失敗 1 件で実証（§5.1）
-- [ ] G3 自己改善（evaluator・canary・rollback）
-- [ ] G4 Cloud 版・LM-EAB
-- [ ] G5 口座に入る利益で月 $10k（公式 receipt の集計）→ YC W27
-
-**Capafy のブラウザを他の loop と同じ形にする（2026-09-29 21:xx JST、Dais 指示。cursor はここ）**
-- 観測: 各サイトには専用ブラウザを常駐させる「ブラウザ役」loop（`keep_alive`）が 1 本ずつあり、作業 loop はその port に接続するだけ（lancers-revenue-browser 9227、crowdworks-revenue-browser 9228、hf-gig-browser 9223、affiliate-* 9324〜9327、provision-browser.*）。Capafy 工場だけブラウザ役が無く、capafy.ai のログインを Coconala の `coconala:kosuke`（hf-gig-browser）に入れて借用していた。hf-gig-paid-direct が 10 分以上使う間に CP2 が 150 秒で exit 124 になり、19:04〜20:38 の工場 run が全部 BLOCKED。
-- 誤り: 21:0x に入れた「外側 timeout 1500 秒」（#5bc161c5）は他の loop と違う自己流の応急処置。下の C-B6 で戻す。
-- 手順（lancers の写し。自己流を入れない）:
-  - C-B1 `skills/capafy-autopublish/scripts/browser-owner` = `skills/earn/lancers/scripts/browser-owner` の写し（profile `~/.local/state/anicca/capafy/browser-profile`、専用 port、owner `capafy-browser`、`runtime/host/browser_port_owner.py` 経由）
-  - C-B2 `config/loop-registry.json` に `capafy-browser`（lancers-revenue-browser と同じ設定、`keep_alive: true`、label `ai.anicca.capafy-browser`）
-  - C-B3 `~/.config/ai/registry/browsers.toml` に `capafy:kosuke` を追加、`coconala:kosuke` の accounts から capafy.ai を外す
-  - C-B4 capafy.ai のログインを保存済み vault から専用 profile へ移す（再ログインしない）
-  - C-B5 Capafy の publish_finish.sh / cp1_agent.py / drive_checkpoint2.py の既定 identity を `capafy:kosuke` に変更
-  - C-B6 1500 秒の応急処置を戻す
-  - 完了の証拠: worktree で専用ブラウザが capafy.ai にログイン済みで開く → hf-gig-paid-direct が lease 中でも CP2 が待たずに通る → merge・release・apply → 工場 run で下書き 7686597754 が platform_status=1（公式 readback）
 
 **残り TODO の正本（2026-09-29 05:0x JST。この順）**
 1. Capafy: C4 Japanese Humanizer に $9.99（#6123、審査枠が空けば工場が自動提出）→ C4 TikTok Script Pro の説明文・価格 → C7 実行枠の配分。C1〜C3・C5（Capafy Instagram は復旧作業中: Dais 2026-09-29「後回しは無い、引き受けてやる」）・C6 は完了。
@@ -869,6 +803,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 18:14 JST（UTC `09:14:26Z`）に同じ現行スマホDM URLを再read-only確認したが、ページは再び`403 Forbidden`、入力欄0件だった。browser identity自体は到達可能（HTTP 200）だがprovider本文を取得できず、送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v720-dm-access-denial-readback.json`。v719が最後に成功した公式readbackであり、v720以後に新しい返信が来たかは未確認である。
 - [x] 2026-09-29 18:35 JST（UTC `09:35:48Z`）に、同じ現行スマホDM URLとCoconala専用session keepaliveをread-onlyで照合した。DMは`title/body=403 Forbidden`・入力欄0件、keepaliveは`logged_out=false`かつ`access_denied=true`で、provider access denialであることを独立確認した。送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v721-dm-access-denial-readback.json`。v719が最後の成功公式readbackであり、公式threadと入力欄が回復するまで再ログイン・再送・新着推測をしない。
 - [x] 2026-09-29 18:44 JST（UTC `09:44:12Z`）に、新しいleased tabで通常UIの3経路（スマホDM、dashboard、受信箱）をread-only確認した。3経路すべて`403 Forbidden`・入力欄0件、session keepaliveも`logged_out=false`・`access_denied=true`。未登録ブラウザ／別アカウントへの切替、送信POST、正式納品クリックは行っていない。証跡は `delivery/current-cycle-v722-dm-ui-access-denial-readback.json`。v719が最後の成功公式readbackであり、composerとpost-send readbackが回復するまでRyuへの送信は未完了。
+- [x] 2026-09-29 19:00 JST（UTC `10:00:55Z`）に、正規identity `coconala:kosuke` の公式DM composerが回復したことを確認し、重複guard（同一最終本文の事前存在なし）を通過した統合本文を送信クリック1回だけ実行した。正式納品ボタンは押していない。直後の公式DM DOMで同一本文のメッセージバブル1件をreadbackしたが、再読み込み後は`403 Forbidden`・入力欄0件へ戻ったため、provider側の永続readbackは未確認である。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。再送はしない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -894,7 +829,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 ### Ryuの残TODO（この順番を正本とする）
 
-1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、現行の送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信は0件で、このターンは送信していない。
+1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信0件を確認し、統合本文の送信結果は `delivery/current-cycle-v723-dm-send-readback.json` に固定した。
 2. [x] **文言の正しい対象を特定して修正**した。購入者が指したライブtitleを`八王子デリヘル`へ変更し、公開titleと旧文言不在をreadbackした。
 3. [x] **女の子画像設定を根本修正**した。各プロフィールのメイン画像1枚＋写真5枚、原子的保存、再読込、キー形状保持、12名の公式readbackを確認した。新しい購入者画像を登録する場合だけ入力待ち。
 4. [x] **公開側のprofile画像参照を同一データへ接続**した。在籍・出勤・ランキング・プロフィールの同一profile画像を公式browser readbackした。WEB予約プレビューは既存の同一content API経路を確認済み。写メ日記は現在データが空のため、実データ表示は別途入力待ち。
@@ -902,9 +837,10 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 6. [x] **R-15の相互リンク管理を実装**した。管理画面で複数行の追加・編集・削除・並べ替え、表示名・遷移URL・バナー・掲載位置・公開状態、HTTPS URL検証を追加した。実URL・バナー受領後に保存→再読込→公開readbackを行う。
 7. **R-13の外部連携は権限・審査・仕様が揃った媒体だけを個別に接続**し、未提供の媒体は未完了として明示する。
 8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`、`textarea.message-input`、`/smartphone/direct_messages/<id>?uid=<own_uid>`の受信readback・focused 196 testsは完了。残りは返信adapterが現行URLを選び、immutable release反映後に、公式readback JSONで返信・重複guardを同じthreadで検証する。
-9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
+9. [x] 上記1〜8の修正readback後、Ryuの公式DM `10107358`へ統合済みの完成報告（公開URL・管理画面URL・修正範囲）を**一度だけ**送信した。2026-09-29 19:00 JSTに送信クリック1回、直後の公式DOMバブル1件、正式納品ボタン非押下を確認した。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。本文の送信自体は完了しており、再送は禁止する。
+10. [ ] Coconala公式DMが403から回復した後、同じスレッドをread-onlyで一度だけ再読し、v723本文のprovider側永続readbackを取得する。readbackが取れない場合も再送せず、receipt不足を記録する。
 
-現行スマホDMの14:33〜14:41を含むreadbackは `v712` と `v719` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。`v719` が現在の公式DM状態の正本であり、sellerの14:41後返信0件を確認している。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712/v719はいずれも修正・納品完了の証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
+現行スマホDMの14:33〜14:41を含む送信前readbackは `v712` と `v719`、一度だけ送信した結果は `v723` として保存済みである。`v723`は直後の公式DOMバブルを証明するが、再読み込み後のprovider永続readbackは403で未取得のため、次のcursorは再送ではなくread-only確認である。返信adapterのimmutable release反映と、v723のprovider receipt取得は未完了。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
 ### ブラウザ・loop・worktreeの対応表と衝突境界
 
@@ -912,28 +848,30 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 現行の主要な対応は次の通り。`hf-gig-browser` → `coconala:kosuke` → `~/.cloak/profiles/gig-daily-driver`（宣言ポート9223）、`lancers-revenue-browser` → `~/.local/state/anicca/lancers/browser-profile`（9227）、`crowdworks-revenue-browser` → `~/.local/state/anicca/crowdworks/browser-profile`（9228）、`affiliate-browser` → `~/.cloak/profiles/affiliate/en`（9324）、`affiliate-impact-browser` → `~/.cloak/profiles/affiliate/impact-en`（9327）、`affiliate-x-browser` → `~/.cloak/profiles/affiliate/x-en`（9326）、`life-manager-daily-driver` → `interactive:dais` → `~/.cloak/profiles/daily-driver`（9222）である。RyuのCoconala DMは `coconala:kosuke` を使い、Colorsサイト管理は別identity `colors-hachioji:owner-18211957`（`~/.cloak/profiles/colors-hachioji-owner-18211957`）を使う。両者を同時に同一profileへ接続しない。
 
-宣言済みownerとaction loopの関係は次の通り。`browser_owner` がある行だけがprofile/CDPの所有者で、下段のaction loopは現在provider adapter内部でそのownerを選ぶため、registryにidentityが明示されていない（ここが残TODOであり、推測で別profileを割り当てない）。
+宣言済みownerとaction loopの関係は次の通り。`browser_owner` がある行だけがprofile/CDPの所有者で、下段のaction loopは同じprovider identityとtarget ownerをregistryで明示し、`with-browser.sh`のleaseを取得してからそのownerを使う。identityは推測で別profileへ割り当てない。
 
 | platform / loop群 | 宣言済みbrowser owner | profile / CDP | 現在の明示性 |
 |---|---|---|---|
 | Coconala: `hf-gig-browser` | `coconala:kosuke` | `~/.cloak/profiles/gig-daily-driver` / 9223 | owner明示。実port/UUIDはresolver |
 | Coconala action: `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `coconala:kosuke` → `hf-gig-browser` | 上記 | **sourceで明示＋with-browser lease**。main由来releaseのnatural readbackは未完了 |
-| Lancers: `lancers-revenue-browser` | Lancers専用owner | `~/.local/state/anicca/lancers/browser-profile` / 9227 | ownerのみ明示 |
-| Lancers action: `application`, `negotiate`, `paid`, `storefront`, `work-sync` | 上記をadapterが選択 | 上記 | **未明示**。Human Verification中は再送しない |
-| CrowdWorks: `crowdworks-revenue-browser` | CrowdWorks専用owner | `~/.local/state/anicca/crowdworks/browser-profile` / 9228 | ownerのみ明示 |
-| CrowdWorks action: `application`, `reply`, `paid`, `report` | 上記をadapterが選択 | 上記 | **未明示**。公式readbackなしのeffect unknownを成功扱いしない |
-| Mercor / Freelancer / Upwork | 登録済みbrowser ownerなし | — | adapter境界のみ。active loop・account-bound identity未完了 |
+| Lancers: `lancers-revenue-browser` | `lancers:dais` | `~/.local/state/anicca/lancers/browser-profile` / 9227 | owner・identity明示。実port/UUIDはresolver |
+| Lancers action: `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `lancers:dais` → `lancers-revenue-browser` | 上記 | **sourceで明示＋lease**。Human Verification中は再送しない |
+| CrowdWorks: `crowdworks-revenue-browser` | `crowdworks:dais` | `~/.local/state/anicca/crowdworks/browser-profile` / 9228 | owner・identity明示。実port/UUIDはresolver |
+| CrowdWorks action: `application`, `reply`, `paid`（reportはdeterministic） | `crowdworks:dais` → `crowdworks-revenue-browser` | 上記 | **sourceで明示＋lease**。公式readbackなしのeffect unknownを成功扱いしない |
+| Mercor | `mercor:dais` | `~/.browser-harness-profile/mercor-google-20260822b` / 9334（実portはresolver） | 専用profileを`cdp_context_lease.py`の`mercor-revenue-application` taskで直列共有。funded contract・delivery receiptは未完了 |
+| Freelancer | 登録済みbrowser ownerなし | — | adapter境界のみ。account-bound identity・funded project未完了 |
+| Upwork | `upwork:dais`（owner=`upwork-revenue-browser`） | `~/.cloak/profiles/gig-upwork` / 9233（resolverでprofile-owned確認） | identityは登録済みだが現在endpoint unavailable。旧shared `gig-daily-driver`／共有Vaultは使用禁止。認証・funded contract未完了 |
 | Colors管理（Ryu案件のサイト側） | `colors-hachioji:owner-18211957` | `~/.cloak/profiles/colors-hachioji-owner-18211957` / 動的port | Coconala profileと共有禁止 |
 
 `config/loop-registry.json` はloop→ownerの宣言、`~/.config/ai/registry/browsers.toml` はidentity→profile/accountの宣言であり、どちらか一方だけを更新してはならない。
 
-衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。Coconala actionはsourceでregistry identity joinとlease wrapperへ移行したが、main由来releaseのloaded/natural readbackは未完了である。Lancers/CrowdWorksはidentity未登録でprovider固定port依存が残るため、未登録identityを推測で追加せず、静的衝突検査とresolver接続を別TODOとして扱う。
+衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。Coconala・Lancers・CrowdWorks actionはsourceでregistry identity joinとlease wrapperへ移行済みだが、main由来releaseのloaded/natural readbackは未完了である。Lancers/CrowdWorksのidentityはMac側registryへ正式登録し、resolverで所有者PID・UUID衝突なしを実測した。残りはこのsourceをmain由来immutable releaseへ反映し、各providerで自然run/readbackを取ることだけである。
 
-開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは現行URLのreadbackには成功したが、14:41後の最終返信未完了である。
+開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。Ryu公式DMは完成本文を一度だけ送信済みで、直後のDOMバブルは確認済み、再読み込み後のprovider永続readbackだけが403で未確認である。
 
-残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(c) v719で確認した同じ公式DMへRyuの全要求を一つに統合して一度だけ送信、(d) 全platform loopの暗黙browser依存を明示identityへ収束、である。送信はこのread-only確認ターンでは実行していない。
+残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) Coconalaの各action ownerをmain由来releaseへ一つずつ反映し、loaded SHA・自然terminal・公式readback・replay-zeroを確認、(c) 403回復後にRyu DMをread-onlyで一度だけ再読（再送なし）、(d) Freelancer／Upworkのaccount-bound identity・authorization・funded contractを取得してからownerを登録、(e) 全platform loopの暗黙browser依存を明示identityへ収束、である。Ryu本文の送信は既に完了している。
 
-現行source readback（2026-09-29 JST）は、専用worktreeのbranch `fix/lm-release-boundary-20260929`（remoteと同期済み、最新 `origin/main=bbc73eda12…`をmerge済み、PRなし）である。重点runtime `289 passed / 177 subtests`、registry/read-only focused test `163 passed / 171 subtests`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）、`git diff --check`もPASSである。外部owner `ai.anicca.provision-browser.aws.life-manager-cloud-provision`をregistryへ明示したため、source側`./bin/lm-loop doctor`は`ok=true`になった。productionは旧releaseのままなので、production側doctorのreadbackはimmutable release昇格後に行う。
+現行source readback（2026-09-29 JST）は、専用worktreeのbranch `fix/lm-release-boundary-20260929`（`origin/fix/lm-release-boundary-20260929`と同期済み）である。直近source commit `e909a43f82` はMercor application/reply laneを専用`mercor:dais` identityへ結合し、Upworkの旧固定CDP／共有profile／共有Vaultを専用`upwork:dais` resolverへ結合した。Gig全体suite `1538 passed`、registry `127 passed / 183 subtests`、contract gate、shell／Python syntax、diff checkはPASS。productionはこのbranchをまだ読み込んでいないため、Mercor専用browser起動probeの容量不足と、Upwork resolverのendpoint unavailableを本番失敗・認証失敗とは扱わない。
 
 横断owner readback（`delivery/current-cycle-v715-platform-owner-readback.json`）では、Coconalaのreply/Paidはruntime passでもApply/Storefrontは`resource_effect_unknown`、LancersのApplication/Negotiate/Paidは`entrypoint_exit_1`（Negotiateの根因は`provider_response_invalid`）、CrowdWorksはbrowser/replyが失敗しApplication/Paidは公式readbackなし、MercorのApplication/Reply/Paidは`resource_effect_unknown`である。Freelancer/Upworkはadapterだけでactive registry ownerがなく、全platform完了とは扱わない。`effect_status=unknown`を成功に昇格せず、各providerの公式readback adapterとimmutable release適用が残る。
 
@@ -941,7 +879,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **Lancersのsource診断修正（このbranch、production未反映）**: `skills/earn/lancers/scripts/work_sync.py` のJSON fetch境界が、HTTP失敗時のdocument title/bodyにHuman Verification等のmarkerを検出した場合、`provider_response_invalid`ではなく型付き`human_verification_required`を返すようにした。`reply_adapter`も同じ理由をobservation boundaryとして`effect=0`・pendingに分類し、work-syncのexitは75（provider mutationなし）にする。captcha bypass・再ログイン・再送は行わない。focused testsはLancers `23 passed`、Paid/owner `32 passed`。main統合・immutable release・9227 natural readbackは未完了。
 
-**Lancers／CrowdWorks endpoint projectionのsource修正（このbranch、production未反映）**: `skills/browser/cdp_endpoint.py`がlease wrapperの`CLOAK_CDP_BASE_URL`をlocalhost／http／valid portへ検証し、未設定時だけprovider既定値へ戻す。投影値を採用するには`LIFE_MANAGER_BROWSER_IDENTITY`と`LIFE_MANAGER_BROWSER_TARGET_OWNER`の両方が必要で、片側でも欠ければ`browser_identity_join_missing`でfail-closedする。Lancers `application_tick.py`のCDP URL／attach lock、CrowdWorks `account.py`のCDP URL／port、profile applyのfactory endpointがこの値を使う。許可外endpointは`browser_endpoint_invalid`でfail-closedする。これは固定port除去のsource基盤であり、`browsers.toml`のidentity登録、registryの`browser_identity`／`browser_target_owner` join、main由来releaseのnatural readbackは未完了。
+**Lancers／CrowdWorks endpoint projectionのsource修正（このbranch、production未反映）**: `skills/browser/cdp_endpoint.py`がlease wrapperの`CLOAK_CDP_BASE_URL`をlocalhost／http／valid portへ検証し、未設定時だけprovider既定値へ戻す。投影値を採用するには`LIFE_MANAGER_BROWSER_IDENTITY`と`LIFE_MANAGER_BROWSER_TARGET_OWNER`の両方が必要で、片側でも欠ければ`browser_identity_join_missing`でfail-closedする。Lancers `application_tick.py`のCDP URL／attach lock、CrowdWorks `account.py`のCDP URL／port、profile applyのfactory endpointがこの値を使う。許可外endpointは`browser_endpoint_invalid`でfail-closedする。`browsers.toml`には`lancers:dais`／`crowdworks:dais`を正式登録し、registryの8 action laneへidentity／target owner joinを追加済み。resolver実測は両方HTTP 200・profile所有PID一致・UUID衝突なし。残りはmain由来releaseのnatural readbackである。
 
 **Coconala action leaseのsource修正（このbranch、production未反映）**: `config/loop-registry.json`の`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`、`hf-gig-paid-direct`、`hf-gig-reply-detector`に、`browser_identity=coconala:kosuke`と`browser_target_owner=hf-gig-browser`を両方宣言した。registry validator/schemaは片側だけのjoinを拒否する。`runtime/loop/entry_dispatch.py`のdispatch、Paid owner、Reply ownerは`skills/browser/with-browser.sh`を通じてidentity leaseを保持し、leaseが返すCDP endpointから`CDP_DAILY_DRIVER_PORT`・`SESSION_VAULT_PORT`・`GIG_CDP_HEALTH_URL`を再導出する。これによりCoconala action同士の同時接続と古い固定portへの再接続をfail-closedにする。registry/dispatch `169 passed / 171 subtests`、browser preflight `15 passed / 6 subtests`、Paid/Storefront `318 passed`、Apply `153 passed / 31 subtests`、contract `ok=true`。main統合・immutable release・production loaded readbackは未完了。
 **Coconala action leaseのsource修正（このbranch、production未反映）**: `config/loop-registry.json`の`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`、`hf-gig-paid-direct`、`hf-gig-reply-detector`に、`browser_identity=coconala:kosuke`と`browser_target_owner=hf-gig-browser`を両方宣言した。registry validator/schemaは片側だけのjoinを拒否する。`runtime/loop/entry_dispatch.py`のdispatch、Paid owner、Reply ownerは`skills/browser/with-browser.sh`を通じてidentity leaseを保持し、leaseが返すCDP endpointから`CDP_DAILY_DRIVER_PORT`・`SESSION_VAULT_PORT`・`GIG_CDP_HEALTH_URL`を再導出する。これによりCoconala action同士の同時接続と古い固定portへの再接続をfail-closedにする。さらに、実稼働が確認できたAWS Provision Browser labelを`external_labels`へ追加し、未管理labelを削除せずdoctorのowner分類へ収束させた。registry/dispatch `169 passed / 171 subtests`、browser preflight `15 passed / 6 subtests`、Paid/Storefront `318 passed`、Apply `153 passed / 31 subtests`、contract `ok=true`。main統合・immutable release・production loaded readbackは未完了。
@@ -950,29 +888,80 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **source acceptanceの再実測（2026-09-29、このbranch）**: `python3 -m pytest -q skills/browser/tests/test_cdp_endpoint.py skills/earn/lancers/tests/test_browser_attach_lock.py skills/earn/crowdworks/tests/test_provider_browser_lock.py` は `27 passed`、`python3 -m pytest -q runtime/loop/tests/test_entry_dispatch.py runtime/loop/tests/test_macos_loop_registry.py runtime/loop/tests/test_lm_loop_readonly.py` は `206 passed, 171 subtests passed`。`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 174、mapped 101）、`./bin/lm-loop doctor` は`ok=true`（unmanaged labels 0）。したがってsource側のfocused acceptanceは完了しているが、PR/main統合、immutable release、production loaded readbackは未完了である。
 
+**Lancers／CrowdWorks identity joinの最新readback（このbranch）**: `config/loop-registry.json`へLancers 5レーン（application/storefront/negotiate/paid/work-sync）とCrowdWorks 3レーン（application/reply/paid）のidentity／target ownerを追加した。Mac側`~/.config/ai/registry/browsers.toml`へ`lancers:dais`（専用profile、9227）と`crowdworks:dais`（専用profile、9228）を正式登録した。`resolve_cdp_endpoint.py`は両方HTTP 200・profile所有PID一致・UUID衝突なし（Lancers `bc7ec25b…`、CrowdWorks `8e459007…`）を返し、`with-browser`のread-only自然実測も両方HTTP 200でlease解放を確認した。registry/dispatch/apply/provider lockを含むfocused suiteは `337 passed / 212 subtests passed`、contractとdoctorは`ok=true`。sourceはこのworktree/branchまでで、main統合・immutable release・providerの応募／返信／納品の公式readbackは未完了である。
+
 | loop群 | 現在のbrowser/profile | identity登録 | 衝突境界 |
 |---|---|---|---|
 | Coconala `hf-gig-browser`; action `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `~/.cloak/profiles/gig-daily-driver`, 宣言9223（実portはDevToolsActivePort） | `coconala:kosuke`（browser UUIDを実測して一致確認） | Coconala DM・Paid・Application・Storefrontを同時に別profileへ向けない。Colors管理profileとは直列化し共有しない |
-| Lancers `lancers-revenue-browser`; action `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `~/.local/state/anicca/lancers/browser-profile`, 宣言9227 | **未登録**（`browsers.toml`にLancers identityがない） | action sourceはleaseが投影する`CLOAK_CDP_BASE_URL`を検証・採用できるが、registry identity joinは未登録。Human Verification中は再送しない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
-| CrowdWorks `crowdworks-revenue-browser`; action `application`, `reply`, `paid`, `report` | `~/.local/state/anicca/crowdworks/browser-profile`, 宣言9228 | **未登録**（`browsers.toml`にCrowdWorks identityがない） | account／profile／PaidのCDP sourceはlease endpointを検証・採用できるが、registry identity joinは未登録。公式readbackなしのeffect unknownを成功扱いしない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
-| Mercor / Freelancer / Upwork | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
+| Lancers `lancers-revenue-browser`; action `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `~/.local/state/anicca/lancers/browser-profile`, 宣言9227 | **`lancers:dais`登録済み** | `browser-guard`/resolverでHTTP 200・所有PID・UUID `bc7ec25b…`を確認。source registry joinはこのbranch済み、Human Verification中は再送しない。main由来releaseのnatural readbackが残る |
+| CrowdWorks `crowdworks-revenue-browser`; action `application`, `reply`, `paid`, `report` | `~/.local/state/anicca/crowdworks/browser-profile`, 宣言9228 | **`crowdworks:dais`登録済み** | `browser-guard`/resolverでHTTP 200・所有PID・UUID `8e459007…`を確認。source registry joinはこのbranch済み、公式readbackなしのeffect unknownを成功扱いしない。main由来releaseのnatural readbackが残る |
+| Mercor | `mercor:dais`（専用context lease） | **dedicated identityを登録済み** | `~/.browser-harness-profile/mercor-google-20260822b`をresolverでprofile-owned endpointへ結合し、応募／返信は`mercor-revenue-application` taskで直列化する。funded receiptなしのmutationは成功扱いしない |
+| Freelancer | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
+| Upwork | `upwork:dais` identityは登録済みだがactive action ownerなし | **endpoint unavailable** | adapterと専用profile境界のみ。funded receipt・authorization・ownerを作るまでmutation loopを有効化しない |
 | Affiliate growth `affiliate-browser`, `affiliate-impact-browser`, `affiliate-x-browser` | `~/.cloak/profiles/affiliate/{en,impact-en,x-en}`, 宣言9324/9327/9326 | ownerはregistryにあるが、platform identityの個別登録は未確認 | 各profileを相互共有しない。契約work系へ流用せず、既存affiliate ownerのlease境界を維持する |
 | PromptBase `promptbase-loop-daily` / system connector `life-manager-connector-native` | 専用ownerなし。`interactive:dais` identity joinをそれぞれのtarget loopで宣言 | `interactive:dais`（target loop単位） | Coconala/Lancers/CrowdWorksのprofileへ接続しない。public mutationはeffect fenceとofficial readbackが前提 |
 | RyuのColors管理 | `~/.cloak/profiles/colors-hachioji-owner-18211957`, 動的port | `colors-hachioji:owner-18211957` | Coconala `coconala:kosuke` と同じprofile/CDPを同時に触らない |
 
-この表は「実際に現在どこへ接続するか」と「まだ衝突安全を証明できない箇所」を分けたものだ。Coconala actionはregistryのidentity joinを宣言し、`entry_dispatch.py`・Paid owner・Reply ownerが`with-browser.sh`のleaseを取得してから子processを起動する。leaseが返す実endpointからchild向けのCDP/health環境変数を再導出するため、古い固定portへ黙って再接続しない。main由来releaseでのloaded/natural readbackはまだ未完了である。Lancers/CrowdWorksへ未登録identityを推測で作らず、`browsers.toml`の正式登録、adapterの固定port除去、`resolve_cdp_endpoint.py`＋leaseの自然run、UUID衝突readbackを一つの変更として行う。
+この表は「実際に現在どこへ接続するか」と「まだ衝突安全を証明できない箇所」を分けたものだ。Coconala・Lancers・CrowdWorks actionはregistryのidentity joinを宣言し、対象ownerが`with-browser.sh`のleaseを取得してから子processを起動する。leaseが返す実endpointからchild向けのCDP/health環境変数を再導出するため、古い固定portへ黙って再接続しない。Lancers/CrowdWorksは`browsers.toml`の正式登録、resolverのHTTP/所有PID/UUID衝突readbackまで完了した。main由来releaseでのloaded/natural readbackだけが未完了である。
 
-**本番境界の最新readback**: production `current` は `/Users/anicca/loops/releases/20260929T172908-d697d18f`（SHA `d697d18fa8…`）。`lm-loop status`では`hf-gig-browser`の直近eventが旧`eada0da3…`、`hf-gig-apply-reconcile`も`eada0da3…`、Paid/Replyはさらに旧release、Storefrontは`8a9f1dcb…`で、Coconala action全体にloaded-release driftが残る。fresh read-onlyの`browser-guard status`では`coconala:kosuke`が`gig-daily-driver`／9223／browser UUIDへ到達し、到達性と衝突なしを確認できる。これは現在の同一identity内衝突が観測されなかったことを示すが、source修正版のofficial receipt/readbackやproduction loaded証明ではない。Lancersの`lancers-revenue-application`とCrowdWorksの`crowdworks-revenue-application`は、identity join未登録のため`browser_join_missing`でfail-closedする。production旧releaseの`lm-loop doctor`には未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision`が残る。Ryu DMの最終統合返信・正式納品クリックは0件である。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
+**403／provider検証の最新診断（2026-09-29 19:xx JST）**: Coconala公式ヘルプは、システムエラー時に推奨環境、再起動、ログアウト後の再ログイン、シークレットモード、Cookie／キャッシュ削除、JavaScript、フィルタリング設定を確認し、それでも続く場合はアプリ／ブラウザ／OSの版と発生操作を添えて運営へ問い合わせるよう案内している（[ココナラヘルプ](https://help.coconala.com/hc/ja/articles/4407504313497)）。RyuのDMは完成本文を一度だけ送信し、直後の公式DOMバブルを1件確認済み。再読み込み時の`403 Forbidden`はproviderの永続readback拒否であり、未送信の証拠ではない。新しいブラウザへ無制限に切り替えたり旧URLへ迂回したりせず、再送・正式納品クリックを禁止する。Lancersの専用CDP `9227`はread-only `/json/list`で全pageが`title=Human Verification`・`url=https://www.lancers.jp/mypage`を返し、旧releaseの応募／交渉ログは`provider_response_invalid`／HTTPエラーで終了しているため、captcha回避・再ログイン・再送ではなく`human_verification_required`としてprovider回復待ちに分類する。CrowdWorks `9228`はログイン済み提案ページを表示するが、応募／Paidの最新イベントは公式receipt/readbackが無く、`effect_status=unknown`を成功に昇格しない。
+
+**CrowdWorks read-only natural probe（2026-09-29 19:32 JST）**: branchの`crowdworks:dais` identity／`crowdworks-revenue-reply` target ownerでleaseを取得し、provider受信APIの読み取りだけを1回実行した。`items`／`pagination`のshape検証を通過し、125スレッドを取得してleaseを解放した。これは返信送信・契約承諾・納品のreceiptではない。productionの`751b6bef…`旧reply ownerに残る`entrypoint_exit_1`／`official_readback_required`は、今回のread-only成功だけでは解消扱いにせず、identity joinを含むmain由来immutable releaseのloaded natural runと公式thread readbackを次のgateにする。
+
+**Lancers read-only natural probe（2026-09-29 19:33 JST）**: branchの`lancers:dais` identity／`lancers-revenue-negotiate` target ownerでleaseを取得し、返信adapterの受信観測だけを1回実行した。専用CDP `9227` のprovider画面がHuman Verificationであるため、adapterは`human_verification_required`を返して副作用なしに停止した。旧productionの`provider_response_invalid`を成功・応募・返信の証拠に昇格しない。検証解除後にのみ同じadapterで公式thread readbackへ進む。
+
+**Mercor identity correction（2026-09-29）**: 先行のread-only probeは`localhost:9222`で`status=authenticated`を返したが、直後のresolver readbackは`job-search:dais=endpoint_unavailable`、9222の実processは`interactive:dais`だった。したがってそのprobeはMercor identityの証拠として採用しない。`~/.config/ai/registry/browsers.toml`へ専用`mercor:dais`（`~/.browser-harness-profile/mercor-google-20260822b`、9334、owner=`mercor-revenue-browser`）を登録し、registryのapplication/reply laneにもjoinを追加した。次はこの専用browserを起動し、resolverのprofile-owned readback→同じ専用leaseでauth readbackを取り直す。応募・返信・契約承諾・メール認証要求・その他の外部effectはまだ実行しない。Paidは引き続き明示的な公式`paid_handoff` snapshotが来るまでmutationしない。
+
+**Mercor専用browser起動probe（2026-09-29）**: immutable `current` releaseから`ai.anicca.job-search-mercor-browser`のplistを生成し、`launchctl-safe`のAqua preflight（`mutation_allowed=true`）後に専用profileだけをbootstrapした。launcherは起動を試みたが、`runtime/host/disk_admission.py`が`disk_headroom_low`（空き約424MB、必要512MB）でexit 1にした。resolverは`mercor:dais=endpoint_unavailable`のままで、9222へのfallbackやdisk guardの迂回はしていない。これはpre-effectのホスト容量pendingであり、Mercorのauth失効・provider拒否・応募失敗の証拠ではない。空き容量回復後に同じ専用profile→resolver→専用lease→auth readbackの順で再実測する。
+
+**Upwork identity／Vault境界修正（2026-09-29）**: 退役中の旧Upwork jobは、固定`--cdp-base 9233`、共有`gig-daily-driver` profile、共有`gig-daily-driver` session Vault、port ownerの固定`hf-gig-browser`を暗黙に使っていた。これを専用`upwork:dais`（`~/.cloak/profiles/gig-upwork`、owner=`upwork-revenue-browser`）のresolverへ変更し、起動時のVaultを`~/.cloak/vault/gig-upwork`、port ownerを環境変数で分離した。resolver実測は`endpoint_unavailable`（専用browser未起動）でfail-closed。現在のUpwork account-bound probeは`authenticated=false`／`blocked_google_2fa`、保存inventoryはactive contract 0である。Upworkの応募・返信・契約承諾・納品はまだ行わず、旧labelもfunded contract gateが閉じているため退役のまま維持する。FreelancerもOAuth・承認receipt・live inventoryがなく、owner登録条件未達である。
+
+**本番境界の最新readback（2026-09-29 19:02 JST）**: `origin/main=04a56df3e74d…`、production `current=/Users/anicca/loops/releases/20260929T185817-acaadb2f`（SHA `acaadb2fbb74…`、main ancestor）へ進んだ。`hf-gig-browser` と `hf-gig-paid-direct` は `installed/event_release_sha=acaadb2f…` へ揃い、browserは`loaded-running`、Paidは`loaded-idle`でeffect前の自然wake待ち。`hf-gig-reply-detector`、`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`は旧releaseのままで、共有`release-reconciler`のfleet applyが順次更新中（同じownerへ重ねてapplyしない）。Ryuのv723 DMは一度だけ送信済みだが、再読み込み後のprovider永続readbackは403のため未確認。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
 
 **残TODO（成果基準の順序）**:
 
-1. source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorはPASS済み。残りはPR/checksとmain統合であり、AWS Provision Browserがproduction側doctorでも同じ外部owner分類になることをimmutable release readbackで確認する。
-2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
-3. provider access denialが解消し、公式Coconala DMのreadbackが再び成功した後、Ryuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。送信後に同じ公式threadのseller後続1件・重複0件をreadbackする。403中は送信しない。
-4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、Coconala DM・Paid・Application・Storefrontのloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。
-5. Lancers/CrowdWorksのidentityを正式登録し、registryのidentity joinを追加して固定9227/9228依存をlease endpointへ切り替える。source adapterのendpoint projectionは済み。Human Verification・provider denial・effect unknownを型付きpendingとして保持し、公式receiptなしの再送を禁止する。
-6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
+1. [x] source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorをPASSし、PR #6203をmainへ統合済み。`origin/main=04a56df3e74d…`にはCoconala lease修正が含まれる。
+2. [~] main由来immutable release `acaadb2f…` を`current`へ反映済み。`hf-gig-browser` と `hf-gig-paid-direct` はloaded SHAを確認済み。残りのCoconala action ownerはfleet reconcilerが順次apply中で、全ownerのloaded SHA・natural terminal・browser UUID/lease readbackは未完了。
+3. [~] provider access denial回復後、Ryuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送信した（v723）。正式納品ボタンは押していない。直後DOMバブルは確認済みだが、再読み込み後の公式thread永続readbackは403で未取得。再送は禁止。
+4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、DM・Paid・Application・Storefrontの全ownerについてloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。fleet apply完了後に続ける。
+5. [x] Lancers/CrowdWorksのidentity（`lancers:dais`／`crowdworks:dais`）を`browsers.toml`へ正式登録し、8 action laneへregistry identity joinを追加した。両resolverはHTTP 200・profile所有PID・UUID衝突なしをreadback済み。source adapterのendpoint projectionも済み。Human Verification・provider denial・effect unknownは型付きpendingとして保持し、公式receiptなしの再送を禁止する。残りはmain由来immutable releaseへの反映と各providerのnatural readback。
+6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorは専用`mercor:dais`のresolver readback→account-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
 7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
+
+**最新Codex readback／Coconala effect fence境界（2026-09-29、専用worktree）**: Ryuさんへの最新統合本文は、最新DM要求を一つにまとめ、正規identity `coconala:kosuke` から送信クリック1回だけ実行した。正式納品ボタンは押していない。同一本文の事前重複は0件、直後の公式DOMバブルは1件で、再送は禁止する。再読み込み後の`403 Forbidden`でprovider永続readbackだけが未確認であり、これは未送信の根拠ではない。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。
+
+同じ誤判定を全platformで繰り返さないため、`hf-gig-apply-direct` の`effect_unknown`が`no_readback_adapter`で止まっていた根因を切り分けた。既存の応募readback scriptをgeneric fence loopから直接起動すると、browser identityが環境へ渡らず、登録済みprofileを安全にleaseできない。今回のsource修正は、`skills/earn/gig/scripts/coconala_application_effect_reconcile.py`を追加し、(1) admission DBとintentの1対1対応をブラウザなしで確認、(2) exact targetがある時だけ `skills/browser/with-browser.sh coconala:kosuke -- ...application_occurrence_reconcile.py` を呼び、(3) live ownerがidentityを保持している時は`BROWSER_WAIT_SECONDS=0`で即時defer、(4) identityの自動provisionを行わず、(5)送信・再送・正式納品を一切しない、という境界にした。`hf-gig-storefront-direct`は既存のlocal-only `storefront_pre_effect_reconcile.py`をregistryへ接続した。registryのgenerated fixtureも再生成済みである。
+
+source検証は `skills/earn/gig/tests` **1541 passed**、Coconala adapter／fence／registry focused suite **148 passed, 183 subtests passed**、`./bin/lm-loop-contract` **ok=true**（catalog 14、registry 174、mapped 101、shared job IDs 0）、`git diff --check`、Python syntaxがPASS。変更はworktree `.../.worktrees/lm-release-boundary-20260929` / branch `fix/lm-release-boundary-20260929`にあり、origin/main `47ddce0e…`を取り込んだが、まだmainへ統合・immutable release化・production applyしていない。したがって本番の旧`hf-gig-paid-direct`等を停止・再起動せず、現在のCoconala browser leaseを奪わない。
+
+直近のproduction readbackでは`current=/Users/anicca/loops/releases/20260929T195223-47ddce0e`（`RELEASE.json` ref `47ddce0e…`）。ただしaction labelは同一ではない。`hf-gig-browser`／`hf-gig-reply-detector`／`hf-gig-storefront-direct`は`47ddce0e…`、`hf-gig-apply-direct`は`287d913c…`、`hf-gig-apply-reconcile`／`hf-gig-paid-direct`は`acaadb2f…`のloaded SHAである。Paid processは現在も`coconala:kosuke` leaseを保持しているため、今回のCodexは停止・再起動・lease奪取をしていない。新adapterはsourceだけで、productionで有効になったとは報告しない。
+
+**この境界の残TODO（成果順）**:
+
+1. [進行中] 上記wrapper・registry・fixture・focused tests・specを専用branchへcommit/pushし、required checksを通す。
+2. [未完] PRをmainへ統合し、main由来immutable releaseを作成する。productionへは一度に全体適用せず、Coconalaの各action ownerを一つずつ対象限定applyする。
+3. [未完] 各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを確認する。`effect_unknown`は公式receiptなしに解放せず、現在のlive paid loopのleaseを奪わない。
+4. [未完] Coconala DMが403から回復した後、Ryuスレッドをread-onlyで一度だけ再取得し、v723本文のprovider永続receiptを確認する。確認できなくても再送しない。
+5. [未完] Coconalaの後にLancers・CrowdWorks・Mercor・Freelancer・Upworkを同じshared kernel（identity→funded handoff→effect fence→公式receipt→settlement/P&L）へ順に接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
+
+**最新Codex readback／Lancers pre-effect fence境界（2026-09-29、同じ専用worktree）**: 次platformのsource-only修正として、応募・交渉・掲載の3 owner（`lancers-revenue-application`、`lancers-revenue-negotiate`、`lancers-revenue-storefront`）に、shared `reconcile_pre_effect_hint.py`をregistryの`effect_reconcile`として接続した。アダプタはprovider/browserへ接続せず、同一owner・同一occurrenceに束縛されたprivate marker `loop-tmp/<owner>/<run>/entrypoint-result.json`が、厳密に`{"status":"pre_effect_failure","effect":0}`、uid一致・mode `0600`・regular file・nlink `1`で存在する場合だけ`expected_state=claimed`のreconcileを許す。marker欠落、別occurrence、effect `1`、symlink、不正shapeは`effect_unknown`のまま保持し、再送しない。`lancers-revenue-paid`の既存paid adapterやbrowser leaseは変更していない。
+
+Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-contract`は **ok=true**（catalog `14`、registry `174`、mapped `101`、shared job IDs `0`）、py_compileと`git diff --check`もPASS。generated `runtime/loop/tests/fixtures/macos-loop-jobs.json`はregistryから再生成済み。変更はまだ専用branch `fix/lm-release-boundary-20260929`のsource段階で、main統合・immutable release・production apply/readbackは未実施。したがってLancersのlive providerへ送信・応募・掲載を実行したとは報告せず、既存のeffect_unknownをこのsource変更だけで解放しない。
+
+**Mercor effect fence接続（2026-09-29、同じ専用worktree）**: Mercorのentrypointはすでにpre-effect markerを実装していたが、registryにreconcile adapterが無く、`mercor-revenue-application`／`mercor-revenue-reply`／`mercor-revenue-paid`のeffect_unknownを自動判定できなかった。応募と返信はshared `reconcile_pre_effect_hint.py`を、それぞれ実際のstate root `~/.local/state/anicca/job-search/mercor/application`・`.../reply`へowner/occurrence boundで接続し、paidは`reconcile_paid_no_effect.py`を`~/.local/state/anicca/job-search/mercor`へ接続した。registry fixtureを再生成し、Mercor suite **182 passed, 183 subtests passed**、fence/registry focused、`./bin/lm-loop-contract` **ok=true**、`git diff --check`をPASSした。これはsource-onlyであり、productionは旧release `2ffad523…`のまま、Mercor providerへの送信・応募・決済・返信を行っていない。
+
+**CrowdWorks browser-lock境界（2026-09-29、source-only）**: read-only process sampleで、応募reconcileが同じ`provider-browser.lock`を約9分保持し、reply・paid・application ownerが同じlockのblocking `flock`待ちになっている事実を確認した。根因はofficial-readback adapterがrevenue laneと同じlockを無期限blocking取得していたこと。`reconcile_reply_no_send.py`の`_provider_lease`を`LOCK_NB`へ変更し、競合時は`ProviderBrowserBusy`として即時defer、reply/applicationの両reconcilerは構造化`provider_browser_busy`／`retry_after_provider_browser`を返してfenceを解放・再送しない。専用probeだけはlock待ちを確認後に中断し、productionの既存PID/loop/browserは停止していない。focused CrowdWorks reconcile suite **33 passed**（変更前後の既存境界を含む）。この変更はまだmain/release/productionへ未適用である。
+
+**Lancers追加後の残TODO（成果順）**:
+
+1. [進行中] Coconala wrapperとLancers shared adapter、registry、fixture、tests、specを同じ専用branchへcommit/pushし、required checksを通す。
+2. [未完] PRをmainへ統合し、main由来immutable releaseを作成する。productionはCoconala/Lancersのaction ownerを一つずつtarget applyし、既存live leaseを奪わない。
+3. [未完] 各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを確認する。pre-effect markerだけで解放できるものと、provider公式receiptが必要なものを分離する。
+4. [未完] Coconala Ryu DMはv723本文を再送せず、403回復後にread-only provider永続receiptを一度だけ確認する。
+5. [未完] Lancersのapplication/negotiate/storefront/paidを自然wakeで検証し、応募・交渉・掲載・決済の各effectを同一occurrenceの公式receiptへ結び付ける。
+6. [進行中] CrowdWorksのlock競合defer修正をcommit/pushし、main由来releaseでtarget apply後、収益laneがreconcileの無期限待ちにならないことをnatural readbackする。既存effect_unknown（応募のreceipt-bound/in-window、paidのzero-effect証拠不足、replyのofficial conversation不足）はprovider receiptなしに解放しない。
+7. [未完] Mercorの3 ownerをmain由来releaseへtarget applyし、pre-effect markerで安全に解放できるoccurrenceと、公式Mercor receiptが必要なoccurrenceを分離する。
+8. [未完] Freelancer・Upworkを同じshared kernelへ接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）
 
@@ -1204,6 +1193,20 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 7. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
 8. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
 
+**最新のGig platform境界監査（2026-09-29、Codex専用worktree）**: 「adapterが存在する」ことを「platform loopが稼働している」ことと混同しない。`config/loop-registry.json` の現行`loops`（174件）にはFreelancer／Upworkのactive lifecycle ownerは存在せず、両者はsource-only readiness境界に留まる。Freelancerは`freelancer-actions.public.json`の全actionが`unknown`で、provider-approved automatic-bid terms、account-bound authorization receipt、source-complete official inventory、funded projectが未取得である。Upworkは専用identity `upwork:dais`のresolver境界とproposal／message／delivery等のprovider modules、`upwork_paid_adapter.py`／`upwork_readiness.py`は存在するが、専用endpointは`endpoint_unavailable`、account-bound probeは`authenticated=false`／`blocked_google_2fa`、保存inventoryはactive contract 0であり、funded contract・mutation authorization・active ownerがない。したがって両者の応募・返信・契約承諾・納品を「稼働中」と報告せず、funded contractと公式receiptが揃うまでowner登録・外部effectを行わない。
+
+同じ監査で、Freelancer／Upworkのreadiness・authorization・PaidHandoff focused testsは`45 passed`。これはfail-closedな入場条件の検証であり、外部アカウント認証・契約獲得・収益の証拠ではない。既存4 platformのsource修正（Coconala wrapper、Lancers pre-effect adapter、Mercor registry、CrowdWorks provider-lock non-blocking defer）はbranch `fix/lm-release-boundary-20260929` のHEAD `79f520bde9`へcommit／push済みだが、main統合・immutable release・production apply・自然公式readbackは未完了である。CrowdWorksのlock競合は、reconcileがprovider lockを待ち続けて他ownerを詰まらせる根因を`LOCK_NB`即時deferへ修正しただけで、既存`effect_unknown`をreceiptなしに解放していない。
+
+**Ryuさん送信の不変証跡（最新）**: `delivery/current-cycle-v723-dm-send-readback.json` に、最新要求を統合した本文のSHA、`send_click_count=1`、事前同一本文0件、直後DOMバブル1件、正式納品ボタン未実行、再送なしを記録する。再読み込み後は`403 Forbidden`でprovider永続readbackだけが取得できない。403は未送信の証拠ではなく、同じ本文を別browserで再送する理由にもならない。Ryu room `18211957` は「最新内容を一つにまとめて一度だけ送信」が完了条件であり、以後はread-only確認のみとする。
+
+**次の実行cursor（このsectionが旧TODO記述に優先）**:
+
+1. branchのCoconala／Lancers／Mercor／CrowdWorks source変更をrequired checksで再確認し、mainへ統合可能なHEADを固定する。既存production loopを停止・再起動せず、live leaseを奪わない。
+2. main由来immutable releaseを作り、action ownerを一つずつtarget applyする。各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを測る。source PASSをproduction PASSと数えない。
+3. CoconalaはRyu本文を再送しない。403回復後にread-only provider永続receiptを一度だけ確認し、正式納品ボタンはloopから押さない。
+4. LancersはHuman Verification解除後、CrowdWorksはprovider-lock defer後の公式thread／proposal／Paid receiptを、Mercorは専用identityのendpoint→auth→funded handoffを、各々同一occurrenceへ結び付ける。receiptなしの`effect_unknown`は保持する。
+5. Freelancerはprovider-approved automation terms、認証receipt、source-complete inventory、funded projectの順、Upworkは専用identity auth、source-complete contract/payment/payout inventory、funded milestone、mutation authorizationの順で整えてから初めてowner登録する。最後にMeta Loop（platform discovery→policy/identity→adapter→funded canary→delivery→settlement→quality/P&L feedback）を同じshared kernelへ接続する。
+
 **main統合・immutable release readback（2026-09-29 10:59 UTC）**: PR `#6214`はSecurity Scan 9ジョブ全PASS後、merge commit `47ddce0eb7faf1074c960250b481527b214b9e61`としてmainへ統合された。Life Managerの通常reconcilerがmain由来immutable release `/Users/anicca/loops/releases/20260929T195223-47ddce0e`を作成し、`current`を同SHAへ切り替えた。`alpaca-investment-live`と`alpaca-investment-paper`はloaded SHA `47ddce0eb7`、natural occurrenceは`pass`へ進んだが、provider receipt・official readbackはまだnullであり、注文・fill・利益ではない。`investment-cross-venue-report`と`investment-strategy-validation`のplistは旧SHA `d7c7b444a8`のままで、fleet applyの後続処理が未完了である。実現収益は引き続き`$0/月`、過去live公式snapshotはnet`-$0.15`・round trip`1/30`。
 
 **現在cursor（実行順）**: (1) 自動fleet apply完了後にcross-venue/strategy-validationのloaded SHAとargv/envをreadback、(2) fence reconcilerで旧cross-venue `effect_unknown`を公式receiptなしに解放しない、(3) 市場開場後に同一QQQ orderのterminal status・account/position/fillを公式readback、(4) cost-complete net P&L、(5) `30/30` natural round trips。資金追加・Binance送金・wallet funding・live注文・meme coin署名・yield depositは引き続き禁止する。
@@ -1230,6 +1233,96 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. **30/30測定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集め、初めて最小capのpromotionを審査する。それまでは資金追加、Binance送金、cap増額、live拡大、meme coin署名、yield depositをしない。
 7. **追加venueの比較**: `30/30`後にHyperliquid shadow → Solana/Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を報告する。`$10,000/月`は目標であり保証ではない。
 
+**Meta Loop source gate（2026-09-29、branch `fix/lm-release-boundary-20260929`）**: 新platformを見つけただけでownerを登録しないため、shared `skills/_shared/marketplace-core/scripts/platform_enrollment.py` に純粋な`evaluate_platform_candidate()`を追加した。判定は`policy`（公式HTTPS方針がallowed）、`adapter`（`marketplace-core-v1`の8 actionとsource hash）、`funded_work`（provider receipt）、`canary`（公式receipt/readback・replay-zero）、`unit_economics`（measuredかつpositive net）の5 gateを同時に要求する。いずれかがunknown、未readback、別provider receipt、非収益なら`decision=hold`か型付きerrorとなり、`owner_registration_allowed=false`。この関数はbrowser／credential／送信／owner登録を呼ばず、Meta Loopの候補評価だけを担当する。
+
+このsource追加はTDDで、未実装RED→実装後5 tests GREEN、shared marketplace-core suite **294 passed**、`./bin/lm-loop-contract` **ok=true**（catalog 14、registry 174、mapped 101、shared job IDs 0）、`git diff --check`を確認した。これはMeta Loopのpromotion境界がコード化されたという意味であり、新platformの認証、funded contract、公式canary、settlement、production ownerが完了した意味ではない。既存のCoconala／Lancers／CrowdWorks／Mercor source修正もmain未統合・production未反映のため、次はrelease/apply/readbackを一つずつ行う。
+
+**最新の実行状態と残TODO（2026-09-29、旧cursorを上書き）**: branch `fix/lm-release-boundary-20260929` はこのspec更新を含む専用source branchであり、`origin/main`は`5d99b497adebd29e75263323655348a1715bff69`である。production `current`は`/Users/anicca/loops/releases/20260929T195223-47ddce0e`（release SHA `47ddce0…`）のままで、branch sourceはproductionへ未反映である。source検証はGig全体`1541 passed`、CrowdWorks／Lancers／Mercor combined`538 passed`、Freelancer／Upwork`45 passed`、runtime fence`20 passed`、shared marketplace-core`294 passed`、`./bin/lm-loop-contract ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）。これはsource品質の証拠であり、live provider成功・収益・公式receiptの証拠ではない。
+
+現在のprovider owner readbackは次のとおりである。CoconalaはApply `287d913c…`が`resource_effect_unknown`、Paid `acaadb2f…`がcapacity defer、Reply `47ddce0e…`が`entrypoint_exit_1`、Storefront `47ddce0e…`が`resource_effect_unknown`で、receipt/readbackは無い。LancersはApplicationがcapacity defer、Negotiateはpassだが`effect_unknown`、Paidは`entrypoint_exit_1`、Storefrontは`effect_unknown`である。CrowdWorksはApplication／Paidが`effect_unknown`、Replyが`751b6bef…`の`entrypoint_exit_1`である。MercorのApplication／Reply／Paidは`47ddce0e…`上で`resource_effect_unknown`である。全て`provider_receipt_id=null`／`official_readback_ref=null`であり、unknownを成功へ昇格しない。
+
+この状態での実行順は以下で固定する。
+
+1. 最新`origin/main`をbranchへ同期し、source変更のrequired checksとgenerated fixtureを再確認する。production loopは停止・再起動しない。
+2. 全ownerのsource受入条件が揃った後にだけmain統合・main由来immutable release・target applyへ進む。branch PASSやrelease作成だけをproduction PASSと数えない。
+3. Coconalaの4 laneを一つずつapplyし、loaded SHA、identity lease、自然terminal、公式readback、replay-zeroを取得する。Ryuさんの本文は再送せず、403回復後もread-only確認だけを行う。
+4. LancersはHuman Verification解除後、CrowdWorksは`LOCK_NB` defer後の公式proposal/thread/Paid receipt、Mercorは専用identityのendpoint→auth→funded handoffを確認する。receiptなしのeffect fenceは解放しない。
+5. Freelancerはprovider-approved automation terms→account-bound auth→source-complete inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationの順で整えてからownerを登録する。現時点で両platformにactive ownerはない。
+6. Meta Loopの残りは、platform discovery producer／scheduler、candidate stateのdurable保存、promotion後のowner provisioning、canary失敗時rollback、settlement／P&L feedbackを同じshared kernelへ接続すること。現在はpromotion gateのみ実装済みで、これらは未完了である。
+
+**最新readbackによる残TODO上書き（current cursor）**: このspecを含む専用source branchの最新`origin/main`は`9b36d3d21a`である。`origin/main`は投資docs更新を含む別進行であり、branch固有のGig／Meta Loop安全修正とは差分があるため、blind mergeせず差分をreconcileしてからrequired checksへ進む。production `current`は`/Users/anicca/loops/releases/20260929T204319-bd7d35e2`（release SHA `bd7d35e29c`）で、branch固有sourceは未反映である。
+
+Gigのread-only owner readbackは、Coconala Applyが`resource_effect_unknown`、Paidが`resource_capacity_busy`、Replyが`entrypoint_exit_75`、Storefrontが`resource_effect_unknown`。LancersはApplicationが`resource_capacity_busy`、Negotiateがpassだが`effect_status=unknown`、Paidが`entrypoint_exit_1`、Storefrontが`resource_effect_unknown`。CrowdWorksはApplication／Paidが`effect_status=unknown`、Replyが`entrypoint_exit_1`。MercorはApplication／Paid／Replyが`resource_effect_unknown`。対象全てで`provider_receipt_id=null`かつ`official_readback_ref=null`であり、成功・収益・納品完了とは扱わない。Freelancer／Upworkはactive owner未登録のままである。
+
+Ryuさんの送信証跡は、`send_click_count=1`、同一本文の事前重複0件、直後DOMバブル1件、正式納品ボタン未実行。再読み込みの公式readbackは`403 Forbidden`でblockedなので、再送せずread-only確認だけを行う。
+
+この時点の残TODO（実行順）は次のとおり。
+
+1. 最新`origin/main`との差分をreconcileし、Gig／Meta Loopのsource・generated fixture・required checksを再確認する。production loopは停止・再起動しない。
+2. 全ownerのsource受入条件が揃った後、main統合→main由来immutable release→target applyへ進み、loaded SHA・identity lease・自然terminal・公式receipt/readbackをlaneごとに確認する。
+3. Coconala 4 laneを一つずつreadbackし、effect unknown／capacity／entrypoint failureを解消する。Ryuさんへは再送せず、403は復旧後もread-onlyで確認する。
+4. Lancers・CrowdWorks・Mercorは、各providerの認証境界・lock/capacity defer・公式proposal/thread/Paid receiptを同一occurrenceへ結び付け、receiptなしのfenceを解放しない。
+5. Freelancerはapproved terms→account auth→inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationの順で整えてからowner登録する。
+6. Meta Loopにdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement／P&L feedbackを実装する。現在はpromotion gateのみ実装済みである。
+
+**検証済み最新cursor（read-only確認後）**: remote `main`の最新値は`c640f3bf1b9832e1c82f67d16d574ee8d278baf7`（`ls-remote`／`FETCH_HEAD`で確認）。local `origin/main` refは更新時にref競合で失敗したため、差分reconcile前にremote値とlocal refを再確認する。production `current`は`/Users/anicca/loops/releases/20260929T210029-5bc161c5`。`./bin/lm-loop-contract`は`ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）、`git diff --check`もPASS。これはsource契約の確認であり、provider納品・収益の確認ではない。
+
+最新`lm-loop status all`で、CoconalaはApply `resource_effect_unknown`、Paid `resource_heartbeat_unavailable`、Reply `entrypoint_exit_75`、Storefront `resource_effect_unknown`。LancersはApplication `entrypoint_exit_1`、Negotiateはpassだが`effect_status=unknown`、Paid `entrypoint_exit_1`、Storefront `resource_effect_unknown`。CrowdWorksはApplication／Paid／Replyがそれぞれ`entrypoint_exit_75`／`entrypoint_exit_75`／`entrypoint_exit_120`。MercorはApplication／Paid／Replyが`resource_effect_unknown`。対象laneは全て`provider_receipt_id=null`／`official_readback_ref=null`。Freelancer／Upworkのownerはdisabledでactive ownerなし。
+
+Ryuさんの公式送信証跡は、`browser_identity=coconala:kosuke`、事前同一本文0件、`send_click_count=1`、直後DOMバブル1件、正式納品ボタン未実行。再読み込みの公式readbackは`403 Forbidden`でblockedだが、再送は行わない。
+
+この検証時点の残TODO（完了までの順序）は以下で固定する。
+
+1. remote `main`と専用branchのref競合を解消・差分reconcileし、Gig／Meta Loop変更を最新main上で再検証する。production loopは停止・再起動しない。
+2. source required checks、generated fixture、contractを再実行し、branch PASSとproduction PASSを分離して記録する。
+3. 受入済みsourceだけをmainへ統合し、main由来immutable releaseを作成する。Gigの各ownerへtarget applyし、loaded SHA・argv/env・identity lease・自然terminalをreadbackする。
+4. Coconala 4 laneの公式readbackを取得する。Ryuさんへは再送せず、403は復旧後もread-onlyで確認する。
+5. Lancers・CrowdWorks・Mercorのentrypoint／capacity／lock問題を各ownerで解消し、proposal／thread／Paidの公式receiptをoccurrence単位で取得する。receiptのないeffect fenceは解放しない。
+6. Freelancerはapproved terms→account auth→inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationを満たしてからowner登録する。
+7. Meta Loopのdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement／P&L feedbackをshared kernelへ接続する。promotion gate以外は未完了である。
+
+**Self-healing／Observability／Revenueの理想契約（未完了項目を含む正本）**: Life Managerの各client-work laneは個別patchではなく、同じshared kernelの一つのinstanceとして、`discover → qualify → propose/message → accept/funded → deliver → official readback → payout → cost-complete P&L → quality feedback`を完走する。通常のlogin/session、wake、diagnostic、pre-effect retry、reconcileはno-human-loopで実行し、KYC・法的本人確認などproviderが要求する外部必須境界だけを例外とする。`pass`、PID、loaded-running、画面表示だけは収益と数えず、provider receiptとofficial readbackが揃ったeffectだけを売上・納品・成約としてledgerへ確定する。
+
+理想の観測契約は、全wakeで`schema_version`、`kind`、`loop_id`、`owner_id`、`wake_id`、`run_id`、`occurrence_id`、`release_sha`、phase、attempt、duration、status、failure_layer、error_class、next_action、evidence_refsを構造化して残し、`provider_receipt_id`と`official_readback_ref`を同一occurrenceへ結び付ける。CLI（`doctor`、`status all`、`status <id> --explain`、`pre-effect-reconcile --dry-run`、bounded `reconcile`、`lm-loop-contract`）は全agentの共通診断面とし、dashboardはledger／provider readbackの代替にしない。収益analyticsはplatform別と全体の両方で、opportunity数、応募数、返信率、funded率、納品受理率、gross/net revenue、provider fee、model/tool cost、latency、quality、repeat率、failure class、effect confidenceを集計する。
+
+自己修復は失敗層ごとにboundedにする。pre-effect／runtime／capacityは同一owner・同一release・loaded-idle制約で再concileし、effect unknown（応募・返信・納品・決済）はfenceを保持して公式readbackなしに再送しない。反復unknownはescalate/dead-letterし、任意の自己編集や無制限retryをしない。コード改善はcandidate→focused eval→immutable release→isolated canary→exact health→rollbackの順で、外部effect ownerを未検証のまま自動promotionしない。
+
+理想の自己改善は、全platformのreceipt・quality・P&Lを同じschemaで評価し、勝ち筋を候補化し、replay-zero・cost-complete net P&L・品質gateを通った変更だけをshared skill/kernelへ昇格する。現在の実装はstructured status、effect fence、bounded recovery intent、deterministic（effect none）向けpromotion、harness/evaluator基盤までであり、外部effect owner全体の自動修復・横断P&L feedback・Meta Loopのdiscoveryからsettlementまでの接続は未完了である。
+
+**最新read-only検証と残TODO（このsectionが旧Gig cursorを上書き）**: branchは専用`fix/lm-release-boundary-20260929`、remote `main`は`36b65e1f98`、production `current`は`/Users/anicca/loops/releases/20260929T211034-36b65e1f`。`./bin/lm-loop-contract`は`ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）。`doctor`は`ok=false`で、missing entrypointは0だがretired installed label `ai.anicca.job-search-mercor-browser`が残っている。これは診断可能なfleet/release境界の不整合であり、provider成功の証拠ではない。
+
+同じreadbackで、Coconala Applyは`resource_effect_unknown`、Paidは`pass`だがeffect none、Replyは`entrypoint_exit_1`、Storefrontは`resource_effect_unknown`。LancersはApplication／Paidが`entrypoint_exit_1`、Negotiateはpassだが`effect_status=unknown`、Storefrontは`resource_effect_unknown`。CrowdWorksはApplicationがpassだがeffect unknown、Paidがcapacity busy、Replyが`entrypoint_exit_1`。MercorのApplication／Paid／Replyはresource effect unknown。対象laneのprovider receipt／official readbackは未取得である。Freelancer／Upwork ownerはdisabledである。RyuさんはDM URLで本文を1回送信しDOMバブル1件を確認済み、公式reloadは403、再送しない。
+
+残TODO（理想状態までの実行順）は以下で固定する。
+
+1. retired installed labelを含むfleet/release境界を診断し、最新remote `main`との差分をreconcileする。production loopを停止・再起動せず、branch固有のGig／Meta安全修正を失わない。
+2. generated fixture、required checks、contract、observability/recovery testsを再実行し、source PASSとproduction PASSを分離して記録する。
+3. 受入済みsourceからimmutable releaseを作成し、Gig各ownerへ一つずつtarget applyする。loaded SHA、argv/env、identity lease、自然terminal、provider receipt、official readbackを確認する。
+4. Coconala 4 laneをeffect fenceを守ってreadbackまで閉じる。RyuさんDMは再送せず、403はprovider復旧後にread-only確認する。
+5. Lancers・CrowdWorks・Mercorのentrypoint、capacity、lock、identity問題をowner単位で解消し、proposal/thread/Paid/deliveryの公式receiptをoccurrence単位で取得する。
+6. Freelancer・Upworkはapproved automation terms、account auth、source-complete inventory、funded contract/milestone、mutation authorizationを満たしてからowner登録する。
+7. 共通analyticsをplatform横断で完成させ、receipt単位のgross/net P&L、品質、コスト、返信・成約・納品率をself-improve evaluatorへ接続する。
+8. Meta Loopのdiscovery producer／scheduler、候補state永続化、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackを接続し、client workが継続的に実測収益を生む状態を確認する。`$10,000/月`等は公式receipt付きcost-complete net P&Lが得られるまで目標であり、実績ではない。
+
+**最新検証cursor（2026-09-29T13:20:24Z、旧cursorを上書き）**: 退役済みで物理的に残っていた `ai.anicca.job-search-mercor-browser.plist` を、対象labelだけに限定した `/Users/anicca/loops/current/bin/lm-loop apply` で削除した。`launchctl` の対象サービスは元から未loadedであり、他label・他browserを変更していない。直後のproduction readbackは `doctor ok=true`、`missing_entrypoints=[]`、`retired_installed_labels=[]`、`unmanaged_labels=[]`。production `current` は `/Users/anicca/loops/releases/20260929T221805-af6e5011` で、これはmain由来のreleaseであり、この専用branchのsource変更をproductionへ反映したことを意味しない。
+
+同じreadbackで `./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 174、mapped 101、shared job IDs 0）。source/runtime検証は Python `runtime/loop/tests` **684 passed**、Node `apps/life-manager/lib/loop-adapter-registry.test.js` **15 passed**、`git diff --check` PASS。これはfleet契約とsource品質の証拠であり、provider納品・成約・収益の証拠ではない。
+
+Gigの実稼働readbackでは、Coconala（`gig-coconala`）のApplyが `resource_effect_unknown`、Replyが `entrypoint_exit_75`、Storefrontが `resource_effect_unknown` で、Paidはprovider作用なしの実行状態。Lancers／CrowdWorks／Mercorも複数laneが `effect_status=unknown` またはentrypoint/capacity deferで、対象外作用の全laneで `provider_receipt_id=null`、`official_readback_ref=null`。したがって、unknownを成功へ昇格せず、effect fenceを保持する。Ryuさんについては `current-cycle-v723-dm-send-readback.json` の通り、統合本文を公式DMへ一度だけ送信し、DOM bubble 1件を確認済み、正式納品ボタンは未実行、再読み込みの公式readbackは403でblocked、再送はしていない。403回復後もread-only確認だけを行う。
+
+**理想状態（self-healing／observability／収益）**: 各platformは別々のone-off agentではなく、同一shared kernelのadapter設定として `discover → qualify → propose/message → accept/funded → deliver → provider receipt/official readback → payout → cost-complete P&L → quality feedback` を実行する。通常のlogin/session/wake/reconcile/retryはno-human-loop、KYC等provider必須境界だけを例外にする。全wakeは `run_id`、`owner_id`、`occurrence_id`、`release_sha`、phase、failure layer、error class、next action、evidence refsを構造化して保存し、provider receiptとofficial readbackを同一occurrenceへ結び付ける。pre-effectはbounded retry、effect unknownはfence保持、反復失敗はdead-letter/escalate、成功した変更だけをimmutable release→isolated canary→promotionする。platform横断の品質・費用・gross/net P&Lを同じschemaで集計し、replay-zeroとcost-complete net P&Lを通った改善だけをshared skill/kernelへ昇格する。Meta Loopは候補発見だけでowner登録せず、policy・adapter・funded work・official canary/readback・positive unit economicsの全gate、durable candidate state、owner provisioning、rollback、settlement feedbackまで完了して初めて新platformを有効化する。
+
+**残TODO（完了までの順序）**:
+
+1. 最新 `origin/main`（現在 `0ca7da8777`）との差分を専用branchでreconcileする。Gig／Meta Loop安全修正を失わず、production loopを停止・再起動しない。
+2. generated fixture、required checks、contract、observability/recovery testsをreconcile後に再実行し、source PASSとproduction/provider PASSを別々に記録する。
+3. 受入済みsourceだけをmainへ統合し、main由来immutable releaseを作成する。各ownerを一つずつtarget applyし、loaded SHA、argv/env、identity lease、自然terminalをreadbackする。
+4. CoconalaのApply／Paid／Reply／Storefrontを一つずつeffect fence付きで公式readbackまで閉じる。Ryuさんへは再送しない。
+5. Lancers、CrowdWorks、Mercorのentrypoint・capacity・lock・identity問題をowner単位で解消し、proposal/thread/Paid/deliveryのprovider receiptとofficial readbackをoccurrence単位で取得する。receiptなしのeffect unknownは解放しない。
+6. Freelancerはapproved terms→account auth→source-complete inventory→funded project、Upworkは専用identity auth→contract/payment/payout inventory→funded milestone→mutation authorizationを満たしてからowner登録する。現時点で両platformの収益owner完了は未確認。
+7. Meta Loopのdiscovery producer/scheduler、candidate state durable store、promotion後owner provisioning、bounded rollback、settlement／quality／P&L feedbackをshared kernelへ接続する。現状はpromotion gateまでで、発見から収益確定までの自律loopは未完了。
+8. 全platformでprovider receipt付き納品・payout・cost-complete net P&Lを取得し、replay-zeroと品質gateを満たしてから実測収益を報告する。目標額を実績として扱わず、receiptがない限り「稼働中」を「稼いだ」と報告しない。
+
 **最新source修正とproduction handoffの状態（2026-09-29、投資scopeのみ）**: PR `#6219`で、`lm-fence-reconciler`のwake cap時に金融domain（`alpaca-investment-live`、`alpaca-investment-paper`、`investment-cross-venue-report`）を非金融adapterより先に処理する修正をmainへ統合した。mainは`bd7d35e29cfe9cb953375b72ae9fe91c629c958b`で、fencer `20/20`、readonly/run-bounds `37/37`、runtime loop全体`683/683`、`./bin/lm-loop-contract ok=true`、`git diff --check`を確認済みである。これはsourceの完了であり、金銭効果・注文・送金・wallet mutationではない。
 
 現行production `current`はまだ`/Users/anicca/loops/releases/20260929T195223-47ddce0e`（SHA `47ddce0eb7faf1074c960250b481527b214b9e61`）で、`bd7d35e29c`を含む新immutable releaseへは未切替である。既存のLife Manager release reconcilerが同じfleet applyを実行中なので、停止・重複起動・手動wakeはしない。新releaseが作成されたら、まずfencerと4投資ownerのloaded SHA、argv/env、natural occurrenceをreadbackする。
@@ -1254,3 +1347,43 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **最新の投資owner readback（2026-09-29 11:52 UTC以降）**: `current`は引き続き`bd7d35e29c` releaseである。`alpaca-investment-paper`はexit`75`・`host_admission_deferred:resource_capacity_busy`、`alpaca-investment-live`はexit`75`・`host_admission_deferred:resource_control_busy`で、どちらもprovider effect前・provider receiptなし・retryableである。新注文や再送は発生していない。cross-venue旧occurrenceは公式receiptなしの`effect_unknown`保持、fencer/cross-venue/strategyの旧SHA表示は自動fleet apply完了待ちである。したがって、検証済み実現投資収益は今も`$0/月`である。
 
 **残TODOの実行カーソル**: 1) 自動fleet apply完了と残り3 ownerの新SHA readback、2) fencer natural wakeで公式receiptを再確認、3) paper/liveの自然retryを観測、4) 既存QQQのterminal fill/account/position readback、5) strategy/cross-venue receipt結合、6) 全コスト込みP&L、7) positive natural round trip`30/30`、8) その後だけ追加venueのshadow→paper→bounded canary。`30/30`前のBinance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
+
+**merge後の最新source／受入cursor（2026-09-29T13:31:47Z、旧cursorを上書き）**: 最新`origin/main` `0ca7da87777e2d86c180c0166997f12d598f7b46`を専用branch `fix/lm-release-boundary-20260929`へreconcileし、merge commit `5ebcdc43466a7e521d0e4632863cd2c548e97fb4`をpushした。Capafyのmain変更（`capafy-browser`を含む）とGig／Metaのeffect-fence変更を同じbranchへ保持し、fixtureはmerged registryから再生成した。production `current`は`/Users/anicca/loops/releases/20260929T221805-af6e5011`のままで、専用branch sourceはproductionへ未反映である。
+
+merge後の検証は、runtime loop全体 **684 passed**、Node adapter **15 passed**、Gig pytest **1541 passed**、marketplace-core **294 passed**、Lancers **247 passed**、Mercor **37 passed**、runtime contract対象 **317 passed**、`./bin/lm-loop-contract` **ok=true**（catalog 14、registry 175、mapped 102、shared job IDs 0）、`doctor` **ok=true**（missing/retired/unmanaged各0）、`git diff --check` PASS。これらはsource/fleet契約の証拠であり、provider納品・成約・payout・収益の証拠ではない。
+
+Capafyのmain変更に対する既存`skills/capafy-autopublish/test`は、別agentの作業中変更とテスト期待値の不一致で **25件中2 failure・1 error**（runner task-class／prompt contract／occupied=5文言）となった。これはこのbranchのGig／Meta所有範囲外なのでCapafyコードを勝手に変更せず、`external_gate_pending`として記録する。Capafy gateがgreenになるまで、branch全体をproductionへpromoteしない。
+
+**次の実行順**:
+
+1. Capafy ownerが外部gateを修正した後、同じmerge branchでCapafy test、runtime、contractを再実行する。Gig／Metaのsourceは再変更しない。
+2. 全required checksがgreenになったsourceだけをmainへ統合し、main由来immutable releaseを作成する。これはproduction applyの前提であり、branch PASSだけでは納品完了としない。
+3. release後、CoconalaのApply／Paid／Reply／Storefrontを一つずつtarget applyし、loaded SHA・argv/env・browser identity lease・natural terminalをreadbackする。RyuさんDMは再送しない。
+4. Coconala各laneでprovider receiptとofficial readbackが取れた場合だけeffectをverifiedへ昇格する。403、capacity、entrypoint、effect_unknownはfence保持・bounded recoveryとし、盲目的再送をしない。
+5. Lancers、CrowdWorks、Mercorを同じoccurrence／receipt契約で閉じ、Freelancer／Upworkはapproved terms・専用identity・funded contract/milestone・payout readbackの順でowner登録する。
+6. Meta Loopにdiscovery scheduler、candidate durable state、promotion後owner provisioning、rollback、settlement／quality／P&L feedbackを接続する。promotion gateだけでは自律収益loop完了ではない。
+7. 全platformでreceipt単位のgross/net P&Lと品質を集計し、replay-zero・cost-complete net P&Lを通った改善だけをshared kernelへ昇格する。
+
+**effect fence read-only再確認（2026-09-29、外部作用なしの推論は禁止）**: production `pre-effect-reconcile --dry-run` を対象ownerごとに実行した。`hf-gig-apply-direct` は `resolved=0 / unprovable=1`、`hf-gig-storefront-direct` は `0/1`、`lancers-revenue-application` は `0/65`、`lancers-revenue-negotiate` は `0/87`、`crowdworks-revenue-application` は `0/2`、`crowdworks-revenue-paid` は `0/8`、`mercor-revenue-application` は `0/1`、`mercor-revenue-paid` は `0/1`で、全て理由は `no_pre_effect_terminal`。従って外部作用なしを証明できず、provider receipt／official readbackなしのoccurrenceをresolve・再送してはいけない。次手は同一ownerの自然wakeと公式readbackであり、手動wake・browser再起動・重複送信ではない。
+
+**最新の自己修復・観測性・収益検証（2026-09-29T13:37:04Z、旧cursorを上書き）**: source branch `fix/lm-release-boundary-20260929` のHEADは `8105fbc80fb44b5792cc2e055652442aafa881d2`、同期済み`origin/main`は `0ca7da87777e2d86c180c0166997f12d598f7b46`、production `current`は `/Users/anicca/loops/releases/20260929T221805-af6e5011`。production read-only `doctor` は `ok=true`（missing/retired/unmanaged各0、registry 175）、`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 175、mapped 102、shared job IDs 0）。これはfleet契約とentrypoint整合性の証拠であり、外部providerの納品・成約・payout・収益の証拠ではない。
+
+Capafyの外部gateは、実装を短いlaneへ戻すのではなく、現行契約を誤って要求していたテストを最小修正して閉じた。`skills/capafy-autopublish/test` は修正前25件中2 failure/1 errorだったが、失敗は (a) CP1/CP2/CP3に必要な `application-lane-agent` を旧 `tool-agent` と比較、(b) PUBLISHABLE時にagent内でなくbounded drainerを直接呼ぶ新境界を旧文字列で検索、(c) 正しいcap-full文の改行を正規表現が跨げない、の3つだった。Capafy runtime/sourceは変更せず、現行の長時間browser laneとCAP_FULL no-write fenceを検証するテストへ更新した。修正後はCapafy **25/25 PASS**、`skills/earn/marketing-engine/test_capafy_loop_wiring.py` **13/13 PASS**、`git diff --check` PASS。これはsource branchのgateであり、まだmain統合・immutable release・production promotionは行っていない。
+
+自己修復の理想契約は「失敗を再試行する」ではなく、`wake → structured event → pre-effect fence → provider receipt/official readback → reconcile or hold → bounded recovery → evaluator → immutable promotion`を全platform共通kernelで実行することとする。各eventは最低でも `run_id`、`owner_id`、`occurrence_id`、`release_sha`、loaded argv/env、phase、failure layer、error_class、retryable、effect、readback、provider_receipt_id、evidence_refs、next_action`を保存する。pre-effect失敗だけを同一occurrenceでbounded retryし、effect unknownはreceipt/readbackが揃うまでheld、同一原因の反復はdead-letterとowner別escalationへ送る。`unknown`を成功・収益へ昇格しない。
+
+収益の理想契約は、各platformが `discover → qualify → propose/message → accept/funded → deliver → official readback → payout → cost-complete net P&L → quality feedback` を同じschemaで記録すること。`online`、`under_review`、`accepted`、送信DOMの表示、wake回数、research/backtest値は収益ではない。provider receipt付きpayoutと、fee・slippage・funding/borrow・gas・model costを控除したpositive net P&Lだけを実績として報告する。RyuさんのCoconala DMは統合本文を一度だけDOMへ送信した証拠があり、公式reloadは403のためreadback未完了、重複送信は禁止のまま維持する。
+
+Meta Loopの理想契約は候補発見で止めず、`candidate durable state → policy/adapter qualification → funded work → isolated canary/readback → owner provisioning → rollback → settlement → quality/P&L feedback`まで通過した新platformだけを有効化すること。現在はeffect fence、structured evidence、platform enrollment gate、bounded recoveryの基盤はあるが、全platformのprovider receipt結合、Freelancer/Upworkのfunded owner、候補stateの完全な自動昇格、横断P&Lからshared skill/kernelへ戻すevaluatorは未完了である。
+
+**残TODO（現在の成果順・正本）**:
+
+1. **branch受入を確定**: 直近のCapafy 25/25、wiring 13/13、runtime/contract既存PASSを同じcommitへ記録し、専用branchをpushする。source PASSとproduction/provider PASSを別欄で保持する。
+2. **main→immutable release**: required checksがgreenになったsourceだけをmainへ統合し、main由来immutable releaseを作成する。production `current`を切り替えた後、loaded SHA、argv/env、identity lease、natural terminalをreadbackする。
+3. **Coconalaをeffect fence付きで閉じる**: Apply/Paid/Reply/Storefrontをoccurrence単位で公式receipt/readbackまで確認する。RyuさんDMは再送せず、403回復後にread-only確認だけを行う。
+4. **Lancers/CrowdWorks/Mercorを閉じる**: entrypoint、capacity、lock、identity問題をowner単位で直し、proposal/thread/Paid/deliveryのprovider receiptとofficial readbackを取得する。`no_pre_effect_terminal`のoccurrenceはresolve・再送しない。
+5. **Freelancer/Upworkを安全に有効化**: approved terms、専用identity auth、source-complete inventory、funded contract/milestone、mutation authorization、payout readbackの順でownerを登録する。funded境界前の応募・送信を成功扱いにしない。
+6. **Meta Loopを完成**: discovery scheduler、candidate durable store、promotion後owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。候補を見つけただけで自動登録しない。
+7. **横断self-improvement**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通過した変更だけをshared skill/kernelへ昇格する。receiptの無い「稼働中」は収益と報告しない。
+
+**PR受入gateの追加readback（2026-09-29）**: 新PR `#6237` のOSS self-contained gateは、実装ではなく `docs/manifests/oss-merge-1-sources.json` のtracked inventoryが古いこと（Capafy 233→234、`skills/_shared` 186→189）でFAILした。tracked treeをverifierと同じ並び・SHA規則で再計算してmanifestを更新し、`node scripts/verify-oss-self-contained.mjs --json` は `ok=true`、OSS contract testは **12/12 PASS**、`git diff --check`もPASSになった。外部provider作用やproduction releaseは変更していない。次はこのcommit後のGitHub required checksを再確認し、全green後だけmain統合へ進む。

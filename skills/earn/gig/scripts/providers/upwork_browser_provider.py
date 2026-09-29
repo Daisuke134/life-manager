@@ -61,7 +61,17 @@ DEFAULT_TRANSITIONS = Path.home() / "gig/state/upwork-free-transitions.jsonl"
 DEFAULT_PROPOSALS = Path.home() / ".config/anicca/gig/upwork-proposals"
 DEFAULT_DATABASE = Path.home() / "gig/connector-outbox.sqlite3"
 DEFAULT_MANIFEST = SCRIPTS.parent / "config/connectors/coconala.json"
-DEFAULT_BROWSER_PROFILE = Path.home() / ".cloak/profiles/gig-daily-driver"
+DEFAULT_BROWSER_IDENTITY = os.environ.get("LIFE_MANAGER_BROWSER_IDENTITY", "upwork:dais")
+DEFAULT_BROWSER_REGISTRY = Path(
+    os.environ.get("AI_BROWSER_REGISTRY", "~/.config/ai/registry/browsers.toml")
+).expanduser()
+DEFAULT_BROWSER_RESOLVER = Path(
+    os.environ.get(
+        "LIFE_MANAGER_BROWSER_RESOLVER",
+        str(SCRIPTS.parents[2] / "browser" / "resolve_cdp_endpoint.py"),
+    )
+).expanduser()
+DEFAULT_BROWSER_PROFILE = Path.home() / ".cloak/profiles/gig-upwork"
 DEFAULT_INBOUND_DIR = Path.home() / ".config/anicca/gig/upwork-inbound"
 DEFAULT_INBOUND_PROPOSALS = Path.home() / ".config/anicca/gig/upwork-inbound-proposals"
 DEFAULT_INBOUND_EVIDENCE = Path.home() / "gig/state/upwork-inbound-planner"
@@ -86,6 +96,51 @@ _CONNECTS_REQUIRED = re.compile(
     r"Required Connects to submit a proposal:\s*(\d+)",
     re.IGNORECASE,
 )
+
+
+def resolve_browser_identity(
+    identity: str,
+    *,
+    registry: Path = DEFAULT_BROWSER_REGISTRY,
+    resolver: Path = DEFAULT_BROWSER_RESOLVER,
+) -> dict[str, str]:
+    """Resolve one registered, profile-owned Upwork browser endpoint.
+
+    A numeric CDP port or a caller-provided profile is not an identity.  The
+    resolver verifies the registry row, live HTTP endpoint, websocket shape,
+    and owning process before this provider is allowed to attach.
+    """
+    if not isinstance(identity, str) or not identity.strip():
+        raise ValueError("upwork_browser_identity_invalid")
+    command = [
+        sys.executable, str(resolver.expanduser()),
+        "--registry", str(registry.expanduser()), "--identity", identity,
+    ]
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=False, timeout=10,
+        )
+        payload = json.loads(result.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+        raise ValueError("upwork_browser_identity_unavailable") from None
+    if (
+        result.returncode != 0
+        or not isinstance(payload, dict)
+        or payload.get("identity") != identity
+        or payload.get("reachable") is not True
+        or payload.get("http_status") != 200
+        or payload.get("websocket_url_valid") is not True
+        or not isinstance(payload.get("endpoint"), str)
+        or not payload["endpoint"].startswith(("http://127.0.0.1:", "http://[::1]:"))
+        or not isinstance(payload.get("profile"), str)
+        or not payload["profile"].startswith("/")
+    ):
+        raise ValueError("upwork_browser_identity_unavailable")
+    return {
+        "identity": identity,
+        "profile": payload["profile"],
+        "endpoint": payload["endpoint"],
+    }
 
 
 def publish_application_decisions(events: list[dict[str, Any]]) -> None:
@@ -1461,12 +1516,13 @@ async def observe(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cdp-base", default="http://127.0.0.1:9233")
+    parser.add_argument("--browser-identity", default=DEFAULT_BROWSER_IDENTITY)
+    parser.add_argument("--browser-registry", type=Path, default=DEFAULT_BROWSER_REGISTRY)
+    parser.add_argument("--browser-resolver", type=Path, default=DEFAULT_BROWSER_RESOLVER)
     parser.add_argument("--candidates", type=Path, default=DEFAULT_CANDIDATES)
     parser.add_argument("--proposals", type=Path, default=DEFAULT_PROPOSALS)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--browser-profile", type=Path, default=DEFAULT_BROWSER_PROFILE)
     parser.add_argument("--inbound-dir", type=Path, default=DEFAULT_INBOUND_DIR)
     parser.add_argument("--inbound-proposals", type=Path, default=DEFAULT_INBOUND_PROPOSALS)
     parser.add_argument("--inbound-evidence", type=Path, default=DEFAULT_INBOUND_EVIDENCE)
@@ -1478,10 +1534,16 @@ def main() -> int:
         default=Path(os.path.expanduser("~/gig/state/upwork-free-loop.json")),
     )
     args = parser.parse_args()
-    os.environ["CLOAK_CDP_BASE_URL"] = args.cdp_base.rstrip("/")
+    browser = resolve_browser_identity(
+        args.browser_identity,
+        registry=args.browser_registry,
+        resolver=args.browser_resolver,
+    )
+    os.environ["CLOAK_CDP_BASE_URL"] = browser["endpoint"].rstrip("/")
+    os.environ["LIFE_MANAGER_BROWSER_IDENTITY"] = browser["identity"]
     state = asyncio.run(observe(
         args.candidates.expanduser(), args.proposals.expanduser(), args.database.expanduser(),
-        args.manifest.expanduser(), args.browser_profile.expanduser(), args.inbound_dir.expanduser(),
+        args.manifest.expanduser(), Path(browser["profile"]), args.inbound_dir.expanduser(),
         args.inbound_proposals.expanduser(), args.inbound_evidence.expanduser(),
         args.inbox_ledger.expanduser(), args.search_cursor.expanduser(),
     ))

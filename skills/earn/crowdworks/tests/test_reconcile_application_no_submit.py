@@ -82,3 +82,15 @@ def test_recorded_proposals_are_read_even_when_unlisted(tmp_path):
     setup(tmp_path, receipts=[{"occurrence_id": "other", "application_external_id": "305"},
                               {"occurrence_id": "other", "application_external_id": "x"}])
     assert module.recorded_proposals(tmp_path) == {305}
+
+
+def test_readback_defers_when_provider_browser_is_busy(monkeypatch, tmp_path):
+    module = load()
+
+    def busy(_state_root):
+        raise module.ProviderBrowserBusy("crowdworks_provider_browser_busy")
+
+    monkeypatch.setattr(module, "_provider_lease", busy)
+    proposals, reason = module.read_proposals_with_lease(tmp_path, 0.0, set())
+    assert proposals is None
+    assert reason == "provider_browser_busy"

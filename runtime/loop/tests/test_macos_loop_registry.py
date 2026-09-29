@@ -1368,6 +1368,41 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row["browser_identity"], "coconala:kosuke")
                 self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
 
+    def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        expected = {
+            **{
+                loop_id: ("lancers:dais", "lancers-revenue-browser")
+                for loop_id in (
+                    "lancers-revenue-application", "lancers-revenue-storefront",
+                    "lancers-revenue-negotiate", "lancers-revenue-paid",
+                    "lancers-revenue-work-sync",
+                )
+            },
+            **{
+                loop_id: ("crowdworks:dais", "crowdworks-revenue-browser")
+                for loop_id in (
+                    "crowdworks-revenue-application", "crowdworks-revenue-reply",
+                    "crowdworks-revenue-paid",
+                )
+            },
+        }
+        expected.update({
+            "mercor-revenue-application": ("mercor:dais", "mercor-revenue-browser"),
+            "mercor-revenue-reply": ("mercor:dais", "mercor-revenue-browser"),
+        })
+        for loop_id, (identity, owner) in expected.items():
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row["browser_identity"], identity)
+                self.assertEqual(row["browser_target_owner"], owner)
+        for loop_id in (
+            "lancers-revenue-telegram-report", "crowdworks-revenue-report",
+        ):
+            with self.subTest(loop_id=loop_id):
+                self.assertNotIn("browser_identity", registry["loops"][loop_id])
+                self.assertNotIn("browser_target_owner", registry["loops"][loop_id])
+
     def test_render_is_byte_stable_for_loop_insertion_order(self):
         left = {"schema_version": 2, "loops": {"b": entry("ai.anicca.b"), "a": entry("ai.anicca.a")}}
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}
@@ -1383,6 +1418,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             and row["launchd_state"].startswith("loaded")
         }
         expected -= set(registry.get("retired_labels", []))
+        expected -= set(registry.get("external_labels", []))
         self.assertTrue(expected.issubset({row["label"] for row in registry["loops"].values()}))
         self.assertEqual(registry["loops"]["pm-live-trade"]["effect_class"], "trade")
         self.assertEqual(registry["loops"]["life-manager-payout"]["effect_class"], "money")

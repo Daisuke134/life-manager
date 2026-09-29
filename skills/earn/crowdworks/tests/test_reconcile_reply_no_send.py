@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 from datetime import datetime
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -121,6 +122,21 @@ def test_marker_written_outside_claim_run_keeps_fence(tmp_path):
     events(tmp_path)
     marker(tmp_path, [FAILED], written="2026-09-20T05:00:00+00:00")
     assert prove(module, tmp_path, {"b": conversation()}) == (None, "marker_outside_claim_run")
+
+
+def test_provider_browser_lock_defers_without_waiting(monkeypatch, tmp_path):
+    module = load()
+    calls = []
+
+    def busy_flock(_descriptor, flags):
+        calls.append(flags)
+        raise BlockingIOError("busy")
+
+    monkeypatch.setattr(module.fcntl, "flock", busy_flock)
+    with pytest.raises(module.ProviderBrowserBusy):
+        with module._provider_lease(tmp_path):
+            raise AssertionError("busy lock must not enter provider readback")
+    assert calls and calls[0] & module.fcntl.LOCK_NB
 
 
 class FakeLocator:

@@ -5,6 +5,7 @@
     "ai.anicca.crowdworks.fulfillment",
     "ai.anicca.crowdworks.negotiation",
     "ai.anicca.crowdworks.storefront",
+    "ai.anicca.job-search-mercor-browser",
     "ai.anicca.provision-browser.buyma.na-l5-client",
     "ai.anicca.provision-browser.colors-hachioji.owner-18211957",
     "ai.anicca.provision-browser.instagram.capafy-provision",
@@ -154,6 +155,8 @@
     },
     "crowdworks-revenue-application": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "command": [],
@@ -222,6 +225,8 @@
     },
     "crowdworks-revenue-paid": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "runtime_timeout_seconds": 900,
       "cleanup": {"max_age_days": 14, "max_runs": 100},
@@ -251,6 +256,8 @@
     },
     "crowdworks-revenue-reply": {
       "adapter": "exec",
+      "browser_identity": "crowdworks:dais",
+      "browser_target_owner": "crowdworks-revenue-browser",
       "cadence": {"start_interval_seconds": 300},
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "command": [],
@@ -1275,6 +1282,14 @@
       },
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/coconala_application_effect_reconcile.py"
+        ],
+        "occurrence_flag": null,
+        "resolve_flag": null,
+        "timeout_seconds": 900
+      },
       "entrypoint": "runtime/loop/entry_dispatch.py",
       "label": "ai.anicca.hf-gig-apply-direct",
       "log_root": "~/.local/state/life-manager/coconala/apply/logs",
@@ -1436,6 +1451,14 @@
       },
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/earn/gig/scripts/storefront_pre_effect_reconcile.py"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": null,
+        "timeout_seconds": 900
+      },
       "entrypoint": "runtime/loop/entry_dispatch.py",
       "label": "ai.anicca.hf-gig-storefront-direct",
       "log_root": "~/.local/state/life-manager/coconala/storefront/logs",
@@ -1618,6 +1641,8 @@
     },
     "lancers-revenue-application": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 60
       },
@@ -1628,6 +1653,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-application"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 600,
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -1664,6 +1699,8 @@
     },
     "lancers-revenue-storefront": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -1674,6 +1711,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "publish",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-storefront"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 300,
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -1711,6 +1758,8 @@
     },
     "lancers-revenue-negotiate": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1721,6 +1770,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/lancers",
+          "--owner", "lancers-revenue-negotiate"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "runtime_timeout_seconds": 300,
       "resource_class": "agent",
       "admission_class": "revenue",
@@ -1734,6 +1793,8 @@
     },
     "lancers-revenue-paid": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1768,6 +1829,8 @@
     },
     "lancers-revenue-work-sync": {
       "adapter": "exec",
+      "browser_identity": "lancers:dais",
+      "browser_target_owner": "lancers-revenue-browser",
       "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 300
@@ -2874,6 +2937,8 @@
     },
     "mercor-revenue-application": {
       "adapter": "exec",
+      "browser_identity": "mercor:dais",
+      "browser_target_owner": "mercor-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -2884,6 +2949,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/job-search/mercor/application",
+          "--owner", "mercor-revenue-application"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
       "resource_class": "agent",
@@ -2909,6 +2984,15 @@
       "command": [],
       "domain": "earn",
       "effect_class": "money",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_paid_no_effect.py",
+          "--state-root", "~/.local/state/anicca/job-search/mercor",
+          "--owner", "mercor-revenue-paid"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve"
+      },
       "resource_class": "agent",
       "admission_class": "revenue",
       "entrypoint": "skills/earn/mercor/scripts/paid-owner",
@@ -2920,6 +3004,8 @@
     },
     "mercor-revenue-reply": {
       "adapter": "exec",
+      "browser_identity": "mercor:dais",
+      "browser_target_owner": "mercor-revenue-browser",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -2930,6 +3016,16 @@
       "command": [],
       "domain": "earn",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "skills/_shared/marketplace-core/scripts/reconcile_pre_effect_hint.py",
+          "--state-root", "~/.local/state/anicca/job-search/mercor/reply",
+          "--owner", "mercor-revenue-reply"
+        ],
+        "occurrence_flag": "--occurrence",
+        "resolve_flag": "--resolve",
+        "timeout_seconds": 900
+      },
       "resource_class": "agent",
       "admission_class": "revenue",
       "entrypoint": "skills/earn/mercor/scripts/reply-owner",
@@ -3912,7 +4008,6 @@
     "ai.anicca.job-search-browser",
     "ai.anicca.job-search-camofox",
     "ai.anicca.job-search-mercor",
-    "ai.anicca.job-search-mercor-browser",
     "ai.anicca.job-search-observability",
     "ai.anicca.larry-anicca-en-v1",
     "ai.anicca.larry-anicca-en-v2",
