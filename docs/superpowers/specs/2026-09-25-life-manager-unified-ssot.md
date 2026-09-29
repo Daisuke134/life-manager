@@ -2852,6 +2852,24 @@ productionの`ai.anicca.life-manager-disk-cleanup`を停止・再起動せず、
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、今回も送信完了扱いにしない。
 
+## 現在の正本cursor（2026-09-30、Coconala Ryuさんthreadのreconcile状態確認後）
+
+Coconalaの既存CDP `localhost:9222`は応答したが、tabは`about:blank`だけで、RyuさんのDMを公式readbackできるpageは開いていない。保存済みthread `10107358`（reply kernel state）は`status=reconcile_unknown`、`last_error=RuntimeError`、`last_error_detail=DOM expression did not return JSON text`、`provider_receipt_id`なしだった。
+
+- 保存されたintentの本文は「相互リンクを管理画面から追加・変更できるようにする」部分だけで、Ryuさんが後から送った画像復元・女の子検索変更・その他の最新要求を全て反映した最終版ではない。
+- したがって、このstateは送信済み・納品済み・公式readback済みの証拠ではない。重複送信を避けるため、本文を推測して再送しない。
+- provider効果: 今回0件。既存intentの不確実性を解消する公式DM readbackと、最新要求を統合した一度限りの送信receiptが未取得である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **完了（read-only確認済み）** 容量回復とbranchの対象回帰・契約チェックを保存した。
+2. **未完（現在cursor）** Coconalaの認証済み専用browser tabをshared owner経由でread-only再取得し、thread `10107358`の最新受信メッセージ・添付・公式送信履歴を一度だけreadbackする。`about:blank`やlocal intentを公式receiptの代替にしない。
+3. **未完** Ryuさんの全要求（画像を元へ戻す、女の子検索変更、相互リンク欄、その他最新DM）を一つの最終本文・実装差分へ統合し、既存intentと重複しないeffect keyを作る。外部送信は公式readback可能な専用browserが確保されるまでholdする。
+4. **未完** 送信する場合は一度だけ実行し、直後に同じthreadでprovider receipt・本文hash・公式readbackを取得する。receiptなしで完了扱い・再送しない。
+5. **未完** LancersのHuman Verification解除後、公式read-only preflightを2回通し、Coconala／Lancers／CrowdWorks／Mercorの共通lifecycle receiptを順に揃える。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
+7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、cleanup natural terminalとreplay-zeroを確認する。
+
 ## 現在の正本cursor（2026-09-30、容量回復とbranch容量ゲート回帰の再実測後）
 
 47・48回目のproduction旧版cleanup自然runが`ENOSPC`で終了した後、稼働中profile・cookie・protected stateを停止・削除せず、open handleのない再生成可能な`writer/checkouts/self-owned-landing/apps/landing/node_modules`（約1.4GiB、同ディレクトリの`package-lock.json`で再生成可能）だけを削除した。ソース、lockfile、memory、認証情報、production stateは変更していない。
