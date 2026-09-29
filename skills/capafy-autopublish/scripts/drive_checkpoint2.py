@@ -28,7 +28,9 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, parse_qsl, quote, urlsplit
 
 BASE_URL = "https://openrouter.ai/api/v1"
-MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "anthropic/claude-sonnet-4.6")
+# Default to the cheap hosted model (charge more, spend less). A CP2 run that
+# omitted the env var wrote Sonnet into draft 4973250899 (2026-09-29).
+MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "deepseek/deepseek-v4.1-flash")
 CDP_ATTACH_TIMEOUT_MS = int(os.environ.get("CP2_CDP_ATTACH_TIMEOUT_MS", "15000"))
 RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))
