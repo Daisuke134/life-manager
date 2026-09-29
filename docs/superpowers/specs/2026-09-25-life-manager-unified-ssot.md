@@ -19,7 +19,7 @@ PASS、replay-zero のreadbackが揃うまで未完了である。
 
 | room / buyer | 実測状態 | 判定 |
 |---|---|---|
-| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** CDP targetはあるが現在のCoconalaページはHTTP `403 Forbidden`で、認証済みroom readbackになっていない。先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
+| Ryu `18211957` | `WORK_REQUIRED`、`取引完了`、v41、`formal_delivery_confirmed=false`。active feedback は `e5959bdd…f5de5d`、action=`resubmit`。過去の最終送信ID `222360163` は履歴として残るが、この新しいactive hashの公式room readbackは未取得。 | **未解決。** CDP probeは一時的にHTTP `403 Forbidden` pageを返した後、現在は`about:blank`だけになっており、認証済みroom readbackになっていない。先にlive roomを読み、同一hashか新規指示かを確定する。確認前の再送は禁止。正式納品ボタンも押さない。 |
 | Chii `18180857` | `WORK_REQUIRED`、`取引中`、v8、`formal_delivery_confirmed=false`。active feedback `0eb850e0…070edb9`、buyer-visible artifactはローカル上 `false`、直近skipは `pass_order_limit_reached`。queueが同一cycleを繰り返し選択している。 | **緊急のPaid手動reconcile対象。** 成果物生成だけでなく、購入者画面で見えるartifact、公式receipt/readback、必要なら一度だけformal deliveryを確認してから閉じる。 |
 | NPO rooms `18223833` / `18250352` | `取引中`、v16b/v15、next_action=`await_buyer_feedback`。既存artifact/readbackはあるが、active cycleはローカルstate上残る。 | 返信待ちとして保持。新規buyer指示の公式readbackが出た時だけ次のcycleへ進む。 |
 
@@ -40,10 +40,10 @@ acceptance/payment`
 - 共通化するのは `occurrence_id / effect fence / provider receipt / readback /
   replay-zero` の契約だけ。送信transportと所有権は共有しない。
 
-現在のreply readback (`coconala/reply/latest.json`) は actionable=20、effect=0、
-failed=0、readback=170で、`reconcile_unknown`・`retry_backoff`・
-`provider_sending_unavailable` のpendingが残る。したがって「reply loopは正常、
-demoも自動納品済み」とは言えない。Coconala PaidのeventsもPASSだけでなく
+現在のreply readback (`coconala/reply/latest.json`) は直近probeで
+`status=blocked`、actionable=0、effect=0、failed=0、readback=0だった（同じ監査中の
+一つ前のsnapshotでは actionable=20 / readback=170 だったため、state更新自体が不安定）。
+したがって「reply loopは正常、demoも自動納品済み」とは言えない。Coconala PaidのeventsもPASSだけでなく
 `host_admission_deferred` と `entrypoint_exit_1` が継続しており、案件単位の
 buyer-visible/readbackを別途閉じる必要がある。
 
