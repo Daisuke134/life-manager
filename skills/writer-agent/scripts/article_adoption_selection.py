@@ -52,7 +52,7 @@ def _publication_complete(runs: Path, run_id: str) -> bool:
             "x-post/ja",
         ]
     else:
-        required = ["note/ja", "substack/ja", "substack/en", "x-article/ja"]
+        required = ["note/ja", "substack/ja", "substack/en"]
 
     def _pair_closed(entry: Any) -> bool:
         if not isinstance(entry, dict):
