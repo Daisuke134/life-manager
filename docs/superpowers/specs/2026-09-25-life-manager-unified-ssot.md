@@ -15,6 +15,21 @@ install state は存在しない `d150e4…` を `repo_root` として記録し�
 全labelの `loaded_release_sha = origin/main由来immutable release`、次回自然run
 PASS、replay-zero のreadbackが揃うまで未完了である。
 
+### 新しいUpwork inbound — 2026-09-29（ユーザー提供スクリーンショット）
+
+Upworkのメールには、`ACC122_Mewtwo_P3_Japanese_-_Talent_Store` への招待、
+固定価格 `$11`、`no Connects needed` と表示されている。これは **招待された
+opportunity（proposalを提出できる状態）** であり、contract、funded milestone、
+acceptance、payoutの証拠ではない。画面に見えているタイトル・価格だけでは、要件・
+納期・納品物・clientのscreening questionを確定できないため、まだ応募送信はしていない。
+
+この案件を正しく取り込む順序は、(1) account-bound Upwork sessionで招待リンクの
+job ID/URLと全文をread-only取得、(2) scope・納期・納品物・質問・client条件を
+source-complete packetに固定、(3) profile/実績にない主張を除外してfit・期待netを判定、
+(4)応募するなら一つの`occurrence_id`でproposalを送信し、Upwork公式receipt/readbackを
+保存、(5) offer受諾とfunded milestoneを公式readbackしてからPaid ownerへhandoff、
+である。招待が無料でも、proposal送信は外部effectなのでeffect fenceとdedupeは必要。
+
 ### Coconalaの顧客状態（ローカルstate。公式live roomの代替ではない）
 
 | room / buyer | 実測状態 | 判定 |
