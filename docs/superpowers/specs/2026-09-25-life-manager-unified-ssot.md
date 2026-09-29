@@ -2104,3 +2104,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `launchctl-safe print gui/501/ai.anicca.alpaca-investment-paper`は現行release SHA `3975ae8996cab3325f514746a32c915f9935fddf`のprogramを返し、`state=not running`、`runs=68`、`last exit code=75: EX_TEMPFAIL`だった。これは定期wake間の起動前admission deferであり、provider effect前の自動retry対象である。
 - 既存monitorには市場closeまたは新しい`decision_session`の出力がなく、最新のqualified exit decisionはまだ存在しない。したがって`AT-13`は未完のままである。
 - このreadbackでは手動wake、注文、再送、資金移動を行っていない。検証済み実現投資収益は`$0/月`である。
+
+**AT-13 completed daily session readback（2026-09-30 05:05 JST）**:
+
+- 市場close後のnatural occurrence `alpaca-investment-paper:18d9e354daf4a150-29169`は`exit_code=0`、`status=pass`、`next_action=none`、release SHA `3975ae8996cab3325f514746a32c915f9935fddf`で終端した。途中の`18d9e33e69452ef0-27597`はprovider effect前の`resource_capacity_busy` deferで、自動retryにより回復した。
+- 新しいdecision receipt `c8d172044475b180b47aa74a46b0b00228c2cc106ea99fd1ca6dc52ec05deb5a`（`recorded_at=2026-09-29T20:04:59Z`、05:04 JST）は`action=HOLD`、`decision_session=2026-09-29`、`reason=hold_period_not_elapsed`、symbol `QQQ`、`held_sessions=1`を返した。これはexit reasonではないため、`AT-13`の完了条件を満たさない。
+- 公式paper observationは`clock.is_open=false`、QQQ `qty=0.013493253`、market value `$9.961529`、unrealized P&L `-$0.028471`を返した。QQQはopenのままでexit order／exit fill／provider receiptはなく、`AT-14`へ進む対象は存在しない。
+- `AT-13`は未完、cursorは不変、検証済み実現投資収益は`$0/月`である。次の操作は次回completed daily sessionのexit decision receiptを自然に1件読むことだけであり、手動sell・手動wake・再送・送金はしない。
