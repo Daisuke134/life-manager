@@ -99,6 +99,8 @@ if [ -n "${LIFE_MANAGER_OCCURRENCE_ID:-}" ]; then
     --record-snapshot --slug "$SLUG" --title "$TITLE" >/dev/null 2>&1 || true
 fi
 
+# PromptBase rejects 4 identical example outputs; make 4 real distinct ones once.
+"$PY" "$SCRIPTS/gen_examples.py" "$CATALOG_DIR/$SLUG" || log "gen_examples failed for $SLUG (publish will fail closed)"
 EVIDENCE_DIR="$HOME/.local/state/life-manager/state/promptbase-evidence/$(date -u +%Y%m%dT%H%M%SZ)-$SLUG"
 PUBLISH_OUTPUT="$("$PY" "$SCRIPTS/publish.py" \
   --catalog-dir "$CATALOG_DIR/$SLUG" \

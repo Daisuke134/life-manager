@@ -53,6 +53,7 @@ class Listing:
     prompt_instructions: str
     example_input: str
     example_output: str
+    examples: list = None  # 4 distinct {"input","output"} from state/promptbase-examples/<slug>.json
 
 
 def _slug_title(slug: str) -> str:
@@ -150,7 +151,16 @@ def build_listing(catalog_dir: Path) -> Listing:
         prompt_instructions=prompt_instructions,
         example_input=example_input,
         example_output=example_output,
+        examples=_load_examples(catalog_dir, example_input, example_output),
     )
+
+
+def _load_examples(catalog_dir: Path, example_input: str, example_output: str) -> list:
+    path = Path.home() / ".local/state/life-manager/state/promptbase-examples" / f"{catalog_dir.name}.json"
+    if path.exists():
+        import json
+        return json.loads(path.read_text(encoding="utf-8"))
+    return [{"input": example_input, "output": example_output}]
 
 
 def _main() -> int:

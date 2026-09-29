@@ -237,6 +237,7 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
                 "order_slot": snapshot.get("open_orders") == 0,
                 "intent_slot": snapshot.get("unresolved_intents") == 0,
                 "policy_cost_complete": decision.get("expected_cost_usd") is not None,
+                "regular_session": snapshot.get("clock", {}).get("is_open") is True,
             }
             return {**decision, "approved": all(checks.values()),
                     "candidate": candidate, "checks": checks,
@@ -273,6 +274,7 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
                 else candidate.get("symbol") == CANONICAL_SYMBOL
             ),
             "paper_mode": (not is_equity) or snapshot.get("mode") == "paper",
+            "regular_session": (not is_equity) or snapshot.get("clock", {}).get("is_open") is True,
         }
         approved = all(checks.values()) and candidate.get("asset_class") in {
             "crypto", "us_equity",
