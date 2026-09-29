@@ -2088,3 +2088,31 @@ job IDs 0）、`git diff --check`もPASS。branch
    0件にする。
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
+
+### 最新Mercor read-only Opportunity／pass-result接続 — 2026-09-30
+
+- 既存`apps/job-search-loop/job_search_loop/mercor_pass.py`のbounded pass結果
+  （`inspected_listings`、`submitted`、card/detail evidence）を、
+  `skills/earn/mercor/scripts/opportunity_adapter.py`の`MercorSnapshotAdapter`／`MercorSnapshotSource`で共有
+  `Opportunity`／identity-bound `inspect()`へ写像した。Mercor listing ID・approved canonical URL・観測scope・
+  source hashを束縛し、submitted／submitted-pending listingはdiscoverから除外する。
+- pass結果を`MercorSnapshotSource`へ渡し、共有observation storeへidempotent保存する接続を追加した。
+  `submit_required`だけを`eligible`、card-only・未確定・provider blockedを`hold`として記録する。
+  観測summaryはlocal pass evidenceへ保存し、応募・返信・納品・決済をadapterから呼ばない。
+- Mercor全suite 49件（adapter／observation新規11件を含む）、compile、`git diff --check`をPASSした。
+  これはpass-resultのsource証拠であり、Mercor provider receipt、公式readback、実応募、成約、payout、収益を証明しない。
+  現在のモデル主導passは観測とprovider操作を同一runで行うため、observation保存はpass結果受領後・local ledger処理前であり、
+  provider effect前の共有fenceにはまだなっていない。
+
+### 原子TODO（Mercor接続後の正本）
+
+1. **完了** Mercor pass-result → shared `Opportunity`／`inspect` → observation保存を接続し、submitted listingを再発見しない。
+2. **未完** Mercorのread/planner/effectを分離し、provider effect前にshared observation・effect intent・identity fenceを保存する。
+   provider receipt／official readbackなしのeffectをverified扱いしない。
+3. **未完** Coconala・Lancers・CrowdWorks・Mercorのsource branchをmainへ受入し、immutable release、loaded SHA、
+   plist argv/env、identity lease、rollback receiptを公式readbackで一致させる。
+4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由を取得する。
+   重複送信、正式納品、receiptなしのeffect fence解放はしない。
+5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
+   isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。

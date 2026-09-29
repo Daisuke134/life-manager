@@ -10,6 +10,7 @@ import platform
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,87 @@ from .mercor_human_gate import HumanGateStore, next_action
 from .mercor_provider import run_pass
 from .mercor_submit_guard import fenced_listing_ids
 from .profile_setup import activate_profile
+
+
+def _load_mercor_opportunity_observation():
+    path = Path(__file__).resolve().parents[3] / "skills" / "earn" / "mercor" / "scripts" / "opportunity_observation.py"
+    spec = importlib.util.spec_from_file_location("mercor_opportunity_observation", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("mercor_opportunity_observation_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _write_mercor_observation_summary(path: Path, payload: dict[str, Any]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", dir=path.parent, prefix=f".{path.name}.", delete=False, encoding="utf-8",
+        ) as handle:
+            temporary = Path(handle.name)
+            os.fchmod(handle.fileno(), 0o600)
+            handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def build_mercor_observation_snapshot(result: dict[str, Any], *, observed_at: str) -> dict[str, Any]:
+    """Bind one validated Mercor pass result to the shared read-only snapshot shape."""
+    if not isinstance(result, dict):
+        raise ValueError("mercor_result_invalid")
+    if not isinstance(observed_at, str) or not observed_at.strip():
+        raise ValueError("mercor_observed_at_invalid")
+    inspected = result.get("inspected_listings", [])
+    if not isinstance(inspected, list):
+        raise ValueError("mercor_inspected_listings_invalid")
+    submitted = result.get("submitted", [])
+    if not isinstance(submitted, list):
+        raise ValueError("mercor_submitted_invalid")
+    submitted_ids = sorted({
+        item.get("listing_id")
+        for item in submitted
+        if isinstance(item, dict) and isinstance(item.get("listing_id"), str) and item["listing_id"].strip()
+    })
+    return {
+        "ok": True,
+        "platform": "mercor",
+        "observed_at": observed_at.strip(),
+        "inspected_listings": [dict(item) for item in inspected if isinstance(item, dict)],
+        "submitted_listing_ids": submitted_ids,
+    }
+
+
+def record_mercor_live_observation(
+    result: dict[str, Any], *, evidence_dir: Path, pass_id: str, store_root: Path | None = None,
+) -> dict[str, Any]:
+    """Persist the pass snapshot before ledger/readback processing; never sends anything."""
+    snapshot = build_mercor_observation_snapshot(
+        result, observed_at=datetime.now(timezone.utc).isoformat(),
+    )
+    observation = _load_mercor_opportunity_observation()
+    try:
+        summary = observation.observe_mercor_opportunities(
+            snapshot,
+            store_root=store_root or (Path.home() / "gig" / "opportunity-observations"),
+            evidence_ref=f"snapshot://mercor/{pass_id}/public-discovery.json",
+        )
+    except Exception as error:  # noqa: BLE001 - read-only evidence boundary
+        raise RuntimeError(f"mercor_opportunity_observation_failed:{type(error).__name__}") from error
+    payload = {"version": 1, "pass_id": pass_id, **summary, "status": "success"}
+    _write_mercor_observation_summary(Path(evidence_dir) / "opportunity-observation-summary.json", payload)
+    return payload
 
 
 MERCOR_STRATEGY_VERSION = "mercor-fit-evidence-v1"
@@ -938,6 +1020,17 @@ def main(argv: list[str] | None = None) -> int:
         return 75
     merge_card_only_evidence(result, args.evidence_dir.parent / args.run_id)
     normalize_card_only_fit_decisions(result)
+    try:
+        record_mercor_live_observation(
+            result,
+            evidence_dir=args.evidence_dir,
+            pass_id=args.run_id,
+        )
+    except Exception as error:  # noqa: BLE001 - preserve provider result, block unobserved state
+        blocked = result.get("blocked") if isinstance(result.get("blocked"), list) else []
+        result["blocked"] = [*blocked, f"opportunity_observation_failed:{type(error).__name__}"]
+        if result.get("status") != "submitted":
+            result["status"] = "blocked"
     try:
         validate_evidence_paths(result, args.evidence_dir.parent)
         validate_bounded_scan(result, args.evidence_dir.parent)
