@@ -6120,3 +6120,18 @@ retried or resent.
   symlink component `/tmp`; no source change was made for that false failure.
 - [ ] This strengthens source acceptance only. The main-integration and
   main-derived immutable production-release gates remain open.
+
+### Old-release natural readback after source acceptance — 2026-09-30 07:45 JST
+
+- [x] Production still points to SHA `3975ae8996cab3325f514746a32c915f9935fddf`.
+  Apply and Storefront continue to produce new old-release
+  `host_admission_deferred:resource_effect_unknown` occurrences with no
+  provider receipt; Storefront records `effect_identity_status=not_written`.
+- [x] Paid produced one old-release `pass` with exit 0, but a newer Paid wake
+  is running and the pass has no proof of Storefront publication or Ryu
+  delivery. The reconciler has a newer running occurrence on old release
+  `8f1fdd3a...`; no signal, restart, or retry was issued.
+- [x] The source branch remains clean and pushed; the live readback confirms
+  that the source repair has not been promoted accidentally.
+- [ ] Item 4 remains the current cursor: main integration and provenance
+  acceptance are required before any live-owner transition or provider retry.
