@@ -2,14 +2,14 @@
 
 agentType: run_online · Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: video,hook,tiktok
 LLM Config (CP2): OpenRouter, deepseek/deepseek-v4.1-flash, openai-responses, CAPAFY_HOST_OPENROUTER_KEY
-WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. Same copy and prices as live v1.0.2; only the hosted model changes.
+WHY: 2026-09-28 OpenRouter activity (management key, 28d): claude-sonnet-4.6 $42.87 of $43.6 total; Hook Lab 30d est. cost $20.31 vs net $19.91. v1.0.3 (DeepSeek) approved 2026-09-29. 2026-09-29 reprice: copy HookAce (868 sold, week $9.99 / month $19.99) per the Capafy market sweep; day $3.99 matches TikTok Scripts / SEO Content Writer day band.
 
 ## Pricing
 | cycle | price | cap | trial |
 |---|---|---|---|
-| day | $1.99 | 10 | No Free Trial |
-| week | $4.99 | 30 | No Free Trial |
-| month | $9.99 | 80 | No Free Trial |
+| day | $3.99 | 10 | No Free Trial |
+| week | $9.99 | 30 | No Free Trial |
+| month | $19.99 | 80 | No Free Trial |
 
 ## Title
 Hook Lab — Win the First 3 Seconds
