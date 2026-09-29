@@ -74,8 +74,11 @@ def main():
         one_time_fee = None
         plans = []
 
-    # pricing table rows (subscription mode only)
-    for row in ([] if download_m else re.findall(r"\|\s*(day|week|month)\s*\|\s*\$?([0-9.]+)\s*\|\s*([0-9]+)\s*\|\s*([^|]+)\|", L, re.I)):
+    # pricing table rows (subscription mode only). "year" is the exact
+    # Capafy billing `cycleType` value (verified live 2026-09-29 in market
+    # billings data, e.g. agent 5133292529's `cycleType: "year"` row) — not a
+    # display label we invented.
+    for row in ([] if download_m else re.findall(r"\|\s*(day|week|month|year)\s*\|\s*\$?([0-9.]+)\s*\|\s*([0-9]+)\s*\|\s*([^|]+)\|", L, re.I)):
         cyc, price, cap, trial = row
         trial = trial.strip()
         trial_match = FREE_TRIAL.fullmatch(trial)

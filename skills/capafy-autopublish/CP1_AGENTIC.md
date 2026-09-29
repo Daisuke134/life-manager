@@ -77,7 +77,7 @@ showed).
 2. Confirm 収益化モデル = **Capafy で実行** and Billing = **Subscription** and
    container mode = **On-Demand** are selected (orange). If not, click them.
 3. `scroll` down to reveal the plan cards. Each subscription plan card = a Period
-   dropdown (Daily/Weekly/Monthly) + Price + Request-Limit + a 無料トライアル choice.
+   dropdown (Daily/Weekly/Monthly/Yearly) + Price + Request-Limit + a 無料トライアル choice.
 4. The init usually creates 3 cards (day/week/month) but with **scrambled or empty
    price/cap**. Set each to the TARGET printed by publish_prepare.sh. The price/cap
    inputs carry a unique per-period placeholder you can target precisely:

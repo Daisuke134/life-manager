@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 分析 · tags: portfolio, stock tracker, position review
+Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: portfolio, stock tracker, position review
 
 RENEWAL GATE (§1b)
 R1 recurring input : Each market day, the buyer pastes a NEW portfolio/watchlist snapshot with their own prices, position weights, thesis notes, catalysts, and risk limits.
@@ -8,8 +8,12 @@ demand evidence    : Stock tracking is a measured recurring-input winner: 781 so
 
 Demand rank: 2
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $9.99 only, Claude Sonnet 4.6 (no yearly). Direct competitor "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales, same portfolio/position-tracking niche): week $9.99/month $19.99/year $99.99 — copied exactly.
 | cycle | price | cap | trial |
+|---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 40 | No Free Trial |
+| year | $99.99 | 480 | No Free Trial |
 
 ## Title
 Portfolio Tracker — Daily Position Review

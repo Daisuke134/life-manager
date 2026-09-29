@@ -131,7 +131,7 @@ def main():
     #   the target card by its CURRENT period-button text (unique at each step),
     #   never by array position held across a mutating click. ★
     plans = cfg["plans"]
-    CYCLE_LABEL = {"day": "Daily", "week": "Weekly", "month": "Monthly"}
+    CYCLE_LABEL = {"day": "Daily", "week": "Weekly", "month": "Monthly", "year": "Yearly"}
 
     # A height range is unreliable (a card grows once "Enable Free Trial" reveals
     # extra fields), and the smallest text-matching element is just a label span

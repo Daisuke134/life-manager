@@ -155,7 +155,7 @@ STATE_JS_TEMPLATE = r"""
 
   // marker texts that matter for CP1 decisions (dedup, show coords)
   const markers = ['基本情報','価格設定','下書きを保存','提出を確認','審査に提出',
-    'カードを保存しました','Capafy で実行','On-Demand','Subscription','Daily','Weekly','Monthly',
+    'カードを保存しました','Capafy で実行','On-Demand','Subscription','Daily','Weekly','Monthly','Yearly',
     'Add Plan','無料トライアル','Enable Free Trial','No Free Trial','重複するプラン',
     'メインカテゴリ','確認','ファイル','アップロード','スキル','Primary Model','モデル'];
   if (EXPECTED_MODEL && !markers.includes(EXPECTED_MODEL)) markers.push(EXPECTED_MODEL);

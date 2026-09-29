@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: ライティング · tags: dissertation, discussion chapter, academic writing, humanizer, thesis editing
+Primary Model: DeepSeek V4.1 Flash · category: ライティング · tags: dissertation, discussion chapter, academic writing, humanizer, thesis editing
 
 RENEWAL GATE
 R1 recurring input : Every discussion chapter changes as results, reviewer comments, and claims develop.
@@ -6,9 +6,12 @@ R2 staleness       : A prior revision cannot reflect the author's latest results
 day-8 answer       : Each revision benefits from a new evidence-bound rewrite of the current draft.
 demand evidence    : Official seller ranking identifies Academic Humanizer — Human Voice, No AI Tells as the attributable winner, with one US$9.99 buyout sale. This is a distinct dissertation-discussion workflow that preserves author-provided evidence.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10 only, Claude Sonnet 4.6 (no yearly). Week/month band matches "Unscore — AI Detector & Humanizer" (agent `4097802482`, category 1, 18 sales, month $19.99); the yearly price matches "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales) at year $99.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 50 | No Free Trial |
+| year | $99.99 | 600 | No Free Trial |
 
 ## Title
 Dissertation Discussion Humanizer

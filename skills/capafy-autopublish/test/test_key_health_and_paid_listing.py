@@ -319,7 +319,10 @@ Structured script output from your brief.
         config = json.loads(result.stdout)
         self.assertEqual(config["model_id"], "deepseek/deepseek-v4.1-flash")
         self.assertEqual(config["max_tokens"], 8192)
-        self.assertEqual([plan["trial"] for plan in config["plans"]], [None, None])
+        # 2026-09-29: marketing-strategist gained a required yearly plan
+        # (charge-more/spend-less policy: every online skill always has a
+        # year row) alongside its existing week/month rows.
+        self.assertEqual([plan["trial"] for plan in config["plans"]], [None, None, None])
         serialized = json.dumps(config, ensure_ascii=False)
         self.assertNotIn("draftKey", serialized)
         self.assertNotIn("token=", serialized)

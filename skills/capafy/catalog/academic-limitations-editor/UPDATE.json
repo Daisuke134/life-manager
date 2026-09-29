@@ -1,0 +1,7 @@
+{
+  "agent_id": "4763185052",
+  "from_version_id": "2092636630826242048",
+  "target_model_id": "deepseek/deepseek-v4.1-flash",
+  "icon_sha256": "e85abe214cbf2ea4d4aa73d233683a1a5b43096e7eab0f946a8bcaf0d6602742",
+  "reason": "charge_more_spend_less_2026_09_29_policy"
+}
