@@ -797,6 +797,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 18:14 JST（UTC `09:14:26Z`）に同じ現行スマホDM URLを再read-only確認したが、ページは再び`403 Forbidden`、入力欄0件だった。browser identity自体は到達可能（HTTP 200）だがprovider本文を取得できず、送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v720-dm-access-denial-readback.json`。v719が最後に成功した公式readbackであり、v720以後に新しい返信が来たかは未確認である。
 - [x] 2026-09-29 18:35 JST（UTC `09:35:48Z`）に、同じ現行スマホDM URLとCoconala専用session keepaliveをread-onlyで照合した。DMは`title/body=403 Forbidden`・入力欄0件、keepaliveは`logged_out=false`かつ`access_denied=true`で、provider access denialであることを独立確認した。送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v721-dm-access-denial-readback.json`。v719が最後の成功公式readbackであり、公式threadと入力欄が回復するまで再ログイン・再送・新着推測をしない。
 - [x] 2026-09-29 18:44 JST（UTC `09:44:12Z`）に、新しいleased tabで通常UIの3経路（スマホDM、dashboard、受信箱）をread-only確認した。3経路すべて`403 Forbidden`・入力欄0件、session keepaliveも`logged_out=false`・`access_denied=true`。未登録ブラウザ／別アカウントへの切替、送信POST、正式納品クリックは行っていない。証跡は `delivery/current-cycle-v722-dm-ui-access-denial-readback.json`。v719が最後の成功公式readbackであり、composerとpost-send readbackが回復するまでRyuへの送信は未完了。
+- [x] 2026-09-29 19:00 JST（UTC `10:00:55Z`）に、正規identity `coconala:kosuke` の公式DM composerが回復したことを確認し、重複guard（同一最終本文の事前存在なし）を通過した統合本文を送信クリック1回だけ実行した。正式納品ボタンは押していない。直後の公式DM DOMで同一本文のメッセージバブル1件をreadbackしたが、再読み込み後は`403 Forbidden`・入力欄0件へ戻ったため、provider側の永続readbackは未確認である。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。再送はしない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -822,7 +823,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 ### Ryuの残TODO（この順番を正本とする）
 
-1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、現行の送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信は0件で、このターンは送信していない。
+1. [x] **最新DMを公式CDPで再読**し、Ryu-DM-NEW-1〜4の要求と添付URLを記録した。過去の要求は `delivery/current-cycle-v708-dm-readback.json`、送信前readbackは `delivery/current-cycle-v719-dm-readback.json`。14:41の最新要求後のseller返信0件を確認し、統合本文の送信結果は `delivery/current-cycle-v723-dm-send-readback.json` に固定した。
 2. [x] **文言の正しい対象を特定して修正**した。購入者が指したライブtitleを`八王子デリヘル`へ変更し、公開titleと旧文言不在をreadbackした。
 3. [x] **女の子画像設定を根本修正**した。各プロフィールのメイン画像1枚＋写真5枚、原子的保存、再読込、キー形状保持、12名の公式readbackを確認した。新しい購入者画像を登録する場合だけ入力待ち。
 4. [x] **公開側のprofile画像参照を同一データへ接続**した。在籍・出勤・ランキング・プロフィールの同一profile画像を公式browser readbackした。WEB予約プレビューは既存の同一content API経路を確認済み。写メ日記は現在データが空のため、実データ表示は別途入力待ち。
@@ -830,9 +831,10 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 6. [x] **R-15の相互リンク管理を実装**した。管理画面で複数行の追加・編集・削除・並べ替え、表示名・遷移URL・バナー・掲載位置・公開状態、HTTPS URL検証を追加した。実URL・バナー受領後に保存→再読込→公開readbackを行う。
 7. **R-13の外部連携は権限・審査・仕様が揃った媒体だけを個別に接続**し、未提供の媒体は未完了として明示する。
 8. **[~] 現行DOM対応のDM collectorを直し、公式readback JSONを保存**する。`.bl_messages-list`／`.bl_message`、`textarea.message-input`、`/smartphone/direct_messages/<id>?uid=<own_uid>`の受信readback・focused 196 testsは完了。残りは返信adapterが現行URLを選び、immutable release反映後に、公式readback JSONで返信・重複guardを同じthreadで検証する。
-9. 上記1〜8のreadbackが全てPASSした後にだけ、Ryuの公式DM `10107358`へ**一度だけ**完成報告（公開URL・管理画面URL・修正範囲）を送る。正式納品ボタンは押さない。今回は送信していない。
+9. [~] 上記1〜8の修正readback後、Ryuの公式DM `10107358`へ統合済みの完成報告（公開URL・管理画面URL・修正範囲）を**一度だけ**送信した。2026-09-29 19:00 JSTに送信クリック1回、直後の公式DOMバブル1件、正式納品ボタン非押下を確認した。証跡は `delivery/current-cycle-v723-dm-send-readback.json`。再送は禁止。
+10. [ ] Coconala公式DMが403から回復した後、同じスレッドをread-onlyで一度だけ再読し、v723本文のprovider側永続readbackを取得する。readbackが取れない場合も再送せず、receipt不足を記録する。
 
-現行スマホDMの14:33〜14:41を含むreadbackは `v712` と `v719` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。`v719` が現在の公式DM状態の正本であり、sellerの14:41後返信0件を確認している。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712/v719はいずれも修正・納品完了の証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
+現行スマホDMの14:33〜14:41を含む送信前readbackは `v712` と `v719`、一度だけ送信した結果は `v723` として保存済みである。`v723`は直後の公式DOMバブルを証明するが、再読み込み後のprovider永続readbackは403で未取得のため、次のcursorは再送ではなくread-only確認である。返信adapterのimmutable release反映と、v723のprovider receipt取得は未完了。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
 ### ブラウザ・loop・worktreeの対応表と衝突境界
 
