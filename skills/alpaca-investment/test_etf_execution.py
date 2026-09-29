@@ -434,6 +434,14 @@ class EtfReconciliationTest(unittest.TestCase):
                     "outcome": "broker_reconciled",
                     "mode": "paper", "paper": True, "receipt_type": "outcome",
                 }) + "\n")
+                handle.write(json.dumps({
+                    "broker_status": "filled",
+                    "client_order_id": sealed["client_order_id"],
+                    "effect_id": sealed["effect_id"],
+                    "mode": "paper", "paper": True,
+                    "receipt_type": "effect_intent",
+                    "status": "reconciliation_pending",
+                }) + "\n")
             reads = []
             callbacks = []
             result = EFFECT.reconcile_started(
