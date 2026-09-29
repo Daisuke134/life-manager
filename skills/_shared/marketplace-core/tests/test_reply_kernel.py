@@ -590,6 +590,29 @@ def test_one_thread_failure_is_isolated(tmp_path):
     assert replay["items"][0]["failed"] == 0
 
 
+def test_pre_effect_failure_is_retryable_but_effect_unknown_stays_failed(
+        tmp_path, monkeypatch):
+    hint = tmp_path / "entrypoint-result.json"
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+    hint.chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    assert reply_kernel._entrypoint_exit_code({"failed": 1, "effect": 0}) == 75
+
+    hint.unlink()
+    assert reply_kernel._entrypoint_exit_code({"failed": 1, "effect": 0}) == 1
+
+
+def test_pre_effect_failure_cannot_downgrade_an_effectful_result(
+        tmp_path, monkeypatch):
+    hint = tmp_path / "entrypoint-result.json"
+    hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+    hint.chmod(0o600)
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    assert reply_kernel._entrypoint_exit_code({"failed": 1, "effect": 1}) == 1
+
+
 def test_authoritative_provider_rejection_becomes_durable_external_wait(tmp_path):
     class Restricted(Adapter):
         def mutate(self, _intent):
