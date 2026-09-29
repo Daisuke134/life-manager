@@ -58,6 +58,77 @@ def _load_shared(name: str):
     return module
 
 
+_COCONALA_OBSERVATION_MODULE = None
+
+
+def _coconala_observation_module():
+    """Load the read-only opportunity bridge lazily at the live snapshot boundary."""
+    global _COCONALA_OBSERVATION_MODULE
+    if _COCONALA_OBSERVATION_MODULE is None:
+        path = Path(__file__).with_name("coconala_opportunity_observation.py")
+        spec = importlib.util.spec_from_file_location(
+            "coconala_opportunity_observation_for_parent", path,
+        )
+        if spec is None or spec.loader is None:
+            raise ParentContractError("coconala_opportunity_observation_unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        _COCONALA_OBSERVATION_MODULE = module
+    return _COCONALA_OBSERVATION_MODULE
+
+
+def default_opportunity_observation_root() -> Path:
+    return Path(
+        os.environ.get("GIG_OPPORTUNITY_OBSERVATION_ROOT")
+        or (Path.home() / "gig" / "opportunity-observations")
+    ).expanduser()
+
+
+def record_live_coconala_observation(
+    snapshot: dict[str, object],
+    decisions: dict[str, object],
+    *,
+    evidence_dir: Path,
+    pass_id: str,
+    store_root: Path | None = None,
+) -> dict[str, object]:
+    """Persist one live collector snapshot before any irreversible commit."""
+    try:
+        summary = _coconala_observation_module().observe_coconala_opportunities(
+            snapshot,
+            decisions,
+            store_root=store_root or default_opportunity_observation_root(),
+            evidence_ref=f"snapshot://coconala/{pass_id}/application-snapshot.json",
+        )
+    except Exception as error:  # noqa: BLE001 - fail closed before browser mutation
+        raise ParentContractError(
+            f"coconala_opportunity_observation_failed:{type(error).__name__}"
+        ) from error
+    payload = {"version": 1, "status": "success", "pass_id": pass_id, **summary}
+    _atomic_json(evidence_dir / "opportunity-observation-summary.json", payload)
+    return payload
+
+
+def record_coconala_observation_source_failure(
+    evidence_dir: Path, pass_id: str, error: BaseException,
+) -> None:
+    """Leave an explicit read-only source failure when the authenticated collector cannot load."""
+    try:
+        _atomic_json(evidence_dir / "opportunity-observation-summary.json", {
+            "version": 1,
+            "status": "source_collect_failed",
+            "pass_id": pass_id,
+            "read_only": True,
+            "error_class": type(error).__name__,
+            "error": str(error)[:200],
+            "next_action": "retry_authenticated_snapshot_read_only",
+        })
+    except OSError:
+        # Preserve the collector's original failure; the parent still cannot mutate.
+        return
+
+
 dom_contract = _load_shared("dom_contract")
 
 try:
@@ -5074,7 +5145,11 @@ def run_parent(
                     heartbeat_seconds=heartbeat_seconds,
                 ),
             )
-            snapshot = collect_snapshot_with_readonly_retry(collector, lease.lease_fence)
+            try:
+                snapshot = collect_snapshot_with_readonly_retry(collector, lease.lease_fence)
+            except Exception as error:  # noqa: BLE001 - preserve source failure evidence
+                record_coconala_observation_source_failure(evidence_dir, pass_id, error)
+                raise
             source_artifacts = collector.source_artifacts
             snapshot_path = evidence_dir / "application-snapshot.json"
             _atomic_json(snapshot_path, snapshot)
@@ -5116,6 +5191,16 @@ def run_parent(
             _atomic_json(snapshot_path, snapshot)
         decisions_path = evidence_dir / "application-decisions.json"
         _atomic_json(decisions_path, decisions)
+        if fixture is None:
+            # This is the live collector's one immutable snapshot.  Observation is
+            # persisted before any submit effect; a store failure therefore fences the
+            # parent instead of silently claiming the wake was observed.
+            record_live_coconala_observation(
+                snapshot,
+                decisions,
+                evidence_dir=evidence_dir,
+                pass_id=pass_id,
+            )
         cap_override = snapshot_contract.MAX_APPLICATIONS_CEILING if all_eligible else None
         if fixture is None:
             results = _run_live_commits_parallel(

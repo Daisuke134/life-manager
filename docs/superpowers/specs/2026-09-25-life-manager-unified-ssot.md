@@ -2011,24 +2011,26 @@ job IDs 0）、`git diff --check`もPASS。branch
   注入でき、同じwakeではsnapshotを一度だけ取得して`discover()`／`inspect()`へ渡す。CDP/sessionの管理は
   collectorに残し、bridge自身はbrowser、応募、返信、納品、決済を呼ばない。collector例外は
   `snapshot_collect_failed`へfail-closedで変換する。
-- Coconala adapter 7件、Marketplace Core＋Coconala adapter＋provider adapter 340件、
+- `application_parent`の自然wakeで、collector snapshot取得後・応募effect前に共有observationを保存する。
+  planner未決定・禁止案件は`hold`、`submit_required`は`eligible`として記録し、保存失敗は応募前に
+  fail-closedする。認証済みcollectorが失敗した場合は`source_collect_failed`と再試行actionをevidenceへ残す。
+- Coconala観測5件を含め、Marketplace Core＋Coconala adapter＋provider adapter＋parent観測の合計396件、
   `lm-loop-contract`（`ok=true`、catalog 14、registry 176、mapped 102、shared job IDs 0）、compile、
   `git diff --check`をPASSした。source bridgeのテストPASSは、実browserの現在状態、provider receipt、公式
   readback、応募・納品・成約・payout・収益の証拠ではない。production loaded SHAは未変更である。
 
 ### 原子TODO（collector source bridge後の正本）
 
-1. **完了** Coconalaの既存snapshot collectorを一回取得・identity-bound inspect・shared read-only runnerへ
-   渡すsource bridgeを追加し、collector失敗を応募なしの型付きエラーへ閉じた。
-2. **未完** natural wakeの実装箇所で、実際の`CdpSnapshotCollector` callbackをこのsourceへ接続し、同じwakeの
-   observation storeへ`inspected/eligible/held/next_action`を書き込む。認証sessionが無い場合は候補を作らず
-   `held`または`source_collect_failed`として残す。外部mutationは行わない。
-3. **未完** Lancers、CrowdWorks、Mercorの既存read-only discover/fetchを同じOpportunity／inspect契約へ
-   一つずつ接続する。
-4. **未完** source branchをmainへ受入し、main由来immutable release、loaded SHA／plist argv-env／identity
+1. **完了** Coconalaの実collector snapshotを自然wakeで一回観測し、shared observationへ保存する。応募effect
+   前の保存境界、`hold`／`eligible`、collector失敗の`source_collect_failed`を確認した。
+2. **未完** Lancersの既存read-only discover/fetchを同じOpportunity／inspect／observation契約へ接続する。
+3. **未完** CrowdWorksの既存read-only discover/fetchを同じ契約へ接続する。
+4. **未完** Mercorの既存read-only discover/fetchを同じ契約へ接続する。
+5. **未完** source branchをmainへ受入し、main由来immutable release、loaded SHA／plist argv-env／identity
    lease／rollback receiptを公式readbackで一致させる。source test PASSだけでproduction完了と数えない。
-5. **未完** RyuさんDMおよび各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。
+6. **未完** RyuさんDMおよび各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。
    送信1回、正式納品0回、receiptなしの再送・effect fence解放0を維持する。
-6. **未完** capacity自然run、Freelancer／Upworkのapproved terms・専用identity・funded contract／milestone・
+7. **未完** capacity自然runでterminal event失敗0、protected deletion 0、global stop 0を確認する。
+8. **未完** Freelancer／Upworkのapproved terms・専用identity・funded contract／milestone・
    mutation authorization・payout readback、isolated canary、rollback、settlement、cost-complete positive
    net P&Lを検証する。
