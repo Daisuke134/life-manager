@@ -2870,6 +2870,23 @@ Coconalaの既存CDP `localhost:9222`は応答したが、tabは`about:blank`だ
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
 7. **未完** 全外部receiptとbranch受入後のみmain受入→immutable release→targeted production applyを行い、cleanup natural terminalとreplay-zeroを確認する。
 
+## 現在の正本cursor（2026-09-30、capacity ready後もproduction旧版が再びENOSPCを再現）
+
+branch側で約1.4GiBのclosed `node_modules`を除去し、capacity readbackが`headroom_ready=true`になった直後、production旧版の`ai.anicca.life-manager-disk-cleanup`が49回目の自然runを開始した。停止・再起動はしていない。runは`active count=0`、`runs=49`、`last exit code=1`で終了し、空き容量は約304MiBへ戻った。
+
+- 同じstderr境界を再現: `recovery intent append failed: [Errno 28] No space left on device`、gc-trash renameの`ENOSPC`、`terminal event failed`。
+- `cleanup-latest.json`は今回のterminal receiptを生成せず、`evaluated_runs=0`、`reclaimed_bytes=0`のまま。production旧版が容量を消費し、branchのscratch前deferが未反映であることの直接証拠である。
+- したがって、容量回復は恒久完了ではなく、productionを安全に修正するまで再発する。open browser/profile、cookie、protected stateを止める・消す操作はしていない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** production旧版の再発源を止めるため、branchの早期disk admissionをmain受入・immutable releaseへ進める条件（branch全checks、external receipt、rollback/readback計画）を閉じる。productionを直接編集しない。
+2. **未完** LancersのHuman Verification解除後に公式preflightを2回通し、Coconala／Lancers／CrowdWorks／Mercorのaccount-bound receiptと公式lifecycle readbackを順に取得する。
+3. **未完** Coconala Ryuさんthread `10107358`の`reconcile_unknown`を専用browserで公式readbackし、最新要求を統合した本文と一度限りの送信receiptを揃える。重複再送しない。
+4. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+5. **未完** 全receiptとbranch受入後のみmain受入→immutable release→targeted production applyを実行し、旧`ENOSPC`がscratch作成前deferへ変わることをnatural terminalで確認する。
+6. **未完** release後のcleanup receipt、capacity回復、provider replay-zero、settlementをreadbackする。
+
 ## 現在の正本cursor（2026-09-30、容量回復とbranch容量ゲート回帰の再実測後）
 
 47・48回目のproduction旧版cleanup自然runが`ENOSPC`で終了した後、稼働中profile・cookie・protected stateを停止・削除せず、open handleのない再生成可能な`writer/checkouts/self-owned-landing/apps/landing/node_modules`（約1.4GiB、同ディレクトリの`package-lock.json`で再生成可能）だけを削除した。ソース、lockfile、memory、認証情報、production stateは変更していない。
