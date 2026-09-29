@@ -1430,6 +1430,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 公式accountは`cash=99986.77`、`equity=99996.71`、status `ACTIVE`。公式positionはQQQ long `qty=0.013493253`、平均entry `$740.37`、current `$736.83`、market value `$9.942234`、unrealized P&L `-$0.047766`である。
 - exit order／exit receiptはなく、最新decisionは同じ`decision_session=2026-09-28`の`NO_TRADE / decision_session_consumed`である。よって`AT-13`は未完、実現収益は`$0/月`のままである。
 
+**AT-13 natural scheduler readback（2026-09-30 00:57 JST）**: `alpaca-investment-paper`のLaunchAgentはloaded、`run interval=300 seconds`、`runs=8`、`last exit code=0`である。`state=not running`は次の定期wakeまでの待機状態であり、停止や投資コードFAILではない。次のcompleted daily sessionまでnatural retryを継続する。
+
 **投資scheduler復旧readback（2026-09-30 00:48 JST）**:
 
 - `alpaca-investment-paper`のLaunchAgentは一時`state=not running`／`last exit code=78: EX_CONFIG`となっていたが、ログの実原因は`No space left on device`だった。read-only確認時の空きは約`184MiB`で、投資コードの注文失敗やprovider損失ではない。
