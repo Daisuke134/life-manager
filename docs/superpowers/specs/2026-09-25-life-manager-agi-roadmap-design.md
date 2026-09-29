@@ -452,3 +452,27 @@ Capafy の30日の純売上 $55.04、モデルの費用 $43.61、貢献利益の
 ### 14.4 既存の部品
 
 `skills/self/self-improve/{affiliate,bounty,clip,gig,video}/evaluator.py`、`apps/life-manager/eval/agent-contract/gate.js`（候補が評価器や権限を変えることを防ぐ）、`runtime/loop/recovery-promotion.mjs`、LM-EAB の `score.js`（settled_net_profit）、Capafy のスキル別の毎時利益 receipt（#6072）、`skills/self/spawn`（自己複製。新しい事業の作成ではない）。
+
+## 15. 最初の対象は gig ループ（Dais 2026-09-29）
+
+### 15.1 実測（2026-09-29、読み取りのみ）
+
+| 項目 | 値 | 出所 |
+|---|---|---|
+| gig の funnel 台帳 | `~/gig/gig-funnel.jsonl` 672行、最終行 2026-08-12 16:43（約7週間更新なし） | ファイルの読み取り |
+| 行の意味 | 各行はその時点までの**累計**のスナップショット（最終: applied 413・replied 72・won 4・paid 7・jpy 124,878） | 最終3行が同じ値 |
+| 記録プログラム | `skills/earn/gig/gig_funnel.py` の最終変更は 2026-07-17（`bb42c207ff`） | git log |
+| 評価器の欠陥1 | `skills/self/self-improve/gig/evaluator.py` は全行を合計する（累計の二重計上。applied の合計 167,819） | コードと台帳 |
+| 評価器の欠陥2 | 評価器は `paid_jpy` / `earn_jpy` を読むが、台帳の列は `jpy`。お金は常に 0 と数えられる | コードと台帳 |
+| 評価器の欠陥3 | 点数 ＝ 返信率 ＋ 受注率 ＋ 円。単位の違う量を足している | コード |
+| jpy 124,878 の意味 | 決済済みかは未確認。SSOT では Lancers の残高 ¥0・funded 0 | 統合 SSOT §3 |
+| 使えるデータ | 応募 413、返信 72（約17%）、受注 4 | 最終行 |
+
+### 15.2 gig での自己改善の順序
+
+0. **体重計を直す:** funnel 台帳を再び毎日書く。評価器は最新行（累計）を使い、列名 `jpy` を読み、率と円を別々の指標にする。円は receipt で決済を確認できたものだけを数える（LM-EAB と同じ規則）。
+1. **eval:** 流れは「案件を見て、応募するか・提案文・価格を決める」。入力は過去の応募（返信あり／なし、受注あり／なし）。採点はコードでの判定（価格の範囲、必須の項目、禁止表現）と、はい／いいえのチェックリスト。
+2. **山登り（hillclimb）:** 変えるのは gig の `SKILL.md`・提案文のプロンプト・モデルと effort だけ。最初の目標は費用、次に返信率。
+3. **本番で確認:** 返信率・受注率・決済された円を、変更の前後で比べる。
+4. **LM-EAB:** gig の1か月を1 episode として、決済された純利益と自律の条件で採点する。
+制約: Ryu（room `18211957`）への再送は禁止。正式な納品ボタンはループから押さない（統合 SSOT §6）。
