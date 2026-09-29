@@ -6654,6 +6654,19 @@ ordering notes without declaring any external effect complete.
   repaired release is accepted. The next safe action is another read-only
   owner/readback check, not a forced restart or duplicate send.
 
+### Coconala owner natural restart readback — 2026-09-30 08:42 JST
+
+- [x] The brief `not running` interval ended without intervention; launchd
+  automatically started `ai.anicca.hf-gig-reply-detector` again as PID
+  `29176`.
+- [x] The restarted Reply owner still invokes old release
+  `20260930T010308-3975ae89`; the Paid owner and shared CDP `9223` browser are
+  also still active on the old release. The latest reply and Paid receipts did
+  not change during this readback.
+- [ ] A natural restart is not a repaired deployment. Do not treat the owner
+  being running as a canary pass, and do not force another restart. Main
+  integration and the controlled release transition remain open.
+
 ### Live owner versus repaired candidate divergence — 2026-09-30 08:39 JST
 
 - [x] The live Coconala Reply process is still executing the old immutable
