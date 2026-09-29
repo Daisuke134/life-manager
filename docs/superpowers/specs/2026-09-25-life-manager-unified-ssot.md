@@ -1438,3 +1438,12 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 再生成可能なcache `/Users/anicca/.npm/_npx`（約`662MiB`）だけをTrashへ移動し、source pathを空にした。空きは約`1.4GiB`へ回復した。投資state、spec、worktree、Capafy stateは削除していない。
 - live ownerの`alpaca-investment-live:18d9d4b103f3a978-69433`は公式Alpaca GETでqueued後の注文なし・open orderなしを`verified=true`として証明し、`effect_reconcile.py`が`ALPACA_EFFECT_RECONCILE=PASS`を返した。これは外部注文を発生させないfence解消であり、live注文・送金は行っていない。
 - paper ownerだけをsafe kickstartし、loaded release SHA `b26ab310a2083edd1bdfb477da40d9a670251a42`、mode `paper`、owner state rootをreadbackした。新occurrence `alpaca-investment-paper:18d9d552167746a8-88671`は`exit_code=0`／`status=pass`になり、decisionは`NO_TRADE / decision_session_consumed`。scheduler実行経路は復旧したが、`AT-13`のexit条件はまだ未達である。
+
+**AT-13最新natural readback（2026-09-30 01:06 JST）**:
+
+- 最新eventはoccurrence `alpaca-investment-paper:18d9d64baac94050-26973`、release SHA `b26ab310a2083edd1bdfb477da40d9a670251a42`、`exit_code=0`、`status=pass`、`next_action=none`である。これはloop実行成功であり、利益・exit約定の証拠ではない。
+- 最新decision receiptは`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`。新しいcompleted daily sessionのexit decisionではない。
+- 最新paper observationはaccount cash `$99,986.77`、equity `$99,996.71`、QQQ long `qty=0.013493253`、current `$736.64`、market value `$9.93967`、unrealized P&L `-$0.05033`、market `is_open=true`。exit order／exit receiptは存在しない。
+- `/Users/anicca/loops/current`は`/Users/anicca/loops/releases/20260930T010308-3975ae89`を指すが、上記最新paper eventのloaded SHAは`b26ab310…`である。symlink変更だけをloaded release反映とは扱わず、次のofficial loaded readbackが必要である。
+- cost-complete source修正はbranch `feat/investment-paper-pnl-20260930`のcommit `d0dcb53a72`へpush済みで、投資focused suite `254/254`と`git diff --check`がPASSした。ただしPR／main merge／immutable release／paper applyは未実施なので、productionのP&Lや`AT-17`〜`AT-19`の完了証拠にはしない。
+- `AT-13`は未完、cursorは変わらない。検証済み実現投資収益は`$0/月`であり、paper unrealized P&Lは収益に数えない。手動sell、手動wake、再送、Binance送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は行わない。
