@@ -1387,3 +1387,43 @@ Meta Loopの理想契約は候補発見で止めず、`candidate durable state �
 7. **横断self-improvement**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通過した変更だけをshared skill/kernelへ昇格する。receiptの無い「稼働中」は収益と報告しない。
 
 **PR受入gateの追加readback（2026-09-29）**: 新PR `#6237` のOSS self-contained gateは、実装ではなく `docs/manifests/oss-merge-1-sources.json` のtracked inventoryが古いこと（Capafy 233→234、`skills/_shared` 186→189）でFAILした。tracked treeをverifierと同じ並び・SHA規則で再計算してmanifestを更新し、`node scripts/verify-oss-self-contained.mjs --json` は `ok=true`、OSS contract testは **12/12 PASS**、`git diff --check`もPASSになった。外部provider作用やproduction releaseは変更していない。次はこのcommit後のGitHub required checksを再確認し、全green後だけmain統合へ進む。
+
+**production apply/readbackの最新事実（2026-09-29、Codex実測）**: PR `#6237` のGig／Meta変更はmainへ統合済みで、別agentの投資PR `#6238` も続けてmainへ統合された。現在の正本は `origin/main=06b7497e94103e7edbd46449d9ae545be71b2f1b`、immutable production releaseは `/Users/anicca/loops/releases/20260929T230036-06b7497e`、`RELEASE.json.sha=06b7497e94103e7edbd46449d9ae545be71b2f1b` である。production `doctor` は `ok=true`（registry 175、missing/retired/unmanaged 0）、`./bin/lm-loop-contract` は `ok=true`（catalog 14、registry 175、mapped 102、shared job IDs 0）。これはsource・release・registry整合性の証拠であり、provider納品・契約・payout・収益の証拠ではない。
+
+今回、`LIFE_MANAGER_APPLY_TARGET`で対象ownerを一件ずつapplyし、install eventとloaded argvをreadbackした。06b7497eをloadedできた対象は、Coconalaのbrowser・evidence-gc・daily-report・storefront、Lancersのbrowser・application・storefront・negotiate・paid・work-sync・telegram-report、CrowdWorksのbrowser・report、Mercorのapplication・paid・replyである。Coconalaの応募ownerは `admission rebind refused: effect_unknown`、Coconala paid/replyとCrowdWorks application/paid/replyは実行中のため安全な通常applyが `loaded-running` でskip、Coconala reconcileも実行中skipとなった。これらに強制restartは行っていない。
+
+最新statusの重要な境界は次のとおりである。Coconala `hf-gig-apply-direct` は旧SHA `287d913c…` のまま `host_admission_deferred:resource_effect_unknown`、`provider_receipt_id=null`、`official_readback_ref=null`。Coconala `hf-gig-storefront-direct` は06b7497e loadedだが同じeffect fenceを保持する。Lancers application/paidは06b7497e loadedだが`entrypoint_exit_1`かつ`official_readback_required`、storefront/reportは06b7497e loadedだが`resource_effect_unknown`、work-syncは06b7497e loadedだが`entrypoint_exit_75`。CrowdWorks browser/reportは06b7497e loaded、application/paid/replyは旧releaseのloaded-runningまたはcapacity/official-readback待ち。Mercor 3 ownerは06b7497e loadedだが`resource_effect_unknown`。`pre-effect-reconcile --dry-run`で確認できないoccurrenceは`no_pre_effect_terminal`としてheldし、resolve・再送していない。どの対象にもprovider receiptとofficial readbackはまだ無く、収益は `$0` と判定する。
+
+Mercorには追加の構成欠陥がある。active registryの`mercor-revenue-application`と`mercor-revenue-reply`が`browser_target_owner=mercor-revenue-browser`を参照する一方、そのbrowser ownerはretiredでactive registryに存在しない。doctorのentrypoint整合性だけではこの参照欠落を検出しないため、Mercor browser identity ownerを復元するか、参照を現行の認証済みownerへ変更し、専用identity lease・CDP/profile・公式probeをreadbackすることを未完了として扱う。FreelancerとUpworkはactive lifecycle ownerがなく、source/readiness境界（funded contract、専用identity auth、mutation authorization、payout readback未取得）から先へ進めない。
+
+**理想状態（自己修復・観測性・収益）**: 各platformはone-off agentではなくshared kernelのadapter設定として、次の同一状態機械を通る。
+
+```mermaid
+flowchart LR
+  D[discover/qualify] --> P[propose or message]
+  P --> F[accept + funded contract]
+  F --> E[pre-effect fence]
+  E --> X[provider effect]
+  X --> R[provider receipt + official readback]
+  R --> S[settlement/payout]
+  S --> Q[cost-complete quality + net P&L]
+  Q --> G[evaluator/replay-zero]
+  G -->|promote| K[shared skill/kernel]
+  G -->|fail| H[held/dead-letter + bounded recovery]
+  H --> E
+  M[Meta Loop: discover new platform] --> D
+```
+
+各wakeは `run_id`、`owner_id`、`occurrence_id`、`release_sha`、loaded argv/env、phase、failure layer、`error_class`、`retryable`、effect、readback、`provider_receipt_id`、`evidence_refs`、`next_action`を構造化して残す。pre-effect失敗だけを同一occurrenceでbounded retryし、effect unknownは公式receipt/readbackが揃うまでheld、同じ原因の反復はdead-letterとowner別escalationへ送る。`unknown`、DOM表示、wake回数、accepted状態、research/backtestは成功や収益へ昇格しない。payout receiptからfee・slippage・funding/borrow・gas・model costを一度だけ控除し、positive net P&Lとreplay-zeroを通った変更だけをshared skill/kernelへ戻す。通常のlogin/session/wake/reconcile/retryはno-human-loopで、KYCなどprovider必須境界だけを例外とする。
+
+Meta Loopは候補発見で止まらず、`candidate durable state → policy/adapter qualification → funded work → isolated canary/readback → owner provisioning → rollback → settlement → quality/P&L feedback`を完了したplatformだけを有効化する。候補を見つけただけ、adapterが存在するだけ、source testがgreenなだけでは収益ownerを登録しない。全platformのreceipt単位データを同一schemaへ集約し、成功した改善を共通kernelへ昇格することで、Coconala/Lancers/CrowdWorks/Mercor/将来のUpwork等へ再利用可能な一般目的agentになる。
+
+**残TODO（現在の成果順・正本、2026-09-29）**:
+
+1. **自然terminalとeffect fenceを閉じる**: Coconala Apply/Storefront、Lancers application/storefront/report、CrowdWorks report、Mercor 3 ownerを同一occurrenceで自然wakeさせ、provider receipt・official readbackが無い間はheldを維持する。強制restart、手動wake、重複応募・送信はしない。
+2. **旧releaseのloaded-running ownerを安全に更新する**: Coconala paid/reply/reconcile、CrowdWorks application/paid/reply、必要ならCoconala apply-directがnatural terminalになった後、06b7497eへtarget applyし、plist argv・loaded SHA・state path・identity lease・rollback receiptをreadbackする。loaded-running中にrestartしてreleaseを切り替えない。
+3. **Mercor browser owner不整合を直す**: `mercor-revenue-browser`をactive registryへ復元するか、application/replyの`browser_target_owner`を現行ownerへ修正し、CDP/profile/identity leaseと公式probeを確認する。source test、doctor、contract、production readbackを再実行する。
+4. **platform provider証拠を取得する**: Lancers/CrowdWorks/Mercorでproposal/thread/Paid/deliveryのprovider receipt、official readback、payoutをoccurrence単位で結合する。receiptなしのeffect unknownはresolve・再送・収益計上しない。CoconalaのRyuさんDMは既存の一回送信を維持し、403回復後のread-only確認だけを行う。
+5. **Freelancer/Upworkを安全に有効化する**: approved terms → 専用identity auth → source-complete contract/payment/payout inventory → funded contract/milestone → mutation authorization → payout readbackの順でcandidate gateを通す。active ownerが無い状態で応募・返信・納品を成功扱いにしない。
+6. **Meta Loopを完成する**: discovery scheduler、candidate durable store、promotion後owner provisioning、bounded rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。policy、adapter、funded work、official canary/readback、unit economicsの全gateが揃うまで自動登録しない。
+7. **横断self-improvementを閉じる**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通った変更だけをshared skill/kernelへ昇格する。検証済み実現収益が `$0` の間は、将来目標（百万ドル等）を実績として報告しない。
