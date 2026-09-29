@@ -253,7 +253,8 @@ def _already_visible_in_dashboard(page, title: str) -> bool:
             return rows;
         }""",
     )
-    return any(status in ("Approved", "Pending", "Scheduled") and card_title == title
+    from readback import title_key  # dashboard drops the em dash; compare like readback does
+    return any(status in ("Approved", "Pending", "Scheduled") and title_key(card_title) == title_key(title)
                for status, card_title in cards)
 
 
