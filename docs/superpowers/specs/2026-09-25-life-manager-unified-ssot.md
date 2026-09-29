@@ -778,9 +778,10 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
 - [x] 2026-09-29 16:17 JST（UTC 07:17）の現行スマホDM再読で、取得できた最新10件は9/29 14:33〜14:41を含み、最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。添付2件はHTTP 200で取得・hash固定済み。readbackは `delivery/current-cycle-v712-dm-readback.json`。
 - [x] 直前の4経路プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM、旧DM URL、受信箱、ダッシュボードが `403 Forbidden` を返した。これはログイン切れではなくprovider access denialとして扱う安全境界を `session_vault.py` と `session_vault_tick.sh` に追加し、再ログイン・再送を抑止する。現行スマホDM URLは後続readbackで回復したが、旧URLは依然403のため返信経路は旧URLを使用しない。
-- [x] 本番ログの `browser_port_owner.py:forward → os.killpg → PermissionError: [Errno 1] Operation not permitted`（release `20260929T154252-aac42b89` / `20260929T144819-1e3ee016`）を、子process group終了時のraceとして特定した。browser ownerと親の`runtime/loop/lm_loop_run.py`の両方で `_forward_process_group_signal()` が `ProcessLookupError` と `PermissionError` を既に終了したgroupとして吸収し、各回帰テストを追加した。productionの現行release `20260929T163139-dca9befe` はまだ修正前で、launchd `ai.anicca.hf-gig-browser` は `active count=1`・CDP `9223` reachable だが `last exit code=78: EX_CONFIG` の履歴を持つ。修正release反映後のbrowser readbackを取るまで、Ryuの公式DMへ送信しない。
+- [x] 本番ログの `browser_port_owner.py:forward → os.killpg → PermissionError: [Errno 1] Operation not permitted`（release `20260929T154252-aac42b89` / `20260929T144819-1e3ee016`）を、子process group終了時のraceとして特定した。browser ownerと親の`runtime/loop/lm_loop_run.py`の両方で `_forward_process_group_signal()` が `ProcessLookupError` と `PermissionError` を既に終了したgroupとして吸収し、各回帰テストを追加した。これは旧releaseの障害記録であり、現行本番の状態は下記の最新readbackを正本とする。修正release反映後のbrowser readbackを取るまで、Ryuの公式DMへ送信しない。
 - [x] 2026-09-29 16:50 JST（UTC `07:50:31.300Z`）のfresh read-only probeでは、同じ現行スマホDM URLがCDP endpoint到達後にページ`title/body=403 Forbidden`を返した。これはログイン画面ではなくprovider access denialであり、`delivery/current-cycle-v713-dm-access-denial-readback.json`へ保存・再読検証した。送信・正式納品クリックは0件。403中は旧URLへ迂回せず、修正release反映とprovider readback回復後にだけ一度送る。
 - [x] 2026-09-29 17:03 JST（UTC `08:03:08.300Z`）に同じ公式URLを再度read-only probeしたが、CDP endpoint到達後もページ`title/body=403 Forbidden`で回復していなかった。`delivery/current-cycle-v714-dm-access-denial-readback.json`へ保存し、送信・正式納品クリックは0件のまま維持した。再ログイン・旧URL迂回・重複送信はしない。
+- [x] 2026-09-29 17:08 JST（UTC `08:08:13Z`）のproduction readbackでは、`/Users/anicca/loops/current` は `/Users/anicca/loops/releases/20260929T170751-8a9f1dcb`（SHA `8a9f1dcb84…`、別main由来release）を指す。`ai.anicca.hf-gig-browser` は `active count=0`・`state=spawn scheduled`・`last exit code=78: EX_CONFIG`、CDP `9223` は未接続だった。これは今回のbranchの修正が本番反映済みという意味ではなく、RyuのDM送信経路が回復した証拠でもない。送信・正式納品クリックは0件のまま維持する。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -824,13 +825,28 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 現行の主要な対応は次の通り。`hf-gig-browser` → `coconala:kosuke` → `~/.cloak/profiles/gig-daily-driver`（宣言ポート9223）、`lancers-revenue-browser` → `~/.local/state/anicca/lancers/browser-profile`（9227）、`crowdworks-revenue-browser` → `~/.local/state/anicca/crowdworks/browser-profile`（9228）、`affiliate-browser` → `~/.cloak/profiles/affiliate/en`（9324）、`affiliate-impact-browser` → `~/.cloak/profiles/affiliate/impact-en`（9327）、`affiliate-x-browser` → `~/.cloak/profiles/affiliate/x-en`（9326）、`life-manager-daily-driver` → `interactive:dais` → `~/.cloak/profiles/daily-driver`（9222）である。RyuのCoconala DMは `coconala:kosuke` を使い、Colorsサイト管理は別identity `colors-hachioji:owner-18211957`（`~/.cloak/profiles/colors-hachioji-owner-18211957`）を使う。両者を同時に同一profileへ接続しない。
 
+宣言済みownerとaction loopの関係は次の通り。`browser_owner` がある行だけがprofile/CDPの所有者で、下段のaction loopは現在provider adapter内部でそのownerを選ぶため、registryにidentityが明示されていない（ここが残TODOであり、推測で別profileを割り当てない）。
+
+| platform / loop群 | 宣言済みbrowser owner | profile / CDP | 現在の明示性 |
+|---|---|---|---|
+| Coconala: `hf-gig-browser` | `coconala:kosuke` | `~/.cloak/profiles/gig-daily-driver` / 9223 | ownerのみ明示 |
+| Coconala action: `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-storefront-direct` | 上記をadapterが選択 | 上記 | **未明示**。同時実行を許さず、DM送信・Storefrontを直列化 |
+| Lancers: `lancers-revenue-browser` | Lancers専用owner | `~/.local/state/anicca/lancers/browser-profile` / 9227 | ownerのみ明示 |
+| Lancers action: `application`, `negotiate`, `paid`, `storefront`, `work-sync` | 上記をadapterが選択 | 上記 | **未明示**。Human Verification中は再送しない |
+| CrowdWorks: `crowdworks-revenue-browser` | CrowdWorks専用owner | `~/.local/state/anicca/crowdworks/browser-profile` / 9228 | ownerのみ明示 |
+| CrowdWorks action: `application`, `reply`, `paid`, `report` | 上記をadapterが選択 | 上記 | **未明示**。公式readbackなしのeffect unknownを成功扱いしない |
+| Mercor / Freelancer / Upwork | 登録済みbrowser ownerなし | — | adapter境界のみ。active loop・account-bound identity未完了 |
+| Colors管理（Ryu案件のサイト側） | `colors-hachioji:owner-18211957` | `~/.cloak/profiles/colors-hachioji-owner-18211957` / 動的port | Coconala profileと共有禁止 |
+
+`config/loop-registry.json` はloop→ownerの宣言、`~/.config/ai/registry/browsers.toml` はidentity→profile/accountの宣言であり、どちらか一方だけを更新してはならない。
+
 衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。現在、`hf-gig-reply-detector` やPaid/Applicationの一部はprovider adapter内部でCoconala identityを選び、registry行に `browser_identity` が明示されていない。この暗黙依存は一般化の残TODOであり、全browser使用loopをregistryのidentityへ写像し、静的衝突検査で拒否する。
 
 開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは403のため最終返信未完了である。
 
-残りの順序は、(a) このbranchのテスト・spec更新をpush、(b) main/PR受入れ、(c) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(d) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(e) 全platform loopの暗黙browser依存を明示identityへ収束、である。
+残りの順序は、(a) このbranchのfocused test・contract gate・spec更新をpushした後のmain/PR受入れ、(b) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(c) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(d) 全platform loopの暗黙browser依存を明示identityへ収束、である。
 
-現行source readbackは、専用worktreeのbranch `fix/lm-release-boundary-20260929`（HEAD `f60c8d4370`、最新main `7a093f66f1`を同期済み、push済み、PRなし）である。重点runtime `252 passed / 164 subtests`、Capafy同期テスト`12 passed`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）である。一方、`./bin/lm-loop doctor` は `ok=false` で、未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision` が1件残る。これはCoconala修正branchから勝手に削除・再起動せず、該当ownerでregistryへ収束させる別promotion TODOである。
+現行source readback（この段落の更新直前）は、専用worktreeのbranch `fix/lm-release-boundary-20260929`（source snapshot `c788679ce8`、最新 `origin/main=3a7d54a614`をmerge済み、PRなし）である。重点runtime `252 passed / 164 subtests`、Capafy同期テスト`12 passed`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）である。一方、`./bin/lm-loop doctor` は `ok=false` で、未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision` が1件残る。これはCoconala修正branchから勝手に削除・再起動せず、該当ownerでregistryへ収束させる別promotion TODOである。
 
 横断owner readback（`delivery/current-cycle-v715-platform-owner-readback.json`）では、Coconalaのreply/Paidはruntime passでもApply/Storefrontは`resource_effect_unknown`、LancersのApplication/Negotiate/Paidは`entrypoint_exit_1`（Negotiateの根因は`provider_response_invalid`）、CrowdWorksはbrowser/replyが失敗しApplication/Paidは公式readbackなし、MercorのApplication/Reply/Paidは`resource_effect_unknown`である。Freelancer/Upworkはadapterだけでactive registry ownerがなく、全platform完了とは扱わない。`effect_status=unknown`を成功に昇格せず、各providerの公式readback adapterとimmutable release適用が残る。
 
