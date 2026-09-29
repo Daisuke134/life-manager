@@ -30,10 +30,11 @@ _CROWDWORKS = None
 _CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
+_LIFECYCLE_STORE = None
 
 
 def _modules():
-    global _CROWDWORKS, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    global _CROWDWORKS, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
     if _CROWDWORKS is None:
         _CROWDWORKS = _load(
             HERE.with_name("crowdworks_platform_manifest.py"),
@@ -47,7 +48,11 @@ def _modules():
         )
     if _RUN_STORE is None:
         _RUN_STORE = _load(CORE / "meta_loop_run_store.py", "crowdworks_manifest_runtime_runs")
-    return _CROWDWORKS, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
+    if _LIFECYCLE_STORE is None:
+        _LIFECYCLE_STORE = _load(
+            CORE / "meta_loop_lifecycle.py", "crowdworks_manifest_runtime_lifecycle",
+        )
+    return _CROWDWORKS, _CYCLE, _CANDIDATE_STORE, _RUN_STORE, _LIFECYCLE_STORE
 
 
 def default_manifest_root() -> Path:
@@ -93,7 +98,7 @@ def run_crowdworks_platform_manifest_wake(
 ) -> dict[str, Any]:
     """Run the live account/profile observation through the four-platform cycle."""
 
-    crowdworks, cycle, candidate_store_module, run_store_module = _modules()
+    crowdworks, cycle, candidate_store_module, run_store_module, _ = _modules()
     root = default_manifest_root()
     candidates = candidate_store_module.CandidateStateStore(
         candidate_root if candidate_root is not None else root / "candidates",
@@ -118,8 +123,36 @@ def run_crowdworks_platform_manifest_wake(
     )
 
 
+def run_crowdworks_candidate_lifecycle(
+    *,
+    candidate_root: str | Path,
+    lifecycle_root: str | Path,
+    registry: Any,
+    account_context: Mapping[str, Any],
+    candidate_id: str,
+    run_id: str,
+    observed_at: str,
+) -> dict[str, Any]:
+    """Promote one stored CrowdWorks candidate through an injected registry."""
+
+    _, cycle, candidate_store_module, _, lifecycle_store_module = _modules()
+    candidates = candidate_store_module.CandidateStateStore(candidate_root)
+    lifecycle = lifecycle_store_module.MetaLoopLifecycleStore(lifecycle_root)
+    return cycle.run_registered_platform_candidate_lifecycle(
+        candidates,
+        lifecycle,
+        registry,
+        provider="crowdworks",
+        candidate_id=candidate_id,
+        account_context=account_context,
+        run_id=run_id,
+        observed_at=observed_at,
+    )
+
+
 __all__ = [
     "build_live_snapshot",
     "default_manifest_root",
+    "run_crowdworks_candidate_lifecycle",
     "run_crowdworks_platform_manifest_wake",
 ]

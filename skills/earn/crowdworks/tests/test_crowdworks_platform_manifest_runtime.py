@@ -85,3 +85,76 @@ def test_crowdworks_application_owner_bridge_writes_read_only_summary(tmp_path):
     assert payload["status"] == "partial"
     assert payload["read_only"] is True
     assert (tmp_path / "evidence" / "platform-manifest-wake.json").is_file()
+
+
+def test_crowdworks_candidate_lifecycle_uses_account_bound_registry(tmp_path):
+    cycle = runtime._CYCLE or runtime._modules()[1]
+    candidates_module = runtime._CANDIDATE_STORE or runtime._modules()[2]
+    candidate_store = candidates_module.CandidateStateStore(tmp_path / "candidates")
+    candidate_store.record({
+        "schema_version": 1,
+        "provider": "crowdworks",
+        "candidate_id": "platform:crowdworks",
+        "observed_at": "2026-09-30T15:20:00Z",
+        "source_url": "https://crowdworks.jp",
+        "snapshot_sha256": "d" * 64,
+        "decision": "promote",
+        "gates": {
+            "policy": "pass", "adapter": "pass", "funded_work": "pass",
+            "canary": "pass", "unit_economics": "pass",
+        },
+        "reasons": [],
+        "evidence_refs": ["crowdworks://candidate/observed"],
+        "next_action": "provision_owner_after_release_readback",
+        "idempotency_key": "marketplace-candidate:v1:crowdworks:platform:crowdworks:" + "d" * 64,
+    })
+
+    calls = []
+
+    class Adapter:
+        def provision_owner(self, candidate):
+            calls.append("provision")
+            return {
+                "status": "provisioned", "owner_id": "owner-1",
+                "receipt_ref": "provider-receipt://crowdworks/owner-1",
+                "observed_at": "2026-09-30T15:20:01Z",
+            }
+
+        def canary_readback(self, candidate, owner):
+            calls.append("canary")
+            return {
+                "status": "verified", "receipt_ref": "provider-receipt://crowdworks/canary-1",
+                "replay_zero": True, "observed_at": "2026-09-30T15:20:02Z",
+            }
+
+        def rollback_owner(self, candidate, owner, reason):
+            calls.append("rollback")
+            return {
+                "status": "rolled_back", "receipt_ref": "provider-receipt://crowdworks/rollback-1",
+                "observed_at": "2026-09-30T15:20:03Z",
+            }
+
+        def settle(self, candidate, owner, canary):
+            calls.append("settle")
+            return {
+                "status": "settled", "receipt_ref": "provider-receipt://crowdworks/settlement-1",
+                "net_amount_minor": 1000, "currency": "JPY",
+                "observed_at": "2026-09-30T15:20:04Z",
+            }
+
+    registry = cycle.PlatformLifecycleAdapterRegistry({"crowdworks": lambda context: Adapter()})
+    result = runtime.run_crowdworks_candidate_lifecycle(
+        candidate_root=tmp_path / "candidates",
+        lifecycle_root=tmp_path / "lifecycle",
+        registry=registry,
+        account_context={
+            "account_id": "crowdworks-owner-1",
+            "authorization_receipt_ref": "auth://crowdworks/receipt-1",
+        },
+        candidate_id="platform:crowdworks",
+        run_id="crowdworks-lifecycle-1",
+        observed_at="2026-09-30T15:20:00Z",
+    )
+
+    assert result["status"] == "settled"
+    assert calls == ["provision", "canary", "settle"]
