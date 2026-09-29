@@ -2852,6 +2852,25 @@ productionの`ai.anicca.life-manager-disk-cleanup`を停止・再起動せず、
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、今回も送信完了扱いにしない。
 
+## 現在の正本cursor（2026-09-30、容量回復とbranch容量ゲート回帰の再実測後）
+
+47・48回目のproduction旧版cleanup自然runが`ENOSPC`で終了した後、稼働中profile・cookie・protected stateを停止・削除せず、open handleのない再生成可能な`writer/checkouts/self-owned-landing/apps/landing/node_modules`（約1.4GiB、同ディレクトリの`package-lock.json`で再生成可能）だけを削除した。ソース、lockfile、memory、認証情報、production stateは変更していない。
+
+- 容量readback: `free_bytes=586780672`、`required_bytes=536870912`、`headroom_ready=true`、policy flagなし。floorは超えたが余裕は約50MiBなので、production apply前に再確認する。
+- branch検証: `./bin/lm-loop-contract`は`ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）。`runtime/host/tests/test_disk_admission.py`は`8 passed`。`LIFE_MANAGER_DISK_HEADROOM_KIB=0`で`runtime/loop/tests/test_lm_loop_run_bounds.py`＋`test_lm_loop_apply.py`は`263 passed, 31 subtests passed`。
+- 容量境界の観測: 同じloop回帰を実hostの512MiB floorで実行すると`269 passed, 31 subtests passed, 2 failed`となり、失敗はテスト中の一時領域消費後に`disk_headroom_low`でdeferされた2ケースだった。provider効果・production applyの失敗ではなく、テスト実行時の容量競合として扱う。
+- production: `RELEASE.json`は依然として旧SHA `3975ae8996cab3325f514746a32c915f9935fddf`、branch `fix/source-reconcile-20260930`はmain未統合。新しいproduction apply、応募、返信、納品、RyuさんDM再送は行っていない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **完了（read-only確認済み）** 再生成可能なclosed dependencyだけで容量を回復し、`headroom_ready=true`を確認した。production apply直前にも同じgateを再確認する。
+2. **未完（現在cursor）** branchの全受入チェックを、容量境界を明示したpartitioned evidence（targeted回帰、契約、diff、compile）として保存し、main受入条件を満たすことを確認する。一発full suiteの容量競合を成功扱いしない。
+3. **未完** main受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・deferred/terminal receiptをreadbackする。branchがmainの祖先になるまでapplyしない。
+4. **未完** release後のcleanup自然runでscratch作成前の`disk_headroom_low` deferとterminal receiptを公式stateから確認し、旧版のrecovery intent／terminal `ENOSPC`が再発しないことを確認する。
+5. **未完** LancersのHuman Verification解除後に公式read-only preflightを2回通し、Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readback・canary／rollback／settlement・replay-zeroを順に揃える。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いにしない。
+
 ## 現在の正本cursor（2026-09-30、cleanup lock競合のdeferred分類後・最新）
 
 productionの`ai.anicca.life-manager-disk-cleanup`は、直近の自然runでsafe sweepへ到達する前に`lm-loop-run: production apply is already owned`を返し、launchdのlast exit codeは1だった。これはapply中のlabel lock競合であり、cleanup候補を削除した証拠ではない。現在のhost空き容量は約242MiBで、共通floor 512MiBを下回る。稼働中のLancers Chromium、認証・cookie、production state、releaseは停止・削除していない。
