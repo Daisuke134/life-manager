@@ -809,6 +809,18 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 現行スマホDMの14:33〜14:41を含むreadbackは `v712` として保存済みで、collectorの受信DOM対応は公式readbackまで到達した。返信adapterの旧URL依存とproduction immutable release反映は未完了であり、v712は修正・納品証拠ではない。ローカルの旧DM JSONは2026-08-29時点で、9/27以降の指摘を含まない。
 
+### ブラウザ・loop・worktreeの対応表と衝突境界
+
+ブラウザの正本は二層に分かれる。loopとlaunchdの宣言は `config/loop-registry.json`、ログイン済みidentityとprofileの対応はMac側の `~/.config/ai/registry/browsers.toml` である。ポート番号だけをidentityとして扱わず、実行時はprofile内の `DevToolsActivePort` とbrowser UUIDを `skills/browser/resolve_cdp_endpoint.py` で再解決する。leaseは `skills/browser/browser-guard.sh`、実行中の保持は `skills/browser/with-browser.sh` が唯一の入口である。
+
+現行の主要な対応は次の通り。`hf-gig-browser` → `coconala:kosuke` → `~/.cloak/profiles/gig-daily-driver`（宣言ポート9223）、`lancers-revenue-browser` → `~/.local/state/anicca/lancers/browser-profile`（9227）、`crowdworks-revenue-browser` → `~/.local/state/anicca/crowdworks/browser-profile`（9228）、`affiliate-browser` → `~/.cloak/profiles/affiliate/en`（9324）、`affiliate-impact-browser` → `~/.cloak/profiles/affiliate/impact-en`（9327）、`affiliate-x-browser` → `~/.cloak/profiles/affiliate/x-en`（9326）、`life-manager-daily-driver` → `interactive:dais` → `~/.cloak/profiles/daily-driver`（9222）である。RyuのCoconala DMは `coconala:kosuke` を使い、Colorsサイト管理は別identity `colors-hachioji:owner-18211957`（`~/.cloak/profiles/colors-hachioji-owner-18211957`）を使う。両者を同時に同一profileへ接続しない。
+
+衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。現在、`hf-gig-reply-detector` やPaid/Applicationの一部はprovider adapter内部でCoconala identityを選び、registry行に `browser_identity` が明示されていない。この暗黙依存は一般化の残TODOであり、全browser使用loopをregistryのidentityへ写像し、静的衝突検査で拒否する。
+
+開発とproductionは分離する。現在のCodex変更は専用worktree `.../.worktrees/lm-release-boundary-20260929` とbranch `fix/lm-release-boundary-20260929` にだけ存在し、worktreeコードをproduction profileへ向けたり、別loopをkickstartしたりしない。標準順序は `focused test → push branch → PR/checks → main統合 → main由来immutable release → 対象ownerを一つずつapply → loaded SHA/自然terminal/readback/replay-zero` である。現行productionは修正版ではなく、Ryu公式DMは403のため最終返信未完了である。
+
+残りの順序は、(a) このbranchのテスト・spec更新をpush、(b) main/PR受入れ、(c) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(d) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(e) 全platform loopの暗黙browser依存を明示identityへ収束、である。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
