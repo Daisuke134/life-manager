@@ -2117,3 +2117,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - loaded releaseの`skills/alpaca-investment/etf_policy.py`は`HOLD_SESSIONS=21`を定義し、同一symbolかつ`held_sessions < 21`なら`HOLD / hold_period_not_elapsed`、symbol変更または21 session到達時だけexitを返す。strategy cardのexit ruleも`hold_sessions >= 21`で一致している。
 - 現在のQQQは`entry_session=2026-09-28`、最新completed sessionは`2026-09-29`、`held_sessions=1`である。このため今回のHOLDはpolicyどおりであり、AT-13のexit完了条件未達を示す。strategyを変更したり、手動exitを挿入したりしない。
 - 次のAtomic Todoは引き続き`AT-13`。新しいcompleted daily sessionのdecision receiptを自然に1件読む。新monitorはbase `decision_session=2026-09-29`で稼働中である。
+
+**AT-13 natural retry / capacity readback（2026-09-30 05:11 JST）**:
+
+- 05:10:04 JSTのoccurrence `alpaca-investment-paper:18d9e3a03e0ddbf8-36567`は`host_admission_deferred:resource_capacity_busy`（exit 75、provider effect前）になった。直後のnatural retry `alpaca-investment-paper:18d9e3a29b1b1408-36808`は05:10:36 JSTに`exit_code=0`、`status=pass`、`next_action=none`で終端した。
+- retryは同じ`decision_session=2026-09-29`を再処理しただけで、新しいdecision receipt・exit order・fill・資金移動は生成していない。最新decisionは`HOLD / hold_period_not_elapsed`のままである。
+- このoccurrenceではprovider effect前の自動retryが回復しており、手動wake・手動注文・再送・送金は行っていない。`AT-13`未完、実現投資収益は`$0/月`である。
