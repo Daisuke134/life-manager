@@ -123,15 +123,18 @@ The manifest is the owner-to-reader boundary:
 ```
 
 When no explicit `--snapshot alpaca=...` is supplied, `alpaca_state_dir` lets
-the reader consume the three durable Alpaca owner files
-(`performance-latest.json`, `observation-latest.json`, and `risk-latest.json`)
-without credentials or provider calls. An explicit snapshot file wins over
-the state directory. If the manifest is absent, invalid, or a source file is
-missing, the daily receipt records `input_manifest_status` as `missing` or
-`invalid`, keeps unavailable venues `unknown`, and uses no available capital.
-It never turns a missing input into `$0` profit. `configured` means only that
-the manifest was validly read; it does not mean a venue made money. Missing
-funding, gas, or model-cost fields remain partial/unknown rather than zero.
+the reader consume the prior completed UTC day's
+`performance-daily-YYYY-MM-DD.json` plus the latest observation and risk
+readbacks, without credentials or provider calls. The daily reader never
+falls back to a new-day `performance-latest.json`: if the completed-day
+receipt is missing or mismatched, Alpaca remains `unknown`. An explicit
+snapshot file wins over the state directory. If the manifest is absent,
+invalid, or a source file is missing, the daily receipt records
+`input_manifest_status` as `missing` or `invalid`, keeps unavailable venues
+`unknown`, and uses no available capital. It never turns a missing input into
+`$0` profit. `configured` means only that the manifest was validly read; it
+does not mean a venue made money. Missing funding, gas, or model-cost fields
+remain partial/unknown rather than zero.
 
 During a complete Life Manager release handoff, `bin/reconcile-agent-runner-release.sh`
 invokes `provision_manifest.py` before owner reconciliation when that provisioner is

@@ -12,7 +12,7 @@ import argparse
 import json
 import os
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -204,7 +204,11 @@ def run_once(
     if (alpaca_state_dir and input_manifest_status == "configured"
             and not explicit_alpaca):
         state_path = Path(alpaca_state_dir).expanduser()
-        readers["alpaca"] = lambda: read_alpaca_snapshot(state_path)
+        completed_day = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
+        readers["alpaca"] = lambda: read_alpaca_snapshot(
+            state_path,
+            performance_day=completed_day,
+        )
     readers["__owner_cash_flow_usd__"] = _read_owner_cash_flow(owner_path)
     readers["__available_capital_usd__"] = _valid_available_capital(available_capital_usd)
     readers["__input_manifest_status__"] = input_manifest_status

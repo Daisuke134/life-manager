@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -99,16 +100,55 @@ def _read_mapping(path: Path) -> Mapping[str, Any] | None:
     return value if isinstance(value, Mapping) else None
 
 
-def read_alpaca_snapshot(state_dir: str | Path) -> dict[str, Any]:
-    """Read only the three durable owner files needed for a snapshot."""
+def _read_performance(
+    root: Path,
+    performance_day: str | None,
+) -> tuple[Mapping[str, Any] | None, str | None]:
+    if performance_day is None:
+        path = root / "performance-latest.json"
+        return _read_mapping(path), None
+    if not isinstance(performance_day, str):
+        return None, "alpaca_performance_day_invalid"
+    try:
+        parsed = date.fromisoformat(performance_day)
+    except ValueError:
+        return None, "alpaca_performance_day_invalid"
+    if parsed.isoformat() != performance_day:
+        return None, "alpaca_performance_day_invalid"
+    path = root / f"performance-daily-{performance_day}.json"
+    if not path.is_file():
+        return None, "alpaca_daily_performance_missing"
+    performance = _read_mapping(path)
+    if performance is None:
+        return None, "alpaca_daily_performance_invalid"
+    if performance.get("performance_day") != performance_day:
+        return None, "alpaca_daily_performance_day_mismatch"
+    return performance, None
+
+
+def read_alpaca_snapshot(
+    state_dir: str | Path,
+    *,
+    performance_day: str | None = None,
+) -> dict[str, Any]:
+    """Read durable owner files for a snapshot, optionally pinned to a UTC day."""
     root = Path(state_dir).expanduser()
-    performance = _read_mapping(root / "performance-latest.json")
+    performance, performance_error = _read_performance(root, performance_day)
     observation = _read_mapping(root / "observation-latest.json")
     risk = _read_mapping(root / "risk-latest.json")
+    if performance_error is not None:
+        return {"status": "unknown", "reason": performance_error}
     if performance is None or observation is None or risk is None:
         return {"status": "unknown", "reason": "alpaca_state_missing"}
+    performance_for_snapshot: Mapping[str, Any] = performance
+    if performance_day is not None:
+        clock = observation.get("clock")
+        observed_at = clock.get("observed_at") if isinstance(clock, Mapping) else None
+        if not isinstance(observed_at, str) or not observed_at:
+            return {"status": "unknown", "reason": "alpaca_observation_clock_missing"}
+        performance_for_snapshot = {**performance, "observed_at": observed_at}
     try:
-        return build_alpaca_snapshot(performance, observation, risk)
+        return build_alpaca_snapshot(performance_for_snapshot, observation, risk)
     except (TypeError, ValueError):
         return {"status": "unknown", "reason": "alpaca_state_invalid"}
 

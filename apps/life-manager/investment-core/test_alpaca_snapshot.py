@@ -1,5 +1,8 @@
 import importlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 
 PERFORMANCE = {
@@ -76,6 +79,27 @@ class AlpacaSnapshotTests(unittest.TestCase):
         snapshot = self._builder()(performance, OBSERVATION, RISK)
 
         self.assertEqual(snapshot["risk"]["round_trips"], 4)
+
+    def test_daily_reader_does_not_fallback_to_new_day_latest(self):
+        module = importlib.import_module("alpaca_snapshot")
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "performance-latest.json").write_text(json.dumps({
+                "measurement_status": "measured",
+                "observed_at": "2026-09-29T00:00:00Z",
+                "gross_strategy_pnl_usd": "0",
+                "source_receipt_ids": ["new-day-zero"],
+            }), encoding="utf-8")
+
+            result = module.read_alpaca_snapshot(
+                state,
+                performance_day="2026-09-28",
+            )
+
+        self.assertEqual(result, {
+            "status": "unknown",
+            "reason": "alpaca_daily_performance_missing",
+        })
 
 
 if __name__ == "__main__":

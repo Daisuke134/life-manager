@@ -77,9 +77,10 @@ class CrossVenueRunTests(unittest.TestCase):
             root = Path(directory)
             alpaca_state = root / "alpaca-state"
             alpaca_state.mkdir()
-            (alpaca_state / "performance-latest.json").write_text(json.dumps({
+            (alpaca_state / "performance-daily-2026-09-28.json").write_text(json.dumps({
                 "measurement_status": "measured",
-                "observed_at": NOW,
+                "observed_at": "2026-09-28T23:59:00Z",
+                "performance_day": "2026-09-28",
                 "gross_strategy_pnl_usd": "10",
                 "fees_usd": "1",
                 "funding_or_borrow_usd": "0.5",
@@ -91,8 +92,24 @@ class CrossVenueRunTests(unittest.TestCase):
                 "gross_exposure_usd": "100",
                 "source_receipt_ids": ["alpaca-state-receipt"],
             }), encoding="utf-8")
+            # The first paper wake of the new UTC day may have already
+            # replaced latest with a zero-P&L observation. The daily reader
+            # must keep consuming the completed prior-day receipt instead.
+            (alpaca_state / "performance-latest.json").write_text(json.dumps({
+                "measurement_status": "measured",
+                "observed_at": NOW,
+                "gross_strategy_pnl_usd": "0",
+                "fees_usd": "0",
+                "funding_or_borrow_usd": "0",
+                "slippage_usd": "0",
+                "gas_usd": "0",
+                "model_cost_usd": "0",
+                "completed_round_trips": 0,
+                "source_receipt_ids": ["new-day-zero"],
+            }), encoding="utf-8")
             (alpaca_state / "observation-latest.json").write_text(json.dumps({
                 "account": {"equity": "1000", "cash": "500"},
+                "clock": {"observed_at": NOW},
             }), encoding="utf-8")
             (alpaca_state / "risk-latest.json").write_text(json.dumps({
                 "drawdown_fraction": "0.01",
