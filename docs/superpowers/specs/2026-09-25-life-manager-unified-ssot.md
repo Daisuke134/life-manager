@@ -1335,3 +1335,50 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 8. **[未完] `30/30`後に追加venueを段階評価する。** Hyperliquid shadow → Solana／Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、現在の実測から保証されない。
 
 **現在cursor**: `INV-002a`のsource修正は実装・local検証・PR作成まで完了した。次の一手はPRのrequired checks確認とmain統合であり、investment loopの「完了」や「収益化完了」ではない。
+
+**Atomic Todo正本（2026-09-29）**: これ以前の「残TODO」箇条書きは概要であり、実行cursorとしては下記を優先する。Atomic Todoは「1項目=1つの実行またはreadback」「完了条件が1つ」「証拠を1つ残す」と定義する。`30/30`は1つのTodoではなく、下記の測定unitを30回完了した結果である。
+
+**完了済み（残Todoではない）**:
+
+- `DONE-01`: 公式Alpaca readbackで既存QQQ entryを確認した。証拠はfilled order、account、positionである。
+- `DONE-02`: `campaign_position_scope_invalid`の自己所有原因を特定した。証拠はnatural runのstage `campaign_read`と`unexpected_positions=["QQQ"]`である。
+- `DONE-03`: 投資sourceの修正branch、回帰テスト、PR `#6246`を作成した。これはproduction反映完了を意味しない。
+- `DONE-04`: 投資specへ現状とAtomic Todoを記録する。
+
+**残りのAtomic Todo（この順番）**:
+
+| ID | 状態 | 1つだけの作業 | 完了条件・証拠 |
+|---|---|---|---|
+| `AT-01` | 未完 | PR `#6246`のrequired checksを読む | 必須checkが全て`pass`。証拠はPR check結果 |
+| `AT-02` | 未完 | PR `#6246`をmainへmergeする | mainにmerge SHAが存在。証拠は`git log origin/main` |
+| `AT-03` | 未完 | merge後の`origin/main` SHAを固定する | release入力SHAを1つ記録。証拠はSHA |
+| `AT-04` | 未完 | 固定SHAからimmutable releaseを作る | `RELEASE.json`のSHAが入力SHAと一致。証拠はrelease pathとmanifest |
+| `AT-05` | 未完 | `alpaca-investment-paper`へそのreleaseだけをapplyする | apply成功。証拠はinstall event |
+| `AT-06` | 未完 | paper ownerのloaded SHAをreadbackする | loaded SHA、argv/env、state rootがreleaseと一致。証拠はplist/status readback |
+| `AT-07` | 未完 | 次のnatural paper wakeを待つ | 新release由来のoccurrenceが1件出る。証拠はloop event |
+| `AT-08` | 未完 | 既存QQQのclient orderを公式GETする | 同じclient orderのstatus、filled qty、filled priceを取得。証拠はbroker receipt |
+| `AT-09` | 未完 | QQQ effectのbroker outcomeを読む | `client_order_id`とprovider receiptが同じeffectにある。証拠はreceipt row |
+| `AT-10` | 未完 | QQQ effectのstrategy receiptを読む | `strategy_receipt`が同じeffectにある。証拠はreceipt row |
+| `AT-11` | 未完 | ETF ownership stateを読む | `etf-owned-position.json`のowner、strategy、symbol、qtyが公式positionと一致。証拠はstate file |
+| `AT-12` | 未完 | natural runのcampaign結果を読む | `campaign_read`でexit `0`、provider mutationなし。証拠はloop event |
+| `AT-13` | 未完 | strategyが自然exitを出すまで待つ | 手動sellなしでexit decisionが出る。証拠はdecision receipt |
+| `AT-14` | 未完 | exit orderを公式GETする | exit orderがterminal statusになる。証拠はbroker receipt |
+| `AT-15` | 未完 | exit後のaccountとpositionを公式GETする | QQQ qtyとcash/equityがexit receiptと一致。証拠はaccount/position readback |
+| `AT-16` | 未完 | 1 round tripのentry/exit cash flowを計算する | gross P&Lがreceiptから再計算できる。証拠はP&L row |
+| `AT-17` | 未完 | 1 round tripのfeeとslippageを記録する | fee/slippageが数値または公式`0`として記録される。証拠はcost row |
+| `AT-18` | 未完 | 1 round tripのmodel costを記録する | model costが数値または公式`0`として記録される。証拠はcost row |
+| `AT-19` | 未完 | 1 round tripのcost-complete net P&Lを計算する | unknown costがなくnet P&Lが再計算できる。証拠はP&L row |
+| `AT-20` | 未完 | 1 round tripのreplay-zeroを確認する | 同じreceiptの再処理で注文・二重計上が0。証拠はreplay result |
+| `AT-21` | 未完 | 測定台帳へqualified round tripを1件登録する | receipt、cost-complete net P&L、replay-zeroが同じrowにある。証拠はmeasurement ledger |
+| `AT-22` | 未完 | `AT-07`〜`AT-21`を次の自然round tripで繰り返す | measurement ledgerのqualified countを1増やす。証拠はcounter |
+| `AT-23` | 未完 | `AT-22`をqualified countが30になるまで繰り返す | qualified `30/30`、positive net、cost complete、replay-zero。証拠はpromotion input |
+| `AT-24` | 未完 | `30/30`のpromotion判定を計算する | drawdown、venue health、cost completenessを含む判定が出る。証拠はpromotion receipt |
+| `AT-25` | 未完 | Hyperliquidをshadowで1回観測する | provider mutationなしでcandidate、fill想定、cost入力を取得。証拠はshadow receipt |
+| `AT-26` | 未完 | Solana/Pump.funをpaperで1回観測する | funding/signingなしでcandidateと公式readbackを取得。証拠はpaper receipt |
+| `AT-27` | 未完 | yieldをshadowで1回観測する | depositなしでrate、risk、fee入力を取得。証拠はshadow receipt |
+| `AT-28` | 未完 | 追加venueのrolling net P&Lを比較する | 公式receipt付き比較表が完成。証拠はvenue report |
+| `AT-29` | 未完 | bounded canaryのpromotion条件を計算する | 条件が全てpassした場合だけcanary可否を記録。証拠はpromotion receipt |
+
+**Atomic Todoの安全境界**: `AT-01`〜`AT-24`が完了するまで、Binanceからの送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は実行しない。`AT-25`〜`AT-29`もshadow/paper観測が先であり、公式cost-complete rolling net P&Lなしに月次収益を報告しない。現在の検証済み実現収益は`$0/月`である。
+
+**現在cursor**: `AT-01`。source修正やPR作成ではなく、最初にPR required checksのreadbackを行う段階である。
