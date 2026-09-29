@@ -2529,3 +2529,19 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 5. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品はしない。
 6. **未完** Upwork／Freelancerのfunded contract／milestone、mutation authorization、isolated canary、rollback、settlement、cost-complete positive net P&Lを満たすまでownerを有効化しない。
 7. **未完** Meta Loopのscheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→rollback→settlement→quality／P&L feedbackを全platformへ一般化する。
+
+## 現在の正本cursor（2026-09-30、Freelancer契約後の全体回帰）
+
+- `fix/source-reconcile-20260930`のHEADは`f75798b847`でremote branchと一致する。Coconala／Lancers／CrowdWorks／Mercor／Upworkの自然wake sourceと、Freelancerのread-only manifest／runtime契約がsource側にある。
+- 全体回帰: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q skills/earn/gig/tests` は`1575 passed`、Marketplace Core＋runtime/loopは`1137 passed (576 subtests)`。Python compile、`lm-loop-contract`、`git diff --check`もPASS。これはsource/runtime品質の証拠であり、production loaded SHAやprovider effectの証拠ではない。
+- productionは`current/RELEASE.json=3975ae…`のまま。branchのcapacity／5-platform source変更は未反映。RyuさんDMは既存一回送信を維持し、browser/session 0のため公式receipt/readbackなし、再送なし。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** 5 platformのread-only manifest natural wake、Freelancerのhold-only契約、candidate durable state、source/runtime回帰を実装・検証する。
+2. **未完（現在cursor）** Freelancerのauthenticated inventory collector/callerを追加する。identity／projects／milestones／payments／payoutsの公式readbackとapproved automation termsが揃わない限り、public bid watcherから応募へ進めない。
+3. **未完** branchのmain受入条件を確認し、main由来immutable releaseを作る。targeted applyごとにloaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式provider readbackを取得する。
+4. **未完** capacity／ENOSPC修正をproductionへ反映し、effect-free scratch reclaim／reserve retry／runtime evidence保存を自然runで実測する。`resource_capacity_busy`と`effect_unknown`を成功扱いにしない。
+5. **未完** RyuさんDMのprovider receipt＋official readback、またはbrowser/session 0を根拠にしたheld記録を取得する。再送・正式納品・receiptなしのeffect fence解放はしない。
+6. **未完** Upwork／Freelancerのfunded contract／milestone→mutation authorization→isolated canary→rollback→settlement→cost-complete positive net P&Lを検証してからownerを有効化する。
+7. **未完** Meta Loopを全platformへ一般化し、scheduler/discovery→candidate→policy／adapter／funded gate→owner→canary/readback→rollback→settlement→quality／P&L feedbackを公式receipt付きで閉じる。
