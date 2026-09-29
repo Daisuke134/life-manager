@@ -282,6 +282,34 @@ Free→Paid conversionをactivated users基準で置くと、204,082 paidへ必�
 5. 最初の価値を受け取った利用者だけへFounding Proを提示する。
 6. Stripeで最初の有料subscription receiptをreadbackしてR01完了。
 
+### 7.7 測定可能なjourneyを自律改善する
+
+[Anthropicのclaude.ai高速化事例](https://claude.dev/blog/how-we-made-claude-ai-faster/)は、利用の95%を占める4journeyへ比較可能なstart/end telemetryを置き、lab benchmark、限定deploy、field readback、benchmark ratchet、rollbackを一つのloopにした。二週間で13測定の幾何平均を約3.1倍改善できた核心は、AIへ「改善して」と頼む抽象目標を、改善対象、再現可能な数値、実利用との相関、退行を防ぐratchetへ分解したことにある。
+
+Life Managerは同じ方法を、人間承認へ依存せず次の4journeyへ適用する。
+
+1. `goal accepted -> first verified result`
+2. `scheduled wake -> terminal official receipt/readback`
+3. `browser session start -> first policy-allowed useful action`
+4. `settled revenue/cost change -> CFO ledger + user report`
+
+各journeyはtenant、release SHA、model/tool version、start/end、p50/p75/p95 latency、model/browser/runtime/tool cost、step count、retry count、effect/readback、verified outcomeを同じschemaで記録する。速度またはcostの改善は、verified outcome率、cross-tenant leak 0、duplicate effect 0、credential exposure 0、effect-unknown率、settled net contributionを悪化させない場合だけ採用する。
+
+改善loopは次で固定する。
+
+```text
+field trace -> material bottleneck -> one-variable hypothesis -> deterministic proxy benchmark
+  -> real outcomeとの相関確認 -> isolated candidate -> held-out/safety/cost evaluation
+  -> one-tenant canary -> field readback -> promote + ratchet、またはrollback
+```
+
+- proxy metricは、実利用latency、verified outcomeまたはsettled contributionとの相関を実測できなければ廃棄する。測りやすい数字だけを最適化しない。
+- candidateは1 bottleneck、1 owner、1 bounded changeを基本とし、別candidateと同じtenant、browser profile、effect ownerを共有しない。
+- fieldで改善を確認した後だけbaseline上限を下げる。ratchetは悪化を防ぐ一方向gateであり、候補自身は変更できない。
+- high-risk変更はinternal tenantから段階拡大し、失敗時は自動rollbackする。人間approveは通常promotion条件にしない。
+- self-improvementはtelemetry、evaluator、receipt定義、identity、permission、spend cap、tenant isolation、rollback権限を変更できない。
+- 新しい測定を作ること自体をagentの仕事に含める。ただし新metricはfield outcomeとの相関を証明するまでpromotion gateにしない。
+
 ## 8. acceptance gates
 
 | Gate | 完了条件 |
@@ -293,6 +321,7 @@ Free→Paid conversionをactivated users基準で置くと、204,082 paidへ必�
 | CL04 Phone-only | Telegram/webでgoal投入後、credential入力・確認・承認・resume 0でagent-owned action、公式readback、session releaseを完走。phoneからread-only live viewとemergency stopが可能。任意break-glass操作はautomated success/revenueに数えず、human principalを要求する候補はprovider call 0で`not_applicable`になり、別jobが継続 |
 | CL05 Promotion | main由来immutable releaseだけをdeployし、cloud canary、official readback、replay-zeroを確認 |
 | CL06 Cost/Free | Free capで追加computeをfail closedし、既存stateを保持。CFO ledgerでtenant/job単位のmodel/browser/runtime/tool costをjoin |
+| CL07 Measured improvement | 4 core journeysのfield baselineをrelease/model/tool別に取得。candidateはproxyとfield outcomeの相関、held-out/safety/cost、one-tenant canaryを通り、verified outcome・effect safety・tenant isolation・settled contributionを悪化させずにp75/p95 latencyまたはcostを改善。失敗candidateは自動rollbackし、成功時だけratchetを下げる |
 | R01 Paid | StripeのFounding Pro subscription receiptを1件公式readbackし、entitlement反映とcancel/revokeを確認 |
 | R02 Cohort | 25 Free tenantsでcross-tenant leak 0、duplicate effect 0、unbounded session 0、cost cap breach 0 |
 

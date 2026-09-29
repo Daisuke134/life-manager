@@ -4,7 +4,7 @@
 
 **Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in AWS AgentCore, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
 
-**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies. A tenant-bound shared-browser view and emergency stop are observability controls; any optional break-glass writer is single-owner and excluded from automated success and revenue.
+**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies. A tenant-bound shared-browser view and emergency stop are observability controls; any optional break-glass writer is single-owner and excluded from automated success and revenue. Four user journeys emit comparable field telemetry; bounded self-improvement may lower latency/cost ratchets only after verified outcome, effect safety, tenant isolation, and settled contribution remain healthy.
 
 **Tech Stack:** Node.js 20 CommonJS business kernel, TypeScript AgentCore entrypoint, `@aws/agentcore@0.30.0` pinned, AWS SDK v3, AgentCore Runtime/Browser/Identity, Inngest 4, PostgreSQL/Supabase, Stripe, S3, CloudWatch, `node:test`.
 
@@ -438,11 +438,11 @@
 
 - [ ] **Step 3: Expand to five invited Free tenants**
 
-  Each tenant completes onboarding and one verified result. Measure activation time, actual cost, session cleanup, human-input count, human-principal exclusions, and errors. Free policy permits no external spend, so no spending action is admitted or asked about.
+  Each tenant completes onboarding and one verified result. Measure activation time, actual cost, session cleanup, human-input count, human-principal exclusions, and errors. For `goal->first verified result`, `wake->official receipt`, `browser start->first useful action`, and `settled change->CFO/report`, record release/model/tool versions, p50/p75/p95 latency, cost, steps, retries, effect/readback, and verified outcome. Free policy permits no external spend, so no spending action is admitted or asked about.
 
 - [ ] **Step 4: Evaluate gates**
 
-  Require cross-tenant leak 0, duplicate effect 0, cost cap breach 0, unbounded active session 0, and every failure either recovered or typed/fenced with next action.
+  Require cross-tenant leak 0, duplicate effect 0, cost cap breach 0, unbounded active session 0, and every failure either recovered or typed/fenced with next action. Establish field baselines for the four core journeys; do not create a ratchet from fewer than the five cohort tenants or from a proxy metric without field correlation.
 
 - [ ] **Step 5: Roll back or promote**
 
@@ -509,6 +509,10 @@
 
   Update the CFO report with measured p50/p95 cost and contribution. Do not alter the $49 price from one anecdote; use the 25-user cohort and paid conversion evidence.
 
+- [ ] **Step 3a: Activate bounded journey hill-climbing**
+
+  Select the first material bottleneck from the four core journeys. Create one isolated, one-variable candidate and a deterministic proxy benchmark. Require correlation with a real field outcome, held-out/safety/cost evaluation, and one-tenant canary. Promote and lower the ratchet only when verified outcome, effect safety, tenant isolation, effect-unknown rate, and settled contribution do not regress; otherwise roll back automatically. The candidate may not edit its evaluator, receipt definition, identity, permissions, spend caps, tenant boundary, or rollback mechanism.
+
 - [ ] **Step 4: Register Muse Connector only when publishable**
 
   Expose narrow REST/MCP actions such as create goal, read status, pause/resume, and retrieve verified result. Muse receives opaque Life Manager tenant authorization and never receives AWS/Supabase/Stripe credentials or direct browser control.
@@ -567,6 +571,6 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A24 | todo | Immutable main-derived promotion | existing promotion gate PASS plus official readback/replay-zero |
 | A25 | todo | Internal + five-user phone-only cohort | isolation/effect/session/cost invariant breaches 0 |
 | A26 | todo | First live $49 Founding Pro receipt | Stripe readback, entitlement transition, actual tenant contribution row |
-| A27 | todo | 25-user cohort | measured activation, D7/D30, conversion, p50/p95 cost replace assumptions |
-| A28 | todo | Repeatable growth engine toward 204,082 active paid | each scale gate shows retained paid net growth after churn replacement |
+| A27 | todo | 25-user cohort and four-journey field baseline | measured activation, D7/D30, conversion, p50/p75/p95 latency and cost replace assumptions |
+| A28 | todo | Bounded journey hill-climbing and repeatable growth toward 204,082 active paid | proxy-to-field correlation; isolated candidate; automated canary/rollback; successful ratchet; each scale gate shows retained paid net growth after churn replacement |
 | A29 | todo | Muse Connector distribution | only after stable Life Manager API and publishable Meta access |
