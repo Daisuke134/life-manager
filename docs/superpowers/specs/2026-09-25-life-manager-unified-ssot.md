@@ -1424,6 +1424,12 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `skills/alpaca-investment/etf_policy.py`の実装上、保有QQQのexit条件は「126日momentumの首位銘柄がQQQでなくなる」または「`held_sessions >= 21`」の二択である。どちらも満たさない場合のactionは`HOLD`である。
 - paper stateのentry sessionは`2026-09-28`。最新receiptの`decision_session`も`2026-09-28`で、まだ新しいcompleted daily sessionのexit判定証拠ではない。したがって、同じsessionの`decision_session_consumed`をexitと取り違えず、次のcompleted sessionでstrategy decision receiptを待つ。
 
+**AT-13公式paper readback（2026-09-30 00:56 JST）**:
+
+- Alpaca公式clockは`is_open=true`、`next_close=2026-09-29T16:00:00-04:00`、`next_open=2026-09-30T09:30:00-04:00`を返した。したがって、次のcompleted daily sessionはまだ確定していない。
+- 公式accountは`cash=99986.77`、`equity=99996.71`、status `ACTIVE`。公式positionはQQQ long `qty=0.013493253`、平均entry `$740.37`、current `$736.83`、market value `$9.942234`、unrealized P&L `-$0.047766`である。
+- exit order／exit receiptはなく、最新decisionは同じ`decision_session=2026-09-28`の`NO_TRADE / decision_session_consumed`である。よって`AT-13`は未完、実現収益は`$0/月`のままである。
+
 **投資scheduler復旧readback（2026-09-30 00:48 JST）**:
 
 - `alpaca-investment-paper`のLaunchAgentは一時`state=not running`／`last exit code=78: EX_CONFIG`となっていたが、ログの実原因は`No space left on device`だった。read-only確認時の空きは約`184MiB`で、投資コードの注文失敗やprovider損失ではない。
