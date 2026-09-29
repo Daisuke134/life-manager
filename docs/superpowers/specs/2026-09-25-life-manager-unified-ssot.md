@@ -1714,3 +1714,19 @@ job IDs 0）、`git diff --check`もPASS。branch
 
 このcursorで、Ryuさんの一回送信証拠を保持しつつ重複送信を防ぎ、platformごとの不確実な
 外部効果を公式証拠で一つずつ閉じ、最後にのみMeta Loopへ昇格する。
+
+### 追加read-only probe — 2026-09-30
+
+- 最新`origin/main`は`9b10e60b2d194ea0f8b94dce538841c0469a681c`。source branchの
+  remote headは`4477df3319214e4179bd1816657e4b8a8bd21d53`で、mainには未統合。
+- `bsk browsers --json`は引き続き`[]`。RyuさんのDMは公式readbackを取得できる認証済み
+  browserが戻るまでread-only確認待ちで、本文再送・正式納品操作はしていない。
+- `lm-loop status --json`では`current/RELEASE.json`がSHA `493017d36c...`のまま。
+  CrowdWorks reply（PID 2843）、Lancers browser（PID 75278）などloaded-running ownerを
+  強制停止・再起動していない。`life-manager-release-reconciler`（PID 10817）も稼働中。
+- Coconala/Lancers/CrowdWorks/Mercorの`pre-effect-reconcile --dry-run`は、解放可能な
+  occurrenceが0件で、残りは`no_pre_effect_terminal`。したがってeffect unknownをresolve
+  せず、provider receipt＋公式readbackを待つ。
+- `/Users/anicca`の空き容量は約1.2 GiB。disk cleanupは過去のENOSPCとSparkle updater
+  recovery errorを記録しているが、protected state・credentials・provider履歴の削除は
+  行っていない。11 GiBは完了条件にしない。
