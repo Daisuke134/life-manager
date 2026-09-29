@@ -1566,6 +1566,69 @@ def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Pat
     assert (releases / names[3]).exists()
 
 
+def test_dependency_bundle_discovery_keeps_referenced_and_reclaims_orphan(
+    tmp_path: Path,
+) -> None:
+    bundles = tmp_path / "loops" / "dependency-bundles"
+    orphan = bundles / ("npm-" + "a" * 64)
+    referenced = bundles / ("npm-" + "b" * 64)
+    for bundle in (orphan, referenced):
+        (bundle / "node_modules").mkdir(parents=True)
+        (bundle / "node_modules" / "package.js").write_bytes(b"x" * 32)
+        (bundle / ".complete").write_text("ok\n")
+        (bundle / "node_modules" / ".package-lock.json").write_text("{}\n")
+    release = tmp_path / "loops" / "releases" / "20260831T010101-dddddddd"
+    package_dir = release / "apps" / "life-manager"
+    package_dir.mkdir(parents=True)
+    (package_dir / "node_modules").symlink_to(
+        referenced / "node_modules", target_is_directory=True
+    )
+    (tmp_path / "loops" / "current").symlink_to(release)
+
+    governor = HostDiskGovernor(
+        home=tmp_path,
+        state_dir=tmp_path / "state",
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (0, 1),
+    )
+
+    candidates = [
+        item for item in governor.discover_candidates()
+        if item["owner"] == "release-dependency-bundle"
+    ]
+    assert [Path(item["path"]) for item in candidates] == [orphan]
+
+    result = governor.sweep(candidates)
+
+    assert not orphan.exists()
+    assert referenced.exists()
+    assert result["errors"] == 0
+
+
+def test_dependency_bundle_discovery_fails_closed_on_release_link_outside_root(
+    tmp_path: Path,
+) -> None:
+    bundles = tmp_path / "loops" / "dependency-bundles"
+    orphan = bundles / ("npm-" + "a" * 64)
+    (orphan / "node_modules").mkdir(parents=True)
+    (orphan / ".complete").write_text("ok\n")
+    (orphan / "node_modules" / ".package-lock.json").write_text("{}\n")
+    external = tmp_path / "external-node-modules"
+    external.mkdir()
+    release = tmp_path / "loops" / "releases" / "20260831T010101-dddddddd"
+    package_dir = release / "apps" / "life-manager"
+    package_dir.mkdir(parents=True)
+    (package_dir / "node_modules").symlink_to(external, target_is_directory=True)
+
+    governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
+
+    assert [
+        item for item in governor.discover_candidates()
+        if item["owner"] == "release-dependency-bundle"
+    ] == []
+    assert orphan.exists()
+
+
 def test_read_only_release_export_is_still_reclaimable(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)

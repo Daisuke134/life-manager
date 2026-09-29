@@ -2833,6 +2833,44 @@ Lancers公式preflightをread-onlyで再実行した。CDP `localhost:9227`の`/
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。
 
+## 現在の正本cursor（2026-09-30、cleanup lock競合のdeferred分類後・最新）
+
+productionの`ai.anicca.life-manager-disk-cleanup`は、直近の自然runでsafe sweepへ到達する前に`lm-loop-run: production apply is already owned`を返し、launchdのlast exit codeは1だった。これはapply中のlabel lock競合であり、cleanup候補を削除した証拠ではない。現在のhost空き容量は約242MiBで、共通floor 512MiBを下回る。稼働中のLancers Chromium、認証・cookie、production state、releaseは停止・削除していない。
+
+branch `fix/source-reconcile-20260930`では、`runtime/loop/lm_loop_run.py`がこの既知のlock競合だけを`loop_lock_busy`としてretryableな終了コード75へ分類する回帰修正を追加した。lock取得前なのでscratch、resource claim、child start、外部効果は0件である。未知のRuntimeErrorは従来どおり78に残す。production current releaseはまだ旧SHAのため、この修正は本番の自然runへ未反映である。
+
+- read-only確認: `/Users/anicca/loops`のallow-list discoveryはCodex cache、daily-driver cache、npx cacheの3候補だけを返し、21個のreleaseは参照・保護判定で候補にならない。手動削除はしていない。
+- 検証済み: lock競合回帰 `1 passed`、runner bounds `109 passed`、apply＋loop-cleanup `204 passed, 31 subtests passed`（`LIFE_MANAGER_DISK_HEADROOM_KIB=0`でテストの容量条件を明示）、compile、diff check。
+- 未検証: productionへの新release反映、cleanup safe sweepの自然run、空き容量512MiB到達、Lancers Human Verification解除後の公式preflight、provider外部効果。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** branchの全checks後、旧production releaseを直接変更せずimmutable releaseを作り、cleanup runnerの`loop_lock_busy` deferred修正をtargeted applyする。apply中は再起動・二重実行せず、loaded SHAとreadbackを保存する。
+2. **未完** productionのsafe allow-list cleanup natural runを実測し、容量が512MiB以上へ回復したこと、`disk_headroom`が`ready`になること、protected path削除0、公式receipt保存を確認する。browser profile・cookie・protected stateは停止・削除しない。
+3. **未完** LancersのHuman Verification解除後、同一accountの公式read-only preflightを2回通し、現行schemaの`contracts.json`を公式readbackから再生成する。自動突破・手編集・応募はしない。
+4. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readbackを取得し、各runtimeの共通authorization境界へ渡す。
+5. **未完** providerごとの実adapter factoryをcanary・rollback・settlement・official receipt・replay-zeroへ接続する。fixture/local receiptでpromoteしない。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptを揃えるまでholdする。
+7. **未完** 全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。Ryuさんの既存DMは重複再送せず、相互リンク入力と公式receiptが揃った場合だけ三面readbackする。
+
+## 現在の正本cursor（2026-09-30、dependency bundleのsafe allow-list追加後・最新）
+
+今後のrelease増殖で容量が再び枯渇しないよう、`skills/self/disk-cleanup/disk_cleanup.py`に`release-dependency-bundle`候補を追加した。候補は`npm-<64hex>`、実体directory、`.complete`、`node_modules/.package-lock.json`が全て実regular fileであるものに限る。6つのrelease package位置にある`node_modules` symlinkだけを走査し、参照bundleは保持する。release linkがbundle外・壊れた・probe不明なら全bundleを候補から外す。open-path probeはbundle名を一括`lsof`対象にし、protected descendantを理由に正常なpackageを誤保持しない。
+
+- production read-only結果: 現在のdependency bundle候補は0件（既存bundleは現行release群から全て参照）。Codex cache、daily-driver cache、npx cacheはopenなので削除していない。
+- 検証済み: dependency bundle discovery/reclaim `2 passed`、release/cache focused cleanup `7 passed`、runner bounds `109 passed`、`lm-loop-contract ok=true`、compile、diff check。
+- 未検証: full disk-cleanup suiteはhost空き約205MiBのため、1MiB receipt reserveを多数作る段階で`ENOSPC`となった。これは実装失敗ではなく、容量ゲート1番の外部状態未解消である。production apply／release反映・safe sweep自然run・512MiB到達は未完。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** branch全checksを空き容量の影響なしに再実測できる環境へ戻し、cleanup lock deferred修正とdependency bundle allow-listをimmutable releaseへ含める。旧production releaseは直接編集しない。
+2. **未完** apply中は二重実行せずtargeted production applyを行い、cleanup ownerのlock競合が75/deferredになったことをloaded SHA・公式readbackで確認する。
+3. **未完** safe allow-list cleanup natural runを実測し、容量が512MiB以上へ回復し、`disk_headroom`が`ready`、protected path削除0、receipt保存を確認する。open cache・browser profile・cookie・protected stateは停止・削除しない。
+4. **未完** LancersのHuman Verification解除後に公式preflightを2回通し、`contracts.json`を公式readbackから再生成する。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound receipt・公式readback・実adapter lifecycle receipt・replay-zeroを接続する。
+6. **未完** Upwork／Freelancerはapproved mutation・account auth・完全inventory・funded contract／milestone・action receiptが揃うまでholdする。
+7. **未完** 全checksと外部receipt後のみmain受入→immutable release→targeted production apply。Ryuさんの既存DMは重複再送せず、公式receiptが揃う場合だけ三面readbackする。
+
 ## 現在の正本cursor（2026-09-30、account-bound authorization decision境界追加後）
 
 `platform_manifest_cycle.py`の共通lifecycle入口を、任意の`authorization_receipt_ref`だけでは通さないようにした。runtime callerは、provider固有の認証store（既存の`provider_authorization.authorize`等）が返した`approved_api`または`approved_browser` decisionを必須で渡し、そのdecisionの64桁receipt hashと`authorization-receipt://sha256/<hash>`が一致した場合だけadapter factoryへ進む。`unknown`、`denied`、`approved_assisted`、期限切れ・不正hash・参照不一致はprovider effect前にfail-closedする。これはローカルfixtureのsettled結果や実provider receiptを作るものではない。

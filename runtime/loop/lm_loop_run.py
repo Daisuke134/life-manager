@@ -1494,6 +1494,12 @@ def main(argv: list[str] | None = None) -> int:
             os.close(scratch_fd)
             os.close(scratch_parent_fd)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
+        if isinstance(error, RuntimeError) and str(error) == "production apply is already owned":
+            # A lifecycle/apply owner can hold this loop's label lock briefly.
+            # No scratch, child, admission claim, or external effect exists yet;
+            # classify it as retryable deferral instead of a failed run.
+            print("lm-loop-run: deferred: loop_lock_busy", file=sys.stderr)
+            return 75
         print(f"lm-loop-run: {error}", file=sys.stderr); return 78
     return return_code
 

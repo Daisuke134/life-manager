@@ -1612,6 +1612,29 @@ def test_shared_runner_failure_emits_one_exact_recovery_intent(tmp_path):
     assert queued_event["release_sha"] == "a" * 40
 
 
+def test_loop_lock_contention_is_deferred_and_retryable(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "config/loop-registry.json").write_text(json.dumps({
+        "loops": {"example": {
+            "label": "ai.anicca.example", "domain": "system",
+            "entrypoint": "bin/example", "provider_route": "deterministic",
+            "effect_class": "none", "state_root": str(tmp_path / "state"),
+        }},
+    }), encoding="utf-8")
+    (release / "RELEASE.json").write_text(
+        json.dumps({"sha": "a" * 40}), encoding="utf-8"
+    )
+
+    with patch(
+        "runtime.loop.lm_loop_run._apply_lock",
+        side_effect=RuntimeError("production apply is already owned"),
+    ), patch("runtime.loop.lm_loop_run.build_loop_command") as build:
+        assert lm_loop_run_main(["example", str(release)]) == 75
+
+    build.assert_not_called()
+
+
 def test_recovery_enqueue_is_replay_zero_and_fences_unknown_effect(tmp_path):
     queue = tmp_path / "recovery" / "intents.jsonl"
     event = build_runtime_event(

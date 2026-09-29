@@ -53,6 +53,15 @@ RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # unreferenced, closed generations must not consume another 1.2 GiB each.
 RELEASE_RETENTION = 1
 RELEASE_NAME_PATTERN = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8}")
+DEPENDENCY_BUNDLE_NAME_PATTERN = re.compile(r"npm-[0-9a-f]{64}\Z")
+DEPENDENCY_BUNDLE_RELATIVES = (
+    "",
+    "runtime/compute-proxy",
+    "runtime/agentmail",
+    "apps/life-manager",
+    "skills/earn/x402-sell",
+    "services/x402-endpoint",
+)
 SPARKLE_CACHE_BUNDLE_IDS = ("com.openai.codex", "com.steipete.codexbar")
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".java", ".js", ".jsx",
@@ -284,6 +293,7 @@ def _is_code_sign_clone(path: Path) -> bool:
 def _default_lsof(path: Path) -> str:
     if (
         RELEASE_NAME_PATTERN.fullmatch(path.name)
+        or DEPENDENCY_BUNDLE_NAME_PATTERN.fullmatch(path.name)
         or _is_code_sign_clone(path)
         or path.name in GLOBAL_OPEN_PROBE_NAMES
     ):
@@ -788,6 +798,21 @@ class HostDiskGovernor:
                 resolved.parent == releases
                 and RELEASE_NAME_PATTERN.fullmatch(resolved.name) is not None
             )
+        if item.get("class") == "regenerable_output" and item.get("owner") == "release-dependency-bundle":
+            try:
+                bundles = (self.home / "loops" / "dependency-bundles").resolve()
+            except OSError:
+                return False
+            return (
+                resolved.parent == bundles
+                and DEPENDENCY_BUNDLE_NAME_PATTERN.fullmatch(resolved.name) is not None
+                and (resolved / ".complete").is_file()
+                and not (resolved / ".complete").is_symlink()
+                and (resolved / "node_modules").is_dir()
+                and not (resolved / "node_modules").is_symlink()
+                and (resolved / "node_modules" / ".package-lock.json").is_file()
+                and not (resolved / "node_modules" / ".package-lock.json").is_symlink()
+            )
         return False
 
     def _referenced_releases(self) -> frozenset[Path] | None:
@@ -835,6 +860,52 @@ class HostDiskGovernor:
         except (OSError, ValueError):
             return None
         return frozenset(roots)
+
+    def _referenced_dependency_bundles(self) -> frozenset[Path] | None:
+        """Resolve release-owned dependency bundle symlinks, or fail closed."""
+        bundles = self.home / "loops" / "dependency-bundles"
+        releases = self.home / "loops" / "releases"
+        bundles_state, _ = _real_directory_state(self.home, bundles)
+        releases_state, _ = _real_directory_state(self.home, releases)
+        if bundles_state == "missing" or releases_state == "missing":
+            return frozenset()
+        if bundles_state != "real" or releases_state != "real":
+            return None
+        try:
+            bundles_root = bundles.resolve(strict=True)
+            referenced: set[Path] = set()
+            for release in releases.iterdir():
+                if release.is_symlink() or not release.is_dir():
+                    continue
+                for relative in DEPENDENCY_BUNDLE_RELATIVES:
+                    link = release / relative / "node_modules" if relative else release / "node_modules"
+                    try:
+                        info = link.lstat()
+                    except FileNotFoundError:
+                        continue
+                    except OSError:
+                        return None
+                    if not stat.S_ISLNK(info.st_mode):
+                        continue
+                    try:
+                        target = link.resolve(strict=True)
+                        relative_target = target.relative_to(bundles_root)
+                    except (OSError, ValueError):
+                        return None
+                    if (
+                        len(relative_target.parts) != 2
+                        or relative_target.parts[1] != "node_modules"
+                        or DEPENDENCY_BUNDLE_NAME_PATTERN.fullmatch(relative_target.parts[0]) is None
+                    ):
+                        return None
+                    bundle = bundles_root / relative_target.parts[0]
+                    state, _ = _real_directory_state(self.home, bundle)
+                    if state != "real":
+                        return None
+                    referenced.add(bundle)
+            return frozenset(referenced)
+        except OSError:
+            return None
 
     @staticmethod
     def _remove_tree(path: Path) -> None:
@@ -1099,7 +1170,7 @@ class HostDiskGovernor:
             # safe to drop is that nothing references it, checked during discovery.
             whole_tree_is_the_unit = item.get("owner") in {
                 "browser", "codex-app-updater", "codex-runtime-cache", "whisper-model-cache",
-                "release-retention",
+                "release-retention", "release-dependency-bundle",
             } | set(EXACT_CACHE_ROOTS)
             descendant_state = None if whole_tree_is_the_unit else self._protected_descendant(path, deadline=deadline)
             if descendant_state is not None:
@@ -1228,6 +1299,35 @@ class HostDiskGovernor:
                         "path": child,
                         "class": "regenerable_output",
                         "owner": "release-retention",
+                        "discovery": "allowlisted",
+                    }
+                )
+        bundles = self.home / "loops" / "dependency-bundles"
+        referenced_bundles = self._referenced_dependency_bundles()
+        if referenced_bundles is not None and bundles.is_dir() and not bundles.is_symlink():
+            try:
+                bundle_entries = sorted(bundles.iterdir(), key=lambda child: child.name)
+            except OSError:
+                bundle_entries = []
+            for bundle in bundle_entries:
+                if (
+                    bundle.is_symlink()
+                    or not bundle.is_dir()
+                    or DEPENDENCY_BUNDLE_NAME_PATTERN.fullmatch(bundle.name) is None
+                    or bundle in referenced_bundles
+                    or not (bundle / ".complete").is_file()
+                    or (bundle / ".complete").is_symlink()
+                    or not (bundle / "node_modules").is_dir()
+                    or (bundle / "node_modules").is_symlink()
+                    or not (bundle / "node_modules" / ".package-lock.json").is_file()
+                    or (bundle / "node_modules" / ".package-lock.json").is_symlink()
+                ):
+                    continue
+                candidates.append(
+                    {
+                        "path": bundle,
+                        "class": "regenerable_output",
+                        "owner": "release-dependency-bundle",
                         "discovery": "allowlisted",
                     }
                 )
