@@ -314,6 +314,7 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
    - [~] K5 support@capafy.ai は 9/28 18:08 に返信（技術チームへ escalate、枠を早く解放すると回答）。9/30 時点でも 5 本は under_review のまま枠を塞ぎ、工場は CAP_FULL で待機 → 2026-09-30 00:4x に同スレッドへ催促を送信（message_id 1a0edce6b43329e1）。返事と 5 本の状態を監視（進む条件にはしない）
    - → Capafy 完了を記録
 2. PromptBase
+**PromptBase P5（2026-09-30 07:5x JST、公式 readback）: 未達。** 04:20 の自然 run は `step1_did_not_advance`。原因 2 つ: (1) ledger の題名「Reels Hook Lab — Win the Cover Frame」と管理画面の「Reels Hook Lab Win The Cover Frame」が完全一致せず、提出済みを認識できず同じ出品を選び直した（修正中: branch fix/promptbase-title-match、記号を除いて比較し、同じ題名の複数カードは進んだ状態を採る）。(2) 9/29 19:39 に出した Reels Hook Lab は 19:48 に Declined（PromptBase のメール: 見本の出力が入力への実際の回答ではなく指示の繰り返し）。gen_examples.py が Mac の `claude -p` を使い、Dais 用の設定（日本語・省略文・作業メモ）が混ざった見本を作っていた。直し方: 個人設定を読まない house の model runner（skills/writer-agent/runtime/model-runner.sh）で見本を作り直し、中身を目で確かめてから出す。
    - [ ] P5 04:20 の自然 run で次の 1 本が Pending（ダッシュボード）
 3. 全 loop 共通の土台
    - [ ] F1 `lm-loop health`: 全 loop の状態・止まり理由・次の手・スキル別の今日の利益を 1 画面
