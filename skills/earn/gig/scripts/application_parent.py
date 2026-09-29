@@ -151,6 +151,8 @@ def record_live_coconala_platform_manifest_wake(
     *,
     evidence_dir: Path,
     pass_id: str,
+    live_snapshot: dict[str, object] | None = None,
+    authenticated_state: dict[str, object] | None = None,
     onboarding_path: Path | None = None,
     candidate_root: Path | None = None,
     run_root: Path | None = None,
@@ -163,6 +165,8 @@ def record_live_coconala_platform_manifest_wake(
     try:
         summary = _coconala_platform_manifest_runtime().run_coconala_platform_manifest_wake(
             onboarding_path=onboarding_path,
+            live_snapshot=live_snapshot,
+            authenticated_state=authenticated_state,
             candidate_root=candidate_root,
             run_root=run_root,
             run_id=run_id,
@@ -1734,6 +1738,28 @@ class CdpParentEffects:
             await self._call(ws, "Page.enable", {}, call_id)
             state, _ = await self._eval_json(ws, expression, call_id + 1)
         return state
+
+    def read_authenticated_platform_state(self) -> dict[str, object]:
+        """Read secret-free account/profile state for the platform manifest."""
+        raw = asyncio.run(self._authenticated_identity_async())
+        url = str(raw.get("url") or "") if isinstance(raw, dict) else ""
+        parsed = urlsplit(url)
+        own_user_path = raw.get("own_user_path") if isinstance(raw, dict) else None
+        profile_readback = (
+            parsed.scheme == "https"
+            and parsed.hostname == "coconala.com"
+            and isinstance(own_user_path, str)
+            and re.fullmatch(r"/users/[0-9]+", own_user_path) is not None
+        )
+        account_id_sha256 = None
+        if profile_readback:
+            account_id = own_user_path.rsplit("/", 1)[-1]
+            account_id_sha256 = hashlib.sha256(account_id.encode("utf-8")).hexdigest()
+        return {
+            "authenticated": profile_readback,
+            "profile_readback": profile_readback,
+            "account_id_sha256": account_id_sha256,
+        }
 
     def capture_authenticated_identity(self, request_id: str) -> dict[str, object]:
         """Persist the seller identity before the irreversible submit marker."""
@@ -5221,9 +5247,12 @@ def run_parent(
             # authorizes an application, reply, delivery, owner registration,
             # or payment effect.
             manifest_observed_at = snapshot.get("observed_at")
+            authenticated_state = effects.read_authenticated_platform_state()
             record_live_coconala_platform_manifest_wake(
                 evidence_dir=evidence_dir,
                 pass_id=pass_id,
+                live_snapshot=snapshot,
+                authenticated_state=authenticated_state,
                 observed_at=(manifest_observed_at if isinstance(manifest_observed_at, str) else None),
             )
             _record_planner_claims(intent_root, snapshot)

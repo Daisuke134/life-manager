@@ -47,7 +47,14 @@ _SNAPSHOT_FIELDS = frozenset({
     "version", "platform", "observed_at", "source_url", "adapter_source_sha256",
     "evidence_refs", "onboarding",
 })
+_LIVE_SNAPSHOT_FIELDS = frozenset({
+    "version", "platform", "observed_at", "source_url", "adapter_source_sha256",
+    "evidence_refs", "live_account",
+})
 _STATE_FIELDS = frozenset({"status", "evidence_sha256"})
+_LIVE_ACCOUNT_FIELDS = frozenset({
+    "version", "authenticated", "source_complete", "profile_readback", "account_id_sha256",
+})
 _OPPORTUNITY_KEYS = frozenset({
     "opportunities", "request_details", "listings", "jobs", "requests",
 })
@@ -121,6 +128,31 @@ def _onboarding(value: Any) -> dict[str, Any]:
     return {"version": 2, "platform": "coconala", "states": normalized_states}
 
 
+def _live_account(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != _LIVE_ACCOUNT_FIELDS:
+        raise CoconalaPlatformManifestError("live_account_invalid")
+    if value.get("version") != 1:
+        raise CoconalaPlatformManifestError("live_account_invalid")
+    if type(value.get("authenticated")) is not bool:
+        raise CoconalaPlatformManifestError("live_account_invalid")
+    if type(value.get("source_complete")) is not bool:
+        raise CoconalaPlatformManifestError("live_account_invalid")
+    if type(value.get("profile_readback")) is not bool:
+        raise CoconalaPlatformManifestError("live_account_invalid")
+    account_hash = value.get("account_id_sha256")
+    if account_hash is not None:
+        _hash(account_hash, "account_id_sha256_invalid")
+    if (value["authenticated"] or value["profile_readback"]) and account_hash is None:
+        raise CoconalaPlatformManifestError("account_id_sha256_required")
+    return {
+        "version": 1,
+        "authenticated": value["authenticated"],
+        "source_complete": value["source_complete"],
+        "profile_readback": value["profile_readback"],
+        "account_id_sha256": account_hash,
+    }
+
+
 def _source_url(value: Any) -> str:
     text = _text(value, "source_url_invalid", max_length=2048)
     parsed = urlsplit(text)
@@ -141,21 +173,37 @@ def manifest_from_observation(raw: Any) -> dict[str, Any]:
         raise CoconalaPlatformManifestError("snapshot_invalid")
     if _OPPORTUNITY_KEYS.intersection(raw):
         raise CoconalaPlatformManifestError("opportunity_snapshot_rejected")
-    if set(raw) != _SNAPSHOT_FIELDS or raw.get("version") != 2 or raw.get("platform") != "coconala":
+    if raw.get("version") != 2 or raw.get("platform") != "coconala":
         raise CoconalaPlatformManifestError("snapshot_invalid")
     observed_at = _timestamp(raw.get("observed_at"))
     source_url = _source_url(raw.get("source_url"))
     adapter_source_sha256 = _hash(raw.get("adapter_source_sha256"), "adapter_source_sha256_invalid")
     refs = _refs(raw.get("evidence_refs"))
-    onboarding = _onboarding(raw.get("onboarding"))
-    onboarding_refs = [
-        f"coconala://onboarding/{state}/{row['evidence_sha256']}"
-        for state, row in onboarding["states"].items()
-        if row["status"] == "complete"
-    ]
-    evidence_refs = refs + onboarding_refs
+    if set(raw) == _SNAPSHOT_FIELDS:
+        onboarding = _onboarding(raw.get("onboarding"))
+        evidence_refs = refs + [
+            f"coconala://onboarding/{state}/{row['evidence_sha256']}"
+            for state, row in onboarding["states"].items()
+            if row["status"] == "complete"
+        ]
+    elif set(raw) == _LIVE_SNAPSHOT_FIELDS:
+        live_account = _live_account(raw.get("live_account"))
+        evidence_refs = refs + [
+            "coconala://live/authenticated/"
+            f"{str(live_account['authenticated']).lower()}",
+            "coconala://live/profile-readback/"
+            f"{str(live_account['profile_readback']).lower()}",
+            "coconala://live/source-complete/"
+            f"{str(live_account['source_complete']).lower()}",
+        ]
+        if live_account["account_id_sha256"] is not None:
+            evidence_refs.append(
+                f"coconala://live/account/sha256/{live_account['account_id_sha256']}"
+            )
+    else:
+        raise CoconalaPlatformManifestError("snapshot_invalid")
     if not evidence_refs:
-        evidence_refs = ["coconala://onboarding/observation"]
+        evidence_refs = ["coconala://live/observation"]
     candidate = {
         "version": 1,
         "provider": "coconala",
@@ -232,8 +280,64 @@ def load_onboarding_observation(
     return snapshot
 
 
+def load_live_collector_observation(
+    snapshot: Mapping[str, Any],
+    *,
+    authenticated_state: Mapping[str, Any],
+    observed_at: str,
+    adapter_source_sha256: str,
+    source_url: str = "https://coconala.com/mypage",
+    evidence_refs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Project a live collector envelope into account/source-health facts only."""
+    if not isinstance(snapshot, Mapping):
+        raise CoconalaPlatformManifestError("live_collector_snapshot_invalid")
+    if not isinstance(authenticated_state, Mapping):
+        raise CoconalaPlatformManifestError("live_account_state_invalid")
+    snapshot_sha256 = _hash(snapshot.get("snapshot_sha256"), "live_snapshot_sha256_invalid")
+    authenticated = authenticated_state.get("authenticated")
+    profile_readback = authenticated_state.get("profile_readback")
+    account_id_sha256 = authenticated_state.get("account_id_sha256")
+    if type(authenticated) is not bool or type(profile_readback) is not bool:
+        raise CoconalaPlatformManifestError("live_account_state_invalid")
+    if account_id_sha256 is not None:
+        _hash(account_id_sha256, "account_id_sha256_invalid")
+    if (authenticated or profile_readback) and account_id_sha256 is None:
+        raise CoconalaPlatformManifestError("account_id_sha256_required")
+    sources = snapshot.get("search_sources")
+    sources_observed = isinstance(sources, list) and bool(sources) and all(
+        isinstance(source, Mapping)
+        and isinstance(source.get("source_id"), str)
+        and isinstance(source.get("screenshot_sha256"), str)
+        and _HASH.fullmatch(source["screenshot_sha256"]) is not None
+        and isinstance(source.get("dom_sha256"), str)
+        and _HASH.fullmatch(source["dom_sha256"]) is not None
+        for source in sources
+    )
+    live_account = {
+        "version": 1,
+        "authenticated": authenticated,
+        "profile_readback": profile_readback,
+        "source_complete": bool(authenticated and profile_readback and sources_observed),
+        "account_id_sha256": account_id_sha256,
+    }
+    refs = list(evidence_refs or [])
+    refs.append(f"coconala://live/collector/sha256/{snapshot_sha256}")
+    projected = {
+        "version": 2,
+        "platform": "coconala",
+        "observed_at": observed_at,
+        "source_url": source_url,
+        "adapter_source_sha256": adapter_source_sha256,
+        "evidence_refs": refs,
+        "live_account": live_account,
+    }
+    manifest_from_observation(projected)
+    return projected
+
+
 class CoconalaPlatformManifestSource:
-    """Inject one Coconala onboarding observation per wake, read-only."""
+    """Inject one Coconala account observation per wake, read-only."""
 
     def __init__(self, snapshot_loader: Any):
         if not callable(snapshot_loader):
@@ -260,6 +364,7 @@ class CoconalaPlatformManifestSource:
 __all__ = [
     "CoconalaPlatformManifestError",
     "CoconalaPlatformManifestSource",
+    "load_live_collector_observation",
     "load_onboarding_observation",
     "manifest_from_observation",
 ]

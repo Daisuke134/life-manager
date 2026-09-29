@@ -58,6 +58,24 @@ def _snapshot() -> dict[str, object]:
     }
 
 
+def _live_snapshot() -> dict[str, object]:
+    return {
+        "version": 2,
+        "platform": "coconala",
+        "observed_at": "2026-09-30T03:00:00Z",
+        "source_url": "https://coconala.com/mypage",
+        "adapter_source_sha256": "a" * 64,
+        "evidence_refs": ["coconala://live/snapshot/" + "c" * 64],
+        "live_account": {
+            "version": 1,
+            "authenticated": True,
+            "source_complete": True,
+            "profile_readback": True,
+            "account_id_sha256": "d" * 64,
+        },
+    }
+
+
 def test_coconala_platform_source_maps_onboarding_without_promoting_gates():
     source = module.CoconalaPlatformManifestSource(_snapshot)
 
@@ -115,3 +133,15 @@ def test_coconala_platform_source_persists_meta_loop_wake_summary(tmp_path):
     assert result["status"] == "ok"
     assert result["held"] == 1
     assert runs.latest("coconala-wake-1")["next_actions"][0]["next_action"] == "collect_missing_gates"
+
+
+def test_coconala_platform_source_maps_live_account_state_without_opportunities():
+    source = module.CoconalaPlatformManifestSource(_live_snapshot)
+
+    [item] = source.discover()
+
+    assert item["source_kind"] == "platform"
+    assert item["candidate_id"] == "platform:coconala"
+    assert "request_details" not in item
+    assert "account_id_sha256" not in item
+    assert "coconala://live/source-complete/true" in item["evidence_refs"]

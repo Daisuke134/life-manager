@@ -98,3 +98,26 @@ def test_fixture_capture_fails_closed_when_identity_is_missing():
 
     with pytest.raises(application_parent.ParentContractError, match="authenticated_identity_readback_missing"):
         effects.capture_authenticated_identity("5280157")
+
+
+def test_live_platform_state_projects_authenticated_profile_without_raw_account_id(tmp_path, monkeypatch):
+    effects = application_parent.CdpParentEffects(
+        ws_url="ws://127.0.0.1/devtools/page/coconala",
+        evidence_dir=tmp_path / "evidence",
+        ledger_path=tmp_path / "applications.jsonl",
+        pass_id="pass-platform-state",
+    )
+
+    async def identity():
+        return {
+            "url": "https://coconala.com/requests?recruiting=true",
+            "own_user_path": "/users/2564121",
+        }
+
+    monkeypatch.setattr(effects, "_authenticated_identity_async", identity)
+    state = effects.read_authenticated_platform_state()
+
+    assert state["authenticated"] is True
+    assert state["profile_readback"] is True
+    assert state["account_id_sha256"]
+    assert "2564121" not in str(state)

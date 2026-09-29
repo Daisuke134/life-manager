@@ -2451,3 +2451,29 @@ policy／adapter／funded work／canary／unit economicsが未確認なのでhol
 CrowdWorks全suite276件、Coconala/gig全suite1560件、Marketplace Core332件、Python compile、`zsh -n`、`lm-loop-contract ok=true`、
 `git diff --check`。これはsource/runtime契約の証拠であり、実provider receipt、公式readback、production loaded SHA、応募・返信・
 納品・成約・payout・収益の証拠ではない。
+
+## 現在の正本cursor（2026-09-30、Coconala direct collector natural-wake接続後）
+
+`application_parent.run_parent`のlive Coconala経路は、`CdpSnapshotCollector`が作った一回限りのauthenticated snapshotを
+`record_live_coconala_platform_manifest_wake`へ渡す。bridgeは同じleased pageから認証/profile stateをread-only取得し、
+`load_live_collector_observation`でsnapshot hash、source artifact hash、認証状態、profile readback、account identity hashだけを
+platform manifestへ投影する。`request_details`、案件本文、応募判断、応募結果はmanifestへ渡さない。live sourceの記録失敗は
+typed `partial`／candidate `hold`としてdurableに残し、manifest bridge自体はprovider mutationを呼ばない。
+
+### 原子TODO（この節が最新の実行順正本）
+
+1. **完了** Coconala `CdpSnapshotCollector`のlive snapshot → account/profile readback projection → platform manifest → candidate
+   evaluation／durable wakeを接続した。onboarding receiptだけに依存せず、案件フィールドをmanifestへ混ぜない。
+2. **未完（現在cursor）** このbranchの4 platform wiringを最新mainへreconcileし、全affected suite PASS後にmain由来immutable releaseを作る。
+   production loaded SHA、plist argv/env、identity lease、rollback receiptを公式readbackで一致させるまでproduction完了と数えない。
+3. **未完** RyuさんDMの既存一回送信についてprovider receipt＋official readbackまたは厳密なheld理由を取得する。現在の認証済み
+   browser/sessionは0なので、再送・正式納品・receiptなしのeffect fence解放をしない。
+4. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
+5. **未完** Freelancer／Upworkのapproved terms、専用identity auth、funded contract／milestone、mutation authorization、isolated
+   canary、rollback、settlement、cost-complete positive net P&Lを順に検証する。
+6. **未完** Meta Loop scheduler/discovery→candidate durable state→policy／adapter／funded gate→owner provisioning→canary/readback→
+   rollback→settlement→quality／P&L feedbackをshared kernelへ接続し、全gateと公式receiptを通ったplatformだけをpromoteする。
+
+検証済み（このcursor）: Coconala/gig全suite1563件、Coconala manifest/runtime focused、application identity focused、Marketplace Core332件、
+Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoconala source/runtime契約の証拠であり、実provider receipt、
+公式readback、production loaded SHA、応募・納品・成約・payout・収益の証拠ではない。

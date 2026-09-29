@@ -72,6 +72,8 @@ def _adapter_source_sha256() -> str:
 def run_coconala_platform_manifest_wake(
     *,
     onboarding_path: str | Path | None = None,
+    live_snapshot: Mapping[str, Any] | None = None,
+    authenticated_state: Mapping[str, Any] | None = None,
     candidate_root: str | Path | None = None,
     run_root: str | Path | None = None,
     run_id: str,
@@ -91,12 +93,25 @@ def run_coconala_platform_manifest_wake(
     )
     seen_at = observed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-    def load_snapshot() -> dict[str, Any]:
-        return coconala.load_onboarding_observation(
-            onboarding,
-            observed_at=seen_at,
-            adapter_source_sha256=_adapter_source_sha256(),
-        )
+    if live_snapshot is not None:
+        if authenticated_state is None:
+            raise ValueError("coconala_live_authenticated_state_required")
+
+        def load_snapshot() -> dict[str, Any]:
+            return coconala.load_live_collector_observation(
+                live_snapshot,
+                authenticated_state=authenticated_state,
+                observed_at=seen_at,
+                adapter_source_sha256=_adapter_source_sha256(),
+            )
+    else:
+
+        def load_snapshot() -> dict[str, Any]:
+            return coconala.load_onboarding_observation(
+                onboarding,
+                observed_at=seen_at,
+                adapter_source_sha256=_adapter_source_sha256(),
+            )
 
     sources = dict(source_discoverers or {})
     sources["coconala"] = coconala.CoconalaPlatformManifestSource(load_snapshot).discover
