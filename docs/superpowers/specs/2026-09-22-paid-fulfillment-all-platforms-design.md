@@ -6667,6 +6667,24 @@ ordering notes without declaring any external effect complete.
   being running as a canary pass, and do not force another restart. Main
   integration and the controlled release transition remain open.
 
+### Latest-main rebase and candidate refresh — 2026-09-30 08:44 JST
+
+- [x] `origin/main` advanced to
+  `ae6b7810cd7f0ab23db5d40ff3d9c0d20cc089db`; the dedicated branch was
+  rebased without conflicts and force-pushed with lease. It is now a direct
+  descendant of that main commit.
+- [x] A refreshed non-activating candidate was cut from branch HEAD
+  `eaf0d9c5a40dc732890aabfd9f69edb2e76c5d5b` at
+  `/Users/anicca/loops/releases/20260930T084303-eaf0d9c5`.
+- [x] The refreshed candidate reports `pushed-not-yet-on-main`,
+  `release_paths=ALL`, `102M`, zero writable files, zero writable
+  directories, and `lm-loop-contract ok=true` with no shared IDs or errors.
+  It contains the DOM-evaluation retry repair.
+- [ ] The candidate is not live: current remains the external main release
+  `20260930T083257-d33687c9`, and Coconala owners still invoke old release
+  `20260930T010308-3975ae89`. Main integration and controlled transition stay
+  open.
+
 ### Live owner versus repaired candidate divergence — 2026-09-30 08:39 JST
 
 - [x] The live Coconala Reply process is still executing the old immutable
