@@ -125,3 +125,76 @@ def test_lancers_natural_run_invokes_platform_bridge_before_default_discovery(tm
     assert result["reason"] == "no_eligible_project"
     assert len(calls) == 1
     assert calls[0]["contracts_path"] == tmp_path / "contracts.json"
+
+
+def test_lancers_candidate_lifecycle_uses_account_bound_registry(tmp_path):
+    cycle = runtime._CYCLE or runtime._modules()[1]
+    candidates_module = runtime._CANDIDATE_STORE or runtime._modules()[2]
+    candidate_store = candidates_module.CandidateStateStore(tmp_path / "candidates")
+    candidate_store.record({
+        "schema_version": 1,
+        "provider": "lancers",
+        "candidate_id": "platform:lancers",
+        "observed_at": "2026-09-30T15:10:00Z",
+        "source_url": "https://www.lancers.jp",
+        "snapshot_sha256": "c" * 64,
+        "decision": "promote",
+        "gates": {
+            "policy": "pass", "adapter": "pass", "funded_work": "pass",
+            "canary": "pass", "unit_economics": "pass",
+        },
+        "reasons": [],
+        "evidence_refs": ["lancers://candidate/observed"],
+        "next_action": "provision_owner_after_release_readback",
+        "idempotency_key": "marketplace-candidate:v1:lancers:platform:lancers:" + "c" * 64,
+    })
+
+    calls = []
+
+    class Adapter:
+        def provision_owner(self, candidate):
+            calls.append("provision")
+            return {
+                "status": "provisioned", "owner_id": "owner-1",
+                "receipt_ref": "provider-receipt://lancers/owner-1",
+                "observed_at": "2026-09-30T15:10:01Z",
+            }
+
+        def canary_readback(self, candidate, owner):
+            calls.append("canary")
+            return {
+                "status": "verified", "receipt_ref": "provider-receipt://lancers/canary-1",
+                "replay_zero": True, "observed_at": "2026-09-30T15:10:02Z",
+            }
+
+        def rollback_owner(self, candidate, owner, reason):
+            calls.append("rollback")
+            return {
+                "status": "rolled_back", "receipt_ref": "provider-receipt://lancers/rollback-1",
+                "observed_at": "2026-09-30T15:10:03Z",
+            }
+
+        def settle(self, candidate, owner, canary):
+            calls.append("settle")
+            return {
+                "status": "settled", "receipt_ref": "provider-receipt://lancers/settlement-1",
+                "net_amount_minor": 1000, "currency": "JPY",
+                "observed_at": "2026-09-30T15:10:04Z",
+            }
+
+    registry = cycle.PlatformLifecycleAdapterRegistry({"lancers": lambda context: Adapter()})
+    result = runtime.run_lancers_candidate_lifecycle(
+        candidate_root=tmp_path / "candidates",
+        lifecycle_root=tmp_path / "lifecycle",
+        registry=registry,
+        account_context={
+            "account_id": "lancers-owner-1",
+            "authorization_receipt_ref": "auth://lancers/receipt-1",
+        },
+        candidate_id="platform:lancers",
+        run_id="lancers-lifecycle-1",
+        observed_at="2026-09-30T15:10:00Z",
+    )
+
+    assert result["status"] == "settled"
+    assert calls == ["provision", "canary", "settle"]
