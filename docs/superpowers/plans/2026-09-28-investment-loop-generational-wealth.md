@@ -876,3 +876,5 @@ The entries above are historical readbacks. This section is the current source o
 7. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。
 
 **main/release readback（2026-09-29 10:59 UTC）**: PR `#6214`をmerge commit `47ddce0eb7`でmainへ統合し、immutable release `20260929T195223-47ddce0e`を`current`へ切り替えた。live/paperは新SHAでnatural `pass`だがprovider receiptは無く、cross-venue/strategy-validationは旧SHAのためfleet apply完了待ち。次は残り2 ownerのloaded SHA/readback → fence公式readback → paper terminal readback → cost-complete P&L → `30/30`の順で進める。
+
+**4投資owner apply後のreadback（2026-09-29 11:05 UTC）**: 4投資ownerは全てrelease SHA `47ddce0eb7`へloaded済み。live/paperはnatural `pass`だがprovider receiptなし、cross-venue旧occurrenceは`effect_unknown` hold、strategy validationは未実行、fence dry-runは`no_pre_effect_terminal`で解放不可。次はfence reconcilerの新release適用/readback → 公式証拠が揃うまで旧occurrenceを保持 → 市場開場後paper terminal readbackの順で進める。
