@@ -8,6 +8,9 @@
 #
 # Usage: publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>
 set -euo pipefail
+# Keep driver output when `timeout` kills a browser step; buffered stdout was lost
+# and CP2 failures in the factory had no reason (live 2026-09-29 18:10, 9563867391).
+export PYTHONUNBUFFERED=1
 
 ID="${1:?agent-id required}"
 SKILL_NAME="${2:?skill-name required}"
@@ -285,6 +288,7 @@ except Exception: print('')")"
   CP2="$PUBLISH_REVIEW_URL"
   timeout 150 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
     "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | { grep -vE "Deprecation|warnings.warn" || true; } | tail -4 || true
+  echo "CP2 driver exit=${PIPESTATUS[0]} (124=timeout; lease/driver errors print above)"
   # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
   # exit just before the server registers the hosted key -> a one-shot read false-dies.
   poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
