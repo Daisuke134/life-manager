@@ -2089,36 +2089,6 @@ job IDs 0）、`git diff --check`もPASS。branch
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
 
-### 最新Mercor pre-effect shared fence — 2026-09-30
-
-- `apps/job-search-loop/job_search_loop/mercor_submit_guard.py` の `claim_submission_once()` は、重複claimを
-  no-opにした後、Mercorの共有`Opportunity`／`inspect`観測を保存し、その成功後にだけ
-  `submission-fences.jsonl`へ`submit_claimed`を書き込む。観測保存失敗は`opportunity_observation_failed:*`として
-  claimを作らず、ブラウザclickへ進ませない。
-- 観測は`GIG_OPPORTUNITY_OBSERVATION_ROOT`（未指定時は`~/gig/opportunity-observations`）の共有storeへ
-  appendし、listing ID・適合・ranking・application state・pre-submit evidence hash・run IDを束縛する。
-  既存のslug付き`/jobs/{listing_id}/...` URLも、共通adapterでlisting identityを保持して検証する。
-- 送信claimはprovider receiptやofficial readbackではない。receipt/readbackが得られないeffectはverifiedにせず、
-  `effect_unknown`／heldを維持し、重複送信・claim解放を行わない。
-- Mercor submit-guard 11件、Opportunity adapter 6件、Mercor全suite、shared marketplace回帰、compile、
-  `lm-loop-contract`、`git diff --check`が通ることをこの変更のsource完了条件とする。
-
-### 原子TODO（Mercor pre-effect fence後の正本）
-
-1. **完了** Mercor pass-result → shared `Opportunity`／`inspect` → observation保存を接続し、submitted listingを再発見しない。
-2. **完了** Mercorのprovider effect直前に、共有observationを保存してからidentity-bound effect fenceをappendする。
-   観測失敗時はclaim・clickを行わず、重複claimは観測も再実行しない。
-3. **未完** Coconala・Lancers・CrowdWorks・Mercorのsource branchをmainへ受入し、immutable release、loaded SHA、
-   plist argv/env、identity lease、rollback receiptを公式readbackで一致させる。
-4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由を取得する。
-   既存の一回送信を維持し、重複送信・正式納品・receiptなしのeffect fence解放はしない。
-5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
-6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
-   isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
-7. **未完** Meta Loopのscheduler/discovery → candidate durable state → policy/adapter/funded gate → owner provisioning →
-   isolated canary/readback → rollback → settlement → quality/P&L feedbackをshared kernelへ接続し、成功した改善だけを
-   共通skillへ昇格する。
-
 ### 最新Mercor read-only Opportunity／pass-result接続 — 2026-09-30
 
 - 既存`apps/job-search-loop/job_search_loop/mercor_pass.py`のbounded pass結果
@@ -2129,16 +2099,18 @@ job IDs 0）、`git diff --check`もPASS。branch
 - pass結果を`MercorSnapshotSource`へ渡し、共有observation storeへidempotent保存する接続を追加した。
   `submit_required`だけを`eligible`、card-only・未確定・provider blockedを`hold`として記録する。
   観測summaryはlocal pass evidenceへ保存し、応募・返信・納品・決済をadapterから呼ばない。
-- Mercor全suite 49件（adapter／observation新規11件を含む）、compile、`git diff --check`をPASSした。
+- Mercor全suite 49件（adapter／observation新規11件を含む）、submit-guard回帰11件、slugged URL回帰6件、
+  shared marketplace回帰662件、compile、`lm-loop-contract`、`git diff --check`をPASSした。
   これはpass-resultのsource証拠であり、Mercor provider receipt、公式readback、実応募、成約、payout、収益を証明しない。
-  現在のモデル主導passは観測とprovider操作を同一runで行うため、observation保存はpass結果受領後・local ledger処理前であり、
-  provider effect前の共有fenceにはまだなっていない。
+  pass結果後の全候補観測に加え、`claim_submission_once()`はprovider effect直前に共有観測を保存し、成功後だけ
+  `submission-fences.jsonl`へclaimを書き込む。観測失敗時は`opportunity_observation_failed:*`としてclaim・clickを行わず、
+  重複claimでは観測も再実行しない。slug付き`/jobs/{listing_id}/...` URLもlisting identityを保持して検証する。
 
 ### 原子TODO（Mercor接続後の正本）
 
 1. **完了** Mercor pass-result → shared `Opportunity`／`inspect` → observation保存を接続し、submitted listingを再発見しない。
-2. **未完** Mercorのread/planner/effectを分離し、provider effect前にshared observation・effect intent・identity fenceを保存する。
-   provider receipt／official readbackなしのeffectをverified扱いしない。
+2. **完了** Mercorのprovider effect直前にshared observationを保存してからidentity-bound effect fenceをappendする。
+   観測失敗時はclaim・clickを行わず、重複claimは観測も再実行しない。これはprovider receipt／official readbackではない。
 3. **未完** Coconala・Lancers・CrowdWorks・Mercorのsource branchをmainへ受入し、immutable release、loaded SHA、
    plist argv/env、identity lease、rollback receiptを公式readbackで一致させる。
 4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由を取得する。
@@ -2146,3 +2118,6 @@ job IDs 0）、`git diff --check`もPASS。branch
 5. **未完** capacity自然runとENOSPC自己修復を実測し、terminal event・recovery intent・admission stateの欠落を0件にする。
 6. **未完** Freelancer／Upworkの認証・approved terms・funded contract／milestone・mutation authorization、
    isolated canary、rollback、settlement、cost-complete positive net P&Lを検証する。
+7. **未完** Meta Loopのscheduler/discovery → candidate durable state → policy/adapter/funded gate → owner provisioning →
+   isolated canary/readback → rollback → settlement → quality/P&L feedbackをshared kernelへ接続し、成功した改善だけを
+   共通skillへ昇格する。
