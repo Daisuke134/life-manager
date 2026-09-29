@@ -1529,6 +1529,13 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 同時点のpaper observationは`clock.is_open=true`、cash `$99,986.77`、equity `$99,996.69`、QQQ long `qty=0.013493253`、current `$735.4801`、market value `$9.924019`、unrealized P&L `-$0.065981`である。paper含み損益は実現収益ではない。
 - `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。次は市場close後のcompleted daily sessionからexit decision receiptを1件読む。手動wake・手動sell・再送はしない。
 
+**AT-13 natural retry readback（2026-09-30 01:57 JST）**:
+
+- occurrence `alpaca-investment-paper:18d9d91dd3339598-20252`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然retryされ、`2026-09-29T16:57:49Z`に`exit_code=0`／`status=pass`／`next_action=none`で終了した。直前の`18d9d91a7fd05e70-19822`はprovider effect前の`host_admission_deferred:resource_capacity_busy`（exit `75`）であり、注文・約定・資金移動はない。schedulerはloadedで`runs=14`である。
+- 新しいdecision receipt `cab044dcdcbf2c3e65bea2fa12fc3529e36f874f070b8a3021df777637a577ab`（`2026-09-29T16:57:46Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`で、exit order／provider receiptはない。`AT-13`の完了条件は未達である。
+- 同時点のpaper observationは`clock.is_open=true`、cash `$99,986.77`、equity `$99,996.70`、QQQ long `qty=0.013493253`、current `$735.8086`、market value `$9.928452`、unrealized P&L `-$0.061548`である。paper含み損益は実現収益ではない。
+- `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。次は市場close後のcompleted daily sessionからexit decision receiptを1件読む。手動wake・手動sell・再送はしない。
+
 **AT-13 natural retry readback（2026-09-30 01:52 JST）**:
 
 - occurrence `alpaca-investment-paper:18d9d8cf8c27db58-11388`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然retryされ、`2026-09-29T16:52:14Z`に`exit_code=0`／`status=pass`／`next_action=none`で終了した。直前の`18d9d8c95b8a3870-10428`はprovider effect前の`host_admission_deferred:resource_capacity_busy`（exit `75`）であり、注文・約定・資金移動はない。schedulerはloadedで`runs=12`である。
