@@ -6382,3 +6382,64 @@ ordering notes without declaring any external effect complete.
   changes are live. Candidate capacity, provenance acceptance, live-owner
   transition, provider readbacks, and final promotion remain open exactly as
   listed in the atomic cursor above.
+
+### Candidate release capacity gate — 2026-09-30 08:20 JST
+
+- [x] The full candidate builder completed from pushed `HEAD` with
+  `LOOPS_ACTIVATE_CURRENT=0`. It used the existing current release as a
+  hard-link donor and the existing locked dependency bundles; no npm install
+  or provider/browser mutation was needed.
+- [x] Candidate path is
+  `/Users/anicca/loops/releases/20260930T081923-7fc18167`; its `RELEASE.json`
+  reports SHA `7fc18167d893f433f487f8413da965558a249e85`,
+  `release_paths=ALL`, and `provenance=pushed-not-yet-on-main`.
+- [x] Candidate readback found `102M` total size, zero writable regular files,
+  zero writable directories, and valid links for all five dependency-bearing
+  package roots. The current pointer remains
+  `/Users/anicca/loops/releases/20260930T081405-9a76dcc8`; no owner or provider
+  state was changed.
+- [x] Host free space read back at approximately `2.4 GiB` after the builder's
+  protected release/dependency cleanup. The previous ENOSPC capacity gate is
+  resolved for this candidate.
+- [ ] The candidate is not eligible for activation while its provenance is
+  `pushed-not-yet-on-main`. Main integration/provenance acceptance is now the
+  next cursor; live transition and all platform official readbacks remain
+  closed.
+
+### Atomic current cursor — 2026-09-30 08:20 JST
+
+1. **Main provenance — OPEN.** Merge/admin-promote the source branch only after
+   the source acceptance gate and required review; then cut a new candidate
+   whose manifest reports `ancestor-of-origin-main`.
+2. **Live transition — OPEN.** After the required high-risk approval, use only
+   `launchctl-safe` to transition owners; never raw `launchctl`, kill, or force
+   restart a provider/browser owner.
+3. **Coconala Apply — OPEN.** Run one natural canary on the immutable release,
+   obtain official provider readback, and record replay-zero.
+4. **Coconala Storefront — OPEN.** Run one natural canary, obtain official
+   provider readback, and record replay-zero.
+5. **Coconala Paid — OPEN.** Run one natural canary, obtain official provider
+   readback, and record replay-zero; a running process alone is not completion.
+6. **Coconala fences — OPEN.** Resolve the one Apply and one Storefront
+   `effect_unknown` only with occurrence-bound official evidence; do not retry
+   from local absence.
+7. **CrowdWorks Paid — OPEN.** Reconcile the exact unknown occurrence against
+   official history before any retry or fence release.
+8. **CrowdWorks Application — OPEN.** Wait for the existing provider lock to
+   become naturally free, then reconcile one occurrence at a time.
+9. **Lancers — OPEN.** Obtain official history only after the existing owner
+   reaches an authenticated non-Human-Verification surface; never bypass it.
+10. **Mercor — OPEN.** Restore/read the existing owner and obtain a fresh
+    identity-bound official inventory before any contract/payment effect.
+11. **Upwork — OPEN.** Restore the account owner, verify funded contract and
+    milestone terms, then run a no-effect canary.
+12. **Freelancer — OPEN.** Restore the account owner, verify funded contract
+    and milestone terms, then run a no-effect canary.
+13. **Shared registration — OPEN.** Register Paid lifecycle effects only after
+    each platform's source-complete inventory and canary pass.
+14. **Meta Loop — OPEN.** Enable only after shared telemetry, recovery,
+    idempotency, receipts, and provider readbacks pass on every preceding
+    platform.
+15. **Final promotion — OPEN.** Cut the main-derived immutable release, read
+    back every owner/provider receipt, and only then declare the platform set
+    complete.
