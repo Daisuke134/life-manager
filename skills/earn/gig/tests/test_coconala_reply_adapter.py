@@ -269,6 +269,14 @@ def test_modern_dom_contract_is_present_in_both_message_readers():
     assert "/smartphone/direct_messages/" in adapter_module.snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION
 
 
+def test_fill_expression_supports_current_smartphone_message_input():
+    expression = adapter_module.reply_browser.fill_expression("返信本文")
+
+    assert "textarea.message-input" in expression
+    assert "const controls=legacy.length?legacy:modern;" in expression
+    assert "input.classList.contains('message-input')" in expression
+
+
 def test_inbox_403_is_classified_as_provider_access_denied():
     with pytest.raises(
         adapter_module.snapshot.CollectorUnhealthy,
