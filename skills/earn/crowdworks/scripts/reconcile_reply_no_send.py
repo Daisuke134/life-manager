@@ -39,6 +39,10 @@ SLACK = 60.0  # CrowdWorks shows minutes; also absorb host/provider clock skew.
 ADMISSION_DB = Path("~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3")
 
 
+class ProviderBrowserBusy(RuntimeError):
+    """The shared CrowdWorks browser is owned by an active revenue lane."""
+
+
 def _json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -253,8 +257,13 @@ def fenced_occurrences(database: Path) -> list[str]:
 @contextmanager
 def _provider_lease(state_root: Path):
     # Same lease every CrowdWorks browser owner takes via run_with_file_lock.py.
+    # A fence readback must never queue behind an earning lane indefinitely:
+    # leave the occurrence fenced and let the next wake retry instead.
     with (state_root / "provider-browser.lock").open("a+") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise ProviderBrowserBusy("crowdworks_provider_browser_busy") from error
         try:
             yield
         finally:
@@ -280,26 +289,37 @@ def main(argv: list[str] | None = None) -> int:
     conversations: dict[str, list[dict[str, Any]] | str | None] = {
         thread_id: "accept_contract_intent" for thread_id in threads if thread_id in accepts}
     threads = [thread_id for thread_id in threads if thread_id not in accepts]
-    with _provider_lease(state_root):
-        import reply_adapter
-        adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
+    if threads:
         try:
-            if threads:
-                adapter.observe_threads()
-            for thread_id in threads:
+            with _provider_lease(state_root):
+                import reply_adapter
+                adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
                 try:
-                    rows = own_rows(
-                        adapter._detail(thread_id),
-                        adapter.page.locator('div[class*="_messageItem_"]').evaluate_all(SENDER_HREFS),
-                        adapter._observation({"thread_id": thread_id, "id": "0"})["account_id"])
-                    blocker = contract_blocker(adapter.page, adapter.rows.get(thread_id))
-                    conversations[thread_id] = blocker or rows
-                except Exception as error:
-                    print(f"conversation_unavailable {thread_id} {type(error).__name__}: "
-                          f"{str(error)[:200]}", file=sys.stderr)
-                    conversations[thread_id] = None
-        finally:
-            adapter.close()
+                    adapter.observe_threads()
+                    for thread_id in threads:
+                        try:
+                            rows = own_rows(
+                                adapter._detail(thread_id),
+                                adapter.page.locator('div[class*="_messageItem_"]').evaluate_all(SENDER_HREFS),
+                                adapter._observation({"thread_id": thread_id, "id": "0"})["account_id"])
+                            blocker = contract_blocker(adapter.page, adapter.rows.get(thread_id))
+                            conversations[thread_id] = blocker or rows
+                        except Exception as error:
+                            print(f"conversation_unavailable {thread_id} {type(error).__name__}: "
+                                  f"{str(error)[:200]}", file=sys.stderr)
+                            conversations[thread_id] = None
+                finally:
+                    adapter.close()
+        except ProviderBrowserBusy:
+            report = {
+                "owner_id": OWNER,
+                "checked": len(occurrences),
+                "resolved": [],
+                "fenced": {occurrence: "provider_browser_busy" for occurrence in occurrences},
+                "next_action": "retry_after_provider_browser",
+            }
+            print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+            return 75
     results = evaluate(state_root, occurrences, conversations.get)
     report = {"owner_id": OWNER, "checked": len(occurrences), "resolved": [], "fenced": {}}
     for occurrence, (proof, reason) in results.items():

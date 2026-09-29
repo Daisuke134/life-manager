@@ -950,6 +950,8 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 
 **Mercor effect fence接続（2026-09-29、同じ専用worktree）**: Mercorのentrypointはすでにpre-effect markerを実装していたが、registryにreconcile adapterが無く、`mercor-revenue-application`／`mercor-revenue-reply`／`mercor-revenue-paid`のeffect_unknownを自動判定できなかった。応募と返信はshared `reconcile_pre_effect_hint.py`を、それぞれ実際のstate root `~/.local/state/anicca/job-search/mercor/application`・`.../reply`へowner/occurrence boundで接続し、paidは`reconcile_paid_no_effect.py`を`~/.local/state/anicca/job-search/mercor`へ接続した。registry fixtureを再生成し、Mercor suite **182 passed, 183 subtests passed**、fence/registry focused、`./bin/lm-loop-contract` **ok=true**、`git diff --check`をPASSした。これはsource-onlyであり、productionは旧release `2ffad523…`のまま、Mercor providerへの送信・応募・決済・返信を行っていない。
 
+**CrowdWorks browser-lock境界（2026-09-29、source-only）**: read-only process sampleで、応募reconcileが同じ`provider-browser.lock`を約9分保持し、reply・paid・application ownerが同じlockのblocking `flock`待ちになっている事実を確認した。根因はofficial-readback adapterがrevenue laneと同じlockを無期限blocking取得していたこと。`reconcile_reply_no_send.py`の`_provider_lease`を`LOCK_NB`へ変更し、競合時は`ProviderBrowserBusy`として即時defer、reply/applicationの両reconcilerは構造化`provider_browser_busy`／`retry_after_provider_browser`を返してfenceを解放・再送しない。専用probeだけはlock待ちを確認後に中断し、productionの既存PID/loop/browserは停止していない。focused CrowdWorks reconcile suite **33 passed**（変更前後の既存境界を含む）。この変更はまだmain/release/productionへ未適用である。
+
 **Lancers追加後の残TODO（成果順）**:
 
 1. [進行中] Coconala wrapperとLancers shared adapter、registry、fixture、tests、specを同じ専用branchへcommit/pushし、required checksを通す。
@@ -957,7 +959,7 @@ Lancers focused suiteは **153 passed, 183 subtests passed**、`./bin/lm-loop-co
 3. [未完] 各ownerでloaded SHA、identity lease、自然terminal、公式readback、replay-zeroを確認する。pre-effect markerだけで解放できるものと、provider公式receiptが必要なものを分離する。
 4. [未完] Coconala Ryu DMはv723本文を再送せず、403回復後にread-only provider永続receiptを一度だけ確認する。
 5. [未完] Lancersのapplication/negotiate/storefront/paidを自然wakeで検証し、応募・交渉・掲載・決済の各effectを同一occurrenceの公式receiptへ結び付ける。
-6. [進行中] CrowdWorksの既存official-readback adapterが保持しているeffect_unknown（応募のreceipt-bound/in-window、paidのzero-effect証拠不足、replyのofficial conversation不足）を、provider receiptなしに解放せず、原因別に自然readbackする。
+6. [進行中] CrowdWorksのlock競合defer修正をcommit/pushし、main由来releaseでtarget apply後、収益laneがreconcileの無期限待ちにならないことをnatural readbackする。既存effect_unknown（応募のreceipt-bound/in-window、paidのzero-effect証拠不足、replyのofficial conversation不足）はprovider receiptなしに解放しない。
 7. [未完] Mercorの3 ownerをmain由来releaseへtarget applyし、pre-effect markerで安全に解放できるoccurrenceと、公式Mercor receiptが必要なoccurrenceを分離する。
 8. [未完] Freelancer・Upworkを同じshared kernelへ接続し、最後にMeta Loopのplatform discovery→adapter生成→canary→rollbackを有効化する。
 
