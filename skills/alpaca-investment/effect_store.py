@@ -101,8 +101,26 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
     if any(row.get("receipt_type") == "outcome" and row.get("effect_id") == sealed["effect_id"]
            for row in _rows(ledger)):
         raise ValueError("effect_already_completed")
+    planned = next(
+        (
+            row for row in reversed(_rows(ledger))
+            if row.get("receipt_type") == "effect_intent"
+            and row.get("effect_id") == sealed["effect_id"]
+            and row.get("status") == "planned"
+        ),
+        {},
+    )
+    preserved = {
+        key: planned[key]
+        for key in (
+            "order", "owner_id", "strategy_id", "decision_session",
+            "source_receipt_ids",
+        )
+        if key in planned
+    }
     return _append_once(ledger, {
-        **sealed, "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
+        **preserved, **sealed, "mode": mode, "paper": mode == "paper",
+        "receipt_type": "effect_intent",
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": 1, "status": "started",
     }, ("receipt_type", "effect_id", "status"))
@@ -160,7 +178,16 @@ def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
 def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
                     *, reason: str | None = None) -> None:
     status = order.get("status")
+    preserved = {
+        key: intent[key]
+        for key in (
+            "decision_id", "order", "owner_id", "strategy_id",
+            "decision_session", "source_receipt_ids",
+        )
+        if key in intent
+    }
     _append_once(ledger, {
+        **preserved,
         "client_order_id": intent["client_order_id"],
         "broker_status": status,
         "effect_id": intent["effect_id"],
