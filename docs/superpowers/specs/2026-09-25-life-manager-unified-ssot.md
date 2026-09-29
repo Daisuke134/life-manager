@@ -788,6 +788,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [x] 2026-09-29 18:05 JST（UTC `09:05:53Z`）の再read-only probeでは、Coconalaのroot、受信箱、DM `10107358`、旧DM pathの全てが`title/body=403 Forbidden`を返し、入力欄0件だった。`coconala:kosuke`のbrowser UUIDは`14d6c112-60a5-48b9-8ffb-905dc32ef8aa`で到達可能だが、provider access denialのため送信は実行していない。証跡は `delivery/current-cycle-v718-dm-access-denial-readback.json`。v711 Colors側の相互リンク管理機能readbackはPASS済みで、次の安全な外部効果は公式DMが回復した後の一回送信だけである。
 - [x] v718の403は一時的なprovider access denialとして記録する。後続の公式DM再readbackで現行URLは回復したため、v718を現在の未確認根拠として扱わない。
 - [x] 2026-09-29 18:09 JST（UTC `09:09:23Z`）に現行スマホDM URLをread-onlyで再取得し、HTTP/UI readbackに成功した。最新シーケンスは seller 14:34 → buyer 14:36 → seller 14:40 → buyer 14:41。14:41の最新要求は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」で、sellerの後続返信は0件、正式納品ボタンも未押下。証跡は `delivery/current-cycle-v719-dm-readback.json`。したがって、管理画面・公開サイトの修正readbackは完了していても、Ryuへの最終統合DMは未送信であり、Ryu案件はまだ完了ではない。
+- [x] 2026-09-29 18:14 JST（UTC `09:14:26Z`）に同じ現行スマホDM URLを再read-only確認したが、ページは再び`403 Forbidden`、入力欄0件だった。browser identity自体は到達可能（HTTP 200）だがprovider本文を取得できず、送信・正式納品クリックは0件。証跡は `delivery/current-cycle-v720-dm-access-denial-readback.json`。v719が最後に成功した公式readbackであり、v720以後に新しい返信が来たかは未確認である。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
@@ -887,7 +888,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 1. source側のfocused test・`git diff --check`・`lm-loop-contract`・doctorはPASS済み。残りはPR/checksとmain統合であり、AWS Provision Browserがproduction側doctorでも同じ外部owner分類になることをimmutable release readbackで確認する。
 2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
-3. v719でreadback済みの公式Coconala DMでRyuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。送信後に同じ公式threadのseller後続1件・重複0件をreadbackする。
+3. provider access denialが解消し、公式Coconala DMのreadbackが再び成功した後、Ryuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。送信後に同じ公式threadのseller後続1件・重複0件をreadbackする。403中は送信しない。
 4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、Coconala DM・Paid・Application・Storefrontのloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。
 5. Lancers/CrowdWorksのidentityを正式登録し、registryのidentity joinを追加して固定9227/9228依存をlease endpointへ切り替える。source adapterのendpoint projectionは済み。Human Verification・provider denial・effect unknownを型付きpendingとして保持し、公式receiptなしの再送を禁止する。
 6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
