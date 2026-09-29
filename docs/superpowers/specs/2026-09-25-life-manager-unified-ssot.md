@@ -770,6 +770,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - [ ] 実際の相互リンクURL／バナー画像、女の子別の新しい画像ファイルは購入者から未提供。管理機能は準備済みだが、実データを登録して公開する作業は入力待ち。
 - [x] 2026-09-29 16:17 JST（UTC 07:17）の現行スマホDM再読で、取得できた最新10件は9/29 14:33〜14:41を含み、最新の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。添付2件はHTTP 200で取得・hash固定済み。readbackは `delivery/current-cycle-v712-dm-readback.json`。
 - [x] 直前の4経路プローブでは、認証済みCloakBrowserセッションがログイン画面へリダイレクトされない一方、スマホDM、旧DM URL、受信箱、ダッシュボードが `403 Forbidden` を返した。これはログイン切れではなくprovider access denialとして扱う安全境界を `session_vault.py` と `session_vault_tick.sh` に追加し、再ログイン・再送を抑止する。現行スマホDM URLは後続readbackで回復したが、旧URLは依然403のため返信経路は旧URLを使用しない。
+- [x] 本番ログの `browser_port_owner.py:forward → os.killpg → PermissionError: [Errno 1] Operation not permitted`（release `20260929T154252-aac42b89` / `20260929T144819-1e3ee016`）を、子process group終了時のraceとして特定した。`_forward_process_group_signal()` が `ProcessLookupError` と `PermissionError` を既に終了したgroupとして吸収し、回帰テストを追加した。productionの現行release `20260929T163139-dca9befe` はまだ修正前で、launchd `ai.anicca.hf-gig-browser` は `active count=1`・CDP `9223` reachable だが `last exit code=78: EX_CONFIG` の履歴を持つ。修正release反映後のbrowser readbackを取るまで、Ryuの公式DMへ送信しない。
 
 ### Talkroom・DMの失敗／未証明インベントリ（購入者の指摘を要求単位に統合）
 
