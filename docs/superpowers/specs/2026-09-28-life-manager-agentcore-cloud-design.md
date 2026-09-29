@@ -2,11 +2,48 @@
 
 **Status:** T11 Cloud版のprovider・実行単位・状態所有・無料導線・販売条件の正本
 
-**Decision:** Railway API、Inngest、Supabase PostgreSQL、Stripeをprovider-neutralな制御面として再利用する。AWS Bedrock AgentCoreは基準実装だが、CloudFormation、S3、CloudWatch Logs、Cost Explorerの購読が未有効なのでproduction採用を保留する。現在は同じ契約をDigitalOcean Managed Agents＋Steelで実測し、isolation、no-ask、browser continuity、teardown、公式cost receiptが全部通ったproviderを採用する。
+**Decision:** Cloud architectureは確定済みであり、再設計しない。Railway API、Inngest、Supabase PostgreSQL、Stripeをprovider-neutralな制御面として再利用し、仕事がある時だけtenant専用の隔離RuntimeとBrowserを起動する。AWS Bedrock AgentCore Runtime/Browser/Profile/Identityを基準実装とし、同じadapter契約のDigitalOcean Managed Agents＋Steelをfallback候補にする。AWSはCloudFormation、S3、CloudWatch Logs、Cost Explorerの購読が未有効なので現時点ではproductionへ出さない。先にlive isolation、no-ask、browser continuity、teardown、agent parity、公式cost receiptを全部通したproviderをv1で1つだけ採用する。provider選択が変わってもbusiness kernel、job state machine、database、billing、UXは変えない。
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
-**Current cursor:** provider decision、same-kernel unit groundwork、browser lease classification、read-only canaryのlocal packageは完了。次はCL00のTokyo Runtime/Browser/Profile/Identity実環境canaryであり、まだAgentCore本番実装完了ではない。
+**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWSはservice subscription未完了、DigitalOceanはAPI token未取得なので、実provider receiptだけが未完了である。local PASSをcloud完了とは数えない。
+
+### 0.1 固定済みの完成architecture
+
+```mermaid
+flowchart LR
+  U[利用者<br/>Telegram / Web / phone only] --> API[Railway API<br/>tenant auth・goal・status]
+  API --> PG[(Supabase PostgreSQL<br/>job・lease・checkpoint・receipt・cost)]
+  API --> Q[Inngest<br/>schedule・retry・tenant concurrency 1]
+  Q --> D[Cloud dispatcher<br/>release SHA・budget・effect fence]
+  D --> R[選定providerのtenant専用Runtime<br/>AWS AgentCore または DigitalOcean]
+  R --> K[既存Life Manager business kernel<br/>local/cloud共通]
+  R --> B[隔離Browser<br/>AgentCore Browser または Steel]
+  B --> BP[tenant/provider別browser state]
+  R --> ID[agent-owned identity / secret broker]
+  K --> PG
+  PG --> BILL[Stripe entitlement + CFO contribution ledger]
+```
+
+- backend/control planeは既存Railway API、Inngest、Supabase PostgreSQLで固定する。
+- browserはagent-ownedで、tenantごとにwriter 1つ、cookie/local storageを次の有限jobへ継続する。
+- Runtimeは利用者ごとの永久VMではなく、active job中だけ専用container/microVMを持つ。
+- durable truthはVMのRAMではなくPostgreSQL、browser state、opaque identity ref、公式receiptに置く。
+- AWSとDigitalOceanを同時運用しない。実canaryを先に完走した1 providerだけをv1で採用する。
+- 人間credential、approval、resume、CAPTCHA、KYCを通常jobの成功条件にしない。該当jobはterminal `not_applicable`にし、他のeligible jobを継続する。
+
+### 0.2 残りTODO — この順序が正本
+
+1. **Provider credentialを確定する。** AWSの4サービスがofficial APIでactiveになるか、DigitalOceanのleast-privilege token（session lifecycle＋`billing:read`）とmodel keyをSSOTへ保存する。console loginだけでは完了にしない。
+2. **A24 infrastructure canaryをlive実行する。** 2 tenant session、workspace隔離、同一Chromium profile継続、no-ask、人間入力0、両session remove→list 0、前後残高を公式receiptで確認する。
+3. **A24 agent parityをlive実行する。** `HEAD == origin/main == candidate SHA`を満たすreleaseで既存business kernel fixtureを実行し、local/cloudのreceipt hashとevidence hash、replay-zeroを一致させる。
+4. **Immutable releaseをpromoteする。** CL00–CL04、provider receipt、cost、old session 0、rollback targetをpromotion gateへ渡し、main由来の1 releaseだけを選ぶ。
+5. **Production migrationを固定順で適用する。** runtime base → identity refs → no-human browser → cost reservations → Free onboarding。二回目のschema SHA一致と公式DB readbackを得る。
+6. **内部tenantでphone-only end-to-endを完走する。** no-card Free onboarding → goal → cloud job → verified result → Telegram report。human input 0、external spend 0、session leak 0を確認する。
+7. **A25で5人のFree cohortを完走する。** cross-tenant leak 0、duplicate effect 0、cost cap breach 0、unbounded session 0と、4 journeyのlatency/costを測る。
+8. **A26で最初の$49 Founding Proを販売する。** first verified result後だけcheckoutを提示し、Stripe receipt、entitlement、cancel/refund、1 user contributionを公式readbackする。
+9. **A27–A28で25人へ拡大し、eval/self-improvementを回す。** activation、retention、conversion、p50/p75/p95、actual cost、settled contributionを基準にcandidateをcanary/rollbackする。
+10. **A29でMuse Connectorを追加する。** Life Manager APIとcloud coreが安定した後のdistribution channelであり、runtimeの代替にはしない。
 
 ## 1. このspecが固定すること
 
