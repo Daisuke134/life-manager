@@ -97,6 +97,19 @@ class RoundRobinTest(unittest.TestCase):
         calls = round_robin(targets, cap=2)
         self.assertEqual(calls, [("a", "a1"), ("b", "b1")])
 
+    def test_prioritizes_investment_readback_owner_before_other_adapters(self):
+        targets = {
+            "crowdworks-revenue-application": ["crowdworks-revenue-application:1"],
+            "investment-cross-venue-report": ["investment-cross-venue-report:1"],
+        }
+        calls = round_robin(
+            targets, cap=1, priority_owners={"investment-cross-venue-report"},
+        )
+        self.assertEqual(
+            calls,
+            [("investment-cross-venue-report", "investment-cross-venue-report:1")],
+        )
+
 
 class ReconcileTest(unittest.TestCase):
     def test_owner_with_reconcile_script_that_closes_the_row(self):
@@ -208,6 +221,45 @@ class ReconcileTest(unittest.TestCase):
         self.assertEqual(summary["closed"], 3)
         owners_called = [argv[argv.index("--occurrence") + 1].split(":")[0] for argv in calls]
         self.assertEqual(owners_called, ["owner-a", "owner-b", "owner-a"])
+
+    def test_reconcile_prioritizes_financial_adapter_when_wake_is_capped(self):
+        state = {
+            "crowdworks-revenue-application": ["crowdworks-revenue-application:1"],
+            "investment-cross-venue-report": ["investment-cross-venue-report:1"],
+        }
+        calls = []
+
+        def read_fenced():
+            return {k: tuple(v) for k, v in state.items() if v}
+
+        def run_call(argv, **_k):
+            calls.append(argv[1])
+            return 1, "held"
+
+        loops = {
+            "crowdworks-revenue-application": {
+                "domain": "growth",
+                "effect_reconcile": {
+                    "argv": ["skills/crowdworks/reconcile.py"],
+                    "occurrence_flag": "--occurrence",
+                },
+            },
+            "investment-cross-venue-report": {
+                "domain": "financial",
+                "effect_reconcile": {
+                    "argv": ["apps/life-manager/investment-core/reconcile.py"],
+                    "occurrence_flag": "--occurrence",
+                },
+            },
+        }
+        reconcile(
+            registry=_registry(loops), root=Path("/release"), cap=1,
+            run_call=run_call, read_fenced=read_fenced, log_path=None,
+        )
+        self.assertEqual(
+            calls,
+            ["/release/apps/life-manager/investment-core/reconcile.py"],
+        )
 
     def test_writes_one_jsonl_record_per_occurrence(self):
         import json

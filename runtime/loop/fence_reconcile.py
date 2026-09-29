@@ -109,9 +109,12 @@ def plan_targets(
     return targets, needs_adapter
 
 
-def round_robin(targets: Mapping[str, list[str | None]], cap: int) -> list[tuple[str, str | None]]:
-    """Interleave owners fairly so one owner's backlog cannot starve the others."""
-    owners = sorted(targets)
+def round_robin(
+    targets: Mapping[str, list[str | None]], cap: int, *,
+    priority_owners: set[str] | frozenset[str] = frozenset(),
+) -> list[tuple[str, str | None]]:
+    """Interleave owners fairly, serving explicit safety priorities first."""
+    owners = sorted(targets, key=lambda owner: (owner not in priority_owners, owner))
     queues = {owner: list(values) for owner, values in targets.items()}
     calls: list[tuple[str, str | None]] = []
     while len(calls) < cap and any(queues.values()):
@@ -149,7 +152,13 @@ def reconcile(
     fenced = read_fenced()
     checked = sum(len(occurrences) for occurrences in fenced.values())
     targets, needs_adapter = plan_targets(fenced, loops)
-    calls = round_robin(targets, cap)
+    priority_owners = frozenset(
+        owner_id for owner_id in targets
+        if isinstance(loops.get(owner_id), Mapping)
+        and loops[owner_id].get("domain") == "financial"
+        and isinstance(loops[owner_id].get("effect_reconcile"), Mapping)
+    )
+    calls = round_robin(targets, cap, priority_owners=priority_owners)
     closed = 0
     deferred = 0
     records: list[dict] = []

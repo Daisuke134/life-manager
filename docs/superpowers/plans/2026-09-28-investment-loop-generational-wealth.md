@@ -842,6 +842,20 @@ The entries above are historical readbacks. This section is the current source o
 
 **Latest owner readback（2026-09-29）**: production remains on `/Users/anicca/loops/releases/20260929T125257-751b6bef`; `alpaca-investment-live` is loaded-idle but its newest occurrence `18d9b0dfbc122c50-92300` is a pre-effect `host_admission_deferred:resource_capacity_busy` with exit `75`, no provider receipt, and no official readback. Paper, cross-venue, and validation loop IDs are still unknown in production. PR head `a6797f1511` run `36522790031` has already failed the same external OSS/PII gates while other checks continue. No order, funding, wallet mutation, paper receipt, P&L, or revenue occurred. **Cursor: external required gate → merge → paper/cross-venue immutable release → natural paper receipt.**
 
+**Investment-loop readback update（2026-09-29 11:24 UTC）**: docs PR `#6217` merged to main at `b68c85af7e3fcd11f8ee223a6332aacf4d26e81d` after Security Scan 9/9 PASS. The active runtime release remains the immutable main-derived SHA `47ddce0eb7faf1074c960250b481527b214b9e61`; all four investment owners are loaded with that SHA, and the fence reconciler was applied through the normal owner path. Paper has a clean natural pass but no provider receipt or official readback; the existing QQQ order is still accepted with zero fill. Live is currently deferred before provider effect by `resource_capacity_busy` (exit 75) and will retry on natural eligibility. Cross-venue remains held because its old occurrence has no provable terminal before-effect state; strategy validation has no natural occurrence yet.
+
+**Revenue truth（same readback）**: verified realised investment revenue is `$0/month`. The historical official live snapshot is net `-$0.15` with `1/30` completed round trips and `$100` cap; capital expansion remains false. No Binance transfer, wallet funding, live order, meme-coin signature, yield deposit, or new capital movement occurred. Paper acceptance and scheduler wakes are not revenue.
+
+**Remaining TODO in outcome order**:
+
+1. Natural fence wake and occurrence-level official readback; keep the old cross-venue effect held without receipt.
+2. Natural market-open paper readback for the existing QQQ order: terminal status, account, position, fill, and provider receipt; never blind-retry it.
+3. Natural live retry after the pre-effect capacity defer; confirm the admission boundary without manually waking or placing another order.
+4. Natural strategy-validation occurrence plus a new cross-venue receipt bound to the same run.
+5. Cost-complete net P&L after fees, slippage, funding/borrow, gas, and model cost; unknown evidence cannot become profit.
+6. Measure `30/30` positive, replay-zero natural round trips before any cap increase or external funding.
+7. Only after that compare Hyperliquid shadow, Solana/Pump.fun paper, and yield shadow, then consider a bounded canary. The `$10,000/month` target remains a target, not a guaranteed return.
+
 **投資cursor更新（2026-09-29 JST）**: 現在の`origin/main`は`5d8a135b62e370136262e18f045042cfbf3c2bf3`、production `current`は`/Users/anicca/loops/releases/20260929T140708-5d8a135b`。4つの投資registry row（live / paper / cross-venue report / strategy validation）は現行releaseに存在する。Alpaca公式readbackで、過去のpaper/live effect-unknown occurrenceは後続注文なしを確認し、両方の`effect_reconcile.py`は`PASS`。ただし最新paper wake `alpaca-investment-paper:18d9b3cf090ebdb0-4847`は`resource_capacity_busy`でprovider effect前にexit `75`となったため、paper receiptも利益もまだない。
 
 **Main merge後のproduction handoff（2026-09-29）**: PR #6186をmain `f30eba5244841f5761fa3b5ebe886782a39a3b43`へ統合し、immutable release `/Users/anicca/loops/releases/20260929T191325-f30eba52`を作成した。Life Manager owner pathでvalidation、paper、live、cross-venueの4 ownerだけをtarget applyし、全件`ok=true`・loaded release SHA/argv/env readback PASS。Alpaca旧effect-unknownは公式「occurrence後の注文なし」でresolveし、cross-venue旧occurrenceは証拠不足のためheld。**Current cursor: INV-002 — 自然paper wakeでorder/fill/account/position/provider receiptを1件取得。** 実現投資収益、cost-complete P&L、資金供給、live order、wallet mutationはまだない。
@@ -874,3 +888,9 @@ The entries above are historical readbacks. This section is the current source o
 5. strategy validation/cross-venueのoccurrence receiptを揃え、全cost込みnet P&Lを確定する。
 6. replay-zeroのpositive natural round tripを`30/30`測定するまで、cap増額・Binance送金・live・meme coin・yield depositを行わない。
 7. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。
+
+**main/release readback（2026-09-29 10:59 UTC）**: PR `#6214`をmerge commit `47ddce0eb7`でmainへ統合し、immutable release `20260929T195223-47ddce0e`を`current`へ切り替えた。live/paperは新SHAでnatural `pass`だがprovider receiptは無く、cross-venue/strategy-validationは旧SHAのためfleet apply完了待ち。次は残り2 ownerのloaded SHA/readback → fence公式readback → paper terminal readback → cost-complete P&L → `30/30`の順で進める。
+
+**4投資owner apply後のreadback（2026-09-29 11:05 UTC）**: 4投資ownerは全てrelease SHA `47ddce0eb7`へloaded済み。live/paperはnatural `pass`だがprovider receiptなし、cross-venue旧occurrenceは`effect_unknown` hold、strategy validationは未実行、fence dry-runは`no_pre_effect_terminal`で解放不可。次はfence reconcilerの新release適用/readback → 公式証拠が揃うまで旧occurrenceを保持 → 市場開場後paper terminal readbackの順で進める。
+
+**fence apply後のreadback（2026-09-29 11:19 UTC）**: `lm-fence-reconciler`のtarget applyはinstall event `c9587c9f91ae6a049c2ab5be`でPASSし、loaded SHAは`47ddce0eb7`。直後の自然occurrenceはまだ旧release由来で、cross-venue `effect_unknown`は`no_pre_effect_terminal`のためheld。次は自然fence wake → market-open後の同一paper order terminal readback → validation/cross-venue receipt → cost-complete P&L → `30/30`。
