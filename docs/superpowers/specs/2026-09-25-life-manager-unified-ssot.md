@@ -821,6 +821,8 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 残りの順序は、(a) このbranchのテスト・spec更新をpush、(b) main/PR受入れ、(c) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(d) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(e) 全platform loopの暗黙browser依存を明示identityへ収束、である。
 
+現行source readbackは、専用worktreeのbranch `fix/lm-release-boundary-20260929`（HEAD `5a060e9d92`、push済み、PRなし）である。`origin/main` は `7a093f66f1` まで進んでおり、PR前にこの最新mainを取り込む必要がある。`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）だが、`./bin/lm-loop doctor` は `ok=false` で、未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision` が1件残る。これはCoconala修正branchから勝手に削除・再起動せず、該当ownerでregistryへ収束させる別promotion TODOである。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
