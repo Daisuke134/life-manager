@@ -134,7 +134,10 @@ if [ -n "$RESUME" ]; then
   # the "already confirmed, skip prepare/CP2" shortcut.
   MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
   echo "$TS resume_draft $R_ID model-check: $MODEL_CHECK" >> "$LOG"
-  if printf '%s' "$MODEL_CHECK" | grep -q '^MODEL_MISMATCH'; then
+  # A draft whose package never finished uploading (Hook Lab 8123079349 v1.0.4,
+  # 2026-09-29: all tabs red, workspace blank, no confirmed model) cannot be
+  # finished from CP1 either -- re-prepare it on the same agent_id like a mismatch.
+  if printf '%s' "$MODEL_CHECK" | grep -qE '^(MODEL_MISMATCH|MODEL_UNKNOWN no-confirmed-model-yet)'; then
     if [ -n "$R_SKILL_DIR" ] && [ -n "$R_ICON" ]; then
       # Same-agent model switch: re-prepare on the SAME agent_id with the
       # CURRENT LISTING model (CP1_AGENTIC.md "Switching an EXISTING agent's
