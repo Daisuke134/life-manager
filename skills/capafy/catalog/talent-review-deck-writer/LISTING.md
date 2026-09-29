@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 生産性 · tags: talent review, leadership deck, calibration
+Primary Model: DeepSeek V4.1 Flash · category: 生産性 · tags: talent review, leadership deck, calibration
 
 RENEWAL GATE
 R1 recurring input : Each review cycle brings new employees, evidence, ratings, promotion questions, succession risks, and leadership decisions.
@@ -6,10 +6,12 @@ R2 staleness       : The prior cycle's deck cannot represent the current cycle's
 day-8 answer       : New performance evidence and calibration decisions make the previous review deck stale.
 demand evidence    : No directly matching current Capafy result was returned after six English/Japanese marketplace searches. Closest proven structure is the Slide Maker winner with 22 observed sales; this listing copies its $9.99/week and $24.99/month ladder while filling the documented HR/talent-deck catalog gap.
 
+## 2026-09-29 repriced: charge more/spend less policy. Week $9.99/month $24.99 unchanged — already matches "Spatial Deck" (agent `1977680754`, category 27) and the Slide Maker precedent (#6153). Adds the missing yearly row at $149.99, matching "MLB Baseball Analysts" (agent `5315711748`, 35 sales).
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 20 | 24h |
-| month | $24.99 | 60 | 72h |
+| week | $9.99 | 20 | No Free Trial |
+| month | $24.99 | 60 | No Free Trial |
+| year | $149.99 | 720 | No Free Trial |
 
 ## Title
 Talent Review Deck Writer — Evidence to Slides

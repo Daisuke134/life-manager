@@ -1,13 +1,16 @@
-Primary Model: Claude Sonnet 4.6 · category: 分析 · tags: user research, product strategy, interviews
+Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: user research, product strategy, interviews
 
 R1 recurring input : Each research cycle supplies NEW interview notes, transcripts, objections, and the next product decision.
 R2 recurring output: Each cycle produces a fresh evidence-ranked decision memo and next-test queue.
 day-8 answer       : New interviews and experiment results make the previous synthesis stale.
 demand evidence    : Demand is not yet verified by a paid O13 order; treat this as a measured market experiment and retire or revise it if usage stays zero.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $9.99 only, Claude Sonnet 4.6 (no yearly). Matches "MLB Baseball Analysts" (agent `5315711748`, category 2, 35 sales): week $9.99/month $24.99/year $149.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 20 | No Free Trial |
+| week | $9.99 | 7 | No Free Trial |
+| month | $24.99 | 20 | No Free Trial |
+| year | $149.99 | 192 | No Free Trial |
 
 ## Title
 User Interview Synthesizer — Signal to Decisions

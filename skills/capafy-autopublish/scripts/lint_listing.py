@@ -88,7 +88,7 @@ def main():
     is_download = re.search(r"\|\s*download\s*\|\s*\$?[0-9.]+\s*\|", md, re.I)
     if not is_download:
         pricing_rows = re.findall(
-            r"\|\s*(day|week|month)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|",
+            r"\|\s*(day|week|month|year)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|",
             md,
             re.I,
         )
