@@ -825,6 +825,10 @@ def test_raw_fix_display_model_selects_preset_and_saves() -> None:
                 return {"ok": True, "value": self._combo_value}
             if "display-model-option-count" in expression:
                 return {"ok": True, "x": 1, "y": 2}
+            if "submit-button-count" in expression:
+                # No finalReviewSubmitButton on this page state -- distinct
+                # from a page where the tab already flipped to "submit".
+                return {"ok": False, "reason": "submit-button-count", "count": 0}
             if "draft-save-count" in expression:
                 return {"ok": True, "x": 3, "y": 4, "disabled": False}
             if "no-agent-meta" in expression:
@@ -840,8 +844,47 @@ def test_raw_fix_display_model_selects_preset_and_saves() -> None:
     module._verify_official_display_model = lambda *_a: True
     assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
     assert ("Input.insertText", {"text": "DeepSeek V4.1 Flash"}) in calls
-    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 1.0, "y": 2.0, "button": "left", "clickCount": 1}) in calls
     assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 3.0, "y": 4.0, "button": "left", "clickCount": 1}) in calls
+
+
+def test_raw_fix_display_model_skips_save_when_tab_already_flipped_to_submit() -> None:
+    """2026-09-29 regression (Agent 4973250899): once every tab is valid, the
+    model combo's own commit can flip finalReviewSubmitButton's label from
+    下書きを保存 to 審査に提出 before this function clicks anything -- the
+    now-absent 下書きを保存 button then reads draft-save-count=0 and the old
+    code raised 'ambiguous draft-save button' even though the model pick had
+    already persisted. Must skip the click instead of raising."""
+    module = load_module()
+    calls = []
+
+    class _Page:
+        def __init__(self):
+            self._combo_value = "Claude Sonnet 4.6"
+
+        def evaluate(self, expression):
+            if "display-model-combobox-count" in expression:
+                return {"ok": True, "value": self._combo_value}
+            if "display-model-option-count" in expression:
+                return {"ok": True, "x": 1, "y": 2}
+            if "submit-button-count" in expression:
+                return {"ok": True, "label": "submit", "text": "審査に提出"}
+            if "draft-save-count" in expression:
+                pytest.fail("must not query the absent draft-save button once the tab is valid")
+            if "no-agent-meta" in expression:
+                return {"ok": True, "agentId": "8123079349"}
+            pytest.fail(f"unexpected evaluate: {expression}")
+
+        def call(self, method, params=None):
+            calls.append((method, params))
+            if method == "Input.insertText":
+                self._combo_value = params["text"]
+
+    module.RAW_SECTION_POLL_S = 0
+    module._verify_official_display_model = lambda *_a: True
+    assert module._raw_fix_display_model(_Page(), "DeepSeek V4.1 Flash") is True
+    assert ("Input.insertText", {"text": "DeepSeek V4.1 Flash"}) in calls
+    assert ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 1.0, "y": 2.0, "button": "left", "clickCount": 1}) in calls
+    assert not any(m == "Input.dispatchMouseEvent" and p.get("x") == 3.0 for m, p in calls)
 
 
 def test_raw_fix_display_model_fails_closed_without_a_matching_preset() -> None:

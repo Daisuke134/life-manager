@@ -1136,17 +1136,29 @@ def _raw_fix_display_model(page, display_model):
         if not isinstance(combo_after, dict) or combo_after.get("value") != display_model:
             raise RuntimeError(f"display-model combobox did not commit {display_model!r} ({combo_after})")
 
-        save = page.evaluate(_draft_save_button_expression())
-        if not isinstance(save, dict) or not save.get("ok"):
-            raise RuntimeError(f"ambiguous draft-save button ({save})")
-        if save.get("disabled"):
-            raise RuntimeError("draft-save button is disabled")
-        for kind in ("mousePressed", "mouseReleased"):
-            page.call("Input.dispatchMouseEvent", {
-                "type": kind, "x": float(save["x"]), "y": float(save["y"]),
-                "button": "left", "clickCount": 1,
-            })
-        print("draft save: clicked")
+        # Same race as the workspace-fields fix above (2026-09-28): once every
+        # tab is valid, finalReviewSubmitButton's own onChange can flip its
+        # label from 下書きを保存 to 審査に提出 the instant the model combo
+        # commits -- before this function ever clicks anything. Querying for
+        # the now-absent 下書きを保存 button then returns count=0
+        # ("ambiguous draft-save button") even though the combo pick already
+        # persisted. Check the shared submit/draft button first and skip the
+        # click when the tab is already valid; CP3 alone submits.
+        submit_state = page.evaluate(_draft_save_or_submit_button_expression())
+        if isinstance(submit_state, dict) and submit_state.get("ok") and submit_state.get("label") == "submit":
+            print("display model: tab already valid (審査に提出 visible) -- not clicking draft-save")
+        else:
+            save = page.evaluate(_draft_save_button_expression())
+            if not isinstance(save, dict) or not save.get("ok"):
+                raise RuntimeError(f"ambiguous draft-save button ({save})")
+            if save.get("disabled"):
+                raise RuntimeError("draft-save button is disabled")
+            for kind in ("mousePressed", "mouseReleased"):
+                page.call("Input.dispatchMouseEvent", {
+                    "type": kind, "x": float(save["x"]), "y": float(save["y"]),
+                    "button": "left", "clickCount": 1,
+                })
+            print("draft save: clicked")
         time.sleep(3)
     else:
         print("display model already:", display_model)
