@@ -708,6 +708,12 @@ TODO（何を・どう直すか）
 
 **投資lane再開run最終audit（2026-09-29）**: current candidate `e9b9a66b66`のAlpaca `200/200`、investment-core `101/101`、doctor PASSを確認。shared contract gateは同じCapafy mismatch、loaded release/admissionは旧`borrow/support`、host DBはinvestment reservation 0・stale claim 0、自然wakeはprovider effect前defer。投資lane内の安全な修正と証拠化は尽くし、external gate greenなしにrelease bypass・DB操作・資金投入は行わない。
 
+## 5.5 投資OSS検証の再確認（2026-09-29）
+
+公式OSSの共通手順は、backtest/research → paper/dry-run → official readback付きの小額live検証であり、OSSやpaper損益自体は利益保証ではない。[Freqtrade](https://docs.freqtrade.io/en/stable/)はdry-runをlive前に要求し、[Hummingbot](https://github.com/hummingbot/hummingbot)はpaper tradeとlive executionを分離する。[LEAN](https://github.com/QuantConnect/Lean)と[QuantConnectのlive reconciliation docs](https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation)はfill・fee・slippage・market impactの差を明記し、[Alpacaのpaper docs](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)はpaperがmarket impact等を再現しないと説明する。よって投資loopはweb上の成功談や29回の手動wakeを利益証拠にせず、`main由来immutable release → Life Manager自然paper receipt → cost-complete net P&L → 30 natural samples → bounded promotion`を維持する。
+
+最新の投資専用再検証はAlpaca `243/243`、`./bin/lm-loop-contract ok=true`（catalog `14`、registry `174`、mapped `101`、errors `[]`）、`git diff --check` PASS、worktree clean。生成された作業用`risk-day.json`は除去した。PR #6186のFAILは投資差分外の共有`Loop control contracts`と`OSS self-contained boundary`であり、投資laneはそれらを修正しない。既存QQQ paper orderは`accepted`・`filled_qty=0`で再送せず、実現利益は`$0`。**現在cursorは、投資sourceの検証完了から、required gate green後のmain統合・immutable release・Life Manager apply/readbackへ進むこと。**
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
