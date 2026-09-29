@@ -1534,6 +1534,14 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - occurrence `alpaca-investment-paper:18d9d968a03d58e0-30485`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然起動したが、`2026-09-29T17:02:51Z`に`exit_code=75`、`status=blocked`、`next_action=retry_after_eligibility`、`blocker=host_admission_deferred:resource_capacity_busy`で終了した。`provider_receipt_id=null`、`official_readback_ref=null`、provider effect前のdeferであり、新規注文・約定・資金移動はない。schedulerはloadedで`runs=15`である。
 - このattemptでは新しいdecision receiptは生成されず、最新decisionは`cab044dcdcbf2c3e65bea2fa12fc3529e36f874f070b8a3021df777637a577ab`の`NO_TRADE / decision_session_consumed`（`decision_session=2026-09-28`）のままである。`AT-13`未完、cursor不変、実現投資収益`$0/月`である。
 
+**AT-13 natural retry・storage診断readback（2026-09-30 02:09 JST）**:
+
+- `alpaca-investment-paper`の自然occurrence `18d9d9930fadfb38-34603`は`2026-09-29T17:06:16Z`に`exit_code=0`／`status=pass`／`next_action=none`で終了した。直前には`18d9d9872b548ea8-33253`、`18d9d9898eff41f8-33667`も一時`running`として記録されたが、いずれもprovider receiptは記録されていないため、重複注文とは扱わない。
+- 新しいdecision receipt `8cd1e00dbae63acc6704daa8b7d589fac26b01422127fed4e4431236552acc2f`（`2026-09-29T17:06:11Z`）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`。exit orderは生成されていない。
+- Alpaca公式paper read-only GET（`2026-09-29T13:09:14-04:00`）は`orders_count=3`、cash `$99,986.77`、equity `$99,996.70`、QQQ long `qty=0.013493253`、current `$736.0375`、market value `$9.93154`、unrealized P&L `-$0.05846`を返した。新規order・資金移動はなく、paper含み損益は実現収益ではない。
+- runtime stderrには`No space left on device`、`database is locked`、`control_busy`が記録された。空き容量確認は`/System/Volumes/Data`で`557MiB`（使用率`100%`）だったため、再生成可能で古い投資用tmpだけを`/Users/anicca/.Trash/lm-investment-stale-20260930T0208/`へ移動した。production state、credentials、wallet、worktree、Capafy tmpは触っていない。cleanup後も空きは`295MiB`でstorage制約は残るため、これは解消済みとは扱わない。
+- `AT-13`未完、cursor不変、検証済み実現投資収益は`$0/月`である。新しいcompleted daily sessionのexit decision receiptが出るまで、手動wake・手動sell・再送はしない。
+
 **AT-13 natural retry readback（2026-09-30 01:57 JST）**:
 
 - occurrence `alpaca-investment-paper:18d9d91dd3339598-20252`はrelease SHA `3975ae8996cab3325f514746a32c915f9935fddf`で自然retryされ、`2026-09-29T16:57:49Z`に`exit_code=0`／`status=pass`／`next_action=none`で終了した。直前の`18d9d91a7fd05e70-19822`はprovider effect前の`host_admission_deferred:resource_capacity_busy`（exit `75`）であり、注文・約定・資金移動はない。schedulerはloadedで`runs=14`である。
