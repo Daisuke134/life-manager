@@ -2871,6 +2871,24 @@ productionの`ai.anicca.life-manager-disk-cleanup`を停止・再起動せず、
 6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いにしない。
 
+## 現在の正本cursor（2026-09-30、容量回復後のLancers公式read-only再確認）
+
+容量回復後、稼働中の`ai.anicca.lancers-revenue-work-sync`（shared browser owner）を停止・再起動せず、CDP endpoint `localhost:9227`の`/json/version`と`/json/list`だけをread-only取得した。公式tabは`https://www.lancers.jp/mypage`を示すが、titleは全て`Human Verification`だった。稼働中Work Syncのstderr/stdoutにも`browser_attach_busy`、`browser_connect_failed`、`human_verification_required`境界が残っている。
+
+- provider効果: 今回0件。応募・返信・納品・RyuさんDM再送はしていない。共有attach lockを奪う追加preflightは行っていない。
+- 容量: branch側のread-only gateは`headroom_ready=true`だが、productionは旧SHAのまま。旧production cleanupの`ENOSPC`修正を本番で証明したreceiptはまだない。
+- 判定: Lancersは認証済みcookieの存在だけでpromoteせず、Human Verification解除と同一accountの公式read-only preflight 2回が次のprovider境界である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **完了（read-only確認済み）** branchの容量gate・契約・対象loop回帰をpartitioned evidenceとして保存した。production apply前に容量を再確認する。
+2. **未完（現在cursor）** Lancersの公式Human Verification解除後、同一shared browser ownerでread-only preflightを2回通し、現行schemaの`contracts.json`を公式readbackから再生成する。自動突破・手編集・応募はしない。
+3. **未完** main受入→immutable release→targeted production applyを、branchがmainの祖先で全外部receiptが揃った後にだけ実行する。
+4. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt、完全inventory、canary、rollback、settlement、replay-zeroを取得する。Coconala dashboard/profile readbackだけでは完了扱いにしない。
+5. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
+6. **未完** release後のcleanup natural terminal receiptと旧`ENOSPC`境界の非再発を確認する。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、今回も送信完了扱いにしない。
+
 ## 現在の正本cursor（2026-09-30、cleanup lock競合のdeferred分類後・最新）
 
 productionの`ai.anicca.life-manager-disk-cleanup`は、直近の自然runでsafe sweepへ到達する前に`lm-loop-run: production apply is already owned`を返し、launchdのlast exit codeは1だった。これはapply中のlabel lock競合であり、cleanup候補を削除した証拠ではない。現在のhost空き容量は約242MiBで、共通floor 512MiBを下回る。稼働中のLancers Chromium、認証・cookie、production state、releaseは停止・削除していない。
