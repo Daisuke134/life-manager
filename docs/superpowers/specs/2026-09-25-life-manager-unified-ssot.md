@@ -2840,6 +2840,7 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 - Lancers実測は依然として`human_verification_required`でprovider効果0。旧`contracts.json`の`logged_in`欠落は補完せず、次の公式read-only preflightで再生成する。
 - 今回のread-only再観測でも`ELZ-L01`は`failed_read=1`、`logged_in=true`、`human_verification_required`。認証済みbrowserの正規URLは`https://www.lancers.jp/mypage`、titleは`Human Verification`で、本文は人間確認とセキュリティチェックの完了を要求する。自動突破・応募・返信・納品は行わない。
 - 実装済み: Coconala／Lancers／CrowdWorks／Mercor各runtimeに、候補store→account-bound `PlatformLifecycleAdapterRegistry`→shared lifecycleの明示bridgeを追加し、provider未登録・認証context不足をeffect前にholdする。runtime／shared-cycle回帰は全てPASS。これは実provider factoryの外部receipt取得完了を意味しない。
+- bridge後のGig全体再実測は`1579 passed, 2 failed`で、失敗は両方とも`disk_headroom_low`（host空き303MiB、必要512MiB）のdisk guardテスト。provider／bridgeの失敗ではなく、稼働中Chromium cacheを止めずに追加削除できる安全な再生成物が不足しているため、production容量修正の完了証拠にはしない。
 - account-bound authorizationの現物照合では、Lancersに`submit_proposal`のapproved-browser receiptだけがあり、CrowdWorksはaccount stateが`input_required`、Coconalaはonboarding receipt不在、Mercorはauthenticated account readback不在。したがって4 providerの実lifecycle factory・canary・settlement receiptは未接続のままholdする。
 
 ### 最終原子TODO（この節が唯一の実行順正本）
