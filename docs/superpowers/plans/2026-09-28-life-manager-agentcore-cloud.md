@@ -4,7 +4,7 @@
 
 **Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in AWS AgentCore, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
 
-**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies.
+**Architecture:** Keep the existing Railway ingress, Inngest scheduler, Supabase PostgreSQL job/receipt protocol, and Stripe billing. Add AWS Bedrock AgentCore Runtime V2 for active-job microVM isolation, AgentCore Browser Profiles for agent-owned browser continuity, AgentCore Identity for agent-owned outbound credentials, and S3/CloudWatch for evidence. A tenant has at most one active runtime lease; compute is created only for finite jobs and all durable truth remains outside VM RAM. Human credentials, approvals, takeover, and resume are not product dependencies. A tenant-bound shared-browser view and emergency stop are observability controls; any optional break-glass writer is single-owner and excluded from automated success and revenue.
 
 **Tech Stack:** Node.js 20 CommonJS business kernel, TypeScript AgentCore entrypoint, `@aws/agentcore@0.30.0` pinned, AWS SDK v3, AgentCore Runtime/Browser/Identity, Inngest 4, PostgreSQL/Supabase, Stripe, S3, CloudWatch, `node:test`.
 
@@ -15,6 +15,7 @@
 - No human in loop: normal jobs never emit `ask`, `approve`, or `human_wait`; deterministic policy and provider readback decide execution.
 - Human credentials, login, OAuth, CAPTCHA, 2FA, 3DS, KYC, interviews, signatures, browser takeover, and resume callbacks are never required by the default product path. Select an agent-owned/API alternative or close the candidate as `not_applicable: requires_human_principal` and continue.
 - Existing `handoff_required` browser rows are migrated explicitly in Task 6 to terminal `not_applicable` records; do not silently reinterpret or resume stored production rows.
+- Meta Muse is an architecture benchmark with a persistent isolated Linux VM, shared full browser, credential store, generated tools, and background goals. Muse Connector is a separate future distribution interface; never treat it as Life Manager compute.
 
 ## Current state and scope
 
@@ -31,7 +32,7 @@
 2. The same immutable business-kernel SHA runs locally and in AgentCore.
 3. Each active tenant run has a dedicated AgentCore microVM; idle tenants consume no runtime VM.
 4. Agent-owned browser login survives across jobs through a tenant/provider Browser Profile; no human credential is imported.
-5. Actions complete with zero credential requests, confirmations, approvals, browser takeover, or resume steps. Human-principal-only opportunities are excluded without stopping other work.
+5. Actions complete with zero credential requests, confirmations, approvals, required browser takeover, or resume steps. A user can observe and emergency-stop a browser from a phone. Optional break-glass control never counts as automated completion or revenue; human-principal-only opportunities are excluded without stopping other work.
 6. Cross-tenant access, duplicate execution, uncertain-effect replay, unbounded session, and budget overrun all fail closed.
 7. Free costs cannot exceed their deterministic caps; every paid user has a complete revenue/cost contribution row.
 8. Five-user and then 25-user cohorts pass operational gates.
@@ -284,7 +285,7 @@
 - Modify: `apps/life-manager/lib/browser-job-runtime.js`
 - Test: `apps/life-manager/lib/browser-job-runtime.test.js`
 
-**Produces:** job-scoped browser sessions, agent-owned tenant/provider profiles, zero-human execution, and terminal exclusion of human-principal-only opportunities.
+**Produces:** job-scoped browser sessions, agent-owned tenant/provider profiles, zero-human execution, tenant-bound live observation/emergency stop, and terminal exclusion of human-principal-only opportunities.
 
 - [ ] **Step 1: Write RED browser/profile tests**
 
@@ -294,9 +295,17 @@
 
   Assert policy-allowed agent-owned actions expose no credential request, ask, approve, takeover, or resume state. Human credential/profile input and sites requiring human login, OAuth, CAPTCHA, 2FA, 3DS, KYC, interview, or signature return `not_applicable: requires_human_principal`, make no external effect, and do not stop another eligible job.
 
+- [ ] **Step 2a: Write RED shared-browser observability tests**
+
+  Require a tenant-bound opaque viewer ref, read-only activity stream, and emergency stop. Cross-tenant viewer refs fail before provider calls. If optional break-glass writing is enabled, it must first stop the agent writer under the same lease generation, record `manual_external`, exclude the result from automated success/revenue, and never create a resume callback.
+
 - [ ] **Step 3: Implement the AgentCore driver**
 
   Map the existing provider-neutral browser contract onto StartBrowserSession, automation WebSocket, SaveBrowserSessionProfile, and StopBrowserSession. Accept only server-owned profile refs and agent-owned principals; never expose AWS credentials or raw profile data.
+
+- [ ] **Step 3a: Implement shared-browser observation without a completion dependency**
+
+  Expose phone/web read-only live view and emergency stop through server-owned opaque refs. Do not expose cookies, credentials, raw Browser Profile data, AWS URLs, or a second writer. Keep full browser recording in the evidence timeline.
 
 - [ ] **Step 4: Migrate legacy handoff rows without resuming them**
 
@@ -310,7 +319,7 @@
 
 - [ ] **Step 6: Run real no-human canary**
 
-  On a dedicated test tenant, prove one agent-owned read-only browser action completes with human inputs 0 and read back the same tenant/profile binding. Probe one synthetic human-principal requirement and require provider effect 0, terminal `not_applicable`, another queued job completed, and active sessions=0 afterward.
+  On a dedicated test tenant, prove one agent-owned read-only browser action completes with human inputs 0 and read back the same tenant/profile binding. Observe it through the phone/web viewer and exercise emergency stop on a separate inert run without credential exposure or a second writer. Probe one synthetic human-principal requirement and require provider effect 0, terminal `not_applicable`, another queued job completed, and active sessions=0 afterward.
 
 ---
 
@@ -477,7 +486,7 @@
 
 ---
 
-### Task 12: Expand to 25 Free tenants, then add Muse as distribution (R02)
+### Task 12: Expand to 25 Free tenants, then add Muse Connector as distribution (R02)
 
 **Files:**
 - Create: `apps/life-manager/lib/cloud-cohort-gate.js`
@@ -486,7 +495,7 @@
 - Create after Meta access: `apps/life-manager/connectors/meta-ai/openapi.yaml`
 - Create after Meta access: `apps/life-manager/connectors/meta-ai/README.md`
 
-**Produces:** measured cohort economics and, only after the API is stable and Meta allows publishing, a connector that invokes Life Manager rather than replacing it.
+**Produces:** measured cohort economics and, only after the API is stable and Meta allows publishing, a Muse Connector that invokes Life Manager rather than replacing it. Meta Muse itself remains a competing personal cloud agent and architecture benchmark, not the runtime used by this plan.
 
 - [ ] **Step 1: Define cohort gates in code**
 
@@ -549,7 +558,7 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A15 | todo | One Inngest cloud-job function | tenant concurrency 1; event carries IDs only |
 | A16 | todo | Crash/cold-start recovery | checkpoint resume with duplicate effect 0 |
 | A17 | todo | AgentCore Browser Profile adapter | agent-owned tenant/provider profile and exact session release |
-| A18 | todo | No-human browser policy and legacy-state migration | human credential/callback/provider effect 0; stored `handoff_required` closes `not_applicable` without replay |
+| A18 | todo | No-human browser policy, shared-browser observation, and legacy-state migration | human credential/callback/provider effect 0; phone/web live view + emergency stop; cross-tenant view 0; optional break-glass excluded from automated success/revenue; stored `handoff_required` closes `not_applicable` without replay |
 | A19 | todo | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
 | A20 | todo | AgentCore Identity provider and migration-on-use | agent-owned opaque refs only; human refs rejected; revoke closes dependent jobs without asking |
 | A21 | todo | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |

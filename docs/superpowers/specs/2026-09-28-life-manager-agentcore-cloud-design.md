@@ -17,7 +17,7 @@
 - VM停止後に何を正本として再開するのか
 - OAuth/CAPTCHAをスマホだけでどう完了するのか
 - 無料利用者のクラウド費をどう制限するのか
-- Muse Connectorがruntimeなのかdistributionなのか
+- Meta Muse本体のSecure VMから何を学び、Muse Connectorをどう分離するのか
 
 本specでこの曖昧さを終わらせる。以後、provider変更は本specのDecision gateを満たす証拠がある場合だけ行い、会話ごとには変更しない。
 
@@ -28,7 +28,7 @@ Life Managerは通常のjobで利用者に許可・承認・判断を求めな�
 - effect fenceは人の承認待ちではない。決定的policy、spend cap、idempotency key、最新state、公式receipt/readbackが自動でallow、deny、reconcileを決める。
 - policy内のactionは質問せず実行する。policy外のactionは質問せず`policy_denied`として閉じ、別のeligible jobを続ける。
 - 人間のcredential、login、OAuth、CAPTCHA、2FA、3DS、KYC、面接、署名を要求する経路は既定product loopへ入れない。agent-owned identity/APIで完結する代替を選び、無ければ`not_applicable: requires_human_principal`でterminalにして別のeligible jobを続ける。
-- 人間に最後の操作を委ねる場合、その操作はLife Manager loop外であり、Life Managerの完了・収益・成功に数えない。待機state、接続依頼、approve/resume callbackを作らない。
+- shared browserの閲覧、emergency stop、利用者が自発的に始めるbreak-glass controlは観測・復旧面として提供できる。ただしagent writerをleaseで停止して単一ownerにし、Life Managerの完了・収益・成功、credential取得、resume条件には数えない。待機state、接続依頼、approve/resume callbackを通常loopに作らない。
 
 ## 2. 単一推奨
 
@@ -65,6 +65,8 @@ flowchart LR
 
 これはGrok BotやMuseの「自分専用クラウドコンピュータ」と同じ利用者体験を与えながら、永続VMのコストと単一障害点を避ける。
 
+Meta Museは比較対象として公式に、各利用者から独立したpersistent isolated Linux VM、full browser、filesystem、terminal、generated tools、Secure Credentials Store、schedule/event driven background workを持つ。ここでいうpersistentは同じ人格、files、browser、memory、taskが継続する利用者契約であり、idle CPUを24時間占有することまでは意味しない。Life Managerはこの利用者契約を採用し、低層computeはfinite AgentCore sessionと外部durable stateで実装する。
+
 ### 2.3 既存loopを作り直さない境界
 
 Cloud版は新しいagentをもう1体作らない。既存Life Managerのloopを、別のhostから呼ぶ。
@@ -99,7 +101,8 @@ local版とCloud版の差は「誰が起こすか」「どこで隔離実行す�
 | [Daytona persistence](https://www.daytona.io/docs/en/persistence/) | persistent filesystem、VM memory pause/resume、snapshot/forkを持つ | 同上 |
 | [Fly Machines suspend/resume](https://fly.io/docs/reference/suspend-resume/) | Firecracker snapshotで高速resume、suspend中はstorage課金だけ。ただしsnapshotは保証されずcold start必須 | 運用責任が大きいため不採用 |
 | 自前Kubernetes/Firecracker + Steel | 最大の自由度 | isolation、patch、autoscale、browser、viewer、vault、auditを全部所有するためv1では不採用 |
-| [Meta AI / Muse Connectors](https://dev.meta.ai/products/connectors) | 既存REST APIをMeta AIが呼ぶtoolへ変換するdeveloper preview。公開distributionは後段 | runtimeではない。Life Manager API完成後のdistribution channel |
+| [Meta Muse](https://ai.meta.com/muse/) / [security architecture](https://www.meta.com/help/1047255454427887/) | 各userに独立したpersistent isolated Linux VM、full shared browser、storage/CPU/memory、terminal/filesystem、自作tool、Secure Credentials Store、schedule/event background work、activity logを持つ | 直接借りるruntimeではないが、Life Managerのlogical computer、credential broker、shared-browser observabilityの主要benchmark |
+| [Meta AI / Muse Connectors](https://dev.meta.ai/products/connectors) | 既存REST APIをMeta AIが呼ぶtoolへ変換するdeveloper preview。Meta Muse本体とは別のdistribution interface | Life Manager API完成後のdistribution channel |
 
 ### 3.2 推論と決定理由
 
@@ -115,6 +118,8 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 
 DigitalOcean Managed Agentsは概念的には非常に近く、unattended triggerが`ask`を持たない点はLife ManagerのNo-human-loopと整合する。しかし現行の同時session上限、run lifecycle webhook/VPCの欠如、tenant別login stateをephemeral workerから独立して管理する契約を確認できない点からproductionの第一選択にはしない。provider adapter境界を維持し、これらの実測契約が揃えば再評価する。
 
+競合runtimeの詳細な事実、推定、非公開部分、Life Managerへの採否は[`docs/research/cloud-agent-runtime-benchmark.md`](../../research/cloud-agent-runtime-benchmark.md)を正本とする。Meta Muse本体をMuse ConnectorやMuse Codeと混同しない。
+
 ## 4. componentの責任
 
 | Component | 唯一の責任 | 正本にしないもの |
@@ -123,7 +128,7 @@ DigitalOcean Managed Agentsは概念的には非常に近く、unattended trigge
 | Inngest | cron/event wake、再試行、tenant concurrency=1 | effectが成功したかの判断 |
 | Supabase PostgreSQL | tenant、goal、`lm_runtime_jobs`、lease、checkpoint、receipt、entitlement、cost ledger | credential値、browser cookie平文 |
 | AgentCore Runtime V2 | 有限jobを同一business kernel SHAで実行 | 永久memory、最終receiptの自己申告 |
-| AgentCore Browser | job中の自律browser automationとprovider readback | 永続的なbusiness state、人間操作 |
+| AgentCore Browser | job中の自律browser automation、provider readback、read-only live observation、emergency stop | 永続的なbusiness state、human resume dependency |
 | Browser Profile | tenant/provider別のagent-owned cookieとlocal storage | human credential、複数tenant共有、receipt |
 | AgentCore Identity | agent-owned OAuth refresh token/API key、agent identity | human credential、user goal、economic ledger |
 | S3 | artifact、screenshot、trace、session replay。DBにはhash/refだけ | query可能なjob state |
@@ -157,7 +162,7 @@ DigitalOcean Managed Agentsは概念的には非常に近く、unattended trigge
 2. browserしかない場合、tenant/providerに紐づくBrowser Profileで新しいBrowser sessionを開始する。
 3. 外部作用直前に最新stateとeffect fenceを再読込し、policy内なら質問せず実行する。
 4. providerがhuman login、OAuth、CAPTCHA、2FA、3DS、KYC、面接、署名を要求したら外部作用を開始せず、その候補を`not_applicable: requires_human_principal`で閉じてagent-owned/API候補へ移る。
-5. user credential input、Live View takeover、approve/resume callbackは実装しない。human principalを要求する入力はprovider call 0で拒否する。
+5. user credential input、approve/resume callbackを通常jobに実装しない。read-only Live Viewとemergency stopは許す。任意break-glass takeoverを提供する場合はagent writerを停止し、手動結果をautomated success/revenueから除外し、終了後も元jobを人間待ちでresumeしない。human principalを要求する入力はprovider call 0で拒否する。
 6. 作用後はproviderのreceipt/readbackを取得する。取得できない場合は`effect_unknown`へ隔離し、自動再送しない。
 7. session stateをBrowser Profileへ保存してsessionを終了する。
 
@@ -173,6 +178,7 @@ DigitalOcean Managed Agentsは概念的には非常に近く、unattended trigge
 - artifactは`tenant/<tenant_id>/...` prefixとKMSで分離し、DBにはrefとSHA-256だけ置く。
 - release SHAが承認済みSHAと違うruntimeは、state readやeffect前にfail closedする。
 - forged cross-tenant refのtestでは、backing provider callが0回であることを確認する。
+- shared browser viewerはtenant-bound opaque session refだけを受け取り、credential/cookie/profile raw dataを返さない。viewer、stop、break-glass writerは同じlease generationを検証し、agentとhumanの同時writerを作らない。
 
 ## 7. 無料提供と販売
 
@@ -284,7 +290,7 @@ Free→Paid conversionをactivated users基準で置くと、204,082 paidへ必�
 | CL01 Kernel parity | localとAgentCoreが同じ承認済みbusiness-kernel SHA、task capsuleから同じcanonical receipt/evidence hashを作る |
 | CL02 Tenant isolation | tenant Aからtenant Bのstate、credential ref、browser profile、session、receipt、artifactへ到達不能。provider call 0 |
 | CL03 Lifecycle | tenantごとactive runtime 1、jobごとbrowser session 1。timeout/crash/deploy後もstale leaseをreconcileし、cold startで再開 |
-| CL04 Phone-only | Telegram/webでgoal投入後、credential入力・確認・承認・resume 0でagent-owned action、公式readback、session releaseを完走。human principalを要求する候補はprovider call 0で`not_applicable`になり、別jobが継続 |
+| CL04 Phone-only | Telegram/webでgoal投入後、credential入力・確認・承認・resume 0でagent-owned action、公式readback、session releaseを完走。phoneからread-only live viewとemergency stopが可能。任意break-glass操作はautomated success/revenueに数えず、human principalを要求する候補はprovider call 0で`not_applicable`になり、別jobが継続 |
 | CL05 Promotion | main由来immutable releaseだけをdeployし、cloud canary、official readback、replay-zeroを確認 |
 | CL06 Cost/Free | Free capで追加computeをfail closedし、既存stateを保持。CFO ledgerでtenant/job単位のmodel/browser/runtime/tool costをjoin |
 | R01 Paid | StripeのFounding Pro subscription receiptを1件公式readbackし、entitlement反映とcancel/revokeを確認 |
@@ -303,7 +309,7 @@ provider adapterは`runtime`、`browser`、`identity`の3境界で保つ。た�
 
 ## 10. 非目標
 
-- MuseのVMを借りること。ConnectorはLife Manager APIを呼ぶ入口でしかない。
+- Meta MuseのSecure VMをLife Manager runtimeとして借りること。Muse本体は主要benchmarkであり、Muse Connectorは別物のdistribution interfaceとしてLife Manager APIを呼ぶ。
 - 利用者ごとの永久起動VM。
 - Cloud版だけの別business logic。
 - previewのAgentCore session storageを唯一の正本にすること。
