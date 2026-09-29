@@ -1286,3 +1286,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. **cost-complete net P&L**: entry/exit、fee、slippage、funding/borrow、gas、model costをreceipt単位で一度だけ控除し、net P&L・drawdown・venue healthを確定する。unknownが一つでも利益を報告しない。
 7. **30/30測定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。それまではcap増額、meme coin署名、yield deposit、live拡大をしない。
 8. **追加venueの段階評価**: `30/30`後にHyperliquid shadow → Solana/Pump.fun paper → yield shadow → bounded canaryの順で比較し、公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり保証ではない。
+
+**pending identity修正のmain統合readback（2026-09-29 13:42 UTC）**: PR `#6236`の投資source修正はsquash mergeされ、main commitは`be6781a99a96a009394a8f5aa36dd16485aad812`となった。main差分は`skills/alpaca-investment/effect_store.py`と`skills/alpaca-investment/test_etf_execution.py`の2ファイルだけで、投資Python/loop/security関連checkはPASSした。現在production `current`はまだ`/Users/anicca/loops/releases/20260929T221805-af6e5011`（`af6e5011…`）で、修正SHAを含むimmutable releaseへは未切替である。既存の自動release reconciler（PID `29721`、child `29737`）が稼働中なので停止・重複起動・手動applyはしない。収益判定は変わらず`$0/月`で、QQQ paper entryの再送・手動wake・手動sellも行わない。
+
+**実行カーソル更新**: 1) 自動reconcilerがmain`be6781a99a`由来releaseを作成しcurrentへ切り替えたことをreadback、2) 修正版natural paper wakeで既存QQQの`strategy_receipt`と`etf-owned-position.json`を再concileで作る、3) QQQ自然exit、4) cross-venue/fence公式receipt、5) live自然retry、6) cost-complete P&L、7) `30/30`、8) 追加venue段階評価の順で進める。
