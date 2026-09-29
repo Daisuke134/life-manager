@@ -985,6 +985,23 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 | Upwork | `upwork:dais`（owner=`upwork-revenue-browser`） | `~/.cloak/profiles/gig-upwork` / 9233（resolverでprofile-owned確認） | identityは登録済みだが現在endpoint unavailable。旧shared `gig-daily-driver`／共有Vaultは使用禁止。認証・funded contract未完了 |
 | Colors管理（Ryu案件のサイト側） | `colors-hachioji:owner-18211957` | `~/.cloak/profiles/colors-hachioji-owner-18211957` / 動的port | Coconala profileと共有禁止 |
 
+## 現在の正本cursor（2026-09-30、Ryu公式DM再readback後）
+
+- 今回の読み取り専用probeは既存の正規identity `coconala:kosuke` のCDP `9223` に一時hidden targetを作り、Coconala公式DM `https://coconala.com/smartphone/direct_messages/10107358` を再読した。送信、添付、正式納品ボタン操作は行っていない。
+- 公式DOMの最新表示は、seller `9/29 14:34`、buyer `14:36`、seller `14:40`、buyer `14:41` の順で、最後の購入者文は「相互リンクはこちらでできるようにして欲しいです。数がかなりあるので」。このreadbackには14:41以後のseller返信は存在しない。証跡は `/Users/anicca/gig/trajectory/ryu-readback-20260930/01-ryu_dm.json`。
+- 同じ公式DMの過去ページをoffset 5〜105まで読み取り、旧要求（コンセプト6枚の原状復帰、ジャンル選択・女の子画像追加、WEB予約文言、相互リンク多数管理、各媒体自動更新等）を取得した。offset別DOM証跡は同じtrajectory配下に保存している。これは要求の根拠であり、修正済みの証拠ではない。
+- 既存のローカルartifact `current-cycle-v723-dm-send-readback.json` は「送信クリック1回＋直後のDOMバブル1件」を示すが、直後の再読み込みは403で、今回の公式readbackにはその本文が残っていない。したがってprovider側の永続receiptは未取得であり、v723を完了証拠に昇格させない。再送はしない。
+
+### Ryuの原子TODO（この節が最新の実行順正本）
+
+1. **未完（現在cursor）** Ryuの最新要求を含む統合修正版を、既存実装の公式readback（管理画面・公開ページ・content API）と照合し、未実装・実データ待ち・外部依存を分離する。
+2. **未完** 相互リンクの実URL／バナー画像、女の子別の新画像など購入者入力が必要な値を、推測せず `hold` として記録する。管理機能の実装済みreadbackだけで完了扱いしない。
+3. **未完（外部効果）** providerの公式DM composer、重複guard、送信後の永続公式readback、provider receiptが同時に確認できる時だけ、統合本文を一度だけ送る。正式納品ボタンは押さない。現時点では永続readbackが無いため送信しない。
+4. **未完** Ryuのprovider receipt／公式readbackが取れない場合は、browser/session状態と不足証拠を記録したまま止め、再送・旧URL迂回・推測返信をしない。
+5. **未完** Ryuの外部媒体連携は、媒体ごとの権限・審査・仕様・実データが揃ったものだけを個別に接続する。
+6. **未完** RyuのreadbackとDM adapter修正をimmutable releaseへ反映し、loaded SHA、identity lease、rollback receipt、自然terminalを確認する。
+7. **未完** その後に全platformのmain受入、capacity自然run、Upwork／Freelancerのfunded gate、Meta Loop全体の公式receipt／P&L検証へ進む。
+
 `config/loop-registry.json` はloop→ownerの宣言、`~/.config/ai/registry/browsers.toml` はidentity→profile/accountの宣言であり、どちらか一方だけを更新してはならない。
 
 衝突防止のルールは、(1) 同じidentityのleaseを同時に一つだけ持つ、(2) 別identityでも同じbrowser UUIDを検出したらfail-closed、(3) browser owner以外はprofile・CDP・launchdを直接触らない、(4) RyuのDM送信とサイト管理の外部作用を直列化する、の4点である。Coconala・Lancers・CrowdWorks actionはsourceでregistry identity joinとlease wrapperへ移行済みだが、main由来releaseのloaded/natural readbackは未完了である。Lancers/CrowdWorksのidentityはMac側registryへ正式登録し、resolverで所有者PID・UUID衝突なしを実測した。残りはこのsourceをmain由来immutable releaseへ反映し、各providerで自然run/readbackを取ることだけである。
