@@ -2194,3 +2194,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 新しいdecision receipt `8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8`（`recorded_at=2026-09-29T21:03:10.291301Z`）は、前回と同じ`decision_session=2026-09-29`、`action=HOLD`、`reason=hold_period_not_elapsed`、`mode=paper`を返した。
 - これは同一daily sessionの自然retryであり、qualified exit decision、exit order、fill、realized P&L、資金移動を生成していない。したがって`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。
 - `AT-13`の完了条件を満たす新しいcompleted daily sessionが出るまで、手動wake・手動sell・再送・送金はしない。
+
+**AT-13 strategy／official paper clock gate readback（2026-09-30 06:05 JST）**:
+
+- loaded source `skills/alpaca-investment/etf_policy.py`は`HOLD_SESSIONS=21`を定義し、同一symbolでは`held_sessions >= 21`、またはwinner symbol変更（`reason=ranked_symbol_changed`）のときだけ`EXIT`を返す。それ以外は`HOLD / hold_period_not_elapsed`である。
+- 最新receiptの`held_sessions=1`はこのpolicyの途中状態と一致する。したがって、現在の`HOLD`はAT-13のqualified exitではなく、strategyを変更したり手動exitを挿入したりしない。
+- 公式paper observationのclockは`observed_at=2026-09-29T17:03:08-04:00`、`is_open=false`、`next_open=2026-09-30T09:30:00-04:00`、`next_close=2026-09-30T16:00:00-04:00`である。次に判定可能なcompleted daily sessionはこの自然market sessionの終了後である。
+- このreadbackでは注文・約定・資金移動を行っていない。`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。
