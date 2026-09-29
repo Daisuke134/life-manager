@@ -2831,6 +2831,23 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
 
+## 現在の正本cursor（2026-09-30、Coconala profile identity readback追加後）
+
+Coconalaの公式`/mypage/user`をread-onlyで確認し、公開profile URLが`https://coconala.com/users/2564121`であることを取得した。account identityの保存値はraw IDではなく`sha256(2564121)=f2fa9de414238160851ec65d2c1129ec5784d3c7e5e8a9acd1015a8ace2d315d`だけを使う。seller dashboardのログイン状態とこのprofile readbackは、Coconala live snapshotの`authenticated=true`、`profile_readback=true`、`source_complete`評価に使えるが、onboarding receiptや書込み認証を代替しない。
+
+- 検証済み: 公式dashboard→profile編集→公開profile URLのread-only遷移、専用tabのowner閉鎖。応募・返信・納品・設定変更は0件。
+- 未完: Coconala onboarding/action authorization receipt、policy／funded_work／canary／unit economicsの公式証拠、provider adapter factory、lifecycle settlement。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Coconala live snapshotへprofile identity hashを取り込み、onboarding/action receiptが無い状態を`hold`として候補storeへ記録する。receiptを推測してpromoteしない。
+2. **未完** LancersのHuman Verification解除後にpreflightを2回通し、現行`contracts.json`を公式readbackから生成する。
+3. **未完** Coconala／Lancers／CrowdWorks／Mercorの実adapter factoryを、account-bound receipt・公式canary・rollback・settlementへ接続する。
+4. **未完** Upwork／Freelancerのapproved mutation、完全inventory、funded contract／milestone、全action receiptを取得する。
+5. **未完** providerごとのplanned→terminalまたはrollback→settled、公式receipt、replay-zeroを自然runで取得する。
+6. **未完** 全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
+7. **未完** production capacity／ENOSPC自然runを閉じ、Ryuさんの既存DMは再送せず、相互リンク入力が届いた時だけ三面readbackする。
+
 ## 現在の正本cursor（2026-09-30、Coconala read-only seller dashboard確認後）
 
 既存の`life-manager-daily-driver` owner／`localhost:9222`の専用contextで、Coconalaの`/mypage/dashboard`と`/mypage/dashboard_provider`をread-only確認した。公式ページはログイン済みの`Kosuke｜教育研修PPT×AI活用` seller dashboardを返し、出品者ダッシュボードに取引中3件、応募中114件、今月販売額72,000円・販売件数6件・納品完了率66%・平均評価3.43が表示された。これはCoconala sessionと既存取引の公式readbackであり、Meta Loopのaccount-bound authorization receipt、owner lifecycle canary、settlement receiptではない。
