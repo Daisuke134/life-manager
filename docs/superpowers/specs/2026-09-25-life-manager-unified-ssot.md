@@ -2639,6 +2639,23 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
 
+## 現在の正本cursor（2026-09-30、Ryu管理画面成果の公式readback再照合後）
+
+- Ryu案件の管理画面・公開サイトの実装は、`/Users/anicca/gig/projects/18211957/delivery/current-cycle-v709-deploy-readback.json`で`admin.php`／`management-editor.js`の反映と主要checksをPASSし、`current-cycle-v709-browser-readback.json`および`current-cycle-v711-full-browser-readback.json`で認証済み管理画面、公開desktop/mobile、APIをread-only再確認済み。女の子別画像設定、女の子別有料オプション、WEB予約文言編集、相互リンク編集欄、「女の子を探す」文言、コンセプト画像順を含む既存修正は実装済み。
+- 現在の公開APIで`profile_count=12`、5つの有料オプション、コンセプト6件、`mutual_links=[]`を確認している。相互リンク機能の器は完成しているが、実際に登録するURL／バナー素材はRyuさんから未提供なので、空配列は未実装の証拠ではなく入力待ちである。
+- よって、過去のfresh browserで管理画面ログインフォームが出た事実を、既存のv709/v711公式readbackを無効にする根拠にはしない。新しい相互リンクデータを書き込む時だけ、同じownerの認証済み管理画面を再取得する。
+
+### 最終原子TODO（この節が最新の実行順正本）
+
+1. **Ryu外部入力待ち** 相互リンクの実URL、表示名、バナー画像（必要なら新しい画像）を取得する。推測で埋めない。
+2. **Ryuデータ反映** 入力が揃った時だけ既存の相互リンク編集欄へ一括登録し、管理画面・公開ページ・content APIを同一値でreadbackする。
+3. **Ryu DM効果** v723本文hashが公式10件に存在しないため、過去のseller返信をreceiptと取り違えない。新しい統合本文を送る場合はprovider composer・重複guard・送信後永続readback・provider receiptが同時に取れる時だけ一度だけ送る。正式納品は押さない。
+4. **main受入** branchの全checksと外部成果証拠が揃うまでmergeしない。揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式provider readback、replay-zeroを取得する。
+6. **capacity自然run** sourceのENOSPC修正をproductionで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
 ## 現在の正本cursor（2026-09-30、Coconala DM公式readback式修復後）
 
 - Coconala modern DM collectorの`estimate_url`抽出式に閉じ括弧が1つ不足しており、公式readbackが`SyntaxError`で停止していた。式を修復し、JavaScript構文回帰テストを追加した。
