@@ -57,6 +57,12 @@ def test_unfunded_explicit_handoff_fails_closed(tmp_path):
     m=load(); s=tmp_path/"snapshot"; value=_funded_contract(); value["paid_handoff"]["status"]="authorized"; snapshot(s,[value]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
     a.observe_active()
     with pytest.raises(RuntimeError, match="mercor_paid_handoff_unavailable"): a.paid_handoff("job-1", a.context("job-1"))
+
+def test_explicit_handoff_rejects_invalid_observed_at(tmp_path):
+    m=load(); s=tmp_path/"snapshot"; value=_funded_contract(); value["paid_handoff"]["observed_at"]="yesterday"; snapshot(s,[value]); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=tmp_path/"missing")
+    a.observe_active()
+    with pytest.raises(RuntimeError, match="mercor_paid_handoff_unavailable"): a.paid_handoff("job-1", a.context("job-1"))
+
 def test_newer_official_contract_state_wins_over_older_work_event(tmp_path):
     m=load(); s=tmp_path/"snapshot"; snapshot(s,[{"jobId":"work-1","status":"active"}]); p=tmp_path/"events"; p.write_text(json.dumps(event("accepted"))+"\n"); a=m.MercorPaidAdapter(account_id="default",official_snapshot=s,work_events=p)
     assert a.observe_active()[0]["provider_state"]=="contracted"
