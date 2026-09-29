@@ -123,6 +123,50 @@ class EtfAllocatorTests(unittest.TestCase):
         self.assertTrue(result["approved"])
         self.assertEqual(result["owner_id"], "alpaca-investment-paper")
 
+    def test_paper_etf_exit_is_approved_and_emits_sell_quantity(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"},
+        ), patch.object(allocator, "evaluate", return_value={
+            "action": "EXIT",
+            "strategy_id": ETF_ID,
+            "symbol": "QQQ",
+            "decision_session": "2026-09-29",
+            "entry_after_session": None,
+            "signal_inputs": {"held_symbol": "QQQ"},
+            "reason": "hold_sessions_elapsed",
+            "expected_cost_usd": "0.02",
+        }):
+            state = Path(directory) / "state"
+            _selected_state(state)
+            snapshot = _snapshot("paper")
+            snapshot.update({
+                "positions": 1,
+                "position": {
+                    "owner_id": "alpaca-investment-paper",
+                    "strategy_id": ETF_ID,
+                    "symbol": "QQQ",
+                    "qty": "0.025",
+                    "entry_session": "2026-09-01",
+                },
+            })
+            result = allocator.choose(
+                snapshot, [_candidate("QQQ")], state,
+                Path("unused-runner"), Path(directory),
+            )
+            order = allocator.order_for(result)
+
+        self.assertEqual(result["action"], "EXIT")
+        self.assertTrue(result["approved"])
+        self.assertEqual(result["gate"], "approved_exit")
+        self.assertEqual(order, {
+            "asset_class": "us_equity",
+            "qty": "0.025",
+            "side": "sell",
+            "symbol": "QQQ",
+            "time_in_force": "day",
+            "type": "market",
+        })
+
     def test_live_etf_selection_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"

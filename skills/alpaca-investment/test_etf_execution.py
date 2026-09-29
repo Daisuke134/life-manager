@@ -27,6 +27,7 @@ RUN_SPEC.loader.exec_module(RUN)
 
 
 CLIENT_ID = "lm-ai-" + "a" * 24
+CLOSE_CLIENT_ID = "lm-ai-" + "b" * 24
 OWNER_ID = "alpaca-investment-live"
 STRATEGY_ID = "alpaca-etf-126d-momentum-v1"
 ORDER = {
@@ -51,10 +52,37 @@ PROVIDER_ORDER = {
     "filled_avg_price": "400",
     "submitted_at": "2026-09-29T14:31:00Z",
 }
+CLOSE_ORDER = {
+    "asset_class": "us_equity",
+    "qty": "0.025",
+    "side": "sell",
+    "symbol": "QQQ",
+    "time_in_force": "day",
+    "type": "market",
+}
+CLOSE_PROVIDER_ORDER = {
+    "found": True,
+    "id": "paper-close-1",
+    "client_order_id": CLOSE_CLIENT_ID,
+    "status": "filled",
+    "symbol": "QQQ",
+    "side": "sell",
+    "type": "market",
+    "time_in_force": "day",
+    "qty": "0.025",
+    "filled_qty": "0.025",
+    "filled_avg_price": "410",
+    "submitted_at": "2026-10-20T14:31:00Z",
+}
 ACCOUNT_READBACK = {
     "account": {"cash": "90", "equity": "100"},
     "clock": {"observed_at": "2026-09-29T14:31:05Z"},
     "positions": [{"symbol": "QQQ", "qty": "0.025", "avg_entry_price": "400"}],
+}
+CLOSE_ACCOUNT_READBACK = {
+    "account": {"cash": "100.25", "equity": "100.25"},
+    "clock": {"observed_at": "2026-10-20T14:31:05Z"},
+    "positions": [],
 }
 
 
@@ -91,6 +119,24 @@ class PaperEtfOrderBoundaryTest(unittest.TestCase):
                 )
         context.assert_not_called()
         run.assert_not_called()
+
+    def test_paper_submit_accepts_exact_stock_exit_and_validates_provider_identity(self):
+        acknowledgement = {**CLOSE_PROVIDER_ORDER, "status": "new"}
+        with patch.dict(os.environ, {"LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper"}), \
+                patch.object(alpaca_cli, "_context", return_value={}), patch.object(
+            alpaca_cli, "_run", return_value=acknowledgement
+        ) as run:
+            result = alpaca_cli.submit_order(
+                credentials_path=Path("credentials"), cli_path=Path("alpaca"),
+                client_order_id=CLOSE_CLIENT_ID, order=CLOSE_ORDER, mode="paper",
+                owner_id="alpaca-investment-paper", strategy_id=STRATEGY_ID,
+            )
+
+        self.assertEqual(result, acknowledgement)
+        args = run.call_args.args[1]
+        self.assertEqual(args[:5], ["order", "submit", "--quiet", "--symbol", "QQQ"])
+        self.assertIn("--qty", args)
+        self.assertIn("0.025", args)
 
     def test_paper_etf_submit_rejects_wrong_identity_and_shape(self):
         for owner_id, strategy_id, order in (
@@ -177,6 +223,58 @@ class EtfOwnershipTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "^etf_position_ownership_conflict$"):
                 self._record(state, order={**PROVIDER_ORDER, "id": "paper-order-2"})
 
+    def test_filled_exit_closes_owned_position_and_replay_is_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "etf-owned-position.json"
+            self._record(state)
+            first = etf_ownership.record_closed(
+                state,
+                owner_id=OWNER_ID,
+                strategy_id=STRATEGY_ID,
+                decision_session="2026-10-20",
+                client_order_id=CLOSE_CLIENT_ID,
+                order=CLOSE_PROVIDER_ORDER,
+                account_readback=CLOSE_ACCOUNT_READBACK,
+                source_receipt_ids=["alpaca://stock-bars/iex/split/2026-10-20/def"],
+            )
+            second = etf_ownership.record_closed(
+                state,
+                owner_id=OWNER_ID,
+                strategy_id=STRATEGY_ID,
+                decision_session="2026-10-20",
+                client_order_id=CLOSE_CLIENT_ID,
+                order=CLOSE_PROVIDER_ORDER,
+                account_readback=CLOSE_ACCOUNT_READBACK,
+                source_receipt_ids=["alpaca://stock-bars/iex/split/2026-10-20/def"],
+            )
+            persisted = json.loads(state.read_text(encoding="utf-8"))
+
+        self.assertFalse(first["replay_zero"])
+        self.assertTrue(second["replay_zero"])
+        self.assertEqual(persisted["status"], "closed")
+        self.assertEqual(persisted["close_provider_order_id"], "paper-close-1")
+        self.assertEqual(persisted["gross_pnl_usd"], "0.250")
+        self.assertEqual(persisted["costs_status"], "unknown")
+
+    def test_unfilled_exit_does_not_close_owned_position(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "etf-owned-position.json"
+            self._record(state)
+            with self.assertRaisesRegex(ValueError, "^etf_fill_missing$"):
+                etf_ownership.record_closed(
+                    state,
+                    owner_id=OWNER_ID,
+                    strategy_id=STRATEGY_ID,
+                    decision_session="2026-10-20",
+                    client_order_id=CLOSE_CLIENT_ID,
+                    order={**CLOSE_PROVIDER_ORDER, "status": "new", "filled_qty": "0"},
+                    account_readback=CLOSE_ACCOUNT_READBACK,
+                    source_receipt_ids=["bars-receipt"],
+                )
+            persisted = json.loads(state.read_text(encoding="utf-8"))
+
+        self.assertEqual(persisted["status"], "open")
+
 
 class EtfReconciliationTest(unittest.TestCase):
     def test_effect_callback_runs_before_outcome_and_can_replay_safely(self):
@@ -246,6 +344,41 @@ class EtfReconciliationTest(unittest.TestCase):
                     state_path=state,
                 )
             self.assertFalse(state.exists())
+
+    def test_run_reconciliation_callback_closes_filled_etf_exit(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            RUN, "observe", return_value=CLOSE_ACCOUNT_READBACK
+        ):
+            state = Path(directory) / "etf-owned-position.json"
+            etf_ownership.record_filled(
+                state,
+                owner_id=OWNER_ID,
+                strategy_id=STRATEGY_ID,
+                decision_session="2026-09-29",
+                client_order_id=CLIENT_ID,
+                order=PROVIDER_ORDER,
+                account_readback=ACCOUNT_READBACK,
+                source_receipt_ids=["bars-receipt"],
+            )
+            result = RUN._reconcile_etf_intent(
+                {
+                    "mode": "paper",
+                    "owner_id": OWNER_ID,
+                    "strategy_id": STRATEGY_ID,
+                    "decision_session": "2026-10-20",
+                    "client_order_id": CLOSE_CLIENT_ID,
+                    "source_receipt_ids": ["bars-receipt"],
+                    "order": CLOSE_ORDER,
+                },
+                CLOSE_PROVIDER_ORDER,
+                credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"),
+                state_path=state,
+            )
+            persisted = json.loads(state.read_text(encoding="utf-8"))
+
+        self.assertEqual(result["observation"], CLOSE_ACCOUNT_READBACK)
+        self.assertEqual(persisted["status"], "closed")
 
 
 if __name__ == "__main__":

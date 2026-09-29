@@ -10,7 +10,7 @@ from typing import Any
 
 from risk_policy import evaluate_entry
 from etf_ownership import investment_owner_id
-from strategy_policy import (ACTION_ENTER, ACTION_NO_TRADE, ALLOWED_ACTIONS,
+from strategy_policy import (ACTION_ENTER, ACTION_EXIT, ACTION_NO_TRADE, ALLOWED_ACTIONS,
                              BTC_SYMBOLS, CANONICAL_SYMBOL, ETF_STRATEGY_ID,
                              ETF_SYMBOLS, evaluate,
                              load_selected_card)
@@ -208,6 +208,7 @@ def choose(snapshot: dict[str, Any], candidates: list[dict[str, Any]], state: Pa
     decision = {**policy, "candidate_ref": offered["candidate_ref"], "release_sha": release_sha}
     if card.strategy_id == ETF_STRATEGY_ID:
         decision["owner_id"] = investment_owner_id()
+        decision["position"] = snapshot.get("position")
     gated = gate(snapshot, candidates, decision)
     gated["observed_at"] = observed_at
     return gated
@@ -217,6 +218,29 @@ def gate(snapshot: dict[str, Any], candidates: list[dict[str, Any]], decision: d
     offered = {row["candidate_ref"]: row for row in candidates}
     ref = decision.get("candidate_ref")
     if decision.get("action") in ALLOWED_ACTIONS:
+        if decision.get("action") == ACTION_EXIT:
+            candidate = offered.get(ref)
+            position = snapshot.get("position")
+            if candidate is None:
+                return {**decision, "approved": False, "gate": "candidate_not_offered"}
+            checks = {
+                "paper_mode": candidate.get("asset_class") == "us_equity"
+                and snapshot.get("mode") == "paper",
+                "position_slot": snapshot.get("positions") == 1,
+                "position_owned": isinstance(position, dict)
+                and position.get("owner_id") == decision.get("owner_id")
+                and position.get("strategy_id") == ETF_STRATEGY_ID
+                and position.get("symbol") == candidate.get("symbol"),
+                "position_quantity": isinstance(position, dict)
+                and isinstance(position.get("qty"), str)
+                and float(position["qty"]) > 0,
+                "order_slot": snapshot.get("open_orders") == 0,
+                "intent_slot": snapshot.get("unresolved_intents") == 0,
+                "policy_cost_complete": decision.get("expected_cost_usd") is not None,
+            }
+            return {**decision, "approved": all(checks.values()),
+                    "candidate": candidate, "checks": checks,
+                    "gate": "approved_exit" if all(checks.values()) else "exit_rejected"}
         if decision.get("action") != ACTION_ENTER:
             return {**decision, "approved": False,
                     "gate": f"policy_{str(decision.get('action')).lower()}"}
@@ -291,6 +315,13 @@ def order_for(decision: dict[str, Any]) -> dict[str, Any]:
         return {"asset_class": "crypto", "notional_usd": f"{candidate['max_loss_usd']:.2f}",
                 "side": "buy", "symbol": candidate["symbol"], "time_in_force": "gtc", "type": "market"}
     if candidate["asset_class"] == "us_equity":
+        if decision.get("action") == ACTION_EXIT:
+            position = decision.get("position")
+            if not isinstance(position, dict) or not isinstance(position.get("qty"), str):
+                raise ValueError("etf_exit_position_missing")
+            return {"asset_class": "us_equity", "qty": position["qty"],
+                    "side": "sell", "symbol": candidate["symbol"],
+                    "time_in_force": "day", "type": "market"}
         return {"asset_class": "us_equity", "notional_usd": f"{candidate['max_loss_usd']:.2f}",
                 "side": "buy", "symbol": candidate["symbol"],
                 "time_in_force": "day", "type": "market"}

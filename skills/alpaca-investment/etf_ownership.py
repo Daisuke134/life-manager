@@ -256,7 +256,118 @@ def record_filled(
     return {**payload, "replay_zero": False}
 
 
+def _close_provider_order(
+    order: Mapping[str, Any], *, client_order_id: str, symbol: str, expected_qty: Decimal,
+) -> tuple[str, Decimal]:
+    if (order.get("client_order_id") != client_order_id
+            or order.get("status") != "filled"
+            or order.get("symbol") != symbol
+            or order.get("side") != "sell"
+            or order.get("type") != "market"
+            or order.get("time_in_force") != "day"):
+        raise ValueError("etf_fill_missing")
+    provider_order_id = order.get("id")
+    if not isinstance(provider_order_id, str) or not provider_order_id:
+        raise ValueError("etf_provider_receipt_invalid")
+    try:
+        filled_qty = _number(order.get("filled_qty"), positive=True)
+        price = _number(order.get("filled_avg_price"), positive=True)
+    except ValueError as error:
+        raise ValueError("etf_fill_missing") from error
+    if filled_qty != expected_qty:
+        raise ValueError("etf_fill_missing")
+    return provider_order_id, price
+
+
+def _closed_account_readback(readback: Mapping[str, Any], *, symbol: str) -> dict[str, str]:
+    account = readback.get("account")
+    positions = readback.get("positions")
+    if not isinstance(account, Mapping) or not isinstance(positions, list):
+        raise ValueError("etf_account_readback_invalid")
+    if any(isinstance(row, Mapping) and row.get("symbol") == symbol for row in positions):
+        raise ValueError("etf_account_readback_invalid")
+    try:
+        cash = _number(account["cash"])
+        equity = _number(account["equity"])
+    except (KeyError, ValueError) as error:
+        raise ValueError("etf_account_readback_invalid") from error
+    observed_at = readback.get("clock", {}).get("observed_at") \
+        if isinstance(readback.get("clock"), Mapping) else None
+    if not isinstance(observed_at, str) or not observed_at:
+        raise ValueError("etf_account_readback_invalid")
+    return {"cash": str(cash), "equity": str(equity), "observed_at": observed_at}
+
+
+def record_closed(
+    path: Path,
+    *,
+    owner_id: str,
+    strategy_id: str,
+    decision_session: str,
+    client_order_id: str,
+    order: Mapping[str, Any],
+    account_readback: Mapping[str, Any],
+    source_receipt_ids: Sequence[str],
+) -> dict[str, Any]:
+    """Persist one filled ETF exit only after provider and flat-position readback."""
+    if owner_id != investment_owner_id() or strategy_id != ETF_STRATEGY_ID:
+        raise ValueError("etf_position_not_owned")
+    if not CLIENT_ORDER_ID.fullmatch(client_order_id):
+        raise ValueError("client_order_id_invalid")
+    decision_session = _session(decision_session)
+    if (isinstance(source_receipt_ids, (str, bytes))
+            or not isinstance(source_receipt_ids, Sequence)
+            or not source_receipt_ids
+            or any(not isinstance(value, str) or not value for value in source_receipt_ids)):
+        raise ValueError("etf_source_receipts_invalid")
+    if not isinstance(order, Mapping):
+        raise ValueError("etf_provider_receipt_invalid")
+    existing = _load(path)
+    if existing is None:
+        raise ValueError("etf_position_not_owned")
+    _identity(existing, owner_id, strategy_id)
+    if existing.get("status") == "closed":
+        same_identity = (
+            existing.get("close_client_order_id") == client_order_id
+            and existing.get("close_provider_order_id") == order.get("id")
+        )
+        if same_identity:
+            return {**existing, "replay_zero": True}
+        raise ValueError("etf_position_ownership_conflict")
+    if existing.get("status") != "open":
+        raise ValueError("etf_position_state_invalid")
+    position = _read_open(existing)
+    if not position:
+        raise ValueError("etf_position_not_owned")
+    try:
+        expected_qty = _number(existing["position_qty"], positive=True)
+        entry_price = _number(existing["filled_avg_price"], positive=True)
+    except (KeyError, ValueError) as error:
+        raise ValueError("etf_position_state_invalid") from error
+    provider_order_id, price = _close_provider_order(
+        order, client_order_id=client_order_id, symbol=str(existing["symbol"]),
+        expected_qty=expected_qty,
+    )
+    account = _closed_account_readback(account_readback, symbol=str(existing["symbol"]))
+    payload = {
+        **existing,
+        "status": "closed",
+        "close_decision_session": decision_session,
+        "close_client_order_id": client_order_id,
+        "close_provider_order_id": provider_order_id,
+        "close_filled_avg_price": str(price),
+        "close_account_cash_usd": account["cash"],
+        "close_account_equity_usd": account["equity"],
+        "close_account_readback_at": account["observed_at"],
+        "close_source_receipt_ids": list(source_receipt_ids),
+        "gross_pnl_usd": str((price - entry_price) * expected_qty),
+        "costs_status": "unknown",
+    }
+    _atomic_json(path, payload)
+    return {**payload, "replay_zero": False}
+
+
 __all__ = [
     "ETF_OWNER_ID", "ETF_PAPER_OWNER_ID", "ETF_OWNER_IDS", "ETF_STRATEGY_ID",
-    "ETF_SYMBOLS", "investment_owner_id", "read_state", "record_filled",
+    "ETF_SYMBOLS", "investment_owner_id", "read_state", "record_filled", "record_closed",
 ]

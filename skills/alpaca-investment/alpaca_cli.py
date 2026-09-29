@@ -784,19 +784,36 @@ def submit_order(
     if order.get("asset_class") == "us_equity":
         if owner_id != investment_owner_id() or strategy_id != ETF_STRATEGY_ID:
             raise ValueError("etf_order_identity_invalid")
-        expected = {"asset_class", "notional_usd", "side", "symbol", "time_in_force", "type"}
-        try:
-            notional = Decimal(str(order.get("notional_usd")))
-            valid_notional = notional.is_finite() and notional == Decimal("10.00")
-        except InvalidOperation:
-            valid_notional = False
-        if (set(order) != expected or order.get("symbol") not in ETF_SYMBOLS
-                or order.get("side") != "buy" or order.get("type") != "market"
-                or order.get("time_in_force") != "day" or not valid_notional):
+        common = {"asset_class", "side", "symbol", "time_in_force", "type"}
+        if (order.get("symbol") not in ETF_SYMBOLS or order.get("type") != "market"
+                or order.get("time_in_force") != "day"):
             raise ValueError("etf_order_shape_invalid")
-        args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
-                "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
-                "--time-in-force", "day", "--client-order-id", client_order_id]
+        if order.get("side") == "buy":
+            expected = common | {"notional_usd"}
+            try:
+                notional = Decimal(str(order.get("notional_usd")))
+                valid_shape = notional.is_finite() and notional == Decimal("10.00")
+            except InvalidOperation:
+                valid_shape = False
+            if set(order) != expected or not valid_shape:
+                raise ValueError("etf_order_shape_invalid")
+            args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
+                    "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
+                    "--time-in-force", "day", "--client-order-id", client_order_id]
+        elif order.get("side") == "sell":
+            expected = common | {"qty"}
+            try:
+                qty = Decimal(str(order.get("qty")))
+                valid_shape = qty.is_finite() and qty > 0 and qty.as_tuple().exponent >= -9
+            except InvalidOperation:
+                valid_shape = False
+            if set(order) != expected or not valid_shape:
+                raise ValueError("etf_order_shape_invalid")
+            args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
+                    "--qty", order["qty"], "--side", "sell", "--type", "market",
+                    "--time-in-force", "day", "--client-order-id", client_order_id]
+        else:
+            raise ValueError("etf_order_shape_invalid")
     elif order.get("asset_class") == "crypto" and order.get("symbol") in {"BTC/USD", "ETH/USD"}:
         args = ["order", "submit", "--quiet", "--symbol", order["symbol"],
                 "--notional", order["notional_usd"], "--side", "buy", "--type", "market",
@@ -822,18 +839,29 @@ def submit_order(
     if not isinstance(result, dict) or result.get("client_order_id") != client_order_id:
         raise ValueError("alpaca_submit_readback_invalid")
     if order.get("asset_class") == "us_equity":
-        try:
-            acknowledged_notional = Decimal(str(result.get("notional")))
-        except InvalidOperation:
-            acknowledged_notional = Decimal("0")
-        if (result.get("symbol") not in ETF_SYMBOLS
-                or result.get("symbol") != order.get("symbol")
-                or result.get("side") != "buy"
-                or result.get("type") != "market"
-                or result.get("time_in_force") != "day"
-                or acknowledged_notional != Decimal("10.00")
-                or not isinstance(result.get("id"), str)
-                or not result["id"]):
+        common_valid = (
+            result.get("symbol") in ETF_SYMBOLS
+            and result.get("symbol") == order.get("symbol")
+            and result.get("side") == order.get("side")
+            and result.get("type") == "market"
+            and result.get("time_in_force") == "day"
+            and isinstance(result.get("id"), str)
+            and bool(result["id"])
+        )
+        if order.get("side") == "buy":
+            try:
+                acknowledged_notional = Decimal(str(result.get("notional")))
+            except InvalidOperation:
+                acknowledged_notional = Decimal("0")
+            common_valid = common_valid and acknowledged_notional == Decimal("10.00")
+        else:
+            try:
+                acknowledged_qty = Decimal(str(result.get("qty")))
+                requested_qty = Decimal(str(order.get("qty")))
+            except InvalidOperation:
+                acknowledged_qty = requested_qty = Decimal("0")
+            common_valid = common_valid and acknowledged_qty == requested_qty
+        if not common_valid:
             raise ValueError("alpaca_submit_readback_invalid")
     return result
 

@@ -21,6 +21,7 @@ from effect_store import (mark_started, reconcile_started, record_no_trade, seal
                           unresolved_intent_count)
 from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import read_state as read_etf_state
+from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
@@ -227,7 +228,14 @@ def _reconcile_etf_intent(
             or intent["order"].get("asset_class") != "us_equity"):
         raise ValueError("etf_order_identity_invalid")
     account_readback = observe(credentials_path=credentials_path, cli_path=cli_path)
-    receipt = record_etf_filled(
+    side = intent["order"].get("side")
+    if side == "sell":
+        record = record_etf_closed
+    elif side == "buy":
+        record = record_etf_filled
+    else:
+        raise ValueError("etf_order_shape_invalid")
+    receipt = record(
         state_path,
         owner_id=intent["owner_id"],
         strategy_id=intent["strategy_id"],
@@ -462,6 +470,12 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         cli_path=cli_path, risk_day_path=state / "risk-day.json",
                         include_etf_bars=True)
                     fresh["mode"] = mode
+                    if mode == "paper":
+                        fresh_etf_state = read_etf_state(
+                            state / "etf-owned-position.json", owner_id=investment_owner_id(),
+                        )
+                        fresh["position"] = fresh_etf_state["position"]
+                        fresh["last_decision_session"] = fresh_etf_state["last_decision_session"]
                     fresh["unresolved_intents"] = unresolved_intent_count(state / "receipts.jsonl")
                     if (fresh.get("open_orders") != 0 or unresolved_intent_count(
                             state / "receipts.jsonl") != 0 or
@@ -471,10 +485,11 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                     if mode == "live" and not live_positions and not evaluate_entry(
                             fresh.get("risk"), order.get("notional_usd"))["approved"]:
                         raise ValueError("investment_effect_fence_rejected")
-                    if mode == "live" and not live_positions:
+                    if mode in {"paper", "live"} and not live_positions:
                         refreshed = allocation_gate(fresh, build_candidates(fresh), decision)
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
+                        decision = {**decision, **refreshed}
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
