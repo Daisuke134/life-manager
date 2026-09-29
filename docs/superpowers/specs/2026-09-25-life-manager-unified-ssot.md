@@ -1461,3 +1461,5 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 最新decision receipt（16:12:58Z）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、exit orderなし。QQQは`qty=0.013493253`でopenのままなので、`AT-13`は未完である。
 - 最新公式paper observation（16:12:56Z）はcash `$99,986.77`、equity `$99,996.71`、QQQ current `$736.99`、market value `$9.944393`、unrealized P&L `-$0.045607`。これはpaper含み損益であり、実現収益ではない。
 - PR `#6259`は`OPEN / UNSTABLE`、`OSS self-contained boundary=FAIL`、`Loop control contracts`・security checks・Python suiteは一部pending。required checks完了・原因readback・main merge・production applyはまだない。
+
+**PR `#6259` check差分（2026-09-30 01:14 JST）**: `Python syntax + unittest`は`PASS`へ進んだが、Security Scan workflowはまだ`in_progress`。`OSS self-contained boundary`は`FAIL`のまま、`Loop control contracts`・gitleaks・TruffleHogはpendingである。投資sourceのrequired checks完了とは扱わず、Capafy等の範囲外FAILを修正せず、main merge・release・applyもしない。
