@@ -161,14 +161,19 @@ provision_investment_selection() {
     printf 'agent-runner reconcile: configured investment validation reports have no selection provisioner\n' >&2
     return 1
   fi
-  local selection_path="${LIFE_MANAGER_INVESTMENT_SELECTION_PATH:-$HOME/.local/state/life-manager/alpaca-investment-live/selected-strategy.json}"
-  if ! "$runtime_python" "$provisioner" \
-      --path "$selection_path" \
-      --reports "$reports_path" \
-      --release-sha "$release_sha"; then
-    printf 'agent-runner reconcile: investment strategy selection provisioning failed\n' >&2
-    return 1
-  fi
+  local live_selection_path="${LIFE_MANAGER_INVESTMENT_SELECTION_PATH:-$HOME/.local/state/life-manager/alpaca-investment-live/selected-strategy.json}"
+  local paper_selection_path="${LIFE_MANAGER_INVESTMENT_PAPER_SELECTION_PATH:-$HOME/.local/state/life-manager/alpaca-investment-paper/selected-strategy.json}"
+  local selection_path
+  for selection_path in "$live_selection_path" "$paper_selection_path"; do
+    if ! "$runtime_python" "$provisioner" \
+        --path "$selection_path" \
+        --reports "$reports_path" \
+        --release-sha "$release_sha"; then
+      printf 'agent-runner reconcile: investment strategy selection provisioning failed for %s\n' \
+        "$selection_path" >&2
+      return 1
+    fi
+  done
 }
 
 run_reconcile() {

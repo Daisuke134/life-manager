@@ -122,9 +122,10 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
                 "from pathlib import Path\n"
                 "if os.environ.get('FAKE_SELECTION_PROVISION_FAIL') == '1':\n"
                 "    raise SystemExit(1)\n"
-                "Path(os.environ['FAKE_SELECTION_PROVISION_MARKER']).write_text("
-                "json.dumps({'argv': sys.argv[1:]})\n"
-                ")\n",
+                "marker = Path(os.environ['FAKE_SELECTION_PROVISION_MARKER'])\n"
+                "calls = json.loads(marker.read_text()) if marker.exists() else []\n"
+                "calls.append({'argv': sys.argv[1:]})\n"
+                "marker.write_text(json.dumps(calls))\n",
                 encoding="utf-8",
             )
             if with_reviewed_validation_reports:
@@ -282,16 +283,26 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
             env["LIFE_MANAGER_INVESTMENT_SELECTION_PATH"] = str(
                 root / "state/selected-strategy.json"
             )
+            env["LIFE_MANAGER_INVESTMENT_PAPER_SELECTION_PATH"] = str(
+                root / "state/paper-selected-strategy.json"
+            )
 
             result = self._run(env)
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
-                json.loads(marker.read_text(encoding="utf-8"))["argv"],
+                json.loads(marker.read_text(encoding="utf-8")),
                 [
-                    "--path", str(root / "state/selected-strategy.json"),
-                    "--reports", str(root / "state/validation-reports.json"),
-                    "--release-sha", sha,
+                    {"argv": [
+                        "--path", str(root / "state/selected-strategy.json"),
+                        "--reports", str(root / "state/validation-reports.json"),
+                        "--release-sha", sha,
+                    ]},
+                    {"argv": [
+                        "--path", str(root / "state/paper-selected-strategy.json"),
+                        "--reports", str(root / "state/validation-reports.json"),
+                        "--release-sha", sha,
+                    ]},
                 ],
             )
 
@@ -334,11 +345,18 @@ class ReconcileAgentRunnerReleaseFleetApplyTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
-                json.loads(marker.read_text(encoding="utf-8"))["argv"],
+                json.loads(marker.read_text(encoding="utf-8")),
                 [
-                    "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"),
-                    "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
-                    "--release-sha", sha,
+                    {"argv": [
+                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-live/selected-strategy.json"),
+                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--release-sha", sha,
+                    ]},
+                    {"argv": [
+                        "--path", str(Path.home() / ".local/state/life-manager/alpaca-investment-paper/selected-strategy.json"),
+                        "--reports", str((release_dir / "apps/life-manager/investment-core/reviewed-validation-reports.json").resolve()),
+                        "--release-sha", sha,
+                    ]},
                 ],
             )
 
