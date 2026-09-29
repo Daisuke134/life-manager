@@ -20,6 +20,7 @@ _PAYLOAD_FIELDS = frozenset({
 })
 _EVENT_FIELDS = _PAYLOAD_FIELDS | {"idempotency_key"}
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_ERROR_CODE = re.compile(r"^[a-z][a-z0-9_:-]{1,127}$")
 _STATUS = frozenset({"ok", "empty", "partial"})
 _MAX_LINE_BYTES = 64 * 1024
 
@@ -59,13 +60,23 @@ def _source_errors(value: Any) -> list[dict[str, str]]:
         raise MetaLoopRunStoreError("source_errors_invalid")
     result: list[dict[str, str]] = []
     for item in value:
-        if not isinstance(item, Mapping) or set(item) != {"source", "error_class", "next_action"}:
+        if not isinstance(item, Mapping) or set(item) not in ({
+            "source", "error_class", "next_action",
+        }, {
+            "source", "error_class", "error_code", "next_action",
+        }):
             raise MetaLoopRunStoreError("source_errors_invalid")
-        result.append({
+        normalized = {
             "source": _text(item.get("source"), "source_errors_invalid", max_length=128),
             "error_class": _text(item.get("error_class"), "source_errors_invalid", max_length=128),
             "next_action": _text(item.get("next_action"), "source_errors_invalid", max_length=256),
-        })
+        }
+        if "error_code" in item:
+            error_code = _text(item.get("error_code"), "source_errors_invalid", max_length=128)
+            if _ERROR_CODE.fullmatch(error_code) is None:
+                raise MetaLoopRunStoreError("source_errors_invalid")
+            normalized["error_code"] = error_code
+        result.append(normalized)
     return result
 
 

@@ -130,3 +130,23 @@ def test_meta_loop_wake_rejects_invalid_run_id_before_discovery(tmp_path):
             observed_at="2026-09-30T00:02:00Z",
         )
     assert called is False
+
+
+def test_meta_loop_wake_persists_safe_source_error_code(tmp_path):
+    candidates = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    runs = run_store_module.MetaLoopRunStore(tmp_path / "runs")
+
+    def failing_source():
+        raise RuntimeError("account_state_invalid")
+
+    result = enrollment.run_meta_loop_wake(
+        {"lancers": failing_source},
+        candidates,
+        runs,
+        run_id="wake-error-code",
+        observed_at="2026-09-30T00:03:00Z",
+    )
+
+    assert result["status"] == "partial"
+    assert result["source_errors"][0]["error_code"] == "account_state_invalid"
+    assert runs.latest("wake-error-code")["source_errors"][0]["error_code"] == "account_state_invalid"

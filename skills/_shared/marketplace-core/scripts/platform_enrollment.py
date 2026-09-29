@@ -18,6 +18,7 @@ _HASH = re.compile(r"^[0-9a-f]{64}$")
 _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
 _CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_ERROR_CODE = re.compile(r"^[a-z][a-z0-9_:-]{1,127}$")
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _RECEIPT = re.compile(r"^provider-receipt://[^/]+/[^/]+$")
 _DISCOVERY_ITEM_FIELDS = frozenset({
@@ -42,6 +43,20 @@ _CANDIDATE_FIELDS = frozenset({
 
 class EnrollmentError(ValueError):
     """The candidate envelope is malformed and cannot be evaluated safely."""
+
+
+def _source_error_record(source: str, error: BaseException) -> dict[str, str]:
+    """Expose only a bounded machine code; never persist arbitrary error text."""
+
+    record = {
+        "source": source,
+        "error_class": type(error).__name__,
+        "next_action": "retry_source_read_only",
+    }
+    code = str(error).strip()
+    if _ERROR_CODE.fullmatch(code):
+        record["error_code"] = code
+    return record
 
 
 def _mapping(value: Any, reason: str) -> Mapping[str, Any]:
@@ -298,11 +313,7 @@ def run_discovery_cycle(
             iterable = discover()
             iterator = iter(iterable)
         except Exception as error:
-            summary["source_errors"].append({
-                "source": source_label,
-                "error_class": type(error).__name__,
-                "next_action": "retry_source_read_only",
-            })
+            summary["source_errors"].append(_source_error_record(source_label, error))
             continue
         for index in range(max_candidates_per_source + 1):
             try:
@@ -310,11 +321,7 @@ def run_discovery_cycle(
             except StopIteration:
                 break
             except Exception as error:
-                summary["source_errors"].append({
-                    "source": source_label,
-                    "error_class": type(error).__name__,
-                    "next_action": "retry_source_read_only",
-                })
+                summary["source_errors"].append(_source_error_record(source_label, error))
                 break
             if index >= max_candidates_per_source:
                 raise EnrollmentError("discovery_bound_exceeded")

@@ -325,6 +325,23 @@ def test_discovery_cycle_reports_source_failure_without_mutating_other_sources(t
     assert store.latest("example-market", "listing-130") is not None
 
 
+def test_discovery_cycle_records_safe_source_error_code_for_recovery(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+
+    def failing_source():
+        raise RuntimeError("account_state_invalid")
+
+    result = module.run_discovery_cycle({"lancers": failing_source}, store)
+
+    assert result["source_errors"] == [{
+        "source": "lancers",
+        "error_class": "RuntimeError",
+        "error_code": "account_state_invalid",
+        "next_action": "retry_source_read_only",
+    }]
+
+
 def test_discovery_cycle_marks_no_candidate_wake_as_empty_not_success(tmp_path):
     module = _module()
     store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
