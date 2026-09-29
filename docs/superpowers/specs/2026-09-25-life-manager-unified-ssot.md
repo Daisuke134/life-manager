@@ -2111,3 +2111,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 新しいdecision receipt `c8d172044475b180b47aa74a46b0b00228c2cc106ea99fd1ca6dc52ec05deb5a`（`recorded_at=2026-09-29T20:04:59Z`、05:04 JST）は`action=HOLD`、`decision_session=2026-09-29`、`reason=hold_period_not_elapsed`、symbol `QQQ`、`held_sessions=1`を返した。これはexit reasonではないため、`AT-13`の完了条件を満たさない。
 - 公式paper observationは`clock.is_open=false`、QQQ `qty=0.013493253`、market value `$9.961529`、unrealized P&L `-$0.028471`を返した。QQQはopenのままでexit order／exit fill／provider receiptはなく、`AT-14`へ進む対象は存在しない。
 - `AT-13`は未完、cursorは不変、検証済み実現投資収益は`$0/月`である。次の操作は次回completed daily sessionのexit decision receiptを自然に1件読むことだけであり、手動sell・手動wake・再送・送金はしない。
+
+**AT-13 hold-policy readback（2026-09-30 05:06 JST）**:
+
+- loaded releaseの`skills/alpaca-investment/etf_policy.py`は`HOLD_SESSIONS=21`を定義し、同一symbolかつ`held_sessions < 21`なら`HOLD / hold_period_not_elapsed`、symbol変更または21 session到達時だけexitを返す。strategy cardのexit ruleも`hold_sessions >= 21`で一致している。
+- 現在のQQQは`entry_session=2026-09-28`、最新completed sessionは`2026-09-29`、`held_sessions=1`である。このため今回のHOLDはpolicyどおりであり、AT-13のexit完了条件未達を示す。strategyを変更したり、手動exitを挿入したりしない。
+- 次のAtomic Todoは引き続き`AT-13`。新しいcompleted daily sessionのdecision receiptを自然に1件読む。新monitorはbase `decision_session=2026-09-29`で稼働中である。
