@@ -413,3 +413,12 @@ def test_article_resume_pending_wires_the_self_owned_adjunct():
     assert '--remote "$ARTICLE_SELF_OWNED_REMOTE"' in block
     assert '--branch "$ARTICLE_SELF_OWNED_BRANCH"' in block
     assert '--base-url "$ARTICLE_SELF_OWNED_BASE_URL"' in block
+
+
+def test_build_contract_uses_frontmatter_title_when_h1_is_missing():
+    # run 20260929-010128: the EN draft carried its title only in frontmatter.
+    module = soa()
+    body = "\n\n".join(f"Filler sentence number {i} with enough visible characters to count toward the preview minimum threshold." for i in range(20))
+    markdown = f'---\ntitle: "A viral X post is not a funnel"\n---\n\n{body}\n\n## Paid section\n\npaid body\n'
+    contract = module.build_contract(run_id="20260929-010128", lang="en", markdown=markdown)
+    assert contract["title"] == "A viral X post is not a funnel"

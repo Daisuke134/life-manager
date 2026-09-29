@@ -53,6 +53,12 @@ REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
 CAP = 5
 
+# Capafy's AI-generator stamps this exact suffix on the stub draft it creates
+# before any repo content is supplied. Must match select_publish_agent.py's
+# PLACEHOLDER_SUFFIX byte-for-byte (including the em dash) or the retry below
+# and that selector's --reuse-agent-id title check would silently diverge.
+PLACEHOLDER_SUFFIX = " (LM generated — please review and edit before saving)"
+
 # P-14 (2026-09-27): the seller list field `agentStatus` can go stale after Capafy
 # approves the latest version -- 5 agents sat at list agentStatus=under_review for
 # 12 days while their authoritative per-Agent detail already read status=3 (review
@@ -184,18 +190,25 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
 
 
 def allocate_action(normalized, retries, publishable, resumable_drafts=None, recoveries=None,
-                    ready_to_publish=None, updates=None):
+                    ready_to_publish=None, updates=None, stub_retries=None):
     """Choose at most one stable action without performing any platform write.
 
     An exact-title repository draft can be resumed in place even when all five
     submission slots are occupied: finishing that existing Agent does not create
     a sixth Agent.  The optional argument keeps the pre-resume call contract
     compatible for callers that only provide retry/fresh candidates.
+
+    stub_retries carries Capafy AI-generator stub drafts (name = "<title> (LM
+    generated ...)") whose stripped title matches a ready repo_catalog listing.
+    Like resumable_drafts/recoveries, this reuses an EXISTING occupied Agent id
+    (via publish_prepare.sh's --reuse-agent-id), so it must proceed even at
+    occupied=5 -- it frees no new slot and needs none.
     """
     resumable_drafts = resumable_drafts or []
     recoveries = recoveries or []
     ready_to_publish = ready_to_publish or []
     updates = updates or []
+    stub_retries = stub_retries or []
     if not normalized.get("readable"):
         return {"verdict": "SERVER_UNREADABLE"}
     occupied = (normalized.get("counts") or {}).get("occupied")
@@ -239,6 +252,18 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "reason": "resume exact-title repository draft",
             "action": "resume_draft",
             "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
+    if stub_retries:
+        item = min(
+            stub_retries,
+            key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")),
+        )
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "retry Capafy AI-generator stub draft on the same agent_id",
+            "action": "retry_existing",
+            "action_key": f"retry:{item['agent_id']}",
             "item": item,
         }
     if ready_to_publish:
@@ -500,6 +525,34 @@ def main():
         title = (agent.get("name") or "").strip()
         retry_items.append({"agent_id": str(agent.get("agentId")), "title": title,
                             **ready_by_title[title]})
+
+    # Capafy's AI-generator drops a stub draft named "<title> (LM generated —
+    # please review and edit before saving)" (e.g. draft 4973250899 measured
+    # 2026-09-29). No stage title-matched that suffix, so the stub occupied a
+    # slot forever (CAP_FULL) while ready catalog items queued behind it. Strip
+    # the suffix; if what's left matches a ready repo_catalog title, retry it
+    # through the SAME path as a review_rejected repair (publish_prepare.sh's
+    # --reuse-agent-id, which select_publish_agent.py already accepts for a
+    # draft named title+PLACEHOLDER_SUFFIX) so CP1 gets re-driven from the repo
+    # LISTING.md on the same agent_id instead of leaking the slot. A stub whose
+    # stripped name has no ready repo_catalog title stays untouched (occupied).
+    # This reuses an already-occupied Agent id, so -- like resumable_drafts and
+    # recover_delisted -- it must proceed even at occupied=5 (stub_retries is
+    # passed to allocate_action separately from the cap-gated `retries` list).
+    stub_titles_seen = set()
+    stub_retry_items = []
+    for a in agents:
+        if a.get("agentStatus") != "draft":
+            continue
+        name = (a.get("name") or "").strip()
+        if not name.endswith(PLACEHOLDER_SUFFIX):
+            continue
+        title = name[: -len(PLACEHOLDER_SUFFIX)].strip()
+        item = ready_by_title.get(title)
+        if not item or item.get("source") != "repo_catalog" or title in stub_titles_seen:
+            continue
+        stub_titles_seen.add(title)
+        stub_retry_items.append({"agent_id": str(a.get("agentId")), "title": title, **item})
     fresh_items = [
         {key: item[key] for key in ("feature", "title", "icon", "listing", "skill", "source", "demand_rank")}
         for item in publishable
@@ -514,7 +567,7 @@ def main():
     ]
     v = allocate_action(
         normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=update_items,
+        updates=update_items, stub_retries=stub_retry_items,
     )
 
     v.update({

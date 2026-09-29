@@ -1,5 +1,8 @@
 # Gig revenue program — current execution SSOT
 
+> **参照用（2026-09-29 Dais 指示）。正本はこの文書ではなく `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の 1 本だけ。TODO・順序・状態はそちらだけを更新する。**
+
+
 ## Current cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
 
 - **Ryu/Coconala:** closed for messaging. Buyer boundary is
