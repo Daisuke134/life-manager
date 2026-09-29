@@ -2794,11 +2794,49 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
 
+## 履歴cursor（2026-09-30、Gig全回帰と容量ガード再実測後）
+
+この節が直前のcursorを更新する。`fix/source-reconcile-20260930`ではsource errorを安全なmachine codeとして永続化する変更（`16735319e8`）をpush済みである。テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
+
+- 検証済み: Gig disk-guard focused `2 passed`、Gig全体 `1580 passed`、`lm-loop-contract` `ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）、`git diff --check`。
+- 未検証のまま: productionのENOSPC自然run、稼働loopの再起動、providerの外部効果。production `current/RELEASE.json`はmain由来のままである。
+- Lancers実測は`human_verification_required`でprovider効果0。旧`contracts.json`の`logged_in`欠落は補完しない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式human-verification状態が解消された自然runでpreflightを2回完了し、現行schemaのcontracts証跡を再生成する。`logged_in`を推測・手編集しない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorの各factoryを、実際のaccount-bound authorization receiptとprovider公式readbackへ接続する。registryのテストadapterやローカルreceiptは実adapter完了の証拠にしない。
+3. **未完** providerごとのcanary/readbackを閉じ、owner／rollback／settlementの公式receiptを自然runで取得する。Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract・mutation authorizationが揃うまでhold。
+4. **未完** lifecycle storeへplanned→terminalまたはrollbackをoccurrence単位で永続化し、同じcandidateのreplay-zeroを公式readbackで確認する。
+5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
+## 履歴cursor（2026-09-30、Gig全回帰と容量ガード再実測後）
+
+この節が直前のcursorを更新する。`fix/source-reconcile-20260930`ではsource errorを安全なmachine codeとして永続化する変更（`16735319e8`）をpush済みである。テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
+
+- 検証済み: Gig disk-guard focused `2 passed`、Gig全体 `1580 passed`、`lm-loop-contract` `ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）、`git diff --check`。
+- 未検証のまま: productionのENOSPC自然run、稼働loopの再起動、providerの外部効果。production `current/RELEASE.json`はmain由来のままである。
+- Lancers実測は`human_verification_required`でprovider効果0。旧`contracts.json`の`logged_in`欠落は補完しない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** Lancersの公式human-verification状態が解消された自然runでpreflightを2回完了し、現行schemaのcontracts証跡を再生成する。`logged_in`を推測・手編集しない。
+2. **未完** Coconala／Lancers／CrowdWorks／Mercorの各factoryを、実際のaccount-bound authorization receiptとprovider公式readbackへ接続する。registryのテストadapterやローカルreceiptは実adapter完了の証拠にしない。
+3. **未完** providerごとのcanary/readbackを閉じ、owner／rollback／settlementの公式receiptを自然runで取得する。Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract・mutation authorizationが揃うまでhold。
+4. **未完** lifecycle storeへplanned→terminalまたはrollbackをoccurrence単位で永続化し、同じcandidateのreplay-zeroを公式readbackで確認する。
+5. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式readbackを保存する。
+6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
 ## 現在の正本cursor（2026-09-30、source error codeの永続化後）
 
 `platform_enrollment.py`は、source failureの本文をそのまま保存せず、`account_state_invalid`や`source_missing:coconala`のような安全なmachine codeだけを`error_code`としてrun summaryへ渡す。`meta_loop_run_store.py`もこの任意の診断欄を検証・永続化する。これにより、次の自然runは型名だけでなく、どの境界を再取得すべきかを自律的に選べる。任意テキストやprovider本文は保存しない。
 
-- 検証済み: Marketplace Core `352 passed`、Gig platform-manifest回帰 `21 passed`、compile、`git diff --check`。
+- 検証済み: Marketplace Core `352 passed`、Gig platform-manifest回帰 `21 passed`、Gig disk-guard focused `2 passed`、Gig全体 `1580 passed`、`lm-loop-contract` `ok=true`（catalog_loops=14、registry_jobs=176、mapped_jobs=102、shared_job_ids=[]）、compile、`git diff --check`。
+- テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。
+- productionのENOSPC自然run、稼働loopの再起動、provider外部効果は未検証。production `current/RELEASE.json`はmain由来のままである。
 - Lancers実測は依然として`human_verification_required`でprovider効果0。旧`contracts.json`の`logged_in`欠落は補完せず、次の公式read-only preflightで再生成する。
 
 ### 最終原子TODO（この節が唯一の実行順正本）
