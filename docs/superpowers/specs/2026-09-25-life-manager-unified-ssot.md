@@ -822,7 +822,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 残りの順序は、(a) このbranchのテスト・spec更新をpush、(b) main/PR受入れ、(c) main由来releaseで `hf-gig-browser` の修正releaseを安全なidle境界に反映、(d) Coconala公式DMの403回復をreadbackしRyuへ一度だけ送信、(e) 全platform loopの暗黙browser依存を明示identityへ収束、である。
 
-現行source readbackは、専用worktreeのbranch `fix/lm-release-boundary-20260929`（HEAD `77cfa4bc15`、最新main `7a093f66f1`を同期済み、push済み、PRなし）である。重点runtime `252 passed / 164 subtests`、Capafy同期テスト`12 passed`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）である。一方、`./bin/lm-loop doctor` は `ok=false` で、未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision` が1件残る。これはCoconala修正branchから勝手に削除・再起動せず、該当ownerでregistryへ収束させる別promotion TODOである。
+現行source readbackは、専用worktreeのbranch `fix/lm-release-boundary-20260929`（HEAD `8efc44d76b`、最新main `7a093f66f1`を同期済み、push済み、PRなし）である。重点runtime `252 passed / 164 subtests`、Capafy同期テスト`12 passed`、`./bin/lm-loop-contract` は `ok=true`（catalog 14 / registry 174 / mapped 101）である。一方、`./bin/lm-loop doctor` は `ok=false` で、未管理label `ai.anicca.provision-browser.aws.life-manager-cloud-provision` が1件残る。これはCoconala修正branchから勝手に削除・再起動せず、該当ownerでregistryへ収束させる別promotion TODOである。
 
 横断owner readback（`delivery/current-cycle-v715-platform-owner-readback.json`）では、Coconalaのreply/Paidはruntime passでもApply/Storefrontは`resource_effect_unknown`、LancersのApplication/Negotiate/Paidは`entrypoint_exit_1`（Negotiateの根因は`provider_response_invalid`）、CrowdWorksはbrowser/replyが失敗しApplication/Paidは公式readbackなし、MercorのApplication/Reply/Paidは`resource_effect_unknown`である。Freelancer/Upworkはadapterだけでactive registry ownerがなく、全platform完了とは扱わない。`effect_status=unknown`を成功に昇格せず、各providerの公式readback adapterとimmutable release適用が残る。
 
