@@ -81,6 +81,37 @@ def test_capafy_days_rotate_through_different_skills():
     )
 
 
+def test_production_run_id_format_alternates_daily_by_jst_date():
+    # article-daily.sh stamps run_id with `date -u '+%Y%m%d-%H%M%S'` (UTC, no dashes in the
+    # date part), not the "daily-YYYY-MM-DD" shape used elsewhere in this file. Before this
+    # fix neither regex matched it, so production runs silently fell back to the byte-sum
+    # path and Capafy days were irregular instead of every-other-day.
+    module = load_module()
+    config = load_config()
+    picks = {
+        "20260930-010000": "capafy-skills",
+        "20261001-010000": "anicca",
+        "20261002-010000": "capafy-skills",
+        "20261003-010000": "anicca",
+    }
+    for run_id, expected_product in picks.items():
+        result = module.select(config, run_id)
+        assert result["product_id"] == expected_product, run_id
+    # Same run_id -> same answer.
+    assert module.select(config, "20260930-010000") == module.select(config, "20260930-010000")
+
+
+def test_production_run_id_converts_utc_to_jst_across_midnight():
+    # A 06:00 JST cron run stamps a UTC clock still on the previous calendar day
+    # (06:00 JST == 21:00 UTC the day before). The JST date -- not the raw UTC date --
+    # must decide the pick, or the every-other-day cadence breaks at the JST day boundary.
+    module = load_module()
+    config = load_config()
+    run_id = "20260929-210000"  # UTC 2026-09-29 21:00 == JST 2026-09-30 06:00
+    result = module.select(config, run_id)
+    assert result["product_id"] == "capafy-skills"
+
+
 def test_run_id_without_an_embedded_date_still_resolves_deterministically():
     module = load_module()
     config = load_config()

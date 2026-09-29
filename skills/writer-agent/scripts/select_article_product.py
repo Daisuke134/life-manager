@@ -6,13 +6,18 @@ best-selling skills get a steady share too now, so Capafy sales become one more 
 outcome of the same daily article, not a separate campaign.
 
 Deterministic from run_id alone (no state file, no lock, safe under the loop's existing
-mkdir-based concurrency guard): the run's embedded calendar date decides anicca vs
-capafy-skills (every-other-run share), and the date also round-robins which Capafy skill gets
-the run so all six get roughly equal exposure over time. A run_id without an embedded date
-(tests, ad hoc runs) still gets a stable pick via a byte-sum fallback -- deterministic, not
-current-time-based, so the same run_id always reproduces the same pick.
+mkdir-based concurrency guard): the run's JST calendar date decides anicca vs capafy-skills
+with strict every-other-day alternation, and the same date also round-robins which Capafy
+skill gets the run so all six get roughly equal exposure over time. The production run_id
+from article-daily.sh's `date -u '+%Y%m%d-%H%M%S'` is a UTC timestamp, so it is converted to
+JST before taking the date -- a 06:00 JST run stamps a UTC clock still on the previous
+calendar day, and using that raw UTC date would silently break the every-other-day cadence.
+A run_id without an embedded date (tests, ad hoc runs) still gets a stable pick via a
+byte-sum fallback -- deterministic, not current-time-based, so the same run_id always
+reproduces the same pick.
 
   select_article_product.py --run-id daily-2026-09-28 --config config/products.json
+  select_article_product.py --run-id 20260930-010000 --config config/products.json
 """
 from __future__ import annotations
 
@@ -23,10 +28,18 @@ import re
 import sys
 from pathlib import Path
 
+JST = dt.timezone(dt.timedelta(hours=9))
+RUN_ID_UTC_TIMESTAMP = re.compile(r"(\d{8})-(\d{6})")
 RUN_ID_DATE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
 
 def day_index(run_id: str) -> int:
+    match = RUN_ID_UTC_TIMESTAMP.search(run_id)
+    if match:
+        utc_dt = dt.datetime.strptime(match.group(1) + match.group(2), "%Y%m%d%H%M%S").replace(
+            tzinfo=dt.timezone.utc
+        )
+        return utc_dt.astimezone(JST).date().toordinal()
     match = RUN_ID_DATE.search(run_id)
     if match:
         return dt.date.fromisoformat(match.group(1)).toordinal()
