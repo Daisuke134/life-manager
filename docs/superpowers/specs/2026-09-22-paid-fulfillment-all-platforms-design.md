@@ -6206,3 +6206,25 @@ retried or resent.
 - [ ] Both exact fences remain closed with next action
   `obtain_occurrence_bound_readback`; no state, receipt, or provider action was
   changed by the probe.
+
+### CrowdWorks Paid official inventory reconciliation — 2026-09-30 08:05 JST
+
+- [x] The existing CrowdWorks CDP session was used read-only through the
+  platform adapter. The official active-contract inventory at
+  `2026-09-29T22:55:33.989295Z` contained five provider records: `63871196`
+  (`delivered`), `63826932`, `63819060`, `63808390`, and `63808372`
+  (`funded`). No submission, message, milestone, or browser-process effect
+  was executed.
+- [x] Official detail readback succeeded for all five records. The funded
+  records' latest buyer events were respectively `2026-09-28T12:44:00+09:00`,
+  `2026-09-28T12:28:00+09:00`, `2026-09-24T19:16:00+09:00`, and
+  `2026-09-24T19:14:00+09:00`; the delivered record exposed no buyer event.
+  These provider records contain no `run_id`, `occurrence_id`, or receipt
+  binding to `crowdworks-revenue-paid:18d62cf32eb0c678-48194`, whose local
+  execution began at `2026-09-17T17:48:44Z` and ended `effect_status=unknown`.
+- [ ] Therefore the current official inventory is not an
+  occurrence-bound zero-effect proof and cannot release the fence. The exact
+  CrowdWorks Paid row remains `claimed,effect_unknown=1` with no
+  `provider_receipt_id` or `official_readback_ref`; no retry or fence release
+  is allowed. The next cursor is the corresponding Lancers Paid official
+  history/readback, then a fresh approved occurrence-bound reconciliation.
