@@ -857,6 +857,30 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **Lancersのsource診断修正（このbranch、production未反映）**: `skills/earn/lancers/scripts/work_sync.py` のJSON fetch境界が、HTTP失敗時のdocument title/bodyにHuman Verification等のmarkerを検出した場合、`provider_response_invalid`ではなく型付き`human_verification_required`を返すようにした。`reply_adapter`も同じ理由をobservation boundaryとして`effect=0`・pendingに分類し、work-syncのexitは75（provider mutationなし）にする。captcha bypass・再ログイン・再送は行わない。focused testsはLancers `23 passed`、Paid/owner `32 passed`。main統合・immutable release・9227 natural readbackは未完了。
 
+**ブラウザ割当・worktree境界の最新source readback（このbranch）**: Codexは専用worktree `/Users/anicca/Projects/life-manager-main/.worktrees/lm-release-boundary-20260929`、branch `fix/lm-release-boundary-20260929`、HEAD `831df47dc735…`で作業し、`origin/fix/lm-release-boundary-20260929`へpush済みである。`origin/main=eada0da38d38…`とは別で、未マージ・未productionである。loop→browserの宣言正本はrepo内 `config/loop-registry.json`、identity→profile/accountの正本はMac側 `~/.config/ai/registry/browsers.toml`、実行時のport/UUID再解決は `skills/browser/resolve_cdp_endpoint.py`、leaseは `skills/browser/browser-guard.sh`、保持付き入口は `skills/browser/with-browser.sh` である。
+
+| loop群 | 現在のbrowser/profile | identity登録 | 衝突境界 |
+|---|---|---|---|
+| Coconala `hf-gig-browser`; action `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-storefront-direct` | `~/.cloak/profiles/gig-daily-driver`, 宣言9223（実portはDevToolsActivePort） | `coconala:kosuke`（browser UUIDを実測して一致確認） | Coconala DM・Paid・Application・Storefrontを同時に別profileへ向けない。Colors管理profileとは直列化し共有しない |
+| Lancers `lancers-revenue-browser`; action `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `~/.local/state/anicca/lancers/browser-profile`, 宣言9227 | **未登録**（`browsers.toml`にLancers identityがない） | 現状はprovider adapterの9227依存。Human Verification中は再送しない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
+| CrowdWorks `crowdworks-revenue-browser`; action `application`, `reply`, `paid`, `report` | `~/.local/state/anicca/crowdworks/browser-profile`, 宣言9228 | **未登録**（`browsers.toml`にCrowdWorks identityがない） | 現状はprovider adapterの9228依存。公式readbackなしのeffect unknownを成功扱いしない。identity登録とendpoint resolver接続までzero-collisionを証明しない |
+| Mercor / Freelancer / Upwork | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
+| RyuのColors管理 | `~/.cloak/profiles/colors-hachioji-owner-18211957`, 動的port | `colors-hachioji:owner-18211957` | Coconala `coconala:kosuke` と同じprofile/CDPを同時に触らない |
+
+この表は「実際に現在どこへ接続するか」と「まだ衝突安全を証明できない箇所」を分けたものだ。Coconala action loopのport/profileは現行apply実装にも残るため、identity metadataを追加しただけではendpoint解決の一般化にならない。Lancers/CrowdWorksへ未登録identityを推測で作らず、`browsers.toml`の登録、adapterの固定port除去、`resolve_cdp_endpoint.py`＋leaseの自然run、UUID衝突readbackを一つの変更として行う。
+
+**本番境界の最新readback**: production `current` は `/Users/anicca/loops/releases/20260929T171306-eada0da3`（SHA `eada0da38d38…`）だが、`hf-gig-browser` はloaded release `8a9f1dcb84…`を保持するrelease driftである。CDP `9223`は到達しbrowser UUID衝突0だが、official receipt/readbackはnull。`delivery/current-cycle-v717-production-release-drift-readback.json`が根拠で、Ryu DM送信・正式納品クリックは0件である。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
+
+**残TODO（成果基準の順序）**:
+
+1. このbranchのsource acceptanceを再現可能なfocused test・`git diff --check`・`lm-loop-contract`で固定し、PR/checksを通す。`lm-loop doctor`の未管理AWS labelは本branchで勝手に削除せず、owner/registryの別修正として収束させる。
+2. mainへ統合後、main由来immutable releaseを作成し、`hf-gig-browser`をloaded SHA・natural terminal・Coconala browser UUID/leaseでreadbackする。worktreeからproductionをkickstartしない。
+3. 403が解消した公式Coconala DMでRyuの最新threadをreadbackし、全要求を一つの完成返信にまとめて一度だけ送る。正式納品ボタンは押さない。403またはreceipt欠落なら送らない。
+4. Coconala action loopのimplicit adapter mappingをregistry/endpoint resolver/leaseへ収束させ、Coconala DM・Paid・Application・Storefrontの直列化とreplay-zeroを自然runで確認する。
+5. Lancers/CrowdWorksのidentityを正式登録し、固定9227/9228依存をresolverへ置換する。Human Verification・provider denial・effect unknownを型付きpendingとして保持し、公式receiptなしの再送を禁止する。
+6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
+7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。
