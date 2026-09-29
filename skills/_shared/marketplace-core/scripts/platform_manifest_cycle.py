@@ -1,4 +1,4 @@
-"""Shared four-platform Meta Loop wake entrypoint.
+"""Shared bounded Meta Loop platform-manifest wake entrypoint.
 
 The registry owns source completeness and ordering.  Provider modules own their
 read-only snapshot collection and manifest validation; this module only routes
@@ -29,6 +29,7 @@ except ModuleNotFoundError:  # pragma: no cover - direct module loading fallback
 
 
 PLATFORM_PROVIDERS = ("coconala", "lancers", "crowdworks", "mercor")
+SUPPORTED_PLATFORM_PROVIDERS = PLATFORM_PROVIDERS + ("upwork", "freelancer")
 
 
 class PlatformManifestCycleError(ValueError):
@@ -51,24 +52,40 @@ def run_platform_manifest_wake(
     candidate_store: Any,
     run_store: Any,
     *,
+    providers: tuple[str, ...] | None = None,
     run_id: str,
     observed_at: str,
     max_candidates_per_source: int = 50,
 ) -> dict[str, Any]:
-    """Run all four known platform manifest sources in one durable wake.
+    """Run an explicit bounded set of known platform sources in one wake.
 
-    Missing providers are represented as typed source failures so the wake is
-    persisted as ``partial`` rather than silently becoming an empty success.
+    The default remains the original four marketplace sources. New providers
+    must opt in with ``providers=...`` so adding an adapter cannot silently
+    change the source count or status of existing natural wakes. Missing
+    providers are represented as typed source failures, and provider mutation
+    is never called here.
     Unknown provider keys fail before any discover callable is invoked.
     """
 
     if not isinstance(source_discoverers, Mapping):
         raise PlatformManifestCycleError("source_registry_invalid")
-    unknown = set(source_discoverers).difference(PLATFORM_PROVIDERS)
+    if providers is None:
+        selected = PLATFORM_PROVIDERS
+    elif (
+        not isinstance(providers, tuple)
+        or not providers
+        or len(set(providers)) != len(providers)
+        or any(not isinstance(provider, str) or provider not in SUPPORTED_PLATFORM_PROVIDERS
+               for provider in providers)
+    ):
+        raise PlatformManifestCycleError("provider_registry_invalid")
+    else:
+        selected = providers
+    unknown = set(source_discoverers).difference(selected)
     if unknown:
         raise PlatformManifestCycleError("source_provider_invalid")
     sources: dict[str, Any] = {}
-    for provider in PLATFORM_PROVIDERS:
+    for provider in selected:
         discover = source_discoverers.get(provider)
         if discover is None:
             discover = _missing_source(provider)
@@ -88,6 +105,7 @@ def run_platform_manifest_wake(
 __all__ = [
     "MissingPlatformManifestSource",
     "PLATFORM_PROVIDERS",
+    "SUPPORTED_PLATFORM_PROVIDERS",
     "PlatformManifestCycleError",
     "run_platform_manifest_wake",
 ]

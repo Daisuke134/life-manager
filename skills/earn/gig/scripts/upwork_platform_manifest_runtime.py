@@ -27,24 +27,24 @@ def _load(path: Path, name: str):
 
 
 _UPWORK = None
-_ENROLLMENT = None
+_CYCLE = None
 _CANDIDATE_STORE = None
 _RUN_STORE = None
 
 
 def _modules():
-    global _UPWORK, _ENROLLMENT, _CANDIDATE_STORE, _RUN_STORE
+    global _UPWORK, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
     if _UPWORK is None:
         _UPWORK = _load(HERE.with_name("upwork_platform_manifest.py"), "upwork_manifest_runtime_source")
-    if _ENROLLMENT is None:
-        _ENROLLMENT = _load(CORE / "platform_enrollment.py", "upwork_manifest_runtime_enrollment")
+    if _CYCLE is None:
+        _CYCLE = _load(CORE / "platform_manifest_cycle.py", "upwork_manifest_runtime_cycle")
     if _CANDIDATE_STORE is None:
         _CANDIDATE_STORE = _load(
             CORE / "platform_candidate_store.py", "upwork_manifest_runtime_candidates",
         )
     if _RUN_STORE is None:
         _RUN_STORE = _load(CORE / "meta_loop_run_store.py", "upwork_manifest_runtime_runs")
-    return _UPWORK, _ENROLLMENT, _CANDIDATE_STORE, _RUN_STORE
+    return _UPWORK, _CYCLE, _CANDIDATE_STORE, _RUN_STORE
 
 
 def default_manifest_root() -> Path:
@@ -69,7 +69,7 @@ def run_upwork_platform_manifest_wake(
 ) -> dict[str, Any]:
     """Persist one Upwork platform candidate without provider mutation."""
 
-    upwork, enrollment, candidate_store_module, run_store_module = _modules()
+    upwork, cycle, candidate_store_module, run_store_module = _modules()
     root = default_manifest_root()
     candidates = candidate_store_module.CandidateStateStore(
         candidate_root if candidate_root is not None else root / "candidates",
@@ -85,10 +85,11 @@ def run_upwork_platform_manifest_wake(
 
     sources = dict(source_discoverers or {})
     sources["upwork"] = discover
-    return enrollment.run_meta_loop_wake(
+    return cycle.run_platform_manifest_wake(
         sources,
         candidates,
         runs,
+        providers=("upwork",),
         run_id=run_id,
         observed_at=seen_at,
     )

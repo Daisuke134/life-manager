@@ -144,3 +144,44 @@ def test_platform_manifest_cycle_rejects_unknown_source_before_discovery(tmp_pat
         raise AssertionError("unknown source must fail closed")
     assert called is False
 
+
+def test_platform_manifest_cycle_accepts_explicit_upwork_freelancer_registry(tmp_path):
+    calls = []
+
+    def discover(provider):
+        def _discover():
+            calls.append(provider)
+            return [_item(provider)]
+        return _discover
+
+    candidates = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    runs = run_store_module.MetaLoopRunStore(tmp_path / "runs")
+    result = cycle.run_platform_manifest_wake(
+        {"upwork": discover("upwork"), "freelancer": discover("freelancer")},
+        candidates,
+        runs,
+        providers=("upwork", "freelancer"),
+        run_id="new-platforms-1",
+        observed_at="2026-09-30T06:04:00Z",
+    )
+
+    assert result["status"] == "ok"
+    assert result["sources"] == 2
+    assert result["inspected"] == 2
+    assert result["held"] == 2
+    assert calls == ["freelancer", "upwork"]
+
+
+def test_platform_manifest_cycle_rejects_provider_outside_supported_registry(tmp_path):
+    candidates = candidate_store_module.CandidateStateStore(tmp_path / "candidates")
+    runs = run_store_module.MetaLoopRunStore(tmp_path / "runs")
+
+    try:
+        cycle.run_platform_manifest_wake(
+            {}, candidates, runs, providers=("not-a-platform",),
+            run_id="bad-provider-1", observed_at="2026-09-30T06:05:00Z",
+        )
+    except cycle.PlatformManifestCycleError as error:
+        assert str(error) == "provider_registry_invalid"
+    else:  # pragma: no cover
+        raise AssertionError("unsupported provider must fail closed")

@@ -47,7 +47,7 @@ readback(receipt_id)        -> bool        # the platform's own record, not your
 | `dom_contract.py` | ④⑤ a selector that names itself when it stops matching |
 | `platform_enrollment.py` | Meta Loop: bounded read-only discovery、policy、thin adapter、funded work、公式canary/readback、replay-zero、positive net economicsを一つのpromotion gateへ束ね、評価結果をcandidate storeへ冪等保存する |
 | `platform_manifest_source.py` | platform-level manifestだけをMeta Loop candidate sourceへ渡す。案件Opportunity/listing snapshotは明示的に拒否し、provider identityとsnapshot evidenceを保持する |
-| `platform_manifest_cycle.py` | Coconala/Lancers/CrowdWorks/Mercorを一つのbounded wakeへ束ね、未設定sourceを`partial`としてdurable記録する。新しいproviderは明示的にregistryへ追加する |
+| `platform_manifest_cycle.py` | Coconala/Lancers/CrowdWorks/Mercorを既定のbounded wakeへ束ね、`providers=(...)`でUpwork／Freelancer等を明示的に追加できる。未設定sourceは`partial`としてdurable記録し、provider mutationは呼ばない |
 | `opportunity_discovery.py` | `discover`→`inspect`→判定→durable observationのread-only共通runner。submit/返信/納品は呼ばない |
 | `opportunity_observation_store.py` | 案件ごとのeligible/hold、evidence、next actionを0600 JSONLへ冪等保存する |
 
