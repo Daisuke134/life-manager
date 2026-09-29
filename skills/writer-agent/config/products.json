@@ -15,37 +15,68 @@
           "agent_id": "8123079349",
           "buyer_problem": "the first three seconds of a short-form video keep getting scrolled past; the creator needs a hook that survives the swipe.",
           "seo_seed": "hook for short form video",
-          "seo_core_terms": ["hook", "hooks"]
+          "seo_core_terms": [
+            "hook",
+            "hooks"
+          ]
         },
         "marketing-strategist": {
           "agent_id": "9563867391",
           "buyer_problem": "a small team has no dedicated marketer and needs a concrete campaign/content plan, not generic advice.",
           "seo_seed": "marketing plan for small business",
-          "seo_core_terms": ["marketing strategy", "marketing plan"]
+          "seo_core_terms": [
+            "marketing strategy",
+            "marketing plan"
+          ]
         },
         "reels-hook-lab": {
           "agent_id": "3798949471",
           "buyer_problem": "an Instagram Reels creator's completion rate drops in the opening frame and needs a proven hook pattern for Reels specifically.",
           "seo_seed": "instagram reels hook ideas",
-          "seo_core_terms": ["reels hook", "reel hook", "hook"]
+          "seo_core_terms": [
+            "reels hook",
+            "reel hook",
+            "hook"
+          ]
         },
         "slide-maker": {
           "agent_id": "8828622062",
           "buyer_problem": "turning a raw outline into a presentable slide deck eats hours the person doesn't have before a pitch or class.",
           "seo_seed": "turn outline into slides",
-          "seo_core_terms": ["slide", "slides", "presentation"]
+          "seo_core_terms": [
+            "slide",
+            "slides",
+            "presentation"
+          ]
         },
         "tiktok-script-pro": {
           "agent_id": "2844813315",
           "buyer_problem": "a TikTok creator can film and edit but freezes at a blank page when it's time to write the script.",
           "seo_seed": "tiktok video script ideas",
-          "seo_core_terms": ["tiktok script"]
+          "seo_core_terms": [
+            "tiktok script"
+          ]
         },
         "youtube-script-writer": {
           "agent_id": "7686597754",
           "buyer_problem": "a YouTuber's upload cadence stalls because scripting each video takes longer than shooting it.",
           "seo_seed": "youtube script writing",
-          "seo_core_terms": ["youtube script"]
+          "seo_core_terms": [
+            "youtube script"
+          ]
+        }
+      }
+    },
+    "promptbase": {
+      "listings": {
+        "promptbase-hook-lab": {
+          "landing_url": "https://promptbase.com/prompt/hook-lab-win-the-first-3-seconds-2?via=keipanda",
+          "buyer_problem": "the first three seconds of a short-form video keep getting scrolled past; the creator wants a ready prompt that writes hooks that survive the swipe.",
+          "seo_seed": "prompt for short form video hooks",
+          "seo_core_terms": [
+            "hook",
+            "prompt"
+          ]
         }
       }
     }

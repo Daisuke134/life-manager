@@ -78,17 +78,21 @@ def select_for_date(
     slot: int = 0,
 ) -> dict:
     ranked = rank_skills(products_cfg, analytics)
+    # Other marketplaces' live listings (PromptBase, P4) join the rotation after
+    # the Capafy ranking; they carry their own landing_url and no agent_id.
+    extra = products_cfg["products"].get("promptbase", {}).get("listings", {})
+    ranked = ranked + sorted(extra)
     if not ranked:
-        raise ValueError("no capafy-skills configured to rotate")
+        raise ValueError("no capafy-skills or listings configured to rotate")
     # 8 three-hour slots per day; each slot promotes the next skill in the ranking.
     slug = ranked[(date.toordinal() * 8 + slot) % len(ranked)]
-    skill = products_cfg["products"]["capafy-skills"]["skills"][slug]
+    skill = extra.get(slug) or products_cfg["products"]["capafy-skills"]["skills"][slug]
     return {
         "date": date.isoformat(),
         "channel": channel,
         "capafy_skill": slug,
-        "agent_id": skill["agent_id"],
-        "landing_url": f"https://capafy.ai/agent/{skill['agent_id']}",
+        "agent_id": skill.get("agent_id", ""),
+        "landing_url": skill.get("landing_url") or f"https://capafy.ai/agent/{skill['agent_id']}",
         "buyer_problem": skill.get("buyer_problem", ""),
         "seo_seed": skill.get("seo_seed", ""),
         "ct": f"{channel}-{slug}",
