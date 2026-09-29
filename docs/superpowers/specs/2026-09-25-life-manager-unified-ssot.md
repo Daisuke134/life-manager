@@ -1352,33 +1352,35 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **残りのAtomic Todo（この順番。1行につき操作は1つだけ）**:
 
-| 順 | ID | 1つだけの操作 | 目的 | 完了条件（1つ） | 証拠 |
-|---:|---|---|---|---|---|
-| 1 | `AT-13` | 次のcompleted daily sessionのstrategy exit decision receiptを1件読む | QQQをstrategy自身がexit対象と判定したか確定する | `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`である | exit decision receipt |
-| 2 | `AT-14` | AT-13で指定されたexit orderをAlpaca公式GETで1回読む | exit注文の状態を確定する | orderがterminal statusである | broker receipt |
-| 3 | `AT-15` | exit後のaccountとpositionをAlpaca公式GETで1回読む | 残高と保有数量を確定する | QQQ qtyがexit receiptと整合する | account/position readback |
-| 4 | `AT-16` | entry/exit receiptからgross cash-flow P&Lを1回計算する | 売買差額を確定する | gross P&Lをreceiptから再計算できる | gross P&L row |
-| 5 | `AT-17` | feeとslippageの公式値を1回記録する | 取引コストを確定する | 両方が数値または公式`0`である | cost row |
-| 6 | `AT-18` | model costを1回記録する | 実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
-| 7 | `AT-19` | cost-complete net P&Lを1回計算する | 実際の利益または損失を確定する | 未知のcostがなく再計算できる | net P&L row |
-| 8 | `AT-20` | 同じeffectをreplayしてreadbackする | 二重注文・二重計上を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
-| 9 | `AT-21` | qualified round tripを測定台帳へ1行追加する | 1回分をpromotion母集団へ登録する | 1行にreceipt・net P&L・replay-zeroがある | measurement ledger row |
-| 10 | `AT-22.1[n]` | 次の自然round trip `n` のexit decision receiptを1件読む | `n`回目の新しい測定を開始する | `n`が前回のqualified countより1大きい | exit decision receipt |
-| 11 | `AT-22.2[n]` | `n`回目のexit orderをAlpaca公式GETで1回読む | `n`回目のexit状態を確定する | orderがterminal statusである | broker receipt |
-| 12 | `AT-22.3[n]` | `n`回目のexit後accountとpositionを1回読む | `n`回目の残高を確定する | positionがreceiptと整合する | account/position readback |
-| 13 | `AT-22.4[n]` | `n`回目のgross cash-flow P&Lを1回計算する | `n`回目の売買差額を確定する | gross P&Lを再計算できる | gross P&L row |
-| 14 | `AT-22.5[n]` | `n`回目のfeeとslippageを1回記録する | `n`回目の取引コストを確定する | 数値または公式`0`である | cost row |
-| 15 | `AT-22.6[n]` | `n`回目のmodel costを1回記録する | `n`回目の実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
-| 16 | `AT-22.7[n]` | `n`回目のcost-complete net P&Lを1回計算する | `n`回目の実利益を確定する | 未知のcostがなく再計算できる | net P&L row |
-| 17 | `AT-22.8[n]` | `n`回目のeffectをreplayしてreadbackする | `n`回目の二重処理を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
-| 18 | `AT-22.9[n]` | `n`回目のqualified round tripを台帳へ1行追加する | `n`回目を30件母集団へ登録する | `n`のledger rowが1行だけ存在する | measurement ledger row |
-| 19 | `AT-23` | measurement ledgerのqualified countを1回readbackする | `30/30`の現在値を確定する | countをledgerから再計算できる | counter readback |
-| 20 | `AT-24` | qualified `30/30`後のpromotion判定を1回計算する | 次の投資段階へ進めるか判定する | drawdown・venue health・cost completenessが判定に入る | promotion receipt |
-| 21 | `AT-25` | Hyperliquidをshadowで1回観測する | perp候補を無資金で比較する | provider mutationなしでcandidate・想定fill・costが揃う | shadow receipt |
-| 22 | `AT-26` | Solana/Pump.funをpaperで1回観測する | meme coin候補を無署名・無fundingで比較する | candidateと公式readbackが揃う | paper receipt |
-| 23 | `AT-27` | yield候補をshadowで1回観測する | 預け入れ前のrate・risk・feeを比較する | depositなしで3項目が揃う | shadow receipt |
-| 24 | `AT-28` | 追加venueのrolling net P&Lを1回比較する | ETF・perp・meme・yieldの実測差を確定する | 公式receipt付き比較表が1つ完成する | venue report |
-| 25 | `AT-29` | bounded canaryの可否を1回計算する | 実資金を使う前の最終判定をする | 全条件と`canary_allowed`が明示される | promotion receipt |
+`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は前の行が完了するまで実行しない待機項目である。下表は説明用の構想ではなく、投資loopの実行キューそのものである。現在実行対象なのは`AT-13`だけであり、自然なcompleted daily sessionが出るまで手動操作はしない。
+
+| 状態 | 順 | ID | 1つだけの操作 | 目的 | 完了条件（1つ） | 証拠 |
+|---|---:|---|---|---|---|---|
+| [ ] `NEXT` | 1 | `AT-13` | 次のcompleted daily sessionのstrategy exit decision receiptを1件読む | QQQをstrategy自身がexit対象と判定したか確定する | `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`である | exit decision receipt |
+| [ ] `QUEUE` | 2 | `AT-14` | AT-13で指定されたexit orderをAlpaca公式GETで1回読む | exit注文の状態を確定する | orderがterminal statusである | broker receipt |
+| [ ] `QUEUE` | 3 | `AT-15` | exit後のaccountとpositionをAlpaca公式GETで1回読む | 残高と保有数量を確定する | QQQ qtyがexit receiptと整合する | account/position readback |
+| [ ] `QUEUE` | 4 | `AT-16` | entry/exit receiptからgross cash-flow P&Lを1回計算する | 売買差額を確定する | gross P&Lをreceiptから再計算できる | gross P&L row |
+| [ ] `QUEUE` | 5 | `AT-17` | feeとslippageの公式値を1回記録する | 取引コストを確定する | 両方が数値または公式`0`である | cost row |
+| [ ] `QUEUE` | 6 | `AT-18` | model costを1回記録する | 実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
+| [ ] `QUEUE` | 7 | `AT-19` | cost-complete net P&Lを1回計算する | 実際の利益または損失を確定する | 未知のcostがなく再計算できる | net P&L row |
+| [ ] `QUEUE` | 8 | `AT-20` | 同じeffectをreplayしてreadbackする | 二重注文・二重計上を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
+| [ ] `QUEUE` | 9 | `AT-21` | qualified round tripを測定台帳へ1行追加する | 1回分をpromotion母集団へ登録する | 1行にreceipt・net P&L・replay-zeroがある | measurement ledger row |
+| [ ] `QUEUE` | 10 | `AT-22.1[n]` | 次の自然round trip `n` のexit decision receiptを1件読む | `n`回目の新しい測定を開始する | `n`が前回のqualified countより1大きい | exit decision receipt |
+| [ ] `QUEUE` | 11 | `AT-22.2[n]` | `n`回目のexit orderをAlpaca公式GETで1回読む | `n`回目のexit状態を確定する | orderがterminal statusである | broker receipt |
+| [ ] `QUEUE` | 12 | `AT-22.3[n]` | `n`回目のexit後accountとpositionを1回読む | `n`回目の残高を確定する | positionがreceiptと整合する | account/position readback |
+| [ ] `QUEUE` | 13 | `AT-22.4[n]` | `n`回目のgross cash-flow P&Lを1回計算する | `n`回目の売買差額を確定する | gross P&Lを再計算できる | gross P&L row |
+| [ ] `QUEUE` | 14 | `AT-22.5[n]` | `n`回目のfeeとslippageを1回記録する | `n`回目の取引コストを確定する | 数値または公式`0`である | cost row |
+| [ ] `QUEUE` | 15 | `AT-22.6[n]` | `n`回目のmodel costを1回記録する | `n`回目の実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
+| [ ] `QUEUE` | 16 | `AT-22.7[n]` | `n`回目のcost-complete net P&Lを1回計算する | `n`回目の実利益を確定する | 未知のcostがなく再計算できる | net P&L row |
+| [ ] `QUEUE` | 17 | `AT-22.8[n]` | `n`回目のeffectをreplayしてreadbackする | `n`回目の二重処理を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
+| [ ] `QUEUE` | 18 | `AT-22.9[n]` | `n`回目のqualified round tripを台帳へ1行追加する | `n`回目を30件母集団へ登録する | `n`のledger rowが1行だけ存在する | measurement ledger row |
+| [ ] `QUEUE` | 19 | `AT-23` | measurement ledgerのqualified countを1回readbackする | `30/30`の現在値を確定する | countをledgerから再計算できる | counter readback |
+| [ ] `QUEUE` | 20 | `AT-24` | qualified `30/30`後のpromotion判定を1回計算する | 次の投資段階へ進めるか判定する | drawdown・venue health・cost completenessが判定に入る | promotion receipt |
+| [ ] `QUEUE` | 21 | `AT-25` | Hyperliquidをshadowで1回観測する | perp候補を無資金で比較する | provider mutationなしでcandidate・想定fill・costが揃う | shadow receipt |
+| [ ] `QUEUE` | 22 | `AT-26` | Solana/Pump.funをpaperで1回観測する | meme coin候補を無署名・無fundingで比較する | candidateと公式readbackが揃う | paper receipt |
+| [ ] `QUEUE` | 23 | `AT-27` | yield候補をshadowで1回観測する | 預け入れ前のrate・risk・feeを比較する | depositなしで3項目が揃う | shadow receipt |
+| [ ] `QUEUE` | 24 | `AT-28` | 追加venueのrolling net P&Lを1回比較する | ETF・perp・meme・yieldの実測差を確定する | 公式receipt付き比較表が1つ完成する | venue report |
+| [ ] `QUEUE` | 25 | `AT-29` | bounded canaryの可否を1回計算する | 実資金を使う前の最終判定をする | 全条件と`canary_allowed`が明示される | promotion receipt |
 
 `AT-22.1[n]`〜`AT-22.9[n]`は、`n=2`から`n=30`まで、前のqualified ledger rowが完成した後にだけ同じ順序で1回ずつ実行する反復テンプレートである。これは29回wakeするTodoではない。自然に完了したround tripだけを1件とし、wake回数、accepted、unrealized P&L、backtest値は数えない。
 
