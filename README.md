@@ -2,6 +2,13 @@
 <!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
 # Life Manager
 
+## Canonical naming
+
+**Anicca is only the company name. Life Manager is the product and the autonomous agent.** Life Manager runs
+the Life Manager loops. Those loops may perform work owned by the company, but Anicca is not an agent, product,
+runtime, or second system, and Life Manager must not be described as “running Anicca.” Use `Anicca` only when a
+company or legal name is required; use `Life Manager` for the agent, product, runtime, loops, and user experience.
+
 **NO HUMAN IN THE LOOP.** Life Manager is an autonomous agent that completes work end to end without asking a
 person for credentials, login, KYC, CAPTCHA, 2FA, 3DS, approval, browser takeover, or resume. It uses an
 agent-owned identity or API path; when a provider requires a human principal, that opportunity is closed as
@@ -289,7 +296,7 @@ The founder attests that Life Manager has generated approximately $1,000 in reve
 it is not proof that a provider-independent autonomous commerce loop is closed. That loop remains proven only by
 official receipts through `banked` and, eventually, `compute_paid`.
 
-**Life Manager is the product. Anicca is the company name only when a form explicitly asks for it.**
+Naming authority: [Canonical naming](#canonical-naming).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -443,7 +450,9 @@ the loops listed as Cloud-supported rather than silently claiming all 14.
 | `apps/job-search-loop/`, `control-room/`, `adapters/` | Supporting operations, fleet documentation, and integrations | Not another Life Manager codebase |
 | `docs/`, `specs/` | Current SSOT, evidence, and retained architecture history | Historical files are not automatically current authority |
 
-Some internal package names, environment variables, service labels, and older documents still use `anicca`. In this repository, **Anicca is the company/technical namespace; Life Manager is the product**. A remaining `anicca` identifier does not imply a second product or another canonical repository.
+Some internal package names, environment variables, service labels, and older documents still use `anicca`.
+Their meaning follows [Canonical naming](#canonical-naming); a remaining `anicca` identifier does not imply an
+agent, a second product, or another canonical repository.
 
 ---
 

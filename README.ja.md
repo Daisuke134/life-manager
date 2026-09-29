@@ -2,6 +2,13 @@
 <!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
 # Life Manager
 
+## 命名の正本
+
+**Aniccaは会社名だけです。Life Managerが製品名であり、自律agent名です。** Life Managerが動かすのは
+Life Manager自身のloopです。そのloopが会社所有の仕事を実行することはありますが、Aniccaはagent、製品、
+runtime、別systemではなく、Life Managerを「Aniccaを動かすagent」とも表現しません。会社名・法的名称が
+必要な時だけ`Anicca`を使い、agent、製品、runtime、loop、user experienceには`Life Manager`を使います。
+
 **NO HUMAN IN THE LOOP（人間を実行loopに入れない）。** Life Managerはcredential、login、KYC、
 CAPTCHA、2FA、3DS、承認、browser takeover、resumeを人間に求めず、仕事をend-to-endで完了するagentです。
 agent-owned identity/APIで完結できない機会は`not_applicable: requires_human_principal`で閉じ、別のeligibleな
@@ -151,7 +158,7 @@ contractに[browser-use](https://github.com/browser-use/browser-use)、local wak
 founder証言ではLife Managerはapproximately $1,000の収益を生み出しています。これはMRRでもARRでもなく、provider非依存の
 自律Commerce loopが閉じた証明でもありません。その完了は公式receiptで`banked`、最終的に`compute_paid`まで到達した時だけです。
 
-**Life Managerが製品名です。Aniccaはformが会社名を明示的に求めた時だけ使います。**
+命名の正本 → [命名の正本](#命名の正本)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -265,7 +272,9 @@ main由来immutable release             Netlify frontend
 | `apps/job-search-loop/`, `control-room/`, `adapters/` | 補助運用、fleet資料、外部integration | 別のLife Manager codebaseではない |
 | `docs/`, `specs/` | 現在のSSOT、証跡、保存された設計履歴 | 古い文書が自動的に現行正本になるわけではない |
 
-内部package名、環境変数、service label、古い文書には `anicca` が残っています。このリポジトリでは、**Aniccaは会社名・技術namespace、Life Managerは製品名**です。`anicca` という識別子が残っていても、第2の製品や別の正本リポジトリを意味しません。
+内部package名、環境変数、service label、古い文書には`anicca`が残っています。その意味は
+[命名の正本](#命名の正本)に従います。`anicca`という識別子が残っていても、agent、第2の製品、別の正本
+repositoryを意味しません。
 
 ---
 
