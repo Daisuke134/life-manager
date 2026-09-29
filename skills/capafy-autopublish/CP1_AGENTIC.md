@@ -1,11 +1,11 @@
 # CP1 — Agentic Agent-Card Save (two-layer: thin tool + YOUR eyes)
 
 You are the JUDGMENT layer. `scripts/cp1_agent.py` is the thin DETERMINISTIC tool.
-It performs ONE browser primitive per call against the running CloakBrowser
-daily-driver (CDP :9222) and prints a screenshot path + a compact state readout.
-YOU look at the screenshot, decide the next click/type, and call it again — LOOP
-until the real success signal appears. **Never hardcode coordinates from this doc;
-they change. Read the state/screenshot each step and decide.**
+It performs ONE browser primitive per call against a LEASED CloakBrowser identity
+and prints a screenshot path + a compact state readout. YOU look at the screenshot,
+decide the next click/type, and call it again — LOOP until the real success signal
+appears. **Never hardcode coordinates from this doc; they change. Read the
+state/screenshot each step and decide.**
 
 Why this exists: the old `drive_cp1.py` hardcoded DOM positions and silently broke
 when Capafy changed the pricing widget (plan cards re-sort on period change → a
@@ -13,11 +13,29 @@ positional price/cap script scrambles values → price tab red → card never sa
 `is_confirmed_skills=false` → the daily loop STOPs). This procedure is robust to UI drift
 because a human-like agent verifies each step by looking.
 
-## The tool (run with the resolved browser Python)
+## Lease the browser — NEVER probe a port directly
+Capafy's seller session lives on the shared identity `coconala:kosuke` (declared
+in `~/.config/ai/registry/browsers.toml`; override with `CAPAFY_BROWSER_IDENTITY`
+only for a deliberately different leased identity). `cp1_agent.py` refuses to
+guess a debugging port (the 2026-07-26 incident: `:9222` turned out to be a proxy
+onto the SAME browser as production `:9223`, so two sessions drove one Chrome and
+a save silently never landed). Wrap **every** call through
+`skills/browser/with-browser.sh`, which acquires the identity for exactly that one
+command, verifies its CDP UUID, exports `CLOAK_CDP_BASE_URL`/`CDP` for the child,
+and releases on exit — you do not call `browser-guard.sh` yourself.
+
+If the identity is busy (another loop is driving `coconala:kosuke` right now),
+`with-browser.sh` waits up to `BROWSER_WAIT_SECONDS` (default 300s) and then exits
+`75` — a retryable resource-busy signal, not a bug. Skip this pass and let the
+next scheduled drainer run retry; do not fall back to a bare port.
+
+## The tool (run with the resolved browser Python, under the lease)
 ```
 SHOT=<scratchpad>/cp1.png
 CP1_EXPECTED_MODEL="<the exact model in CONFIG_PATH>" \
-CP1_SHOT=$SHOT scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
+CP1_SHOT=$SHOT \
+  bash skills/browser/with-browser.sh coconala:kosuke -- \
+  scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
 ```
 `CP1_EXPECTED_MODEL` bakes an `expectedModel`/`modelDropdownVisible`/`modelSelected`
 readout into every `state`/`shot` call, IF a Primary Model dropdown exists on the
@@ -77,7 +95,7 @@ showed).
 2. Confirm 収益化モデル = **Capafy で実行** and Billing = **Subscription** and
    container mode = **On-Demand** are selected (orange). If not, click them.
 3. `scroll` down to reveal the plan cards. Each subscription plan card = a Period
-   dropdown (Daily/Weekly/Monthly) + Price + Request-Limit + a 無料トライアル choice.
+   dropdown (Daily/Weekly/Monthly/Yearly) + Price + Request-Limit + a 無料トライアル choice.
 4. The init usually creates 3 cards (day/week/month) but with **scrambled or empty
    price/cap**. Set each to the TARGET printed by publish_prepare.sh. The price/cap
    inputs carry a unique per-period placeholder you can target precisely:

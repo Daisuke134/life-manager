@@ -24,10 +24,12 @@ The weekly and monthly ladder follows the observed high-value deck band recorded
 the repository playbook. It is a paid subscription with a bounded message cap; every
 plan is explicitly `No Free Trial`.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10/month $10 (no yearly). Repriced to the proven B2B decision-tool band: "Spatial Deck — Shareable Web Presentations" (agent `1977680754`, category 27) sells at week $9.99/month $24.99; the yearly ceiling matches "MLB Baseball Analysts" (agent `5315711748`, 35 sales) at year $149.99 — no same-category competitor publishes a yearly plan yet.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
 | month | $24.99 | 60 | No Free Trial |
+| year | $149.99 | 720 | No Free Trial |
 
 ## Title
 Customer Escalation Decision Deck

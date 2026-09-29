@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: ライティング · tags: sales, objections, customer replies
+Primary Model: DeepSeek V4.1 Flash · category: ライティング · tags: sales, objections, customer replies
 
 R1 recurring input : Each sales cycle supplies a NEW buyer objection, product facts, channel, and desired next step.
 R2 recurring output: Each cycle produces three fresh channel-ready replies, a proof-gap list, and an honesty check.
@@ -7,9 +7,12 @@ demand evidence    : Existing Capafy orders prove marketplace demand in aggregat
 
 Demand rank: 3
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $9.99 only, Claude Sonnet 4.6 (no yearly). Week/month band matches "Unscore — AI Detector & Humanizer" (agent `4097802482`, category 1, 18 sales, month $19.99); the yearly price matches "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales) at year $99.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 50 | No Free Trial |
+| year | $99.99 | 600 | No Free Trial |
 
 ## Title
 Sales Objection Reply Builder

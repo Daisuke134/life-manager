@@ -221,7 +221,7 @@ def test_cp3_output_contains_no_url_or_token(monkeypatch, capsys) -> None:
             pass
 
     monkeypatch.setattr(module, "_resolve_review_url", lambda _raw: "https://capafy.ai/developer/createAgent?token=secret&page=review")
-    monkeypatch.setattr(module, "_detect_cdp", lambda: "http://localhost:9222")
+    monkeypatch.setattr(module, "_require_cdp", lambda: "http://127.0.0.1:54137")
     monkeypatch.setattr(module, "_candidate_page_targets", lambda *_args: [{"webSocketDebuggerUrl": "ws://127.0.0.1/page"}])
     monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _Page())
     monkeypatch.setattr(module, "_navigate", lambda *_args: None)

@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: ライティング · tags: academic writing, peer review, revision
+Primary Model: DeepSeek V4.1 Flash · category: ライティング · tags: academic writing, peer review, revision
 
 RENEWAL GATE
 R1 recurring input : Each submission round brings a new decision letter, reviewer comments, manuscript evidence, and revision constraints.
@@ -6,9 +6,12 @@ R2 staleness       : A prior response cannot address new reviewer comments or la
 day-8 answer       : New editorial feedback and revised evidence make the prior response letter stale.
 demand evidence    : Official seller ranking names Academic Humanizer — Human Voice, No AI Tells as the only attributable winner at one $9.99 buyout sale. This is a distinct academic-writing workflow: evidence-bound reviewer response and revision planning, not prose humanization.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10 only, Claude Sonnet 4.6 (no yearly). Week/month band matches "Unscore — AI Detector & Humanizer" (agent `4097802482`, category 1, 18 sales, month $19.99); the yearly price matches "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales) at year $99.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 50 | No Free Trial |
+| year | $99.99 | 600 | No Free Trial |
 
 ## Title
 Peer Review Response Editor

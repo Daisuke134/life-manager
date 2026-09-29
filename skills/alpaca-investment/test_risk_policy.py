@@ -145,7 +145,7 @@ class FixedRiskPolicyTest(unittest.TestCase):
         snapshot = risk(
             equity_pnl_ny_day_usd="-10.00",
             official_pnl_ny_day_usd="-10.00",
-            observed_at="2026-09-06T14:00:06Z",
+            observed_at="2026-09-06T14:00:11Z",
             ny_day="2026-09-06",
         )
 

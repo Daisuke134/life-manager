@@ -16,7 +16,7 @@ from drive_checkpoint2 import (
     _open_cp2_target,
     _bounded_page_call,
     _bounded_page_evaluate,
-    _detect_cdp,
+    _require_cdp,
     _is_capafy_target_url,
     _raw_fill_workspace_conversation_fields,
     _validate_cdp_base,
@@ -313,7 +313,7 @@ def _playwright_submit(url: str, update_info: str) -> None:
     pw = sync_playwright().start()
     owned_page = None
     try:
-        browser = pw.chromium.connect_over_cdp(_detect_cdp(), timeout=15000)
+        browser = pw.chromium.connect_over_cdp(_require_cdp(), timeout=15000)
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         owned_page = context.new_page()
         owned_page.goto(url, wait_until="domcontentloaded", timeout=60000)
@@ -363,7 +363,7 @@ def main(argv: list[str]) -> int:
         _playwright_submit(resolved, update_info)
         print("RESULT: submitted")
         return 0
-    cdp = _detect_cdp()
+    cdp = _require_cdp()
     try:
         targets = _candidate_page_targets(cdp)
     except RuntimeError:
