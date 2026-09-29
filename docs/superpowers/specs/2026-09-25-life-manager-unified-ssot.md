@@ -2093,7 +2093,7 @@ job IDs 0）、`git diff --check`もPASS。branch
 
 ## 現在の正本cursor（2026-09-30、最終追記）
 
-専用branch `fix/source-reconcile-20260930` の最新commitは `53a8ba71d9`。4 platformのread-only account/source-healthを
+専用branch `fix/source-reconcile-20260930` で、4 platformのread-only account/source-healthを
 platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_wake`で同じMeta Loop wakeへ束ねるところまで完了。
 案件Opportunity/listing/applicationはplatform候補へ昇格させず、未設定sourceは`partial`としてdurable記録する。
 
@@ -2346,7 +2346,7 @@ platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_w
 
 ## 現在の正本cursor（2026-09-30、最終追記）
 
-専用branch `fix/source-reconcile-20260930` の最新commitは `53a8ba71d9`。4 platformのread-only account/source-healthを
+専用branch `fix/source-reconcile-20260930` で、4 platformのread-only account/source-healthを
 platform manifestへ分離し、`platform_manifest_cycle.run_platform_manifest_wake`で同じMeta Loop wakeへ束ねるところまで完了。
 案件Opportunity/listing/applicationはplatform候補へ昇格させず、未設定sourceは`partial`としてdurable記録する。
 
