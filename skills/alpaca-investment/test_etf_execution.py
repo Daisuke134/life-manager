@@ -414,6 +414,43 @@ class EtfReconciliationTest(unittest.TestCase):
         self.assertEqual(outcomes[-1]["broker"]["status"], "filled")
         self.assertEqual(outcomes[-1]["strategy_receipt"], strategy_receipt)
 
+    def test_completed_filled_outcome_without_strategy_receipt_is_backfilled(self):
+        strategy_receipt = {
+            "receipt": {"provider_order_id": "paper-order-1", "owner_id": OWNER_ID},
+            "account_readback": {"clock": {"observed_at": "2026-09-29T14:31:05Z"}},
+        }
+        decision = {
+            "mode": "paper", "strategy_id": STRATEGY_ID, "owner_id": OWNER_ID,
+            "decision_session": "2026-09-29", "source_receipt_ids": ["bars-receipt"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "receipts.jsonl"
+            sealed = EFFECT.seal(ledger, decision, ORDER)
+            EFFECT.mark_started(ledger, sealed)
+            with ledger.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({
+                    "broker": PROVIDER_ORDER,
+                    "effect_id": sealed["effect_id"],
+                    "outcome": "broker_reconciled",
+                    "mode": "paper", "paper": True, "receipt_type": "outcome",
+                }) + "\n")
+            reads = []
+            callbacks = []
+            result = EFFECT.reconcile_started(
+                ledger,
+                lambda client_order_id: reads.append(client_order_id) or PROVIDER_ORDER,
+                on_reconciled=lambda intent, order: callbacks.append((intent, order)) or strategy_receipt,
+            )
+            rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+
+        self.assertEqual(result.get("strategy_reconciled"), 1)
+        self.assertEqual(reads, [sealed["client_order_id"]])
+        self.assertEqual(callbacks[0][0]["order"], ORDER)
+        self.assertEqual(callbacks[0][0]["owner_id"], OWNER_ID)
+        outcomes = [row for row in rows if row.get("receipt_type") == "outcome"]
+        self.assertEqual(outcomes[-1]["client_order_id"], sealed["client_order_id"])
+        self.assertEqual(outcomes[-1]["strategy_receipt"], strategy_receipt)
+
     def test_effect_callback_runs_before_outcome_and_can_replay_safely(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "receipts.jsonl"

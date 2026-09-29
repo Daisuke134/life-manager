@@ -65,6 +65,35 @@ class DeploymentProfileTest(unittest.TestCase):
 
 
 class InvestmentModeTest(unittest.TestCase):
+    def test_paper_campaign_allows_only_owned_etf_symbol(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            MODULE._atomic_json(state / "etf-owned-position.json", {
+                "schema_version": 1,
+                "status": "open",
+                "owner_id": "alpaca-investment-paper",
+                "strategy_id": "alpaca-etf-126d-momentum-v1",
+                "symbol": "QQQ",
+                "decision_session": "2026-09-29",
+                "client_order_id": "lm-ai-" + "a" * 24,
+                "provider_order_id": "provider-order",
+                "position_qty": "0.013",
+            })
+            snapshot = {"paper": True, "unexpected_positions": ["QQQ"]}
+            with patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper",
+            }, clear=True), patch.object(
+                MODULE, "read_campaign_snapshot", return_value=snapshot
+            ), patch.object(MODULE, "reconcile", return_value={"status": "CLOSED"}) as reconcile:
+                result = MODULE._paper_campaign(
+                    state=state, credentials_path=Path("credentials"), cli_path=Path("alpaca")
+                )
+            self.assertEqual(result, {"status": "CLOSED"})
+            self.assertEqual(reconcile.call_args.args, (snapshot,))
+            self.assertEqual(
+                reconcile.call_args.kwargs["allowed_external_symbols"], frozenset({"QQQ"})
+            )
+
     def test_production_import_uses_reconciliation_callback_contract(self):
         script = """
 import inspect
