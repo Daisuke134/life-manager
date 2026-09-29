@@ -118,6 +118,8 @@ AgentCoreが最善なのは「一番強いagent model」だからではない。
 
 DigitalOcean Managed Agentsは概念的には非常に近く、microVM、pause/resume、Chromium、VPC、egress、credential broker、fresh/reuse triggerを持つ。pauseはcompute課金を止めるがactive-session slotは解放しない。Insightsのtoken/resource値は運用指標であり、正確な支出はbilling recordを正本にする。triggerの`ask`は安全停止ではないため、Life Managerは`ask` 0、`allow`＋明示`deny`、headless HITL rejectだけを許す。AWSの24時間support期限超過とfresh `OptInRequired` / `NotSignedUp` readbackにより、DigitalOcean＋Steel compatibility canaryを開始するが、tenant別login continuity、remove後teardown、session別cost joinが実測PASSするまではproductionへ切り替えない。
 
+DigitalOcean canaryは二段階にする。第一段は`agent: none`の2つのbare microVMを使い、model credentialなしでAのChromium localStorageを同じprofileから再読し、BからAのworkspaceが見えないこと、両sessionのexact remove→list 0、前後prepayment balanceを測る。第二段だけ実際のLife Manager agentとmodel credentialを使い、同じbusiness kernel receiptを検証する。これによりmodel vendor認証をinfrastructure isolationの前提にせず、自己申告ではないbrowser continuityとtenant isolationの証拠を先に得る。live実行は`billing:read`を含むleast-privilege DigitalOcean tokenがSSOTへ保存されてから一度だけ行い、token未取得のlocal testをprovider PASSと数えない。
+
 競合runtimeの詳細な事実、推定、非公開部分、Life Managerへの採否は[`docs/research/cloud-agent-runtime-benchmark.md`](../../research/cloud-agent-runtime-benchmark.md)を正本とする。Meta Muse本体をMuse ConnectorやMuse Codeと混同しない。
 
 ## 4. componentの責任
