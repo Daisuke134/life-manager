@@ -542,6 +542,8 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
+**Current dependency bypass:** AWS authentication now succeeds, but the account remains at registration step 3/5: a single fresh card submission still returns the provider attempt-limit error, and both IAM and CloudShell redirect to `signup/incomplete`. The authenticated support case contains the fresh evidence and requests provider-side clearance. Old immediate order: `A06 -> A07 -> A08`. New immediate order: execute provider-independent `A08` onward while the case is pending, then return to `A06 -> A07` immediately after official activation readback. This changes the work cursor, not the architecture or cloud acceptance gates.
+
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
 | A00 | done | Provider decision and one live spec/plan | `7eb28dc7a6`; old plan points here |
@@ -550,9 +552,9 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A03 | done | CL00 canary contract test | RED for missing/foreign resource IDs, mutable SHA, effect other than `none`, or missing usage receipt |
 | A04 | done | Pinned AgentCore CLI/config | exact dependency + validated `agentcore.json` |
 | A05 | done | Read-only canary runtime package | Runtime 3/3, canary/package 10/10, CDK 1/1, content manifest 178/178 identical, production dependency audits 0; no AWS mutation |
-| A06 | **next** | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0 |
+| A06 | waiting_provider | Tokyo Runtime/Browser/agent-owned Profile/Identity canary | official resource IDs; human credential/input 0; authenticated AWS case owns payment-attempt-limit clearance |
 | A07 | todo | CL00 teardown and cost readback | terminal sessions, active sessions 0, usage/cost receipt, evidence doc |
-| A08 | todo | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
+| A08 | **next** | Tenant/runtime/profile/usage schema tests | RED for cross-tenant refs, duplicate receipts, and second active runtime |
 | A09 | todo | Migration and durable stores | PostgreSQL integration PASS; failed transaction preserves old protocol |
 | A10 | todo | Versioned `free-v1` and `founding-pro-v1` policy | pure admission tests PASS |
 | A11 | todo | AgentCore envelope contract | inline secrets, wrong SHA, oversized input, incomplete receipt all rejected |
