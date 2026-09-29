@@ -1498,3 +1498,16 @@ Meta Loopは候補発見で止まらず、`candidate durable state → policy/ad
 5. **Freelancer/Upworkを安全に有効化する**: approved terms → 専用identity auth → source-complete contract/payment/payout inventory → funded contract/milestone → mutation authorization → payout readbackの順でcandidate gateを通す。active ownerが無い状態で応募・返信・納品を成功扱いにしない。
 6. **Meta Loopを完成する**: discovery scheduler、candidate durable store、promotion後owner provisioning、bounded rollback、settlement、quality/P&L feedbackをshared kernelへ接続する。policy、adapter、funded work、official canary/readback、unit economicsの全gateが揃うまで自動登録しない。
 7. **横断self-improvementを閉じる**: receipt単位の品質・コスト・gross/net P&Lをevaluatorへ接続し、replay-zeroとcost-complete positive net P&Lを通った変更だけをshared skill/kernelへ昇格する。検証済み実現収益が `$0` の間は、将来目標（百万ドル等）を実績として報告しない。
+
+**production currentの再更新（2026-09-29、別agentのmain由来releaseを反映）**: Capafy PR `#6239`のcodeを含む最新immutable release `/Users/anicca/loops/releases/20260929T230701-b4ab4ade`（SHA `b4ab4adeda3f23cfd23c643c65541b1dceeab55b`）が`/Users/anicca/loops/current`へ切り替わった。docsのmain headは`20d1dc2bc66832140e7fddd56702665a03f5c6bf`で、b4ab4adeはこのdocs-only更新より前のcode baselineである。production `doctor`は`ok=true`（registry 175、missing/retired/unmanaged 0）、`./bin/lm-loop-contract`も`ok=true`（catalog 14、registry 175、mapped 102、shared job IDs 0）。このrelease移行はsource/release契約のPASSであり、Gig provider receipt、納品、payout、収益のPASSではない。
+
+current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、Lancersの主要owner、Mercor application/paid/replyの一部が旧06bまたはb4ab以外のSHAから自然実行中である。Coconala `hf-gig-apply-direct`は`resource_effect_unknown`、Storefrontはb4ab以前の06b loadedで同じfence、Lancers application/paidは`entrypoint_exit_1`、storefrontは`resource_effect_unknown`、CrowdWorks applicationは旧47dd loaded-running、paidは06b loaded、replyは旧af6e loaded-runningで`official_readback_required`、Mercor 3 ownerは06b loadedで`resource_effect_unknown`。この時点でも全対象の`provider_receipt_id`と`official_readback_ref`はnullで、effect unknownをsuccessへ昇格していない。
+
+**再更新後の実行cursor**:
+
+1. b4ab4adeを唯一のcurrent releaseとして固定し、loaded-running ownerは強制restartせず自然terminalまで待つ。idle・effect none ownerだけをtarget applyし、plist argv、loaded SHA、state path、identity lease、rollback receiptをreadbackする。
+2. Coconala Apply/Storefront、Lancers application/storefront/report、CrowdWorks report、Mercor 3 ownerのeffect fenceを公式receipt/readbackまで閉じる。`no_pre_effect_terminal`、capacity、entrypoint failureはheld/bounded recoveryとし、再送しない。
+3. Coconala paid/reply/reconcileとCrowdWorks application/paid/replyはnatural terminal後にb4ab4adeへapplyする。RyuさんDMは既存の一回送信を維持し、403回復後のread-only確認だけを行う。
+4. Mercorの`browser_target_owner=mercor-revenue-browser`参照欠落をactive registry・identity lease・CDP/profile・official probeまで直し、doctor/contract/source testsを再実行する。
+5. Freelancer/Upworkはactive ownerがないため、approved terms、専用identity auth、source-complete funded contract/milestone、mutation authorization、payout readbackが揃うまで登録・応募・送信しない。
+6. Meta Loopのcandidate durable state、discovery scheduler、owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続し、receipt付きcost-complete positive net P&Lとreplay-zeroを通った改善だけを昇格する。検証済み収益は引き続き`$0`である。
