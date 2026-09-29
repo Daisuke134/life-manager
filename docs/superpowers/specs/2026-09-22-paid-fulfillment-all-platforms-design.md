@@ -5746,3 +5746,69 @@ revenue owner and is not permission to send.
 - [ ] Then reconcile the remaining provider fences by exact occurrence
   (CrowdWorks `18d62cf32eb0c678-48194`, Lancers `18d81967220136f8-89928`,
   Mercor `18d82d9cd75db960-67523`) before any retry or blanket release.
+
+## Runtime Status Refresh — 2026-09-30 (atomic TODO cursor after v724)
+
+Evidence first: `/Users/anicca/loops/current/RELEASE.json` still points to
+`3975ae8996cab3325f514746a32c915f9935fddf`, not this branch's shared lifecycle
+and disk-admission changes. The Aqua readback shows Apply, Storefront, Paid,
+and Apply-reconcile owners installed, but Apply and Storefront last exited
+`75/EX_TEMPFAIL`; Paid is still running the old release and its latest stderr
+contains repeated `OSError: [Errno 28] No space left on device`, while the
+state log also contains `database is locked`, `control_busy`, and stale-owner
+release deferrals. `df -k /` reports only `289316 KiB` free against the
+`536870912`-byte admission requirement. Therefore “installed” is not “working”
+and Coconala is not yet a completed platform gate.
+
+The exact next work is atomic and ordered; do not skip an item or declare a
+later item complete from source tests alone:
+
+1. [x] Preserve the single official Ryu v724 DM receipt. Do not resend, press
+   formal delivery, or create another message for the same accumulated body.
+2. [ ] Establish a safe disk-admission window: read the cleanup manifest and
+   protected-run references, reclaim only regenerated unreferenced artifacts,
+   then record before/after free bytes and the cleanup receipt. Never delete
+   provider state, credentials, evidence, or an owned run to make space.
+3. [ ] Diagnose and close the live-owner boundary: correlate the latest
+   Apply/Storefront/Paid occurrence, `.owner.json`, host-admission result,
+   entrypoint result, and launchd exit. Resolve the `resource_effect_unknown`,
+   `resource_capacity_busy`, `database is locked`, and stale-owner paths in
+   source or state recovery; do not release a fence without an official
+   readback.
+4. [ ] Build an immutable release from latest main containing the shared
+   marketplace lifecycle, account-bound authorization, disk admission,
+   cleanup allow-list, and browser-observability changes. Run the focused test
+   suites, `./bin/lm-loop-contract`, compile checks, and the release provenance
+   check; commit and push before any production transition.
+5. [ ] Obtain the required approval for the live-owner mutation, then apply
+   that immutable release through the supported launchd-safe path. Record the
+   exact release SHA and owner labels; do not raw-`launchctl`, kill, or restart
+   an active owner.
+6. [ ] Run one controlled natural no-op/readback/replay-zero pass for Coconala
+   Apply and Storefront separately. A Paid `pass` is not proof of Storefront
+   publication or of Ryu delivery. Record provider receipt, official readback,
+   effect, and replay-zero for each owner.
+7. [ ] Reconcile the exact remaining unknown provider occurrences (CrowdWorks
+   `18d62cf32eb0c678-48194`, Lancers `18d81967220136f8-89928`, Mercor
+   `18d82d9cd75db960-67523`) one at a time from official history. Retry only
+   after the occurrence boundary and effect state are known; never blanket
+   release or duplicate an uncertain effect.
+8. [ ] Keep CrowdWorks `63568785` buyer-material-gated; do not submit or
+   resend its four completed rows. Keep Lancers closed until a real funded
+   `ContractReceipt` exists. Refresh Mercor until a fresh official funded
+   inventory/final-submission readback exists.
+9. [ ] Activate Freelancer and Upwork only after, in order, fresh
+   account-bound authorization, source-complete official inventory, positive
+   funded project/contract and milestone, exactly one disabled owner, a
+   zero-spend canary, funded delivery/payment/payout/crash-recovery/replay-zero
+   readback, and then enablement.
+10. [ ] Promote the meta-loop only after every enabled platform has the same
+    lifecycle contract: observe → decide → effect fence → official readback →
+    replay-zero → structured telemetry → recovery. The meta-loop must not
+    infer success from registry presence, local tests, or a stale launchd
+    process.
+
+Current cursor: item 2 (safe disk-admission window). Items 1 and the Ryu
+customer delivery are complete; items 2–10 remain. The next external effect is
+not admissible until item 2 and the owner diagnosis in item 3 have concrete
+receipts.
