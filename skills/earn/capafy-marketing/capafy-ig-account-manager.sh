@@ -9,6 +9,12 @@ if [ "${CAPAFY_IG_ACCOUNT_MANAGER_PROBE_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
+# launchd passes no secrets; provision_prompt.sh requires LIFE_MANAGER_GMAIL_ACCOUNT.
+for ENV_FILE in "${LIFE_MANAGER_ENV_FILE:-$HOME/.local/state/life-manager/.env}"; do
+  [ -f "$ENV_FILE" ] || continue
+  set -a; . "$ENV_FILE" 2>/dev/null; set +a
+done
+
 export ANICCA_BUDGET_SCOPE_ID="${CAPAFY_MARKETING_PASS_ID:-$(date +%s)-$$}"
 export ANICCA_PASS_TOKEN_BUDGET="${CAPAFY_MARKETING_PASS_TOKEN_BUDGET:-1048576}"
 export ANICCA_LOOP_DAILY_TOKEN_BUDGET="${CAPAFY_MARKETING_DAILY_TOKEN_BUDGET:-2097152}"
@@ -77,6 +83,9 @@ matches=[
     and row.get("status")=="session_failed"
     and row.get("session_owner")=="browser"
     and row.get("incident_id")==incident_id
+    # A platform challenge (e.g. scraping_warning) cannot be re-authenticated;
+    # the handoff retires it with this prefix, so provision a replacement.
+    and not str(row.get("retirement_reason") or "").startswith("Instagram platform challenge")
 ]
 if len(matches)!=1:
     raise SystemExit(1)
