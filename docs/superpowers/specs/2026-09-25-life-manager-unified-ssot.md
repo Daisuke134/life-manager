@@ -858,7 +858,8 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 | Lancers action: `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `lancers:dais` → `lancers-revenue-browser` | 上記 | **sourceで明示＋lease**。Human Verification中は再送しない |
 | CrowdWorks: `crowdworks-revenue-browser` | `crowdworks:dais` | `~/.local/state/anicca/crowdworks/browser-profile` / 9228 | owner・identity明示。実port/UUIDはresolver |
 | CrowdWorks action: `application`, `reply`, `paid`（reportはdeterministic） | `crowdworks:dais` → `crowdworks-revenue-browser` | 上記 | **sourceで明示＋lease**。公式readbackなしのeffect unknownを成功扱いしない |
-| Mercor / Freelancer / Upwork | 登録済みbrowser ownerなし | — | adapter境界のみ。active loop・account-bound identity未完了 |
+| Mercor | `mercor:dais` | `~/.browser-harness-profile/mercor-google-20260822b` / 9334（実portはresolver） | 専用profileを`cdp_context_lease.py`の`mercor-revenue-application` taskで直列共有。funded contract・delivery receiptは未完了 |
+| Freelancer / Upwork | 登録済みbrowser ownerなし | — | adapter境界のみ。account-bound identity・funded contract未完了 |
 | Colors管理（Ryu案件のサイト側） | `colors-hachioji:owner-18211957` | `~/.cloak/profiles/colors-hachioji-owner-18211957` / 動的port | Coconala profileと共有禁止 |
 
 `config/loop-registry.json` はloop→ownerの宣言、`~/.config/ai/registry/browsers.toml` はidentity→profile/accountの宣言であり、どちらか一方だけを更新してはならない。
@@ -893,7 +894,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | Coconala `hf-gig-browser`; action `hf-gig-reply-detector`, `hf-gig-paid-direct`, `hf-gig-apply-direct`, `hf-gig-apply-reconcile`, `hf-gig-storefront-direct` | `~/.cloak/profiles/gig-daily-driver`, 宣言9223（実portはDevToolsActivePort） | `coconala:kosuke`（browser UUIDを実測して一致確認） | Coconala DM・Paid・Application・Storefrontを同時に別profileへ向けない。Colors管理profileとは直列化し共有しない |
 | Lancers `lancers-revenue-browser`; action `application`, `negotiate`, `paid`, `storefront`, `work-sync` | `~/.local/state/anicca/lancers/browser-profile`, 宣言9227 | **`lancers:dais`登録済み** | `browser-guard`/resolverでHTTP 200・所有PID・UUID `bc7ec25b…`を確認。source registry joinはこのbranch済み、Human Verification中は再送しない。main由来releaseのnatural readbackが残る |
 | CrowdWorks `crowdworks-revenue-browser`; action `application`, `reply`, `paid`, `report` | `~/.local/state/anicca/crowdworks/browser-profile`, 宣言9228 | **`crowdworks:dais`登録済み** | `browser-guard`/resolverでHTTP 200・所有PID・UUID `8e459007…`を確認。source registry joinはこのbranch済み、公式readbackなしのeffect unknownを成功扱いしない。main由来releaseのnatural readbackが残る |
-| Mercor / Freelancer / Upwork | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
+| Mercor | `mercor:dais`（専用context lease） | **dedicated identityを登録済み** | `~/.browser-harness-profile/mercor-google-20260822b`をresolverでprofile-owned endpointへ結合し、応募／返信は`mercor-revenue-application` taskで直列化する。funded receiptなしのmutationは成功扱いしない |
+| Freelancer / Upwork | active browser owner/profileなし | **未登録** | adapterだけ。契約・funded receipt・ownerを作るまでmutation loopを有効化しない |
 | Affiliate growth `affiliate-browser`, `affiliate-impact-browser`, `affiliate-x-browser` | `~/.cloak/profiles/affiliate/{en,impact-en,x-en}`, 宣言9324/9327/9326 | ownerはregistryにあるが、platform identityの個別登録は未確認 | 各profileを相互共有しない。契約work系へ流用せず、既存affiliate ownerのlease境界を維持する |
 | PromptBase `promptbase-loop-daily` / system connector `life-manager-connector-native` | 専用ownerなし。`interactive:dais` identity joinをそれぞれのtarget loopで宣言 | `interactive:dais`（target loop単位） | Coconala/Lancers/CrowdWorksのprofileへ接続しない。public mutationはeffect fenceとofficial readbackが前提 |
 | RyuのColors管理 | `~/.cloak/profiles/colors-hachioji-owner-18211957`, 動的port | `colors-hachioji:owner-18211957` | Coconala `coconala:kosuke` と同じprofile/CDPを同時に触らない |
@@ -906,6 +908,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **Lancers read-only natural probe（2026-09-29 19:33 JST）**: branchの`lancers:dais` identity／`lancers-revenue-negotiate` target ownerでleaseを取得し、返信adapterの受信観測だけを1回実行した。専用CDP `9227` のprovider画面がHuman Verificationであるため、adapterは`human_verification_required`を返して副作用なしに停止した。旧productionの`provider_response_invalid`を成功・応募・返信の証拠に昇格しない。検証解除後にのみ同じadapterで公式thread readbackへ進む。
 
+**Mercor identity correction（2026-09-29）**: 先行のread-only probeは`localhost:9222`で`status=authenticated`を返したが、直後のresolver readbackは`job-search:dais=endpoint_unavailable`、9222の実processは`interactive:dais`だった。したがってそのprobeはMercor identityの証拠として採用しない。`~/.config/ai/registry/browsers.toml`へ専用`mercor:dais`（`~/.browser-harness-profile/mercor-google-20260822b`、9334、owner=`mercor-revenue-browser`）を登録し、registryのapplication/reply laneにもjoinを追加した。次はこの専用browserを起動し、resolverのprofile-owned readback→同じ専用leaseでauth readbackを取り直す。応募・返信・契約承諾・メール認証要求・その他の外部effectはまだ実行しない。Paidは引き続き明示的な公式`paid_handoff` snapshotが来るまでmutationしない。
+
+**Mercor専用browser起動probe（2026-09-29）**: immutable `current` releaseから`ai.anicca.job-search-mercor-browser`のplistを生成し、`launchctl-safe`のAqua preflight（`mutation_allowed=true`）後に専用profileだけをbootstrapした。launcherは起動を試みたが、`runtime/host/disk_admission.py`が`disk_headroom_low`（空き約424MB、必要512MB）でexit 1にした。resolverは`mercor:dais=endpoint_unavailable`のままで、9222へのfallbackやdisk guardの迂回はしていない。これはpre-effectのホスト容量pendingであり、Mercorのauth失効・provider拒否・応募失敗の証拠ではない。空き容量回復後に同じ専用profile→resolver→専用lease→auth readbackの順で再実測する。
+
 **本番境界の最新readback（2026-09-29 19:02 JST）**: `origin/main=04a56df3e74d…`、production `current=/Users/anicca/loops/releases/20260929T185817-acaadb2f`（SHA `acaadb2fbb74…`、main ancestor）へ進んだ。`hf-gig-browser` と `hf-gig-paid-direct` は `installed/event_release_sha=acaadb2f…` へ揃い、browserは`loaded-running`、Paidは`loaded-idle`でeffect前の自然wake待ち。`hf-gig-reply-detector`、`hf-gig-apply-direct`、`hf-gig-apply-reconcile`、`hf-gig-storefront-direct`は旧releaseのままで、共有`release-reconciler`のfleet applyが順次更新中（同じownerへ重ねてapplyしない）。Ryuのv723 DMは一度だけ送信済みだが、再読み込み後のprovider永続readbackは403のため未確認。Lancers `9227`は `delivery/current-cycle-v716-lancers-human-verification-readback.json` のとおりHuman Verification画面で、captcha bypass・再ログイン・再送はしない。ユーザー提供画像は参考入力であり、公式receipt/readbackの代用にはしない。
 
 **残TODO（成果基準の順序）**:
@@ -915,7 +921,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 3. [~] provider access denial回復後、Ryuの14:41要求を含む全要求を一つの完成返信にまとめて一度だけ送信した（v723）。正式納品ボタンは押していない。直後DOMバブルは確認済みだが、再読み込み後の公式thread永続readbackは403で未取得。再送は禁止。
 4. Coconala action loopのregistry identity joinとlease wrapperをmain由来immutable releaseへ反映し、DM・Paid・Application・Storefrontの全ownerについてloaded SHA、公式readback、直列化、replay-zeroを自然runで確認する。fleet apply完了後に続ける。
 5. [x] Lancers/CrowdWorksのidentity（`lancers:dais`／`crowdworks:dais`）を`browsers.toml`へ正式登録し、8 action laneへregistry identity joinを追加した。両resolverはHTTP 200・profile所有PID・UUID衝突なしをreadback済み。source adapterのendpoint projectionも済み。Human Verification・provider denial・effect unknownは型付きpendingとして保持し、公式receiptなしの再送を禁止する。残りはmain由来immutable releaseへの反映と各providerのnatural readback。
-6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorはaccount-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
+6. 各platformを一つずつmain由来releaseへ昇格する。LancersはHuman Verification解除後に応募→交渉→仮払い→制作→納品→入金、CrowdWorksはbrowser/reply/application/paid/report、Mercorは専用`mercor:dais`のresolver readback→account-bound auth→funded contract→delivery、Freelancer/Upworkはmutation authorization→funded contract→owner登録の順で、各段にofficial receipt・crash recovery・replay-zeroを要求する。
 7. 最後にmeta loop（platform discovery→adapter/identity provisioning→candidate scoring→funded work→delivery→settlement→quality/P&L feedback）をshared marketplace kernelへ接続する。新platformを追加してもprovider固有コードだけを差し替え、credential・profile・state root・effect fence・settlementを混ぜない。
 
 ## 5.5 投資OSS検証の再確認（2026-09-29）

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[4]
 def test_owner_uses_shared_browser_lease_and_revenue_name():
     source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
     assert 'TASK="mercor-revenue-application"' in source
-    assert 'CDP="http://localhost:9222"' in source
+    assert 'browser-env.sh' in source
     assert 'cdp_context_lease.py' in source
     assert 'park "$TASK"' in source
     assert 'MERCOR_CDP_PAGE_WS' in source
@@ -41,7 +41,7 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in reply
     assert 'session-writeback.json' in source
     assert '--token "$LEASE_TOKEN" --generation "$LEASE_GENERATION"' in source
-    assert "9334" not in source
+    assert 'CLOAK_SESSION_VAULT_FILE="${CLOAK_SESSION_VAULT_FILE:-$HOME/.local/state/anicca/job-search/mercor/application/auth-overlay.json}"' in source
     assert source.index("commit_auth_writeback") < source.index(
         '"$ROOT/apps/job-search-loop/scripts/run-mercor.sh"'
     )
@@ -84,11 +84,21 @@ def test_owner_does_not_release_foreign_lease_when_acquire_is_busy(tmp_path):
         encoding="utf-8",
     )
     fake_lease_python.chmod(0o755)
+    fake_resolver = tmp_path / "resolver"
+    fake_resolver.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "print(json.dumps({'reachable': True, 'http_status': 200, "
+        "'websocket_url_valid': True, 'endpoint': 'http://127.0.0.1:9334'}))\n",
+        encoding="utf-8",
+    )
+    fake_resolver.chmod(0o755)
     state_root = tmp_path / "state"
     env = {
         **os.environ,
         "CALLS": str(calls),
         "LIFE_MANAGER_LEASE_PYTHON": str(fake_lease_python),
+        "LIFE_MANAGER_BROWSER_RESOLVER": str(fake_resolver),
         "LIFE_MANAGER_PYTHON": "/usr/bin/python3",
         "LIFE_MANAGER_STATE_ROOT": str(state_root),
     }
@@ -135,12 +145,22 @@ def test_owner_stops_after_failed_profile_readback_without_retrying(tmp_path):
         encoding="utf-8",
     )
     fake_lease_python.chmod(0o755)
+    fake_resolver = tmp_path / "resolver"
+    fake_resolver.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "print(json.dumps({'reachable': True, 'http_status': 200, "
+        "'websocket_url_valid': True, 'endpoint': 'http://127.0.0.1:9334'}))\n",
+        encoding="utf-8",
+    )
+    fake_resolver.chmod(0o755)
     state_root = tmp_path / "state"
     hint = tmp_path / "hint.json"
     env = {
         **os.environ,
         "CALLS": str(calls),
         "LIFE_MANAGER_LEASE_PYTHON": str(fake_lease_python),
+        "LIFE_MANAGER_BROWSER_RESOLVER": str(fake_resolver),
         "LIFE_MANAGER_PYTHON": "/usr/bin/python3",
         "LIFE_MANAGER_STATE_ROOT": str(state_root),
         "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),

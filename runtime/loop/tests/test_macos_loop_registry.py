@@ -1387,6 +1387,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 )
             },
         }
+        expected.update({
+            "mercor-revenue-application": ("mercor:dais", "mercor-revenue-browser"),
+            "mercor-revenue-reply": ("mercor:dais", "mercor-revenue-browser"),
+        })
         for loop_id, (identity, owner) in expected.items():
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
@@ -1414,6 +1418,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             and row["launchd_state"].startswith("loaded")
         }
         expected -= set(registry.get("retired_labels", []))
+        expected -= set(registry.get("external_labels", []))
         self.assertTrue(expected.issubset({row["label"] for row in registry["loops"].values()}))
         self.assertEqual(registry["loops"]["pm-live-trade"]["effect_class"], "trade")
         self.assertEqual(registry["loops"]["life-manager-payout"]["effect_class"], "money")
