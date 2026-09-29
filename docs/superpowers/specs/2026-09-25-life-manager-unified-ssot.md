@@ -2141,6 +2141,25 @@ job IDs 0）、`git diff --check`もPASS。branch
 7. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・
    settlement・cost-complete positive net P&L。
 
+### 最新4-platform Meta Loop manifest cycle — 2026-09-30
+
+- `skills/_shared/marketplace-core/scripts/platform_manifest_cycle.py` を追加し、Coconala／Lancers／CrowdWorks／Mercorの
+  4 source discovererを同じ`run_meta_loop_wake`へ束ねる。候補評価、candidate store、run summary、idempotencyは共有kernelだけが担当し、
+  provider moduleはread-only snapshot→manifestだけを担当する。
+- 未設定providerはsource mapから消さず、typed `MissingPlatformManifestSource`として`partial` summaryへ記録する。したがって
+  source未接続を候補ゼロの正常成功と誤認しない。未知provider keyはdiscover前にfail-closedし、新platformはregistryへ明示追加する。
+- TDD focused cycle 3件、Marketplace Core 332件、既存platform回帰（Coconala 61、Lancers 14、CrowdWorks 14、Mercor 16）、compile、
+  `lm-loop-contract`、`git diff --check`をPASSした。これは4 sourceを一つのdurable wakeへ束ねるlocal runtime証拠であり、launchd自然wake、
+  production loaded SHA、provider receipt、公式readback、収益の証拠ではない。
+
+### 原子TODO（4-platform manifest cycle後の正本）
+
+1. **完了** Coconala／Lancers／CrowdWorks／Mercorのplatform-level read-only stateをmanifestへ写像し、同一Meta Loop wake／durable summaryへ束ねた。
+2. **未完** 各providerの実natural wake callerからこのcycleを呼び、認証済みcollectorのread-only snapshotを注入する。案件Opportunity runnerとmutation ownerは分離する。
+3. **未完** source branchをmainへ受入し、immutable release、loaded SHA／plist／identity lease／rollback receiptを公式readbackで確認する。
+4. **未完** RyuさんDMと各platform occurrenceのprovider receipt＋official readbackまたは厳密なheld理由。再送・正式納品・receiptなしのeffect fence解放はしない。
+5. **未完** capacity自然runとENOSPC自己修復、Freelancer／Upworkのauth・funded contract・canary・rollback・settlement・cost-complete positive net P&L。
+
 ### 最新Mercor platform-manifest source — 2026-09-30
 
 - `skills/earn/mercor/scripts/mercor_platform_manifest.py` を追加し、Mercor reply/source-health observationのうち
