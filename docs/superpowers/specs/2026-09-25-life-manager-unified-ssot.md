@@ -307,7 +307,7 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
 1. Capafy
    - [ ] K0 worktree で工場の全段階を 1037238583（Football Match Analyst）で通し、残る失敗原因を全部出して直す
    - [x] K1 2026-09-29 23:40 JST の `lm-loop start` run で 1037238583（Football Match Analyst v1.0.1）が全段階（prepare → CP1 → CP2 exit 0 → CP3 → final verify → ledger）を通り platform_status=1・skills/config confirmed・model DeepSeek V4.1 Flash（Capafy API）。今日の 4 修正後の初の完走
-   - [ ] K1b 提出成功なのに daily_loop が `BLOCKED — post-verdict=PUBLISHABLE` と表示し self-fix を呼ぶ誤判定を直す（post-verdict の再判定が成功を見ていない）
+   - [x] K1b（#60908370、release 20260929T235132-60908370 を plist で確認）提出成功なのに daily_loop が `BLOCKED — post-verdict=PUBLISHABLE` と表示し self-fix を呼ぶ誤判定を直す（post-verdict の再判定が成功を見ていない）
    - [ ] K2 次の自然 run で次の Agent も platform_status=1（人の手なし）
    - [ ] K3 宣伝の X 投稿が実行枠内に終わらない原因を直す（capafy_x_post の待ち時間とモデル実行の枠の関係）→ 自然 run の枠で記事 200 + X PUBLISHED
    - [ ] K4 次の枠も人の手なしで記事と X
