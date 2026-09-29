@@ -855,6 +855,8 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 
 Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verification-readback.json` では、9227の全pageが`title=Human Verification`・`url=https://www.lancers.jp/mypage`を返した。したがって`provider_response_invalid`は現時点でJSON API仕様変更と断定せず、providerのbot検証画面をJSONとして読もうとした境界として扱う。captcha/検証の迂回、ログイン再実行、応募・返信の再送はせず、検証完了後の公式readbackを待つ。
 
+**Lancersのsource診断修正（このbranch、production未反映）**: `skills/earn/lancers/scripts/work_sync.py` のJSON fetch境界が、HTTP失敗時のdocument title/bodyにHuman Verification等のmarkerを検出した場合、`provider_response_invalid`ではなく型付き`human_verification_required`を返すようにした。`reply_adapter`も同じ理由をobservation boundaryとして`effect=0`・pendingに分類し、work-syncのexitは75（provider mutationなし）にする。captcha bypass・再ログイン・再送は行わない。focused testsはLancers `23 passed`、Paid/owner `32 passed`。main統合・immutable release・9227 natural readbackは未完了。
+
 ## 6. 不変の制約
 
 - Ryu room `18211957` へは再送しない。正式納品ボタンは loop から押さない。Ryu は CDP :9223 での手動例外として扱う。

@@ -372,3 +372,12 @@ def test_classify_observation_error_recognizes_browser_attach_busy(tmp_path):
 
     assert adapter.classify_observation_error(busy) == {"reason": "browser_attach_busy"}
     assert adapter.classify_observation_error(RuntimeError("network_timeout")) is None
+
+
+def test_classify_observation_error_recognizes_human_verification(tmp_path):
+    adapter = adapter_module.LancersReplyAdapter(tmp_path / "state.json")
+    error = adapter_module.work_sync.SourceFailure("human_verification_required")
+
+    assert adapter.classify_observation_error(error) == {
+        "reason": "human_verification_required"
+    }

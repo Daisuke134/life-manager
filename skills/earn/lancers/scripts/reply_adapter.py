@@ -224,6 +224,8 @@ class LancersReplyAdapter:
         # that carries no effect at all.
         if type(error).__name__ == "BrowserAttachBusy":
             return {"reason": "browser_attach_busy"}
+        if isinstance(error, work_sync.SourceFailure) and str(error) == "human_verification_required":
+            return {"reason": "human_verification_required"}
         return None
 
     def context(self, thread_id: str) -> dict[str, Any]:

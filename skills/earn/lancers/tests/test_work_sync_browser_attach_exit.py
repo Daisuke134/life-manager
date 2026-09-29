@@ -4,6 +4,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = REPO_ROOT / "skills/earn/lancers/scripts/work_sync.py"
@@ -30,6 +32,23 @@ def test_worker_exit_code_maps_browser_attach_busy_to_75_not_1():
     assert module._worker_exit_code({"ok": False, "error": "browser_attach_busy"}) == 75
     # Every other failure keeps the existing exit-1 contract.
     assert module._worker_exit_code({"ok": False, "error": "account_unavailable"}) == 1
+
+
+def test_fetch_preserves_human_verification_as_typed_provider_boundary():
+    module = _module()
+
+    class Page:
+        def evaluate(self, _script, path):
+            assert path == "/v1/message_api/boards/"
+            return {"ok": False, "error_class": "human_verification_required"}
+
+    with pytest.raises(module.SourceFailure, match="human_verification_required"):
+        module._fetch(Page(), "/v1/message_api/boards/")
+
+
+def test_human_verification_is_a_retryable_no_effect_exit():
+    module = _module()
+    assert module._worker_exit_code({"ok": False, "error": "human_verification_required"}) == 75
     assert module._worker_exit_code({"ok": True}) == 0
 
 
