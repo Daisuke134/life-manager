@@ -2188,3 +2188,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - [ ] `QUEUE AT-29` — bounded canaryの可否を1回計算する。完了条件: 全条件と`canary_allowed`が明示された判定receipt。証拠: promotion receipt。
 
 未完は277行（`AT-13`〜`AT-21`の9行、`AT-22.1[2]`〜`AT-22.9[30]`の261行、`AT-23`〜`AT-29`の7行）。現在cursorは`AT-13`であり、`AT-13`完了前に`AT-14`以降を飛ばさない。検証済み実現投資収益は`$0/月`で、QQQはpaperのopen positionである。`AT-24`と`AT-29`の判定完了まではlive注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額を行わない。
+
+**AT-13同一session natural retry readback（2026-09-30 06:03 JST）**:
+
+- 新しいdecision receipt `8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8`（`recorded_at=2026-09-29T21:03:10.291301Z`）は、前回と同じ`decision_session=2026-09-29`、`action=HOLD`、`reason=hold_period_not_elapsed`、`mode=paper`を返した。
+- これは同一daily sessionの自然retryであり、qualified exit decision、exit order、fill、realized P&L、資金移動を生成していない。したがって`AT-13`未完、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。
+- `AT-13`の完了条件を満たす新しいcompleted daily sessionが出るまで、手動wake・手動sell・再送・送金はしない。
