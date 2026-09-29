@@ -5987,3 +5987,18 @@ there is still no authorization to stop, kill, or restart an active owner.
   release and has not received the evidence-persistence fix. The next cursor is
   immutable-release acceptance, followed by the separately gated live-owner
   transition and natural official readback.
+
+### Source acceptance after evidence persistence — 2026-09-30 07:14 JST
+
+- [x] Commit `050aa85485` is pushed on the dedicated branch. It contains the
+  terminal-summary fix, its regression, and this spec receipt; the worktree is
+  clean and `git diff --check` passes.
+- [x] Acceptance evidence is `689 tests OK` for
+  `python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'`,
+  `113 passed` for the focused runtime pytest set, and a successful
+  `./bin/lm-loop-contract` (`catalog_loops=14`, `registry_jobs=176`,
+  `mapped_jobs=102`, no shared IDs or errors).
+- [ ] The installed production pointer remains
+  `3975ae8996cab3325f514746a32c915f9935fddf`; no launchd owner was stopped,
+  restarted, or changed. The next cursor is item 4: main-derived immutable
+  release acceptance and provenance, before any live transition.
