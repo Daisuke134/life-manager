@@ -152,6 +152,25 @@ def _nonpaper_campaign(observation: dict) -> dict:
             "unrealized_pnl_usd": str(unrealized)}
 
 
+def _owned_paper_symbols(state: Path) -> frozenset[str]:
+    etf_state = read_etf_state(
+        state / "etf-owned-position.json", owner_id=investment_owner_id(),
+    )
+    position = etf_state["position"]
+    if position is None:
+        return frozenset()
+    return frozenset({position["symbol"]})
+
+
+def _paper_campaign(*, state: Path, credentials_path: Path, cli_path: Path) -> dict:
+    return reconcile(
+        read_campaign_snapshot(
+            credentials_path=credentials_path, cli_path=cli_path, symbols=SYMBOLS,
+        ),
+        allowed_external_symbols=_owned_paper_symbols(state),
+    )
+
+
 def _normalize_live_position_symbols(observation: dict) -> dict:
     positions = observation.get("positions")
     if not isinstance(positions, list):
@@ -352,8 +371,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
         if "value" in reconciled_observation:
             observation = reconciled_observation["value"]
         stage = "campaign_read"
-        campaign = (reconcile(read_campaign_snapshot(
-            credentials_path=credentials_path, cli_path=cli_path, symbols=SYMBOLS))
+        campaign = (_paper_campaign(
+            state=state, credentials_path=credentials_path, cli_path=cli_path)
             if mode == "paper" else _nonpaper_campaign(observation))
         effect = "none"
         if campaign["exit_status"] == "EXIT_READY":
@@ -408,8 +427,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                 if mode == "live":
                     observation = _normalize_live_position_symbols(observation)
                 stage = "campaign_exit_campaign_read"
-                campaign = reconcile(read_campaign_snapshot(
-                    credentials_path=credentials_path, cli_path=cli_path, symbols=SYMBOLS))
+                campaign = _paper_campaign(
+                    state=state, credentials_path=credentials_path, cli_path=cli_path)
         stage = "allocator_read"
         allocator_snapshot = read_allocator_snapshot(
             credentials_path=credentials_path, cli_path=cli_path,

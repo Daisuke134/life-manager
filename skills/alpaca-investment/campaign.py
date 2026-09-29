@@ -23,8 +23,12 @@ def _number(value: Any) -> Decimal:
     return number
 
 
-def reconcile(snapshot: dict[str, Any]) -> dict[str, Any]:
-    if snapshot.get("paper") is not True or snapshot.get("unexpected_positions"):
+def reconcile(
+    snapshot: dict[str, Any], *, allowed_external_symbols: set[str] | frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    unexpected_positions = snapshot.get("unexpected_positions")
+    if (snapshot.get("paper") is not True or not isinstance(unexpected_positions, list)
+            or any(symbol not in allowed_external_symbols for symbol in unexpected_positions)):
         raise ValueError("campaign_position_scope_invalid")
     fills, positions = snapshot.get("fills"), snapshot.get("positions")
     if not isinstance(fills, list) or not isinstance(positions, list):
