@@ -5965,3 +5965,25 @@ receipts.
 Current cursor after the source cleanup repair: item 3. The next safe action is
 to reconcile the live owner boundary against a main-derived immutable release;
 there is still no authorization to stop, kill, or restart an active owner.
+
+### Item 3 evidence-persistence boundary — 2026-09-30 07:25 JST
+
+- [x] The source audit found a real boundary defect: terminal events advertised
+  `lm-loop://<loop>/<run>/summary.json`, but the only copy was in the temporary
+  run tree that was removed immediately after terminal-event append. This made
+  the event's evidence reference disappear even when `events.jsonl` itself was
+  durable.
+- [x] `runtime/loop/lm_loop_run.py` now persists a secret-free, owner-scoped
+  terminal summary at
+  `state/occurrences/<loop_id>/<run_id>/summary.json` (mode `0600`) before the
+  terminal event is appended. The summary includes the validated terminal event
+  and its exact occurrence identity. Existing identical summaries are replay
+  safe; a collision or write failure keeps the scratch marker and prevents the
+  terminal event from being reported as saved.
+- [x] The focused `lm_loop_run` suite passes `110 passed`, including a test that
+  verifies the durable summary survives temporary scratch cleanup and exactly
+  matches the emitted terminal event.
+- [ ] This is source-side item-3 progress only. Production still runs the old
+  release and has not received the evidence-persistence fix. The next cursor is
+  immutable-release acceptance, followed by the separately gated live-owner
+  transition and natural official readback.

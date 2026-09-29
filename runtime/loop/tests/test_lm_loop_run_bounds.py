@@ -1601,6 +1601,11 @@ def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     assert events[-1]["official_readback_ref"] == "postiz://posts/postiz-post-1"
     assert len(events[-1]["loaded_argv_sha256"]) == 64
     assert len(events[-1]["loaded_env_sha256"]) == 64
+    summary = tmp_path / "state/occurrences/life-manager-honne-ja/run-1/summary.json"
+    assert summary.is_file()
+    persisted = json.loads(summary.read_text(encoding="utf-8"))
+    assert persisted["schema_version"] == 1
+    assert persisted["event"] == events[-1]
     enqueue.assert_not_called()
 
 

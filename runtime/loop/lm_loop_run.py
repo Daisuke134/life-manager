@@ -405,6 +405,41 @@ def _atomic_json(path: Path, value: dict) -> None:
     retry_on_enospc(write_once)
 
 
+def _persist_occurrence_summary(
+        state_root: Path, loop_id: str, run_id: str, event: dict) -> Path:
+    """Persist the terminal event before its temporary run tree is removed."""
+    if (not SAFE_RUN_ID.fullmatch(loop_id) or not SAFE_RUN_ID.fullmatch(run_id)
+            or loop_id in {".", ".."} or run_id in {".", ".."}):
+        raise ValueError("unsafe occurrence summary id")
+    occurrence_id = event.get("occurrence_id")
+    if (not isinstance(occurrence_id, str)
+            or not OCCURRENCE_ID_PATTERN.fullmatch(occurrence_id)
+            or not occurrence_id.startswith(f"{loop_id}:")):
+        raise ValueError("occurrence summary identity mismatch")
+    target = state_root.expanduser() / "occurrences" / loop_id / run_id / "summary.json"
+    summary = {
+        "schema_version": 1,
+        "kind": "life_manager_occurrence_summary",
+        "loop_id": loop_id,
+        "run_id": run_id,
+        "occurrence_id": occurrence_id,
+        "event": event,
+    }
+    if target.is_symlink():
+        raise OSError("occurrence summary path is symlink")
+    if target.exists():
+        try:
+            existing = json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise OSError("occurrence summary already exists but is unreadable") from error
+        if existing != summary:
+            raise OSError("occurrence summary identity collision")
+        return target
+    _atomic_json(target, summary)
+    os.chmod(target.parent, 0o700)
+    return target
+
+
 class EffectIdentityResult(NamedTuple):
     """Outcome of an effect-identity persistence attempt.
 
@@ -1488,6 +1523,7 @@ def main(argv: list[str] | None = None) -> int:
                 error_detail=error_detail,
             )
             event = _apply_verified_effect_result(event, effect_result)
+            _persist_occurrence_summary(loop_state_root, loop_id, run_id, event)
             append_runtime_event(event_path, event)
             terminal_saved = True
         except (OSError, ValueError) as error:
