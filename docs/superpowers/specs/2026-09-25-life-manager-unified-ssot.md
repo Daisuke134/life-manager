@@ -992,6 +992,7 @@ Talkroom `18211957` は最新連絡の経路ではない。Ryu の最新指摘�
 - 同じ公式DMの過去ページをoffset 5〜105まで読み取り、旧要求（コンセプト6枚の原状復帰、ジャンル選択・女の子画像追加、WEB予約文言、相互リンク多数管理、各媒体自動更新等）を取得した。offset別DOM証跡は同じtrajectory配下に保存している。これは要求の根拠であり、修正済みの証拠ではない。
 - 既存のローカルartifact `current-cycle-v723-dm-send-readback.json` は「送信クリック1回＋直後のDOMバブル1件」を示すが、直後の再読み込みは403で、今回の公式readbackにはその本文が残っていない。したがってprovider側の永続receiptは未取得であり、v723を完了証拠に昇格させない。再送はしない。
 - 2026-09-30の公開read-only crawlでは、`https://colors-hachioji.com/` に6ジャンル・12プロフィール・出勤表示・WEB予約導線が現行公開されていることを確認した。`https://colors-hachioji.com/content-api.php` の公式JSONでも、コンセプト6枚の順序／原本パス、有料オプション5件、女の子別option state、予約文言を確認した。実際の `mutualLinks` 配列は空であり、相互リンクの実データ登録だけは未完了である。取得時刻・本文は外部ログへ保存せず、個人連絡先をspecへ複製しない。
+- 同日、専用identity `colors-hachioji:owner-18211957`（profile `~/.cloak/profiles/colors-hachioji-owner-18211957`、CDP `62610`）の管理画面を読み取り確認したが、`https://colors-hachioji.com/admin.php` は「管理用パスワードを入力してください」というログインフォームを返した。credential SSOT（mode `0600`）にこの店舗の管理パスワードは存在しないため、ログイン・保存・公開操作は行っていない。v711の認証済み管理画面artifactは過去readbackであり、現時点の認証証拠ではない。
 
 ### Ryuの原子TODO（この節が最新の実行順正本）
 
