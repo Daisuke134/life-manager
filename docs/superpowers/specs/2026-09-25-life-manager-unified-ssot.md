@@ -2098,3 +2098,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 自動retry `alpaca-investment-paper:18d9e045a93b3208-50642` は04:11 JSTに`exit_code=0`、`status=pass`、`effect_status=unknown`、`phase=report`、`next_action=none`で終端した。receipt生成後のreport終端まで確認済みであり、processのkill・restartはしていない。
 - 新しいdecision receipt `cc534d7d5e32edc67b4c99516b0305520e3adba4b13fc76da2b3c7c4e099abdc`（04:10 JST）は`action=NO_TRADE`、`decision_session=2026-09-28`、`reason=decision_session_consumed`、`mode=paper`である。QQQはopen、exit order／exit fill／provider receiptはない。
 - `AT-13`は未完、cursorは変わらず、検証済み実現投資収益は`$0/月`である。次のcompleted daily sessionが出るまで、手動wake・手動sell・再送・送金はしない。
+
+**AT-13 scheduler readback（2026-09-30 04:51 JST）**:
+
+- `launchctl-safe print gui/501/ai.anicca.alpaca-investment-paper`は現行release SHA `3975ae8996cab3325f514746a32c915f9935fddf`のprogramを返し、`state=not running`、`runs=68`、`last exit code=75: EX_TEMPFAIL`だった。これは定期wake間の起動前admission deferであり、provider effect前の自動retry対象である。
+- 既存monitorには市場closeまたは新しい`decision_session`の出力がなく、最新のqualified exit decisionはまだ存在しない。したがって`AT-13`は未完のままである。
+- このreadbackでは手動wake、注文、再送、資金移動を行っていない。検証済み実現投資収益は`$0/月`である。
