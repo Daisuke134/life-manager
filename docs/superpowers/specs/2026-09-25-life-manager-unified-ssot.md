@@ -1453,3 +1453,4 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - 投資source branch `feat/investment-paper-pnl-20260930`のcommit `d0dcb53a72`をpushし、PR `#6259`を作成した。変更範囲は`skills/alpaca-investment/`と投資planだけで、Capafy・PromptBase・wallet・Binance・live注文には触れていない。
 - 公式order／FILL／CFEE readback、execution quote、deterministic ETF model cost、cost-complete net P&Lのfocused implementationは、投資adapter suite `254/254`、`./bin/lm-loop-contract`（`ok=true`、catalog `14`、registry `175`、mapped `102`、shared job IDs `0`）、`git diff --check`をPASSした。
 - PRはrequired checks待ちで、main merge・immutable release・production applyは未実施である。したがってこのsource候補は`AT-17`〜`AT-19`の将来実測を可能にする準備であり、現在のpaper P&L・実現収益・`AT-13`完了を意味しない。
+- PR `#6259`のSecurity Scan workflowはhead SHA `d0dcb53a72b22805528152e3d77d6a213212d327`で`in_progress`。`OSS self-contained boundary`は先行表示で`fail`、その他required checksはpending/passが混在しているが、workflow未完了で失敗ログを取得できないため原因・所有者は未確定である。投資laneからCapafy等の範囲外修正はせず、mergeもしない。
