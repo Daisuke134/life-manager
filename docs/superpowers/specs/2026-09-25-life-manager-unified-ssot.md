@@ -2639,6 +2639,40 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
 
+## 最終正本cursor（2026-09-30、Ryu成果とDM状態を再統合した現在値）
+
+この節が直前までのcursorを上書きする。Ryu案件の既存実装は、v709/v711の認証済み管理画面・公開サイト・API readbackで確認済みである。現在不足しているのは、相互リンクに登録する実URL・表示名・バナー素材だけであり、管理画面機能そのものではない。公開APIの`mutual_links=[]`は、その入力が未提供である結果である。
+
+DMのcanonical UID readbackは10件を取得し、sellerは14:27・14:34・14:40、buyerは14:33・14:36・14:41、最新はbuyer 14:41である。v723試行本文hashはこの10件に存在しないため、過去seller返信をv723のreceiptと見なさず、再送もしない。collector式修正後のsource回帰はCoconala/gig`1580 passed`、reply adapter＋shared kernel`68 passed`である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **Ryu外部入力待ち** 相互リンクの実URL、表示名、バナー画像（必要なら新画像）を取得する。推測で埋めない。
+2. **Ryuデータ反映** 入力が揃った時だけ相互リンク編集欄へ一括登録し、管理画面・公開ページ・content APIの同一値readbackを取る。
+3. **Ryu DM効果** 統合本文を送る必要が生じた場合だけ、provider composer・重複guard・送信後永続readback・provider receiptが全て取れる時に一度だけ送る。正式納品は押さない。
+4. **main受入** branch全checksと外部成果証拠が揃うまでmergeせず、揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式provider readback・replay-zeroを取得する。
+6. **capacity自然run** ENOSPC修正をproductionで実測し、scratch reclaim・reserve retry・terminal event・recovery intent・admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms・account-bound auth・完全official inventory・funded contract／milestone・mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
+## 最終正本cursor（2026-09-30、Ryu成果とDM状態を再統合した現在値）
+
+この節が直前までのcursorを上書きする。Ryu案件の既存実装は、v709/v711の認証済み管理画面・公開サイト・API readbackで確認済みである。現在不足しているのは、相互リンクに登録する実URL・表示名・バナー素材だけであり、管理画面機能そのものではない。公開APIの`mutual_links=[]`は、その入力が未提供である結果である。
+
+DMのcanonical UID readbackは10件を取得し、sellerは14:27・14:34・14:40、buyerは14:33・14:36・14:41、最新はbuyer 14:41である。v723試行本文hashはこの10件に存在しないため、過去seller返信をv723のreceiptと見なさず、再送もしない。collector式修正後のsource回帰はCoconala/gig`1580 passed`、reply adapter＋shared kernel`68 passed`である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **Ryu外部入力待ち** 相互リンクの実URL、表示名、バナー画像（必要なら新画像）を取得する。推測で埋めない。
+2. **Ryuデータ反映** 入力が揃った時だけ相互リンク編集欄へ一括登録し、管理画面・公開ページ・content APIの同一値readbackを取る。
+3. **Ryu DM効果** 統合本文を送る必要が生じた場合だけ、provider composer・重複guard・送信後永続readback・provider receiptが全て取れる時に一度だけ送る。正式納品は押さない。
+4. **main受入** branch全checksと外部成果証拠が揃うまでmergeせず、揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式provider readback・replay-zeroを取得する。
+6. **capacity自然run** ENOSPC修正をproductionで実測し、scratch reclaim・reserve retry・terminal event・recovery intent・admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms・account-bound auth・完全official inventory・funded contract／milestone・mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
 ## 現在の正本cursor（2026-09-30、Ryu管理画面成果の公式readback再照合後）
 
 - Ryu案件の管理画面・公開サイトの実装は、`/Users/anicca/gig/projects/18211957/delivery/current-cycle-v709-deploy-readback.json`で`admin.php`／`management-editor.js`の反映と主要checksをPASSし、`current-cycle-v709-browser-readback.json`および`current-cycle-v711-full-browser-readback.json`で認証済み管理画面、公開desktop/mobile、APIをread-only再確認済み。女の子別画像設定、女の子別有料オプション、WEB予約文言編集、相互リンク編集欄、「女の子を探す」文言、コンセプト画像順を含む既存修正は実装済み。
@@ -2673,4 +2707,21 @@ Python compile、`lm-loop-contract ok=true`、`git diff --check`。これはCoco
 5. **production反映** ownerごとにtargeted applyし、loaded SHA、plist argv/env、identity lease、rollback receipt、natural terminal、公式provider readback、replay-zeroを取得する。
 6. **capacity自然run** sourceのENOSPC修正をproductionで実測し、scratch reclaim／reserve retry／terminal event／recovery intent／admission stateをoccurrence単位で閉じる。
 7. **Freelancer／Upwork** approved terms、account-bound auth、完全official inventory、funded contract／milestone、mutation authorizationを揃えるまでownerを有効化しない。
+8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
+
+## 最終正本cursor（2026-09-30、Ryu成果とDM状態を再統合した現在値）
+
+この節が直前までのcursorを上書きする。Ryu案件の既存実装は、v709/v711の認証済み管理画面・公開サイト・API readbackで確認済みである。現在不足しているのは、相互リンクに登録する実URL・表示名・バナー素材だけであり、管理画面機能そのものではない。公開APIの`mutual_links=[]`は、その入力が未提供である結果である。
+
+DMのcanonical UID readbackは10件を取得し、sellerは14:27・14:34・14:40、buyerは14:33・14:36・14:41、最新はbuyer 14:41である。v723試行本文hashはこの10件に存在しないため、過去seller返信をv723のreceiptと見なさず、再送もしない。collector式修正後のsource回帰はCoconala/gig`1580 passed`、reply adapter＋shared kernel`68 passed`である。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **Ryu外部入力待ち** 相互リンクの実URL、表示名、バナー画像（必要なら新画像）を取得する。推測で埋めない。
+2. **Ryuデータ反映** 入力が揃った時だけ相互リンク編集欄へ一括登録し、管理画面・公開ページ・content APIの同一値readbackを取る。
+3. **Ryu DM効果** 統合本文を送る必要が生じた場合だけ、provider composer・重複guard・送信後永続readback・provider receiptが全て取れる時に一度だけ送る。正式納品は押さない。
+4. **main受入** branch全checksと外部成果証拠が揃うまでmergeせず、揃った後にmain由来immutable releaseを作成する。
+5. **production反映** ownerごとにtargeted applyし、loaded SHA・plist argv/env・identity lease・rollback receipt・natural terminal・公式provider readback・replay-zeroを取得する。
+6. **capacity自然run** ENOSPC修正をproductionで実測し、scratch reclaim・reserve retry・terminal event・recovery intent・admission stateをoccurrence単位で閉じる。
+7. **Freelancer／Upwork** approved terms・account-bound auth・完全official inventory・funded contract／milestone・mutation authorizationを揃えるまでownerを有効化しない。
 8. **Meta Loop完成** 全platformをdiscovery→candidate→policy／adapter→funded gate→owner→canary/readback→rollback→settlement→quality／P&Lへ接続し、公式receiptのあるplatformだけpromoteする。
