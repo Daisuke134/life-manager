@@ -86,6 +86,17 @@
       ],
       "domain": "financial",
       "effect_class": "message",
+      "effect_reconcile": {
+        "argv": [
+          "apps/life-manager/investment-core/cross_venue_effect_reconcile.py",
+          "--state-dir",
+          "~/.local/state/life-manager/investment-cross-venue",
+          "--admission-db",
+          "~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3"
+        ],
+        "occurrence_flag": "--occurrence-id",
+        "resolve_flag": "--resolve"
+      },
       "entrypoint": "apps/life-manager/investment-core/cross_venue_run.py",
       "label": "ai.anicca.investment-cross-venue-report",
       "log_root": "~/.local/state/life-manager/investment-cross-venue/logs",

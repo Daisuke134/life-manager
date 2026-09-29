@@ -212,7 +212,13 @@ def run_once(
     readers["__owner_cash_flow_usd__"] = _read_owner_cash_flow(owner_path)
     readers["__available_capital_usd__"] = _valid_available_capital(available_capital_usd)
     readers["__input_manifest_status__"] = input_manifest_status
-    return wake(readers, Path(state_dir).expanduser(), today, send)
+    return wake(
+        readers,
+        Path(state_dir).expanduser(),
+        today,
+        send,
+        occurrence_id=os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"),
+    )
 
 
 def _telegram_send(message: str) -> Any:
@@ -224,10 +230,7 @@ def _telegram_send(message: str) -> Any:
 
 def _parser() -> argparse.ArgumentParser:
     default_state = os.environ.get("INVESTMENT_CROSS_VENUE_STATE_DIR", str(DEFAULT_STATE_DIR))
-    default_manifest = os.environ.get(
-        "INVESTMENT_CROSS_VENUE_MANIFEST",
-        str(Path(default_state).expanduser() / DEFAULT_MANIFEST_NAME),
-    )
+    default_manifest = os.environ.get("INVESTMENT_CROSS_VENUE_MANIFEST")
     default_alpaca_state = os.environ.get("INVESTMENT_ALPACA_STATE_DIR")
     default_capital = os.environ.get("INVESTMENT_AVAILABLE_CAPITAL_USD", "0")
     default_owner_flow = os.environ.get("INVESTMENT_OWNER_CASH_FLOW_FILE")
@@ -247,7 +250,8 @@ def main(argv: list[str] | None = None, *, send: Callable[[str], Any] | None = N
     args = _parser().parse_args(argv)
     today = args.today or datetime.now(timezone.utc).date().isoformat()
     date.fromisoformat(today)
-    manifest = read_manifest(args.manifest)
+    manifest_path = args.manifest or str(Path(args.state_dir).expanduser() / DEFAULT_MANIFEST_NAME)
+    manifest = read_manifest(manifest_path)
     receipt = run_once(
         snapshot_specs=args.snapshot_specs or manifest["snapshot_specs"],
         alpaca_state_dir=args.alpaca_state_dir or manifest["alpaca_state_dir"],
