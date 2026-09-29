@@ -1372,6 +1372,17 @@ def main(argv: list[str] | None = None) -> int:
         item_lock = _label_apply_lock_path(current, entry["label"])
         with _apply_lock(current, item_lock):
             command = build_loop_command(registry, loop_id, release_root)
+            if _runtime_limit(entry) is not None:
+                try:
+                    disk_reason = _disk_preflight_reason()
+                except Exception:  # noqa: BLE001 - preserve the fail-closed boundary
+                    disk_reason = "disk_headroom_unavailable"
+                if disk_reason is not None:
+                    if (not isinstance(disk_reason, str)
+                            or SAFE_RESULT_HINT.fullmatch(disk_reason) is None):
+                        disk_reason = "disk_headroom_unavailable"
+                    print(f"lm-loop-run: deferred: {disk_reason}", file=sys.stderr)
+                    return 75
             run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
             run_id, scratch, scratch_parent_fd, scratch_fd = (
                 _create_loop_scratch_with_recovery(

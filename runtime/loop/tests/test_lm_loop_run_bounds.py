@@ -1506,6 +1506,36 @@ def test_verified_mobile_effect_result_upgrades_only_success_event(tmp_path):
     )["effect_status"] == "unknown"
 
 
+def test_main_low_disk_defers_before_scratch_creation(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2,
+        "loops": {"example": {
+            "label": "ai.anicca.example", "domain": "system",
+            "entrypoint": "bin/example", "provider_route": "deterministic",
+            "effect_class": "none", "state_root": "~/.local/state/life-manager/example",
+            "log_root": "~/.local/state/life-manager/example/logs",
+            "cleanup": {"max_runs": 1, "max_age_days": 1},
+            "cadence": {"run_at_load": True},
+        }},
+    }), encoding="utf-8")
+    (release / "RELEASE.json").write_text(
+        json.dumps({"sha": "a" * 40}), encoding="utf-8"
+    )
+    (release / "bin").mkdir()
+    (release / "bin/example").write_text("#!/bin/sh\n")
+    (release / "bin/example").chmod(0o755)
+    with (
+        patch("runtime.loop.lm_loop_run._disk_preflight_reason",
+              return_value="disk_headroom_low"),
+        patch("runtime.loop.lm_loop_run._create_loop_scratch_with_recovery",
+              side_effect=AssertionError("low disk must be deferred before scratch")),
+        patch("runtime.loop.lm_loop_run._apply_lock", return_value=nullcontext()),
+    ):
+        assert lm_loop_run_main(["example", str(release)]) == 75
+
+
 def test_main_projects_exact_mobile_result_into_terminal_event(tmp_path):
     release = tmp_path / "release"
     (release / "config").mkdir(parents=True)

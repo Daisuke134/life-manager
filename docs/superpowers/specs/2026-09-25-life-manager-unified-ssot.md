@@ -2871,6 +2871,23 @@ branch `fix/source-reconcile-20260930`では、`runtime/loop/lm_loop_run.py`が�
 6. **未完** Upwork／Freelancerはapproved mutation・account auth・完全inventory・funded contract／milestone・action receiptが揃うまでholdする。
 7. **未完** 全checksと外部receipt後のみmain受入→immutable release→targeted production apply。Ryuさんの既存DMは重複再送せず、公式receiptが揃う場合だけ三面readbackする。
 
+## 現在の正本cursor（2026-09-30、scratch前disk preflight追加後・最新）
+
+production自然runで、旧releaseのcleanup workerがapply lock競合後にscratch/recovery intentへ進み、`No space left on device`で終了する事実を確認した。branchではfinite loopのdisk preflightを`_run_admitted`だけでなく、lock取得後・entrypoint検証後・scratch生成前にも実行する。低容量または判定不能時は`disk_headroom_low`／`disk_headroom_unavailable`をstderrへ出して75/deferredで閉じ、scratch、resource claim、child start、effect identity、recovery intent、外部効果を作らない。continuous ownerは従来どおり対象外である。
+
+- 検証済み: early-preflight回帰＋lock競合回帰、runner bounds `110 passed`、apply＋loop-cleanup `204 passed, 31 subtests passed`（テスト容量条件を`LIFE_MANAGER_DISK_HEADROOM_KIB=0`で明示）。
+- production未反映: current releaseは旧SHAのまま。空き容量は約205MiB、稼働中cacheはopen、production safe sweep・512MiB回復・Lancers公式preflight・provider外部効果は未完。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** branch全checksを完了し、cleanup lock deferredとscratch前disk preflightを同じimmutable releaseへ含める。旧production releaseは直接編集しない。
+2. **未完** apply競合が解消した安全な時間帯にtargeted production applyし、loaded SHA・runner stdout/stderr・launchd exit 75/deferred readbackを保存する。稼働中browser・loopを停止・再起動しない。
+3. **未完** safe allow-list cleanup natural runを確認し、容量が512MiB以上、`disk_headroom=ready`、protected path削除0、receipt保存をread-onlyで確認する。open cache・browser profile・cookie・protected stateは削除しない。
+4. **未完** Lancers Human Verification解除後に同一accountの公式preflightを2回通し、`contracts.json`を公式readbackから再生成する。
+5. **未完** Coconala／Lancers／CrowdWorks／Mercorのaccount-bound receipt・公式readback・実adapter lifecycle receipt・replay-zeroを接続する。
+6. **未完** Upwork／Freelancerはapproved mutation・account auth・完全inventory・funded contract／milestone・action receiptが揃うまでholdする。
+7. **未完** 全checksと外部receipt後のみmain受入→immutable release→targeted production apply。Ryuさんの既存DMは重複再送せず、公式receiptが揃う場合だけ三面readbackする。
+
 ## 現在の正本cursor（2026-09-30、account-bound authorization decision境界追加後）
 
 `platform_manifest_cycle.py`の共通lifecycle入口を、任意の`authorization_receipt_ref`だけでは通さないようにした。runtime callerは、provider固有の認証store（既存の`provider_authorization.authorize`等）が返した`approved_api`または`approved_browser` decisionを必須で渡し、そのdecisionの64桁receipt hashと`authorization-receipt://sha256/<hash>`が一致した場合だけadapter factoryへ進む。`unknown`、`denied`、`approved_assisted`、期限切れ・不正hash・参照不一致はprovider effect前にfail-closedする。これはローカルfixtureのsettled結果や実provider receiptを作るものではない。
