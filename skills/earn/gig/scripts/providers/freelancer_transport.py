@@ -277,6 +277,80 @@ class FreelancerTransport:
             readback=readback,
         )
 
+    def read_inventory_observation(
+        self,
+        receipts: Iterable[Any],
+        *,
+        account_id: str,
+        project_ids: tuple[str, ...],
+        fetch: Callable[[TransportSelection, tuple[tuple[str, str], ...]], Any],
+        currency_minor_units: dict[str, int] | None = None,
+    ) -> Any:
+        """Read a complete official bundle and retain only route evidence hashes.
+
+        The manifest caller must not accept an already-normalized inventory with
+        guessed evidence.  It therefore requires the raw, complete official
+        readback bundle and derives the four hashes from those exact routes.
+        """
+        if not callable(fetch):
+            raise TransportConfigurationError("inventory_fetch_not_callable")
+        if account_id != self.account:
+            raise TransportConfigurationError("inventory_account_mismatch")
+        if currency_minor_units is None:
+            raise TransportConfigurationError("manifest_currency_policy_required")
+        plan = self.inventory_route_plan(project_ids=project_ids)
+        from freelancer_readiness import (
+            evidence_hashes_from_official_readbacks,
+            read_authenticated_inventory,
+            snapshot_from_official_readbacks,
+            FreelancerInventoryObservation,
+        )
+
+        captured: dict[str, Any] = {}
+
+        def readback(_approved: dict[str, Any]) -> Any:
+            selection = self.for_action("inspect")
+            if selection is None:
+                raise TransportConfigurationError("inventory_transport_unavailable")
+            payload = fetch(selection, plan)
+            if not isinstance(payload, dict) or set(payload) != {
+                "readbacks", "observed_at", "source_hash",
+            }:
+                raise TransportConfigurationError("manifest_evidence_required")
+            try:
+                readbacks = payload["readbacks"]
+                projects_result = readbacks["projects"]["result"]["projects"]["projects"]
+                actual_project_ids = tuple(str(item["id"]) for item in projects_result)
+                if set(actual_project_ids) != set(project_ids):
+                    raise TransportConfigurationError("inventory_project_ids_mismatch")
+                snapshot = snapshot_from_official_readbacks(
+                    readbacks,
+                    account_id=account_id,
+                    observed_at=payload["observed_at"],
+                    source_hash=payload["source_hash"],
+                    currency_minor_units=currency_minor_units,
+                )
+                evidence = evidence_hashes_from_official_readbacks(readbacks)
+            except TransportConfigurationError:
+                raise
+            except (KeyError, TypeError, ValueError) as exc:
+                raise TransportConfigurationError("inventory_readbacks_invalid") from exc
+            captured["evidence_sha256"] = evidence
+            captured["profile_sha256"] = evidence["identity"]
+            return snapshot
+
+        inventory = read_authenticated_inventory(
+            receipts,
+            account_id=account_id,
+            now=self.now,
+            readback=readback,
+        )
+        return FreelancerInventoryObservation(
+            inventory=inventory,
+            evidence_sha256=dict(captured["evidence_sha256"]),
+            profile_sha256=str(captured["profile_sha256"]),
+        )
+
     def fetch_official_json(
         self,
         selection: TransportSelection,

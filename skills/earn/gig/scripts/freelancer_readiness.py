@@ -10,6 +10,8 @@ effect-capable owner; a stale/empty public bid watch can never open the gate.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -121,6 +123,15 @@ class FreelancerInventory:
 
 
 @dataclass(frozen=True)
+class FreelancerInventoryObservation:
+    """Canonical inventory plus secret-free hashes of official readbacks."""
+
+    inventory: FreelancerInventory
+    evidence_sha256: dict[str, str]
+    profile_sha256: str
+
+
+@dataclass(frozen=True)
 class RegistrationReport:
     account_id: str
     ready: bool
@@ -197,6 +208,32 @@ def _official_result(raw: Any, label: str) -> dict[str, Any]:
     if not isinstance(result, dict):
         raise ReadinessError(f"official_{label}_result_invalid")
     return result
+
+
+def evidence_hashes_from_official_readbacks(readbacks: Any) -> dict[str, str]:
+    """Hash the exact official route groups used by the manifest boundary."""
+    if not isinstance(readbacks, dict) or set(readbacks) != _OFFICIAL_READBACK_KEYS:
+        raise ReadinessError("official_readbacks_fields_invalid")
+    grouped = {
+        "identity": readbacks["identity"],
+        "projects": {
+            "projects": readbacks["projects"],
+            "milestones": readbacks["milestones"],
+            "hourly_contracts": readbacks["hourly_contracts"],
+            "ip_contracts": readbacks["ip_contracts"],
+        },
+        "payments": readbacks["payments"],
+        "payouts": readbacks["payouts"],
+    }
+    try:
+        return {
+            key: hashlib.sha256(json.dumps(
+                value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            ).encode("utf-8")).hexdigest()
+            for key, value in grouped.items()
+        }
+    except (TypeError, ValueError) as exc:
+        raise ReadinessError("official_readbacks_unhashable") from exc
 
 
 def _money_minor(value: Any, currency: str, currency_minor_units: dict[str, int]) -> int:

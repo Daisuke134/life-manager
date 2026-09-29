@@ -41,10 +41,11 @@ def _receipt(
     *,
     expired: bool = False,
     terms_version: str = "freelancer-v1",
+    account: str = ACCOUNT,
 ) -> dict[str, object]:
     state = "approved_api" if mode == "official_api" else "approved_browser"
     return {
-        "provider": "freelancer", "account": ACCOUNT, "action": action,
+        "provider": "freelancer", "account": account, "action": action,
         "transport": mode, "state": state, "jurisdiction": "JP",
         "terms_version": terms_version, "evidence_hash": "a" * 64,
         "issued_at": "2026-09-01T00:00:00+00:00",
@@ -330,6 +331,63 @@ def test_inventory_readback_does_not_admit_unannotated_raw_bundle(
             account_id=ACCOUNT, project_ids=("123",),
             fetch=lambda _selection, _plan: {"readbacks": {}},
         )
+
+
+def test_manifest_inventory_requires_explicit_official_evidence_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    selector = _selector(tmp_path)
+
+    with pytest.raises(transport.TransportConfigurationError, match="manifest_evidence_required"):
+        selector.read_inventory_observation(
+            load_receipts(tmp_path / "authorizations.json"),
+            account_id=ACCOUNT, project_ids=("123",),
+            fetch=lambda _selection, _plan: _inventory(),
+            currency_minor_units={"USD": 2},
+        )
+
+
+def test_manifest_inventory_hashes_each_official_readback_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    receipts = [_receipt(action, "cloak_browser", account="123") for action in (
+        "inspect", "read_payments", "read_payouts",
+    )]
+    _authorization_store(tmp_path, monkeypatch, receipts)
+    selector = _selector(tmp_path, account="123")
+    official = {
+        "identity": {"status": "success", "result": {"users": {"123": {"id": 123}}}},
+        "projects": {"status": "success", "result": {"projects": {
+            "projects": [], "contests": [], "total_count": 0,
+        }}},
+        "milestones": {}, "hourly_contracts": {
+            "status": "success", "result": {"hourly_contracts": []},
+        }, "ip_contracts": {},
+        "payments": {"status": "success", "result": {"payments": []}},
+        "payouts": {"status": "success", "result": {"payouts": []}},
+    }
+
+    observation = selector.read_inventory_observation(
+        load_receipts(tmp_path / "authorizations.json"),
+        account_id="123", project_ids=(),
+        currency_minor_units={"USD": 2},
+        fetch=lambda _selection, _plan: {
+            "readbacks": official,
+            "observed_at": "2026-09-25T00:00:00Z",
+            "source_hash": "b" * 64,
+        },
+    )
+
+    assert observation.inventory.account_id == "123"
+    assert set(observation.evidence_sha256) == {
+        "identity", "projects", "payments", "payouts",
+    }
+    assert all(len(value) == 64 for value in observation.evidence_sha256.values())
+    assert observation.profile_sha256 == observation.evidence_sha256["identity"]
 
 
 class _Response:
