@@ -14,6 +14,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 6. **Read the existing loop before describing it.** Writer earns by selling articles (note paywall, Substack paid, aniccaai.com preview+paid); Ebook = monk factory to "The Anicca Reset" via Stripe (Amazon KDP not yet connected); Capafy, apps, PromptBase already exist. Check `skills/<loop>/SKILL.md` and `skills/earn/marketing-engine/registry/products/*.json` first.
 7. **Reply to Dais in Japanese only.**
 8. **Every money skill = a build loop + a sell loop** (verified 2026-09-29; ids are `config/loop-registry.json` keys):
+9. **Copy a sibling loop before any fix.** Before editing, find the existing loop that already solves the same problem class (browser, login, posting, submission, readback) in `config/loop-registry.json` and this SSOT, and copy its shape, changing only names/paths/ports. Never tune the symptom (timeouts, retries) instead. If no sibling exists, say "no precedent" first. Verify claims about runtime state against live processes before agreeing. Example: Capafy lacked the keep_alive `*-browser` owner loop every other site has (2026-09-29).
 
    | Skill | Build loop (makes products) | Sell loop (brings buyers, `ct=` tracked) | Money readback |
    |---|---|---|---|
