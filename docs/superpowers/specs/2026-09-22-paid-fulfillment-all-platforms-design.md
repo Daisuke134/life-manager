@@ -6639,6 +6639,21 @@ ordering notes without declaring any external effect complete.
     immutable release, read back every owner/provider receipt, and only then
     declare completion.
 
+### Coconala owner transition safety recheck — 2026-09-30 08:41 JST
+
+- [x] `ai.anicca.hf-gig-reply-detector` is currently `not running` with last
+  exit `75: EX_TEMPFAIL`; its launch configuration still names old release
+  `20260930T010308-3975ae89`.
+- [x] `ai.anicca.hf-gig-paid-direct` is currently running from that same old
+  release and owns the shared Coconala browser path. The authenticated browser
+  owner on CDP `9223` is alive.
+- [x] No owner was stopped, restarted, or force-released. Ryu's DM and all
+  provider state remain untouched.
+- [ ] The live transition remains a shared-resource safety gate until the
+  running Paid owner naturally releases the browser and the main-derived
+  repaired release is accepted. The next safe action is another read-only
+  owner/readback check, not a forced restart or duplicate send.
+
 ### Live owner versus repaired candidate divergence — 2026-09-30 08:39 JST
 
 - [x] The live Coconala Reply process is still executing the old immutable
