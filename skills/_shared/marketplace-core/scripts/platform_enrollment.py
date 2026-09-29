@@ -19,6 +19,10 @@ _PROVIDER = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
 _CANDIDATE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _RECEIPT = re.compile(r"^provider-receipt://[^/]+/[^/]+$")
+_DISCOVERY_ITEM_FIELDS = frozenset({
+    "candidate", "candidate_id", "observed_at", "source_url", "snapshot_sha256",
+    "evidence_refs",
+})
 REQUIRED_ACTIONS = (
     "discover",
     "inspect",
@@ -253,9 +257,107 @@ def evaluate_and_record_candidate(
     return {"evaluation": evaluation, "persistence": record_result}
 
 
+def run_discovery_cycle(
+    sources: Mapping[str, Any],
+    store: Any,
+    *,
+    max_candidates_per_source: int = 50,
+) -> dict[str, Any]:
+    """Run bounded, read-only discovery sources and persist their evaluations.
+
+    Each source returns mappings containing a candidate envelope plus its
+    observation metadata.  This orchestrator never calls a provider mutation
+    operation; source failures are typed in the summary and other sources may
+    still be processed safely.
+    """
+
+    if not isinstance(sources, Mapping):
+        raise EnrollmentError("discovery_sources_invalid")
+    if type(max_candidates_per_source) is not int or not 1 <= max_candidates_per_source <= 1000:
+        raise EnrollmentError("discovery_bound_invalid")
+    if any(not isinstance(name, str) or not name.strip() for name in sources):
+        raise EnrollmentError("discovery_source_invalid")
+    summary: dict[str, Any] = {
+        "status": "ok",
+        "sources": len(sources),
+        "inspected": 0,
+        "persisted": 0,
+        "duplicates": 0,
+        "promoted": 0,
+        "held": 0,
+        "source_errors": [],
+        "next_actions": [],
+    }
+    for source_name in sorted(sources):
+        source_label = _text(source_name, "discovery_source_invalid")
+        discover = sources[source_name]
+        if not callable(discover):
+            raise EnrollmentError("discovery_source_invalid")
+        try:
+            iterable = discover()
+            iterator = iter(iterable)
+        except Exception as error:
+            summary["source_errors"].append({
+                "source": source_label,
+                "error_class": type(error).__name__,
+                "next_action": "retry_source_read_only",
+            })
+            continue
+        for index in range(max_candidates_per_source + 1):
+            try:
+                item = next(iterator)
+            except StopIteration:
+                break
+            except Exception as error:
+                summary["source_errors"].append({
+                    "source": source_label,
+                    "error_class": type(error).__name__,
+                    "next_action": "retry_source_read_only",
+                })
+                break
+            if index >= max_candidates_per_source:
+                raise EnrollmentError("discovery_bound_exceeded")
+            if (
+                not isinstance(item, Mapping)
+                or not set(item).issubset(_DISCOVERY_ITEM_FIELDS)
+                or not {"candidate", "candidate_id", "observed_at", "source_url", "snapshot_sha256"}
+                .issubset(item)
+            ):
+                raise EnrollmentError("discovery_item_invalid")
+            result = evaluate_and_record_candidate(
+                item["candidate"],
+                store,
+                candidate_id=item["candidate_id"],
+                observed_at=item["observed_at"],
+                source_url=item["source_url"],
+                snapshot_sha256=item["snapshot_sha256"],
+                evidence_refs=item.get("evidence_refs"),
+            )
+            summary["inspected"] += 1
+            persistence_status = result["persistence"].get("status")
+            if persistence_status == "appended":
+                summary["persisted"] += 1
+            elif persistence_status == "duplicate":
+                summary["duplicates"] += 1
+            else:
+                raise EnrollmentError("candidate_store_result_invalid")
+            decision = result["evaluation"]["decision"]
+            summary["promoted" if decision == "promote" else "held"] += 1
+            summary["next_actions"].append({
+                "provider": result["evaluation"]["provider"],
+                "candidate_id": item["candidate_id"],
+                "decision": decision,
+                "next_action": result["persistence"]["record"]["next_action"],
+            })
+    if summary["source_errors"]:
+        summary["status"] = "partial"
+    return summary
+
+
 __all__ = [
     "EnrollmentError",
     "REQUIRED_ACTIONS",
     "evaluate_platform_candidate",
     "evaluate_and_record_candidate",
+    "run_discovery_cycle",
 ]

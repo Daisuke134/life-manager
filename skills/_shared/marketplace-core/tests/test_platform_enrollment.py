@@ -231,3 +231,95 @@ def test_evaluation_writes_the_real_durable_store(tmp_path):
     persisted = store.latest("example-market", "listing-126")
     assert persisted is not None
     assert persisted["decision"] == "promote"
+
+
+def test_discovery_cycle_persists_each_candidate_and_reports_next_actions(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+
+    def discover():
+        return [
+            {
+                "candidate": _candidate(),
+                "candidate_id": "listing-127",
+                "observed_at": "2026-09-29T00:04:00Z",
+                "source_url": "https://example.test/listing-127",
+                "snapshot_sha256": "f" * 64,
+                "evidence_refs": ["provider-receipt://example-market/canary-1"],
+            },
+            {
+                "candidate": _candidate(policy={
+                    "status": "unknown",
+                    "source_url": "https://example.test/automation-policy",
+                    "observed_at": "2026-09-29T00:00:00Z",
+                }),
+                "candidate_id": "listing-128",
+                "observed_at": "2026-09-29T00:04:00Z",
+                "source_url": "https://example.test/listing-128",
+                "snapshot_sha256": "1" * 64,
+            },
+        ]
+
+    result = module.run_discovery_cycle({"example-source": discover}, store)
+
+    assert result["status"] == "ok"
+    assert result["inspected"] == 2
+    assert result["persisted"] == 2
+    assert result["duplicates"] == 0
+    assert result["promoted"] == 1
+    assert result["held"] == 1
+    assert [item["next_action"] for item in result["next_actions"]] == [
+        "provision_owner_after_release_readback",
+        "collect_missing_gates",
+    ]
+
+
+def test_discovery_cycle_is_idempotent_on_replay(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+    item = {
+        "candidate": _candidate(),
+        "candidate_id": "listing-129",
+        "observed_at": "2026-09-29T00:04:00Z",
+        "source_url": "https://example.test/listing-129",
+        "snapshot_sha256": "2" * 64,
+    }
+
+    first = module.run_discovery_cycle({"example-source": lambda: [item]}, store)
+    second = module.run_discovery_cycle({"example-source": lambda: [item]}, store)
+
+    assert first["persisted"] == 1
+    assert second["persisted"] == 0
+    assert second["duplicates"] == 1
+    assert len(store.read_all()) == 1
+
+
+def test_discovery_cycle_reports_source_failure_without_mutating_other_sources(tmp_path):
+    module = _module()
+    store = _store_module().CandidateStateStore(tmp_path / "candidate-state")
+
+    def failing_source():
+        raise RuntimeError("transport is unavailable")
+
+    result = module.run_discovery_cycle(
+        {
+            "a-failing-source": failing_source,
+            "b-good-source": lambda: [{
+                "candidate": _candidate(),
+                "candidate_id": "listing-130",
+                "observed_at": "2026-09-29T00:04:00Z",
+                "source_url": "https://example.test/listing-130",
+                "snapshot_sha256": "3" * 64,
+            }],
+        },
+        store,
+    )
+
+    assert result["status"] == "partial"
+    assert result["persisted"] == 1
+    assert result["source_errors"] == [{
+        "source": "a-failing-source",
+        "error_class": "RuntimeError",
+        "next_action": "retry_source_read_only",
+    }]
+    assert store.latest("example-market", "listing-130") is not None
