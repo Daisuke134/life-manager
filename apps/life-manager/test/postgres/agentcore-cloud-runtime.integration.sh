@@ -60,20 +60,36 @@ ON CONFLICT (plan_version) DO NOTHING;
 INSERT INTO public.lm_cloud_tenants(tenant_id, region, release_sha, status, plan_version)
 VALUES
   ('tenant-a', 'ap-northeast-1', repeat('a', 40), 'active', 'free-v1'),
-  ('tenant-b', 'ap-northeast-1', repeat('b', 40), 'active', 'free-v1');
-INSERT INTO public.lm_runtime_jobs(job_id, tenant_id, loop_id, capability, effect_class, input_refs, max_attempts)
+  ('tenant-b', 'ap-northeast-1', repeat('b', 40), 'active', 'free-v1'),
+  ('tenant-retry', 'ap-northeast-1', repeat('c', 40), 'active', 'free-v1'),
+  ('tenant-reconcile', 'ap-northeast-1', repeat('d', 40), 'active', 'free-v1');
+INSERT INTO public.lm_runtime_jobs(job_id, tenant_id, loop_id, capability, effect_class, effect_key, input_refs, max_attempts)
 VALUES
-  ('job-a', 'tenant-a', 'cloud.test', 'cloud.test', 'none', '{"goal_ref":"goal:a"}', 1),
-  ('job-b', 'tenant-b', 'cloud.test', 'cloud.test', 'none', '{"goal_ref":"goal:b"}', 1);
+  ('job-a', 'tenant-a', 'cloud.test', 'cloud.test', 'none', NULL, '{"goal_ref":"goal:a"}', 1),
+  ('job-b', 'tenant-b', 'cloud.test', 'cloud.test', 'none', NULL, '{"goal_ref":"goal:b"}', 1),
+  ('job-retry', 'tenant-retry', 'cloud.test', 'cloud.test', 'none', NULL, '{"task_ref":"lm-resource://state/tenant-retry/checkpoint-a"}', 3),
+  ('job-reconcile', 'tenant-reconcile', 'cloud.test', 'cloud.test', 'publish', 'publish:recovery-fixture', '{"task_ref":"lm-resource://state/tenant-reconcile/checkpoint-b"}', 3);
+UPDATE public.lm_runtime_jobs
+SET status='running', attempt=1, lease_owner='dead-worker',
+    lease_expires_at=clock_timestamp()-interval '1 minute'
+WHERE job_id IN ('job-retry', 'job-reconcile');
 INSERT INTO public.lm_cloud_runtime_leases(
   tenant_id, job_id, attempt, runtime_session_id, lease_owner, lease_expires_at, generation
-) VALUES ('tenant-a', 'job-a', 1, 'session-a', 'dispatcher-a', clock_timestamp() + interval '5 minutes', 1);
+) VALUES
+  ('tenant-a', 'job-a', 1, 'session-a', 'dispatcher-a', clock_timestamp() + interval '5 minutes', 1),
+  ('tenant-retry', 'job-retry', 1, 'session-retry', 'dead-worker', clock_timestamp() - interval '1 minute', 1),
+  ('tenant-reconcile', 'job-reconcile', 1, 'session-reconcile', 'dead-worker', clock_timestamp() - interval '1 minute', 1);
 INSERT INTO public.lm_cloud_browser_profiles(tenant_id, provider, profile_id, principal_type)
 VALUES ('tenant-a', 'agentcore', 'profile-a', 'agent_owned');
 INSERT INTO public.lm_cloud_usage_ledger(
   tenant_id, job_id, provider, resource, quantity, unit, cost_usd_micros, provider_receipt_id
 ) VALUES ('tenant-a', 'job-a', 'aws', 'agentcore-runtime', 10, 'second', 6703, 'cur://aws/runtime-a');
 SQL
+
+[[ "$(scalar "SELECT retryable || ':' || cleared_leases FROM public.recover_lm_cloud_runtime_leases('tenant-retry');")" == "1:1" ]]
+[[ "$(scalar "SELECT status || ':' || attempt || ':' || (input_refs->>'task_ref') FROM public.lm_runtime_jobs WHERE job_id='job-retry';")" == "queued:1:lm-resource://state/tenant-retry/checkpoint-a" ]]
+[[ "$(scalar "SELECT quarantined || ':' || cleared_leases FROM public.recover_lm_cloud_runtime_leases('tenant-reconcile');")" == "1:1" ]]
+[[ "$(scalar "SELECT status || ':' || attempt || ':' || (input_refs->>'task_ref') FROM public.lm_runtime_jobs WHERE job_id='job-reconcile';")" == "reconciling:1:lm-resource://state/tenant-reconcile/checkpoint-b" ]]
 
 if "${PSQL[@]}" -c "INSERT INTO public.lm_cloud_runtime_leases(tenant_id,job_id,attempt,runtime_session_id,lease_owner,lease_expires_at,generation) VALUES ('tenant-a','job-a',2,'session-2','dispatcher-2',clock_timestamp()+interval '5 minutes',2);" >/dev/null 2>&1; then
   echo 'FAIL second active runtime lease accepted' >&2; exit 1
@@ -126,9 +142,9 @@ then
 fi
 [[ "$(scalar "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='lm_runtime_jobs' AND column_name='cloud_failed_migration_marker';")" == "0" ]]
 
-[[ "$(scalar "SELECT count(*) FROM public.lm_runtime_jobs;")" == "2" ]]
+[[ "$(scalar "SELECT count(*) FROM public.lm_runtime_jobs;")" == "4" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_runtime_leases;")" == "1" ]]
 [[ "$(scalar "SELECT count(*) FROM public.lm_cloud_usage_ledger;")" == "1" ]]
 [[ "$(scalar "SELECT limits_json->>'monthly_cost_cap_usd_micros' FROM public.lm_plan_entitlements WHERE plan_version='free-v1';")" == "500000" ]]
 [[ "$(scalar "SELECT limits_json->>'monthly_cost_cap_usd_micros' FROM public.lm_plan_entitlements WHERE plan_version='founding-pro-v1';")" == "12000000" ]]
-echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 plans=2 rls=5 browser_access=0 rollback=1'
+echo 'agentcore-cloud-runtime-postgres: PASS migration_twice=2 tenant_fk=1 single_lease=1 receipt_dedupe=1 immutable_usage=1 plans=2 rls=5 recovery_retry=1 recovery_reconcile=1 checkpoint_preserved=1 browser_access=0 rollback=1'

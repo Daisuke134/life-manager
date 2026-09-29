@@ -27,7 +27,14 @@ function exactEvent(value) {
 }
 
 function dependencies(options) {
-  for (const name of ["readTenant", "readJob", "readBudget", "decideAdmission", "acquireLease"]) {
+  for (const name of [
+    "readTenant",
+    "recoverExpired",
+    "readJob",
+    "readBudget",
+    "decideAdmission",
+    "acquireLease",
+  ]) {
     if (typeof options[name] !== "function") throw new Error(`cloud runtime ${name} unavailable`);
   }
   if (!options.runtimeClient || typeof options.runtimeClient.invoke !== "function") {
@@ -68,6 +75,7 @@ function createCloudRuntimeDispatcher(options = {}) {
       if (tenant.release_sha !== deps.releaseSha) {
         return Object.freeze({ disposition: "release_mismatch" });
       }
+      await deps.recoverExpired(lookup);
       const job = await deps.readJob(lookup);
       if (!job || job.tenant_id !== id.tenantId || job.job_id !== id.jobId
           || !new Set(["queued", "running"]).has(job.status)) {
@@ -188,6 +196,14 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     `, [tenantId])).rows;
     if (rows.length === 0) return null;
     if (rows.length !== 1) throw new Error("cloud tenant read returned multiple rows");
+    return rows[0];
+  };
+  const recoverExpired = async ({ tenant_id: tenantId }) => {
+    const rows = (await query(
+      "SELECT * FROM public.recover_lm_cloud_runtime_leases($1)",
+      [tenantId],
+    )).rows;
+    if (rows.length !== 1) throw new Error("cloud runtime recovery readback invalid");
     return rows[0];
   };
   const readJob = async ({ tenant_id: tenantId, job_id: jobId }) => {
@@ -317,6 +333,7 @@ function createProductionCloudRuntimeDispatcher(options = {}) {
     leaseSeconds,
     requestedCostUsdMicros,
     readTenant,
+    recoverExpired,
     readJob,
     readBudget,
     decideAdmission,

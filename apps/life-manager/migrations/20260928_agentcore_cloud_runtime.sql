@@ -54,6 +54,48 @@ CREATE TABLE IF NOT EXISTS public.lm_cloud_runtime_leases (
 CREATE INDEX IF NOT EXISTS lm_cloud_runtime_leases_expiry_idx
   ON public.lm_cloud_runtime_leases(lease_expires_at);
 
+CREATE OR REPLACE FUNCTION public.recover_lm_cloud_runtime_leases(
+  p_tenant_id text
+) RETURNS TABLE(quarantined integer, retryable integer, cleared_leases integer)
+LANGUAGE sql
+SET search_path = public, pg_temp
+AS $$
+  WITH quarantined_jobs AS (
+    UPDATE public.lm_runtime_jobs
+    SET status = 'reconciling',
+        lease_owner = NULL,
+        lease_expires_at = NULL,
+        last_error_code = 'LEASE_EXPIRED_EFFECT_UNKNOWN',
+        updated_at = clock_timestamp()
+    WHERE tenant_id = p_tenant_id
+      AND status = 'running'
+      AND lease_expires_at <= clock_timestamp()
+      AND effect_class IN ('publish', 'message', 'money')
+    RETURNING job_id
+  ), retryable_jobs AS (
+    UPDATE public.lm_runtime_jobs
+    SET status = CASE WHEN attempt < max_attempts THEN 'queued' ELSE 'dead_letter' END,
+        lease_owner = NULL,
+        lease_expires_at = NULL,
+        last_error_code = 'LEASE_EXPIRED_NO_EFFECT',
+        updated_at = clock_timestamp()
+    WHERE tenant_id = p_tenant_id
+      AND status = 'running'
+      AND lease_expires_at <= clock_timestamp()
+      AND effect_class = 'none'
+    RETURNING job_id
+  ), deleted_leases AS (
+    DELETE FROM public.lm_cloud_runtime_leases
+    WHERE tenant_id = p_tenant_id
+      AND lease_expires_at <= clock_timestamp()
+    RETURNING job_id
+  )
+  SELECT
+    (SELECT count(*)::integer FROM quarantined_jobs),
+    (SELECT count(*)::integer FROM retryable_jobs),
+    (SELECT count(*)::integer FROM deleted_leases)
+$$;
+
 CREATE TABLE IF NOT EXISTS public.lm_cloud_browser_profiles (
   tenant_id text NOT NULL REFERENCES public.lm_cloud_tenants(tenant_id),
   provider text NOT NULL CHECK (char_length(provider) BETWEEN 1 AND 100),
@@ -108,6 +150,7 @@ REVOKE ALL ON TABLE public.lm_cloud_tenants FROM PUBLIC;
 REVOKE ALL ON TABLE public.lm_cloud_runtime_leases FROM PUBLIC;
 REVOKE ALL ON TABLE public.lm_cloud_browser_profiles FROM PUBLIC;
 REVOKE ALL ON TABLE public.lm_cloud_usage_ledger FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.recover_lm_cloud_runtime_leases(text) FROM PUBLIC;
 
 DO $$
 BEGIN
@@ -123,6 +166,7 @@ BEGIN
     EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.lm_cloud_runtime_leases TO service_role';
     EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.lm_cloud_browser_profiles TO service_role';
     EXECUTE 'GRANT SELECT, INSERT ON TABLE public.lm_cloud_usage_ledger TO service_role';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.recover_lm_cloud_runtime_leases(text) TO service_role';
   END IF;
 END
 $$;
