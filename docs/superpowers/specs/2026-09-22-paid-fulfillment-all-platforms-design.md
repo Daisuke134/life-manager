@@ -6638,3 +6638,43 @@ ordering notes without declaring any external effect complete.
 11. **Final promotion — OPEN.** Merge/admin-promote once, cut main-derived
     immutable release, read back every owner/provider receipt, and only then
     declare completion.
+
+### Candidate Coconala Reply natural readback — 2026-09-30 08:38 JST
+
+- [x] The exact immutable candidate
+  `/Users/anicca/loops/releases/20260930T083531-7ae557ff` was used for a
+  hidden, read-only `direct-inbox-head-only` run through the authenticated
+  `coconala:kosuke` owner resolved at `127.0.0.1:9223`.
+- [x] The run returned `status=success`, `read_only=true`, and `30` inbox
+  inquiries. Ryu `10107358` was read as `reply_required=false` and
+  `next_action=observe`, with the same official message identity as the prior
+  readback. No reply, send, delivery, or payment effect occurred.
+- [ ] This validates the repaired candidate's read-only browser path only; it
+  is not a live-owner transition or proof that the reply loop is now running
+  from the candidate. Main provenance and controlled live transition remain
+  open.
+
+### Atomic current cursor — 2026-09-30 08:42 JST
+
+1. **Ryu Coconala DM — DONE.** Sent once with official readback; never resend.
+2. **Reply DOM-race repair — DONE ON CANDIDATE.** Candidate tests, contract,
+   immutable checks, and natural read-only inbox readback pass.
+3. **Main integration/provenance — OPEN.** Candidate remains
+   `pushed-not-yet-on-main`; do not activate it yet.
+4. **Live transition — OPEN.** Use only the controlled owner transition after
+   the required high-risk approval; preserve the shared browser/profile.
+5. **Coconala Reply live natural readback — OPEN.** After transition, run one
+   read-only/readback pass and record replay-zero; do not resend Ryu.
+6. **Coconala Apply/Storefront/Paid canaries — OPEN.** Each needs separate
+   official provider receipt and replay-zero.
+7. **Coconala unknown fences — OPEN.** Resolve only with occurrence-bound
+   official evidence.
+8. **CrowdWorks/Lancers/Mercor — OPEN.** Reconcile provider locks,
+   Human Verification, and disabled-owner conditions before effects.
+9. **Upwork/Freelancer — OPEN.** Restore authenticated inventory, verify
+   funded terms, and run no-effect canaries.
+10. **Shared registration/Meta Loop — OPEN.** Enable after all platform
+    telemetry, recovery, idempotency, and receipt checks pass.
+11. **Final promotion — OPEN.** Merge/admin-promote once, cut main-derived
+    immutable release, read back every owner/provider receipt, and only then
+    declare completion.
