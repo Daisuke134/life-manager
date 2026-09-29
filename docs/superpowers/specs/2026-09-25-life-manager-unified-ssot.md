@@ -1511,3 +1511,82 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 4. Mercorの`browser_target_owner=mercor-revenue-browser`参照欠落をactive registry・identity lease・CDP/profile・official probeまで直し、doctor/contract/source testsを再実行する。
 5. Freelancer/Upworkはactive ownerがないため、approved terms、専用identity auth、source-complete funded contract/milestone、mutation authorization、payout readbackが揃うまで登録・応募・送信しない。
 6. Meta Loopのcandidate durable state、discovery scheduler、owner provisioning、rollback、settlement、quality/P&L feedbackをshared kernelへ接続し、receipt付きcost-complete positive net P&Lとreplay-zeroを通った改善だけを昇格する。検証済み収益は引き続き`$0`である。
+
+**原子TODO（このsectionが優先。1項目＝1操作＋1完了条件）**:
+
+### 0. 共通
+
+- [ ] `origin/main` SHAを記録する。完了条件: SHAをspecへ記録。
+- [ ] `current/RELEASE.json`を読む。完了条件: release SHAとorigin/mainの関係が一致。
+- [ ] `lm-loop doctor`を実行する。完了条件: `ok=true`。
+- [ ] `lm-loop-contract`を実行する。完了条件: `ok=true`。
+- [ ] 各対象ownerのstatusを保存する。完了条件: installed SHA、launchd state、effect status、receipt、next actionが保存される。
+
+### 1. Coconala
+
+- [ ] `hf-gig-apply-direct`のeffect fenceをdry-runする。完了条件: `resolved`または理由付き`held`。
+- [ ] `hf-gig-apply-direct`のprovider receiptを確認する。完了条件: receiptが同一occurrenceに紐付く。
+- [ ] receiptが無ければ応募を再送しない。完了条件: occurrenceが`held`のまま。
+- [ ] `hf-gig-apply-direct`がloaded-idleになった時だけb4ab releaseをapplyする。完了条件: plist argvとloaded SHAがb4ab。
+- [ ] `hf-gig-storefront-direct`をreadbackする。完了条件: provider receiptまたはheld理由が保存される。
+- [ ] `hf-gig-storefront-direct`がloaded-idleになった時だけapplyする。完了条件: loaded SHAがb4ab。
+- [ ] `hf-gig-paid-direct`の自然terminalを待つ。完了条件: runningではなくterminal状態。
+- [ ] `hf-gig-paid-direct`へb4abをapplyする。完了条件: plist argvがb4ab。
+- [ ] `hf-gig-reply-detector`の自然terminalを待つ。完了条件: runningではなくterminal状態。
+- [ ] `hf-gig-reply-detector`へb4abをapplyする。完了条件: plist argvがb4ab。
+- [ ] `hf-gig-apply-reconcile`の自然terminalを待つ。完了条件: reconcile結果が保存される。
+- [ ] RyuさんDMの公式readbackを再確認する。完了条件: provider receipt/readback取得、または403理由を保存。
+- [ ] Ryuさんへ再送しない。完了条件: send countが1のまま。
+
+### 2. Lancers
+
+- [ ] applicationの最新occurrenceをreadbackする。完了条件: official readbackまたはheld理由。
+- [ ] applicationの`entrypoint_exit_1`原因を診断する。完了条件: error classと修正対象が記録される。
+- [ ] application ownerをb4abへapplyする。完了条件: loaded SHAがb4ab。
+- [ ] storefrontのeffect fenceをreadbackする。完了条件: receiptまたはheld。
+- [ ] negotiateのmessage receiptを確認する。完了条件: provider message IDまたはheld。
+- [ ] paidのofficial payment readbackを確認する。完了条件: payout receiptまたはheld。
+- [ ] work-syncの`entrypoint_exit_75`を診断する。完了条件: resource原因とnext actionが記録される。
+- [ ] telegram-reportのdelivery receiptを確認する。完了条件: message IDまたはheld。
+
+### 3. CrowdWorks
+
+- [ ] browser ownerの`entrypoint_exit_75`を診断する。完了条件: browser failure原因が記録される。
+- [ ] applicationのloaded-running終了を待つ。完了条件: natural terminal。
+- [ ] applicationをb4abへapplyする。完了条件: loaded SHAがb4ab。
+- [ ] paidのcapacity fenceをreadbackする。完了条件: receiptまたはheld。
+- [ ] replyの`official_readback_required`を確認する。完了条件: thread receiptまたはheld。
+- [ ] reportのeffect fenceをreadbackする。完了条件: delivery receiptまたはheld。
+
+### 4. Mercor
+
+- [ ] registryに`mercor-revenue-browser`が無いことを確認する。完了条件: 欠落をspecへ記録。
+- [ ] browser ownerを復元するか参照先を変更する。完了条件: application/replyのbrowser targetがactive owner。
+- [ ] CDP portとprofileをreadbackする。完了条件: identity leaseが一致。
+- [ ] Mercor applicationのeffect fenceをreadbackする。完了条件: receiptまたはheld。
+- [ ] Mercor paidのeffect fenceをreadbackする。完了条件: payout receiptまたはheld。
+- [ ] Mercor replyのeffect fenceをreadbackする。完了条件: message receiptまたはheld。
+
+### 5. Freelancer / Upwork
+
+- [ ] Freelancerのautomation termsを取得する。完了条件: provider-approved terms。
+- [ ] Freelancer account authを確認する。完了条件: account-bound auth receipt。
+- [ ] Freelancer funded projectを確認する。完了条件: funded contract receipt。
+- [ ] Upwork専用identity authを確認する。完了条件: `authenticated=true`。
+- [ ] Upwork contract/payment inventoryを取得する。完了条件: source-complete inventory。
+- [ ] Upwork funded milestoneを確認する。完了条件: funded receipt。
+- [ ] mutation authorizationを確認する。完了条件: provider-approved mutation permission。
+- [ ] 条件が全て揃ったplatformだけowner登録する。完了条件: registry、plist、official probeが一致。
+
+### 6. Meta Loop
+
+- [ ] platform discovery schedulerを作動させる。完了条件: candidateがdurable stateへ保存。
+- [ ] candidate policy gateを評価する。完了条件: allowed/holdが記録される。
+- [ ] candidate adapter gateを評価する。完了条件: source hashとaction inventoryが記録される。
+- [ ] funded-work gateを評価する。完了条件: provider funded receipt。
+- [ ] isolated canaryを実行する。完了条件: official receipt、readback、replay-zero。
+- [ ] owner provisioningを実行する。完了条件: registry/plist/identity leaseが一致。
+- [ ] rollbackをテストする。完了条件: 旧releaseへ安全復元。
+- [ ] settlementをledgerへ記録する。完了条件: payout receipt。
+- [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
+- [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
