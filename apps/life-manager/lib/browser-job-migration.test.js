@@ -17,6 +17,10 @@ const AUTH_TRACE_SQL = fs.readFileSync(path.join(
   __dirname,
   "../migrations/2026-07-29-lm-browser-job-auth-trace.sql",
 ), "utf8");
+const NO_HUMAN_SQL = fs.readFileSync(path.join(
+  __dirname,
+  "../migrations/2026-09-29-lm-browser-no-human.sql",
+), "utf8");
 
 test("BROWSER-GEN-1 queue is tenant-bound, idempotent, and stores no raw prompt or credential", () => {
   assert.match(SQL, /CREATE TABLE IF NOT EXISTS public\.lm_browser_jobs/i);
@@ -81,4 +85,15 @@ test("auth trace forward migration upgrades the production trace allowlist", () 
   ]);
   assert.match(AUTH_TRACE_SQL, /octet_length\(COALESCE\(p_meta, '\{\}'::jsonb\)::text\) > 8192/i);
   assert.match(AUTH_TRACE_SQL, /jsonb_array_length\(trace\) < 100/i);
+});
+
+test("no-human migration terminally converts handoff rows without replay or callback state", () => {
+  assert.match(NO_HUMAN_SQL, /WHERE status = 'handoff_required'/i);
+  assert.match(NO_HUMAN_SQL, /SET status = 'not_applicable'/i);
+  assert.match(NO_HUMAN_SQL, /'reason', 'requires_human_principal'/i);
+  assert.match(NO_HUMAN_SQL, /'external_effect', 'none'/i);
+  assert.match(NO_HUMAN_SQL, /status IN \('queued', 'claimed', 'completed', 'possibly_completed', 'not_applicable', 'failed'\)/i);
+  assert.match(NO_HUMAN_SQL, /p_status NOT IN \('completed', 'possibly_completed', 'not_applicable', 'failed'\)/i);
+  assert.match(NO_HUMAN_SQL, /'principal_excluded'/i);
+  assert.doesNotMatch(NO_HUMAN_SQL, /\bresume\b|\bapprove\b|callback_url|credential_ref/i);
 });

@@ -55,8 +55,8 @@ function telegramText(result) {
   if (result.status === "possibly_completed") {
     return `⚠️ The browser action may have completed, but provider confirmation was not independently readable.\nTrace: ${result.trace_id}`;
   }
-  if (result.status === "handoff_required") {
-    return `🖐️ Browser task needs a human-only step (${result.provider_receipt.handoff_reason || "provider gate"}).\nTrace: ${result.trace_id}`;
+  if (result.status === "not_applicable") {
+    return `Browser task excluded: requires a human principal. No external effect was made.\nTrace: ${result.trace_id}`;
   }
   return `❌ Browser task did not complete before any confirmed side effect.\nTrace: ${result.trace_id}`;
 }
@@ -164,10 +164,14 @@ async function runGenericBrowserTask(job, deps) {
       result.evidence_sha256 = null;
     }
     result.status = result.provider_receipt.handoff_required
-      ? "handoff_required"
+      ? (sideEffectStarted ? "possibly_completed" : "not_applicable")
       : result.provider_receipt.confirmed
         ? "completed"
         : "possibly_completed";
+    if (result.status === "not_applicable") {
+      result.reason = "requires_human_principal";
+      result.external_effect = "none";
+    }
   } catch (error) {
     sideEffectStarted = sideEffectStarted || Boolean(error && error.sideEffectStarted);
     result.status = sideEffectStarted ? "possibly_completed" : "failed";
@@ -218,7 +222,7 @@ async function runGenericBrowserTask(job, deps) {
     });
   }
 
-  if (session && session.id && !result.provider_receipt.handoff_required) {
+  if (session && session.id) {
     try {
       const release = await deps.releaseSession(session.id, {
         providerReceipt: result.provider_receipt,

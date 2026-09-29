@@ -6,6 +6,7 @@ const {
   finishBrowserJob,
 } = require("./browser-job-store.js");
 const { runGenericBrowserTask } = require("./generic-browser-task.js");
+const { evaluateBrowserPrincipal } = require("./browser-principal-policy.js");
 const { makeStagehandSteelDriver } = require("./stagehand-steel-driver.js");
 const { createOpportunity } = require("./money-printer-opportunity.js");
 const { sendMessage, sendPhoto } = require("./telegram.js");
@@ -58,9 +59,31 @@ async function runNextBrowserJob(deps = {}) {
   const claim = deps.claimJob || (() => claimBrowserJob(deps));
   const job = await claim();
   if (!job) return { status: "idle" };
-  const driver = driverFor(deps);
   const append = deps.appendTrace || ((id, stage, meta) => appendBrowserTrace(id, stage, meta, deps));
   const finish = deps.finishJob || ((id, result) => finishBrowserJob(id, result, deps));
+  const principal = evaluateBrowserPrincipal(job);
+  if (!principal.allowed) {
+    const terminal = {
+      trace_id: job.id,
+      status: principal.status,
+      reason: principal.reason,
+      external_effect: principal.external_effect,
+      provider_receipt: {
+        confirmed: false,
+        status: principal.reason,
+        confirmation_id: null,
+        current_url: null,
+        handoff_required: false,
+        handoff_reason: null,
+      },
+      session_id: null,
+      telegram_message_id: null,
+    };
+    await append(job.id, "principal_excluded", { reason: principal.reason });
+    await finish(job.id, terminal);
+    return terminal;
+  }
+  const driver = driverFor(deps);
   const send = deps.sendMessage || sendMessage;
   const sendEvidence = deps.sendPhoto || sendPhoto;
   const telegramToken = deps.telegramToken || process.env.LM_TELEGRAM_BOT_TOKEN;
@@ -81,17 +104,10 @@ async function runNextBrowserJob(deps = {}) {
 }
 
 async function completeBrowserHandoff(sessionId, answer, deps = {}) {
-  const driver = deps.driver || defaultDriver;
-  if (!driver || typeof driver.readHeldReceipt !== "function" || typeof driver.releaseSession !== "function") {
-    throw new Error("browser handoff unavailable");
-  }
-  const providerReceipt = await driver.readHeldReceipt(sessionId);
-  if (answer === "approve" && providerReceipt.confirmed !== true) {
-    return { providerReceipt, release: null };
-  }
-  const release = await driver.releaseSession(sessionId, { providerReceipt });
-  if (!release || release.released !== true) throw new Error("browser handoff release unavailable");
-  return { providerReceipt, release };
+  void sessionId;
+  void answer;
+  void deps;
+  throw new Error("browser human handoff disabled");
 }
 
 function startBrowserJobLoop(options = {}) {

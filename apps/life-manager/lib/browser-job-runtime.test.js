@@ -23,6 +23,11 @@ const AUTH_JOB = Object.freeze({
   principal_kind: "user_provided",
 });
 
+const AGENT_AUTH_JOB = Object.freeze({
+  ...AUTH_JOB,
+  principal_kind: "agent_owned",
+});
+
 function successfulDeps(overrides = {}) {
   const traces = [];
   return {
@@ -133,7 +138,7 @@ test("the durable worker passes exact job identity and only a closed provider re
     },
   };
   const deps = successfulDeps({
-    claimJob: async () => AUTH_JOB,
+    claimJob: async () => AGENT_AUTH_JOB,
     appendTrace: async (_id, stage, meta) => { traces.push({ stage, meta }); },
     driver,
   });
@@ -145,7 +150,7 @@ test("the durable worker passes exact job identity and only a closed provider re
     ownerId: "job-1",
     goal: "Open https://auth.example/account",
     requiresLogin: true,
-    principalKind: "user_provided",
+    principalKind: "agent_owned",
   });
   assert.deepEqual(releaseInput, {
     sessionId: "s1",
@@ -213,7 +218,7 @@ test("the loop has an overlap guard so a slow browser job cannot be claimed twic
   loop.close();
 });
 
-test("one held Steel session blocks another claim and completes through the same driver", async () => {
+test("a held legacy human session is never resumed or approved", async () => {
   let claims = 0;
   let releases = 0;
   const driver = {
@@ -231,10 +236,37 @@ test("one held Steel session blocks another claim and completes through the same
   };
   assert.deepEqual(await runNextBrowserJob({ driver, claimJob: async () => { claims += 1; return JOB; } }), { status: "handoff_waiting" });
   assert.equal(claims, 0);
-  const completed = await completeBrowserHandoff("steel-1", "approve", { driver });
-  assert.equal(completed.providerReceipt.confirmed, true);
-  assert.equal(completed.release.released, true);
-  assert.equal(releases, 1);
+  await assert.rejects(
+    completeBrowserHandoff("steel-1", "approve", { driver }),
+    /disabled/i,
+  );
+  assert.equal(releases, 0);
+});
+
+test("human-principal job closes without constructing a browser and the next eligible job continues", async () => {
+  const jobs = [{ ...AUTH_JOB }, JOB];
+  const finished = [];
+  let providerCalls = 0;
+  const deps = successfulDeps({
+    claimJob: async () => jobs.shift() || null,
+    finishJob: async (_id, result) => { finished.push(result); },
+    driver: {
+      ...successfulDeps().driver,
+      openSession: async (...args) => {
+        providerCalls += 1;
+        return successfulDeps().driver.openSession(...args);
+      },
+    },
+  });
+  const excluded = await runNextBrowserJob(deps);
+  assert.equal(excluded.status, "not_applicable");
+  assert.equal(excluded.reason, "requires_human_principal");
+  assert.equal(excluded.external_effect, "none");
+  assert.equal(providerCalls, 0);
+  const completed = await runNextBrowserJob(deps);
+  assert.equal(completed.status, "completed");
+  assert.equal(providerCalls, 1);
+  assert.equal(finished.length, 2);
 });
 
 test("an expired held Steel session is released before the next durable claim", async () => {

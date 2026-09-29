@@ -137,9 +137,16 @@ test("the durable action kind reaches the cloud driver without entering a trace 
   assert.doesNotMatch(JSON.stringify(result), /action_kind|actionKind/);
 });
 
-test("a login or challenge page becomes handoff_required, never completed", async () => {
+test("a login or challenge page becomes not_applicable and releases the session", async () => {
   let releases = 0;
   const { deps } = fixture({
+    discoverAndAct: async () => ({
+      selectedUrl: "https://events.example/login",
+      selectedOrigin: "https://events.example",
+      selectionReason: "provider requires a human principal",
+      action: "none",
+      sideEffectStarted: false,
+    }),
     readProviderReceipt: async () => ({
       confirmed: false,
       status: "login required",
@@ -154,11 +161,13 @@ test("a login or challenge page becomes handoff_required, never completed", asyn
     },
   });
   const result = await runGenericBrowserTask(JOB, deps);
-  assert.equal(result.status, "handoff_required");
+  assert.equal(result.status, "not_applicable");
+  assert.equal(result.reason, "requires_human_principal");
+  assert.equal(result.external_effect, "none");
   assert.equal(result.provider_receipt.handoff_required, true);
   assert.equal(result.provider_receipt.handoff_reason, "login");
-  assert.equal(result.steel_released, false);
-  assert.equal(releases, 0);
+  assert.equal(result.steel_released, true);
+  assert.equal(releases, 1);
 });
 
 test("a timeout after browser execution starts is possibly_completed and releases Steel", async () => {
@@ -260,10 +269,17 @@ test("a pre-action failure is an honest failure and every opened Steel session i
   assert.equal(releases, 1);
 });
 
-test("a login handoff keeps the live Steel session for the human and delays auth mutation", async () => {
+test("a login gate closes without human continuation and releases the live session", async () => {
   let telegramMessage = "";
   let releases = 0;
   const { deps, events } = fixture({
+    discoverAndAct: async () => ({
+      selectedUrl: "https://auth.example/login",
+      selectedOrigin: "https://auth.example",
+      selectionReason: "provider requires a human principal",
+      action: "none",
+      sideEffectStarted: false,
+    }),
     readProviderReceipt: async () => ({
       confirmed: false,
       status: "login required",
@@ -283,11 +299,11 @@ test("a login handoff keeps the live Steel session for the human and delays auth
 
   const result = await runGenericBrowserTask(AUTH_JOB, deps);
 
-  assert.equal(result.status, "handoff_required");
+  assert.equal(result.status, "not_applicable");
   assert.equal(result.provider_receipt.handoff_reason, "login");
-  assert.match(telegramMessage, /needs a human-only step \(login\)/i);
-  assert.equal(releases, 0);
-  assert.equal(result.steel_released, false);
+  assert.match(telegramMessage, /excluded: requires a human principal/i);
+  assert.equal(releases, 1);
+  assert.equal(result.steel_released, true);
   assert.equal(events.some((event) => event.stage === "auth_context_invalidated"), false);
 });
 

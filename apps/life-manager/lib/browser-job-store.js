@@ -5,7 +5,7 @@ const { createHash } = require("node:crypto");
 const TERMINAL_STATUSES = new Set([
   "completed",
   "possibly_completed",
-  "handoff_required",
+  "not_applicable",
   "failed",
 ]);
 const TRACE_STAGES = new Set([
@@ -21,6 +21,7 @@ const TRACE_STAGES = new Set([
   "telegram_sent",
   "evidence_sent",
   "steel_released",
+  "principal_excluded",
 ]);
 
 function nonEmpty(value, label, max = 1000) {
@@ -189,6 +190,8 @@ async function finishBrowserJob(jobId, terminal, opts = {}) {
     evidence_sha256: terminal.evidence_sha256 || null,
     steel_released: terminal.steel_released === true,
     auth_marker_hash: optionalMarkerHash(terminal.auth_marker_hash),
+    reason: terminal.reason || null,
+    external_effect: terminal.external_effect || null,
   };
   if (Buffer.byteLength(JSON.stringify(receipt)) > 16_384) throw new Error("browser receipt too large");
   const { query } = database(opts);

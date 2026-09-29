@@ -291,11 +291,11 @@
 
   Assert profile lookup is tenant/provider scoped and agent-owned, concurrent owners cannot start a second session, profile save happens only after verified completion, and failed release retains reconciliation data.
 
-- [ ] **Step 2: Write RED no-human principal tests**
+- [x] **Step 2: Write RED no-human principal tests**
 
   Assert policy-allowed agent-owned actions expose no credential request, ask, approve, takeover, or resume state. Human credential/profile input and sites requiring human login, OAuth, CAPTCHA, 2FA, 3DS, KYC, interview, or signature return `not_applicable: requires_human_principal`, make no external effect, and do not stop another eligible job.
 
-- [ ] **Step 2a: Write RED shared-browser observability tests**
+- [x] **Step 2a: Write RED shared-browser observability tests**
 
   Require a tenant-bound opaque viewer ref, read-only activity stream, and emergency stop. Cross-tenant viewer refs fail before provider calls. If optional break-glass writing is enabled, it must first stop the agent writer under the same lease generation, record `manual_external`, exclude the result from automated success/revenue, and never create a resume callback.
 
@@ -303,15 +303,15 @@
 
   Map the existing provider-neutral browser contract onto StartBrowserSession, automation WebSocket, SaveBrowserSessionProfile, and StopBrowserSession. Accept only server-owned profile refs and agent-owned principals; never expose AWS credentials or raw profile data.
 
-- [ ] **Step 3a: Implement shared-browser observation without a completion dependency**
+- [x] **Step 3a: Implement shared-browser observation without a completion dependency**
 
   Expose phone/web read-only live view and emergency stop through server-owned opaque refs. Do not expose cookies, credentials, raw Browser Profile data, AWS URLs, or a second writer. Keep full browser recording in the evidence timeline.
 
-- [ ] **Step 4: Migrate legacy handoff rows without resuming them**
+- [x] **Step 4: Migrate legacy handoff rows without resuming them**
 
   Convert existing `handoff_required` rows to terminal `not_applicable` receipts with reason `requires_human_principal`. Do not replay their effect, ask for credentials, send an approval link, or create a resume callback.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
   ```bash
   node --test lib/agentcore-browser-driver.test.js lib/browser-principal-policy.test.js lib/browser-job-runtime.test.js
@@ -542,7 +542,7 @@ Do not move billing ahead of real-cloud cost measurement, and do not move Muse a
 
 Each row has one bounded output and one observable completion condition. Do not mark a cloud row complete from a mock.
 
-**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, and the real-provider half of A16 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A11, A12, A14, and A15 are complete; A16 local/real-PostgreSQL recovery is proven. Immediate provider-independent order is `A17 -> A18`, then `A06 -> A07 -> A13 -> A16(real) -> A19` as soon as provider readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
+**Current cursor:** AWS identity authentication and the Tokyo AgentCore control-plane list APIs work, but the account is not service-active: CloudFormation returns `OptInRequired`, S3 returns `NotSignedUp`, the Free Tier plan API returns missing account data, and the console still identifies signup as incomplete. Therefore A06, A13, the real-provider half of A16, and A19 are externally blocked, not done, and no deployment retry is allowed before an official AWS response. A17 and A18 are complete, including the no-human policy, tenant-bound observation contract, emergency stop, legacy-state migration, and real-PostgreSQL migration proof. Immediate provider-independent cursor is A20; provider order remains `A06 -> A07 -> A13 -> A16(real) -> A19` as soon as readback proves CloudFormation and S3 active. If AWS gives no response by the stated window or its exact one-time retry still leaves either API inactive, run the existing provider-neutral contract as a bounded DigitalOcean Managed Agents plus Steel compatibility canary; adopt it only if Runtime isolation, agent-owned browser continuity, deterministic no-ask policy, lifecycle readback, and teardown/cost receipts all pass. Control-plane reachability or console login alone is never a cloud pass.
 
 | ID | Status | Atomic output | Completion evidence |
 |---|---|---|---|
@@ -564,9 +564,9 @@ Each row has one bounded output and one observable completion condition. Do not 
 | A15 | done | One Inngest cloud-job function | 49/49 focused tests; `lm/cloud.job`, tenant concurrency 1, IDs-only event, atomic PostgreSQL job/tenant lease claim before AWS |
 | A16 | provider-pending | Crash/cold-start recovery | local fake crash + real PostgreSQL PASS: checkpoint preserved, no-effect attempt 2, external effect reconciles, duplicate effect 0; real AgentCore repeat pending |
 | A17 | done | AgentCore Browser Profile adapter | 8/8 focused tests; tenant/provider agent-owned lookup, one writer lease, verified-only profile save, exact stop/release, reconciliation retention, official AWS command mapping |
-| A18 | **next** | No-human browser policy, shared-browser observation, and legacy-state migration | human credential/callback/provider effect 0; phone/web live view + emergency stop; cross-tenant view 0; optional break-glass excluded from automated success/revenue; stored `handoff_required` closes `not_applicable` without replay |
-| A19 | todo | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
-| A20 | todo | AgentCore Identity provider and migration-on-use | agent-owned opaque refs only; human refs rejected; revoke closes dependent jobs without asking |
+| A18 | done | No-human browser policy, shared-browser observation, and legacy-state migration | focused 49/49; real PostgreSQL migration twice PASS; human provider calls 0; tenant-bound opaque read-only viewer + emergency stop; break-glass excluded from success/revenue; legacy handoff closes `not_applicable` without replay |
+| A19 | external-blocked | Real no-human browser canary | agent-owned action completes; human-only probe closes; another job continues; active sessions 0 |
+| A20 | **next** | AgentCore Identity provider and migration-on-use | agent-owned opaque refs only; human refs rejected; revoke closes dependent jobs without asking |
 | A21 | todo | Adversarial tenant/effect recovery suite | cross-tenant access 0, duplicate effect 0, ambiguous effects quarantined |
 | A22 | todo | Cost ledger and reservation/admission | integer micros, provider dedupe, Free $0.50 and Pro $12 fail-closed caps |
 | A23 | todo | Natural no-card Free onboarding | one goal and first verified result before checkout offer |
