@@ -105,6 +105,31 @@ def _rows() -> list[dict]:
     ]
 
 
+def _cost_rows() -> list[dict]:
+    rows = _rows()
+    rows[0]["decision_id"] = "entry-decision"
+    rows[2]["decision_id"] = "exit-decision"
+    return [
+        {
+            "receipt_type": "decision", "decision_id": "entry-decision",
+            "decision": {
+                "execution_quote": {"bid": "399", "ask": "399", "quote_at": "2026-09-29T14:31:00Z"},
+                "model_cost_usd": "0.01",
+                "model_cost_source": "deterministic_etf_policy",
+            },
+        },
+        {
+            "receipt_type": "decision", "decision_id": "exit-decision",
+            "decision": {
+                "execution_quote": {"bid": "411", "ask": "411", "quote_at": "2026-10-20T14:31:00Z"},
+                "model_cost_usd": "0.01",
+                "model_cost_source": "deterministic_etf_policy",
+            },
+        },
+        *rows,
+    ]
+
+
 OBSERVATION = {
     "mode": "paper",
     "paper": True,
@@ -200,6 +225,26 @@ class PaperPerformanceTests(unittest.TestCase):
             "alpaca://bars/entry", "alpaca-order:paper-entry",
             "alpaca://bars/exit", "alpaca-order:paper-exit",
         ])
+
+    def test_official_costs_and_execution_quotes_produce_cost_complete_net_pnl(self):
+        result = build_paper_performance(
+            _cost_rows(), OBSERVATION, RISK,
+            cost_readback={
+                "status": "complete",
+                "fees_by_client_order_id": {
+                    "lm-ai-" + "a" * 24: "0.01",
+                    "lm-ai-" + "b" * 24: "0.02",
+                },
+                "source_receipt_ids": ["alpaca-fee:entry", "alpaca-fee:exit"],
+            },
+        )
+
+        self.assertEqual(result["measurement_status"], "measured")
+        self.assertEqual(result["costs_status"], "complete")
+        self.assertEqual(result["fees_usd"], "0.03")
+        self.assertEqual(result["slippage_usd"], "0.05")
+        self.assertEqual(result["model_cost_usd"], "0.02")
+        self.assertEqual(result["net_pnl_usd"], "0.15")
 
     def test_open_or_unresolved_round_trip_does_not_emit_numeric_pnl(self):
         rows = _rows()

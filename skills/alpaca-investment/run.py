@@ -14,7 +14,7 @@ from pathlib import Path
 from allocator import build_candidates, choose, gate as allocation_gate, order_for
 from alpaca_cli import (CLI_OPERATIONS, SAFE_ERROR_CODES, find_order_by_client_id, observe,
                         read_allocator_snapshot, read_campaign_snapshot, read_crypto_history,
-                        submit_order)
+                        read_paper_stock_costs, submit_order)
 from campaign import CANDIDATE_REF, SYMBOLS, exit_order, reconcile
 from control import control_fence, read_control
 from effect_store import (mark_started, reconcile_started, record_no_trade, seal,
@@ -23,7 +23,7 @@ from etf_ownership import ETF_STRATEGY_ID, investment_owner_id
 from etf_ownership import read_state as read_etf_state
 from etf_ownership import record_closed as record_etf_closed
 from etf_ownership import record_filled as record_etf_filled
-from paper_performance import write_paper_performance
+from paper_performance import paper_round_trip_client_order_ids, write_paper_performance
 from reporter import deliver, deliver_control, deliver_failure
 from position_manager import choose as choose_position, exit_order as live_exit_order
 from review_status import read_receipt as read_application_status
@@ -62,6 +62,25 @@ def _retry_allowed(stage: str, effect_attempted: bool, attempt: int) -> bool:
 
 def _terminal_effect(effect_attempted: bool) -> str:
     return "unknown" if effect_attempted else "none"
+
+
+def _paper_etf_cost_evidence(
+    decision: dict, order: dict, snapshot: dict,
+) -> dict:
+    """Attach quote and deterministic model-cost evidence before a paper ETF effect."""
+    if order.get("asset_class") != "us_equity":
+        return decision
+    quote = snapshot.get("qqq_quote")
+    if (not isinstance(quote, dict)
+            or any(not isinstance(quote.get(key), str) or not quote[key]
+                   for key in ("bid", "ask", "quote_at"))):
+        raise ValueError("etf_execution_quote_missing")
+    return {
+        **decision,
+        "execution_quote": {key: quote[key] for key in ("bid", "ask", "quote_at")},
+        "model_cost_usd": "0.00",
+        "model_cost_source": "deterministic_etf_policy",
+    }
 
 
 def _reconciliation_is_pending(value: object) -> bool:
@@ -534,6 +553,8 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
                         if not refreshed["approved"]:
                             raise ValueError("investment_effect_fence_rejected")
                         decision = {**decision, **refreshed}
+                    if mode == "paper":
+                        decision = _paper_etf_cost_evidence(decision, order, fresh)
                     sealed = seal(state / "receipts.jsonl", decision, order)
                     if not mark_started(state / "receipts.jsonl", sealed):
                         raise ValueError("investment_effect_already_started")
@@ -584,7 +605,21 @@ def main(*, attempt: int = 0, wake_id=None) -> int:
             # This is a reporting-only read of the append-only effect ledger.
             # Missing fees/slippage/model costs remain partial and never become
             # a numeric zero or a promotion signal.
-            write_paper_performance(state, observation, allocator_snapshot["risk"])
+            cost_readback = {"status": "not_applicable"}
+            client_order_ids = paper_round_trip_client_order_ids(state)
+            if client_order_ids:
+                try:
+                    cost_readback = read_paper_stock_costs(
+                        credentials_path=credentials_path,
+                        cli_path=cli_path,
+                        client_order_ids=client_order_ids,
+                    )
+                except ValueError as error:
+                    cost_readback = {"status": "unknown", "reason": str(error)}
+            write_paper_performance(
+                state, observation, allocator_snapshot["risk"],
+                cost_readback=cost_readback,
+            )
         stage = "telegram_deliver"
         telegram = deliver(state, observation, campaign, decision, effect,
                            event_key=cloud_event_key if deployment == "cloud" else None)
