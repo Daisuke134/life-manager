@@ -1,6 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop.mercor_provider import MercorListing
 from job_search_loop.mercor_submit_guard import (
@@ -9,6 +11,7 @@ from job_search_loop.mercor_submit_guard import (
     claim_submission_once,
     classify_submit_readback,
     fenced_listing_ids,
+    record_pre_effect_observation,
     release_claim_without_effect,
 )
 
@@ -53,6 +56,23 @@ class MercorSubmitGuardTests(unittest.TestCase):
                 pre_submit_evidence=Path("/tmp/no-such-mercor-evidence.json"),
             )
 
+    def test_claim_url_must_bind_to_listing_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "pre.json"
+            evidence.write_text('{"observed":true}\n', encoding="utf-8")
+            with self.assertRaisesRegex(MercorSubmitGuardError, "identity"):
+                claim_submission_once(
+                    fence_ledger=root / "submission-fences.jsonl",
+                    listing_id="list-new",
+                    title="Software Evaluator",
+                    url="https://work.mercor.com/explore?listingId=other-listing",
+                    pre_submit_evidence=evidence,
+                    run_id="run-1",
+                    provider_fit_status="allowed",
+                    ranking_band="high",
+                )
+
     def test_readback_is_authoritative_or_unknown(self):
         self.assertEqual(
             classify_submit_readback(
@@ -95,31 +115,87 @@ class MercorSubmitGuardTests(unittest.TestCase):
             evidence.write_text('{"observed":true}\n', encoding="utf-8")
             fences = root / "submission-fences.jsonl"
 
-            first = claim_submission_once(
-                fence_ledger=fences,
-                listing_id="list-new",
-                title="Software Evaluator",
-                url="https://work.mercor.com/jobs/list-new/software-evaluator",
-                pre_submit_evidence=evidence,
-                run_id="run-1",
-                provider_fit_status="allowed",
-                ranking_band="high",
-            )
-            replay = claim_submission_once(
-                fence_ledger=fences,
-                listing_id="list-new",
-                title="Software Evaluator",
-                url="https://work.mercor.com/jobs/list-new/software-evaluator",
-                pre_submit_evidence=evidence,
-                run_id="run-2",
-                provider_fit_status="allowed",
-                ranking_band="high",
-            )
+            with patch.dict(os.environ, {"GIG_OPPORTUNITY_OBSERVATION_ROOT": str(root / "observations")}):
+                first = claim_submission_once(
+                    fence_ledger=fences,
+                    listing_id="list-new",
+                    title="Software Evaluator",
+                    url="https://work.mercor.com/jobs/list-new/software-evaluator",
+                    pre_submit_evidence=evidence,
+                    run_id="run-1",
+                    provider_fit_status="allowed",
+                    ranking_band="high",
+                )
+                replay = claim_submission_once(
+                    fence_ledger=fences,
+                    listing_id="list-new",
+                    title="Software Evaluator",
+                    url="https://work.mercor.com/jobs/list-new/software-evaluator",
+                    pre_submit_evidence=evidence,
+                    run_id="run-2",
+                    provider_fit_status="allowed",
+                    ranking_band="high",
+                )
 
             self.assertTrue(first)
             self.assertFalse(replay)
             self.assertEqual(fenced_listing_ids(fences), {"list-new"})
             self.assertEqual(len(fences.read_text(encoding="utf-8").splitlines()), 1)
+            self.assertEqual(
+                len((root / "observations" / "events.jsonl").read_text(encoding="utf-8").splitlines()),
+                1,
+            )
+
+    def test_observation_failure_blocks_claim_before_fence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "pre.json"
+            evidence.write_text('{"observed":true}\n', encoding="utf-8")
+            fences = root / "submission-fences.jsonl"
+            with patch(
+                "job_search_loop.mercor_submit_guard.record_pre_effect_observation",
+                side_effect=MercorSubmitGuardError("opportunity_observation_failed"),
+            ):
+                with self.assertRaisesRegex(MercorSubmitGuardError, "opportunity_observation_failed"):
+                    claim_submission_once(
+                        fence_ledger=fences,
+                        listing_id="list-new",
+                        title="Software Evaluator",
+                        url="https://work.mercor.com/explore?listingId=list-new",
+                        pre_submit_evidence=evidence,
+                        run_id="run-1",
+                        provider_fit_status="allowed",
+                        ranking_band="high",
+                    )
+            self.assertFalse(fences.exists())
+
+    def test_pre_effect_observation_runs_before_fence_append(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "pre.json"
+            evidence.write_text('{"observed":true}\n', encoding="utf-8")
+            fences = root / "submission-fences.jsonl"
+            seen: list[bool] = []
+
+            def observe_before_append(**kwargs):
+                seen.append(fences.exists())
+                return {"status": "appended"}
+
+            with patch(
+                "job_search_loop.mercor_submit_guard.record_pre_effect_observation",
+                side_effect=observe_before_append,
+            ):
+                self.assertTrue(claim_submission_once(
+                    fence_ledger=fences,
+                    listing_id="list-new",
+                    title="Software Evaluator",
+                    url="https://work.mercor.com/explore?listingId=list-new",
+                    pre_submit_evidence=evidence,
+                    run_id="run-1",
+                    provider_fit_status="allowed",
+                    ranking_band="high",
+                ))
+            self.assertEqual(seen, [False])
 
     def test_fit_and_low_band_are_rejected_before_fence(self):
         with tempfile.TemporaryDirectory() as directory:

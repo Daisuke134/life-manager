@@ -3,13 +3,20 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .mercor_provider import MercorListing, is_approved_mercor_url, ready_for_submit
+from .mercor_provider import (
+    MercorListing,
+    is_approved_mercor_url,
+    listing_id_from_url,
+    ready_for_submit,
+)
 
 
 class MercorSubmitGuardError(ValueError):
@@ -23,6 +30,85 @@ class MercorSubmitClaim:
     url: str
     claim_token: str
     pre_submit_evidence_sha256: str
+
+
+def _load_mercor_opportunity_observation():
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "skills"
+        / "earn"
+        / "mercor"
+        / "scripts"
+        / "opportunity_observation.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "mercor_opportunity_observation_for_submit_guard", path
+    )
+    if spec is None or spec.loader is None:
+        raise MercorSubmitGuardError("mercor_opportunity_observation_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _observation_root() -> Path:
+    configured = os.environ.get("GIG_OPPORTUNITY_OBSERVATION_ROOT", "").strip()
+    return Path(configured).expanduser() if configured else Path.home() / "gig" / "opportunity-observations"
+
+
+def _observation_url(*, listing_id: str) -> str:
+    """Use one stable shared source URL for a validated Mercor listing identity."""
+    return f"https://work.mercor.com/explore?listingId={listing_id}"
+
+
+def record_pre_effect_observation(
+    *,
+    listing_id: str,
+    title: str,
+    url: str,
+    run_id: str,
+    provider_fit_status: str,
+    ranking_band: str,
+    application_state: str,
+    evidence_sha256: str,
+    store_root: Path | None = None,
+) -> dict:
+    """Persist one shared observation before the provider effect fence is appended."""
+    observed_at = datetime.now(timezone.utc).isoformat()
+    snapshot = {
+        "ok": True,
+        "platform": "mercor",
+        "observed_at": observed_at,
+        "inspected_listings": [{
+            "listing_id": listing_id,
+            "title": title,
+            "url": _observation_url(listing_id=listing_id),
+            "application_state": application_state,
+            "submit_visible": True,
+            "decision": "submit_required",
+            "ranking_band": ranking_band,
+            "ranking_evidence": [f"pre_submit_evidence_sha256:{evidence_sha256}"],
+            "provider_fit_status": provider_fit_status,
+            "requirement_evidence": [],
+            "strategy_version": "mercor-fit-evidence-v1",
+        }],
+        "submitted_listing_ids": [],
+    }
+    evidence_ref = f"snapshot://mercor/{run_id}/pre-effect/{evidence_sha256}.json"
+    try:
+        observation = _load_mercor_opportunity_observation()
+        return observation.observe_mercor_opportunities(
+            snapshot,
+            store_root=store_root or _observation_root(),
+            evidence_ref=evidence_ref,
+        )
+    except MercorSubmitGuardError:
+        raise
+    except Exception as error:  # noqa: BLE001 - typed pre-effect boundary
+        raise MercorSubmitGuardError(
+            f"opportunity_observation_failed:{type(error).__name__}"
+        ) from error
 
 
 def fenced_listing_ids(path: Path) -> set[str]:
@@ -91,6 +177,13 @@ def claim_submission_once(
     listing_id = listing_id.strip()
     if not listing_id or not is_approved_mercor_url(url):
         raise MercorSubmitGuardError("invalid Mercor submission identity")
+    try:
+        if listing_id_from_url(url) != listing_id:
+            raise MercorSubmitGuardError("invalid Mercor submission identity")
+    except MercorSubmitGuardError:
+        raise
+    except Exception as error:  # noqa: BLE001 - provider URL parser boundary
+        raise MercorSubmitGuardError("invalid Mercor submission identity") from error
     if provider_fit_status == "blocked":
         raise MercorSubmitGuardError("provider fit is blocked")
     if ranking_band == "low":
@@ -112,6 +205,16 @@ def claim_submission_once(
         claim_token = hashlib.sha256(
             f"{listing_id}\n{url}\n{evidence_sha256}".encode("utf-8")
         ).hexdigest()
+        record_pre_effect_observation(
+            listing_id=listing_id,
+            title=title,
+            url=url,
+            run_id=run_id,
+            provider_fit_status=provider_fit_status,
+            ranking_band=ranking_band,
+            application_state=application_state,
+            evidence_sha256=evidence_sha256,
+        )
         event = {
             "listing_id": listing_id,
             "title": title,

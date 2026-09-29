@@ -104,3 +104,15 @@ def test_invalid_provider_url_fails_closed():
     snapshot["inspected_listings"] = [{**_listing(), "url": "https://example.com/job/list_123"}]
     with pytest.raises(adapter.MercorDiscoveryError, match="listing_url_invalid"):
         adapter.MercorSnapshotAdapter(snapshot).discover()
+
+
+def test_slugged_job_url_preserves_listing_identity():
+    snapshot = _snapshot()
+    snapshot["inspected_listings"] = [{
+        **_listing(),
+        "url": "https://work.mercor.com/jobs/list_123/software-evaluator",
+    }]
+
+    [opportunity] = adapter.MercorSnapshotAdapter(snapshot).discover()
+
+    assert opportunity.source_url == "https://work.mercor.com/jobs/list_123/software-evaluator"

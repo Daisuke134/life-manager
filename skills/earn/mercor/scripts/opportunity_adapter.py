@@ -26,6 +26,7 @@ OpportunityDetail = _provider_module.OpportunityDetail
 
 
 _LISTING_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$")
+_JOB_PATH_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$")
 _OPPORTUNITY_ID = re.compile(r"^listing:(?P<listing_id>[A-Za-z0-9][A-Za-z0-9_-]{0,255})$")
 
 
@@ -73,6 +74,15 @@ def _canonical_url(value: Any, listing_id: str) -> str:
         return f"https://work.mercor.com/explore?listingId={listing_id}"
     if parsed.path == f"/jobs/{listing_id}" and not parsed.query:
         return f"https://work.mercor.com/jobs/{listing_id}"
+    path_segments = parsed.path.split("/")
+    if (
+        not parsed.query
+        and len(path_segments) >= 4
+        and path_segments[1] == "jobs"
+        and path_segments[2] == listing_id
+        and all(_JOB_PATH_SEGMENT.fullmatch(segment) for segment in path_segments[3:])
+    ):
+        return f"https://work.mercor.com{parsed.path}"
     raise MercorDiscoveryError("listing_url_invalid")
 
 
