@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Earnings Call Brief icon">
+  <rect width="512" height="512" rx="96" fill="#0d2238"/>
+  <rect x="118" y="76" width="276" height="360" rx="28" fill="#f7f3e8"/>
+  <path d="M166 164h180M166 218h122M166 272h154" stroke="#0d2238" stroke-width="18" stroke-linecap="round"/>
+  <path d="M166 352l52-50 44 30 82-92" fill="none" stroke="#18a879" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="344" cy="240" r="13" fill="#f3ad35"/>
+</svg>
