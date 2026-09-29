@@ -200,3 +200,10 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - `paper_performance.py` requires that receipt for every filled entry/exit and validates provider identity, owner identity, filled quantity, post-entry ownership, and post-exit flatness. Missing or mismatched strategy readback remains typed `unknown`; known gross P&L does not become cost-complete P&L.
 - Pushed source `06aecf16a5` was cut as sparse candidate `/Users/anicca/loops/releases/20260929T105517-06aecf16` (`pushed-not-yet-on-main`); focused paper adapter tests pass `5/5`, full Alpaca passes `225/225`, investment-core `126/126`, contract and doctor pass. `current` is unchanged at `5a71af45`.
 - Step 1b remains open: the candidate is not installed, paper owner/state is absent in production, and no natural provider paper order/fill, cost-complete P&L, wallet mutation, Binance transfer, or live ETF order exists.
+
+### Production readback after durable-receipt candidate (`2026-09-29`)
+
+- The source branch is clean and pushed at `06c1c7958d`, while `current` remains `/Users/anicca/loops/releases/20260929T102203-5a71af45`; the durable-receipt candidate is not installed.
+- The current release has no `alpaca-investment-paper` or `investment-cross-venue-report` loop ID and no corresponding production state root. No natural paper provider receipt, account readback, notification receipt, or P&L exists.
+- The loaded `alpaca-investment-live` occurrence is a pre-effect `host_admission_deferred:resource_capacity_busy` (`exit=75`) with no provider receipt and no official readback. It does not count as a trade or paper sample.
+- The cursor remains `INV-001-B`: Life Manager owner-path handoff, then one natural paper receipt. Live ETF order submission remains rejected by source policy until the later evidence and capital-authorization boundaries pass.
