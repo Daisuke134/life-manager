@@ -2134,3 +2134,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - `resource_control_busy`の現在の所有者は投資ownerではない。`lsof`で、PID `44038`（`runtime.loop.lm_loop apply`、cwdはcurrent release）が共有`/Users/anicca/loops/.admission-protocol.lock`を保持し、`release-reconciler`のfleet applyを実行中であることを確認した。
 - `release-reconciler/fleet-apply-last-output.log`にはowner timeout、`admission rebind refused: effect_unknown`、`No space left on device`が記録されている。Data volumeの空きは約`326MiB`、投資owner stateは約`940KiB`である。これは共有hostのadmission／容量境界であり、投資strategy・Alpaca provider effectではない。
 - 投資occurrence `alpaca-investment-paper:18d9e3ee3a8ac790-42407`はprovider effect前の`resource_control_busy` deferで、注文・約定・資金移動はない。lockの手削除、他processのkill、admission迂回は行わず、投資ownerのnatural retryをread-onlyで監視する。`AT-13`未完、実現投資収益は`$0/月`である。
+
+**AT-13 shared-admission lock handoff readback（2026-09-30 05:20 JST）**:
+
+- PID `44038`は終了したが、共有`/Users/anicca/loops/.admission-protocol.lock`はPID `45712`（同じ`runtime.loop.lm_loop apply`）へ引き継がれている。投資ownerのschedulerは`runs=76`、`last exit code=75: EX_TEMPFAIL`である。
+- 投資receiptは引き続き`decision_session=2026-09-29`の`HOLD / hold_period_not_elapsed`が最新であり、`AT-13`未完、exit order／fill／provider receiptなし、実現投資収益`$0/月`である。共有applyのlockを操作せず、自然retryを継続する。
