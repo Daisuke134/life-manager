@@ -123,3 +123,9 @@
 - GMGN AI Agent API: https://docs.gmgn.ai/index/gmgn-agent-api
 - DexScreener API reference: https://docs.dexscreener.com/api/reference.md
 - Solana RPC `getSignaturesForAddress` / `getTransaction`: https://solana.com/docs/rpc/http/getsignaturesforaddress and https://solana.com/docs/rpc/http/gettransaction
+
+## Pump.fun onboarding evidence
+
+- `https://pump.fun/join/x` is the official Pump.fun `join/[referralCode]` route with referral code `x`; the page links to `https://join.pump.fun/HSag/x` for app onboarding.
+- The page exposes no inviter name, token name, or Solana mint. Treat this URL as onboarding/referral context for the meme-coin lane, never as a token candidate or a live-trading authorization.
+- The staged acceptance remains read-only scout → paper replay → exactly one `$2.00` canary under the cumulative `$3.00` ceiling, with confirmed RPC evidence and explicit owner funding before signing.
