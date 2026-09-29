@@ -1816,9 +1816,11 @@ job IDs 0）、`git diff --check`もPASS。branch
 
 1. **完了** Mercorのactive browser ownerをregistryへ復元し、application/replyのidentity joinを
    解決する。完了条件はregistry、専用profile/port、owner entrypoint、focused testsの一致。
-2. **未完** source branchをrebase後のSHAでremoteへpushし、remote headとlocal headを一致させる。
-3. **未完** capacity branchを最新mainへrebaseし、Mercor修正と衝突なく両方のfocused/full tests・contractを
-   PASSさせる。
+2. **完了** source branchをrebase後のSHA `3a603bae457b6e12fb046a3f1e8e3a35ae9741da` でremoteへ
+   pushし、remote headとlocal headを一致させる。
+3. **完了** capacity branchを最新mainへrebaseし、SHA
+   `09956e02b287acefddc58ae1a2b496c3fbb4f103`をpushした。focused tests・contract・diff checkをPASS
+   させ、Mercor修正との未解決衝突がないことを確認した。
 4. **未完** source branchをmainへ受入し、main由来immutable releaseを作る。完了条件はcurrent SHA、
    plist argv/env、state path、identity leaseの公式readback一致。強制restartはしない。
 5. **未完** RyuさんDMを認証済みCoconala browserでread-only確認する。provider receipt/readbackまたは
