@@ -6168,3 +6168,13 @@ retried or resent.
 - [ ] The two unresolved fences therefore remain closed. They cannot be
   cleared or retried from local event absence; they require the approved
   immutable-release transition followed by official provider/readback evidence.
+
+### Cross-platform pre-effect dry-run readback — 2026-09-30 07:51 JST
+
+- [x] The same read-only probe found CrowdWorks application with 2,
+  Lancers application with 72, and Mercor application with 1
+  `effect_unknown` rows. Every row is unprovable with reason
+  `no_pre_effect_terminal`; all three owners have `resolved_count=0`.
+- [ ] No cross-platform fence is cleared by this result. Each occurrence
+  still requires exact provider-history reconciliation and an official receipt
+  before any retry or submission.
