@@ -2833,6 +2833,25 @@ Lancers公式preflightをread-onlyで再実行した。CDP `localhost:9227`の`/
 6. **未完** branch全checksと外部receipt後にのみmain受入→immutable release→targeted production applyを行う。
 7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、receiptなしでは完了扱いしない。
 
+## 現在の正本cursor（2026-09-30、production旧版cleanup自然runの容量不足を再確認）
+
+productionの`ai.anicca.life-manager-disk-cleanup`を停止・再起動せず、稼働中のapply終了後に自然に開始した47回目のrunをterminal readbackした。ownerは`/Users/anicca/loops/releases/20260930T010308-3975ae89/bin/lm-loop-run`（production `RELEASE.json`のSHA `3975ae8996cab3325f514746a32c915f9935fddf`）を実行しており、branch `fix/source-reconcile-20260930`の早期disk admissionはまだproductionへ反映されていない。
+
+- 実測: launchdは`active count=0`、`state=not running`、`runs=47`、`last exit code=1`。`df -k /Users/anicca`の空きは約177MiBで、共通floor 512MiBを下回り回復していない。
+- 失敗境界: 旧production版は容量不足時にprovider効果を発生させる前でもscratch／recovery intentの書き込みへ進み、`recovery intent append failed: [Errno 28] No space left on device`、gc-trash renameの`ENOSPC`、`terminal event failed`をstderrへ記録した。新しい成功receiptやcapacity recoveryは得られていない。
+- readback: `cleanup-latest.json`は今回の47回目を表すterminal receiptへ更新されておらず、今回のrunを成功扱いしない。openなCodex／Chromium／npm cache、profile、cookie、protected stateは停止・削除していない。
+- branch側で実装済みの早期preflightは、低容量時にscratch・recovery intent・child startより前で`deferred`（exit 75）にする。これはbranchテストで検証済みだが、main受入・immutable release・production apply前なので本番の今回の旧版挙動を修正した証拠にはしない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** 稼働中のbrowser profile・cookie・protected stateを触らず、安全な容量回復経路を特定し、共通floor 512MiB以上をread-onlyで確認する。open候補を手動削除しない。
+2. **未完** branchの全checksとcapacity admission回帰を維持し、main受入前に`git diff --check`・契約チェック・対象回帰を再確認する。容量不足の一発全suiteは再実行しない。
+3. **未完** main受入→immutable release→targeted production applyを行い、loaded SHA・plist argv/env・identity lease・deferred/terminal receiptをreadbackする。production applyはbranchがmainの祖先になり、容量gateがreadyになるまで行わない。
+4. **未完** release後のcleanup自然runでscratch作成前の`disk_headroom_low` deferとterminal receiptを公式stateから確認し、同じENOSPC境界が再発しないことを確認する。
+5. **未完** LancersのHuman Verification解除後に公式read-only preflightを2回通し、Coconala／Lancers／CrowdWorks／Mercorのaccount-bound authorization receipt・完全公式readback・canary／rollback／settlement・replay-zeroを順に揃える。
+6. **未完** Upwork／Freelancerのapproved mutation、account auth、完全inventory、funded contract／milestone、全action receiptが揃うまでholdする。
+7. **未完** Ryuさんの既存DMは重複再送しない。相互リンクの実入力と公式receiptが揃った場合だけ三面readbackし、今回も送信完了扱いにしない。
+
 ## 現在の正本cursor（2026-09-30、cleanup lock競合のdeferred分類後・最新）
 
 productionの`ai.anicca.life-manager-disk-cleanup`は、直近の自然runでsafe sweepへ到達する前に`lm-loop-run: production apply is already owned`を返し、launchdのlast exit codeは1だった。これはapply中のlabel lock競合であり、cleanup候補を削除した証拠ではない。現在のhost空き容量は約242MiBで、共通floor 512MiBを下回る。稼働中のLancers Chromium、認証・cookie、production state、releaseは停止・削除していない。
