@@ -1180,3 +1180,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 6. **cost-complete net P&L**: entry/exit、fee、slippage、funding/borrow、gas、model costをreceipt単位で一度だけ控除し、net P&L・drawdown・venue healthを確定する。unknownが一つでもあれば利益を報告しない。
 7. **30/30測定とpromotion判定**: replay-zeroを確認したpositiveなnatural round tripを`30/30`集める。完了まではBinance送金、wallet funding、cap増額、live拡大、meme coin署名、yield depositをしない。
 8. **追加venueの段階評価**: `30/30`後にHyperliquid shadow → Solana/Pump.fun paper → yield shadow → bounded canaryの順で比較する。公式receipt付きrolling net P&Lが実測できた場合だけ月次収益を更新する。`$10,000/月`とgenerational wealthは目標であり、保証された収益ではない。
+
+**release切替後の最新readback（2026-09-29 11:47 UTC以降）**: 自動reconcilerが`current`を`/Users/anicca/loops/releases/20260929T204319-bd7d35e2`（SHA `bd7d35e29cfe9cb953375b72ae9fe91c629c958b`）へ切り替え、release内に`priority_owners`の金融優先修正が存在することを確認した。`alpaca-investment-paper`と`alpaca-investment-live`は新SHAをloaded済みでnatural passだが、provider receipt/official readbackはnullであり、注文・約定・利益ではない。`lm-fence-reconciler`、`investment-cross-venue-report`、`investment-strategy-validation`はreadback時点で旧SHA表示で、自動fleet applyが継続中であるため、同じownerへ重複applyしない。実現投資収益は引き続き`$0/月`である。
+
+この時点の次cursorは、(1) 自動fleet apply完了後に残り3 ownerのloaded SHAをreadback、(2) 新SHAのfencer natural wake、(3) 既存QQQのterminal readback、(4) cost-complete P&L、(5) `30/30` natural round trips、の順である。cross-venue旧occurrenceは公式receiptなしに解放・再送せず、Binance送金・wallet funding・live注文・meme coin署名・yield depositはまだ実施しない。
