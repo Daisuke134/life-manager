@@ -218,3 +218,9 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 - The current release has no `alpaca-investment-paper` or `investment-cross-venue-report` loop ID and no corresponding production state root. No natural paper provider receipt, account readback, notification receipt, or P&L exists.
 - The loaded `alpaca-investment-live` occurrence is a pre-effect `host_admission_deferred:resource_capacity_busy` (`exit=75`) with no provider receipt and no official readback. It does not count as a trade or paper sample.
 - The cursor remains `INV-001-B`: Life Manager owner-path handoff, then one natural paper receipt. Live ETF order submission remains rejected by source policy until the later evidence and capital-authorization boundaries pass.
+
+### Normal release guard audit (`2026-09-29`)
+
+- The canonical `cut-loop-release.sh` path refuses `LOOPS_ACTIVATE_CURRENT=1` for a SHA that is not an ancestor of `origin/main`. The full investment candidate `fdf877074f` is therefore correctly `pushed-not-on-main`; no direct candidate activation was attempted.
+- Production `current` remains `1abb1ae845`. It still returns `unknown loop id` for `alpaca-investment-paper` and `investment-cross-venue-report`, and the loaded live owner has no provider/readback receipt for its latest pre-effect admission defer.
+- This is the Life Manager release boundary, not a Capafy/Claude dependency. **Current cursor: INV-001-B — accepted source → immutable main release → one natural paper order/fill/account receipt.**
