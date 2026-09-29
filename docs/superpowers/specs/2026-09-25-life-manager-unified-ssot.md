@@ -2794,6 +2794,26 @@ Lancersの実際の`~/.local/state/anicca/lancers/contracts.json`は、現行man
 6. **未完** capacity／ENOSPCのproduction自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
 7. **未完** Ryuさんの既存DMは再送せず、相互リンクの実入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
 
+## 現在の正本cursor（2026-09-30、account-bound authorization decision境界追加後）
+
+`platform_manifest_cycle.py`の共通lifecycle入口を、任意の`authorization_receipt_ref`だけでは通さないようにした。runtime callerは、provider固有の認証store（既存の`provider_authorization.authorize`等）が返した`approved_api`または`approved_browser` decisionを必須で渡し、そのdecisionの64桁receipt hashと`authorization-receipt://sha256/<hash>`が一致した場合だけadapter factoryへ進む。`unknown`、`denied`、`approved_assisted`、期限切れ・不正hash・参照不一致はprovider effect前にfail-closedする。これはローカルfixtureのsettled結果や実provider receiptを作るものではない。
+
+- 実装済み: `authorized_account_context`、registryのreceipt hash照合、Coconala／Lancers／CrowdWorks／Mercor／Upwork／Freelancerの6 runtime bridgeへのauthorization decision引き渡し。
+- 検証済み: shared cycle＋6 runtime回帰 `38 passed`、compile、`git diff --check`。
+- 未検証: 実private authorization storeから取得したdecisionを各providerの実adapterへ渡す自然run、provider公式canary／settlement receipt、main／production反映。テストfixtureのreceipt hashは外部認証の証拠ではない。
+- 外部状態: Lancersはread-only preflightが`human_verification_required`。Coconala onboarding receipt、CrowdWorks account authorization、Mercor authenticated account readback、Upwork／Freelancerのapproved mutation／funded contractは未確認。Ryuさんの既存DMは再送していない。
+
+### 最終原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** 各runtime callerが実private authorization storeの現行decisionを取得し、同一account・action・transport・時刻で`authorized_account_context`を生成してからlifecycleを呼ぶ経路を、providerごとにread-onlyで確認する。テストfixtureや推測hashを使わない。
+2. **未完** Lancersの公式human-verification解除後にpreflightを2回完了し、現行schemaの`contracts.json`を再生成する。`logged_in`を手編集しない。
+3. **未完** Coconala／Lancers／CrowdWorks／Mercorの実adapter factoryを、実認証receiptとprovider公式readbackへ接続する。registryのtest adapterは完了証拠にしない。
+4. **未完** providerごとにplanned→terminalまたはrollback→settledの公式receiptと同一candidateのreplay-zeroを自然runで取得する。
+5. **未完** Upwork／Freelancerはapproved terms・account auth・complete inventory・funded contract／milestone・mutation authorizationが全て揃うまでholdする。
+6. **未完** branch全checksと外部receiptが揃った後だけmain受入→immutable release→targeted production applyを行い、loaded SHA・rollback receipt・公式readbackを保存する。
+7. **未完** productionのcapacity／ENOSPC自然runを閉じ、`resource_capacity_busy`、`effect_unknown`、`reconcile_required`を成功扱いにしない。
+8. **未完** Ryuさんは既存DMを再送せず、相互リンクの実URL・表示名・バナー入力が届いた場合だけ管理画面・公開ページ・APIを同一値でreadbackする。
+
 ## 履歴cursor（2026-09-30、Gig全回帰と容量ガード再実測後）
 
 この節が直前のcursorを更新する。`fix/source-reconcile-20260930`ではsource errorを安全なmachine codeとして永続化する変更（`16735319e8`）をpush済みである。テストhostの空き容量不足は、稼働中のChromium profile/cacheを停止・削除せず、作業ツリー内の再生成可能な`__pycache__`だけを削除して解消した。認証・cookie・profile本体・production stateは変更していない。

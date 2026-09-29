@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -199,8 +200,9 @@ def test_coconala_candidate_lifecycle_uses_account_bound_registry(tmp_path):
         registry=registry,
         account_context={
             "account_id": "coconala-owner-1",
-            "authorization_receipt_ref": "auth://coconala/receipt-1",
+            "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
         },
+        authorization=SimpleNamespace(state="approved_browser", receipt_hash="a" * 64),
         candidate_id="platform:coconala",
         run_id="coconala-lifecycle-1",
         observed_at="2026-09-30T15:00:00Z",

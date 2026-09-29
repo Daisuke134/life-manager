@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -32,6 +33,23 @@ lifecycle_store_module = _load(
 
 
 PROVIDERS = ("coconala", "lancers", "crowdworks", "mercor")
+
+
+def test_authorized_account_context_requires_current_approved_receipt():
+    authorization = SimpleNamespace(state="approved_browser", receipt_hash="a" * 64)
+
+    context = cycle.authorized_account_context(
+        "coconala", "coconala-owner", authorization,
+    )
+
+    assert context == {
+        "account_id": "coconala-owner",
+        "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
+    }
+
+
+def _authorization():
+    return SimpleNamespace(state="approved_browser", receipt_hash="a" * 64)
 
 
 def _item(provider: str) -> dict[str, object]:
@@ -315,7 +333,7 @@ def test_registered_lifecycle_adapter_requires_account_bound_auth_context():
     )
 
     with pytest.raises(cycle.PlatformManifestCycleError, match="account_context_invalid"):
-        registry.resolve("crowdworks", {})
+        registry.resolve("crowdworks", {}, authorization=_authorization())
 
 
 def test_registered_lifecycle_adapter_rejects_missing_provider_without_effect():
@@ -324,7 +342,11 @@ def test_registered_lifecycle_adapter_rejects_missing_provider_without_effect():
     with pytest.raises(cycle.PlatformManifestCycleError, match="adapter_missing:coconala"):
         registry.resolve(
             "coconala",
-            {"account_id": "coconala-owner", "authorization_receipt_ref": "auth://coconala/1"},
+            {
+                "account_id": "coconala-owner",
+                "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
+            },
+            authorization=_authorization(),
         )
 
 
@@ -351,8 +373,9 @@ def test_registered_lifecycle_adapter_delegates_only_valid_adapter(tmp_path):
         candidate_id="listing:promoted",
         account_context={
             "account_id": "coconala-owner",
-            "authorization_receipt_ref": "auth://coconala/1",
+            "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
         },
+        authorization=_authorization(),
         run_id="wake-registered",
         observed_at="2026-09-30T06:00:00Z",
     )
@@ -360,8 +383,31 @@ def test_registered_lifecycle_adapter_delegates_only_valid_adapter(tmp_path):
     assert result["status"] == "settled"
     assert calls == [{
         "account_id": "coconala-owner",
-        "authorization_receipt_ref": "auth://coconala/1",
+        "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
     }]
+
+
+@pytest.mark.parametrize(
+    "authorization",
+    [
+        SimpleNamespace(state="unknown", receipt_hash="a" * 64),
+        SimpleNamespace(state="approved_assisted", receipt_hash="a" * 64),
+        SimpleNamespace(state="approved_browser", receipt_hash="bad"),
+    ],
+)
+def test_registered_lifecycle_rejects_unapproved_or_invalid_authorization(authorization):
+    registry = cycle.PlatformLifecycleAdapterRegistry(
+        {"coconala": lambda context: _LifecycleAdapter()}
+    )
+    with pytest.raises(cycle.PlatformManifestCycleError):
+        registry.resolve(
+            "coconala",
+            {
+                "account_id": "coconala-owner",
+                "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
+            },
+            authorization=authorization,
+        )
 
 
 def test_registered_lifecycle_adapter_rejects_incomplete_adapter_before_candidate_readback(tmp_path):
@@ -384,8 +430,9 @@ def test_registered_lifecycle_adapter_rejects_incomplete_adapter_before_candidat
             candidate_id="listing:promoted",
             account_context={
                 "account_id": "coconala-owner",
-                "authorization_receipt_ref": "auth://coconala/1",
+                "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
             },
+            authorization=_authorization(),
             run_id="wake-invalid-adapter",
             observed_at="2026-09-30T06:00:00Z",
         )

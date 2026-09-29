@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -83,7 +84,11 @@ def test_freelancer_candidate_lifecycle_holds_when_factory_is_unregistered(tmp_p
             candidate_root=tmp_path / "candidates",
             lifecycle_root=tmp_path / "lifecycle",
             registry=registry,
-            account_context={"account_id": "freelancer-owner-1", "authorization_receipt_ref": "auth://freelancer/receipt-1"},
+            account_context={
+                "account_id": "freelancer-owner-1",
+                "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
+            },
+            authorization=SimpleNamespace(state="approved_browser", receipt_hash="a" * 64),
             candidate_id="platform:freelancer",
             run_id="freelancer-lifecycle-1",
             observed_at="2026-09-30T16:10:00Z",

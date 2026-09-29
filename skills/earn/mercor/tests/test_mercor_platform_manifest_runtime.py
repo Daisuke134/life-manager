@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -166,8 +167,9 @@ def test_mercor_candidate_lifecycle_uses_account_bound_registry(tmp_path):
         registry=registry,
         account_context={
             "account_id": "mercor-owner-1",
-            "authorization_receipt_ref": "auth://mercor/receipt-1",
+            "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
         },
+        authorization=SimpleNamespace(state="approved_browser", receipt_hash="a" * 64),
         candidate_id="platform:mercor",
         run_id="mercor-lifecycle-1",
         observed_at="2026-09-30T15:30:00Z",

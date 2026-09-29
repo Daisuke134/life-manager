@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -189,8 +190,9 @@ def test_lancers_candidate_lifecycle_uses_account_bound_registry(tmp_path):
         registry=registry,
         account_context={
             "account_id": "lancers-owner-1",
-            "authorization_receipt_ref": "auth://lancers/receipt-1",
+            "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
         },
+        authorization=SimpleNamespace(state="approved_browser", receipt_hash="a" * 64),
         candidate_id="platform:lancers",
         run_id="lancers-lifecycle-1",
         observed_at="2026-09-30T15:10:00Z",

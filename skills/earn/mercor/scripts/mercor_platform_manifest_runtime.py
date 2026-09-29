@@ -181,6 +181,7 @@ def run_mercor_candidate_lifecycle(
     lifecycle_root: str | Path,
     registry: Any,
     account_context: Mapping[str, Any],
+    authorization: Any,
     candidate_id: str,
     run_id: str,
     observed_at: str,
@@ -197,6 +198,7 @@ def run_mercor_candidate_lifecycle(
         provider="mercor",
         candidate_id=candidate_id,
         account_context=account_context,
+        authorization=authorization,
         run_id=run_id,
         observed_at=observed_at,
     )

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import re
 import sys
 from typing import Any, Mapping
 
@@ -47,6 +48,10 @@ SUPPORTED_PLATFORM_PROVIDERS = PLATFORM_PROVIDERS + ("upwork", "freelancer")
 _LIFECYCLE_ADAPTER_OPERATIONS = (
     "provision_owner", "canary_readback", "rollback_owner", "settle",
 )
+_AUTHORIZATION_RECEIPT_REF = re.compile(
+    r"^authorization-receipt://sha256/[0-9a-f]{64}$"
+)
+_APPROVED_AUTHORIZATION_STATES = frozenset({"approved_api", "approved_browser"})
 
 
 class PlatformManifestCycleError(ValueError):
@@ -55,6 +60,39 @@ class PlatformManifestCycleError(ValueError):
 
 class MissingPlatformManifestSource(RuntimeError):
     """A declared platform has no read-only source configured for this wake."""
+
+
+def authorized_account_context(
+    provider: str,
+    account_id: str,
+    authorization: Any,
+) -> dict[str, str]:
+    """Derive a lifecycle context only from a current approved receipt decision.
+
+    Provider-specific authorization stores remain the source of truth.  They
+    pass their validated decision object here; this shared boundary only
+    carries the decision's non-secret receipt hash into the account context.
+    An arbitrary label or a denied/unknown decision cannot be promoted.
+    """
+
+    if not isinstance(provider, str) or provider not in SUPPORTED_PLATFORM_PROVIDERS:
+        raise PlatformManifestCycleError("provider_invalid")
+    if not isinstance(account_id, str) or not account_id.strip() or "\x00" in account_id:
+        raise PlatformManifestCycleError("account_context_invalid")
+    state = getattr(authorization, "state", None)
+    state = getattr(state, "value", state)
+    if state not in _APPROVED_AUTHORIZATION_STATES:
+        raise PlatformManifestCycleError("authorization_not_approved")
+    receipt_hash = getattr(authorization, "receipt_hash", None)
+    if (
+        not isinstance(receipt_hash, str)
+        or re.fullmatch(r"[0-9a-f]{64}", receipt_hash) is None
+    ):
+        raise PlatformManifestCycleError("authorization_receipt_invalid")
+    return {
+        "account_id": account_id.strip(),
+        "authorization_receipt_ref": f"authorization-receipt://sha256/{receipt_hash}",
+    }
 
 
 class PlatformLifecycleAdapterRegistry:
@@ -85,12 +123,23 @@ class PlatformLifecycleAdapterRegistry:
             if not isinstance(value, str) or not value.strip() or "\x00" in value:
                 raise PlatformManifestCycleError("account_context_invalid")
             normalized[name] = value.strip()
+        if _AUTHORIZATION_RECEIPT_REF.fullmatch(normalized["authorization_receipt_ref"]) is None:
+            raise PlatformManifestCycleError("authorization_receipt_ref_invalid")
         return normalized
 
-    def resolve(self, provider: str, account_context: Mapping[str, Any]) -> Any:
+    def resolve(
+        self,
+        provider: str,
+        account_context: Mapping[str, Any],
+        *,
+        authorization: Any,
+    ) -> Any:
         if not isinstance(provider, str) or provider not in SUPPORTED_PLATFORM_PROVIDERS:
             raise PlatformManifestCycleError("provider_invalid")
         context = self._account_context(account_context)
+        expected = authorized_account_context(provider, context["account_id"], authorization)
+        if context["authorization_receipt_ref"] != expected["authorization_receipt_ref"]:
+            raise PlatformManifestCycleError("authorization_receipt_mismatch")
         factory = self._factories.get(provider)
         if factory is None:
             raise PlatformManifestCycleError(f"adapter_missing:{provider}")
@@ -214,6 +263,7 @@ def run_registered_platform_candidate_lifecycle(
     provider: str,
     candidate_id: str,
     account_context: Mapping[str, Any],
+    authorization: Any,
     run_id: str,
     observed_at: str,
 ) -> dict[str, Any]:
@@ -221,7 +271,7 @@ def run_registered_platform_candidate_lifecycle(
 
     if not isinstance(registry, PlatformLifecycleAdapterRegistry):
         raise PlatformManifestCycleError("adapter_registry_invalid")
-    adapter = registry.resolve(provider, account_context)
+    adapter = registry.resolve(provider, account_context, authorization=authorization)
     return run_platform_candidate_lifecycle(
         candidate_store,
         lifecycle_store,
@@ -239,6 +289,7 @@ __all__ = [
     "SUPPORTED_PLATFORM_PROVIDERS",
     "PlatformLifecycleAdapterRegistry",
     "PlatformManifestCycleError",
+    "authorized_account_context",
     "run_platform_candidate_lifecycle",
     "run_registered_platform_candidate_lifecycle",
     "run_platform_manifest_wake",

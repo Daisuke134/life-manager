@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -82,7 +83,11 @@ def test_upwork_candidate_lifecycle_holds_when_factory_is_unregistered(tmp_path)
             candidate_root=tmp_path / "candidates",
             lifecycle_root=tmp_path / "lifecycle",
             registry=registry,
-            account_context={"account_id": "upwork-owner-1", "authorization_receipt_ref": "auth://upwork/receipt-1"},
+            account_context={
+                "account_id": "upwork-owner-1",
+                "authorization_receipt_ref": "authorization-receipt://sha256/" + "a" * 64,
+            },
+            authorization=SimpleNamespace(state="approved_browser", receipt_hash="a" * 64),
             candidate_id="platform:upwork",
             run_id="upwork-lifecycle-1",
             observed_at="2026-09-30T16:00:00Z",
