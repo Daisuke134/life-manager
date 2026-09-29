@@ -299,6 +299,48 @@ T6 の途中経過（2026-09-25 22:55 JST、release `20260925T224024-beae3e37`�
 - PromptBase ✅: 作るループの本当の停止原因は reCAPTCHA ではなく「見本の出力が 4 つとも同じ」（自然 run の画面: "Some of your example outputs are the same"。reCAPTCHA は 9/28 に 30 分で 7 回連続送信した時だけ）。#93843feb: gen_examples.py が Claude で SKILL.md を 3 つの新しい入力で実行し、検証済み 1 件と合わせ 4 つの違う見本を state/promptbase-examples/<slug>.json に保存、publish が枠ごとに別の見本を入れ、"We are now reviewing your prompt" を提出成功と判定。worktree 実行で Reels Hook Lab がダッシュボード Pending（CAPTCHA なし）。promptbase-loop-daily と capafy-distribute-daily は release 93843feb。PromptBase は作る（promptbase-loop-daily）＋売る（distribute ローテーション）の 2 本で回る。AGENTS.md と loop-development skill に「スキル = 作るループ＋売るループ」の表を追加。
 - ディスク ⚠️（A2 の計測停止の原因）: 空き 350MB → 2.6GB（verify-loops-audit の古い loop-tmp、7 日超の Capafy IG 素材、大きい launchd log 5 本を末尾 2MB に切り詰め）。20:57 に 20 秒で 1.1GB 減る現象を観測、書き込み元は未特定（lsof の大きな書き込み中ファイルなし、ログは増えていない）。Data ボリューム 212.9GB のうちホーム約 90GB、/opt 12.7GB、/Applications 8.0GB、/private/var 5.1GB、/Library 3.3GB。`~/.cloak` は削除禁止のためブラウザのキャッシュは lease 経由の clearBrowserCache（6-9c）で扱う。次: 書き込み元を特定して止め、10GB 以上に戻す → 投稿ごとの計測（A2）を再開。
 
+**Atomic TODO（2026-09-29 21:xx JST。上から順に 1 つずつ。各行 = 1 つの確認できる作業。これが実行順の正本）**
+
+A. Capafy 専用ブラウザ（lancers-revenue-browser の写し。自己流なし）
+- [ ] A1 `skills/earn/lancers/scripts/browser-owner` を `skills/capafy-autopublish/scripts/browser-owner` に写し、profile・port・owner 名だけ変える
+- [ ] A2 `config/loop-registry.json` に `capafy-browser` を lancers-revenue-browser と同じ設定で追加
+- [ ] A3 `~/.config/ai/registry/browsers.toml` に `capafy:kosuke` を追加し、`coconala:kosuke` の accounts から capafy.ai を外す
+- [ ] A4 worktree で browser-owner を起動し、保存済み vault の capafy.ai ログイン状態を専用 profile に入れる（再ログインしない）→ capafy.ai の販売者画面がログイン済みで開くことを目で確認
+- [ ] A5 Capafy のスクリプト（publish_finish.sh / cp1_agent.py / drive_checkpoint2.py）の既定 identity を `capafy:kosuke` に変える
+- [ ] A6 #5bc161c5 の 1500 秒 timeout を元に戻す
+- [ ] A7 worktree で CP2 を実行し、hf-gig-paid-direct の使用中でも待たずに通ることを確認
+- [ ] A8 PR → merge → release → `capafy-browser` と `capafy-loop-daily` に apply
+- [ ] A9 工場を起動し、下書き 7686597754 が platform_status=1 になることを Capafy API で読み戻す → Capafy 完了
+
+B. ディスク（10GB 以上）
+- [ ] B1 20 秒で 1GB 減る書き込み元を特定する（空きの変化と同時刻のプロセス・ファイルを測る）
+- [ ] B2 その書き込みを止めるか、そのループ自身に後片付けさせる（他ループの写し）
+- [ ] B3 空き 10GB 以上を 1 時間保つことを確認
+
+C. モバイルアプリ
+- [ ] C1 A2 投稿ごとの計測を再開（tiktok-metrics が 9/27 から止まっている原因を直す）→ post-metrics.jsonl に今日の行が入ることを確認
+- [ ] C2 投稿ごとの「再生 → プロフィール → ストア → インストール」を 1 表にして毎日出す
+- [ ] C3 A3 ASO: 売れているアプリの検索語・スクショ・説明文を調べ、アニッチャと本音 AI に当てる（App Store Connect で反映を確認）
+- [ ] C4 A4 課金: 新規 4 人・有料 0 人の原因を RevenueCat と課金画面で調べ、売れているアプリの型に合わせて直す
+- [ ] C5 A5 工場の未公開 4 本（BreathReset / SleepRitual / Desk Stretch Timer / Micro Mood）の止まっている理由を ASC で確かめ、直して審査提出
+- [ ] C6 Anicca iOS の Instagram 投稿 ERROR を直す
+
+D. connector
+- [ ] D1 自動のカレンダー登録が Google Calendar に入ることを自然実行で確認
+
+E. fundraiser
+- [ ] E1 自然実行でカレンダー登録を確認
+
+F. self-fix
+- [ ] F1 修正役が repo の worktree で作業できるようにする（issue #6063）
+
+G. その後
+- [ ] G1 全 loop を green（正常 / 型付き fence / 意図した停止）
+- [ ] G2 自己修復を自然発生の失敗 1 件で実証（§5.1）
+- [ ] G3 自己改善（evaluator・canary・rollback）
+- [ ] G4 Cloud 版・LM-EAB
+- [ ] G5 口座に入る利益で月 $10k（公式 receipt の集計）→ YC W27
+
 **Capafy のブラウザを他の loop と同じ形にする（2026-09-29 21:xx JST、Dais 指示。cursor はここ）**
 - 観測: 各サイトには専用ブラウザを常駐させる「ブラウザ役」loop（`keep_alive`）が 1 本ずつあり、作業 loop はその port に接続するだけ（lancers-revenue-browser 9227、crowdworks-revenue-browser 9228、hf-gig-browser 9223、affiliate-* 9324〜9327、provision-browser.*）。Capafy 工場だけブラウザ役が無く、capafy.ai のログインを Coconala の `coconala:kosuke`（hf-gig-browser）に入れて借用していた。hf-gig-paid-direct が 10 分以上使う間に CP2 が 150 秒で exit 124 になり、19:04〜20:38 の工場 run が全部 BLOCKED。
 - 誤り: 21:0x に入れた「外側 timeout 1500 秒」（#5bc161c5）は他の loop と違う自己流の応急処置。下の C-B6 で戻す。
