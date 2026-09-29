@@ -18,9 +18,15 @@ def main() -> int:
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        print("Capafy publisher account is already in use", file=sys.stderr)
+        # Name the holder (same idea as skills/earn/gig/scripts/cdp_lock.sh's owner meta):
+        # the fd is inherited, so a surviving child can keep the lock after its script exits.
+        holder = os.pread(descriptor, 512, 0).decode("utf-8", "replace").strip()
+        print(f"Capafy publisher account is already in use (holder: {holder or 'unknown'})", file=sys.stderr)
         os.close(descriptor)
         return 75
+    import time
+    os.ftruncate(descriptor, 0)
+    os.pwrite(descriptor, f"pid={os.getpid()} since={time.strftime('%Y-%m-%dT%H:%M:%S')} cmd={' '.join(sys.argv[1:3])}".encode(), 0)
     os.set_inheritable(descriptor, True)
     environment = dict(os.environ)
     environment["CAPAFY_PUBLISH_LOCK_HELD"] = "1"
