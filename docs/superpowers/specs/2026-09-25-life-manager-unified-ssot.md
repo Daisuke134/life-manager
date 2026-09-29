@@ -1349,15 +1349,15 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 | ID | 状態 | 1つだけの作業 | 完了条件・証拠 |
 |---|---|---|---|
-| `AT-01` | 未完 | PR `#6246`のrequired checksを読む | 必須checkが全て`pass`。証拠はPR check結果 |
-| `AT-02` | 未完 | PR `#6246`をmainへmergeする | mainにmerge SHAが存在。証拠は`git log origin/main` |
-| `AT-03` | 未完 | merge後の`origin/main` SHAを固定する | release入力SHAを1つ記録。証拠はSHA |
-| `AT-04` | 未完 | 固定SHAからimmutable releaseを作る | `RELEASE.json`のSHAが入力SHAと一致。証拠はrelease pathとmanifest |
-| `AT-05` | 未完 | `alpaca-investment-paper`へそのreleaseだけをapplyする | apply成功。証拠はinstall event |
-| `AT-06` | 未完 | paper ownerのloaded SHAをreadbackする | loaded SHA、argv/env、state rootがreleaseと一致。証拠はplist/status readback |
-| `AT-07` | 未完 | 次のnatural paper wakeを待つ | 新release由来のoccurrenceが1件出る。証拠はloop event |
-| `AT-08` | 未完 | 既存QQQのclient orderを公式GETする | 同じclient orderのstatus、filled qty、filled priceを取得。証拠はbroker receipt |
-| `AT-09` | 未完 | QQQ effectのbroker outcomeを読む | `client_order_id`とprovider receiptが同じeffectにある。証拠はreceipt row |
+| `AT-01` | 完了 | PR `#6246`のrequired checksを読む | 必須checkが全て`pass`。証拠はPR check結果 |
+| `AT-02` | 完了 | PR `#6246`をmainへmergeする | mainにmerge SHAが存在。証拠は`96791636efd4c55f0bc5a7287d422da35ea963cd` |
+| `AT-03` | 完了 | merge後の`origin/main` SHAを固定する | release入力SHAを1つ記録。証拠は`493017d36c9475e0d46c5b12733172f468b5bf05` |
+| `AT-04` | 完了 | 固定SHAからimmutable releaseを作る | `RELEASE.json`のSHAが入力SHAと一致。証拠は`/Users/anicca/loops/releases/20260930T000442-493017d3` |
+| `AT-05` | 完了 | `alpaca-investment-paper`へそのreleaseだけをapplyする | apply成功。証拠はinstall event `02d24ef82971b0071be94b28` |
+| `AT-06` | 完了 | paper ownerのloaded SHAをreadbackする | loaded SHA、argv/env、state rootがreleaseと一致。証拠はplist readback |
+| `AT-07` | 完了（再試行中） | 次のnatural paper wakeを待つ | 新release由来のoccurrence `alpaca-investment-paper:18d9d34693900ed0-97688` が出た。証拠はloop event |
+| `AT-08` | 完了 | 既存QQQのclient orderを公式GETする | status `filled`、filled qty `0.013493253`、filled price `$740.37`を取得。証拠はAlpaca公式GET |
+| `AT-09` | 未完（次のnatural admission後） | QQQ effectのbroker outcomeを読む | `client_order_id`とprovider receiptが同じeffectにある。証拠はreceipt row |
 | `AT-10` | 未完 | QQQ effectのstrategy receiptを読む | `strategy_receipt`が同じeffectにある。証拠はreceipt row |
 | `AT-11` | 未完 | ETF ownership stateを読む | `etf-owned-position.json`のowner、strategy、symbol、qtyが公式positionと一致。証拠はstate file |
 | `AT-12` | 未完 | natural runのcampaign結果を読む | `campaign_read`でexit `0`、provider mutationなし。証拠はloop event |
@@ -1381,4 +1381,15 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **Atomic Todoの安全境界**: `AT-01`〜`AT-24`が完了するまで、Binanceからの送金、wallet funding、live注文、meme coin署名、yield deposit、cap増額は実行しない。`AT-25`〜`AT-29`もshadow/paper観測が先であり、公式cost-complete rolling net P&Lなしに月次収益を報告しない。現在の検証済み実現収益は`$0/月`である。
 
-**現在cursor**: `AT-01`。source修正やPR作成ではなく、最初にPR required checksのreadbackを行う段階である。
+**現在cursor**: `AT-09`。新releaseのnatural wakeは出たが、`host_admission_deferred:resource_capacity_busy`（exit `75`、`retryable=true`、`effect_identity_status=not_written`、`provider_receipt_id=null`）でprovider effect前に再試行待ちになった。次は手動wake・注文・売却ではなく、次のnatural eligibilityでAT-09〜AT-12をreadbackする。
+
+**最新Atomic Todo readback（2026-09-30 JST）**:
+
+- PR `#6246`はmainへmerge済み（merge commit `96791636efd4c55f0bc5a7287d422da35ea963cd`）。
+- legacy intentの完全なplanned rowを最新の不完全rowが隠す問題を投資source内で修正したPR `#6252`もmainへmerge済み。最新`origin/main`は`493017d36c9475e0d46c5b12733172f468b5bf05`。
+- immutable release `/Users/anicca/loops/releases/20260930T000442-493017d3` の`RELEASE.json`は同SHAと一致する。
+- `alpaca-investment-paper`だけをapplyし、install event `02d24ef82971b0071be94b28`、loaded argv、`LIFE_MANAGER_RELEASE_SHA`、paper mode、owner固有state rootをreadbackした。他owner、Capafy、Binance、wallet、live注文には触れていない。
+- 新releaseの自然run `18d9d34693900ed0-97688` は `2026-09-30 00:10 JST` に発生したが、host capacity deferでprovider effectを実行していない。新規order、provider receipt、資金移動はない。これは失敗した注文ではなく、再試行可能な起動前deferである。
+- 既存QQQのAlpaca paper公式readbackは、order status `filled`、provider order id `24cc2687-f718-4019-83f1-b5928c47525c`、client order id `lm-ai-d3935170807d46a7a5cde38e`、qty `0.013493253`、平均約定 `$740.37`、account cash `$99,986.77`、equity `$99,996.75`、unrealized P&L `-$0.011065`だった。ただしentryのみで、exit済みのround tripやrealized net P&Lではない。
+- `AT-09`〜`AT-12`は、natural admissionが通って同じeffectのbroker outcome・strategy receipt・ownership state・campaign exitを取得するまで未完である。`exit 75`やpaper/unrealized値は利益に数えない。
+- 検証済み実現投資収益は現在 `$0/月`。`$10,000/月`とgenerational wealthは目標であり、現時点の実測利益ではない。
