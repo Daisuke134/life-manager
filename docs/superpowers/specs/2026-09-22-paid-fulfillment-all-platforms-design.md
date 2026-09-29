@@ -5917,3 +5917,19 @@ receipts.
   until an owner naturally closes or a separately authorized host-level
   capacity action creates the admission window. Source changes must continue
   to fail closed rather than weakening the floor or deleting protected data.
+
+### Natural reconciler readback after priority diagnosis — 2026-09-30 07:18 JST
+
+- [x] The live old-release handle completed naturally. The newest official
+  runtime event is occurrence `life-manager-release-reconciler:18d9e8752dfc1a48-47905`
+  with `status=fail`, `exit_code=1`, and `error_detail` reporting fleet apply
+  `release=3975ae8996cab3325f514746a32c915f9935fddf`,
+  `changed=0`, `skipped=163`, `errors=10`, and the same slow
+  `life-manager-*` timeout set. No Coconala owner was changed in that wake.
+- [x] This is a clean reproduction of the source root cause fixed in commit
+  `6babc9942d`: old production ordering spends the bounded budget on growth
+  publishers before the contract-work owners.
+- [ ] The external state is still not repaired: release-reconciler remains on
+  `8f1fdd3a6216b6fd2039575f36be8feacbc0b2a3`, the current production pointer
+  remains `3975ae8996cab3325f514746a32c915f9935fddf`, and the new ordering has
+  no natural production receipt yet.
