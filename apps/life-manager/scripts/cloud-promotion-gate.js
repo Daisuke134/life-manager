@@ -46,6 +46,40 @@ function parseArgs(args) {
 
 function record(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 
+function verifiedDigitalOceanProvider(provider, candidate) {
+  const infrastructure = record(provider) ? provider.infrastructure_receipt : null;
+  const parity = record(provider) ? provider.agent_parity_receipt : null;
+  const readback = record(infrastructure) ? infrastructure.readback : null;
+  const proof = record(readback) ? readback.proof : null;
+  const teardown = record(readback) ? readback.teardown : null;
+  return record(infrastructure) && infrastructure.status === "verified"
+    && infrastructure.release_sha === candidate
+    && /^digitalocean-infrastructure:\/\/sha256\/[a-f0-9]{64}$/.test(String(infrastructure.provider_receipt_id || ""))
+    && record(readback.after_balance)
+    && Array.isArray(teardown) && teardown.length >= 2
+    && teardown.every((row) => record(row) && row.removed === true && /^sess_[A-Za-z0-9_-]+$/.test(String(row.session_id || "")))
+    && record(proof) && proof.tenant_isolated === true && proof.browser_continuity === true
+    && proof.official_readback === true && proof.replay_zero === true && proof.no_ask === true
+    && proof.human_input_count === 0 && proof.effect === "none"
+    && record(parity) && parity.status === "verified" && parity.release_sha === candidate
+    && /^digitalocean-agent-parity:\/\/sha256\/[a-f0-9]{64}$/.test(String(parity.provider_receipt_id || ""))
+    && SHA256.test(String(parity.receipt_hash || "")) && SHA256.test(String(parity.evidence_hash || ""))
+    && parity.replay_zero === true && parity.human_input_count === 0;
+}
+
+function verifiedProvider(provider, candidate) {
+  if (!record(provider)) return false;
+  if (provider.name === "aws-agentcore") {
+    return provider.region === "ap-northeast-1"
+      && SHA256.test(String(provider.config_sha256 || ""))
+      && provider.config_sha256 === provider.expected_config_sha256;
+  }
+  if (provider.name === "digitalocean-managed-agents") {
+    return verifiedDigitalOceanProvider(provider, candidate);
+  }
+  return false;
+}
+
 function evaluatePromotionCandidate(input = {}) {
   const reasons = [];
   const candidate = String(input.candidate_sha || "");
@@ -70,10 +104,7 @@ function evaluatePromotionCandidate(input = {}) {
       || migration.applied !== true || migration.replay_safe !== true
       || migration.manifest_sha256 !== migrationManifestSha256()) reasons.push("migration_unverified");
 
-  const agentcore = input.agentcore;
-  if (!record(agentcore) || agentcore.region !== "ap-northeast-1"
-      || !SHA256.test(String(agentcore.config_sha256 || ""))
-      || agentcore.config_sha256 !== agentcore.expected_config_sha256) reasons.push("agentcore_config_mismatch");
+  if (!verifiedProvider(input.provider, candidate)) reasons.push("provider_unverified");
 
   const sessions = input.sessions;
   if (!record(sessions) || sessions.old_release_active !== 0

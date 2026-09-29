@@ -22,7 +22,8 @@ function validInput() {
       { status: "verified", release_sha: CANDIDATE, ref: `evidence://${gate}/receipt` }])),
     migration: { latest_version: REQUIRED_MIGRATION, ordered_versions: [...REQUIRED_MIGRATIONS],
       applied: true, replay_safe: true, manifest_sha256: migrationManifestSha256() },
-    agentcore: { region: "ap-northeast-1", config_sha256: HASH, expected_config_sha256: HASH },
+    provider: { name: "aws-agentcore", region: "ap-northeast-1",
+      config_sha256: HASH, expected_config_sha256: HASH },
     sessions: { old_release_active: 0, current_release_active: 1 },
     cost: { cap_breaches: 0, unsettled_unknown: 0, within_plan_caps: true },
     rollback: { verified: true, release_sha: ROLLBACK },
@@ -49,7 +50,7 @@ test("each required promotion boundary independently blocks", () => {
     ["migration_unverified", (x) => { x.migration.manifest_sha256 = HASH; }],
     ["migration_unverified", (x) => { x.migration.ordered_versions.splice(0, 1); }],
     ["migration_unverified", (x) => { x.migration.ordered_versions.reverse(); }],
-    ["agentcore_config_mismatch", (x) => { x.agentcore.expected_config_sha256 = "b".repeat(64); }],
+    ["provider_unverified", (x) => { x.provider.expected_config_sha256 = "b".repeat(64); }],
     ["old_release_sessions_active", (x) => { x.sessions.old_release_active = 1; }],
     ["cost_gate_failed", (x) => { x.cost.unsettled_unknown = 1; }],
     ["rollback_target_invalid", (x) => { x.rollback.release_sha = CANDIDATE; }],
@@ -59,6 +60,44 @@ test("each required promotion boundary independently blocks", () => {
     const result = evaluatePromotionCandidate(input);
     assert.equal(result.decision, "block", reason);
     assert.ok(result.reasons.includes(reason), `${reason}: ${result.reasons.join(",")}`);
+  }
+});
+
+test("DigitalOcean promotion requires release-bound live infrastructure and agent parity receipts", () => {
+  const input = validInput();
+  input.provider = {
+    name: "digitalocean-managed-agents",
+    infrastructure_receipt: {
+      status: "verified", release_sha: CANDIDATE,
+      provider_receipt_id: `digitalocean-infrastructure://sha256/${HASH}`,
+      readback: {
+        after_balance: { balance: "9.99" },
+        teardown: [
+          { removed: true, session_id: "sess_a" },
+          { removed: true, session_id: "sess_b" },
+        ],
+        proof: { tenant_isolated: true, browser_continuity: true, official_readback: true,
+          replay_zero: true, no_ask: true, human_input_count: 0, effect: "none" },
+      },
+    },
+    agent_parity_receipt: {
+      status: "verified", release_sha: CANDIDATE,
+      provider_receipt_id: `digitalocean-agent-parity://sha256/${HASH}`,
+      receipt_hash: HASH, evidence_hash: HASH, replay_zero: true, human_input_count: 0,
+    },
+  };
+  assert.equal(evaluatePromotionCandidate(input).decision, "pass");
+  for (const mutate of [
+    (x) => { x.provider.infrastructure_receipt.release_sha = ROLLBACK; },
+    (x) => { x.provider.infrastructure_receipt.readback.proof.browser_continuity = false; },
+    (x) => { x.provider.infrastructure_receipt.readback.teardown[0].removed = false; },
+    (x) => { x.provider.agent_parity_receipt.replay_zero = false; },
+    (x) => { x.provider.agent_parity_receipt.human_input_count = 1; },
+  ]) {
+    const candidate = structuredClone(input); mutate(candidate);
+    const result = evaluatePromotionCandidate(candidate);
+    assert.equal(result.decision, "block");
+    assert.ok(result.reasons.includes("provider_unverified"));
   }
 });
 

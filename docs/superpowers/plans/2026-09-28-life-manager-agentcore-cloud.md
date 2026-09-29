@@ -430,7 +430,7 @@
 
 - [x] **Step 1: Write RED promotion tests**
 
-  Gate on merged main SHA, complete local manifest, CL00-CL04 evidence, migration version, AgentCore config hash, no active old release sessions, cost caps, and rollback target.
+  Gate on merged main SHA, complete local manifest, CL00-CL04 evidence, ordered migration manifest, selected-provider live receipt/config proof, no active old release sessions, cost caps, and rollback target. AWS requires the Tokyo AgentCore config hash; DigitalOcean requires release-bound two-session infrastructure and agent-parity receipts, so a local fallback harness alone can never promote.
 
 - [ ] **Step 2: Deploy candidate and canary tenant**
 
