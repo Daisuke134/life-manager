@@ -869,7 +869,8 @@ The entries above are historical readbacks. This section is the current source o
 
 1. source修正・spec・planをcommit/pushし、required checksを確認する。
 2. green後にmainへ統合し、main由来immutable releaseを作成、Life Manager通常owner pathでapply/readbackする。
-3. 自然wakeで既存QQQ orderを再送せず、official terminal statusとaccount/position/fill receiptを取得する。
-4. strategy validation/cross-venueのoccurrence receiptを揃え、全cost込みnet P&Lを確定する。
-5. replay-zeroのpositive natural round tripを`30/30`測定するまで、cap増額・Binance送金・live・meme coin・yield depositを行わない。
-6. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。
+3. 新releaseのfence reconcilerを自然wakeさせ、旧cross-venue `effect_unknown` occurrenceに公式receipt/readbackがあるか確認する。証拠が無ければ解放・再送しない。
+4. 自然wakeで既存QQQ orderを再送せず、official terminal statusとaccount/position/fill receiptを取得する。
+5. strategy validation/cross-venueのoccurrence receiptを揃え、全cost込みnet P&Lを確定する。
+6. replay-zeroのpositive natural round tripを`30/30`測定するまで、cap増額・Binance送金・live・meme coin・yield depositを行わない。
+7. `30/30`後にHyperliquid shadow→Solana/Pump.fun paper→yield shadowの順で評価し、rollingで実測利益が出た場合だけ月次revenueを報告する。

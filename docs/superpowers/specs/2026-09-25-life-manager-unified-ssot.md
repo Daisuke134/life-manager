@@ -1131,8 +1131,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 1. このmarket-hours source修正とspec/planを専用branchへcommit・pushし、required checksを確認する。未releaseのsource PASSをproduction PASSと混同しない。
 2. required checksがgreenになったらmainへ統合し、main由来immutable releaseを作成する。Life Managerの通常owner pathで新releaseをapplyし、loaded SHA・argv/env・admissionをreadbackする。
-3. 新releaseの自然wakeで既存QQQ orderを再送せず、official terminal status（filledまたはcanceled/expired/rejected）とaccount/position/fill receiptを確認する。`accepted`やzero-fill pendingはsample・利益・round tripに数えない。
-4. `investment-strategy-validation`の自然receiptと`investment-cross-venue-report`の同一occurrence receiptを取得し、entry/exit fee、slippage、funding/borrow、gas、model costを含むcost-complete net P&Lを生成する。unknownは利益に数えない。
-5. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
-6. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
-7. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
+3. 新releaseのfence reconcilerを自然wakeさせ、旧cross-venue `effect_unknown` occurrenceに公式receipt/readbackがあるか確認する。証拠が無ければ解放・再送しない。
+4. その後、自然wakeで既存QQQ orderを再送せず、official terminal status（filledまたはcanceled/expired/rejected）とaccount/position/fill receiptを確認する。`accepted`やzero-fill pendingはsample・利益・round tripに数えない。
+5. `investment-strategy-validation`の自然receiptと`investment-cross-venue-report`の同一occurrence receiptを取得し、entry/exit fee、slippage、funding/borrow、gas、model costを含むcost-complete net P&Lを生成する。unknownは利益に数えない。
+6. replay-zeroで最小capの自然round tripを`30/30`測定し、net positive、drawdown、venue health、cost completenessが全てPASSするまでcap増額を禁止する。
+7. `30/30`後にだけ、Hyperliquid shadow、Solana/Pump.fun paper、yield shadowを順に比較し、bounded canaryへ進める。実測net P&Lがrollingで確認できるまで月次収益を報告しない。
+8. `$10,000/月`とgenerational wealthは目標値であり、現在の資本・測定値から保証されない。revenueを報告する条件は、公式receipt付きのcost-complete positive net P&Lである。
