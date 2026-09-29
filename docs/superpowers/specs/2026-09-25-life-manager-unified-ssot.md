@@ -1808,6 +1808,9 @@ job IDs 0）、`git diff --check`もPASS。branch
   `ok=true`（catalog 14、registry 176、mapped 102、shared job IDs 0）、shell syntax、
   `git diff --check`をPASSした。これはsource契約の証拠であり、Mercorのprovider receipt・official
   readback・収益の証拠ではない。
+- `fix/capacity-selfheal-20260930` も最新 `origin/main=3975ae8996cab3325f514746a32c915f9935fddf` へ
+  rebaseし、remote SHA `09956e02b287acefddc58ae1a2b496c3fbb4f103` と一致させた。容量focused testは
+  `117 passed`・`4 subtests`、contractは `ok=true`（registry 175、mapped 102、shared job IDs 0）。
 
 ### 原子TODO（このカーソルの実行順）
 
