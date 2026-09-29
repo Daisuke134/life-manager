@@ -425,3 +425,30 @@ SSOT とのつながり: AG11 は SSOT T12（自己改善）の最初の実例�
 
 トラック E の新しい順序: ① `eval-audit` で既存 eval を診断 → ② `build-eval` で Capafy の流れ → ③ `hillclimb`（目標は費用、`cost-hillclimb.md` の順序）→ ④ 勝った変更を LM の release の経路で本番へ出し、承認率・売上を readback → ⑤ アプリ・Writer・PromptBase の流れへ広げる → ⑥ AG1 以降（AG2 の台帳は SSOT T6 の後）。
 現在の cursor（トラック E）: **① eval-audit**
+
+## 14. お金を増やす自己改善の設計（全ループ共通。2026-09-29）
+
+前提: ループ ＝ skill ＝ エージェント。各ループは `SKILL.md`（手順）＋ entrypoint ＋ モデルの選択でできている。自己改善とは、このどれかを変えて、利益が増えた変更だけを残すこと。
+
+### 14.1 物差しは3段（速い代わりに不正確 → 遅い代わりに正確）
+
+| 段 | 何を測るか | かかる時間 | 道具 |
+|---|---|---|---|
+| eval（その場のテスト） | 1つの流れの出来（案の質・費用） | 数分 | `/claude-api build-eval` と `hillclimb` |
+| 本番の先行指標 | 提出が通った数、クリック、審査の通過 | 数時間〜数日 | 各ループの readback、Capafy の毎時の receipt |
+| benchmark（LM-EAB） | 決済された利益（settled revenue − cost）と、自律の条件（人の介入なし、二重の送信なし） | 数日〜数週 | `apps/life-manager/eval/economic-autonomy/`、CFO のループ別 P&L（SSOT T8） |
+
+eval で勝っても本番の利益が増えなければ、その eval はずれている。eval の点数が本番の利益を予測できているかを、ループごとに確かめる（AG1 の予測トラックの役割）。
+
+### 14.2 二重のループ
+
+- **内側（既存のループを稼げるようにする）:** 利益 ＝ 件数 × 1件の成約率 × 単価 − 費用。4つのどれを動かすかを決め、eval で山登り → 本番で小さく試す（canary）→ P&L で答え合わせ → 採用か戻す。最初は費用（最も速く、確実に利益へ効く）。
+- **外側（ポートフォリオと新しいループ）:** 実行の枠（計算資源・ブラウザの枠）を、限界利益の高いループへ寄せる。赤字が続くループは止める。新しいループは「利益の予測 → 小さな試作（上限つき）→ 実測の P&L → 伸ばすか止めるか」で作る。予測の腕前は AG1 で採点する。
+
+### 14.3 実例（agmsg の codex-money-printer 報告 2026-09-28 11:14Z）
+
+Capafy の30日の純売上 $55.04、モデルの費用 $43.61、貢献利益の概算 $11.43。売上が同じでモデルの費用を半分にできれば、利益の概算は約 $33 になり、約3倍になる（計算上の見込みで、未検証）。
+
+### 14.4 既存の部品
+
+`skills/self/self-improve/{affiliate,bounty,clip,gig,video}/evaluator.py`、`apps/life-manager/eval/agent-contract/gate.js`（候補が評価器や権限を変えることを防ぐ）、`runtime/loop/recovery-promotion.mjs`、LM-EAB の `score.js`（settled_net_profit）、Capafy のスキル別の毎時利益 receipt（#6072）、`skills/self/spawn`（自己複製。新しい事業の作成ではない）。
