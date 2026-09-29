@@ -16,6 +16,12 @@ EXPECTED_AGENT_VERSION_ID="${4:-}"
 
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$AUTO/vendor/capafy-publisher"
+BROWSER_SKILL="$(cd "$AUTO/../browser" && pwd)"
+# Capafy's seller session lives on this shared identity (registry:
+# ~/.config/ai/registry/browsers.toml) — CP2/CP3 must lease it, never probe a
+# hardcoded debugging port (the 2026-07-26 :9222/:9223 collision).
+CAPAFY_BROWSER_IDENTITY="${CAPAFY_BROWSER_IDENTITY:-coconala:kosuke}"
+export CAPAFY_BROWSER_IDENTITY
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 CAPAFY_PUBLISH_HOME_BASE="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
 CAPAFY_PUBLISHER_STATE_HOME="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}"
@@ -277,7 +283,8 @@ except Exception: print('')")"
   fi
   [ -n "$PUBLISH_REVIEW_URL" ] || die "no final review URL available for CP2/workspace-field fix"
   CP2="$PUBLISH_REVIEW_URL"
-  timeout 150 "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | grep -vE "Deprecation|warnings.warn" | tail -4
+  timeout 150 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
+    "$VENV" "$AUTO/scripts/drive_checkpoint2.py" "$CP2" 2>&1 | grep -vE "Deprecation|warnings.warn" | tail -4
   # AUTHORITATIVE gate = server is_confirmed_config_keys, POLLED. drive_checkpoint2 can
   # exit just before the server registers the hosted key -> a one-shot read false-dies.
   poll is_confirmed_config_keys 1 12 5 || die "CP2 key host NOT confirmed (is_confirmed_config_keys!=1) — drive CP2 agentically (PUBLISHING_RUNBOOK.md)"
@@ -322,7 +329,8 @@ case "$POST_CP2_STATUS" in
   fi
   echo "CP3 submit attempt 1"
   VERSION_UPDATE_INFO="Updated the Agent package and workflow for this review submission."
-  CP3_OUT="$(timeout 90 "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
+  CP3_OUT="$(timeout 90 bash "$BROWSER_SKILL/with-browser.sh" "$CAPAFY_BROWSER_IDENTITY" -- \
+    "$VENV" "$AUTO/scripts/drive_checkpoint3.py" "$CP3" "$VERSION_UPDATE_INFO" 2>&1)" || {
     printf '%s\n' "$CP3_OUT" | grep -vE "Deprecation|warnings.warn" | tail -5
     die "CP3 raw submit failed; do not retry an uncertain external effect"
   }

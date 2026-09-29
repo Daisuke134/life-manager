@@ -3,12 +3,22 @@
 cp1_agent.py — THIN, DUMB browser primitives for Capafy CP1 (Agent Card save).
 
 This is the DETERMINISTIC TOOL half of a two-layer agentic loop. It does NOT
-decide anything — it just performs one primitive action against the running
-CloakBrowser daily-driver (CDP :9222) and dumps a screenshot + a compact state
-readout. The JUDGMENT half is the AGENT (the running LLM) who LOOKS at the
-screenshot, decides the next click/type, and calls this tool again — looping
-until the real success signal ("カードを保存しました" toast / card-done URL /
-server isConfirmedSkills=1) appears.
+decide anything — it just performs one primitive action against a LEASED
+CloakBrowser identity (see skills/browser/SKILL.md and CP1_AGENTIC.md) and
+dumps a screenshot + a compact state readout. The JUDGMENT half is the AGENT
+(the running LLM) who LOOKS at the screenshot, decides the next click/type,
+and calls this tool again — looping until the real success signal
+("カードを保存しました" toast / card-done URL / server isConfirmedSkills=1)
+appears.
+
+This tool never probes a hardcoded debugging port. The Capafy seller session
+lives on the shared identity `coconala:kosuke` (registry:
+~/.config/ai/registry/browsers.toml); every caller MUST run this script under
+`skills/browser/with-browser.sh <identity> -- ...`, which leases the identity,
+verifies its CDP UUID, and exports CLOAK_CDP_BASE_URL/CDP for this process.
+Probing well-known ports directly caused the 2026-07-26 collision where
+:9222 turned out to be a proxy onto the SAME browser as production :9223 —
+see CP1_AGENTIC.md.
 
 WHY it exists: the old drive_cp1.py hardcoded DOM-coordinate/text heuristics that
 silently broke whenever Capafy changed its publish UI. Per Anthropic "effective
@@ -68,39 +78,33 @@ def _acquire_cdp_lock():
             time.sleep(0.2)
 
 
+# The identity coconala:kosuke banks the Capafy seller session (registry:
+# ~/.config/ai/registry/browsers.toml).  Override only for a deliberately
+# different leased identity, never to point at an ad-hoc port.
+CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "coconala:kosuke").strip() or "coconala:kosuke"
+
+
 def _detect_cdp():
-    """The daily-driver's CDP port drifts (observed 9222 -> 9223 when 9222 is
-    already held by an unrelated local Chrome instance) — auto-detect instead
-    of trusting a hardcoded port (self-fix-capafy-loop, 2026-07-21)."""
-    override = os.environ.get("CP1_CDP_URL")
-    if override:
-        return override
-    # Prefer the endpoint that already has a Capafy page.  On this host 9222
-    # and 9223 can both be alive (different daily drivers); choosing the first
-    # /json/version response sent CP1 to an unrelated browser during a drainer.
-    reachable = []
-    for port in (9222, 9223):
-        url = f"http://localhost:{port}"
-        try:
-            with urllib.request.urlopen(f"{url}/json/version", timeout=2) as r:
-                if r.status == 200:
-                    reachable.append(url)
-        except Exception:
-            continue
-    for url in reachable:
-        try:
-            with urllib.request.urlopen(f"{url}/json/list", timeout=2) as r:
-                targets = json.load(r)
-            if any("capafy.ai" in str(t.get("url", "")) for t in targets):
-                return url
-        except Exception:
-            continue
-    if reachable:
-        return reachable[0]
-    return "http://localhost:9222"  # fall back to the documented default
+    """Resolve the CDP endpoint ONLY from an already-leased identity.
+
+    Never probes hardcoded ports (9222/9223): the 2026-07-26 incident was
+    exactly that — :9222 turned out to be a proxy onto the SAME browser as
+    production :9223 (identical CDP UUID), so an "interactive" session and a
+    loop drove one Chrome at once and a save silently never landed. A shared
+    browser must be leased first via skills/browser/with-browser.sh, which
+    resolves the identity's real endpoint (verifying profile ownership + CDP
+    UUID) and exports it into this process as CLOAK_CDP_BASE_URL/CDP.
+    CP1_CDP_URL is kept for a caller that already resolved its own explicit
+    leased endpoint.
+    """
+    for var in ("CP1_CDP_URL", "CLOAK_CDP_BASE_URL", "CDP"):
+        value = os.environ.get(var, "").strip()
+        if value:
+            return value
+    return None
 
 
-CDP = _detect_cdp()
+CDP = _detect_cdp()  # may be None; validated in main() before any browser use
 
 # JS that returns a compact, bounded list of interactive elements with
 # viewport-center coords, so the agent can both SEE (screenshot) and target
@@ -535,6 +539,15 @@ def main():
         except (IndexError, RuntimeError) as exc:
             print(json.dumps({"error": str(exc)}, ensure_ascii=False))
             raise SystemExit(1)
+    if CDP is None:
+        print(json.dumps({
+            "error": "capafy_browser_not_leased", "retryable": True,
+            "identity": CAPAFY_BROWSER_IDENTITY,
+            "detail": ("no leased CDP endpoint in env (CP1_CDP_URL/CLOAK_CDP_BASE_URL/CDP). "
+                       f"Run under skills/browser/with-browser.sh {CAPAFY_BROWSER_IDENTITY} -- "
+                       "... (see CP1_AGENTIC.md); this tool refuses to probe 9222/9223 directly."),
+        }, ensure_ascii=False))
+        sys.exit(75)
     try:
         lock = _acquire_cdp_lock()
     except Cp1Busy as e:
