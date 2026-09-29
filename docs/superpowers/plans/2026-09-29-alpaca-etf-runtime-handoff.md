@@ -170,4 +170,9 @@ This plan is complete only when Tasks 1–5 have their stated evidence. A passin
 
 - The authoritative v2 admission database shows the currently queued Alpaca occurrence as `admission_class=borrow`, `base_priority=support`, sequence `277843`, while active revenue owners occupy the finite agent capacity. This matches `host_admission_deferred:resource_capacity_busy`; it is not a strategy signal and it did not create a provider effect.
 - The pushed investment candidate already declares `alpaca-investment-live` as `admission_class=revenue`, `priority=revenue`, and includes the cross-venue/validation rows. That change can only affect runtime after the candidate is accepted through the immutable `main` release path. No direct admission DB, launchd, or sibling owner mutation is allowed from this worktree.
-- Paper/backtest evidence remains a validation input only. Real transaction means an official provider order/fill/account readback with a receipt ID; revenue means settled net cash after fees/slippage/model cost. Neither exists yet.
+- Paper/backtest evidence remains a validation input only. Real transaction means an official provider order/fill/account readback with a receipt ID; revenue means settled net cash after fees/slippage/model cost. The current candidate has none.
+
+### Historical real canary clarification (2026-09-29)
+
+- A prior bounded crypto canary is already verified and closed: BTC/USDC buy notional `$2.00`, official entry order `1a1f83e4-aaba-440f-a94e-9db3c3323f4a`, official close order `7712069c-6f24-425a-986e-752dae8c1607`, fee `0.004896691 USDC`, and realized net `-0.006970681885 USDC`. This proves the narrow live crypto execution/readback path, not ETF live eligibility or profitability.
+- The current scheduled Alpaca loop has no new provider transaction: its latest occurrence is admission-deferred before child/provider execution. The next evidence remains candidate deployment → one natural ETF paper order/fill → cost-complete P&L; no second live canary is authorized by this readback.

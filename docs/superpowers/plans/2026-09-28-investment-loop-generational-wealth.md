@@ -741,6 +741,8 @@ The entries above are historical readbacks. This section is the current source o
 
 **最新本番readback（2026-09-29）**: `lm-loop status alpaca-investment-live`はinstalled/event release `d3e302ad…`、`loaded-idle`、`host_admission_deferred:resource_capacity_busy`、exit `75`、`retry_after_eligibility`を返し、`provider_receipt_id=null`、`official_readback_ref=null`だった。`investment-cross-venue-report`はcurrent releaseで`unknown loop id`、cross-venue／validation state rootも未作成。既存Alpaca account readbackはnet `-$0.15`、completed round trips `1`、capital expansion `false`。よってreal transaction、profit、promotionは未達で、cursorは引き続き**INV-001-B**。
 
+**既存real canaryの事実（2026-09-09、最新state readback）**: Alpaca crypto executionでは、`L09_LOCAL_CANARY_V1`としてBTC/USDCをnotional `$2.00`で1回buyし、official order `1a1f83e4-aaba-440f-a94e-9db3c3323f4a`／fill `0.000025037 BTC @ 78314.105`を確認した。その後、同じ保有量をofficial close order `7712069c-6f24-425a-986e-752dae8c1607`でsellし、fee `0.004896691 USDC`、post balance `66.748790318 USDC`、verified realized net `-0.006970681885 USDC`をreadbackした。`live-owned-position.status=closed`でreplay済みである。これは「paperからrealへ」の最小cryptoインフラcanaryは既に完了した証拠だが、ETFのpaper strategyがlive化した証拠ではなく、利益でもない。ETFはコード上`live_etf_rejected`、scheduled loopの新規real orderは現在ない。
+
 **一次資料・OSSに基づく運用判断（2026-09-29）**:
 
 - [Alpaca paper trading](https://docs.alpaca.markets/us/v1.4.2/docs/paper-trading)は注文をlive exchangeへ送らないsimulationであり、market impact、latency slippage、limit-order queue position等を再現しない。[Alpaca account plans](https://docs.alpaca.markets/us/docs/account-plans)ではlive brokerage accountのonboardingがpaper accountと別に必要である。したがってpaperの勝ちをreal revenueとは数えない。
