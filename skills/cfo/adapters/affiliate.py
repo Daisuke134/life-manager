@@ -16,6 +16,8 @@ SOURCE_ID = "affiliate-partnerstack-financial-record"
 PROVIDER = "partnerstack-elevenlabs"
 UPSTREAM_PROVIDER = "elevenlabs"
 SUPPORTED_CURRENCIES = {"USD"}
+# The default Decimal precision is 28; USD cents reserve two fractional places.
+MAX_B0_AMOUNT_INTEGER_DIGITS = 26
 FINANCIAL_CATEGORIES = (
     "settled_external_revenue", "refund", "provider_fee", "payment_fee",
 )
@@ -134,7 +136,13 @@ def _expected_normalized_commission(raw: dict, status_map: dict[str, str]) -> di
         minor = Decimal(str(raw["commission_amount"])) * 100
     except (KeyError, DecimalException, ValueError):
         raise ValueError("unverified_receipt") from None
-    if not minor.is_finite() or minor != minor.to_integral_value() or minor < 0:
+    if not minor.is_finite() or minor < 0:
+        raise ValueError("unverified_receipt")
+    major_integer_digits = max(1, minor.adjusted() - 1)
+    if (
+        major_integer_digits > MAX_B0_AMOUNT_INTEGER_DIGITS
+        or minor != minor.to_integral_value()
+    ):
         raise ValueError("unverified_receipt")
     gross = int(minor)
     status = status_map[provider_status]
@@ -598,9 +606,12 @@ def adapt_path(path: str | Path, *, snapshot_at: str, trailing_start: str) -> li
         return _read_failed_records(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
+    if not isinstance(payload, dict):
+        return _read_failed_records(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
     if (
-        isinstance(payload, dict)
-        and payload.get("receipt_type") == "PARTNERSTACK_RENDERED_REPORT_ARTIFACT"
+        payload.get("receipt_type") == "PARTNERSTACK_RENDERED_REPORT_ARTIFACT"
     ):
         digest = _canonical_hash(payload)
         try:

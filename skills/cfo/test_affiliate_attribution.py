@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -588,6 +589,42 @@ class AffiliateAttributionTest(unittest.TestCase):
             [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
             ["unverified_receipt", "unverified_receipt"],
         )
+
+    def test_extreme_finite_exponent_is_rejected_before_integer_conversion(self):
+        payload = fixture("affiliate-partnerstack-complete.json")
+        payload["artifact"]["commission_rows"][0]["commission_amount"] = "1e999997"
+        started = time.monotonic()
+        try:
+            records = self.adapt(rehash_bundle(payload))
+        except Exception as error:  # pragma: no cover - failure message preserves the escaped type.
+            self.fail(f"adapter raised {type(error).__name__}: {error}")
+        self.assertLess(time.monotonic() - started, 0.25)
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual(
+            [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+            ["unverified_receipt", "unverified_receipt"],
+        )
+
+    def test_non_object_json_paths_return_read_failed_coverage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, payload in (("array", []), ("null", None), ("string", "x")):
+                with self.subTest(name=name):
+                    path = root / f"{name}.json"
+                    path.write_text(json.dumps(payload), encoding="utf-8")
+                    try:
+                        records = affiliate.adapt_path(
+                            path, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                        )
+                    except Exception as error:  # pragma: no cover - RED preserves the escaped type.
+                        self.fail(f"adapter raised {type(error).__name__}: {error}")
+                    self.assertFalse(any(
+                        row["record_type"] == "receipt" for row in records
+                    ))
+                    self.assertEqual(
+                        [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                        ["read_failed", "read_failed"],
+                    )
 
     def test_path_read_failures_return_read_failed_coverage(self):
         with tempfile.TemporaryDirectory() as directory:
