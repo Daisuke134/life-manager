@@ -1675,12 +1675,13 @@ Life Managerを、14 Product Loopと全managed jobについて、人が毎日sta
 
 ### 2. 最新read-only実測
 
-- sourceとproduction `current/RELEASE.json.sha`は、観測時点で`592c98cbc69fb3bbb6eb4216e672c040c736052c`で一致する。
+- `origin/main`とproduction `current/RELEASE.json.sha`は、2026-09-30 22:09 JSTの観測時点で`51926f666a73226e9807a426e3f0a178cb0dd060`に一致する。release provenanceは`ancestor-of-origin-main`である。
 - `lm-loop-contract`は`ok=true`、Product Loopは14、managed registry jobは176、Product Loopへ結合済みは103、shared job IDは0である。
 - `lm-loop doctor`は`ok=false`。唯一のunmanaged labelは`ai.anicca.provision-browser.capafy.kosuke`である。
 - 73 managed jobはProduct Loopに未結合である。全てを無理に収益loopへ入れず、`product_loop_id`または型付き`system_role=platform|control|shared`のどちらかへ結合する。無分類のままhealth集計から消してはいけない。
-- `lm-loop status all --json`は6.018秒でexit 0となり、以前の90秒超hangは再現しない。ただし出力は1,368,247 bytes・281 recordsで、人やCFOが読むfleet health summaryではない。
+- `lm-loop status all --json`は8秒でexit 0となり、以前の90秒超hangは再現しない。ただし出力は1,383,604 bytes・281 recordsで、人やCFOが読むfleet health summaryではない。
 - `lm-loop health`は未実装で、現在は一般usageを返す。従って「statusが全く動かない」は現在の事実ではないが、「全体healthを一目で判断できない」は未解決である。
+- mainにはCFOのresults-first report、email既定・Telegram選択式delivery、provider message ID、period単位dedupeが入った。これは通知の共通出口として再利用する。一方、収益・費用のsource coverage、settlement、MRR、14 loop共通event policyはまだ完全ではない。
 
 以下の`P/F/B/R/N`は直近terminalの`pass/fail/blocked/running/no terminal`、`release`は現在releaseをloadedしたmanaged job数、`receipt`はstatusへ結合済みの`provider_receipt_id/official_readback_ref`数である。process passは売上・納品・外部効果の成功を意味しない。
 
@@ -1773,7 +1774,7 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 #### item 1 merge後に開始できるparallel wave
 
 2. **Health foundation:** `lm-loop.health.v1` schema/validator、全176 jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、型付きexit codeを実装する。
-3. **Revenue observability:** schema確定後、各laneのdiscover→qualify→accept→deliver→settle funnelと、settled revenue・fee・model・tool・infra cost・net marginをreceipt単位で結合する。CFOが14 loopと全社を同じ規則で再計算できることをDoneとする。
+3. **Revenue observability:** mainのresults-first CFO reportを出口として再利用し、schema確定後、各laneのdiscover→qualify→accept→deliver→settle funnelと、settled revenue・refund・fee・model・tool・infra cost・net marginをreceipt単位で結合する。CFOが14 loopと全社を同じ規則で再計算できることをDoneとし、別のreporting frameworkを作らない。
 4. **Read-only evidence:** Investmentは自然schedulerによるsellまで待ち、PromptBase/Capafyは自然runと公式管理画面/API/Gmailだけを観測する。手動wake・再送・production editをしない。このlaneはsource writerではない。
 5. **AGI eval:** eval専用directoryだけでCapafy E-productからaudit/build-eval/hillclimbを行い、production loop変更は担当ownerへPR提案する。health schemaを再実装しない。
 
@@ -1794,9 +1795,17 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
 Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
 
-### 8. 起動予定sessionのGoal契約（まだ起動しない）
+### 8. AGMSG実行状態とsessionのGoal契約
 
-常時active writerはorchestratorを含め最大4席とし、最初はTaskMarket owner一席だけを追加する。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
+常時active writerはorchestratorを含め最大4席とする。writerを起動する前に、重複実装と共有資源衝突を消すため、次の3席を`agmsg spawn ... --boot-prompt`でread-only起動した。`team --json`と`peek`で、登録だけでなくtmux placement、agent key、`gpt-5.6-sol high`で実行中であることを確認した。3席はcode、spec、production、provider、browserを変更しない。
+
+| AGMSG member | 目的 | Done | 状態 |
+|---|---|---|---|
+| `lm-notify-audit-0930` | 14 loopのTelegram/email producer、cadence、audience、ACK、dedupe、noiseを棚卸し | file/entrypointごとのproducer表と非重複実装単位 | read-only実行中 |
+| `lm-cfo-gap-0930` | 14 loopのrevenue/refund/cost/net coverageと既存CFO実装の再利用可否を監査 | source/receipt/settlement/cost gap表 | read-only実行中 |
+| `lm-collision-audit-0930` | observability、CFO、TaskMarket、AGI、PromptBase、Investment等のworktree/branch/PR衝突を監査 | shared-file collision matrixと安全な起動順 | read-only実行中 |
+
+既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。writerは3監査の証拠をorchestratorが確認してから起動する。最初のwriterはTaskMarket一席だけであり、同じrelease scriptをhealth writerと同時編集しない。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
 
 **Session A — TaskMarket packaging（最初に一席だけ）**
 
@@ -1824,14 +1833,56 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 
 AGI eval、platform別修理、website、cloud migrationは上記contractが固定してから必要な席だけ追加する。全sessionへ「他者の変更を戻さない」「共有schema変更は提案だけ」「reviewerはread-only」を渡す。
 
-### 9. 固定費とsubscriptionの運用判断
+### 9. ユーザー通知UX — CFOは毎時観測し、人には結果だけを届ける
+
+CFOは内部で毎時reconcileするが、ユーザーへ毎時同じstatusを送らない。既定はGmail等のemailへ日次結果、週次傾向、月次会計を送り、Telegramは任意の即時channelとする。email deliveryはmainの既存`cfo-report-delivery.js`を再利用し、Gmail APIを新設しない。宛先がGmailでもdelivery providerは既存Resendでよい。
+
+```mermaid
+flowchart LR
+  L[14 Product Loops] --> R[official receipt / readback]
+  R --> F[tenant-scoped FinancialRecord]
+  F --> C[CFO hourly reconcile]
+  C --> P[notification policy + dedupe]
+  P --> E[email: daily / weekly / monthly]
+  P --> T[Telegram: optional instant events]
+```
+
+**email既定**
+
+- 日次: 今日のsettled external revenue、refund、fee、model/tool/infra cost、差引net、source別内訳、未確認source、前日差。
+- 週次: 7日売上・費用・net、conversion funnel、伸びたloop、止める候補、self-heal件数、未解決risk。
+- 月次: settled revenue、payout、全費用、net cashflow、recurringだけから計算したMRR、runway、provider別費用、owner deposit除外表。
+
+**Telegramの即時通知**
+
+- 外部顧客の支払確定、納品受領、settlement、payout。
+- spend cap超過、credential失効、provider suspension、`effect_unknown`、回復不能、法的/provider必須の`human_required`。
+- loop開始、exit 0、仕事なし、通常retry、成功したself-healは送らない。日次digestへ集約する。
+
+**金額の意味**
+
+- `settled external revenue`だけを売上へ算入し、pending、bank deposit、payoutは別状態にする。
+- refund、platform fee、model、browser、server、payment feeを分離し、netは公式receiptが揃う通貨ごとにだけ計算する。
+- MRRは継続契約だけ。単発売上を年換算・月換算してMRRと呼ばない。
+- owner deposit、自己支払、内部transfer、token appreciation、未実現投資損益、fundraisingを外部売上へ数えない。
+- 各logical cellは自分の結果だけを受け取り、会社全体や他userの金額・案件・credentialを見せない。
+
+**実装順**
+
+1. item 3のfinancial source coverageとsettlement truthを先に閉じる。
+2. 共通notification event、audience、severity、period、dedupe keyを固定する。
+3. mainのemail/Telegram adapterへ同じeventを投影し、別々のbusiness logicを持たせない。
+4. shadow modeで旧Telegramと新digestを比較し、重複送信ゼロ・宛先分離・provider receiptを確認する。
+5. 日次emailを既定へ切り替え、Telegramは即時eventを選択したuserだけに残す。
+
+### 10. 固定費とsubscriptionの運用判断
 
 - ChatGPT/Codex/Workの使用量とcreditは同一accountのagentic allowanceとして追跡する。重複accountをparallelismの仕組みにしない。
 - 現在は一つの既存ChatGPT Pro accountへ集約し、Claudeと重複ChatGPT accountはrepo、cloud environment、必要な履歴・assetの移行確認後に更新停止する方針とする。実際の解約はbilling readback後に別操作として行う。
 - Ultrafast目的のPro $500へは上げない。現在の故障はmodel latencyではなくrelease packaging、capacity、receipt、health、ownershipであり、先にここを直す。
 - plan upgradeは、単一accountのusage/creditと、limitによって止まった収益critical task、追加費用をCFOが計測し、incremental settled profitがplan差額を継続して上回る場合だけ行う。
 
-### 10. 外部一次資料
+### 11. 外部一次資料
 
 - OpenAI Codex Cloud environments / Tailscale private networking: https://learn.chatgpt.com/docs/environments/cloud-environments
 - OpenTelemetry: https://opentelemetry.io/docs/
