@@ -164,6 +164,39 @@ def _index(rows: list[dict], name: str) -> dict[str, dict]:
     return result
 
 
+def _refund_consistency_refs(transactions: dict[str, dict], charges: dict[str, dict],
+                             refunds: dict[str, dict]) -> list[str]:
+    refund_totals: dict[str, int] = {}
+    transaction_totals: dict[str, int] = {}
+    refs: list[str] = []
+    for refund_id, refund in refunds.items():
+        if refund.get("object") != "refund" or refund.get("status") != "succeeded":
+            continue
+        charge_id = _identifier(refund.get("charge"))
+        transaction_id = _identifier(refund.get("balance_transaction"))
+        amount = refund.get("amount")
+        transaction = transactions.get(transaction_id or "")
+        if (not charge_id or isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0
+                or not isinstance(transaction, dict)
+                or transaction.get("object") != "balance_transaction"
+                or transaction.get("type") not in REFUND_TYPES
+                or transaction.get("source") != refund_id
+                or transaction.get("amount") != -amount):
+            refs.append(_evidence("refunds", refund_id))
+            continue
+        refund_totals[charge_id] = refund_totals.get(charge_id, 0) + amount
+        transaction_totals[charge_id] = transaction_totals.get(charge_id, 0) - transaction["amount"]
+
+    for charge_id, charge in charges.items():
+        claimed = charge.get("amount_refunded")
+        if (charge.get("object") != "charge" or isinstance(claimed, bool)
+                or not isinstance(claimed, int) or claimed < 0
+                or claimed != refund_totals.get(charge_id, 0)
+                or claimed != transaction_totals.get(charge_id, 0)):
+            refs.append(_evidence("charges", charge_id))
+    return refs
+
+
 def _evidence(kind: str, object_id: str | None = None) -> str:
     return f"stripe://{kind}" + (f"/{object_id}" if object_id else "")
 
@@ -220,12 +253,22 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     source = _identifier(transaction.get("source"))
     if not currency or not source or not isinstance(charge, dict):
         return None
+    raw_amount = transaction.get("amount")
+    raw_fee = transaction.get("fee")
+    raw_net = transaction.get("net")
+    transaction_amounts_valid = (
+        not isinstance(raw_amount, bool) and isinstance(raw_amount, int)
+        and not isinstance(raw_fee, bool) and isinstance(raw_fee, int)
+        and not isinstance(raw_net, bool) and isinstance(raw_net, int)
+        and raw_amount - raw_fee == raw_net
+    )
     status, transaction_status = charge.get("status"), transaction.get("status")
-    amount = _integer_minor(transaction.get("amount"), currency)
-    fee = _integer_minor(transaction.get("fee"), currency)
+    amount = _integer_minor(raw_amount, currency)
+    fee = _integer_minor(raw_fee, currency)
     occurred_at = _instant(charge.get("created"))
     settled_at = _instant(transaction.get("available_on"))
-    if (charge.get("object") != "charge" or charge.get("id") != source
+    if (transaction.get("object") != "balance_transaction" or not transaction_amounts_valid
+            or charge.get("object") != "charge" or charge.get("id") != source
             or charge.get("balance_transaction") != transaction.get("id")
             or _currency(charge.get("currency")) != currency or charge.get("livemode") is not True
             or charge.get("disputed") is not False or amount in (None, "0") or fee is None
@@ -279,14 +322,24 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
     original_transaction_id = (_identifier(charge.get("balance_transaction"))
                                if isinstance(charge, dict) else None)
     original_transaction = transactions.get(original_transaction_id or "")
-    amount, amount_minor = _absolute_minor(transaction.get("amount"), currency)
+    raw_amount = transaction.get("amount")
+    raw_fee = transaction.get("fee")
+    raw_net = transaction.get("net")
+    transaction_amounts_valid = (
+        not isinstance(raw_amount, bool) and isinstance(raw_amount, int)
+        and not isinstance(raw_fee, bool) and isinstance(raw_fee, int)
+        and not isinstance(raw_net, bool) and isinstance(raw_net, int)
+        and raw_amount - raw_fee == raw_net
+    )
+    amount, amount_minor = _absolute_minor(raw_amount, currency)
     refund_amount = refund.get("amount")
     if isinstance(refund_amount, bool) or not isinstance(refund_amount, int):
         refund_amount = None
-    fee = _integer_minor(transaction.get("fee"), currency)
+    fee = _integer_minor(raw_fee, currency)
     occurred_at = _instant(refund.get("created"))
     settled_at = _instant(transaction.get("available_on"))
-    if (refund.get("object") != "refund" or refund.get("id") != source
+    if (transaction.get("object") != "balance_transaction" or not transaction_amounts_valid
+            or refund.get("object") != "refund" or refund.get("id") != source
             or refund.get("balance_transaction") != transaction.get("id")
             or refund.get("status") != "succeeded" or transaction.get("status") != "available"
             or _currency(refund.get("currency")) != currency or refund_amount != amount_minor
@@ -437,6 +490,7 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
     financial_complete = balance_complete and charges_complete and refunds_complete
     if financial_complete:
         transactions = _index(balance_rows, "balance_transactions")
+        financial_refs.extend(_refund_consistency_refs(transactions, charges, refunds))
         for transaction_id, transaction in sorted(transactions.items()):
             kind = transaction.get("type")
             produced = None

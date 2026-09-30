@@ -197,6 +197,28 @@ class StripeAttributionTest(unittest.TestCase):
                 self.assertEqual(as_of["coverage_state"], "gap")
                 self.assertEqual(as_of["reason"], "unverified_receipt")
 
+    def test_charge_balance_transaction_requires_object_and_net_consistency(self):
+        cases = {
+            "object": lambda transaction: transaction.update(object="charge"),
+            "net": lambda transaction: transaction.update(net=0),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value["balance_transactions"]["data"][0])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_usd"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row["record_type"] == "coverage"
+                                and row["projection"] == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
     def test_refund_requires_fully_verified_original_charge_linkage(self):
         mutations = {
             "object": lambda charge, transactions: charge.update(object="payment_intent"),
@@ -223,6 +245,59 @@ class StripeAttributionTest(unittest.TestCase):
                              and row["projection"] != "as_of"]
                 self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
                 self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_refund_balance_transaction_requires_object_and_net_consistency(self):
+        cases = {
+            "object": lambda transaction: transaction.update(object="topup"),
+            "net": lambda transaction: transaction.update(net=-999),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value["balance_transactions"]["data"][1])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_refund_usd"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row["record_type"] == "coverage"
+                                and row["projection"] == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+    def test_complete_refund_collections_must_reconcile_to_charge_total(self):
+        def remove_refund_transaction(value):
+            value["balance_transactions"]["data"] = [
+                transaction for transaction in value["balance_transactions"]["data"]
+                if transaction["id"] != "txn_refund_usd"
+            ]
+
+        def remove_refund_and_transaction(value):
+            value["refunds"]["data"] = []
+            remove_refund_transaction(value)
+
+        cases = {
+            "missing_refund_and_transaction": remove_refund_and_transaction,
+            "missing_refund_transaction": remove_refund_transaction,
+            "charge_total_mismatch": lambda value: value["charges"]["data"][0].update(
+                amount_refunded=600
+            ),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value)
+                rows = adapt(value)
+                trailing = next(row for row in rows
+                                if row["record_type"] == "coverage"
+                                and row["projection"] == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
 
     def test_movements_require_available_balance_transaction_sign_and_net(self):
         mutations = {
