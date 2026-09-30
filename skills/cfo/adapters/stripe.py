@@ -298,7 +298,8 @@ def _movement(transaction: dict, product_loop_id: str,
     fee = _integer_minor(raw_fee, currency) if currency else None
     occurred_at = _instant(transaction.get("created"))
     settled_at = _instant(transaction.get("available_on"))
-    if not all((currency, amount, fee is not None, occurred_at, settled_at)):
+    if (not all((currency, amount, fee is not None, occurred_at, settled_at))
+            or settled_at < occurred_at):
         return None
     transaction = {**transaction, "currency": currency}
     refs = [_evidence("balance_transactions", transaction["id"])]
@@ -351,7 +352,7 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
             or charge.get("balance_transaction") != transaction.get("id")
             or _currency(charge.get("currency")) != currency or charge.get("livemode") is not True
             or charge.get("disputed") is not False or amount in (None, "0") or fee is None
-            or not occurred_at or not settled_at):
+            or not occurred_at or not settled_at or settled_at < occurred_at):
         return None
     metadata = charge.get("metadata")
     if not isinstance(metadata, dict):
@@ -468,7 +469,7 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
             or amount in (None, "0") or fee is None
             or not isinstance(charge_metadata, dict)
             or charge_metadata.get("lm_economic_category") != contract.REVENUE
-            or not occurred_at or not settled_at):
+            or not occurred_at or not settled_at or settled_at < occurred_at):
         return None
     transaction = {**transaction, "currency": currency}
     components = [{"category": contract.REFUND, "amount": amount}]

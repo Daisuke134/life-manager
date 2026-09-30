@@ -869,6 +869,50 @@ class StripeAttributionTest(unittest.TestCase):
                     ("gap", "unverified_receipt"),
                 )
 
+    def test_reversed_settlement_timestamps_fail_coverage_closed(self):
+        cases = {
+            "movement": ("txn_payout", "balance_transaction"),
+            "charge": ("txn_charge_jpy", "charge"),
+            "refund": ("txn_refund_usd", "refund"),
+        }
+        for pathway, (transaction_id, occurred_source) in cases.items():
+            with self.subTest(pathway=pathway):
+                value = payloads()
+                transaction = next(row for row in value["balance_transactions"]["data"]
+                                   if row["id"] == transaction_id)
+                if occurred_source == "balance_transaction":
+                    occurred_at = transaction["created"]
+                elif occurred_source == "charge":
+                    charge = next(row for row in value["charges"]["data"]
+                                  if row["balance_transaction"] == transaction_id)
+                    occurred_at = charge["created"]
+                else:
+                    refund = next(row for row in value["refunds"]["data"]
+                                  if row["balance_transaction"] == transaction_id)
+                    occurred_at = refund["created"]
+                transaction["available_on"] = occurred_at - 1
+
+                try:
+                    rows = adapt(value)
+                except contract.ContractError as error:
+                    self.fail(f"contract error escaped adapter: {error.code}")
+                self.assertFalse(any(
+                    row.get("receipt_id", "").startswith(
+                        f"stripe:balance_transaction:{transaction_id}"
+                    ) for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn(
+                    f"stripe://balance_transactions/{transaction_id}",
+                    trailing["evidence_refs"],
+                )
+
     def test_minor_amounts_are_bounded_before_exact_integer_conversion(self):
         for raw_amount in (10**40 + 1, 10**1000000):
             with self.subTest(digits="40" if raw_amount < 10**100 else "1000001"):
