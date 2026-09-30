@@ -4,8 +4,13 @@
 
 This document is the canonical design for turning the existing Agent Economy Product Loop into a continuously
 profitable, self-funding part of Life Manager. It joins the current Local/Cloud runtime contract, the earlier
-BlockRun and Akash experiments, the economic benchmark, and current production observations. It does not claim
+BlockRun, Nosana, and Akash experiments, the economic benchmark, and current production observations. It does not claim
 that present-day Agent Economy is profitable or independent.
+
+This design supersedes the older Akash-primary shelter choice. The repository's later executable evidence makes
+Nosana the primary wallet-native shelter path: it has already paid for real jobs from an agent-controlled wallet,
+survived six hours with the Mac loop off, emitted signed heartbeats, renewed, and handed over to a successor job.
+Akash remains the required portability and provider-fallback target, not the first implementation path.
 
 Anicca is the company. Life Manager is the product and agent. Agent Economy is one Product Loop inside Life
 Manager. Local and Cloud are two hosts for the same loop, not separate products or implementations.
@@ -54,21 +59,23 @@ Use a two-stage host architecture and one agent-owned treasury:
 2. **Use BlockRun as agent-paid inference.** Every paid inference request is quoted and capped before execution,
    paid in USDC through x402 from the citizen wallet, and accepted as successful compute only when both settlement
    and usable model output are verified. Free models remain the survival floor.
-3. **Use Akash as the wallet-native persistent shelter target.** A graduated sharehouse pays and renews its Akash
-   lease from the Agent Treasury. This removes a human credit card from the survival path. Akash is not the v1
-   customer host and is not allowed to block the DigitalOcean launch.
-4. **Keep a provider-neutral host adapter.** DigitalOcean is the bootstrap provider, Akash the sovereign target,
-   and another host may replace either without changing Agent Economy's identity, ledger, jobs, receipts, or UX.
+3. **Use Nosana as the proven wallet-native shelter path.** A graduated cell pays for a Nosana job from its
+   agent-controlled Solana wallet, restores its runtime, and creates and verifies a successor before the current
+   job expires. Nosana removes a human credit card from the runtime payment path, but it is not the durable control
+   plane or ledger and the present successor chain is not continuous.
+4. **Keep a provider-neutral host adapter, with Akash as the first fallback.** DigitalOcean is the bootstrap and
+   control-plane provider, Nosana the first sovereign runtime, and Akash the portability target. Neither provider
+   may own Agent Economy's identity, ledger, jobs, receipts, or UX.
 5. **Keep tenant isolation.** Life Manager is one organism with one constitution and shared learning, but each
    beneficiary cell has isolated state, permissions, wallet attribution, receipts, and effect fences. A child,
    cat, or dog does not need a bank account: the Life Manager treasury buys services for that beneficiary under an
    explicit budget and records who benefited.
 
 Do not use BlockRun Modal as the persistent home. It is appropriate only for finite jobs because its public sandbox
-API is duration-bounded and billed for the requested lifetime. Do not use Nosana as the primary persistent home;
-its current strength is scheduled GPU jobs, not low-cost general 24/7 CPU hosting. Do not make AWS AgentCore or
-DigitalOcean Managed Agents the business logic: managed runtimes are replaceable hosts around the repository-owned
-Life Manager loop.
+API is duration-bounded and billed for the requested lifetime. Do not pretend that a Nosana job is a conventional
+permanent VM: continuity requires durable off-job state plus a verified successor chain, and the latest fresh state
+has zero running Nosana jobs. Do not make AWS AgentCore or DigitalOcean Managed Agents the business logic: managed
+runtimes are replaceable hosts around the repository-owned Life Manager loop.
 
 ## Architecture
 
@@ -82,9 +89,11 @@ flowchart LR
     R --> T[Agent Treasury]
     T --> P[Profit and runway policy]
     P -->|allowed| B[BlockRun x402 inference]
-    P -->|graduated| A[Akash sharehouse lease]
+    P -->|graduated| N[Nosana wallet-funded job]
     B --> O[Verified useful output]
-    A --> H[Persistent agent home]
+    N --> H[Restored runtime and signed heartbeat]
+    H --> X[Verified successor handover]
+    X -. portability drill .-> A[Akash fallback]
     O --> F[Fulfilment receipt]
     H --> S
     T --> D[Daily and transition reports]
@@ -145,11 +154,16 @@ fitness; a child must inherit the verified policy and start with a bounded survi
 
 ### Existing Life Manager experiments
 
-The updated master spec already selected the important providers. BlockRun proves wallet-native per-call inference
-and a free survival floor. Akash provides the clearest current path to a persistent container paid from agent-owned
-crypto. Nosana proved that an agent can settle a compute job, but its scheduled GPU-job model does not replace a
-persistent CPU home. DigitalOcean proves a phone-only customer product can run now, but a founder card means it is
-the bootstrap stage, not the final self-funded state.
+The latest consolidation spec and executable shelter code supersede the older master selection. BlockRun proves
+wallet-native per-call inference and a free survival floor. Nosana is the strongest current shelter path because
+the repository contains the deploy, spend gate, renewal, refill, confidential delivery, signed-heartbeat steward,
+and successor-handover implementation, backed by mainnet receipts. The demonstrated runtime survived six hours
+with the Mac loop unloaded and later completed both controller handover and one wall-clock natural replacement.
+The evidence proves level 3 capability, not permanent life: the latest readback reports zero running jobs, the next
+successor did not appear, and all shelter funding came from bootstrap treasury rather than Franklin's external
+earnings. DigitalOcean proves a phone-only customer product can run now, but a founder card means it is the
+incubator and durable control plane, not the final self-funded state. Akash is valuable as a second, portable
+self-custodied container market, but it has less repository implementation and live proof than Nosana today.
 
 The earlier master spec contains contradictory historical Akash routes: one section describes swapping USDC to AKT,
 while a later section identifies native `uusdc` settlement through Noble/Axelar. Implementation must re-query the
@@ -186,14 +200,19 @@ operator kill switches, and unclear accountability. Life Manager therefore uses 
 useful delivered outcomes, reliability, and beneficiary welfare as fitness. It never treats token price, self-trade,
 owner funding, or raw attention as revenue.
 
-### BlockRun, Akash and managed clouds
+### BlockRun, Nosana, Akash and managed clouds
 
 [BlockRun](https://blockrun.ai/docs/getting-started/agent-developers) removes account/API-key subscriptions from
 inference purchasing and makes each request economically observable through x402. That is the correct food rail.
-[Akash](https://akash.network/docs/getting-started/what-is-akash) supplies self-custodied, container-based,
-permissionless leases. That is the correct sovereign shelter target. DigitalOcean and AWS remain useful managed
-bootstrap hosts because they reduce operational work, but their billing identity belongs to a human or company and
-therefore cannot satisfy final financial independence.
+[Nosana Jobs](https://github.com/nosana-ci/docs.nosana.com/blob/main/docs/protocols/jobs.md) lets a project post a
+job through its on-chain program and pay through the signing Solana wallet. That is the primary proven shelter
+rail. The measured historical Life Manager job cost was `$0.043345153/h` (about `$31.21/month` by simple 30-day
+extrapolation), versus `$0.18/h` (about `$129.60/month`) for continuously recreating the measured BlockRun Modal
+sandbox. These are experiment snapshots, not current guaranteed prices; every purchase still requires a fresh
+quote. [Akash](https://akash.network/docs/getting-started/what-is-akash) supplies self-custodied, container-based,
+permissionless leases and is the first provider-fallback and migration target. DigitalOcean and AWS remain useful
+managed bootstrap hosts because they reduce operational work, but their billing identity belongs to a human or
+company and therefore cannot satisfy final financial independence.
 
 ## Observability and evaluation
 
@@ -260,17 +279,22 @@ The order is based on the first missing evidence in the revenue flow, not infras
    provider loss and triggers fallback, not success.
 9. Ingest DigitalOcean's complete attributable hosting cost into the same treasury view and establish a 30-day
    bootstrap runway.
-10. Implement the provider-neutral persistent-shelter interface and a read-only Akash quote/bid probe.
-11. Revalidate the current Base USDC-to-Akash payment route, then perform one bounded agent-wallet-funded lease and
-    official readback without changing the customer production host.
-12. Add automatic lease renewal, state backup, restore, and cross-provider migration acceptance.
-13. Move an accepted beneficiary cell to an Akash sharehouse, renew shelter from earned funds, and turn off its
-    founder-funded DigitalOcean allocation.
+10. Put the existing Nosana deploy, spend gate, refill, renewal, steward, and successor operations behind the
+    provider-neutral shelter interface; retain DigitalOcean as the durable control plane and ledger.
+11. Diagnose and close `FRANKLIN-CONTINUITY-1`: take a fresh Nosana quote, restore from durable state, and prove two
+    consecutive running-to-successor-running handovers without breaking the reserve floor or creating two paid jobs
+    beyond the bounded overlap.
+12. Attribute the funding source on every shelter payment and prove one bounded Nosana lease is renewed from
+    externally earned surplus, not owner/bootstrap treasury; current zero running jobs and zero Franklin external
+    revenue remain visible until then.
+13. Run an Akash quote, deploy, restore, and receipt drill through the same interface as the first cross-provider
+    fallback. It is a portability test, not a replacement for the better-proven Nosana path.
 14. Hold the 30-day self-funding benchmark. Only after it passes may surplus fund replication or other beneficiary
     cells.
 
-Tasks 1-7 are the revenue critical path. Akash work starts after a repeatable profitable customer lane exists,
-because cheaper autonomous shelter cannot make a zero-revenue business profitable.
+Tasks 1-7 are the revenue critical path. Nosana continuity work can proceed as a bounded reference track, but
+earned-fund graduation and the Akash portability drill follow repeatable profitable customer revenue because
+autonomous shelter cannot make a zero-revenue business profitable.
 
 ## Explicit non-goals for this delivery
 
@@ -281,4 +305,3 @@ because cheaper autonomous shelter cannot make a zero-revenue business profitabl
 - Replication before the parent pays its own complete cost and maintains reserve.
 - A literal guarantee of survival until the end of the universe. The implementable requirement is continuity of
   mission, identity, state and assets across replaceable providers, chains and runtime bodies.
-
