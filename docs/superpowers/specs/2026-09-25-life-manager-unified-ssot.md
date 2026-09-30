@@ -356,6 +356,10 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
   - [ ] C1a capafy_distribute_fence_reconcile.py を写して metrics 用の読み戻し役を作る（公式 readback = Telegram の該当チャット〔tg_user.py read〕と post-metrics.jsonl の行）→ registry に effect_reconcile → 2 本の fence を自動で閉じる
   - [ ] C1b 計測が再開し post-metrics.jsonl に今日の行が入ることを確認
 
+**C1 進捗（2026-09-30 09:4x JST）**: 計測 2 loop の fence を証拠付きで閉じた（instagram-metrics 18d91272820502c8-44925 = 送信済み、marketing-liveness receipt の Telegram message_id 97163。tiktok-metrics 18d5f23f782b5780-19751 = 未送信、9/17 08:40〜09:30 の 3 つの bot 会話〔Local/Cloud Life Manager・LifeBot〕を MTProto で読み計測要約 0 件）。証拠は reconciliation/evidence。直後の lm-loop start は 2 本とも exit 124（300 秒）。原因: apps/life-manager/scripts/tiktok-native-metrics-read.js が接続先を http://127.0.0.1:9222 に決め打ちし、それ以外を拒否する。9222 は Dais の Chrome（触らない決まり）で、registry にも browser 宣言が無い。手動実行もしない。
+- [ ] C1c 他の loop と同じく browser-guard.sh の lease で TikTok 用 identity（browsers.toml の tiktok-anicca-jp 等、どれが計測対象アカウントにログイン済みかを実物で確認）を借り、lease が返す endpoint を使う形に直す（決め打ち 9222 をやめる）→ worktree で 1 回通す → merge → apply → post-metrics.jsonl に今日の行
+- [ ] C1a 計測 2 loop に読み戻し役（今回の閉じ方: receipt の message_id / Telegram 3 会話の listing）を付け、fence が永久化しないようにする
+
 **Capafy だけを 1 つずつ閉じる（2026-09-29 23:0x JST、Dais: 1 つずつ。Capafy が閉じるまで他へ進まない）**
 - 作る（工場 capafy-loop-daily）: 今日の自然 run 26 回中 24 回が途中で BLOCKED。原因 4 つを修正済み: Coconala とのブラウザ取り合い（専用 capafy-browser、#6230）、HOME 移動で lease 不可（#8f1fdd3a）、lock 持ち主不明（#a1018689）、読み取り専用アイコン上書き不可（#af6e5011）。22:16 の失敗の fence は lm-fence-reconciler が 62 分後（23:18 頃）に自動で閉じる設計（too_recent を readback で確認）。
 - 売る（宣伝 capafy-distribute-daily）: 17:04 の exit 1 の fence に読み戻し役が無く、19:15 と 22:15 の自然 run が走っていなかった。23:0x に公開ページの公式 readback で閉じ、読み戻し役 capafy_distribute_fence_reconcile.py を追加（#b4ab4ade、IG の写し、本物の GitHub commit・公開ページ・Postiz で effected と判定を確認）。
