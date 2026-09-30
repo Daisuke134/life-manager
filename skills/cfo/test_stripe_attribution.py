@@ -282,6 +282,7 @@ class StripeAttributionTest(unittest.TestCase):
             "fee_type": lambda transaction: transaction.update(fee="88"),
             "net_type": lambda transaction: transaction.update(net="1911"),
             "net_mismatch": lambda transaction: transaction.update(net=1900),
+            "negative_fee": lambda transaction: transaction.update(fee=-88, net=2087),
         }
         for case, mutate in cases.items():
             with self.subTest(case=case):
@@ -292,6 +293,14 @@ class StripeAttributionTest(unittest.TestCase):
                     row.get("receipt_id") == "stripe:balance_transaction:txn_refund_usd"
                     for row in rows
                 ))
+
+    def test_refund_evidence_includes_original_charge_balance_transaction(self):
+        refund = next(row for row in adapt()
+                      if row.get("receipt_id") == "stripe:balance_transaction:txn_refund_usd")
+        self.assertIn(
+            "stripe://balance_transactions/txn_charge_usd",
+            refund["evidence_refs"],
+        )
 
     def test_refund_balance_transaction_requires_object_and_net_consistency(self):
         cases = {

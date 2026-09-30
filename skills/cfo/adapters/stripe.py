@@ -332,7 +332,7 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
         not isinstance(original_amount, bool) and isinstance(original_amount, int)
         and not isinstance(original_fee, bool) and isinstance(original_fee, int)
         and not isinstance(original_net, bool) and isinstance(original_net, int)
-        and original_amount - original_fee == original_net
+        and original_fee >= 0 and original_amount - original_fee == original_net
     )
     raw_amount = transaction.get("amount")
     raw_fee = transaction.get("fee")
@@ -391,8 +391,9 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
     return [_receipt(
         transaction=transaction, product_loop_id=product_loop_id, occurred_at=occurred_at,
         settled_at=settled_at, state="verified", revenue_class=None, components=components,
-        refs=[_evidence("balance_transactions", transaction["id"]), _evidence("refunds", source),
-              _evidence("charges", charge_id)],
+        refs=[_evidence("balance_transactions", transaction["id"]),
+              _evidence("balance_transactions", original_transaction_id),
+              _evidence("refunds", source), _evidence("charges", charge_id)],
     )]
 
 
