@@ -305,10 +305,12 @@ def _validate_bundle(payload: dict) -> tuple[dict, list[dict], str, str]:
     if not isinstance(capture, dict) or not isinstance(artifact, dict):
         raise ValueError("unverified_receipt")
     if (
-        capture.get("schema_version") != 1
+        type(capture.get("schema_version")) is not int
+        or capture.get("schema_version") != 1
         or capture.get("receipt_type") != "PARTNERSTACK_REPORT_CAPTURE"
         or capture.get("provider") != UPSTREAM_PROVIDER
         or capture.get("currency_display") not in SUPPORTED_CURRENCIES
+        or type(artifact.get("schema_version")) is not int
         or artifact.get("schema_version") != 1
         or artifact.get("receipt_type") != "PARTNERSTACK_RENDERED_REPORT_ARTIFACT"
     ):
@@ -326,7 +328,8 @@ def _validate_bundle(payload: dict) -> tuple[dict, list[dict], str, str]:
     if "commission_status_extension" in capture:
         raise ValueError("unverified_receipt")
     rows = _validate_commission_pairs(artifact, PRODUCER_COMMISSION_STATUS)
-    if capture.get("commission_row_count") != len(rows):
+    row_count = capture.get("commission_row_count")
+    if type(row_count) is not int or row_count < 0 or row_count != len(rows):
         raise ValueError("unverified_receipt")
     row_state = "EMPTY" if not rows else "ROWS_PRESENT"
     normalizer_state = "NO_LIVE_ROWS" if not rows else "NORMALIZED"

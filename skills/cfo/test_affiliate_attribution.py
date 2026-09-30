@@ -429,6 +429,27 @@ class AffiliateAttributionTest(unittest.TestCase):
                     ["unverified_receipt", "unverified_receipt"],
                 )
 
+    def test_bundle_schema_and_row_count_require_exact_integer_types(self):
+        mutations = (
+            ("capture_schema_bool", "capture", "schema_version", True),
+            ("artifact_schema_bool", "artifact", "schema_version", True),
+            ("row_count_float", "capture", "commission_row_count", 4.0),
+        )
+        for name, section, field, value in mutations:
+            with self.subTest(name=name):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                payload[section][field] = value
+                records = self.adapt(rehash_bundle(payload))
+                self.assertFalse(any(
+                    row.get("receipt_id") ==
+                    "partnerstack-elevenlabs:commission:reward-paid-1:paid"
+                    for row in records
+                ))
+                self.assertEqual(
+                    [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                    ["unverified_receipt", "unverified_receipt"],
+                )
+
     def test_declined_commission_is_not_a_refund(self):
         payload = fixture("affiliate-partnerstack-complete.json")
         raw = payload["artifact"]["commission_rows"][3]
