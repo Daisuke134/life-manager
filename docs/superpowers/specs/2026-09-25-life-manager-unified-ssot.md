@@ -1658,6 +1658,81 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
 - [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
 
+## 最新Ryu DMとGig全platform内部loopのreadback（2026-10-01 07:14 JST）
+
+この節は、2026-10-01時点のRyuさん最新要求と、live runtimeのplatform別readbackを記録する。外部送信・正式納品・provider mutationはこの更新では実行していない。上記の旧cursorにある「RyuさんDMは一回送信済み」という履歴は保持するが、今回の新着要求があるため、Ryu案件を完了扱いにはしない。
+
+### Ryuさんの最新要求（公式通知で確認した事実）
+
+- GmailのCoconala通知（message id `1a0f0ecc43c34fd3`、2026-09-30 15:07 JST、件名`[ココナラ] Ryu0820119さんからメッセージが届いています`）の本文は、**「出勤の時系列が止まっていますが正常でしょうか？」**である。
+- 直前の通知は、2026-09-29 13:32 JST「まだですか？ まもなく営業開始しますので早く完成させて欲しいです。」、2026-09-28 23:05 JST「完成しましたか？」、2026-09-27 19:23 JST「これからはこちらでやりとりでよろしいでしょうか？」である。
+- Coconala公式DM本文そのものの再readbackは、今回の環境で`bsk browsers --json=[]`、`bsk session list --json=[]`となり、接続済みbrowser/sessionが0だったため未実施である。Gmail通知は新着の存在を示すが、DM画面・添付・返信状態の公式readbackの代替ではない。
+- したがって、今回の最終返信に必ず含める新規修正対象は「出勤の時系列が止まる問題」である。正常仕様かどうかを推測せず、管理画面の出勤操作、保存イベント、公開側の時系列表示、ページ再読込後の同値readbackを確認してから原因を確定する。
+
+### Ryuさんへ一度だけ送る最終版の内容
+
+最終版は、最新要求だけを別送せず、下記の未完・既修正内容を一つのmanifestへ統合し、公式DMへ一度だけ送る。正式納品ボタンは押さない。receipt/readbackのない内容を「完了」と書かない。
+
+1. **最新**: 出勤の時系列が途中で止まらないこと。出勤操作→保存→公開表示→再読込の連続性、順序、時刻、重複防止をreadbackする。
+2. **通常オプション／有料オプション**: 既存要求の「写真撮影1枚〜（顔なし）1,000円〜、動画撮影1本〜（顔なし）2,000円〜、ごっくん1,000円〜、顔射1,000円〜、AF5,000円〜」を通常オプションから除去し、女の子ごとの有料オプションとして保持する。既存specのv705記録はsource/readback証拠であり、現productionでの再確認が必要。
+3. **コンセプト画像・順序・アニメーション**: 購入者提供6枚（`IMG_5859.jpeg`〜`IMG_5864.jpeg`）と指定順を維持し、アニメーションを変えない。既存specのv706 readbackを参照し、最新DMで追加差分がないか確認する。
+4. **女の子検索・画像設定**: 「この女の子を探す」の文言、12名分のメイン画像＋写真入力、在籍・出勤・ランキング・プロフィール・予約の同一データ経路を一度に確認する。
+5. **相互リンク**: 管理画面で追加・編集・並べ替え・公開できる機能を確認する。実際の相互リンクURL・バナー画像が未提供なら、推測で登録せず、最終版を送る前に`未提供`として残す。
+6. **WEB予約**: 文言を編集できる経路と公開フォームのreadbackを確認する。Ryuさんが希望する最終文言そのものがDM公式readbackで未取得なら、文言を捏造せず未確定として扱う。
+7. **納品本文**: 管理画面リンク、公開WEB予約リンク、実施済み項目、未提供データ、公式readback参照を一本文にまとめる。送信回数は1回、重複送信0回、正式納品操作0回とする。
+
+### live内部loopの実測（2026-10-01 07:09 JST、read-only）
+
+production `current`は`/Users/anicca/loops/releases/20261001T051137-8e72fc7e`、`RELEASE.json.sha=8e72fc7e39a71ffda3e24f1ae87c5a52d0b5cd4f`である。`lm-loop-contract --catalog apps/life-manager/config/product-loop-catalog.json --registry config/loop-registry.json`は`ok=true`（catalog 14、registry 176、mapped 103、shared job IDs 0）。2026-10-01 07:13 JSTの`lm-loop health --json`はschema `lm-loop.health.v1`、全176 job、`healthy=32`、`running=24`、`safely_fenced=68`、`failed=39`、`effect_unknown=12`、`telemetry_gap=1`、`human_required=0`を返し、exit codeは1だった。`human_required=0`は「人間不要案件を全て証明した」という意味ではなく、現在のruntime snapshotにその分類が付いていないという意味である。
+
+| platform / lane | 実測状態 | 外部効果・receipt | 結論 |
+|---|---|---|---|
+| **Coconala Apply** `hf-gig-apply-direct` | `safely_fenced`、古いrelease `287d913c…` | `resource_effect_unknown`、provider receipt/readbackなし | 応募成功とは扱わない。再送せず同一occurrenceをheldにする。 |
+| **Coconala Storefront** `hf-gig-storefront-direct` | `safely_fenced`、release `8e72fc7e…` | `resource_effect_unknown`、receiptなし | 公開・販売成功ではない。 |
+| **Coconala Paid** `hf-gig-paid-direct` | `safely_fenced`、`host_admission_deferred:resource_capacity_busy` | effect `not_applicable`、receiptなし | 今回のrunはcapacityで実行されておらず、納品・支払・売上のpassではない。 |
+| **Coconala Reply** `hf-gig-reply-detector` | 現snapshotは`healthy` | provider message receiptなし | プロセスhealthはpassだが、RyuさんDMの返信・公式readback成功とは扱わない。 |
+| **Coconala reconcile / evidence-gc** | reconcileは直近pass、evidence-gcはcapacity fence | 外部receiptなし | cleanup/reconcile passは顧客成果の証拠ではない。 |
+| **Lancers Application** | `safely_fenced` / `entrypoint_exit_1` | `official_readback_required`、receiptなし | 応募成功ではない。 |
+| **Lancers Negotiate** | process `pass`だがeffect `unknown` | message receiptなし | 交渉成功・返信済みとは扱わない。 |
+| **Lancers Paid** | `safely_fenced` / `entrypoint_exit_1` | `official_readback_required`、receiptなし | 納品・決済成功ではない。 |
+| **Lancers Storefront / report** | effect fence | `resource_effect_unknown`、receiptなし | 公開・通知成功ではない。 |
+| **Lancers Work-sync** | `failed` / `entrypoint_exit_75` | provider receiptなし | reconcile原因の診断が必要。 |
+| **CrowdWorks Application** | `safely_fenced`、browserはrunning/過去exit 75 | effect unknown、receiptなし | 応募成功ではない。 |
+| **CrowdWorks Paid** | `safely_fenced` / capacity busy | effect unknown、receiptなし | 納品・支払成功ではない。 |
+| **CrowdWorks Reply** | `safely_fenced` / `entrypoint_exit_1` | `official_readback_required`、receiptなし | 返信成功ではない。 |
+| **CrowdWorks Report** | `safely_fenced` / resource effect unknown | receiptなし | 通知成功ではない。 |
+| **Mercor Application / Paid / Reply** | 3 ownerとも`safely_fenced` | `resource_effect_unknown`、receiptなし。browser target owner欠落は旧spec記録どおり | human-free契約・応募・納品は未証明。 |
+| **Freelancer / Upwork** | active lifecycle ownerなし | account auth、funded contract/milestone、payout receiptなし | ループは稼働していない。登録・応募を成功扱いにしない。 |
+
+### 私の担当分で固定済み／未完了
+
+**固定済み（source/spec上）**:
+
+- `lm-loop.health.v1`、14 Product Loop/176 managed job分類、4時計、effect fence、公式receipt/readback、human-free qualificationの共通契約をmainへ記録済み。
+- Coconalaのclient-artifact restore、画像・順序・アニメーション、WEB予約編集、女の子画像入力、相互リンク管理、DM URL/input adapterのsource/readback証拠は既存specに記録済み。
+- Ryuさんへの過去の統合DMは一回送信証跡があり、正式納品ボタンは未押下。今回の新着により、その送信を最新完了とは扱わない。
+
+**未完了（live／外部効果）**:
+
+- Ryuさんの最新「出勤の時系列停止」を公式DMと管理画面でreadbackし、原因を直して、全修正を一つの最終版へ統合する。
+- Coconala各laneのrelease drift、effect unknown、Reply exit 75、provider receipt/readback欠落を閉じる。
+- Lancers/CrowdWorks/Mercorのentrypoint、capacity、browser identity、公式proposal/thread/Paid/delivery receiptをoccurrence単位で閉じる。
+- Freelancer/Upworkのapproved terms、専用identity auth、source-complete inventory、funded milestone、mutation authorization、payout readbackは未完了。
+- 14 loopのsettled revenue、fee、model/tool/infra cost、net P&Lは未完成で、現時点で「各platformが稼いでいる」とは言えない。
+
+### Ryuさん優先の原子TODO（外部送信はまだしない）
+
+1. Coconala browser/sessionを復旧し、公式DM `10107358?uid=2564121`をread-onlyで開く。完了条件: 最新メッセージ、送信済み本文、添付、返信入力、正式納品状態を同一画面で保存。
+2. 最新DMと既存manifestを照合し、Ryuさん要求を一つの変更一覧へ統合する。完了条件: 最新「出勤の時系列停止」、旧オプション、画像、検索文言、相互リンク、WEB予約文言を重複なく列挙し、未提供データを明記。
+3. 出勤時系列の原因境界を特定する。完了条件: 管理画面保存→API/状態→公開表示→再読込の各段階で、停止箇所・error class・occurrence・next actionを記録。
+4. 必要なsource修正とfocused testを実装する。完了条件: 時系列の自然round-trip、順序、時刻、重複防止、既存画像/予約/リンクの回帰がPASS。
+5. main由来immutable releaseへ反映し、Coconalaの対象ownerをloaded-idle時だけapplyする。完了条件: release SHA、argv/env、browser identity lease、natural terminalをreadback。running/effect_unknown中の強制restart・再送は禁止。
+6. 管理画面・公開ページ・DM本文を一回だけ公式readbackする。完了条件: 全修正、管理画面リンク、公開リンク、receipt/readback、未提供データが一本文に揃う。
+7. Ryuさんの公式DMへ最終版を一度だけ送信する。完了条件: pre-send duplicate=0、send count=1、直後bubble=1、正式納品クリック=0。DM公式readbackが無い限り送信しない。
+8. その後に他platformを同じ順序で閉じる。完了条件:各laneが`healthy`または理由付き`safely_fenced`、provider receipt/readback、replay-zero、payout、cost-complete net P&Lまで記録される。
+
+このcursorでは、CoconalaのRyuさんを最優先にするが、現時点で送信・納品・loop再起動は行わない。最終送信は新着要求を含む一本文一回だけとし、公式readbackなしの推測・再送・収益計上を禁止する。
+
 ## 現在の正本cursor — 14 Product Loop、observability、orchestration、cloud移行
 
 この節がEOFの最新cursorであり、上に残る古いcursor・個別platform TODO・古いrelease SHAより優先する。過去の記録は証拠として残すが、実行順はこの節の「統合Atomic TODO」だけを使う。既に`[x]`になった項目はやり直さない。
@@ -1918,3 +1993,14 @@ flowchart LR
 - Chrome Headless: https://developer.chrome.com/docs/automation-and-testing/headless
 
 今回の文書更新はsource truthと実行順だけを変更する。production owner、browser、provider、wallet、cloud resource、subscriptionは変更しない。
+
+## 現在の正本cursor — Ryu最新DMとGig live readback（2026-10-01 07:14 JST）
+
+この節がEOFの最新cursorであり、上の旧platform別cursorより優先する。詳細なRyu要件・platform別lane表・原子TODOは、同じ文書内の「最新Ryu DMとGig全platform内部loopのreadback（2026-10-01 07:14 JST）」を参照する。
+
+- Ryuさんの最新公式Coconala通知（Gmail message `1a0f0ecc43c34fd3`、2026-09-30 15:07 JST）は「出勤の時系列が止まっていますが正常でしょうか？」である。旧修正と分離して返信せず、全要求を一本文へ統合し、一度だけ送る。正式納品ボタンは押さない。
+- 今回はCoconala browser/sessionが0（`bsk browsers --json=[]`、`bsk session list --json=[]`）で、DM画面の公式readback・送信は未実施。Gmail通知をDM本文・添付・返信状態の代用にしない。
+- live `current`は`/Users/anicca/loops/releases/20261001T051137-8e72fc7e`。2026-10-01 07:13 JSTの`lm-loop health --json`は176 job、healthy 32、running 24、safely_fenced 68、failed 39、effect_unknown 12、telemetry_gap 1、human_required 0。platform receipt/readback 0件で、各platformが稼いでいるとは言えない。
+- CoconalaはApply/Storefrontがeffect unknown、Paidはcapacity fence、Replyは現snapshotのprocess health passだがreceiptなし。LancersはApplication/Paid exit 1系、Negotiateはprocess passでもeffect unknown、Work-sync exit 75。CrowdWorksはPaid capacity fence、Reply exit 1、Report effect unknown。Mercor 3 laneはeffect unknown。Freelancer/Upworkはactive ownerなし。
+- Ryu優先順は、(1) DM公式readback復旧、(2)出勤時系列の保存→API→公開→再読込の原因特定、(3)旧オプション・画像・検索文言・相互リンク・WEB予約文言を一つのmanifestへ統合、(4)source修正とfocused test、(5)main由来immutable release・idle owner apply・公式readback、(6)最終本文をDMへ一度だけ送信、(7)その後に他platformのreceipt/payout/net P&Lを閉じる、である。
+- `effect_unknown`、未接続browser、未取得receipt、未提供の相互リンクURL／バナー／最終WEB予約文言は推測で埋めず、heldとして残す。再送・強制restart・正式納品・収益計上は禁止する。
