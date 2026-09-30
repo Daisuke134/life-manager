@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install exact loop contract test dependency
+        run: python3 -m pip install --disable-pip-version-check jsonschema==4.26.0
       - name: Verify registry, releases, apply fencing, and clean install
         run: python3 -m unittest discover -s runtime/loop/tests -p 'test_*.py'
 
