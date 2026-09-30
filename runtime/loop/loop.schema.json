@@ -280,6 +280,14 @@
     "state_root": {
       "pattern": "^~/.+",
       "type": "string"
+    },
+    "system_role": {
+      "enum": [
+        "control",
+        "platform",
+        "shared"
+      ],
+      "type": "string"
     }
   },
   "required": [

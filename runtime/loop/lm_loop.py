@@ -34,6 +34,11 @@ from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
+from runtime.loop.health import (
+    HealthTimeout, health_deadline, health_exit_code, project_health,
+    render_human as render_health_human,
+    render_skill as render_health_skill,
+)
 from runtime.host.resource_admission import (
     ADMISSION_CLASSES, ADMISSION_POLICY, BASE_PRIORITIES, EFFECT_SCOPES,
     RESOURCE_CLASSES, activate_durable_v2, durable_protocol_version,
@@ -45,6 +50,8 @@ from runtime.host.resource_admission import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+LAUNCHCTL_READ_TIMEOUT_SECONDS = 15.0
+HEALTH_SNAPSHOT_TIMEOUT_SECONDS = 2 * LAUNCHCTL_READ_TIMEOUT_SECONDS
 PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
     "host_admission_deferred:resource_capacity_busy",
     "host_admission_deferred:resource_fifo_wait",
@@ -997,6 +1004,11 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         missing_diagnostic_fields = sorted(DIAGNOSTIC_FIELDS - set(event))
         catalog_product_loop_id = product_by_job.get(loop_id)
         event_product_loop_id = event.get("product_loop_id")
+        system_role = entry.get("system_role")
+        product_loop_id = (
+            None if system_role is not None
+            else catalog_product_loop_id or event_product_loop_id
+        )
         diagnostic_error = None
         if event.get("job_id") is not None and event.get("job_id") != loop_id:
             diagnostic_error = "event_job_identity_mismatch"
@@ -1058,7 +1070,8 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "provider": event.get("provider"),
             "profile_alias": event.get("profile_alias"),
             "event_id": event.get("event_id"),
-            "product_loop_id": catalog_product_loop_id or event_product_loop_id,
+            "product_loop_id": product_loop_id,
+            "system_role": system_role,
             "job_id": loop_id,
             "owner_id": event.get("owner_id"),
             "run_id": event.get("run_id"),
@@ -1078,6 +1091,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "diagnostic_complete": diagnostic_complete,
             "diagnostic_missing_fields": missing_diagnostic_fields,
             "diagnostic_error": diagnostic_error,
+            "health_clocks": event.get("_health_clocks"),
             "last_pass": event.get("timestamp"),
             "last_terminal_result": last_terminal_result,
             "effect_class": entry["effect_class"],
@@ -1206,6 +1220,70 @@ def _parse_status_args(values: list[str]) -> tuple[str, bool]:
     return aliases.get(target, target), explain
 
 
+def _parse_health_args(values: list[str]) -> tuple[str, str | None, bool]:
+    output = "human"
+    target = None
+    explain = False
+    index = 0
+    while index < len(values):
+        value = values[index]
+        if value in {"--json", "--skill"}:
+            selected = value.removeprefix("--")
+            if output != "human":
+                raise ValueError("health accepts only one output format")
+            output = selected
+        elif value == "--explain":
+            explain = True
+        elif value == "--loop":
+            index += 1
+            if index >= len(values) or values[index].startswith("--"):
+                raise ValueError("health --loop requires NAME")
+            if target is not None:
+                raise ValueError("health accepts only one --loop NAME")
+            target = values[index]
+        else:
+            raise ValueError(f"unknown health option: {value}")
+        index += 1
+    if explain and target is None:
+        raise ValueError("health --explain requires --loop NAME")
+    aliases = {"connector": "life-manager-connector-native"}
+    return output, aliases.get(target, target), explain
+
+
+def _health_snapshot_failure_rows(registry: dict, target: str | None, *,
+                                  error_class: str, next_action: str) -> list[dict]:
+    product_by_job = _product_loop_job_map()
+    if target is not None and target not in registry["loops"]:
+        raise ValueError(f"unknown health loop: {target}")
+    loop_ids = [target] if target is not None else sorted(registry["loops"])
+    return [{
+        "classification": "managed",
+        "loop_id": loop_id,
+        "label": registry["loops"][loop_id]["label"],
+        "product_loop_id": product_by_job.get(loop_id),
+        "system_role": registry["loops"][loop_id].get("system_role"),
+        "launchd_state": "unknown",
+        "last_terminal_result": None,
+        "last_pass": None,
+        "effect_class": registry["loops"][loop_id]["effect_class"],
+        "effect_status": "unknown",
+        "diagnostic_complete": False,
+        "health_adapter_status": "timeout" if error_class.endswith("timeout") else "error",
+        "error_class": error_class,
+        "retryable": True,
+        "next_action": next_action,
+    } for loop_id in loop_ids]
+
+
+def _health_snapshot_timeout_rows(registry: dict, target: str | None) -> list[dict]:
+    return _health_snapshot_failure_rows(
+        registry,
+        target,
+        error_class="health_snapshot_timeout",
+        next_action="retry_health_snapshot",
+    )
+
+
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
                     admission_effect_unknown: set[str] | None = None,
@@ -1258,6 +1336,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "profile_alias": None,
             "event_id": None,
             "product_loop_id": None,
+            "system_role": None,
             "job_id": label,
             "owner_id": None,
             "run_id": None,
@@ -1316,29 +1395,140 @@ def _launchctl(*args: str) -> str:
     # loop scratch area.  Near an ENOSPC boundary, TemporaryFile() itself can
     # fail before launchctl is queried, hiding the real control-plane state.
     result = subprocess.run(
-        ["launchctl", *args], capture_output=True, text=True, timeout=15)
+        ["launchctl", *args], capture_output=True, text=True,
+        timeout=LAUNCHCTL_READ_TIMEOUT_SECONDS)
     output, error = result.stdout, result.stderr
     if result.returncode:
         raise RuntimeError(error.strip() or "launchctl failed")
     return output
 
 
+_HEALTH_EVENT_CACHE_KEY = object()
+_HEALTH_RUNNING_CACHE_KEY = object()
+HEALTH_HISTORY_EVENT_LIMIT = 50_000
+
+
+def _health_event_projection(
+    lines: list[str],
+) -> tuple[dict[str, dict], dict[tuple[str, str], dict]]:
+    reports: dict[str, dict] = {}
+    running_events: dict[tuple[str, str], dict] = {}
+    clocks_by_loop: dict[str, dict[str, str | None]] = {}
+    for line in reversed(lines[-HEALTH_HISTORY_EVENT_LIMIT:]):
+        if '"phase"' not in line or ('"report"' not in line and '"execute"' not in line):
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (not isinstance(value, dict)
+                or value.get("phase") not in {"execute", "report"}):
+            continue
+        loop_id = value.get("loop_id")
+        timestamp = value.get("timestamp")
+        if not isinstance(loop_id, str) or not isinstance(timestamp, str):
+            continue
+        clocks = clocks_by_loop.setdefault(loop_id, {
+            "last_attempt": None,
+            "last_success": None,
+            "last_effect": None,
+            "last_receipt": None,
+        })
+        is_latest = value.get("phase") == "report" and loop_id not in reports
+        running_key = (loop_id, str(value.get("run_id", "")).rsplit("-", 1)[-1])
+        is_pid_bound_running = (
+            value.get("phase") == "execute"
+            and value.get("status") == "running"
+            and value.get("job_id") is not None
+            and loop_id not in reports
+            and running_key not in running_events
+        )
+        records_attempt = clocks["last_attempt"] is None
+        records_success = (
+            clocks["last_success"] is None
+            and value.get("phase") == "report"
+            and value.get("status") == "pass"
+        )
+        records_effect = (
+            clocks["last_effect"] is None
+            and value.get("effect_class") != "none"
+            and value.get("effect_status") in {
+                "started", "verified", "failed", "reconciled",
+            }
+        )
+        records_receipt = (
+            clocks["last_receipt"] is None
+            and (value.get("provider_receipt_id")
+                 or value.get("official_readback_ref"))
+        )
+        if not (is_latest or is_pid_bound_running or records_attempt or records_success
+                or records_effect or records_receipt):
+            continue
+        try:
+            validate_runtime_event(value)
+        except ValueError:
+            continue
+        if is_latest:
+            reports[loop_id] = value
+        if is_pid_bound_running:
+            running_events[running_key] = value
+        if records_attempt:
+            clocks["last_attempt"] = timestamp
+        if records_success:
+            clocks["last_success"] = timestamp
+        if records_effect:
+            clocks["last_effect"] = timestamp
+        if records_receipt:
+            clocks["last_receipt"] = timestamp
+    projected_reports = {
+        loop_id: {**event, "_health_clocks": clocks_by_loop[loop_id]}
+        for loop_id, event in reports.items()
+    }
+    projected_running = {
+        key: {**event, "_health_clocks": clocks_by_loop[key[0]]}
+        for key, event in running_events.items()
+    }
+    return projected_reports, projected_running
+
+
 def _last_event(state_root: str, loop_id: str | None = None,
                 cache: dict[Path, dict[str | None, dict]] | None = None,
-                running_pid: str | None = None) -> dict | None:
+                running_pid: str | None = None,
+                include_health_clocks: bool = False) -> dict | None:
     path = Path(os.path.expanduser(state_root)) / "events.jsonl"
-    if running_pid is None and cache is not None and path in cache:
+    if cache is not None and path in cache:
         cached = cache[path]
+        if include_health_clocks and cached.get(_HEALTH_EVENT_CACHE_KEY) is True:
+            running_events = cached.get(_HEALTH_RUNNING_CACHE_KEY, {})
+            return running_events.get(
+                (loop_id, str(running_pid)), cached.get(loop_id)
+            ) if running_pid is not None else cached.get(loop_id)
         # A targeted scan stores only the requested loop.  The ``None`` key
         # is populated only by a complete scan, so it is the signal that a
         # missing loop id is a cached miss rather than an unscanned one.
-        if loop_id in cached or None in cached:
-            return cached.get(loop_id)
+        if running_pid is None and (loop_id in cached or None in cached):
+            cached_event = cached.get(loop_id)
+            if (not include_health_clocks or cached_event is None
+                    or "_health_clocks" in cached_event):
+                return cached_event
     reports: dict[str | None, dict] = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         lines = []
+    health_reports: dict[str, dict] = {}
+    if include_health_clocks:
+        health_reports, health_running_events = _health_event_projection(lines)
+        if cache is not None:
+            cached = cache.setdefault(path, {})
+            cached.update(health_reports)
+            cached[_HEALTH_RUNNING_CACHE_KEY] = health_running_events
+            cached[_HEALTH_EVENT_CACHE_KEY] = True
+        if running_pid is not None:
+            return health_running_events.get(
+                (loop_id, str(running_pid)), health_reports.get(loop_id)
+            )
+        return health_reports.get(loop_id)
     for line in reversed(lines):
         try:
             value = json.loads(line)
@@ -1355,6 +1545,19 @@ def _last_event(state_root: str, loop_id: str | None = None,
         if value.get("phase") != "report" and not pid_bound_running:
             continue
         if loop_id is not None and value.get("loop_id") == loop_id:
+            if include_health_clocks:
+                value = {
+                    **value,
+                    "_health_clocks": (
+                        health_reports.get(loop_id, {}).get("_health_clocks")
+                        or {
+                            "last_attempt": None,
+                            "last_success": None,
+                            "last_effect": None,
+                            "last_receipt": None,
+                        }
+                    ),
+                }
             if cache is not None:
                 cache.setdefault(path, {})[loop_id] = value
             return value
@@ -1403,7 +1606,8 @@ def _state_root_from_plist(path: Path, fallback: str) -> str:
     return os.path.expanduser(fallback)
 
 
-def collect_live(registry: dict, *, full_inventory: bool = True
+def collect_live(registry: dict, *, full_inventory: bool = True,
+                 include_health_clocks: bool = False,
                  ) -> tuple[dict, dict, dict, set[str], set[str]]:
     loaded = parse_loaded(_launchctl("list"))
     disabled = parse_disabled(_launchctl("print-disabled", f"gui/{os.getuid()}"))
@@ -1425,6 +1629,7 @@ def collect_live(registry: dict, *, full_inventory: bool = True
             _state_root_from_plist(plist_path, entry["state_root"]), loop_id, event_cache,
             running_pid=(loaded.get(label) or {}).get("pid")
             if entry.get("cadence", {}).get("keep_alive") is True else None,
+            include_health_clocks=include_health_clocks,
         )
         if event:
             events[loop_id] = event
@@ -1634,13 +1839,17 @@ def _attach_effect_unknown_diagnosis(rows: list[dict], registry: dict,
     return rows
 
 
-def snapshot(registry: dict, target: str, *, include_effect_details: bool = True) -> list[dict]:
+def snapshot(registry: dict, target: str, *, include_effect_details: bool = True,
+             include_health_clocks: bool = False) -> list[dict]:
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
+        collect_options = {"full_inventory": False}
+        if include_health_clocks:
+            collect_options["include_health_clocks"] = True
         loaded, disabled, events, releases, _ = collect_live(
-            selected_registry, full_inventory=False)
+            selected_registry, **collect_options)
         rows = status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
@@ -1652,7 +1861,8 @@ def snapshot(registry: dict, target: str, *, include_effect_details: bool = True
                 row["admission_effect_unknown_details_omitted"] = True
             return rows
         return _attach_effect_unknown_diagnosis(rows, registry, admission_unknown_occurrences)
-    loaded, disabled, events, releases, installed = collect_live(registry)
+    collect_options = {"include_health_clocks": True} if include_health_clocks else {}
+    loaded, disabled, events, releases, installed = collect_live(registry, **collect_options)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
@@ -2193,10 +2403,10 @@ def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
         "admission-v2-enable", "apply", "browser", "doctor", "pre-effect-reconcile",
-        "reconcile", "start", "stop", "restart", "status", "watch",
+        "health", "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -2249,6 +2459,57 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "health":
+        try:
+            output_format, health_target, explain = _parse_health_args(args[1:])
+            if health_target is not None and health_target not in registry["loops"]:
+                raise ValueError(f"unknown health loop: {health_target}")
+        except ValueError as exc:
+            print(json.dumps({
+                "ok": False,
+                "error": str(exc),
+                "error_class": "invalid_input",
+                "retryable": False,
+                "next_action": "fix_arguments",
+            }, sort_keys=True))
+            return 2
+        health_deadline_at = time.monotonic() + HEALTH_SNAPSHOT_TIMEOUT_SECONDS
+        try:
+            with health_deadline(HEALTH_SNAPSHOT_TIMEOUT_SECONDS):
+                rows = snapshot(
+                    registry, health_target or "all", include_effect_details=False,
+                    include_health_clocks=True,
+                )
+            value = project_health(
+                rows,
+                scope="loop" if health_target else "fleet",
+                target=health_target,
+                deadline_monotonic=health_deadline_at,
+            )
+        except HealthTimeout:
+            value = project_health(
+                _health_snapshot_timeout_rows(registry, health_target),
+                scope="loop" if health_target else "fleet",
+                target=health_target,
+            )
+        except Exception:
+            value = project_health(
+                _health_snapshot_failure_rows(
+                    registry,
+                    health_target,
+                    error_class="health_snapshot_error",
+                    next_action="inspect_health_snapshot",
+                ),
+                scope="loop" if health_target else "fleet",
+                target=health_target,
+            )
+        if output_format == "json" or explain:
+            print(json.dumps(value, indent=2, sort_keys=True))
+        elif output_format == "skill":
+            print(render_health_skill(value))
+        else:
+            print(render_health_human(value))
+        return health_exit_code(value)
     if command == "browser":
         if len(args) != 4 or args[1] != "resolve" or args[3] != "--json":
             print(json.dumps({
