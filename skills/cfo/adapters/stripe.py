@@ -230,11 +230,15 @@ def _charge_consistency_refs(transactions: dict[str, dict],
                 or charge.get("status") not in CHARGE_STATUSES):
             refs.append(_evidence("charges", charge_id))
             continue
-        metadata = charge.get("metadata")
         if (charge.get("status") not in {"pending", "succeeded"}
-                or charge.get("captured") is not True or charge.get("livemode") is not True
-                or not isinstance(metadata, dict)
-                or metadata.get("lm_economic_category") not in CLASSIFIED_CHARGE_CATEGORIES):
+                or charge.get("captured") is not True or charge.get("livemode") is not True):
+            continue
+        metadata = charge.get("metadata")
+        economic_category = (metadata.get("lm_economic_category")
+                             if isinstance(metadata, dict) else None)
+        if economic_category not in CLASSIFIED_CHARGE_CATEGORIES:
+            if charge.get("status") == "succeeded":
+                refs.append(_evidence("charges", charge_id))
             continue
         transaction_id = _identifier(charge.get("balance_transaction"))
         transaction = transactions.get(transaction_id or "")

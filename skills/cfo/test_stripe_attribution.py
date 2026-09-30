@@ -283,6 +283,37 @@ class StripeAttributionTest(unittest.TestCase):
                 self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
                 self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
 
+    def test_unclassified_successful_charge_cannot_hide_missing_balance_transaction(self):
+        for classification in (None, "unknown_classification"):
+            with self.subTest(classification=classification):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                if classification is None:
+                    charge["metadata"].clear()
+                else:
+                    charge["metadata"]["lm_economic_category"] = classification
+                value["balance_transactions"]["data"] = [
+                    row for row in value["balance_transactions"]["data"]
+                    if row["id"] != "txn_charge_jpy"
+                ]
+
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn(
+                    "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
+                )
+
     def test_subscription_requires_trusted_external_economic_class(self):
         for classification in (None, "self_payment", "unknown_classification"):
             with self.subTest(classification=classification):
