@@ -179,10 +179,28 @@ d=json.load(sys.stdin); i=d.get("item") or {}
 if d.get("action") == "create_fresh" and i.get("skill") and i.get("listing") and i.get("icon"):
     print(os.path.dirname(i["skill"]), i["listing"], i["icon"], sep="\t")' 2>>"$LOG")"
 fi
+# Paid existing-Agent updates must use the same deterministic prepare/CP1/finish
+# path as a fresh listing, while fencing the exact remote source version. Without
+# this branch they fall through to the generic agent prompt, which has no bound
+# Agent publisher home and fails before CP1 for an older download listing.
+UPDATE_EXPECTED_ID=""
+UPDATE_EXPECTED_FROM_VERSION=""
+if [ -z "$FRESH" ]; then
+  UPDATE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}; u=i.get("update_request") or {}
+if (d.get("action") == "update_existing" and i.get("skill") and i.get("listing")
+        and i.get("icon") and i.get("agent_id") and u.get("from_version_id")):
+    print(os.path.dirname(i["skill"]), i["listing"], i["icon"], i["agent_id"],
+          u["from_version_id"], sep="\t")' 2>>"$LOG")"
+  if [ -n "$UPDATE" ]; then
+    IFS=$'\t' read -r F_SKILL_DIR F_LISTING F_ICON UPDATE_EXPECTED_ID UPDATE_EXPECTED_FROM_VERSION <<<"$UPDATE"
+    FRESH="$(printf '%s\t%s\t%s' "$F_SKILL_DIR" "$F_LISTING" "$F_ICON")"
+  fi
+fi
 PREPARED=""
 if [ -n "$FRESH" ]; then
   IFS=$'\t' read -r F_SKILL_DIR F_LISTING F_ICON <<<"$FRESH"
-  PREP_OUT="$(bash "$AUTO/scripts/publish_prepare.sh" "$F_SKILL_DIR" "$F_LISTING" "$F_ICON" "$REUSE_PREPARE_ID" 2>&1)"
+  PREP_OUT="$(EXPECTED_UPDATE_ID="$UPDATE_EXPECTED_ID" EXPECTED_UPDATE_FROM_VERSION="$UPDATE_EXPECTED_FROM_VERSION" bash "$AUTO/scripts/publish_prepare.sh" "$F_SKILL_DIR" "$F_LISTING" "$F_ICON" "$REUSE_PREPARE_ID" 2>&1)"
   PREP_RC=$?
   printf '%s\n' "$PREP_OUT" >> "$LOG"
   F_ID="$(printf '%s\n' "$PREP_OUT" | sed -n 's/^AGENT_ID=//p' | tail -1)"
@@ -215,7 +233,7 @@ RC=$?
 if [ -n "$PREPARED" ]; then
   F_SKILL="$(basename "$F_SKILL_DIR")"
   if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then
-    RC=0; echo "$TS create_fresh $F_ID: publish_finish completed (CP2 -> CP3)" >> "$LOG"
+    RC=0; echo "$TS prepared $F_ID: publish_finish completed (CP2 -> CP3)" >> "$LOG"
     # Same healthy terminal as RESUMED above: one submission per pass is the goal, and the
     # queue still holds more updates, so post-verdict stays PUBLISHABLE and the branch below
     # would log BLOCKED and wake self-fix for a successful pass (live 2026-09-29 23:40, 1037238583).
@@ -223,7 +241,7 @@ if [ -n "$PREPARED" ]; then
     echo "=== $TS daily_loop done rc=0 (SUBMITTED — $F_ID finished CP2/CP3 after prepare) ===" >> "$LOG"
     exit 0
   else
-    echo "$TS create_fresh $F_ID: publish_finish did not complete; draft resumes on a later pass" >> "$LOG"
+    echo "$TS prepared $F_ID: publish_finish did not complete; draft resumes on a later pass" >> "$LOG"
   fi
 fi
 

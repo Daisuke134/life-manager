@@ -17,6 +17,7 @@ from pathlib import Path
 BUILD_CONFIG = Path(__file__).parents[1] / "scripts" / "build_config.py"
 LINT = Path(__file__).parents[1] / "scripts" / "lint_listing.py"
 CONTRACT = Path(__file__).parents[1] / "scripts" / "publish_input_contract.py"
+PREPARE = Path(__file__).parents[1] / "scripts" / "publish_prepare.sh"
 
 DOWNLOAD_LISTING = """category: ライティング · tags: humanizer, japanese, download
 
@@ -138,3 +139,9 @@ def test_publish_input_contract_accepts_download_mode_without_hosted_provider(tm
                                text=True, capture_output=True)
     assert verified.returncode == 0, verified.stderr
     assert verified.stdout.strip() == ""
+
+
+def test_download_prepare_creates_minimal_openclaw_root_for_publish_init() -> None:
+    source = PREPARE.read_text(encoding="utf-8")
+    assert "Download agents deliberately have" in source
+    assert "printf '{}\\n' > \"$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json\"" in source

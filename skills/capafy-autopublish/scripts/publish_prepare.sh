@@ -177,6 +177,12 @@ json.dump({
   "agents": {"defaults": {"model": {"primary": "openrouter/" + model_id}}}
 }, open(sys.argv[1], "w"), ensure_ascii=False, indent=2)
 PY
+else
+  # `publish-init --env openclaw` validates the runtime root before it knows
+  # that this is a download-only listing. Download agents deliberately have
+  # no model/provider route, but still need a valid root for discovery.
+  mkdir -p "$CAPAFY_PUBLISH_HOME/.openclaw"
+  printf '{}\n' > "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json"
 fi
 
 step "[1] publish-init Phase A discovery"
