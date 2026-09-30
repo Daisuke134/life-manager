@@ -11,7 +11,7 @@ const {
   runFinancialManager,
 } = require("../lib/financial-manager-runtime.js");
 const { renderFinancialManagerTelegram } = require("../lib/financial-manager-report.js");
-const { notifyViaLocalOutbox } = require("../lib/financial-transition-local.js");
+const { notifyCfoReport, reportDestination } = require("../lib/cfo-report-delivery.js");
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -97,10 +97,22 @@ async function runHourlyCfo(options = {}) {
   });
   const ingest = options.ingest || ingestFinancialRecords;
   const snapshotFile = path.join(stateDir, "last-delivered-snapshot.json");
-  const notify = options.notify || ((input) => notifyViaLocalOutbox(input, options));
+  const destination = options.notify ? { channel: "injected", recipient: subjectId } : reportDestination(options);
+  const recipientHash = crypto.createHash("sha256").update(destination.recipient).digest("hex");
+  const cadence = options.reportCadence || "daily";
+  if (!["hourly", "daily"].includes(cadence)) throw new Error("CFO cadence invalid");
+  const periodKey = cadence === "hourly" ? `${date}:${now.toISOString().slice(11, 13)}` : date;
+  const eventKey = `cfo:${subjectId}:${destination.channel}:${periodKey}`;
+  const notify = options.notify || ((input) => notifyCfoReport(input, options));
   const pending = readSnapshot(snapshotFile);
+  if (pending?.status === "pending" && pending.channel && (pending.channel !== destination.channel || pending.recipientHash !== recipientHash)) {
+    return { status: "failed", reason: "cfo_pending_channel_changed", reportingDate: date, delivered: false };
+  }
   if (pending?.status === "pending" && pending.reportingDate === date && pending.report) {
-    const delivery = await notify({ eventKey: `cfo:${subjectId}:${date}`,
+    if (destination.channel === "email" && now.getTime() - Date.parse(pending.createdAt) >= 23 * 60 * 60 * 1000) {
+      return { status: "failed", reason: "cfo_email_idempotency_expired", reportingDate: date, delivered: false };
+    }
+    const delivery = await notify({ eventKey: pending.eventKey || eventKey,
       observedAt: now.toISOString(), message: renderFinancialManagerTelegram(pending.report) });
     if (delivery?.delivery !== "delivered" || !String(delivery.provider_message_id || "").trim()) {
       return { status: "failed", reason: "telegram_delivery_uncertain", reportingDate: date,
@@ -131,21 +143,22 @@ async function runHourlyCfo(options = {}) {
       lookup: () => {
         const previous = readSnapshot(snapshotFile);
         const previousDate = previous && (previous.reportingDate || previous.report?.reportingDate);
-        return previousDate === date && previous.status !== "pending" ? previous : null;
+        const samePeriod = previous?.periodKey ? previous.periodKey === periodKey : cadence === "daily";
+        return previousDate === date && samePeriod && previous.status !== "pending" ? previous : null;
       },
       claim: async ({ digest, report, observedAt }) => {
         writeSnapshot(snapshotFile, { schemaVersion: 1, status: "pending", reportingDate: date,
-          digest, report, createdAt: observedAt });
+          digest, report, periodKey, eventKey, channel: destination.channel, recipientHash, createdAt: observedAt });
         return { claimed: true };
       },
       markDelivered: ({ digest, report, delivery, observedAt }) => writeSnapshot(snapshotFile, {
         schemaVersion: 1, status: "delivered", digest, report,
-        reportingDate: date,
+        reportingDate: date, periodKey, eventKey, channel: destination.channel, recipientHash,
         delivery: { delivery: "delivered", provider_message_id: delivery.providerMessageId },
         deliveredAt: observedAt,
       }),
     },
-    eventKey: () => `cfo:${subjectId}:${date}`,
+    eventKey: () => eventKey,
     notify: async (input) => {
       const delivery = await notify(input);
       return {
@@ -163,10 +176,15 @@ async function main(env = process.env) {
   const stateDir = env.CFO_STATE_DIR || env.LIFE_MANAGER_STATE_ROOT
     || path.join(os.homedir(), ".local/state/life-manager/life-manager-cfo-hourly");
   try {
-    const result = await runHourlyCfo({
+    const { runResultCfo } = require("./cfo-result-local.js");
+    const result = await runResultCfo({
       stateDir,
       subjectId: env.LM_CFO_SUBJECT_ID || env.LM_CFO_UID || env.LM_UID,
       pythonBin: env.CFO_PYTHON_BIN || "python3",
+      reportChannel: env.LM_CFO_REPORT_CHANNEL || "email",
+      reportCadence: env.LM_CFO_REPORT_CADENCE || "hourly",
+      reportEmail: env.LM_CFO_REPORT_EMAIL,
+      resendKey: env.RESEND_API_KEY,
       database: env.CFO_TELEGRAM_OUTBOX || path.join(stateDir, "telegram-outbox.sqlite3"),
       chatId: env.TELEGRAM_ALERT_CHAT_ID || env.LM_CFO_TELEGRAM_CHAT_ID || env.LM_ADMIN_TELEGRAM_CHAT_ID,
       envFile: env.LIFE_MANAGER_ENV_FILE || path.join(os.homedir(), ".local/state/life-manager/.env"),

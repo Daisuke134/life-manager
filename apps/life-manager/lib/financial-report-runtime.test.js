@@ -275,7 +275,7 @@ test("production tenant reads are exact UID scope and preferences never come fro
   assert.equal(row.notifications_enabled, false);
   assert.equal(row.call_time_zone, "UTC");
   assert.equal(calls.length, 2);
-  assert.match(calls[0], /lm_users\?uid=eq\.u1&select=uid,telegram_chat_id,agent_wallet_address&limit=1/);
+  assert.match(calls[0], /lm_users\?uid=eq\.u1&select=uid,email,cfo_report_channel,cfo_report_cadence,telegram_chat_id,agent_wallet_address&limit=1/);
   assert.doesNotMatch(calls[0], /notifications_enabled|call_time_zone|select=\*/);
   assert.match(calls[1], /lm_panel_preferences\?uid=eq\.u1&select=notifications_enabled,call_time_zone&limit=1/);
 });

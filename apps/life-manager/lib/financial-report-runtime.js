@@ -47,7 +47,7 @@ async function readFinancialTenant(uid, opts = {}) {
   if (!tenantUid) throw new Error("financial report tenant uid is required");
   const { supaUrl, supaKey, fetchImpl } = credentials(opts);
   const userUrl = `${supaUrl}/rest/v1/lm_users?uid=eq.${encodeURIComponent(tenantUid)}` +
-    "&select=uid,telegram_chat_id,agent_wallet_address&limit=1";
+    "&select=uid,email,cfo_report_channel,cfo_report_cadence,telegram_chat_id,agent_wallet_address&limit=1";
   const users = await jsonRows(await fetchImpl(userUrl, {
     headers: headers(supaKey),
   }), "financial report tenant read");

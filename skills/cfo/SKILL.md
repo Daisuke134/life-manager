@@ -44,3 +44,34 @@ Asia/Tokyo day. It only reads; it never sends, pays or writes state.
 - `USD_API_EQUIV` is the runner's API-price estimate, not a provider bill. Currencies are never
   converted. `*` marks a cost that excludes usage events lacking a cost value.
 - Tests: `python3 -m unittest skills/cfo/test_loop_pnl.py` (fixtures in `fixtures/loop_pnl/`).
+
+## Minimal result report (September 30, 2026)
+
+The local CLI now uses `cfo-result-local.js` and the read-only `loop_pnl.py` collector, not personal
+Moneytree balances. It checks all catalog loops and reports today's receipt-backed income by loop,
+with an explicit partial subtotal and unknown sources. Missing/stale data never becomes zero.
+Investment is realized P&L, other loops are revenue; no claim of net profit is made. Unknown app
+currency is shown separately and excluded from currency totals. Personal assets and raw errors are
+not pushed.
+
+- `LM_CFO_REPORT_CHANNEL=email` is the default. Set `LM_CFO_REPORT_EMAIL` to the owner's address
+  and supply `RESEND_API_KEY`. Explicit `telegram` uses the existing receipt-backed outbox. No
+  automatic channel fallback. Do not run two CFO writers against the same state directory.
+- `LM_CFO_REPORT_CADENCE=hourly` (default) or `daily` sets one consolidated receipt per period;
+  launchd still owns when the pass runs. Detailed source evidence remains in collector JSON.
+- A pending delivery freezes text, destination and key. No retargeting; after 23 hours an unresolved
+  email effect requires reconciliation rather than a duplicate resend.
+- Cloud: apply `2026-09-30-lm-cfo-result-report.sql` before deploying. Email uses the tenant's `email`
+  and `cfo_report_channel`/`cfo_report_cadence`, a separate RLS-protected receipt table, and the
+  service's existing Resend identity. Telegram requires explicit selection. Cloud coverage remains
+  limited to tenant FinancialRecords/wallet until source adapters exist; the report says so.
+
+Source changes alone do not configure an owner address, apply a database migration, deploy a Mac
+release, repair paused jobs or stop other loops' progress chatter. Do not claim live delivery until
+those host steps and a provider receipt are verified. Tests use fake providers only.
+
+Spending/net: receipt-backed provider costs and refunds are summed separately by currency. Costs
+labelled `USD_API_EQUIV` are estimates, not actual bills; missing cost values keep net unverified.
+Bank-settled income, daily token counts and subscription allocation remain explicitly unverified
+until suitable settlement/invoice/subscription sources are configured. A $200/month statement is
+not an invoice or a daily paid expense; do not silently divide it or subtract it from sales.

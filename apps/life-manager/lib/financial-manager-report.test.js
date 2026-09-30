@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { financialRecordId } = require("../../../runtime/contracts/common-record.cjs");
 const {
-  buildFinancialManagerReport, renderFinancialManagerTelegram,
+  buildFinancialManagerReport, renderFinancialManagerDetailed: renderFinancialManagerTelegram,
 } = require("./financial-manager-report.js");
 
 function record(key, { kind, amount, occurredAt, provider = "stripe", scope = "business" }) {
