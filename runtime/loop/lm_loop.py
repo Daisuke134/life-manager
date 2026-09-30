@@ -34,6 +34,11 @@ from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import (
     DIAGNOSTIC_FIELDS, append_runtime_event, build_install_event, validate_runtime_event,
 )
+from runtime.loop.health import (
+    HealthTimeout, health_deadline, health_exit_code, project_health,
+    render_human as render_health_human,
+    render_skill as render_health_skill,
+)
 from runtime.host.resource_admission import (
     ADMISSION_CLASSES, ADMISSION_POLICY, BASE_PRIORITIES, EFFECT_SCOPES,
     RESOURCE_CLASSES, activate_durable_v2, durable_protocol_version,
@@ -45,6 +50,8 @@ from runtime.host.resource_admission import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
+LAUNCHCTL_READ_TIMEOUT_SECONDS = 15.0
+HEALTH_SNAPSHOT_TIMEOUT_SECONDS = 2 * LAUNCHCTL_READ_TIMEOUT_SECONDS
 PRE_EFFECT_ADMISSION_BLOCKERS = frozenset({
     "host_admission_deferred:resource_capacity_busy",
     "host_admission_deferred:resource_fifo_wait",
@@ -1059,6 +1066,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "profile_alias": event.get("profile_alias"),
             "event_id": event.get("event_id"),
             "product_loop_id": catalog_product_loop_id or event_product_loop_id,
+            "system_role": entry.get("system_role"),
             "job_id": loop_id,
             "owner_id": event.get("owner_id"),
             "run_id": event.get("run_id"),
@@ -1206,6 +1214,60 @@ def _parse_status_args(values: list[str]) -> tuple[str, bool]:
     return aliases.get(target, target), explain
 
 
+def _parse_health_args(values: list[str]) -> tuple[str, str | None, bool]:
+    output = "human"
+    target = None
+    explain = False
+    index = 0
+    while index < len(values):
+        value = values[index]
+        if value in {"--json", "--skill"}:
+            selected = value.removeprefix("--")
+            if output != "human":
+                raise ValueError("health accepts only one output format")
+            output = selected
+        elif value == "--explain":
+            explain = True
+        elif value == "--loop":
+            index += 1
+            if index >= len(values) or values[index].startswith("--"):
+                raise ValueError("health --loop requires NAME")
+            if target is not None:
+                raise ValueError("health accepts only one --loop NAME")
+            target = values[index]
+        else:
+            raise ValueError(f"unknown health option: {value}")
+        index += 1
+    if explain and target is None:
+        raise ValueError("health --explain requires --loop NAME")
+    aliases = {"connector": "life-manager-connector-native"}
+    return output, aliases.get(target, target), explain
+
+
+def _health_snapshot_timeout_rows(registry: dict, target: str | None) -> list[dict]:
+    product_by_job = _product_loop_job_map()
+    if target is not None and target not in registry["loops"]:
+        raise ValueError(f"unknown health loop: {target}")
+    loop_ids = [target] if target is not None else sorted(registry["loops"])
+    return [{
+        "classification": "managed",
+        "loop_id": loop_id,
+        "label": registry["loops"][loop_id]["label"],
+        "product_loop_id": product_by_job.get(loop_id),
+        "system_role": registry["loops"][loop_id].get("system_role"),
+        "launchd_state": "unknown",
+        "last_terminal_result": None,
+        "last_pass": None,
+        "effect_class": registry["loops"][loop_id]["effect_class"],
+        "effect_status": "unknown",
+        "diagnostic_complete": False,
+        "health_adapter_status": "timeout",
+        "error_class": "health_snapshot_timeout",
+        "retryable": True,
+        "next_action": "retry_health_snapshot",
+    } for loop_id in loop_ids]
+
+
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
                     admission_effect_unknown: set[str] | None = None,
@@ -1258,6 +1320,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "profile_alias": None,
             "event_id": None,
             "product_loop_id": None,
+            "system_role": None,
             "job_id": label,
             "owner_id": None,
             "run_id": None,
@@ -1316,7 +1379,8 @@ def _launchctl(*args: str) -> str:
     # loop scratch area.  Near an ENOSPC boundary, TemporaryFile() itself can
     # fail before launchctl is queried, hiding the real control-plane state.
     result = subprocess.run(
-        ["launchctl", *args], capture_output=True, text=True, timeout=15)
+        ["launchctl", *args], capture_output=True, text=True,
+        timeout=LAUNCHCTL_READ_TIMEOUT_SECONDS)
     output, error = result.stdout, result.stderr
     if result.returncode:
         raise RuntimeError(error.strip() or "launchctl failed")
@@ -2193,10 +2257,10 @@ def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
         "admission-v2-enable", "apply", "browser", "doctor", "pre-effect-reconcile",
-        "reconcile", "start", "stop", "restart", "status", "watch",
+        "health", "reconcile", "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|browser resolve <loop-id> --json|doctor|health [--json|--skill] [--loop NAME --explain]|pre-effect-reconcile <loop-id> [--dry-run]|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -2249,6 +2313,48 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "health":
+        try:
+            output_format, health_target, explain = _parse_health_args(args[1:])
+            if health_target is not None and health_target not in registry["loops"]:
+                raise ValueError(f"unknown health loop: {health_target}")
+            with health_deadline(HEALTH_SNAPSHOT_TIMEOUT_SECONDS):
+                rows = snapshot(
+                    registry, health_target or "all", include_effect_details=False,
+                )
+            value = project_health(
+                rows,
+                scope="loop" if health_target else "fleet",
+                target=health_target,
+            )
+        except HealthTimeout:
+            value = project_health(
+                _health_snapshot_timeout_rows(registry, health_target),
+                scope="loop" if health_target else "fleet",
+                target=health_target,
+            )
+        except ValueError as exc:
+            print(json.dumps({
+                "ok": False,
+                "error": str(exc),
+                "error_class": "invalid_input",
+                "retryable": False,
+                "next_action": "fix_arguments",
+            }, sort_keys=True))
+            return 2
+        except sqlite3.Error as exc:
+            print(json.dumps(
+                _admission_read_error("admission_fence_read_failed", exc),
+                sort_keys=True,
+            ))
+            return 1
+        if output_format == "json" or explain:
+            print(json.dumps(value, indent=2, sort_keys=True))
+        elif output_format == "skill":
+            print(render_health_skill(value))
+        else:
+            print(render_health_human(value))
+        return health_exit_code(value)
     if command == "browser":
         if len(args) != 4 or args[1] != "resolve" or args[3] != "--json":
             print(json.dumps({

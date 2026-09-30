@@ -490,6 +490,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "log_root": "~/.local/state/life-manager/boot-panic-evidence/logs",
             "provider_route": "deterministic",
             "state_root": "~/.local/state/life-manager/boot-panic-evidence",
+            "system_role": "control",
         })
 
     def test_money_printer_symphony_is_retired_after_cloud_cutover(self):
@@ -525,6 +526,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "log_root": "~/.local/state/life-manager/release-reconciler/logs",
             "provider_route": "deterministic",
             "state_root": "~/.local/state/life-manager/release-reconciler",
+            "system_role": "control",
         })
         self.assertEqual(validate_registry(registry), registry)
 
@@ -577,6 +579,21 @@ class MacosLoopRegistryTest(unittest.TestCase):
         invalid = entry()
         invalid["priority"] = "urgent"
         with self.assertRaisesRegex(ValueError, "invalid priority"):
+            validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+
+    def test_registry_accepts_only_typed_system_roles(self):
+        for role in ("platform", "control", "shared"):
+            value = entry()
+            value["system_role"] = role
+            with self.subTest(role=role):
+                self.assertEqual(
+                    validate_registry({"schema_version": 2, "loops": {"example": value}})
+                    ["loops"]["example"]["system_role"],
+                    role,
+                )
+        invalid = entry()
+        invalid["system_role"] = "product"
+        with self.assertRaisesRegex(ValueError, "invalid system_role"):
             validate_registry({"schema_version": 2, "loops": {"example": invalid}})
 
     def test_registry_accepts_explicit_admission_effect_scope(self):
@@ -1444,6 +1461,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "log_root": "~/.anicca/logs",
             "provider_route": "deterministic",
             "state_root": "~/.anicca",
+            "system_role": "platform",
         })
         callers = (
             "skills/earn/x402-sell/the402-worker-daemon.mjs",

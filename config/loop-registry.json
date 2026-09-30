@@ -149,6 +149,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/compute-proxy/start-local.sh",
       "label": "ai.anicca.compute-proxy",
+      "system_role": "platform",
       "log_root": "~/.anicca/logs",
       "provider_route": "deterministic",
       "state_root": "~/.anicca"
@@ -464,6 +465,7 @@
       "effect_class": "message",
       "entrypoint": "runtime/agentmail/nudge-tick.sh",
       "label": "ai.anicca.agentmail-nudge",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/agentmail/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/agentmail"
@@ -480,6 +482,7 @@
       "effect_class": "message",
       "entrypoint": "runtime/agentmail/replier-tick.sh",
       "label": "ai.anicca.agentmail-replier",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/agentmail/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/agentmail"
@@ -496,6 +499,7 @@
       "effect_class": "message",
       "entrypoint": "runtime/agentmail/launch.sh",
       "label": "ai.anicca.agentmail-webhook",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/agentmail/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/agentmail"
@@ -516,6 +520,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/scripts/audit-7day.sh",
       "label": "ai.anicca.article-audit-7day",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -535,6 +540,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/writer-agent/article-daily.sh",
       "label": "ai.anicca.article-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -556,6 +562,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/article-healthcheck.sh",
       "label": "ai.anicca.article-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -576,6 +583,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/scripts/learn-whitelist.sh",
       "label": "ai.anicca.article-learn-whitelist",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -592,6 +600,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
       "label": "ai.anicca.article-resume",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "coalesce_queued_wakes": true,
       "coalesce_reserved_wakes": true,
@@ -613,6 +622,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/scripts/article-repair-candidate.sh",
       "label": "ai.anicca.article-repair-candidate",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -632,6 +642,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/scripts/self-improve.sh",
       "label": "ai.anicca.article-self-improve",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -648,6 +659,7 @@
       "effect_class": "none",
       "entrypoint": "skills/writer-agent/scripts/zenn-deferred-worker.sh",
       "label": "ai.anicca.article-zenn-retry",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/writer/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
@@ -664,6 +676,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/host/boot_panic_collector.py",
       "label": "ai.anicca.boot-panic-evidence",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/boot-panic-evidence/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/boot-panic-evidence"
@@ -680,6 +693,7 @@
       "effect_class": "none",
       "entrypoint": "skills/bounty/bounty-healthcheck.sh",
       "label": "ai.anicca.bounty-core-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/bounty/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/bounty"
@@ -696,6 +710,7 @@
       "effect_class": "none",
       "entrypoint": "skills/_shared/browser-state-backup.sh",
       "label": "ai.anicca.browser-state-backup",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/browser-state-backup/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/browser-state-backup"
@@ -715,6 +730,7 @@
       "effect_class": "none",
       "entrypoint": "skills/self/cadence-deadline-check.sh",
       "label": "ai.anicca.cadence-deadline-check",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/cadence-deadline-check/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/cadence-deadline-check"
@@ -983,6 +999,7 @@
       "effect_class": "none",
       "entrypoint": "bin/ceo-run.sh",
       "label": "ai.anicca.ceo-runner",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/ceo-runner/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/ceo-runner"
@@ -1021,6 +1038,7 @@
       "effect_class": "none",
       "entrypoint": "skills/_shared/claude-projects-backup.sh",
       "label": "ai.anicca.claude-projects-backup",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/claude-projects-backup/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/claude-projects-backup"
@@ -1040,6 +1058,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/reports/daily-nl-report.sh",
       "label": "ai.anicca.daily-nl-report",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/daily-nl-report/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/daily-nl-report"
@@ -1056,6 +1075,7 @@
       "effect_class": "money",
       "entrypoint": "runtime/earn/earn-watch.sh",
       "label": "ai.anicca.earn-watch",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/earn-watch/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,
@@ -1073,6 +1093,7 @@
       "effect_class": "none",
       "entrypoint": "skills/self/earning-health-allslots.sh",
       "label": "ai.anicca.earning-health-allslots",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/earning-health-allslots/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/earning-health-allslots"
@@ -1092,6 +1113,7 @@
       "effect_class": "none",
       "entrypoint": "bin/effect-watch.py",
       "label": "ai.anicca.effect-watch",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/effect-watch/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/effect-watch"
@@ -1110,6 +1132,7 @@
       "effect_class": "none",
       "entrypoint": "skills/anicca-core/scripts/f7-silence-check.sh",
       "label": "ai.anicca.f7-silence-check",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/f7-silence-check/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/f7-silence-check"
@@ -1126,6 +1149,7 @@
       "effect_class": "none",
       "entrypoint": "skills/self/founder-loop/founder-loop.sh",
       "label": "ai.anicca.founder-loop-cadence",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/founder-loop-cadence/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/founder-loop-cadence"
@@ -1142,6 +1166,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/anicca-daemon.sh",
       "label": "ai.anicca.franklin-loop",
+      "system_role": "platform",
       "log_root": "~/.blockrun/logs",
       "provider_route": "deterministic",
       "state_root": "~/.blockrun"
@@ -1158,6 +1183,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/anicca-daemon.sh",
       "label": "ai.anicca.franklin2-loop",
+      "system_role": "platform",
       "log_root": "~/.franklin2-home/.blockrun/logs",
       "provider_route": "deterministic",
       "state_root": "~/.franklin2-home/.blockrun"
@@ -1174,6 +1200,7 @@
       "effect_class": "none",
       "entrypoint": "bin/fuel-watch.py",
       "label": "ai.anicca.fuel-watch",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/fuel-watch/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/fuel-watch"
@@ -1219,6 +1246,7 @@
       "effect_class": "none",
       "entrypoint": "tools/gig-outcome-watch/notify.sh",
       "label": "ai.anicca.gig-outcome-watch",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/gig-outcome-watch/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/gig-outcome-watch"
@@ -1238,6 +1266,7 @@
       "effect_class": "none",
       "entrypoint": "skills/bounty/bounty-cli.sh",
       "label": "ai.anicca.hf-bounty-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/bounty/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/bounty"
@@ -1322,6 +1351,7 @@
       "reconcile_queued_release": true,
       "entrypoint": "runtime/loop/entry_dispatch.py",
       "label": "ai.anicca.hf-gig-apply-reconcile",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/coconala/apply-reconcile/logs",
       "provider_route": "deterministic",
       "priority": "revenue",
@@ -1346,6 +1376,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/loop/fence_reconcile.py",
       "label": "ai.anicca.lm-fence-reconciler",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/lm-fence-reconciler/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 1200,
@@ -1490,6 +1521,7 @@
       "effect_class": "none",
       "entrypoint": "skills/reddit/reddit-loop-daily.sh",
       "label": "ai.anicca.hf-reddit-loop-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/reddit/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/reddit"
@@ -1506,6 +1538,7 @@
       "effect_class": "none",
       "entrypoint": "skills/reddit/reddit-loop-healthcheck.sh",
       "label": "ai.anicca.hf-reddit-loop-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/reddit/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/reddit"
@@ -1522,6 +1555,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/image-claude-p-boot.sh",
       "label": "ai.anicca.image-claude-p",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -1538,6 +1572,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/image-franklin1-boot.sh",
       "label": "ai.anicca.image-franklin1",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -1554,6 +1589,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/image-franklin2-boot.sh",
       "label": "ai.anicca.image-franklin2",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -1871,6 +1907,7 @@
       "effect_class": "none",
       "entrypoint": "skills/anicca-life-manager/scripts/run.sh",
       "label": "ai.anicca.lateness-heartbeat",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/lateness-heartbeat/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/lateness-heartbeat"
@@ -2352,6 +2389,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/browser/capacity_probe.py",
       "label": "ai.anicca.life-manager-browser-capacity-probe",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/browser-capacity-probe/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 45,
@@ -2482,6 +2520,7 @@
       "effect_class": "none",
       "entrypoint": "runtime/loop/central_cleanup.py",
       "label": "ai.anicca.life-manager-disk-cleanup",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/life-manager-disk-cleanup/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-disk-cleanup"
@@ -2633,6 +2672,7 @@
       "effect_class": "none",
       "entrypoint": "bin/reconcile-agent-runner-release.sh",
       "label": "ai.anicca.life-manager-release-reconciler",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/release-reconciler/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/release-reconciler"
@@ -2696,6 +2736,7 @@
       "effect_class": "none",
       "entrypoint": "apps/life-manager/scripts/taskmarket-work-ledger-boot.sh",
       "label": "ai.anicca.life-manager-taskmarket-ledger",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger/logs",
       "resource_class": "deterministic",
       "admission_class": "borrow",
@@ -2742,6 +2783,7 @@
       "effect_class": "none",
       "entrypoint": "apps/life-manager/scripts/ugig-invoice-observer-boot.sh",
       "label": "ai.anicca.life-manager-ugig-invoice-observer",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/life-manager-ugig-invoice-observer/logs",
       "resource_class": "deterministic",
       "admission_class": "borrow",
@@ -2788,6 +2830,7 @@
       "effect_class": "none",
       "entrypoint": "skills/life-manager-video/run-store-recordings.sh",
       "label": "ai.anicca.lm-recording-store",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/lm-recording-store/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/lm-recording-store"
@@ -2805,6 +2848,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
       "label": "ai.anicca.marketing-dashboard",
+      "system_role": "control",
       "log_root": "~/Library/Application Support/AniccaMarketing/logs",
       "provider_route": "shared-agent-runner",
       "command": [
@@ -2830,6 +2874,7 @@
       "effect_class": "none",
       "entrypoint": "marketing/engine/bin/marketing-metrics-owner",
       "label": "ai.anicca.marketing-metrics",
+      "system_role": "control",
       "log_root": "~/Library/Application Support/AniccaMarketing/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/Library/Application Support/AniccaMarketing"
@@ -2850,6 +2895,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
       "label": "ai.anicca.marketing-metrics-daily",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/marketing-metrics-daily/logs",
       "provider_route": "shared-agent-runner",
       "command": [
@@ -2876,6 +2922,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
       "label": "ai.anicca.marketing-mine-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/marketing-mine-daily/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/marketing-mine-daily"
@@ -2898,6 +2945,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/marketing-engine/report/events-owner",
       "label": "ai.anicca.marketing-owner-events",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/marketing-owner-events/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/marketing-owner-events"
@@ -2918,6 +2966,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/marketing-engine/report/scheduled_runner.py",
       "label": "ai.anicca.marketing-score-daily",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/marketing-score-daily/logs",
       "provider_route": "shared-agent-runner",
       "command": [
@@ -2943,6 +2992,7 @@
       "command": [],
       "entrypoint": "skills/earn/marketing-engine/intel/weekly-review-owner",
       "label": "ai.anicca.marketing-weekly-review",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/marketing-weekly-review/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/marketing-weekly-review"
@@ -3059,6 +3109,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/mcp-claude-p-boot.sh",
       "label": "ai.anicca.mcp-claude-p",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -3075,6 +3126,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/mcp-franklin1-boot.sh",
       "label": "ai.anicca.mcp-franklin1",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -3091,6 +3143,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/x402-sell/mcp-franklin2-boot.sh",
       "label": "ai.anicca.mcp-franklin2",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/x402-sell/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/x402-sell"
@@ -3107,6 +3160,7 @@
       "effect_class": "none",
       "entrypoint": "skills/earn/polymarket-trade/run_decision_loop.sh",
       "label": "ai.anicca.pm-decision-loop",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/pm-decision-loop/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/pm-decision-loop"
@@ -3123,6 +3177,7 @@
       "effect_class": "trade",
       "entrypoint": "skills/earn/polymarket-trade/run.sh",
       "label": "ai.anicca.pm-live-trade",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/pm-live-trade/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/pm-live-trade"
@@ -3149,6 +3204,7 @@
       "browser_identity": "interactive:dais",
       "browser_target_owner": "promptbase-loop-daily",
       "label": "ai.anicca.promptbase-loop-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
       "runtime_timeout_seconds": 900,
@@ -3174,6 +3230,7 @@
       "effect_class": "none",
       "entrypoint": "skills/anicca-life-manager/scripts/realtime_guide.py",
       "label": "ai.anicca.realtime-guide",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/realtime-guide/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/realtime-guide"
@@ -3190,6 +3247,7 @@
       "effect_class": "money",
       "entrypoint": "runtime/earn/reinvest.sh",
       "label": "ai.anicca.reinvest",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/reinvest/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/reinvest"
@@ -3208,6 +3266,7 @@
       "effect_class": "none",
       "entrypoint": "skills/sbi-usdc-monitor/scripts/run.sh",
       "label": "ai.anicca.sbi-usdc-monitor",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/sbi-usdc-monitor/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/sbi-usdc-monitor"
@@ -3247,6 +3306,7 @@
       "effect_class": "none",
       "entrypoint": "skills/browser/scripts/session_vault_tick.sh",
       "label": "ai.anicca.session-vault",
+      "system_role": "platform",
       "log_root": "~/.local/state/life-manager/session-vault/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/session-vault"
@@ -3289,6 +3349,7 @@
       "effect_class": "money",
       "entrypoint": "skills/ubi/ubi-watcher-owner",
       "label": "ai.anicca.ubi-watcher",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/ubi-watcher/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/ubi-watcher"
@@ -3305,6 +3366,7 @@
       "effect_class": "none",
       "entrypoint": "skills/stripe-revenue-listener/scripts/listen.sh",
       "label": "ai.anicca.stripe-revenue-listener",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/stripe-revenue-listener/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/stripe-revenue-listener"
@@ -3321,6 +3383,7 @@
       "effect_class": "none",
       "entrypoint": "skills/stripe-revenue-poller/scripts/poll.sh",
       "label": "ai.anicca.stripe-revenue-poller",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/stripe-revenue-poller/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/stripe-revenue-poller"
@@ -3396,6 +3459,7 @@
       "effect_class": "none",
       "entrypoint": "skills/self/token-daily-report.sh",
       "label": "ai.anicca.token-daily-report",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/token-daily-report/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/token-daily-report"
@@ -3412,6 +3476,7 @@
       "effect_class": "none",
       "entrypoint": "skills/self/verify-loops-audit.sh",
       "label": "ai.anicca.verify-loops-audit",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/verify-loops-audit/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/verify-loops-audit"
@@ -3431,6 +3496,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/anicca-warmup-flip/scripts/run.sh",
       "label": "ai.anicca.warmup-flip-daily",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/warmup-flip-daily/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/warmup-flip-daily"
@@ -3617,6 +3683,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-repost/x-repost-en-cli.sh",
       "label": "ai.anicca.x-repost-pass",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/en/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
@@ -3636,6 +3703,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-repost/x-repost-digest.sh",
       "label": "ai.anicca.x-repost-digest",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/en/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
@@ -3652,6 +3720,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-repost/x-repost-healthcheck.sh",
       "label": "ai.anicca.x-repost-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/en/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/en"
@@ -3668,6 +3737,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-repost/x-repost-healthcheck.sh",
       "label": "ai.anicca.x-repost-ja-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/ja/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/ja"
@@ -3691,6 +3761,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-repost/x-repost-ja-cli.sh",
       "label": "ai.anicca.x-repost-ja-pass",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-repost/ja/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/social-x/x-repost/ja"
@@ -3709,6 +3780,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-tweeter/x-tweeter-cli.sh",
       "label": "ai.anicca.x-tweeter-pass",
+      "system_role": "shared",
       "log_root": "~/.local/state/life-manager/social-x/x-tweeter/logs",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/social-x/x-tweeter"
@@ -3725,6 +3797,7 @@
       "effect_class": "publish",
       "entrypoint": "skills/x-tweeter/x-tweeter-healthcheck.sh",
       "label": "ai.anicca.x-tweeter-healthcheck",
+      "system_role": "control",
       "log_root": "~/.local/state/life-manager/social-x/x-tweeter/logs",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/social-x/x-tweeter"

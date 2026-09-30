@@ -20,8 +20,9 @@ OPTIONAL_FIELDS = {
     "coalesce_queued_wakes", "command",
     "admission_effect_scope", "priority", "reconcile_queued_release",
     "runtime_timeout_seconds", "resource_class", "browser_identity",
-    "browser_target_owner", "effect_reconcile",
+    "browser_target_owner", "effect_reconcile", "system_role",
 }
+SYSTEM_ROLES = {"platform", "control", "shared"}
 EFFECT_RECONCILE_FIELDS = {"argv", "occurrence_flag", "resolve_flag", "timeout_seconds"}
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
@@ -100,6 +101,8 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid effect_class")
         if row["provider_route"] not in ROUTES:
             _fail(f"{loop_id}: invalid provider_route")
+        if row.get("system_role") not in {None, *SYSTEM_ROLES}:
+            _fail(f"{loop_id}: invalid system_role")
         if row.get("admission_effect_scope") not in {None, *ADMISSION_EFFECT_SCOPES}:
             _fail(f"{loop_id}: invalid admission_effect_scope")
         if (row.get("admission_effect_scope") == "occurrence"
@@ -295,6 +298,7 @@ def loop_json_schema() -> dict:
                 "additionalProperties": False,
             },
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
+            "system_role": {"type": "string", "enum": sorted(SYSTEM_ROLES)},
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
             "admission_effect_scope": {
                 "type": "string", "enum": sorted(ADMISSION_EFFECT_SCOPES),
