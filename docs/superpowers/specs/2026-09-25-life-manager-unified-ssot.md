@@ -1657,3 +1657,185 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] settlementをledgerへ記録する。完了条件: payout receipt。
 - [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
 - [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
+
+## 現在の正本cursor — 14 Product Loop、observability、orchestration、cloud移行
+
+この節がEOFの最新cursorであり、上に残る古いcursor・個別platform TODO・古いrelease SHAより優先する。過去の記録は証拠として残すが、実行順はこの節の「統合Atomic TODO」だけを使う。既に`[x]`になった項目はやり直さない。
+
+### 1. 今回固定する成果
+
+Life Managerを、14 Product Loopと全managed jobについて、人が毎日statusを読んだり壊れたloopを手動で起こしたりせず、次を一つのentityとして実行できる状態へ進める。
+
+1. 実行・生産性・外部効果・収益・費用・回復を型付きで観測する。
+2. 外部効果が不明な時は再送せず、公式receipt/readbackへ診断cursorを進める。
+3. 安全なpre-effect故障だけをbounded self-healする。
+4. settled external revenueと全費用をCFOが結合し、owner入金を収益に数えない。
+5. localとcloudを同じbusiness logicのhost adapterとして扱い、Mac依存を測定しながらゼロへ下げる。
+6. 一つのorchestratorがSSOT、所有境界、依存順、merge、releaseを管理し、複数sessionが同じ共有資源を同時編集しない。
+
+### 2. 最新read-only実測
+
+- sourceとproduction `current/RELEASE.json.sha`は、観測時点で`592c98cbc69fb3bbb6eb4216e672c040c736052c`で一致する。
+- `lm-loop-contract`は`ok=true`、Product Loopは14、managed registry jobは176、Product Loopへ結合済みは103、shared job IDは0である。
+- `lm-loop doctor`は`ok=false`。唯一のunmanaged labelは`ai.anicca.provision-browser.capafy.kosuke`である。
+- 73 managed jobはProduct Loopに未結合である。全てを無理に収益loopへ入れず、`product_loop_id`または型付き`system_role=platform|control|shared`のどちらかへ結合する。無分類のままhealth集計から消してはいけない。
+- `lm-loop status all --json`は6.018秒でexit 0となり、以前の90秒超hangは再現しない。ただし出力は1,368,247 bytes・281 recordsで、人やCFOが読むfleet health summaryではない。
+- `lm-loop health`は未実装で、現在は一般usageを返す。従って「statusが全く動かない」は現在の事実ではないが、「全体healthを一目で判断できない」は未解決である。
+
+以下の`P/F/B/R/N`は直近terminalの`pass/fail/blocked/running/no terminal`、`release`は現在releaseをloadedしたmanaged job数、`receipt`はstatusへ結合済みの`provider_receipt_id/official_readback_ref`数である。process passは売上・納品・外部効果の成功を意味しない。
+
+| Product Loop | jobs / terminal | effect / release / receipt | 現在の主問題 | 次に閉じる境界 |
+|---|---|---|---|---|
+| Gig — Coconala | 7: P2 F2 B2 R1 | unknown 2、release 0/7、receipt 0/0 | Apply/Storefrontはeffect fence、Paid/Replyはexit 1 | 同一occurrenceのofficial readback、自然terminal後のrelease整合 |
+| Gig — Lancers | 7: P1 F3 B2 R1 | unknown 5、release 0/7、receipt 0/0 | Application/Paid失敗、Storefront/Report effect fence | proposal/message/payment receiptとentrypoint原因 |
+| Gig — CrowdWorks | 5: P1 F2 B2 | unknown 4、release 0/5、receipt 0/0 | browser exit 75、Reply exit 1、Paid capacity | browser owner、thread/payment receipt、replay-zero |
+| Writer | 7: P2 B5 | unknown 2、release 0/7、receipt 0/0 | capacity/effect fence、financial/cost adapterはpartial | demand→sale→payment→costの一つのreceipt chain |
+| Affiliate | 6: B3 R3 | unknown 1、release 0/6、receipt 0/0 | sell effect不明、financial/cost adapter missing | attribution commissionと実費のofficial join |
+| Investment | 4: P1 B2 N1 | unknown 4、release 0/4、receipt 0/0 | paper passは売却・実現利益証拠でない、financial/cost partial | 投資Atomic TODOの自然sell・30件・fee込み実現P&L |
+| Agent Economy | 19: P2 B9 R8 | unknown 2/started 3、release 4/19、receipt 0/0 | capacity、release drift、TaskMarket CLI ENOENT履歴、外部収益未証明 | immutable releaseへTaskMarket CLIを梱包し、no-effect discovery到達 |
+| Job Hunter | 7: P1 F1 B5 | unknown 5、release 0/7、receipt 0/0 | daily capacity、Inbox exit 1、Mercor effect fence、financial chain partial | human-free案件だけの応募・契約・payout readback |
+| Fundraiser | 1: B1 | unknown 1、release 0/1、receipt 0/0 | effect fence、financial/cost adapter missing | application receiptと外部入金・費用の結合 |
+| Connector | 1: P1 | not_applicable、release 0/1 | processはpassだが共通health/release provenance未統合 | provider registration＋Calendarの公式readbackをhealthへ結合 |
+| Self-Build | 4: P3 F1 | release 0/4、receipt 0/0 | `life-manager-selfbuild` exit 1、funnel partial、financial/cost missing | verified feedback→PR→main→release→outcomeの閉路 |
+| Mobile Apps | 22: P7 F10 B3 R2 | unknown 13/reconciled 7、release 0/22、receipt 7/7 | 投稿lane失敗、ASC/RevenueCatと実費未結合 | app別acquisition→purchase→payout→cost-complete P&L |
+| Capafy | 10: P4 F1 B3 R1 N1 | unknown 6、release 0/10、receipt 0/0 | distribution exit 1、effect fence、financial/cost missing | Capafy APIのsale、model cost、settlementをskill別に結合 |
+| CFO | 3: B3 | unknown 3、release 0/3、receipt 0/0 | aggregator自身がcapacity/effect fence、全社P&Lを読めない | 全sourceのsettled revenue・fee・model・infra・runwayを一度だけ集計 |
+
+### 3. observabilityで自作するもの・既製品へ任せるもの
+
+Life Manager固有の意味だけをrepositoryで所有し、収集・保存・検索・可視化を再発明しない。
+
+```mermaid
+flowchart LR
+  J[176 managed jobs] --> H[lm-loop.health.v1 projection]
+  J --> O[OpenTelemetry spans metrics logs]
+  R[Provider receipts and durable ledgers] --> H
+  O --> C[OTel Collector]
+  C --> S[SigNoz dashboards search alerts]
+  H --> CLI[lm-loop health]
+  H --> SH[bounded self-heal controller]
+  H --> CFO[CFO revenue cost margin runway]
+  E[LM-EAB / build-eval / hillclimb] --> O
+```
+
+- **repository-owned:** `lm-loop.health.v1`、effect fence、official receipt/readback、4時計、business/P&L projection、recovery intent、CLI exit code。
+- **OpenTelemetry:** trace・metric・logのvendor-neutral transport。Life Manager固有属性は`lm.*` namespaceに置き、development中のGenAI conventionsへ直接business truthを依存させない。
+- **SigNoz:** OTel backend、検索、dashboard、alert。health schemaとCLIが固定する前にinstallを先行しない。
+- **既存eval:** LM-EAB、build-eval、hillclimbを品質判定の正本に保ち、scoreとmodel/tool spanだけをOTelへ送る。新しいeval frameworkを同時に作らない。
+- **採用しないcore:** LangSmithはmanaged依存、Langfuseは現在の規模に対してself-host構成が重い。Phoenixはeval実験が既存harnessで不足すると実測した時だけ追加候補にする。
+- telemetry backendは会計台帳でもeffect truthでもない。SigNoz停止時もdurable receipt、ledger、health snapshotから誤再送を防ぐ。
+
+`lm-loop health`は毎回176 jobへ同期fan-outしない。各ownerの既存runtime eventとreceipt indexからprecomputed snapshotを読み、probeはowner単位deadline・failure isolation・last-known-good freshnessを持つ。一つの遅いadapterはそのjobだけ`telemetry_gap`にし、fleet CLI全体をhangさせない。
+
+### 4. browser/headless方針
+
+headless化を独立projectや完了条件にしない。目的はvisible windowを消すことではなく、外部効果の安全性、session耐久性、memory、同時実行数を改善することである。
+
+1. 公式API/readbackを最優先する。
+2. browserが必要ならmodern Chrome headlessをdefault候補にする。
+3. banked auth、extension、provider互換性のためheaded browserが必要なら、自動headed/virtual-displayを使い、人間clickを前提にしない。
+4. identity/profile leaseを共有せず、互換なlaneだけbrowser process＋BrowserContextを再利用する。
+5. headless移行はRSS、page数、failure rate、official readback成功率のbefore/afterが改善した時だけ採用する。改善しなければ何も変更しない。
+6. CAPTCHA、KYC、本人確認をheadlessで突破しない。継続的な人間操作を要する案件は`human_required`としてhold/skipする。
+
+### 5. Codex Cloud、Tailscale、Mac、最終cloud像
+
+- Codex CloudはGitHub上のcode/spec/test/PRを行う開発hostとする。各taskは隔離workspaceで動き、Macがsleepしても継続できる。
+- OpenAIのprivate networkingはTailscaleを使えるが、private HTTP/HTTPS用であり、SSHとnative database protocolを提供しない。従ってCodex CloudからMacへraw SSHしてproductionを全面操作する設計にしない。
+- Mac/runtimeへのremote操作が必要な間は、Tailscale上の認証済み・allowlist済みHTTPS control/readback gatewayを使う。surfaceはhealth/evidence/対象限定actionだけとし、shell、credential read、任意command実行を公開しない。
+- Mac固有state、launchd、banked browser profileを使う作業はlocal ownerが担当する。GitHubだけで完結する変更はCodex Cloudを優先する。
+- 最終runtimeはDigitalOceanのdurable control planeと、provider-neutral compute/shelter adapterへ移す。disposable jobの外にidentity、ledger、receipt、scheduler、backupを置く。
+- Macを売却できるのは、全required ownerのcloud natural run、reboot/recovery、official readback、backup restore、費用、Mac dependency 0を連続期間で実測した後だけである。Codex Cloud自体を24/7 production daemon hostとはみなさない。
+
+### 6. 単一orchestratorと所有境界
+
+一つのorchestratorがこのSSOT、現在cursor、依存順、agmsg roster、PR受入、release/apply順を所有する。writer sessionは一つの安定した責任範囲だけを持ち、自己申告ではなくdiff、test、commit SHA、official readbackで受入する。
+
+| 共有資源 | single writer | 並列consumerの境界 |
+|---|---|---|
+| この統合SSOT | orchestrator | 他sessionは証拠と提案だけを返し直接編集しない |
+| `bin/cut-loop-release.sh` | TaskMarket packaging ownerがitem 1終了まで所有 | health ownerは触らない。merge後にownershipを返す |
+| `bin/lm-loop`・health schema・`runtime/loop` projection | health foundation owner | platform ownerはadapter dataを出すだけ |
+| product catalog・loop registry | health integration owner | platform PRは必要なdeltaを報告し、integration ownerが直列統合 |
+| CFO financial schema/ledger join | finance observability owner |各loopはsource adapterだけを所有 |
+| browser profile・provider account・production `current` | operations ownerを一度に一人 | writer/reviewerは触らない |
+| immutable release cut・target apply | orchestrator/operationsの直列stage | source writerはreleaseしない |
+| `/lm` website | website owner | health/cloud/revenue sessionはcopyやrouteを編集しない |
+
+agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activity、必要なら`peek`で実稼働を確認する。新しい独立sessionは`spawn --boot-prompt`で最初のgoalごと起動し、停止席へ`send`しただけで着手扱いにしない。
+
+### 7. 統合Atomic TODO
+
+#### 直列gate 0 — 現在cursor
+
+1. **TaskMarket immutable release packagingを修正する。** `skills/earn/taskmarket/node_modules/.bin/taskmarket`がreleaseに無く、production `agent-economy-loop`の最新harness failureは`ENOENT`である。rootの`@blockrun/llm` import testはCLI梱包を証明しない。最小の回帰testを先に失敗させ、packaged dependency/pathを修正し、外部送信・wallet spendなしのinvocationがprovider discoveryまで到達することを証明する。commit/push後に次へ進む。
+
+#### item 1 merge後に開始できるparallel wave
+
+2. **Health foundation:** `lm-loop.health.v1` schema/validator、全176 jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、型付きexit codeを実装する。
+3. **Revenue observability:** schema確定後、各laneのdiscover→qualify→accept→deliver→settle funnelと、settled revenue・fee・model・tool・infra cost・net marginをreceipt単位で結合する。CFOが14 loopと全社を同じ規則で再計算できることをDoneとする。
+4. **Read-only evidence:** Investmentは自然schedulerによるsellまで待ち、PromptBase/Capafyは自然runと公式管理画面/API/Gmailだけを観測する。手動wake・再送・production editをしない。このlaneはsource writerではない。
+5. **AGI eval:** eval専用directoryだけでCapafy E-productからaudit/build-eval/hillclimbを行い、production loop変更は担当ownerへPR提案する。health schemaを再実装しない。
+
+#### foundation contract merge後の直列gate
+
+6. `status`のinvalid input、current snapshot、historical record、trailing windowを分離し、成功・失敗・timeoutのfocused evidenceを残す。
+7. 5分read-only observer、atomic latest snapshot、append-only history、state-change alert dedupe、typed recovery intentを実装する。observerはprovider mutationを行わない。
+8. `human_required` qualificationをshared kernelへ追加し、面接・試験・録音・camera・screen share・自由回答・継続承認が必要な案件を自動hold/skipする。
+9. 外部需要が確認でき、粗利gateを通るsellable offerを一つ選び、一つの測定可能なacquisition surfaceで販売する。
+10. pre-acceptance margin gateとactual cost calibrationを通し、外部顧客の一件を契約→納品→settlement→payout→net marginまで閉じる。
+11. BlockRun x402 paid inferenceをtreasury policy内で実用jobに使い、owner depositでなく外部settled revenueとの関係をledgerへ残す。
+12. DigitalOceanの全費用を公式invoice/readbackからCFOへ入れ、runwayを計算する。
+13. 既存Nosana operationsをprovider-neutral shelter interfaceの後ろへ置き、durable identity/ledger/scheduler/backupをdisposable jobから分離する。
+14. FRANKLIN-CONTINUITY-1を連続する二回のsuccessor handoverで閉じ、外部earned surplusからNosana leaseを一回renewする。
+15. Akash quote/deploy/restoreをcross-provider fallbackとして実証する。
+16. local→cloudをowner単位で移し、Mac dependency 0、reboot/recovery、official readback、cost-complete positive net cashflowを確認する。
+17. 完全self-funding benchmarkを30日保持してからreplicationとMac売却を判断する。
+
+Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力的でも先に進めない。並列化は同じ順序を短縮するためだけに使い、未達gateを飛び越えない。
+
+### 8. 起動予定sessionのGoal契約（まだ起動しない）
+
+常時active writerはorchestratorを含め最大4席とし、最初はTaskMarket owner一席だけを追加する。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
+
+**Session A — TaskMarket packaging（最初に一席だけ）**
+
+```text
+/goal 最新origin/main由来の専用worktreeでTaskMarket immutable-release ENOENTを最小修正し、packaged CLIが外部送信・wallet spendなしでprovider discoveryへ到達する状態を作る。Doneは、失敗する回帰test→修正後PASS、candidate release内のCLI/path readback、no-effect invocation、関連test、diff check、commit SHA、remote branchが確認できること。所有はTaskMarket runtime、release dependency packaging、関連testだけとし、production current、provider、wallet、統合SSOT、他loopを変更しない。同じ失敗を再実行する前に観測を増やし、3つの安全な診断でも原因を狭められない時だけexact blockerを報告する。
+```
+
+**Session B — Health foundation（Session A merge後）**
+
+```text
+/goal 全176 managed jobを一つのlm-loop.health.v1へ結合し、lm-loop health、--json、--skill、--loop --explainがruntime・productivity・effect safety・business・recoveryと4時計をbounded timeで返す状態を作る。Doneはschema/validator、分類coverage 176/176、success/failure/timeout focused test、一つの遅いadapterがfleet CLIを止めない証拠、commit/pushである。所有はbin/lm-loopのhealth surface、runtime/loop health projection、catalog/registry classificationだけ。provider/browser/production/finance adapter/websiteを変更しない。
+```
+
+**Session C — Revenue/CFO join（Health schema固定後）**
+
+```text
+/goal 14 Product Loopのfunnel、settled external revenue、fee、model/tool/infra cost、net margin、runwayを公式receipt単位でCFOが再計算できるprojectionへ結合する。Doneは各sourceのcoverage表、重複控除ゼロ、owner deposit/internal transfer除外、historicalとtrailing window分離、fixtureではなく利用可能な公式readback、focused test、commit/pushである。所有はfinancial projectionと各loopのsource adapterだけ。health core、loop action、provider mutation、production、統合SSOTを変更しない。
+```
+
+**Session D — Read-only evidence observer（Aと並行可、writeなし）**
+
+```text
+/goal Investment、PromptBase、Capafyの既存自然実行をread-onlyで観測し、公式readbackが変化した時だけorchestratorへ証拠、正確な状態、次の安全な一手を報告する。手動wake、再送、browser takeover、provider mutation、spec/code編集、完了推測をしない。Doneは観測期間中の各変化がprovider receipt/readbackへ結合され、変化が無ければ未達のまま正直に終了すること。
+```
+
+AGI eval、platform別修理、website、cloud migrationは上記contractが固定してから必要な席だけ追加する。全sessionへ「他者の変更を戻さない」「共有schema変更は提案だけ」「reviewerはread-only」を渡す。
+
+### 9. 固定費とsubscriptionの運用判断
+
+- ChatGPT/Codex/Workの使用量とcreditは同一accountのagentic allowanceとして追跡する。重複accountをparallelismの仕組みにしない。
+- 現在は一つの既存ChatGPT Pro accountへ集約し、Claudeと重複ChatGPT accountはrepo、cloud environment、必要な履歴・assetの移行確認後に更新停止する方針とする。実際の解約はbilling readback後に別操作として行う。
+- Ultrafast目的のPro $500へは上げない。現在の故障はmodel latencyではなくrelease packaging、capacity、receipt、health、ownershipであり、先にここを直す。
+- plan upgradeは、単一accountのusage/creditと、limitによって止まった収益critical task、追加費用をCFOが計測し、incremental settled profitがplan差額を継続して上回る場合だけ行う。
+
+### 10. 外部一次資料
+
+- OpenAI Codex Cloud environments / Tailscale private networking: https://learn.chatgpt.com/docs/environments/cloud-environments
+- OpenTelemetry: https://opentelemetry.io/docs/
+- SigNoz self-host / LLM observability: https://signoz.io/docs/install/docker/ , https://signoz.io/docs/llm-observability/
+- Chrome Headless: https://developer.chrome.com/docs/automation-and-testing/headless
+
+今回の文書更新はsource truthと実行順だけを変更する。production owner、browser、provider、wallet、cloud resource、subscriptionは変更しない。
