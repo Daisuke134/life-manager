@@ -360,6 +360,10 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
 - [ ] C1c 他の loop と同じく browser-guard.sh の lease で TikTok 用 identity（browsers.toml の tiktok-anicca-jp 等、どれが計測対象アカウントにログイン済みかを実物で確認）を借り、lease が返す endpoint を使う形に直す（決め打ち 9222 をやめる）→ worktree で 1 回通す → merge → apply → post-metrics.jsonl に今日の行
 - [ ] C1a 計測 2 loop に読み戻し役（今回の閉じ方: receipt の message_id / Telegram 3 会話の listing）を付け、fence が永久化しないようにする
 
+**C1 進捗（2026-09-30 10:3x JST）**: #cd44996f（決め打ちの Dais の Chrome ポートをやめ tiktok-anicca-jp を lease、1 本の失敗で全体を止めない）＋ #c522f4ab（CLOAK_PYTHON で cloakbrowser 入りの venv を使う）＋ #985821a3（queued/reserved wakes を coalesce）を release 20260930T095524-c522f4ab で apply。9/17 からの 45 件の古い予約を cancel_effect_free_queued_owner で取り消し、古い fence は Telegram 3 会話の読み戻しで「未送信」を確かめて閉じた（evidence あり）。手動実行は 168 秒で rc=0、complete 696→741（45 件の計測が記録された）。未解決: tiktok-anicca-jp のブラウザは lease ごとの一時起動で、ループ（launchd）内から起動し直すと `launchctl could not submit ai.anicca.provision-browser.tiktok-anicca-jp` で失敗し、実行は exit 10/124 → 毎回新しい fence。
+- [ ] C1d TikTok 用ブラウザを常駐させる。Capafy と同じ keep_alive のブラウザ役にするが、TikTok は指紋付き CloakBrowser（skills/browser/cdp_persistent_context.py）で起動が必要（素の Chromium の lancers 写しは不可、同一 profile 二重起動の事故あり 10:0x）。keep_alive で cdp_persistent_context を使う既存の前例を探して写す。
+- [ ] C1e 常駐後、自然 run で exit 0 を確認し、fence を読み戻し役で自動解除できるようにする（C1a）。Instagram 計測も同じ手順（fence・予約の整理）。
+
 **Capafy だけを 1 つずつ閉じる（2026-09-29 23:0x JST、Dais: 1 つずつ。Capafy が閉じるまで他へ進まない）**
 - 作る（工場 capafy-loop-daily）: 今日の自然 run 26 回中 24 回が途中で BLOCKED。原因 4 つを修正済み: Coconala とのブラウザ取り合い（専用 capafy-browser、#6230）、HOME 移動で lease 不可（#8f1fdd3a）、lock 持ち主不明（#a1018689）、読み取り専用アイコン上書き不可（#af6e5011）。22:16 の失敗の fence は lm-fence-reconciler が 62 分後（23:18 頃）に自動で閉じる設計（too_recent を readback で確認）。
 - 売る（宣伝 capafy-distribute-daily）: 17:04 の exit 1 の fence に読み戻し役が無く、19:15 と 22:15 の自然 run が走っていなかった。23:0x に公開ページの公式 readback で閉じ、読み戻し役 capafy_distribute_fence_reconcile.py を追加（#b4ab4ade、IG の写し、本物の GitHub commit・公開ページ・Postiz で effected と判定を確認）。
