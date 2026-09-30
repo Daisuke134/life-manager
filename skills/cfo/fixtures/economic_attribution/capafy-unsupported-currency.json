@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "UNKNOWN",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 0, "next_cursor": null},
+  "content_sha256": "b28d0f97eeb3f80d733c9b60bbc793acff329dc4e216711830598c29fa02e654",
+  "evidence_ref": "capafy://orders/readback/sha256/b28d0f97eeb3f80d733c9b60bbc793acff329dc4e216711830598c29fa02e654",
+  "orders": []
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": false,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "content_sha256": "b703c31239cf4d80aba575ed9b1c6c9e5945e045cbd170406e008e24df52862c",
+  "evidence_ref": "capafy://orders/readback/sha256/b703c31239cf4d80aba575ed9b1c6c9e5945e045cbd170406e008e24df52862c",
+  "orders": [
+    {
+      "orderId": "cre-capafy-pending-001",
+      "buyerId": "buyer-external-003",
+      "developerId": "developer-owner-001",
+      "subscriptionId": "sub-capafy-001",
+      "refundId": null,
+      "status": "pending_payment",
+      "isSettled": false,
+      "amount": 29.99,
+      "actualAmount": null,
+      "refundAmount": null,
+      "developerActualAmount": null,
+      "platformFeeAmount": null,
+      "createdAt": 1790766000000,
+      "paymentAt": null,
+      "completedAt": null,
+      "refundedAt": null,
+      "updatedAt": 1790766000000
+    }
+  ]
+}

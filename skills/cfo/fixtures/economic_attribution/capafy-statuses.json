@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 4, "next_cursor": null},
+  "content_sha256": "bcd12a749be197a1510129c24305273e604e1ee522d1cdd612f987c9a186e192",
+  "evidence_ref": "capafy://orders/readback/sha256/bcd12a749be197a1510129c24305273e604e1ee522d1cdd612f987c9a186e192",
+  "orders": [
+    {"orderId":"cre-pending-001","buyerId":"buyer-101","developerId":"developer-001","subscriptionId":"sub-101","refundId":null,"status":"pending_payment","isSettled":false,"amount":20,"createdAt":1790766000000},
+    {"orderId":"buy-declined-001","buyerId":"buyer-102","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"declined","isSettled":false,"amount":30,"createdAt":1790766000000},
+    {"orderId":"buy-canceled-001","buyerId":"buyer-103","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"canceled","isSettled":false,"amount":40,"createdAt":1790766000000},
+    {"orderId":"buy-unknown-001","buyerId":"buyer-104","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"provider_new_state","isSettled":false,"amount":50,"createdAt":1790766000000}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "content_sha256": "3d1fd46dafd8b899da3668b5ffda0afd9d05c49109a368574ba16a0090abbea9",
+  "evidence_ref": "capafy://orders/readback/sha256/3d1fd46dafd8b899da3668b5ffda0afd9d05c49109a368574ba16a0090abbea9",
+  "orders": [{"orderId":"buy-float-time-001","buyerId":"buyer-106","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"completed","isSettled":true,"amount":100,"actualAmount":100,"refundAmount":0,"developerActualAmount":82,"platformFeeAmount":18,"paymentAt":1790769600000,"completedAt":1790773200000.0,"refundedAt":null,"createdAt":1790766000000}]
+}

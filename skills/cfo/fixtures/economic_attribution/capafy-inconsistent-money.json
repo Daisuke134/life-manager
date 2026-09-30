@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "content_sha256": "d8a307501b9ca8eda8270983b80d00a252423dd68fd64f5001e2b30527ee8e37",
+  "evidence_ref": "capafy://orders/readback/sha256/d8a307501b9ca8eda8270983b80d00a252423dd68fd64f5001e2b30527ee8e37",
+  "orders": [{"orderId":"buy-bad-money-001","buyerId":"buyer-105","developerId":"developer-001","subscriptionId":null,"refundId":"refund-bad-001","status":"refunded","isSettled":true,"amount":100,"actualAmount":95,"refundAmount":10,"developerActualAmount":80,"platformFeeAmount":18,"paymentAt":1790769600000,"completedAt":1790773200000,"refundedAt":1790776800000,"createdAt":1790766000000}]
+}

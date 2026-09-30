@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "content_sha256": "11dcabbd5811b3a0e921926551bc89f1919b9893c6a2084dbef371c6459828f4",
+  "evidence_ref": "capafy://orders/readback/sha256/11dcabbd5811b3a0e921926551bc89f1919b9893c6a2084dbef371c6459828f4",
+  "orders": [{"orderId":"buy-overflow-time-001","buyerId":"buyer-108","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"completed","isSettled":true,"amount":100,"actualAmount":100,"refundAmount":0,"developerActualAmount":82,"platformFeeAmount":18,"paymentAt":1000000000000000000000000000000,"completedAt":1790773200000,"refundedAt":null,"createdAt":1790766000000}]
+}
