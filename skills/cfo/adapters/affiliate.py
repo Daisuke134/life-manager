@@ -19,6 +19,9 @@ SUPPORTED_CURRENCIES = {"USD"}
 FINANCIAL_CATEGORIES = (
     "settled_external_revenue", "refund", "provider_fee", "payment_fee",
 )
+COMMISSION_MINOR_FIELDS = (
+    "gross_commission_minor", "reversal_minor", "net_commission_minor",
+)
 PENDING = {"pending", "hold"}
 APPROVED = {"approved", "scheduled"}
 PAID = {"paid", "settled"}
@@ -47,7 +50,7 @@ def _artifact_evidence(digest: str) -> str:
 
 def _minor(value) -> str:
     """Convert the currently observed USD minor unit to a B0 decimal amount."""
-    if isinstance(value, bool):
+    if type(value) is not int:
         raise ValueError("amount_invalid")
     try:
         amount = Decimal(str(value)) / 100
@@ -56,6 +59,11 @@ def _minor(value) -> str:
     if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
         raise ValueError("amount_invalid")
     return format(amount.normalize(), "f")
+
+
+def _require_exact_int_fields(row: dict, fields: tuple[str, ...]) -> None:
+    if any(type(row.get(field)) is not int for field in fields):
+        raise ValueError("unverified_receipt")
 
 
 def _instant(value) -> str:
@@ -126,7 +134,7 @@ def _expected_normalized_commission(raw: dict, status_map: dict[str, str]) -> di
         minor = Decimal(str(raw["commission_amount"])) * 100
     except (KeyError, InvalidOperation, ValueError):
         raise ValueError("unverified_receipt") from None
-    if minor != minor.to_integral_value() or minor < 0:
+    if not minor.is_finite() or minor != minor.to_integral_value() or minor < 0:
         raise ValueError("unverified_receipt")
     gross = int(minor)
     status = status_map[provider_status]
@@ -182,6 +190,7 @@ def _receipt(*, receipt_id: str, currency: str, occurred_at: str,
 
 
 def _commission(row: dict, evidence: str) -> dict | None:
+    _require_exact_int_fields(row, COMMISSION_MINOR_FIELDS)
     transaction_id = _identity(row.get("provider_transaction_id"), "provider_transaction_id")
     status = row.get("status")
     provider_status = row.get("provider_status")
@@ -286,6 +295,7 @@ def _validate_commission_pairs(artifact: dict, status_map: dict[str, str]) -> li
     for raw, row in zip(raw_rows, normalized):
         if not isinstance(raw, dict) or not isinstance(row, dict):
             raise ValueError("unverified_receipt")
+        _require_exact_int_fields(row, COMMISSION_MINOR_FIELDS)
         if row.get("currency") not in SUPPORTED_CURRENCIES:
             raise ValueError("unsupported_currency")
         expected = _expected_normalized_commission(raw, status_map)
@@ -458,11 +468,13 @@ def _native_bundle(artifact: dict, digest: str) -> dict:
 def _transition_source(row: dict) -> str:
     if (
         not isinstance(row, dict)
+        or type(row.get("schema_version")) is not int
         or row.get("schema_version") != 1
         or row.get("receipt_type") != "COMMISSION_TRANSITION"
         or row.get("provider") != UPSTREAM_PROVIDER
     ):
         raise ValueError("unverified_receipt")
+    _require_exact_int_fields(row, COMMISSION_MINOR_FIELDS)
     source_hash = row.get("source_artifact_sha256")
     if not isinstance(source_hash, str) or not SHA256.fullmatch(source_hash):
         raise ValueError("unverified_receipt")

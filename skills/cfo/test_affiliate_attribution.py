@@ -70,6 +70,24 @@ def commission_transition(row: dict, source_hash: str, placement: dict) -> dict:
     }
 
 
+def adapt_single_transition(artifact: dict, transition: dict) -> list[dict]:
+    source_hash = hashlib.sha256(
+        json.dumps(artifact, sort_keys=True).encode()
+    ).hexdigest()
+    with tempfile.TemporaryDirectory() as directory:
+        state = Path(directory)
+        artifact_root = state / "provider-reports/partnerstack"
+        artifact_root.mkdir(parents=True)
+        (artifact_root / f"{source_hash}.json").write_text(
+            json.dumps(artifact), encoding="utf-8",
+        )
+        ledger = state / "commission-ledger.jsonl"
+        ledger.write_text(json.dumps(transition) + "\n", encoding="utf-8")
+        return affiliate.adapt_path(
+            ledger, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+
+
 class AffiliateAttributionTest(unittest.TestCase):
     def adapt(self, payload: dict) -> list[dict]:
         return affiliate.adapt(
@@ -449,6 +467,96 @@ class AffiliateAttributionTest(unittest.TestCase):
                     [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
                     ["unverified_receipt", "unverified_receipt"],
                 )
+
+    def test_ledger_schema_version_requires_exact_integer_one(self):
+        for schema_version in (True, 1.0):
+            with self.subTest(schema_version=schema_version):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                artifact = payload["artifact"]
+                transition = commission_transition(
+                    artifact["normalized_commissions"][0],
+                    payload["capture"]["rendered_artifact_sha256"],
+                    {"state": "UNMATCHED"},
+                )
+                transition["schema_version"] = schema_version
+                records = adapt_single_transition(artifact, transition)
+                self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+                self.assertEqual(
+                    [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                    ["unverified_receipt", "unverified_receipt"],
+                )
+
+    def test_commission_accounting_fields_require_exact_integers_everywhere(self):
+        mutations = (
+            ("gross_commission_minor", 2500.0),
+            ("reversal_minor", False),
+            ("net_commission_minor", 2500.0),
+        )
+        for field, value in mutations:
+            with self.subTest(boundary="normalized", field=field):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                payload["artifact"]["normalized_commissions"][0][field] = value
+                records = self.adapt(rehash_bundle(payload))
+                self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+
+            with self.subTest(boundary="ledger", field=field):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                artifact = payload["artifact"]
+                normalized = copy.deepcopy(artifact["normalized_commissions"][0])
+                normalized[field] = value
+                transition = commission_transition(
+                    normalized,
+                    payload["capture"]["rendered_artifact_sha256"],
+                    {"state": "UNMATCHED"},
+                )
+                records = adapt_single_transition(artifact, transition)
+                self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+
+            with self.subTest(boundary="commission", field=field):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                normalized = copy.deepcopy(
+                    payload["artifact"]["normalized_commissions"][0]
+                )
+                normalized[field] = value
+                normalized["settled_at"] = "2026-09-30T12:00:00Z"
+                with self.assertRaisesRegex(ValueError, "unverified_receipt"):
+                    affiliate._commission(normalized, ARTIFACT_EVIDENCE)
+
+    def test_other_minor_unit_accounting_fields_require_exact_integers(self):
+        cases = (
+            (affiliate._fee, {
+                "provider": "elevenlabs", "provider_fee_id": "fee-1",
+                "fee_type": "network", "status": "settled", "amount_minor": 100.0,
+                "currency": "USD", "occurred_at": SNAPSHOT, "settled_at": SNAPSHOT,
+            }),
+            (affiliate._payout, {
+                "provider": "elevenlabs", "provider_payout_id": "payout-1",
+                "status": "deposited", "amount_minor": 100.0, "currency": "USD",
+                "occurred_at": SNAPSHOT, "settled_at": SNAPSHOT,
+            }),
+            (affiliate._cash, {
+                "provider": "elevenlabs", "movement_id": "cash-1",
+                "kind": "owner_deposit", "amount_minor": 100.0, "currency": "USD",
+                "occurred_at": SNAPSHOT,
+            }),
+        )
+        for converter, row in cases:
+            with self.subTest(converter=converter.__name__):
+                with self.assertRaises(ValueError):
+                    converter(row, ARTIFACT_EVIDENCE)
+
+    def test_non_finite_commission_amount_fails_closed_to_coverage(self):
+        payload = fixture("affiliate-partnerstack-complete.json")
+        payload["artifact"]["commission_rows"][0]["commission_amount"] = "Infinity"
+        try:
+            records = self.adapt(rehash_bundle(payload))
+        except Exception as error:  # pragma: no cover - failure message preserves the escaped type.
+            self.fail(f"adapter raised {type(error).__name__}: {error}")
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual(
+            [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+            ["unverified_receipt", "unverified_receipt"],
+        )
 
     def test_declined_commission_is_not_a_refund(self):
         payload = fixture("affiliate-partnerstack-complete.json")
