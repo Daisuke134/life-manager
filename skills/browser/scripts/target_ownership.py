@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Small, process-safe registry of loop-owned CDP page targets."""
 import fcntl
+import errno
 import json
 import os
 import re
+import stat
 import time
 from pathlib import Path
 
@@ -26,6 +28,46 @@ def require_owner(owner=None):
     return value
 
 
+def _persist_registry(path, data):
+    """Persist the tiny ownership ledger even when directory allocation is exhausted.
+
+    The normal path remains replace-on-write.  If only the directory-entry allocation
+    fails, reuse the already allocated inode while holding the same flock.  A missing,
+    symlinked, or non-regular ledger never takes this fallback; callers then receive the
+    typed capacity error and the newly-created CDP target is closed by the helper.
+    """
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True) + "\n"
+    temp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
+    try:
+        temp.write_text(payload, encoding="utf-8")
+        os.replace(temp, path)
+        return
+    except OSError as error:
+        if error.errno != errno.ENOSPC:
+            raise
+        try:
+            info = path.lstat()
+        except OSError:
+            raise error
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise error
+        try:
+            with path.open("r+", encoding="utf-8") as handle:
+                handle.seek(0)
+                handle.write(payload)
+                handle.truncate()
+                handle.flush()
+                os.fsync(handle.fileno())
+        except OSError as fallback_error:
+            raise OSError(
+                errno.ENOSPC,
+                "browser_state_capacity: ownership ledger could not be persisted",
+                str(path),
+            ) from fallback_error
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def _mutate(callback):
     path = _registry_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -41,15 +83,7 @@ def _mutate(callback):
                 data = {"version": 1, "targets": {}}
             result, changed = callback(data["targets"])
             if changed:
-                temp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
-                try:
-                    temp.write_text(
-                        json.dumps(data, ensure_ascii=False, sort_keys=True) + "\n",
-                        encoding="utf-8",
-                    )
-                    os.replace(temp, path)
-                finally:
-                    temp.unlink(missing_ok=True)
+                _persist_registry(path, data)
             return result
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)

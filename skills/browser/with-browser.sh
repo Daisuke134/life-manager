@@ -19,6 +19,7 @@ export CLOAK_TARGET_OWNERS_FILE="$HOME/.cloak/vault/target-owners/$IDENTITY_KEY.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="${AI_BROWSER_GUARD:-$HERE/browser-guard.sh}"
 ENSURE="${AI_ENSURE_PROVISION_BROWSER:-$HERE/ensure_provision_browser.sh}"
+ENSURE_SHARED="${AI_ENSURE_BROWSER:-$HERE/ensure_browser.sh}"
 WAIT_SECONDS="${BROWSER_WAIT_SECONDS:-300}"
 CDP=""
 deadline=$(( $(date +%s) + WAIT_SECONDS ))
@@ -33,9 +34,26 @@ while :; do
   # Exit 10 is identity-unreachable, not BUSY. Provision only through the guarded shared
   # launcher, and bind the launcher's lease to this same wrapper so there is no lease gap.
   # Exit 9 remains a genuine live-owner collision and continues to wait without interference.
-  if [ "$acquire_status" -eq 10 ] && [ "$ensure_attempted" -eq 0 ] && [ -x "$ENSURE" ]; then
+  if [ "$acquire_status" -eq 10 ] && [ "$ensure_attempted" -eq 0 ]; then
     ensure_attempted=1
-    CDP="$(AI_BROWSER_HOLDER_PID=$$ bash "$ENSURE" "$IDENTITY" 2>/dev/null)" && break
+    if [ -x "$ENSURE" ]; then
+      CDP="$(AI_BROWSER_HOLDER_PID=$$ bash "$ENSURE" "$IDENTITY" 2>/dev/null)" && break
+    fi
+    # Registered, persistent identities (for example coconala:kosuke) must never be
+    # sent through the provisioning launcher: it intentionally refuses protected profiles.
+    # Fall back to the identity's launchd owner, then let the guard acquire the recovered
+    # endpoint.  This closes the old "browser is unreachable" dead end without stealing a
+    # live profile or changing the lease contract.
+    if [ -n "${CLOAK_BROWSER_LAUNCHD_LABEL:-}" ] && [ -x "$ENSURE_SHARED" ]; then
+      if bash "$ENSURE_SHARED" >/dev/null 2>&1; then
+        CDP="$(AI_BROWSER_HOLDER_PID=$$ "$GUARD" acquire "$IDENTITY" 2>/dev/null)"
+        reacquire_status=$?
+        if [ "$reacquire_status" -eq 0 ]; then
+          break
+        fi
+        acquire_status="$reacquire_status"
+      fi
+    fi
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
     if [ "$acquire_status" -eq 10 ]; then

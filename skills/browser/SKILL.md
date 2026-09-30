@@ -26,6 +26,15 @@ python3 $LIFE_MANAGER_REPO/skills/browser/scripts/cdp_tab_gc.py   # close the ta
 If `ensure_browser.sh` prints `FAILED`, do **not** hang or retry forever — skip the browser steps,
 run whatever file-only work the pass can still do, and report the failure honestly.
 
+The shared wrappers now close the common infrastructure gaps automatically. `with-browser.sh`
+tries the registered identity's provisioner once and, when that identity is a protected persistent
+profile, falls back to its launchd owner before reacquiring the same lease. `cdp_default_tab.py`
+retries one typed CDP transport failure after `ensure_browser.sh` and one `ENOSPC` failure after
+the allowlisted disk cleanup; ownership is never stolen and a newly-created tab is closed if its
+ledger cannot be persisted. Exhaustion is reported as `browser_recovery_exhausted:<type>` with
+the failed boundary, not as an unqualified "browser unavailable" message. Do not add a second
+browser daemon or a raw-CDP bypass around these paths.
+
 ## What each piece is for
 
 | Piece | Problem it solves |

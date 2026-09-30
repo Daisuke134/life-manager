@@ -5,6 +5,7 @@ that it registered under its own owner name; unowned and foreign targets are
 never garbage-collected.
 """
 import asyncio
+import errno
 import json
 import os
 import sys
@@ -63,6 +64,66 @@ def test_registry_release_refuses_foreign_owner(tmp_path, monkeypatch):
     assert ownership.release_target("gig-target", "article-loop") is False
     assert ownership.targets_for_owner("gig-pass") == {"gig-target"}
     assert ownership.targets_for_owner("article-loop") == {"other-target"}
+
+
+def test_registry_falls_back_to_existing_inode_when_atomic_replace_hits_enospc(
+    tmp_path, monkeypatch
+):
+    registry = tmp_path / "target-owners.json"
+    monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(registry))
+    ownership.claim_target("first", "paid")
+
+    def no_directory_space(*_args, **_kwargs):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(ownership.os, "replace", no_directory_space)
+
+    ownership.claim_target("second", "paid", max_targets=2)
+
+    assert ownership.targets_for_owner("paid") == {"first", "second"}
+
+
+def test_transport_retry_reaches_browser_recovery_once(monkeypatch):
+    attempts = []
+    recoveries = []
+
+    def operation():
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise ConnectionError("connection refused")
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        default_tab,
+        "_recover_browser",
+        lambda: recoveries.append(True) or True,
+        raising=False,
+    )
+
+    assert default_tab._run_with_recovery(operation) == {"ok": True}
+    assert len(attempts) == 2
+    assert recoveries == [True]
+
+
+def test_capacity_retry_runs_disk_recovery_once(monkeypatch):
+    attempts = []
+    recoveries = []
+
+    def operation():
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise OSError(errno.ENOSPC, "No space left on device")
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        default_tab,
+        "_recover_capacity",
+        lambda: recoveries.append(True) or True,
+    )
+
+    assert default_tab._run_with_recovery(operation) == {"ok": True}
+    assert len(attempts) == 2
+    assert recoveries == [True]
 
 
 def test_registry_fails_closed_at_owner_target_limit(tmp_path, monkeypatch):
