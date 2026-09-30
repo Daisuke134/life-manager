@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException
 from pathlib import Path
 
 from skills.cfo import economic_attribution as contract
@@ -132,7 +132,7 @@ def _expected_normalized_commission(raw: dict, status_map: dict[str, str]) -> di
         raise ValueError("unsupported_currency")
     try:
         minor = Decimal(str(raw["commission_amount"])) * 100
-    except (KeyError, InvalidOperation, ValueError):
+    except (KeyError, DecimalException, ValueError):
         raise ValueError("unverified_receipt") from None
     if not minor.is_finite() or minor != minor.to_integral_value() or minor < 0:
         raise ValueError("unverified_receipt")

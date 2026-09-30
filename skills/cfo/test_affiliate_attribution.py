@@ -576,6 +576,19 @@ class AffiliateAttributionTest(unittest.TestCase):
             ["unverified_receipt", "unverified_receipt"],
         )
 
+    def test_extreme_exponent_commission_amount_fails_closed_to_coverage(self):
+        payload = fixture("affiliate-partnerstack-complete.json")
+        payload["artifact"]["commission_rows"][0]["commission_amount"] = "1e999999"
+        try:
+            records = self.adapt(rehash_bundle(payload))
+        except Exception as error:  # pragma: no cover - failure message preserves the escaped type.
+            self.fail(f"adapter raised {type(error).__name__}: {error}")
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual(
+            [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+            ["unverified_receipt", "unverified_receipt"],
+        )
+
     def test_path_read_failures_return_read_failed_coverage(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
