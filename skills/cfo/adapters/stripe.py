@@ -93,10 +93,10 @@ def _currency(value: object) -> str | None:
 
 
 def _minor(value: object, currency: str) -> str | None:
-    if isinstance(value, bool) or not isinstance(value, (int, str)):
+    if isinstance(value, bool) or not isinstance(value, int):
         return None
     try:
-        amount = Decimal(str(value)) / (Decimal(1) if currency in ZERO_DECIMAL else Decimal(100))
+        amount = Decimal(value) / (Decimal(1) if currency in ZERO_DECIMAL else Decimal(100))
     except InvalidOperation:
         return None
     if not amount.is_finite() or amount < 0:
@@ -248,7 +248,17 @@ def _receipt(*, transaction: dict, product_loop_id: str, occurred_at: str,
     return contract.validate_record(record)
 
 
-def _movement(transaction: dict, product_loop_id: str, category: str) -> dict | None:
+def _fee_receipt(*, transaction: dict, product_loop_id: str, occurred_at: str,
+                 settled_at: str, fee: str, refs: list[str]) -> dict:
+    return _receipt(
+        transaction=transaction, product_loop_id=product_loop_id, occurred_at=occurred_at,
+        settled_at=settled_at, state="verified", revenue_class=None,
+        components=[{"category": "payment_fee", "amount": fee}], refs=refs, suffix=":fee",
+    )
+
+
+def _movement(transaction: dict, product_loop_id: str,
+              category: str) -> list[dict] | None:
     currency = _currency(transaction.get("currency"))
     raw_amount = transaction.get("amount")
     raw_fee = transaction.get("fee")
@@ -262,17 +272,25 @@ def _movement(transaction: dict, product_loop_id: str, category: str) -> dict | 
             or raw_amount * expected_sign <= 0 or raw_amount - raw_fee != raw_net):
         return None
     amount, _ = _absolute_minor(raw_amount, currency) if currency else (None, None)
+    fee = _integer_minor(raw_fee, currency) if currency else None
     occurred_at = _instant(transaction.get("created"))
     settled_at = _instant(transaction.get("available_on"))
-    if not all((currency, amount, occurred_at, settled_at)):
+    if not all((currency, amount, fee is not None, occurred_at, settled_at)):
         return None
     transaction = {**transaction, "currency": currency}
-    return _receipt(
+    refs = [_evidence("balance_transactions", transaction["id"])]
+    receipts = [_receipt(
         transaction=transaction, product_loop_id=product_loop_id, occurred_at=occurred_at,
         settled_at=settled_at, state="verified", revenue_class=None,
         components=[{"category": category, "amount": amount}],
-        refs=[_evidence("balance_transactions", transaction["id"])],
-    )
+        refs=refs,
+    )]
+    if fee != "0":
+        receipts.append(_fee_receipt(
+            transaction=transaction, product_loop_id=product_loop_id,
+            occurred_at=occurred_at, settled_at=settled_at, fee=fee, refs=refs,
+        ))
+    return receipts
 
 
 def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> list[dict] | None:
@@ -283,11 +301,21 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     raw_amount = transaction.get("amount")
     raw_fee = transaction.get("fee")
     raw_net = transaction.get("net")
+    charge_amount = charge.get("amount")
+    captured_amount = charge.get("amount_captured")
+    refunded_amount = charge.get("amount_refunded")
     transaction_amounts_valid = (
         not isinstance(raw_amount, bool) and isinstance(raw_amount, int)
         and not isinstance(raw_fee, bool) and isinstance(raw_fee, int)
         and not isinstance(raw_net, bool) and isinstance(raw_net, int)
-        and raw_amount - raw_fee == raw_net
+        and raw_amount > 0 and raw_fee >= 0 and raw_amount - raw_fee == raw_net
+    )
+    charge_amounts_valid = (
+        not isinstance(charge_amount, bool) and isinstance(charge_amount, int)
+        and not isinstance(captured_amount, bool) and isinstance(captured_amount, int)
+        and not isinstance(refunded_amount, bool) and isinstance(refunded_amount, int)
+        and charge_amount > 0 and 0 <= captured_amount <= charge_amount
+        and 0 <= refunded_amount <= captured_amount
     )
     status, transaction_status = charge.get("status"), transaction.get("status")
     amount = _integer_minor(raw_amount, currency)
@@ -295,6 +323,7 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     occurred_at = _instant(charge.get("created"))
     settled_at = _instant(transaction.get("available_on"))
     if (transaction.get("object") != "balance_transaction" or not transaction_amounts_valid
+            or not charge_amounts_valid
             or charge.get("object") != "charge" or charge.get("id") != source
             or charge.get("balance_transaction") != transaction.get("id")
             or _currency(charge.get("currency")) != currency or charge.get("livemode") is not True
@@ -311,9 +340,10 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     refs = [_evidence("balance_transactions", transaction["id"]), _evidence("charges", source)]
     pending_charge = status == "pending" or (
         status == "succeeded" and charge.get("paid") is True and charge.get("captured") is True
-        and charge.get("amount_captured") == transaction.get("amount")
+        and captured_amount == raw_amount
     )
-    if transaction_status == "pending" and pending_charge and economic_category == contract.REVENUE:
+    if (transaction_status == "pending" and pending_charge
+            and economic_category == contract.REVENUE and fee == "0"):
         return [_receipt(
             transaction=transaction, product_loop_id=product_loop_id, occurred_at=occurred_at,
             settled_at=None, state="pending", revenue_class="one_time",
@@ -321,7 +351,7 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
             suffix=":pending",
         )]
     if (transaction_status != "available" or status != "succeeded" or charge.get("paid") is not True
-            or charge.get("captured") is not True or charge.get("amount_captured") != transaction.get("amount")):
+            or charge.get("captured") is not True or captured_amount != raw_amount):
         return None
     category = economic_category
     revenue_class = metadata.get("lm_revenue_class", "one_time") if category == contract.REVENUE else None
@@ -330,11 +360,17 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     components = [{"category": category, "amount": amount}]
     if category == contract.REVENUE and fee != "0":
         components.append({"category": "payment_fee", "amount": fee})
-    return [_receipt(
+    receipts = [_receipt(
         transaction=transaction, product_loop_id=product_loop_id, occurred_at=occurred_at,
         settled_at=settled_at, state="verified", revenue_class=revenue_class,
         components=components, refs=refs,
     )]
+    if category != contract.REVENUE and fee != "0":
+        receipts.append(_fee_receipt(
+            transaction=transaction, product_loop_id=product_loop_id,
+            occurred_at=occurred_at, settled_at=settled_at, fee=fee, refs=refs,
+        ))
+    return receipts
 
 
 def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict],
@@ -447,17 +483,22 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
             price = item.get("price") if isinstance(item, dict) else None
             recurring = price.get("recurring") if isinstance(price, dict) else None
             quantity = item.get("quantity") if isinstance(item, dict) else None
+            interval_count = recurring.get("interval_count") if isinstance(recurring, dict) else None
+            unit_amount = price.get("unit_amount") if isinstance(price, dict) else None
             if (not isinstance(item, dict) or item.get("object") != "subscription_item"
                     or not isinstance(price, dict) or price.get("object") != "price"
                     or price.get("livemode") is not True
                     or price.get("billing_scheme") != "per_unit"
                     or not isinstance(recurring, dict) or recurring.get("usage_type") != "licensed"
                     or recurring.get("interval") != "month"
-                    or recurring.get("interval_count") != 1 or price.get("type") != "recurring"
+                    or isinstance(interval_count, bool) or not isinstance(interval_count, int)
+                    or interval_count != 1 or price.get("type") != "recurring"
                     or price.get("active") is not True or _currency(price.get("currency")) != currency
-                    or isinstance(quantity, bool) or not isinstance(quantity, int) or quantity <= 0):
+                    or isinstance(quantity, bool) or not isinstance(quantity, int) or quantity <= 0
+                    or isinstance(unit_amount, bool) or not isinstance(unit_amount, int)
+                    or unit_amount <= 0):
                 return None
-            unit = _minor(price.get("unit_amount_decimal"), currency)
+            unit = _minor(unit_amount, currency)
             if unit is None:
                 return None
             amount += Decimal(unit) * quantity
@@ -544,13 +585,13 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
             kind = transaction.get("type")
             produced = None
             if kind in PAYOUT_TYPES:
-                produced = [_movement(transaction, product_loop_id, "payout")]
+                produced = _movement(transaction, product_loop_id, "payout")
             elif kind in TOPUP_TYPES:
-                produced = [_movement(transaction, product_loop_id, "owner_deposit")]
+                produced = _movement(transaction, product_loop_id, "owner_deposit")
             elif kind in TRANSFER_TYPES:
-                produced = [_movement(transaction, product_loop_id, "internal_transfer")]
+                produced = _movement(transaction, product_loop_id, "internal_transfer")
             elif kind in FEE_TYPES and transaction.get("status") == "available":
-                produced = [_movement(transaction, product_loop_id, "provider_fee")]
+                produced = _movement(transaction, product_loop_id, "provider_fee")
             elif kind in CHARGE_TYPES:
                 produced = _charge(transaction, charges.get(str(transaction.get("source"))), product_loop_id)
             elif kind in REFUND_TYPES:

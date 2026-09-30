@@ -97,6 +97,68 @@ class StripeAttributionTest(unittest.TestCase):
             "stripe:balance_transaction:txn_charge_jpy",
         })
 
+    def test_excluded_movements_record_fee_once_in_a_separate_receipt(self):
+        expected = {
+            "txn_self_payment": ("self_payment", "9"),
+            "txn_payout": ("payout", "100"),
+            "txn_topup": ("owner_deposit", "500"),
+            "txn_transfer": ("internal_transfer", "7"),
+        }
+        for transaction_id, (category, amount) in expected.items():
+            with self.subTest(transaction_id=transaction_id):
+                value = payloads()
+                transaction = next(row for row in value["balance_transactions"]["data"]
+                                   if row["id"] == transaction_id)
+                transaction.update(fee=50, net=transaction["amount"] - 50)
+                rows = adapt(value)
+                receipts = {
+                    row["receipt_id"]: row for row in rows if row["record_type"] == "receipt"
+                }
+                receipt_id = f"stripe:balance_transaction:{transaction_id}"
+                fee_receipt_id = f"{receipt_id}:fee"
+                self.assertEqual(
+                    receipts[receipt_id]["components"],
+                    [{"category": category, "amount": amount}],
+                )
+                self.assertIn(fee_receipt_id, receipts)
+                self.assertEqual(
+                    receipts[fee_receipt_id]["components"],
+                    [{"category": "payment_fee", "amount": "0.5"}],
+                )
+                matching_fees = [
+                    row for row in receipts.values()
+                    if row["components"] == [{"category": "payment_fee", "amount": "0.5"}]
+                    and f"stripe://balance_transactions/{transaction_id}" in row["evidence_refs"]
+                ]
+                self.assertEqual([row["receipt_id"] for row in matching_fees], [fee_receipt_id])
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("complete", None),
+                )
+
+    def test_pending_charge_with_fee_is_a_coverage_gap(self):
+        value = payloads()
+        transaction = next(row for row in value["balance_transactions"]["data"]
+                           if row["id"] == "txn_pending_usd")
+        transaction.update(fee=50, net=2450)
+
+        rows = adapt(value)
+        self.assertFalse(any(
+            row.get("receipt_id", "").startswith(
+                "stripe:balance_transaction:txn_pending_usd"
+            ) for row in rows
+        ))
+        trailing = next(row for row in rows
+                        if row.get("record_type") == "coverage"
+                        and row.get("projection") == "trailing")
+        self.assertEqual(
+            (trailing["coverage_state"], trailing["reason"]),
+            ("gap", "unverified_receipt"),
+        )
+
     def test_complete_charge_collection_requires_matching_balance_transaction(self):
         value = payloads()
         value["charges"]["data"].append({
@@ -320,6 +382,46 @@ class StripeAttributionTest(unittest.TestCase):
                              and row["projection"] != "as_of"]
                 self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
                 self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_charge_minor_amounts_require_positive_exact_integers(self):
+        cases = {
+            "amount_string": lambda charge, transaction: charge.update(amount="3000"),
+            "amount_float": lambda charge, transaction: charge.update(amount=3000.0),
+            "amount_bool": lambda charge, transaction: charge.update(amount=True),
+            "amount_zero": lambda charge, transaction: charge.update(amount=0),
+            "amount_negative": lambda charge, transaction: charge.update(amount=-1),
+            "captured_float_equal": lambda charge, transaction: (
+                transaction.update(amount=1, fee=0, net=1),
+                charge.update(amount=1, amount_captured=1.0),
+            ),
+            "captured_bool_equal": lambda charge, transaction: (
+                transaction.update(amount=1, fee=0, net=1),
+                charge.update(amount=1, amount_captured=True),
+            ),
+            "negative_fee": lambda charge, transaction: transaction.update(
+                fee=-1, net=3001
+            ),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                transaction = next(row for row in value["balance_transactions"]["data"]
+                                   if row["id"] == "txn_charge_jpy")
+                mutate(charge, transaction)
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
 
     def test_refund_rejects_malformed_original_charge_balance_amounts(self):
         cases = {
@@ -637,6 +739,43 @@ class StripeAttributionTest(unittest.TestCase):
             with self.subTest(case=case):
                 value = payloads()
                 mutate(value["subscriptions"]["data"][0]["items"])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in rows
+                ))
+                as_of = next(row for row in rows
+                             if row.get("record_type") == "coverage"
+                             and row.get("projection") == "as_of")
+                self.assertEqual(
+                    (as_of["coverage_state"], as_of["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+    def test_subscription_accounting_numbers_require_positive_exact_integers(self):
+        cases = {
+            "interval_count_bool": lambda item, price, recurring: recurring.update(
+                interval_count=True
+            ),
+            "interval_count_float": lambda item, price, recurring: recurring.update(
+                interval_count=1.0
+            ),
+            "quantity_bool": lambda item, price, recurring: item.update(quantity=True),
+            "quantity_float": lambda item, price, recurring: item.update(quantity=2.0),
+            "quantity_zero": lambda item, price, recurring: item.update(quantity=0),
+            "quantity_negative": lambda item, price, recurring: item.update(quantity=-1),
+            "unit_amount_bool": lambda item, price, recurring: price.update(unit_amount=True),
+            "unit_amount_float": lambda item, price, recurring: price.update(unit_amount=1499.0),
+            "unit_amount_string": lambda item, price, recurring: price.update(unit_amount="1499"),
+            "unit_amount_zero": lambda item, price, recurring: price.update(unit_amount=0),
+            "unit_amount_negative": lambda item, price, recurring: price.update(unit_amount=-1),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                item = value["subscriptions"]["data"][0]["items"]["data"][0]
+                price = item["price"]
+                mutate(item, price, price["recurring"])
                 rows = adapt(value)
                 self.assertFalse(any(
                     row.get("subscription_id") == "stripe:subscription:sub_monthly"
