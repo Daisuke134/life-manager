@@ -2582,6 +2582,8 @@
       "priority": "revenue",
       "resource_class": "deterministic",
       "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -2709,6 +2711,8 @@
       "priority": "revenue",
       "resource_class": "deterministic",
       "admission_class": "revenue",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
       "cadence": {
         "start_interval_seconds": 1800
       },
