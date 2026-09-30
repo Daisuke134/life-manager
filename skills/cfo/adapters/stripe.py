@@ -118,23 +118,38 @@ def _read_list(payloads: dict, name: str) -> tuple[list[dict], bool]:
     return value["data"], True
 
 
-def _readback_reason(payloads: dict, observed_at: str, trailing_start: str) -> str | None:
+def _readback_reasons(payloads: dict, observed_at: str,
+                      trailing_start: str) -> tuple[str | None, str | None]:
     readback = payloads.get("readback")
     if (not isinstance(readback, dict) or readback.get("provider") != "stripe"
             or readback.get("provenance") != "stripe_api"):
-        return "read_failed"
-    query_window = readback.get("query_window")
-    if not isinstance(query_window, dict):
-        return "read_failed"
+        return "read_failed", "read_failed"
+    queries = readback.get("queries")
+    trailing = queries.get("trailing") if isinstance(queries, dict) else None
+    if not isinstance(trailing, dict) or trailing.get("has_more") is not False:
+        return "read_failed", "read_failed"
     read_at = _record_instant(readback.get("read_at"))
-    window_start = _record_instant(query_window.get("start"))
-    window_end = _record_instant(query_window.get("end"))
+    window_start = _record_instant(trailing.get("start"))
+    window_end = _record_instant(trailing.get("end"))
     if read_at is None or window_start is None or window_end is None:
-        return "read_failed"
+        return "read_failed", "read_failed"
     if (read_at != observed_at or window_start != trailing_start or window_end != observed_at
             or window_start >= window_end):
-        return "stale_readback"
-    return None
+        return "stale_readback", "stale_readback"
+
+    historical = queries.get("historical")
+    if not isinstance(historical, dict) or historical.get("has_more") is not False:
+        return None, "read_failed"
+    historical_end = _record_instant(historical.get("end"))
+    history_start = _record_instant(historical.get("history_start"))
+    account_inception = historical.get("account_inception") is True
+    if historical_end is None or (history_start is None and not account_inception):
+        return None, "read_failed"
+    if (historical_end != observed_at
+            or (history_start is not None
+                and (history_start >= historical_end or history_start > trailing_start))):
+        return None, "stale_readback"
+    return None, None
 
 
 def _index(rows: list[dict], name: str) -> dict[str, dict]:
@@ -396,7 +411,9 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
         _fail("payload_invalid", "observed_at")
     if trailing_start is None:
         _fail("payload_invalid", "trailing_start")
-    readback_reason = _readback_reason(payloads, observed_at, trailing_start)
+    readback_reason, historical_readback_reason = _readback_reasons(
+        payloads, observed_at, trailing_start,
+    )
     if readback_reason is not None:
         records = []
         for projection in ("historical", "trailing", "as_of"):
@@ -462,10 +479,16 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
     financial_evidence = [_evidence("balance_transactions"), _evidence("charges"),
                           _evidence("refunds"), *financial_refs]
     for projection in ("historical", "trailing"):
+        projection_state = financial_state
+        projection_reason = financial_reason
+        if (projection == "historical" and projection_state == "complete"
+                and historical_readback_reason is not None):
+            projection_state = "gap"
+            projection_reason = historical_readback_reason
         records.append(_coverage(
             product_loop_id=product_loop_id, projection=projection, observed_at=observed_at,
-            trailing_start=trailing_start, state=financial_state, reason=financial_reason,
-            categories=FINANCIAL_CATEGORIES if financial_state == "complete" else [],
+            trailing_start=trailing_start, state=projection_state, reason=projection_reason,
+            categories=FINANCIAL_CATEGORIES if projection_state == "complete" else [],
             refs=financial_evidence,
         ))
     subscription_state = "complete" if subscriptions_complete and not subscription_refs else "gap"

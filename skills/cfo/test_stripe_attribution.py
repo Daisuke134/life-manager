@@ -26,7 +26,13 @@ def payloads() -> dict:
             "provider": "stripe",
             "provenance": "stripe_api",
             "read_at": OBSERVED_AT,
-            "query_window": {"start": TRAILING_START, "end": OBSERVED_AT},
+            "queries": {
+                "trailing": {
+                    "start": TRAILING_START,
+                    "end": OBSERVED_AT,
+                    "has_more": False,
+                },
+            },
         },
         **{
             name: fixture(f"stripe-{name.replace('_', '-')}.json")
@@ -256,13 +262,13 @@ class StripeAttributionTest(unittest.TestCase):
                 "stale_readback",
             ),
             "window_start": (
-                lambda value: value["readback"]["query_window"].update(
+                lambda value: value["readback"]["queries"]["trailing"].update(
                     start="2026-09-02T00:00:00Z"
                 ),
                 "stale_readback",
             ),
             "window_end": (
-                lambda value: value["readback"]["query_window"].update(
+                lambda value: value["readback"]["queries"]["trailing"].update(
                     end="2026-09-30T00:00:00Z"
                 ),
                 "stale_readback",
@@ -281,6 +287,72 @@ class StripeAttributionTest(unittest.TestCase):
                 self.assertEqual(len(coverage), 3)
                 self.assertEqual({row["coverage_state"] for row in coverage}, {"gap"})
                 self.assertEqual({row["reason"] for row in coverage}, {reason})
+
+    def test_historical_coverage_requires_its_own_complete_query_proof(self):
+        unproven = adapt()
+        unproven_coverage = {
+            row["projection"]: row for row in unproven if row["record_type"] == "coverage"
+        }
+        self.assertEqual(
+            (unproven_coverage["historical"]["coverage_state"],
+             unproven_coverage["historical"]["reason"]),
+            ("gap", "read_failed"),
+        )
+        self.assertEqual(
+            (unproven_coverage["trailing"]["coverage_state"],
+             unproven_coverage["trailing"]["reason"]),
+            ("complete", None),
+        )
+
+        proven = payloads()
+        proven["readback"]["queries"]["historical"] = {
+            "history_start": "2025-01-01T00:00:00Z",
+            "end": OBSERVED_AT,
+            "has_more": False,
+        }
+        proven_coverage = {
+            row["projection"]: row for row in adapt(proven)
+            if row["record_type"] == "coverage"
+        }
+        for projection in ("historical", "trailing"):
+            self.assertEqual(
+                (proven_coverage[projection]["coverage_state"],
+                 proven_coverage[projection]["reason"]),
+                ("complete", None),
+            )
+
+        inception_proven = payloads()
+        inception_proven["readback"]["queries"]["historical"] = {
+            "account_inception": True,
+            "end": OBSERVED_AT,
+            "has_more": False,
+        }
+        inception_coverage = {
+            row["projection"]: row for row in adapt(inception_proven)
+            if row["record_type"] == "coverage"
+        }
+        self.assertEqual(
+            {inception_coverage[projection]["coverage_state"]
+             for projection in ("historical", "trailing")},
+            {"complete"},
+        )
+
+        partial = copy.deepcopy(proven)
+        partial["readback"]["queries"]["historical"]["has_more"] = True
+        partial_coverage = {
+            row["projection"]: row for row in adapt(partial)
+            if row["record_type"] == "coverage"
+        }
+        self.assertEqual(
+            (partial_coverage["historical"]["coverage_state"],
+             partial_coverage["historical"]["reason"]),
+            ("gap", "read_failed"),
+        )
+        self.assertEqual(
+            (partial_coverage["trailing"]["coverage_state"],
+             partial_coverage["trailing"]["reason"]),
+            ("complete", None),
+        )
 
     def test_exact_replay_is_stable_and_conflicting_provider_ids_fail_closed(self):
         first = adapt()
