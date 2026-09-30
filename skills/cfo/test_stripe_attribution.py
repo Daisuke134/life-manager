@@ -197,6 +197,37 @@ class StripeAttributionTest(unittest.TestCase):
                 self.assertEqual(as_of["coverage_state"], "gap")
                 self.assertEqual(as_of["reason"], "unverified_receipt")
 
+    def test_subscription_mrr_requires_live_licensed_per_unit_price_shape(self):
+        def mutate_item_object(item, price):
+            item["object"] = "invoiceitem"
+
+        cases = {
+            "item_object": mutate_item_object,
+            "price_object": lambda item, price: price.update(object="product"),
+            "price_livemode": lambda item, price: price.update(livemode=False),
+            "usage_type": lambda item, price: price["recurring"].update(
+                usage_type="metered"
+            ),
+            "billing_scheme": lambda item, price: price.update(billing_scheme="tiered"),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                item = value["subscriptions"]["data"][0]["items"]["data"][0]
+                mutate(item, item["price"])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in rows
+                ))
+                as_of = next(row for row in rows
+                             if row["record_type"] == "coverage"
+                             and row["projection"] == "as_of")
+                self.assertEqual(
+                    (as_of["coverage_state"], as_of["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
     def test_charge_balance_transaction_requires_object_and_net_consistency(self):
         cases = {
             "object": lambda transaction: transaction.update(object="charge"),
@@ -245,6 +276,22 @@ class StripeAttributionTest(unittest.TestCase):
                              and row["projection"] != "as_of"]
                 self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
                 self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_refund_rejects_malformed_original_charge_balance_amounts(self):
+        cases = {
+            "fee_type": lambda transaction: transaction.update(fee="88"),
+            "net_type": lambda transaction: transaction.update(net="1911"),
+            "net_mismatch": lambda transaction: transaction.update(net=1900),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value["balance_transactions"]["data"][0])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_refund_usd"
+                    for row in rows
+                ))
 
     def test_refund_balance_transaction_requires_object_and_net_consistency(self):
         cases = {

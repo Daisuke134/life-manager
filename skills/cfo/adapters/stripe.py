@@ -322,6 +322,18 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
     original_transaction_id = (_identifier(charge.get("balance_transaction"))
                                if isinstance(charge, dict) else None)
     original_transaction = transactions.get(original_transaction_id or "")
+    original_amount = (original_transaction.get("amount")
+                       if isinstance(original_transaction, dict) else None)
+    original_fee = (original_transaction.get("fee")
+                    if isinstance(original_transaction, dict) else None)
+    original_net = (original_transaction.get("net")
+                    if isinstance(original_transaction, dict) else None)
+    original_amounts_valid = (
+        not isinstance(original_amount, bool) and isinstance(original_amount, int)
+        and not isinstance(original_fee, bool) and isinstance(original_fee, int)
+        and not isinstance(original_net, bool) and isinstance(original_net, int)
+        and original_amount - original_fee == original_net
+    )
     raw_amount = transaction.get("amount")
     raw_fee = transaction.get("fee")
     raw_net = transaction.get("net")
@@ -357,13 +369,14 @@ def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict
             or original_transaction.get("type") not in CHARGE_TYPES
             or original_transaction.get("status") != "available"
             or _currency(original_transaction.get("currency")) != currency
+            or not original_amounts_valid
             or isinstance(charge.get("amount"), bool) or not isinstance(charge.get("amount"), int)
             or isinstance(charge.get("amount_captured"), bool)
             or not isinstance(charge.get("amount_captured"), int)
             or isinstance(charge.get("amount_refunded"), bool)
             or not isinstance(charge.get("amount_refunded"), int)
             or charge.get("amount") < charge.get("amount_captured")
-            or charge.get("amount_captured") != original_transaction.get("amount")
+            or charge.get("amount_captured") != original_amount
             or not (refund_amount <= charge.get("amount_refunded")
                     <= charge.get("amount_captured"))
             or amount in (None, "0") or fee is None
@@ -404,7 +417,12 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
             price = item.get("price") if isinstance(item, dict) else None
             recurring = price.get("recurring") if isinstance(price, dict) else None
             quantity = item.get("quantity") if isinstance(item, dict) else None
-            if (not isinstance(recurring, dict) or recurring.get("interval") != "month"
+            if (not isinstance(item, dict) or item.get("object") != "subscription_item"
+                    or not isinstance(price, dict) or price.get("object") != "price"
+                    or price.get("livemode") is not True
+                    or price.get("billing_scheme") != "per_unit"
+                    or not isinstance(recurring, dict) or recurring.get("usage_type") != "licensed"
+                    or recurring.get("interval") != "month"
                     or recurring.get("interval_count") != 1 or price.get("type") != "recurring"
                     or price.get("active") is not True or _currency(price.get("currency")) != currency
                     or isinstance(quantity, bool) or not isinstance(quantity, int) or quantity <= 0):
