@@ -49,3 +49,12 @@ test("complete receipt-backed costs and refunds give same-currency net, never ba
   assert.match(text, /支出: USD 0.2 \| 差引: USD 2.7/);
   assert.match(text, /銀行への入金: 未確認/);
 });
+
+test("an empty API usage stream never proves zero actual spend", () => {
+  const r = row("capafy", "verified", { USD: "3" });
+  r.cost = { status: "zero", amounts: {}, sources: ["agent-usage"], receipts: [] };
+  r.refund = { status: "zero", amounts: {} };
+  const text = renderResultSummary(table([r]));
+  assert.match(text, /今日の確認済み支出\(小計\): 未確認 \| 差引: 未確認/);
+  assert.doesNotMatch(text, /支出: 0/);
+});

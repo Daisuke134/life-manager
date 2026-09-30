@@ -54,7 +54,10 @@ function renderResultSummary(table) {
       if (String(cell?.reason || "").startsWith("not_applicable:") || cell?.status === "not_applicable") continue;
       if (!["verified", "zero"].includes(cell?.status)) { complete = false; continue; }
       observed = true;
+      // An empty API usage estimate is not a provider invoice proving zero spend.
+      if (kind === "cost" && (cell.sources || []).includes("agent-usage")) complete = false;
       if (cell.incomplete) complete = false;
+      if (kind === "cost" && cell.status === "zero" && (cell.sources || []).every(source => source === "agent-usage")) continue;
       for (const [currency, value] of Object.entries(cell.amounts || {})) {
         if (["UNKNOWN", "USD_API_EQUIV"].includes(currency)) { complete = false; continue; }
         if (!cell.receipts?.length) throw new Error("cfo_cost_receipt_missing");
