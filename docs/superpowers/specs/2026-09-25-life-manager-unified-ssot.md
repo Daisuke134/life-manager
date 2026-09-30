@@ -1350,45 +1350,15 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 | `AT-09`〜`AT-10` | broker outcomeとstrategy receiptを同一effectで確認した | effect `d3935170807d46a7a5cde38e9d1801e87dd7adbc0ed5c4d157f87f56e07b13a4` |
 | `AT-11`〜`AT-12` | ETF ownership stateとcampaign natural passを確認した | `etf-owned-position.json`、occurrence `18d9d3576a0110a8-330` |
 
-**旧残りTodo（履歴。下記の新しい正本を使う）**:
+**旧残りTodo（履歴・実行不可）**:
 
-`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は前の行が完了するまで実行しない待機項目である。下表は説明用の構想ではなく、投資loopの実行キューそのものである。現在実行対象なのは`AT-13`だけであり、自然なcompleted daily sessionが出るまで手動操作はしない。
-
-| 状態 | 順 | ID | 1つだけの操作 | 目的 | 完了条件（1つ） | 証拠 |
-|---|---:|---|---|---|---|---|
-| [ ] `NEXT` | 1 | `AT-13` | 次のcompleted daily sessionのstrategy exit decision receiptを1件読む | QQQをstrategy自身がexit対象と判定したか確定する | `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`である | exit decision receipt |
-| [ ] `QUEUE` | 2 | `AT-14` | AT-13で指定されたexit orderをAlpaca公式GETで1回読む | exit注文の状態を確定する | orderがterminal statusである | broker receipt |
-| [ ] `QUEUE` | 3 | `AT-15` | exit後のaccountとpositionをAlpaca公式GETで1回読む | 残高と保有数量を確定する | QQQ qtyがexit receiptと整合する | account/position readback |
-| [ ] `QUEUE` | 4 | `AT-16` | entry/exit receiptからgross cash-flow P&Lを1回計算する | 売買差額を確定する | gross P&Lをreceiptから再計算できる | gross P&L row |
-| [ ] `QUEUE` | 5 | `AT-17` | feeとslippageの公式値を1回記録する | 取引コストを確定する | 両方が数値または公式`0`である | cost row |
-| [ ] `QUEUE` | 6 | `AT-18` | model costを1回記録する | 実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
-| [ ] `QUEUE` | 7 | `AT-19` | cost-complete net P&Lを1回計算する | 実際の利益または損失を確定する | 未知のcostがなく再計算できる | net P&L row |
-| [ ] `QUEUE` | 8 | `AT-20` | 同じeffectをreplayしてreadbackする | 二重注文・二重計上を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
-| [ ] `QUEUE` | 9 | `AT-21` | qualified round tripを測定台帳へ1行追加する | 1回分をpromotion母集団へ登録する | 1行にreceipt・net P&L・replay-zeroがある | measurement ledger row |
-| [ ] `QUEUE` | 10 | `AT-22.1[n]` | 次の自然round trip `n` のexit decision receiptを1件読む | `n`回目の新しい測定を開始する | `n`が前回のqualified countより1大きい | exit decision receipt |
-| [ ] `QUEUE` | 11 | `AT-22.2[n]` | `n`回目のexit orderをAlpaca公式GETで1回読む | `n`回目のexit状態を確定する | orderがterminal statusである | broker receipt |
-| [ ] `QUEUE` | 12 | `AT-22.3[n]` | `n`回目のexit後accountとpositionを1回読む | `n`回目の残高を確定する | positionがreceiptと整合する | account/position readback |
-| [ ] `QUEUE` | 13 | `AT-22.4[n]` | `n`回目のgross cash-flow P&Lを1回計算する | `n`回目の売買差額を確定する | gross P&Lを再計算できる | gross P&L row |
-| [ ] `QUEUE` | 14 | `AT-22.5[n]` | `n`回目のfeeとslippageを1回記録する | `n`回目の取引コストを確定する | 数値または公式`0`である | cost row |
-| [ ] `QUEUE` | 15 | `AT-22.6[n]` | `n`回目のmodel costを1回記録する | `n`回目の実行コストを確定する | 数値または根拠付き`0`である | model-cost row |
-| [ ] `QUEUE` | 16 | `AT-22.7[n]` | `n`回目のcost-complete net P&Lを1回計算する | `n`回目の実利益を確定する | 未知のcostがなく再計算できる | net P&L row |
-| [ ] `QUEUE` | 17 | `AT-22.8[n]` | `n`回目のeffectをreplayしてreadbackする | `n`回目の二重処理を検査する | duplicate orderとduplicate ledgerが`0`である | replay result |
-| [ ] `QUEUE` | 18 | `AT-22.9[n]` | `n`回目のqualified round tripを台帳へ1行追加する | `n`回目を30件母集団へ登録する | `n`のledger rowが1行だけ存在する | measurement ledger row |
-| [ ] `QUEUE` | 19 | `AT-23` | measurement ledgerのqualified countを1回readbackする | `30/30`の現在値を確定する | countをledgerから再計算できる | counter readback |
-| [ ] `QUEUE` | 20 | `AT-24` | qualified `30/30`後のpromotion判定を1回計算する | 次の投資段階へ進めるか判定する | drawdown・venue health・cost completenessが判定に入る | promotion receipt |
-| [ ] `QUEUE` | 21 | `AT-25` | Hyperliquidをshadowで1回観測する | perp候補を無資金で比較する | provider mutationなしでcandidate・想定fill・costが揃う | shadow receipt |
-| [ ] `QUEUE` | 22 | `AT-26` | Solana/Pump.funをpaperで1回観測する | meme coin候補を無署名・無fundingで比較する | candidateと公式readbackが揃う | paper receipt |
-| [ ] `QUEUE` | 23 | `AT-27` | yield候補をshadowで1回観測する | 預け入れ前のrate・risk・feeを比較する | depositなしで3項目が揃う | shadow receipt |
-| [ ] `QUEUE` | 24 | `AT-28` | 追加venueのrolling net P&Lを1回比較する | ETF・perp・meme・yieldの実測差を確定する | 公式receipt付き比較表が1つ完成する | venue report |
-| [ ] `QUEUE` | 25 | `AT-29` | bounded canaryの可否を1回計算する | 実資金を使う前の最終判定をする | 全条件と`canary_allowed`が明示される | promotion receipt |
-
-`AT-22.1[n]`〜`AT-22.9[n]`は、`n=2`から`n=30`まで、前のqualified ledger rowが完成した後にだけ同じ順序で1回ずつ実行する反復テンプレートである。これは29回wakeするTodoではない。自然に完了したround tripだけを1件とし、wake回数、accepted、unrealized P&L、backtest値は数えない。
+以前の要約表は実行キューではない。`n`を含むテンプレートと目的の説明が、完全に展開された原子操作と二重に見えるため、実行対象から外した。現在の実行正本は、直下の「投資loop Atomic Todo」だけである。
 
 ## 投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）
 
-更新確認: `2026-09-30 08:55 JST`
+更新確認: `2026-09-30 08:59 JST`
 
-ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。
+ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。完了済み12行、未完277行、合計289行である。
 
 **完了済み（実行不要）**:
 
@@ -1687,9 +1657,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **実行規則**: cursorより後ろは先行項目が完了するまで実行しない。natural runのNO_TRADE、wake回数、accepted、unrealized P&L、backtest値はqualified round tripに数えない。`AT-24`と`AT-29`の判定が終わるまで、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は行わない。
 
-**現在cursor**: `AT-13`。最新receipt `8f01a80388dbf927f7b50c26d4cf77ea81398d6b7dca322118f3b884202285d8` は`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、QQQはopenである。したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
+**現在cursor**: `AT-13`。最新receipt `aad02f9024dff6ba49ad176e471491fe7b82e86721e248356166c2e77f633b14` は`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、QQQはopenである。したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
 
-**現在の1件**: `AT-13`。最新receiptは`recorded_at=2026-09-29T21:03:10.291301Z`の`HOLD / hold_period_not_elapsed`で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
+**現在の1件**: `AT-13`。最新receiptは`recorded_at=2026-09-29T23:54:23.314323Z`の`HOLD / hold_period_not_elapsed`で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
 
 **収益状態**: 検証済み実現投資収益は`$0/月`。現在のQQQはpaperのopen positionであり、unrealized P&Lは利益として数えない。live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は、`AT-24`までの実測ゲートと`AT-29`のcanary判定が完了するまで行わない。
 
