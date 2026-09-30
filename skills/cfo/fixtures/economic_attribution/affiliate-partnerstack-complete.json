@@ -1,0 +1,37 @@
+{
+  "capture": {
+    "schema_version": 1,
+    "receipt_type": "PARTNERSTACK_REPORT_CAPTURE",
+    "provider": "elevenlabs",
+    "currency_display": "USD",
+    "commission_row_count": 4,
+    "commission_row_state": "ROWS_PRESENT",
+    "normalizer_state": "NORMALIZED",
+    "payout_row_state": "EMPTY",
+    "rendered_artifact_sha256": "a16c999a2552649c689e26b7e08f7b8f303fa6837ccddc6cd60f66a8c195e7eb",
+    "observed_at": "2026-10-01T00:00:00Z"
+  },
+  "artifact": {
+    "schema_version": 1,
+    "receipt_type": "PARTNERSTACK_RENDERED_REPORT_ARTIFACT",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "commission_rows": [
+      {"reward_key":"reward-paid-1","reward_status":"paid","commission_amount":"25.00","created_at_date":"2026-09-25T12:00:00Z","currency":"USD","settlement_id":"settlement-1","settled_at":"2026-09-30T12:00:00Z"},
+      {"reward_key":"reward-pending-1","reward_status":"pending","commission_amount":"7.00","created_at_date":"2026-09-28T12:00:00Z","currency":"USD"},
+      {"reward_key":"reward-approved-1","reward_status":"approved","commission_amount":"9.00","created_at_date":"2026-09-27T12:00:00Z","currency":"USD"},
+      {"reward_key":"reward-reversed-1","reward_status":"reversed","commission_amount":"10.00","created_at_date":"2026-09-20T12:00:00Z","currency":"USD","reversed_at":"2026-09-29T12:00:00Z"}
+    ],
+    "normalized_commissions": [
+      {"provider_transaction_id":"reward-paid-1","provider_status":"paid","status":"paid","currency":"USD","gross_commission_minor":2500,"reversal_minor":0,"net_commission_minor":2500,"created_at":"2026-09-25T12:00:00Z","offer":null,"target_type":null,"action":null,"attribution":{"sub_id_1":null,"sub_id_2":null,"sub_id_3":null,"shared_id":null,"clicked_at":null,"link_sha256":null,"referrer_sha256":null,"landing_page_sha256":null},"provider_settlement_id":"settlement-1","provider_payout_id":null},
+      {"provider_transaction_id":"reward-pending-1","provider_status":"pending","status":"pending","currency":"USD","gross_commission_minor":700,"reversal_minor":0,"net_commission_minor":700,"created_at":"2026-09-28T12:00:00Z","offer":null,"target_type":null,"action":null,"attribution":{"sub_id_1":null,"sub_id_2":null,"sub_id_3":null,"shared_id":null,"clicked_at":null,"link_sha256":null,"referrer_sha256":null,"landing_page_sha256":null},"provider_settlement_id":null,"provider_payout_id":null},
+      {"provider_transaction_id":"reward-approved-1","provider_status":"approved","status":"approved","currency":"USD","gross_commission_minor":900,"reversal_minor":0,"net_commission_minor":900,"created_at":"2026-09-27T12:00:00Z","offer":null,"target_type":null,"action":null,"attribution":{"sub_id_1":null,"sub_id_2":null,"sub_id_3":null,"shared_id":null,"clicked_at":null,"link_sha256":null,"referrer_sha256":null,"landing_page_sha256":null},"provider_settlement_id":null,"provider_payout_id":null},
+      {"provider_transaction_id":"reward-reversed-1","provider_status":"reversed","status":"reversed","currency":"USD","gross_commission_minor":1000,"reversal_minor":1000,"net_commission_minor":0,"created_at":"2026-09-20T12:00:00Z","offer":null,"target_type":null,"action":null,"attribution":{"sub_id_1":null,"sub_id_2":null,"sub_id_3":null,"shared_id":null,"clicked_at":null,"link_sha256":null,"referrer_sha256":null,"landing_page_sha256":null},"provider_settlement_id":null,"provider_payout_id":null}
+    ],
+    "commission_url": "https://dash.partnerstack.com/reporting/commission_performance",
+    "commission_text": "Commission report",
+    "payout_url": "https://dash.partnerstack.com/payouts/rewards",
+    "payout_text": "Commissions and withdrawals 0 to 0",
+    "payout_summary_url": "https://dash.partnerstack.com/payouts",
+    "payout_summary_text": "Total available funds $0.00"
+  }
+}

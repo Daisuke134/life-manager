@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "UNKNOWN",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 0, "next_cursor": null},
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-owner-001", "owner_buyer_ids": ["developer-owner-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433", "evidence_ref": "capafy://accounts/readback/sha256/2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433"},
+  "content_sha256": "2b5df18a1b7988b88aa3f68bdbcf714f4d58c7bb19fd7b29384a20adaf06f753",
+  "evidence_ref": "capafy://orders/readback/sha256/2b5df18a1b7988b88aa3f68bdbcf714f4d58c7bb19fd7b29384a20adaf06f753",
+  "orders": []
+}

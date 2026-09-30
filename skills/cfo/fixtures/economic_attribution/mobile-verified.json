@@ -1,0 +1,139 @@
+[
+  {
+    "schema_version": 1,
+    "snapshot_id": "anicca-ios:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "anicca-ios",
+    "sources": {
+      "revenuecat": {
+        "status": "available",
+        "reason": null,
+        "evidence_sha256": "7e89643741c10d4ef37f1bf53df15e407335c23a205a015c868d19a3d50cfbe7",
+        "data": {
+          "app_id": "app511ef26659",
+          "currency": "JPY",
+          "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"},
+          "charts": {
+            "revenue": {"latest_complete": {"Revenue": {"value": 9999, "period": "2026-09-30", "period_index": 0, "incomplete": false}}},
+            "mrr": {"latest_complete": {"MRR": {"value": 3000, "period": "2026-09-30", "period_index": 0, "incomplete": false}}}
+          }
+        }
+      },
+      "app_store_sales": {
+        "status": "available",
+        "reason": null,
+        "evidence_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "data": {"apple_identifier": "6755129214", "business_date": "2026-09-30", "units": 2, "proceeds": {"JPY": 1200}, "row_count": 2, "evidence_path": "/sanitized/asc/anicca-ios-sales.json"}
+      },
+      "app_store_financial": {
+        "status": "available",
+        "reason": null,
+        "data": {
+          "report_id": "JP-2026-09-final",
+          "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+          "report_status": "final",
+          "apple_identifier": "6755129214",
+          "period_start": "2026-09-01",
+          "period_end": "2026-09-30",
+          "rows": [
+            {"source_row_index": 17, "apple_identifier": "6755129214", "vendor_identifier": "anicca.monthly", "product_type_identifier": "IAY", "quantity": 2, "extended_partner_share": 1200, "partner_share_currency": "JPY", "sale_or_return": "S", "transaction_date": "2026-09-20", "settlement_date": "2026-09-30"},
+            {"source_row_index": 19, "apple_identifier": "6755129214", "vendor_identifier": "anicca.monthly", "product_type_identifier": "IAY", "quantity": -1, "extended_partner_share": -200, "partner_share_currency": "JPY", "sale_or_return": "R", "transaction_date": "2026-09-21", "settlement_date": "2026-09-30"}
+          ]
+        }
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "honne-ai:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "honne-ai",
+    "sources": {
+      "revenuecat": {
+        "status": "available",
+        "reason": null,
+        "evidence_sha256": "38fc3be243716b27ff3189c8cdecfe55a5a24b07a891300b0e534b1dd5399489",
+        "data": {
+          "app_id": "app3bbd298d22",
+          "currency": "JPY",
+          "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"},
+          "charts": {
+            "revenue": {"latest_complete": {"Revenue": {"value": 8888, "period": "2026-09-30", "period_index": 0, "incomplete": false}}},
+            "mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "period_index": 0, "incomplete": false}}}
+          }
+        }
+      },
+      "app_store_sales": {
+        "status": "available",
+        "reason": null,
+        "evidence_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "data": {"apple_identifier": "6759667221", "business_date": "2026-09-30", "units": 1, "proceeds": {"JPY": 500}, "row_count": 1, "evidence_path": "/sanitized/asc/honne-ai-sales.json"}
+      },
+      "app_store_financial": {
+        "status": "available",
+        "reason": null,
+        "data": {
+          "report_id": "JP-2026-09-final",
+          "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5",
+          "report_status": "final",
+          "apple_identifier": "6759667221",
+          "period_start": "2026-09-01",
+          "period_end": "2026-09-30",
+          "rows": [
+            {"source_row_index": 18, "apple_identifier": "6759667221", "vendor_identifier": "honne.one-time", "product_type_identifier": "1", "quantity": 1, "extended_partner_share": 500, "partner_share_currency": "JPY", "sale_or_return": "S", "transaction_date": "2026-09-22", "settlement_date": "2026-09-30"}
+          ]
+        }
+      }
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "breath-reset:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "breath-reset",
+    "sources": {
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "b2012017b3aa23be7e819ea107f6c4f33bed275b1baa95400efcf5a420109f16", "data": {"app_id": "app498e23effc", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760253231", "business_date": "2026-09-30", "proceeds": {}}},
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6760253231", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "sleep-ritual:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "sleep-ritual",
+    "sources": {
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "d074fd0717f591d83648033c08ddbaec32cd554615c5c3c6643c499062550623", "data": {"app_id": "app92143da86e", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759916261", "business_date": "2026-09-30", "proceeds": {}}},
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6759916261", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "desk-stretch-timer:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "desk-stretch-timer",
+    "sources": {
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "6af572cb630e2c59d01dee5ea3fc1aa83128b92a3d0a23d4b325e8417e87c4bd", "data": {"app_id": "appca8d955a75", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6760048397", "business_date": "2026-09-30", "proceeds": {}}},
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6760048397", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+    }
+  },
+  {
+    "schema_version": 1,
+    "snapshot_id": "micro-mood:2026-09-30",
+    "business_date": "2026-09-30",
+    "observed_at": "2026-10-01T00:00:00Z",
+    "product_id": "micro-mood",
+    "sources": {
+      "revenuecat": {"status": "available", "reason": null, "evidence_sha256": "d5e0f8ec5217291e3c2b3d80c02d4e091e39ff86a06be18af7bf943ce4a00d68", "data": {"app_id": "appdda58236fa", "currency": "JPY", "revenue_definition": {"metric": "mrr", "scope": "active_paid_subscriptions", "normalization": "monthly"}, "charts": {"mrr": {"latest_complete": {"MRR": {"value": 0, "period": "2026-09-30", "incomplete": false}}}}}},
+      "app_store_sales": {"status": "available", "reason": null, "data": {"apple_identifier": "6759877003", "business_date": "2026-09-30", "proceeds": {}}},
+      "app_store_financial": {"status": "available", "reason": null, "data": {"report_id": "JP-2026-09-final", "report_sha256": "0486699bb16d43014f8abef28e12fa82f102536aa39d1847590e87b1b2a34be5", "report_status": "final", "apple_identifier": "6759877003", "period_start": "2026-09-01", "period_end": "2026-09-30", "rows": []}}
+    }
+  }
+]

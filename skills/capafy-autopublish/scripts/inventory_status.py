@@ -69,6 +69,7 @@ PLACEHOLDER_SUFFIX = " (LM generated — please review and edit before saving)"
 # "approved" and must not occupy a new-agent slot even when the list disagrees.
 DETAIL_APPROVED_STATUS = {3, 4}
 DETAIL_APPROVED_AUDIT_STATUS = 4
+DETAIL_LISTED_STATUS = 4
 # Bound authoritative-detail reads per pass; only draft/under_review rows (never
 # review_rejected, which is already classified as retryable) are ever fetched.
 DETAIL_FETCH_CAP = 10
@@ -152,9 +153,15 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
             if detail_fetcher is not None and detail_fetches_used < detail_fetch_cap:
                 detail_fetches_used += 1
                 detail = detail_fetcher(agent_id)
-            if is_approved_detail(detail):
+            if is_approved_detail(detail) and detail[0] == DETAIL_LISTED_STATUS:
                 lifecycle = "listed"
                 counts["listed"] += 1
+            elif is_approved_detail(detail):
+                # status 3 = approved but NOT yet listed. It frees the new-Agent
+                # slot but still needs Test Run + manual publish, so it belongs in
+                # ready_publish, never in listed (2026-10-01 fix).
+                lifecycle = "ready_publish"
+                counts["ready_publish"] += 1
             else:
                 lifecycle = "occupied"
                 counts["occupied"] += 1
@@ -526,7 +533,10 @@ def main():
     unlisted = [a for a in agents if a.get("agentStatus") in UNLISTED]
     rejected = [a for a in agents if a.get("agentStatus") in REJECTED]
     recoverable = [a for a in agents if a.get("agentStatus") in RECOVERABLE]
-    ready_to_publish = [a for a in agents if a.get("agentStatus") in READY_TO_PUBLISH]
+    detail_ready_ids = {row["agent_id"] for row in normalized["agents"] if row["lifecycle"] == "ready_publish"}
+    ready_to_publish = [a for a in agents
+                        if a.get("agentStatus") in READY_TO_PUBLISH
+                        or str(a.get("agentId") or "").strip() in detail_ready_ids]
 
     # In-flight titles = agents already submitted and awaiting review, or a half-saved draft
     # (draft/under_review). An inventory item whose title is already in-flight must NOT count as

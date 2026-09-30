@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "receipt_type": "PARTNERSTACK_RENDERED_REPORT_ARTIFACT",
+  "observed_at": "2026-09-23T07:30:42.272688Z",
+  "normalized_commissions": [],
+  "commission_rows": [],
+  "rendered_artifact_sha256": "8a5403ae8600540449b6780e38042d6739690d9dfb1e8321958f14738ab4f05c"
+}
