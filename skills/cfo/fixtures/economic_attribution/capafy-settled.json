@@ -7,8 +7,9 @@
   "history_complete": true,
   "currency": "usd",
   "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
-  "content_sha256": "02f3c64e069119e50367f4d51c588baf5355d3c58063054267c5a4120d8a1bbd",
-  "evidence_ref": "capafy://orders/readback/sha256/02f3c64e069119e50367f4d51c588baf5355d3c58063054267c5a4120d8a1bbd",
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-owner-001", "owner_buyer_ids": ["developer-owner-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433", "evidence_ref": "capafy://accounts/readback/sha256/2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433"},
+  "content_sha256": "d506bacf206f3eb9fab037277baed3e899c5957cdf492ba88a9407e095eb7e3c",
+  "evidence_ref": "capafy://orders/readback/sha256/d506bacf206f3eb9fab037277baed3e899c5957cdf492ba88a9407e095eb7e3c",
   "orders": [
     {
       "orderId": "buy-capafy-001",

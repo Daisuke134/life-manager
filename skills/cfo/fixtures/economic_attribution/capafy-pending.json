@@ -7,8 +7,9 @@
   "history_complete": false,
   "currency": "USD",
   "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
-  "content_sha256": "b703c31239cf4d80aba575ed9b1c6c9e5945e045cbd170406e008e24df52862c",
-  "evidence_ref": "capafy://orders/readback/sha256/b703c31239cf4d80aba575ed9b1c6c9e5945e045cbd170406e008e24df52862c",
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-owner-001", "owner_buyer_ids": ["developer-owner-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433", "evidence_ref": "capafy://accounts/readback/sha256/2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433"},
+  "content_sha256": "6c2f46a9974d694374c14eacdea1b0e75bd1e8bc86a7b9d0c4dba775936b67df",
+  "evidence_ref": "capafy://orders/readback/sha256/6c2f46a9974d694374c14eacdea1b0e75bd1e8bc86a7b9d0c4dba775936b67df",
   "orders": [
     {
       "orderId": "cre-capafy-pending-001",

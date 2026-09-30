@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -79,11 +79,11 @@ def _money(value: Any, *, allow_zero: bool = True) -> str:
         raise ValueError("amount_invalid")
     try:
         amount = Decimal(str(value))
-    except (InvalidOperation, ValueError):
+        if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
+            raise ValueError("amount_invalid")
+        return format(amount.normalize(), "f") if amount else "0"
+    except (DecimalException, ArithmeticError, ValueError):
         raise ValueError("amount_invalid") from None
-    if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
-        raise ValueError("amount_invalid")
-    return format(amount.normalize(), "f") if amount else "0"
 
 
 def _currency(value: Any) -> str:
@@ -119,12 +119,24 @@ def _canonical_sha256(value: Any) -> str:
 def _capafy_content_sha256(payload: dict) -> str:
     keys = (
         "schema_version", "kind", "observed_at", "window_start", "window_end",
-        "history_complete", "currency", "pagination", "orders",
+        "history_complete", "currency", "pagination", "account_inventory", "orders",
     )
     try:
         content = {key: payload[key] for key in keys}
     except KeyError:
         raise ValueError("content_hash_invalid") from None
+    return _canonical_sha256(content)
+
+
+def _capafy_account_inventory_sha256(inventory: dict) -> str:
+    keys = (
+        "schema_version", "kind", "observed_at", "developer_id",
+        "owner_buyer_ids", "complete",
+    )
+    try:
+        content = {key: inventory[key] for key in keys}
+    except KeyError:
+        raise ValueError("account_inventory_invalid") from None
     return _canonical_sha256(content)
 
 
@@ -261,11 +273,11 @@ def adapt_capafy(
     required = {
         "schema_version", "kind", "observed_at", "window_start", "window_end",
         "history_complete", "currency", "pagination", "content_sha256",
-        "evidence_ref", "orders",
+        "evidence_ref", "account_inventory", "orders",
     }
     if (
         not isinstance(payload, dict)
-        or not required.issubset(payload)
+        or set(payload) != required
         or payload.get("schema_version") != 1
         or payload.get("kind") != "capafy_order_readback_snapshot"
         or not isinstance(payload.get("orders"), list)
@@ -273,9 +285,13 @@ def adapt_capafy(
         return _capafy_gaps("missing_coverage", snapshot_at, trailing_start)
     try:
         pagination = payload["pagination"]
+        inventory = payload["account_inventory"]
         content_sha = _sha256(payload["content_sha256"])
         if (
             not isinstance(pagination, dict)
+            or set(pagination) != {
+                "complete", "pages_fetched", "records_fetched", "next_cursor",
+            }
             or pagination.get("complete") is not True
             or isinstance(pagination.get("pages_fetched"), bool)
             or not isinstance(pagination.get("pages_fetched"), int)
@@ -296,6 +312,36 @@ def adapt_capafy(
         evidence_ref = payload["evidence_ref"]
         if not isinstance(evidence_ref, str) or not contract.EVIDENCE.fullmatch(evidence_ref):
             raise ValueError("missing_coverage")
+        inventory_required = {
+            "schema_version", "kind", "observed_at", "developer_id",
+            "owner_buyer_ids", "complete", "content_sha256", "evidence_ref",
+        }
+        if not isinstance(inventory, dict) or set(inventory) != inventory_required:
+            raise ValueError("account_inventory_invalid")
+        inventory_sha = _sha256(inventory["content_sha256"])
+        inventory_developer = inventory.get("developer_id")
+        owner_buyer_ids = inventory.get("owner_buyer_ids")
+        if (
+            inventory.get("schema_version") != 1
+            or inventory.get("kind") != "capafy_account_inventory_readback"
+            or inventory.get("complete") is not True
+            or _instant(inventory.get("observed_at")) != observed_at
+            or not isinstance(inventory_developer, str)
+            or not contract.IDENTITY.fullmatch(inventory_developer)
+            or not isinstance(owner_buyer_ids, list)
+            or not owner_buyer_ids
+            or any(
+                not isinstance(owner_id, str)
+                or not contract.IDENTITY.fullmatch(owner_id)
+                for owner_id in owner_buyer_ids
+            )
+            or len(owner_buyer_ids) != len(set(owner_buyer_ids))
+            or inventory_developer not in owner_buyer_ids
+            or inventory_sha != _capafy_account_inventory_sha256(inventory)
+            or inventory.get("evidence_ref")
+            != f"capafy://accounts/readback/sha256/{inventory_sha}"
+        ):
+            raise ValueError("account_inventory_invalid")
     except (ValueError, TypeError):
         reason = "unsupported_currency" if payload.get("currency") in {
             "UNKNOWN", "unknown", "USD_API_EQUIV"
@@ -338,8 +384,11 @@ def adapt_capafy(
                 or not isinstance(developer_id, str)
                 or not buyer_id
                 or not developer_id
-                or buyer_id == developer_id
+                or developer_id != inventory_developer
             ):
+                has_unverified = True
+                continue
+            if buyer_id in owner_buyer_ids:
                 has_unverified = True
                 continue
             if order.get("isSettled") is True and order.get("status") in {
@@ -609,8 +658,21 @@ def adapt_mobile(
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
     try:
-        rows = [row for row in payload if isinstance(row, dict) and row.get("product_id") in products]
-        if not rows or any(row.get("schema_version") != 1 for row in rows):
+        if any(
+            not isinstance(row, dict) or row.get("product_id") not in products
+            for row in payload
+        ):
+            raise ValueError("product_scope_invalid")
+        rows_by_identity: dict[tuple[str, date], dict] = {}
+        for row in payload:
+            if row.get("schema_version") != 1:
+                raise ValueError("missing_coverage")
+            identity = (row["product_id"], _business_date(row.get("business_date")))
+            if identity in rows_by_identity and rows_by_identity[identity] != row:
+                raise ValueError("snapshot_identity_conflict")
+            rows_by_identity[identity] = row
+        rows = list(rows_by_identity.values())
+        if not rows:
             raise ValueError("missing_coverage")
         latest_date = max(_business_date(row.get("business_date")) for row in rows)
         latest_product_ids = {

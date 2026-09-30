@@ -7,8 +7,9 @@
   "history_complete": true,
   "currency": "USD",
   "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 4, "next_cursor": null},
-  "content_sha256": "bcd12a749be197a1510129c24305273e604e1ee522d1cdd612f987c9a186e192",
-  "evidence_ref": "capafy://orders/readback/sha256/bcd12a749be197a1510129c24305273e604e1ee522d1cdd612f987c9a186e192",
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-001", "owner_buyer_ids": ["developer-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374", "evidence_ref": "capafy://accounts/readback/sha256/260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374"},
+  "content_sha256": "516fc8e499de9b894fe702ea6e327fe4e85edc0b3a4765d155b5b1d922818131",
+  "evidence_ref": "capafy://orders/readback/sha256/516fc8e499de9b894fe702ea6e327fe4e85edc0b3a4765d155b5b1d922818131",
   "orders": [
     {"orderId":"cre-pending-001","buyerId":"buyer-101","developerId":"developer-001","subscriptionId":"sub-101","refundId":null,"status":"pending_payment","isSettled":false,"amount":20,"createdAt":1790766000000},
     {"orderId":"buy-declined-001","buyerId":"buyer-102","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"declined","isSettled":false,"amount":30,"createdAt":1790766000000},

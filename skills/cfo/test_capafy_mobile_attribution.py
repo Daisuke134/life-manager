@@ -26,6 +26,47 @@ def canonical_sha256(value):
     ).encode()).hexdigest()
 
 
+def bind_capafy_content(payload):
+    keys = [
+        "schema_version", "kind", "observed_at", "window_start", "window_end",
+        "history_complete", "currency", "pagination",
+    ]
+    if "account_inventory" in payload:
+        keys.append("account_inventory")
+    keys.append("orders")
+    payload["content_sha256"] = canonical_sha256({key: payload[key] for key in keys})
+    payload["evidence_ref"] = (
+        f"capafy://orders/readback/sha256/{payload['content_sha256']}"
+    )
+
+
+def bind_capafy_account_inventory(payload, owner_buyer_ids):
+    order = payload["orders"][0]
+    inventory = {
+        "schema_version": 1,
+        "kind": "capafy_account_inventory_readback",
+        "observed_at": payload["observed_at"],
+        "developer_id": order["developerId"],
+        "owner_buyer_ids": owner_buyer_ids,
+        "complete": True,
+    }
+    inventory["content_sha256"] = canonical_sha256(inventory)
+    inventory["evidence_ref"] = (
+        f"capafy://accounts/readback/sha256/{inventory['content_sha256']}"
+    )
+    payload["account_inventory"] = inventory
+    bind_capafy_content(payload)
+
+
+def bind_revenuecat_hash(row):
+    source = row["sources"]["revenuecat"]
+    source["evidence_sha256"] = canonical_sha256({
+        "status": source.get("status"),
+        "reason": source.get("reason"),
+        "data": source.get("data"),
+    })
+
+
 def bind_financial_report_hash(rows):
     financial = [row["sources"]["app_store_financial"]["data"] for row in rows]
     report = {
@@ -220,22 +261,6 @@ class CapafyMobileAttributionTest(unittest.TestCase):
     def test_capafy_requires_bound_content_hash_and_complete_pagination(self):
         module = self.require_adapter()
         original = json.loads((FIXTURES / "capafy-settled.json").read_text())
-        keys = (
-            "schema_version", "kind", "observed_at", "window_start", "window_end",
-            "history_complete", "currency", "pagination", "orders",
-        )
-
-        def bind_content(payload):
-            canonical = json.dumps(
-                {key: payload[key] for key in keys},
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-            ).encode()
-            payload["content_sha256"] = hashlib.sha256(canonical).hexdigest()
-            payload["evidence_ref"] = (
-                f"capafy://orders/readback/sha256/{payload['content_sha256']}"
-            )
 
         tampered = json.loads(json.dumps(original))
         order = tampered["orders"][0]
@@ -251,7 +276,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
 
         partial = json.loads(json.dumps(original))
         partial["pagination"]["complete"] = False
-        bind_content(partial)
+        bind_capafy_content(partial)
         partial_records = module.adapt_capafy(
             partial, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -267,7 +292,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             with self.subTest(mutate=mutate):
                 invalid = json.loads(json.dumps(original))
                 mutate(invalid)
-                bind_content(invalid)
+                bind_capafy_content(invalid)
                 records = module.adapt_capafy(
                     invalid, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
                 )
@@ -285,14 +310,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             "actualAmount": 101,
             "developerActualAmount": 83,
         })
-        keys = (
-            "schema_version", "kind", "observed_at", "window_start", "window_end",
-            "history_complete", "currency", "pagination", "orders",
-        )
-        changed["content_sha256"] = canonical_sha256({key: changed[key] for key in keys})
-        changed["evidence_ref"] = (
-            f"capafy://orders/readback/sha256/{changed['content_sha256']}"
-        )
+        bind_capafy_content(changed)
 
         before = module.adapt_capafy(
             original, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -353,14 +371,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         })
         appended["orders"].append(second)
         appended["pagination"]["records_fetched"] = 2
-        keys = (
-            "schema_version", "kind", "observed_at", "window_start", "window_end",
-            "history_complete", "currency", "pagination", "orders",
-        )
-        appended["content_sha256"] = canonical_sha256({key: appended[key] for key in keys})
-        appended["evidence_ref"] = (
-            f"capafy://orders/readback/sha256/{appended['content_sha256']}"
-        )
+        bind_capafy_content(appended)
         before = module.adapt_capafy(
             original, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -392,6 +403,85 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             row["record_type"] == "coverage" and row["coverage_state"] == "complete"
             for row in stale
         ))
+
+    def test_capafy_requires_bound_account_inventory_and_excludes_secondary_owner(self):
+        module = self.require_adapter()
+        source = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        missing = json.loads(json.dumps(source))
+        del missing["account_inventory"]
+        missing_records = module.adapt_capafy(
+            missing, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in missing_records))
+
+        external = json.loads(json.dumps(source))
+        bind_capafy_account_inventory(
+            external, ["developer-owner-001", "buyer-owner-secondary-001"],
+        )
+        external_records = module.adapt_capafy(
+            external, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual(sum(
+            row["record_type"] == "receipt" for row in external_records
+        ), 2)
+
+        forged_inventory = json.loads(json.dumps(external))
+        forged_inventory["account_inventory"]["content_sha256"] = "f" * 64
+        forged_inventory["account_inventory"]["evidence_ref"] = (
+            "capafy://accounts/readback/sha256/" + "f" * 64
+        )
+        bind_capafy_content(forged_inventory)
+        forged_records = module.adapt_capafy(
+            forged_inventory, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in forged_records))
+
+        secondary_owner = json.loads(json.dumps(external))
+        secondary_owner["orders"][0]["buyerId"] = "buyer-owner-secondary-001"
+        bind_capafy_content(secondary_owner)
+        owner_records = module.adapt_capafy(
+            secondary_owner, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in owner_records))
+        self.assertEqual({
+            row["reason"] for row in owner_records if row["record_type"] == "coverage"
+        }, {"unverified_receipt"})
+
+    def test_capafy_rejects_unknown_envelope_and_pagination_fields(self):
+        module = self.require_adapter()
+        original = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        unknown = json.loads(json.dumps(original))
+        unknown["unexpected"] = "not-official"
+        unknown_records = module.adapt_capafy(
+            unknown, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in unknown_records))
+
+        has_more = json.loads(json.dumps(original))
+        has_more["pagination"]["has_more"] = True
+        bind_capafy_content(has_more)
+        has_more_records = module.adapt_capafy(
+            has_more, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in has_more_records))
+
+    def test_capafy_extreme_exponent_fails_closed_after_valid_rehash(self):
+        module = self.require_adapter()
+        payload = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        payload["orders"][0].update({
+            "amount": "1e1000000",
+            "actualAmount": "1e1000000",
+            "developerActualAmount": "1e1000000",
+            "platformFeeAmount": 0,
+        })
+        bind_capafy_content(payload)
+        records = module.adapt_capafy(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual({
+            row["reason"] for row in records if row["record_type"] == "coverage"
+        }, {"missing_coverage"})
 
     def test_mobile_only_financial_report_settles_and_mrr_stays_snapshot_only(self):
         records = self.adapt_mobile("mobile-verified.json")
@@ -704,6 +794,81 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         )
         self.assertFalse(any(
             row["record_type"] in {"receipt", "subscription_snapshot"} for row in extra
+        ))
+
+    def test_mobile_dedupes_exact_snapshot_and_rejects_material_identity_conflict(self):
+        module = self.require_adapter()
+        baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        expected = module.adapt_mobile(
+            baseline, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        exact_duplicate = [*baseline, json.loads(json.dumps(baseline[0]))]
+        self.assertEqual(module.adapt_mobile(
+            exact_duplicate, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        ), expected)
+
+        conflicting = json.loads(json.dumps(baseline[0]))
+        conflicting["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["value"] = 7777
+        bind_revenuecat_hash(conflicting)
+        for rows in ([*baseline, conflicting], [conflicting, *baseline]):
+            with self.subTest(first_mrr=rows[0]["sources"]["revenuecat"]["data"]):
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] in {"receipt", "subscription_snapshot"}
+                    for row in records
+                ))
+                self.assertEqual({
+                    row["coverage_state"] for row in records
+                    if row["record_type"] == "coverage"
+                }, {"gap"})
+
+    def test_mobile_rejects_non_dict_and_out_of_catalog_rows_at_any_date(self):
+        module = self.require_adapter()
+        baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        unexpected = json.loads(json.dumps(baseline[0]))
+        unexpected.update({
+            "product_id": "unexpected-product",
+            "business_date": "2026-09-29",
+            "observed_at": "2026-09-30T00:00:00Z",
+        })
+        for extra in (42, unexpected):
+            with self.subTest(extra=extra):
+                records = module.adapt_mobile(
+                    [*baseline, extra], snapshot_at=SNAPSHOT,
+                    trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] in {"receipt", "subscription_snapshot"}
+                    for row in records
+                ))
+                self.assertEqual({
+                    row["coverage_state"] for row in records
+                    if row["record_type"] == "coverage"
+                }, {"gap"})
+
+    def test_mobile_extreme_mrr_exponent_fails_closed_after_valid_rehash(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["value"] = "1e1000000"
+        bind_revenuecat_hash(rows[0])
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertNotIn("revenuecat:anicca-ios:mrr", {
+            row["subscription_id"] for row in records
+            if row["record_type"] == "subscription_snapshot"
+        })
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+            and row["coverage_state"] == "gap"
+            for row in records
         ))
 
     def test_mobile_current_producer_shape_is_explicit_fail_closed_input(self):
