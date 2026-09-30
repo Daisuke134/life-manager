@@ -52,12 +52,9 @@ test("CFO reports verified records once and stays quiet on exact replay", async 
   assert.equal(first.status, "sent");
   assert.equal(first.recordCount, 1);
   assert.equal(deliveries.length, 1);
-  assert.match(deliveries[0].message, /事業（今日）\n収益：¥12,500/);
-  assert.match(deliveries[0].message, /事業（直近7日）\n収益：¥12,500/);
-  assert.match(deliveries[0].message, /事業（2026-09）\n収益：¥12,500/);
-  assert.match(deliveries[0].message, /収益内訳（今月・プロバイダー別）\nstripe\n収益：¥12,500/);
-  assert.match(deliveries[0].message, /根拠プロバイダー：stripe/);
-  assert.doesNotMatch(deliveries[0].message, /個人資産/);
+  assert.match(deliveries[0].message, /今日の確認済み売上: ¥12,500/);
+  assert.match(deliveries[0].message, /stripe: ¥12,500/);
+  assert.doesNotMatch(deliveries[0].message, /個人資産|直近7日|今月|根拠プロバイダー/);
   await store.append(revenue({
     idempotency_key: "stripe:unverified:2",
     record_id: financialRecordId("dais-local", "stripe:unverified:2"),
@@ -91,8 +88,8 @@ test("CFO sends at most one consolidated snapshot per local reporting day", asyn
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-07T10:00:00Z") })).status, "quiet");
   assert.equal((await runHourlyCfo({ ...base, now: () => new Date("2026-09-08T06:00:00Z") })).status, "sent");
   assert.equal(deliveries.length, 2);
-  assert.equal(deliveries[0].eventKey, "cfo:dais-local:2026-09-07");
-  assert.equal(deliveries[1].eventKey, "cfo:dais-local:2026-09-08");
+  assert.equal(deliveries[0].eventKey, "cfo:dais-local:injected:2026-09-07");
+  assert.equal(deliveries[1].eventKey, "cfo:dais-local:injected:2026-09-08");
 });
 
 test("CFO recognizes the previous snapshot format and does not resend on release day", async (t) => {

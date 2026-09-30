@@ -135,7 +135,13 @@ function buildFinancialManagerReport(rawRecords, reportingDate, {
     business: {
       period: month,
       ...monthSummary,
-      today: { period: reportingDate, ...summarizeBusiness(inRange(verifiedBusiness, dayStart, dayEnd)) },
+      today: {
+        period: reportingDate,
+        ...summarizeBusiness(inRange(verifiedBusiness, dayStart, dayEnd)),
+        byProvider: [...new Set(inRange(verifiedBusiness, dayStart, dayEnd).map(r => r.source.provider))]
+          .sort().map(provider => ({ provider, ...summarizeBusiness(
+            inRange(verifiedBusiness, dayStart, dayEnd).filter(r => r.source.provider === provider)) })),
+      },
       last7Days: {
         period: { start: sevenDayStartLabel, end: reportingDate },
         ...summarizeBusiness(inRange(verifiedBusiness, sevenDayStart, dayEnd)),
@@ -189,7 +195,7 @@ function businessLines(label, summary) {
   ];
 }
 
-function renderFinancialManagerTelegram(report) {
+function renderFinancialManagerDetailed(report) {
   const lines = ["💰 Financial Manager"];
   if (report.personal.assets.length || report.personal.liabilities.length) {
     lines.push(
@@ -218,4 +224,22 @@ function renderFinancialManagerTelegram(report) {
   return lines.join("\n");
 }
 
-module.exports = { buildFinancialManagerReport, renderFinancialManagerTelegram };
+function renderFinancialManagerTelegram(report) {
+  const today = report.business.today;
+  const amounts = values => values.length ? values.map(money).join(" / ") : "未確認";
+  const lines = [`Life Manager ${report.reportingDate}`, `今日の確認済み売上: ${amounts(today.revenue)}`];
+  const providers = today.byProvider || [];
+  if (providers.length) lines.push(providers.filter(p => p.revenue.length)
+    .map(p => `${p.provider}: ${amounts(p.revenue)}`).join(" | "));
+  lines.push(`銀行への入金: 未確認 | 今日の確認済み支出: ${amounts(today.costs)} | 差引: 未確認`);
+  lines.push("トークン数・定額契約の日割り: 未確認");
+  // Absence of records is never proof of zero, and revenue minus incomplete costs is not profit.
+  const missing = (report.economicSourceCoverage?.loops || [])
+    .filter(loop => ["customer_revenue", "investment"].includes(loop.role)
+      && !["empty", "observed_verified", "not_applicable"].includes(loop.sources?.financial?.state))
+    .map(loop => loop.product_loop_id);
+  lines.push(missing.length ? `未確認: ${missing.join(", ")}` : "全ソースの照合は未確認。売上は利益ではありません。");
+  return lines.filter(Boolean).join("\n");
+}
+
+module.exports = { buildFinancialManagerReport, renderFinancialManagerTelegram, renderFinancialManagerDetailed };
