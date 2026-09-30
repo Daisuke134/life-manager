@@ -1,0 +1,9 @@
+{
+  "object": "list",
+  "url": "/v1/subscriptions",
+  "has_more": false,
+  "data": [
+    {"id": "sub_monthly", "object": "subscription", "currency": "usd", "customer": "cus_external", "livemode": true, "status": "active", "items": {"object": "list", "has_more": false, "url": "/v1/subscription_items?subscription=sub_monthly", "data": [{"id": "si_monthly", "object": "subscription_item", "quantity": 2, "price": {"id": "price_monthly", "object": "price", "active": true, "billing_scheme": "per_unit", "currency": "usd", "livemode": true, "recurring": {"interval": "month", "interval_count": 1, "usage_type": "licensed"}, "type": "recurring", "unit_amount": 1499, "unit_amount_decimal": "1499"}}]}},
+    {"id": "sub_canceled", "object": "subscription", "currency": "usd", "customer": "cus_old", "livemode": true, "status": "canceled", "items": {"object": "list", "has_more": false, "url": "/v1/subscription_items?subscription=sub_canceled", "data": []}}
+  ]
+}

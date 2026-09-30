@@ -1,0 +1,8 @@
+{
+  "object": "list",
+  "url": "/v1/refunds",
+  "has_more": false,
+  "data": [
+    {"id": "re_external_usd", "object": "refund", "amount": 500, "balance_transaction": "txn_refund_usd", "charge": "ch_external_usd", "created": 1790803800, "currency": "usd", "metadata": {}, "payment_intent": "pi_external_usd", "reason": "requested_by_customer", "status": "succeeded"}
+  ]
+}
