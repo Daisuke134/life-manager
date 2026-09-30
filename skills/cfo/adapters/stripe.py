@@ -230,14 +230,33 @@ def _charge_consistency_refs(transactions: dict[str, dict],
                 or charge.get("status") not in CHARGE_STATUSES):
             refs.append(_evidence("charges", charge_id))
             continue
-        if (charge.get("status") not in {"pending", "succeeded"}
-                or charge.get("captured") is not True or charge.get("livemode") is not True):
+        status = charge.get("status")
+        if status not in {"pending", "succeeded"}:
+            continue
+        captured = charge.get("captured")
+        livemode = charge.get("livemode")
+        if captured is False or livemode is False:
             continue
         metadata = charge.get("metadata")
         economic_category = (metadata.get("lm_economic_category")
                              if isinstance(metadata, dict) else None)
+        charge_amount = charge.get("amount")
+        captured_amount = charge.get("amount_captured")
+        full_capture = (
+            not isinstance(charge_amount, bool) and isinstance(charge_amount, int)
+            and charge_amount > 0
+            and not isinstance(captured_amount, bool) and isinstance(captured_amount, int)
+            and captured_amount == charge_amount
+        )
+        if (status == "succeeded" and charge.get("paid") is True and full_capture
+                and economic_category == contract.REVENUE
+                and (not isinstance(captured, bool) or not isinstance(livemode, bool))):
+            refs.append(_evidence("charges", charge_id))
+            continue
+        if captured is not True or livemode is not True:
+            continue
         if economic_category not in CLASSIFIED_CHARGE_CATEGORIES:
-            if charge.get("status") == "succeeded":
+            if status == "succeeded":
                 refs.append(_evidence("charges", charge_id))
             continue
         transaction_id = _identifier(charge.get("balance_transaction"))

@@ -314,6 +314,64 @@ class StripeAttributionTest(unittest.TestCase):
                     "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
                 )
 
+    def test_invalid_charge_boolean_flags_cannot_hide_missing_balance_transaction(self):
+        cases = {
+            "captured_missing": lambda charge: charge.pop("captured"),
+            "captured_string": lambda charge: charge.update(captured="true"),
+            "livemode_missing": lambda charge: charge.pop("livemode"),
+            "livemode_string": lambda charge: charge.update(livemode="true"),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                mutate(charge)
+                value["balance_transactions"]["data"] = [
+                    row for row in value["balance_transactions"]["data"]
+                    if row["id"] != "txn_charge_jpy"
+                ]
+
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn(
+                    "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
+                )
+
+    def test_explicit_false_charge_flags_remain_known_negative_states(self):
+        for field in ("captured", "livemode"):
+            with self.subTest(field=field):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                charge[field] = False
+                value["balance_transactions"]["data"] = [
+                    row for row in value["balance_transactions"]["data"]
+                    if row["id"] != "txn_charge_jpy"
+                ]
+
+                rows = adapt(value)
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("complete", None),
+                )
+                self.assertNotIn(
+                    "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
+                )
+
     def test_subscription_requires_trusted_external_economic_class(self):
         for classification in (None, "self_payment", "unknown_classification"):
             with self.subTest(classification=classification):
