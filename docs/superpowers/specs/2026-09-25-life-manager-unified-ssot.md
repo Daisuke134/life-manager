@@ -1356,7 +1356,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 ## 投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）
 
-更新確認: `2026-09-30 11:21 JST`
+更新確認: `2026-09-30 11:25 JST`
 
 ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。完了済み12行、未完277行、合計289行である。
 
@@ -1662,6 +1662,8 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 **現在の1件**: `AT-13`。11:21 JSTのreadback時点で最新receiptは`recorded_at=2026-09-30T02:19:44.377607Z`の`HOLD / hold_period_not_elapsed`（receipt総数`145`）で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
 
 **収益状態**: 検証済み実現投資収益は`$0/月`。現在のQQQはpaperのopen positionであり、unrealized P&Lは利益として数えない。live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は、`AT-24`までの実測ゲートと`AT-29`のcanary判定が完了するまで行わない。
+
+**ユーザー承認の記録（2026-09-30 11:25 JST）**: ユーザーは少額の本番運用への同意を表明した。これは本人の意思確認として記録するが、`AT-29`の完了証拠ではない。30件の実測、損失の大きさ、費用、各サービスの安全確認、少額運用を許可する判定がまだ必要である。通常のTodo順序や技術判断を何度も聞かない一方、対象・金額・操作が定まっていない送金や注文を、この包括的な発言だけで実行しない。
 
 **最新Atomic Todo readback（2026-09-30 JST）**:
 
