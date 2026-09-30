@@ -37,7 +37,7 @@ DEST=""
 BUILD_COMPLETE=0
 DEPENDENCY_BUILD=""
 DEPENDENCY_RELATIVES=("" "runtime/compute-proxy" "runtime/agentmail" "apps/life-manager" \
-  "skills/earn/x402-sell" "services/x402-endpoint")
+  "skills/earn/taskmarket" "skills/earn/x402-sell" "services/x402-endpoint")
 
 die() { echo "cut-loop-release: $*" >&2; exit 1; }
 
