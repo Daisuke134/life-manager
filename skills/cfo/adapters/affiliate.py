@@ -54,11 +54,11 @@ def _minor(value) -> str:
         raise ValueError("amount_invalid")
     try:
         amount = Decimal(str(value)) / 100
-    except (InvalidOperation, ValueError):
+        if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
+            raise ValueError("amount_invalid")
+        return format(amount.normalize(), "f")
+    except (ArithmeticError, ValueError):
         raise ValueError("amount_invalid") from None
-    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
-        raise ValueError("amount_invalid")
-    return format(amount.normalize(), "f")
 
 
 def _require_exact_int_fields(row: dict, fields: tuple[str, ...]) -> None:
@@ -379,6 +379,19 @@ def _coverage(projection: str, *, start: str | None, end: str, observed_at: str,
     })
 
 
+def _read_failed_records(*, snapshot_at: str, trailing_start: str) -> list[dict]:
+    end, start = _instant(snapshot_at), _instant(trailing_start)
+    evidence = _artifact_evidence(_canonical_hash({"read_failed": True}))
+    return [
+        _coverage("historical", start=None, end=end, observed_at=end,
+                  reason="read_failed", evidence=evidence),
+        _coverage("trailing", start=start, end=end, observed_at=end,
+                  reason="read_failed", evidence=evidence),
+        _coverage("as_of", start=None, end=end, observed_at=end,
+                  reason="missing_category", evidence=evidence),
+    ]
+
+
 def adapt(payload: dict, *, snapshot_at: str, trailing_start: str,
           evidence_base: str) -> list[dict]:
     """Convert a hash-bound PartnerStack capture/artifact pair to B0 records."""
@@ -427,6 +440,8 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str,
                         else "unverified_receipt"
                     )
 
+    if failures:
+        receipts = []
     if observed_at != end:
         failures.append("stale_readback")
     failures.append("missing_coverage")
@@ -557,7 +572,11 @@ def _adapt_ledger(path: Path, *, snapshot_at: str, trailing_start: str) -> list[
                     raise ValueError("unverified_receipt")
                 continue
             receipts[key] = receipt
-    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return _read_failed_records(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    except (TypeError, ValueError):
         return adapt(
             {}, snapshot_at=snapshot_at, trailing_start=trailing_start,
             evidence_base="lm-affiliate://ignored",
@@ -573,7 +592,12 @@ def adapt_path(path: str | Path, *, snapshot_at: str, trailing_start: str) -> li
         return _adapt_ledger(
             source_path, snapshot_at=snapshot_at, trailing_start=trailing_start,
         )
-    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return _read_failed_records(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
     if (
         isinstance(payload, dict)
         and payload.get("receipt_type") == "PARTNERSTACK_RENDERED_REPORT_ARTIFACT"

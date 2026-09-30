@@ -558,6 +558,51 @@ class AffiliateAttributionTest(unittest.TestCase):
             ["unverified_receipt", "unverified_receipt"],
         )
 
+    def test_finite_oversized_commission_amount_fails_closed_to_coverage(self):
+        payload = fixture("affiliate-partnerstack-complete.json")
+        payload["artifact"]["commission_rows"][0]["commission_amount"] = "1e100"
+        oversized_minor = 10 ** 102
+        payload["artifact"]["normalized_commissions"][0].update(
+            gross_commission_minor=oversized_minor,
+            net_commission_minor=oversized_minor,
+        )
+        try:
+            records = self.adapt(rehash_bundle(payload))
+        except Exception as error:  # pragma: no cover - failure message preserves the escaped type.
+            self.fail(f"adapter raised {type(error).__name__}: {error}")
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual(
+            [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+            ["unverified_receipt", "unverified_receipt"],
+        )
+
+    def test_path_read_failures_return_read_failed_coverage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cases = (
+                root / "missing.json",
+                root / "missing.jsonl",
+                root / "invalid.json",
+                root / "invalid.jsonl",
+            )
+            cases[2].write_text("{invalid", encoding="utf-8")
+            cases[3].write_text("{invalid\n", encoding="utf-8")
+            for path in cases:
+                with self.subTest(path=path.name):
+                    try:
+                        records = affiliate.adapt_path(
+                            path, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                        )
+                    except Exception as error:  # pragma: no cover - RED preserves the escaped type.
+                        self.fail(f"adapter raised {type(error).__name__}: {error}")
+                    self.assertFalse(any(
+                        row["record_type"] == "receipt" for row in records
+                    ))
+                    self.assertEqual(
+                        [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                        ["read_failed", "read_failed"],
+                    )
+
     def test_declined_commission_is_not_a_refund(self):
         payload = fixture("affiliate-partnerstack-complete.json")
         raw = payload["artifact"]["commission_rows"][3]
