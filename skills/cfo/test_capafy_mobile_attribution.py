@@ -18,6 +18,7 @@ except ModuleNotFoundError:
 FIXTURES = Path(__file__).parent / "fixtures" / "economic_attribution"
 SNAPSHOT = "2026-10-01T00:00:00Z"
 TRAILING_START = "2026-09-24T00:00:00Z"
+OVERSIZED_MONEY = ("1e999999", "999999999999999999999999999")
 
 
 def canonical_sha256(value):
@@ -500,23 +501,28 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         )
         self.assertFalse(any(row["record_type"] == "receipt" for row in has_more_records))
 
-    def test_capafy_extreme_exponent_fails_closed_after_valid_rehash(self):
+    def test_capafy_oversized_money_fails_closed_after_valid_rehash(self):
         module = self.require_adapter()
-        payload = json.loads((FIXTURES / "capafy-settled.json").read_text())
-        payload["orders"][0].update({
-            "amount": "1e1000000",
-            "actualAmount": "1e1000000",
-            "developerActualAmount": "1e1000000",
-            "platformFeeAmount": 0,
-        })
-        bind_capafy_content(payload)
-        records = module.adapt_capafy(
-            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
-        )
-        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
-        self.assertEqual({
-            row["reason"] for row in records if row["record_type"] == "coverage"
-        }, {"missing_coverage"})
+        for amount in OVERSIZED_MONEY:
+            with self.subTest(amount=amount):
+                payload = json.loads((FIXTURES / "capafy-settled.json").read_text())
+                payload["orders"][0].update({
+                    "amount": amount,
+                    "actualAmount": amount,
+                    "developerActualAmount": amount,
+                    "platformFeeAmount": 0,
+                })
+                bind_capafy_content(payload)
+                records = module.adapt_capafy(
+                    payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] == "receipt" for row in records
+                ))
+                self.assertEqual({
+                    row["coverage_state"] for row in records
+                    if row["record_type"] == "coverage"
+                }, {"gap"})
 
     def test_mobile_only_financial_report_settles_and_mrr_stays_snapshot_only(self):
         records = self.adapt_mobile("mobile-verified.json")
@@ -774,6 +780,29 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             for row in records
         ))
 
+    def test_mobile_financial_oversized_money_fails_closed_after_valid_rehash(self):
+        module = self.require_adapter()
+        for amount in OVERSIZED_MONEY:
+            with self.subTest(amount=amount):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
+                    "extended_partner_share"
+                ] = amount
+                bind_financial_report_hash(rows)
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] == "receipt" for row in records
+                ))
+                self.assertTrue(any(
+                    row["record_type"] == "coverage"
+                    and row["source_id"] == "app-store-connect-financial"
+                    and row["projection"] == "trailing"
+                    and row["coverage_state"] == "gap"
+                    for row in records
+                ))
+
     def test_mobile_rejects_duplicate_financial_row_identity_with_valid_hash(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
@@ -933,26 +962,27 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     if row["record_type"] == "coverage"
                 }, {"gap"})
 
-    def test_mobile_extreme_mrr_exponent_fails_closed_after_valid_rehash(self):
+    def test_mobile_mrr_oversized_money_fails_closed_after_valid_rehash(self):
         module = self.require_adapter()
-        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
-        rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
-            "latest_complete"
-        ]["MRR"]["value"] = "1e1000000"
-        bind_revenuecat_hash(rows[0])
-        records = module.adapt_mobile(
-            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
-        )
-        self.assertNotIn("revenuecat:anicca-ios:mrr", {
-            row["subscription_id"] for row in records
-            if row["record_type"] == "subscription_snapshot"
-        })
-        self.assertTrue(any(
-            row["record_type"] == "coverage"
-            and row["source_id"] == "revenuecat-mrr"
-            and row["coverage_state"] == "gap"
-            for row in records
-        ))
+        for amount in OVERSIZED_MONEY:
+            with self.subTest(amount=amount):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+                    "latest_complete"
+                ]["MRR"]["value"] = amount
+                bind_revenuecat_hash(rows[0])
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] == "subscription_snapshot" for row in records
+                ))
+                self.assertTrue(any(
+                    row["record_type"] == "coverage"
+                    and row["source_id"] == "revenuecat-mrr"
+                    and row["coverage_state"] == "gap"
+                    for row in records
+                ))
 
     def test_mobile_current_producer_shape_is_explicit_fail_closed_input(self):
         records = self.adapt_mobile("mobile-current-producer.json")

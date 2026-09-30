@@ -50,6 +50,7 @@ MOBILE_PRODUCT_BINDINGS = {
 }
 COUNTED = ("provider_fee", "refund", "settled_external_revenue")
 MOBILE_COMPLETE_PERIOD_MAX_LAG = timedelta(days=1)
+MAX_B0_AMOUNT_INTEGER_DIGITS = 26
 
 
 def _instant(value: Any) -> str:
@@ -74,11 +75,28 @@ def _epoch_millis(value: Any) -> str:
         raise ValueError("timestamp_invalid") from None
 
 
-def _money(value: Any, *, allow_zero: bool = True) -> str:
+def _bounded_decimal(value: Any, *, signed: bool = False) -> Decimal:
     if isinstance(value, bool) or value is None:
         raise ValueError("amount_invalid")
+    raw = str(value)
+    unsigned = raw[1:] if signed and raw.startswith("-") else raw
+    if (
+        not contract.AMOUNT.fullmatch(unsigned)
+        or len(unsigned.partition(".")[0]) > MAX_B0_AMOUNT_INTEGER_DIGITS
+    ):
+        raise ValueError("amount_invalid")
     try:
-        amount = Decimal(str(value))
+        amount = Decimal(raw)
+        if not amount.is_finite():
+            raise ValueError("amount_invalid")
+        return amount
+    except (DecimalException, ArithmeticError, ValueError):
+        raise ValueError("amount_invalid") from None
+
+
+def _money(value: Any, *, allow_zero: bool = True) -> str:
+    try:
+        amount = _bounded_decimal(value)
         if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
             raise ValueError("amount_invalid")
         return format(amount.normalize(), "f") if amount else "0"
@@ -800,9 +818,9 @@ def adapt_mobile(
                 currency = _currency(item.get("partner_share_currency"))
                 if item.get("apple_identifier") != expected_apple_identifier:
                     raise ValueError("product_identity_mismatch")
-                raw_amount = Decimal(str(item.get("extended_partner_share")))
-                if not raw_amount.is_finite():
-                    raise ValueError("amount_invalid")
+                raw_amount = _bounded_decimal(
+                    item.get("extended_partner_share"), signed=True,
+                )
                 transaction_kind = item.get("sale_or_return")
                 product_type = item.get("product_type_identifier")
                 if transaction_kind == "S" and raw_amount > 0:
@@ -944,6 +962,6 @@ def adapt_mobile(
     ]
     return (
         sorted(receipts, key=lambda row: (row["provider"], row["receipt_id"]))
-        + sorted(snapshots, key=lambda row: row["subscription_id"])
+        + sorted(snapshots if rc_complete else [], key=lambda row: row["subscription_id"])
         + coverage
     )
