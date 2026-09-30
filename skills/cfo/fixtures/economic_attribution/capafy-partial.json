@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_skill_analytics",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "verdict": "success",
+  "account_totals": {"_status": "fresh"},
+  "daily_revenue_trend_last_30d": [
+    {"date": "2026-09-30", "revenue": 12.5, "refundAmount": 1.0, "netRevenue": 9.0}
+  ],
+  "data_gaps": ["No order-level settlement or provider-fee identity in this aggregate snapshot."]
+}

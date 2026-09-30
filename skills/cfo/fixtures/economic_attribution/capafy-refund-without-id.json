@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-owner-001", "owner_buyer_ids": ["developer-owner-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433", "evidence_ref": "capafy://accounts/readback/sha256/2cfe55b3910d643184d49fd53c0fc527545e8592641257f82518c73f527e4433"},
+  "content_sha256": "c0fe7bd39f18da6bd7b95b35718af060fceed9e7d7df0632fc2b82ebe332d8bf",
+  "evidence_ref": "capafy://orders/readback/sha256/c0fe7bd39f18da6bd7b95b35718af060fceed9e7d7df0632fc2b82ebe332d8bf",
+  "orders": [{
+    "orderId": "buy-capafy-002",
+    "buyerId": "buyer-external-002",
+    "developerId": "developer-owner-001",
+    "subscriptionId": null,
+    "refundId": null,
+    "status": "refunded",
+    "isSettled": true,
+    "amount": 50,
+    "actualAmount": 45,
+    "refundAmount": 5,
+    "developerActualAmount": 36,
+    "platformFeeAmount": 9,
+    "paymentAt": 1790769600000,
+    "completedAt": 1790773200000,
+    "refundedAt": 1790776800000,
+    "createdAt": 1790766000000,
+    "updatedAt": 1790776800000
+  }]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-001", "owner_buyer_ids": ["developer-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374", "evidence_ref": "capafy://accounts/readback/sha256/260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374"},
+  "content_sha256": "def9c7dff3202cb6eeea6141bdb56b8b004ada684156b433809d0aa8f0f1f838",
+  "evidence_ref": "capafy://orders/readback/sha256/def9c7dff3202cb6eeea6141bdb56b8b004ada684156b433809d0aa8f0f1f838",
+  "orders": [{"orderId":"buy-bad-money-001","buyerId":"buyer-105","developerId":"developer-001","subscriptionId":null,"refundId":"refund-bad-001","status":"refunded","isSettled":true,"amount":100,"actualAmount":95,"refundAmount":10,"developerActualAmount":80,"platformFeeAmount":18,"paymentAt":1790769600000,"completedAt":1790773200000,"refundedAt":1790776800000,"createdAt":1790766000000}]
+}

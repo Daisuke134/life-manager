@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "capafy_order_readback_snapshot",
+  "observed_at": "2026-10-01T00:00:00Z",
+  "window_start": "2026-09-24T00:00:00Z",
+  "window_end": "2026-10-01T00:00:00Z",
+  "history_complete": true,
+  "currency": "USD",
+  "pagination": {"complete": true, "pages_fetched": 1, "records_fetched": 1, "next_cursor": null},
+  "account_inventory": {"schema_version": 1, "kind": "capafy_account_inventory_readback", "observed_at": "2026-10-01T00:00:00Z", "developer_id": "developer-001", "owner_buyer_ids": ["developer-001", "buyer-owner-secondary-001"], "complete": true, "content_sha256": "260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374", "evidence_ref": "capafy://accounts/readback/sha256/260a58d9a9150614a3ba4d7e03a32e14d4316582ebbd5b47f6e4957cfaf71374"},
+  "content_sha256": "27f0bf48183c07fedeb9b7a158fbd54801fbd261d56e2cbe197603e157ee3756",
+  "evidence_ref": "capafy://orders/readback/sha256/27f0bf48183c07fedeb9b7a158fbd54801fbd261d56e2cbe197603e157ee3756",
+  "orders": [{"orderId":"buy-overflow-time-001","buyerId":"buyer-108","developerId":"developer-001","subscriptionId":null,"refundId":null,"status":"completed","isSettled":true,"amount":100,"actualAmount":100,"refundAmount":0,"developerActualAmount":82,"platformFeeAmount":18,"paymentAt":1000000000000000000000000000000,"completedAt":1790773200000,"refundedAt":null,"createdAt":1790766000000}]
+}
