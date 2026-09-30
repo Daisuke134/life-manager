@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
 
 from skills.cfo import economic_attribution as contract
 
@@ -24,6 +23,17 @@ TRANSFER_TYPES = {
 CHARGE_TYPES = {"charge", "payment"}
 REFUND_TYPES = {"refund", "payment_refund"}
 FEE_TYPES = {"stripe_fee", "stripe_fx_fee"}
+CHARGE_STATUSES = {"failed", "pending", "succeeded"}
+REFUND_STATUSES = {"canceled", "failed", "pending", "requires_action", "succeeded"}
+CLASSIFIED_CHARGE_CATEGORIES = {contract.REVENUE, "owner_deposit", "self_payment"}
+# B0 normalizes amounts with Decimal's 28-significant-digit default context.
+MAX_MINOR = 10**28 - 1
+MAX_EVIDENCE_REFS = 32
+TRUNCATED_EVIDENCE = "stripe://evidence/truncated"
+COLLECTION_MANIFESTS = {
+    "stripe://balance_transactions", "stripe://charges", "stripe://refunds",
+    "stripe://subscriptions",
+}
 MOVEMENT_SIGNS = {
     "payout": -1,
     "payout_cancel": 1,
@@ -98,15 +108,15 @@ def _currency(value: object) -> str | None:
 
 
 def _minor(value: object, currency: str) -> str | None:
-    if isinstance(value, bool) or not isinstance(value, int):
+    if (isinstance(value, bool) or not isinstance(value, int)
+            or value < 0 or value > MAX_MINOR):
         return None
-    try:
-        amount = Decimal(value) / (Decimal(1) if currency in ZERO_DECIMAL else Decimal(100))
-    except InvalidOperation:
-        return None
-    if not amount.is_finite() or amount < 0:
-        return None
-    return format(amount.normalize(), "f") if amount else "0"
+    if currency in ZERO_DECIMAL:
+        return str(value)
+    whole, fractional = divmod(value, 100)
+    if fractional == 0:
+        return str(whole)
+    return f"{whole}.{fractional:02d}".rstrip("0")
 
 
 def _absolute_minor(value: object, currency: str) -> tuple[str | None, int | None]:
@@ -181,7 +191,11 @@ def _refund_consistency_refs(transactions: dict[str, dict], charges: dict[str, d
     transaction_totals: dict[str, int] = {}
     refs: list[str] = []
     for refund_id, refund in refunds.items():
-        if refund.get("object") != "refund" or refund.get("status") != "succeeded":
+        if (refund.get("object") != "refund"
+                or refund.get("status") not in REFUND_STATUSES):
+            refs.append(_evidence("refunds", refund_id))
+            continue
+        if refund.get("status") != "succeeded":
             continue
         charge_id = _identifier(refund.get("charge"))
         transaction_id = _identifier(refund.get("balance_transaction"))
@@ -212,11 +226,15 @@ def _charge_consistency_refs(transactions: dict[str, dict],
                              charges: dict[str, dict]) -> list[str]:
     refs: list[str] = []
     for charge_id, charge in charges.items():
+        if (charge.get("object") != "charge"
+                or charge.get("status") not in CHARGE_STATUSES):
+            refs.append(_evidence("charges", charge_id))
+            continue
         metadata = charge.get("metadata")
-        if (charge.get("object") != "charge" or charge.get("status") != "succeeded"
+        if (charge.get("status") not in {"pending", "succeeded"}
                 or charge.get("captured") is not True or charge.get("livemode") is not True
                 or not isinstance(metadata, dict)
-                or metadata.get("lm_economic_category") != contract.REVENUE):
+                or metadata.get("lm_economic_category") not in CLASSIFIED_CHARGE_CATEGORIES):
             continue
         transaction_id = _identifier(charge.get("balance_transaction"))
         transaction = transactions.get(transaction_id or "")
@@ -476,7 +494,7 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
             or metadata.get("lm_economic_category") != contract.REVENUE):
         return None
     active = status == "active"
-    amount = Decimal(0)
+    amount_minor = 0
     if active:
         items = row.get("items")
         if (not isinstance(items, dict) or items.get("object") != "list"
@@ -484,7 +502,17 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
                 or items.get("has_more") is not False
                 or not isinstance(items.get("data"), list) or not items["data"]):
             return None
+        unique_items: dict[str, dict] = {}
         for item in items["data"]:
+            item_id = _identifier(item.get("id")) if isinstance(item, dict) else None
+            if item_id is None:
+                return None
+            if item_id in unique_items:
+                if unique_items[item_id] != item:
+                    return None
+                continue
+            unique_items[item_id] = item
+        for item in unique_items.values():
             price = item.get("price") if isinstance(item, dict) else None
             recurring = price.get("recurring") if isinstance(price, dict) else None
             quantity = item.get("quantity") if isinstance(item, dict) else None
@@ -503,10 +531,14 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
                     or isinstance(unit_amount, bool) or not isinstance(unit_amount, int)
                     or unit_amount <= 0):
                 return None
-            unit = _minor(unit_amount, currency)
-            if unit is None:
+            if _minor(unit_amount, currency) is None:
                 return None
-            amount += Decimal(unit) * quantity
+            amount_minor += unit_amount * quantity
+            if amount_minor > MAX_MINOR:
+                return None
+    amount = _minor(amount_minor, currency)
+    if amount is None:
+        return None
     identity_at = observed_at.replace(".000000Z", "Z")
     record = {
         "schema_version": contract.SCHEMA_VERSION,
@@ -516,7 +548,7 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
         "product_loop_id": product_loop_id,
         "provider": "stripe",
         "currency": currency,
-        "normalized_monthly_amount": format(amount.normalize(), "f") if amount else "0",
+        "normalized_monthly_amount": amount,
         "normalization_basis": "provider_monthly",
         "status": "active" if active else "inactive",
         "observed_at": observed_at,
@@ -542,9 +574,19 @@ def _coverage(*, product_loop_id: str, projection: str, observed_at: str,
         "reason": reason,
         "covered_categories": categories,
         "observed_at": observed_at,
-        "evidence_refs": sorted(set(refs))[:32],
+        "evidence_refs": _bounded_evidence(refs),
     }
     return contract.validate_record(record)
+
+
+def _bounded_evidence(refs: list[str]) -> list[str]:
+    unique = set(refs)
+    manifests = sorted(unique & COLLECTION_MANIFESTS)
+    individual = sorted(unique - COLLECTION_MANIFESTS - {TRUNCATED_EVIDENCE})
+    if len(manifests) + len(individual) <= MAX_EVIDENCE_REFS:
+        return sorted([*manifests, *individual])
+    slots = MAX_EVIDENCE_REFS - len(manifests) - 1
+    return sorted([*manifests, *individual[:slots], TRUNCATED_EVIDENCE])
 
 
 def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,

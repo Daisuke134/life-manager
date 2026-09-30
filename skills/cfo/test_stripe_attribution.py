@@ -869,6 +869,173 @@ class StripeAttributionTest(unittest.TestCase):
                     ("gap", "unverified_receipt"),
                 )
 
+    def test_minor_amounts_are_bounded_before_exact_integer_conversion(self):
+        for raw_amount in (10**40 + 1, 10**1000000):
+            with self.subTest(digits="40" if raw_amount < 10**100 else "1000001"):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                transaction = next(row for row in value["balance_transactions"]["data"]
+                                   if row["id"] == "txn_charge_jpy")
+                charge.update(amount=raw_amount, amount_captured=raw_amount)
+                transaction.update(amount=raw_amount, net=raw_amount - transaction["fee"])
+                try:
+                    rows = adapt(value)
+                except (OverflowError, ValueError) as error:
+                    self.fail(f"amount error escaped adapter: {type(error).__name__}")
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+        exact = payloads()
+        maximum = 10**28 - 1
+        charge = next(row for row in exact["charges"]["data"]
+                      if row["id"] == "ch_external_jpy")
+        transaction = next(row for row in exact["balance_transactions"]["data"]
+                           if row["id"] == "txn_charge_jpy")
+        charge.update(amount=maximum, amount_captured=maximum, currency="usd")
+        transaction.update(
+            amount=maximum, net=maximum - transaction["fee"], currency="usd",
+        )
+        receipt = next(row for row in adapt(exact)
+                       if row.get("receipt_id") ==
+                       "stripe:balance_transaction:txn_charge_jpy")
+        self.assertIn(
+            {
+                "category": "settled_external_revenue",
+                "amount": "99999999999999999999999999.99",
+            },
+            receipt["components"],
+        )
+
+    def test_subscription_item_ids_dedupe_exact_replays_and_reject_conflicts(self):
+        exact_duplicate = payloads()
+        items = exact_duplicate["subscriptions"]["data"][0]["items"]["data"]
+        items.append(copy.deepcopy(items[0]))
+        snapshot = next(row for row in adapt(exact_duplicate)
+                        if row.get("subscription_id") ==
+                        "stripe:subscription:sub_monthly")
+        self.assertEqual(snapshot["normalized_monthly_amount"], "29.98")
+
+        cases = {
+            "conflicting_duplicate": lambda rows: rows.append({
+                **copy.deepcopy(rows[0]), "quantity": 3,
+            }),
+            "missing_id": lambda rows: rows[0].pop("id"),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                rows = value["subscriptions"]["data"][0]["items"]["data"]
+                mutate(rows)
+                adapted = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in adapted
+                ))
+                as_of = next(row for row in adapted
+                             if row.get("record_type") == "coverage"
+                             and row.get("projection") == "as_of")
+                self.assertEqual(
+                    (as_of["coverage_state"], as_of["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+
+    def test_classified_internal_charges_require_matching_balance_transaction(self):
+        for category in ("self_payment", "owner_deposit"):
+            with self.subTest(category=category):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_self_payment")
+                charge["metadata"]["lm_economic_category"] = category
+                value["balance_transactions"]["data"] = [
+                    row for row in value["balance_transactions"]["data"]
+                    if row["id"] != "txn_self_payment"
+                ]
+                rows = adapt(value)
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn(
+                    "stripe://charges/ch_self_payment", trailing["evidence_refs"]
+                )
+
+    def test_unknown_charge_and_refund_statuses_fail_coverage_closed(self):
+        cases = {
+            "charge": lambda value: value["charges"]["data"].append({
+                "id": "ch_future", "object": "charge", "amount": 100,
+                "amount_captured": 0, "amount_refunded": 0,
+                "balance_transaction": None, "captured": False,
+                "created": 1790808000, "currency": "usd", "customer": "cus_future",
+                "disputed": False, "livemode": True, "metadata": {}, "paid": False,
+                "refunded": False, "status": "future_status",
+            }),
+            "refund": lambda value: value["refunds"]["data"].append({
+                "id": "re_future", "object": "refund", "amount": 100,
+                "balance_transaction": None, "charge": "ch_external_jpy",
+                "created": 1790808000, "currency": "jpy", "metadata": {},
+                "payment_intent": "pi_future", "reason": None,
+                "status": "future_status",
+            }),
+        }
+        for object_type, mutate in cases.items():
+            with self.subTest(object_type=object_type):
+                value = payloads()
+                mutate(value)
+                rows = adapt(value)
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
+                self.assertIn(
+                    f"stripe://{object_type}s/{'ch' if object_type == 'charge' else 're'}_future",
+                    trailing["evidence_refs"],
+                )
+
+    def test_coverage_keeps_collection_manifests_when_object_refs_are_truncated(self):
+        value = payloads()
+        for index in range(40):
+            value["balance_transactions"]["data"].append({
+                "id": f"txn_unknown_{index:02d}", "object": "balance_transaction",
+                "amount": 1, "available_on": 1790809200, "created": 1790807400,
+                "currency": "usd", "description": "Unknown transaction",
+                "exchange_rate": None, "fee": 0, "fee_details": [], "net": 1,
+                "reporting_category": "other", "source": f"src_unknown_{index:02d}",
+                "status": "available", "type": "future_type",
+            })
+        trailing = next(row for row in adapt(value)
+                        if row.get("record_type") == "coverage"
+                        and row.get("projection") == "trailing")
+        self.assertEqual(
+            (trailing["coverage_state"], trailing["reason"]),
+            ("gap", "unverified_receipt"),
+        )
+        for manifest in (
+            "stripe://balance_transactions", "stripe://charges", "stripe://refunds",
+        ):
+            self.assertIn(manifest, trailing["evidence_refs"])
+        self.assertIn("stripe://evidence/truncated", trailing["evidence_refs"])
+        self.assertLessEqual(len(trailing["evidence_refs"]), 32)
+        self.assertTrue(any(
+            ref.startswith("stripe://balance_transactions/txn_unknown_")
+            for ref in trailing["evidence_refs"]
+        ))
+
     def test_snapshot_identity_uses_canonical_instant_and_testmode_is_unverified(self):
         canonical = adapt()
         equivalent = adapt(observed_at="2026-10-01T09:00:00+09:00")
