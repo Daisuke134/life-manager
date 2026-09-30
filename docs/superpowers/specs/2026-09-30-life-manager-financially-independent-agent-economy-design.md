@@ -183,6 +183,29 @@ A fresh read-only MCP call returned 6,623 enabled nodes and quoted a one-month a
 replicated storage and three instances at `$1.99` (26.35 FLUX at that quote). The same live rate card quoted a tiny
 three-instance app at the `$0.99/month` floor. These are observed quotes, not permanent promises.
 
+The MCP's freshness is now measured rather than inferred: npm records `@runonflux/flux-cloud-mcp` `0.1.0` on
+2026-09-11 and current `0.2.7` on 2026-09-13. The read-only canary preflight created a dedicated owner/payment pair,
+validated an initial v8 specification against the live network, and received an authoritative `$0.99` quote for
+three instances with `r:/data`; no deployment payment has been broadcast. Review then found that the initial probe's
+startup marker could not distinguish replication from independent initialization, so it was rejected as evidence.
+The corrected probe accepts a post-start random nonce on one node, but repeated network verification currently ends
+in a Flux API `504 Gateway Time-out`; the official MCP's individual-node fallback also produced no terminal result
+inside a bounded five-minute wait. The dedicated payment wallet remains at zero FLUX. The existing agent treasury has
+enough nominal Base USDC, but SimpleSwap and ChangeNOW both returned a live `pair_unavailable` response for the
+required native-FLUX route, so a conversion was not guessed or forced.
+
+The remaining risk is not hypothetical. [FluxOS implements `r:` with Syncthing and has an explicit evacuation
+gate](https://github.com/RunOnFlux/flux/blob/master/ZelBack/src/services/appLifecycle/appEvacuationSafety.js)
+that refuses removal unless another connected host holds the folder in full. However, the
+[official safety commit](https://github.com/RunOnFlux/flux/commit/b60ac17b93) says that older removal paths had
+already destroyed customer volumes through two removal paths; the safety predicate was authored on 2026-08-19,
+committed to the repository on 2026-09-03, and received additional
+[election](https://github.com/RunOnFlux/flux/commit/207bd94ab3) and
+[stand-down](https://github.com/RunOnFlux/flux/commit/5ea1a763f5) fixes immediately afterward. This is strong evidence
+that the intended mechanism exists, but it is not evidence that a Life Manager state tree survives prolonged churn.
+Therefore FluxCloud remains the leading sovereign target, not an approved production state authority. Promotion
+requires the paid canary below to pass; price alone cannot promote it.
+
 Conway has also returned since the earlier outage. Its current terminal exposes x402-funded Linux VMs, inference
 and domains with no cloud account. A fresh `credits_pricing` readback quoted 1 vCPU / 512 MB / 5 GB at `$5/month`
 and 1 vCPU / 1 GB / 10 GB at `$8/month`. Conway wins on direct Base-USDC payment and full-VM ergonomics; FluxCloud
@@ -233,8 +256,9 @@ owner funding, or raw attention as revenue.
 [BlockRun](https://blockrun.ai/docs/getting-started/agent-developers) removes account/API-key subscriptions from
 inference purchasing and makes each request economically observable through x402. That is the correct food rail.
 [Flux Cloud MCP](https://github.com/RunOnFlux/flux-cloud-mcp) supplies accountless key generation, network quotes,
-on-chain FLUX payment, deploy/update/cancel, logs and health readback. Replicated `r:` storage survives node moves,
-and multiple instances run on distinct nodes. That is the primary sovereign application rail.
+on-chain FLUX payment, deploy/update/cancel, logs and health readback. Replicated `r:` storage is designed to survive
+node moves through Syncthing, and multiple instances are designed to run on distinct nodes; Life Manager's live
+validation of both claims is still pending. That is the candidate primary sovereign application rail.
 [Conway Terminal](https://docs.conway.tech/terminal) supplies full Linux VMs, inference and domains paid in Base
 USDC over x402 with an EVM wallet and no human account setup. That is the first independent fallback and the
 cleanest stablecoin-native rail, but its fresh small-instance quotes are currently higher than FluxCloud.
@@ -318,7 +342,19 @@ The order is based on the first missing evidence in the revenue flow, not infras
 10. Implement the provider-neutral shelter interface and its FluxCloud adapter using the official MCP operations;
     start with read-only identity, network, pricing, build, validation and quote calls.
 11. Run one bounded FluxCloud deployment from a dedicated capped payment wallet; verify three instances, public
-    reachability, replicated-state restore, node removal/replacement, cost receipt and cancellation readback.
+    reachability, replicated-state restore, node removal/replacement, cost receipt and cancellation readback. The
+    canary is `lmfluxverify-2995823`: BusyBox, three instances, `r:/data`, one-month term, and the prior resource quote
+    was `$0.99` / `13.07 FLUX`. Current cursor is live validation and a fresh quote of the corrected post-start nonce
+    probe after the provider API recovers, then funding exactly this dedicated wallet without exceeding the bounded
+    test budget; do not substitute a larger exchange minimum or a different network token. After funding, record
+    three distinct node IPs, write a random nonce to one already-running node,
+    wait until the other two nodes return the same content hash, then force-remove one instance and require a distinct
+    replacement node to return that hash. This proves forced replacement plus Syncthing restore, not natural node
+    churn or FluxOS's evacuation gate; those require a later observation of an actual provider-initiated move. Renew
+    with a paid `confirm=true` update inside the total test cap, then require transaction confirmation, a new spec
+    hash, increased expiry, 3/3 running instances and the same nonce hash. A quote alone is not renewal evidence. Any
+    missing marker, stalled replacement, renewal mismatch or unavailable official readback fails the provider gate
+    and promotes Conway to the first shelter candidate.
 12. Add renewal before expiry and attribute every payment source. Renew from externally earned surplus only after
     reserve, liabilities and runway gates pass; bootstrap funds remain visibly separate.
 13. Implement and test Conway as the first cross-provider restore path using Base USDC/x402, then retain Nosana for
