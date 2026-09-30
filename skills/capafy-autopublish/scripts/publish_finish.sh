@@ -215,11 +215,25 @@ except Exception: print('false')")"
         PREPARE_NEXT_ACTION="$(printf '%s' "$PREPARE_OUT" | python3 -c "import json,sys
 try: print(str(json.loads(sys.stdin.read(),strict=False).get('next_action','') or '').strip())
 except Exception: print('')")"
+        PREPARE_REQUIRES_ACTION="$(printf '%s' "$PREPARE_OUT" | python3 -c "import json,sys
+try: print('1' if json.loads(sys.stdin.read(),strict=False).get('requires_action') is True else '0')
+except Exception: print('')")"
         [ "$PREPARE_VALID" = "true" ] && [ "$PREPARE_AGENT_ID" = "$ID" ] \
           && [ "$PREPARE_STATUS" = "security_review_required" ] \
-          && [ "$PREPARE_SECURITY_READY" = "true" ] \
           && [ "$PREPARE_NEXT_ACTION" = "continue_upload" ] \
           || die "publish-submit prepare response failed strict security envelope; no upload attempted"
+        # Download listings do not have hosted credentials to scan.  Their
+        # prepare response truthfully reports a completed no-op review
+        # (`requires_action:false`) and omits security_ready.  Requiring the
+        # run_online-only security_ready flag here stranded every paid download
+        # update before its first upload (3332784488, 2026-09-30).
+        if [ "$DOWNLOAD_MODE" = "1" ]; then
+          [ "$PREPARE_REQUIRES_ACTION" = "0" ] \
+            || die "download publish-submit prepare unexpectedly requires security action; no upload attempted"
+        else
+          [ "$PREPARE_SECURITY_READY" = "true" ] \
+            || die "run_online publish-submit prepare did not confirm security_ready; no upload attempted"
+        fi
         echo "security preparation complete"
 
         step "[4] publish-submit continue_upload (exactly once)"

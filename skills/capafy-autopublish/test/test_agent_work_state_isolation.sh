@@ -254,6 +254,25 @@ PY
     --workspace "$workspace" --publisher-home "$home" --work-dir "$work"
 }
 
+make_download_binding_fixture() {
+  local state_root="$1" home config workspace work skill="unused-skill"
+  make_binding_fixture "$state_root"
+  home="$state_root/runtime/capafy-publisher-home/agents/agent-1"
+  config="$home/listing-config.json"
+  workspace="$home/.openclaw/workspace"
+  work="$state_root/runtime/capafy-publisher/work/agents/agent-1"
+  python3 - "$config" <<'PY'
+import json, sys
+p = json.load(open(sys.argv[1], encoding="utf-8"))
+p.update({"pricing_mode": "download", "model": None, "model_id": None})
+json.dump(p, open(sys.argv[1], "w"), ensure_ascii=False)
+PY
+  rm -f "$home/.openclaw/openclaw.json"
+  python3 "$ROOT/scripts/publish_input_contract.py" write \
+    --agent-id agent-1 --skill-name "$skill" --config "$config" \
+    --workspace "$workspace" --publisher-home "$home" --work-dir "$work"
+}
+
 FAKE_BIN="$STATE_HOME/fake-bin"
 mkdir -p "$FAKE_BIN"
 REAL_PYTHON="$(command -v python3)"
@@ -407,6 +426,7 @@ if [ \"$1\" = \"packager.py\" ] && [ \"$2\" = \"publish-submit\" ]; then
         prepare-envelope) payload='{"ok":true,"agent_id":"agent-1","status":"security_review_required","security_ready":true,"next_action":"continue_upload"}' ;;
         wrong-status) payload='{"ok":true,"agent_id":"agent-1","status":"security_ready","security_ready":true,"next_action":"continue_upload"}' ;;
         security-false) payload='{"ok":true,"agent_id":"agent-1","status":"security_review_required","security_ready":false,"next_action":"continue_upload"}' ;;
+        download-noop-security) payload='{"ok":true,"agent_id":"agent-1","status":"security_review_required","requires_action":false,"next_action":"continue_upload"}' ;;
         next-action-missing) payload='{"ok":true,"agent_id":"agent-1","status":"security_review_required","security_ready":true}' ;;
         wrong-agent) payload='{"ok":true,"agent_id":"other-agent","status":"security_review_required","security_ready":true,"next_action":"continue_upload"}' ;;
       esac
@@ -460,6 +480,24 @@ for mode in prepare-envelope wrong-status security-false next-action-missing wro
   [ ! -e "$CP2_MARKER" ] || { echo "FAIL: $mode reached CP2" >&2; exit 1; }
   [ ! -e "$CP3_MARKER" ] || { echo "FAIL: $mode reached CP3" >&2; exit 1; }
 done
+
+# Download-mode packages have no hosted credential scan.  A complete no-op
+# security review therefore has no security_ready field; it must still reach
+# the single guarded upload call.
+rm -f "$PREPARE_COUNT" "$CONTINUE_COUNT" "$CP2_MARKER" "$CP3_MARKER"
+make_download_binding_fixture "$STATE_HOME/download-noop-security-state"
+set +e
+PREPARE_COUNT="$PREPARE_COUNT" CONTINUE_COUNT="$CONTINUE_COUNT" CP2_MARKER="$CP2_MARKER" CP3_MARKER="$CP3_MARKER" \
+  REAL_PYTHON="$REAL_PYTHON" FAKE_MODE=download-noop-security PATH="$PREPARE_BIN:$PATH" \
+  LIFE_MANAGER_STATE_HOME="$STATE_HOME/download-noop-security-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/download-noop-security-state/runtime/capafy-publisher" CAPAFY_HOST_OPENROUTER_KEY=test-key \
+  bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
+download_prepare_rc=$?
+set -e
+[ "$download_prepare_rc" -ne 0 ] || { echo "FAIL: download fixture unexpectedly completed" >&2; exit 1; }
+[ "$(cat "$PREPARE_COUNT" 2>/dev/null || printf '0')" = "1" ] || { echo "FAIL: download prepare count" >&2; exit 1; }
+[ "$(cat "$CONTINUE_COUNT" 2>/dev/null || printf '0')" = "1" ] || { echo "FAIL: download no-op security did not reach continue_upload" >&2; exit 1; }
+[ ! -e "$CP2_MARKER" ] || { echo "FAIL: download fixture reached CP2" >&2; exit 1; }
+[ ! -e "$CP3_MARKER" ] || { echo "FAIL: download fixture reached CP3" >&2; exit 1; }
 
 before_shim_calls="$(wc -l < "$FAKE_CALLS")"
 set +e
