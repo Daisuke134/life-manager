@@ -1937,3 +1937,21 @@ Ryuさんの最新DM通知には「出勤の時系列が止まっていますが
 4. [ ] RyuさんDMの最新本文・添付・過去の同一要求を一度だけ収集し、出勤・コンセプト画像・WEB予約文言・相互リンク等の残要求を一つの最終本文へ統合する。未確認要求を推測で補わない。
 5. [ ] 公式DM readbackで重複0件を確認してから、統合本文を1回だけ送信する。正式納品ボタンは押さない。送信後に同一threadを再読込し、provider message idを記録する。
 6. [ ] Ryuさんの公式返信を受けた場合だけ次の修正カーソルを作り、Coconalaのpaid/reply/storefront/application各ownerへ共有kernelのreadback・effect fence・replay-zeroを一つずつ適用する。他platformの収益実績や完了状態をこのreadbackから推測しない。
+
+### RyuさんDM v726・最新3要求の完了カーソル（2026-10-01）
+
+上記のBrowserSkill daemon記述と未送信TODOは、この節で上書きする。実際の送信経路はBrowserSkill daemonではなく、既存の認証済みCloakBrowser `coconala:kosuke`（CDP `9223`）を`browser-guard`で単独leaseした経路である。
+
+- paid loop `ai.anicca.hf-gig-paid-direct`は、同じブラウザーを占有していたため、`bin/lm-loop stop hf-gig-paid-direct`（`launchctl-safe`経由）で停止した。bootout rc=0、プロセス0、`lm-loop status`の`launchd_state=unloaded`、Coconala browser leaseの送信後解放を確認した。正式納品ボタンは押していない。
+- 公式DM `https://coconala.com/mypage/direct_message/10107358`をread-onlyで取得し、最新の買い手メッセージ3件を確認した: (1) 出勤の時系列が止まる、(2) WEB予約項目を本人が変更したい、(3) 公式LINEボタンが遷移しない。
+- (1)は本番`ryu-v725-attendance-timeline`をFTPSで配置済み。既存キャストを選び、新しい日付・開始・終了・受付状態を明示して1行追加し、保存後API readbackを一致確認できる。自動繰返しはしない。出勤JSONは28件・7日分のまま変更していない。
+- (2)は本番`management-editor.js`のWEB予約セクションで、公開中の予約フォーム・女の子数・料金・地域を確認しながら見出し／案内本文を編集し、`WEB予約の文言を保存して公開`できる。公開APIの現在値は見出し`WEB予約はこちら`と案内本文をreadbackした。
+- (3)は公開サイトの求人ページで、公式LINEリンクが`https://lin.ee/RhnPYfJ`へ遷移することをCloakBrowserの実DOMで確認した。公開サイトのWEB予約導線も`#reservation`へ遷移することを確認した。
+- 3要求を一つに統合した本文を、重複本文0件・最新送信者buyerを確認後、公式DMへ1回だけ送信した。公式readbackは`/Users/anicca/gig/projects/18211957/delivery/current-cycle-v726-dm-send-readback.json`、本文SHA256=`d018874a39c276bfea8ba7765eb2ab23785ddfdbffb157de7ebf134ab04ac6`、表示時刻=`2026-10-01 08:03:56`、`official_readback_exact=true`、送信後同一本文1件である。
+
+**この節からのatomic TODO**:
+
+1. [x] Ryuさん最新3要求を公式DMで取得し、出勤v725・WEB予約編集・公式LINE遷移を本番readbackした。
+2. [x] paid loopを安全停止し、同じブラウザーleaseを占有してCoconala公式DMへ統合本文を1回送信、公式readbackした。
+3. [ ] Ryuさんから新しい返信が届いた場合だけ、最新DMを再取得して差分要求を新しいcursorにする。同じ本文を再送しない。
+4. [ ] Ryuさんが受領確認した後、paid loopを再開するかは別の実測cursorで判断する。再開時は`launchctl-safe`、browser ownership、公式effect/readback、replay-zeroを確認し、未確認の`effect_unknown`を成功扱いしない。
