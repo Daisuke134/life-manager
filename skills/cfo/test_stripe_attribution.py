@@ -315,38 +315,41 @@ class StripeAttributionTest(unittest.TestCase):
                 )
 
     def test_invalid_charge_boolean_flags_cannot_hide_missing_balance_transaction(self):
-        cases = {
+        flag_cases = {
             "captured_missing": lambda charge: charge.pop("captured"),
             "captured_string": lambda charge: charge.update(captured="true"),
             "livemode_missing": lambda charge: charge.pop("livemode"),
             "livemode_string": lambda charge: charge.update(livemode="true"),
         }
-        for case, mutate in cases.items():
-            with self.subTest(case=case):
-                value = payloads()
-                charge = next(row for row in value["charges"]["data"]
-                              if row["id"] == "ch_external_jpy")
-                mutate(charge)
-                value["balance_transactions"]["data"] = [
-                    row for row in value["balance_transactions"]["data"]
-                    if row["id"] != "txn_charge_jpy"
-                ]
+        classifications = ("unknown_classification", "owner_deposit", "self_payment")
+        for classification in classifications:
+            for case, mutate in flag_cases.items():
+                with self.subTest(classification=classification, case=case):
+                    value = payloads()
+                    charge = next(row for row in value["charges"]["data"]
+                                  if row["id"] == "ch_external_jpy")
+                    charge["metadata"]["lm_economic_category"] = classification
+                    mutate(charge)
+                    value["balance_transactions"]["data"] = [
+                        row for row in value["balance_transactions"]["data"]
+                        if row["id"] != "txn_charge_jpy"
+                    ]
 
-                rows = adapt(value)
-                self.assertFalse(any(
-                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
-                    for row in rows
-                ))
-                trailing = next(row for row in rows
-                                if row.get("record_type") == "coverage"
-                                and row.get("projection") == "trailing")
-                self.assertEqual(
-                    (trailing["coverage_state"], trailing["reason"]),
-                    ("gap", "unverified_receipt"),
-                )
-                self.assertIn(
-                    "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
-                )
+                    rows = adapt(value)
+                    self.assertFalse(any(
+                        row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                        for row in rows
+                    ))
+                    trailing = next(row for row in rows
+                                    if row.get("record_type") == "coverage"
+                                    and row.get("projection") == "trailing")
+                    self.assertEqual(
+                        (trailing["coverage_state"], trailing["reason"]),
+                        ("gap", "unverified_receipt"),
+                    )
+                    self.assertIn(
+                        "stripe://charges/ch_external_jpy", trailing["evidence_refs"]
+                    )
 
     def test_explicit_false_charge_flags_remain_known_negative_states(self):
         for field in ("captured", "livemode"):

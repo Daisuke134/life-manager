@@ -237,9 +237,6 @@ def _charge_consistency_refs(transactions: dict[str, dict],
         livemode = charge.get("livemode")
         if captured is False or livemode is False:
             continue
-        metadata = charge.get("metadata")
-        economic_category = (metadata.get("lm_economic_category")
-                             if isinstance(metadata, dict) else None)
         charge_amount = charge.get("amount")
         captured_amount = charge.get("amount_captured")
         full_capture = (
@@ -249,10 +246,12 @@ def _charge_consistency_refs(transactions: dict[str, dict],
             and captured_amount == charge_amount
         )
         if (status == "succeeded" and charge.get("paid") is True and full_capture
-                and economic_category == contract.REVENUE
                 and (not isinstance(captured, bool) or not isinstance(livemode, bool))):
             refs.append(_evidence("charges", charge_id))
             continue
+        metadata = charge.get("metadata")
+        economic_category = (metadata.get("lm_economic_category")
+                             if isinstance(metadata, dict) else None)
         if captured is not True or livemode is not True:
             continue
         if economic_category not in CLASSIFIED_CHARGE_CATEGORIES:
