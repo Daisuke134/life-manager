@@ -958,7 +958,8 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
                 admission_effect_unknown: set[str] | None = None,
                 admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
-                product_by_job: dict[str, str] | None = None) -> list[dict]:
+                product_by_job: dict[str, str] | None = None,
+                include_effect_details: bool = True) -> list[dict]:
     validate_registry(registry)
     product_by_job = _product_loop_job_map() if product_by_job is None else product_by_job
     rows = []
@@ -979,7 +980,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         )
         fenced_details: list[dict] = []
         fenced_details_truncated = False
-        if (admission_effect_unknown_occurrences or {}).get(loop_id):
+        if include_effect_details and (admission_effect_unknown_occurrences or {}).get(loop_id):
             # Only fenced loops pay for a journal read; everyone else stays
             # as cheap as `lm-loop status` was before this field existed.
             fenced_details, fenced_details_truncated = _admission_effect_unknown_details(
@@ -1208,7 +1209,8 @@ def _parse_status_args(values: list[str]) -> tuple[str, bool]:
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
                     admission_effect_unknown: set[str] | None = None,
-                    admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None) -> list[dict]:
+                    admission_effect_unknown_occurrences: dict[str, tuple[str, ...]] | None = None,
+                    include_effect_details: bool = True) -> list[dict]:
     rows = status_rows(
         registry,
         loaded=loaded,
@@ -1217,6 +1219,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
         admission_effect_unknown_occurrences=admission_effect_unknown_occurrences,
+        include_effect_details=include_effect_details,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
@@ -1631,27 +1634,37 @@ def _attach_effect_unknown_diagnosis(rows: list[dict], registry: dict,
     return rows
 
 
-def snapshot(registry: dict, target: str) -> list[dict]:
+def snapshot(registry: dict, target: str, *, include_effect_details: bool = True) -> list[dict]:
     admission_unknown_occurrences = _admission_effect_unknown_occurrences()
     admission_unknown_owners = set(admission_unknown_occurrences)
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         loaded, disabled, events, releases, _ = collect_live(
             selected_registry, full_inventory=False)
-        return _attach_effect_unknown_diagnosis(status_rows(
+        rows = status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
             admission_effect_unknown=admission_unknown_owners,
-            admission_effect_unknown_occurrences=admission_unknown_occurrences),
-            registry, admission_unknown_occurrences)
+            admission_effect_unknown_occurrences=admission_unknown_occurrences,
+            include_effect_details=include_effect_details)
+        if not include_effect_details:
+            for row in rows:
+                row["admission_effect_unknown_details_omitted"] = True
+            return rows
+        return _attach_effect_unknown_diagnosis(rows, registry, admission_unknown_occurrences)
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
         admission_effect_unknown=admission_unknown_owners,
-        admission_effect_unknown_occurrences=admission_unknown_occurrences)
-    return _attach_effect_unknown_diagnosis(
-        _select(rows, target), registry, admission_unknown_occurrences)
+        admission_effect_unknown_occurrences=admission_unknown_occurrences,
+        include_effect_details=include_effect_details)
+    selected = _select(rows, target)
+    if not include_effect_details:
+        for row in selected:
+            row["admission_effect_unknown_details_omitted"] = True
+        return selected
+    return _attach_effect_unknown_diagnosis(selected, registry, admission_unknown_occurrences)
 
 
 def browser_resolution(registry: dict, target: str, *, browser_registry: str | None = None,
@@ -2572,7 +2585,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if report["ok"] else 1
     while True:
         try:
-            observed = snapshot(registry, target)
+            observed = snapshot(
+                registry, target,
+                include_effect_details=(command != "status" or target != "all" or status_explain),
+            )
         except ValueError as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), flush=True)
             return 2

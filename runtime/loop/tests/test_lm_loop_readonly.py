@@ -312,6 +312,15 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(payload["target"], "life-manager-connector-native")
         self.assertEqual(payload["rows"][0]["next_action"], "resolve_browser_endpoint")
 
+    def test_fleet_cli_details_are_opt_in(self):
+        for args, expected in ((["status", "all"], False),
+                               (["status", "all", "--explain"], True),
+                               (["status", "example"], True)):
+            with patch("runtime.loop.lm_loop.snapshot", return_value=[]) as observe, \
+                 redirect_stdout(io.StringIO()):
+                self.assertEqual(lm_loop_main(args), 0)
+            self.assertEqual(observe.call_args.kwargs["include_effect_details"], expected)
+
     def test_status_rejects_unknown_option_before_reading_state(self):
         output = io.StringIO()
         with (patch("runtime.loop.lm_loop.snapshot") as observe,
@@ -528,6 +537,17 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual([row["loop_id"] for row in rows], ["example"])
         self.assertEqual(list(captured[0][0]["loops"]), ["example"])
         self.assertEqual(captured[0][1], {"full_inventory": False})
+
+    def test_fleet_summary_keeps_fences_without_replaying_proofs(self):
+        with patch("runtime.loop.lm_loop.collect_live", return_value=({}, {}, {}, {}, set())), \
+             patch("runtime.loop.lm_loop._admission_effect_unknown_occurrences", return_value={"example": ("example:run-1",)}), \
+             patch("runtime.loop.lm_loop._admission_effect_unknown_details", side_effect=AssertionError("expensive detail must be opt-in")), \
+             patch("runtime.loop.lm_loop._attach_effect_unknown_diagnosis", side_effect=AssertionError("proof replay must be opt-in")):
+            rows = snapshot(REGISTRY, "all", include_effect_details=False)
+        row = next(row for row in rows if row["loop_id"] == "example")
+        self.assertTrue(row["admission_effect_unknown"])
+        self.assertEqual(row["admission_effect_unknown_occurrences"], ["example:run-1"])
+        self.assertTrue(row["admission_effect_unknown_details_omitted"])
 
     def test_invalid_event_cannot_spoof_pass_or_verified_effect(self):
         with tempfile.TemporaryDirectory() as directory:
