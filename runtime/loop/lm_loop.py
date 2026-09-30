@@ -1404,11 +1404,15 @@ def _launchctl(*args: str) -> str:
 
 
 _HEALTH_EVENT_CACHE_KEY = object()
+_HEALTH_RUNNING_CACHE_KEY = object()
 HEALTH_HISTORY_EVENT_LIMIT = 50_000
 
 
-def _health_event_projection(lines: list[str]) -> dict[str, dict]:
+def _health_event_projection(
+    lines: list[str],
+) -> tuple[dict[str, dict], dict[tuple[str, str], dict]]:
     reports: dict[str, dict] = {}
+    running_events: dict[tuple[str, str], dict] = {}
     clocks_by_loop: dict[str, dict[str, str | None]] = {}
     for line in reversed(lines[-HEALTH_HISTORY_EVENT_LIMIT:]):
         if '"phase"' not in line or ('"report"' not in line and '"execute"' not in line):
@@ -1431,6 +1435,14 @@ def _health_event_projection(lines: list[str]) -> dict[str, dict]:
             "last_receipt": None,
         })
         is_latest = value.get("phase") == "report" and loop_id not in reports
+        running_key = (loop_id, str(value.get("run_id", "")).rsplit("-", 1)[-1])
+        is_pid_bound_running = (
+            value.get("phase") == "execute"
+            and value.get("status") == "running"
+            and value.get("job_id") is not None
+            and loop_id not in reports
+            and running_key not in running_events
+        )
         records_attempt = clocks["last_attempt"] is None
         records_success = (
             clocks["last_success"] is None
@@ -1449,7 +1461,7 @@ def _health_event_projection(lines: list[str]) -> dict[str, dict]:
             and (value.get("provider_receipt_id")
                  or value.get("official_readback_ref"))
         )
-        if not (is_latest or records_attempt or records_success
+        if not (is_latest or is_pid_bound_running or records_attempt or records_success
                 or records_effect or records_receipt):
             continue
         try:
@@ -1458,6 +1470,8 @@ def _health_event_projection(lines: list[str]) -> dict[str, dict]:
             continue
         if is_latest:
             reports[loop_id] = value
+        if is_pid_bound_running:
+            running_events[running_key] = value
         if records_attempt:
             clocks["last_attempt"] = timestamp
         if records_success:
@@ -1466,10 +1480,15 @@ def _health_event_projection(lines: list[str]) -> dict[str, dict]:
             clocks["last_effect"] = timestamp
         if records_receipt:
             clocks["last_receipt"] = timestamp
-    return {
+    projected_reports = {
         loop_id: {**event, "_health_clocks": clocks_by_loop[loop_id]}
         for loop_id, event in reports.items()
     }
+    projected_running = {
+        key: {**event, "_health_clocks": clocks_by_loop[key[0]]}
+        for key, event in running_events.items()
+    }
+    return projected_reports, projected_running
 
 
 def _last_event(state_root: str, loop_id: str | None = None,
@@ -1477,14 +1496,17 @@ def _last_event(state_root: str, loop_id: str | None = None,
                 running_pid: str | None = None,
                 include_health_clocks: bool = False) -> dict | None:
     path = Path(os.path.expanduser(state_root)) / "events.jsonl"
-    if running_pid is None and cache is not None and path in cache:
+    if cache is not None and path in cache:
         cached = cache[path]
         if include_health_clocks and cached.get(_HEALTH_EVENT_CACHE_KEY) is True:
-            return cached.get(loop_id)
+            running_events = cached.get(_HEALTH_RUNNING_CACHE_KEY, {})
+            return running_events.get(
+                (loop_id, str(running_pid)), cached.get(loop_id)
+            ) if running_pid is not None else cached.get(loop_id)
         # A targeted scan stores only the requested loop.  The ``None`` key
         # is populated only by a complete scan, so it is the signal that a
         # missing loop id is a cached miss rather than an unscanned one.
-        if loop_id in cached or None in cached:
+        if running_pid is None and (loop_id in cached or None in cached):
             cached_event = cached.get(loop_id)
             if (not include_health_clocks or cached_event is None
                     or "_health_clocks" in cached_event):
@@ -1496,13 +1518,17 @@ def _last_event(state_root: str, loop_id: str | None = None,
         lines = []
     health_reports: dict[str, dict] = {}
     if include_health_clocks:
-        health_reports = _health_event_projection(lines)
+        health_reports, health_running_events = _health_event_projection(lines)
         if cache is not None:
             cached = cache.setdefault(path, {})
             cached.update(health_reports)
+            cached[_HEALTH_RUNNING_CACHE_KEY] = health_running_events
             cached[_HEALTH_EVENT_CACHE_KEY] = True
-        if running_pid is None:
-            return health_reports.get(loop_id)
+        if running_pid is not None:
+            return health_running_events.get(
+                (loop_id, str(running_pid)), health_reports.get(loop_id)
+            )
+        return health_reports.get(loop_id)
     for line in reversed(lines):
         try:
             value = json.loads(line)

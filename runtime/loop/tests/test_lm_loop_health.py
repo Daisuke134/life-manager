@@ -291,6 +291,72 @@ class LmLoopHealthTest(unittest.TestCase):
         self.assertEqual(second["loop_id"], "agentmail-reply")
         self.assertEqual(len(reads), 1)
 
+    def test_health_clock_projection_reuses_shared_journal_for_running_pids(self):
+        history = []
+        loop_pids = (("agentmail-nudge", "101"), ("agentmail-reply", "202"))
+        for loop_id, pid in loop_pids:
+            report = build_runtime_event(
+                loop_id=loop_id,
+                domain="earn",
+                run_id=f"{loop_id}-past",
+                release_sha="a" * 40,
+                provider="shared-agent-runner",
+                profile_alias=None,
+                effect_class="message",
+                succeeded=True,
+                blocker=None,
+            )
+            running = build_runtime_start_event(
+                loop_id=loop_id,
+                domain="earn",
+                run_id=f"{loop_id}-{pid}",
+                release_sha="a" * 40,
+                provider="shared-agent-runner",
+                profile_alias=None,
+                effect_class="message",
+                product_loop_id="agentmail",
+                job_id=loop_id,
+                owner_id=loop_id,
+                wake_id=f"wake-{pid}",
+                occurrence_id=f"{loop_id}:wake-{pid}",
+                loaded_argv_sha256="b" * 64,
+                loaded_env_sha256="c" * 64,
+            )
+            history.extend((report, running))
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in history) + "\n",
+                encoding="utf-8",
+            )
+            original_read_text = Path.read_text
+            reads = []
+
+            def counted_read_text(path, *args, **kwargs):
+                reads.append(path)
+                return original_read_text(path, *args, **kwargs)
+
+            cache = {}
+            selected = []
+            with (
+                patch.object(Path, "read_text", new=counted_read_text),
+                patch(
+                    "runtime.loop.lm_loop._health_event_projection",
+                    wraps=lm_loop._health_event_projection,
+                ) as project_history,
+            ):
+                for loop_id, pid in loop_pids:
+                    selected.append(lm_loop._last_event(
+                        directory,
+                        loop_id,
+                        cache,
+                        running_pid=pid,
+                        include_health_clocks=True,
+                    ))
+
+        self.assertEqual([event["phase"] for event in selected], ["execute", "execute"])
+        self.assertEqual(len(reads), 1)
+        self.assertEqual(project_history.call_count, 1)
+
     def test_health_clocks_include_a_newer_running_execute_event(self):
         loop_id = "agentmail-nudge"
         report = build_runtime_event(
@@ -701,6 +767,11 @@ class LmLoopHealthTest(unittest.TestCase):
             ),
             "bad-generated-at": changed(
                 lambda value: value.update({"generated_at": "not-a-date-time"})
+            ),
+            "space-separated-generated-at": changed(
+                lambda value: value.update({
+                    "generated_at": "2026-10-01 00:00:00+00:00",
+                })
             ),
         }
 

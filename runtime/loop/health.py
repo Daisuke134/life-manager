@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import signal
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -25,6 +26,10 @@ DIAGNOSTIC_FIELDS = frozenset({
     "release_sha", "run_id", "owner_id", "occurrence_id", "effect", "readback",
     "provider_receipt_id", "error_class", "retryable", "next_action",
 })
+RFC3339_PATTERN = (
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+)
 
 
 class HealthTimeout(TimeoutError):
@@ -76,10 +81,7 @@ def health_json_schema() -> dict:
             "generated_at": {
                 "type": "string",
                 "format": "date-time",
-                "pattern": (
-                    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                    r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
-                ),
+                "pattern": RFC3339_PATTERN,
             },
             "scope": {
                 "type": "object",
@@ -408,8 +410,12 @@ def validate_health_document(value: dict) -> dict:
         raise ValueError("health document must contain only v1 top-level fields")
     if value["schema_version"] != SCHEMA_VERSION:
         raise ValueError("invalid health schema_version")
+    generated_at_text = value["generated_at"]
+    if (not isinstance(generated_at_text, str)
+            or re.fullmatch(RFC3339_PATTERN, generated_at_text) is None):
+        raise ValueError("invalid health generated_at")
     try:
-        generated_at = datetime.fromisoformat(value["generated_at"].replace("Z", "+00:00"))
+        generated_at = datetime.fromisoformat(generated_at_text.replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
         raise ValueError("invalid health generated_at") from exc
     if generated_at.tzinfo is None:
