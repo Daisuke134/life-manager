@@ -4,22 +4,26 @@
 
 This document is the canonical design for turning the existing Agent Economy Product Loop into a continuously
 profitable, self-funding part of Life Manager. It joins the current Local/Cloud runtime contract, the earlier
-BlockRun, Nosana, and Akash experiments, the economic benchmark, and current production observations. It does not claim
+BlockRun, FluxCloud, Conway, Nosana, and Akash experiments, the economic benchmark, and current production
+observations. It does not claim
 that present-day Agent Economy is profitable or independent.
 
-This design supersedes the older Akash-primary shelter choice. The repository's later executable evidence makes
-Nosana the primary wallet-native shelter path: it has already paid for real jobs from an agent-controlled wallet,
-survived six hours with the Mac loop off, emitted signed heartbeats, renewed, and handed over to a successor job.
-Akash remains the required portability and provider-fallback target, not the first implementation path.
+This design supersedes both the older Akash-primary choice and the interim Nosana-primary correction. The latest
+provider evidence makes FluxCloud the primary sovereign production target: its official MCP lets an agent create
+keys, obtain a live quote, deploy, pay in FLUX, inspect instances and logs, update, and cancel without an account.
+FluxCloud also supplies replicated persistent paths and multi-node application scheduling rather than a finite GPU
+job. Conway is the first independent wallet-native fallback because it offers full Linux VMs paid in Base USDC over
+x402. Nosana remains a proven job-runtime and continuity reference; Akash remains an additional portability target.
 
 Anicca is the company. Life Manager is the product and agent. Agent Economy is one Product Loop inside Life
 Manager. Local and Cloud are two hosts for the same loop, not separate products or implementations.
 
-The immediate product objective is one phone-only Life Manager that runs continuously in the cloud, creates
-customer value, receives externally verified revenue, pays all of its own compute and hosting costs, preserves a
-reserve, and reports the result without requiring a user computer. The long-term objective is to remove the
-founder's card and provider credentials from the survival path while preserving tenant isolation and beneficiary
-ownership.
+The immediate product objective is one phone-only Life Manager that runs continuously in the cloud, is free to the
+beneficiary with no three-day paywall, creates customer value, receives externally verified revenue, pays all of
+its own compute and hosting costs, preserves a reserve, and reports the result without requiring a user computer.
+Free means the beneficiary pays zero; it does not mean infrastructure has zero cost. The shared Agent Economy funds
+the fleet from real external revenue. The long-term objective is to remove the founder's card and provider
+credentials from the survival path while preserving tenant isolation and beneficiary ownership.
 
 ## Current truth
 
@@ -59,23 +63,26 @@ Use a two-stage host architecture and one agent-owned treasury:
 2. **Use BlockRun as agent-paid inference.** Every paid inference request is quoted and capped before execution,
    paid in USDC through x402 from the citizen wallet, and accepted as successful compute only when both settlement
    and usable model output are verified. Free models remain the survival floor.
-3. **Use Nosana as the proven wallet-native shelter path.** A graduated cell pays for a Nosana job from its
-   agent-controlled Solana wallet, restores its runtime, and creates and verifies a successor before the current
-   job expires. Nosana removes a human credit card from the runtime payment path, but it is not the durable control
-   plane or ledger and the present successor chain is not continuous.
-4. **Keep a provider-neutral host adapter, with Akash as the first fallback.** DigitalOcean is the bootstrap and
-   control-plane provider, Nosana the first sovereign runtime, and Akash the portability target. Neither provider
-   may own Agent Economy's identity, ledger, jobs, receipts, or UX.
-5. **Keep tenant isolation.** Life Manager is one organism with one constitution and shared learning, but each
+3. **Use FluxCloud as the primary sovereign production target.** Start the customer product on DigitalOcean, then
+   move the shared control plane and profitable worker pools to FluxCloud after a read-only quote, bounded live
+   deployment, state restore, and failure drill pass. The agent owns the Flux ID and dedicated payment key, pays
+   the quoted FLUX on-chain, and uses replicated storage across at least three nodes.
+4. **Use Conway as the first wallet-native fallback.** Conway is more expensive but accepts Base USDC through x402,
+   creates a full Linux VM, and does not require a cloud account. It provides a different provider, chain and
+   runtime failure domain from FluxCloud.
+5. **Keep Nosana and Akash behind the same provider-neutral adapter.** Nosana preserves the already-proven Mac-off,
+   renewal, signed-heartbeat and successor-handover path for finite or GPU work. Akash is an additional
+   self-custodied container fallback. No provider may own Agent Economy's identity, ledger, jobs, receipts, or UX.
+6. **Keep tenant isolation without one VM per free user.** Life Manager is one organism with one constitution and
+   shared control plane, scheduler and worker pools, but each
    beneficiary cell has isolated state, permissions, wallet attribution, receipts, and effect fences. A child,
    cat, or dog does not need a bank account: the Life Manager treasury buys services for that beneficiary under an
    explicit budget and records who benefited.
 
-Do not use BlockRun Modal as the persistent home. It is appropriate only for finite jobs because its public sandbox
-API is duration-bounded and billed for the requested lifetime. Do not pretend that a Nosana job is a conventional
-permanent VM: continuity requires durable off-job state plus a verified successor chain, and the latest fresh state
-has zero running Nosana jobs. Do not make AWS AgentCore or DigitalOcean Managed Agents the business logic: managed
-runtimes are replaceable hosts around the repository-owned Life Manager loop.
+Do not use BlockRun Modal or Nosana as the primary persistent home. They are appropriate for finite work; Nosana's
+continuity still requires a successor chain and its latest recorded state has zero running jobs. Do not make AWS
+AgentCore, DigitalOcean Managed Agents, FluxCloud MCP, or Conway Terminal the business logic: every one is a
+replaceable adapter around the repository-owned Life Manager loop.
 
 ## Architecture
 
@@ -89,19 +96,22 @@ flowchart LR
     R --> T[Agent Treasury]
     T --> P[Profit and runway policy]
     P -->|allowed| B[BlockRun x402 inference]
-    P -->|graduated| N[Nosana wallet-funded job]
+    P -->|graduated| X[FluxCloud wallet-funded fleet]
     B --> O[Verified useful output]
-    N --> H[Restored runtime and signed heartbeat]
-    H --> X[Verified successor handover]
-    X -. portability drill .-> A[Akash fallback]
+    X --> H[Replicated runtime and persistent state]
+    H -. failover drill .-> C[Conway USDC/x402 VM]
+    H -. finite/GPU work .-> N[Nosana job runtime]
+    H -. portability drill .-> A[Akash fallback]
     O --> F[Fulfilment receipt]
     H --> S
     T --> D[Daily and transition reports]
     D --> U
 ```
 
-The DigitalOcean bootstrap hosts the control plane, scheduler, queue, tenant store, encrypted signer, browser
-transport, and workers. A beneficiary cell is not a full VM per user. It is an isolated logical runtime with its own
+The DigitalOcean bootstrap initially hosts the control plane, scheduler, queue, tenant store, encrypted signer,
+browser transport, and workers. The same container and durable-state contract then moves to FluxCloud; DigitalOcean
+remains rollback capacity until the migration benchmark passes. A beneficiary cell is not a full VM per user. It is
+an isolated logical runtime with its own
 identity, state namespace, wallet attribution, budgets, leases, and jobs. Expensive browser or finite-compute
 sessions are created on demand and destroyed or hibernated after their bounded work.
 
@@ -113,6 +123,19 @@ The Agent Treasury is the only component allowed to authorize economic spend. It
 - minimum liquid reserve and trailing runway;
 - per-job, per-session, per-provider, and rolling-period caps;
 - beneficiary allocation without pretending that an internal transfer is external revenue.
+
+Free-user economics are pooled, not one-server-per-user. The shared control plane, queue, browser pool and worker
+fleet serve many isolated beneficiary cells. A sleeping cell consumes storage and scheduler rows rather than a
+dedicated VM. The admission controller may delay nonessential paid work or route it to a free model when the fleet
+budget is tight, but it does not convert that pressure into a three-day paywall. The governing invariant is:
+
+```text
+externally settled fleet revenue
+  >= complete fleet cost + committed liabilities + reserve contribution
+```
+
+Until that invariant holds over the graduation window, Anicca is subsidizing a free beta; Life Manager is not yet
+financially independent. After it holds, surplus may expand capacity while access remains free.
 
 All earning lanes use one commercial state machine:
 
@@ -152,18 +175,23 @@ fitness; a child must inherit the verified policy and start with a bounded survi
 
 ## What to learn from the references
 
-### Existing Life Manager experiments
+### Existing Life Manager experiments and the corrected provider choice
 
-The latest consolidation spec and executable shelter code supersede the older master selection. BlockRun proves
-wallet-native per-call inference and a free survival floor. Nosana is the strongest current shelter path because
-the repository contains the deploy, spend gate, renewal, refill, confidential delivery, signed-heartbeat steward,
-and successor-handover implementation, backed by mainnet receipts. The demonstrated runtime survived six hours
-with the Mac loop unloaded and later completed both controller handover and one wall-clock natural replacement.
-The evidence proves level 3 capability, not permanent life: the latest readback reports zero running jobs, the next
-successor did not appear, and all shelter funding came from bootstrap treasury rather than Franklin's external
-earnings. DigitalOcean proves a phone-only customer product can run now, but a founder card means it is the
-incubator and durable control plane, not the final self-funded state. Akash is valuable as a second, portable
-self-custodied container market, but it has less repository implementation and live proof than Nosana today.
+The repository history already identified FluxCloud as the strongest low-cost candidate in July, but at that time
+the agent-native control surface was not wired. The provider published its official Flux Cloud MCP in September.
+A fresh read-only MCP call returned 6,623 enabled nodes and quoted a one-month app with 1 vCPU, 1 GB RAM, 10 GB
+replicated storage and three instances at `$1.99` (26.35 FLUX at that quote). The same live rate card quoted a tiny
+three-instance app at the `$0.99/month` floor. These are observed quotes, not permanent promises.
+
+Conway has also returned since the earlier outage. Its current terminal exposes x402-funded Linux VMs, inference
+and domains with no cloud account. A fresh `credits_pricing` readback quoted 1 vCPU / 512 MB / 5 GB at `$5/month`
+and 1 vCPU / 1 GB / 10 GB at `$8/month`. Conway wins on direct Base-USDC payment and full-VM ergonomics; FluxCloud
+wins on measured cost, three-node redundancy and replicated storage, so FluxCloud is primary and Conway fallback.
+
+Nosana remains important evidence rather than the primary home. The repository contains deploy, spend gate,
+renewal, refill, confidential delivery, signed-heartbeat steward and successor-handover implementations backed by
+mainnet receipts. It survived six hours with the Mac loop unloaded and completed one natural replacement, but the
+latest recorded state is zero running jobs and funding came from bootstrap treasury rather than external earnings.
 
 The earlier master spec contains contradictory historical Akash routes: one section describes swapping USDC to AKT,
 while a later section identifies native `uusdc` settlement through Noble/Axelar. Implementation must re-query the
@@ -200,13 +228,20 @@ operator kill switches, and unclear accountability. Life Manager therefore uses 
 useful delivered outcomes, reliability, and beneficiary welfare as fitness. It never treats token price, self-trade,
 owner funding, or raw attention as revenue.
 
-### BlockRun, Nosana, Akash and managed clouds
+### BlockRun, FluxCloud, Conway, Nosana, Akash and managed clouds
 
 [BlockRun](https://blockrun.ai/docs/getting-started/agent-developers) removes account/API-key subscriptions from
 inference purchasing and makes each request economically observable through x402. That is the correct food rail.
+[Flux Cloud MCP](https://github.com/RunOnFlux/flux-cloud-mcp) supplies accountless key generation, network quotes,
+on-chain FLUX payment, deploy/update/cancel, logs and health readback. Replicated `r:` storage survives node moves,
+and multiple instances run on distinct nodes. That is the primary sovereign application rail.
+[Conway Terminal](https://docs.conway.tech/terminal) supplies full Linux VMs, inference and domains paid in Base
+USDC over x402 with an EVM wallet and no human account setup. That is the first independent fallback and the
+cleanest stablecoin-native rail, but its fresh small-instance quotes are currently higher than FluxCloud.
 [Nosana Jobs](https://github.com/nosana-ci/docs.nosana.com/blob/main/docs/protocols/jobs.md) lets a project post a
-job through its on-chain program and pay through the signing Solana wallet. That is the primary proven shelter
-rail. The measured historical Life Manager job cost was `$0.043345153/h` (about `$31.21/month` by simple 30-day
+job through its on-chain program and pay through the signing Solana wallet. That is the best-proven prior shelter
+experiment, not the chosen persistent product home. The measured historical Life Manager job cost was
+`$0.043345153/h` (about `$31.21/month` by simple 30-day
 extrapolation), versus `$0.18/h` (about `$129.60/month`) for continuously recreating the measured BlockRun Modal
 sandbox. These are experiment snapshots, not current guaranteed prices; every purchase still requires a fresh
 quote. [Akash](https://akash.network/docs/getting-started/what-is-akash) supplies self-custodied, container-based,
@@ -235,7 +270,8 @@ are never presented as earned money.
 
 ## User experience
 
-The user starts Life Manager from Telegram or the mobile web app and then may turn off their computer. Life Manager
+The user starts Life Manager for `$0` from Telegram or the mobile web app and then may turn off their computer.
+There is no three-day subscription wall. Life Manager
 creates the isolated cell, begins free/bootstrap operation, and reports only meaningful transitions. The ordinary
 feed says what it completed, what value or money was produced, what it cost, current verified profit, reserve and
 runway, and what it will do next. It does not ask the user to invent agents, choose infrastructure, or approve normal
@@ -279,22 +315,21 @@ The order is based on the first missing evidence in the revenue flow, not infras
    provider loss and triggers fallback, not success.
 9. Ingest DigitalOcean's complete attributable hosting cost into the same treasury view and establish a 30-day
    bootstrap runway.
-10. Put the existing Nosana deploy, spend gate, refill, renewal, steward, and successor operations behind the
-    provider-neutral shelter interface; retain DigitalOcean as the durable control plane and ledger.
-11. Diagnose and close `FRANKLIN-CONTINUITY-1`: take a fresh Nosana quote, restore from durable state, and prove two
-    consecutive running-to-successor-running handovers without breaking the reserve floor or creating two paid jobs
-    beyond the bounded overlap.
-12. Attribute the funding source on every shelter payment and prove one bounded Nosana lease is renewed from
-    externally earned surplus, not owner/bootstrap treasury; current zero running jobs and zero Franklin external
-    revenue remain visible until then.
-13. Run an Akash quote, deploy, restore, and receipt drill through the same interface as the first cross-provider
-    fallback. It is a portability test, not a replacement for the better-proven Nosana path.
+10. Implement the provider-neutral shelter interface and its FluxCloud adapter using the official MCP operations;
+    start with read-only identity, network, pricing, build, validation and quote calls.
+11. Run one bounded FluxCloud deployment from a dedicated capped payment wallet; verify three instances, public
+    reachability, replicated-state restore, node removal/replacement, cost receipt and cancellation readback.
+12. Add renewal before expiry and attribute every payment source. Renew from externally earned surplus only after
+    reserve, liabilities and runway gates pass; bootstrap funds remain visibly separate.
+13. Implement and test Conway as the first cross-provider restore path using Base USDC/x402, then retain Nosana for
+    finite/GPU jobs and run Akash as a second portability drill.
 14. Hold the 30-day self-funding benchmark. Only after it passes may surplus fund replication or other beneficiary
     cells.
 
-Tasks 1-7 are the revenue critical path. Nosana continuity work can proceed as a bounded reference track, but
-earned-fund graduation and the Akash portability drill follow repeatable profitable customer revenue because
-autonomous shelter cannot make a zero-revenue business profitable.
+Tasks 1-7 are the revenue critical path. Read-only FluxCloud integration may proceed in parallel, but paid
+graduation and provider drills follow repeatable profitable customer revenue because cheap autonomous shelter
+cannot make a zero-revenue business profitable. User access remains free; the fleet graduates only when aggregate
+external revenue covers aggregate marginal and fixed costs plus reserve.
 
 ## Explicit non-goals for this delivery
 
