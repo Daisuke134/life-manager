@@ -417,22 +417,29 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertIsNone(row["stale_event"])
 
     def test_status_exposes_exact_live_admission_occurrences(self):
-        row = status_rows(
-            REGISTRY,
-            loaded={},
-            disabled={},
-            events={},
-            installed_releases={},
-            admission_effect_unknown={"example"},
-            admission_effect_unknown_occurrences={
-                "example": ("example:current-fence",),
-            },
-        )[0]
+        # The occurrence is fenced, so status_rows now also reads the
+        # admission DB for per-occurrence detail; point it at an empty
+        # temp DB instead of the real host's admission store.
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(lm_loop, "admission_root", return_value=Path(directory)):
+                row = status_rows(
+                    REGISTRY,
+                    loaded={},
+                    disabled={},
+                    events={},
+                    installed_releases={},
+                    admission_effect_unknown={"example"},
+                    admission_effect_unknown_occurrences={
+                        "example": ("example:current-fence",),
+                    },
+                )[0]
         self.assertTrue(row["admission_effect_unknown"])
         self.assertEqual(
             row["admission_effect_unknown_occurrences"],
             ["example:current-fence"],
         )
+        self.assertEqual(row["admission_effect_unknown_details"], [])
+        self.assertFalse(row["admission_effect_unknown_details_truncated"])
 
     def test_doctor_lists_unmanaged_and_missing(self):
         report = doctor_report(REGISTRY,
@@ -789,3 +796,163 @@ class EffectUnknownDiagnosisTest(unittest.TestCase):
         self.assertEqual(bare["cause_run"], "journal_unavailable")
         self.assertEqual(bare["provider_state"], "no_adapter")
         self.assertTrue(bare["next_action"].startswith("no_readback_adapter"))
+
+
+class AdmissionEffectUnknownDetailsTest(unittest.TestCase):
+    """`lm-loop status`'s per-occurrence fence explanation.
+
+    Mirrors the admission+journal fixtures in
+    runtime/loop/tests/test_lm_loop_apply.py's pre-effect proof tests: mark
+    an occurrence effect_unknown in the real admission DB schema (via
+    resource_admission.enqueue_durable), then write a private 0600
+    events.jsonl the same shape `_pre_effect_occurrence_proof` reads.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        admission_env = patch.dict(os.environ, {
+            "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(self.root / "admission"),
+            # validate_registry requires state_root to be a literal "~/..."
+            # path; point $HOME at the temp root so it resolves there instead
+            # of the real host home directory.
+            "HOME": str(self.root),
+        })
+        admission_env.start()
+        self.addCleanup(admission_env.stop)
+
+    def _mark_effect_unknown(self, owner, occurrence, state="claimed"):
+        from runtime.host import resource_admission
+
+        database = self.root / "admission" / "admission-v2.sqlite3"
+        resource_admission.enqueue_durable(
+            "agent", owner, admission_class="borrow", priority="support",
+            occurrence_id=occurrence,
+        )
+        with sqlite3.connect(database) as connection:
+            connection.execute(
+                "UPDATE occurrences SET state=?,effect_unknown=1 WHERE occurrence_id=?",
+                (state, occurrence),
+            )
+            connection.execute(
+                "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?", (owner,),
+            )
+
+    def _write_events(self, state_root, events):
+        state_root.mkdir(exist_ok=True)
+        path = state_root / "events.jsonl"
+        path.write_text("".join(json.dumps(row) + "\n" for row in events))
+        path.chmod(0o600)
+
+    def _registry(self, owner, state_root):
+        # state_root must be resolvable both as a real filesystem path (for
+        # writing fixture events) and as the literal "~/..." string
+        # validate_registry requires; $HOME is patched to self.root in
+        # setUp so both resolve to the same directory.
+        relative = f"~/{state_root.relative_to(self.root)}"
+        return {"schema_version": 2, "loops": {owner: {
+            "label": f"ai.anicca.{owner}", "domain": "earn", "entrypoint": "bin/example.sh",
+            "cadence": {"start_interval_seconds": 60}, "effect_class": "application",
+            "state_root": relative,
+            "log_root": f"{relative}/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "shared-agent-runner",
+        }}}
+
+    def test_status_reports_cause_event_for_unprovable_fence(self):
+        owner = "example-fenced"
+        occurrence = f"{owner}:wake-x"
+        self._mark_effect_unknown(owner, occurrence)
+        state_root = self.root / owner
+        event = build_runtime_event(
+            loop_id=owner, domain="earn", run_id="wake-x", release_sha="b" * 40,
+            provider="shared-agent-runner", profile_alias=None,
+            effect_class="application", succeeded=False, blocker=None,
+            error_class="provider_timeout", exit_code=1,
+            error_detail="upstream timed out",
+        )
+        self._write_events(state_root, [event])
+        registry = self._registry(owner, state_root)
+        row = status_rows(
+            registry, loaded={}, disabled={}, events={}, installed_releases={},
+            admission_effect_unknown={owner},
+            admission_effect_unknown_occurrences={owner: (occurrence,)},
+        )[0]
+
+        details = row["admission_effect_unknown_details"]
+        self.assertEqual(len(details), 1)
+        detail = details[0]
+        self.assertEqual(detail["occurrence_id"], occurrence)
+        self.assertEqual(detail["run_id"], "wake-x")
+        self.assertEqual(detail["state"], "claimed")
+        self.assertEqual(detail["cause_event"], {
+            "timestamp": event["timestamp"],
+            "phase": "report",
+            "status": "fail",
+            "blocker": None,
+            "error_class": "provider_timeout",
+            "exit_code": 1,
+            "error_detail": "upstream timed out",
+            "effect_status": "unknown",
+            "provider_receipt_id": None,
+            "official_readback_ref": None,
+            "evidence_refs": event["evidence_refs"],
+        })
+        self.assertNotEqual(detail["auto_close_reason"], "ok")
+        self.assertEqual(detail["next_action"], "official_readback_required")
+        self.assertFalse(row["admission_effect_unknown_details_truncated"])
+
+    def test_status_reports_no_journal_row_when_run_never_logged(self):
+        owner = "example-fenced-missing"
+        occurrence = f"{owner}:wake-ghost"
+        self._mark_effect_unknown(owner, occurrence)
+        state_root = self.root / owner
+        self._write_events(state_root, [])
+        registry = self._registry(owner, state_root)
+
+        row = status_rows(
+            registry, loaded={}, disabled={}, events={}, installed_releases={},
+            admission_effect_unknown={owner},
+            admission_effect_unknown_occurrences={owner: (occurrence,)},
+        )[0]
+
+        detail = row["admission_effect_unknown_details"][0]
+        self.assertIsNone(detail["cause_event"])
+        self.assertEqual(detail["next_action"], "official_readback_required:no_journal_row")
+
+    def test_status_reconcile_action_for_pre_effect_provable_occurrence(self):
+        owner = "example-fenced-provable"
+        occurrence = f"{owner}:wake-solo"
+        self._mark_effect_unknown(owner, occurrence, state="claimed")
+        state_root = self.root / owner
+        summary_ref = f"lm-loop://{owner}/wake-solo/summary.json"
+        self._write_events(state_root, [
+            {
+                "version": 1, "event_id": "e" * 24, "loop_id": owner,
+                "domain": "earn", "phase": "report", "status": "blocked",
+                "effect_class": "application", "effect_status": "unknown",
+                "provider": "shared-agent-runner", "profile_alias": None,
+                "release_sha": "b" * 40, "run_id": "wake-solo",
+                "timestamp": "2026-09-22T00:00:00+00:00",
+                "blocker": "host_admission_deferred:resource_capacity_busy",
+                "evidence_refs": [summary_ref],
+            },
+        ])
+        registry = self._registry(owner, state_root)
+
+        row = status_rows(
+            registry, loaded={}, disabled={}, events={}, installed_releases={},
+            admission_effect_unknown={owner},
+            admission_effect_unknown_occurrences={owner: (occurrence,)},
+        )[0]
+
+        detail = row["admission_effect_unknown_details"][0]
+        self.assertEqual(detail["auto_close_reason"], "ok")
+        self.assertEqual(detail["next_action"], "lm-loop reconcile")
+
+        explained = explain_status_row(row)
+        self.assertEqual(
+            explained["admission_effect_unknown"]["details"][0]["next_action"],
+            "lm-loop reconcile",
+        )

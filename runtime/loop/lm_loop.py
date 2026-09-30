@@ -368,6 +368,40 @@ def _pre_effect_occurrence_proof(
     return proof, "ok"
 
 
+def _owner_runtime_rows(entry: dict) -> tuple[list[dict] | None, str | None]:
+    """Read every private runtime journal row for one owner's state root.
+
+    Same journal traversal `_pre_effect_admission_evaluate` always used: the
+    live journal plus up to `MAX_PRE_EFFECT_ARCHIVES` newest rotated
+    archives. Returns ``(rows, None)`` on success or ``(None, reason)`` with
+    the same fail-closed reason string the evaluator reports per row.
+    """
+    state_root = entry.get("state_root")
+    if not isinstance(state_root, str) or not state_root:
+        return None, "state_root_unavailable"
+    try:
+        root = Path(os.path.expanduser(state_root))
+        journals = [root / "events.jsonl", *sorted(
+            root.glob("events-*.jsonl.gz"), reverse=True,
+        )[:MAX_PRE_EFFECT_ARCHIVES]]
+        runtime_rows = [
+            row for journal in journals for row in _private_runtime_rows(journal)
+        ]
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+        return None, "journal_unavailable"
+    return runtime_rows, None
+
+
+def _journal_history_start(runtime_rows: list[dict]) -> float | None:
+    stamps = []
+    for row in runtime_rows:
+        try:
+            stamps.append(_event_epoch(row.get("timestamp")))
+        except ValueError:
+            continue
+    return min(stamps) if stamps else None
+
+
 def _pre_effect_admission_evaluate(
     loop_id: str, entry: dict,
 ) -> tuple[list[tuple[str, str, dict]], list[tuple[str, str]]]:
@@ -393,28 +427,12 @@ def _pre_effect_admission_evaluate(
         return [], []
     if not rows:
         return [], []
-    state_root = entry.get("state_root")
-    if not isinstance(state_root, str) or not state_root:
-        return [], [(row[0], "state_root_unavailable") for row in rows]
-    try:
-        root = Path(os.path.expanduser(state_root))
-        journals = [root / "events.jsonl", *sorted(
-            root.glob("events-*.jsonl.gz"), reverse=True,
-        )[:MAX_PRE_EFFECT_ARCHIVES]]
-        runtime_rows = [
-            row for journal in journals for row in _private_runtime_rows(journal)
-        ]
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
-        return [], [(row[0], "journal_unavailable") for row in rows]
+    runtime_rows, reason = _owner_runtime_rows(entry)
+    if runtime_rows is None:
+        return [], [(row[0], reason) for row in rows]
     provable: list[tuple[str, str, dict]] = []
     unprovable: list[tuple[str, str]] = []
-    stamps = []
-    for row in runtime_rows:
-        try:
-            stamps.append(_event_epoch(row.get("timestamp")))
-        except ValueError:
-            continue
-    history_start = min(stamps) if stamps else None
+    history_start = _journal_history_start(runtime_rows)
     for occurrence_id, expected_state, queued_at in rows:
         proof, reason = _pre_effect_occurrence_proof(
             loop_id, entry, occurrence_id, expected_state, runtime_rows,
@@ -641,6 +659,114 @@ def _admission_effect_unknown_occurrences() -> dict[str, tuple[str, ...]]:
     return {owner_id: tuple(occurrences) for owner_id, occurrences in grouped.items()}
 
 
+MAX_ADMISSION_EFFECT_UNKNOWN_DETAILS = 20
+
+
+def _project_cause_event(row: dict | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "timestamp": row.get("timestamp"),
+        "phase": row.get("phase"),
+        "status": row.get("status"),
+        "blocker": row.get("blocker"),
+        "error_class": row.get("error_class"),
+        "exit_code": row.get("exit_code"),
+        "error_detail": row.get("error_detail") or row.get("diagnostic_error"),
+        "effect_status": row.get("effect_status"),
+        "provider_receipt_id": row.get("provider_receipt_id"),
+        "official_readback_ref": row.get("official_readback_ref"),
+        "evidence_refs": row.get("evidence_refs"),
+    }
+
+
+def _latest_run_row(runtime_rows: list[dict], run_id: str) -> dict | None:
+    """The last journal row for a run_id, by timestamp order in the file."""
+    matching = [row for row in runtime_rows if row.get("run_id") == run_id]
+    if not matching:
+        return None
+
+    def _stamp(row: dict) -> float:
+        try:
+            return _event_epoch(row.get("timestamp"))
+        except ValueError:
+            return float("-inf")
+
+    return max(matching, key=_stamp)
+
+
+def _admission_effect_unknown_detail(
+    loop_id: str, occurrence_id: str, state: str, queued_at: object,
+    cause_event: dict | None, auto_close_reason: str,
+) -> dict:
+    prefix = f"{loop_id}:"
+    run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
+    if auto_close_reason == "ok":
+        next_action = "lm-loop reconcile"
+    elif cause_event is None:
+        next_action = "official_readback_required:no_journal_row"
+    else:
+        next_action = "official_readback_required"
+    return {
+        "occurrence_id": occurrence_id,
+        "run_id": run_id,
+        "state": state,
+        "queued_at": queued_at,
+        "cause_event": cause_event,
+        "auto_close_reason": auto_close_reason,
+        "next_action": next_action,
+    }
+
+
+def _admission_effect_unknown_details(
+    loop_id: str, entry: dict, *, limit: int = MAX_ADMISSION_EFFECT_UNKNOWN_DETAILS,
+) -> tuple[list[dict], bool]:
+    """Explain every live effect fence of one loop for `lm-loop status`.
+
+    Reads the admission DB and owner journal exactly like
+    `_pre_effect_admission_evaluate`/`_pre_effect_occurrence_proof`, but
+    projects a status-facing detail dict per occurrence instead of a
+    provable/unprovable split. Bounded to the newest `limit` occurrences;
+    the bool return says whether more were fenced. Never raises: any read
+    failure yields fail-closed detail rows, mirroring the evaluator.
+    """
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        rows = _read_admission_rows(
+            database,
+            """SELECT occurrence_id,state,queued_at FROM occurrences
+                 WHERE owner_id=? AND effect_unknown=1
+                 ORDER BY queued_at DESC, occurrence_id DESC
+                 LIMIT ?""",
+            (loop_id, limit + 1),
+        )
+    except sqlite3.Error:
+        return [], False
+    if not rows:
+        return [], False
+    truncated = len(rows) > limit
+    rows = rows[:limit]
+    runtime_rows, reason = _owner_runtime_rows(entry)
+    if runtime_rows is None:
+        return [
+            _admission_effect_unknown_detail(loop_id, occurrence_id, state, queued_at, None, reason)
+            for occurrence_id, state, queued_at in rows
+        ], truncated
+    history_start = _journal_history_start(runtime_rows)
+    details = []
+    for occurrence_id, state, queued_at in rows:
+        _, proof_reason = _pre_effect_occurrence_proof(
+            loop_id, entry, occurrence_id, state, runtime_rows,
+            queued_at=float(queued_at) if queued_at is not None else float("inf"),
+            history_start=history_start)
+        prefix = f"{loop_id}:"
+        run_id = occurrence_id[len(prefix):] if occurrence_id.startswith(prefix) else occurrence_id
+        cause_event = _project_cause_event(_latest_run_row(runtime_rows, run_id))
+        details.append(_admission_effect_unknown_detail(
+            loop_id, occurrence_id, state, queued_at, cause_event, proof_reason))
+    return details, truncated
+
+
 def _admission_effect_unknown_owners() -> set[str]:
     """Return owners with current effect fences for compatibility callers."""
     return set(_admission_effect_unknown_occurrences())
@@ -851,6 +977,13 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             None if admission_effect_unknown is None
             else loop_id in admission_effect_unknown
         )
+        fenced_details: list[dict] = []
+        fenced_details_truncated = False
+        if (admission_effect_unknown_occurrences or {}).get(loop_id):
+            # Only fenced loops pay for a journal read; everyone else stays
+            # as cheap as `lm-loop status` was before this field existed.
+            fenced_details, fenced_details_truncated = _admission_effect_unknown_details(
+                loop_id, entry)
         stale_event = None
         blocker = event.get("blocker")
         if (
@@ -955,6 +1088,8 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "admission_effect_unknown_occurrences": list(
                 (admission_effect_unknown_occurrences or {}).get(loop_id, ())
             ),
+            "admission_effect_unknown_details": fenced_details,
+            "admission_effect_unknown_details_truncated": fenced_details_truncated,
             "stale_event": stale_event,
             "latest_harness_failure": latest_harness_failure,
         })
@@ -1027,6 +1162,12 @@ def explain_status_row(row: dict) -> dict:
             "provider_receipt_id": row.get("provider_receipt_id"),
             "official_readback_ref": row.get("official_readback_ref"),
             "evidence_refs": row.get("evidence_refs"),
+        },
+        "admission_effect_unknown": {
+            "current": row.get("admission_effect_unknown"),
+            "occurrences": row.get("admission_effect_unknown_occurrences", []),
+            "details": row.get("admission_effect_unknown_details", []),
+            "details_truncated": row.get("admission_effect_unknown_details_truncated", False),
         },
         "diagnostic": {
             "complete": row.get("diagnostic_complete"),
