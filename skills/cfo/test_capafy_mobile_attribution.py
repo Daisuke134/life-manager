@@ -20,6 +20,55 @@ SNAPSHOT = "2026-10-01T00:00:00Z"
 TRAILING_START = "2026-09-24T00:00:00Z"
 
 
+def canonical_sha256(value):
+    return hashlib.sha256(json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode()).hexdigest()
+
+
+def bind_financial_report_hash(rows):
+    financial = [row["sources"]["app_store_financial"]["data"] for row in rows]
+    report = {
+        "report_id": financial[0]["report_id"],
+        "report_status": financial[0]["report_status"],
+        "period_start": financial[0]["period_start"],
+        "period_end": financial[0]["period_end"],
+        "rows": sorted(
+            [item for data in financial for item in data["rows"]],
+            key=lambda item: item["source_row_index"],
+        ),
+    }
+    report_sha = canonical_sha256(report)
+    for data in financial:
+        data["report_sha256"] = report_sha
+
+
+def capafy_order_row_sha(order, currency):
+    return canonical_sha256({
+        "order_id": order["orderId"],
+        "subscription_id": order.get("subscriptionId"),
+        "buyer_id": order["buyerId"],
+        "developer_id": order["developerId"],
+        "currency": currency.upper(),
+        "amount": order["amount"],
+        "platform_fee_amount": order["platformFeeAmount"],
+        "payment_at": order["paymentAt"],
+        "completed_at": order["completedAt"],
+    })
+
+
+def capafy_refund_row_sha(order, currency):
+    return canonical_sha256({
+        "order_id": order["orderId"],
+        "refund_id": order["refundId"],
+        "buyer_id": order["buyerId"],
+        "developer_id": order["developerId"],
+        "currency": currency.upper(),
+        "refund_amount": order["refundAmount"],
+        "refunded_at": order["refundedAt"],
+    })
+
+
 class CapafyMobileAttributionTest(unittest.TestCase):
     def require_adapter(self):
         self.assertIsNotNone(adapter, "skills.cfo.adapters.capafy_mobile is not implemented")
@@ -60,7 +109,10 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                 ]),
             ],
         )
-        self.assertNotIn("82", json.dumps(receipts))  # developerActualAmount is net, not a second revenue.
+        self.assertNotIn(
+            "82",
+            [component["amount"] for row in receipts for component in row["components"]],
+        )  # developerActualAmount is net, not a second revenue.
         complete = [row for row in records if row["record_type"] == "coverage"
                     and row["coverage_state"] == "complete"]
         self.assertEqual({row["projection"] for row in complete}, {"historical", "trailing"})
@@ -77,6 +129,12 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         self.assertEqual(after_receipts[2]["receipt_id"], "capafy:refund:refund-capafy-001")
         self.assertEqual(after_receipts[2]["components"], [
             {"category": "refund", "amount": "10"},
+        ])
+        refunded_payload = json.loads((FIXTURES / "capafy-refunded.json").read_text())
+        refund_row = refunded_payload["orders"][0]
+        self.assertEqual(after_receipts[2]["evidence_refs"], [
+            "capafy://refunds/refund-capafy-001/row-sha256/"
+            + capafy_refund_row_sha(refund_row, refunded_payload["currency"]),
         ])
         result = contract.project(
             [*before_receipts, *after], snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
@@ -218,6 +276,104 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     row["reason"] for row in records if row["record_type"] == "coverage"
                 }, {"missing_coverage"})
 
+    def test_capafy_receipt_evidence_binds_canonical_immutable_row_hash(self):
+        module = self.require_adapter()
+        original = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        changed = json.loads(json.dumps(original))
+        changed["orders"][0].update({
+            "amount": 101,
+            "actualAmount": 101,
+            "developerActualAmount": 83,
+        })
+        keys = (
+            "schema_version", "kind", "observed_at", "window_start", "window_end",
+            "history_complete", "currency", "pagination", "orders",
+        )
+        changed["content_sha256"] = canonical_sha256({key: changed[key] for key in keys})
+        changed["evidence_ref"] = (
+            f"capafy://orders/readback/sha256/{changed['content_sha256']}"
+        )
+
+        before = module.adapt_capafy(
+            original, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        after = module.adapt_capafy(
+            changed, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        before_receipts = [row for row in before if row["record_type"] == "receipt"]
+        after_receipts = [row for row in after if row["record_type"] == "receipt"]
+        self.assertEqual(
+            [row["receipt_id"] for row in before_receipts],
+            [row["receipt_id"] for row in after_receipts],
+        )
+        before_row_sha = capafy_order_row_sha(original["orders"][0], original["currency"])
+        after_row_sha = capafy_order_row_sha(changed["orders"][0], changed["currency"])
+        self.assertTrue(all(
+            row["evidence_refs"] == [
+                f"capafy://orders/buy-capafy-001/row-sha256/{before_row_sha}"
+            ]
+            for row in before_receipts
+        ))
+        self.assertTrue(all(
+            row["evidence_refs"] == [
+                f"capafy://orders/buy-capafy-001/row-sha256/{after_row_sha}"
+            ]
+            for row in after_receipts
+        ))
+        self.assertNotEqual(
+            [row["evidence_refs"] for row in before_receipts],
+            [row["evidence_refs"] for row in after_receipts],
+        )
+        with self.assertRaisesRegex(contract.ContractError, "receipt_conflict"):
+            contract.project(
+                [*before_receipts, *after_receipts],
+                snapshot_at=SNAPSHOT,
+                trailing_start=TRAILING_START,
+            )
+        self.assertTrue(all(
+            original["content_sha256"] in row["evidence_refs"][0]
+            for row in before if row["record_type"] == "coverage"
+        ))
+
+    def test_capafy_appending_another_order_preserves_existing_receipts_exactly(self):
+        module = self.require_adapter()
+        original = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        appended = json.loads(json.dumps(original))
+        second = json.loads(json.dumps(original["orders"][0]))
+        second.update({
+            "orderId": "buy-capafy-002",
+            "buyerId": "buyer-external-002",
+            "amount": 50,
+            "actualAmount": 50,
+            "developerActualAmount": 42,
+            "platformFeeAmount": 8,
+            "paymentAt": 1790773210000,
+            "completedAt": 1790773220000,
+            "updatedAt": 1790773220000,
+        })
+        appended["orders"].append(second)
+        appended["pagination"]["records_fetched"] = 2
+        keys = (
+            "schema_version", "kind", "observed_at", "window_start", "window_end",
+            "history_complete", "currency", "pagination", "orders",
+        )
+        appended["content_sha256"] = canonical_sha256({key: appended[key] for key in keys})
+        appended["evidence_ref"] = (
+            f"capafy://orders/readback/sha256/{appended['content_sha256']}"
+        )
+        before = module.adapt_capafy(
+            original, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        after = module.adapt_capafy(
+            appended, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        before_receipts = [row for row in before if row["record_type"] == "receipt"]
+        existing_after = [
+            row for row in after if row["record_type"] == "receipt"
+            and row["receipt_id"].endswith("buy-capafy-001")
+        ]
+        self.assertEqual(existing_after, before_receipts)
+
     def test_capafy_missing_partial_and_stale_sources_are_gaps_not_zero(self):
         module = self.require_adapter()
         missing = module.adapt_capafy(
@@ -323,6 +479,7 @@ class CapafyMobileAttributionTest(unittest.TestCase):
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
         for row in rows:
             row["sources"]["app_store_financial"]["data"]["rows"] = []
+        bind_financial_report_hash(rows)
         complete = module.adapt_mobile(
             rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
         )
@@ -404,6 +561,86 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             row["reason"] for row in records
             if row["record_type"] == "coverage" and row["source_id"] == "revenuecat-mrr"
         })
+
+    def test_mobile_rejects_mrr_changed_without_matching_content_hash(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["value"] = 987654321
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertNotIn("revenuecat:anicca-ios:mrr", {
+            row["subscription_id"] for row in records
+            if row["record_type"] == "subscription_snapshot"
+        })
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_rejects_financial_amount_changed_without_matching_report_hash(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
+            "extended_partner_share"
+        ] = 7654321
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_rejects_duplicate_financial_row_identity_with_valid_hash(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[1]["sources"]["app_store_financial"]["data"]["rows"][0][
+            "source_row_index"
+        ] = 17
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_requires_consistent_financial_report_identity_hash_and_period(self):
+        module = self.require_adapter()
+        mutations = (
+            lambda data: data.update(report_id="JP-2026-09-other"),
+            lambda data: data.update(report_sha256="f" * 64),
+            lambda data: data.update(period_start="2026-08-01"),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                mutate(rows[1]["sources"]["app_store_financial"]["data"])
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+                self.assertTrue(any(
+                    row["record_type"] == "coverage"
+                    and row["source_id"] == "app-store-connect-financial"
+                    and row["projection"] == "trailing"
+                    and row["coverage_state"] == "gap"
+                    for row in records
+                ))
 
     def test_mobile_rejects_cross_product_financial_rows(self):
         module = self.require_adapter()

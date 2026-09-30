@@ -105,21 +105,66 @@ def _sha256(value: Any) -> str:
     return value
 
 
+def _canonical_sha256(value: Any) -> str:
+    try:
+        canonical = json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        ).encode()
+    except (TypeError, ValueError):
+        raise ValueError("content_hash_invalid") from None
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _capafy_content_sha256(payload: dict) -> str:
     keys = (
         "schema_version", "kind", "observed_at", "window_start", "window_end",
         "history_complete", "currency", "pagination", "orders",
     )
     try:
-        canonical = json.dumps(
-            {key: payload[key] for key in keys},
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        ).encode()
-    except (KeyError, TypeError, ValueError):
+        content = {key: payload[key] for key in keys}
+    except KeyError:
         raise ValueError("content_hash_invalid") from None
-    return hashlib.sha256(canonical).hexdigest()
+    return _canonical_sha256(content)
+
+
+def _capafy_settlement_row_sha256(order: dict, currency: str) -> str:
+    return _canonical_sha256({
+        "order_id": order["orderId"],
+        "subscription_id": order.get("subscriptionId"),
+        "buyer_id": order["buyerId"],
+        "developer_id": order["developerId"],
+        "currency": currency,
+        "amount": order["amount"],
+        "platform_fee_amount": order["platformFeeAmount"],
+        "payment_at": order["paymentAt"],
+        "completed_at": order["completedAt"],
+    })
+
+
+def _capafy_pending_row_sha256(order: dict, currency: str) -> str:
+    return _canonical_sha256({
+        "order_id": order["orderId"],
+        "subscription_id": order.get("subscriptionId"),
+        "buyer_id": order["buyerId"],
+        "developer_id": order["developerId"],
+        "currency": currency,
+        "amount": order["amount"],
+        "created_at": order["createdAt"],
+        "status": order["status"],
+        "is_settled": order["isSettled"],
+    })
+
+
+def _capafy_refund_row_sha256(order: dict, currency: str) -> str:
+    return _canonical_sha256({
+        "order_id": order["orderId"],
+        "refund_id": order["refundId"],
+        "buyer_id": order["buyerId"],
+        "developer_id": order["developerId"],
+        "currency": currency,
+        "refund_amount": order["refundAmount"],
+        "refunded_at": order["refundedAt"],
+    })
 
 
 def _load(source: Any) -> tuple[Any | None, str | None]:
@@ -278,7 +323,6 @@ def adapt_capafy(
             ):
                 raise ValueError("missing_coverage")
             order_id = order["orderId"]
-            order_evidence = f"capafy://orders/{order_id}"
             subscription_id = order.get("subscriptionId")
             if subscription_id is None:
                 recurring = False
@@ -312,6 +356,10 @@ def adapt_capafy(
                     raise ValueError("amount_inconsistent")
                 occurred_at = _epoch_millis(order.get("paymentAt"))
                 settled_at = _epoch_millis(order.get("completedAt"))
+                settlement_sha = _capafy_settlement_row_sha256(order, currency)
+                order_evidence = (
+                    f"capafy://orders/{order_id}/row-sha256/{settlement_sha}"
+                )
                 if Decimal(fee) > 0:
                     receipts.append(contract.validate_record({
                         "schema_version": contract.SCHEMA_VERSION,
@@ -350,6 +398,7 @@ def adapt_capafy(
                         has_missing_identity = True
                     else:
                         refunded_at = _epoch_millis(order.get("refundedAt"))
+                        refund_sha = _capafy_refund_row_sha256(order, currency)
                         receipts.append(contract.validate_record({
                             "schema_version": contract.SCHEMA_VERSION,
                             "record_type": "receipt",
@@ -361,13 +410,16 @@ def adapt_capafy(
                             "settled_at": refunded_at,
                             "verification_state": "verified",
                             "revenue_class": None,
-                            "evidence_refs": [f"capafy://refunds/{refund_id}"],
+                            "evidence_refs": [
+                                f"capafy://refunds/{refund_id}/row-sha256/{refund_sha}"
+                            ],
                             "components": [{"category": "refund", "amount": refund}],
                         }))
             elif order.get("isSettled") is False and order.get("status") == "pending_payment":
                 has_unverified = True
                 amount = _money(order.get("amount"), allow_zero=False)
                 occurred_at = _epoch_millis(order.get("createdAt"))
+                pending_sha = _capafy_pending_row_sha256(order, currency)
                 receipts.append(contract.validate_record({
                     "schema_version": contract.SCHEMA_VERSION,
                     "record_type": "receipt",
@@ -379,7 +431,9 @@ def adapt_capafy(
                     "settled_at": None,
                     "verification_state": "pending",
                     "revenue_class": "monthly_recurring" if recurring else "one_time",
-                    "evidence_refs": [order_evidence],
+                    "evidence_refs": [
+                        f"capafy://orders/{order_id}/row-sha256/{pending_sha}"
+                    ],
                     "components": [{"category": "pending_revenue", "amount": amount}],
                 }))
             elif order.get("isSettled") is False and order.get("status") in {
@@ -452,6 +506,85 @@ def _business_date(value: Any) -> date:
     if not isinstance(value, str):
         raise ValueError("date_invalid")
     return date.fromisoformat(value)
+
+
+def _revenuecat_content_sha256(source: dict) -> str:
+    return _canonical_sha256({
+        "status": source.get("status"),
+        "reason": source.get("reason"),
+        "data": source.get("data"),
+    })
+
+
+def _validated_financial_report(
+    latest: dict[str, dict], products: tuple[str, ...],
+) -> tuple[date, date]:
+    report_identity: tuple[str, str, str, str, str] | None = None
+    report_rows: list[dict] = []
+    row_identities: set[tuple[str, int]] = set()
+    for product in products:
+        sources = latest[product].get("sources")
+        if not isinstance(sources, dict):
+            raise ValueError("missing_coverage")
+        financial = sources.get("app_store_financial")
+        if (
+            not isinstance(financial, dict)
+            or financial.get("status") != "available"
+            or not isinstance(financial.get("data"), dict)
+        ):
+            raise ValueError("missing_coverage")
+        data = financial["data"]
+        report_id = data.get("report_id")
+        report_sha = _sha256(data.get("report_sha256"))
+        if (
+            data.get("report_status") != "final"
+            or not isinstance(report_id, str)
+            or not contract.IDENTITY.fullmatch(report_id)
+            or data.get("apple_identifier")
+            != MOBILE_PRODUCT_BINDINGS[product]["asc_app_id"]
+            or not isinstance(data.get("rows"), list)
+        ):
+            raise ValueError("missing_coverage")
+        period_start = data.get("period_start")
+        period_end = data.get("period_end")
+        start = _business_date(period_start)
+        end = _business_date(period_end)
+        if start > end:
+            raise ValueError("missing_coverage")
+        identity = (
+            report_id, report_sha, data["report_status"], period_start, period_end,
+        )
+        if report_identity is None:
+            report_identity = identity
+        elif identity != report_identity:
+            raise ValueError("report_identity_mismatch")
+        for item in data["rows"]:
+            if not isinstance(item, dict):
+                raise ValueError("missing_coverage")
+            row_index = item.get("source_row_index")
+            if isinstance(row_index, bool) or not isinstance(row_index, int) or row_index < 0:
+                raise ValueError("missing_coverage")
+            if item.get("apple_identifier") != data["apple_identifier"]:
+                raise ValueError("product_identity_mismatch")
+            row_identity = (report_id, row_index)
+            if row_identity in row_identities:
+                raise ValueError("duplicate_report_row")
+            row_identities.add(row_identity)
+            report_rows.append(item)
+
+    if report_identity is None:
+        raise ValueError("missing_coverage")
+    report_id, report_sha, report_status, period_start, period_end = report_identity
+    report_content = {
+        "report_id": report_id,
+        "report_status": report_status,
+        "period_start": period_start,
+        "period_end": period_end,
+        "rows": sorted(report_rows, key=lambda item: item["source_row_index"]),
+    }
+    if report_sha != _canonical_sha256(report_content):
+        raise ValueError("content_hash_invalid")
+    return _business_date(period_start), _business_date(period_end)
 
 
 def adapt_mobile(
@@ -530,9 +663,15 @@ def adapt_mobile(
     if set(latest) != set(products):
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
-    receipts: list[dict] = []
+    try:
+        _validated_financial_report(latest, products)
+        financial_report_valid = True
+    except (KeyError, TypeError, ValueError):
+        financial_report_valid = False
+
+    financial_receipts: list[dict] = []
     snapshots: list[dict] = []
-    financial_complete = True
+    financial_complete = financial_report_valid
     rc_complete = True
     observed_values: list[str] = []
     report_periods: list[tuple[date, date]] = []
@@ -552,6 +691,8 @@ def adapt_mobile(
         financial = sources.get("app_store_financial", {})
         product_receipts: list[dict] = []
         try:
+            if not financial_report_valid:
+                raise ValueError("missing_coverage")
             binding = MOBILE_PRODUCT_BINDINGS[product]
             if not isinstance(financial, dict) or financial.get("status") != "available" or not isinstance(
                 financial.get("data"), dict
@@ -626,7 +767,7 @@ def adapt_mobile(
                         ],
                         "components": [{"category": category, "amount": amount}],
                     }))
-            receipts.extend(product_receipts)
+            financial_receipts.extend(product_receipts)
             report_periods.append((period_start, period_end))
         except (KeyError, TypeError, InvalidOperation, ValueError, contract.ContractError):
             financial_complete = False
@@ -639,6 +780,8 @@ def adapt_mobile(
                 raise ValueError("missing_coverage")
             rc_data = rc["data"]
             evidence_sha = _sha256(rc.get("evidence_sha256"))
+            if evidence_sha != _revenuecat_content_sha256(rc):
+                raise ValueError("content_hash_invalid")
             if rc_data.get("app_id") != MOBILE_PRODUCT_BINDINGS[product]["revenuecat_app_id"]:
                 raise ValueError("product_identity_mismatch")
             currency = _currency(rc_data.get("currency"))
@@ -678,6 +821,7 @@ def adapt_mobile(
             rc_complete = False
 
     fresh = bool(observed_values) and all(value == snapshot_at for value in observed_values)
+    receipts = financial_receipts if financial_complete else []
     reason = "stale_readback" if not fresh else "missing_coverage"
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()
     trailing_complete = (
