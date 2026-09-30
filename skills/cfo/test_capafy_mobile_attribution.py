@@ -826,6 +826,36 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     if row["record_type"] == "coverage"
                 }, {"gap"})
 
+    def test_mobile_numeric_type_difference_is_material_snapshot_conflict(self):
+        module = self.require_adapter()
+        for source in ("financial", "revenuecat"):
+            baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())
+            conflicting = json.loads(json.dumps(baseline[0]))
+            if source == "financial":
+                conflicting["sources"]["app_store_financial"]["data"]["rows"][0][
+                    "extended_partner_share"
+                ] = 1200.0
+            else:
+                conflicting["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+                    "latest_complete"
+                ]["MRR"]["value"] = 3000.0
+            for order, rows in (
+                ("conflict_last", [*baseline, conflicting]),
+                ("conflict_first", [conflicting, *baseline]),
+            ):
+                with self.subTest(source=source, order=order):
+                    records = module.adapt_mobile(
+                        rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                    )
+                    self.assertFalse(any(
+                        row["record_type"] in {"receipt", "subscription_snapshot"}
+                        for row in records
+                    ))
+                    self.assertEqual({
+                        row["coverage_state"] for row in records
+                        if row["record_type"] == "coverage"
+                    }, {"gap"})
+
     def test_mobile_rejects_non_dict_and_out_of_catalog_rows_at_any_date(self):
         module = self.require_adapter()
         baseline = json.loads((FIXTURES / "mobile-verified.json").read_text())

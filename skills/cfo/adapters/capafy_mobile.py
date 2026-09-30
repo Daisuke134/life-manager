@@ -106,14 +106,17 @@ def _sha256(value: Any) -> str:
     return value
 
 
-def _canonical_sha256(value: Any) -> str:
+def _canonical_json_bytes(value: Any) -> bytes:
     try:
-        canonical = json.dumps(
+        return json.dumps(
             value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
         ).encode()
     except (TypeError, ValueError):
         raise ValueError("content_hash_invalid") from None
-    return hashlib.sha256(canonical).hexdigest()
+
+
+def _canonical_sha256(value: Any) -> str:
+    return hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
 
 
 def _capafy_content_sha256(payload: dict) -> str:
@@ -663,15 +666,18 @@ def adapt_mobile(
             for row in payload
         ):
             raise ValueError("product_scope_invalid")
-        rows_by_identity: dict[tuple[str, date], dict] = {}
+        rows_by_identity: dict[tuple[str, date], tuple[bytes, dict]] = {}
         for row in payload:
             if row.get("schema_version") != 1:
                 raise ValueError("missing_coverage")
             identity = (row["product_id"], _business_date(row.get("business_date")))
-            if identity in rows_by_identity and rows_by_identity[identity] != row:
+            canonical_row = _canonical_json_bytes(row)
+            existing = rows_by_identity.get(identity)
+            if existing is not None and existing[0] != canonical_row:
                 raise ValueError("snapshot_identity_conflict")
-            rows_by_identity[identity] = row
-        rows = list(rows_by_identity.values())
+            if existing is None:
+                rows_by_identity[identity] = (canonical_row, row)
+        rows = [row for _, row in rows_by_identity.values()]
         if not rows:
             raise ValueError("missing_coverage")
         latest_date = max(_business_date(row.get("business_date")) for row in rows)
