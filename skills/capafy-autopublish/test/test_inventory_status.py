@@ -411,9 +411,35 @@ def test_unlisted_agent_with_authoritative_approved_detail_frees_the_slot() -> N
     result = module.normalize_agents(rows, detail_fetcher=fake_detail)
 
     assert result["counts"]["occupied"] == 0
-    assert result["counts"]["listed"] == 1
+    assert result["counts"]["listed"] == 0
+    assert result["counts"]["ready_publish"] == 1
     assert result["counts"]["free"] == 5
+    assert result["agents"][0]["lifecycle"] == "ready_publish"
+
+
+def test_detail_status_4_audit_4_is_listed_not_ready() -> None:
+    module = load_module()
+    result = module.normalize_agents([agent("live-1", "under_review")], detail_fetcher=lambda _id: (4, 4))
+    assert result["counts"]["listed"] == 1
+    assert result["counts"]["ready_publish"] == 0
     assert result["agents"][0]["lifecycle"] == "listed"
+
+
+def test_main_selects_test_and_publish_for_stale_list_status3_even_at_full_cap(monkeypatch, capsys) -> None:
+    module = load_module()
+    rows = [agent(f"a{i}", "under_review") for i in range(5)] + [agent(f"b{i}", "under_review") for i in range(5)]
+    detail = {f"a{i}": (3, 4) for i in range(5)} | {f"b{i}": (1, 1) for i in range(5)}
+    monkeypatch.setattr(module, "server_agents", lambda: rows)
+    monkeypatch.setattr(module, "fetch_agent_detail", lambda agent_id: detail[agent_id])
+    monkeypatch.setattr(module, "ready_inventory", lambda: [])
+    assert module.main() == 0
+    out = capsys.readouterr().out.splitlines()
+    verdict = json.loads(out[1])
+    assert verdict["verdict"] == "PUBLISHABLE"
+    assert verdict["action"] == "test_and_publish"
+    assert verdict["action_key"] == "publish:a0"
+    assert verdict["counts"]["occupied"] == 5
+    assert verdict["counts"]["ready_publish"] == 5
 
 
 def test_unlisted_agent_with_pending_audit_detail_stays_occupied() -> None:
