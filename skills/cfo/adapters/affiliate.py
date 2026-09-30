@@ -18,6 +18,9 @@ UPSTREAM_PROVIDER = "elevenlabs"
 SUPPORTED_CURRENCIES = {"USD"}
 # The default Decimal precision is 28; USD cents reserve two fractional places.
 MAX_B0_AMOUNT_INTEGER_DIGITS = 26
+USD_COMMISSION_AMOUNT = re.compile(
+    rf"(?:0|[1-9][0-9]{{0,{MAX_B0_AMOUNT_INTEGER_DIGITS - 1}}})(?:\.[0-9]{{1,2}})?"
+)
 FINANCIAL_CATEGORIES = (
     "settled_external_revenue", "refund", "provider_fee", "payment_fee",
 )
@@ -132,9 +135,12 @@ def _expected_normalized_commission(raw: dict, status_map: dict[str, str]) -> di
     currency = raw_currency.upper()
     if currency not in SUPPORTED_CURRENCIES:
         raise ValueError("unsupported_currency")
+    raw_amount = raw.get("commission_amount")
+    if type(raw_amount) is not str or not USD_COMMISSION_AMOUNT.fullmatch(raw_amount):
+        raise ValueError("unverified_receipt")
     try:
-        minor = Decimal(str(raw["commission_amount"])) * 100
-    except (KeyError, DecimalException, ValueError):
+        minor = Decimal(raw_amount) * 100
+    except (DecimalException, ValueError):
         raise ValueError("unverified_receipt") from None
     if not minor.is_finite() or minor < 0:
         raise ValueError("unverified_receipt")
@@ -408,10 +414,12 @@ def adapt(payload: dict, *, snapshot_at: str, trailing_start: str,
     del evidence_base  # Evidence is derived from verified content, never caller input.
     end, start = _instant(snapshot_at), _instant(trailing_start)
     receipts, failures = [], []
-    observed_at, digest = end, _canonical_hash(payload)
+    observed_at = end
+    digest = _canonical_hash({"unverified_receipt": True})
     artifact: dict = {}
     rows: list[dict] = []
     try:
+        digest = _canonical_hash(payload)
         artifact, rows, observed_at, digest = _validate_bundle(payload)
     except (contract.ContractError, KeyError, TypeError, ValueError) as error:
         capture = payload.get("capture") if isinstance(payload.get("capture"), dict) else {}
@@ -537,6 +545,11 @@ def _adapt_ledger(path: Path, *, snapshot_at: str, trailing_start: str) -> list[
             json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return _read_failed_records(
+            snapshot_at=snapshot_at, trailing_start=trailing_start,
+        )
+    try:
         if not rows:
             raise ValueError("unverified_receipt")
         artifact_root = path.parent / "provider-reports" / "partnerstack"
@@ -546,7 +559,12 @@ def _adapt_ledger(path: Path, *, snapshot_at: str, trailing_start: str) -> list[
             source_hash = _transition_source(transition)
             if source_hash not in sources:
                 artifact_path = artifact_root / f"{source_hash}.json"
-                artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+                try:
+                    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+                    return _read_failed_records(
+                        snapshot_at=snapshot_at, trailing_start=trailing_start,
+                    )
                 if not isinstance(artifact, dict) or _canonical_hash(artifact) != source_hash:
                     raise ValueError("unverified_receipt")
                 bundle = _native_bundle(artifact, source_hash)
@@ -580,10 +598,6 @@ def _adapt_ledger(path: Path, *, snapshot_at: str, trailing_start: str) -> list[
                     raise ValueError("unverified_receipt")
                 continue
             receipts[key] = receipt
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return _read_failed_records(
-            snapshot_at=snapshot_at, trailing_start=trailing_start,
-        )
     except (TypeError, ValueError):
         return adapt(
             {}, snapshot_at=snapshot_at, trailing_start=trailing_start,
@@ -602,7 +616,7 @@ def adapt_path(path: str | Path, *, snapshot_at: str, trailing_start: str) -> li
         )
     try:
         payload = json.loads(source_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
         return _read_failed_records(
             snapshot_at=snapshot_at, trailing_start=trailing_start,
         )

@@ -605,6 +605,73 @@ class AffiliateAttributionTest(unittest.TestCase):
             ["unverified_receipt", "unverified_receipt"],
         )
 
+    def test_raw_commission_amount_requires_an_exact_usd_decimal_string(self):
+        cases = (
+            (
+                "rounded_sub_cent",
+                "12345678901234567890123456.789",
+                1234567890123456789012345679,
+            ),
+            ("float", 25.0, 2500),
+            ("bool", True, 2500),
+            ("int", 25, 2500),
+        )
+        for name, amount, current_normalized_minor in cases:
+            with self.subTest(name=name):
+                payload = fixture("affiliate-partnerstack-complete.json")
+                payload["artifact"]["commission_rows"][0]["commission_amount"] = amount
+                payload["artifact"]["normalized_commissions"][0].update(
+                    gross_commission_minor=current_normalized_minor,
+                    net_commission_minor=current_normalized_minor,
+                )
+                records = self.adapt(rehash_bundle(payload))
+                self.assertFalse(any(
+                    row["record_type"] == "receipt" for row in records
+                ))
+                self.assertEqual(
+                    [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                    ["unverified_receipt", "unverified_receipt"],
+                )
+
+    def test_in_memory_million_digit_integer_fails_closed_within_bound(self):
+        payload = fixture("affiliate-partnerstack-complete.json")
+        payload["artifact"]["commission_rows"][0]["commission_amount"] = 10 ** 1_000_000
+        started = time.monotonic()
+        try:
+            records = self.adapt(payload)
+        except Exception as error:  # pragma: no cover - RED preserves the escaped type.
+            self.fail(f"adapter raised {type(error).__name__}: {error}")
+        self.assertLess(time.monotonic() - started, 0.25)
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual(
+            [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+            ["unverified_receipt", "unverified_receipt"],
+        )
+
+    def test_million_digit_json_tokens_return_read_failed_within_bound(self):
+        token = "1" * 1_000_000
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for suffix in ("json", "jsonl"):
+                with self.subTest(suffix=suffix):
+                    path = root / f"oversized.{suffix}"
+                    path.write_text('{"commission_amount":' + token + '}\n', encoding="utf-8")
+                    started = time.monotonic()
+                    try:
+                        records = affiliate.adapt_path(
+                            path, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                        )
+                    except Exception as error:  # pragma: no cover - RED preserves escaped type.
+                        self.fail(f"adapter raised {type(error).__name__}: {error}")
+                    self.assertLess(time.monotonic() - started, 0.25)
+                    self.assertFalse(any(
+                        row["record_type"] == "receipt" for row in records
+                    ))
+                    self.assertEqual(
+                        [row["reason"] for row in records if row["record_type"] == "coverage"][:2],
+                        ["read_failed", "read_failed"],
+                    )
+
     def test_non_object_json_paths_return_read_failed_coverage(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
