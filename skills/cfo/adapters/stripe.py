@@ -68,9 +68,12 @@ def _identifier(value: object) -> str | None:
 def _instant(value: object) -> str | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
-    return datetime.fromtimestamp(value, timezone.utc).isoformat(timespec="microseconds").replace(
-        "+00:00", "Z"
-    )
+    try:
+        return datetime.fromtimestamp(value, timezone.utc).isoformat(
+            timespec="microseconds"
+        ).replace("+00:00", "Z")
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def _record_instant(value: object) -> str | None:
@@ -78,11 +81,13 @@ def _record_instant(value: object) -> str | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
+    except (OverflowError, OSError, ValueError):
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _currency(value: object) -> str | None:

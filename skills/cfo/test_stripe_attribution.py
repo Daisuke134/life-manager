@@ -565,6 +565,32 @@ class StripeAttributionTest(unittest.TestCase):
                 self.assertEqual({row["coverage_state"] for row in coverage}, {"gap"})
                 self.assertEqual({row["reason"] for row in coverage}, {reason})
 
+    def test_readback_datetime_boundaries_fail_closed(self):
+        cases = {
+            "minimum_with_positive_offset": lambda value: value["readback"].update(
+                read_at="0001-01-01T00:00:00+14:00"
+            ),
+            "maximum_with_negative_offset": lambda value: value["readback"].update(
+                read_at="9999-12-31T23:59:59-14:00"
+            ),
+        }
+        for case, mutate in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value)
+                try:
+                    rows = adapt(value)
+                except (OverflowError, OSError, ValueError) as error:
+                    self.fail(f"datetime error escaped adapter: {type(error).__name__}")
+                self.assertFalse(any(
+                    row["record_type"] in {"receipt", "subscription_snapshot"}
+                    for row in rows
+                ))
+                coverage = [row for row in rows if row["record_type"] == "coverage"]
+                self.assertEqual(len(coverage), 3)
+                self.assertEqual({row["coverage_state"] for row in coverage}, {"gap"})
+                self.assertEqual({row["reason"] for row in coverage}, {"read_failed"})
+
     def test_historical_coverage_requires_its_own_complete_query_proof(self):
         unproven = adapt()
         unproven_coverage = {
@@ -813,6 +839,35 @@ class StripeAttributionTest(unittest.TestCase):
         rows = adapt(wrong_fee_type)
         self.assertFalse(any(row.get("receipt_id") ==
                              "stripe:balance_transaction:txn_charge_usd" for row in rows))
+
+    def test_out_of_range_provider_timestamps_fail_coverage_closed(self):
+        cases = {
+            "created": lambda charge, transaction: charge.update(created=10**20),
+            "available_on": lambda charge, transaction: transaction.update(available_on=10**20),
+        }
+        for field, mutate in cases.items():
+            with self.subTest(field=field):
+                value = payloads()
+                charge = next(row for row in value["charges"]["data"]
+                              if row["id"] == "ch_external_jpy")
+                transaction = next(row for row in value["balance_transactions"]["data"]
+                                   if row["id"] == "txn_charge_jpy")
+                mutate(charge, transaction)
+                try:
+                    rows = adapt(value)
+                except (OverflowError, OSError, ValueError) as error:
+                    self.fail(f"datetime error escaped adapter: {type(error).__name__}")
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_charge_jpy"
+                    for row in rows
+                ))
+                trailing = next(row for row in rows
+                                if row.get("record_type") == "coverage"
+                                and row.get("projection") == "trailing")
+                self.assertEqual(
+                    (trailing["coverage_state"], trailing["reason"]),
+                    ("gap", "unverified_receipt"),
+                )
 
     def test_snapshot_identity_uses_canonical_instant_and_testmode_is_unverified(self):
         canonical = adapt()
