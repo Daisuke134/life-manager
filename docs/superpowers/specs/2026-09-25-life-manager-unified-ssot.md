@@ -364,6 +364,8 @@ Atomic TODO（上から 1 つずつ。各行は公式 readback で閉じる）
 - [ ] C1d TikTok 用ブラウザを常駐させる。Capafy と同じ keep_alive のブラウザ役にするが、TikTok は指紋付き CloakBrowser（skills/browser/cdp_persistent_context.py）で起動が必要（素の Chromium の lancers 写しは不可、同一 profile 二重起動の事故あり 10:0x）。keep_alive で cdp_persistent_context を使う既存の前例を探して写す。
 - [ ] C1e 常駐後、自然 run で exit 0 を確認し、fence を読み戻し役で自動解除できるようにする（C1a）。Instagram 計測も同じ手順（fence・予約の整理）。
 
+**C1 状態（2026-09-30 11:1x JST）**: 10:33 に GUI シェルから ensure_provision_browser で tiktok-anicca-jp を起動すると lease 成功（port 55710）したが、このセッションのコンテナ再起動で一緒に止まり、11:11 には再び acquire rc=10、計測 loop は新しい fence。シェルからの起動は恒久策にならない。C1d（keep_alive のブラウザ役を lm-loop 管理下で、指紋付き cdp_persistent_context により常駐させる）が本当の直し方。loop 内から launchctl-safe submit するのは毎回拒否される。
+
 **Capafy だけを 1 つずつ閉じる（2026-09-29 23:0x JST、Dais: 1 つずつ。Capafy が閉じるまで他へ進まない）**
 - 作る（工場 capafy-loop-daily）: 今日の自然 run 26 回中 24 回が途中で BLOCKED。原因 4 つを修正済み: Coconala とのブラウザ取り合い（専用 capafy-browser、#6230）、HOME 移動で lease 不可（#8f1fdd3a）、lock 持ち主不明（#a1018689）、読み取り専用アイコン上書き不可（#af6e5011）。22:16 の失敗の fence は lm-fence-reconciler が 62 分後（23:18 頃）に自動で閉じる設計（too_recent を readback で確認）。
 - 売る（宣伝 capafy-distribute-daily）: 17:04 の exit 1 の fence に読み戻し役が無く、19:15 と 22:15 の自然 run が走っていなかった。23:0x に公開ページの公式 readback で閉じ、読み戻し役 capafy_distribute_fence_reconcile.py を追加（#b4ab4ade、IG の写し、本物の GitHub commit・公開ページ・Postiz で effected と判定を確認）。
