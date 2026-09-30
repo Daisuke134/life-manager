@@ -474,6 +474,37 @@ class CapafyMobileAttributionTest(unittest.TestCase):
             row["provider"] for row in records if row["record_type"] == "receipt"
         }, {"app-store-connect-financial"})
 
+    def test_mobile_retimestamp_does_not_extend_provider_projection_coverage(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        for row in rows:
+            row["observed_at"] = "2026-10-02T00:00:00Z"
+        records = module.adapt_mobile(
+            rows,
+            snapshot_at="2026-10-02T00:00:00Z",
+            trailing_start=TRAILING_START,
+        )
+        self.assertEqual(sum(
+            row["record_type"] == "receipt" for row in records
+        ), 3)
+        self.assertFalse(any(
+            row["record_type"] == "subscription_snapshot" for row in records
+        ))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+            and row["projection"] == "as_of"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
     def test_mobile_empty_financial_report_requires_envelope_product_identity(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())

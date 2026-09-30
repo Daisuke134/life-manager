@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -49,6 +49,7 @@ MOBILE_PRODUCT_BINDINGS = {
     },
 }
 COUNTED = ("provider_fee", "refund", "settled_external_revenue")
+MOBILE_COMPLETE_PERIOD_MAX_LAG = timedelta(days=1)
 
 
 def _instant(value: Any) -> str:
@@ -596,6 +597,8 @@ def adapt_mobile(
 ) -> list[dict]:
     """Convert passed ASC/RevenueCat snapshots; never performs provider I/O."""
     snapshot_at, trailing_start = _instant(snapshot_at), _instant(trailing_start)
+    snapshot_date = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00")).date()
+    latest_complete_date = snapshot_date - MOBILE_COMPLETE_PERIOD_MAX_LAG
     if len(products) != len(MOBILE_PRODUCTS) or set(products) != set(MOBILE_PRODUCTS):
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
     products = MOBILE_PRODUCTS
@@ -664,9 +667,10 @@ def adapt_mobile(
         return _mobile_gaps("missing_coverage", snapshot_at, trailing_start)
 
     try:
-        _validated_financial_report(latest, products)
+        financial_period = _validated_financial_report(latest, products)
         financial_report_valid = True
     except (KeyError, TypeError, ValueError):
+        financial_period = None
         financial_report_valid = False
 
     financial_receipts: list[dict] = []
@@ -798,6 +802,12 @@ def adapt_mobile(
                 or point.get("period") != business_date
             ):
                 raise ValueError("missing_coverage")
+            point_date = _business_date(point["period"])
+            if (
+                point_date > snapshot_date
+                or snapshot_date - point_date > MOBILE_COMPLETE_PERIOD_MAX_LAG
+            ):
+                raise ValueError("missing_coverage")
             amount = _money(point.get("value"))
             status = "active" if Decimal(amount) > 0 else "inactive"
             snapshots.append(contract.validate_record({
@@ -826,7 +836,12 @@ def adapt_mobile(
     trailing_date = datetime.fromisoformat(trailing_start.replace("Z", "+00:00")).date()
     trailing_complete = (
         fresh and financial_complete and len(report_periods) == len(products)
-        and all(start <= trailing_date and end >= latest_date for start, end in report_periods)
+        and latest_date == latest_complete_date
+        and financial_period is not None and financial_period[1] == latest_complete_date
+        and all(
+            start <= trailing_date and end == latest_complete_date
+            for start, end in report_periods
+        )
     )
     observed_at = max(observed_values) if observed_values else snapshot_at
     coverage = [
