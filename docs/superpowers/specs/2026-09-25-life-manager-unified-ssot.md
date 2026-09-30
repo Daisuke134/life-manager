@@ -1693,7 +1693,7 @@ Life Managerを、14 Product Loopと全managed jobについて、人が毎日sta
 | Writer | 7: P2 B5 | unknown 2、release 0/7、receipt 0/0 | capacity/effect fence、financial/cost adapterはpartial | demand→sale→payment→costの一つのreceipt chain |
 | Affiliate | 6: B3 R3 | unknown 1、release 0/6、receipt 0/0 | sell effect不明、financial/cost adapter missing | attribution commissionと実費のofficial join |
 | Investment | 4: P1 B2 N1 | unknown 4、release 0/4、receipt 0/0 | paper passは売却・実現利益証拠でない、financial/cost partial | 投資Atomic TODOの自然sell・30件・fee込み実現P&L |
-| Agent Economy | 19: P2 B9 R8 | unknown 2/started 3、release 4/19、receipt 0/0 | capacity、release drift、TaskMarket CLI ENOENT履歴、外部収益未証明 | immutable releaseへTaskMarket CLIを梱包し、no-effect discovery到達 |
+| Agent Economy | 19: P2 B9 R8 | unknown 2/started 3、release 4/19、receipt 0/0 | capacity、release drift、TaskMarket CLI packagingはmain修正済みだがproduction currentは旧release、外部収益未証明 | health統合後にmain由来release provenanceを確認し、外部収益receiptへ進む |
 | Job Hunter | 7: P1 F1 B5 | unknown 5、release 0/7、receipt 0/0 | daily capacity、Inbox exit 1、Mercor effect fence、financial chain partial | human-free案件だけの応募・契約・payout readback |
 | Fundraiser | 1: B1 | unknown 1、release 0/1、receipt 0/0 | effect fence、financial/cost adapter missing | application receiptと外部入金・費用の結合 |
 | Connector | 1: P1 | not_applicable、release 0/1 | processはpassだが共通health/release provenance未統合 | provider registration＋Calendarの公式readbackをhealthへ結合 |
@@ -1767,11 +1767,11 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
 ### 7. 統合Atomic TODO
 
-#### 直列gate 0 — 現在cursor
+#### 完了した直列gate 0
 
-1. **TaskMarket immutable release packagingを修正する。** `skills/earn/taskmarket/node_modules/.bin/taskmarket`がreleaseに無く、production `agent-economy-loop`の最新harness failureは`ENOENT`である。rootの`@blockrun/llm` import testはCLI梱包を証明しない。最小の回帰testを先に失敗させ、packaged dependency/pathを修正し、外部送信・wallet spendなしのinvocationがprovider discoveryまで到達することを証明する。commit/push後に次へ進む。
+1. **[x] TaskMarket immutable release packagingを修正する。** 原因は`bin/cut-loop-release.sh`の`DEPENDENCY_RELATIVES`に`skills/earn/taskmarket`がなく、lockfileがreleaseへ入っても`node_modules/.bin/taskmarket`が生成・linkされなかったこと。回帰testは修正前に`modules.is_symlink()`でFAILし、1要素追加後にPASSした。release focused tests 4/4、TaskMarket tests 16/16、shell syntax、diff check、全GitHub CIがPASS。実`npm ci` candidateはreadonly dependency bundleへの`node_modules` symlinkと実行可能な`.bin/taskmarket`を持つ。credentialなし・`TASKMARKET_API_URL=127.0.0.1`のloopbackで`task list`が`GET /api/tasks?status=open&limit=1`へ到達し、exit 0、stderr空、`wallet_files=[]`、実provider送信・wallet spend・browser操作0。source commit `662625b8d16dd16ed73449e1c5a28f20204edd0b`、PR #6301、main merge `d04f97702631fa9e18be85a95a76a20c3ec4952e`。独立read-only reviewは重大な問題なし。loopback JSONは一時実行ログで、candidate内の永続evidence fileではない。production currentはこの証明では切り替えていない。
 
-#### item 1 merge後に開始できるparallel wave
+#### 現在cursor — item 1 merge後のparallel wave
 
 2. **Health foundation:** `lm-loop.health.v1` schema/validator、全176 jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、型付きexit codeを実装する。
 3. **Revenue observability:** mainのresults-first CFO reportを出口として再利用し、schema確定後、各laneのdiscover→qualify→accept→deliver→settle funnelと、settled revenue・refund・fee・model・tool・infra cost・net marginをreceipt単位で結合する。CFOが14 loopと全社を同じ規則で再計算できることをDoneとし、別のreporting frameworkを作らない。
@@ -1804,7 +1804,8 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 | `lm-notify-audit-0930` | 14 loopのTelegram/email producer、cadence、audience、ACK、dedupe、noiseを棚卸し | 14/14 producer表、共通依存、非重複実装単位 | 完了・despawn済み |
 | `lm-cfo-gap-0930` | 14 loopのrevenue/refund/cost/net coverageと既存CFO実装の再利用可否を監査 | 14/14 coverage表、B0–B7、82 tests PASS、2 tests依存欠落で未検証 | 完了・despawn済み |
 | `lm-collision-audit-0930` | observability、CFO、TaskMarket、AGI、PromptBase、Investment等のworktree/branch/PR衝突を監査 | shared-file collision matrix、直列gate、safe spawn順 | 完了・despawn済み |
-| `lm-taskmarket-packaging-0930` | Atomic item 1のimmutable-release ENOENTをsource-onlyで修正 | failing test、packaged path、no-effect discovery、commit/push | tmux `@4`、agent key一致、実行中 |
+| `lm-taskmarket-packaging-0930` | Atomic item 1のimmutable-release ENOENTをsource-onlyで修正 | failing test、packaged path、no-effect discovery、commit/push | 完了・despawn済み。`662625b8d1`、PR #6301 |
+| `lm-taskmarket-review2-0930` | exact commitとcandidateを独立read-only review | 最小差分、回帰検出力、readonly bundle、no-effect境界、dirty-state不変 | 重大な問題なし・despawn済み |
 
 既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、最初のwriterとしてTaskMarket一席だけを最新main由来・source-onlyで起動した。同じrelease scriptをhealth writerと同時編集しない。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
 
@@ -1813,7 +1814,7 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 - 14 loop中、official settlement receiptとrefund、fee、model/browser/server費用を全て含むcost-complete net P&Lが完成しているloopは0である。`USD_API_EQUIV`は推定でありofficial costへ数えない。
 - `notification-policy.js`は存在するが、production producerからの参照は0である。routine wake/healthとmaterial outcomeが同じchatへ混在し、fresh run IDごとにdedupe keyが変わることが主な通知ノイズ原因である。
 - CFO実装は`B0 economic attribution contract → B1 Capafy/Mobile、B2 Stripe、B3 Affiliate、B4 Marketplace、B5 Agent Economy/Investment、B6 actual costをfile非重複で並列 → B7 CFO integration`の順とする。
-- TaskMarket source-only修正は他laneと非衝突である。`skills/cfo/**`、notification、registry、SSOT、production applyには触れない。
+- TaskMarket source-only修正は他laneと非衝突のまま完了した。変更は`bin/cut-loop-release.sh`とfocused regression testの2ファイルだけで、`skills/cfo/**`、notification、registry、provider、wallet、production applyには触れていない。
 - ディスクは約446MiBまで低下していた。clean・remote未送信commit 0・process 0の一時clone 4件と、origin/mainへ収録済み・clean・process 0・非lockのworktree 11件だけを削除し、約2.4GiBへ回復した。lock付き2件、dirty、unique commitあり、指定保護worktreeは保存した。
 
 **Session A — TaskMarket packaging（最初に一席だけ）**
