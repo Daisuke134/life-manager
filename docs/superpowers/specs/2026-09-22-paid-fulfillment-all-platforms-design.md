@@ -6639,6 +6639,92 @@ ordering notes without declaring any external effect complete.
     immutable release, read back every owner/provider receipt, and only then
     declare completion.
 
+## Atomic cursor refresh — 2026-09-30 09:05 JST
+
+This section supersedes the earlier cursor where the newer observation differs.
+It records source, candidate, host, owner, and browser evidence separately; a
+candidate result is never treated as a live-provider result.
+
+### Source and candidate boundary
+
+- [x] The dedicated branch `fix/source-reconcile-20260930` was rebased onto
+  the then-current `origin/main`, pushed with `--force-with-lease`, and verified
+  clean. Current branch HEAD is `0f27666b22309c5adf75f20db87cb2a61988e218`.
+- [x] A non-activating immutable candidate was cut at
+  `/Users/anicca/loops/releases/20260930T090143-0f27666b` with
+  `LOOPS_ACTIVATE_CURRENT=0`. It reports `release_paths=ALL`,
+  `provenance=pushed-not-yet-on-main`, size `102M`, zero writable regular
+  files, and zero writable directories.
+- [x] The candidate's `bin/lm-loop-contract` returned `ok=true` with
+  `catalog_loops=14`, `registry_jobs=176`, `mapped_jobs=102`, no shared jobs,
+  and no errors.
+- [x] The candidate focused Coconala suite returned `503 passed` with one
+  expected pytest cache warning because the release is immutable. No provider
+  effect was executed by this test run.
+- [ ] During the candidate build/readback, `origin/main` advanced again to
+  `520587ac9e0869cb51973ee82bd7cc892c420b82`. Therefore this candidate is
+  stale for main provenance and cannot be activated or called production-ready.
+
+### Host admission and live-owner evidence
+
+- [x] The managed disk-cleanup owner completed a natural run without deleting
+  protected state. Its latest log receipt reported
+  `free_before=3500367872`, `free_after=3499880448`, `reclaimed=6409`,
+  `inventory_gaps=19`, `protected_deletions=0`, `removed_releases=0`, and
+  `ok=false` because host cleanup still had one error. The cleanup owner later
+  became `not running` with `last exit code=78/EX_CONFIG`; no manual stop or
+  restart was issued.
+- [x] The paid owner is currently running from the external current release
+  `/Users/anicca/loops/releases/20260930T084654-a2735517` with
+  `LIFE_MANAGER_RELEASE_SHA=a273551707cdd14f0efb9bc2c3d477e2810d9fe2` and
+  `last exit code=75/EX_TEMPFAIL`. Its latest evidence contains repeated
+  `disk_headroom_low`, `control_busy`, and prior receipt-write `ENOSPC` errors.
+- [x] The effective admission readback is below the required
+  `536870912` bytes (observed values `189665280`–`470478848`) even though
+  filesystem `df` reports more free space. The host-admission value, not raw
+  `df`, is the gate.
+- [x] The authenticated `coconala:kosuke` browser is reachable on its
+  registry-resolved endpoint, but its lease is held by the running Paid owner
+  (PID `99828`). Candidate readback did not attach to or share that browser.
+- [ ] Do not force-release, kill, restart, or attach another tab to this owner.
+  The next safe action is to wait for the owner’s natural terminal state and
+  then obtain a fresh owner/receipt readback.
+
+### Atomic current cursor
+
+1. **[x] Source synchronization.** Rebase, push, and clean/ancestor checks
+   passed for the dedicated branch.
+2. **[ ] Effective disk admission.** Resolve the host-admission headroom and
+   cleanup `ENOSPC`/inventory error using only allow-listed regenerable data;
+   preserve provider state, credentials, evidence, and customer artifacts.
+3. **[ ] Latest-main candidate.** Rebase again after main settles, cut a new
+   candidate, and rerun immutable checks, contract, and focused tests.
+4. **[ ] Live owner diagnosis.** Correlate owner SHA, occurrence, admission,
+   entrypoint, receipt, and launchd exit; close `control_busy`, stale-owner,
+   and effect-unknown paths without releasing a fence on local evidence alone.
+5. **[ ] Controlled transition.** After the required high-risk approval, use
+   only `launchctl-safe` to load the exact main-derived release; never raw
+   `launchctl`, `kill`, or shared-browser takeover.
+6. **[ ] Coconala readback.** Run Reply, Apply, Storefront, and Paid as
+   separate no-effect/natural canaries with official receipt and replay-zero.
+   Ryu `10107358` remains sent once; never resend it.
+7. **[ ] Coconala unknown fences.** Resolve Apply and Storefront occurrences
+   from exact official history before any retry or release.
+8. **[ ] CrowdWorks.** Reconcile one occurrence after the provider lock is
+   naturally free; keep buyer-material-gated rows untouched.
+9. **[ ] Lancers and Mercor.** Respect Human Verification/disabled-owner
+   gates and obtain fresh authenticated official inventory before effects.
+10. **[ ] Upwork.** Restore the account-bound observer, verify funded contract
+    and milestone, run a zero-effect canary, then register Paid lifecycle.
+11. **[ ] Freelancer.** Do the same account-bound inventory, funded terms,
+    zero-effect canary, and registration sequence independently.
+12. **[ ] Shared lifecycle and Meta Loop.** Require
+    `observe → decide → effect fence → official readback → replay-zero →
+    telemetry → recovery` for every enabled platform before Meta Loop enablement.
+13. **[ ] Final promotion.** After every platform receipt/readback passes,
+    merge/admin-promote once, cut the main-derived immutable release, verify
+    all loaded owners, and only then declare the system complete.
+
 ### Coconala owner transition safety recheck — 2026-09-30 08:41 JST
 
 - [x] `ai.anicca.hf-gig-reply-detector` is currently `not running` with last
