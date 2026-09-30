@@ -22,8 +22,16 @@ def fixture(name: str) -> dict:
 
 def payloads() -> dict:
     return {
-        name: fixture(f"stripe-{name.replace('_', '-')}.json")
-        for name in ("balance_transactions", "charges", "refunds", "subscriptions")
+        "readback": {
+            "provider": "stripe",
+            "provenance": "stripe_api",
+            "read_at": OBSERVED_AT,
+            "query_window": {"start": TRAILING_START, "end": OBSERVED_AT},
+        },
+        **{
+            name: fixture(f"stripe-{name.replace('_', '-')}.json")
+            for name in ("balance_transactions", "charges", "refunds", "subscriptions")
+        },
     }
 
 
@@ -162,6 +170,117 @@ class StripeAttributionTest(unittest.TestCase):
                              and row["projection"] != "as_of"]
                 self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
                 self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_subscription_requires_trusted_external_economic_class(self):
+        for classification in (None, "self_payment", "unknown_classification"):
+            with self.subTest(classification=classification):
+                value = payloads()
+                metadata = value["subscriptions"]["data"][0]["metadata"]
+                if classification is None:
+                    metadata.clear()
+                else:
+                    metadata["lm_economic_category"] = classification
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("subscription_id") == "stripe:subscription:sub_monthly"
+                    for row in rows
+                ))
+                as_of = next(row for row in rows
+                             if row["record_type"] == "coverage"
+                             and row["projection"] == "as_of")
+                self.assertEqual(as_of["coverage_state"], "gap")
+                self.assertEqual(as_of["reason"], "unverified_receipt")
+
+    def test_refund_requires_fully_verified_original_charge_linkage(self):
+        mutations = {
+            "object": lambda charge, transactions: charge.update(object="payment_intent"),
+            "currency": lambda charge, transactions: charge.update(currency="eur"),
+            "status": lambda charge, transactions: charge.update(status="failed"),
+            "paid": lambda charge, transactions: charge.update(paid=False),
+            "captured": lambda charge, transactions: charge.update(captured=False),
+            "disputed": lambda charge, transactions: charge.update(disputed=True),
+            "balance_link": lambda charge, transactions: charge.update(balance_transaction="txn_other"),
+            "captured_amount": lambda charge, transactions: charge.update(amount_captured=1998),
+            "refunded_amount": lambda charge, transactions: charge.update(amount_refunded=499),
+            "balance_amount": lambda charge, transactions: transactions[0].update(amount=1998),
+        }
+        for field, mutate in mutations.items():
+            with self.subTest(field=field):
+                value = payloads()
+                mutate(value["charges"]["data"][0], value["balance_transactions"]["data"])
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == "stripe:balance_transaction:txn_refund_usd"
+                    for row in rows
+                ))
+                financial = [row for row in rows if row["record_type"] == "coverage"
+                             and row["projection"] != "as_of"]
+                self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
+                self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_movements_require_available_balance_transaction_sign_and_net(self):
+        mutations = {
+            "object": (6, lambda row: row.update(object="topup")),
+            "pending_topup": (6, lambda row: row.update(status="pending")),
+            "negative_topup": (6, lambda row: row.update(amount=-50000, net=-50000)),
+            "positive_payout": (5, lambda row: row.update(amount=10000, net=10000)),
+            "positive_transfer": (7, lambda row: row.update(amount=700, net=700)),
+            "positive_stripe_fee": (8, lambda row: row.update(amount=125, net=125)),
+            "net_mismatch": (6, lambda row: row.update(net=49999)),
+        }
+        for case, (index, mutate) in mutations.items():
+            with self.subTest(case=case):
+                value = payloads()
+                transaction = value["balance_transactions"]["data"][index]
+                transaction_id = transaction["id"]
+                mutate(transaction)
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row.get("receipt_id") == f"stripe:balance_transaction:{transaction_id}"
+                    for row in rows
+                ))
+                financial = [row for row in rows if row["record_type"] == "coverage"
+                             and row["projection"] != "as_of"]
+                self.assertEqual({row["coverage_state"] for row in financial}, {"gap"})
+                self.assertEqual({row["reason"] for row in financial}, {"unverified_receipt"})
+
+    def test_readback_envelope_prevents_stale_or_unproven_retimestamping(self):
+        cases = {
+            "missing": (lambda value: value.pop("readback"), "read_failed"),
+            "provenance": (
+                lambda value: value["readback"].update(provenance="caller_supplied"),
+                "read_failed",
+            ),
+            "stale_read_at": (
+                lambda value: value["readback"].update(read_at="2026-09-30T00:00:00Z"),
+                "stale_readback",
+            ),
+            "window_start": (
+                lambda value: value["readback"]["query_window"].update(
+                    start="2026-09-02T00:00:00Z"
+                ),
+                "stale_readback",
+            ),
+            "window_end": (
+                lambda value: value["readback"]["query_window"].update(
+                    end="2026-09-30T00:00:00Z"
+                ),
+                "stale_readback",
+            ),
+        }
+        for case, (mutate, reason) in cases.items():
+            with self.subTest(case=case):
+                value = payloads()
+                mutate(value)
+                rows = adapt(value)
+                self.assertFalse(any(
+                    row["record_type"] in {"receipt", "subscription_snapshot"}
+                    for row in rows
+                ))
+                coverage = [row for row in rows if row["record_type"] == "coverage"]
+                self.assertEqual(len(coverage), 3)
+                self.assertEqual({row["coverage_state"] for row in coverage}, {"gap"})
+                self.assertEqual({row["reason"] for row in coverage}, {reason})
 
     def test_exact_replay_is_stable_and_conflicting_provider_ids_fail_closed(self):
         first = adapt()

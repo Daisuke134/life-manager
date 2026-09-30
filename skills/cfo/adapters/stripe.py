@@ -24,6 +24,22 @@ TRANSFER_TYPES = {
 CHARGE_TYPES = {"charge", "payment"}
 REFUND_TYPES = {"refund", "payment_refund"}
 FEE_TYPES = {"stripe_fee", "stripe_fx_fee"}
+MOVEMENT_SIGNS = {
+    "payout": -1,
+    "payout_cancel": 1,
+    "payout_failure": 1,
+    "payout_minimum_balance_hold": -1,
+    "payout_minimum_balance_release": 1,
+    "topup": 1,
+    "topup_reversal": -1,
+    "connect_collection_transfer": -1,
+    "transfer": -1,
+    "transfer_cancel": 1,
+    "transfer_failure": 1,
+    "transfer_refund": 1,
+    "stripe_fee": -1,
+    "stripe_fx_fee": -1,
+}
 SUBSCRIPTION_STATUSES = {
     "active", "canceled", "incomplete", "incomplete_expired", "past_due", "paused",
     "trialing", "unpaid",
@@ -102,6 +118,25 @@ def _read_list(payloads: dict, name: str) -> tuple[list[dict], bool]:
     return value["data"], True
 
 
+def _readback_reason(payloads: dict, observed_at: str, trailing_start: str) -> str | None:
+    readback = payloads.get("readback")
+    if (not isinstance(readback, dict) or readback.get("provider") != "stripe"
+            or readback.get("provenance") != "stripe_api"):
+        return "read_failed"
+    query_window = readback.get("query_window")
+    if not isinstance(query_window, dict):
+        return "read_failed"
+    read_at = _record_instant(readback.get("read_at"))
+    window_start = _record_instant(query_window.get("start"))
+    window_end = _record_instant(query_window.get("end"))
+    if read_at is None or window_start is None or window_end is None:
+        return "read_failed"
+    if (read_at != observed_at or window_start != trailing_start or window_end != observed_at
+            or window_start >= window_end):
+        return "stale_readback"
+    return None
+
+
 def _index(rows: list[dict], name: str) -> dict[str, dict]:
     result: dict[str, dict] = {}
     for row in rows:
@@ -140,7 +175,18 @@ def _receipt(*, transaction: dict, product_loop_id: str, occurred_at: str,
 
 def _movement(transaction: dict, product_loop_id: str, category: str) -> dict | None:
     currency = _currency(transaction.get("currency"))
-    amount, _ = _absolute_minor(transaction.get("amount"), currency) if currency else (None, None)
+    raw_amount = transaction.get("amount")
+    raw_fee = transaction.get("fee")
+    raw_net = transaction.get("net")
+    expected_sign = MOVEMENT_SIGNS.get(transaction.get("type"))
+    if (transaction.get("object") != "balance_transaction"
+            or transaction.get("status") != "available" or expected_sign is None
+            or isinstance(raw_amount, bool) or not isinstance(raw_amount, int)
+            or isinstance(raw_fee, bool) or not isinstance(raw_fee, int) or raw_fee < 0
+            or isinstance(raw_net, bool) or not isinstance(raw_net, int)
+            or raw_amount * expected_sign <= 0 or raw_amount - raw_fee != raw_net):
+        return None
+    amount, _ = _absolute_minor(raw_amount, currency) if currency else (None, None)
     occurred_at = _instant(transaction.get("created"))
     settled_at = _instant(transaction.get("available_on"))
     if not all((currency, amount, occurred_at, settled_at)):
@@ -206,8 +252,8 @@ def _charge(transaction: dict, charge: dict | None, product_loop_id: str) -> lis
     )]
 
 
-def _refund(transaction: dict, refund: dict | None, charges: dict[str, dict],
-            product_loop_id: str) -> list[dict] | None:
+def _refund(transaction: dict, refund: dict | None, transactions: dict[str, dict],
+            charges: dict[str, dict], product_loop_id: str) -> list[dict] | None:
     currency = _currency(transaction.get("currency"))
     source = _identifier(transaction.get("source"))
     if not currency or not source or not isinstance(refund, dict):
@@ -215,16 +261,44 @@ def _refund(transaction: dict, refund: dict | None, charges: dict[str, dict],
     charge_id = _identifier(refund.get("charge"))
     charge = charges.get(charge_id or "")
     charge_metadata = charge.get("metadata") if isinstance(charge, dict) else None
+    original_transaction_id = (_identifier(charge.get("balance_transaction"))
+                               if isinstance(charge, dict) else None)
+    original_transaction = transactions.get(original_transaction_id or "")
     amount, amount_minor = _absolute_minor(transaction.get("amount"), currency)
+    refund_amount = refund.get("amount")
+    if isinstance(refund_amount, bool) or not isinstance(refund_amount, int):
+        refund_amount = None
     fee = _integer_minor(transaction.get("fee"), currency)
     occurred_at = _instant(refund.get("created"))
     settled_at = _instant(transaction.get("available_on"))
     if (refund.get("object") != "refund" or refund.get("id") != source
             or refund.get("balance_transaction") != transaction.get("id")
             or refund.get("status") != "succeeded" or transaction.get("status") != "available"
-            or _currency(refund.get("currency")) != currency or refund.get("amount") != amount_minor
-            or not isinstance(charge, dict) or charge.get("id") != charge_id
-            or charge.get("livemode") is not True or amount in (None, "0") or fee is None
+            or _currency(refund.get("currency")) != currency or refund_amount != amount_minor
+            or refund_amount is None or refund_amount <= 0
+            or transaction.get("amount") != -refund_amount
+            or not isinstance(charge, dict) or charge.get("object") != "charge"
+            or charge.get("id") != charge_id or _currency(charge.get("currency")) != currency
+            or charge.get("status") != "succeeded" or charge.get("paid") is not True
+            or charge.get("captured") is not True or charge.get("disputed") is not False
+            or charge.get("livemode") is not True
+            or not isinstance(original_transaction, dict)
+            or original_transaction.get("object") != "balance_transaction"
+            or original_transaction.get("id") != original_transaction_id
+            or original_transaction.get("source") != charge_id
+            or original_transaction.get("type") not in CHARGE_TYPES
+            or original_transaction.get("status") != "available"
+            or _currency(original_transaction.get("currency")) != currency
+            or isinstance(charge.get("amount"), bool) or not isinstance(charge.get("amount"), int)
+            or isinstance(charge.get("amount_captured"), bool)
+            or not isinstance(charge.get("amount_captured"), int)
+            or isinstance(charge.get("amount_refunded"), bool)
+            or not isinstance(charge.get("amount_refunded"), int)
+            or charge.get("amount") < charge.get("amount_captured")
+            or charge.get("amount_captured") != original_transaction.get("amount")
+            or not (refund_amount <= charge.get("amount_refunded")
+                    <= charge.get("amount_captured"))
+            or amount in (None, "0") or fee is None
             or not isinstance(charge_metadata, dict)
             or charge_metadata.get("lm_economic_category") != contract.REVENUE
             or not occurred_at or not settled_at):
@@ -245,8 +319,11 @@ def _subscription(row: dict, product_loop_id: str, observed_at: str) -> dict | N
     subscription_id = _identifier(row.get("id"))
     currency = _currency(row.get("currency"))
     status = row.get("status")
+    metadata = row.get("metadata")
     if (row.get("object") != "subscription" or not subscription_id or not currency
-            or status not in SUBSCRIPTION_STATUSES or not isinstance(row.get("livemode"), bool)):
+            or status not in SUBSCRIPTION_STATUSES or not isinstance(row.get("livemode"), bool)
+            or not isinstance(metadata, dict)
+            or metadata.get("lm_economic_category") != contract.REVENUE):
         return None
     active = status == "active"
     amount = Decimal(0)
@@ -319,6 +396,18 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
         _fail("payload_invalid", "observed_at")
     if trailing_start is None:
         _fail("payload_invalid", "trailing_start")
+    readback_reason = _readback_reason(payloads, observed_at, trailing_start)
+    if readback_reason is not None:
+        records = []
+        for projection in ("historical", "trailing", "as_of"):
+            records.append(_coverage(
+                product_loop_id=product_loop_id, projection=projection,
+                observed_at=observed_at, trailing_start=trailing_start, state="gap",
+                reason=readback_reason, categories=[],
+                refs=[_evidence("balance_transactions"), _evidence("charges"),
+                      _evidence("refunds"), _evidence("subscriptions")],
+            ))
+        return sorted(records, key=lambda row: row["projection"])
     balance_rows, balance_complete = _read_list(payloads, "balance_transactions")
     charge_rows, charges_complete = _read_list(payloads, "charges")
     refund_rows, refunds_complete = _read_list(payloads, "refunds")
@@ -345,8 +434,8 @@ def adapt(payloads: dict, *, product_loop_id: str, observed_at: str,
             elif kind in CHARGE_TYPES:
                 produced = _charge(transaction, charges.get(str(transaction.get("source"))), product_loop_id)
             elif kind in REFUND_TYPES:
-                produced = _refund(transaction, refunds.get(str(transaction.get("source"))), charges,
-                                   product_loop_id)
+                produced = _refund(transaction, refunds.get(str(transaction.get("source"))),
+                                   transactions, charges, product_loop_id)
             if produced and all(produced):
                 records.extend(produced)
             else:
