@@ -1771,9 +1771,9 @@ agmsgの登録席は稼働証拠ではない。`team --json`のplacement/activit
 
 1. **[x] TaskMarket immutable release packagingを修正する。** 原因は`bin/cut-loop-release.sh`の`DEPENDENCY_RELATIVES`に`skills/earn/taskmarket`がなく、lockfileがreleaseへ入っても`node_modules/.bin/taskmarket`が生成・linkされなかったこと。回帰testは修正前に`modules.is_symlink()`でFAILし、1要素追加後にPASSした。release focused tests 4/4、TaskMarket tests 16/16、shell syntax、diff check、全GitHub CIがPASS。実`npm ci` candidateはreadonly dependency bundleへの`node_modules` symlinkと実行可能な`.bin/taskmarket`を持つ。credentialなし・`TASKMARKET_API_URL=127.0.0.1`のloopbackで`task list`が`GET /api/tasks?status=open&limit=1`へ到達し、exit 0、stderr空、`wallet_files=[]`、実provider送信・wallet spend・browser操作0。source commit `662625b8d16dd16ed73449e1c5a28f20204edd0b`、PR #6301、main merge `d04f97702631fa9e18be85a95a76a20c3ec4952e`。独立read-only reviewは重大な問題なし。loopback JSONは一時実行ログで、candidate内の永続evidence fileではない。production currentはこの証明では切り替えていない。
 
-#### 現在cursor — item 1 merge後のparallel wave
+#### 現在cursor — item 2 merge後、item 3 Revenue observability
 
-2. **Health foundation:** `lm-loop.health.v1` schema/validator、全176 jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、型付きexit codeを実装する。
+2. **[x] Health foundation:** `lm-loop.health.v1` schema/validator、全176 managed jobの`product_loop_id|system_role`分類、`lm-loop health`・`--json`・`--skill`・`--loop --explain`、runtime・productivity・effect safety・business・recoveryの5 facet、独立した`last_attempt`・`last_success`・`last_effect`・`last_receipt`の4時計、型付き`safely_fenced`・`effect_unknown`・`telemetry_gap`・`human_required`、構造化diagnostic、exit code 0/1/2を実装した。分類はproduct 103・system 73・重複/欠落0。実fleet queryは176 jobsを3.36秒で返し、snapshot/projection timeout 0、90個の`events.jsonl` pathは各1 read・1 projection以下、invalid loopはexit 2と`invalid_input`を返した。health focused 28/28、status/doctor・registry回帰170/170、primary focused 198/198、clean venv full loop 719/719、schema/Python validator parity、全GitHub checksがPASSし、独立read-only exact-SHA reviewもPASS。source head `85a5f103c3b2f96e3d5f5a76a9adb12d9d7936eb`、PR #6305、main merge `c9581cce35e56c14a5cab879b78d033e00fe57a6`。履歴projectionは各state rootの直近50,000 eventsにboundedされる。検証時のlive `telemetry_gap` 2件は既存diagnostic不足であり、今回のtimeout/実装不良ではない。production immutable release/apply、通知、収益・自律性はこの完了証拠に含めない。
 3. **Revenue observability:** mainのresults-first CFO reportを出口として再利用し、schema確定後、各laneのdiscover→qualify→accept→deliver→settle funnelと、settled revenue・refund・fee・model・tool・infra cost・net marginをreceipt単位で結合する。CFOが14 loopと全社を同じ規則で再計算できることをDoneとし、別のreporting frameworkを作らない。
 4. **Read-only evidence:** Investmentは自然schedulerによるsellまで待ち、PromptBase/Capafyは自然runと公式管理画面/API/Gmailだけを観測する。手動wake・再送・production editをしない。このlaneはsource writerではない。
 5. **AGI eval:** eval専用directoryだけでCapafy E-productからaudit/build-eval/hillclimbを行い、production loop変更は担当ownerへPR提案する。health schemaを再実装しない。
@@ -1806,8 +1806,9 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 | `lm-collision-audit-0930` | observability、CFO、TaskMarket、AGI、PromptBase、Investment等のworktree/branch/PR衝突を監査 | shared-file collision matrix、直列gate、safe spawn順 | 完了・despawn済み |
 | `lm-taskmarket-packaging-0930` | Atomic item 1のimmutable-release ENOENTをsource-onlyで修正 | failing test、packaged path、no-effect discovery、commit/push | 完了・despawn済み。`662625b8d1`、PR #6301 |
 | `lm-taskmarket-review2-0930` | exact commitとcandidateを独立read-only review | 最小差分、回帰検出力、readonly bundle、no-effect境界、dirty-state不変 | 重大な問題なし・despawn済み |
+| `lm-health-foundation-1001` | Atomic item 2のbounded fleet health contractを実装 | 176/176分類、4時計、5 facet、typed state、719/719、実CLI、commit/push | 完了・despawn済み。`85a5f103c3`、PR #6305 |
 
-既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、最初のwriterとしてTaskMarket一席だけを最新main由来・source-onlyで起動した。同じrelease scriptをhealth writerと同時編集しない。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
+既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、TaskMarketとHealthを直列に一席ずつ最新main由来・source-onlyで実行し、いずれも統合後にdespawnした。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
 
 監査で固定した事実:
 
