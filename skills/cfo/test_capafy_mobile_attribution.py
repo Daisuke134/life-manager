@@ -258,6 +258,41 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     row["reason"] for row in records if row["record_type"] == "coverage"
                 }, {"missing_coverage"})
 
+    def test_capafy_rejects_bool_and_float_schema_versions_at_each_boundary(self):
+        module = self.require_adapter()
+        for boundary in ("envelope", "account_inventory"):
+            for schema_version in (True, 1.0):
+                with self.subTest(boundary=boundary, schema_version=schema_version):
+                    payload = json.loads(
+                        (FIXTURES / "capafy-settled.json").read_text()
+                    )
+                    if boundary == "envelope":
+                        payload["schema_version"] = schema_version
+                    else:
+                        inventory = payload["account_inventory"]
+                        inventory["schema_version"] = schema_version
+                        inventory["content_sha256"] = canonical_sha256({
+                            key: inventory[key] for key in (
+                                "schema_version", "kind", "observed_at",
+                                "developer_id", "owner_buyer_ids", "complete",
+                            )
+                        })
+                        inventory["evidence_ref"] = (
+                            "capafy://accounts/readback/sha256/"
+                            + inventory["content_sha256"]
+                        )
+                    bind_capafy_content(payload)
+                    records = module.adapt_capafy(
+                        payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                    )
+                    self.assertFalse(any(
+                        row["record_type"] == "receipt" for row in records
+                    ))
+                    self.assertEqual({
+                        row["coverage_state"] for row in records
+                        if row["record_type"] == "coverage"
+                    }, {"gap"})
+
     def test_capafy_requires_bound_content_hash_and_complete_pagination(self):
         module = self.require_adapter()
         original = json.loads((FIXTURES / "capafy-settled.json").read_text())
@@ -644,6 +679,24 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                 self.assertIn("missing_coverage", {
                     row["reason"] for row in records if row["record_type"] == "coverage"
                 })
+
+    def test_mobile_rejects_bool_and_float_row_schema_versions(self):
+        module = self.require_adapter()
+        for schema_version in (True, 1.0):
+            with self.subTest(schema_version=schema_version):
+                rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+                rows[0]["schema_version"] = schema_version
+                records = module.adapt_mobile(
+                    rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+                )
+                self.assertFalse(any(
+                    row["record_type"] in {"receipt", "subscription_snapshot"}
+                    for row in records
+                ))
+                self.assertEqual({
+                    row["coverage_state"] for row in records
+                    if row["record_type"] == "coverage"
+                }, {"gap"})
 
     def test_mobile_rejects_wrong_mrr_definition_and_incomplete_period(self):
         module = self.require_adapter()

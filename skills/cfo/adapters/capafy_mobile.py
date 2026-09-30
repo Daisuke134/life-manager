@@ -281,7 +281,8 @@ def adapt_capafy(
     if (
         not isinstance(payload, dict)
         or set(payload) != required
-        or payload.get("schema_version") != 1
+        or type(payload.get("schema_version")) is not int
+        or payload["schema_version"] != 1
         or payload.get("kind") != "capafy_order_readback_snapshot"
         or not isinstance(payload.get("orders"), list)
     ):
@@ -325,7 +326,8 @@ def adapt_capafy(
         inventory_developer = inventory.get("developer_id")
         owner_buyer_ids = inventory.get("owner_buyer_ids")
         if (
-            inventory.get("schema_version") != 1
+            type(inventory.get("schema_version")) is not int
+            or inventory["schema_version"] != 1
             or inventory.get("kind") != "capafy_account_inventory_readback"
             or inventory.get("complete") is not True
             or _instant(inventory.get("observed_at")) != observed_at
@@ -668,7 +670,10 @@ def adapt_mobile(
             raise ValueError("product_scope_invalid")
         rows_by_identity: dict[tuple[str, date], tuple[bytes, dict]] = {}
         for row in payload:
-            if row.get("schema_version") != 1:
+            if (
+                type(row.get("schema_version")) is not int
+                or row["schema_version"] != 1
+            ):
                 raise ValueError("missing_coverage")
             identity = (row["product_id"], _business_date(row.get("business_date")))
             canonical_row = _canonical_json_bytes(row)
