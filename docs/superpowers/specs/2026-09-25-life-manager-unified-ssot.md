@@ -1673,14 +1673,16 @@ Life Managerを、14 Product Loopと全managed jobについて、人が毎日sta
 5. localとcloudを同じbusiness logicのhost adapterとして扱い、Mac依存を測定しながらゼロへ下げる。
 6. 一つのorchestratorがSSOT、所有境界、依存順、merge、releaseを管理し、複数sessionが同じ共有資源を同時編集しない。
 
-### 2. 最新read-only実測
+### 2. item 2実装前のbaseline read-only実測
+
+この小節は2026-09-30 22:09 JST時点のhistorical baselineであり、現在状態ではない。現在のsource実装・検証・未完境界は後段「統合Atomic TODO」を正本とする。
 
 - `origin/main`とproduction `current/RELEASE.json.sha`は、2026-09-30 22:09 JSTの観測時点で`51926f666a73226e9807a426e3f0a178cb0dd060`に一致する。release provenanceは`ancestor-of-origin-main`である。
 - `lm-loop-contract`は`ok=true`、Product Loopは14、managed registry jobは176、Product Loopへ結合済みは103、shared job IDは0である。
 - `lm-loop doctor`は`ok=false`。唯一のunmanaged labelは`ai.anicca.provision-browser.capafy.kosuke`である。
 - 73 managed jobはProduct Loopに未結合である。全てを無理に収益loopへ入れず、`product_loop_id`または型付き`system_role=platform|control|shared`のどちらかへ結合する。無分類のままhealth集計から消してはいけない。
 - `lm-loop status all --json`は8秒でexit 0となり、以前の90秒超hangは再現しない。ただし出力は1,383,604 bytes・281 recordsで、人やCFOが読むfleet health summaryではない。
-- `lm-loop health`は未実装で、現在は一般usageを返す。従って「statusが全く動かない」は現在の事実ではないが、「全体healthを一目で判断できない」は未解決である。
+- このbaseline時点では`lm-loop health`は未実装で一般usageを返した。その後、後段item 2でsource実装と検証は完了したが、production immutable release/applyはitem 2の完了証拠に含めない。
 - mainにはCFOのresults-first report、email既定・Telegram選択式delivery、provider message ID、period単位dedupeが入った。これは通知の共通出口として再利用する。一方、収益・費用のsource coverage、settlement、MRR、14 loop共通event policyはまだ完全ではない。
 
 以下の`P/F/B/R/N`は直近terminalの`pass/fail/blocked/running/no terminal`、`release`は現在releaseをloadedしたmanaged job数、`receipt`はstatusへ結合済みの`provider_receipt_id/official_readback_ref`数である。process passは売上・納品・外部効果の成功を意味しない。
