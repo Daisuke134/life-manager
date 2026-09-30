@@ -198,6 +198,47 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
             self.assertIn("current unchanged", result.stdout)
 
+    def test_taskmarket_sparse_release_builds_its_cli_dependency_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            npm = root / "npm"
+            npm.write_text(
+                "#!/bin/sh\n"
+                "mkdir -p node_modules/.bin\n"
+                "printf '{}\\n' > node_modules/.package-lock.json\n"
+                "printf '#!/bin/sh\\nexit 0\\n' > node_modules/.bin/taskmarket\n"
+                "chmod +x node_modules/.bin/taskmarket\n"
+            )
+            npm.chmod(0o755)
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "skills/earn/taskmarket",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
+                    "NPM_BIN": str(npm),
+                    "NPM_VERSION": "test",
+                    "NPM_NODE_VERSION": "test",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release = next((loops / "releases").iterdir())
+            modules = release / "skills/earn/taskmarket/node_modules"
+            cli = modules / ".bin/taskmarket"
+            self.assertTrue(modules.is_symlink())
+            self.assertTrue(cli.is_file())
+            self.assertTrue(os.access(cli, os.X_OK))
+
     def test_release_cannot_move_current_to_an_older_main_ancestor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
