@@ -1,0 +1,1072 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lm.cfo.economic-attribution.v1",
+  "x-lm-validation-contract": {
+    "json_schema_scope": "structural_only",
+    "canonical_validator": "skills.cfo.economic_attribution.validate_record",
+    "semantic_rules_ref": "x-lm-semantic-rules"
+  },
+  "x-lm-semantic-rules": [
+    "receipt.settled_at >= receipt.occurred_at",
+    "coverage.window_start < coverage.window_end"
+  ],
+  "title": "Life Manager CFO economic attribution record",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/coverage"
+    },
+    {
+      "$ref": "#/$defs/liquid_balance"
+    },
+    {
+      "$ref": "#/$defs/subscription_snapshot"
+    }
+  ],
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "amount"
+      ],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "settled_external_revenue",
+            "refund",
+            "provider_fee",
+            "model_cost",
+            "tool_cost",
+            "browser_cost",
+            "infra_cost",
+            "payment_fee",
+            "other_measured_cost",
+            "pending_revenue",
+            "payout",
+            "owner_deposit",
+            "self_payment",
+            "internal_transfer",
+            "token_appreciation",
+            "unrealized_investment_pnl",
+            "fundraising"
+          ]
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(?=.*[1-9])(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "receipt_id",
+        "product_loop_id",
+        "provider",
+        "currency",
+        "occurred_at",
+        "settled_at",
+        "verification_state",
+        "revenue_class",
+        "evidence_refs",
+        "components"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "lm.cfo.economic-attribution.v1"
+        },
+        "product_loop_id": {
+          "type": "string",
+          "enum": [
+            "gig-coconala",
+            "gig-lancers",
+            "gig-crowdworks",
+            "writer",
+            "affiliate",
+            "investment",
+            "agent-economy",
+            "job-hunter",
+            "fundraiser",
+            "connector",
+            "self-build",
+            "mobile-apps",
+            "capafy",
+            "cfo"
+          ]
+        },
+        "record_type": {
+          "const": "receipt"
+        },
+        "receipt_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{2,11}$",
+          "not": {
+            "enum": [
+              "UNKNOWN",
+              "USD_API_EQUIV"
+            ]
+          }
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "settled_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_state": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "unverified",
+            "pending"
+          ]
+        },
+        "revenue_class": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "one_time",
+                "monthly_recurring",
+                "other_recurring"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9+.-]*://\\S+$"
+          }
+        },
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "components": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "enum": [
+                        "pending_revenue",
+                        "payout",
+                        "owner_deposit",
+                        "self_payment",
+                        "internal_transfer",
+                        "token_appreciation",
+                        "unrealized_investment_pnl",
+                        "fundraising"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "components"
+            ]
+          },
+          "then": {
+            "properties": {
+              "components": {
+                "maxItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "components": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "enum": [
+                        "settled_external_revenue",
+                        "refund",
+                        "provider_fee",
+                        "model_cost",
+                        "tool_cost",
+                        "browser_cost",
+                        "infra_cost",
+                        "payment_fee",
+                        "other_measured_cost"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "components"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verification_state": {
+                "const": "verified"
+              },
+              "settled_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "components": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "enum": [
+                        "pending_revenue"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "components"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verification_state": {
+                "const": "pending"
+              },
+              "settled_at": {
+                "type": "null"
+              },
+              "revenue_class": {
+                "type": "string",
+                "enum": [
+                  "one_time",
+                  "monthly_recurring",
+                  "other_recurring"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "components": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "enum": [
+                        "settled_external_revenue"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "category"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "components"
+            ]
+          },
+          "then": {
+            "properties": {
+              "revenue_class": {
+                "type": "string",
+                "enum": [
+                  "one_time",
+                  "monthly_recurring",
+                  "other_recurring"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "settled_external_revenue"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "refund"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "provider_fee"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "model_cost"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "tool_cost"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "browser_cost"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "infra_cost"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "payment_fee"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "other_measured_cost"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "pending_revenue"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "payout"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "owner_deposit"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "self_payment"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "internal_transfer"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "token_appreciation"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "unrealized_investment_pnl"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "const": "fundraising"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          }
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "product_loop_id",
+        "source_id",
+        "projection",
+        "window_start",
+        "window_end",
+        "coverage_state",
+        "reason",
+        "covered_categories",
+        "observed_at",
+        "evidence_refs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "lm.cfo.economic-attribution.v1"
+        },
+        "product_loop_id": {
+          "type": "string",
+          "enum": [
+            "gig-coconala",
+            "gig-lancers",
+            "gig-crowdworks",
+            "writer",
+            "affiliate",
+            "investment",
+            "agent-economy",
+            "job-hunter",
+            "fundraiser",
+            "connector",
+            "self-build",
+            "mobile-apps",
+            "capafy",
+            "cfo"
+          ]
+        },
+        "record_type": {
+          "const": "coverage"
+        },
+        "source_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "historical",
+            "trailing",
+            "as_of"
+          ]
+        },
+        "window_start": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window_end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "coverage_state": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "gap"
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "source_unconnected",
+                "credential_missing",
+                "read_failed",
+                "stale_readback",
+                "unsupported_currency",
+                "unverified_receipt",
+                "missing_coverage",
+                "missing_category"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "covered_categories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "settled_external_revenue",
+              "refund",
+              "provider_fee",
+              "model_cost",
+              "tool_cost",
+              "browser_cost",
+              "infra_cost",
+              "payment_fee",
+              "other_measured_cost",
+              "mrr",
+              "liquid_balance"
+            ]
+          }
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9+.-]*://\\S+$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "projection": {
+                "const": "trailing"
+              }
+            },
+            "required": [
+              "projection"
+            ]
+          },
+          "then": {
+            "properties": {
+              "window_start": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "window_start": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "coverage_state": {
+                "const": "complete"
+              }
+            },
+            "required": [
+              "coverage_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "source_unconnected",
+                  "credential_missing",
+                  "read_failed",
+                  "stale_readback",
+                  "unsupported_currency",
+                  "unverified_receipt",
+                  "missing_coverage",
+                  "missing_category"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "liquid_balance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "snapshot_id",
+        "account_id",
+        "provider",
+        "currency",
+        "amount",
+        "observed_at",
+        "verification_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "lm.cfo.economic-attribution.v1"
+        },
+        "record_type": {
+          "const": "liquid_balance"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{2,11}$",
+          "not": {
+            "enum": [
+              "UNKNOWN",
+              "USD_API_EQUIV"
+            ]
+          }
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "verification_state": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "unverified"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9+.-]*://\\S+$"
+          }
+        }
+      }
+    },
+    "subscription_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_type",
+        "snapshot_id",
+        "subscription_id",
+        "product_loop_id",
+        "provider",
+        "currency",
+        "normalized_monthly_amount",
+        "normalization_basis",
+        "status",
+        "observed_at",
+        "verification_state",
+        "evidence_refs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "lm.cfo.economic-attribution.v1"
+        },
+        "product_loop_id": {
+          "type": "string",
+          "enum": [
+            "gig-coconala",
+            "gig-lancers",
+            "gig-crowdworks",
+            "writer",
+            "affiliate",
+            "investment",
+            "agent-economy",
+            "job-hunter",
+            "fundraiser",
+            "connector",
+            "self-build",
+            "mobile-apps",
+            "capafy",
+            "cfo"
+          ]
+        },
+        "record_type": {
+          "const": "subscription_snapshot"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$"
+        },
+        "subscription_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]{0,511}$"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{2,11}$",
+          "not": {
+            "enum": [
+              "UNKNOWN",
+              "USD_API_EQUIV"
+            ]
+          }
+        },
+        "normalized_monthly_amount": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$"
+        },
+        "normalization_basis": {
+          "const": "provider_monthly"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "inactive"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "verification_state": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "unverified"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9+.-]*://\\S+$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "active"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "normalized_monthly_amount": {
+                "type": "string",
+                "pattern": "^(?=.*[1-9])(?:0|[1-9]\\d*)(?:\\.\\d{1,18})?$"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
