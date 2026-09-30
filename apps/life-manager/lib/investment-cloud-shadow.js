@@ -101,6 +101,50 @@ function makeInvestmentCloudShadowWake(deps) {
     executeInvestment: deps.executeInvestment || deps.executeShadow });
 }
 
+let resolvedAlpacaCliPromise;
+
+// The cloud image is supposed to carry the pinned Alpaca CLI at /app/.bin/alpaca (nixpacks
+// [phases.build] -> scripts/install-alpaca-cli.sh), but a service deployed without that build
+// phase ships no binary and every investment wake then dies with the opaque
+// "spawn /app/.bin/alpaca ENOENT" (observed live on Railway life-call 2026-09-30). Resolve the
+// CLI once per process: probe the known paths, and if none exists run the same pinned,
+// checksum-verified installer into the writable state root. If the CLI still cannot be produced,
+// fail with one clear actionable error instead of raw ENOENT.
+async function resolveAlpacaCli({ stateRoot } = {}) {
+  if (!resolvedAlpacaCliPromise) {
+    resolvedAlpacaCliPromise = (async () => {
+      const candidates = [
+        process.env.ALPACA_CLI,
+        os.homedir() ? path.join(os.homedir(), ".local", "bin", "alpaca") : "",
+        "/app/.bin/alpaca",
+      ].filter((value) => typeof value === "string" && value.trim());
+      for (const candidate of candidates) {
+        try {
+          fs.accessSync(candidate, fs.constants.X_OK);
+          return candidate;
+        } catch { /* try next candidate */ }
+      }
+      const installer = path.resolve(__dirname, "..", "scripts", "install-alpaca-cli.sh");
+      const destination = stateRoot
+        ? path.join(stateRoot, "bin", "alpaca")
+        : path.join(os.tmpdir(), "life-manager-alpaca", "bin", "alpaca");
+      try {
+        fs.mkdirSync(path.dirname(destination), { recursive: true, mode: 0o700 });
+        await execute("bash", [installer, destination], { timeout: 120000, maxBuffer: 1024 * 1024 });
+        fs.accessSync(destination, fs.constants.X_OK);
+        return destination;
+      } catch (error) {
+        throw new Error("investment alpaca cli unavailable: no executable at "
+          + `[${candidates.join(", ")}] and self-install failed (${(error && error.message) || error}). `
+          + "Redeploy with apps/life-manager/nixpacks.toml [phases.build] or preinstall the pinned CLI");
+      }
+    })();
+    // A failed resolution must not poison later wakes: clear the cache on rejection.
+    resolvedAlpacaCliPromise.catch(() => { resolvedAlpacaCliPromise = undefined; });
+  }
+  return resolvedAlpacaCliPromise;
+}
+
 async function defaultReadAccountId({ alpacaCli, apiKey, apiSecret }) {
   const result = await execute(alpacaCli, ["account", "get", "--quiet", "--jq", ".id"], {
     env: { ...process.env, ALPACA_API_KEY: apiKey, ALPACA_SECRET_KEY: apiSecret, ALPACA_LIVE_TRADE: "true" },
@@ -155,7 +199,7 @@ async function runInvestmentCloud(input) {
   let inputRuntimeStateDigest;
   let stateBindingValid = false;
   try {
-    const alpacaCli = input.alpacaCli || process.env.ALPACA_CLI || "/app/.bin/alpaca";
+    const alpacaCli = input.alpacaCli || await resolveAlpacaCli({ stateRoot });
     accountId = await (input.readAccountId || defaultReadAccountId)({ alpacaCli, apiKey, apiSecret });
     if (accountHash(accountId) !== input.sealed.bundle.account_binding.account_id_hash) {
       throw new Error("investment cloud account binding mismatch");
@@ -223,4 +267,4 @@ async function runInvestmentCloudShadow(input) {
 }
 
 module.exports = { accountHash, fiveMinuteSlot, makeInvestmentCloudWake,
-  makeInvestmentCloudShadowWake, runInvestmentCloud, runInvestmentCloudShadow };
+  makeInvestmentCloudShadowWake, resolveAlpacaCli, runInvestmentCloud, runInvestmentCloudShadow };
