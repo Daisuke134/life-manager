@@ -37,10 +37,13 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 log() { echo "$(date '+%F %T') ensure_provision_browser[$IDENTITY]: $*" >>"$LOG"; }
 fail() { log "FAILED: $*"; echo "ensure_provision_browser: $*" >&2; exit 1; }
 
+# Protected profiles: forever browsers owned by keep_alive loops (tiktok-anicca-jp is resident via
+# the tiktok-browser loop since 2026-09-30; an on-demand launch here overwrote its DevToolsActivePort).
 # Protected profiles: forever browsers owned by other identities. Never launch, never clean, never
 # steal. Anything that would point this launcher at one of them is a bug, so fail closed.
 PROTECTED_PROFILES="$HOME/.cloak/profiles/daily-driver
-$HOME/.cloak/profiles/gig-daily-driver"
+$HOME/.cloak/profiles/gig-daily-driver
+$HOME/.cloak/profiles/tiktok-anicca-jp-relogin"
 
 [ -x "$GUARD" ] || fail "browser-guard.sh not found at $GUARD"
 [ -f "$KEEPALIVE" ] || fail "persistent-context owner script missing: $KEEPALIVE"
