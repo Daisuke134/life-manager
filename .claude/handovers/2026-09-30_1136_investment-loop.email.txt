@@ -1,0 +1,33 @@
+INVESTMENT-HANDOVER-20260930-1136
+
+Life Manager投資loopの再開用handoverです。
+
+handover:
+/Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4/.claude/handovers/2026-09-30_1136_investment-loop.md
+
+spec / Atomic Todo正本:
+/Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md
+section: 「投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）」
+
+現在の再開状態:
+- spec branch: docs/investment-owner-readback-20260929-v4
+- spec worktree: /Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4
+- handover artifact commit: 6af83e5005
+- 完了: AT-01〜AT-12
+- 残り: 277原子行
+- 現在の1件: AT-13。次のdaily sessionが「売る」と判断するまで自然なpaper実行を読む。
+- 最新receipt: d0c175c0fab7fefb2ab03c4d27f6ceb5e3005e36ba6fdf06179e456a5e4de780、2026-09-30T02:34:02.830457Z、decision_session=2026-09-29、HOLD / hold_period_not_elapsed。
+- 現在release: /Users/anicca/loops/releases/20260930T113159-de3c9064、SHA de3c9064fac327e869558a43f93ae32957317d3f。
+- 最新natural run: alpaca-investment-paper:18d9f88ff361d2a8-75349、pass、exit 0、provider receiptなし、公式注文readbackなし。
+- 実現投資収益: $0/月。paperのQQQ open positionだけ。live注文、Binance送金、wallet funding、meme coin署名、yield depositなし。
+- 実装worktree: /Users/anicca/Projects/life-manager-main/.worktrees/investment-paper-pnl-20260930、branch feat/investment-paper-pnl-20260930、commit d0dcb53a72b22805528152e3d77d6a213212d327。未追跡risk-day.jsonがあるため触らない。
+- PR #6259はopen/unstableで、OSS self-contained boundaryだけFAIL。他agentのCapafy/shared workを直さない。
+
+最初の安全な操作:
+fresh fetch、両branchのHEAD/upstream/dirty state確認、handoverとspecを読む、lm-loop statusと最新receiptを再確認し、AT-13だけを続ける。HOLDならspecを更新して自然実行を待つ。qualifiedな売却判断が出た場合だけAT-14へ進む。手動wake、手動sell、replay、送金をしない。
+
+完全な再開用 /goal（この行を新しいCodexセッションへ送る）:
+/goal Life Managerの投資loopを、投資specのAtomic Todoを唯一の順序として、AT-13からAT-29まで最後まで完了し、30回の買いから売りまでの結果、費用を引いた本当の利益、二重処理がないこと、他の投資方法との比較、少額の本番運用を許可できるかを、公式の記録付きでspecへ保存する。Doneは、AT-01〜AT-12が完了済みで、AT-13〜AT-29を順番どおり実行し、30件それぞれについて売買金額、手数料、価格のずれ、仕組みの費用、再実行時の二重注文ゼロを確認し、比較と最終判断をspecから再計算できること。最初に`/Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4/.claude/handovers/2026-09-30_1136_investment-loop.md`と`/Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4/docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md`を読み、fresh fetch後にHEAD、upstream、dirty state、paperの最新状態を確認してから続ける。spec編集は`/Users/anicca/Projects/life-manager-main/.worktrees/investment-owner-readback-20260929-v4`の`docs/investment-owner-readback-20260929-v4`（upstream `origin/docs/investment-owner-readback-20260929-v4`、確認済みcommit `b46f48b8b8ee9f89bb16da216943e11326143897`）だけで行い、証拠が変わるたびにspecを更新し、diff check、commit、pushする。実装worktreeは`/Users/anicca/Projects/life-manager-main/.worktrees/investment-paper-pnl-20260930`、branch `feat/investment-paper-pnl-20260930`、commit `d0dcb53a72b22805528152e3d77d6a213212d327`で、未追跡`risk-day.json`があるため編集・削除せず、PR #6259の`OSS self-contained boundary`失敗やCAPFY/shared worktreeも触らない。現在の最初の操作はAT-13だけで、次のdaily sessionが「売る」と判断するまでnatural schedulerを読む。HOLD、同じ日の再実行、含み損益、手動wakeは完了証拠にせず、手動sell・replay・送金もしない。AT-24とAT-29の証拠が揃うまでlive注文、Binance送金、wallet funding、ミームコイン署名、利息商品の預金、上限増額をしない。ユーザーの将来の少額本番利用への同意は記録済みだが、技術的な合格条件の代わりにはしない。実際のお金を動かす直前には、対象・金額・場所・操作を明示し、`spawn_agent`でread-onlyの反対意見レビューを exact commit の一時detached snapshotに対して行い、結果をspecへ記録する。通常の判断は質問せず進めるが、同じ本当の原因について診断・観測・自所有修正を3回行っても安全な次の操作がない場合だけ、証拠と最小の外部依存を残して止める。Doneを推測で宣言せず、最後に全Todo、spec、runtime、公式記録、git remote objectを照合する。
+
+fallback start prompt（/goalを送れない場合）:
+handoverとspecだけを読み、残りのAtomic Todoを一覧化し、投資loopのTO-BEをASCIIで描き、実行せずに待つ。コード、CAPFY、送金、注文、手動wakeには触れない。
