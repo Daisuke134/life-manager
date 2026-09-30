@@ -12,11 +12,13 @@
 
 ## 0. 原則: No human in loop
 
-Life Manager はアシスタントではなくマネージャー。Grok bot、Muse、Instinct と同じく、自分でコンピュータとブラウザを使い、仕事を最後まで完結させる。**人（Dais を含む）に作業や判断を頼むことは、設計違反として扱う。**
-- 応募・承諾・制作・納品・入金確認・修復・改善は、すべて Life Manager の loop が行う。
-- 人に頼るのは、法律上どうしても本人が必要なものだけ（初回の KYC、本人確認など）。それも最初の1回に限る（T10）。
-- 判断は model が提案し、決定的な policy（金額、契約条件の一致、上限、重複防止、rollback）が確定させる。
-- 外部の coding agent（Claude Code、Codex のセッション）も同じく「人」の側。Life Manager が自分で直せるようになること（§5.1）が目標。
+Life Manager はアシスタントではなく、現実の仕事を最後まで完了する一つのmanager entityである。Grok bot、Muse、Instinct と同じく、自分でcomputer・browser・APIを使い、仕事を完遂する。**人（Daisを含む）を案件遂行へ入れることは設計違反として扱う。**
+- 応募・承諾・制作・納品・入金確認・修復・改善は、すべてLife Managerのloopが行う。
+- 面接、評価試験、録音、カメラ、画面共有、自由回答、継続的な本人承認など、providerが人を要求する案件は応募・契約候補から除外し、`human_required`としてholdする。Daisへエスカレーションしない。
+- 人に頼る例外は、法律上・provider上どうしても必要な一度限りの初回KYC、本人確認、account authorizationだけに限定する。KYC不要のplatform・商品・契約を優先し、将来的にはこのbootstrapも不要な経路へ移る。KYC、CAPTCHA、anti-bot、providerの本人確認を回避・偽装しない。
+- runtimeは人間operatorのcredentialや継続操作を必要としない。ユーザー所有のaccount-bound authorizationはprivate brokerに一度だけ登録し、その後の実行はLife Manager自身が行う。
+- 判断はmodelが提案し、決定的なpolicy（金額、契約条件の一致、上限、重複防止、rollback、human_required除外）が確定させる。
+- 外部のcoding agent（Claude Code、Codexのsession）も「人」の側である。Life Managerが自分で観測・修復・改善できることが目標である。
 
 ### 0.1 Dais の実行範囲境界（全案件共通）
 
@@ -106,7 +108,7 @@ flowchart LR
 - **ループの健康の定義:** 全行が `healthy` か、型付きの fence（安全な次アクションが記録済み）のどちらか。`unknown` は診断cursorであり、再送の許可ではない。
 - **利益の定義:** ループごとに `settled_customer_revenue - refunds - measured cost`。CFO が provider receipt と照合して算出する。Pass やログは利益ではない。
 - **役割分担:** model は提案する。identity・計算・dedupe・spend cap・rollback は決定的なコードが持つ。
-- **Dais の手間:** 最初の bootstrap と、法的に必要な KYC/OAuth/CAPTCHA だけにする。
+- **Dais の手間:** 原則ゼロ。法的に必要な初回KYC・本人確認・account authorizationだけを例外とし、面接・評価・録音・カメラ・画面共有・継続承認を必要とする案件は選ばない。
 - **経済目標:** 検証済み net MRR USD 10K → 自己資金化 → YC W27 用の証拠 → AGI/UBI 研究。証拠なしに達成を主張しない。
 
 ## 5. TODO（実行順・正本）
@@ -1657,3 +1659,155 @@ current readbackでは、Coconala browser/evidence-gc/daily-report/storefront、
 - [ ] settlementをledgerへ記録する。完了条件: payout receipt。
 - [ ] cost-complete net P&Lを計算する。完了条件: fee、tool cost、model cost込みのnet値。
 - [ ] quality evaluatorへ結果を渡す。完了条件: 改善候補がshared kernelへ戻る。
+
+## 現在の正本cursor（2026-09-30、全Skill共通observability・No-Human・One Entity契約）
+
+この節はEOFの最新cursorであり、以前のplatform別TODO・Mercorのhuman-operator手順・個別healthcheckの記述に優先する。ここでいう「No-Human」は、Life Managerが案件遂行・面接・承認・納品を人へ委譲しないことを意味する。providerが人を要求する案件を自動突破する意味ではない。その案件は選ばずにholdする。
+
+### A. 現在の観測事実
+
+- source branchは最新`origin/main=04584260634df3191dcd1aacd7f20079be069530`から作業している。
+- production `current`は`/Users/anicca/loops/releases/20260930T095524-c522f4ab`（release SHA `c522f4ab34514e892313a39fbca0cb43cb969e29`）である。source変更をmainへ受入・release化・ownerへapplyするまではproduction反映ではない。
+- 有効なdisk admissionは`526761984 bytes`、必要値は`536870912 bytes`であり、容量gateは失敗している。`df`表示の空き容量だけでhealthyと判定しない。
+- 最新launchd readbackではCoconalaのbrowser/paid/apply/reply/storefront、CrowdWorksのbrowser/paid/reply/report、Lancersのbrowser/application/paid/work-sync/telegram-report、Mercorのapplication/replyが`75/78/1`系の失敗または停止を示す。プロセスPIDやregistry登録だけではhealthyと判定しない。
+- 現在のCLIは`lm-loop status`（全行JSON）、`lm-loop status --explain`（loop単位のcause chain）、`lm-loop doctor`（source/registry構造）に分かれ、全Skillの実行・生産性・外部効果・収益を一画面で結合していない。
+- `runtime_event.py`にはrelease、run、owner、occurrence、effect、receipt、readback、next actionの基本項目がある。一方、`lane_health.py`はgig専用であり、全Skill共通のproductive clock・business receipt clock・human_required判定は未統合である。
+
+### B. 全Skill共通CLI契約
+
+新しい外部dashboardやplatform専用healthcheckを先に増やさず、既存registry・runtime event・receipt・admission stateを集約する読み取り専用CLIを正本とする。
+
+```text
+./bin/lm-loop status                         生のowner/runtime状態
+./bin/lm-loop status --explain <loop-id>     1 loopのoccurrence別cause chain
+./bin/lm-loop doctor                         source/registry/entrypoint構造検査
+./bin/lm-loop health                         全Skillの一画面診断
+./bin/lm-loop health --json                  Meta Loop/CI/Telegram用schema
+./bin/lm-loop health --skill <skill-id>      Skill単位の集約
+./bin/lm-loop health --loop <loop-id> --explain 1 loopの次の一手
+```
+
+`health`はproviderページを開かず、registry、immutable release、launchd readback、runtime event、admission DB、receipt index、CFO ledgerを結合する。公式provider readbackが必要な場合だけ、出力された`next_action`へ進む。通常の健康確認はローカルread-onlyで終わり、毎回人が深掘りしない。
+
+#### HealthSnapshot schema
+
+全Skill・全loopは`lm-loop.health.v1`のprojectionを持つ。欠落したloopはhealthyではなく`telemetry_gap`である。
+
+```json
+{
+  "schema_version": "lm-loop.health.v1",
+  "generated_at": "...",
+  "skill_id": "gig-coconala",
+  "loop_id": "hf-gig-paid-direct",
+  "status": "action_required",
+  "release_sha": "...",
+  "release_provenance": "ancestor-of-origin-main",
+  "owner_id": "...",
+  "launchd_state": "loaded-idle",
+  "last_attempt_at": "...",
+  "last_success_at": "...",
+  "last_productive_at": "...",
+  "last_business_receipt_at": null,
+  "effect_class": "money",
+  "effect_status": "unknown",
+  "occurrence_id": "...",
+  "provider_receipt_id": null,
+  "official_readback_ref": null,
+  "blocker": "disk_headroom_low",
+  "error_class": "admission",
+  "retryable": true,
+  "next_action": "restore_headroom_then_reconcile",
+  "evidence_refs": ["..."]
+}
+```
+
+必須の観測軸は次の6つである。
+
+1. **Identity:** `skill_id`、`product_loop_id`、`loop_id`、`owner_id`、browser identity、loaded release SHA。
+2. **Runtime:** attempt、success、failure、cadence遅延、process state。
+3. **Productivity:** 実際に応募・返信・納品・公開・build・改善が進んだか。
+4. **Effect safety:** effect fence、effect status、provider receipt、official readback、replay-zero。
+5. **Business:** 契約、受領、settled payment、payout、net revenue、cost。
+6. **Recovery:** blocker、error class、retryable、occurrence、next action、recovery intent。
+
+全Skillで次の4つの時計を分離する。
+
+```text
+last_attempt_at          起動したか
+last_success_at          エラーなしで終わったか
+last_productive_at       実作業が進んだか
+last_business_receipt_at 公式契約・決済・成果receiptが進んだか
+```
+
+#### Health状態とexit code
+
+| 状態 | 意味 | CLI exit |
+|---|---|---:|
+| `healthy` | runtime・receipt・readback・生産性が正常 | 0 |
+| `safely_fenced` | 外部効果は閉じられ、安全な次の一手がある | 10 |
+| `action_required` | release、owner、browser、capacity、sourceの修復が必要 | 20 |
+| `effect_unknown` | 外部効果の可能性があり、公式readbackまで再送禁止 | 30 |
+| `telemetry_gap` | Skill/loopが観測契約を満たさない | 20 |
+| CLI/schema error | コマンドまたはschema不正 | 2 |
+
+`effect_unknown`は最優先であり、PID alive、HTTP 200、registry登録、local test pass、Telegram送信だけでは解消しない。
+
+#### 常時監視と自己修復
+
+- 既存control-planeのread-only observerが5分ごとに全SkillのHealthSnapshotを生成し、`state/health/latest.json`へatomic writeする。
+- 履歴はappend-only JSONLへ保存し、`state change`だけをalertする。同一`skill_id/loop_id/error_class/occurrence_id`の重複通知は抑制する。
+- `health`はprovider mutation・browser takeover・blind restart・effect retryを行わない。
+- 異常時は`lm-recovery-intent`をowner・occurrence単位で生成し、既存のrecovery supervisorだけが許可されたreconcileを実行する。
+- `effect_unknown`、human_required、provider readback不足はholdして通知する。人へ面接・評価・返信を依頼しない。
+- 収益Skillは`last_productive_at`だけでなく、公式`ContractReceipt`・`DeliveryReceipt`・`PaymentReceipt`・payout/bank matchまで結合する。process successはrevenue successではない。
+- credentials、prompt、PII、添付本文、providerの生テキストをHealthSnapshotへ保存しない。bounded ID、hash、evidence refだけを保存する。
+
+### C. No-Human eligibility contract
+
+Life Managerは「人を介さず最後まで完了できる仕事」だけを選ぶ。providerの人間要求を突破するのではなく、最初のqualificationで除外する。
+
+- `human_required=true`となる面接、試験、録音、camera、screen share、自由回答、継続的な本人承認、外部電話確認を候補から除外する。
+- MercorのVoice Actor、PDF Annotation、Bilingual、Consultant、Sonicなど、person-bound stepが残る候補は`human_required`としてskip/holdし、Daisへ通知して完了させる手順を作らない。
+- MercorのApplication/Reply/Paidは、human-free案件だけを扱う。保存済みprofileや応募数は契約・収益の証拠ではない。
+- Coconala、Lancers、CrowdWorks、Upwork、Freelancerでも同じ選別を行い、KYC・CAPTCHA・provider本人確認を必要とする案件は選ばない。account-bound authorizationが一度だけ必要な場合はbootstrap境界として記録し、runtimeは人間operatorなしで動く。
+- Meta Loopは`human_required=false`、funded contract、complete inventory、公式receipt、replay-zero、cost adapterが全て揃う候補だけをenrollする。
+- 「KYC不要へ移行」は本人確認の回避ではなく、最初からKYC不要のplatform・商品・販売経路へportfolioを移すことを意味する。
+
+### D. One Entity / interface-free product contract
+
+Life Managerは複数の個別assistantをtenantごとに売るものではなく、身体・心・お金を現実で改善する一つの自律entityである。
+
+```mermaid
+flowchart LR
+  B[初回bootstrap: 最小情報・必要なauthorization] --> L[Life Manager: One Entity / AGI manager]
+  L --> Body[Body: physical health]
+  L --> Mind[Mind: mental fitness]
+  L --> Money[Money: products, services, contracts, payout]
+  L --> O[optional observability/control]
+  Body --> R[ユーザーの生活が改善]
+  Mind --> R
+  Money --> R
+```
+
+- 初回bootstrap後、core valueはTelegram、iMessage、dashboard、chatを開かなくても継続する。interfaceはcontrol・consent・observabilityのためのoptional surfaceであり、成果の前提ではない。
+- Life Managerはapps、agents、prompts、ebooks、各種software、各種service、contract workなどを自律的に作り、販売し、納品し、決済を照合する。
+- 顧客にpromiseするのは「神のように必ず金持ちになる」ことではなく、ユーザーの同意・安全境界内で、Body/Mind/Moneyを継続的に改善する自律運用である。収益や健康の成果は公式receipt・health outcomeでのみ主張する。
+- 公開面の正本URLは`https://aniccaai.com/lm`とする。現在の`/en`・`/ja`の使命文、`/lm`のCalendar×Telegram機能説明を一つの簡潔なinvestor/user pageへ統合し、`/en`・`/ja`はlocale aliasまたはredirectとして残す。削除はredirect/readback後に行う。
+- 統合ページの必須messageは、`One Entity`、`AGI manager`、`Body / Mind / Money`、`No Human in the Loop`、`Fit, Mindful, and Rich`、初回bootstrap後のinterface-free operation、OSS source、検証済み証拠である。
+
+### E. 新しい原子TODO（この節が唯一の実行順正本）
+
+1. **未完（現在cursor）** `lm-loop health`のread-only集約CLIを実装し、human-readable summary、`--json`、`--skill`、`--loop --explain`、状態別exit codeを追加する。
+2. **未完** `lm-loop.health.v1`をschema・validator・focused testへ固定し、全registry jobへ`skill_id/product_loop_id`を必須結合する。未結合は`telemetry_gap`でcontract gateを落とす。
+3. **未完** runtime event、receipt、admission、launchd、CFO ledgerからHealthSnapshotをatomic生成し、attempt/success/productivity/businessの4時計を全Skillへ展開する。
+4. **未完** 既存`lane_health.py`・`pass_health.py`・`status --explain`を共通projectionへ接続する。Gig専用の別statusを正本にしない。
+5. **未完** 5分cadenceのread-only observer、state-change alert dedupe、Telegram/outboxの`next_action`通知、snapshot retentionを実装する。observerはprovider mutationを行わない。
+6. **未完** `human_required` qualificationをshared marketplace kernelへ追加し、Mercorを含む全platformで面接・評価・録音・camera・screen share・継続承認が必要な候補を自動holdする。Daisへのhuman escalationは作らない。
+7. **未完** Coconala/Lancers/CrowdWorks/Mercor/Upwork/Freelancerの各adapterへ、human-free eligibility、account-bound authorization、funded contract、official receipt、replay-zeroを接続する。現在のcapacity、release drift、browser、Human Verification、effect_unknownは未解決のまま保持する。
+8. **未完** `/en`・`/ja`・`/lm`の現行copyと導線を一つの`/lm` canonical pageへ統合する。Body/Mind/Money、One Entity、No-Human、interface-free、OSS/evidence、bootstrap境界、料金/導入の一貫したreadbackを作る。
+9. **未完** 統合ページをpreview・mobile・locale・link・SEO・privacy/readbackで検証し、`/en`・`/ja`からのredirect/aliasを確認してから旧面を退役する。
+10. **未完** Meta Loopをhealth snapshotのconsumerとして接続する。ただし`human_required=false`、全receipt、replay-zero、cost/P&L、rollbackが揃わないplatformはenrollしない。
+11. **未完** 全Skillのhealthが`healthy`または型付き`safely_fenced`になり、`telemetry_gap=0`、未説明`effect_unknown=0`、全ownerのrelease provenance一致になるまで、24/7正常・収益達成を主張しない。
+12. **未完** その後にplatformごとの初回paid E2E、受領、settlement、payout、net MRRを確認し、10k MRR/platformと100k totalを実測値だけで積み上げる。
+
+このcursorを実装へ移す順番は、`health schema → CLI → 全Skill projection → observer/alert → human-free qualification → canonical page → Meta Loop → revenue scale`で固定する。今回はspecだけを更新し、production owner、browser、provider、外部ページは変更しない。
