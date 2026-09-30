@@ -72,6 +72,30 @@ class LmLoopHealthTest(unittest.TestCase):
             "every managed job must have product_loop_id or typed system_role",
         )
 
+    def test_status_system_role_ignores_stale_event_product_classification(self):
+        registry = json.loads(
+            (ROOT / "config/loop-registry.json").read_text(encoding="utf-8")
+        )
+        registry["loops"] = {
+            "compute-proxy": registry["loops"]["compute-proxy"],
+        }
+        with patch("runtime.loop.lm_loop._latest_harness_failure", return_value=None):
+            row = lm_loop.status_rows(
+                registry,
+                loaded={},
+                disabled={},
+                events={"compute-proxy": {"product_loop_id": "stale-product"}},
+                installed_releases={},
+                product_by_job={},
+            )[0]
+
+        self.assertEqual(row["system_role"], "platform")
+        self.assertIsNone(row["product_loop_id"])
+        self.assertEqual(
+            health.project_health([row])["jobs"][0]["system_role"],
+            "platform",
+        )
+
     def test_health_rejects_unknown_option_with_typed_diagnostic(self):
         output = io.StringIO()
         with redirect_stdout(output):
@@ -233,6 +257,50 @@ class LmLoopHealthTest(unittest.TestCase):
             },
         )
         self.assertEqual(health.health_exit_code(value), 1)
+
+    def test_health_state_preserves_adapter_gap_then_human_then_fence_priority(self):
+        cases = {
+            "adapter-timeout-human": ({
+                "health_adapter_status": "timeout",
+                "next_action": "human_required",
+                "admission_effect_unknown": True,
+                "diagnostic_complete": False,
+                "last_pass": None,
+            }, "telemetry_gap"),
+            "adapter-error-fence": ({
+                "health_adapter_status": "error",
+                "admission_effect_unknown": True,
+                "diagnostic_complete": False,
+                "last_pass": None,
+            }, "telemetry_gap"),
+            "human-before-fence-and-gap": ({
+                "next_action": "human_required",
+                "admission_effect_unknown": True,
+                "diagnostic_complete": False,
+                "last_pass": None,
+            }, "human_required"),
+            "fence-before-gap": ({
+                "admission_effect_unknown": True,
+                "diagnostic_complete": False,
+                "last_pass": None,
+            }, "safely_fenced"),
+            "plain-diagnostic-gap": ({
+                "diagnostic_complete": False,
+                "last_pass": None,
+            }, "telemetry_gap"),
+        }
+        rows = [
+            self.status_row(loop_id, **overrides)
+            for loop_id, (overrides, _) in cases.items()
+        ]
+        states = {
+            job["job_id"]: job["state"]
+            for job in health.project_health(rows)["jobs"]
+        }
+        self.assertEqual(
+            states,
+            {loop_id: expected for loop_id, (_, expected) in cases.items()},
+        )
 
     def test_safely_fenced_alone_returns_degraded_exit(self):
         value = health.project_health([

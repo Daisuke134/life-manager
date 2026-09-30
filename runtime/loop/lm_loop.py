@@ -1004,6 +1004,11 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         missing_diagnostic_fields = sorted(DIAGNOSTIC_FIELDS - set(event))
         catalog_product_loop_id = product_by_job.get(loop_id)
         event_product_loop_id = event.get("product_loop_id")
+        system_role = entry.get("system_role")
+        product_loop_id = (
+            None if system_role is not None
+            else catalog_product_loop_id or event_product_loop_id
+        )
         diagnostic_error = None
         if event.get("job_id") is not None and event.get("job_id") != loop_id:
             diagnostic_error = "event_job_identity_mismatch"
@@ -1065,8 +1070,8 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "provider": event.get("provider"),
             "profile_alias": event.get("profile_alias"),
             "event_id": event.get("event_id"),
-            "product_loop_id": catalog_product_loop_id or event_product_loop_id,
-            "system_role": entry.get("system_role"),
+            "product_loop_id": product_loop_id,
+            "system_role": system_role,
             "job_id": loop_id,
             "owner_id": event.get("owner_id"),
             "run_id": event.get("run_id"),
