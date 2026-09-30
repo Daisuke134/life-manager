@@ -6,7 +6,7 @@
 
 **Implementation plan:** `docs/superpowers/plans/2026-09-28-life-manager-agentcore-cloud.md`
 
-**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWS Account APIは`PENDING_ACTIVATION`を返し、signup画面はFree planの支払方法登録step 3/5で`You have reached your limit of attempts to add a payment method`を返す。Support caseは開設済みであり、解除またはexact safe retry instructionまでカードを再送しない。DigitalOceanはGoogle loginまで成功したが、Activityには過去の`user.create_team` / `user.join_team` / `user.resource_limit`があり、現在のaccountはTeam ownerではない。UIは`Due to your permissions, you are unable to add a payment method. Contact your team owner`を返し、新しいTeam作成も`You don't have permission to complete this action`で拒否する。このためTeam-scoped API tokenをまだ発行できない。token生成操作の不足ではなくowner権限の復旧が先である。Railway CLI/accountと既存Steel serviceは利用可能である。Railway Sandbox CLIは利用可能だがexperimentalであり、最初のread-only listはMac Data volume残量575 MiBによる`No space left on device`で未完了である。次は安全にlocal headroomを戻し、Railway Sandbox＋Steelで実provider receiptを取る。local PASSをcloud完了とは数えない。
+**Current cursor:** A24。制御面、same-kernel runtime、dispatcher、browser/identity adapter、no-human policy、cost ledger、Free onboarding、二session isolation/browser canary、agent parity CLI、promotion gate、固定順migration replayはlocal/isolated PostgreSQLで完成している。AWS AgentCore package `0.30.0`とlocal `agentcore dev`経路は利用可能だが、cloud deployはAWS公式Prerequisitesどおりactive account、credentials、IAM、S3/CDK/CloudFormationを要する。前回のfresh Account APIは`PENDING_ACTIVATION`、signup画面はFree planの支払方法登録step 3/5で`You have reached your limit of attempts to add a payment method`を返し、Support caseは開設済みである。DigitalOceanの現行CLI `doctl harness-runtime`は利用可能だが、公式Quickstartはpayment method、positive prepaid balance、write tokenを必須とする。Google login後のActivityには過去の`user.create_team` / `user.join_team` / `user.resource_limit`があり、現在のaccountはTeam ownerではない。paymentと新Team作成は権限拒否され、tokenを発行できない。Railway CLI/accountと既存`steel-browser` serviceは利用可能である。Railway Sandboxで実resourceをcreateし、Linux/root/write/networkをreadback後にdestroyし、active list `[]`まで成功した。次はprovider adapterを完成し、2 tenant isolation、Steel profile continuity、official usage/cost receiptを同じlive canaryで取る。local PASSまたは単一sandbox PASSだけをcloud完成とは数えない。
 
 ### 0.1 固定済みの完成architecture
 
@@ -34,7 +34,7 @@ flowchart LR
 
 ### 0.2 残りTODO — この順序が正本
 
-1. **Macの実行余地を安全に戻す。** 保護対象とproject stateを触らず、再生成可能cache/logだけを特定して十分な空きを作り、`railway sandbox list --json`を再実行する。
+1. **[完了] Railway Sandboxのaccount/feature gateを実測する。** `list []`、実sandbox create、Linux/root/write/network readback、destroy、再度`list []`まで成功している。
 2. **Railway Sandbox provider adapterを最小追加する。** 既存Railway認証、TypeScript SDK/CLI、project private networkを使い、create/exec/checkpoint/destroy/list/cost readbackだけを既存provider contractへ写像する。business kernelを複製しない。
 3. **A24 infrastructure canaryをlive実行する。** Railwayで2 tenant sandbox、workspace隔離、既存Steelの同一profile継続、no-ask、人間入力0、両sandbox destroy→active 0、前後usageを公式readbackで確認する。
 4. **A24 agent parityをlive実行する。** `HEAD == origin/main == candidate SHA`を満たすreleaseで既存business kernel fixtureを実行し、local/cloudのreceipt hashとevidence hash、replay-zeroを一致させる。
