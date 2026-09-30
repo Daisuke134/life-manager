@@ -94,12 +94,28 @@ import { isSettled, decodePayer } from "./lib/settle-gate.mjs";
 // Bazaar discovery layer (how buyer agents FIND us). Falls back to the x402.org testnet facilitator when
 // no CDP keys (generic install / dev). payTo stays our wallet — CDP only facilitates + catalogs, never custodies.
 let facilitatorClient;
+let facilitatorUrl;
+let facilitatorHasCdpKeys = false;
 if (process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET) {
   const { createFacilitatorConfig } = await import("@coinbase/x402");
   const cfg = createFacilitatorConfig(process.env.CDP_API_KEY_ID, process.env.CDP_API_KEY_SECRET);
   facilitatorClient = new HTTPFacilitatorClient({ url: cfg.url, createAuthHeaders: cfg.createAuthHeaders });
+  facilitatorUrl = cfg.url;
+  facilitatorHasCdpKeys = true;
 } else {
-  facilitatorClient = new HTTPFacilitatorClient({ url: "https://x402.org/facilitator" });
+  facilitatorUrl = "https://x402.org/facilitator";
+  facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+}
+// Mainnet guard (2026-09-30 live incident): the public x402.org fallback facilitator advertises NO
+// exact/eip155:8453 kind (verified against https://x402.org/facilitator/supported — testnets and
+// non-EVM chains only), so a Base-mainnet store booted without CDP keys initializes cleanly yet
+// fails EVERY paid request with "Facilitator does not support exact on eip155:8453" — an open
+// storefront that cannot take payment, invisible from the catalog. Say so loudly at boot.
+if (!facilitatorHasCdpKeys && NETWORK === "eip155:8453") {
+  console.error(JSON.stringify({
+    facilitator_config: "unsupported",
+    error: "no CDP_API_KEY_ID/CDP_API_KEY_SECRET in env: the public x402.org facilitator cannot settle exact on eip155:8453 (Base mainnet) — paid routes will answer 503 until CDP keys are provided",
+  }));
 }
 // v2 resource server: facilitator client + one scheme registered per network (exact-payment EVM here).
 // ALSO register the same ExactEvmScheme under the plain v1 network id (NETWORK_V1, e.g. "base"): the
@@ -444,7 +460,53 @@ app.use((req, res, next) => {
 // retrying initialize() call AND syncFacilitatorOnStart=false (not just the flag alone: passing
 // syncFacilitatorOnStart=false with no explicit initialize() call left every request permanently
 // failing with "Facilitator does not support exact..." instead of ever succeeding).
-await ensureFacilitatorInitialized(resourceServer);
+// Facilitator readiness is checked LIVE per paid request: getSupportedKind reads the
+// supported-kinds map that initialize() fills, so a store whose facilitator is down (or can never
+// settle exact/NETWORK) answers a clean JSON 503 and self-heals the moment the background retry
+// in ensureFacilitatorInitialized succeeds — instead of the library throwing out of
+// paymentMiddleware and Express rendering a 500 HTML page that leaked absolute filesystem paths
+// (observed live 2026-09-30 on every v2 seller).
+const facilitatorStatus = {
+  url: facilitatorUrl,
+  cdp_keys_present: facilitatorHasCdpKeys,
+  last_error: facilitatorHasCdpKeys || NETWORK !== "eip155:8453"
+    ? null
+    : "public fallback facilitator does not support exact on eip155:8453",
+};
+function facilitatorReady() {
+  try {
+    return Boolean(resourceServer.getSupportedKind?.(2, NETWORK, "exact"));
+  } catch {
+    return false;
+  }
+}
+await ensureFacilitatorInitialized(resourceServer, {
+  log: (line) => { facilitatorStatus.last_error = String(line); console.error(line); },
+});
+// Operator/monitor probe: one HTTP call shows whether this seller can actually take payment,
+// without shell access to the host's logs.
+app.get("/healthz", (_req, res) => {
+  const ready = facilitatorReady();
+  res.status(ready ? 200 : 503).json({
+    ok: ready,
+    network: NETWORK,
+    facilitator: {
+      url: facilitatorStatus.url,
+      cdp_keys_present: facilitatorStatus.cdp_keys_present,
+      supports_exact_on_network: ready,
+      last_error: ready ? null : "facilitator does not support the configured payment network",
+    },
+  });
+});
+app.use((req, res, next) => {
+  if (!PRODUCTS.some((p) => p.path === req.path)) return next();
+  if (facilitatorReady()) return next();
+  return res.status(503).json({
+    error: "payment facilitator unavailable",
+    detail: `facilitator not ready for exact on ${NETWORK}`,
+    retry_after_seconds: 30,
+  });
+});
 app.use(paymentMiddleware(routes, resourceServer, undefined, undefined, false));
 
 // sales log — INV-SETTLE: a request is only a SALE once settle() succeeds on-chain, never on
@@ -554,6 +616,14 @@ app.get("/", (_req, res) =>
     manifest: "/.well-known/x402.json", llms: "/llms.txt",
     pay: "x402 — pay per request in USDC on " + NETWORK, payTo: payTo(),
   }));
+
+// Last middleware: never surface a raw throw as the Express default 500 HTML page — it leaked
+// absolute filesystem paths (observed live 2026-09-30). The full message stays in the local log.
+app.use((err, _req, res, _next) => {
+  console.error(JSON.stringify({ request_failed: String((err && err.message) || err) }));
+  if (res.headersSent) return;
+  res.status(503).json({ error: "payment processing unavailable" });
+});
 
 const server = app.listen(PORT, () =>
   console.log(JSON.stringify({ x402_seller: "up", port: PORT, price: PRICE, network: NETWORK, payTo: payTo() })));
