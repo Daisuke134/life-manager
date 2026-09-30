@@ -1920,3 +1920,20 @@ flowchart LR
 - Chrome Headless: https://developer.chrome.com/docs/automation-and-testing/headless
 
 今回の文書更新はsource truthと実行順だけを変更する。production owner、browser、provider、wallet、cloud resource、subscriptionは変更しない。
+
+### Ryuさん・出勤時系列の最新実装カーソル
+
+Ryuさんの最新DM通知には「出勤の時系列が止まっていますが正常でしょうか？」とある。公式配置を認証済みFTPSで読戻した結果、`content-overrides.json`の出勤は28件・7日分（`2026-08-31`〜`2026-09-06`）で終わっていた。管理画面の既存出勤UIは登録済み日付の編集と新しい女の子の初回出勤追加だけで、既存の女の子を新しい日付へ追加する操作が無かった。したがって、勤務時間を勝手に繰り返し生成するのではなく、明示した日付・女の子・開始・終了・受付状態を1行ずつ追加できるようにすることが根因修正である。
+
+実装はgig専用worktree `fix/ryu-attendance-timeline-20261001`、commit `6678719`で行った。`management-editor.js`へ`v725-attendance-timeline`を追加し、既存キャストの新日付追加、重複日付拒否、保存後API再読戻し一致確認、無断の繰返し勤務生成をしない説明を実装した。`admin.php`のasset queryを`ryu-v725-attendance-timeline`へ更新した。本番反映後の公式FTPS readbackは`/Users/anicca/gig/projects/18211957/delivery/current-cycle-v725-attendance-timeline-readback.json`で、`exact_readback=true`、変更ファイルは管理画面の2ファイルのみ、出勤JSONの件数・日付は変更なしである。オフライン契約、Python/JavaScript構文、dry-run、反映後readbackはPASSした。
+
+現時点の境界はCoconala公式画面である。既存BrowserSkill daemonは稼働しているが、extension接続は0 browser / 0 sessionで、DMの公式永続readbackや送信を実行できない。したがってRyuさんへの返信はまだ送らず、正式納品ボタンも押さない。403や未接続を送信済みの根拠に変換せず、同一本文の再送もしない。
+
+**このカーソルからのatomic TODO（順序の正本）**:
+
+1. [x] 出勤時系列の根因を管理画面の不足機能として再現し、既存キャストの日付追加＋保存後readbackの最小修正を本番へ反映した。
+2. [ ] BrowserSkillの既存Coconala sessionを復旧し、`https://coconala.com/smartphone/direct_messages/10107358`をread-onlyで開く。別browser・別profile・認証迂回はしない。
+3. [ ] 新しい管理画面で「出勤」を開き、v725の既存キャスト／新日付入力欄と保存後表示を画面readbackする。テスト用の実勤務データは追加しない。
+4. [ ] RyuさんDMの最新本文・添付・過去の同一要求を一度だけ収集し、出勤・コンセプト画像・WEB予約文言・相互リンク等の残要求を一つの最終本文へ統合する。未確認要求を推測で補わない。
+5. [ ] 公式DM readbackで重複0件を確認してから、統合本文を1回だけ送信する。正式納品ボタンは押さない。送信後に同一threadを再読込し、provider message idを記録する。
+6. [ ] Ryuさんの公式返信を受けた場合だけ次の修正カーソルを作り、Coconalaのpaid/reply/storefront/application各ownerへ共有kernelのreadback・effect fence・replay-zeroを一つずつ適用する。他platformの収益実績や完了状態をこのreadbackから推測しない。
