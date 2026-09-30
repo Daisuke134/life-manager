@@ -1,5 +1,9 @@
 # Life Manager Cloud Product Implementation Plan
 
+> **Superseded for execution:** AWS is unavailable. The active production plan is `docs/superpowers/plans/2026-09-30-life-manager-digitalocean-cloud.md`. This file preserves completed AgentCore/provider-neutral work and historical evidence only; its AWS TODO order is not the current cursor.
+
+> **Superseded for execution:** AWS is unavailable. The active production plan is `docs/superpowers/plans/2026-09-30-life-manager-digitalocean-cloud.md`. This file preserves completed AgentCore/provider-neutral work and historical evidence only; its AWS TODO order is not the current cursor.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the existing Life Manager as a real multi-tenant cloud product that needs only a phone, runs the same business kernel locally and in the selected isolated cloud runtime, gives every tenant a logically persistent cloud computer, enforces bounded cost, offers a natural no-card Free plan, and collects one verified $49 Founding Pro subscription.
