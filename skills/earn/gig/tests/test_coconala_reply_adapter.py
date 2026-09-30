@@ -1,5 +1,7 @@
 import importlib.util
 from pathlib import Path
+import shutil
+import subprocess
 import pytest
 
 
@@ -289,6 +291,20 @@ def test_modern_dom_contract_is_present_in_both_message_readers():
     assert ".bl_messages-list" in adapter_module.snapshot.MESSAGES_EXPRESSION
     assert ".bl_message" in adapter_module.snapshot.DIRECT_MESSAGE_EXPRESSION
     assert "/smartphone/direct_messages/" in adapter_module.snapshot.DIRECT_INBOX_COVERAGE_EXPRESSION
+
+
+def test_direct_message_expression_is_javascript_parseable():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to parse the browser expression")
+    result = subprocess.run(
+        [node, "--check"],
+        input=adapter_module.snapshot.DIRECT_MESSAGE_EXPRESSION + "\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_fill_expression_supports_current_smartphone_message_input():

@@ -221,6 +221,58 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             self.assertEqual(records[1], f"ensure:buyma:test:{holder}")
             self.assertEqual(records[2], "guard:release:buyma:test:")
 
+    def test_with_browser_falls_back_to_shared_owner_for_protected_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            guard = root / "guard.sh"
+            provision = root / "provision.sh"
+            shared = root / "shared.sh"
+            calls = root / "calls"
+            state = root / "state"
+            guard.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"guard:$1:$2\" >> {calls!s}\n"
+                f"if [ \"$1\" = acquire ] && [ ! -f {state!s} ]; then touch {state!s}; exit 10; fi\n"
+                "if [ \"$1\" = acquire ]; then printf '%s\\n' http://127.0.0.1:54322; exit 0; fi\n",
+                encoding="utf-8",
+            )
+            provision.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' provision >> {calls!s}\n"
+                "exit 1\n",
+                encoding="utf-8",
+            )
+            shared.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' shared >> {calls!s}\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            for script in (guard, provision, shared):
+                script.chmod(0o755)
+            completed = subprocess.run(
+                ["bash", str(ENSURE.with_name("with-browser.sh")), "coconala:kosuke", "--",
+                 "sh", "-c", 'test "$CDP" = http://127.0.0.1:54322'],
+                env={
+                    **os.environ,
+                    "HOME": str(root / "home"),
+                    "AI_BROWSER_GUARD": str(guard),
+                    "AI_ENSURE_PROVISION_BROWSER": str(provision),
+                    "AI_ENSURE_BROWSER": str(shared),
+                    "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.hf-gig-browser",
+                    "BROWSER_WAIT_SECONDS": "1",
+                },
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), [
+                "guard:acquire:coconala:kosuke",
+                "provision",
+                "shared",
+                "guard:acquire:coconala:kosuke",
+                "guard:release:coconala:kosuke",
+            ])
+
     def test_port_zero_preflight_only_reaches_guard_without_cloak_import(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

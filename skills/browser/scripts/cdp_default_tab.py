@@ -11,8 +11,11 @@ sharing or closing one another's tabs.
 """
 import argparse
 import asyncio
+import errno
 import json
 import os
+from pathlib import Path
+import subprocess
 import sys
 import urllib.request
 from urllib.parse import urlparse
@@ -29,6 +32,87 @@ except ImportError:
 
 def _cdp_base():
     return os.environ.get("CLOAK_CDP_BASE_URL", "http://localhost:9222").rstrip("/")
+
+
+def _is_transport_error(error):
+    if isinstance(error, (ConnectionError, TimeoutError)):
+        return True
+    if isinstance(error, OSError) and error.errno in {
+        errno.ECONNREFUSED, errno.ECONNRESET, errno.ETIMEDOUT, errno.ENETUNREACH,
+    }:
+        return True
+    detail = str(error).lower()
+    return any(marker in detail for marker in (
+        "connection refused", "connection reset", "timed out", "timeout",
+        "cannot connect", "websocket connection is closed",
+    )) and "browser_tab_limit" not in detail
+
+
+def _is_capacity_error(error):
+    if isinstance(error, OSError) and error.errno == errno.ENOSPC:
+        return True
+    detail = str(error).lower()
+    return any(marker in detail for marker in (
+        "no space left on device", "database or disk is full", "browser_state_capacity",
+    ))
+
+
+def _recovery_script():
+    configured = os.environ.get("CLOAK_BROWSER_RECOVERY_SCRIPT", "").strip()
+    return Path(configured).expanduser() if configured else Path(__file__).resolve().parents[1] / "ensure_browser.sh"
+
+
+def _recover_browser():
+    script = _recovery_script()
+    if not script.is_file():
+        return False
+    result = subprocess.run(
+        ["bash", str(script)],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=75,
+        check=False,
+        env=os.environ.copy(),
+    )
+    return result.returncode == 0
+
+
+def _recover_capacity():
+    configured = os.environ.get("LIFE_MANAGER_DISK_CLEANUP_SCRIPT", "").strip()
+    script = (
+        Path(configured).expanduser()
+        if configured
+        else Path(__file__).resolve().parents[2] / "self" / "disk-cleanup" / "disk_cleanup.py"
+    )
+    if not script.is_file():
+        return False
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=90,
+        check=False,
+        env=os.environ.copy(),
+    )
+    return result.returncode == 0
+
+
+def _run_with_recovery(operation):
+    """Retry one browser operation after exactly one typed infrastructure recovery."""
+    try:
+        return operation()
+    except Exception as first:
+        recovery = _recover_capacity if _is_capacity_error(first) else _recover_browser if _is_transport_error(first) else None
+        if recovery is None or not recovery():
+            raise
+        try:
+            return operation()
+        except Exception as second:
+            raise RuntimeError(
+                "browser_recovery_exhausted:" + type(second).__name__
+            ) from second
 
 
 def _browser_ws():
@@ -260,26 +344,29 @@ if __name__ == "__main__":
     parser.add_argument("--owner", default=os.environ.get("CLOAK_BROWSER_OWNER"))
     parser.add_argument("--background", action="store_true")
     args = parser.parse_args()
-    try:
+
+    def dispatch():
         if args.command == "open":
-            out = open_tab(
+            return open_tab(
                 args.value or "about:blank",
                 background=args.background,
                 owner=args.owner,
             )
-        elif args.command == "serve-hidden":
+        if args.command == "serve-hidden":
             asyncio.run(
                 _serve_hidden_tab(args.value or "about:blank", owner=args.owner)
             )
-            sys.exit(0)
-        elif args.command == "close":
-            out = (
+            raise SystemExit(0)
+        if args.command == "close":
+            return (
                 close_tab(args.value, owner=args.owner)
                 if args.value
                 else {"ok": False, "reason": "close needs a target_id"}
             )
-        else:
-            out = close_owned_tabs(owner=args.owner)
+        return close_owned_tabs(owner=args.owner)
+
+    try:
+        out = _run_with_recovery(dispatch)
     except Exception as e:
         out = {"ok": False, "reason": f"{type(e).__name__}: {e}"}
     print(json.dumps(out, ensure_ascii=False))
