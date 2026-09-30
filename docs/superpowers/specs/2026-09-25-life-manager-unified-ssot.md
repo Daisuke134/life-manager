@@ -1797,15 +1797,24 @@ Items 1–10は収益critical pathである。cloud providerやwebsiteが魅力�
 
 ### 8. AGMSG実行状態とsessionのGoal契約
 
-常時active writerはorchestratorを含め最大4席とする。writerを起動する前に、重複実装と共有資源衝突を消すため、次の3席を`agmsg spawn ... --boot-prompt`でread-only起動した。`team --json`と`peek`で、登録だけでなくtmux placement、agent key、`gpt-5.6-sol high`で実行中であることを確認した。3席はcode、spec、production、provider、browserを変更しない。
+常時active writerはorchestratorを含め最大4席とする。writerを起動する前に、重複実装と共有資源衝突を消すため、3席を`agmsg spawn ... --boot-prompt`でread-only起動した。3監査は完了し、agmsg history、根拠path、実行testをorchestratorが回収した。完了後は全席をdespawnし、残存したplain-terminal process groupも対象PIDを照合して終了した。code、spec、production、provider、browserへの変更は無い。
 
 | AGMSG member | 目的 | Done | 状態 |
 |---|---|---|---|
-| `lm-notify-audit-0930` | 14 loopのTelegram/email producer、cadence、audience、ACK、dedupe、noiseを棚卸し | file/entrypointごとのproducer表と非重複実装単位 | read-only実行中 |
-| `lm-cfo-gap-0930` | 14 loopのrevenue/refund/cost/net coverageと既存CFO実装の再利用可否を監査 | source/receipt/settlement/cost gap表 | read-only実行中 |
-| `lm-collision-audit-0930` | observability、CFO、TaskMarket、AGI、PromptBase、Investment等のworktree/branch/PR衝突を監査 | shared-file collision matrixと安全な起動順 | read-only実行中 |
+| `lm-notify-audit-0930` | 14 loopのTelegram/email producer、cadence、audience、ACK、dedupe、noiseを棚卸し | 14/14 producer表、共通依存、非重複実装単位 | 完了・despawn済み |
+| `lm-cfo-gap-0930` | 14 loopのrevenue/refund/cost/net coverageと既存CFO実装の再利用可否を監査 | 14/14 coverage表、B0–B7、82 tests PASS、2 tests依存欠落で未検証 | 完了・despawn済み |
+| `lm-collision-audit-0930` | observability、CFO、TaskMarket、AGI、PromptBase、Investment等のworktree/branch/PR衝突を監査 | shared-file collision matrix、直列gate、safe spawn順 | 完了・despawn済み |
+| `lm-taskmarket-packaging-0930` | Atomic item 1のimmutable-release ENOENTをsource-onlyで修正 | failing test、packaged path、no-effect discovery、commit/push | tmux `@4`、agent key一致、実行中 |
 
-既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。writerは3監査の証拠をorchestratorが確認してから起動する。最初のwriterはTaskMarket一席だけであり、同じrelease scriptをhealth writerと同時編集しない。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
+既存の`lm-lead`、`lm-cfo`、`lm-invest`等はteamに登録されているが`no_placement_record`であり、稼働中とは扱わない。3監査の証拠を確認後、最初のwriterとしてTaskMarket一席だけを最新main由来・source-onlyで起動した。同じrelease scriptをhealth writerと同時編集しない。各goalは最新`origin/main`由来の専用worktree、非重複ownership、focused verification、commit/push、証拠報告を必須にする。
+
+監査で固定した事実:
+
+- 14 loop中、official settlement receiptとrefund、fee、model/browser/server費用を全て含むcost-complete net P&Lが完成しているloopは0である。`USD_API_EQUIV`は推定でありofficial costへ数えない。
+- `notification-policy.js`は存在するが、production producerからの参照は0である。routine wake/healthとmaterial outcomeが同じchatへ混在し、fresh run IDごとにdedupe keyが変わることが主な通知ノイズ原因である。
+- CFO実装は`B0 economic attribution contract → B1 Capafy/Mobile、B2 Stripe、B3 Affiliate、B4 Marketplace、B5 Agent Economy/Investment、B6 actual costをfile非重複で並列 → B7 CFO integration`の順とする。
+- TaskMarket source-only修正は他laneと非衝突である。`skills/cfo/**`、notification、registry、SSOT、production applyには触れない。
+- ディスクは約446MiBまで低下していた。clean・remote未送信commit 0・process 0の一時clone 4件と、origin/mainへ収録済み・clean・process 0・非lockのworktree 11件だけを削除し、約2.4GiBへ回復した。lock付き2件、dirty、unique commitあり、指定保護worktreeは保存した。
 
 **Session A — TaskMarket packaging（最初に一席だけ）**
 
