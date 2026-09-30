@@ -19,6 +19,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "economic_attribution"
 SNAPSHOT = "2026-10-01T00:00:00Z"
 TRAILING_START = "2026-09-24T00:00:00Z"
 OVERSIZED_MONEY = ("1e999999", "999999999999999999999999999")
+SILENT_ROUND_MONEY = "99999999999999999999999999.123456789012345678"
 
 
 def canonical_sha256(value):
@@ -524,6 +525,43 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     if row["record_type"] == "coverage"
                 }, {"gap"})
 
+    def test_capafy_rejects_money_that_decimal_context_would_round(self):
+        module = self.require_adapter()
+        payload = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        payload["orders"][0].update({
+            "amount": SILENT_ROUND_MONEY,
+            "actualAmount": SILENT_ROUND_MONEY,
+            "developerActualAmount": SILENT_ROUND_MONEY,
+            "platformFeeAmount": 0,
+        })
+        bind_capafy_content(payload)
+        records = module.adapt_capafy(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertEqual({
+            row["coverage_state"] for row in records
+            if row["record_type"] == "coverage"
+        }, {"gap"})
+
+    def test_capafy_preserves_valid_26_digit_integer(self):
+        module = self.require_adapter()
+        amount = "99999999999999999999999999"
+        payload = json.loads((FIXTURES / "capafy-settled.json").read_text())
+        payload["orders"][0].update({
+            "amount": amount,
+            "actualAmount": amount,
+            "developerActualAmount": amount,
+            "platformFeeAmount": 0,
+        })
+        bind_capafy_content(payload)
+        records = module.adapt_capafy(
+            payload, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertEqual([
+            row["components"] for row in records if row["record_type"] == "receipt"
+        ], [[{"category": "settled_external_revenue", "amount": amount}]])
+
     def test_mobile_only_financial_report_settles_and_mrr_stays_snapshot_only(self):
         records = self.adapt_mobile("mobile-verified.json")
         self.assert_contract_records(records)
@@ -803,6 +841,43 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     for row in records
                 ))
 
+    def test_mobile_financial_rejects_money_that_decimal_context_would_round(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"][0][
+            "extended_partner_share"
+        ] = SILENT_ROUND_MONEY
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(row["record_type"] == "receipt" for row in records))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "app-store-connect-financial"
+            and row["projection"] == "trailing"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_financial_preserves_signed_return_and_trailing_zero(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["app_store_financial"]["data"]["rows"][1][
+            "extended_partner_share"
+        ] = "-200.5000"
+        bind_financial_report_hash(rows)
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        refunds = [
+            row for row in records if row["record_type"] == "receipt"
+            and row["components"][0]["category"] == "refund"
+        ]
+        self.assertEqual(refunds[0]["components"], [
+            {"category": "refund", "amount": "200.5"},
+        ])
+
     def test_mobile_rejects_duplicate_financial_row_identity_with_valid_hash(self):
         module = self.require_adapter()
         rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
@@ -983,6 +1058,42 @@ class CapafyMobileAttributionTest(unittest.TestCase):
                     and row["coverage_state"] == "gap"
                     for row in records
                 ))
+
+    def test_mobile_mrr_rejects_money_that_decimal_context_would_round(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["value"] = SILENT_ROUND_MONEY
+        bind_revenuecat_hash(rows[0])
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        self.assertFalse(any(
+            row["record_type"] == "subscription_snapshot" for row in records
+        ))
+        self.assertTrue(any(
+            row["record_type"] == "coverage"
+            and row["source_id"] == "revenuecat-mrr"
+            and row["coverage_state"] == "gap"
+            for row in records
+        ))
+
+    def test_mobile_mrr_preserves_trailing_zero_without_rounding(self):
+        module = self.require_adapter()
+        rows = json.loads((FIXTURES / "mobile-verified.json").read_text())
+        rows[0]["sources"]["revenuecat"]["data"]["charts"]["mrr"][
+            "latest_complete"
+        ]["MRR"]["value"] = "3000.5000"
+        bind_revenuecat_hash(rows[0])
+        records = module.adapt_mobile(
+            rows, snapshot_at=SNAPSHOT, trailing_start=TRAILING_START,
+        )
+        snapshots = {
+            row["subscription_id"]: row["normalized_monthly_amount"]
+            for row in records if row["record_type"] == "subscription_snapshot"
+        }
+        self.assertEqual(snapshots["revenuecat:anicca-ios:mrr"], "3000.5")
 
     def test_mobile_current_producer_shape_is_explicit_fail_closed_input(self):
         records = self.adapt_mobile("mobile-current-producer.json")

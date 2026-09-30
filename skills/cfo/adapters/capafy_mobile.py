@@ -75,6 +75,11 @@ def _epoch_millis(value: Any) -> str:
         raise ValueError("timestamp_invalid") from None
 
 
+def _canonical_money_text(amount: Decimal) -> str:
+    text = format(amount, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def _bounded_decimal(value: Any, *, signed: bool = False) -> Decimal:
     if isinstance(value, bool) or value is None:
         raise ValueError("amount_invalid")
@@ -87,7 +92,9 @@ def _bounded_decimal(value: Any, *, signed: bool = False) -> Decimal:
         raise ValueError("amount_invalid")
     try:
         amount = Decimal(raw)
-        if not amount.is_finite():
+        exact = _canonical_money_text(amount.copy_abs())
+        normalized = _canonical_money_text(amount.copy_abs().normalize())
+        if not amount.is_finite() or normalized != exact:
             raise ValueError("amount_invalid")
         return amount
     except (DecimalException, ArithmeticError, ValueError):
@@ -99,7 +106,7 @@ def _money(value: Any, *, allow_zero: bool = True) -> str:
         amount = _bounded_decimal(value)
         if not amount.is_finite() or amount < 0 or (not allow_zero and amount == 0):
             raise ValueError("amount_invalid")
-        return format(amount.normalize(), "f") if amount else "0"
+        return _canonical_money_text(amount) if amount else "0"
     except (DecimalException, ArithmeticError, ValueError):
         raise ValueError("amount_invalid") from None
 
