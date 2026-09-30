@@ -2930,3 +2930,19 @@ def test_heartbeat_durable_reports_busy_control_lock_as_transient(monkeypatch, t
     monkeypatch.setattr(admission, "_acquire_bounded", lambda *_a, **_k: False)
     with pytest.raises(RuntimeError, match="control_busy"):
         admission.heartbeat_durable(tmp_path / "claim", now=1)
+
+
+def test_effect_fence_lookup_uses_ordered_partial_index(tmp_path):
+    database = tmp_path / "admission-v2.sqlite3"
+    connection = admission._database(database)
+    try:
+        plan = connection.execute(
+            "EXPLAIN QUERY PLAN SELECT occurrence_id,queued_at FROM occurrences "
+            "WHERE owner_id=? AND effect_unknown=1 ORDER BY queued_at,occurrence_id LIMIT 21",
+            ("example",),
+        ).fetchall()
+        details = " ".join(str(row[3]) for row in plan)
+        assert "idx_occurrences_effect_owner_queue" in details
+        assert "TEMP B-TREE" not in details
+    finally:
+        connection.close()

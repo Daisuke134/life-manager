@@ -540,6 +540,13 @@ def _database(path: Path) -> sqlite3.Connection:
             """CREATE INDEX IF NOT EXISTS idx_occurrences_state_effect
                ON occurrences(state,effect_unknown,queued_at,occurrence_id)"""
         )
+        # Status fence lookup omits state, so the existing owner/state index
+        # cannot satisfy its filter and ordered LIMIT without a temporary sort.
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS idx_occurrences_effect_owner_queue
+               ON occurrences(owner_id,queued_at,occurrence_id)
+               WHERE effect_unknown=1"""
+        )
         connection.commit()
     except Exception:
         connection.rollback()
