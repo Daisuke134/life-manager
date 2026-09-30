@@ -120,17 +120,45 @@ PRE_ONLINE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,sys; print(
 RESUME="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
 d=json.load(sys.stdin); i=d.get("item") or {}
 if d.get("action") == "resume_draft" and i.get("agent_id") and i.get("skill") and i.get("listing"):
-    print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"], sep="\t")' 2>>"$LOG")"
+    print(i["agent_id"], os.path.basename(os.path.dirname(i["skill"])), i["listing"],
+          os.path.dirname(i["skill"]), i.get("icon",""), sep="\t")' 2>>"$LOG")"
+REUSE_PREPARE_ID=""
+FRESH=""
 if [ -n "$RESUME" ]; then
-  IFS=$'\t' read -r R_ID R_SKILL R_LISTING <<<"$RESUME"
-  R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
-  R_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_version_id",""))' "$R_MANIFEST" 2>>"$LOG")"
-  if [ -n "$R_VERSION" ] && bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
-    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
-    echo "=== $TS daily_loop done rc=0 (RESUMED — $R_ID finished CP2/CP3 deterministically; no LLM spend) ===" >> "$LOG"
-    exit 0
+  IFS=$'\t' read -r R_ID R_SKILL R_LISTING R_SKILL_DIR R_ICON <<<"$RESUME"
+  # A catalog-wide model switch (LISTING.md's Primary Model changed after this
+  # draft's package/hosted-key were already confirmed) leaves the CONFIRMED
+  # hosted model stale server-side -- deterministic finish would silently keep
+  # re-saving the OLD model forever (2026-09-29, Agent 4973250899: LISTING said
+  # DeepSeek, requiredCredentials still said Sonnet). Detect it BEFORE trusting
+  # the "already confirmed, skip prepare/CP2" shortcut.
+  MODEL_CHECK="$(python3 "$AUTO/scripts/check_hosted_model.py" --agent-id "$R_ID" --listing "$R_LISTING" 2>&1)"
+  echo "$TS resume_draft $R_ID model-check: $MODEL_CHECK" >> "$LOG"
+  # A draft whose package never finished uploading (Hook Lab 8123079349 v1.0.4,
+  # 2026-09-29: all tabs red, workspace blank, no confirmed model) cannot be
+  # finished from CP1 either -- re-prepare it on the same agent_id like a mismatch.
+  if printf '%s' "$MODEL_CHECK" | grep -qE '^(MODEL_MISMATCH|MODEL_UNKNOWN no-confirmed-model-yet)'; then
+    if [ -n "$R_SKILL_DIR" ] && [ -n "$R_ICON" ]; then
+      # Same-agent model switch: re-prepare on the SAME agent_id with the
+      # CURRENT LISTING model (CP1_AGENTIC.md "Switching an EXISTING agent's
+      # hosted model resets Skill confirmation"). Reuses the existing
+      # create_fresh prepare+agentic-CP1+publish_finish pipeline below instead
+      # of a second implementation.
+      FRESH="$(printf '%s\t%s\t%s' "$R_SKILL_DIR" "$R_LISTING" "$R_ICON")"
+      REUSE_PREPARE_ID="$R_ID"
+    else
+      echo "$TS resume_draft $R_ID: model mismatch but item is missing skill_dir/icon; falling back to the agentic runbook" >> "$LOG"
+    fi
+  else
+    R_MANIFEST="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}/work/agents/$R_ID/publish-work-state.json"
+    R_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("agent_version_id",""))' "$R_MANIFEST" 2>>"$LOG")"
+    if [ -n "$R_VERSION" ] && bash "$AUTO/scripts/publish_finish.sh" "$R_ID" "$R_SKILL" "$R_LISTING" "$R_VERSION" >>"$LOG" 2>&1; then
+      touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+      echo "=== $TS daily_loop done rc=0 (RESUMED — $R_ID finished CP2/CP3 deterministically; no LLM spend) ===" >> "$LOG"
+      exit 0
+    fi
+    echo "$TS resume_draft $R_ID: deterministic finish did not complete; falling back to the agentic runbook" >> "$LOG"
   fi
-  echo "$TS resume_draft $R_ID: deterministic finish did not complete; falling back to the agentic runbook" >> "$LOG"
 fi
 
 # PUBLISHABLE → the shared agent runner tries the configured tool-agent providers in order and
@@ -139,6 +167,61 @@ fi
 PROMPT="Follow this runbook exactly and do ONE iteration, terse output: $(cat "$AUTO/DAILY_LOOP.md")
 AUTHORITATIVE INVENTORY ACTION: $(printf '%s' "$INV" | tail -1)
 Execute exactly that action/item. Do not select or substitute another item from stale ledger or rejection history."
+# create_fresh: run the deterministic prepare here, not inside the agent. The
+# agent's own per-command timeout killed publish_prepare.sh mid-run on
+# 2026-09-28 (Agent 4973250899 was created but its ID never came back), leaving
+# an orphan draft. The agent now only drives CP1; publish_finish runs after it.
+# FRESH may already be set above (a resume_draft model-switch re-prepare) --
+# do not let a create_fresh (re-)read from $INV clobber that.
+if [ -z "$FRESH" ]; then
+  FRESH="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}
+if d.get("action") == "create_fresh" and i.get("skill") and i.get("listing") and i.get("icon"):
+    print(os.path.dirname(i["skill"]), i["listing"], i["icon"], sep="\t")' 2>>"$LOG")"
+fi
+# Paid existing-Agent updates must use the same deterministic prepare/CP1/finish
+# path as a fresh listing, while fencing the exact remote source version. Without
+# this branch they fall through to the generic agent prompt, which has no bound
+# Agent publisher home and fails before CP1 for an older download listing.
+UPDATE_EXPECTED_ID=""
+UPDATE_EXPECTED_FROM_VERSION=""
+if [ -z "$FRESH" ]; then
+  UPDATE="$(printf '%s' "$INV" | tail -1 | python3 -c 'import json,os,sys
+d=json.load(sys.stdin); i=d.get("item") or {}; u=i.get("update_request") or {}
+if (d.get("action") == "update_existing" and i.get("skill") and i.get("listing")
+        and i.get("icon") and i.get("agent_id") and u.get("from_version_id")):
+    print(os.path.dirname(i["skill"]), i["listing"], i["icon"], i["agent_id"],
+          u["from_version_id"], sep="\t")' 2>>"$LOG")"
+  if [ -n "$UPDATE" ]; then
+    IFS=$'\t' read -r F_SKILL_DIR F_LISTING F_ICON UPDATE_EXPECTED_ID UPDATE_EXPECTED_FROM_VERSION <<<"$UPDATE"
+    FRESH="$(printf '%s\t%s\t%s' "$F_SKILL_DIR" "$F_LISTING" "$F_ICON")"
+  fi
+fi
+PREPARED=""
+if [ -n "$FRESH" ]; then
+  IFS=$'\t' read -r F_SKILL_DIR F_LISTING F_ICON <<<"$FRESH"
+  PREP_OUT="$(CAPAFY_EXPECTED_AGENT_ID="$UPDATE_EXPECTED_ID" CAPAFY_EXPECTED_FROM_VERSION_ID="$UPDATE_EXPECTED_FROM_VERSION" bash "$AUTO/scripts/publish_prepare.sh" "$F_SKILL_DIR" "$F_LISTING" "$F_ICON" "$REUSE_PREPARE_ID" 2>&1)"
+  PREP_RC=$?
+  printf '%s\n' "$PREP_OUT" >> "$LOG"
+  F_ID="$(printf '%s\n' "$PREP_OUT" | sed -n 's/^AGENT_ID=//p' | tail -1)"
+  F_VERSION="$(printf '%s\n' "$PREP_OUT" | sed -n 's/^AGENT_VERSION_ID=//p' | tail -1)"
+  if [ "$PREP_RC" -ne 0 ] || [ -z "$F_ID" ] || [ -z "$F_VERSION" ]; then
+    echo "=== $TS daily_loop done rc=1 (PREPARE_FAILED rc=$PREP_RC — no agent spend) ===" >> "$LOG"
+    exit 1
+  fi
+  PREPARED="1"
+  if [ -n "$REUSE_PREPARE_ID" ]; then
+    PROMPT="$PROMPT
+SAME-AGENT MODEL SWITCH already re-prepared by the wrapper for agent_id=$F_ID (CP1_AGENTIC.md 'Switching an EXISTING agent's hosted model resets Skill confirmation'). Do NOT run publish_prepare.sh or publish_finish.sh. Its output:
+$PREP_OUT
+Do only step 5b: open the Agent ワークスペース tab, click the pending skill card (badge 保留中 -> 確認済み) per that CP1_AGENTIC.md section, until official publish-remote-status shows latest_version.is_confirmed_skills=true, then stop. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+  else
+  PROMPT="$PROMPT
+PREPARE ALREADY DONE by the wrapper — do NOT run publish_prepare.sh or publish_finish.sh. Its output:
+$PREP_OUT
+Do only step 5b: drive CP1 per CP1_AGENTIC.md with the exact EDIT_URL_FILE above until official publish-remote-status shows latest_version.is_confirmed_skills=true, then stop. The wrapper runs publish_finish.sh (CP2 -> CP3) after you."
+  fi
+fi
 EVIDENCE_DIR="$LIFE_MANAGER_STATE_HOME/state/agent-runner-evidence/capafy-drainer/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | timeout 1200 env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
   --task-class application-lane-agent \
@@ -147,6 +230,20 @@ printf '%s\n' "$PROMPT" | timeout 1200 env -u ANTHROPIC_API_KEY "$RUN_AGENT" \
   --loop capafy \
   --workdir "$LIFE_MANAGER_REPO" >> "$LOG" 2>&1
 RC=$?
+if [ -n "$PREPARED" ]; then
+  F_SKILL="$(basename "$F_SKILL_DIR")"
+  if bash "$AUTO/scripts/publish_finish.sh" "$F_ID" "$F_SKILL" "$F_LISTING" "$F_VERSION" >> "$LOG" 2>&1; then
+    RC=0; echo "$TS prepared $F_ID: publish_finish completed (CP2 -> CP3)" >> "$LOG"
+    # Same healthy terminal as RESUMED above: one submission per pass is the goal, and the
+    # queue still holds more updates, so post-verdict stays PUBLISHABLE and the branch below
+    # would log BLOCKED and wake self-fix for a successful pass (live 2026-09-29 23:40, 1037238583).
+    touch "$MARK"; echo 0 > "$CAPAFY_STATE_DIR/.maxturns-streak"
+    echo "=== $TS daily_loop done rc=0 (SUBMITTED — $F_ID finished CP2/CP3 after prepare) ===" >> "$LOG"
+    exit 0
+  else
+    echo "$TS prepared $F_ID: publish_finish did not complete; draft resumes on a later pass" >> "$LOG"
+  fi
+fi
 
 # Post-run truth: did a listing actually go live (online_count increased), not just "did the
 # rejected/publishable buckets empty out"? A REVIEW_REJECTED item resubmitted into under_review also

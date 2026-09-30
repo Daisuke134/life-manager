@@ -252,6 +252,8 @@ class CleanUserInstallTest(unittest.TestCase):
             result.stdout.strip(),
             f"{ROOT}/skills/earn/gig/scripts/gig_disk_guard.py /bin/echo "
             f"{ROOT}/skills/earn/gig/scripts/paid_direct.py "
+            "--require-paid-handoff "
+            f"--coconala-paid-adapter {ROOT}/skills/earn/gig/scripts/coconala_paid_adapter.py "
             "--output /home/owner/gig/evidence/paid-direct-live/latest.json "
             "--evidence-dir /home/owner/gig/evidence/paid-direct-live "
             "--projects-root /home/owner/gig/projects "
@@ -438,6 +440,7 @@ class CleanUserInstallTest(unittest.TestCase):
         )
         self.assertEqual(result.stdout.strip().splitlines(), [
             f"{ROOT}/skills/_shared/marketplace-core/scripts/paid_kernel.py "
+            "--require-paid-handoff "
             f"--provider-adapter {ROOT}/skills/earn/lancers/scripts/paid_adapter.py "
             f"--state-root {state_root}/paid --output {state_root}/paid-latest.json "
             f"--max-workers 1 "

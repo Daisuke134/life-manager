@@ -5,9 +5,12 @@ R2 recurring output: Each cycle produces a fresh, traceable board-update storybo
 day-8 answer       : New operating results, open risks, and board questions make the prior outline stale.
 demand evidence    : The cached offline sales-selector record names a slide-deck skill as the official seller winner; this narrower board-update job is an unverified candidate, not a sales claim.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10 only (no month/year). Matches "MLB Baseball Analysts" (agent `5315711748`, category 2, 35 sales): week $9.99/month $24.99/year $149.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 20 | No Free Trial |
+| week | $9.99 | 7 | No Free Trial |
+| month | $24.99 | 20 | No Free Trial |
+| year | $149.99 | 192 | No Free Trial |
 
 ## Title
 Board Update Deck Builder — Metrics to Decisions

@@ -39,6 +39,7 @@ ICONS = os.environ.get("CAPAFY_ICONS_DIR") or str(STATE_HOME / "assets/capafy/ic
 FEATURES = os.environ.get("CAPAFY_FEATURES_DIR") or str(STATE_HOME / "features")
 SKILLS = os.environ.get("CAPAFY_SKILLS_ROOT") or str(REPO_ROOT / "skills")
 CATALOG = os.environ.get("CAPAFY_CATALOG_DIR") or str(REPO_ROOT / "skills/capafy/catalog")
+ANALYTICS_PATH = os.environ.get("CAPAFY_ANALYTICS_PATH") or str(STATE_HOME / "state/capafy-skill-analytics.json")
 
 ONLINE = {"online"}
 READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
@@ -52,6 +53,12 @@ UNLISTED = {"draft", "under_review", "review_rejected"}
 REJECTED = {"review_rejected", "banned"}
 RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
 CAP = 5
+
+# Capafy's AI-generator stamps this exact suffix on the stub draft it creates
+# before any repo content is supplied. Must match select_publish_agent.py's
+# PLACEHOLDER_SUFFIX byte-for-byte (including the em dash) or the retry below
+# and that selector's --reuse-agent-id title check would silently diverge.
+PLACEHOLDER_SUFFIX = " (LM generated — please review and edit before saving)"
 
 # P-14 (2026-09-27): the seller list field `agentStatus` can go stale after Capafy
 # approves the latest version -- 5 agents sat at list agentStatus=under_review for
@@ -183,30 +190,99 @@ def normalize_agents(agents, detail_fetcher=None, detail_fetch_cap=DETAIL_FETCH_
     return {"readable": structurally_valid, "counts": counts, "agents": normalized}
 
 
+def load_revenue_by_agent(path=None):
+    """Best-effort {agent_id: 30d-revenue-usd} from the analytics snapshot, so
+    allocate_action can order same-Agent updates by demand instead of agent_id
+    string order. Missing/unreadable file or malformed rows just yield {} --
+    the caller's tie-break on agent_id keeps working with no revenue data.
+    """
+    try:
+        rows = json.load(open(path or ANALYTICS_PATH, encoding="utf-8")).get("per_skill_rows")
+        if not isinstance(rows, list):
+            return {}
+        out = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            agent_id = str(row.get("agent_id") or "").strip()
+            if not agent_id:
+                continue
+            try:
+                out[agent_id] = float(row.get("stats_30d_revenue_usd") or 0.0)
+            except (TypeError, ValueError):
+                continue
+        return out
+    except Exception:
+        return {}
+
+
+def update_priority_key(revenue_by_agent):
+    """Order queued same-Agent updates by 30d revenue descending (highest-demand
+    update ships first when a review slot is free), agent_id ascending to break
+    ties deterministically."""
+    def key(row):
+        agent_id = str(row.get("agent_id") or "")
+        return (-revenue_by_agent.get(agent_id, 0.0), agent_id)
+    return key
+
+
 def allocate_action(normalized, retries, publishable, resumable_drafts=None, recoveries=None,
-                    ready_to_publish=None, updates=None):
+                    ready_to_publish=None, updates=None, stub_retries=None, revenue_by_agent=None):
     """Choose at most one stable action without performing any platform write.
 
     An exact-title repository draft can be resumed in place even when all five
     submission slots are occupied: finishing that existing Agent does not create
     a sixth Agent.  The optional argument keeps the pre-resume call contract
     compatible for callers that only provide retry/fresh candidates.
+
+    stub_retries carries Capafy AI-generator stub drafts (name = "<title> (LM
+    generated ...)") whose stripped title matches a ready repo_catalog listing.
+    Like resumable_drafts/recoveries, this reuses an EXISTING occupied Agent id
+    (via publish_prepare.sh's --reuse-agent-id), so it must proceed even at
+    occupied=5 -- it frees no new slot and needs none.
     """
     resumable_drafts = resumable_drafts or []
     recoveries = recoveries or []
     ready_to_publish = ready_to_publish or []
     updates = updates or []
+    stub_retries = stub_retries or []
     if not normalized.get("readable"):
         return {"verdict": "SERVER_UNREADABLE"}
     occupied = (normalized.get("counts") or {}).get("occupied")
     if not isinstance(occupied, int) or isinstance(occupied, bool) or occupied < 0:
         return {"verdict": "SERVER_UNREADABLE"}
+    # A same-Agent update whose first pass already publish-init'd a new draft
+    # version must be RESUMED to completion before any other action -- including
+    # starting a DIFFERENT queued update. Without this, each pass's "updates"
+    # check below only matches a target still online on from_version_id; once
+    # publish_prepare.sh flips that target to draft, it drops out of `updates`
+    # and the highest-revenue check picks the NEXT queued update instead, which
+    # itself becomes an abandoned draft next pass. 2026-09-29: Hook Lab ->
+    # Slide Maker -> TikTok Script Pro, three orphan update drafts in 40
+    # minutes, none finished, none reaching review. `resumable_drafts` already
+    # contains this row (same repo_catalog title, agentStatus=draft); only its
+    # priority relative to `updates` needed to change. Never create a second
+    # draft for the same UPDATE.json.
+    update_in_progress = [row for row in resumable_drafts if row.get("update_request")]
+    if update_in_progress:
+        item = min(update_in_progress, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "resume in-progress same-Agent update draft before starting another",
+            "action": "resume_draft",
+            "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
     # A profit-fixing update of a paid Agent outranks resuming a draft whenever a
     # review slot is free: on 2026-09-28 one draft whose CP2 kept failing was
     # re-selected every wake while three slots sat empty and Hook Lab's
     # DeepSeek update (cost > revenue on Sonnet) waited behind it.
+    #
+    # Among several queued updates, highest 30d revenue ships first (2026-09-29:
+    # four Sonnet->DeepSeek repricing updates queued at once; agent_id-string
+    # order picked an arbitrary one instead of the highest-demand agent).
     if updates and occupied < CAP:
-        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
         return {
             "verdict": "PUBLISHABLE",
@@ -239,6 +315,18 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "reason": "resume exact-title repository draft",
             "action": "resume_draft",
             "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
+    if stub_retries:
+        item = min(
+            stub_retries,
+            key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")),
+        )
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "retry Capafy AI-generator stub draft on the same agent_id",
+            "action": "retry_existing",
+            "action_key": f"retry:{item['agent_id']}",
             "item": item,
         }
     if ready_to_publish:
@@ -276,7 +364,7 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "item": item,
         }
     if updates:
-        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        item = min(updates, key=update_priority_key(revenue_by_agent or {}))
         request = item["update_request"]
         return {
             "verdict": "PUBLISHABLE",
@@ -387,19 +475,28 @@ def ready_inventory():
             icon = next((os.path.join(d, candidate) for candidate in ("icon.png", "icon.jpg", "icon.webp", "icon.svg")
                          if os.path.isfile(os.path.join(d, candidate))), None)
             title = listing_title(listing) if os.path.isfile(listing) else None
+            update_file = os.path.join(d, "UPDATE.json")
+            update_request = None
+            if os.path.isfile(update_file):
+                request = json.load(open(update_file, encoding="utf-8"))
+                target_model = str(request.get("target_model_id") or "").strip()
+                # target_one_time_fee updates the Download-mode Pricing card only
+                # (a price-only same-Agent update — no hosted model, no CP2, no
+                # package re-upload); target_model_id updates the hosted LLM.
+                # Exactly one target kind is required.
+                target_fee = str(request.get("target_one_time_fee") or "").strip()
+                if (not isinstance(request, dict)
+                        or not all(str(request.get(key) or "").isdigit()
+                                   for key in ("agent_id", "from_version_id"))
+                        or not (target_model or target_fee)):
+                    raise ValueError(f"invalid same-Agent update request: {name}")
+                update_request = request
             if title and icon and os.path.isfile(skill):
                 item = {"feature": f"catalog:{name}", "title": title, "icon": icon,
                         "listing": listing, "skill": skill, "source": "repo_catalog",
                         "demand_rank": listing_demand_rank(listing)}
-                update_file = os.path.join(d, "UPDATE.json")
-                if os.path.isfile(update_file):
-                    request = json.load(open(update_file, encoding="utf-8"))
-                    if (not isinstance(request, dict)
-                            or not all(str(request.get(key) or "").isdigit()
-                                       for key in ("agent_id", "from_version_id"))
-                            or not str(request.get("target_model_id") or "").strip()):
-                        raise ValueError(f"invalid same-Agent update request: {name}")
-                    item["update_request"] = request
+                if update_request:
+                    item["update_request"] = update_request
                 items.append(item)
 
     # The repository catalog is authoritative when a legacy candidate has the same title.
@@ -491,6 +588,34 @@ def main():
         title = (agent.get("name") or "").strip()
         retry_items.append({"agent_id": str(agent.get("agentId")), "title": title,
                             **ready_by_title[title]})
+
+    # Capafy's AI-generator drops a stub draft named "<title> (LM generated —
+    # please review and edit before saving)" (e.g. draft 4973250899 measured
+    # 2026-09-29). No stage title-matched that suffix, so the stub occupied a
+    # slot forever (CAP_FULL) while ready catalog items queued behind it. Strip
+    # the suffix; if what's left matches a ready repo_catalog title, retry it
+    # through the SAME path as a review_rejected repair (publish_prepare.sh's
+    # --reuse-agent-id, which select_publish_agent.py already accepts for a
+    # draft named title+PLACEHOLDER_SUFFIX) so CP1 gets re-driven from the repo
+    # LISTING.md on the same agent_id instead of leaking the slot. A stub whose
+    # stripped name has no ready repo_catalog title stays untouched (occupied).
+    # This reuses an already-occupied Agent id, so -- like resumable_drafts and
+    # recover_delisted -- it must proceed even at occupied=5 (stub_retries is
+    # passed to allocate_action separately from the cap-gated `retries` list).
+    stub_titles_seen = set()
+    stub_retry_items = []
+    for a in agents:
+        if a.get("agentStatus") != "draft":
+            continue
+        name = (a.get("name") or "").strip()
+        if not name.endswith(PLACEHOLDER_SUFFIX):
+            continue
+        title = name[: -len(PLACEHOLDER_SUFFIX)].strip()
+        item = ready_by_title.get(title)
+        if not item or item.get("source") != "repo_catalog" or title in stub_titles_seen:
+            continue
+        stub_titles_seen.add(title)
+        stub_retry_items.append({"agent_id": str(a.get("agentId")), "title": title, **item})
     fresh_items = [
         {key: item[key] for key in ("feature", "title", "icon", "listing", "skill", "source", "demand_rank")}
         for item in publishable
@@ -505,7 +630,7 @@ def main():
     ]
     v = allocate_action(
         normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
-        updates=update_items,
+        updates=update_items, stub_retries=stub_retry_items, revenue_by_agent=load_revenue_by_agent(),
     )
 
     v.update({

@@ -13,6 +13,9 @@ CAPITAL_CAP = Decimal("100.00")
 TRADE_LOSS_CAP = Decimal("10.00")
 DAILY_LOSS_CAP = Decimal("20.00")
 MAX_AGE_SECONDS = Decimal("30")
+MAX_FUTURE_SKEW_SECONDS = Decimal("10")
+CAPITAL_LADDER_USD = tuple(Decimal(value) for value in ("100", "1000", "10000", "100000"))
+LADDER_MIN_ROUND_TRIPS = 30
 
 
 def _number(value: Any) -> Decimal:
@@ -61,8 +64,12 @@ def evaluate_entry(snapshot: dict[str, Any], max_loss_usd: Any,
         checks = {
             "allocated_capital": allocated >= 0 and allocated + loss <= CAPITAL_CAP,
             "daily_loss": min(equity_pnl, official_pnl) - loss >= -DAILY_LOSS_CAP,
-            "fresh": Decimal(str((current - observed).total_seconds())) >= 0
-                     and Decimal(str((current - observed).total_seconds())) <= MAX_AGE_SECONDS,
+            # Provider clocks can lead the local host by a few seconds. Keep a
+            # small explicit bound; an old or materially future snapshot still
+            # fails closed.
+            "fresh": -MAX_FUTURE_SKEW_SECONDS <= Decimal(
+                str((current - observed).total_seconds())
+            ) <= MAX_AGE_SECONDS,
             "new_york_day": snapshot.get("ny_day") == ny_day,
             "trade_max_loss": loss > 0 and loss <= TRADE_LOSS_CAP,
         }

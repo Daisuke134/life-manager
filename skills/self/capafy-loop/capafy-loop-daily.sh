@@ -81,6 +81,34 @@ python3 "$TERMINAL_TOOL" start --ledger "$TERMINAL_LEDGER" \
 bash "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh" \
   >>"$LOG" 2>&1 || exit $?
 
+# C6 daily decision loop: once per local calendar day, refresh the successful-seller
+# market sweep and decide (losing money -> model switch, underpriced -> reprice,
+# zero-sales-with-views -> retire candidate, uncovered top category -> opportunity),
+# then queue UPDATE.json/opportunity files the factory already reads and Telegram the
+# numbers. Best-effort: never blocks or fails the hourly money loop, and never writes
+# to Capafy itself (read-only search + GET only).
+DAILY_DECISION_CADENCE_STATE="$HOME/.local/state/life-manager/state/capafy-daily-decision-cadence.json"
+DAILY_DECISION_TOOL="$SCRIPT_DIR/capafy_daily_decision.py"
+MARKET_SWEEP_TOOL="$SCRIPT_DIR/capafy_market_sweep.py"
+if python3 "$OFFLINE_CADENCE_TOOL" claim --state "$DAILY_DECISION_CADENCE_STATE" \
+    --day "$(date +%F)" --execution-id "$EXECUTION_ID" >>"$LOG" 2>&1; then
+  python3 "$MARKET_SWEEP_TOOL" >>"$LOG" 2>&1 || echo "[c6] market sweep failed (non-fatal)" >>"$LOG"
+  DECISION_OUT="$(python3 "$DAILY_DECISION_TOOL" 2>>"$LOG")"
+  if [ -n "$DECISION_OUT" ]; then
+    echo "$DECISION_OUT" >>"$LOG"
+    DECISION_SUMMARY="$(printf '%s' "$DECISION_OUT" | python3 -c 'import json,sys
+print(json.load(sys.stdin).get("telegram_summary",""))' 2>>"$LOG")"
+    [ -n "$DECISION_SUMMARY" ] && bash "$LIFE_MANAGER_RELEASE_ROOT/skills/_shared/send-telegram.sh" \
+      "$DECISION_SUMMARY" >>"$LOG" 2>&1 || true
+  else
+    echo "[c6] daily decision produced no output (non-fatal)" >>"$LOG"
+  fi
+  # Goal metric = money that reaches the bank (earnings after Capafy's cut - API cost).
+  PROFIT_REPORT="$(python3 "$SCRIPT_DIR/capafy_profit_report.py" 2>>"$LOG")"
+  [ -n "$PROFIT_REPORT" ] && bash "$LIFE_MANAGER_RELEASE_ROOT/skills/_shared/send-telegram.sh" \
+    "$PROFIT_REPORT" >>"$LOG" 2>&1 || true
+fi
+
 # Keep the published ledger synchronized even when the publish queue is full.
 # The CAP_FULL fast-path below intentionally avoids the drainer, which normally
 # performs this reconciliation.  Without it, live server listings accumulated
@@ -108,7 +136,7 @@ if [ "$VERDICT" = "CAP_FULL" ] && [ ! -f "$SELFHEAL_REQUEST" ]; then
   BACKLOG="$HOME/.local/state/life-manager/state/capafy-candidate-backlog.json"
   READY_BEFORE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("counts",{}).get("ready",0))' "$BACKLOG")"
   EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/capafy-offline-build/$(date +%s)-$$"
-  OFFLINE_PROMPT='Build exactly ONE differentiated, honest Capafy skill candidate OFFLINE inside $LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog/<new-slug>/. Use only executables from $LIFE_MANAGER_RELEASE_ROOT. This is a CAP_FULL pass: NEVER call Capafy create/publish/configure/ship/submit APIs or UI, and never modify any remote platform state. Use sales_selector.py plus current inventory and existing catalog to avoid duplicates. Produce SKILL.md, LISTING.md, icon.svg, and evidence/verified-demonstration.md containing a concrete input, actual output, and verification notes. Follow the repository skill-creator quality contract, keep claims within what the skill can actually do. Build the next candidate in a proven winner family (BEST_PRACTICES.md §13): a Hook Lab variant for a specific platform/niche (Reels, YouTube Shorts, ads, podcasts, newsletters), a finance summary skill, or a sports analysis skill; use DeepSeek V4.1 Flash as Primary Model; set day=No Free Trial, week/month=a free trial per BEST_PRACTICES.md §3; set a Demand rank in LISTING.md; follow the description template in BEST_PRACTICES.md §13. Run the release-owned listing lint. Commit, push, merge through a PR, and verify origin/main contains the completed source change. Return status=success only after all four repo-owned artifacts exist, lint passes, and the commit is an ancestor of origin/main; otherwise status=failure. Include the created path, commit, merged-main readback, and lint evidence.'
+  OFFLINE_PROMPT='Build exactly ONE differentiated, honest Capafy skill candidate OFFLINE inside $LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog/<new-slug>/. Use only executables from $LIFE_MANAGER_RELEASE_ROOT. This is a CAP_FULL pass: NEVER call Capafy create/publish/configure/ship/submit APIs or UI, and never modify any remote platform state. Use sales_selector.py plus current inventory and existing catalog to avoid duplicates. If $HOME/.local/state/life-manager/state/capafy-candidate-opportunities.json exists and has items, prefer its highest-total_sales uncovered category (C6 daily market-sweep finding) over guessing a family yourself. Produce SKILL.md, LISTING.md, icon.svg, and evidence/verified-demonstration.md containing a concrete input, actual output, and verification notes. Follow the repository skill-creator quality contract, keep claims within what the skill can actually do. Build the next candidate in a proven winner family (BEST_PRACTICES.md §13): a Hook Lab variant for a specific platform/niche (Reels, YouTube Shorts, ads, podcasts, newsletters), a finance summary skill, or a sports analysis skill; use DeepSeek V4.1 Flash as Primary Model; set day=No Free Trial, week/month=a free trial per BEST_PRACTICES.md §3; set a Demand rank in LISTING.md; follow the description template in BEST_PRACTICES.md §13. Run the release-owned listing lint. Commit, push, merge through a PR, and verify origin/main contains the completed source change. Return status=success only after all four repo-owned artifacts exist, lint passes, and the commit is an ancestor of origin/main; otherwise status=failure. Include the created path, commit, merged-main readback, and lint evidence.'
   printf '%s\n' "$OFFLINE_PROMPT" | AGENT_RUNNER_EVIDENCE_MIN_FREE_BYTES=67108864 "$RUN_AGENT" \
     --task-class application-lane-agent --schema "$PASS_SCHEMA" --evidence-dir "$EVIDENCE_DIR" \
     --task-label capafy-offline-daily --loop capafy \

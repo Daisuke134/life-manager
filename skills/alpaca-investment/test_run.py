@@ -1,10 +1,12 @@
 import json
 import importlib.util
+import subprocess
 import sys
 import tempfile
 import threading
 import unittest
 from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -29,6 +31,17 @@ def _publisher_probe(root: Path) -> tuple[Path, Path]:
 
 
 class DeploymentProfileTest(unittest.TestCase):
+    def test_reconciliation_pending_is_a_hold_not_a_generic_failure(self):
+        self.assertTrue(MODULE._reconciliation_is_pending({
+            "pending": 1, "reconciled": 0, "unresolved": 1, "deferred": 1,
+        }))
+        self.assertFalse(MODULE._reconciliation_is_pending({
+            "pending": 1, "reconciled": 0, "unresolved": 1,
+        }))
+        self.assertFalse(MODULE._reconciliation_is_pending({
+            "pending": 0, "reconciled": 0, "unresolved": 0,
+        }))
+
     def test_accepts_only_exact_local_or_cloud(self):
         for value in ("local", "cloud"):
             with patch.dict(MODULE.os.environ, {
@@ -52,6 +65,61 @@ class DeploymentProfileTest(unittest.TestCase):
 
 
 class InvestmentModeTest(unittest.TestCase):
+    def test_paper_campaign_allows_only_owned_etf_symbol(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            MODULE._atomic_json(state / "etf-owned-position.json", {
+                "schema_version": 1,
+                "status": "open",
+                "owner_id": "alpaca-investment-paper",
+                "strategy_id": "alpaca-etf-126d-momentum-v1",
+                "symbol": "QQQ",
+                "decision_session": "2026-09-29",
+                "client_order_id": "lm-ai-" + "a" * 24,
+                "provider_order_id": "provider-order",
+                "position_qty": "0.013",
+            })
+            snapshot = {"paper": True, "unexpected_positions": ["QQQ"]}
+            with patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_INVESTMENT_OWNER_ID": "alpaca-investment-paper",
+            }, clear=True), patch.object(
+                MODULE, "read_campaign_snapshot", return_value=snapshot
+            ), patch.object(MODULE, "reconcile", return_value={"status": "CLOSED"}) as reconcile:
+                result = MODULE._paper_campaign(
+                    state=state, credentials_path=Path("credentials"), cli_path=Path("alpaca")
+                )
+            self.assertEqual(result, {"status": "CLOSED"})
+            self.assertEqual(reconcile.call_args.args, (snapshot,))
+            self.assertEqual(
+                reconcile.call_args.kwargs["allowed_external_symbols"], frozenset({"QQQ"})
+            )
+
+    def test_production_import_uses_reconciliation_callback_contract(self):
+        script = """
+import inspect
+import sys
+from pathlib import Path
+sys.path.insert(0, 'skills/alpaca-investment')
+import run
+assert 'on_reconciled' in inspect.signature(run.reconcile_started).parameters
+skill_root = Path('skills/alpaca-investment').resolve()
+for module_name in (
+    'alpaca_cli', 'campaign', 'control', 'effect_store', 'etf_ownership',
+    'paper_performance', 'position_manager', 'reporter', 'review_status',
+    'risk_day', 'risk_policy',
+):
+    module_path = Path(sys.modules[module_name].__file__).resolve()
+    assert module_path.parent == skill_root, (module_name, module_path)
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=ROOT.parents[1],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_requires_exact_mode_before_broker_access(self):
         for value in ("paper", "shadow", "live", None, "", " paper", "PAPER", "paper,live"):
             with self.subTest(value=value):
@@ -359,6 +427,18 @@ class BrokerSnapshotTest(unittest.TestCase):
                 cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
         self.assertEqual(result["BTC/USDC"][0]["c"], "101")
 
+    def test_crypto_history_accepts_inclusive_four_hour_window(self):
+        start = datetime(2026, 9, 10, 4, 5, tzinfo=timezone.utc)
+        rows = [{"symbol": "BTC/USDC", "bars": [
+            {"t": (start + timedelta(minutes=5 * index)).isoformat().replace("+00:00", "Z"),
+             "o": 100, "h": 102, "l": 99, "c": 101}
+            for index in range(49)]}]
+        with patch.object(CLI, "_context", return_value={}), patch.object(
+                CLI, "_run", return_value=rows):
+            result = CLI.read_crypto_history(credentials_path=Path("credentials"),
+                cli_path=Path("alpaca"), observed_at="2026-09-10T08:05:00Z")
+        self.assertEqual(len(result["BTC/USDC"]), 49)
+
     def test_crypto_history_rejects_future_or_malformed_bars(self):
         cases = [
             [{"symbol": "BTC/USDC", "bars": [{"t": "2026-09-10T08:06:00Z",
@@ -460,6 +540,51 @@ class ShadowReadOnlyTest(unittest.TestCase):
 
 
 class LiveRunTest(unittest.TestCase):
+    def test_submit_marks_effect_attempted_before_provider_mutation(self):
+        observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
+            "clock": {"observed_at": "2026-09-10T08:00:00Z"},
+            "open_and_closed_orders_count": 0,
+            "positions": [{"symbol": "USDCUSD", "qty": "66", "unrealized_pl": "0"}]}
+        snapshot = {"account": {"cash": "0", "equity": "66"},
+            "available_cash_usd": "66", "clock": {"timestamp": "2026-09-10T08:00:00Z"},
+            "crypto": [], "open_orders": 0, "option_quotes": [], "positions": 0,
+            "risk": {}, "qqq_asset": {}, "qqq_quote": {}, "spy": {}}
+        decision = {"approved": True, "candidate_ref": "crypto://BTC/USDC",
+            "candidate": {"asset_class": "crypto"}, "gate": "approved",
+            "observed_at": "2026-09-10T08:00:00Z"}
+        order = {"asset_class": "crypto", "notional_usd": "10.00", "side": "buy",
+            "symbol": "BTC/USDC", "time_in_force": "gtc", "type": "market"}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hint = root / "entrypoint-result.json"
+            hint.write_text('{"status":"pre_effect_failure","effect":0}\n', encoding="utf-8")
+            hint.chmod(0o600)
+
+            def submit_and_check(**_kwargs):
+                self.assertEqual(json.loads(hint.read_text(encoding="utf-8")), {
+                    "status": "effect_attempted", "effect": 1,
+                })
+                return {"submitted_at": "now"}
+
+            with patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_INVESTMENT_MODE": "live", "LIFE_MANAGER_INVESTMENT_DEPLOYMENT": "local",
+                "ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE": str(root / "credentials.json"),
+                "ALPACA_INVESTMENT_LIVE_STATE_DIR": str(root / "state"),
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+            }, clear=True), \
+                patch.object(MODULE, "reconcile_started", return_value={"pending": 0, "reconciled": 0, "unresolved": 0}), \
+                patch.object(MODULE, "observe", return_value=observation), \
+                patch.object(MODULE, "read_allocator_snapshot", return_value=snapshot), \
+                patch.object(MODULE, "read_crypto_history", return_value={}), \
+                patch.object(MODULE, "build_candidates", return_value=[]), \
+                patch.object(MODULE, "choose", return_value=decision), \
+                patch.object(MODULE, "order_for", return_value=order), \
+                patch.object(MODULE, "evaluate_entry", return_value={"approved": True}), \
+                patch.object(MODULE, "allocation_gate", return_value={"approved": True}), \
+                patch.object(MODULE, "submit_order", side_effect=submit_and_check), \
+                patch.object(MODULE, "deliver", return_value={"message_id": "live"}):
+                self.assertEqual(MODULE.main(wake_id="live-entry-hint"), 0)
+
     def test_live_entry_submits_once_and_durably_marks_pending_ownership(self):
         observation = {"account": {"cash": "0", "equity": "66"}, "activities_count": 0,
             "clock": {"observed_at": "2026-09-10T08:00:00Z"},

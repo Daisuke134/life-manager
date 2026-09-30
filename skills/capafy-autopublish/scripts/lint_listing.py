@@ -82,20 +82,24 @@ def main():
                     continue
                 fails.append(f"OVERCLAIM '{m.group(0)}' (pure-LLM can't deliver) → {line[:90]!r}")
 
-    # 3. pricing table present
-    pricing_rows = re.findall(
-        r"\|\s*(day|week|month)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|",
-        md,
-        re.I,
-    )
-    if not re.search(r"\|\s*cycle\s*\|\s*price\s*\|", md, re.I):
-        fails.append("no pricing table (| cycle | price | cap | trial |) found")
-    for cycle, trial in pricing_rows:
-        trial = trial.strip()
-        if not (NO_FREE_TRIAL.fullmatch(trial) or FREE_TRIAL.fullmatch(trial)):
-            fails.append(
-                f"{cycle} plan trial must be 'No Free Trial' or 'Free Trial <hours>h / <N> requests': {trial!r}"
-            )
+    # 3. pricing table present — either a subscription day/week/month table, or a
+    # single "download" row (one-time fee, no cap/trial/hosted model — CP2 is
+    # skipped for Capafy Download-mode agents).
+    is_download = re.search(r"\|\s*download\s*\|\s*\$?[0-9.]+\s*\|", md, re.I)
+    if not is_download:
+        pricing_rows = re.findall(
+            r"\|\s*(day|week|month|year)\s*\|\s*\$?[0-9.]+\s*\|\s*[0-9]+\s*\|\s*([^|]+)\|",
+            md,
+            re.I,
+        )
+        if not re.search(r"\|\s*cycle\s*\|\s*price\s*\|", md, re.I):
+            fails.append("no pricing table (| cycle | price | cap | trial |) found")
+        for cycle, trial in pricing_rows:
+            trial = trial.strip()
+            if not (NO_FREE_TRIAL.fullmatch(trial) or FREE_TRIAL.fullmatch(trial)):
+                fails.append(
+                    f"{cycle} plan trial must be 'No Free Trial' or 'Free Trial <hours>h / <N> requests': {trial!r}"
+                )
 
     print("=== lint_listing.py ===")
     print(f"title={len(title)}/50  short={len(short)}/500")

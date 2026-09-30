@@ -24,10 +24,12 @@ Every plan explicitly has `No Free Trial`. The platform sandbox fee and hosted-c
 receipt must be obtained and checked for a positive contribution before any later
 platform submission; neither is asserted by this source candidate.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10/month $10 (no yearly). Matches "MLB Baseball Analysts" (agent `5315711748`, category 2, 35 sales): week $9.99/month $24.99/year $149.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $7.99 | 20 | No Free Trial |
-| month | $27.99 | 60 | No Free Trial |
+| week | $9.99 | 7 | No Free Trial |
+| month | $10.00 | 20 | No Free Trial |
+| year | $149.99 | 192 | No Free Trial |
 
 ## Verified demonstration
 

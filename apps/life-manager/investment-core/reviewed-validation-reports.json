@@ -1,0 +1,207 @@
+{
+  "reports": [
+    {
+      "card": {
+        "cost_model": {
+          "entry_fee_bps": "0",
+          "entry_slippage_bps": "10",
+          "exit_fee_bps": "0",
+          "exit_slippage_bps": "10"
+        },
+        "entry_rules": {
+          "all": [
+            {
+              "field": "momentum_rank",
+              "op": "eq",
+              "value": "1"
+            },
+            {
+              "field": "lookback_days",
+              "op": "eq",
+              "value": "126"
+            }
+          ]
+        },
+        "evidence_refs": [
+          "https://doi.org/10.1111/j.1540-6261.1993.tb04702.x",
+          "https://docs.alpaca.markets/us/reference/stockbars"
+        ],
+        "exit_rules": {
+          "all": [
+            {
+              "field": "hold_sessions",
+              "op": "gte",
+              "value": "21"
+            }
+          ]
+        },
+        "instruments": [
+          "SPY",
+          "QQQ",
+          "IWM",
+          "DIA",
+          "EFA",
+          "EEM",
+          "TLT",
+          "GLD"
+        ],
+        "kill_conditions": [
+          "history_invalid",
+          "missing_symbol",
+          "cost_unknown",
+          "effect_unknown"
+        ],
+        "risk_limits": {
+          "max_drawdown_usd": "20.00",
+          "trade_max_loss_usd": "10.00"
+        },
+        "sizing_rule": {
+          "max_loss_usd": "10.00",
+          "notional_usd": "10.00"
+        },
+        "status": "research",
+        "strategy_id": "alpaca-etf-126d-momentum-v1",
+        "timeframe": "1d",
+        "venue": "alpaca"
+      },
+      "cost_model": {
+        "entry_fee_bps": "0",
+        "entry_slippage_bps": "10",
+        "exit_fee_bps": "0",
+        "exit_slippage_bps": "10"
+      },
+      "data_quality": {
+        "common_sessions": 1551,
+        "dropped_sessions_by_symbol": {
+          "DIA": 0,
+          "EEM": 0,
+          "EFA": 0,
+          "GLD": 0,
+          "IWM": 0,
+          "QQQ": 0,
+          "SPY": 0,
+          "TLT": 0
+        },
+        "first_session": "2020-07-27",
+        "last_session": "2026-09-28",
+        "rows_by_symbol": {
+          "DIA": 1551,
+          "EEM": 1551,
+          "EFA": 1551,
+          "GLD": 1551,
+          "IWM": 1551,
+          "QQQ": 1551,
+          "SPY": 1551,
+          "TLT": 1551
+        }
+      },
+      "decision": "paper",
+      "evidence_ids": [
+        "alpaca://stock-bars/iex/split/2026-09-28/f071aec7834330cf4cb5192a117c4df3e9fb3cb82373f23055cd8252d95cdc90"
+      ],
+      "expires_at": "2026-10-06T00:10:05Z",
+      "failed_gates": [],
+      "fresh": true,
+      "holdout": {
+        "cost_usd": "0.28",
+        "gross_pnl_usd": "1.90",
+        "max_drawdown_usd": "1.25",
+        "net_pnl_usd": "1.62",
+        "trades": 14
+      },
+      "lookahead_detected": false,
+      "max_drawdown_usd": "1.25",
+      "net_pnl_usd": "1.62",
+      "observed_at": "2026-09-28T20:09:56.508954718-04:00",
+      "parameter_sensitivity": {
+        "gate": true,
+        "grid": [
+          {
+            "decision": "measured",
+            "hold_days": 15,
+            "holdout_net_pnl_usd": "0.44",
+            "holdout_trades": 20,
+            "lookback_days": 84
+          },
+          {
+            "decision": "measured",
+            "hold_days": 21,
+            "holdout_net_pnl_usd": "1.44",
+            "holdout_trades": 15,
+            "lookback_days": 84
+          },
+          {
+            "decision": "measured",
+            "hold_days": 30,
+            "holdout_net_pnl_usd": "0.56",
+            "holdout_trades": 11,
+            "lookback_days": 84
+          },
+          {
+            "decision": "measured",
+            "hold_days": 15,
+            "holdout_net_pnl_usd": "1.98",
+            "holdout_trades": 20,
+            "lookback_days": 126
+          },
+          {
+            "decision": "measured",
+            "hold_days": 21,
+            "holdout_net_pnl_usd": "1.62",
+            "holdout_trades": 14,
+            "lookback_days": 126
+          },
+          {
+            "decision": "measured",
+            "hold_days": 30,
+            "holdout_net_pnl_usd": "0.19",
+            "holdout_trades": 10,
+            "lookback_days": 126
+          },
+          {
+            "decision": "measured",
+            "hold_days": 15,
+            "holdout_net_pnl_usd": "2.57",
+            "holdout_trades": 19,
+            "lookback_days": 168
+          },
+          {
+            "decision": "measured",
+            "hold_days": 21,
+            "holdout_net_pnl_usd": "2.42",
+            "holdout_trades": 13,
+            "lookback_days": 168
+          },
+          {
+            "decision": "measured",
+            "hold_days": 30,
+            "holdout_net_pnl_usd": "3.68",
+            "holdout_trades": 10,
+            "lookback_days": 168
+          }
+        ],
+        "median_holdout_net_pnl_usd": "1.62",
+        "positive_count": 9
+      },
+      "release_sha": "4d782ce9abab4b9b6af06c763c535251249c45ca",
+      "report_id": "alpaca-etf-126d-momentum-v1-2026-09-28-f071aec78343",
+      "status": "measured",
+      "strategy_id": "alpaca-etf-126d-momentum-v1",
+      "train": {
+        "cost_usd": "0.80",
+        "gross_pnl_usd": "2.97",
+        "max_drawdown_usd": "2.72",
+        "net_pnl_usd": "2.17",
+        "trades": 40
+      },
+      "turnover": "14",
+      "validation": {
+        "cost_usd": "0.26",
+        "gross_pnl_usd": "2.47",
+        "max_drawdown_usd": "1.30",
+        "net_pnl_usd": "2.21",
+        "trades": 13
+      }
+    }
+  ]
+}

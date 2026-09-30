@@ -46,3 +46,11 @@ def test_status_200_attachment_inside_limit_is_saved(tmp_path) -> None:
     assert rows[0]["bytes"] == len(payload)
     assert rows[0]["sha256"]
     assert Path(rows[0]["path"]).read_bytes() == payload
+
+
+def test_dm_reader_supports_current_smartphone_dom_contract() -> None:
+    expression = coconala_dm_collect.DM_THREAD_EXPRESSION
+    assert ".bl_messages-list" in expression
+    assert ".bl_message" in expression
+    assert "smartphone/users" in expression
+    assert "uploaded_files" in expression

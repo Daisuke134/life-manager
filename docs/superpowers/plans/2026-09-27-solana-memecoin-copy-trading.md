@@ -42,11 +42,11 @@
 - Produces `loadOrCreateAgentWallet(ssotPath) -> { publicKey, signTransaction }` and `readTargets(configPath) -> Array<{address, label}>`; reject private keys in target configuration.
 - Produces `append(journalPath, row)`, `readRows(journalPath)`, `openIntent(journalPath)`, and `seenSourceSignature(journalPath, signature)` with owner-only state permissions.
 
-- [ ] **Step 1: Write the failing tests** for SSOT preservation, 0700/0600 state permissions, public-only target validation, intent-before-effect ordering, and source-signature deduplication.
-- [ ] **Step 2: Run `node --test skills/earn/solana-memecoin-copytrade/test_wallet_journal.mjs` and verify it fails because the modules do not exist.**
-- [ ] **Step 3: Implement the wallet and journal contracts** using the existing credential-SSOT shape and atomic append; never print or serialize the secret.
-- [ ] **Step 4: Run the focused test and verify all assertions pass.**
-- [ ] **Step 5: Commit** `feat(sol-copy): add agent wallet and durable copy journal`.
+- [x] **Step 1: Write the failing tests** for SSOT preservation, 0700/0600 state permissions, public-only target validation, intent-before-effect ordering, and source-signature deduplication.
+- [x] **Step 2: Run `node --test skills/earn/solana-memecoin-copytrade/test_wallet_journal.mjs` and verify it fails because the modules do not exist.** RED observed with missing `wallet.mjs`.
+- [x] **Step 3: Implement the wallet and journal contracts** using the existing credential-SSOT shape and atomic append; never print or serialize the secret.
+- [x] **Step 4: Run the focused test and verify all assertions pass.** `5/5` pass.
+- [x] **Step 5: Commit** `feat(sol-copy): add agent wallet and durable copy journal` (`e1c7935d87`).
 
 ### Task 2: Read-only scout using Solana RPC, GMGN, DexScreener, and Jupiter
 
@@ -60,11 +60,11 @@
 - Produces `parseTargetTransactions(rpcRows, targetAddress) -> Array<CopyEvent>` where each event has the confirmed source signature, slot, mint, source/destination amounts, observed owner, and observed timestamp.
 - Adapters are injected functions: `rpc.getSignatures`, `rpc.getTransaction`, `gmgn.readToken`, `dexscreener.readPairs`, and `jupiter.quote`; the default adapters use only public read endpoints and an optional agent-owned provider credential resolved outside the target-wallet config.
 
-- [ ] **Step 1: Write fixture-backed failing tests** for a valid swap, a transfer-only transaction, malformed RPC metadata, missing GMGN/DexScreener data, and a stale source event.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement source adapters and normalization**; keep provider responses as evidence and do not treat their PnL or security score as an execution approval.
-- [ ] **Step 4: Run the focused test and verify valid candidates are emitted only with RPC evidence.**
-- [ ] **Step 5: Commit** `feat(sol-copy): add read-only on-chain scout sources`.
+- [x] **Step 1: Write fixture-backed failing tests** for a valid swap, a transfer-only transaction, malformed RPC metadata, missing/disagreeing market data, stale/illiquid quotes, and duplicate source signatures.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `scout.mjs`.
+- [x] **Step 3: Implement source adapters and normalization**; keep provider responses as evidence and do not treat their PnL or security score as an execution approval. The default adapters use Solana confirmed JSON-RPC, DexScreener's public Solana token-pairs endpoint, Jupiter quote reads, and an explicitly configured GMGN token endpoint; absent or malformed provider data fails closed.
+- [x] **Step 4: Run the focused test and verify valid candidates are emitted only with RPC evidence.** `node --test skills/earn/solana-memecoin-copytrade/test_scout.mjs` passes `7/7`; a candidate requires one confirmed target-owned source delta plus both market providers and a bounded Jupiter quote.
+- [x] **Step 5: Commit** `feat(sol-copy): add read-only on-chain scout sources`.
 
 ### Task 3: Pure copy policy and paper replay
 
@@ -77,11 +77,11 @@
 - Produces `decide(snapshot, risk) -> { action: "copy"|"skip"|"exit"|"halt", mint, amountUsd, reason, sourceSignature }`.
 - Produces `paperApply(intent, quote, journalPath) -> receipt` with no signing, no RPC mutation, and explicit simulated fees/slippage from the quote.
 
-- [ ] **Step 1: Write failing tests** for the exact $2 initial size, the $3 hard ceiling, insufficient SOL reserve, stale/illiquid/unsafe candidates, duplicated source events, and a paper receipt that contains no live signature.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement deterministic risk gates**: quote freshness, maximum price impact, minimum liquidity, SOL gas reserve, one open intent, target-event age, and cumulative canary budget.
-- [ ] **Step 4: Run the focused test and verify all paper decisions are deterministic and effect-free.**
-- [ ] **Step 5: Commit** `feat(sol-copy): add gated policy and paper replay`.
+- [x] **Step 1: Write failing tests** for the exact $2 initial size, the $3 hard ceiling, insufficient SOL reserve, stale/illiquid/unsafe candidates, duplicated source events, and a paper receipt that contains no live signature.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `policy.mjs`.
+- [x] **Step 3: Implement deterministic risk gates**: quote freshness, maximum price impact, minimum liquidity, SOL gas reserve, one open intent, target-event age, and cumulative canary budget. The policy is pure and fixes the initial notional at `$2.00`; it never splits the `$3.00` ceiling.
+- [x] **Step 4: Run the focused test and verify all paper decisions are deterministic and effect-free.** `node --test skills/earn/solana-memecoin-copytrade/test_policy_paper.mjs` passes `7/7`; paper writes only an intent and a receipt with explicit simulated fee/slippage and no live signature.
+- [x] **Step 5: Commit** `feat(sol-copy): add gated policy and paper replay`.
 
 ### Task 4: $2–3 live canary and RPC receipt verification
 
@@ -94,11 +94,11 @@
 - Produces `executeCanary(intent, quote, wallet, clients, journalPath) -> receipt`; `clients` supplies quote/build/send/confirm/readTransaction/readBalances functions so tests never touch the network.
 - Produces `verifyReceipt(intent, transaction, beforeBalances, afterBalances) -> { verified, status, netUsd, feeLamports, evidence }` and accepts only `verified` or a typed `effect_unknown`/`rejected` result.
 
-- [ ] **Step 1: Write failing tests** proving read-only and paper modes never call `send`, live mode rejects missing `SOL_COPY_LIVE=1`, a $4 intent is rejected, a confirmed matching swap is verified, and a mismatched confirmed swap becomes `effect_unknown` without retry.
-- [ ] **Step 2: Run the focused test and verify failure.**
-- [ ] **Step 3: Implement the double gate, journal-before-send boundary, Jupiter transaction submission, and RPC receipt verification.**
-- [ ] **Step 4: Run the focused test and verify the canary invariants.**
-- [ ] **Step 5: Commit** `feat(sol-copy): verify live canary receipts on chain`.
+- [x] **Step 1: Write failing tests** proving read-only and paper modes never call `send`, live mode rejects missing `SOL_COPY_LIVE=1`, a $4 intent is rejected, a confirmed matching swap is verified, and a mismatched confirmed swap becomes `effect_unknown` without retry.
+- [x] **Step 2: Run the focused test and verify failure.** RED observed with missing `execute.mjs`.
+- [x] **Step 3: Implement the double gate, journal-before-send boundary, Jupiter transaction submission, and RPC receipt verification.** The implementation requires `mode=live`, `liveGate=true`, and `SOL_COPY_LIVE=1`; it records the intent before send, checks confirmed transaction and before/after owner token deltas, and writes `effect_unknown` with `retry=false` on ambiguity.
+- [x] **Step 4: Run the focused test and verify the canary invariants.** `node --test skills/earn/solana-memecoin-copytrade/test_live_canary.mjs` passes `5/5` with fake clients only; no network send or wallet signing occurred in verification.
+- [x] **Step 5: Commit** `feat(sol-copy): verify live canary receipts on chain`.
 
 ### Task 5: One wake, operator notes, and staged acceptance
 
@@ -111,11 +111,11 @@
 **Interfaces:**
 - Produces `wake({ mode, liveGate, targets, clients, journalPath, nowMs }) -> { stage, decision, receipt }` and never advances mode automatically; a mode transition is an explicit state record produced by the owner loop, not a human credential prompt.
 
-- [ ] **Step 1: Write failing integration tests** for read-only → paper → live stage reporting, daily idempotent report rows, no live call in the first two stages, and terminal `effect_unknown` fencing.
-- [ ] **Step 2: Run the focused suite and verify failure.**
-- [ ] **Step 3: Implement the finite wake and `SKILL.md`** with the provider URLs, credential prohibition, risk caps, journal path, and the exact staged acceptance sequence.
-- [ ] **Step 4: Run all plan tests and a real read-only scout against one public target wallet; save the evidence without exposing secrets.**
-- [ ] **Step 5: Commit** `feat(sol-copy): stage autonomous memecoin copy canary`.
+- [x] **Step 1: Write failing integration tests** for read-only → paper → live stage reporting, daily idempotent report rows, no live call in the first two stages, and terminal `effect_unknown` fencing.
+- [x] **Step 2: Run the focused suite and verify failure.** RED observed with missing `run.mjs`.
+- [x] **Step 3: Implement the finite wake and `SKILL.md`** with the provider URLs, credential prohibition, risk caps, journal path, and the exact staged acceptance sequence. The default CLI remains read-only; live execution is wired only behind both mode and environment gates.
+- [x] **Step 4: Run all plan tests and a real read-only scout against one public target wallet; save the evidence without exposing secrets.** The complete nested suite passes `28/28`; target `F5SY…Z5T` produced `scout_unknown`, `0` candidates, `12` non-swap rows and `8` RPC read failures. Sanitized evidence is stored outside the repository at `~/.local/state/anicca/solana-memecoin-copytrade/read-only-evidence.jsonl` with mode `0600`; effect is `none`.
+- [x] **Step 5: Commit** `feat(sol-copy): stage autonomous memecoin copy canary`.
 
 ## Source references
 
@@ -123,3 +123,19 @@
 - GMGN AI Agent API: https://docs.gmgn.ai/index/gmgn-agent-api
 - DexScreener API reference: https://docs.dexscreener.com/api/reference.md
 - Solana RPC `getSignaturesForAddress` / `getTransaction`: https://solana.com/docs/rpc/http/getsignaturesforaddress and https://solana.com/docs/rpc/http/gettransaction
+
+## Pump.fun onboarding evidence
+
+- `https://pump.fun/join/x` is the official Pump.fun `join/[referralCode]` route with referral code `x`; the page links to `https://join.pump.fun/HSag/x` for app onboarding.
+- The page exposes no inviter name, token name, or Solana mint. Treat this URL as onboarding/referral context for the meme-coin lane, never as a token candidate or a live-trading authorization.
+- The staged acceptance remains read-only scout → paper replay → exactly one `$2.00` canary under the cumulative `$3.00` ceiling, with confirmed RPC evidence and explicit owner funding before signing.
+
+## Profitability research boundary
+
+- Some Pump.fun wallets do realize profits, but [CoinGecko's study](https://www.coingecko.com/research/publications/pump-fun-traders-are-making-a-comeback) is realized-PnL-only, nets flows at wallet level, uses derived USD prices, and leaves bot/wash trading unfiltered. Its April 2026 snapshot has 5.37% of wallets above `$1,000` profit; this is not a strategy guarantee.
+- [Pump.fun's official mechanics](https://pump.fun/docs/bonding-curve) make the economic loop explicit: buys move the price up, sells move it down, and larger trades suffer more price impact. [The official fee page](https://pump.fun/docs/fees) lists a 1.25% bonding-curve total fee. The paper/live policy must model these costs plus Solana fees and quote slippage.
+- Copying a profitable-looking wallet is not sufficient: [the 2026 copy-trading study](https://arxiv.org/abs/2601.08641) documents manipulative wallets, execution lag, and illiquidity as attack surfaces. A candidate requires confirmed source-owned swaps, independent market data, a bounded quote, and replay-zero identity before paper or live stages.
+
+## Current-branch integration correction（2026-09-29）
+
+The six historical Solana implementation commits were present on an older investment documentation branch but were absent from the active investment worktree. They are now restored into the current investment branch as source-only commits (`cfd803c364`, `326250d221`, `c7efaab30c`, `6d071ec82e`, `958be0b377`, `080f8d039d`) without Capafy, PromptBase, runtime/loop, registry, wallet funding, or provider-order changes. The focused Solana test files pass `40/40`. The natural wake now derives the cumulative live-canary amount from the append-only journal across wakes, so the `$2` initial notional cannot bypass the `$3` total ceiling by changing source signatures. This closes the source restoration and safety-boundary substep only; the CLI remains read-only by default, the live exit path remains closed, and no live transaction or P&L was created. Next is Life Manager paper-owner handoff → one natural paper receipt → cost-complete measurement; only later, after the venue gates, may the Solana paper/canary lane be considered.

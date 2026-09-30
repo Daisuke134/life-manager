@@ -125,6 +125,16 @@ try: d = json.load(sys.stdin)
 except Exception: sys.exit(0)
 print(','.join(p['url'] for p in d.get('pages', []) if p.get('logged_out')))
 " 2>/dev/null || true)"
+      GIG_DENIED="$(printf '%s' "$GIG_OUT" | python3 -c "
+import json,sys
+try: d = json.load(sys.stdin)
+except Exception: sys.exit(0)
+print(','.join(p['url'] for p in d.get('pages', []) if p.get('access_denied')))
+" 2>/dev/null || true)"
+      if [ -n "$GIG_DENIED" ]; then
+        log "ALERT: GIG browser provider access denied for: $GIG_DENIED"
+        telegram_notify "session_vault keepalive: GIG browser provider access denied for: $GIG_DENIED. This is not login expiry; do not relogin or resend. Coconala actions remain fenced until an official page readback is available." || true
+      fi
       if [ -n "$GIG_DEAD" ]; then
         log "ALERT: gig browser session dead for: $GIG_DEAD"
         # Heal it. keepalive only extends a session that is still alive; before this there was no

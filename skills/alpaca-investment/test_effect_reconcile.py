@@ -23,6 +23,14 @@ def fake_get(orders_after, open_orders):
 
 
 class BuildProofTest(unittest.TestCase):
+    def test_declared_modes_map_to_their_own_owner_and_endpoint(self):
+        self.assertEqual(er.owner_for_mode("live"), "alpaca-investment-live")
+        self.assertEqual(er.owner_for_mode("paper"), "alpaca-investment-paper")
+        self.assertEqual(er.endpoint_for_mode("live"), er.LIVE_ENDPOINT)
+        self.assertEqual(er.endpoint_for_mode("paper"), er.PAPER_ENDPOINT)
+        with self.assertRaisesRegex(ValueError, "^investment_mode_invalid$"):
+            er.owner_for_mode("shadow")
+
     def test_no_orders_after_queue_and_none_open_is_verified(self):
         get = fake_get([], [])
         proof = er.build_proof(OWNER, OCC, QUEUED, get)
@@ -52,7 +60,7 @@ class BuildProofTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             er.build_proof(OWNER, "other-owner:1", QUEUED, fake_get([], []))
 
-    def test_cli_only_proves_the_live_owner(self):
+    def test_cli_defaults_to_live_but_does_not_accept_arbitrary_owner(self):
         self.assertEqual(er.OWNER_ID, "alpaca-investment-live")
         with self.assertRaises(SystemExit):
             er.main(["--owner-id", "alpaca-investment-paper", "--occurrence-id", "x:1"])

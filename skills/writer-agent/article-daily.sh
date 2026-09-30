@@ -40,11 +40,18 @@ TELEGRAM_TARGET_ID="${TELEGRAM_TARGET_ID:-${TELEGRAM_CHAT_ID:-${TELEGRAM_ALERT_C
   exit 2
 }
 ARTICLE_PROVIDER_COOLDOWN_SECONDS="300"
+# Caller-explicit override detection MUST happen before the default assignment below fills
+# ARTICLE_PRODUCT_ID in; product rotation (STEP "PRODUCT SELECTION" further down) only applies
+# when neither var arrived from the caller, so an explicit ARTICLE_PRODUCT_ID=anicca (or any
+# other override) keeps working exactly as before.
+ARTICLE_PRODUCT_SELECTION_CALLER_SET=0
+[ -n "${ARTICLE_PRODUCT_ID:-}" ] || [ -n "${ARTICLE_PRODUCT_LANDING_URL:-}" ] && ARTICLE_PRODUCT_SELECTION_CALLER_SET=1
 ARTICLE_PRODUCT_ID="${ARTICLE_PRODUCT_ID:-anicca}"
 ARTICLE_PRODUCT_LANDING_URL="${ARTICLE_PRODUCT_LANDING_URL:-https://aniccaai.com/lm}"
+ARTICLE_PRODUCT_CT="${ARTICLE_PRODUCT_CT:-}"
 ARTICLE_PUBLICATION_POLICY="${ARTICLE_PUBLICATION_POLICY:-continuous}"
 export ARTICLE_PROVIDER_COOLDOWN_SECONDS
-export ARTICLE_PRODUCT_ID ARTICLE_PRODUCT_LANDING_URL
+export ARTICLE_PRODUCT_ID ARTICLE_PRODUCT_LANDING_URL ARTICLE_PRODUCT_CT
 export ARTICLE_PUBLICATION_POLICY
 export TELEGRAM_ALERT_CHAT_ID="$TELEGRAM_TARGET_ID"
 # spec #22 self-heal L2: telegram_notify() is the shared out-of-band alert path 211 other
@@ -513,6 +520,64 @@ else
     }
   fi
 fi
+
+# PRODUCT SELECTION (spec: send some article traffic to Capafy's best-selling skills, not only
+# aniccaai.com): skipped entirely when the caller already set ARTICLE_PRODUCT_ID or
+# ARTICLE_PRODUCT_LANDING_URL, so the existing anicca-only path keeps working unchanged. The pick
+# is derived once per run and frozen to this run's gates/ dir so a resumed pass never lands on a
+# different product mid-way through an already-drafted article.
+PRODUCT_SELECTION_RECEIPT="$RUN_DIR/gates/product-selection.json"
+if [ "$ARTICLE_PRODUCT_SELECTION_CALLER_SET" -eq 0 ]; then
+  if [ -s "$PRODUCT_SELECTION_RECEIPT" ]; then
+    PRODUCT_SELECTION_JSON="$(cat "$PRODUCT_SELECTION_RECEIPT")"
+  else
+    PRODUCT_SELECTION_JSON="$(python3 "$ARTICLE_ROOT/scripts/select_article_product.py" \
+      --run-id "$RUN_TS" --config "$ARTICLE_ROOT/config/products.json")" || {
+      echo "=== article-daily product selection failed run=$RUN_TS ===" >>"$LOG"
+      exit 1
+    }
+    printf '%s\n' "$PRODUCT_SELECTION_JSON" >"$PRODUCT_SELECTION_RECEIPT"
+  fi
+  ARTICLE_PRODUCT_ID="$(printf '%s' "$PRODUCT_SELECTION_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["product_id"])')" || exit 1
+  ARTICLE_PRODUCT_LANDING_URL="$(printf '%s' "$PRODUCT_SELECTION_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["landing_url"])')" || exit 1
+  ARTICLE_PRODUCT_CT="$(printf '%s' "$PRODUCT_SELECTION_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("ct") or "")')" || exit 1
+  export ARTICLE_PRODUCT_ID ARTICLE_PRODUCT_LANDING_URL ARTICLE_PRODUCT_CT
+  echo "article-daily: product selection product_id=$ARTICLE_PRODUCT_ID landing=$ARTICLE_PRODUCT_LANDING_URL ct=${ARTICLE_PRODUCT_CT:-none}" >>"$LOG"
+fi
+
+# SEO KEYWORD TARGET (spec: give capafy-skills runs a real title/H2 target keyword
+# from OpenSEO instead of guessing): only runs when this pass actually picked a
+# Capafy skill. seo_keyword_seed.py owns its own 30-day cache per skill under
+# ~/.local/state/life-manager/writer/seo-keywords/, so this call is cheap on every
+# day but the first of a given skill's rotation month, and it never fails the run --
+# any OpenSEO/network problem falls back to a cached or static keyword inside that
+# script. The receipt is frozen to this run's gates/ dir so a resumed pass targets
+# the same keyword it started with.
+ARTICLE_SEO_TARGET_KEYWORD=""
+ARTICLE_SEO_SECONDARY_KEYWORDS=""
+if [ "$ARTICLE_PRODUCT_ID" = "capafy-skills" ]; then
+  CAPAFY_SKILL_SLUG="$(printf '%s' "$PRODUCT_SELECTION_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("capafy_skill") or "")')" || exit 1
+  SEO_KEYWORD_RECEIPT="$RUN_DIR/gates/seo-keyword.json"
+  if [ -n "$CAPAFY_SKILL_SLUG" ]; then
+    if [ -s "$SEO_KEYWORD_RECEIPT" ]; then
+      SEO_KEYWORD_JSON="$(cat "$SEO_KEYWORD_RECEIPT")"
+    else
+      SEO_KEYWORD_JSON="$(python3 "$ARTICLE_ROOT/scripts/seo_keyword_seed.py" \
+        --slug "$CAPAFY_SKILL_SLUG" --config "$ARTICLE_ROOT/config/products.json")" || {
+        echo "=== article-daily seo keyword lookup failed run=$RUN_TS slug=$CAPAFY_SKILL_SLUG (non-fatal, continuing without a target keyword) ===" >>"$LOG"
+        SEO_KEYWORD_JSON=""
+      }
+      [ -n "$SEO_KEYWORD_JSON" ] && printf '%s\n' "$SEO_KEYWORD_JSON" >"$SEO_KEYWORD_RECEIPT"
+    fi
+    if [ -n "$SEO_KEYWORD_JSON" ]; then
+      ARTICLE_SEO_TARGET_KEYWORD="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("primary") or "")')" || ARTICLE_SEO_TARGET_KEYWORD=""
+      ARTICLE_SEO_SECONDARY_KEYWORDS="$(printf '%s' "$SEO_KEYWORD_JSON" | python3 -c 'import json,sys; print(", ".join(json.load(sys.stdin).get("secondary") or []))')" || ARTICLE_SEO_SECONDARY_KEYWORDS=""
+    fi
+  fi
+  export ARTICLE_SEO_TARGET_KEYWORD ARTICLE_SEO_SECONDARY_KEYWORDS
+  echo "article-daily: seo keyword target=${ARTICLE_SEO_TARGET_KEYWORD:-none} secondary=${ARTICLE_SEO_SECONDARY_KEYWORDS:-none} slug=${CAPAFY_SKILL_SLUG:-none}" >>"$LOG"
+fi
+
 if [ "$START_ACTION" = "new-quality-replacement" ]; then
   QUALITY_REPLACEMENT_TMP="$RUN_DIR/gates/.quality-replacement.json.$$"
   printf '%s' "$START_DECISION" | jq -c '{
@@ -922,7 +987,9 @@ STEP 0.7 (MID TOKEN/ATTEMPT BUDGET -- bounded, whole bilingual article): record 
 
 STEP 0.8 (READ VERIFIED ACTIVE STRATEGY AND REPLAY-FIRST CANARY BEFORE TOPIC SELECTION): first read this runs gates/strategy-consumption.json, which the wrapper created from hash-verified active strategy bytes before invoking you. If its versions contains slice=writer-learning, require exactly one such row, read only its immutable weight_file, and remember learning_cycle_id plus consumed_hash. Read the matching ARTICLE_STATE_DIR_PLACEHOLDER/learning/experiments/<learning_cycle_id>/manifest.json and require candidate_strategy_sha256=consumed_hash. Apply the complete immutable strategy object to BOTH native drafts: its playbook is the writing baseline and every other key is an active writing rule. It cannot override safety, citations, identity, active-four, price, platform, schedules, providers, destination accounts, or recovery. Do not call this consumed yet; STEP 4.85 binds the final article bytes and visible excerpts. Then run python3 ARTICLE_ROOT_PLACEHOLDER/scripts/writer_learning_worker.py current --skill-dir ARTICLE_ROOT_PLACEHOLDER. If status is NONE, continue without inventing a candidate. If status is CANDIDATE_CANARY, remember its experiment_id, strategy_sha256, exact reader_job, immutable strategy_path, one changed_field, and one rule before entering STEP 1. During STEP 1, use the candidate only if an honest claim/topic can preserve that exact reader_job; otherwise leave the assignment READY, select a normal reader-useful topic, and publish without the candidate. A learning assignment never blocks todays publication.
 
-★ SCOPE, READ FIRST: DEFAULT UNARMED MODE (ARTICLE_AUTOPUBLISH unset or not 1) stages DRAFTS ONLY and NEVER publishes. In that default mode, a human (Dais) reads every draft and publishes by hand; run.sh STEP 7 treats a publicly-live article as a SAFETY FAILURE; publish-to-x.sh go and every other live-publish endpoint are forbidden; every ledger publish flag stays false. ARMED MODE is different: only when the ARTICLE_AUTOPUBLISH=1 addendum is appended below, the same immutable package must reach active-four. The foreground publishes note/ja, substack/ja, substack/en, and x-article/ja in the specified order; all four dormant destinations receive explicit skip receipts and are never staged or published by this loop. Use only STEPS 11-20 and never infer permission outside that exact addendum and scope.
+★ SCOPE, READ FIRST: DEFAULT UNARMED MODE (ARTICLE_AUTOPUBLISH unset or not 1) stages DRAFTS ONLY and NEVER publishes. In that default mode, a human (Dais) reads every draft and publishes by hand; run.sh STEP 7 treats a publicly-live article as a SAFETY FAILURE; publish-to-x.sh go and every other live-publish endpoint are forbidden; every ledger publish flag stays false. ARMED MODE is different: only when the ARTICLE_AUTOPUBLISH=1 addendum is appended below, the same immutable package must reach active-four. The foreground publishes note/ja, substack/ja, substack/en, and x-article/ja in the specified order; all four dormant destinations receive explicit skip receipts and are never staged or published by this loop. STEPS 11-20 below are ADDITIONAL permission that only ARMED MODE grants on top of every earlier step -- they never replace or excuse STEP 1 through STEP 10 in this same pass; do every numbered step in order from STEP 0.5, and never infer permission to publish outside that exact addendum and scope.
+
+★ THIS PASS OWNS ONLY $ARTICLE_RUN_DIR, HARD BOUNDARY. ★ Generate, stage, and publish only the topic assigned to this pass, in this pass own run directory only. A different run directory under ARTICLE_STATE_DIR_PLACEHOLDER/runs/ -- whatever its publication-state.json, worker-plan, or guard verdict says -- is closed history: a live pair stays live, a dormant pair stays skipped, and a permanently unavailable pair (for example an "unavailable" status carrying a skip_receipt, or an error such as x-editor-unreachable) is a recorded terminal outcome for that other run, never an open obligation for this one. Do not read the gates of another run, call publication_resume.py or publication-guard.py against another run state, or report this pass as blocked, pending, or unable to proceed because of another run history. If you find yourself investigating a different RUN_DIR instead of writing the article for today, stop and return to STEP 1 for this run own topic.
 
 CANONICAL SKILL IDENTITY: writer-agent. The tracked ARTICLE_ROOT_PLACEHOLDER path is the current compatibility location for this one pipeline; never start or restore a second article-writing loop.
 
@@ -934,7 +1001,7 @@ STEP 1.5 (APPLY THE PRESELECTED CANDIDATE ONLY TO ITS MATCHED ROUTE): if STEP 0.
 
 STEP 2 (RESEARCH -- do the real work, no shortcuts): research the topic properly. Use firecrawl (`firecrawl scrape <url> markdown`) for web sources, context7 (`npx ctx7@latest library <name>` then `npx ctx7@latest docs <libraryId> <query>`) for any library/SDK/API docs, and agent-reach/WebSearch for broader discovery. If the topic is a tool, repo, or product, actually RUN it end-to-end yourself and observe the real behavior -- a claim you have not personally verified must not go in the article. Form an honest verdict (should someone use this, who for) grounded in what you actually observed, not marketing copy.
 
-STEP 3 (WRITE, BOTH LANGUAGES, NATIVELY): REQUIRED READ -- before drafting either language title, read ARTICLE_ROOT_PLACEHOLDER/reference/CRAFT.md and ARTICLE_ROOT_PLACEHOLDER/reference/formats/article.md in full, then read ARTICLE_ROOT_PLACEHOLDER/SKILL.md section "執筆プロセス standard" and ARTICLE_ROOT_PLACEHOLDER/reference/title-best-practices.md in full, and obey all four for BOTH the ja title and the en title, not just one. That reference file is the ONLY source of title rules and this prompt adds none of its own. Its section 1 holds real titles with their real engagement numbers, and its section 2 is the ONLY list of bans -- read it there and apply exactly what it says, no more. Do not restate those bans here or anywhere else and do not derive extra ones from them: every past failure of this step came from a ban being paraphrased into something stricter than the measured original. Abstraction, negation and first person are all rewarded patterns in section 1, so never reject a candidate for being abstract, negative or personal. A number in the headline is NOT required and never breaks a tie; when two candidates are close, take the one carrying tension or reversal, not the one carrying digits. Produce at least five candidates per language spread across different section 1 patterns, then record all of them, chosen and rejected, with python3 ARTICLE_ROOT_PLACEHOLDER/scripts/title_candidates.py record --json - --run-dir <this runs record directory> --lang <ja or en>. That recorder refuses a rejection reason stated in rulebook words instead of reader-side words, and refuses a rejection that does not cite the file and line of the rule it applied, so a later pass can score the rejected candidates against real titles and put the loss on the exact line that caused it. If that recorder exits nonzero, read its message, fix the ledger and run it once more; if it still refuses, save the raw ledger JSON as this runs gates/title-candidates-<lang>.raw.json and CONTINUE. Recording is measurement, never a permission to publish -- the PUBLISH ANYWAY boundary above outranks it, and a run that shipped nothing because a ledger would not validate is a worse outcome than a run with one missing measurement. Now write the article in Japanese AND English, each written NATIVELY in that language (not translated from the other -- natural phrasing, idioms, and structure for each language independently). Use the hamburger template documented in the writer-agent skill. Invoke the stop-ai-slop-jp skill on the Japanese draft and fix everything it flags (zenkaku dashes, AI pet phrases, missing subject, thesis-style H2s, false balance, uniform rhythm). Then read ARTICLE_ROOT_PLACEHOLDER/vendor/writing-skills/humanizer/SKILL.md and apply its final humanize pass to BOTH language drafts (bakeoff-verified final filter). Then, for EACH language draft, run python3 ARTICLE_ROOT_PLACEHOLDER/scripts/_shared/citation-strip.py --in-place --report <f> (SKILL.md rule 26: every inline (出典: [label](url)) citation collapses into ONE final 出典/Sources block, deduplicated by URL -- this is mechanical, not a judgment call, so run it as a normalization pass before any gate reads the draft). From the same research, write one independent Japanese short-form X Post into this run as x-post-ja.txt; it is not a summary headline, not an English post, and it remains immutable with the two article drafts. Read ARTICLE_PRODUCT_LANDING_URL and ARTICLE_PRODUCT_ID from the inherited environment. Every one of article-ja.md, article-en.md, and x-post-ja.txt must contain exactly one measurable self-hosted product CTA built from ARTICLE_PRODUCT_LANDING_URL with query keys product_id=ARTICLE_PRODUCT_ID, run_id=RUN_DIR_PLACEHOLDER, artifact_id, variant_id, and click_id. Use artifact_id=article-ja, article-en, and x-post-ja respectively; use three distinct click_id values RUN_DIR_PLACEHOLDER-article-ja, RUN_DIR_PLACEHOLDER-article-en, and RUN_DIR_PLACEHOLDER-x-post-ja; derive each variant_id from the selected title/post variant rather than reusing one value. Build the query with Python urllib.parse.urlencode so values are encoded. Substack, note, or GitHub links remain distribution/citations and do not satisfy this conversion CTA. Generate or select the headline image exactly once with the existing image workflow and save its final bytes as this runs headline-image.png. Author at least one Mermaid-backed explanatory diagram, save its source as this runs body-diagram.mmd, and render its cross-platform PNG once as this runs body-diagram.png (additional body assets use body-<name>.png). Before any gate or publication init reads the final draft, make article-en.md itself begin with YAML frontmatter containing the selected non-empty title and 1-4 non-empty Dev.to tags; never defer this metadata to a platform adapter. Then run python3 ARTICLE_ROOT_PLACEHOLDER/scripts/canonical_media.py attach --file <draft> for article-ja.md and article-en.md, then run the same command with validate for each draft. Each canonical draft must contain exactly one selected headline-image.png reference, the Mermaid source, and exactly one body-diagram.png reference. Both native drafts reuse those same immutable media bytes. Never regenerate these media after publication state initialization.
+STEP 3 (WRITE, BOTH LANGUAGES, NATIVELY): REQUIRED READ -- before drafting either language title, read ARTICLE_ROOT_PLACEHOLDER/reference/CRAFT.md and ARTICLE_ROOT_PLACEHOLDER/reference/formats/article.md in full, then read ARTICLE_ROOT_PLACEHOLDER/SKILL.md section "執筆プロセス standard" and ARTICLE_ROOT_PLACEHOLDER/reference/title-best-practices.md in full, and obey all four for BOTH the ja title and the en title, not just one. That reference file is the ONLY source of title rules and this prompt adds none of its own. Its section 1 holds real titles with their real engagement numbers, and its section 2 is the ONLY list of bans -- read it there and apply exactly what it says, no more. Do not restate those bans here or anywhere else and do not derive extra ones from them: every past failure of this step came from a ban being paraphrased into something stricter than the measured original. Abstraction, negation and first person are all rewarded patterns in section 1, so never reject a candidate for being abstract, negative or personal. A number in the headline is NOT required and never breaks a tie; when two candidates are close, take the one carrying tension or reversal, not the one carrying digits. Produce at least five candidates per language spread across different section 1 patterns, then record all of them, chosen and rejected, with python3 ARTICLE_ROOT_PLACEHOLDER/scripts/title_candidates.py record --json - --run-dir <this runs record directory> --lang <ja or en>. That recorder refuses a rejection reason stated in rulebook words instead of reader-side words, and refuses a rejection that does not cite the file and line of the rule it applied, so a later pass can score the rejected candidates against real titles and put the loss on the exact line that caused it. If that recorder exits nonzero, read its message, fix the ledger and run it once more; if it still refuses, save the raw ledger JSON as this runs gates/title-candidates-<lang>.raw.json and CONTINUE. Recording is measurement, never a permission to publish -- the PUBLISH ANYWAY boundary above outranks it, and a run that shipped nothing because a ledger would not validate is a worse outcome than a run with one missing measurement. Now write the article in Japanese AND English, each written NATIVELY in that language (not translated from the other -- natural phrasing, idioms, and structure for each language independently). Use the hamburger template documented in the writer-agent skill. Invoke the stop-ai-slop-jp skill on the Japanese draft and fix everything it flags (zenkaku dashes, AI pet phrases, missing subject, thesis-style H2s, false balance, uniform rhythm). Then read ARTICLE_ROOT_PLACEHOLDER/vendor/writing-skills/humanizer/SKILL.md and apply its final humanize pass to BOTH language drafts (bakeoff-verified final filter). Then, for EACH language draft, run python3 ARTICLE_ROOT_PLACEHOLDER/scripts/_shared/citation-strip.py --in-place --report <f> (SKILL.md rule 26: every inline (出典: [label](url)) citation collapses into ONE final 出典/Sources block, deduplicated by URL -- this is mechanical, not a judgment call, so run it as a normalization pass before any gate reads the draft). From the same research, write one independent Japanese short-form X Post into this run as x-post-ja.txt; it is not a summary headline, not an English post, and it remains immutable with the two article drafts. Read ARTICLE_PRODUCT_LANDING_URL, ARTICLE_PRODUCT_ID, and ARTICLE_PRODUCT_CT from the inherited environment. Every one of article-ja.md, article-en.md, and x-post-ja.txt must contain exactly one measurable self-hosted product CTA built from ARTICLE_PRODUCT_LANDING_URL with query keys product_id=ARTICLE_PRODUCT_ID, run_id=RUN_DIR_PLACEHOLDER, artifact_id, variant_id, and click_id, plus ct=ARTICLE_PRODUCT_CT ONLY when ARTICLE_PRODUCT_CT is non-empty (omit the ct key entirely when it is empty -- it is a Capafy-native campaign-attribution query key, present only on runs whose product is a Capafy skill, and must never be invented for the anicca product). Use artifact_id=article-ja, article-en, and x-post-ja respectively; use three distinct click_id values RUN_DIR_PLACEHOLDER-article-ja, RUN_DIR_PLACEHOLDER-article-en, and RUN_DIR_PLACEHOLDER-x-post-ja; derive each variant_id from the selected title/post variant rather than reusing one value. Build the query with Python urllib.parse.urlencode over one dict containing all applicable keys so values are encoded and there is exactly one question mark in the URL. When ARTICLE_PRODUCT_ID is capafy-skills, ground the article angle in the buyer problem recorded for this run capafy_skill in gates/product-selection.json -- readers who came for that problem are the ones this CTA is for. Substack, note, or GitHub links remain distribution/citations and do not satisfy this conversion CTA. Generate or select the headline image exactly once with the existing image workflow and save its final bytes as this runs headline-image.png. Author at least one Mermaid-backed explanatory diagram, save its source as this runs body-diagram.mmd, and render its cross-platform PNG once as this runs body-diagram.png (additional body assets use body-<name>.png). Before any gate or publication init reads the final draft, make article-en.md itself begin with YAML frontmatter containing the selected non-empty title and 1-4 non-empty Dev.to tags; never defer this metadata to a platform adapter. Then run python3 ARTICLE_ROOT_PLACEHOLDER/scripts/canonical_media.py attach --file <draft> for article-ja.md and article-en.md, then run the same command with validate for each draft. Each canonical draft must contain exactly one selected headline-image.png reference, the Mermaid source, and exactly one body-diagram.png reference. Both native drafts reuse those same immutable media bytes. Never regenerate these media after publication state initialization.
 
 STEP 3.5 (OPERATOR-IDENTIFIER BAN -- HARD, enforced in code at publish time by scripts/pii-gate.py): write as the AI persona only. Nothing you publish -- body, title, alt text, the 出典/Sources block, the CTA, x-post-ja.txt -- may name the operator (real name, personal GitHub/X/note/Substack handle, personal repo URL, personal email, phone) or give a city-, region- or address-level location for the machine this runs on (東京の…, in Tokyo, a 〒 code, an office). Saying you ran it on your own always-on machine is fine; saying where that machine sits, or who owns it, is not. This bites hardest in 出典/Sources: when the only evidence for a claim lives in a personal repository, describe in prose what that evidence shows, or cite the public product/docs URL -- never paste a https://github.com/<operator-handle>/... link, and never use an operator-owned repo as an exemplar URL. A claim whose only citation would name the operator ships without that link, or does not ship. scripts/pii-gate.py blocks publication on any hit and fails the run, so obfuscating an identifier is not a fix -- remove it.
 
@@ -978,6 +1045,22 @@ STEP 9 (REPORT EVIDENCE -- MANDATORY, every pass, success or failure): persist h
 STEP 10 (FINISH -- HONEST DELIVERY): completion requires identity safety clear, conscience ALLOW, every active platform attempted independently, and exact current-run ledger evidence. Editorial/reader FAIL is retried in the same run up to five iterations; after the fifth it may be an explicitly recorded force-publish advisory, never a hidden bypass. In armed mode article-run-complete.py requires four active live reality receipts; the four dormant skip receipts are not failures or SLO work. Until then report PENDING; never equate foreground exit with shipped.'
 
 PROMPT="${PROMPT//PUBLICATION_PAUSE_SNAPSHOT_PLACEHOLDER/$PUBLICATION_PAUSE_SNAPSHOT}"
+# SEO keyword addendum (spec: capafy-skills runs target a real OpenSEO keyword):
+# append-only, same technique as the browser addendum below. No-op (PROMPT
+# unchanged) whenever this run has no target keyword -- the normal anicca-day case,
+# and any capafy-skills day where the OpenSEO lookup fell back with nothing usable.
+if [ -n "$ARTICLE_SEO_TARGET_KEYWORD" ]; then
+  PROMPT="${PROMPT}"'
+
+★ SEO TARGET KEYWORD THIS RUN ★ This run promotes a Capafy skill, and OpenSEO keyword
+research picked a real target keyword for that skills buyer problem: "'"$ARTICLE_SEO_TARGET_KEYWORD"'"
+(secondary keywords: '"${ARTICLE_SEO_SECONDARY_KEYWORDS:-none}"'). During STEP 2 research and STEP 3
+writing, work this target keyword and, where natural, one or two secondaries into the title and
+H2s of BOTH language drafts without breaking any existing title rule from STEP 3 above or
+reading like it was stuffed in -- a reader-first phrasing that happens to contain the keyword beats
+an awkward one that forces it verbatim. If the keyword genuinely does not fit the researched
+angle, use it as naturally as the real content allows rather than forcing an unnatural fit.'
+fi
 # self-heal L2 (spec #22): append-only, same technique as above -- if ensure_browser.sh could
 # not bring the shared daily-driver back, tell the pass to degrade gracefully (skip the
 # browser-dependent platforms and report why) instead of failing blind on every step that

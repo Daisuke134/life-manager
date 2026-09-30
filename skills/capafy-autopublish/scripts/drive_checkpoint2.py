@@ -17,9 +17,12 @@ the Hosted Key section above is already saved/collapsed (idempotent: it is
 independent of the hosted-key step and is a no-op if already correct).
 
 Usage: drive_checkpoint2.py <CP2_review_url>
-Requires: CloakBrowser daemon on CDP :9222 (never close it), CAPAFY_HOST_OPENROUTER_KEY in env.
+Requires: its own CloakBrowser identity `capafy:kosuke` (registry:
+~/.config/ai/registry/browsers.toml) LEASED via skills/browser/with-browser.sh
+(never probe a hardcoded port directly), plus CAPAFY_HOST_OPENROUTER_KEY in env.
 CAPAFY_ACCESS_TOKEN in env is required only to verify CAPAFY_DISPLAY_MODEL.
-Exit 0 + prints VERIFIED on success; exit 1 on failure (fail-closed).
+Exit 0 + prints VERIFIED on success; exit 1 on failure (fail-closed); exit 75
+if the browser identity is not leased (retryable).
 """
 import math
 import os, sys, time, json, urllib.request
@@ -28,11 +31,13 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, parse_qsl, quote, urlsplit
 
 BASE_URL = "https://openrouter.ai/api/v1"
-MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "anthropic/claude-sonnet-4.6")
+# Default to the cheap hosted model (charge more, spend less). A CP2 run that
+# omitted the env var wrote Sonnet into draft 4973250899 (2026-09-29).
+MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "deepseek/deepseek-v4.1-flash")
 CDP_ATTACH_TIMEOUT_MS = int(os.environ.get("CP2_CDP_ATTACH_TIMEOUT_MS", "15000"))
 RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))
-RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "15"))
+RAW_SECTION_TIMEOUT_S = float(os.environ.get("CP2_SECTION_TIMEOUT_S", "45"))
 RAW_SECTION_POLL_S = float(os.environ.get("CP2_SECTION_POLL_S", "0.25"))
 _CP2_RESOLVE_RETRIES = int(os.environ.get("CP2_RESOLVE_RETRIES", "3"))
 _CP2_RESOLVE_RETRY_DELAY_S = float(os.environ.get("CP2_RESOLVE_RETRY_DELAY_S", "5"))
@@ -77,21 +82,42 @@ def _target_url_key(url):
     return (parts.scheme.lower(), parts.netloc.lower(), parts.path, query)
 
 
+# The identity capafy:kosuke banks the Capafy seller session (registry:
+# ~/.config/ai/registry/browsers.toml).
+CAPAFY_BROWSER_IDENTITY = os.environ.get("CAPAFY_BROWSER_IDENTITY", "capafy:kosuke").strip() or "capafy:kosuke"
+
+
 def _detect_cdp():
-    """CDP port drifts (observed 9222 -> 9223) — auto-detect instead of trusting
-    a hardcoded port (self-fix-capafy-loop, 2026-07-21)."""
-    override = os.environ.get("CP1_CDP_URL")
-    if override:
-        return _validate_cdp_base(override)
-    for port in (9222, 9223):
-        url = f"http://localhost:{port}"
-        try:
-            with urllib.request.urlopen(f"{url}/json/version", timeout=2) as r:
-                if r.status == 200:
-                    return url
-        except Exception:
-            continue
-    return "http://localhost:9222"
+    """Resolve the CDP endpoint ONLY from an already-leased identity.
+
+    Never probes hardcoded ports (9222/9223): the 2026-07-26 incident was
+    exactly that — :9222 turned out to be a proxy onto the SAME browser as
+    production :9223 (identical CDP UUID). A shared browser must be leased
+    first via skills/browser/with-browser.sh, which resolves the identity's
+    real endpoint and exports it as CLOAK_CDP_BASE_URL/CDP. CP1_CDP_URL is
+    kept for a caller that already resolved its own explicit leased endpoint.
+    Returns None (never a guessed port) if nothing is set.
+    """
+    for var in ("CP1_CDP_URL", "CLOAK_CDP_BASE_URL", "CDP"):
+        value = os.environ.get(var, "").strip()
+        if value:
+            return _validate_cdp_base(value)
+    return None
+
+
+def _require_cdp():
+    """Fail closed (exit 75, retryable) instead of guessing a port."""
+    cdp = _detect_cdp()
+    if cdp is None:
+        print(json.dumps({
+            "error": "capafy_browser_not_leased", "retryable": True,
+            "identity": CAPAFY_BROWSER_IDENTITY,
+            "detail": ("no leased CDP endpoint in env (CP1_CDP_URL/CLOAK_CDP_BASE_URL/CDP). "
+                       f"Run under skills/browser/with-browser.sh {CAPAFY_BROWSER_IDENTITY} -- "
+                       "...; refuses to probe 9222/9223 directly."),
+        }, ensure_ascii=False))
+        sys.exit(75)
+    return cdp
 
 
 def _load_playwright():
@@ -601,7 +627,13 @@ def _raw_configure_llm_form(page, key):
     state = page.evaluate(_llm_config_form_expression())
     if not isinstance(state, dict) or not state.get("ok"):
         raise RuntimeError(f"ambiguous llm config hosted-key form ({state})")
+    # The vendor button renders a moment after the base-URL field (live 2026-09-29,
+    # 8123079349: count 0 right after the tab click, present a few seconds later).
+    deadline = time.monotonic() + 20.0
     vendor = page.evaluate(_llm_config_vendor_state_expression())
+    while (not isinstance(vendor, dict) or not vendor.get("ok")) and time.monotonic() < deadline:
+        time.sleep(1.0)
+        vendor = page.evaluate(_llm_config_vendor_state_expression())
     if not isinstance(vendor, dict) or not vendor.get("ok"):
         raise RuntimeError(f"ambiguous llm config vendor picker ({vendor})")
     if vendor.get("text") != "OpenRouter":
@@ -703,9 +735,11 @@ def _ensure_raw_provider_section(page):
             # A resumed review page opens on 基本情報; the hosted-key fields live
             # under the "Agent ワークスペース" tab (2026-09-28, 9466718786).
             # Look once: a page that already shows the form has no such tab.
-            workspace_tab_clicked = True
             tab = _bounded_page_evaluate(page, _WORKSPACE_TAB_EXPRESSION, deadline)
             if isinstance(tab, dict) and tab.get("ok"):
+                # Mark clicked only once the tab exists: on a still-hydrating page the
+                # tab is absent and a one-shot look never retried (live 2026-09-29).
+                workspace_tab_clicked = True
                 for kind in ("mousePressed", "mouseReleased"):
                     _bounded_page_call(page, "Input.dispatchMouseEvent", {"type": kind, "x": float(tab["x"]), "y": float(tab["y"]), "button": "left", "clickCount": 1}, deadline)
                 time.sleep(1)
@@ -1134,17 +1168,29 @@ def _raw_fix_display_model(page, display_model):
         if not isinstance(combo_after, dict) or combo_after.get("value") != display_model:
             raise RuntimeError(f"display-model combobox did not commit {display_model!r} ({combo_after})")
 
-        save = page.evaluate(_draft_save_button_expression())
-        if not isinstance(save, dict) or not save.get("ok"):
-            raise RuntimeError(f"ambiguous draft-save button ({save})")
-        if save.get("disabled"):
-            raise RuntimeError("draft-save button is disabled")
-        for kind in ("mousePressed", "mouseReleased"):
-            page.call("Input.dispatchMouseEvent", {
-                "type": kind, "x": float(save["x"]), "y": float(save["y"]),
-                "button": "left", "clickCount": 1,
-            })
-        print("draft save: clicked")
+        # Same race as the workspace-fields fix above (2026-09-28): once every
+        # tab is valid, finalReviewSubmitButton's own onChange can flip its
+        # label from 下書きを保存 to 審査に提出 the instant the model combo
+        # commits -- before this function ever clicks anything. Querying for
+        # the now-absent 下書きを保存 button then returns count=0
+        # ("ambiguous draft-save button") even though the combo pick already
+        # persisted. Check the shared submit/draft button first and skip the
+        # click when the tab is already valid; CP3 alone submits.
+        submit_state = page.evaluate(_draft_save_or_submit_button_expression())
+        if isinstance(submit_state, dict) and submit_state.get("ok") and submit_state.get("label") == "submit":
+            print("display model: tab already valid (審査に提出 visible) -- not clicking draft-save")
+        else:
+            save = page.evaluate(_draft_save_button_expression())
+            if not isinstance(save, dict) or not save.get("ok"):
+                raise RuntimeError(f"ambiguous draft-save button ({save})")
+            if save.get("disabled"):
+                raise RuntimeError("draft-save button is disabled")
+            for kind in ("mousePressed", "mouseReleased"):
+                page.call("Input.dispatchMouseEvent", {
+                    "type": kind, "x": float(save["x"]), "y": float(save["y"]),
+                    "button": "left", "clickCount": 1,
+                })
+            print("draft save: clicked")
         time.sleep(3)
     else:
         print("display model already:", display_model)
@@ -1330,7 +1376,7 @@ def main():
     if not key:
         print("ERR: CAPAFY_HOST_OPENROUTER_KEY missing"); sys.exit(1)
 
-    cdp = _detect_cdp()
+    cdp = _require_cdp()
     transport = os.environ.get("CP2_TRANSPORT", "raw").strip().lower()
     if transport != "playwright":
         try:

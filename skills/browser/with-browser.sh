@@ -62,7 +62,23 @@ trap release_once EXIT INT TERM HUP
 # daily-driver).  The guard's resolved endpoint is authoritative for this identity;
 # pass it through both names so Python adapters cannot accidentally reconnect to the
 # inherited port, especially inside a sandbox that intentionally denies that port.
-CLOAK_CDP_BASE_URL="$CDP" CDP="$CDP" "$@" &
+CDP_PORT="${CDP##*:}"
+CDP_PORT="${CDP_PORT%%/*}"
+case "$CDP_PORT" in
+  ''|*[!0-9]*)
+    echo "with-browser: resolved endpoint has no valid port: $CDP" >&2
+    exit 10
+    ;;
+esac
+export CLOAK_CDP_BASE_URL="$CDP"
+export CDP
+# These are compatibility variables consumed by older gig adapters.  Keep them
+# derived from the leased endpoint so a dynamic DevToolsActivePort cannot leave a
+# stale :9223/:9222 sandbox or health probe behind.
+export CDP_DAILY_DRIVER_PORT="$CDP_PORT"
+export SESSION_VAULT_PORT="$CDP_PORT"
+export GIG_CDP_HEALTH_URL="${CDP%/}/json/version"
+"$@" &
 child=$!
 wait "$child"
 status=$?

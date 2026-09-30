@@ -50,6 +50,15 @@ def test_normal_attach_returns_browser_and_page_and_releases_lock(tmp_path):
     assert page2 == "p2"
 
 
+def test_attach_endpoint_comes_from_a_browser_lease_when_projected(monkeypatch):
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:51731")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_IDENTITY", "lancers:dais")
+    monkeypatch.setenv("LIFE_MANAGER_BROWSER_TARGET_OWNER", "lancers-revenue-browser")
+    module = _module()
+    assert module.CDP_URL == "http://127.0.0.1:51731"
+    assert module.DEFAULT_BROWSER_ATTACH_LOCK_PATH.name == "browser-attach-51731"
+
+
 def test_concurrent_attaches_are_serialized_not_raced(tmp_path):
     """Two concurrent attach attempts never overlap; the second waits then succeeds."""
     module = _module()

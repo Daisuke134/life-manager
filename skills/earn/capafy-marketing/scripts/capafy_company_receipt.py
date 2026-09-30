@@ -124,7 +124,9 @@ def _render_skill_analytics_line(section: dict | None) -> str:
         f"Skills: net30d=${section.get('last_30d_net_usd')} orders30d={section.get('last_30d_orders')} "
         f"gross7d=${section.get('last_7d_gross_usd')} top5=[{top_text}] "
         f"zero-sales={section.get('zero_sales_count')}/{section.get('total_skills')} "
-        f"sub={sub_text}"
+        f"sub={sub_text} cost30d(actual)=${section.get('cost30_actual_usd')} "
+        f"profit30d=${section.get('profit30_actual_usd')}"
+        + "".join(f"\n{line}" for line in section.get("detail_lines") or [])
     )
 
 
@@ -400,6 +402,14 @@ def _skill_analytics_section(path: Path, name_by_agent_id: dict[str, str] | None
         "zero_sales_count": len(rankings.get("zero_sales") or []),
         "total_skills": len(data.get("per_skill_rows") or []),
         "subscription_signal": _subscription_signal(data),
+        # Real profit (OpenRouter actual spend) and where buyers came from, so the
+        # daily Telegram report answers "are we making money and from where".
+        "cost30_actual_usd": account_totals.get("cost30_actual_usd"),
+        "profit30_actual_usd": account_totals.get("profit30_actual_usd"),
+        "detail_lines": [
+            part.strip() for part in str(data.get("telegram_summary") or "").split(". ")
+            if part.strip().startswith(("Per-skill 30d profit", "Traffic (30d)"))
+        ],
     }
 
 

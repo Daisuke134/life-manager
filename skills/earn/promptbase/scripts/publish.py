@@ -29,12 +29,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_listing import build_listing  # noqa: E402
+from build_listing import build_listing, INPUT_VARIABLE_LABEL  # noqa: E402
 import ledger as ledger_mod  # noqa: E402
 
 SELL_URL = "https://promptbase.com/sell"
@@ -113,6 +114,17 @@ def _select_with_option(page, option_text: str):
     raise RuntimeError(f"no_select_offers_option:{option_text}")
 
 
+def _select_first_matching(page, needle: str):
+    """Pick the first option containing `needle` in whichever <select> offers one."""
+    selects = page.locator("select")
+    for i in range(selects.count()):
+        opts = selects.nth(i).evaluate("e => Array.from(e.options).map(o => o.textContent.trim())")
+        for opt in opts:
+            if needle in opt:
+                selects.nth(i).select_option(label=opt)
+                return
+    raise RuntimeError(f"no_select_offers_option_containing:{needle}")
+
 def _wait_for_select_count(page, minimum: int, timeout_ms: int = 10000) -> None:
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
@@ -147,32 +159,87 @@ def _fill_step1(page, listing) -> None:
     _click_text(page, "Next: Prompt File")
     page.wait_for_timeout(1200)
     if _current_step(page) != "2/3":
-        raise RuntimeError(f"step1_did_not_advance:{_current_step(page)}")
+        # Name the reason PromptBase shows (the 2026-09-30 04:20 and 08:30 runs failed here with none).
+        notes = [ln.strip() for ln in page.inner_text("body").splitlines()
+                 if re.search(r"please|must|already|required|invalid|error|too (long|short)|maximum|reached", ln, re.I)]
+        raise RuntimeError(f"step1_did_not_advance:{_current_step(page)}:{' | '.join(notes)[:300]}")
 
 
 def _fill_step2(page, listing) -> None:
     # "Prompt template" is the buyer-hidden field the whole SKILL.md (prefixed
     # with a "[VAR]: value" example-input line) is pasted into.
     page.locator("textarea").nth(0).fill(listing.prompt_instructions)
-    _select_with_option(page, "5 Sonnet")
+    # PromptBase renames Claude versions (5 Sonnet -> 5.5 Sonnet, live 2026-09-30); take
+    # whichever current option is a Sonnet rather than pinning one label.
+    _select_first_matching(page, "Sonnet")
     page.wait_for_timeout(300)
 
-    # "Example outputs" is ONE textarea (placeholder "Paste your output
-    # here") already present before any click; "Add example +" only appends
-    # further slots (up to 4 total) and is not needed for a single example.
+    # "Example outputs" requires exactly 4 filled entries before PromptBase's
+    # own submit validation passes (verified live 2026-09-28: submitting with
+    # only one filled snapped back to step 2 with "Please upload 4 examples.",
+    # final_url never left /sell). The single "Paste your output here"
+    # textarea is where each entry is typed; clicking "Add example +" commits
+    # the current text as one of the 4 and clears the box for the next one
+    # (confirmed via "Examples uploaded: N/4" incrementing after each click).
+    # PromptBase rejects 4 identical outputs ("Some of your example outputs
+    # are the same", live 2026-09-29), so each slot gets its own real example
+    # from evidence/examples.json (gen_examples.py).
+    examples = listing.examples or []
+    if len({e["output"] for e in examples}) != 4:
+        raise RuntimeError("need_4_distinct_examples:run gen_examples.py")
     example_output_el = page.locator("textarea[placeholder='Paste your output here']")
     if example_output_el.count() == 0:
         raise RuntimeError("example_output_field_missing")
-    example_output_el.first.fill(listing.example_output)
+    for example in examples:
+        example_output_el.first.fill(example["output"])
+        page.wait_for_timeout(300)
+        add_example_btn = page.get_by_text("Add example", exact=False)
+        if add_example_btn.count() == 0:
+            break  # last slot: no more "Add example" control needed
+        add_example_btn.first.click(force=True)
+        page.wait_for_timeout(500)
+    uploaded_line = next(
+        (ln for ln in page.inner_text("body").splitlines() if "Examples uploaded" in ln), ""
+    )
+    if "4/4" not in uploaded_line:
+        raise RuntimeError(f"example_outputs_not_4_of_4:{uploaded_line!r}")
+
+    # PromptBase auto-detects every "[...]" run inside the Prompt template as
+    # a fillable "variable" and renders one text input per variable per
+    # example row (verified live 2026-09-28: 4 examples x 2 detected
+    # variables here = 8 input[type=text] boxes) -- submit fails closed with
+    # "Please provide inputs for all of your examples" until every one has a
+    # value. The variable this builder itself injects (INPUT_VARIABLE_LABEL)
+    # maps back to the real verified example_input; any other variable
+    # PromptBase found inside the catalog skill's own SKILL.md body (e.g. a
+    # literal "[ADD: your number]") gets a generic, clearly-labeled
+    # placeholder instead of a fabricated concrete value.
+    variable_inputs = page.locator("input[type=text]")
+    input_row = 0
+    for i in range(variable_inputs.count()):
+        el = variable_inputs.nth(i)
+        placeholder = el.get_attribute("placeholder") or ""
+        if placeholder == INPUT_VARIABLE_LABEL:
+            # One such box per example row, in row order.
+            el.fill(examples[min(input_row, 3)]["input"])
+            input_row += 1
+            continue
+        # No square brackets allowed in the value itself (verified live
+        # 2026-09-28: PromptBase's own validation rejects "Remove all square
+        # brackets from your example inputs" for any that contain one).
+        value = listing.example_input if placeholder == INPUT_VARIABLE_LABEL else placeholder
+        el.fill(value)
     page.wait_for_timeout(300)
 
-    # Prompt instructions field is the last textarea on this step.
+    # Prompt instructions field (buyer-facing usage tip) is the last textarea
+    # on this step -- generic per-listing text, not hardcoded to one slug, so
+    # this same code path is correct for every catalog skill the daily loop
+    # ships, not just reels-hook-lab.
     textareas = page.locator("textarea")
     textareas.last.fill(
-        "Paste your Reel's topic, product, or clip idea and (optionally) the "
-        "target account/niche and length. The response follows the SKILL.md "
-        "order: positioning, 3 angles, 5+ hooks with cover-frame text, "
-        "recommendation, shot list, caption."
+        f"Paste your input for {listing.title} and (optionally) any extra "
+        "context this skill's SKILL.md asks for. The response follows that "
+        "skill's own instructions end-to-end."
     )
     page.wait_for_timeout(300)
 
@@ -203,7 +270,8 @@ def _already_visible_in_dashboard(page, title: str) -> bool:
             return rows;
         }""",
     )
-    return any(status in ("Approved", "Pending", "Scheduled") and card_title == title
+    from readback import title_key  # dashboard drops the em dash; compare like readback does
+    return any(status in ("Approved", "Pending", "Scheduled") and title_key(card_title) == title_key(title)
                for status, card_title in cards)
 
 
@@ -237,6 +305,28 @@ def _resolve_recaptcha_or_stop(page, evidence_dir: Path) -> None:
     raise RuntimeError("recaptcha_requires_human_verification")
 
 
+def _matching_draft_url(page, title: str) -> str | None:
+    """prompt-edit URL of an existing *Draft* card with this title, if any.
+
+    PromptBase allows only 2 pending prompts + drafts and offers no delete, so
+    failed attempts' drafts blocked every new listing at step 1 (2026-09-30).
+    Like Capafy's resume_draft, finish that draft instead of opening /sell.
+    The dashboard is already loaded by _already_visible_in_dashboard.
+    """
+    from readback import title_key
+    links = page.eval_on_selector_all(
+        "a[href*='prompt-edit/']",
+        """els => els.map(a => {
+            let card = a; for (let i = 0; i < 6 && card.parentElement; i++) card = card.parentElement;
+            return [a.href, (a.textContent || '').trim(), (card.innerText || '')];
+        })""",
+    )
+    for href, text, card_text in links:
+        if text and title_key(text) == title_key(title) and "\nDraft\n" in f"\n{card_text}\n":
+            return href
+    return None
+
+
 def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -252,13 +342,40 @@ def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> 
         browser = p.chromium.connect_over_cdp(endpoint)
         ctx = browser.contexts[0]
         page = ctx.new_page()
+        # PromptBase's real Submit click pops a native "leave/confirm" dialog
+        # (verified live 2026-09-28: with no handler at all, Playwright's own
+        # default auto-dismiss raced the dialog's own auto-close and crashed
+        # its Node driver process with "No dialog is showing", hanging the
+        # Python side indefinitely on the dead connection). Accepting it is
+        # the same action a human clicking through the wizard takes --
+        # unrelated to the reCAPTCHA policy, which only governs the
+        # image-challenge modal. The dialog can still auto-close on its own
+        # before this handler's accept() reaches it (same race, just no
+        # longer fatal): swallow that one specific error instead of letting
+        # it become an unhandled exception in Playwright's event loop.
+        def _accept_dialog(dialog):
+            try:
+                dialog.accept()
+            except Exception as exc:  # already resolved -- not a real failure
+                if "No dialog is showing" not in str(exc):
+                    raise
+
+        page.on("dialog", _accept_dialog)
         try:
             if _already_visible_in_dashboard(page, listing.title):
                 result.update(ok=False, reason="already_visible_in_dashboard")
                 return result
 
-            _ensure_step1(page)
-            _fill_step1(page, listing)
+            draft_url = _matching_draft_url(page, listing.title)
+            if draft_url:
+                result["resumed_draft"] = draft_url
+                page.goto(draft_url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(4000)
+                if _current_step(page) != "2/3":
+                    raise RuntimeError(f"draft_not_at_step2:{_current_step(page)}:{draft_url}")
+            else:
+                _ensure_step1(page)
+                _fill_step1(page, listing)
             _fill_step2(page, listing)
             _resolve_recaptcha_or_stop(page, evidence_dir)
 
@@ -273,15 +390,31 @@ def run(endpoint: str, catalog_dir: Path, confirm: bool, evidence_dir: Path) -> 
             if submit_el.count() == 0:
                 raise RuntimeError("submit_control_not_found_after_recaptcha")
             _click_text(page, "Submit", exact=True)
-            page.wait_for_timeout(2500)
 
+            # Fail closed: only trust a submit that actually navigated to the
+            # created listing's prompt-edit/<id> page -- verified live
+            # 2026-09-28 that a silently-swallowed dialog error (see the
+            # page.on("dialog", ...) handler above) can leave the click a
+            # no-op, with the page still sitting on /sell. Absence of an
+            # exception is not evidence of a real submission; poll for the
+            # one URL shape that is.
+            # Live 2026-09-29: a real submit can also stay on /sell and show
+            # step 3/3 "Prompt Uploaded ... We are now reviewing your prompt"
+            # (dashboard then lists it as Pending), so that page text counts too.
+            deadline = time.time() + 10
             final_url = page.url
+            uploaded = False
+            while time.time() < deadline and "prompt-edit/" not in final_url and not uploaded:
+                page.wait_for_timeout(500)
+                final_url = page.url
+                uploaded = "We are now reviewing your prompt" in page.inner_text("body")
+
             page.screenshot(path=str(evidence_dir / "after_submit.png"), full_page=True)
             (evidence_dir / "after_submit_text.txt").write_text(page.inner_text("body")[:6000])
 
-            promptbase_id = ""
-            if "prompt-edit/" in final_url:
-                promptbase_id = final_url.rstrip("/").rsplit("/", 1)[-1]
+            if "prompt-edit/" not in final_url and not uploaded:
+                raise RuntimeError(f"submit_did_not_confirm:final_url={final_url}")
+            promptbase_id = final_url.rstrip("/").rsplit("/", 1)[-1] if "prompt-edit/" in final_url else ""
 
             row = {
                 "slug": listing.slug,

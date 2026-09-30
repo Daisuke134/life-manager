@@ -26,8 +26,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from runtime.host.resource_admission import resolve_pre_effect_occurrence
-from reconcile_reply_no_send import (ADMISSION_DB, JST, MINUTE, SAFE_ID, SLACK, _json,
-                                     _events, _overlaps, _provider_lease, _window)
+from reconcile_reply_no_send import (ADMISSION_DB, JST, MINUTE, SAFE_ID, SLACK,
+                                     ProviderBrowserBusy, _json, _events, _overlaps,
+                                     _provider_lease, _window)
 
 OWNER = "crowdworks-revenue-application"
 SENDER = "Kaito｜AI自動化"
@@ -98,6 +99,25 @@ def recorded_proposals(state_root: Path) -> set[int]:
     return ids
 
 
+def read_proposals_with_lease(
+    state_root: Path, oldest_needed: float, recorded: set[int]
+) -> tuple[list[tuple[int, str]] | None, str]:
+    """Read proposal pages without queueing behind an active revenue owner."""
+    try:
+        with _provider_lease(state_root):
+            import reply_adapter
+            adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
+            try:
+                adapter._open()
+                return read_proposals(adapter.page, oldest_needed, recorded), "ok"
+            except Exception:
+                return None, "proposal_readback_incomplete"
+            finally:
+                adapter.close()
+    except ProviderBrowserBusy:
+        return None, "provider_browser_busy"
+
+
 def read_proposals(page: Any, oldest_needed: float,
                    recorded: set[int] = frozenset()) -> list[tuple[int, str]] | None:
     """Newest-first proposals with their first-message minute, or None if unreadable.
@@ -149,18 +169,20 @@ def main(argv: list[str] | None = None) -> int:
     starts = [w[0] for o in occurrences
               if (w := _window(rows, o[len(OWNER) + 1:], None, owner=OWNER)[0])]
     proposals = None
+    readback_reason = "proposal_readback_incomplete"
     if starts:
-        with _provider_lease(state_root):
-            import reply_adapter
-            adapter, _ = reply_adapter.build(["--state-path", str(state_root / "reply/state.json")])
-            try:
-                adapter._open()
-                proposals = read_proposals(adapter.page, min(starts) - 3600,
-                                           recorded_proposals(state_root))
-            except Exception:
-                proposals = None
-            finally:
-                adapter.close()
+        proposals, readback_reason = read_proposals_with_lease(
+            state_root, min(starts) - 3600, recorded_proposals(state_root))
+    if readback_reason == "provider_browser_busy":
+        report = {
+            "owner_id": OWNER,
+            "checked": len(occurrences),
+            "resolved": [],
+            "fenced": {occurrence: "provider_browser_busy" for occurrence in occurrences},
+            "next_action": "retry_after_provider_browser",
+        }
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        return 75
     report = {"owner_id": OWNER, "checked": len(occurrences), "resolved": [], "fenced": {}}
     for occurrence, (proof, reason) in evaluate(state_root, occurrences, proposals).items():
         if proof is None:

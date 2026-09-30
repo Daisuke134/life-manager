@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: ライティング · tags: research proposal, academic writing, humanizer, grant draft, editing
+Primary Model: DeepSeek V4.1 Flash · category: ライティング · tags: research proposal, academic writing, humanizer, grant draft, editing
 
 RENEWAL GATE
 R1 recurring input : Each proposal brief, draft, reviewer note, and research update has different evidence and constraints.
@@ -6,9 +6,12 @@ R2 staleness       : A previous revision cannot reflect a changed scope, deadlin
 day-8 answer       : Every proposal cycle needs a fresh evidence-bound rewrite from the author's latest materials.
 demand evidence    : Official seller ranking identifies Academic Humanizer — Human Voice, No AI Tells as the attributable winner, with one US$9.99 buyout sale. This is a distinct research-proposal workflow that preserves author-provided evidence rather than a general humanizer.
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10 only, Claude Sonnet 4.6 (no yearly). Week/month band matches "Unscore — AI Detector & Humanizer" (agent `4097802482`, category 1, 18 sales, month $19.99); the yearly price matches "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales) at year $99.99.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 50 | No Free Trial |
+| year | $99.99 | 600 | No Free Trial |
 
 ## Title
 Academic Research Proposal Humanizer

@@ -284,6 +284,75 @@ test("adapter publishes through tenant-scoped providers and returns product line
   );
 });
 
+test("execute refuses to repost the same caption text to the same YouTube integration within 7 days (reuses #6127's shared guard)", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-caption-freshness-"));
+  function makeAdapter() {
+    return createMarketingVideoPublicationLoopAdapter({
+      objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+      secretProvider: { get: async () => "provider-token" },
+      integrationProvider: { get: async () => "integration-id" },
+      ledgerPath: () => path.join(root, "distribution.jsonl"),
+      runDistribution: async () => ({
+        creative_id: "ANICCA-YT-001-aaaaaaaaaaaa",
+        video_sha256: VIDEO_HASH,
+        caption_sha256: CAPTION_HASH,
+        platform: "youtube",
+        public_url: YT_SHORTS_URL,
+        provider_post_id: "postiz-anicca-yt-001",
+        provider_route: "postiz",
+        provider_reconciled: true,
+      }),
+      now: () => "2026-09-29T08:15:02.000Z",
+    });
+  }
+
+  const first = await makeAdapter().execute(youtubeJob());
+  assert.equal(first.receipt.public_url, YT_SHORTS_URL);
+
+  await assert.rejects(
+    makeAdapter().execute(youtubeJob({ creativeId: "ANICCA-YT-002-bbbbbbbbbbbb" })),
+    /already posted to this account within the last 7 days/,
+  );
+});
+
+test("the caption-freshness guard does not block a different YouTube integration, or the same one after the 7-day window", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-caption-freshness-scope-"));
+  function makeAdapter(now) {
+    return createMarketingVideoPublicationLoopAdapter({
+      objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+      secretProvider: { get: async () => "provider-token" },
+      integrationProvider: { get: async () => "integration-id" },
+      ledgerPath: () => path.join(root, "distribution.jsonl"),
+      runDistribution: async (input) => ({
+        creative_id: input.creativeId,
+        video_sha256: VIDEO_HASH,
+        caption_sha256: CAPTION_HASH,
+        platform: "youtube",
+        public_url: YT_SHORTS_URL,
+        provider_post_id: `postiz-${input.creativeId}`,
+        provider_route: "postiz",
+        provider_reconciled: true,
+      }),
+      now: () => now,
+    });
+  }
+
+  await makeAdapter("2026-09-01T00:00:00.000Z").execute(youtubeJob());
+
+  // A different YouTube channel's integration ref is unaffected by the first account's post.
+  const otherAccount = await makeAdapter("2026-09-01T00:00:01.000Z").execute(youtubeJob({
+    creativeId: "ANICCA-YT-002-bbbbbbbbbbbb",
+    youtubeIntegrationRef: "integration://postiz/youtube/a-different-channel",
+  }));
+  assert.equal(otherAccount.receipt.public_url, YT_SHORTS_URL);
+
+  // The same account, same text, 8 days later (outside the 7-day window) is allowed again.
+  const laterSameAccount = await makeAdapter("2026-09-09T00:00:01.000Z").execute(youtubeJob({
+    creativeId: "ANICCA-YT-003-cccccccccccc",
+  }));
+  assert.equal(laterSameAccount.receipt.public_url, YT_SHORTS_URL);
+});
+
 test("adapter records the runtime occurrence before a video provider effect", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-effect-identity-"));
   const sidecar = path.join(root, "effect-identity.jsonl");

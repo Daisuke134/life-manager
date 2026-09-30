@@ -48,20 +48,37 @@ def main():
     welcome = re.search(r"## welcomeMessage\n(.+?)\n## detailedDescription", L, re.S).group(1).strip()
     detailed = re.split(r"\n## detailedDescription[^\n]*\n", L)[-1].strip()
 
-    model_m = re.search(r"Primary Model:\s*([^·\n]+)", L)
-    model = model_m.group(1).strip() if model_m else "Claude Sonnet 4.6"
-    model_id = MODEL_IDS.get(model)
-    if model_id is None:
-        print(f"ERROR: unsupported hosted model: {model}", file=sys.stderr)
-        return 2
     cat_m = re.search(r"category:\s*([^\(·\n]+)", L)
     category = cat_m.group(1).strip() if cat_m else "ライティング"
     tags_m = re.search(r"tags:\s*([^\n]+)", L)
     tags = [t.strip() for t in tags_m.group(1).split(",")][:3] if tags_m else []
 
-    # pricing table rows
-    plans = []
-    for row in re.findall(r"\|\s*(day|week|month)\s*\|\s*\$?([0-9.]+)\s*\|\s*([0-9]+)\s*\|\s*([^|]+)\|", L, re.I):
+    # A "download" pricing row (one-time fee, no hosted LLM/CP2) is mutually
+    # exclusive with the subscription day/week/month table below — Capafy's
+    # Download mode has no Primary Model and no cap/trial (verified 2026-09-28
+    # via publish-remote-status on agent 3332784488: agent_type=download,
+    # is_confirmed_config_keys=false — CP2 is skipped entirely for downloads).
+    download_m = re.search(r"\|\s*download\s*\|\s*\$?([0-9.]+)\s*\|", L, re.I)
+
+    if download_m:
+        model = model_id = max_tokens = None
+        one_time_fee = download_m.group(1)
+        plans = []
+    else:
+        model_m = re.search(r"Primary Model:\s*([^·\n]+)", L)
+        model = model_m.group(1).strip() if model_m else "Claude Sonnet 4.6"
+        model_id = MODEL_IDS.get(model)
+        if model_id is None:
+            print(f"ERROR: unsupported hosted model: {model}", file=sys.stderr)
+            return 2
+        one_time_fee = None
+        plans = []
+
+    # pricing table rows (subscription mode only). "year" is the exact
+    # Capafy billing `cycleType` value (verified live 2026-09-29 in market
+    # billings data, e.g. agent 5133292529's `cycleType: "year"` row) — not a
+    # display label we invented.
+    for row in ([] if download_m else re.findall(r"\|\s*(day|week|month|year)\s*\|\s*\$?([0-9.]+)\s*\|\s*([0-9]+)\s*\|\s*([^|]+)\|", L, re.I)):
         cyc, price, cap, trial = row
         trial = trial.strip()
         trial_match = FREE_TRIAL.fullmatch(trial)
@@ -78,7 +95,7 @@ def main():
             sys.exit(2)
         plans.append({"cycle": cyc.lower(), "price": price, "cap": cap,
                       "trial": trial_value})
-    if not plans:
+    if not download_m and not plans:
         print("ERROR: no pricing rows parsed from LISTING", file=sys.stderr); sys.exit(2)
 
     ex = re.search(r'Example:\s*"?([^"\n]+)"?', welcome)
@@ -89,8 +106,11 @@ def main():
         "detailed": detailed, "privacy_url": "https://aniccaai.com/privacy",
         "support_email": "contact@aniccaai.com", "tags": tags, "category": category,
         "icon": icon, "model": model, "model_id": model_id,
-        "max_tokens": HOSTED_MAX_TOKENS[model], "provider": "openrouter.ai",
+        "max_tokens": HOSTED_MAX_TOKENS[model] if model else None,
+        "provider": "openrouter.ai" if model else None,
         "test_input": test_input, "plans": plans,
+        "pricing_mode": "download" if download_m else "subscription",
+        "one_time_fee": one_time_fee,
     }
     js = json.dumps(cfg, ensure_ascii=False)
     if out:

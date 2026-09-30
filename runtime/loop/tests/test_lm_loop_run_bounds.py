@@ -966,7 +966,8 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
     for loop_id in ("life-manager-release-reconciler", "life-manager-recovery-supervisor",
-                    "life-manager-disk-cleanup", "capafy-loop-healthcheck"):
+                    "life-manager-disk-cleanup", "capafy-loop-healthcheck",
+                    "lm-fence-reconciler"):
         receipt = tmp_path / f"receipt-{loop_id}"
         with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
               patch("runtime.loop.lm_loop_run.durable_protocol_version",
@@ -1215,6 +1216,10 @@ def test_crowdworks_application_and_reply_pre_effect_hints_are_allowlisted():
     assert "skills/earn/crowdworks/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
+def test_cross_venue_report_pre_effect_hint_is_allowlisted_by_loop_id():
+    assert "investment-cross-venue-report" in PRE_EFFECT_HINT_LOOP_IDS
+
+
 def test_lancers_application_pre_effect_hint_is_allowlisted():
     assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
@@ -1268,6 +1273,38 @@ def test_storefront_direct_loop_id_hint_is_honored_via_entry_dispatch(tmp_path):
             "entrypoint": "runtime/loop/entry_dispatch.py",
         }, "hf-gig-storefront-direct", {}, tmp_path / "receipt") == 1
     release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_investment_loop_id_hint_is_honored_for_pre_effect_failures(tmp_path):
+    for loop_id in ("alpaca-investment-live", "alpaca-investment-paper"):
+        claim = tmp_path / f"claim-{loop_id}"
+        claim.write_text("owned")
+
+        def run_child(*_args, **kwargs):
+            kwargs["on_started"](4242)
+            hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+            assert json.loads(hint.read_text(encoding="utf-8")) == {
+                "status": "pre_effect_failure", "effect": 0,
+            }
+            return 78
+
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                    return_value=(tmp_path / f"ticket-{loop_id}", "ready")),
+              patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                    return_value=(claim, "acquired")),
+              patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+              patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                    return_value=[]) as release,
+              patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+              patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+            assert _run_admitted(["/bin/true"], {
+                "cadence": {"start_interval_seconds": 300},
+                "provider_route": "shared-agent-runner", "resource_class": "agent",
+                "admission_class": "revenue", "effect_class": "money",
+                "entrypoint": "skills/alpaca-investment/run.py",
+            }, loop_id, {}, tmp_path / f"receipt-{loop_id}") == 78
+        release.assert_called_once_with(claim, requeue=False, reserve=True)
 
 
 def test_apply_direct_loop_id_does_not_receive_storefront_hint_via_entry_dispatch(tmp_path):
@@ -2005,6 +2042,21 @@ def test_entrypoint_blocks_signal_until_handler_owns_child(monkeypatch):
     with patch("runtime.loop.lm_loop_run.os.killpg") as killpg:
         assert _run_entrypoint(["/bin/true"], timeout_seconds=1) == 75
     killpg.assert_called_once_with(43210, signal.SIGTERM)
+
+
+def test_entrypoint_treats_permission_denied_signal_forward_as_already_exited(monkeypatch):
+    class Process:
+        pid = 43210
+        def poll(self): return None
+        def wait(self, timeout=None): return 0
+
+    def launch(*_args, **_kwargs):
+        os.kill(os.getpid(), signal.SIGTERM)
+        return Process()
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.subprocess.Popen", launch)
+    with patch("runtime.loop.lm_loop_run.os.killpg", side_effect=PermissionError):
+        assert _run_entrypoint(["/bin/true"], timeout_seconds=1) == 75
 
 
 def test_cancelled_before_atomic_handoff_never_starts_child():

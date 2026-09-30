@@ -96,7 +96,15 @@ def main(argv: list[str] | None = None) -> int:
                 or title_matches[0]["agent_status"] != "online"
                 or title_matches[0]["latest_agent_version_id"] != expected_version):
             return _fail("same-Agent source version changed; no new version is created")
-    if args.require_free_slot:
+    reuse_draft = any(
+        agent["agent_id"] == str(args.reuse_agent_id or "").strip()
+        and agent["agent_status"] == "draft"
+        for agent in agents
+    )
+    # Reusing an existing draft consumes no new slot: the draft is already
+    # counted among the five. Agent 4973250899 (2026-09-29) was blocked with
+    # CAP_FULL while it was itself the fifth occupant.
+    if args.require_free_slot and not reuse_draft:
         if any(agent["agent_status"] not in CAPACITY_STATUSES for agent in agents):
             return _fail("inventory has unsupported status; review capacity unknown")
         unlisted = [agent for agent in agents if agent["agent_status"] in UNLISTED_STATUSES]

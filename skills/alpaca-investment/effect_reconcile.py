@@ -10,7 +10,7 @@ inconclusive and keeps the fence. Closing goes through the host's
 `resolve_unknown_occurrence`, which re-checks the proof and never retries a trade.
 
 Usage:
-    python3 effect_reconcile.py --occurrence-id alpaca-investment-live:<run_id> [--readback-only]
+    python3 effect_reconcile.py --occurrence-id <owner>:<run_id> [--mode live|paper] [--readback-only]
 """
 from __future__ import annotations
 
@@ -30,9 +30,26 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO_ROOT))
 
 LIVE_ENDPOINT = "https://api.alpaca.markets/v2"
-# Readback uses the LIVE account only, so the only fence it may prove is the live owner's.
+PAPER_ENDPOINT = "https://paper-api.alpaca.markets/v2"
 OWNER_ID = "alpaca-investment-live"
+PAPER_OWNER_ID = "alpaca-investment-paper"
+_OWNER_BY_MODE = {"live": OWNER_ID, "paper": PAPER_OWNER_ID}
+_ENDPOINT_BY_MODE = {"live": LIVE_ENDPOINT, "paper": PAPER_ENDPOINT}
 PAGE_LIMIT = 500
+
+
+def owner_for_mode(mode: str) -> str:
+    try:
+        return _OWNER_BY_MODE[mode]
+    except (KeyError, TypeError) as error:
+        raise ValueError("investment_mode_invalid") from error
+
+
+def endpoint_for_mode(mode: str) -> str:
+    try:
+        return _ENDPOINT_BY_MODE[mode]
+    except (KeyError, TypeError) as error:
+        raise ValueError("investment_mode_invalid") from error
 
 
 def build_proof(owner_id: str, occurrence_id: str, queued_at: str,
@@ -60,13 +77,14 @@ def build_proof(owner_id: str, occurrence_id: str, queued_at: str,
     return proof
 
 
-def alpaca_get(credentials_path: Path) -> Callable[[str], Any]:
+def alpaca_get(credentials_path: Path, mode: str = "live") -> Callable[[str], Any]:
     from alpaca_cli import _credentials  # same file checks (mode 600, owner) as the live loop
-    private = _credentials(credentials_path, "live")
+    private = _credentials(credentials_path, mode)
     headers = {"APCA-API-KEY-ID": private["api_key"], "APCA-API-SECRET-KEY": private["api_secret"]}
+    endpoint = endpoint_for_mode(mode)
 
     def get(path: str) -> Any:
-        request = urllib.request.Request(LIVE_ENDPOINT + path, headers=headers)
+        request = urllib.request.Request(endpoint + path, headers=headers)
         with urllib.request.urlopen(request, timeout=20) as response:
             return json.load(response)
     return get
@@ -92,19 +110,23 @@ def fenced_row(owner_id: str, occurrence_id: str) -> tuple[str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--occurrence-id", required=True)
-    parser.add_argument("--credentials", type=Path,
-                        default=os.environ.get("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE")
-                        or os.environ.get("ANICCA_CREDENTIALS_FILE")
-                        or Path("~/.local/share/anicca/credentials.json").expanduser())
+    parser.add_argument("--mode", choices=("live", "paper"), default="live")
+    parser.add_argument("--credentials", type=Path)
     parser.add_argument("--readback-only", action="store_true",
                         help="print the proof without closing the fence")
     args = parser.parse_args(argv)
     try:
-        if not args.credentials:
-            raise ValueError("ALPACA_INVESTMENT_LIVE_CREDENTIALS_FILE is not set")
-        state, queued_at = fenced_row(OWNER_ID, args.occurrence_id)
-        proof = build_proof(OWNER_ID, args.occurrence_id, queued_at,
-                            alpaca_get(Path(args.credentials)))
+        owner_id = owner_for_mode(args.mode)
+        credential_value = args.credentials or os.environ.get(
+            f"ALPACA_INVESTMENT_{args.mode.upper()}_CREDENTIALS_FILE"
+        ) or os.environ.get("ANICCA_CREDENTIALS_FILE")
+        if not credential_value:
+            raise ValueError(
+                f"ALPACA_INVESTMENT_{args.mode.upper()}_CREDENTIALS_FILE is not set"
+            )
+        state, queued_at = fenced_row(owner_id, args.occurrence_id)
+        proof = build_proof(owner_id, args.occurrence_id, queued_at,
+                            alpaca_get(Path(credential_value).expanduser(), args.mode))
         print(json.dumps({**proof, "admission_state": state}, sort_keys=True))
         if not proof["verified"]:
             print("ALPACA_EFFECT_RECONCILE=HELD")
@@ -113,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             print("ALPACA_EFFECT_RECONCILE=PROOF_READY")
             return 0
         from runtime.host.resource_admission import resolve_unknown_occurrence
-        if not resolve_unknown_occurrence(OWNER_ID, args.occurrence_id,
+        if not resolve_unknown_occurrence(owner_id, args.occurrence_id,
                                           official_readback=lambda: proof,
                                           expected_state=state):
             raise ValueError("admission refused to close the occurrence")

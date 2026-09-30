@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import json
 import math
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -31,7 +30,7 @@ def risk(**changes):
 
 
 class FixedRiskPolicyTest(unittest.TestCase):
-    def test_allocator_prompt_exposes_usdc_backed_available_cash(self):
+    def test_allocator_requires_a_release_and_never_calls_free_form_agent(self):
         snapshot = {
             "account": {"cash": "0", "equity": "66.72"},
             "available_cash_usd": "66.72",
@@ -47,21 +46,37 @@ class FixedRiskPolicyTest(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            result_path = root / "result.json"
-            result_path.write_text(json.dumps({
-                "candidate_ref": "NO_TRADE", "probability_profit": 0,
-                "expected_gain_usd": 0, "reason": "根拠不足",
+            result = allocator.choose(snapshot, [candidate], root / "state", Path("runner"), root)
+        self.assertFalse(result["approved"])
+        self.assertEqual(result["reason"], "strategy_release_missing")
+        self.assertFalse((root / "state" / "decision-schema.json").exists())
+
+    def test_allocator_honors_no_strategy_selection_as_no_trade(self):
+        snapshot = {
+            "account": {"cash": "100", "equity": "100"},
+            "available_cash_usd": "100",
+            "clock": {"timestamp": "2026-09-10T10:00:00Z"},
+            "positions": 0,
+            "open_orders": 0,
+            "unresolved_intents": 0,
+        }
+        candidate = {
+            "asset_class": "crypto", "candidate_ref": "crypto://BTC/USDC",
+            "max_loss_usd": 10, "quote_age_seconds": 0, "spread_fraction": 0,
+            "symbol": "BTC/USDC",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            state.mkdir()
+            (state / "selected-strategy.json").write_text(json.dumps({
+                "strategy_id": "NO_STRATEGY",
+                "selection": "no_strategy",
+                "rejection_reasons": ["holdout_net_non_positive"],
             }))
+            result = allocator.choose(snapshot, [candidate], state, Path("runner"), Path(directory))
 
-            def completed(args, **kwargs):
-                payload = json.loads(kwargs["input"].splitlines()[-1])
-                self.assertEqual(payload["account"]["cash"], "0")
-                self.assertEqual(payload["available_cash_usd"], "66.72")
-                return subprocess.CompletedProcess(
-                    args, 0, json.dumps({"result_path": str(result_path)}), "")
-
-            with patch.object(allocator.subprocess, "run", side_effect=completed):
-                allocator.choose(snapshot, [candidate], root / "state", Path("runner"), root)
+        self.assertFalse(result["approved"])
+        self.assertEqual(result["reason"], "no_strategy_selected")
 
     def _provider_snapshot(self, timestamp="2026-09-06T13:59:50Z", open_orders=0):
         clock = {"is_open": True, "timestamp": timestamp}
@@ -112,6 +127,32 @@ class FixedRiskPolicyTest(unittest.TestCase):
     def test_provider_nanoseconds_and_utc_offset_are_valid_risk_time(self):
         snapshot = self._provider_snapshot("2026-09-06T09:59:50.123456789-04:00")
         self.assertFalse(evaluate_entry(snapshot["risk"], "10.00", now=NOW)["approved"])
+
+    def test_small_provider_clock_lead_does_not_reject_fresh_risk(self):
+        snapshot = risk(
+            equity_pnl_ny_day_usd="-10.00",
+            official_pnl_ny_day_usd="-10.00",
+            observed_at="2026-09-06T14:00:03Z",
+            ny_day="2026-09-06",
+        )
+
+        result = evaluate_entry(snapshot, "10.00", now=NOW)
+
+        self.assertTrue(result["approved"])
+        self.assertTrue(result["checks"]["fresh"])
+
+    def test_provider_clock_lead_beyond_bound_rejects_freshness(self):
+        snapshot = risk(
+            equity_pnl_ny_day_usd="-10.00",
+            official_pnl_ny_day_usd="-10.00",
+            observed_at="2026-09-06T14:00:11Z",
+            ny_day="2026-09-06",
+        )
+
+        result = evaluate_entry(snapshot, "10.00", now=NOW)
+
+        self.assertFalse(result["approved"])
+        self.assertFalse(result["checks"]["fresh"])
 
     def test_boolean_open_order_count_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "^alpaca_allocator_shape_invalid$"):

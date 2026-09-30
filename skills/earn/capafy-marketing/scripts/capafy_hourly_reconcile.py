@@ -27,6 +27,9 @@ SOURCE_NAMES = (
 CAPAFY_ACTIVE_SUBMISSION_CAP = 5
 SKILL_STATS_CAP = 60  # ponytail: sequential per-agent calls, raise if catalog grows past this
 SKILL_STATS_DELAY_SECONDS = 0.15
+TRAFFIC_SOURCES_BASE = "/app/developer/traffic-sources"
+TRAFFIC_AGENT_CAP = SKILL_STATS_CAP  # ponytail: same bound as the per-agent stats loop above
+TRAFFIC_AGENT_DELAY_SECONDS = SKILL_STATS_DELAY_SECONDS
 
 
 def _money(value: Any) -> str | None:
@@ -243,6 +246,138 @@ def _inventory(payload: dict) -> dict:
     return result
 
 
+def _epoch_ms(day: dt.date, *, end_of_day: bool = False) -> int:
+    time_part = dt.time(23, 59, 59, 999000) if end_of_day else dt.time(0, 0, 0)
+    return int(dt.datetime.combine(day, time_part, tzinfo=dt.timezone.utc).timestamp() * 1000)
+
+
+def _traffic_merge(visits_items: Any, sales_items: Any) -> list[dict] | None:
+    """Merge GET-equivalent v2/visits/stats + v2/sales/stats rows by (sourceType, name),
+    mirroring the Capafy console's own client-side merge in assets/TrafficSources-*.js."""
+    if not isinstance(visits_items, list) or not isinstance(sales_items, list):
+        return None
+    merged: dict[tuple[str, str], dict] = {}
+    try:
+        for row in visits_items:
+            if not isinstance(row, dict):
+                raise ValueError
+            stype = str(row.get("sourceType") or "unknown")
+            sname = str(row.get("sourceName") or stype)
+            entry = merged.setdefault((stype, sname), {
+                "source_type": stype, "source_name": sname,
+                "views": 0, "unique_visitors": 0, "trial_orders": 0, "paid_orders": 0,
+                "sales_usd": Decimal("0"),
+            })
+            entry["views"] += int(row.get("pageViewCount") or 0) + int(row.get("detailViewCount") or 0)
+            entry["unique_visitors"] += int(row.get("uniqueVisitorCount") or 0)
+        for row in sales_items:
+            if not isinstance(row, dict):
+                raise ValueError
+            stype = str(row.get("sourceType") or "unknown")
+            sname = str(row.get("campaignName") or row.get("source") or stype)
+            entry = merged.setdefault((stype, sname), {
+                "source_type": stype, "source_name": sname,
+                "views": 0, "unique_visitors": 0, "trial_orders": 0, "paid_orders": 0,
+                "sales_usd": Decimal("0"),
+            })
+            entry["trial_orders"] += int(row.get("freeTrialCount") or 0)
+            entry["paid_orders"] += int(row.get("paidOrderCount") or 0)
+            entry["sales_usd"] += Decimal(str(row.get("salesAmount", 0) or 0))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    rows = [{**entry, "sales_usd": _money(entry["sales_usd"]) or "0.00"} for entry in merged.values()]
+    rows.sort(key=lambda row: (row["views"], Decimal(row["sales_usd"])), reverse=True)
+    return rows
+
+
+def _traffic_window(web_token: str, start_ms: int, end_ms: int, agent_id: str | None = None) -> dict:
+    """One (start, end[, agent]) window of Capafy's own traffic-sources v2 visits+sales stats,
+    merged into per-source rows. No web_token / a failed call -> status unknown, never a fabricated zero."""
+    empty = {"status": "unknown", "by_source": [], "totals": {
+        "views": None, "unique_visitors": None, "trial_orders": None, "paid_orders": None, "sales_usd": None}}
+    if not web_token:
+        return {**empty, "status": "unknown_web_token_unavailable"}
+    body: dict[str, Any] = {"startAt": start_ms, "endAt": end_ms}
+    if agent_id:
+        body["agentId"] = agent_id
+    visits = _post(f"{TRAFFIC_SOURCES_BASE}/v2/visits/stats", web_token, body)
+    sales = _post(f"{TRAFFIC_SOURCES_BASE}/v2/sales/stats", web_token, body)
+    if not (_ok(visits) and _ok(sales)):
+        return {**empty, "status": "unknown_source_error"}
+    visits_data, sales_data = _data(visits), _data(sales)
+    visits_items = visits_data.get("items") if isinstance(visits_data, dict) else None
+    sales_items = sales_data.get("items") if isinstance(sales_data, dict) else None
+    by_source = _traffic_merge(visits_items, sales_items)
+    if by_source is None:
+        return {**empty, "status": "unknown_shape"}
+    try:
+        totals = {
+            "views": sum(row["views"] for row in by_source),
+            "unique_visitors": sum(row["unique_visitors"] for row in by_source),
+            "trial_orders": sum(row["trial_orders"] for row in by_source),
+            "paid_orders": sum(row["paid_orders"] for row in by_source),
+            "sales_usd": _money(sum(Decimal(row["sales_usd"]) for row in by_source)),
+        }
+    except InvalidOperation:
+        return {**empty, "status": "unknown_totals_error"}
+    return {"status": "fresh", "by_source": by_source, "totals": totals}
+
+
+def build_traffic_sources(
+    web_token: str, end_date: dt.date, agent_ids: list[str], *,
+    cap: int = TRAFFIC_AGENT_CAP, delay: float = TRAFFIC_AGENT_DELAY_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict:
+    """Per-day-window (30d/7d) x per-source Capafy traffic, and the same per-agent when the
+    agentId filter the API already supports is applied. Endpoint has no public documentation;
+    discovered from the public (unauthenticated) Vite chunk assets/TrafficSources-*.js."""
+    end_ms = _epoch_ms(end_date, end_of_day=True)
+    windows = {
+        "last_30d": _traffic_window(web_token, _epoch_ms(end_date - dt.timedelta(days=29)), end_ms),
+        "last_7d": _traffic_window(web_token, _epoch_ms(end_date - dt.timedelta(days=6)), end_ms),
+    }
+    by_agent: dict[str, dict] = {}
+    for agent_id in agent_ids[:cap]:
+        by_agent[agent_id] = {
+            "last_30d": _traffic_window(
+                web_token, _epoch_ms(end_date - dt.timedelta(days=29)), end_ms, agent_id),
+            "last_7d": _traffic_window(
+                web_token, _epoch_ms(end_date - dt.timedelta(days=6)), end_ms, agent_id),
+        }
+        sleep(delay)
+    status = "fresh" if windows["last_30d"]["status"] == "fresh" and windows["last_7d"]["status"] == "fresh" \
+        else "degraded"
+    return {
+        "schema_version": 1,
+        "kind": "capafy_traffic_sources",
+        "status": status,
+        "last_30d": windows["last_30d"],
+        "last_7d": windows["last_7d"],
+        "by_agent": by_agent,
+        "data_gaps": [
+            "Endpoint discovered from the public Vite chunk assets/TrafficSources-*.js (base "
+            "/app/developer/traffic-sources); Capafy has no documented public API for it.",
+            "v2/impressions/stats (listing exposure count, a different metric from page views) "
+            "exists on the same base path but is not fetched here.",
+        ],
+    }
+
+
+def _traffic_summary_line(traffic_sources: dict | None, top_n: int = 3) -> str | None:
+    """'Top sources with visits and orders' one-liner for the Telegram body; None when unknown."""
+    if not isinstance(traffic_sources, dict):
+        return None
+    window = traffic_sources.get("last_30d")
+    if not isinstance(window, dict) or window.get("status") != "fresh":
+        return None
+    by_source = window.get("by_source") or []
+    top = sorted(by_source, key=lambda row: row.get("views", 0), reverse=True)[:top_n]
+    if not top:
+        return "Traffic (30d): no sources observed."
+    parts = [f"{row['source_type']}/{row['source_name']} {row['views']}v/{row['paid_orders']}o" for row in top]
+    return "Traffic (30d) top sources: " + ", ".join(parts) + "."
+
+
 def build_receipt(payloads: dict[str, dict], observed_at: str) -> dict:
     sources = {
         name: {
@@ -312,6 +447,10 @@ def build_receipt(payloads: dict[str, dict], observed_at: str) -> dict:
                                 payloads.get("model_prices", {})),
         "openrouter": payloads.get("openrouter_usage", {"_error": "not_observed"}),
         "openrouter_actual": _openrouter_actual(payloads.get("openrouter_activity", {})),
+        "traffic_sources": payloads.get("traffic_sources") or {
+            "schema_version": 1, "kind": "capafy_traffic_sources", "status": "unknown_not_observed",
+            "last_30d": None, "last_7d": None, "by_agent": {}, "data_gaps": [],
+        },
     }
 
 
@@ -745,6 +884,10 @@ def build_skill_analytics(
     else:
         telegram_summary = f"Capafy: all-time gross ${all_time['gross_usd']} (per-skill data stale this run)."
 
+    traffic_line = _traffic_summary_line(payloads.get("traffic_sources"))
+    if traffic_line:
+        telegram_summary += " " + traffic_line
+
     return {
         "schema_version": 1,
         "kind": "capafy_skill_analytics",
@@ -1021,6 +1164,9 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         "unit_sales": _post("/app/unit-sales/clickhouse/trend", web_token, period),
         "statements": _get("/app/developer/settlement-statement/list?page=1&size=20", web_token),
     })
+    inventory_agent_ids = [str(row["agentId"]) for row in (_inventory_rows(payloads.get("inventory", {})) or [])
+                           if row.get("agentId")]
+    payloads["traffic_sources"] = build_traffic_sources(web_token, observed.date(), inventory_agent_ids)
     # Per-agent GROSS revenue/orders for fixed 30d/7d windows. /agent/agent/{id}/stats
     # (SOURCE_STATS_ENDPOINT below) returns SETTLED-only figures that lag real sales by a
     # refund-clearance window and can read $0 for a skill with real recent activity; these
@@ -1044,7 +1190,28 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
                       for aid, detail in details.items()}
     model_ids = {"Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
                  "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash"}
-    payloads["agent_models"] = {aid: model_ids.get(display) for aid, display in display_models.items()}
+    agent_models = {aid: model_ids.get(display) for aid, display in display_models.items()}
+    # The detail API describes the LATEST version. While an update is under review
+    # (2026-09-28: Hook Lab v1.0.3 on DeepSeek) buyers are still served by the live
+    # version, so price usage with the model last seen while the Agent was online.
+    served_path = Path(os.environ.get(
+        "CAPAFY_SERVED_MODELS", Path.home() / ".local/state/life-manager/state/capafy-served-models.json"))
+    try:
+        served = json.loads(served_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        served = {}
+    status_by_id = {str(row.get("agentId")): str(row.get("agentStatus") or "").lower()
+                    for row in (_inventory_rows(payloads.get("inventory", {})) or [])}
+    for aid, model in list(agent_models.items()):
+        if status_by_id.get(aid) == "online" and model:
+            served[aid] = model
+        elif served.get(aid):
+            agent_models[aid] = served[aid]
+    try:
+        _atomic_write(served_path, served)
+    except OSError:
+        pass
+    payloads["agent_models"] = agent_models
     catalog = _openrouter_data("/models")
     model_rows = catalog.get("data") if isinstance(catalog, dict) else None
     payloads["model_prices"] = (
@@ -1131,7 +1298,8 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parents[4]
     if args.fixture_dir:
         payloads = {name: json.loads((args.fixture_dir / f"{name}.json").read_text()) for name in SOURCE_NAMES}
-        for name in ("usage_requests", "agent_models", "model_prices", "openrouter_usage", "openrouter_activity"):
+        for name in ("usage_requests", "agent_models", "model_prices", "openrouter_usage",
+                     "openrouter_activity", "traffic_sources"):
             path = args.fixture_dir / f"{name}.json"
             if path.exists():
                 payloads[name] = json.loads(path.read_text())

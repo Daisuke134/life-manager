@@ -7,11 +7,18 @@ import hashlib
 import json
 import os
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
 
 MODES = frozenset({"paper", "shadow", "live"})
+BROKER_TERMINAL_FAILURE_STATUSES = frozenset({
+    "canceled", "done_for_day", "expired", "rejected", "stopped", "suspended",
+})
+UNRESOLVED_INTENT_STATUSES = frozenset({
+    "started", "reconciliation_blocked", "reconciliation_pending", "applied",
+})
 
 
 def _mode(value: Any) -> str:
@@ -67,6 +74,10 @@ def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[
     _append_once(ledger, {
         "client_order_id": client_order_id, "decision_id": decision_id,
         "effect_id": effect_id, "order": order, "mode": mode, "paper": paper,
+        "owner_id": decision.get("owner_id"),
+        "strategy_id": decision.get("strategy_id"),
+        "decision_session": decision.get("decision_session"),
+        "source_receipt_ids": decision.get("source_receipt_ids", []),
         "receipt_type": "effect_intent", "recorded_at": now,
         "schema_version": 1, "status": "planned",
     }, ("receipt_type", "effect_id", "status"))
@@ -90,22 +101,139 @@ def mark_started(ledger: Path, sealed: dict[str, str]) -> bool:
     if any(row.get("receipt_type") == "outcome" and row.get("effect_id") == sealed["effect_id"]
            for row in _rows(ledger)):
         raise ValueError("effect_already_completed")
+    planned = next(
+        (
+            row for row in reversed(_rows(ledger))
+            if row.get("receipt_type") == "effect_intent"
+            and row.get("effect_id") == sealed["effect_id"]
+            and row.get("status") == "planned"
+        ),
+        {},
+    )
+    preserved = {
+        key: planned[key]
+        for key in (
+            "order", "owner_id", "strategy_id", "decision_session",
+            "source_receipt_ids",
+        )
+        if key in planned
+    }
     return _append_once(ledger, {
-        **sealed, "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
+        **preserved, **sealed, "mode": mode, "paper": mode == "paper",
+        "receipt_type": "effect_intent",
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "schema_version": 1, "status": "started",
     }, ("receipt_type", "effect_id", "status"))
 
 
 def _unresolved(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    outcomes = {row.get("effect_id") for row in rows if row.get("receipt_type") == "outcome"}
+    latest_outcome: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row.get("receipt_type") == "outcome" and isinstance(row.get("effect_id"), str):
+            latest_outcome[row["effect_id"]] = row
     latest: dict[str, dict[str, Any]] = {}
     for row in rows:
         if row.get("receipt_type") == "effect_intent" and isinstance(row.get("effect_id"), str):
             latest[row["effect_id"]] = row
     return [row for effect_id, row in latest.items()
-            if row.get("status") in {"started", "reconciliation_blocked", "applied"}
-            and effect_id not in outcomes]
+            if row.get("status") in UNRESOLVED_INTENT_STATUSES
+            and not _outcome_closed(latest_outcome.get(effect_id))]
+
+
+def _completed_without_strategy_receipt(
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Find filled broker outcomes whose strategy-specific readback was never recorded."""
+    intents: dict[str, list[dict[str, Any]]] = {}
+    latest_outcome: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        effect_id = row.get("effect_id")
+        if not isinstance(effect_id, str):
+            continue
+        if row.get("receipt_type") == "effect_intent":
+            intents.setdefault(effect_id, []).append(row)
+        elif row.get("receipt_type") == "outcome":
+            latest_outcome[effect_id] = row
+    candidates: list[dict[str, Any]] = []
+    for effect_id, outcome in latest_outcome.items():
+        broker = outcome.get("broker")
+        intent = next((row for row in reversed(intents.get(effect_id, []))
+                       if isinstance(row.get("order"), dict)
+                       and isinstance(row.get("owner_id"), str)
+                       and isinstance(row.get("strategy_id"), str)
+                       and isinstance(row.get("decision_session"), str)
+                       and isinstance(row.get("source_receipt_ids"), list)), None)
+        if (outcome.get("outcome") != "broker_reconciled"
+                or not isinstance(broker, dict)
+                or broker.get("status") != "filled"
+                or not isinstance(intent, dict)
+                or not isinstance(intent.get("client_order_id"), str)
+                or isinstance(outcome.get("client_order_id"), str)
+                or isinstance(outcome.get("strategy_receipt"), dict)):
+            continue
+        candidates.append(intent)
+    return candidates
+
+
+def _filled_qty_positive(order: dict[str, Any]) -> bool:
+    value = order.get("filled_qty")
+    if value is None or value == "":
+        return False
+    try:
+        quantity = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return True
+    return quantity.is_finite() and quantity > 0
+
+
+def _outcome_closed(outcome: dict[str, Any] | None) -> bool:
+    if not isinstance(outcome, dict):
+        return False
+    kind = outcome.get("outcome")
+    if kind == "broker_terminal_failure":
+        broker = outcome.get("broker")
+        return isinstance(broker, dict) and (
+            broker.get("status") in BROKER_TERMINAL_FAILURE_STATUSES
+            and not _filled_qty_positive(broker)
+        )
+    if kind == "broker_reconciled":
+        broker = outcome.get("broker")
+        if not isinstance(broker, dict):
+            return False
+        status = broker.get("status")
+        return status == "filled" or (
+            status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(broker)
+        )
+    return kind in {
+        "live_canary_verified", "live_canary_terminal_failure",
+        "live_close_verified", "live_close_terminal_failure",
+    }
+
+
+def _pending_status(ledger: Path, intent: dict[str, Any], order: dict[str, Any],
+                    *, reason: str | None = None) -> None:
+    status = order.get("status")
+    preserved = {
+        key: intent[key]
+        for key in (
+            "decision_id", "order", "owner_id", "strategy_id",
+            "decision_session", "source_receipt_ids",
+        )
+        if key in intent
+    }
+    _append_once(ledger, {
+        **preserved,
+        "client_order_id": intent["client_order_id"],
+        "broker_status": status,
+        "effect_id": intent["effect_id"],
+        "mode": intent.get("mode", "paper"),
+        "paper": intent.get("paper") is True,
+        "receipt_type": "effect_intent",
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 1,
+        "status": "reconciliation_pending",
+        **({"reason": reason} if reason else {}),
+    }, ("receipt_type", "effect_id", "status", "broker_status"))
 
 
 def unresolved_intent_count(ledger: Path) -> int:
@@ -141,12 +269,15 @@ def record_terminal_outcome(ledger: Path, sealed: dict[str, str], broker: dict[s
 def reconcile_started(
     ledger: Path,
     find_order: Callable[[str], dict[str, Any] | None],
+    *,
+    on_reconciled: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any] | None] | None = None,
 ) -> dict[str, int]:
     rows = _rows(ledger)
     pending = _unresolved(rows)
     if len(pending) > 1:
         raise ValueError("multiple_unresolved_intents")
     reconciled = 0
+    deferred = 0
     for intent in pending:
         mode = intent.get("mode")
         if mode is None:
@@ -163,17 +294,90 @@ def reconcile_started(
                 "schema_version": 1, "status": "reconciliation_blocked",
             }, ("receipt_type", "effect_id", "status"))
             raise ValueError("reconciliation_blocked")
+        status = order.get("status")
+        if status != "filled":
+            if status in BROKER_TERMINAL_FAILURE_STATUSES and not _filled_qty_positive(order):
+                _append_once(ledger, {
+                    "broker": order, "broker_receipt_id": order.get("id"),
+                    "broker_status": status,
+                    "client_order_id": intent["client_order_id"],
+                    "effect_id": intent["effect_id"], "outcome": "broker_terminal_failure",
+                    "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
+                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                    "schema_version": 1,
+                }, ("receipt_type", "effect_id", "outcome", "broker_status",
+                    "broker_receipt_id"))
+                reconciled += 1
+                continue
+            _pending_status(
+                ledger, intent, order,
+                reason="partial_fill_requires_reconciliation" if status in BROKER_TERMINAL_FAILURE_STATUSES
+                else None,
+            )
+            deferred += 1
+            continue
+        strategy_receipt = None
+        if on_reconciled is not None:
+            # The callback owns any additional provider/account readback needed
+            # for a strategy-specific receipt.  It runs before this effect is
+            # closed so a missing fill or foreign position remains retry-fenced.
+            strategy_receipt = on_reconciled(intent, order)
+            if strategy_receipt is not None and not isinstance(strategy_receipt, dict):
+                raise ValueError("strategy_receipt_invalid")
         _append_once(ledger, {
             "client_order_id": intent["client_order_id"], "effect_id": intent["effect_id"],
             "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": 1, "status": "applied",
         }, ("receipt_type", "effect_id", "status"))
-        _append_once(ledger, {
-            "broker": order, "effect_id": intent["effect_id"], "outcome": "broker_reconciled",
+        outcome = {
+            "broker": order, "broker_receipt_id": order.get("id"),
+            "broker_status": status, "client_order_id": intent["client_order_id"],
+            "effect_id": intent["effect_id"],
+            "outcome": "broker_reconciled",
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
-        }, ("receipt_type", "effect_id"))
+        }
+        if strategy_receipt is not None:
+            outcome["strategy_receipt"] = strategy_receipt
+        _append_once(ledger, outcome, (
+            "receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id",
+        ))
         reconciled += 1
-    return {"pending": len(pending), "reconciled": reconciled,
-            "unresolved": unresolved_intent_count(ledger)}
+    strategy_reconciled = 0
+    if on_reconciled is not None:
+        for intent in _completed_without_strategy_receipt(_rows(ledger)):
+            order = find_order(intent["client_order_id"])
+            if order is None or order.get("status") != "filled":
+                raise ValueError("reconciliation_blocked")
+            strategy_receipt = on_reconciled(intent, order)
+            if strategy_receipt is None:
+                continue
+            if not isinstance(strategy_receipt, dict):
+                raise ValueError("strategy_receipt_invalid")
+            mode = _mode(intent.get("mode", "paper"))
+            _append_once(ledger, {
+                "broker": order,
+                "broker_receipt_id": order.get("id"),
+                "broker_status": order.get("status"),
+                "client_order_id": intent["client_order_id"],
+                "effect_id": intent["effect_id"],
+                "mode": mode,
+                "outcome": "broker_reconciled",
+                "paper": mode == "paper",
+                "receipt_type": "outcome",
+                "recorded_at": datetime.now(timezone.utc).isoformat(),
+                "schema_version": 1,
+                "strategy_receipt": strategy_receipt,
+            }, (
+                "receipt_type", "effect_id", "outcome", "broker_status", "broker_receipt_id",
+                "strategy_receipt",
+            ))
+            strategy_reconciled += 1
+    result = {"pending": len(pending), "reconciled": reconciled,
+              "unresolved": unresolved_intent_count(ledger)}
+    if deferred:
+        result["deferred"] = deferred
+    if strategy_reconciled:
+        result["strategy_reconciled"] = strategy_reconciled
+    return result

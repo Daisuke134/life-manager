@@ -34,6 +34,13 @@ if [ "${1:-}" = "--fingerprint" ]; then sf_pane_fingerprint "$(cat)"; exit 0; fi
 # frozen/hung, or not generating = idle/errored). args: <generating 0|1> <cur_fp> <prev_fp>.
 sf_should_continue(){ [ "$1" = "1" ] && [ "$2" != "$3" ]; }
 if [ "${1:-}" = "--should-continue" ]; then sf_should_continue "${2:-}" "${3:-}" "${4:-}"; exit $?; fi
+# FIND-036 (2026-09-29, issue: fixer SUCCESS at 12:29 muted a NEW update-draft bug that surfaced
+# at 13:51 for the full 20h SUCCESS backoff): normalize a blocker string by stripping digit runs
+# (agent ids, version ids, epoch/UTC timestamps) so two reports of the SAME standing condition
+# compare equal while a genuinely DIFFERENT failure compares different. Pure, testable predicate.
+sf_normalize_blocker(){ printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' | sed -E 's/[0-9]+/#/g'; }
+sf_blocker_changed(){ [ "$(sf_normalize_blocker "$1")" != "$(sf_normalize_blocker "$2")" ]; }
+if [ "${1:-}" = "--blocker-changed" ]; then sf_blocker_changed "${2:-}" "${3:-}"; exit $?; fi
 # FIND-025: NORMALIZE the loop name to a single canonical form ("<x>-loop") so every call site — healthcheck
 # (HC_LOOP=capafy-loop), STARTUP prompts (capafy), verify-loops (capafy) — maps to ONE session name + ONE result
 # marker. Without this, "capafy" and "capafy-loop" spawn two mutually-unaware fixers and split the marker the
@@ -44,6 +51,7 @@ STATE="$HOME/.local/state/life-manager/state"; mkdir -p "$STATE"
 LOG="$HOME/.local/state/life-manager/logs/self-fix-$LOOP.log"; mkdir -p "$(dirname "$LOG")"
 RESULT="$STATE/.self-fix-$LOOP.result"       # the fixer writes SUCCESS/FAIL + evidence here (FIND-003)
 STARTMARK="$STATE/.self-fix-$LOOP.started"    # epoch when the current fixer was spawned (FIND-005 stale-guard)
+BLOCKER_FILE="$STATE/.self-fix-$LOOP.blocker" # FIND-036: blocker text of the run $RESULT concluded for
 # FIND-028 test seam: print the normalized identity + derived paths and exit BEFORE any tmux/side-effect.
 if [ "${SELF_FIX_DRYRUN:-}" = "1" ]; then printf 'LOOP=%s SESSION=%s SOCK=%s RESULT=%s\n' "$LOOP" "$SESSION" "$SOCK" "$RESULT"; exit 0; fi
 MAX_FIXER_MIN=180                             # FIND-023: a fixer older than 3h is presumed hung → kill+respawn. Set
@@ -81,11 +89,30 @@ fi
 # 6h forever for a non-bug (the "verify-loops-audit reflex-spawns self-fix" landmine, capafy 2026-07).
 # If the PRIOR fixer for THIS loop already CONCLUDED (RESULT no longer 'RUNNING') within BACKOFF_MIN,
 # skip — the condition was addressed (SUCCESS) or is a known standing blocker (FAIL); retry only after
-# the backoff so a real regression is still eventually re-attempted. Test seam: SELF_FIX_BACKOFF_MIN.
-BACKOFF_MIN="${SELF_FIX_BACKOFF_MIN:-1200}"   # 20h → at most ~1 fixer/day/loop instead of 4
+# the backoff so a real regression is still eventually re-attempted. Test seam: SELF_FIX_BACKOFF_MIN
+# (overrides both below when set, for back-compat with any caller pinning a single value).
+# #6063 fix: a FAIL used to get the SAME 20h backoff as a SUCCESS, which left a persisting CODE BUG
+# unaddressed for up to 20h (measured 2026-09-28 20:56 -> 2026-09-29 12:14) even though a fresh fixer
+# armed with skills/self/lib/self_fix_code_path.sh (worktree+PR+merge) is cheap to re-try. A concluded
+# SUCCESS still gets the long backoff (the fix landed, no need to re-fire soon); a concluded FAIL gets
+# a short one so the next natural trigger can retry the code-path fix.
+SUCCESS_BACKOFF_MIN="${SELF_FIX_BACKOFF_MIN:-${SELF_FIX_SUCCESS_BACKOFF_MIN:-1200}}"   # 20h
+FAIL_BACKOFF_MIN="${SELF_FIX_BACKOFF_MIN:-${SELF_FIX_FAIL_BACKOFF_MIN:-60}}"           # 1h
 if ! tmux -S "$SOCK" has-session -t "$SESSION" 2>/dev/null && [ -f "$RESULT" ] && ! grep -q '^RUNNING' "$RESULT" 2>/dev/null; then
   res_age_min=$(( ( $(date +%s) - $(stat -f %m "$RESULT" 2>/dev/null||echo 0) ) / 60 ))
-  if [ "$res_age_min" -ge 0 ] && [ "$res_age_min" -lt "$BACKOFF_MIN" ]; then
+  IS_FAIL=0
+  BACKOFF_MIN="$SUCCESS_BACKOFF_MIN"
+  head -c 7 "$RESULT" 2>/dev/null | grep -q '^FAIL' && { BACKOFF_MIN="$FAIL_BACKOFF_MIN"; IS_FAIL=1; }
+  # FIND-036 (2026-09-29): a concluded SUCCESS's 20h backoff exists to stop re-firing for the
+  # SAME resolved condition — it must not also mute a genuinely NEW, different blocker that
+  # shows up inside that window (measured: fixer SUCCESS at 12:29, a new update-draft bug at
+  # 13:51 sat unhandled until the backoff expired ~08:29 the next day). A FAIL's blocker is
+  # still standing (its own short backoff already covers re-try), so only SUCCESS gets the
+  # differs-from-what-succeeded check; the per-day dispatch cap in self_fix_code_path.sh is
+  # unaffected by this and still bounds actual code-path re-attempts.
+  if [ "$IS_FAIL" = 0 ] && [ -f "$BLOCKER_FILE" ] && sf_blocker_changed "$(cat "$BLOCKER_FILE")" "$BLOCKER"; then
+    echo "$(date '+%F %T') self-fix[$LOOP] prior SUCCESS backoff active but blocker differs (normalized) from the one that succeeded → not backing off [$(head -c 70 "$RESULT" | tr -d '\n')]" >> "$LOG"
+  elif [ "$res_age_min" -ge 0 ] && [ "$res_age_min" -lt "$BACKOFF_MIN" ]; then
     echo "$(date '+%F %T') self-fix[$LOOP] prior fixer concluded ${res_age_min}min ago (<${BACKOFF_MIN} backoff) → skip re-spawn [$(head -c 70 "$RESULT" | tr -d '\n')]" >> "$LOG"
     echo "self-fix[$LOOP] backoff — prior result ${res_age_min}min ago (<${BACKOFF_MIN}min)"; exit 0
   fi
@@ -101,11 +128,13 @@ fi
 
 # FIND-003/004: the fixer MUST verify a real side-effect, commit in the CORRECT repo (the one the edited file lives
 # in — discovered via git rev-parse, NOT guessed), and write a result marker the caller/healthcheck can check.
+printf '%s' "$BLOCKER" > "$BLOCKER_FILE"   # FIND-036: record what THIS spawn is fixing, for the next backoff check
 printf 'RUNNING %s\n' "$(date -u +%FT%TZ)" > "$RESULT"
 TASK="AUTONOMOUS SELF-FIX for the ${LOOP} loop. You are a high-value autonomous dev with browser (CloakBrowser daily-driver CDP :9222), Bash, Edit. NEVER ask a human and NEVER present a menu — a blocker is not stop. BLOCKER + HINT: ${BLOCKER}.
 DO, in order:
 (0) CHECK FOR PRIOR DIAGNOSIS FIRST (2026-07-13 fix — a prior self-fix spawn burned 400-1400min re-discovering an already-known external blocker from scratch): before any expensive live reproduction, search for an existing diagnosis of THIS exact blocker — tail the loop's own lessons/audit files under its state dir (e.g. ~/gig/lessons.jsonl, ~/gig/audit.jsonl) for recent matching entries, and run 'gh issue list -R Daisuke134/anicca --label gig-lesson --search \"<keyword from the blocker>\"' to find prior write-ups. If a recent (last ~24h) prior diagnosis already concluded this is a genuine external/physical blocker (e.g. a real-world device state, a third-party account lock needing a human's physical action, an outage) — do ONE cheap, fast confirmation that the same condition still holds (a single live check, not a repeat of the full multi-hour investigation), then write FAIL citing the existing issue/lesson instead of re-running the whole diagnosis. Only do a full fresh investigation when no matching prior diagnosis exists or the prior one looks stale/resolved.
 (1) Reproduce the failure yourself and find the ROOT cause (read the actual code + run it + watch where it breaks).
+(1b) IF the root cause is a CODE BUG in \$LIFE_MANAGER_REPO under skills/capafy-autopublish/**, skills/capafy/**, or skills/self/capafy-loop/** (the Capafy publish pipeline — the immutable ~/loops/releases tree and non-worktree ~/.local/state CANNOT be edited in place, issue #6063), use the dedicated code-path helper instead of hand-editing in place: 'bash \$LIFE_MANAGER_REPO/skills/self/lib/self_fix_code_path.sh run capafy-loop \"<blocker>\"' to get a fresh worktree (its own \`/private/tmp/selffix-capafy-loop-<ts>\` checkout on branch \`self-fix/capafy-loop/<ts>\` from current origin/main — it prints WORKTREE=... BRANCH=...). Make your fix ONLY inside that worktree and ONLY inside the three allowlisted paths above. Then, still inside that worktree: run \`/opt/homebrew/bin/python3 -m pytest skills/capafy-autopublish/test skills/self/tests skills/self/__tests__ -q\` and confirm you introduce NO NEW failing test id versus the same suite on origin/main (a handful of pre-existing failures on main is expected — only a NEW one blocks you); run \`bash \$LIFE_MANAGER_REPO/skills/self/lib/self_fix_code_path.sh scope-check <worktree> origin/main '^skills/capafy-autopublish/|^skills/capafy/|^skills/self/capafy-loop/'\` and require it to print OK before committing. Only once both pass: commit, \`git push -u origin <branch>\`, \`gh pr create --repo Daisuke134/life-manager\`, then \`gh pr merge <PR> --repo Daisuke134/life-manager --squash --admin\`. After merge, cut a release with \`bash \$LIFE_MANAGER_REPO/bin/cut-loop-release.sh\` (it self-serializes against any concurrent cut via its own PID-owned lock — never pgrep/kill another release process). Record PR number, merge sha and release sha in your RESULT line (step 5) and remove the worktree (\`git -C \$LIFE_MANAGER_REPO worktree remove <worktree>\`) when done. NEVER force-push, NEVER touch a file outside the allowlist, NEVER touch another loop's worktree/branch.
 (2) Fix the code. If the root cause is a brittle DOM-coordinate/selector script that broke on a UI change, do NOT just re-tune coordinates: rebuild the failing step as two-layer agentic (a thin script opens the page, then YOU look at real screenshots and decide each click/type, looping until the real success signal appears).
 (3) VERIFY with a REAL side-effect — an actually-published skill URL you then curl and see live / a real posted comment URL / the tool actually succeeding once end-to-end. A patch that only compiles is NOT done. No dry runs, no fake success, no 'should work'.
 (4) COMMIT IN THE CORRECT REPO: for EACH file you changed, cd into its directory, run 'git rev-parse --show-toplevel' and 'git remote -v' to confirm which repo it is, then commit+push THERE. Ground truth: the Capafy publish pipeline lives under $HOME/.local/state/life-manager (remote = anicca-dais, PRIVATE) — commit those there, NOT to anicca-products. The loop harness lives under $LIFE_MANAGER_REPO (remote = anicca, public). Never commit $HOME/.local/state/life-manager runtime state or secrets.

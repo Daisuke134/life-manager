@@ -1,5 +1,8 @@
 # Paid Fulfillment Across Marketplaces: As-Is and To-Be
 
+> **参照用（2026-09-29 Dais 指示）。正本はこの文書ではなく `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の 1 本だけ。TODO・順序・状態はそちらだけを更新する。**
+
+
 ### Live gate cursor — 2026-09-25 11:33 JST (Ryu final comprehensive send completed)
 
 Ryu's live Coconala room is `18211957`. The latest buyer feedback boundary was

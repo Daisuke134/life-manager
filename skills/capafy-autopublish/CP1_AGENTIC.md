@@ -1,11 +1,11 @@
 # CP1 — Agentic Agent-Card Save (two-layer: thin tool + YOUR eyes)
 
 You are the JUDGMENT layer. `scripts/cp1_agent.py` is the thin DETERMINISTIC tool.
-It performs ONE browser primitive per call against the running CloakBrowser
-daily-driver (CDP :9222) and prints a screenshot path + a compact state readout.
-YOU look at the screenshot, decide the next click/type, and call it again — LOOP
-until the real success signal appears. **Never hardcode coordinates from this doc;
-they change. Read the state/screenshot each step and decide.**
+It performs ONE browser primitive per call against a LEASED CloakBrowser identity
+and prints a screenshot path + a compact state readout. YOU look at the screenshot,
+decide the next click/type, and call it again — LOOP until the real success signal
+appears. **Never hardcode coordinates from this doc; they change. Read the
+state/screenshot each step and decide.**
 
 Why this exists: the old `drive_cp1.py` hardcoded DOM positions and silently broke
 when Capafy changed the pricing widget (plan cards re-sort on period change → a
@@ -13,11 +13,29 @@ positional price/cap script scrambles values → price tab red → card never sa
 `is_confirmed_skills=false` → the daily loop STOPs). This procedure is robust to UI drift
 because a human-like agent verifies each step by looking.
 
-## The tool (run with the resolved browser Python)
+## Lease the browser — NEVER probe a port directly
+Capafy's seller session lives on its own identity `capafy:kosuke` (declared
+in `~/.config/ai/registry/browsers.toml`; override with `CAPAFY_BROWSER_IDENTITY`
+only for a deliberately different leased identity). `cp1_agent.py` refuses to
+guess a debugging port (the 2026-07-26 incident: `:9222` turned out to be a proxy
+onto the SAME browser as production `:9223`, so two sessions drove one Chrome and
+a save silently never landed). Wrap **every** call through
+`skills/browser/with-browser.sh`, which acquires the identity for exactly that one
+command, verifies its CDP UUID, exports `CLOAK_CDP_BASE_URL`/`CDP` for the child,
+and releases on exit — you do not call `browser-guard.sh` yourself.
+
+If the identity is busy (another loop is driving `capafy:kosuke` right now),
+`with-browser.sh` waits up to `BROWSER_WAIT_SECONDS` (default 300s) and then exits
+`75` — a retryable resource-busy signal, not a bug. Skip this pass and let the
+next scheduled drainer run retry; do not fall back to a bare port.
+
+## The tool (run with the resolved browser Python, under the lease)
 ```
 SHOT=<scratchpad>/cp1.png
 CP1_EXPECTED_MODEL="<the exact model in CONFIG_PATH>" \
-CP1_SHOT=$SHOT scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
+CP1_SHOT=$SHOT \
+  bash skills/browser/with-browser.sh capafy:kosuke -- \
+  scripts/cp1_python.sh scripts/cp1_agent.py <cmd> ...
 ```
 `CP1_EXPECTED_MODEL` bakes an `expectedModel`/`modelDropdownVisible`/`modelSelected`
 readout into every `state`/`shot` call, IF a Primary Model dropdown exists on the
@@ -77,7 +95,7 @@ showed).
 2. Confirm 収益化モデル = **Capafy で実行** and Billing = **Subscription** and
    container mode = **On-Demand** are selected (orange). If not, click them.
 3. `scroll` down to reveal the plan cards. Each subscription plan card = a Period
-   dropdown (Daily/Weekly/Monthly) + Price + Request-Limit + a 無料トライアル choice.
+   dropdown (Daily/Weekly/Monthly/Yearly) + Price + Request-Limit + a 無料トライアル choice.
 4. The init usually creates 3 cards (day/week/month) but with **scrambled or empty
    price/cap**. Set each to the TARGET printed by publish_prepare.sh. The price/cap
    inputs carry a unique per-period placeholder you can target precisely:
@@ -117,3 +135,25 @@ showed).
   URL and your work vanishes. Never close the daily-driver.
 - If a click seems to do nothing, Read the screenshot — the layout probably moved.
   Re-target from the fresh `fields`/`buttons` coords. Do not blindly retry old coords.
+
+## Download-mode price-only update (one-time fee, no hosted model)
+`build_config.py` emits `"pricing_mode": "download"` when the LISTING.md pricing
+table has a single `| download | $X | - | - |` row instead of day/week/month. This
+is the CP1 recipe for a same-Agent `target_one_time_fee` update (added 2026-09-28
+to fix agent 3332784488 shipping with billings=download/price=null — confirmed via
+`publish-remote-status`: agent_type=download, is_confirmed_config_keys=false).
+1. On 基本情報, leave every field (title/short/detail/logo) AS-IS — a price-only
+   update never touches Basic Info. Do not re-upload a logo.
+2. On 価格設定, the billing-mode card should already show **Download** selected
+   (it is the Agent's existing type). If it shows Subscription instead, STOP and
+   report — do not toggle modes for a price-only update (toggling
+   download↔run_online rolls the version back to draft and clears the confirmed
+   skill selection; see PUBLISHING_RUNBOOK.md "UPGRADING a LISTED download agent").
+3. Set the **oneTimeFee** field to the exact value from `CONFIG_PATH`'s
+   `one_time_fee` (e.g. `9.99`). Check the Data Processing Agreement checkbox if
+   present and unchecked.
+4. No CP2 for Download mode — go straight from CP1 card-done to
+   `publish_finish.sh`, which skips key hosting for a null `model`/`model_id`.
+5. Verify via `publish-remote-status`: `latest_version.is_confirmed_skills=true`
+   and (after finish) the billings row shows the new price — `billings=null`
+   still visible means the price did not save; re-open Pricing and retry.

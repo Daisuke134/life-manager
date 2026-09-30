@@ -13,23 +13,36 @@ class ProviderAgnosticRunnerTest(unittest.TestCase):
         text = DAILY_LOOP.read_text(encoding="utf-8")
 
         self.assertIn("run_agent.sh", text)
-        self.assertIn("--task-class tool-agent", text)
+        # CP1/CP2/CP3 drives the browser UI and needs the measured long
+        # application lane; the 180-second tool lane killed real publishes.
+        self.assertIn("--task-class application-lane-agent", text)
         self.assertNotRegex(text, r"\bclaude\s+-p\b")
 
     def test_rejected_retry_waits_when_all_five_submission_slots_are_full(self):
         text = RUNBOOK.read_text(encoding="utf-8")
 
-        self.assertRegex(
-            text,
-            r"If occupied is 5, STOP\s+and report .* for both fresh and retry work",
+        normalized = " ".join(text.split())
+        self.assertIn(
+            'If occupied is 5, STOP and report "cap full, N listed" for both fresh '
+            "and retry work",
+            normalized,
         )
 
     def test_outer_daily_owner_skips_agent_spend_when_cap_is_full(self):
         text = MONEY_DAILY.read_text(encoding="utf-8")
 
         gate = text.index('if [ "$VERDICT" = "CAP_FULL" ]')
-        runner = text.index('printf \'%s\\n\' "$PROMPT" | "$RUN_AGENT"')
-        self.assertLess(gate, runner)
+        publishable_branch = text.index(
+            'if [ "$VERDICT" = "PUBLISHABLE" ]', gate
+        )
+        drainer = text.index(
+            'bash "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/daily_loop.sh"',
+            publishable_branch,
+        )
+        # The cap gate precedes both the direct bounded drainer and any
+        # provider-backed offline/self-heal runner invocation.
+        self.assertLess(gate, publishable_branch)
+        self.assertLess(publishable_branch, drainer)
         self.assertIn("agent spend=0; platform write=0", text)
 
     def test_legacy_cli_converges_on_the_single_launchd_owner(self):

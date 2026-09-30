@@ -112,7 +112,7 @@ class PublicationInitializationBoundaryTest(unittest.TestCase):
             plan = store.initialization_plan()
 
             self.assertTrue(plan["initializable"])
-            self.assertEqual(plan["initialization_pairs"], ["note/ja", "x-article/ja"])
+            self.assertEqual(plan["initialization_pairs"], ["note/ja"])
 
     def test_existing_targeted_draft_row_does_not_block_initialization(self) -> None:
         with TemporaryDirectory() as tmp:

@@ -27,6 +27,15 @@ MODEL_VERSION = "5 Sonnet"
 GENERATION_TYPE = "Text"
 PRICE_USD = 4.99
 ITEM_TYPE = "Prompt"
+# The one bracketed variable this builder itself injects into the prompt
+# template (see build_listing() below). PromptBase auto-detects every
+# "[...]" run in the template as a fillable variable and requires an example
+# value for each one per example row before it will submit -- publish.py's
+# _fill_step2 maps input boxes with this exact placeholder back to
+# listing.example_input, and fills any *other* detected variable (e.g. a
+# literal "[ADD: your number]" inside a catalog skill's own SKILL.md body)
+# with a generic non-fabricated placeholder instead.
+INPUT_VARIABLE_LABEL = "TOPIC / PRODUCT / CLIP IDEA"
 TAGS = ["claude", "prompts"]
 
 
@@ -44,6 +53,7 @@ class Listing:
     prompt_instructions: str
     example_input: str
     example_output: str
+    examples: list = None  # 4 distinct {"input","output"} from state/promptbase-examples/<slug>.json
 
 
 def _slug_title(slug: str) -> str:
@@ -125,7 +135,7 @@ def build_listing(catalog_dir: Path) -> Listing:
     # from the SKILL.md body that follows. Reproduce that shape with this
     # catalog skill's own concrete input as the value.
     prompt_instructions = (
-        f"[TOPIC / PRODUCT / CLIP IDEA]: {example_input}\n\n{skill_md.strip()}"
+        f"[{INPUT_VARIABLE_LABEL}]: {example_input}\n\n{skill_md.strip()}"
     )
 
     return Listing(
@@ -141,7 +151,16 @@ def build_listing(catalog_dir: Path) -> Listing:
         prompt_instructions=prompt_instructions,
         example_input=example_input,
         example_output=example_output,
+        examples=_load_examples(catalog_dir, example_input, example_output),
     )
+
+
+def _load_examples(catalog_dir: Path, example_input: str, example_output: str) -> list:
+    path = Path.home() / ".local/state/life-manager/state/promptbase-examples" / f"{catalog_dir.name}.json"
+    if path.exists():
+        import json
+        return json.loads(path.read_text(encoding="utf-8"))
+    return [{"input": example_input, "output": example_output}]
 
 
 def _main() -> int:

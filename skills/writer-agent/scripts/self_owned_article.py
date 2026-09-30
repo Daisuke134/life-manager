@@ -14,7 +14,7 @@ import urllib.request
 import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 class SelfOwnedInvariant(ValueError):
@@ -42,11 +42,24 @@ def _visible_chars(value: str) -> int:
     return len(re.sub(r"\s+", "", text))
 
 
-def _title(markdown: str) -> str:
+def _title(markdown: str, fallback: str = "") -> str:
     match = re.search(r"(?m)^#\s+(.+?)\s*$", markdown)
-    if not match:
-        raise SelfOwnedInvariant("article requires one H1 title")
-    return match.group(1).strip()
+    if match:
+        return match.group(1).strip()
+    # The EN draft of run 20260929-010128 carried its title only in
+    # frontmatter, which stranded the whole publication behind this check.
+    if fallback:
+        return fallback
+    raise SelfOwnedInvariant("article requires one H1 title")
+
+
+def _frontmatter_title(markdown: str) -> str:
+    value = markdown.replace("\r\n", "\n").strip()
+    if not value.startswith("---\n"):
+        return ""
+    end = value.find("\n---\n", 4)
+    match = re.search(r'(?m)^title:\s*["\']?(.+?)["\']?\s*$', value[4:end] if end > 0 else "")
+    return match.group(1).strip() if match else ""
 
 
 def _slug(title: str, lang: str, source: str) -> str:
@@ -55,6 +68,30 @@ def _slug(title: str, lang: str, source: str) -> str:
     if not slug:
         slug = f"writer-{lang}-{sha256_text(source)[:12]}"
     return slug[:100].rstrip("-")
+
+
+# The revenue-path CTA link cta-gate.sh already requires on every frozen
+# article (skills/writer-agent/scripts/cta-gate.sh): any URL carrying all
+# five query parameters. This definition is host-agnostic on purpose -- it
+# matches both the self-owned aniccaai.com/lm CTA and the Capafy
+# capafy.ai/agent/<id> CTA from #6110 without hardcoding either domain.
+_URL_RE = re.compile(r"https?://[^\s<>\]\[()\"']+")
+_CTA_REQUIRED_PARAMS = ("product_id", "run_id", "artifact_id", "variant_id", "click_id")
+
+
+def _last_cta_link_end(source: str) -> int | None:
+    """Return the offset just past the last recognized CTA link in ``source``,
+    or None if the article has no such link. build_contract uses this to
+    refuse a preview/paid split that would bury the CTA in the paid section,
+    where the public page never renders it.
+    """
+    end = None
+    for match in _URL_RE.finditer(source):
+        url = match.group(0).rstrip(".,;:!?")
+        query = parse_qs(urlparse(url).query, keep_blank_values=True)
+        if all(query.get(field, [""])[0] for field in _CTA_REQUIRED_PARAMS):
+            end = match.start() + len(url)
+    return end
 
 
 def build_contract(
@@ -66,10 +103,14 @@ def build_contract(
     if lang not in {"ja", "en"}:
         raise SelfOwnedInvariant("language is unsupported")
     source = _without_frontmatter(markdown)
+    cta_end = _last_cta_link_end(source)
     boundary = None
     for match in re.finditer(r"(?m)^##\s+.+$", source):
         visible = _visible_chars(source[: match.start()])
-        if visible >= after_chars and visible >= minimum_preview_chars:
+        if (
+            visible >= after_chars and visible >= minimum_preview_chars
+            and (cta_end is None or match.start() >= cta_end)
+        ):
             boundary = match.start()
             break
     if boundary is None:
@@ -79,7 +120,7 @@ def build_contract(
     if _visible_chars(preview) < minimum_preview_chars or not paid:
         raise SelfOwnedInvariant("public preview or paid body is insufficient")
     canonical = f"{preview}\n\n{paid}"
-    title = _title(source)
+    title = _title(source, _frontmatter_title(markdown))
     return {
         "slug": _slug(title, lang, canonical),
         "run_id": run_id,
@@ -101,7 +142,15 @@ def _git(root: Path, *args: str) -> str:
     )
     if result.returncode != 0:
         raise SelfOwnedInvariant(result.stderr.strip() or "git command failed")
-    return result.stdout.strip()
+    # `git status --porcelain` lines legitimately start with a leading space
+    # (e.g. " M path" for a modified-not-staged file). A whole-output
+    # .strip() silently eats that leading space off the FIRST line only,
+    # shifting every caller's line[3:] slice and truncating the first dirty
+    # path by one character -- observed live: "apps/..." became "pps/...",
+    # which made an otherwise-identical file set fail the exact dirty-set
+    # comparison in stage_contracts/commit_contract. Only trailing
+    # whitespace/newlines are incidental to the command output.
+    return result.stdout.rstrip()
 
 
 def stage_contract(landing_root: Path, contract: dict) -> dict:

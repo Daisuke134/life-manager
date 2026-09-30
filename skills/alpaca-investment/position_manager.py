@@ -1,16 +1,18 @@
-"""Model HOLD/EXIT judgment with a deterministic live close boundary."""
+"""Declared-card HOLD/EXIT judgment with a deterministic live close boundary."""
 
 from __future__ import annotations
 
 import json
-import subprocess
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from strategy_policy import ACTION_EXIT, ACTION_HOLD, evaluate, load_selected_card
+
 
 def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
            runner: Path, workdir: Path) -> dict[str, Any]:
+    del runner, workdir
     positions = [row for row in observation.get("positions", [])
                  if row.get("symbol") != "USDCUSD"]
     try:
@@ -32,30 +34,24 @@ def choose(snapshot: dict[str, Any], observation: dict[str, Any], state: Path,
             raise ValueError
     except (InvalidOperation, KeyError, TypeError, ValueError) as error:
         raise ValueError("live_position_gate_rejected") from error
-    schema = state / "position-decision-schema.json"
-    evidence = state / "position-agent-evidence"
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    schema.write_text(json.dumps({"type": "object", "additionalProperties": False,
-        "properties": {"action": {"enum": ["HOLD", "EXIT"]}, "reason": {"type": "string"}},
-        "required": ["action", "reason"]}), encoding="utf-8")
-    prompt = ("You manage one real-money BTC position. Choose exactly HOLD or EXIT from only the "
-              "official snapshot. Never invent market data. Prefer EXIT when expected value of "
-              "remaining invested is not positive. Write one concise Japanese reason.\n" +
-              json.dumps({"position": positions[0], "quotes": snapshot.get("crypto"),
-                          "history_5min": snapshot.get("crypto_history", {}).get("BTC/USDC", []),
-                          "risk": snapshot.get("risk")}, separators=(",", ":")))
-    result = subprocess.run([str(runner), "--task-class", "diagnostic-agent", "--prompt-stdin",
-        "--schema", str(schema), "--evidence-dir", str(evidence), "--task-label",
-        "alpaca-position", "--loop", "alpaca-investment", "--workdir", str(workdir),
-        "--timeout-seconds", "120", "--read-only"], input=prompt, text=True,
-        capture_output=True, timeout=135, check=False)
-    if result.returncode != 0:
-        raise ValueError("position_agent_failed")
-    summary = json.loads(result.stdout.strip().splitlines()[-1])
-    decision = json.loads(Path(summary["result_path"]).read_text(encoding="utf-8"))
-    if decision.get("action") not in {"HOLD", "EXIT"} or not isinstance(decision.get("reason"), str):
-        raise ValueError("position_agent_invalid")
-    return {**decision, "qty": str(qty)}
+    try:
+        card, release_sha = load_selected_card(state)
+    except ValueError as error:
+        return {"action": ACTION_HOLD, "policy_action": "NO_TRADE", "strategy_id": None,
+                "signal_inputs": {}, "reason": str(error), "expected_cost_usd": None,
+                "release_sha": None, "qty": str(qty)}
+    policy_snapshot = dict(snapshot)
+    policy_snapshot["positions"] = 1
+    policy_position = dict(positions[0])
+    if "entry_price" not in policy_position and "avg_entry_price" in policy_position:
+        policy_position["entry_price"] = policy_position["avg_entry_price"]
+    if "entry_timestamp" not in policy_position and ownership.get("entry_timestamp"):
+        policy_position["entry_timestamp"] = ownership["entry_timestamp"]
+    policy_snapshot["position"] = policy_position
+    decision = evaluate(policy_snapshot, card)
+    action = ACTION_EXIT if decision["action"] == ACTION_EXIT else ACTION_HOLD
+    return {**decision, "action": action, "policy_action": decision["action"],
+            "release_sha": release_sha, "qty": str(qty)}
 
 
 def exit_order(decision: dict[str, Any]) -> dict[str, Any]:

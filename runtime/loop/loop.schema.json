@@ -22,6 +22,12 @@
     "adapter": [
       "command"
     ],
+    "browser_identity": [
+      "browser_target_owner"
+    ],
+    "browser_target_owner": [
+      "browser_identity"
+    ],
     "command": [
       "adapter"
     ],

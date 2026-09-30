@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { JA_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
+const { JA_LANE, EN_SLIDESHOW_TIKTOK_LANE } = require("../lib/marketing-native-carousel-publication-adapter.js");
 const {
   MIN_DAYS_BETWEEN_REPEAT,
   poolPath,
@@ -129,4 +129,40 @@ test("readPostedHistory maps carousel distribution receipts to packRef/postedAt"
 
 test("MIN_DAYS_BETWEEN_REPEAT is at least a week (per spec: never repeat within N days)", () => {
   assert.ok(MIN_DAYS_BETWEEN_REPEAT >= 7);
+});
+
+// Root-cause regression coverage: resolveLarryJaSlot must work for any lane,
+// not just JA_LANE -- that parameterization (not a second implementation) is
+// what lets anicca-larry-ja-rotating.js stop TikTok "Affirmation Girl" /
+// "anicca" / "アニッチャ iOS" / "アニッチャ お笑い" / Instagram "anicca" from
+// reposting the same fixed pack.
+test("resolveLarryJaSlot generates a fresh, English, TikTok-shaped pool for a non-default lane in its own pool file", { timeout: 60_000 }, async () => {
+  makeFixtureBackgroundOnce();
+  const dataDir = tempDataDir();
+  const env = { LM_DATA_DIR: dataDir, LM_RUNTIME_TENANT_ID: TENANT };
+  const { slot, selected } = await resolveLarryJaSlot({
+    env, now: () => NOW, slot: "2026-09-28T09:00:00.000Z",
+    lane: EN_SLIDESHOW_TIKTOK_LANE,
+    resolveBackground: fakeResolveBackground(),
+    generateText: fakeGenerateText(),
+  });
+  assert.equal(slot, "2026-09-28T09:00:00.000Z");
+  assert.match(selected.packRef, /^object:\/\/sha256\/[0-9a-f]{64}$/);
+
+  const jaPool = poolPath(dataDir, TENANT, JA_LANE.productId, JA_LANE.lane);
+  const enPool = poolPath(dataDir, TENANT, EN_SLIDESHOW_TIKTOK_LANE.productId, EN_SLIDESHOW_TIKTOK_LANE.lane);
+  assert.notEqual(jaPool, enPool);
+  assert.ok(fs.existsSync(enPool));
+  assert.equal(fs.existsSync(jaPool), false, "must not touch the JA lane's own pool");
+
+  const pack = JSON.parse(fs.readFileSync(
+    path.join(dataDir, "objects", "sha256", selected.packRef.slice(-64)),
+    "utf8",
+  ));
+  assert.equal(pack.platform, "tiktok");
+  assert.equal(pack.locale, "en");
+  // EN_SLIDESHOW_TIKTOK_LANE has no lastSlideRole override, so the factory's
+  // own platform-aware default (tiktok -> "cta") must apply -- this is the
+  // exact role the adapter's assertPack expects for this lane at publish time.
+  assert.equal(pack.slides.at(-1).role, "cta");
 });

@@ -1,16 +1,25 @@
-Primary Model: Claude Sonnet 4.6 · category: マーケティング · tags: YouTube, script, retention
+Primary Model: DeepSeek V4.1 Flash · category: マーケティング · tags: YouTube, script, retention
 
 RENEWAL GATE
 R1 recurring input : Each new video has a new topic, audience, source material, target length, and conversion goal.
 R2 staleness       : A script written for the previous topic cannot be reused as the record-ready script for the next video.
 day-8 answer       : The creator has a new video brief, so the previous script is stale.
-demand evidence    : This is the existing Capafy Agent `7686597754`; this revision recovers its already-configured subscription listing rather than creating another Agent.
+demand evidence    : This is the existing Capafy Agent `7686597754`; this revision is a same-Agent update — DeepSeek
+V4.1 Flash model swap + reprice.
 
+## 2026-09-29 repriced: charge more/spend less policy. DeepSeek cost << Sonnet cost, so price moves to the
+## upper end of the proven content/script-tool band ($1.99-7.99/day-week per references/pricing.md; real
+## winners Unscore $2.99/d·$5.99/wk·$19.99/mo and Viralpost $2.99/$5.99/$12.99 per BEST_PRACTICES.md — take
+## Unscore's higher month tier for this longer-form script tool). Was day $1.99/week $4.99/month $9.99 on Sonnet.
+## 2026-09-29: added the required yearly plan (policy: always a year row, no free trial) at $99.99, matching
+## "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales) — this UPDATE (from_version_id unchanged vs
+## live) has not been submitted yet, so the table is safe to extend.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | day | $1.99 | 10 | No Free Trial |
 | week | $4.99 | 25 | No Free Trial |
 | month | $9.99 | 60 | No Free Trial |
+| year | $99.99 | 720 | No Free Trial |
 
 ## Title
 YouTube Script Writer — Keep Viewers Watching

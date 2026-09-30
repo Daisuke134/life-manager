@@ -18,6 +18,7 @@ import pytest
 from runtime.host.browser_port_owner import (
     _port_answers,
     _process_group_exists,
+    _forward_process_group_signal,
     _terminate_process_group,
     _wait_for_browser,
 )
@@ -83,6 +84,10 @@ class BrowserPortOwnerTests(unittest.TestCase):
     def test_permission_denied_probe_means_group_still_exists(self):
         with patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError):
             self.assertTrue(_process_group_exists(43210))
+
+    def test_permission_denied_signal_forward_is_treated_as_already_exited(self):
+        with patch("runtime.host.browser_port_owner.os.killpg", side_effect=PermissionError):
+            _forward_process_group_signal(43210, signal.SIGTERM)
 
     def test_cleanup_fails_closed_if_owned_group_survives_sigkill(self):
         with (

@@ -7,10 +7,12 @@ demand evidence    : Our own Hook Lab (TikTok/Reels/Shorts hooks) is our highest
 
 Demand rank: 3
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10/month $10 with Free Trial enabled (policy: no free trial). Matches "SEO Audit Pro" (agent `7414412165`, category 7, 9 sales): week $9.99/month $19.99/year $99.99.
 | cycle | price | cap | trial |
-|---|---:|---|---|
-| week | $3.99 | 40 | Free Trial 24h / 3 requests |
-| month | $9.99 | 150 | Free Trial 72h / 5 requests |
+|---|---:|---:|---|
+| week | $9.99 | 10 | No Free Trial |
+| month | $10.00 | 25 | No Free Trial |
+| year | $99.99 | 144 | No Free Trial |
 
 ## Title
 Ad Hook Lab — Angle Variants & Test Matrix

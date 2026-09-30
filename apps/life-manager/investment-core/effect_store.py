@@ -67,6 +67,10 @@ def seal(ledger: Path, decision: dict[str, Any], order: dict[str, Any]) -> dict[
     _append_once(ledger, {
         "client_order_id": client_order_id, "decision_id": decision_id,
         "effect_id": effect_id, "order": order, "mode": mode, "paper": paper,
+        "owner_id": decision.get("owner_id"),
+        "strategy_id": decision.get("strategy_id"),
+        "decision_session": decision.get("decision_session"),
+        "source_receipt_ids": decision.get("source_receipt_ids", []),
         "receipt_type": "effect_intent", "recorded_at": now,
         "schema_version": 1, "status": "planned",
     }, ("receipt_type", "effect_id", "status"))
@@ -141,6 +145,8 @@ def record_terminal_outcome(ledger: Path, sealed: dict[str, str], broker: dict[s
 def reconcile_started(
     ledger: Path,
     find_order: Callable[[str], dict[str, Any] | None],
+    *,
+    on_reconciled: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any] | None] | None = None,
 ) -> dict[str, int]:
     rows = _rows(ledger)
     pending = _unresolved(rows)
@@ -163,17 +169,28 @@ def reconcile_started(
                 "schema_version": 1, "status": "reconciliation_blocked",
             }, ("receipt_type", "effect_id", "status"))
             raise ValueError("reconciliation_blocked")
+        strategy_receipt = None
+        if on_reconciled is not None:
+            # The callback owns any additional provider/account readback needed
+            # for a strategy-specific receipt. It runs before this effect is
+            # closed so a missing fill or foreign position remains retry-fenced.
+            strategy_receipt = on_reconciled(intent, order)
+            if strategy_receipt is not None and not isinstance(strategy_receipt, dict):
+                raise ValueError("strategy_receipt_invalid")
         _append_once(ledger, {
             "client_order_id": intent["client_order_id"], "effect_id": intent["effect_id"],
             "mode": mode, "paper": mode == "paper", "receipt_type": "effect_intent",
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "schema_version": 1, "status": "applied",
         }, ("receipt_type", "effect_id", "status"))
-        _append_once(ledger, {
+        outcome = {
             "broker": order, "effect_id": intent["effect_id"], "outcome": "broker_reconciled",
             "mode": mode, "paper": mode == "paper", "receipt_type": "outcome",
             "recorded_at": datetime.now(timezone.utc).isoformat(), "schema_version": 1,
-        }, ("receipt_type", "effect_id"))
+        }
+        if strategy_receipt is not None:
+            outcome["strategy_receipt"] = strategy_receipt
+        _append_once(ledger, outcome, ("receipt_type", "effect_id"))
         reconciled += 1
     return {"pending": len(pending), "reconciled": reconciled,
             "unresolved": unresolved_intent_count(ledger)}

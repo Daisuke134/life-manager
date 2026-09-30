@@ -145,14 +145,14 @@
         {
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
-          "files": 224,
-          "inventory_sha256": "742cfa4c297cc2dcb8ed1f123b9c16f80b4083117118a050be70845dbbf5c0fd"
+        "files": 234,
+        "inventory_sha256": "c5595760e8367f930266eba6ffab54a3df6cf30b31c23200aa8ee91faccaa6c8"
         },
         {
           "source": "skills/_shared",
           "target": "skills/_shared",
-          "files": 185,
-          "inventory_sha256": "0e1ae56bc01b6f3d44859b57151004a6d083cb5ac0cb46b44e43582854034eb0"
+        "files": 189,
+        "inventory_sha256": "d4f5c4281b672affd4dbc2b98c8a05c8883c234be6d42ee2c28e63b0242bd2b1"
         },
         {
           "source": "skills/anicca-life-manager",

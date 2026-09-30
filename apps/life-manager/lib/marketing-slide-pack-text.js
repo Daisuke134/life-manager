@@ -1,5 +1,7 @@
 "use strict";
 
+const crypto = require("node:crypto");
+
 // Generates fresh Larry slide-pack TEXT (hook + 4 body lines) for one pack.
 // Dais direction (2026-09-28): the approved background images are good and
 // must be REUSED every pack (see getCachedBackground() in
@@ -17,24 +19,42 @@ const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMI
 const INPUT_COST_PER_TOKEN = 0.30 / 1_000_000;
 const OUTPUT_COST_PER_TOKEN = 2.50 / 1_000_000;
 
-// One brief per hook/format family -- the explore/exploit unit rotation.js
-// already scores. Add a family here + to marketing-slide-pack-factory.js's
-// FAMILIES background sets to grow variety.
-const FAMILY_BRIEFS = Object.freeze({
+// One brief per hook/format family per locale -- the explore/exploit unit
+// rotation.js already scores. Add a family here + to
+// marketing-slide-pack-factory.js's FAMILIES background sets to grow
+// variety; add a locale here to extend fresh-text generation to a new
+// language lane (parameterized, not forked -- every lane calls this same
+// module through generateSlidePackCandidates).
+const FAMILY_BRIEFS_JA = Object.freeze({
   "question-hook": "a question-hook style: slide 1 is a short, pointed rhetorical question that makes the reader feel seen; the next 4 slides give short, concrete, gentle reframes or small actions, one per slide.",
   listicle: "a numbered listicle style: slide 1 is a short, curiosity-driving list title (e.g. \"...習慣５選\"); the next 4 slides are short numbered items (ひとつめ/ふたつめ/みっつめ/よっつめ), one short concrete habit or tip per slide.",
   "myth-vs-fact": "a myth-vs-fact style: slide 1 states a common but flawed belief people hold about mental wellbeing; the next 4 slides gently contrast it with a healthier reframe, one short idea per slide.",
 });
+const FAMILY_BRIEFS_EN = Object.freeze({
+  "question-hook": "a question-hook style: slide 1 is a short, pointed rhetorical question that makes the reader feel seen; the next 4 slides give short, concrete, gentle reframes or small actions, one per slide.",
+  listicle: "a numbered listicle style: slide 1 is a short, curiosity-driving list title (e.g. \"5 habits that quietly fix your mood\"); the next 4 slides are short numbered items (1/2/3/4), one short concrete habit or tip per slide.",
+  "myth-vs-fact": "a myth-vs-fact style: slide 1 states a common but flawed belief people hold about mental wellbeing; the next 4 slides gently contrast it with a healthier reframe, one short idea per slide.",
+});
+const FAMILY_BRIEFS_BY_LOCALE = Object.freeze({ ja: FAMILY_BRIEFS_JA, en: FAMILY_BRIEFS_EN });
+// Back-compat default export: existing JA-only callers keep working unchanged.
+const FAMILY_BRIEFS = FAMILY_BRIEFS_JA;
 
-function buildPrompt(familyId, avoidTexts) {
-  const brief = FAMILY_BRIEFS[familyId];
-  if (!brief) throw new Error(`slide text family ${familyId} is not configured`);
+function buildPrompt(familyId, avoidTexts, locale = "ja") {
+  const briefs = FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS_BY_LOCALE.ja;
+  const brief = briefs[familyId];
+  if (!brief) throw new Error(`slide text family ${familyId} is not configured for locale ${locale}`);
   const avoid = avoidTexts.length
     ? `Avoid repeating or closely paraphrasing any of these already-used lines:\n${avoidTexts.map((line) => `- ${String(line).replace(/\n/g, " / ")}`).join("\n")}\n`
     : "";
-  return `You are writing Japanese Instagram carousel slide copy for a mental-wellness affirmation app. Never make medical claims, diagnoses, or guarantees.
+  const languageLine = locale === "en"
+    ? "You are writing English carousel slide copy for a mental-wellness affirmation app."
+    : "You are writing Japanese carousel slide copy for a mental-wellness affirmation app.";
+  const lengthLine = locale === "en"
+    ? "Each line must be short enough to read at a glance (aim for under 8 words per line)."
+    : "Each line must be short enough to read at a glance (aim for under 20 Japanese characters per line; you may use a single \"\\n\" inside a line to break it into two short lines for a slide).";
+  return `${languageLine} Never make medical claims, diagnoses, or guarantees.
 Write ${brief}
-Each line must be short enough to read at a glance (aim for under 20 Japanese characters per line; you may use a single "\\n" inside a line to break it into two short lines for a slide).
+${lengthLine}
 ${avoid}Return ONLY compact JSON, no markdown fencing, in exactly this shape: {"hook": "...", "body": ["...", "...", "...", "..."]} (the hook string plus exactly 4 body strings).`;
 }
 
@@ -61,8 +81,8 @@ async function fetchGeminiText(prompt, { apiKey, fetchImpl = fetch } = {}) {
 }
 
 // Returns { hook, body: [4 strings], costUsd }.
-async function generateSlideCopy({ familyId, apiKey, avoidTexts = [], generateText = fetchGeminiText }) {
-  const prompt = buildPrompt(familyId, avoidTexts);
+async function generateSlideCopy({ familyId, apiKey, avoidTexts = [], locale = "ja", generateText = fetchGeminiText }) {
+  const prompt = buildPrompt(familyId, avoidTexts, locale);
   const { text, costUsd } = await generateText(prompt, { apiKey });
   let parsed;
   try {
@@ -80,4 +100,25 @@ async function generateSlideCopy({ familyId, apiKey, avoidTexts = [], generateTe
   return { hook: parsed.hook.trim(), body: parsed.body.map((line) => line.trim()), costUsd };
 }
 
-module.exports = { FAMILY_BRIEFS, buildPrompt, fetchGeminiText, generateSlideCopy };
+// Video hook/title/description text (honne-ja-cycle.js / marketing-video-generation-
+// adapter.js's selectHook()) has no per-post generation step at all -- it just reuses a
+// hook.text from a static pack forever (see the YouTube "Daily Affirmation App" repeat
+// measured 2026-09-25..28). Rather than forking a second Gemini call path for video,
+// this reuses generateSlideCopy() unchanged and only takes its `hook` line: any style
+// hint (the winning hook's own static text, i.e. the "type" #6047's metrics already
+// picked) is hashed to one of the family briefs above deterministically, so the same
+// winning type always asks for the same style of fresh line while the words are new
+// every call.
+function familyForStyleHint(styleHint, locale = "ja") {
+  const families = Object.keys(FAMILY_BRIEFS_BY_LOCALE[locale] || FAMILY_BRIEFS_BY_LOCALE.ja);
+  const index = crypto.createHash("sha256").update(String(styleHint || "")).digest()[0] % families.length;
+  return families[index];
+}
+
+async function generateVideoHookText({ styleHint, apiKey, avoidTexts = [], locale = "en", generateText = fetchGeminiText }) {
+  const familyId = familyForStyleHint(styleHint, locale);
+  const copy = await generateSlideCopy({ familyId, apiKey, avoidTexts, locale, generateText });
+  return { hook: copy.hook, costUsd: copy.costUsd };
+}
+
+module.exports = { FAMILY_BRIEFS, FAMILY_BRIEFS_BY_LOCALE, buildPrompt, familyForStyleHint, fetchGeminiText, generateSlideCopy, generateVideoHookText };

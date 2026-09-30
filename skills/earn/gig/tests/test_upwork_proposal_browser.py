@@ -171,6 +171,19 @@ def test_apply_path_is_not_a_proposal_receipt():
     assert "(?!job" in expression
 
 
+def test_browser_operator_prompt_uses_resolved_endpoint_not_fixed_port():
+    assert browser is not None
+
+    prompt = browser.browser_operator_prompt(
+        "~012345678901234",
+        "https://www.upwork.com/ab/proposals/job/~012345678901234/apply/#/",
+        "http://127.0.0.1:9444",
+    )
+
+    assert "http://127.0.0.1:9444" in prompt
+    assert "127.0.0.1:9233" not in prompt
+
+
 def test_invitation_preflight_accepts_only_zero_cost_submit_form():
     assert browser is not None
     payload = _payload()

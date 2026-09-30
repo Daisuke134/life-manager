@@ -28,6 +28,7 @@ ADMISSION_EFFECT_SCOPES = {"owner", "occurrence"}
 CONTROL_PLANE_SAFETY_LOOPS = frozenset({
     "capafy-loop-healthcheck",
     "life-manager-disk-cleanup",
+    "lm-fence-reconciler",
     "life-manager-recovery-supervisor",
     "life-manager-release-reconciler",
 })
@@ -116,6 +117,8 @@ def validate_registry(registry: dict) -> dict:
             or not re.fullmatch(r"[a-z0-9][a-z0-9:_-]{1,127}", row["browser_target_owner"])
         ):
             _fail(f"{loop_id}: invalid browser_target_owner")
+        if ("browser_identity" in row) != ("browser_target_owner" in row):
+            _fail(f"{loop_id}: browser identity join requires both fields")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
             _fail(f"{loop_id}: invalid admission_class")
         if "effect_reconcile" in row:
@@ -346,6 +349,8 @@ def loop_json_schema() -> dict:
         "dependentRequired": {
             "adapter": ["command"],
             "command": ["adapter"],
+            "browser_identity": ["browser_target_owner"],
+            "browser_target_owner": ["browser_identity"],
             "reconcile_queued_release": [
                 "resource_class", "admission_class", "priority",
             ],

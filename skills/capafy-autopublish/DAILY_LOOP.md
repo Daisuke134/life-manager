@@ -57,8 +57,11 @@ monitoring/deferred work.
       upload the package in this recovery path. Stop after this one bounded submission; a later
       wake handles `pending_online` by Test Run and manual publish.
       After the official `under_review` readback, report and STOP; do not continue into Steps 3–7.
-   c. If reconcile flagged a `REVIEW_REJECTED` inventory item (e.g. O9 youtube) whose skill
-      dir + icon + LISTING still exist → RE-PUBLISH it. **First check remote-status**
+   c. For `retry_existing` — either a `REVIEW_REJECTED` inventory item (e.g. O9 youtube) or a
+      Capafy AI-generator stub `draft` named `<title> (LM generated — please review and edit
+      before saving)` whose stripped title matches a ready repo_catalog listing (2026-09-29:
+      draft 4973250899) — whose skill dir + icon + LISTING still exist → RE-PUBLISH it on the
+      SAME `agent_id` from `item.agent_id`. **First check remote-status**
       (`vendor/capafy-publisher/packager.py publish-remote-status --agent-id <ID>` →
       `.latest_version.platform_status`/`.is_confirmed_skills`/`.is_confirmed_config_keys`).
       A rejected version is not eligible for direct resubmission: invoke

@@ -1,4 +1,4 @@
-Primary Model: Claude Sonnet 4.6 · category: 分析 · tags: football, fixture analysis, matchweek
+Primary Model: DeepSeek V4.1 Flash · category: 分析 · tags: football, fixture analysis, matchweek
 
 R1 recurring input : Every matchweek, the buyer pastes a NEW fixture list plus current team-news, lineup, and optional odds notes.
 R2 recurring output: Every matchweek produces a fresh seven-axis matchup brief, scenario split, and missing-facts watch list.
@@ -7,9 +7,12 @@ demand evidence    : Football fixture analysis is the highest measured recurring
 
 Demand rank: 1
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $9.99 only, Claude Sonnet 4.6 (no yearly). Direct competitor "Ocup Football Analysis" (agent `2553639947`, category 2, 3,069 sales — the top seller in this exact niche): week $14.99/month $29.99/year $99.99 — copied exactly.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
-| week | $9.99 | 20 | No Free Trial |
+| week | $9.99 | 9 | No Free Trial |
+| month | $29.99 | 27 | No Free Trial |
+| year | $99.99 | 324 | No Free Trial |
 
 ## Title
 Football Match Analyst — Weekly Fixture Read

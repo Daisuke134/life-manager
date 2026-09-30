@@ -16,7 +16,7 @@ from drive_checkpoint2 import (
     _open_cp2_target,
     _bounded_page_call,
     _bounded_page_evaluate,
-    _detect_cdp,
+    _require_cdp,
     _is_capafy_target_url,
     _raw_fill_workspace_conversation_fields,
     _validate_cdp_base,
@@ -30,7 +30,7 @@ from drive_checkpoint2 import (
 CP3_HOST = "capafy.ai"
 CP3_PATH = "/developer/createAgent"
 CP3_NAV_TIMEOUT_S = 10.0
-CP3_HYDRATE_TIMEOUT_S = 10.0
+CP3_HYDRATE_TIMEOUT_S = 30.0
 CP3_POLL_S = 0.25
 
 
@@ -141,7 +141,20 @@ SUBMIT_STATE_JS = """(() => {
   const all = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['審査に提出','Submit for Review'].includes((b.textContent || '').trim()));
   const enabled = all.filter(b => !b.disabled);
   const confirms = [...document.querySelectorAll('button')].filter(b => visible(b) && ['提出を確認','Confirm Submit'].includes((b.textContent || '').trim()));
-  return {count: all.length, enabled: enabled.length, disabled: all.filter(b => b.disabled).length, confirms: confirms.length};
+  const drafts = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','下書きを保存','Save Draft'].includes((b.textContent || '').trim()));
+  return {count: all.length, enabled: enabled.length, disabled: all.filter(b => b.disabled).length, confirms: confirms.length, drafts: drafts.length};
+})()"""
+
+
+# Editing the version-update fields flips finalReviewSubmitButton to 下書き保存
+# until the draft is saved; only then does it read 審査に提出 again (TikTok
+# Script Pro 2844813315, 2026-09-29 14:50 JST: "did not hydrate before deadline").
+DRAFT_SAVE_CLICK_JS = """(() => {
+  const visible = b => !!(b.offsetWidth || b.offsetHeight || b.getClientRects().length);
+  const xs = [...document.querySelectorAll('button')].filter(b => visible(b) && b.classList.contains('finalReviewSubmitButton') && ['下書き保存','下書きを保存','Save Draft'].includes((b.textContent || '').trim()) && !b.disabled);
+  if (xs.length !== 1) return {ok:false, count:xs.length};
+  xs[0].click();
+  return {ok:true};
 })()"""
 
 
@@ -179,7 +192,7 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
     while time.monotonic() < deadline:
         state = page.evaluate("""(() => {
           const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-          const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''}`));
+          const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
           const submit = [...document.querySelectorAll('button')].some(b => visible(b) && ['審査に提出','Submit for Review'].includes((b.textContent || '').trim()));
           if (xs.length === 0) return {ok:true, hydrated:submit, required:false};
           if (xs.length !== 1) return {ok:false, count:xs.length};
@@ -192,9 +205,11 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
             # An update version's review page opens on 基本情報; the change-note
             # textarea (and then 審査に提出) only appears under バージョン
             # (live, Hook Lab v1.0.3, 2026-09-28).
-            version_tab_clicked = True
             clicked = page.evaluate(_VERSION_TAB_CLICK)
             if isinstance(clicked, dict) and clicked.get("ok"):
+                # Only once the tab exists: a one-shot look on a still-hydrating
+                # page never retried (live, Hook Lab v1.0.4, 2026-09-29).
+                version_tab_clicked = True
                 time.sleep(1)
                 continue
         time.sleep(CP3_POLL_S)
@@ -207,26 +222,39 @@ def _fill_version_update_if_required(page: _RawPage, update_info: str) -> None:
     update_info = str(update_info or "").strip()
     if not update_info:
         raise RuntimeError("CP3 version update description is required")
-    inserted = page.evaluate("""(() => {
-      const value=%s;
+    # Real key input: Capafy ignores a JS value-setter here, and only typed text
+    # flips the button to 審査に提出 (live, Hook Lab v1.0.4, 2026-09-29). The state
+    # probe above already focused and selected the textarea.
+    box = page.evaluate("""(() => {
       const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''}`));
+      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
       if (xs.length !== 1) return {ok:false,count:xs.length};
-      const x=xs[0];
-      const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;
-      setter.call(x,value);
-      x.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:value}));
-      x.dispatchEvent(new Event('change',{bubbles:true}));
-      return {ok:true,value:x.value};
-    })()""" % json.dumps(update_info))
+      xs[0].scrollIntoView({block:'center'});
+      const r = xs[0].getBoundingClientRect();
+      return {ok:true, x:r.left + r.width / 2, y:r.top + r.height / 2};
+    })()""")
+    if not isinstance(box, dict) or not box.get("ok"):
+        raise RuntimeError(f"CP3 version update field not clickable: {box}")
+    for kind in ("mousePressed", "mouseReleased"):
+        page.call("Input.dispatchMouseEvent", {"type": kind, "x": float(box["x"]), "y": float(box["y"]), "button": "left", "clickCount": 1})
+    time.sleep(0.3)
+    page.call("Input.insertText", {"text": update_info})
+    time.sleep(0.5)
+    inserted = page.evaluate("""(() => {
+      const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+      const xs = [...document.querySelectorAll('textarea')].filter(e => visible(e) && /変更内容|変更履歴|changes/i.test(`${e.placeholder || ''} ${e.getAttribute('aria-label') || ''} ${((e.parentElement && e.parentElement.parentElement) || {}).textContent || ''}`));
+      if (xs.length !== 1) return {ok:false,count:xs.length};
+      return {ok:true,value:xs[0].value};
+    })()""")
     if not isinstance(inserted, dict) or not inserted.get("ok") or inserted.get("value") != update_info:
         raise RuntimeError(f"CP3 version update description did not persist: {inserted}")
     time.sleep(0.5)
 
 
 def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
-    _fill_version_update_if_required(page, update_info)
-
+    # Runs FIRST (2026-09-28 12:4xZ): a new v1.0.0 page shows neither the
+    # change-note textarea nor 審査に提出 until these fields and the DPA box are
+    # set, so the version-form wait below timed out before this ever ran.
     # A resumed draft's Agent ワークスペース tab can still be missing its
     # welcome-message/input-placeholder/test-case/AI-service-provider fields
     # and its required DPA-agreement checkbox even after CP2 ran (2026-09-28,
@@ -245,11 +273,20 @@ def _wait_and_submit(page: _RawPage, update_info: str = "") -> None:
         except Exception as workspace_error:
             print(f"CP3 workspace-field fix: best-effort, did not complete ({workspace_error})")
 
+    _fill_version_update_if_required(page, update_info)
+
     deadline = time.monotonic() + CP3_HYDRATE_TIMEOUT_S
+    draft_saved = False
     while time.monotonic() < deadline:
         state = _bounded_page_evaluate(page, SUBMIT_STATE_JS, deadline)
         if not isinstance(state, dict):
             raise RuntimeError("CP3 submit state unavailable")
+        if state.get("count", 0) == 0 and state.get("drafts") == 1 and not draft_saved:
+            saved = _bounded_page_evaluate(page, DRAFT_SAVE_CLICK_JS, deadline)
+            draft_saved = isinstance(saved, dict) and bool(saved.get("ok"))
+            print(f"CP3 saved pending draft edits before submit: {draft_saved}")
+            time.sleep(CP3_POLL_S)
+            continue
         if state.get("count", 0) > 1 or state.get("enabled", 0) > 1:
             raise RuntimeError(f"CP3 submit button is ambiguous: {state}")
         if state.get("count") == 1:
@@ -290,7 +327,7 @@ def _playwright_submit(url: str, update_info: str) -> None:
     pw = sync_playwright().start()
     owned_page = None
     try:
-        browser = pw.chromium.connect_over_cdp(_detect_cdp(), timeout=15000)
+        browser = pw.chromium.connect_over_cdp(_require_cdp(), timeout=15000)
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         owned_page = context.new_page()
         owned_page.goto(url, wait_until="domcontentloaded", timeout=60000)
@@ -340,7 +377,7 @@ def main(argv: list[str]) -> int:
         _playwright_submit(resolved, update_info)
         print("RESULT: submitted")
         return 0
-    cdp = _detect_cdp()
+    cdp = _require_cdp()
     try:
         targets = _candidate_page_targets(cdp)
     except RuntimeError:

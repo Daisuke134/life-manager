@@ -174,6 +174,23 @@ def test_unique_confirm_is_clicked_before_disabled_success(monkeypatch) -> None:
     assert module.CONFIRM_CLICK_JS in page.expressions
 
 
+def test_pending_draft_edits_are_saved_before_submit(monkeypatch) -> None:
+    # 2844813315 (2026-09-29 14:50 JST): the version-update edit left the button
+    # reading 下書き保存, so 審査に提出 never appeared within the deadline.
+    module = load_module()
+    module.CP3_POLL_S = 0
+    page = _SubmitPage([
+        {"count": 0, "enabled": 0, "disabled": 0, "confirms": 0, "drafts": 1},
+        {"count": 1, "enabled": 1, "disabled": 0, "confirms": 0, "drafts": 0},
+        {"count": 1, "enabled": 0, "disabled": 1, "confirms": 0, "drafts": 0},
+    ], click_results=[{"ok": True}, {"ok": True}])
+    page._module = module
+
+    module._wait_and_submit(page)
+
+    assert page.expressions.index(module.DRAFT_SAVE_CLICK_JS) < page.expressions.index(module.SUBMIT_CLICK_JS)
+
+
 @pytest.mark.parametrize(
     "state",
     (
@@ -204,7 +221,7 @@ def test_cp3_output_contains_no_url_or_token(monkeypatch, capsys) -> None:
             pass
 
     monkeypatch.setattr(module, "_resolve_review_url", lambda _raw: "https://capafy.ai/developer/createAgent?token=secret&page=review")
-    monkeypatch.setattr(module, "_detect_cdp", lambda: "http://localhost:9222")
+    monkeypatch.setattr(module, "_require_cdp", lambda: "http://127.0.0.1:54137")
     monkeypatch.setattr(module, "_candidate_page_targets", lambda *_args: [{"webSocketDebuggerUrl": "ws://127.0.0.1/page"}])
     monkeypatch.setattr(module, "_open_responsive_page", lambda _targets: _Page())
     monkeypatch.setattr(module, "_navigate", lambda *_args: None)

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Podcast Hook Lab icon</title>
+  <desc id="desc">A microphone surrounded by three opening sound waves.</desc>
+  <rect width="256" height="256" rx="48" fill="#101827"/>
+  <rect x="94" y="45" width="68" height="112" rx="34" fill="#ff6b5f"/>
+  <path d="M72 126a56 56 0 0 0 112 0M128 182v30M96 212h64" fill="none" stroke="#fff4e8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M52 82h20M40 128h28M52 174h20M184 82h20M188 128h28M184 174h20" stroke="#44d8b3" stroke-width="10" stroke-linecap="round"/>
+</svg>

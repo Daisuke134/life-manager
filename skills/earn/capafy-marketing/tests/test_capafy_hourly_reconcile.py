@@ -256,7 +256,8 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
 
     module._live_payloads(Path("/tmp"), observed)
 
-    assert {path for path, _ in calls} == {
+    clickhouse_calls = [(path, body) for path, body in calls if "clickhouse" in path]
+    assert {path for path, _ in clickhouse_calls} == {
         "/app/sales/clickhouse/trend",
         "/app/sales/clickhouse/ranking",
         "/app/realtime-revenue/clickhouse/trend",
@@ -264,9 +265,15 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
         "/app/unit-sales/clickhouse/trend",
         "/app/unit-sales/clickhouse/ranking",
     }
+    # Account-level (no agentId, empty inventory here) traffic-sources reads: 2 windows
+    # (30d/7d) x 2 stat kinds (visits, sales) under the base path discovered from the
+    # public Vite chunk assets/TrafficSources-*.js.
+    assert {path for path, _ in calls if path not in {p for p, _ in clickhouse_calls}} == {
+        f"{module.TRAFFIC_SOURCES_BASE}/v2/visits/stats", f"{module.TRAFFIC_SOURCES_BASE}/v2/sales/stats",
+    }
     # The since-launch period calls (one per endpoint above, minus the two fixed 30d/7d
     # ranking calls added below) all carry sinceLaunch=True.
-    since_launch_calls = [body for _, body in calls if "sinceLaunch" in body]
+    since_launch_calls = [body for _, body in clickhouse_calls if "sinceLaunch" in body]
     assert len(since_launch_calls) == 5
     assert all(body.get("sinceLaunch") is True for body in since_launch_calls)
     # Fixed 30d/7d windows for per-agent GROSS revenue and paid-order rankings.
@@ -297,7 +304,8 @@ def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.Monkey
     assert len(month_to_date_calls) == 5
     assert all(body.get("endDate") == "2026-09-17" for body in month_to_date_calls)
     # The fixed 30d/7d gross-window ranking calls are independent of the month-to-date period.
-    assert all(body.get("endDate") == "2026-09-17" for body in calls)
+    # (Traffic-sources calls use epoch-ms startAt/endAt, not ISO endDate; excluded here.)
+    assert all(body.get("endDate") == "2026-09-17" for body in calls if "endAt" not in body)
 
 
 def skill_analytics_payloads() -> dict:
@@ -746,3 +754,191 @@ def test_token_reads_the_publisher_runtime_config(tmp_path, monkeypatch):
     runtime.mkdir(parents=True)
     (runtime / "config.json").write_text(json.dumps({"access_token": "runtime-token"}))
     assert module._token(tmp_path / "repo") == "runtime-token"
+
+
+# Real (trimmed) 30d responses captured 2026-09-28 from the live, previously-undocumented
+# POST /app/developer/traffic-sources/v2/{visits,sales}/stats endpoints (discovered from the
+# public Vite chunk assets/TrafficSources-*.js). No PII: the campaign/ct row names the seller's
+# own public listing, nothing about a visitor.
+def _traffic_visits_items() -> list[dict]:
+    return [
+        {"sourceType": "internal", "sourceName": "search", "agentId": "",
+         "pageViewCount": 0, "detailViewCount": 2392, "uniqueVisitorCount": 2392},
+        {"sourceType": "direct", "sourceName": "direct", "agentId": "",
+         "pageViewCount": 0, "detailViewCount": 895, "uniqueVisitorCount": 895},
+        {"sourceType": "utm", "sourceName": "chatgpt.com", "agentId": "",
+         "pageViewCount": 1, "detailViewCount": 0, "uniqueVisitorCount": 1},
+        {"sourceType": "referrer", "sourceName": "google", "agentId": "",
+         "pageViewCount": 0, "detailViewCount": 76, "uniqueVisitorCount": 76},
+        {"sourceType": "ct", "sourceName": "marke", "agentId": "6501274812",
+         "pageViewCount": 0, "detailViewCount": 0, "uniqueVisitorCount": 0,
+         "campaignUrl": "https://capafy.ai/agent/japanese-humanizer-pro-natural-not-ai/6501274812?ct=marke"},
+    ]
+
+
+def _traffic_sales_items() -> list[dict]:
+    return [
+        {"sourceType": "internal", "source": "search", "agentId": None,
+         "freeTrialCount": 44, "paidOrderCount": 17, "salesAmount": 52.88},
+        {"sourceType": "direct", "source": "", "agentId": None,
+         "freeTrialCount": 4, "paidOrderCount": 2, "salesAmount": 3.98},
+        {"sourceType": "referrer", "source": "google", "agentId": None,
+         "freeTrialCount": 4, "paidOrderCount": 0, "salesAmount": 0.0},
+        {"sourceType": "campaign", "source": "marke", "agentId": "6501274812",
+         "campaignName": "marke", "freeTrialCount": 0, "paidOrderCount": 0, "salesAmount": 0.0},
+    ]
+
+
+def test_traffic_merge_combines_visits_and_sales_by_source() -> None:
+    module = load_module()
+
+    rows = module._traffic_merge(_traffic_visits_items(), _traffic_sales_items())
+
+    by_key = {(row["source_type"], row["source_name"]): row for row in rows}
+    assert by_key[("internal", "search")] == {
+        "source_type": "internal", "source_name": "search",
+        "views": 2392, "unique_visitors": 2392,
+        "trial_orders": 44, "paid_orders": 17, "sales_usd": "52.88",
+    }
+    # utm/chatgpt.com has a visits row but no matching sales row: zero orders, not missing.
+    assert by_key[("utm", "chatgpt.com")]["paid_orders"] == 0
+    # ct/marke (an agent-linked campaign link) has a sales row keyed by campaignName "marke",
+    # matching the visits row's sourceName "marke" under sourceType "ct" vs "campaign" --
+    # different sourceType, so it is its own row, not silently dropped or merged wrong.
+    assert ("campaign", "marke") in by_key
+    assert ("ct", "marke") in by_key
+    # sorted by views desc: internal/search (2392) must lead direct/direct (895).
+    assert rows[0]["source_type"] == "internal" and rows[0]["source_name"] == "search"
+
+
+def test_traffic_merge_returns_none_on_malformed_rows() -> None:
+    module = load_module()
+    assert module._traffic_merge("not-a-list", []) is None
+    assert module._traffic_merge([{"sourceType": 1}], []) is not None  # coerced via str(), not a crash
+    assert module._traffic_merge([object()], []) is None
+
+
+def test_traffic_window_posts_startat_endat_and_optional_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    calls = []
+
+    def fake_post(path, token, body):
+        calls.append((path, token, body))
+        if path.endswith("/visits/stats"):
+            return {"code": 0, "data": {"items": _traffic_visits_items()}}
+        return {"code": 0, "data": {"items": _traffic_sales_items()}}
+
+    monkeypatch.setattr(module, "_post", fake_post)
+
+    result = module._traffic_window("tok", 1000, 2000, agent_id="6501274812")
+
+    assert result["status"] == "fresh"
+    assert result["totals"]["views"] == sum(row["views"] for row in result["by_source"])
+    assert result["totals"]["paid_orders"] == 19
+    for path, token, body in calls:
+        assert token == "tok"
+        assert body == {"startAt": 1000, "endAt": 2000, "agentId": "6501274812"}
+        assert path in (
+            f"{module.TRAFFIC_SOURCES_BASE}/v2/visits/stats",
+            f"{module.TRAFFIC_SOURCES_BASE}/v2/sales/stats",
+        )
+
+
+def test_traffic_window_is_unknown_not_zero_without_web_token() -> None:
+    module = load_module()
+    result = module._traffic_window("", 1000, 2000)
+    assert result["status"] == "unknown_web_token_unavailable"
+    assert result["by_source"] == []
+    assert result["totals"]["views"] is None
+
+
+def test_traffic_window_is_unknown_on_source_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "_post", lambda *_a: {"_error": "boom"})
+    result = module._traffic_window("tok", 1000, 2000)
+    assert result["status"] == "unknown_source_error"
+
+
+def test_build_traffic_sources_covers_windows_and_bounded_per_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    calls = []
+
+    def fake_post(path, token, body):
+        calls.append(body)
+        if path.endswith("/visits/stats"):
+            return {"code": 0, "data": {"items": _traffic_visits_items()}}
+        return {"code": 0, "data": {"items": _traffic_sales_items()}}
+
+    monkeypatch.setattr(module, "_post", fake_post)
+    sleeps = []
+
+    result = module.build_traffic_sources(
+        "tok", module.dt.date(2026, 9, 28), ["a1", "a2"], cap=5, delay=0, sleep=sleeps.append,
+    )
+
+    assert result["status"] == "fresh"
+    assert set(result["by_agent"]) == {"a1", "a2"}
+    assert result["last_30d"]["status"] == "fresh" and result["last_7d"]["status"] == "fresh"
+    # account-level (2 windows) + per-agent (2 agents x 2 windows) = 6 window-fetches x 2 calls each
+    assert len(calls) == 6 * 2
+    assert sleeps == [0, 0]  # one sleep per agent processed
+
+
+def test_build_traffic_sources_respects_the_agent_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "_post", lambda *_a: {"code": 0, "data": {"items": []}})
+
+    result = module.build_traffic_sources(
+        "tok", module.dt.date(2026, 9, 28), ["a1", "a2", "a3"], cap=1, delay=0, sleep=lambda _s: None,
+    )
+
+    assert set(result["by_agent"]) == {"a1"}
+
+
+def test_traffic_summary_line_reports_top_sources_by_views() -> None:
+    module = load_module()
+    rows = module._traffic_merge(_traffic_visits_items(), _traffic_sales_items())
+    traffic_sources = {"last_30d": {"status": "fresh", "by_source": rows}}
+
+    line = module._traffic_summary_line(traffic_sources, top_n=2)
+
+    assert line is not None
+    assert line.startswith("Traffic (30d) top sources:")
+    assert "internal/search 2392v/17o" in line
+    assert "direct/direct 895v/2o" in line
+
+
+def test_traffic_summary_line_is_none_when_traffic_sources_unknown() -> None:
+    module = load_module()
+    assert module._traffic_summary_line(None) is None
+    assert module._traffic_summary_line({"last_30d": {"status": "unknown_source_error"}}) is None
+
+
+def test_build_receipt_passes_through_traffic_sources() -> None:
+    module = load_module()
+    payloads = live_payloads()
+    fake_traffic = {"schema_version": 1, "kind": "capafy_traffic_sources", "status": "fresh",
+                    "last_30d": {"status": "fresh", "by_source": [], "totals": {}},
+                    "last_7d": {"status": "fresh", "by_source": [], "totals": {}}, "by_agent": {}}
+    payloads["traffic_sources"] = fake_traffic
+
+    receipt = module.build_receipt(payloads, "2026-08-22T10:00:00Z")
+
+    assert receipt["traffic_sources"] == fake_traffic
+
+
+def test_build_receipt_defaults_traffic_sources_when_absent() -> None:
+    module = load_module()
+    receipt = module.build_receipt(live_payloads(), "2026-08-22T10:00:00Z")
+    assert receipt["traffic_sources"]["status"] == "unknown_not_observed"
+
+
+def test_build_skill_analytics_adds_traffic_line_to_telegram_summary() -> None:
+    module = load_module()
+    payloads = live_payloads()
+    rows = module._traffic_merge(_traffic_visits_items(), _traffic_sales_items())
+    payloads["traffic_sources"] = {"last_30d": {"status": "fresh", "by_source": rows}}
+
+    analytics = module.build_skill_analytics(payloads, {}, {}, "2026-08-22T10:00:00Z")
+
+    assert "Traffic (30d) top sources:" in analytics["telegram_summary"]

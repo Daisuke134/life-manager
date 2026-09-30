@@ -74,6 +74,13 @@ test("JP4 lane is account-bound and capped at three isolated slots", () => {
   assert.equal(lane.account, "@anicca.jp4"); assert.equal(lane.integrationId, "cmn8x8hdv028uqx0y4gdfse5t"); assert.equal(lane.approvalKey, "LM_ANICCA_JP4_TIKTOK_APPROVAL_REF"); assert.deepEqual([...ANICCA_JP4_SLOTS], ["09:15", "15:15", "20:45"]); assert.equal(lane.slots.length, 3);
 });
 
+test("every anicca-ios lane opts into fresh hook text; honne lanes keep pack text", () => {
+  for (const command of ALL_LANE_COMMANDS) {
+    const lane = parseArgs([command]).lane;
+    assert.equal(Boolean(lane.freshHookText), lane.product === "anicca-ios", command);
+  }
+});
+
 test("HE lane is account-bound and capped at three isolated slots", () => {
   const lane = parseArgs(["run-anicca-he"]).lane;
   assert.equal(lane.account, "@anicca.he"); assert.equal(lane.integrationId, "cmq2aoena08bhqp0yx1epjcik"); assert.equal(lane.approvalKey, "LM_ANICCA_HE_TIKTOK_APPROVAL_REF"); assert.deepEqual([...ANICCA_HE_SLOTS], ["07:15", "13:45", "18:15"]); assert.equal(lane.slots.length, 3);

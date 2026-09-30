@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -99,11 +100,15 @@ return{{job_id:job,form_url:url,proposal_id:match?match[1]:null,state:submitted&
 }})()'''
 
 
-def _run_browser_operator(job_id: str, form_url: str) -> None:
-    evidence = DEFAULT_OPERATOR_EVIDENCE / f"{time.time_ns()}-{job_id.lstrip('~')}"
-    prompt = f"""Operate the current authenticated Upwork proposal page as a browser agent.
+def browser_operator_prompt(job_id: str, form_url: str, cdp_endpoint: str) -> str:
+    """Build the operator prompt from the already-resolved local endpoint."""
+    endpoint = cdp_endpoint.rstrip("/") if isinstance(cdp_endpoint, str) else ""
+    parsed = urlsplit(endpoint)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"}:
+        raise ValueError("upwork_browser_endpoint_invalid")
+    return f"""Operate the current authenticated Upwork proposal page as a browser agent.
 The exact immutable proposal for job {job_id} is already filled and its exactly-once effect fence is
-already closed. Inspect the live browser at http://127.0.0.1:9233 and find the existing page whose URL
+already closed. Inspect the live browser at {endpoint} and find the existing page whose URL
 is {form_url}. Use current page feedback to handle ordinary non-financial UI and submit that already
 filled proposal exactly once. Do not edit proposal fields, buy anything, boost, subscribe, open another
 job, change account settings, edit code, or claim success from a click. Stop after the page visibly
@@ -113,6 +118,12 @@ ordinary educational or marketplace-safety acknowledgements needed to continue t
 submission when they do not change price, proposal content, contract terms, identity, tax or payment
 facts. CAPTCHA, identity proof and personal legal/tax declarations remain human-only. Evidence must name
 only safe page state or local evidence paths; never include proposal text or credentials."""
+
+
+def _run_browser_operator(job_id: str, form_url: str) -> None:
+    endpoint = os.environ.get("CLOAK_CDP_BASE_URL", "")
+    prompt = browser_operator_prompt(job_id, form_url, endpoint)
+    evidence = DEFAULT_OPERATOR_EVIDENCE / f"{time.time_ns()}-{job_id.lstrip('~')}"
     evidence.mkdir(parents=True, exist_ok=False, mode=0o700)
     completed = subprocess.run([
         sys.executable, str(DEFAULT_RUNNER), "--task-class", "browser-lane-agent",

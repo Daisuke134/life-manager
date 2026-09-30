@@ -82,6 +82,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])
         self.assertNotIn("alpaca-investment-shadow", registry["loops"])
+        self.assertIn("alpaca-investment-paper", registry["loops"])
         self.assertIn("alpaca-investment-live", registry["loops"])
         self.assertIn("ai.anicca.alpaca-investment", registry["retired_labels"])
         self.assertIn("ai.anicca.alpaca-investment-shadow", registry["retired_labels"])
@@ -91,10 +92,11 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "alpaca-investment-live"
         ]
         self.assertEqual(row["resource_class"], "agent")
-        self.assertEqual(row["admission_class"], "borrow")
-        self.assertEqual(row["priority"], "support")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
         self.assertTrue(row["coalesce_reserved_wakes"])
         self.assertTrue(row["coalesce_queued_wakes"])
+        self.assertTrue(row["reconcile_queued_release"])
 
     def test_fundraiser_declares_existing_admission_and_coalescing_contract(self):
         row = json.loads((ROOT / "config/loop-registry.json").read_text())["loops"][
@@ -1344,6 +1346,63 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 "interactive:dais" if field == "browser_identity" else "connector-native"
             )
 
+    def test_browser_identity_join_requires_both_sides(self):
+        for field in ("browser_identity", "browser_target_owner"):
+            value = {"schema_version": 2, "loops": {"example": entry()}}
+            value["loops"]["example"][field] = (
+                "interactive:dais" if field == "browser_identity" else "connector-native"
+            )
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ValueError, "browser identity join requires both fields",
+            ):
+                validate_registry(value)
+
+    def test_coconala_action_lanes_declare_the_gig_browser_join(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in (
+            "hf-gig-apply-direct", "hf-gig-apply-reconcile", "hf-gig-storefront-direct",
+            "hf-gig-paid-direct", "hf-gig-reply-detector",
+        ):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row["browser_identity"], "coconala:kosuke")
+                self.assertEqual(row["browser_target_owner"], "hf-gig-browser")
+
+    def test_lancers_and_crowdworks_browser_action_lanes_declare_provider_identity_join(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        expected = {
+            **{
+                loop_id: ("lancers:dais", "lancers-revenue-browser")
+                for loop_id in (
+                    "lancers-revenue-application", "lancers-revenue-storefront",
+                    "lancers-revenue-negotiate", "lancers-revenue-paid",
+                    "lancers-revenue-work-sync",
+                )
+            },
+            **{
+                loop_id: ("crowdworks:dais", "crowdworks-revenue-browser")
+                for loop_id in (
+                    "crowdworks-revenue-application", "crowdworks-revenue-reply",
+                    "crowdworks-revenue-paid",
+                )
+            },
+        }
+        expected.update({
+            "mercor-revenue-application": ("mercor:dais", "mercor-revenue-browser"),
+            "mercor-revenue-reply": ("mercor:dais", "mercor-revenue-browser"),
+        })
+        for loop_id, (identity, owner) in expected.items():
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row["browser_identity"], identity)
+                self.assertEqual(row["browser_target_owner"], owner)
+        for loop_id in (
+            "lancers-revenue-telegram-report", "crowdworks-revenue-report",
+        ):
+            with self.subTest(loop_id=loop_id):
+                self.assertNotIn("browser_identity", registry["loops"][loop_id])
+                self.assertNotIn("browser_target_owner", registry["loops"][loop_id])
+
     def test_render_is_byte_stable_for_loop_insertion_order(self):
         left = {"schema_version": 2, "loops": {"b": entry("ai.anicca.b"), "a": entry("ai.anicca.a")}}
         right = {"schema_version": 2, "loops": {"a": entry("ai.anicca.a"), "b": entry("ai.anicca.b")}}
@@ -1359,6 +1418,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             and row["launchd_state"].startswith("loaded")
         }
         expected -= set(registry.get("retired_labels", []))
+        expected -= set(registry.get("external_labels", []))
         self.assertTrue(expected.issubset({row["label"] for row in registry["loops"].values()}))
         self.assertEqual(registry["loops"]["pm-live-trade"]["effect_class"], "trade")
         self.assertEqual(registry["loops"]["life-manager-payout"]["effect_class"], "money")

@@ -1,5 +1,8 @@
 # Life Manager Agent Architecture Refinement
 
+> **参照用（2026-09-29 Dais 指示）。正本はこの文書ではなく `docs/superpowers/specs/2026-09-25-life-manager-unified-ssot.md` の 1 本だけ。TODO・順序・状態はそちらだけを更新する。**
+
+
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 

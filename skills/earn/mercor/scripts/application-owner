@@ -7,9 +7,7 @@ LEASE_PYTHON="${LIFE_MANAGER_LEASE_PYTHON:-/usr/bin/python3}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
 LEASE_SCRIPT="$ROOT/skills/browser/scripts/cdp_context_lease.py"
 TASK="mercor-revenue-application"
-# localhost resolves to the managed Chromium IPv6 listener on this host. The
-# IPv4 address is occupied by an unrelated Chrome endpoint returning 404/500.
-CDP="http://localhost:9222"
+source "$ROOT/skills/earn/mercor/scripts/browser-env.sh"
 LEASE_JSON="$STATE_ROOT/browser-lease.json"
 WRITEBACK_JSON="$STATE_ROOT/session-writeback.json"
 AUTH_READBACK_JSON="$STATE_ROOT/auth-readback.json"
@@ -39,8 +37,7 @@ if [[ ! -f "$STATE_ROOT/resume-state.json" && -f "$LEGACY_ROOT/resume-state.json
   /bin/cp "$LEGACY_ROOT/resume-state.json" "$STATE_ROOT/resume-state.json"
   chmod 600 "$STATE_ROOT/resume-state.json"
 fi
-export CLOAK_CDP_BASE_URL="$CDP"
-export CLOAK_SESSION_VAULT_FILE="$HOME/.cloak/vault/job-search-daily/auth-state.json"
+export CLOAK_SESSION_VAULT_FILE="${CLOAK_SESSION_VAULT_FILE:-$HOME/.local/state/anicca/job-search/mercor/application/auth-overlay.json}"
 export CLOAK_SESSION_VAULT_WRITEBACK_FILE="$STATE_ROOT/auth-overlay.json"
 export CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"
 export CLOAK_CONTEXT_LEASES_FILE="$STATE_ROOT/context-leases.json"

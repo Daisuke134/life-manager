@@ -45,6 +45,7 @@ readback(receipt_id)        -> bool        # the platform's own record, not your
 | `telegram_delivery.py` | ⑥ the send itself — no external CLI |
 | `lane_summary.py` | ⑥ the wake sentence |
 | `dom_contract.py` | ④⑤ a selector that names itself when it stops matching |
+| `platform_enrollment.py` | Meta Loop: policy、thin adapter、funded work、公式canary/readback、replay-zero、positive net economicsを一つのpromotion gateへ束ねる |
 
 ## Seven traps, each measured
 

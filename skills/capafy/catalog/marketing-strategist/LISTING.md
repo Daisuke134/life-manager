@@ -7,10 +7,18 @@ then drafts the asset. ★ The winner claims to "research your site/competitors/
 rejection trap; STRIPPED here. ★ No browsing, no live data, no invented metrics.
 
 ## Pricing — 2 paid subscription tiers, no free trial
+## 2026-09-29 repriced: charge more/spend less policy — DeepSeek cost << Sonnet cost,
+## so price moves to the B2B/analyst-tool ceiling ($19.99-24.99/mo band, references/pricing.md
+## + BEST_PRACTICES.md "Pro/analyst niches run month $24.99-27.99"), same as Slide Maker's
+## already-proven $24.99/mo ceiling. Was week $6.99/month $12.99 on Sonnet.
+## 2026-09-29: added the required yearly plan (policy: always a year row, no free trial) at $149.99,
+## matching "MLB Baseball Analysts" (agent `5315711748`, category 2, 35 sales) — this UPDATE
+## (from_version_id unchanged vs live) has not been submitted yet, so the table is safe to extend.
 | cycle | price | cap | trial |
 |---|---|---|---|
 | week  | $6.99  | 36 | No Free Trial |
 | month | $12.99 | 80 | No Free Trial |
+| year  | $149.99 | 960 | No Free Trial |
 
 ## Title
 Marketing Strategist — The One Move to Make

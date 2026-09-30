@@ -1,8 +1,11 @@
-Primary Model: Claude Sonnet 4.6 · category: ライティング · tags: academic writing, limitations editor, research communication
+Primary Model: DeepSeek V4.1 Flash · category: ライティング · tags: academic writing, limitations editor, research communication
 
+## 2026-09-29 repriced: charge more/spend less policy. Was week $10 only, Claude Sonnet 4.6 (no yearly). Week/month band matches "Unscore — AI Detector & Humanizer" (agent `4097802482`, category 1, 18 sales, month $19.99); the yearly price matches "Serenity Stock Tracker" (agent `2521387714`, 1,669 sales) at year $99.99 — the lowest-priced agent that clears the full week/month/year winner band.
 | cycle | price | cap | trial |
 |---|---:|---:|---|
 | week | $9.99 | 20 | No Free Trial |
+| month | $19.99 | 50 | No Free Trial |
+| year | $99.99 | 600 | No Free Trial |
 
 ## Title
 Academic Limitations Editor

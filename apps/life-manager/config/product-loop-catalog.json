@@ -77,10 +77,10 @@
     },
     {
       "id": "investment",
-      "job_ids": ["alpaca-investment-live"],
+      "job_ids": ["alpaca-investment-paper", "alpaca-investment-live", "investment-cross-venue-report", "investment-strategy-validation"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",
-      "recovery_classes": ["external_effect_owner"],
+      "recovery_classes": ["deterministic", "external_effect_owner"],
       "economic": {"role":"investment","revenue_classes":["realized_investment"],"sources":{"funnel":{"adapter":"investment-order-reconciliation","implementation":"implemented"},"financial":{"adapter":"investment-financial-record","implementation":"partial"},"cost":{"adapter":"investment-financial-record","implementation":"partial"}}},
       "requirements": ["alpaca_credentials", "investment_mode"],
       "hosts": {
@@ -155,7 +155,7 @@
     },
     {
       "id": "mobile-apps",
-      "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics"],
+      "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics", "tiktok-browser"],
       "name": "Mobile App Loops",
       "description": "Create, build, release, improve, market, measure, and reconcile mobile app products through one shared lifecycle.",
       "recovery_classes": ["continuous_service", "external_effect_owner"],
@@ -168,10 +168,10 @@
     },
     {
       "id": "capafy",
-      "job_ids": ["capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor"],
+      "job_ids": ["capafy-browser", "capafy-distribute-daily", "capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor"],
       "name": "Capafy",
       "description": "Operate Capafy's product, sales, outcome, and audience-growth workflows.",
-      "recovery_classes": ["deterministic", "external_effect_owner", "read_only_external_owner"],
+      "recovery_classes": ["continuous_service", "deterministic", "external_effect_owner", "read_only_external_owner"],
       "economic": {"role":"customer_revenue","revenue_classes":["subscription","one_time","recurring_usage"],"sources":{"funnel":{"adapter":"capafy-company-receipt","implementation":"implemented"},"financial":{"adapter":"capafy-financial-record","implementation":"missing"},"cost":{"adapter":"capafy-financial-record","implementation":"missing"}}},
       "requirements": ["capafy_account", "publication_profile", "public_guided_installer"],
       "hosts": {

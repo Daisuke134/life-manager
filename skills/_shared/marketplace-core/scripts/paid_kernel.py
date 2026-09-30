@@ -11,18 +11,25 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import argparse
+from dataclasses import asdict
 import fcntl
+from functools import lru_cache
 import hashlib
 import importlib.util
 import json
 import os
 from pathlib import Path
 import re
+import sys
 import tempfile
 from typing import Any, Callable, Mapping, Protocol
 
 
 MUTATIONS = frozenset({"answer", "submit", "formal_delivery", "cancel", "accept"})
+# ``accept`` is the pre-funding contract step.  It must remain possible to
+# accept a provider's official order before the buyer's escrow/funding
+# readback exists; the handoff gate applies only once Paid work can begin.
+FUNDED_MUTATIONS = frozenset(MUTATIONS - {"accept"})
 NO_EFFECT_CLASSIFICATIONS = frozenset({
     "completed", "awaiting_buyer", "reserved_for_owner", "satisfied_noop", "noop",
 })
@@ -34,6 +41,24 @@ class PaidAdapter(Protocol):
     def context(self, work_id: str) -> dict[str, Any]: ...
     def mutate(self, intent: dict[str, Any]) -> None: ...
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]: ...
+
+    # Required only when ``run_wake(..., require_paid_handoff=True)`` is used.
+    # The provider adapter supplies official, provider-specific readbacks; the
+    # shared kernel validates their canonical contract shape.
+    def paid_handoff(self, work_id: str, context: Mapping[str, Any]) -> Mapping[str, Any]: ...
+
+
+@lru_cache(maxsize=1)
+def _contracts_module():
+    path = Path(__file__).with_name("contracts.py")
+    name = "marketplace_paid_kernel_contracts"
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("marketplace_contracts_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _text(value: Any, field: str) -> str:
@@ -195,6 +220,30 @@ def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, An
     return {**base, "effect_key": _digest(base)}
 
 
+def _validate_paid_handoff(
+    adapter: PaidAdapter,
+    row: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> dict[str, Any]:
+    hook = getattr(adapter, "paid_handoff", None)
+    if not callable(hook):
+        raise ValueError("paid_handoff_adapter_unavailable")
+    bundle = hook(row["work_id"], context)
+    if not isinstance(bundle, Mapping):
+        raise ValueError("paid_handoff_bundle_invalid")
+    contract = bundle.get("contract")
+    handoff = bundle.get("handoff")
+    if not isinstance(contract, Mapping) or not isinstance(handoff, Mapping):
+        raise ValueError("paid_handoff_bundle_invalid")
+    contracts = _contracts_module()
+    parsed_handoff = contracts.validate_paid_handoff(handoff, contract)
+    parsed_contract = contracts.parse_contract(contract)
+    return {
+        "contract": asdict(parsed_contract),
+        "handoff": asdict(parsed_handoff),
+    }
+
+
 def _verified_receipt(intent: Mapping[str, Any], readback: Mapping[str, Any]) -> dict[str, Any]:
     if readback.get("verified") is not True:
         raise ValueError("official_readback_unverified")
@@ -255,7 +304,8 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                     mutation_started: list[bool] | None = None,
                     occurrence_id: str | None = None,
                     pre_effect_hint: Path | None = None,
-                    run_marker: Path | None = None) -> dict[str, Any]:
+                    run_marker: Path | None = None,
+                    require_paid_handoff: bool = False) -> dict[str, Any]:
     row = _observation(source)
     path = _state_path(state_root, row)
     state = _load(path)
@@ -338,7 +388,15 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         _write_state(path, saved, occurrence_id)
         return _pending(row, reason)
 
+    paid_handoff = None
+    if require_paid_handoff and action in FUNDED_MUTATIONS:
+        paid_handoff = _validate_paid_handoff(adapter, row, decision_context)
     intent = _intent(row, decision)
+    if paid_handoff is not None:
+        # Persist the canonical proof with the intent before any provider
+        # mutation. It is deliberately outside the payload/effect key: proof
+        # identity does not alter the provider action's idempotency identity.
+        intent["paid_handoff"] = paid_handoff
     if (isinstance(previous_intent, Mapping) and replay_eligible
             and previous_effect_verified
             and _stage_signature(intent) == _stage_signature(previous_intent)):
@@ -413,13 +471,15 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
              state_root: Path, source: Mapping[str, Any],
              occurrence_id: str | None = None,
              pre_effect_hint: Path | None = None,
-             run_marker: Path | None = None) -> dict[str, Any]:
+             run_marker: Path | None = None,
+             require_paid_handoff: bool = False) -> dict[str, Any]:
     row = _observation(source)
     mutation_started = [False]
     with _item_lock(_state_path(state_root, row)):
         try:
             return _run_one_locked(adapter, decide, state_root, row, mutation_started,
-                                   occurrence_id, pre_effect_hint, run_marker)
+                                   occurrence_id, pre_effect_hint, run_marker,
+                                   require_paid_handoff)
         except Exception as error:
             if mutation_started[0]:
                 try:
@@ -443,7 +503,8 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4,
              pre_effect_hint: Path | None = None,
-             run_marker: Path | None = None) -> dict[str, Any]:
+             run_marker: Path | None = None,
+             require_paid_handoff: bool = False) -> dict[str, Any]:
     rows = adapter.observe_active()
     if not isinstance(rows, list):
         raise ValueError("paid_inventory_invalid")
@@ -467,13 +528,15 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
         for row in normalized:
             try:
                 items.append(_run_one(adapter, decide, Path(state_root), row, occurrence_id,
-                                      pre_effect_hint, run_marker))
+                                      pre_effect_hint, run_marker,
+                                      require_paid_handoff))
             except Exception as error:
                 items.append(_failed_item(row, error))
     else:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row, occurrence_id,
-                                    pre_effect_hint, run_marker)
+                                    pre_effect_hint, run_marker,
+                                    require_paid_handoff)
                        for row in normalized]
             for row, future in zip(normalized, futures):
                 try:
@@ -533,6 +596,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--max-workers", type=int, default=4)
+    parser.add_argument(
+        "--require-paid-handoff",
+        action="store_true",
+        help="require an official funded ContractReceipt/PaidHandoffReceipt before mutation",
+    )
     args, provider_argv = parser.parse_known_args(argv)
     if provider_argv[:1] == ["--"]:
         provider_argv = provider_argv[1:]
@@ -547,7 +615,8 @@ def main(argv: list[str] | None = None) -> int:
                           state_root=state_root,
                           max_workers=args.max_workers,
                           pre_effect_hint=pre_effect_hint,
-                          run_marker=run_marker)
+                          run_marker=run_marker,
+                          require_paid_handoff=args.require_paid_handoff)
     except Exception as error:
         wait_reason = getattr(error, "paid_wait_reason", None)
         remaining = getattr(error, "paid_remaining_work", None)
