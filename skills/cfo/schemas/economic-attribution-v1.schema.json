@@ -1,6 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "lm.cfo.economic-attribution.v1",
+  "x-lm-validation-contract": {
+    "json_schema_scope": "structural_only",
+    "canonical_validator": "skills.cfo.economic_attribution.validate_record",
+    "semantic_rules_ref": "x-lm-semantic-rules"
+  },
   "x-lm-semantic-rules": [
     "receipt.settled_at >= receipt.occurred_at",
     "coverage.window_start < coverage.window_end"

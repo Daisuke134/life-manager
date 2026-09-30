@@ -301,8 +301,15 @@ class EconomicAttributionContractTest(unittest.TestCase):
             "capafy", "as_of", state="gap", reason="stale_readback",
             covered_categories=[],
         ))
-        partial = self.project([subscription_snapshot()], one_loop_gap)["mrr"]
+        partial = self.project([
+            subscription_snapshot(),
+            subscription_snapshot(
+                "stripe:capafy-sub", subscription_id="stripe:capafy-sub",
+                loop_id="capafy", amount="40",
+            ),
+        ], one_loop_gap)["mrr"]
         self.assertEqual(partial["loops"]["capafy"]["status"], "unknown")
+        self.assertEqual(partial["loops"]["capafy"]["currencies"], {})
         self.assertEqual(partial["loops"]["self-build"]["currencies"], {"USD": "30"})
         self.assertEqual(partial["company"]["status"], "unknown")
         self.assertEqual(partial["company"]["currencies"], {"USD": "30"})
@@ -506,6 +513,8 @@ class EconomicAttributionContractTest(unittest.TestCase):
         self.assertEqual(mrr["loops"]["self-build"]["status"], "unknown")
         self.assertIn("subscription_snapshot_stale",
                       mrr["loops"]["self-build"]["reasons"])
+        self.assertEqual(mrr["loops"]["self-build"]["currencies"], {})
+        self.assertEqual(mrr["company"]["currencies"], {})
 
         cost = receipt("cost", provider="infra", revenue_class=None,
                        components=[{"category": "infra_cost", "amount": "70"}])
@@ -592,6 +601,12 @@ class EconomicAttributionContractTest(unittest.TestCase):
 
     def test_cross_field_rules_are_annotated_and_enforced_by_python(self):
         schema = m.economic_attribution_schema()
+        validation = schema["x-lm-validation-contract"]
+        self.assertEqual(validation["json_schema_scope"], "structural_only")
+        self.assertEqual(
+            validation["canonical_validator"],
+            "skills.cfo.economic_attribution.validate_record",
+        )
         rules = set(schema["x-lm-semantic-rules"])
         self.assertIn("receipt.settled_at >= receipt.occurred_at", rules)
         self.assertIn("coverage.window_start < coverage.window_end", rules)
@@ -602,7 +617,9 @@ class EconomicAttributionContractTest(unittest.TestCase):
         )
         invalid_window = coverage("self-build", "trailing")
         invalid_window["window_start"] = invalid_window["window_end"]
+        structural_validator = Draft202012Validator(schema, format_checker=FormatChecker())
         for invalid in (backwards_receipt, invalid_window):
+            self.assertEqual(list(structural_validator.iter_errors(invalid)), [])
             with self.assertRaises(m.ContractError):
                 m.validate_record(invalid)
 

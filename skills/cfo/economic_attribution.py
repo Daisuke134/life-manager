@@ -438,8 +438,10 @@ def _mrr_scope(snapshots: list[dict], coverage_gaps: list[dict], *, stale: bool)
         totals[row["currency"]] = (totals.get(row["currency"], Decimal(0))
                                     + Decimal(row["normalized_monthly_amount"]))
     return {"status": "unknown" if reasons else "verified",
-            "currencies": {currency: _money_text(amount)
-                           for currency, amount in sorted(totals.items())},
+            "currencies": ({} if reasons else {
+                currency: _money_text(amount)
+                for currency, amount in sorted(totals.items())
+            }),
             "reasons": reasons, "coverage_gaps": coverage_gaps}
 
 
@@ -689,6 +691,11 @@ def economic_attribution_schema() -> dict:
     }
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": SCHEMA_VERSION,
+        "x-lm-validation-contract": {
+            "json_schema_scope": "structural_only",
+            "canonical_validator": "skills.cfo.economic_attribution.validate_record",
+            "semantic_rules_ref": "x-lm-semantic-rules",
+        },
         "x-lm-semantic-rules": [
             "receipt.settled_at >= receipt.occurred_at",
             "coverage.window_start < coverage.window_end",
