@@ -1356,7 +1356,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 ## 投資loop Atomic Todo（唯一の実行正本・1行 = 1操作）
 
-更新確認: `2026-09-30 09:05 JST`
+更新確認: `2026-09-30 11:21 JST`
 
 ここだけが現在の実行順の正本である。これは計画・目標・「29回wakeする」という指示ではない。各行は、実行する操作を1つ、完了条件を1つ、証拠を1つだけ持つ。`[x]`は完了済み、`[ ]`は未完、`NEXT`は現在cursor、`QUEUE`は先行項目完了後に実行する。`AT-22.1[2]`のような番号も省略せず、全29回分を個別の原子行へ展開している。完了済み12行、未完277行、合計289行である。
 
@@ -1657,9 +1657,9 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 **実行規則**: cursorより後ろは先行項目が完了するまで実行しない。natural runのNO_TRADE、wake回数、accepted、unrealized P&L、backtest値はqualified round tripに数えない。`AT-24`と`AT-29`の判定が終わるまで、live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は行わない。
 
-**現在cursor**: `AT-13`。最新receipt `afa1d1bf4b8139ebf7d1f60511e034e0ec37f26bcbc80082de966148a2e90f4a` は`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、QQQはopenである。したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
+**現在cursor**: `AT-13`。最新receipt `bd2d39377b4810c747585d3bf5e8d426abb2163e67a91686a192d41c84dd1eca` は`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、QQQはopenである。したがって`AT-13`未完、検証済み実現投資収益は`$0/月`。
 
-**現在の1件**: `AT-13`。09:05 JSTのreadbackでも最新receiptは`recorded_at=2026-09-30T00:01:06.722634Z`の`HOLD / hold_period_not_elapsed`（receipt総数`126`）で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
+**現在の1件**: `AT-13`。11:21 JSTのreadback時点で最新receiptは`recorded_at=2026-09-30T02:19:44.377607Z`の`HOLD / hold_period_not_elapsed`（receipt総数`145`）で、QQQは`status=open`のためAT-13の完了条件を満たしていない。現在実行する操作は、次のcompleted daily sessionが生成された後にstrategy exit decision receiptを1件読むことだけである。手動sell、手動wake、再送はしない。
 
 **収益状態**: 検証済み実現投資収益は`$0/月`。現在のQQQはpaperのopen positionであり、unrealized P&Lは利益として数えない。live注文、Binance送金、wallet funding、meme coin署名、yield deposit、cap増額は、`AT-24`までの実測ゲートと`AT-29`のcanary判定が完了するまで行わない。
 
@@ -2118,7 +2118,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 - decision receipt `19eddb06175a62937e3516b9c4ff9a0cc5710d68061035ab12560edc6dc7a27f`（05:22:38 JST）は同じ`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`、`held_sessions=1`を返した。新しいdaily sessionではなく、exit order／fill／provider receiptもない。
 - したがって`AT-13`未完、`AT-14`未開始、実現投資収益`$0/月`である。これは共有lock後もinvestment ownerのnatural retryが復帰した証拠であり、手動wake・注文・送金は行っていない。
 
-## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 09:05 JST）
+## 投資loop Atomic Todoの最新実測索引（Todo本体ではない、2026-09-30 11:21 JST）
 
 この節は最新の状態を読むための索引であり、Todo本体ではない。実行するTodoは上の「投資loop Atomic Todo（唯一の実行正本）」にある。`NEXT`だけを実行し、`QUEUE`は前の行が完了するまで実行しない。`AT-22.1[n]`〜`AT-22.9[n]`という`n`付き表記は概要であり、実行単位ではない。実行対象は`AT-22.1[2]`〜`AT-22.9[30]`の261個の個別行である。
 
@@ -2141,7 +2141,7 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - [ ] **NEXT `AT-13`** — 次のcompleted daily sessionのstrategy exit decision receiptを1件読む。完了条件: `reason`が`ranked_symbol_changed`または`hold_sessions_elapsed`。証拠: exit decision receipt。
 
-最新receiptは`afa1d1bf4b8139ebf7d1f60511e034e0ec37f26bcbc80082de966148a2e90f4a`（`recorded_at=2026-09-30T00:01:06.722634Z`、09:01 JSTにreadback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
+最新receiptは`bd2d39377b4810c747585d3bf5e8d426abb2163e67a91686a192d41c84dd1eca`（`recorded_at=2026-09-30T02:19:44.377607Z`、11:19 JSTにreadback）で、`decision_session=2026-09-29`、`HOLD / hold_period_not_elapsed`である。これは`AT-13`を完了させない。同一sessionのretry、wake回数、`accepted`、paper含み損益はTodo完了の証拠にならない。
 
 ### 後続の原子キュー
 
@@ -2268,4 +2268,10 @@ Lancersの追加read-only証拠 `delivery/current-cycle-v716-lancers-human-verif
 
 - a273 releaseからの次のnatural run `18d9f03708428ae8-8136`は`2026-09-30T00:01:11.530364Z`に`phase=report`、`status=pass`、`exit_code=0`、`next_action=none`で終端した。証拠: event `b909438d1dd96cfb4055468e`。
 - decision receipt `afa1d1bf4b8139ebf7d1f60511e034e0ec37f26bcbc80082de966148a2e90f4a`は`decision_session=2026-09-29`、`action=HOLD`、`reason=hold_period_not_elapsed`を返した。同一daily sessionの自然retryであり、qualified exit、exit order、fill、realized P&Lではない。
+- `AT-13`未完、`AT-14`未開始、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。手動wake・手動sell・再送・送金は行わない。
+
+**AT-13 subsequent natural pass readback（2026-09-30 11:20 JST）**:
+
+- 最新の自然実行は`2026-09-30T02:19:56.655522Z`に`status=pass`、`exit_code=0`で終端した。証拠: event `92d4a24c31667a194ca0c18b`、occurrence `18d9f7c4f8e15350-20398`。
+- decision receipt `bd2d39377b4810c747585d3bf5e8d426abb2163e67a91686a192d41c84dd1eca`は`action=HOLD`、`reason=hold_period_not_elapsed`、`decision_session=2026-09-29`を返した。これは「まだ売る時ではない」という同じ日の判断で、売却、約定、確定利益ではない。
 - `AT-13`未完、`AT-14`未開始、cursorは`AT-13`、検証済み実現投資収益は`$0/月`のままである。手動wake・手動sell・再送・送金は行わない。
