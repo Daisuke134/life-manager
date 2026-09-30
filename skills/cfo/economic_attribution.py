@@ -463,8 +463,10 @@ def _mrr(snapshots: list[dict], coverage_rows: list[dict], end: str) -> dict:
             company_totals[currency] = company_totals.get(currency, Decimal(0)) + Decimal(amount)
     company = {
         "status": "unknown" if company_reasons else "verified",
-        "currencies": {currency: _money_text(amount)
-                       for currency, amount in sorted(company_totals.items())},
+        "currencies": ({} if company_reasons else {
+            currency: _money_text(amount)
+            for currency, amount in sorted(company_totals.items())
+        }),
         "reasons": sorted(company_reasons), "coverage_gaps": company_gaps,
     }
     return {"as_of": end, "loops": loops, "company": company}

@@ -312,7 +312,7 @@ class EconomicAttributionContractTest(unittest.TestCase):
         self.assertEqual(partial["loops"]["capafy"]["currencies"], {})
         self.assertEqual(partial["loops"]["self-build"]["currencies"], {"USD": "30"})
         self.assertEqual(partial["company"]["status"], "unknown")
-        self.assertEqual(partial["company"]["currencies"], {"USD": "30"})
+        self.assertEqual(partial["company"]["currencies"], {})
 
     def test_runway_uses_verified_liquid_balance_and_net_cash_burn(self):
         actual_cost = receipt(
