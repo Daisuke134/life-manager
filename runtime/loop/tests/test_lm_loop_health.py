@@ -617,39 +617,41 @@ class LmLoopHealthTest(unittest.TestCase):
 
     def test_snapshot_time_consumption_reduces_projection_deadline(self):
         output = io.StringIO()
-        original_project = health.project_health
-        rows = [self.status_row(f"slow-{index}") for index in range(176)]
+        rows = [self.status_row("snapshot-clock")]
+        projected = health.project_health(rows)
 
-        def slow_snapshot(*_args, **_kwargs):
-            time.sleep(0.015)
+        class Clock:
+            now = 100.0
+
+            def monotonic(self):
+                return self.now
+
+        clock = Clock()
+
+        def consuming_snapshot(*_args, **_kwargs):
+            clock.now += 7.0
             return rows
 
-        def slow_fleet_project(project_rows, **kwargs):
-            return original_project(
-                project_rows,
-                adapter=lambda row: (time.sleep(0.5), row)[1],
-                adapter_timeout_seconds=0.5,
-                **kwargs,
-            )
-
-        started = time.monotonic()
         with (
-            patch("runtime.loop.lm_loop.snapshot", side_effect=slow_snapshot),
-            patch("runtime.loop.lm_loop.project_health", side_effect=slow_fleet_project),
-            patch("runtime.loop.lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS", 0.03),
+            patch("runtime.loop.lm_loop.time", clock),
+            patch("runtime.loop.lm_loop.snapshot", side_effect=consuming_snapshot),
+            patch("runtime.loop.lm_loop.project_health", return_value=projected) as project,
+            patch("runtime.loop.lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS", 30.0),
             redirect_stdout(output),
         ):
             result = lm_loop_main(["health", "--json"])
-        elapsed = time.monotonic() - started
 
-        self.assertEqual(result, 1)
-        self.assertLess(elapsed, 0.3)
-        payload = json.loads(output.getvalue())
-        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
-        self.assertTrue(all(
-            job["diagnostic"]["error_class"] == "health_projection_timeout"
-            for job in payload["jobs"]
-        ))
+        self.assertEqual(result, 0)
+        project.assert_called_once()
+        project_rows, = project.call_args.args
+        self.assertEqual(project_rows, rows)
+        self.assertEqual(project.call_args.kwargs, {
+            "scope": "fleet",
+            "target": None,
+            "deadline_monotonic": 130.0,
+        })
+        self.assertEqual(project.call_args.kwargs["deadline_monotonic"] - clock.now, 23.0)
+        self.assertEqual(json.loads(output.getvalue()), projected)
 
     def test_health_human_skill_and_loop_explain_surfaces(self):
         row = self.status_row("writer-report", product_loop_id="writer", system_role=None)
