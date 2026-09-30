@@ -1,14 +1,23 @@
 import json
 import io
+import copy
+import tempfile
 import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from jsonschema import Draft202012Validator, FormatChecker
+
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import main as lm_loop_main
 import runtime.loop.health as health
+from runtime.loop.runtime_event import (
+    build_runtime_event,
+    build_runtime_start_event,
+    validate_runtime_event,
+)
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -180,6 +189,175 @@ class LmLoopHealthTest(unittest.TestCase):
             {"runtime", "productivity", "effect_safety", "business", "recovery"},
         )
 
+    def test_health_clocks_survive_a_newer_failed_runtime_event(self):
+        loop_id = "agentmail-nudge"
+
+        def event(run_id, timestamp, *, succeeded, effect_status, receipt=None):
+            value = build_runtime_event(
+                loop_id=loop_id,
+                domain="earn",
+                run_id=run_id,
+                release_sha="a" * 40,
+                provider="shared-agent-runner",
+                profile_alias=None,
+                effect_class="message",
+                succeeded=succeeded,
+                blocker=None if succeeded else "entrypoint_exit_1",
+                provider_receipt_id=receipt,
+            )
+            value["timestamp"] = timestamp
+            value["effect_status"] = effect_status
+            return validate_runtime_event(value)
+
+        history = [
+            event("success", "2026-10-01T00:01:00+00:00", succeeded=True,
+                  effect_status="planned"),
+            event("effect", "2026-10-01T00:02:00+00:00", succeeded=False,
+                  effect_status="verified"),
+            event("receipt", "2026-10-01T00:03:00+00:00", succeeded=False,
+                  effect_status="unknown", receipt="receipt-3"),
+            event("latest-failure", "2026-10-01T00:04:00+00:00", succeeded=False,
+                  effect_status="unknown"),
+        ]
+        registry = json.loads(
+            (ROOT / "config/loop-registry.json").read_text(encoding="utf-8")
+        )
+        registry["loops"] = {loop_id: registry["loops"][loop_id]}
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in history) + "\n",
+                encoding="utf-8",
+            )
+            latest = lm_loop._last_event(
+                directory, loop_id, include_health_clocks=True,
+            )
+        with patch("runtime.loop.lm_loop._latest_harness_failure", return_value=None):
+            status = lm_loop.status_rows(
+                registry,
+                loaded={},
+                disabled={},
+                events={loop_id: latest},
+                installed_releases={},
+                product_by_job={},
+            )[0]
+
+        clocks = health.project_health([status])["jobs"][0]["clocks"]
+        self.assertEqual(clocks, {
+            "last_attempt": "2026-10-01T00:04:00+00:00",
+            "last_success": "2026-10-01T00:01:00+00:00",
+            "last_effect": "2026-10-01T00:02:00+00:00",
+            "last_receipt": "2026-10-01T00:03:00+00:00",
+        })
+
+    def test_health_clock_projection_reads_a_shared_journal_once(self):
+        history = []
+        for loop_id in ("agentmail-nudge", "agentmail-reply"):
+            value = build_runtime_event(
+                loop_id=loop_id,
+                domain="earn",
+                run_id=f"{loop_id}-run",
+                release_sha="a" * 40,
+                provider="shared-agent-runner",
+                profile_alias=None,
+                effect_class="message",
+                succeeded=True,
+                blocker=None,
+            )
+            history.append(validate_runtime_event(value))
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in history) + "\n",
+                encoding="utf-8",
+            )
+            original_read_text = Path.read_text
+            reads = []
+
+            def counted_read_text(path, *args, **kwargs):
+                reads.append(path)
+                return original_read_text(path, *args, **kwargs)
+
+            cache = {}
+            with patch.object(Path, "read_text", new=counted_read_text):
+                first = lm_loop._last_event(
+                    directory, "agentmail-nudge", cache,
+                    include_health_clocks=True,
+                )
+                second = lm_loop._last_event(
+                    directory, "agentmail-reply", cache,
+                    include_health_clocks=True,
+                )
+
+        self.assertEqual(first["loop_id"], "agentmail-nudge")
+        self.assertEqual(second["loop_id"], "agentmail-reply")
+        self.assertEqual(len(reads), 1)
+
+    def test_health_clocks_include_a_newer_running_execute_event(self):
+        loop_id = "agentmail-nudge"
+        report = build_runtime_event(
+            loop_id=loop_id,
+            domain="earn",
+            run_id="past-success",
+            release_sha="a" * 40,
+            provider="shared-agent-runner",
+            profile_alias=None,
+            effect_class="message",
+            succeeded=True,
+            blocker=None,
+        )
+        report["timestamp"] = "2026-10-01T00:01:00+00:00"
+        running = build_runtime_start_event(
+            loop_id=loop_id,
+            domain="earn",
+            run_id="current-123",
+            release_sha="a" * 40,
+            provider="shared-agent-runner",
+            profile_alias=None,
+            effect_class="message",
+            product_loop_id="agentmail",
+            job_id=loop_id,
+            owner_id=loop_id,
+            wake_id="current-123",
+            occurrence_id=f"{loop_id}:current-123",
+            loaded_argv_sha256="b" * 64,
+            loaded_env_sha256="c" * 64,
+        )
+        running["timestamp"] = "2026-10-01T00:02:00+00:00"
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "events.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in (report, running)) + "\n",
+                encoding="utf-8",
+            )
+            latest = lm_loop._last_event(
+                directory, loop_id, include_health_clocks=True,
+            )
+
+        self.assertEqual(latest["phase"], "report")
+        self.assertEqual(latest["_health_clocks"]["last_attempt"], running["timestamp"])
+        self.assertEqual(latest["_health_clocks"]["last_effect"], running["timestamp"])
+
+    def test_health_cli_projects_snapshot_runtime_error_as_typed_gap(self):
+        output = io.StringIO()
+        raised = None
+        try:
+            with (
+                patch("runtime.loop.lm_loop.snapshot", side_effect=RuntimeError("read failed")),
+                redirect_stdout(output),
+            ):
+                result = lm_loop_main(["health", "--json"])
+        except RuntimeError as exc:
+            raised = exc
+            result = None
+
+        self.assertIsNone(raised)
+        self.assertEqual(result, 1)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["schema_version"], "lm-loop.health.v1")
+        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
+        self.assertTrue(all(
+            job["diagnostic"]["error_class"] == "health_snapshot_error"
+            for job in payload["jobs"]
+        ))
+
     def test_health_json_schema_is_generated_from_validator_contract(self):
         schema_path = ROOT / "runtime/loop/health.schema.json"
         self.assertEqual(schema_path.read_bytes(), health.render_health_json_schema())
@@ -336,6 +514,77 @@ class LmLoopHealthTest(unittest.TestCase):
             for job in payload["jobs"]
         ))
 
+    def test_health_cli_deadline_includes_slow_fleet_projection(self):
+        output = io.StringIO()
+        original_project = health.project_health
+        rows = [self.status_row(f"slow-{index}") for index in range(176)]
+
+        def slow_fleet_project(rows, **kwargs):
+            if rows and rows[0].get("error_class") == "health_snapshot_timeout":
+                return original_project(rows, **kwargs)
+            return original_project(
+                rows,
+                adapter=lambda row: (time.sleep(0.5), row)[1],
+                adapter_timeout_seconds=0.5,
+                **kwargs,
+            )
+
+        started = time.monotonic()
+        with (
+            patch("runtime.loop.lm_loop.snapshot", return_value=rows),
+            patch("runtime.loop.lm_loop.project_health", side_effect=slow_fleet_project),
+            patch("runtime.loop.lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS", 0.02),
+            redirect_stdout(output),
+        ):
+            result = lm_loop_main(["health", "--json"])
+        elapsed = time.monotonic() - started
+
+        self.assertEqual(result, 1)
+        self.assertLess(elapsed, 0.3)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["schema_version"], "lm-loop.health.v1")
+        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
+        self.assertTrue(all(
+            job["diagnostic"]["error_class"] == "health_projection_timeout"
+            for job in payload["jobs"]
+        ))
+
+    def test_snapshot_time_consumption_reduces_projection_deadline(self):
+        output = io.StringIO()
+        original_project = health.project_health
+        rows = [self.status_row(f"slow-{index}") for index in range(176)]
+
+        def slow_snapshot(*_args, **_kwargs):
+            time.sleep(0.015)
+            return rows
+
+        def slow_fleet_project(project_rows, **kwargs):
+            return original_project(
+                project_rows,
+                adapter=lambda row: (time.sleep(0.5), row)[1],
+                adapter_timeout_seconds=0.5,
+                **kwargs,
+            )
+
+        started = time.monotonic()
+        with (
+            patch("runtime.loop.lm_loop.snapshot", side_effect=slow_snapshot),
+            patch("runtime.loop.lm_loop.project_health", side_effect=slow_fleet_project),
+            patch("runtime.loop.lm_loop.HEALTH_SNAPSHOT_TIMEOUT_SECONDS", 0.03),
+            redirect_stdout(output),
+        ):
+            result = lm_loop_main(["health", "--json"])
+        elapsed = time.monotonic() - started
+
+        self.assertEqual(result, 1)
+        self.assertLess(elapsed, 0.3)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["summary"]["telemetry_gap"], 176)
+        self.assertTrue(all(
+            job["diagnostic"]["error_class"] == "health_projection_timeout"
+            for job in payload["jobs"]
+        ))
+
     def test_health_human_skill_and_loop_explain_surfaces(self):
         row = self.status_row("writer-report", product_loop_id="writer", system_role=None)
         human = io.StringIO()
@@ -410,6 +659,60 @@ class LmLoopHealthTest(unittest.TestCase):
         value["summary"]["healthy"] = 0
         with self.assertRaisesRegex(ValueError, "health summary does not match jobs"):
             health.validate_health_document(value)
+
+    def test_health_schema_and_python_validator_reject_the_same_invalid_shapes(self):
+        validator = Draft202012Validator(
+            health.health_json_schema(), format_checker=FormatChecker(),
+        )
+        base = health.project_health([self.status_row()])
+
+        def changed(mutator):
+            value = copy.deepcopy(base)
+            mutator(value)
+            return value
+
+        fixtures = {
+            "numeric-product-loop": changed(lambda value: value["jobs"][0].update({
+                "product_loop_id": 7, "system_role": None,
+            })),
+            "empty-product-loop": changed(lambda value: value["jobs"][0].update({
+                "product_loop_id": "", "system_role": None,
+            })),
+            "empty-job-id": changed(
+                lambda value: value["jobs"][0].update({"job_id": ""})
+            ),
+            "empty-label": changed(
+                lambda value: value["jobs"][0].update({"label": ""})
+            ),
+            "fleet-target": changed(
+                lambda value: value["scope"].update({"target": "unexpected"})
+            ),
+            "loop-target-null": changed(
+                lambda value: value["scope"].update({"kind": "loop", "target": None})
+            ),
+            "bad-system-role": changed(
+                lambda value: value["jobs"][0].update({"system_role": "worker"})
+            ),
+            "extra-job-field": changed(
+                lambda value: value["jobs"][0].update({"extra": True})
+            ),
+            "missing-diagnostic-field": changed(
+                lambda value: value["jobs"][0]["diagnostic"].pop("owner_id")
+            ),
+            "bad-generated-at": changed(
+                lambda value: value.update({"generated_at": "not-a-date-time"})
+            ),
+        }
+
+        for name, value in fixtures.items():
+            with self.subTest(name=name):
+                self.assertFalse(validator.is_valid(value))
+                accepted = True
+                try:
+                    health.validate_health_document(value)
+                except ValueError:
+                    accepted = False
+                self.assertFalse(accepted)
 
 
 if __name__ == "__main__":

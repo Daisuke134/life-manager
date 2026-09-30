@@ -6,6 +6,7 @@ import json
 import signal
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from time import monotonic
 
 
 SCHEMA_VERSION = "lm-loop.health.v1"
@@ -30,14 +31,18 @@ class HealthTimeout(TimeoutError):
     pass
 
 
+class HealthAdapterTimeout(HealthTimeout):
+    pass
+
+
 @contextmanager
-def health_deadline(seconds: float):
+def health_deadline(seconds: float, *, timeout_error=HealthTimeout):
     if seconds <= 0:
         raise ValueError("health deadline must be positive")
     previous_handler = signal.getsignal(signal.SIGALRM)
 
     def expired(_signum, _frame):
-        raise HealthTimeout("health deadline exceeded")
+        raise timeout_error("health deadline exceeded")
 
     signal.signal(signal.SIGALRM, expired)
     signal.setitimer(signal.ITIMER_REAL, seconds)
@@ -68,7 +73,14 @@ def health_json_schema() -> dict:
         "required": ["schema_version", "generated_at", "scope", "summary", "jobs"],
         "properties": {
             "schema_version": {"const": SCHEMA_VERSION},
-            "generated_at": {"type": "string", "format": "date-time"},
+            "generated_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": (
+                    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                    r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+                ),
+            },
             "scope": {
                 "type": "object",
                 "required": ["kind", "target"],
@@ -76,6 +88,20 @@ def health_json_schema() -> dict:
                     "kind": {"type": "string", "enum": ["fleet", "loop"]},
                     "target": nullable_string,
                 },
+                "oneOf": [
+                    {
+                        "properties": {
+                            "kind": {"const": "fleet"},
+                            "target": {"type": "null"},
+                        },
+                    },
+                    {
+                        "properties": {
+                            "kind": {"const": "loop"},
+                            "target": {"type": "string", "minLength": 1},
+                        },
+                    },
+                ],
                 "additionalProperties": False,
             },
             "summary": {
@@ -119,8 +145,8 @@ def health_json_schema() -> dict:
                 "type": "object",
                 "required": sorted(JOB_FIELDS),
                 "properties": {
-                    "job_id": {"type": "string"},
-                    "label": {"type": "string"},
+                    "job_id": {"type": "string", "minLength": 1},
+                    "label": {"type": "string", "minLength": 1},
                     "product_loop_id": nullable_string,
                     "system_role": {
                         "type": ["string", "null"],
@@ -157,7 +183,7 @@ def health_json_schema() -> dict:
                 "oneOf": [
                     {
                         "properties": {
-                            "product_loop_id": {"type": "string"},
+                            "product_loop_id": {"type": "string", "minLength": 1},
                             "system_role": {"type": "null"},
                         },
                     },
@@ -179,8 +205,11 @@ def render_health_json_schema() -> bytes:
     return (json.dumps(health_json_schema(), indent=2, sort_keys=True) + "\n").encode()
 
 
-def _clock(row: dict, *, statuses: set[str] | None = None,
+def _clock(row: dict, name: str, *, statuses: set[str] | None = None,
            require_receipt: bool = False) -> str | None:
+    historical = (row.get("health_clocks") or {}).get(name)
+    if isinstance(historical, str):
+        return historical
     timestamp = row.get("last_pass")
     if not isinstance(timestamp, str):
         return None
@@ -259,27 +288,59 @@ def _facets(row: dict, state: str) -> dict[str, dict[str, str | None]]:
 
 def project_health(rows: list[dict], *, scope: str = "fleet",
                    target: str | None = None, adapter=None,
-                   adapter_timeout_seconds: float = 0.25) -> dict:
+                   adapter_timeout_seconds: float = 0.25,
+                   deadline_monotonic: float | None = None) -> dict:
     jobs = []
     adapted_rows = []
     for original in rows:
         if original.get("classification") not in {None, "managed"}:
             continue
         row = dict(original)
+        remaining = (
+            deadline_monotonic - monotonic()
+            if deadline_monotonic is not None else None
+        )
+        if remaining is not None and remaining <= 0:
+            row.update({
+                "health_adapter_status": "timeout",
+                "error_class": "health_projection_timeout",
+                "retryable": True,
+                "next_action": "retry_health_snapshot",
+            })
+            adapted_rows.append(row)
+            continue
         if adapter is not None:
+            adapter_deadline = (
+                min(adapter_timeout_seconds, remaining)
+                if remaining is not None else adapter_timeout_seconds
+            )
+            fleet_deadline_is_tighter = (
+                remaining is not None and remaining <= adapter_timeout_seconds
+            )
             try:
-                with health_deadline(adapter_timeout_seconds):
+                with health_deadline(
+                    adapter_deadline,
+                    timeout_error=HealthAdapterTimeout,
+                ):
                     adapted = adapter(row)
                 if not isinstance(adapted, dict):
                     raise ValueError("health adapter must return an object")
                 row = adapted
-            except HealthTimeout:
+            except HealthAdapterTimeout:
                 row.update({
                     "health_adapter_status": "timeout",
-                    "error_class": "health_adapter_timeout",
+                    "error_class": (
+                        "health_projection_timeout" if fleet_deadline_is_tighter
+                        else "health_adapter_timeout"
+                    ),
                     "retryable": True,
-                    "next_action": "inspect_health_adapter",
+                    "next_action": (
+                        "retry_health_snapshot" if fleet_deadline_is_tighter
+                        else "inspect_health_adapter"
+                    ),
                 })
+            except HealthTimeout:
+                raise
             except Exception:
                 row.update({
                     "health_adapter_status": "error",
@@ -299,14 +360,16 @@ def project_health(rows: list[dict], *, scope: str = "fleet",
             "state": state,
             "facets": _facets(row, state),
             "clocks": {
-                "last_attempt": _clock(row),
-                "last_success": _clock(row, statuses={"pass"}),
+                "last_attempt": _clock(row, "last_attempt"),
+                "last_success": _clock(row, "last_success", statuses={"pass"}),
                 "last_effect": (
-                    _clock(row) if row.get("effect_class") != "none"
+                    _clock(row, "last_effect") if row.get("effect_class") != "none"
                     and effect_status in {"started", "verified", "failed", "reconciled"}
-                    else None
+                    else (row.get("health_clocks") or {}).get("last_effect")
                 ),
-                "last_receipt": _clock(row, require_receipt=True),
+                "last_receipt": _clock(
+                    row, "last_receipt", require_receipt=True,
+                ),
             },
             "diagnostic": {
                 "release_sha": row.get("event_release_sha") or row.get("installed_release_sha"),
@@ -346,9 +409,11 @@ def validate_health_document(value: dict) -> dict:
     if value["schema_version"] != SCHEMA_VERSION:
         raise ValueError("invalid health schema_version")
     try:
-        datetime.fromisoformat(value["generated_at"].replace("Z", "+00:00"))
+        generated_at = datetime.fromisoformat(value["generated_at"].replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
         raise ValueError("invalid health generated_at") from exc
+    if generated_at.tzinfo is None:
+        raise ValueError("invalid health generated_at")
     scope = value["scope"]
     if (not isinstance(scope, dict) or set(scope) != {"kind", "target"}
             or scope.get("kind") not in {"fleet", "loop"}):
@@ -374,6 +439,9 @@ def validate_health_document(value: dict) -> dict:
         product_loop_id, system_role = job.get("product_loop_id"), job.get("system_role")
         if (product_loop_id is None) == (system_role is None):
             raise ValueError("health job requires exactly one classification")
+        if (product_loop_id is not None
+                and (not isinstance(product_loop_id, str) or not product_loop_id)):
+            raise ValueError("invalid health product_loop_id")
         if system_role is not None and system_role not in SYSTEM_ROLES:
             raise ValueError("invalid health system_role")
         if set(job.get("clocks", {})) != {
